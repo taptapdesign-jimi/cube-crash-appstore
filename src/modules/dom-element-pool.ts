@@ -52,7 +52,6 @@ class DOMElementPool {
     
     // 🔥 FIX: Prevent double-release
     if (this.inPool.has(el)) {
-      console.warn('⚠️ DOMElementPool: Attempted double-release of element, ignoring');
       return;
     }
 
@@ -129,7 +128,6 @@ class DOMElementPool {
       (el as any).scale = 1;
       (el as any).rotation = 0;
       (el as any).opacity = 1;
-      
       // Reset img-specific properties
       if (el.tagName.toLowerCase() === 'img') {
         (el as HTMLImageElement).src = '';

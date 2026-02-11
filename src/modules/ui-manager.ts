@@ -1106,11 +1106,17 @@ class UIManager {
           gameState.showGameUI();
           logger.info('✅ showGameUI() called in showApp()');
         }
+        // 🔥 CRITICAL FIX: Restart PIXI ticker when showing app (was stopped in hideApp to prevent addressModeU crash)
+        const pixiApp = gameState.app || (window as any).STATE?.app || (window as any).app;
+        if (pixiApp?.ticker && !pixiApp.ticker.started) {
+          pixiApp.ticker.start();
+          logger.info('✅ PIXI ticker restarted in showApp()');
+        }
       }
     } catch (e) {
       logger.warn('⚠️ Failed to ensure board/HUD visibility in showApp():', e);
     }
-    
+
     // Hide navigation when entering game
     this.hideNavigation();
   }
@@ -1284,6 +1290,19 @@ class UIManager {
       logger.info('✅ Board and HUD hidden when app is hidden');
     } catch (error) {
       logger.warn('⚠️ Failed to hide board/HUD when app is hidden:', error);
+    }
+
+    // 🔥 CRITICAL FIX: Stop PIXI ticker when hiding app to prevent "addressModeU" crash
+    // The renderer was still running and trying to bind textures that may have been
+    // invalidated during cleanup, causing TypeError in GlTextureSystem.applyStyleParams.
+    // Ticker is restarted in showApp() when the game is shown again.
+    try {
+      if (typeof (window as any).stopPixiTicker === 'function') {
+        (window as any).stopPixiTicker();
+        logger.info('✅ PIXI ticker stopped when app hidden (prevents addressModeU crash)');
+      }
+    } catch (tickerError) {
+      logger.warn('⚠️ Failed to stop PIXI ticker when hiding app:', tickerError);
     }
   }
   

@@ -1002,9 +1002,37 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Store stage visibility for later restoration
   const stageWasVisible = stage?.visible ?? true;
   
+  // 🔥 MEMORY SPIKE FIX: Reuse existing HUD_ROOT if it's valid and on the same stage.
+  // This prevents unnecessary destroy/recreate cycles that cause memory spikes.
+  // Previously we forced fresh HUD on board transition due to addressModeU concerns;
+  // with ticker stop + skipCacheClear during transition, reuse is now safe.
+  if (HUD_ROOT && !HUD_ROOT.destroyed && HUD_ROOT.parent === stage) {
+    console.log('♻️ Reusing existing HUD_ROOT (same stage) - skipping destroy/recreate');
+    // Kill any lingering animations before reusing
+    try { gsap.killTweensOf(HUD_ROOT); } catch {}
+    // Just update properties instead of destroying
+    HUD_ROOT._dropTop = top;
+    if (initialHide) {
+      HUD_ROOT.alpha = 0;
+      HUD_ROOT.y = top - 140;
+      HUD_ROOT._dropped = false;
+    } else {
+      HUD_ROOT.alpha = 1;
+      HUD_ROOT.y = top;
+      HUD_ROOT._dropped = true;
+    }
+    // Update stage reference
+    HUD_ROOT._stage = stage;
+    HUD_ROOT._stageWasVisible = stageWasVisible;
+    // Re-layout in case screen size changed (e.g. rotation)
+    try { layout({ app, top }); } catch {}
+    return; // Early return - HUD already exists and is valid
+  }
+  
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
   // 🔥 CRITICAL: DESTROY old HUD_ROOT completely (MEMORY LEAK FIX)
+  // Only destroy if HUD_ROOT exists and is invalid (different stage or destroyed)
   try { 
     if (HUD_ROOT && !HUD_ROOT.destroyed) {
       console.log('🧹 Destroying old HUD_ROOT with', HUD_ROOT.children?.length ?? 0, 'children');
@@ -1015,8 +1043,24 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       if (HUD_ROOT.parent) {
         try { HUD_ROOT.parent.removeChild(HUD_ROOT); } catch {}
       }
-      // Kill any active tweens on HUD_ROOT
-      try { gsap.killTweensOf(HUD_ROOT); } catch {}
+      // 🔥 CRITICAL FIX: Kill GSAP animations BEFORE destroying to prevent null property errors
+      try { 
+        gsap.killTweensOf(HUD_ROOT);
+        // Also kill animations on all children
+        if (HUD_ROOT.children) {
+          HUD_ROOT.children.forEach((child: any) => {
+            try {
+              if (child && !child.destroyed) {
+                gsap.killTweensOf(child);
+                gsap.killTweensOf(child.x);
+                gsap.killTweensOf(child.y);
+                gsap.killTweensOf(child.alpha);
+                gsap.killTweensOf(child.scale);
+              }
+            } catch {}
+          });
+        }
+      } catch {}
       // Destroy HUD_ROOT and all its children (Graphics, Sprites, etc.)
       try { HUD_ROOT.destroy({ children: true, texture: false, textureSource: false }); } catch {}
       console.log('✅ Old HUD_ROOT destroyed');
@@ -1563,10 +1607,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   };
   
   // Create HUD elements
+  // 🔥 HUD font stack: LTCrow first (loaded via ensureFonts before initHUD), Arial fallback to prevent black boxes
+  const HUD_FONT = 'LTCrow, Arial, system-ui, -apple-system, sans-serif';
+  
   // 🔥 NEW ORDER: Close → Star → Coin → Combo
   // 1. Star (currency) - second (after close)
   const starHud = createHudElement('./assets/hud/star-hud.png', '0', {
-    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+    fontFamily: HUD_FONT,
     fontSize: 18,
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
     fontWeight: 'bold',
@@ -1575,7 +1622,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // 2. Coin (score) - third - using score-hud.png instead of coin-hud.png
   const coinHud = createHudElement('./assets/hud/score-hud.png', '0', {
-    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+    fontFamily: HUD_FONT,
     fontSize: 18, // Changed from 20 to 18
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
     fontWeight: 'bold',
@@ -1623,7 +1670,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const comboXTextLocal = new Text({ 
     text: 'x', 
     style: {
-      fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+      fontFamily: HUD_FONT,
       fontSize: 14,
       fill: 0xE77449, // Color #E77449
       fontWeight: 'bold',
@@ -1643,7 +1690,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const comboNumberText = new Text({ 
     text: '0', 
     style: {
-      fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+      fontFamily: HUD_FONT,
       fontSize: 18, // All numbers are 18px
       fill: 0xE77449, // Color #E77449
       fontWeight: 'bold',
@@ -2250,10 +2297,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)
 export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
-  if (!HUD_ROOT) {
-    console.warn('⚠️ playHudDrop: HUD_ROOT is null, cannot play drop animation');
-    return;
-  }
+  const hudRoot = HUD_ROOT || (window as any).HUD_ROOT || null;
+  if (!hudRoot) return;
+  if (!HUD_ROOT) HUD_ROOT = hudRoot;
 
   // 🔥 CRITICAL FIX: Add HUD_ROOT to stage NOW if it wasn't added yet (initialHide path)
   if (!HUD_ROOT.parent && HUD_ROOT._stage) {
@@ -2372,8 +2418,8 @@ export function cleanupSmokeBubbles() {
 
 // Play HUD rise animation - exact reverse of playHudDrop
 export function playHudRise({ duration = 0.3 } = {}){
-  if (!HUD_ROOT) {
-    console.warn('⚠️ playHudRise: HUD_ROOT is null, skipping animation');
+  const hudRoot = HUD_ROOT || (window as any).HUD_ROOT || null;
+  if (!hudRoot) {
     // Wait 0.1s after HUD would have started, then animate board indicator
     // 🔥 FIX: Track timeout for cleanup
     trackHudTimeout(() => {
@@ -2381,6 +2427,7 @@ export function playHudRise({ duration = 0.3 } = {}){
     }, 100);
     return;
   }
+  if (!HUD_ROOT) HUD_ROOT = hudRoot;
   
   // Safety: double-check HUD_ROOT is still valid
   try {
@@ -2439,12 +2486,10 @@ export function playHudRise({ duration = 0.3 } = {}){
 
 export function updateHUD({ score, board, moves, combo }) {
   if (!HUD_ROOT) {
-    console.warn('⚠️ HUD_ROOT is null, cannot update HUD');
     return;
   }
   
   if (!boardText || !scoreText || !comboText) {
-    console.warn('⚠️ HUD text elements are null, cannot update HUD');
     return;
   }
   

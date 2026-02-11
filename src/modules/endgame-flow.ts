@@ -482,9 +482,27 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // 🔥 LONG-TERM FIX: More aggressive cleanup for board 10+ to prevent accumulation
     const isLongGameSession = nextLevel >= 10;
     const isVeryLongSession = nextLevel >= 20;
+
+    // 🔥 Memory spike tracker: identifies which step causes the largest allocation
+    try {
+      const { initMemorySpikeTracker, sampleMemorySpike, reportBiggestMemorySpike } = await import('../utils/memory-spike-tracker.js');
+      initMemorySpikeTracker();
+    } catch {}
     
     try {
       console.log(`🧹 endgame-flow: Performing ${isVeryLongSession ? 'VERY AGGRESSIVE' : isLongGameSession ? 'AGGRESSIVE' : 'standard'} cleanup before startLevel (Board ${nextLevel})...`);
+      
+      // Kill all animation-manager tracked tweens (matches Exit path behavior)
+      try {
+        const animMod = await import('./animation-manager.js');
+        const am = animMod?.default;
+        if (am && typeof am.killAll === 'function') {
+          am.killAll();
+          console.log('✅ endgame-flow: animationManager.killAll() completed');
+        }
+      } catch (e) {
+        console.warn('⚠️ endgame-flow: animationManager.killAll failed:', e);
+      }
       
       // Kill all GSAP animations
       if (gsap) {
@@ -540,6 +558,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } catch (e) {
         // Ignore errors
       }
+
+      // 🔥 MEMORY SPIKE FIX: Stop and destroy wild-beer bubble caches BEFORE transition.
+      // Board 6 often has explosion active; freeing these early reduces peak during 6→7 transition.
+      try {
+        const bubbles = await import('./wild-beer-bubbles-explosion.js');
+        const bubblesScreen = await import('./wild-beer-bubbles-screen.js');
+        bubbles.forceStopWildBeerBubblesExplosion?.();
+        bubblesScreen.stopWildBeerBubblesScreen?.();
+        bubbles.destroyWildBeerBubblesExplosionCache?.();
+        bubblesScreen.destroyWildBeerBubblesScreenCache?.();
+        console.log('✅ endgame-flow: Bubble caches destroyed before transition');
+      } catch (e) {
+        console.warn('⚠️ endgame-flow: Bubble cache cleanup failed (non-fatal):', e);
+      }
       
       // 🔥 CRITICAL FIX: Cleanup FX in one place to avoid duplicate logic
       // cleanupAllEffects already skips bubble explosion during board transition.
@@ -576,96 +608,36 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }
       } catch {}
       
-      // 🔥 LONG-TERM: Additional cleanup for very long sessions (board 20+)
+      // 🔥 LONG-TERM: GC for very long sessions (board 20+) - NO texture cleanup here;
+      // clearTextureCache/destroy base textures cause addressModeU crash (stage still references them).
       if (isVeryLongSession) {
-        console.log('🔥 VERY LONG SESSION: Performing extra cleanup for board', nextLevel);
+        console.log('🔥 VERY LONG SESSION: Forcing GC for board', nextLevel);
         try {
-          // Clear PIXI texture cache
-          if (window.PIXI && window.PIXI.utils) {
-            if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
-              window.PIXI.utils.destroyTextureCache();
-            } else if (typeof window.PIXI.utils.clearTextureCache === 'function') {
-              window.PIXI.utils.clearTextureCache();
-            }
-            
-            // 🔥 CRITICAL FIX: Force clear ALL base textures for very long sessions
-            const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
-            if (baseTextureCache) {
-              Object.keys(baseTextureCache).forEach((key: string) => {
-                try {
-                  const baseTexture = baseTextureCache[key];
-                  if (baseTexture && typeof baseTexture.destroy === 'function') {
-                    baseTexture.destroy();
-                  }
-                  delete baseTextureCache[key];
-                } catch (e) {
-                  console.warn('⚠️ Failed to destroy base texture:', key, e);
-                }
-              });
-              console.log('✅ All base textures cleared for very long session');
-            }
-          }
-          
-          // Force garbage collection if available
-          if (window.gc) {
+          if (window.gc && typeof window.gc === 'function') {
             window.gc();
             console.log('✅ Garbage collection forced');
           }
         } catch (e) {
-          console.warn('⚠️ Very long session cleanup error:', e);
+          console.warn('⚠️ Very long session GC error:', e);
         }
       }
       
-      // 🔥 LONG-TERM: Aggressive cleanup for board 10+ (not just 20+)
+      // 🔥 LONG-TERM: Aggressive non-texture cleanup for board 10+ - skip PIXI texture cache;
+      // Texture cleanup before transition causes "addressModeU" null crash on next render.
       if (isLongGameSession) {
-        console.log('🔥 LONG SESSION: Performing aggressive cleanup for board', nextLevel);
-        try {
-          // Clear PIXI texture cache more aggressively
-          if (window.PIXI && window.PIXI.utils) {
-            if (typeof window.PIXI.utils.clearTextureCache === 'function') {
-              window.PIXI.utils.clearTextureCache();
-            } else if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
-              window.PIXI.utils.destroyTextureCache();
-            }
-            
-            // Clear unused base textures
-            const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
-            if (baseTextureCache) {
-              const toRemove: string[] = [];
-              for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
-                try {
-                  const bt = baseTexture as any;
-                  if (bt && (!bt.textureCacheIds || bt.textureCacheIds.length === 0)) {
-                    if (typeof bt.destroy === 'function') {
-                      bt.destroy();
-                    }
-                    toRemove.push(key as string);
-                  }
-                } catch (e) {
-                  // Ignore errors
-                }
-              }
-              toRemove.forEach(key => {
-                try {
-                  delete baseTextureCache[key];
-                } catch (e) {
-                  // Ignore errors
-                }
-              });
-              if (toRemove.length > 0) {
-                console.log(`✅ Cleared ${toRemove.length} unused base textures for long session`);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('⚠️ Long session cleanup error:', e);
-        }
+        console.log('🔥 LONG SESSION: Aggressive cleanup (no texture cache) for board', nextLevel);
       }
       
       console.log(`✅ endgame-flow: ${isVeryLongSession ? 'VERY AGGRESSIVE' : isLongGameSession ? 'AGGRESSIVE' : 'Standard'} cleanup completed`);
     } catch (cleanupError) {
       console.warn('⚠️ endgame-flow: Cleanup error (non-fatal):', cleanupError);
     }
+    try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('1_after_standard_cleanup'); } catch {}
+    
+    // 🧪 DEV LOG: Snapshot right before starting next board
+    try {
+      (window as any).__ccLogRuntimeStats?.(`continue->board${nextLevel}:preStart`);
+    } catch {}
     
     // 🔥 USER BUG FIX: Clear __ccSkipRebuildBoard flag before starting next level
     // This ensures board is rebuilt properly for each new level (prevents ghost placeholders)
@@ -722,40 +694,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         tnt.stopTntAnimation?.();
       } catch {}
 
-      // 🍎 iOS: Aggressive memory reduction before transition to lower WebContent crash risk
-      try {
-        const memModule = await import('./memory-manager.js');
-        if (memModule?.default?.performCleanup) {
-          memModule.default.performCleanup();
-          console.log('✅ endgame-flow: Memory manager cleanup before transition');
-        }
-      } catch {}
-      try {
-        if (window.PIXI?.utils) {
-          let removedBaseTextures = 0;
-          if (typeof window.PIXI.utils.clearTextureCache === 'function') {
-            window.PIXI.utils.clearTextureCache();
-          }
-          const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
-          if (baseTextureCache && typeof baseTextureCache === 'object') {
-            const toRemove: string[] = [];
-            for (const [key, bt] of Object.entries(baseTextureCache)) {
-              const baseTexture = bt as { textureCacheIds?: string[]; destroy?: () => void };
-              if (baseTexture && (!baseTexture.textureCacheIds || baseTexture.textureCacheIds.length === 0)) {
-                try {
-                  baseTexture.destroy?.();
-                  toRemove.push(key);
-                } catch {}
-              }
-            }
-            toRemove.forEach(k => { try { delete baseTextureCache[k]; } catch {} });
-            removedBaseTextures = toRemove.length;
-          }
-          if (removedBaseTextures > 0) {
-            console.log(`🧹 endgame-flow: Removed ${removedBaseTextures} unused base textures before transition`);
-          }
-        }
-      } catch {}
+      // 🔥 CRITICAL: Do NOT call memoryManager.performCleanup() or PIXI.utils.clearTextureCache
+      // before transition. The stage (board, HUD) still references those textures. Destroying them
+      // causes "TypeError: Cannot read properties of null (reading 'addressModeU')" when the
+      // renderer binds a texture whose source was destroyed. Texture cleanup runs after the new
+      // board is ready (triggerCleanBoardFlow in app-core) and via periodic memoryManager (30s).
       await new Promise(resolve => requestAnimationFrame(resolve));
       await new Promise(resolve => requestAnimationFrame(resolve));
 
@@ -763,6 +706,29 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       (window as any).__ccBoardTransitionActive = true;
       console.log('🎯 endgame-flow: Set __ccBoardTransitionActive flag to protect bubble explosion');
       
+      // Log pre-transition stats (matches logBoardExitStats on Exit path)
+      try {
+        const mmMod = await import('./memory-manager.js');
+        const mm = mmMod?.default;
+        const animMod = await import('./animation-manager.js');
+        const am = animMod?.default;
+        const mmStats = mm && typeof (mm as any).getMemoryInfo === 'function' ? (mm as any).getMemoryInfo() : null;
+        const animStats = am && typeof (am as any).getStats === 'function' ? (am as any).getStats() : null;
+        const pixiUtils = (window as any).PIXI?.utils || null;
+        const texCache = pixiUtils?.TextureCache ? Object.keys(pixiUtils.TextureCache).length : null;
+        const baseCache = pixiUtils?.BaseTextureCache ? Object.keys(pixiUtils.BaseTextureCache).length : null;
+        const runtimeTextures = (window as any).__ccRuntimeTextures?.size ?? null;
+        console.log('🧪 endgame-flow: Pre-transition stats (Continue)', {
+          memoryManager: mmStats,
+          animationManager: animStats,
+          pixiCache: { texture: texCache, baseTexture: baseCache },
+          runtimeTextures
+        });
+      } catch (e) {
+        console.warn('⚠️ endgame-flow: Pre-transition stats failed:', e);
+      }
+      
+      try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('2_before_show_transition'); } catch {}
       const { showBoardTransitionScreen, cleanupBoardTransitionScreen } = await import('./board-transition-screen.js');
       try {
         cleanupBoardTransitionScreen?.();
@@ -776,8 +742,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
+          // 🔥 CRITICAL: Stop PIXI ticker FIRST (sync, before any await) to prevent "addressModeU" errors.
+          // A frame can fire between awaits; renderer must not touch textures while we destroy them.
+          try {
+            const app = (window as any).CC?.app;
+            if (app?.ticker) {
+              app.ticker.stop();
+              console.log('✅ endgame-flow: PIXI ticker stopped (first in onComplete)');
+            }
+          } catch {}
           const transitionEndTs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
           console.log('⏱️ endgame-flow: Transition duration (ms)', Math.round(transitionEndTs - transitionStartTs));
+          // 🔥 CRITICAL: Force-clean board transition screen before proceeding (belt-and-suspenders)
+          try { cleanupBoardTransitionScreen?.(); } catch {}
           // 🔥 CRITICAL: Hide ghost placeholders immediately (sync, before any await)
           // Prevents one-frame blink when transition overlay is removed or before new board is ready
           try {
@@ -811,6 +788,40 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           } catch (hideError) {
             console.warn('⚠️ endgame-flow: Failed to hide app (non-fatal):', hideError);
           }
+          try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('5_after_hideApp'); } catch {}
+
+          // (Ticker already stopped at start of onComplete to prevent addressModeU during cleanup)
+
+          // 🔥 MEMORY SPIKE FIX: Destroy old tiles and run soft texture cleanup BEFORE booting new board.
+          // This reduces peak memory (avoids old + new tiles + transition assets all in memory).
+          try {
+            (window as any).CC?.cleanupFxForBoardReset?.('endgame-flow');
+            (window as any).CC?.softResetBoardView?.('endgame-flow');
+            (window as any).CC?.destroyOldBoardForTransition?.('endgame-flow');
+            try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('6_after_destroyOldBoard'); } catch {}
+            // skipCacheClear=true to avoid addressModeU crash (renderer binding destroyed texture)
+            (window as any).CC?.cleanupTexturesForBoardTransition?.('endgame-flow', false, true);
+            try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('7_after_cleanupTextures'); } catch {}
+            console.log('✅ endgame-flow: Old board destroyed, texture GC run');
+
+            // 🔥 CRITICAL: Nuclear GSAP kill - prevents "Cannot set properties of null (setting 'y')" errors.
+            // Orphaned tweens from board-transition-screen, journey-boards-manager, etc. animate destroyed objects.
+            try {
+              if (typeof (gsap as any).getAllTweens === 'function') {
+                const allTweens = (gsap as any).getAllTweens();
+                if (Array.isArray(allTweens)) {
+                  allTweens.forEach((t: any) => { try { t?.kill?.(); } catch {} });
+                  console.log('✅ endgame-flow: Killed', allTweens.length, 'GSAP tweens');
+                }
+              }
+              gsap.killTweensOf('*');
+              if (gsap.globalTimeline) gsap.globalTimeline.clear();
+            } catch (gsapErr) {
+              console.warn('⚠️ endgame-flow: GSAP nuclear kill failed (non-fatal):', gsapErr);
+            }
+          } catch (memErr) {
+            console.warn('⚠️ endgame-flow: Pre-startLevel memory cleanup failed (non-fatal):', memErr);
+          }
 
           const transitionEndMem = (performance as any)?.memory;
           if (transitionEndMem) {
@@ -822,6 +833,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           }
           await new Promise(resolve => requestAnimationFrame(resolve));
           await new Promise(resolve => requestAnimationFrame(resolve));
+
+          // 🔥 MEMORY SPIKE FIX: Short delay so GC can reclaim old board before new board allocates.
+          // Reduces peak on iOS during board transition (esp. 6→7).
+          await new Promise(resolve => setTimeout(resolve, 100));
+          try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('8_after_delay'); } catch {}
+
+          // 🔥 CRITICAL: Restart PIXI ticker so boot/render can proceed
+          try {
+            const app = (window as any).CC?.app;
+            if (app?.ticker && !app.ticker.started) {
+              app.ticker.start();
+              console.log('✅ endgame-flow: PIXI ticker started before boot');
+            }
+          } catch {}
           
           // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
           try {
@@ -851,16 +876,25 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
               } catch {}
             };
 
-            // Centralized cleanup before starting next board
-            try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-flow'); } catch {}
-            try { (window as any).CC?.softResetBoardView?.('endgame-flow'); } catch {}
+            // Centralized cleanup already done above (cleanupFx, softReset, destroyOld, texture cleanup)
+            try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('9_before_startLevel'); } catch {}
             if (shouldUseJourneyStart) {
               // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
               console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
               if (typeof (window as any).startNewRunFromJourney === 'function') {
                 await (window as any).startNewRunFromJourney(nextLevel);
+                try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('10_after_startLevel'); } catch {}
                 logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
+                // 🔥 CRITICAL: Await layoutBoard so HUD and board are ready before showing (prevents empty board/HUD)
+                try {
+                  const layoutBoardFn = (window as any).CC?.layoutBoard;
+                  if (typeof layoutBoardFn === 'function') {
+                    await layoutBoardFn();
+                    console.log('✅ endgame-flow: layoutBoard completed before showApp');
+                  }
+                } catch (lbErr) { console.warn('⚠️ endgame-flow: layoutBoard await failed (non-fatal):', lbErr); }
                 await ensureBoardVisibleAfterTransition();
+                try { delete (window as any).__ccBoardJustCompleted; } catch {}
               } else {
                 console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
                 try {
@@ -869,6 +903,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
                   uiMgr?.showApp?.();
                 } catch {}
                 startLevel(nextLevel);
+                try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('10_after_startLevel'); } catch {}
+                try {
+                  const layoutBoardFn = (window as any).CC?.layoutBoard;
+                  if (typeof layoutBoardFn === 'function') { await layoutBoardFn(); }
+                } catch {}
                 await ensureBoardVisibleAfterTransition();
               }
             } else {
@@ -880,9 +919,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
                 uiMgr?.showApp?.();
               } catch {}
               startLevel(nextLevel);
+              try { (await import('../utils/memory-spike-tracker.js')).sampleMemorySpike('10_after_startLevel'); } catch {}
               logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
+              // 🔥 CRITICAL: Await layoutBoard so HUD and board are ready before showing (prevents empty board/HUD)
+              try {
+                const layoutBoardFn = (window as any).CC?.layoutBoard;
+                if (typeof layoutBoardFn === 'function') {
+                  await layoutBoardFn();
+                  console.log('✅ endgame-flow: layoutBoard completed before showApp');
+                }
+              } catch (lbErr) { console.warn('⚠️ endgame-flow: layoutBoard await failed (non-fatal):', lbErr); }
               await ensureBoardVisibleAfterTransition();
+              try { delete (window as any).__ccBoardJustCompleted; } catch {}
             }
+            try { (await import('../utils/memory-spike-tracker.js')).reportBiggestMemorySpike(); } catch {}
 
             // 🔥 RECOVERY: If board failed to appear after transition, retry once
             setTimeout(async () => {
@@ -921,6 +971,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
               }
             }, 600);
           } catch (startLevelError: any) {
+            try { (await import('../utils/memory-spike-tracker.js')).reportBiggestMemorySpike(); } catch {}
             console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
             logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
             // 🔥 CRITICAL FIX: Clear board transition flag on error to prevent stuck state

@@ -113,6 +113,12 @@ async function loadTextureAsync(source: string): Promise<Texture | null> {
   }
 }
 
+function isTextureValid(texture: Texture | null): boolean {
+  if (!texture) return false;
+  const source = (texture as any).source ?? (texture as any).baseTexture;
+  return !!source?.valid;
+}
+
 // Sinkroni fallback - koristi samo cache, bez upozorenja
 function getTextureFromCache(source: string): Texture | null {
   try {
@@ -121,7 +127,7 @@ function getTextureFromCache(source: string): Texture | null {
       return null;
     }
     const texture = Assets.get(source);
-    if (texture && texture instanceof Texture && texture.baseTexture?.valid) {
+    if (texture && texture instanceof Texture && isTextureValid(texture)) {
       return texture;
     }
     return null;
@@ -133,7 +139,7 @@ function getTextureFromCache(source: string): Texture | null {
 // Async verzija - koristi se za pouzdano učitavanje
 async function ensureTextureAsync(): Promise<Texture | null> {
   // Provjeri cache prvo
-  if (cachedTexture && cachedTexture.baseTexture?.valid) {
+  if (cachedTexture && isTextureValid(cachedTexture)) {
     return cachedTexture;
   }
   
@@ -152,7 +158,7 @@ async function ensureTextureAsync(): Promise<Texture | null> {
 // Sinkrona verzija - vraća samo ako je već u cache-u (tiho, bez upozorenja)
 function ensureTextureSync(): Texture | null {
   // Provjeri postojeći lokalni cache
-  if (cachedTexture && cachedTexture.baseTexture?.valid) {
+  if (cachedTexture && isTextureValid(cachedTexture)) {
     return cachedTexture;
   }
   

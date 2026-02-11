@@ -190,12 +190,15 @@ export function createWildLoaderFX({
       yoyo: true,
       ease: 'sine.inOut'
     });
-    const shimmyRotTween = trackTween(g, {
-      rotation: (Math.random() * 0.18) - 0.09,
+    // 🔥 FIX: Animate proxy.r to avoid GSAP "Invalid property rotation" on Pixi objects
+    const rotProxy = { r: g.rotation };
+    const shimmyRotTween = trackTween(rotProxy, {
+      r: (Math.random() * 0.18) - 0.09,
       duration: 0.22,
       repeat: Math.ceil(life / 0.22),
       yoyo: true,
-      ease: 'sine.inOut'
+      ease: 'sine.inOut',
+      onUpdate: () => { if (g && typeof g.rotation !== 'undefined') g.rotation = rotProxy.r; }
     });
 
     // Store tweens on graphics object for cleanup

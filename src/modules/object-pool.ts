@@ -1,7 +1,7 @@
 // src/modules/object-pool.ts
-// Object pooling for Graphics objects to reduce GC pressure
+// Object pooling for Graphics and Sprite objects to reduce GC pressure
 
-import { Graphics } from 'pixi.js';
+import { Graphics, Sprite, type Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 
 /**
@@ -262,3 +262,128 @@ export const graphicsPool = new GraphicsPool();
 
 // Export class for testing
 export { GraphicsPool };
+
+/**
+ * BubbleSpritePool - Object pool for bubble Sprite objects (wild-beer bubbles explosion)
+ * Reuses Sprite instances to reduce GC pressure
+ */
+class BubbleSpritePool {
+  private pool: Sprite[] = [];
+  private maxSize: number = 140; // 95 * 1.5 buffer for 70% more bubbles
+  private created: number = 0;
+  private reused: number = 0;
+  private inPool: WeakSet<Sprite> = new WeakSet();
+  private getDefaultTexture: () => Texture;
+
+  constructor(getDefaultTexture: () => Texture) {
+    this.getDefaultTexture = getDefaultTexture;
+  }
+
+  acquire(texture: Texture): Sprite {
+    let s: Sprite | undefined;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (this.pool.length > 0 && attempts < maxAttempts) {
+      s = this.pool.pop();
+      attempts++;
+      if (s && !s.destroyed && s.texture) {
+        this.reused++;
+        this.inPool.delete(s);
+        break;
+      }
+      if (s) this.inPool.delete(s);
+      s = undefined;
+    }
+
+    if (!s) {
+      s = new Sprite(texture || this.getDefaultTexture());
+      this.created++;
+    } else {
+      s.texture = texture || this.getDefaultTexture();
+    }
+
+    this.reset(s);
+    return s;
+  }
+
+  isInPool(s: Sprite): boolean {
+    return s ? this.inPool.has(s) : false;
+  }
+
+  release(s: Sprite): void {
+    if (!s || s.destroyed) return;
+    if (this.inPool.has(s)) return;
+
+    try {
+      gsap.killTweensOf(s);
+      gsap.killTweensOf(s.scale);
+    } catch {}
+    try { s.visible = false; s.alpha = 0; } catch {}
+    try { if (s.parent) s.parent.removeChild(s); } catch {}
+    if (s.destroyed) return;
+
+    this.reset(s);
+    if (s.destroyed) return;
+
+    if (this.pool.length < this.maxSize) {
+      this.pool.push(s);
+      this.inPool.add(s);
+    } else {
+      try { s.destroy(); } catch {}
+    }
+  }
+
+  private reset(s: Sprite): void {
+    if (!s || s.destroyed) return;
+    try {
+      gsap.killTweensOf(s);
+      gsap.killTweensOf(s.scale);
+      s.visible = true;
+      s.alpha = 1;
+      s.x = 0;
+      s.y = 0;
+      s.rotation = 0;
+      s.scale.set(1, 1);
+      s.anchor?.set(0.5);
+      s.eventMode = 'none';
+      s.cursor = 'default';
+      s.renderable = true;
+    } catch {}
+  }
+
+  clear(): void {
+    for (const s of this.pool) {
+      try {
+        gsap.killTweensOf(s);
+        if (s.parent) s.parent.removeChild(s);
+        s.destroy();
+      } catch {}
+    }
+    this.pool = [];
+    this.created = 0;
+    this.reused = 0;
+  }
+
+  getStats(): { poolSize: number; created: number; reused: number } {
+    return { poolSize: this.pool.length, created: this.created, reused: this.reused };
+  }
+}
+
+// Lazy-initialized bubble sprite pool (needs Assets - init after load)
+let _bubbleSpritePool: BubbleSpritePool | null = null;
+
+export function getBubbleSpritePool(getDefaultTexture: () => Texture): BubbleSpritePool {
+  if (!_bubbleSpritePool) {
+    _bubbleSpritePool = new BubbleSpritePool(getDefaultTexture);
+  }
+  return _bubbleSpritePool;
+}
+
+export function clearBubbleSpritePool(): void {
+  if (_bubbleSpritePool) {
+    _bubbleSpritePool.clear();
+  }
+}
+
+export { BubbleSpritePool };

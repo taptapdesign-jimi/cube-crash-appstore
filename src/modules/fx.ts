@@ -3619,7 +3619,7 @@ export function isWildBeerExplosionRunning() {
  * Returns a promise that resolves when bubbles animation finishes (or timeout)
  * Max wait time: 5 seconds (bubbles animation max duration ~4.4s)
  */
-export function waitForBubblesAnimationToComplete(maxWaitMs = 5000) {
+export function waitForBubblesAnimationToComplete(maxWaitMs = 6500) {
   // 🔥 WRAPPER: Redirect to new modular explosion
   return import('./wild-beer-bubbles-explosion.js').then(module => {
     _explosionModuleCache = module;
@@ -3665,7 +3665,7 @@ export function waitForStarsToHudToComplete(maxWaitMs = 4500) {
  * Resolves when both finish or after maxWaitMs (whichever first, per animation).
  */
 export async function waitForOngoingAnimations(maxWaitMs = 6000) {
-  const bubblesMs = Math.min(maxWaitMs, 5500);
+  const bubblesMs = Math.min(maxWaitMs, 6500);
   const starsMs = Math.min(maxWaitMs, 4500);
   await Promise.all([
     waitForBubblesAnimationToComplete(bubblesMs),
@@ -3824,24 +3824,34 @@ function createMerge6Stars(board, layer, centerX, centerY) {
         ease: 'power2.out',
         onComplete: () => {
           // 🔥 MEMORY LEAK FIX: Proper cleanup - kill all animations first, then destroy
+          // 🔥 CRITICAL FIX: Add defensive null checks to prevent "Cannot set properties of null" errors
           try {
+            // Check if star still exists and is valid before accessing properties
+            if (!star || star.destroyed || star === null || star === undefined) {
+              return; // Star already destroyed, skip cleanup
+            }
+            
             // Kill all GSAP animations on star
             gsap.killTweensOf(star);
-            gsap.killTweensOf(star.x);
-            gsap.killTweensOf(star.y);
-            gsap.killTweensOf(star.alpha);
+            if (star.x !== undefined) gsap.killTweensOf(star.x);
+            if (star.y !== undefined) gsap.killTweensOf(star.y);
+            if (star.alpha !== undefined) gsap.killTweensOf(star.alpha);
             
-            // Remove from parent before destroying
-            if (layer && layer.children.includes(star)) {
-              layer.removeChild(star);
+            // Remove from parent before destroying (check parent exists)
+            if (layer && !layer.destroyed && layer.children && layer.children.includes(star)) {
+              try {
+                layer.removeChild(star);
+              } catch {}
             }
             
             // Remove from trackers
             __globalGraphicsObjects.delete(star);
             __activeStarParticles.delete(star);
             
-            // Destroy sprite
-            star.destroy();
+            // Destroy sprite (check again before destroying)
+            if (!star.destroyed && typeof star.destroy === 'function') {
+              star.destroy();
+            }
           } catch (err) {
             console.warn('⚠️ Error cleaning up star:', err);
           }
@@ -4209,6 +4219,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   const timelines = [];
   
   const STAR_COUNT = Math.min(3, savedStarPositions.length);
+  let maxStarDuration = 0;
   
   // 🔥 PERFORMANCE OPTIMIZATION: Use single shared texture for all stars (object pooling)
   // This reduces memory usage and improves frame rate
@@ -4359,6 +4370,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     const distanceFactor = Math.min(1.0, Math.max(0.6, distance / 800));
     // 🔥 USER REQUEST: Use different duration for each star (2nd and 3rd are slower)
     const duration = getStarDuration(i, baseDuration, distanceFactor);
+    const delay = getStarDelay(i);
+    maxStarDuration = Math.max(maxStarDuration, duration + delay);
     
     // 🔥 USER REQUEST: More randomized and fluid path for each star
     // Each star gets unique random path parameters for more variety
@@ -4425,7 +4438,6 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     const rotationRadians = rotationDegrees * (Math.PI / 180);
     
     // Create timeline with custom delay (different for each star)
-    const delay = getStarDelay(i);
     const path = { x: starStartX, y: starStartY, progress: 0 };
     
     // Track if star has already disappeared (to prevent multiple triggers)
@@ -4637,10 +4649,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 MEMORY LEAK FIX: Improved cleanup after all animations complete
   // Each star cleans itself up immediately when it reaches destination
   // But we still need to ensure container and all references are cleaned up
-  // Calculate sequential delay based on star delays (max delay between stars)
-  const maxDelay = getStarDelay(STAR_COUNT - 1); // Maximum delay (for last star: 0.23s)
-  const sequentialDelay = maxDelay; // Use maximum delay for total duration calculation
-  const totalDuration = baseDuration + maxDelay; // Base duration + maximum delay for cleanup timing
+  // Calculate total duration based on actual star durations + delays
+  const totalDuration = maxStarDuration || (baseDuration + getStarDelay(STAR_COUNT - 1));
   
   // Track cleanup state to prevent double cleanup
   let cleanupDone = false;
@@ -5635,10 +5645,14 @@ export function wildImpactEffect(tile, opts = {}) {
   trackTween(g.scale, { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)', delay: 0.43 });
   
   // 4) More dramatic tilt wiggle sequence
-  trackTween(g, { rotation: tilt, duration: 0.10, ease: 'sine.out', delay: 0.10 });
-  trackTween(g, { rotation: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut', delay: 0.20 });
-  trackTween(g, { rotation: tilt * 0.5, duration: 0.14, ease: 'sine.inOut', delay: 0.32 });
-  trackTween(g, { rotation: 0, duration: 0.18, ease: 'back.out(2.2)', delay: 0.46 });
+  // 🔥 FIX: Animate proxy.r and sync to g.rotation - avoids "Invalid property rotation Missing plugin?" from GSAP 3.12+ on Pixi
+  const proxy = { r: g.rotation };
+  const sync = () => { if (g && typeof g.rotation !== 'undefined') g.rotation = proxy.r; };
+  const tl = trackTimeline({ delay: 0.10 });
+  tl.to(proxy, { r: tilt, duration: 0.10, ease: 'sine.out', onUpdate: sync })
+    .to(proxy, { r: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut', onUpdate: sync })
+    .to(proxy, { r: tilt * 0.5, duration: 0.14, ease: 'sine.inOut', onUpdate: sync })
+    .to(proxy, { r: 0, duration: 0.18, ease: 'back.out(2.2)', onUpdate: sync });
   
   console.log('✅ WILD IMPACT: Enhanced effect applied successfully');
 }

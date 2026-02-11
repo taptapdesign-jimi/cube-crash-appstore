@@ -1264,13 +1264,12 @@ export function smokeBubblesAtCard(
             const children = smokeContainer.querySelectorAll('*');
             children.forEach(child => {
               gsap.killTweensOf(child);
-              if (child.parentNode === smokeContainer) {
-                try {
-                  if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
-                    domElementPool.release(child as HTMLElement);
-                  }
-                } catch {}
-              }
+              if (child.parentNode !== smokeContainer) return;
+              try {
+                if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
+                  domElementPool.release(child as HTMLElement);
+                }
+              } catch {}
             });
             
             if (smokeContainer.parentNode) {
@@ -1309,19 +1308,15 @@ export function smokeBubblesAtCard(
       const children = smokeContainer.querySelectorAll('*');
       children.forEach(child => {
         gsap.killTweensOf(child);
+        // 🔥 FIX: Only release if still in container (particles that finished were already released by onComplete)
+        if (child.parentNode !== smokeContainer) return;
         // 🔥 MEMORY FIX: Release smoke particles back to pool
         // Halo elements will be removed by DOM removal below
-        if (child.parentNode === smokeContainer) {
-          // Only release if it's a direct child (smoke particles)
-          // Halo is also a direct child but we'll let DOM removal handle it
-          try {
-            // Try to release to pool (will fail silently if not a pooled element)
-            if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
-              // Likely a smoke particle (has border-radius: 50%)
-              domElementPool.release(child as HTMLElement);
-            }
-          } catch {}
-        }
+        try {
+          if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
+            domElementPool.release(child as HTMLElement);
+          }
+        } catch {}
       });
       
       // Remove from DOM (this removes halo and any remaining elements)

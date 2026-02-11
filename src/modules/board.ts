@@ -78,11 +78,6 @@ function _drawStackInternal(tile: Tile): void {
   try { tile.stackG?.destroy({ children: true }); } catch {}
   tile.stackG = null;
 
-  // Add 3D effects to tile
-  if ((window as any).threeDEffects && (window as any).threeDEffects.is3DEnabled) {
-    (window as any).threeDEffects.add3DToTile(tile);
-  }
-
   const depth = Math.max(1, tile.stackDepth || 0);
   if (depth <= 1) return;
 
@@ -310,7 +305,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
         t.base.visible = true;
         // Optimize texture for pixel-perfect rendering
         const bt = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-        if (bt) bt.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
+        if (bt) bt.scaleMode = 'nearest';
       }
       
       // 🔥 CRITICAL: Hide pips and num for wild tiles
@@ -329,7 +324,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
     if (t.base) {
       t.base.texture = pickNumbersSkin();
       const bt2 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-      if (bt2) bt2.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
+      if (bt2) bt2.scaleMode = 'nearest';
     }
     if (t.overlay) t.overlay.visible = false;
   } else {
@@ -337,7 +332,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
     if (t.base) {
       t.base.texture = Assets.get(ASSET_TILE);
       const bt3 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-      if (bt3) bt3.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
+      if (bt3) bt3.scaleMode = 'nearest';
     }
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
@@ -652,7 +647,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   face.width = TILE;
   face.height = TILE;
   const faceSrc = face.texture && ((face.texture as { source?: { scaleMode?: string } }).source ?? face.texture.baseTexture);
-  if (faceSrc) faceSrc.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
+  if (faceSrc) faceSrc.scaleMode = 'nearest';
   t.rotG.addChild(face);
   t.base = face;
 
@@ -663,7 +658,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   ov.height = TILE;
   ov.alpha = 0.55;
   const ovSrc = ov.texture && ((ov.texture as { source?: { scaleMode?: string } }).source ?? ov.texture.baseTexture);
-  if (ovSrc) ovSrc.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
+  if (ovSrc) ovSrc.scaleMode = 'nearest';
   ov.visible = false;
   t.rotG.addChild(ov);
   t.overlay = ov;

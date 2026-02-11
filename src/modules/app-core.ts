@@ -482,15 +482,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
       jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
     } : null;
-    devLog('🧪 DEV LOG (clean board): cleanup stats', cleanupStats);
-    devLog('🧪 DEV LOG (clean board): stage', { hasStage: !!stage, stageVisible: !!stage?.visible, stageChildren: stage?.children?.length ?? 0 });
-    devLog('🧪 DEV LOG (clean board): board', { hasBoard: !!board, boardVisible: !!board?.visible, boardChildren: board?.children?.length ?? 0 });
-    devLog('🧪 DEV LOG (clean board): tiles', { count: tiles?.length ?? 0, active: activeTiles.length });
-    devLog('🧪 DEV LOG (clean board): renderer', { hasRenderer: !!app?.renderer, textureCount });
-    devLog('🧪 DEV LOG (clean board): assets cache', { cacheSize });
-    devLog('🧪 DEV LOG (clean board): gsap', { tweens: gsapTweens });
-    devLog('🧪 DEV LOG (clean board): memoryManager', mmStats);
-    devLog('🧪 DEV LOG (clean board): performance.memory', perfMem);
+    logRuntimeStats('clean board');
   } catch (e) {
     devWarn('⚠️ DEV LOG (clean board) snapshot failed:', e);
   }
@@ -555,8 +547,15 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       logger.warn('⚠️ Memory cleanup failed (post endgame)', 'app-core', error);
     }
     try {
+      // 🔥 SCALABILITY: Enable aggressive cleanup for 40+ boards - destroy orphaned unknown textures
       const allowAggressive = (window as any).__ccAggressiveTextureCleanup === true;
-      cleanupTexturesForBoardTransition('after-clean-board', allowAggressive);
+      const prevUnknown = (window as any).__ccUnknownTextureCleanup;
+      (window as any).__ccUnknownTextureCleanup = true;
+      try {
+        cleanupTexturesForBoardTransition('after-clean-board', true);
+      } finally {
+        (window as any).__ccUnknownTextureCleanup = prevUnknown ?? false;
+      }
     } catch {}
     
     // 🔥 BOARD RECOVERY: Clean board flow completed successfully - clear recovery flag
@@ -607,6 +606,7 @@ function syncSharedState() {
 }
 
 syncSharedState();
+try { (window as any).__ccLogRuntimeStats = logRuntimeStats; } catch {}
 
 function resetGlobalFxLayer(reason: string = 'unknown') {
   try {
@@ -619,6 +619,43 @@ function resetGlobalFxLayer(reason: string = 'unknown') {
     }
   } catch (e) {
     devWarn('⚠️ resetGlobalFxLayer failed:', e);
+  }
+}
+
+function logRuntimeStats(reason: string = 'unknown'): void {
+  try {
+    const cleanupStats = getAppCleanupStats();
+    const activeTiles = getReactiveActiveTiles(tiles);
+    const rendererAny = app?.renderer as any;
+    const textureCount = (typeof rendererAny?.texture?.managedTextures !== 'undefined')
+      ? (rendererAny.texture.managedTextures?.length ?? (rendererAny.texture.managedTextures?.size ?? 0))
+      : (typeof rendererAny?.textureGC !== 'undefined' ? (rendererAny.textureGC?.getManagedTextures?.()?.length ?? 0) : 0);
+    const cache = (Assets as any)?.cache;
+    const cacheSize = cache && typeof (cache as { size?: number }).size === 'number' ? (cache as { size: number }).size : (cache && typeof cache === 'object' ? (cache instanceof Map ? cache.size : Object.keys(cache).length) : 0);
+    const gsapTweens = typeof (gsap as any).getAllTweens === 'function' ? (gsap as any).getAllTweens().length : 0;
+    const mmStats = typeof (memoryManager as any).getMemoryInfo === 'function' ? (memoryManager as any).getMemoryInfo() : null;
+    const perfMem = (performance as any).memory ? {
+      usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
+      totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
+      jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
+    } : null;
+    const snapshot: Record<string, unknown> = {
+      reason,
+      cleanupStats,
+      stage: { hasStage: !!stage, stageVisible: !!stage?.visible, stageChildren: stage?.children?.length ?? 0 },
+      board: { hasBoard: !!board, boardVisible: !!board?.visible, boardChildren: board?.children?.length ?? 0 },
+      tiles: { count: tiles?.length ?? 0, active: activeTiles.length },
+      renderer: { hasRenderer: !!app?.renderer, textureCount },
+      assetsCache: cacheSize,
+      gsapTweens,
+      memoryManager: mmStats,
+      performanceMemory: perfMem
+    };
+    devLog(`🧪 DEV LOG (${reason}):`, snapshot);
+    const short = { reason, stageChildren: (snapshot.stage as any)?.stageChildren, tilesActive: (snapshot.tiles as any)?.active, textureCount: (snapshot.renderer as any)?.textureCount, gsapTweens: snapshot.gsapTweens, heapMB: perfMem ? Math.round(perfMem.usedJSHeapSize / 1024 / 1024) : null };
+    console.log(`🧪 CC runtime [${reason}]:`, short);
+  } catch (e) {
+    devWarn(`⚠️ DEV LOG (${reason}) snapshot failed:`, e);
   }
 }
 
@@ -717,7 +754,60 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { (window as any).__ccLastFxCleanupAt = Date.now(); } catch {}
 }
 
-function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiveUnknown: boolean = false) {
+/**
+ * 🔥 MEMORY SPIKE FIX: Destroy old board tiles before starting new board.
+ * Call AFTER hideApp (ticker stopped) and softResetBoardView.
+ * Reduces peak memory during board transition (avoids old + new tiles in memory at once).
+ */
+function destroyOldBoardForTransition(reason: string = 'unknown'): void {
+  try {
+    devLog('🧹 destroyOldBoardForTransition:', reason);
+    const tileList = (STATE?.tiles && STATE.tiles.length) ? STATE.tiles : tiles;
+    if (!tileList || tileList.length === 0) {
+      devLog('🧹 destroyOldBoardForTransition: No tiles to destroy');
+      return;
+    }
+    const count = tileList.length;
+    tileList.forEach((t: any) => {
+      try { stopWildIdle?.(t); } catch {}
+      try { stopWildShimmer?.(t); } catch {}
+      try { stopWildStars?.(t); } catch {}
+      try { stopWildBeerBubbles?.(t); } catch {}
+      try { stopMagnetIdleParticles?.(t); } catch {}
+      try { stopTntIdleParticles?.(t); } catch {}
+      try { stopTntIdleShake?.(t); } catch {}
+      try {
+        gsap.killTweensOf(t);
+        gsap.killTweensOf(t?.scale);
+        if ((t as any)?._idleBounceTl) {
+          try { (t as any)._idleBounceTl.kill(); } catch {}
+          (t as any)._idleBounceTl = null;
+        }
+        if ((t as any)?._glowAnimation) {
+          try { (t as any)._glowAnimation.kill?.(); } catch {}
+          (t as any)._glowAnimation = null;
+        }
+      } catch {}
+      try {
+        if (typeof (window as any).killTileAnimations === 'function') {
+          (window as any).killTileAnimations(t);
+        }
+      } catch {}
+      try {
+        if (t && !t.destroyed) {
+          t.destroy({ children: true, texture: false, textureSource: false } as any);
+        }
+      } catch {}
+    });
+    tiles.length = 0;
+    if (STATE.tiles) STATE.tiles.length = 0;
+    devLog('🧹 destroyOldBoardForTransition: Destroyed', count, 'tiles');
+  } catch (e) {
+    devWarn('⚠️ destroyOldBoardForTransition failed:', e);
+  }
+}
+
+function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiveUnknown: boolean = false, skipCacheClear: boolean = false) {
   try {
     const renderer = app?.renderer || (STATE as any)?.app?.renderer;
     const managed = renderer?.texture?.managedTextures;
@@ -731,19 +821,63 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     try { destroyWildBeerBubblesScreenCache?.(); } catch {}
 
     // Destroy registered runtime textures (generated from canvas/graphics)
+    // 🔥 CRITICAL: Skip when skipCacheClear - stage/HUD may still reference these textures.
+    // Destroying them causes "Cannot read properties of null (reading 'addressModeU')" when
+    // renderer tries to bind texture during next frame. Runtime textures will be pruned by
+    // textureGC or cleared on next hard reset.
+    if (!skipCacheClear) {
+      try {
+        const runtimeTextures = (window as any).__ccRuntimeTextures;
+        if (runtimeTextures) {
+          if (typeof runtimeTextures.forEach === 'function') {
+            runtimeTextures.forEach((tex: any) => {
+              try { tex?.destroy?.(true); } catch {}
+            });
+            try { runtimeTextures.clear?.(); } catch {}
+          } else if (Array.isArray(runtimeTextures)) {
+            runtimeTextures.forEach((tex: any) => {
+              try { tex?.destroy?.(true); } catch {}
+            });
+            (window as any).__ccRuntimeTextures = [];
+          }
+        }
+      } catch {}
+    }
+
+    // Prune destroyed/runtime textures from PIXI Assets cache (prevents stale refs)
     try {
-      const runtimeTextures = (window as any).__ccRuntimeTextures;
-      if (runtimeTextures) {
-        if (typeof runtimeTextures.forEach === 'function') {
-          runtimeTextures.forEach((tex: any) => {
-            try { tex?.destroy?.(true); } catch {}
+      const cache = (Assets as any)?.cache;
+      if (cache) {
+        const isRuntimeLabel = (label: unknown) =>
+          typeof label === 'string' && label.startsWith('runtime:');
+        const shouldPruneTexture = (tex: any) => {
+          if (!tex) return false;
+          if (tex.destroyed) return true;
+          if (isRuntimeLabel(tex.label)) return true;
+          const src = tex.source || tex.baseTexture || {};
+          if (isRuntimeLabel(src.label)) return true;
+          if (src.valid === false) return true;
+          return false;
+        };
+        let pruned = 0;
+        if (cache instanceof Map) {
+          for (const [key, value] of cache.entries()) {
+            if (value instanceof Texture && shouldPruneTexture(value)) {
+              cache.delete(key);
+              pruned++;
+            }
+          }
+        } else if (typeof cache === 'object') {
+          Object.keys(cache).forEach(key => {
+            const value = (cache as any)[key];
+            if (value instanceof Texture && shouldPruneTexture(value)) {
+              try { delete (cache as any)[key]; } catch {}
+              pruned++;
+            }
           });
-          try { runtimeTextures.clear?.(); } catch {}
-        } else if (Array.isArray(runtimeTextures)) {
-          runtimeTextures.forEach((tex: any) => {
-            try { tex?.destroy?.(true); } catch {}
-          });
-          (window as any).__ccRuntimeTextures = [];
+        }
+        if (pruned > 0) {
+          devLog('🧹 Assets cache pruned runtime/destroyed textures', { reason, pruned });
         }
       }
     } catch {}
@@ -788,35 +922,63 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     // Ask PIXI to GC textures where possible
     try { renderer?.textureGC?.run?.(); } catch {}
     
-    // Clear texture cache + unused base textures (safe, skips in-use textures)
-    try {
-      const pixiUtils = (window.PIXI && (window.PIXI.utils as any)) || null;
-      if (pixiUtils) {
-        if (typeof pixiUtils.clearTextureCache === 'function') {
-          pixiUtils.clearTextureCache();
-        } else if (typeof pixiUtils.destroyTextureCache === 'function') {
-          pixiUtils.destroyTextureCache();
-        }
-        const baseTextureCache = pixiUtils.BaseTextureCache;
-        if (baseTextureCache) {
-          const toRemove: string[] = [];
-          for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
+    // Clear texture cache + unused base textures (skip when skipCacheClear - avoids addressModeU crash
+    // when stage may still reference textures during board transition)
+    if (!skipCacheClear) {
+      try {
+        const pixiUtils = (window.PIXI && (window.PIXI.utils as any)) || null;
+        if (pixiUtils) {
+          // 🔥 CRITICAL FIX: Stop renderer before clearing texture cache to prevent addressModeU errors
+          // This ensures textures aren't being accessed during cleanup
+          const shouldStopRenderer = renderer && renderer.runners && typeof renderer.runners.postrender === 'object';
+          if (shouldStopRenderer && renderer.ticker) {
             try {
-              const bt = baseTexture as any;
-              if (bt && (!bt.textureCacheIds || bt.textureCacheIds.length === 0)) {
-                if (typeof bt.destroy === 'function') {
-                  bt.destroy();
-                }
-                toRemove.push(key as string);
-              }
+              renderer.ticker.stop();
             } catch {}
           }
-          toRemove.forEach(key => {
-            try { delete baseTextureCache[key]; } catch {}
-          });
+          
+          if (typeof pixiUtils.clearTextureCache === 'function') {
+            pixiUtils.clearTextureCache();
+          } else if (typeof pixiUtils.destroyTextureCache === 'function') {
+            pixiUtils.destroyTextureCache();
+          }
+          const baseTextureCache = pixiUtils.BaseTextureCache;
+          if (baseTextureCache) {
+            const toRemove: string[] = [];
+            for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
+              try {
+                const bt = baseTexture as any;
+                // 🔥 CRITICAL FIX: Check if texture is still referenced before destroying
+                // Only destroy if textureCacheIds is empty AND texture is not currently bound
+                if (bt && (!bt.textureCacheIds || bt.textureCacheIds.length === 0)) {
+                  // Additional safety check: verify texture is not in use
+                  const isInUse = renderer && renderer.texture && renderer.texture.boundTextures
+                    ? Array.from(renderer.texture.boundTextures.values()).some((boundTex: any) => 
+                        boundTex === bt || boundTex?.baseTexture === bt
+                      )
+                    : false;
+                  
+                  if (!isInUse && typeof bt.destroy === 'function') {
+                    bt.destroy();
+                    toRemove.push(key as string);
+                  }
+                }
+              } catch {}
+            }
+            toRemove.forEach(key => {
+              try { delete baseTextureCache[key]; } catch {}
+            });
+          }
+          
+          // Restart renderer if we stopped it
+          if (shouldStopRenderer && renderer.ticker) {
+            try {
+              renderer.ticker.start();
+            } catch {}
+          }
         }
-      }
-    } catch {}
+      } catch {}
+    }
     
     const postCount = managed ? (managed.size || Object.keys(managed).length) : 0;
     if (preCount || postCount) {
@@ -900,15 +1062,33 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
     }
     
     // Kill timelines referencing destroyed targets
+    // 🔥 CRITICAL FIX: Add defensive null checks to prevent "Cannot set properties of null" errors
     try {
       const allTweens = gsap.globalTimeline.getChildren();
       allTweens.forEach((tween: any) => {
         try {
+          if (!tween || typeof tween.kill !== 'function') return;
+          
           const targets = tween.targets || [];
           if (targets.length > 0) {
             const target = targets[0];
-            if (target && (target.destroyed || target === null || target === undefined)) {
+            // 🔥 FIX: Check if target is null/undefined/destroyed before accessing properties
+            if (!target || target.destroyed || target === null || target === undefined) {
               tween.kill();
+            } else {
+              // 🔥 FIX: Validate target properties exist before GSAP tries to animate them
+              // This prevents "Cannot set properties of null (setting 'y')" errors
+              try {
+                // Test if target has animatable properties (x, y, alpha, etc.)
+                const hasProps = 'x' in target || 'y' in target || 'alpha' in target || 'scale' in target;
+                if (!hasProps && typeof target !== 'string' && !Array.isArray(target)) {
+                  // Target doesn't have animatable properties - kill tween to prevent errors
+                  tween.kill();
+                }
+              } catch (propCheckError) {
+                // If we can't check properties, kill the tween to be safe
+                tween.kill();
+              }
             }
           }
         } catch {}
@@ -932,8 +1112,33 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
   }
 }
 
+function logBoardExitStats(label: string) {
+  try {
+    const mmStats = typeof (memoryManager as any).getMemoryInfo === 'function'
+      ? (memoryManager as any).getMemoryInfo()
+      : null;
+    const animStats = typeof (animationManager as any).getStats === 'function'
+      ? (animationManager as any).getStats()
+      : null;
+    const pixiUtils = (window as any).PIXI?.utils || null;
+    const texCache = pixiUtils?.TextureCache ? Object.keys(pixiUtils.TextureCache).length : null;
+    const baseCache = pixiUtils?.BaseTextureCache ? Object.keys(pixiUtils.BaseTextureCache).length : null;
+    const runtimeTextures = (window as any).__ccRuntimeTextures?.size ?? null;
+
+    devLog(`🧪 Board exit stats (${label})`, {
+      memoryManager: mmStats,
+      animationManager: animStats,
+      pixiCache: { texture: texCache, baseTexture: baseCache },
+      runtimeTextures
+    });
+  } catch (e) {
+    devWarn('⚠️ Board exit stats failed:', e);
+  }
+}
+
 function softResetBoardView(reason: string = 'unknown') {
   devLog('♻️ softResetBoardView:', reason);
+  _hudInitDone = false; // 🔥 CRITICAL: Force layoutBoard to re-init HUD after board transition
   // Kill tweens on board/hud containers
   try { if (board) gsap.killTweensOf(board); } catch {}
   try { if (hud) gsap.killTweensOf(hud); } catch {}
@@ -1166,6 +1371,8 @@ async function showMysteryPrize(){
 // -------------------- boot --------------------
 export async function boot(){
   devLog('🎮 Initializing PIXI app');
+  // 🔥 CRITICAL: Start loading LTCrow font early - HUD text shows black boxes if font isn't ready
+  ensureFonts().catch(() => {});
   // Fade out menu soundtrack when entering board game without board transition (e.g. direct continue)
   try {
     const { fadeOutAndPause } = await import('./soundtrack-manager.js');
@@ -2023,6 +2230,10 @@ export async function boot(){
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
     cleanupFxForBoardReset: (reason = 'window') => cleanupFxForBoardReset(reason),
     softResetBoardView: (reason = 'window') => softResetBoardView(reason),
+    destroyOldBoardForTransition: (reason?: string) => destroyOldBoardForTransition(reason ?? 'unknown'),
+    cleanupTexturesForBoardTransition: (reason: string, aggressive?: boolean, skipCacheClear?: boolean) =>
+      cleanupTexturesForBoardTransition(reason, aggressive ?? false, skipCacheClear ?? false),
+    layoutBoard: () => layoutBoard(),
     snapshotState: () => replayRecorder.snapshot(),
     replayStartRecord: () => replayRecorder.startRecord(),
     replayStartVerify: (steps) => replayRecorder.startVerify(steps),
@@ -2257,6 +2468,15 @@ export async function layoutBoard(){
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
         devLog('🎯 Initializing HUD...');
+        
+        // 🔥 CRITICAL: Ensure LTCrow font is loaded BEFORE creating PIXI Text
+        // Without this, HUD numbers render as black boxes (tofu) when font isn't ready for Canvas
+        try {
+          await ensureFonts();
+          devLog('✅ Fonts ready for HUD text');
+        } catch (err) {
+          devWarn('⚠️ Font preload failed, HUD text may show fallback:', err);
+        }
         
         // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD
         // This prevents missing icons after hard exit/restart
@@ -2935,7 +3155,10 @@ async function animateBoardExit(){
     devLog,
     devWarn,
   });
-  
+
+  // 🔥 DIAGNOSTICS: Log stats before exit animation
+  logBoardExitStats('before-exit');
+
   cleanupBeforeBoardExit({ HUD, backgroundLayer, devLog, devWarn });
   
   const { effectiveTiles, skip } = await selectTilesForExit({
@@ -2958,6 +3181,18 @@ async function animateBoardExit(){
     devLog,
     devWarn,
   });
+
+  // 🔥 AGGRESSIVE CLEANUP: Kill lingering tweens + run memory cleanup after exit animation
+  try { animationManager.killAll(); } catch {}
+  try {
+    memoryManager.performCleanup();
+    devLog('✅ Board exit: Memory cleanup completed');
+  } catch (error) {
+    devWarn('⚠️ Board exit: Memory cleanup failed:', error);
+  }
+
+  // 🔥 DIAGNOSTICS: Log stats after cleanup
+  logBoardExitStats('after-cleanup');
   return Promise.resolve();
 }
 
@@ -3171,6 +3406,10 @@ async function spawnWildFromMeter(){
   // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
   // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
   if (hasLastMergeTile({ tiles: STATE.tiles, devLog })) return false;
+  if (busyEnding || (window as any).__ccBoardTransitionActive === true) {
+    devLog('⏸️ spawnWildFromMeter skipped - endgame/transition active');
+    return false;
+  }
 
   const consumeCharge = () => consumeWildCharge({
     wildMeter,
@@ -5122,8 +5361,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   startLevel: startLevel // Add startLevel function to helpers for clean board flow
                 };
                 
-                // Use dst if still valid, otherwise use merge location from first tile
-                const mergeLocation = dst && !dst.destroyed ? dst : { x: validTiles[0].x, y: validTiles[0].y };
+                // Use dst if still valid, otherwise use merge location from first tile (with gridX/gridY for mergePulledTilesIntoMerge6)
+                const mergeLocation = dst && !dst.destroyed ? dst : {
+                  x: validTiles[0].x, y: validTiles[0].y,
+                  gridX: validTiles[0].gridX, gridY: validTiles[0].gridY
+                };
                 
                 // 🔥 USER REQUEST: Add wild progress IMMEDIATELY when magnet pull starts (before merge animation)
                 // This makes wild meter progress bar animate during pull animation, not after
@@ -6519,6 +6761,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           if (movesDepletedResult.type === 'stuck') {
             devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+            try { resetEndgameHint(); } catch {}
             if (!busyEnding) {
               devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
               await waitTracked(1500);
@@ -7445,6 +7688,7 @@ function checkLevelEnd(){
     }
     
     if (checkLevelEndResult.type === 'stuck') {
+      try { resetEndgameHint(); } catch {}
       const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
       if (wildReady) {
         devLog('⚠️ checkLevelEnd: Stuck detected but wild meter is ready/spawning – deferring fail screen until wild cube drops');

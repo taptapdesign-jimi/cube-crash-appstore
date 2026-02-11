@@ -20,13 +20,6 @@ declare global {
     showResumeGameModal?: () => Promise<void>;
     unlockSlider?: () => void;
     
-    // 3D Effects
-    threeDEffects?: {
-      is3DEnabled: boolean;
-      add3DToTile: (tile: any) => void;
-      remove3DFromTile: (tile: any) => void;
-    };
-    
     // iOS Optimizer
     iosImageOptimizer?: any;
     
@@ -95,6 +88,8 @@ declare global {
       setStarsCount?: (count: number) => void;
       cleanupFxForBoardReset?: (reason?: string) => void;
       softResetBoardView?: (reason?: string) => void;
+      destroyOldBoardForTransition?: (reason?: string) => void;
+      cleanupTexturesForBoardTransition?: (reason: string, aggressive?: boolean, skipCacheClear?: boolean) => void;
       snapshotState?: () => {
         grid: any[][];
         score: number;

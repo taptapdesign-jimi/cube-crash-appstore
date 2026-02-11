@@ -386,6 +386,16 @@ class AnimationManager {
     this.killAll();
     this.isInitialized = false;
   }
+
+  // Stats for diagnostics
+  getStats(): { animations: number; timelines: number; activeTweens: number; activeTimelines: number } {
+    return {
+      animations: this.animations.size,
+      timelines: this.timelines.size,
+      activeTweens: this.activeTweens.size,
+      activeTimelines: this.activeTimelines.size
+    };
+  }
 }
 
 // Create singleton instance

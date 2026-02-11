@@ -11,8 +11,12 @@ import { boot as bootGame, layoutBoard as layoutGame, cleanupGame, animateBoardE
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
-import './3d-effects.js';
 import { startPerfMonitorIfEnabled } from './utils/perf-monitor.js';
+
+// Ensure gsap is available globally for any legacy modules
+if (!(window as any).gsap) {
+  (window as any).gsap = gsap;
+}
 
 // Type definitions
 interface GameModules {
@@ -1193,9 +1197,10 @@ async function startNewRun(boardId: number): Promise<void> {
     await layoutGame();
     console.log(`✅ layoutGame() completed`);
     
-    // Clear flags after boot
+    // Clear flags after boot (incl. __ccBoardJustCompleted so HUD can reuse on next boards)
     delete (window as any).__ccStartAtLevel;
     delete (window as any).__ccTriggerHudDrop;
+    delete (window as any).__ccBoardJustCompleted;
     
     console.log(`✅✅✅ New run started successfully for board ${boardId} with enter animation`);
     logger.info(`✅ New run started for board ${boardId} with enter animation`);

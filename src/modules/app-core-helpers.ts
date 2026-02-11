@@ -43,7 +43,9 @@ export function fixHoverAnchor(t: any): void {
 // ============================================================================
 
 /**
- * Ensure fonts are loaded
+ * Ensure LTCrow font is loaded for Canvas/PIXI Text.
+ * MUST be awaited before creating any HUD Text - otherwise numbers render as black boxes (tofu).
+ * Called in boot() (early) and awaited in layoutBoard() before initHUD().
  */
 export async function ensureFonts(): Promise<void> {
   if ((ensureFonts as any)._done) return;

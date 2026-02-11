@@ -637,12 +637,64 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Set multiplier to 4x
   const mult = 4;
-  
+
+  // 🔥 CRITICAL: Ensure grid coordinates are set before any positioning/logging
+  if (dst && (!Number.isFinite(dst.gridX) || !Number.isFinite(dst.gridY))) {
+    let found = false;
+
+    // Prefer a pulled tile's grid position if available
+    const fallbackTile = validTiles.find((t: any) => Number.isFinite(t?.gridX) && Number.isFinite(t?.gridY));
+    if (fallbackTile) {
+      dst.gridX = fallbackTile.gridX;
+      dst.gridY = fallbackTile.gridY;
+      found = true;
+      console.log('🧲 Using pulled tile grid coords for dst:', dst.gridX, dst.gridY);
+    }
+
+    // Try to find grid coordinates from STATE.grid (optimized search)
+    if (!found) {
+      for (let r = 0; r < ROWS && !found; r++) {
+        for (let c = 0; c < COLS && !found; c++) {
+          if (STATE.grid?.[r]?.[c] === dst) {
+            dst.gridX = c;
+            dst.gridY = r;
+            console.log('🧲 Found grid coordinates from STATE.grid:', c, r);
+            found = true;
+          }
+        }
+      }
+    }
+
+    // 🔥 FIX: If not found in grid, calculate from pixel position
+    if (!found) {
+      const tileSize = TILE + GAP;
+      const halfTile = TILE / 2;
+      if (Number.isFinite(dst.x) && Number.isFinite(dst.y)) {
+        const calculatedGridX = Math.round((dst.x - halfTile) / tileSize);
+        const calculatedGridY = Math.round((dst.y - halfTile) / tileSize);
+        if (calculatedGridX >= 0 && calculatedGridX < COLS && calculatedGridY >= 0 && calculatedGridY < ROWS) {
+          dst.gridX = calculatedGridX;
+          dst.gridY = calculatedGridY;
+          console.log('🧲 Calculated grid coordinates from pixel position:', calculatedGridX, calculatedGridY, 'from pixel', dst.x, dst.y);
+          found = true;
+        }
+      }
+    }
+
+    // If still not found, log error (but continue with fallback)
+    if (!found) {
+      console.error('❌ Could not find grid coordinates for dst tile!', dst);
+      dst.gridX = Math.floor(COLS / 2);
+      dst.gridY = Math.floor(ROWS / 2);
+      console.warn('⚠️ Using center of board as fallback grid position:', dst.gridX, dst.gridY);
+    }
+  }
+
   // 🔥 CRITICAL: Calculate correct position - use grid coordinates if available, otherwise use current position
   let correctX: number;
   let correctY: number;
-  
-  if (typeof dst.gridX === 'number' && typeof dst.gridY === 'number' && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
+
+  if (Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
     // Position formula: c * (TILE + GAP) + TILE / 2, r * (TILE + GAP) + TILE / 2
     correctX = dst.gridX * (TILE + GAP) + TILE / 2;
     correctY = dst.gridY * (TILE + GAP) + TILE / 2;
@@ -653,60 +705,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     correctY = dst.y || 0;
     console.warn('⚠️ dst.gridX or dst.gridY is undefined, using current position:', correctX, correctY);
   }
-  
+
   console.log('🧲 Correct position calculated:', correctX, correctY, 'current position:', dst.x, dst.y);
-  
+
   // 🔥 CRITICAL: Set position immediately using correct formula (same as createTile)
   gsap.set(dst, { x: correctX, y: correctY });
   dst.targetX = correctX;
   dst.targetY = correctY;
-  
-  // 🔥 CRITICAL: Ensure grid coordinates are set if they're missing
-  // 🔥 PERFORMANCE FIX: Cache grid search to prevent repeated loops
-  if (typeof dst.gridX !== 'number' || typeof dst.gridY !== 'number' || !Number.isFinite(dst.gridX) || !Number.isFinite(dst.gridY)) {
-    // Try to find grid coordinates from STATE.grid (optimized search)
-    let found = false;
-    for (let r = 0; r < ROWS && !found; r++) {
-      for (let c = 0; c < COLS && !found; c++) {
-        if (STATE.grid?.[r]?.[c] === dst) {
-          dst.gridX = c;
-          dst.gridY = r;
-          console.log('🧲 Found grid coordinates from STATE.grid:', c, r);
-          found = true;
-        }
-      }
-    }
-    
-    // 🔥 FIX: If not found in grid, calculate from pixel position
-    if (!found) {
-      // Formula: position = gridCoord * (TILE + GAP) + TILE / 2
-      // Reverse: gridCoord = (position - TILE / 2) / (TILE + GAP)
-      const tileSize = TILE + GAP; // 128 + 20 = 148
-      const halfTile = TILE / 2;   // 64
-      
-      if (typeof dst.x === 'number' && typeof dst.y === 'number' && Number.isFinite(dst.x) && Number.isFinite(dst.y)) {
-        const calculatedGridX = Math.round((dst.x - halfTile) / tileSize);
-        const calculatedGridY = Math.round((dst.y - halfTile) / tileSize);
-        
-        // Validate calculated coordinates are within bounds
-        if (calculatedGridX >= 0 && calculatedGridX < COLS && calculatedGridY >= 0 && calculatedGridY < ROWS) {
-          dst.gridX = calculatedGridX;
-          dst.gridY = calculatedGridY;
-          console.log('🧲 Calculated grid coordinates from pixel position:', calculatedGridX, calculatedGridY, 'from pixel', dst.x, dst.y);
-          found = true;
-        }
-      }
-    }
-    
-    // If still not found, log error (but continue with fallback)
-    if (!found) {
-      console.error('❌ Could not find grid coordinates for dst tile!', dst);
-      // 🔥 FIX: Use center of board as ultimate fallback
-      dst.gridX = Math.floor(COLS / 2);
-      dst.gridY = Math.floor(ROWS / 2);
-      console.warn('⚠️ Using center of board as fallback grid position:', dst.gridX, dst.gridY);
-    }
-  }
   
   // 🔥 CRITICAL: Red-brown shards animation when tiles gather (enhanced, visible)
   // Trigger 0.200s earlier by calling it before other animations
@@ -1212,20 +1217,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       return; // Don't spawn new tiles
   }
 
-  // 🛡️ FAILSAFE: Ensure merge-6 tile does not linger after magnet pull sequence
-  try {
-    if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-      if (Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY) && STATE.grid?.[dst.gridY]) {
-        if (STATE.grid[dst.gridY][dst.gridX] === dst) {
-          STATE.grid[dst.gridY][dst.gridX] = null;
-        }
-      }
-      removeTile(dst);
-      console.warn('🧲 FAILSAFE: Removed merge-6 tile after magnet pull merge to prevent stuck value 6');
-    }
-  } catch (err) {
-    console.warn('⚠️ FAILSAFE: Unable to remove merge-6 tile after magnet pull merge:', err);
-  }
 }
 
   // Find random empty cells on the board for spawning new tiles
@@ -1878,44 +1869,48 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // 🔥 USER BUG FIX: Before calling checkLevelEnd, verify that spawn animations AND tile bindings are complete
-  // Check if there are any locked tiles that are still animating (spawn in progress)
-  // Also check if tiles have eventMode='static' (are interactive)
-  const lockedActiveTiles = STATE.tiles.filter((t: any) => {
-    if (!t || t.destroyed) return false;
-    if (!t.locked) return false; // Only check locked tiles
-    return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
-  });
+  // Track expected spawns based on actual successful spawns when available
+  const expectedSpawnedTiles = successfulSpawns > 0 ? successfulSpawns : spawnCount;
   
-  // 🔥 USER BUG FIX: Also check for tiles that are still being spawned or not yet interactive
-  const tilesStillSpawning = STATE.tiles.filter((t: any) => {
-    if (!t || t.destroyed) return false;
-    if (t.locked) return true; // Locked tiles are still spawning
-    // Check if tile is still being spawned (animation in progress)
-    if (t._isBeingSpawned === true) return true;
-    // Check if tile doesn't have eventMode='static' yet (not interactive) - critical for user merges
-    if (t.eventMode !== 'static' && (t.value|0) > 0) {
-      const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
-      // Only consider it as "still spawning" if it's a regular tile without eventMode
-      if (!isWildTile) return true;
-    }
-    return false;
-  });
+  const computeSpawnState = () => {
+    const lockedActiveTiles = STATE.tiles.filter((t: any) => {
+      if (!t || t.destroyed) return false;
+      if (!t.locked) return false; // Only check locked tiles
+      return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+    });
+    
+    const tilesStillSpawning = STATE.tiles.filter((t: any) => {
+      if (!t || t.destroyed) return false;
+      if (t.locked) return true; // Locked tiles are still spawning
+      if (t._isBeingSpawned === true) return true;
+      if (t.eventMode !== 'static' && (t.value|0) > 0) {
+        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+        if (!isWildTile) return true;
+      }
+      return false;
+    });
+    
+    const activeTilesAfterSpawn = STATE.tiles.filter(tileIsActive);
+    return {
+      lockedActiveTiles,
+      tilesStillSpawning,
+      activeTilesAfterSpawn,
+      actualTileCount: activeTilesAfterSpawn.length
+    };
+  };
   
-  // Count active tiles to verify spawn completed
-  const activeTilesAfterSpawn = STATE.tiles.filter(tileIsActive);
-  const actualTileCount = activeTilesAfterSpawn.length;
-  // 🔥 FIX: Don't use expectedTileCount = spawnCount + 1, as there may be other active tiles on board
-  // Instead, just verify that actualTileCount >= spawnCount (at minimum, we should have spawned tiles)
-  const minExpectedTileCount = spawnCount; // At minimum, we should have spawnCount new tiles
+  let spawnState = computeSpawnState();
+  const minExpectedTileCount = expectedSpawnedTiles;
   
   console.log('🧲 Spawn verification (enhanced):', {
-    lockedTilesStillAnimating: lockedActiveTiles.length,
-    tilesStillSpawning: tilesStillSpawning.length,
+    lockedTilesStillAnimating: spawnState.lockedActiveTiles.length,
+    tilesStillSpawning: spawnState.tilesStillSpawning.length,
     minExpectedTileCount: minExpectedTileCount,
-    actualTileCount: actualTileCount,
+    actualTileCount: spawnState.actualTileCount,
     spawnCount: spawnCount,
+    expectedSpawnedTiles: expectedSpawnedTiles,
     merge6ShouldBeVisible: true,
-    activeTiles: activeTilesAfterSpawn.map((t: any) => ({ 
+    activeTiles: spawnState.activeTilesAfterSpawn.map((t: any) => ({ 
       value: t.value, 
       special: t.special,
       eventMode: t.eventMode,
@@ -1924,12 +1919,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   });
   
   // Wait if ANY tiles are still locked or spawning
-  if (lockedActiveTiles.length > 0 || tilesStillSpawning.length > 0) {
+  if (spawnState.lockedActiveTiles.length > 0 || spawnState.tilesStillSpawning.length > 0) {
     console.log('⏳ Delaying endgame check - spawn animations/bindings still in progress:', {
-      lockedCount: lockedActiveTiles.length,
-      stillSpawningCount: tilesStillSpawning.length,
-      lockedTiles: lockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special })),
-      spawningTiles: tilesStillSpawning.map((t: any) => ({ 
+      lockedCount: spawnState.lockedActiveTiles.length,
+      stillSpawningCount: spawnState.tilesStillSpawning.length,
+      lockedTiles: spawnState.lockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special })),
+      spawningTiles: spawnState.tilesStillSpawning.map((t: any) => ({ 
         value: t.value, 
         special: t.special,
         eventMode: t.eventMode,
@@ -1938,30 +1933,52 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
     // Wait additional 600ms (increased from 500ms) for spawn animations and bindings to complete
     await new Promise(resolve => trackAppTimeout(resolve, 600));
+    spawnState = computeSpawnState();
   }
   
   // 🔥 FIX: Only warn if we have ZERO active tiles after spawn (critical error)
   // Having fewer tiles than spawnCount is not necessarily an error - other tiles may have been merged
-  if (actualTileCount === 0 && spawnCount > 0) {
+  if (spawnState.actualTileCount === 0 && spawnCount > 0) {
     console.error('🚨🚨🚨 CRITICAL: No active tiles after spawn!', {
       minExpected: minExpectedTileCount,
-      actual: actualTileCount,
+      actual: spawnState.actualTileCount,
       spawnCount: spawnCount,
       note: 'No tiles were spawned - this will cause incorrect endgame check!'
     });
     // Wait additional time and re-check
     await new Promise(resolve => trackAppTimeout(resolve, 500));
-    const recheckActiveTiles = STATE.tiles.filter(tileIsActive);
+    let recheckState = computeSpawnState();
     console.log('🧲 Re-check after additional wait:', {
       minExpected: minExpectedTileCount,
-      actual: recheckActiveTiles.length,
-      tiles: recheckActiveTiles.map((t: any) => ({ value: t.value, special: t.special }))
+      actual: recheckState.actualTileCount,
+      tiles: recheckState.activeTilesAfterSpawn.map((t: any) => ({ value: t.value, special: t.special }))
     });
-  } else if (actualTileCount < minExpectedTileCount && spawnCount > 0) {
+    
+    // 🔥 LAST-RESORT: If still zero tiles, attempt a minimal fallback spawn
+    if (recheckState.actualTileCount === 0) {
+      const fallbackCount = Math.max(1, Math.min(spawnCount, 2));
+      console.warn('⚠️ Fallback spawn attempt after zero tiles detected:', { fallbackCount });
+      const fallbackTargets = findRandomEmptyCells(fallbackCount);
+      for (const target of fallbackTargets) {
+        const fallbackValue = 1 + Math.floor(Math.random() * 3);
+        try {
+          await openAtCell(target.c, target.r, { skipBind: false, value: fallbackValue });
+        } catch (err) {
+          console.warn('⚠️ Fallback spawn failed:', err);
+        }
+      }
+      await new Promise(resolve => trackAppTimeout(resolve, 100));
+      recheckState = computeSpawnState();
+      console.log('🧲 Fallback spawn re-check:', {
+        actual: recheckState.actualTileCount,
+        tiles: recheckState.activeTilesAfterSpawn.map((t: any) => ({ value: t.value, special: t.special }))
+      });
+    }
+  } else if (spawnState.actualTileCount < minExpectedTileCount && spawnCount > 0) {
     // Just a warning, not critical - other tiles may have been removed during merge animations
     console.warn('⚠️ Spawn verification: Fewer tiles than spawned', {
       minExpected: minExpectedTileCount,
-      actual: actualTileCount,
+      actual: spawnState.actualTileCount,
       spawnCount: spawnCount,
       note: 'Some spawned tiles may have been merged already - this is usually OK'
     });
