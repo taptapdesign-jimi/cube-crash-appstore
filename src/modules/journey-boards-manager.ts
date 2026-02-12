@@ -435,7 +435,8 @@ class JourneyBoardsManager {
           if (card && card.parentElement) {
             // 🔥 CRITICAL FIX: Check if bounce is still active before triggering smoke
             if (!(cardWrapper as any)._interimBounceActive) {
-              logger.warn('⚠️ Bounce stopped before smoke trigger, skipping smoke');
+              // Expected during fast teardown/slide exits; avoid noisy warning.
+              logger.debug('ℹ️ Bounce stopped before smoke trigger during teardown, skipping smoke');
               return;
             }
             

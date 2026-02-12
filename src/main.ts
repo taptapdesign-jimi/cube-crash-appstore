@@ -2506,6 +2506,7 @@ let gameStartTime: number | null = null;
 // Track cubes cracked (global and per-board)
 (window as any).trackCubesCracked = async (count: number = 1) => {
   try {
+    const verboseGameplayLogs = (window as any).__ccVerboseGameplayLogs === true;
     // Update global stats
     const { statsService } = await import('./services/stats-service.js');
     statsService.incrementCubesCracked(count);
@@ -2515,17 +2516,23 @@ let gameStartTime: number | null = null;
       const { STATE } = await import('./modules/app-state.js');
       // 🔥 CRITICAL: Get board number from STATE - ensure it's correct
       const boardNumber = STATE?.boardNumber || STATE?.level || 1;
-      console.log(`🧊 trackCubesCracked: boardNumber=${boardNumber}, count=${count}, STATE.boardNumber=${STATE?.boardNumber}, STATE.level=${STATE?.level}`);
+      if (verboseGameplayLogs) {
+        console.log(`🧊 trackCubesCracked: boardNumber=${boardNumber}, count=${count}, STATE.boardNumber=${STATE?.boardNumber}, STATE.level=${STATE?.level}`);
+      }
       
       const { boardStatsService } = await import('./services/board-stats-service.js');
       const previousTotal = boardStatsService.getBoardStats(boardNumber).cubesCracked;
       const newTotal = boardStatsService.addBoardCubesCracked(boardNumber, count);
-      console.log(`🧊 Board ${boardNumber} cubes cracked: ${previousTotal} + ${count} = ${newTotal} (accumulated)`);
+      if (verboseGameplayLogs) {
+        console.log(`🧊 Board ${boardNumber} cubes cracked: ${previousTotal} + ${count} = ${newTotal} (accumulated)`);
+      }
     } catch (error) {
       console.warn('⚠️ Failed to track board-specific cubes cracked:', error);
     }
     
-    console.log('✅ Cubes cracked tracked (global and per-board):', count);
+    if (verboseGameplayLogs) {
+      console.log('✅ Cubes cracked tracked (global and per-board):', count);
+    }
   } catch (error) {
     console.error('❌ Failed to track cubes cracked:', error);
   }

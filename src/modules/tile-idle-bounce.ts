@@ -13,6 +13,7 @@ import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 const ENABLE_TILE_IDLE_BOUNCE = true;
 
@@ -56,7 +57,9 @@ export function startTileIdleBounce(tiles: Tile[], board: any): void {
     animateRandomTile();
   }, IDLE_WAIT_TIME);
   
-  console.log('✅ Tile idle bounce started:', state.tiles.length, 'tiles');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('✅ Tile idle bounce started:', state.tiles.length, 'tiles');
+  }
 }
 
 export function stopTileIdleBounce(): void {
@@ -78,7 +81,9 @@ export function stopTileIdleBounce(): void {
   });
   state.activeAnimations.clear();
   
-  console.log('⏹️ Tile idle bounce stopped');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('⏹️ Tile idle bounce stopped');
+  }
 }
 
 // 🔥 CRITICAL FIX: Reset function for complete cleanup
@@ -87,7 +92,9 @@ export function resetTileIdleBounce(): void {
   state.tiles = [];
   state.board = null;
   state.lastInteractionTime = 0;
-  console.log('🔄 Tile idle bounce state reset');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('🔄 Tile idle bounce state reset');
+  }
 }
 
 export function notifyBoardInteraction(): void {
@@ -252,7 +259,9 @@ function stopTileAnimation(tile: Tile): void {
 
 export function updateTileList(tiles: Tile[]): void {
   state.tiles = tiles.filter(t => t && t.value > 0 && !t.locked && !t.destroyed);
-  console.log('🔄 Updated tile list:', state.tiles.length, 'tiles');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('🔄 Updated tile list:', state.tiles.length, 'tiles');
+  }
 }
 
 // Exports for easy access

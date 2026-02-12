@@ -31,6 +31,7 @@ export const getOriginalGsapTimeline = () => __dg_orig_timeline;
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(__dg_orig_timeline(options));
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(__dg_orig_to(target, vars));
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
@@ -258,7 +259,9 @@ export function initDrag(cfg) {
     // No custom pull effect needed - updateMagnet provides the same gentle effect
     const p = board.toLocal(e.global);
 
-    console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
+    }
     
     // Notify idle bounce that user is interacting
     try {
@@ -274,11 +277,15 @@ export function initDrag(cfg) {
     
     // MARK: User has made a move
     window._userMadeMove = true;
-    console.log('✅ User has made a move - game can now be saved');
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log('✅ User has made a move - game can now be saved');
+    }
     
     // Show all ghost placeholders when user starts dragging
     if (window._ghostPlaceholders) {
-      console.log('👻 Showing all ghost placeholders on drag start');
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log('👻 Showing all ghost placeholders on drag start');
+      }
       for (let r = 0; r < window._ghostPlaceholders.length; r++) {
         if (window._ghostPlaceholders[r]) {
           for (let c = 0; c < window._ghostPlaceholders[r].length; c++) {
@@ -1109,10 +1116,10 @@ export function initDrag(cfg) {
         const dstCenterY = dstR.y + dstR.h / 2;
         
         // 🔥 CRITICAL: For wild-magnet, check if magnet is above target tile center
-        // Use reasonable limits - magnet must be close to tile center (20% tolerance for better usability)
+        // Slightly more forgiving than before so drop behavior matches visual hover better
         const dx = Math.abs(srcCenterX - dstCenterX);
         const dy = Math.abs(srcCenterY - dstCenterY);
-        const maxOffset = tileSize * 0.20; // 🔥 Max 20% offset - More forgiving for better usability
+        const maxOffset = tileSize * 0.35; // 🔥 Max 35% offset - easier merge without requiring perfect alignment
         
         // 🔥 CRITICAL: For wild-magnet, we ONLY allow merge if magnet is directly above target
         // Ignore overlap completely - only check position
@@ -1132,11 +1139,11 @@ export function initDrag(cfg) {
       }
     }
 
-    // 🔥 CRITICAL: For wild-magnet, use reasonable threshold to balance usability and prevent accidental merges
-    // Regular threshold is 0.05, but for wild-magnet we want at least 0.30 overlap (30% of tile)
-    // Since we already check position (20% offset), overlap threshold can be more forgiving
+    // 🔥 CRITICAL: For wild-magnet, use a moderate overlap threshold.
+    // Previous 0.30 made drop feel too strict vs hover feedback.
+    // Keep a bit stricter than baseThreshold to avoid accidental edge touches.
     const baseThreshold = Number.isFinite(drag.threshold) ? drag.threshold : 0.05;
-    const th = src.special === 'wild-magnet' ? Math.max(baseThreshold, 0.30) : baseThreshold; // 🔥 Reduced to 0.30 for better usability
+    const th = src.special === 'wild-magnet' ? Math.max(baseThreshold, 0.12) : baseThreshold;
     
     // 🔥 CRITICAL: For wild-magnet, if no tile passed position check, result is ALWAYS null
     // This ensures that if magnet is not directly above any tile, no merge happens
@@ -1180,11 +1187,10 @@ export function initDrag(cfg) {
         return null;
       }
       
-      // 🔥 CRITICAL: For wild-magnet, ensure overlap is significant (not just a tiny edge overlap)
-      // If bestRatio is very small (< 0.30), it might be an accidental edge overlap
-      // This check matches the threshold above (0.30) for consistency
-      if (src.special === 'wild-magnet' && bestRatio < 0.30) {
-        console.warn('⚠️ pickDropTarget: Wild-magnet overlap too small (< 0.30), returning null instead');
+      // 🔥 CRITICAL: For wild-magnet, still reject tiny edge contacts.
+      // Keep this aligned with threshold above so behavior is consistent.
+      if (src.special === 'wild-magnet' && bestRatio < 0.12) {
+        console.warn('⚠️ pickDropTarget: Wild-magnet overlap too small (< 0.12), returning null instead');
         console.warn('⚠️ Overlap ratio:', bestRatio, 'threshold:', th, 'best tile:', result?.value);
         return null;
       }

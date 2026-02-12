@@ -2,6 +2,7 @@
 // Anchor na kockici merge 6; prati board shake; bez stanke na tnt6; slide + bounce
 
 import { gsap } from 'gsap';
+import { Assets, Container, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
@@ -44,30 +45,37 @@ let preloadPromise: Promise<void> | null = null;
 export function preloadTntFrames(): Promise<void> {
   if (preloadPromise) return preloadPromise;
   const uniqueFrames = Array.from(new Set([...TNT_ANIM_FRAMES, ...TNT_ANIM_FRAMES_FALLBACK]));
-  preloadPromise = new Promise<void>((resolve) => {
-    let idx = 0;
-    const img = new Image();
-    const loadNext = () => {
-      if (idx >= uniqueFrames.length) {
-        resolve();
-        return;
-      }
-      const src = uniqueFrames[idx++];
-      let doneCalled = false;
-      const done = () => {
-        if (doneCalled) return;
-        doneCalled = true;
-        img.onload = null;
-        img.onerror = null;
-        loadNext();
+  preloadPromise = (async () => {
+    try {
+      await Assets.load(uniqueFrames);
+      return;
+    } catch {}
+    // Fallback preload path (without persistent cache map)
+    await new Promise<void>((resolve) => {
+      let idx = 0;
+      const img = new Image();
+      const loadNext = () => {
+        if (idx >= uniqueFrames.length) {
+          resolve();
+          return;
+        }
+        const src = uniqueFrames[idx++];
+        let doneCalled = false;
+        const done = () => {
+          if (doneCalled) return;
+          doneCalled = true;
+          img.onload = null;
+          img.onerror = null;
+          loadNext();
+        };
+        img.onload = done;
+        img.onerror = done;
+        img.src = src;
+        if (img.complete) done();
       };
-      img.onload = done;
-      img.onerror = done;
-      img.src = src;
-      if (img.complete) done();
-    };
-    loadNext();
-  });
+      loadNext();
+    });
+  })();
   return preloadPromise;
 }
 
@@ -77,6 +85,9 @@ let timeline: gsap.core.Timeline | null = null;
 let extraTimelines: gsap.core.Timeline[] = [];
 let spriteBounceTweensRef: gsap.core.Tween[] = [];
 let boomBounceTimelinesRef: gsap.core.Timeline[] = [];
+let memSampleCallsRef: gsap.core.Tween[] = [];
+let pixiFrameContainer: Container | null = null;
+let activeFrameSprites: Sprite[] = [];
 let activeFrameImages: HTMLImageElement[] = [];
 let activeFrameWrappers: HTMLElement[] = [];
 let dragBlockTimeout: gsap.core.Tween | null = null;
@@ -87,14 +98,158 @@ let cleanupInProgress = false;
 let lastTntStartMs = 0;
 const TNT_DEBOUNCE_MS = 200;
 const TNT_STUCK_RESET_MS = 1500;
+const MAX_TNT_SPRITE_POOL = 24;
+let pooledFrameSprites: Sprite[] = [];
+let pooledFrameContainer: Container | null = null;
 
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
+let memorySpikeTrackerPromise: Promise<any | null> | null = null;
+function loadMemorySpikeTracker(): Promise<any | null> {
+  if (!memorySpikeTrackerPromise) {
+    memorySpikeTrackerPromise = import('../utils/memory-spike-tracker.js').catch(() => null);
+  }
+  return memorySpikeTrackerPromise;
+}
+function tntMemInit(): void {
+  void loadMemorySpikeTracker().then((mod) => {
+    try {
+      mod?.initMemorySpikeTracker?.();
+      mod?.sampleMemorySpike?.('tnt_0_start');
+    } catch {}
+  });
+}
+function tntMemSample(label: string): void {
+  void loadMemorySpikeTracker().then((mod) => {
+    try { mod?.sampleMemorySpike?.(label); } catch {}
+  });
+}
+function tntMemReport(): void {
+  void loadMemorySpikeTracker().then((mod) => {
+    try { mod?.reportBiggestMemorySpike?.(); } catch {}
+  });
+}
+
+function getAppStage(): any {
+  try {
+    const w = (window as any);
+    const state = w?.STATE || null;
+    const app = state?.app || null;
+    const appStage = app?.stage || null;
+    const stateStage = state?.stage || null;
+    if (appStage && !appStage.destroyed) return appStage;
+    if (stateStage && !stateStage.destroyed) return stateStage;
+  } catch {}
+  return null;
+}
+
+function getViewportCenter(): { x: number; y: number } {
+  try {
+    const w = window as any;
+    const app = w?.STATE?.app || null;
+    const screen = app?.renderer?.screen || null;
+    const width = Number(screen?.width) || Number(app?.renderer?.width) || window.innerWidth || 0;
+    const height = Number(screen?.height) || Number(app?.renderer?.height) || window.innerHeight || 0;
+    return { x: width * 0.5, y: height * 0.5 };
+  } catch {}
+  return { x: (window.innerWidth || 0) * 0.5, y: (window.innerHeight || 0) * 0.5 };
+}
+
+function getTntPixiHost(): any {
+  const stage = getAppStage();
+  if (!stage || stage.destroyed) return null;
+  const w = window as any;
+  let host = w.__ccTntFxLayer || null;
+  const needsNew = !host || host.destroyed || host.parent !== stage;
+  if (needsNew) {
+    try {
+      host = new Container();
+      host.label = '__ccTntFxLayer';
+      host.zIndex = 999998;
+      host.eventMode = 'none';
+      host.visible = true;
+      host.alpha = 1;
+      host.renderable = true;
+      try { host.interactiveChildren = false; } catch {}
+      if (stage.sortableChildren !== undefined) stage.sortableChildren = true;
+      stage.addChild(host);
+      stage.sortChildren?.();
+      w.__ccTntFxLayer = host;
+    } catch {
+      return null;
+    }
+  } else {
+    try {
+      host.visible = true;
+      host.alpha = 1;
+      host.renderable = true;
+      host.position.set(0, 0);
+      host.scale.set(1, 1);
+      host.rotation = 0;
+      host.pivot?.set?.(0, 0);
+    } catch {}
+  }
+  return host;
+}
+
+function isRenderableTexture(tex: Texture | null | undefined): tex is Texture {
+  if (!tex || (tex as any).destroyed) return false;
+  try {
+    const anyTex: any = tex as any;
+    const source = anyTex.source ?? anyTex.baseTexture ?? null;
+    if (!source || source.destroyed) return false;
+    // Some crashes came from null style/source during bind (addressModeU path).
+    if (source.style == null && source.resource == null) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function acquireFrameSprite(tex: Texture, zIndex: number, x: number, y: number): Sprite {
+  const sprite = pooledFrameSprites.pop() ?? new Sprite(tex);
+  try {
+    sprite.texture = tex;
+    sprite.anchor.set(0.5);
+    sprite.x = x;
+    sprite.y = y;
+    sprite.alpha = 0;
+    sprite.visible = true;
+    sprite.renderable = true;
+    sprite.eventMode = 'none';
+    sprite.zIndex = zIndex;
+    sprite.rotation = 0;
+    sprite.scale.set(0, 0);
+  } catch {}
+  return sprite;
+}
+
+function releaseFrameSprite(sprite: Sprite): void {
+  if (!sprite || (sprite as any).destroyed) return;
+  try {
+    gsap.killTweensOf(sprite);
+    gsap.killTweensOf(sprite.scale);
+    if (sprite.parent) sprite.parent.removeChild(sprite);
+    sprite.alpha = 0;
+    sprite.visible = false;
+    sprite.renderable = false;
+    sprite.rotation = 0;
+    sprite.scale.set(1, 1);
+    sprite.x = 0;
+    sprite.y = 0;
+    if (pooledFrameSprites.length < MAX_TNT_SPRITE_POOL) {
+      pooledFrameSprites.push(sprite);
+    } else {
+      sprite.destroy();
+    }
+  } catch {}
+}
 
 function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
+  tntMemSample('tnt_3_cleanup_start');
   try {
     if (timeline) {
       timeline.kill();
@@ -108,6 +263,10 @@ function cleanup(): void {
       try { t.kill(); } catch {}
     });
     spriteBounceTweensRef = [];
+    memSampleCallsRef.forEach((t) => {
+      try { t.kill(); } catch {}
+    });
+    memSampleCallsRef = [];
     boomBounceTimelinesRef.forEach((tl) => {
       try { tl.kill(); } catch {}
     });
@@ -126,6 +285,23 @@ function cleanup(): void {
     }
     tntCompleteListeners = [];
     didComplete = false;
+    activeFrameSprites.forEach((sp) => {
+      releaseFrameSprite(sp);
+    });
+    activeFrameSprites = [];
+    if (pixiFrameContainer) {
+      try {
+        gsap.killTweensOf(pixiFrameContainer);
+        if (pixiFrameContainer.parent) pixiFrameContainer.parent.removeChild(pixiFrameContainer);
+        pixiFrameContainer.removeChildren();
+        if (!pixiFrameContainer.destroyed) {
+          pooledFrameContainer = pixiFrameContainer;
+        } else {
+          pooledFrameContainer = null;
+        }
+      } catch {}
+      pixiFrameContainer = null;
+    }
     activeFrameImages.forEach((img) => {
       try {
         gsap.killTweensOf(img);
@@ -161,6 +337,8 @@ function cleanup(): void {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
   } finally {
     cleanupInProgress = false;
+    tntMemSample('tnt_4_cleanup_end');
+    tntMemReport();
   }
 }
 
@@ -211,6 +389,7 @@ export function showTntAnimation(options: {
   onComplete?: () => void;
   onBoomExitStart?: () => void;
 } = {}): HTMLElement | null {
+  tntMemInit();
   const now = Date.now();
   // Safety: if previous animation got stuck, force cleanup after a grace window
   if (isActive && now - lastTntStartMs > TNT_STUCK_RESET_MS) {
@@ -242,55 +421,35 @@ export function showTntAnimation(options: {
     'background: transparent',
   ].join(';');
 
-  const framesContainer = document.createElement('div');
-  framesContainer.style.cssText = [
-    'position: absolute',
-    'left: 0',
-    'top: 0',
-    'width: 100%',
-    'height: 100%',
-    'pointer-events: none',
-  ].join(';');
+  // PIXI layered frame stack (12 sprites, slika-na-sliku efekt)
+  const pixiHost = getTntPixiHost();
+  const { x: centerX, y: centerY } = getViewportCenter();
+  const frameEls: Sprite[] = [];
+  if (pixiHost) {
+    const reused = pooledFrameContainer && !pooledFrameContainer.destroyed ? pooledFrameContainer : null;
+    pooledFrameContainer = null;
+    pixiFrameContainer = reused ?? new Container();
+    pixiFrameContainer.label = 'tnt-animation-frames';
+    pixiFrameContainer.zIndex = 999998;
+    pixiFrameContainer.eventMode = 'none';
+    pixiFrameContainer.visible = true;
+    pixiFrameContainer.alpha = 1;
+    pixiFrameContainer.renderable = true;
+    pixiFrameContainer.removeChildren();
+    try { pixiFrameContainer.interactiveChildren = false; } catch {}
+    pixiHost.addChild(pixiFrameContainer);
+    pixiHost.sortChildren?.();
 
-  const frameEls: HTMLImageElement[] = [];
-  for (let i = 0; i < NUM_FRAMES; i++) {
-    const wrapper = domElementPool.acquire('div');
-    activeFrameWrappers.push(wrapper);
-    wrapper.style.cssText = [
-      'position: absolute',
-      'left: 50%',
-      'top: 50%',
-      'transform: translate(-50%, -50%)',
-      'pointer-events: none',
-      'display: flex',
-      'align-items: center',
-      'justify-content: center',
-    ].join(';');
-    const frameEl = domElementPool.acquire('img') as HTMLImageElement;
-    activeFrameImages.push(frameEl);
-    const frameSrc = TNT_ANIM_FRAMES[i] || TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
-    const fallbackSrc = TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
-    frameEl.src = frameSrc;
-    frameEl.onerror = () => {
-      if (frameEl.src !== fallbackSrc) frameEl.src = fallbackSrc;
-    };
-    frameEl.alt = '';
-    frameEl.decoding = 'async';
-    frameEl.loading = i < 2 ? 'eager' : 'lazy';
-    frameEl.style.cssText = [
-      'display: block',
-      'max-width: 95vw',
-      'max-height: 95vh',
-      'object-fit: contain',
-      'opacity: 0',
-      'transform-origin: center center',
-      'pointer-events: none',
-      'will-change: transform, opacity',
-      'filter: brightness(1.02)',
-    ].join(';');
-    wrapper.appendChild(frameEl);
-    framesContainer.appendChild(wrapper);
-    frameEls.push(frameEl);
+    for (let i = 0; i < NUM_FRAMES; i++) {
+      const frameSrc = TNT_ANIM_FRAMES[i] || TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
+      const tex = (Assets.get(frameSrc) as Texture | undefined) || (Assets.get(TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0]) as Texture | undefined);
+      if (!isRenderableTexture(tex)) continue;
+      const frameEl = acquireFrameSprite(tex, i, centerX, centerY);
+      pixiFrameContainer.addChild(frameEl);
+      frameEls.push(frameEl);
+      activeFrameSprites.push(frameEl);
+    }
+    tntMemSample('tnt_1_frames_created');
   }
 
   // BOOM text – centar viewporta
@@ -376,7 +535,6 @@ export function showTntAnimation(options: {
     gsap.set(letterEl, { rotation });
   });
 
-  overlay.appendChild(framesContainer);
   overlay.appendChild(boomContainer);
   document.body.appendChild(overlay);
 
@@ -406,61 +564,83 @@ export function showTntAnimation(options: {
     const settleEndTime = enterDelay + dEnter + dSettle;
     const exitStaggerDelay = i * SPRITE_EXIT_STAGGER;
     const holdDuration = Math.max(0, exitStartTime + exitStaggerDelay - settleEndTime);
-
-    gsap.set(frameEl, {
-      x: 0,
-      y: 0,
-      scaleX: 0,
-      scaleY: 0,
-      opacity: 0,
-      rotation: randomRotation
-    });
+    const baseY = centerY;
+    const rotRad = randomRotation * (Math.PI / 180);
+    frameEl.x = centerX;
+    frameEl.y = baseY;
+    frameEl.scale.set(0, 0);
+    frameEl.alpha = 0;
+    frameEl.rotation = rotRad;
 
     const tl = trackTimeline({ delay: enterDelay });
     extraTimelines.push(tl);
     tl.to(frameEl, {
-      opacity: 1,
-      scaleX: randomSize * ENTER_BOUNCE_SCALE,
-      scaleY: randomSize * ENTER_BOUNCE_SCALE * VERTICAL_STRETCH,
+      alpha: 1,
       duration: dEnter,
       ease: 'back.out(2.0)'
     });
+    tl.to(frameEl.scale, {
+      x: randomSize * ENTER_BOUNCE_SCALE,
+      y: randomSize * ENTER_BOUNCE_SCALE * VERTICAL_STRETCH,
+      duration: dEnter,
+      ease: 'back.out(2.0)'
+    }, '<');
     tl.to(frameEl, {
-      scaleX: randomSize,
-      scaleY: randomSize * VERTICAL_STRETCH,
       duration: dSettle,
       ease: 'power2.out'
     }, '>0');
+    tl.to(frameEl.scale, {
+      x: randomSize,
+      y: randomSize * VERTICAL_STRETCH,
+      duration: dSettle,
+      ease: 'power2.out'
+    }, '<');
     tl.call(() => {
       const bounceS = randomSize * (1.02 + Math.random() * 0.06);
       const bounce = gsap.to(frameEl, {
-        scaleX: bounceS,
-        scaleY: bounceS * VERTICAL_STRETCH,
-        y: (Math.random() - 0.5) * 4,
+        y: baseY + (Math.random() - 0.5) * 4,
         duration: 0.4,
         ease: 'elastic.inOut(1, 0.25)',
         repeat: -1,
         yoyo: true
       });
       spriteBounceTweensRef.push(bounce);
+      const bounceScale = gsap.to(frameEl.scale, {
+        x: bounceS,
+        y: bounceS * VERTICAL_STRETCH,
+        duration: 0.4,
+        ease: 'elastic.inOut(1, 0.25)',
+        repeat: -1,
+        yoyo: true
+      });
+      spriteBounceTweensRef.push(bounceScale);
     }, [], '+=0');
     tl.to({}, { duration: holdDuration }, '>0');
     tl.call(() => {
-      const bounce = spriteBounceTweensRef[i];
-      if (bounce) try { bounce.kill(); } catch {}
+      try {
+        gsap.killTweensOf(frameEl);
+        gsap.killTweensOf(frameEl.scale);
+      } catch {}
       const exitS = randomSize * EXIT_BOUNCE_SCALE;
       gsap.to(frameEl, {
-        scaleX: exitS,
-        scaleY: exitS * VERTICAL_STRETCH,
-        z: 30,
+        alpha: 1,
         duration: EXIT_BOUNCE_DURATION,
         ease: 'power2.out',
         onComplete: () => {
+          gsap.to(frameEl.scale, {
+            x: exitS,
+            y: exitS * VERTICAL_STRETCH,
+            duration: EXIT_BOUNCE_DURATION,
+            ease: 'power2.out'
+          });
           gsap.to(frameEl, {
-            opacity: 0,
-            scaleX: 0,
-            scaleY: 0,
-            z: -100,
+            alpha: 0,
+            duration: EXIT_FADE_DURATION,
+            ease: 'back.in(2.0)'
+          });
+          gsap.to(frameEl.scale, {
+            x: 0,
+            y: 0,
             duration: EXIT_FADE_DURATION,
             ease: 'back.in(2.0)'
           });
@@ -468,6 +648,11 @@ export function showTntAnimation(options: {
       });
     }, [], '>0');
   });
+  tntMemSample('tnt_2_timelines_created');
+  const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
+  const peakSampleB = trackDelayedCall(0.75, () => tntMemSample('tnt_peak_b_750ms'));
+  if (peakSampleA) memSampleCallsRef.push(peakSampleA as any);
+  if (peakSampleB) memSampleCallsRef.push(peakSampleB as any);
 
   // BOOM enter/exit (isti enter/exit kao board broj)
   let boomExitStarted = false;

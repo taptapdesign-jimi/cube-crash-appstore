@@ -1555,6 +1555,8 @@ class UIManager {
     // 🔥 CRITICAL: Play exit animation FIRST (gradient stays with !important during exit)
     console.log('🎬 Step 1: Playing exit animation for Journey slide (gradient preserved with !important)');
     
+    let journeyPreparePromise: Promise<void> | null = null;
+
     // Step 1: Play exit animation for Journey slide
     // 🔥 CRITICAL: Small delay to ensure DOM is updated and slide is marked as active
     setTimeout(() => {
@@ -1578,9 +1580,9 @@ class UIManager {
       console.log('🗺️ Step 0: Starting Journey boards rendering in background (after exit animation started)...');
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
-        // Use prepareJourneyScreen to render boards without showing screen
-        // Don't await - let it run in background
-        collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
+        // Use prepareJourneyScreen to render boards without showing screen.
+        // Keep the promise so we can wait briefly before opening Journey.
+        journeyPreparePromise = collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
           logger.warn('⚠️ Failed to prepare Journey screen:', error);
         });
         console.log('✅ Journey boards rendering started in background');
@@ -1589,7 +1591,7 @@ class UIManager {
     
     // Step 2: Wait for exit animation to complete, then show Journey screen
     // Exit animation: 770ms
-    setTimeout(() => {
+    setTimeout(async () => {
       console.log('🗺️ Step 2: Exit animation complete, showing Journey screen');
       
       // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
@@ -1600,11 +1602,27 @@ class UIManager {
         appElement.style.setProperty('background-image', 'none', 'important');
       }
       console.log('✅ [Journey ENTER] Paper background with 60% opacity already set - no changes needed');
-      
-      // Show Journey screen IMMEDIATELY - no blank screen, no fade animation
-        // Journey screen is already prepared with opacity 0, animation will start immediately
+
+      // Wait briefly for board preparation so screen doesn't open empty.
+      // Timeout keeps navigation responsive when preparation is slower than expected.
+      if (journeyPreparePromise) {
+        try {
+          await Promise.race([
+            journeyPreparePromise,
+            new Promise<void>(resolve => setTimeout(resolve, 900))
+          ]);
+        } catch (error) {
+          logger.warn('⚠️ Journey preparation wait failed/timed out:', error);
+        }
+      }
+
+      // Show Journey screen immediately after brief prep wait.
+      // Any remaining work continues with in-screen fallback reveal (no blank hold).
+      try {
         this.showCollectiblesScreen();
+      } finally {
         (window as any).__ccUiJourneyTransitioning = false;
+      }
     }, 770);
   }
   

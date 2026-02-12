@@ -65,6 +65,7 @@ class CollectiblesManager {
   private currentDetailCardId: string | null = null;
   private currentDetailCategory: string | null = null;
   private eventListenersInitialized: boolean = false;
+  private journeyPreparePromise: Promise<void> | null = null;
   
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
@@ -362,6 +363,11 @@ class CollectiblesManager {
   // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
   // This allows boards to render while slider exit animation plays
   async prepareJourneyScreen(): Promise<void> {
+    if (this.journeyPreparePromise) {
+      return this.journeyPreparePromise;
+    }
+
+    this.journeyPreparePromise = (async () => {
     logger.info('🗺️ prepareJourneyScreen - rendering boards in background');
     const screen = document.getElementById('journey-screen');
     if (!screen) {
@@ -377,6 +383,11 @@ class CollectiblesManager {
     // Render boards in background
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
+      const hasBoards = journeyContainer.querySelector('.journey-board-card');
+      if (hasBoards) {
+        logger.info('🗺️ Journey boards already prepared - skipping rerender');
+        return;
+      }
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
       journeyBoardsManager.renderBoards();
       journeyBoardsManager.updateCounter();
@@ -387,6 +398,13 @@ class CollectiblesManager {
       // 🔥 CRITICAL: Don't reset badge here - exit animation will handle it
       // Badge will be animated out together with navigation in exit animation
       logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
+    }
+    })();
+
+    try {
+      await this.journeyPreparePromise;
+    } finally {
+      this.journeyPreparePromise = null;
     }
   }
 
@@ -551,20 +569,10 @@ class CollectiblesManager {
     if (journeyContainer) {
       const hasBoards = journeyContainer.querySelector('.journey-board-card');
       if (!hasBoards) {
-        // Boards not yet rendered - render now (non-blocking)
-        logger.info('🗺️ Boards not yet rendered - rendering now (non-blocking)');
-        import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-          journeyBoardsManager.renderBoards();
-          journeyBoardsManager.updateCounter();
-          logger.info('🗺️ Journey boards rendered');
-          
-          // Mark as viewed (badge will be reset by exit animation, not here)
-          journeyBoardsManager.markAsViewed();
-          // 🔥 CRITICAL: Don't reset badge here - exit animation will handle it
-          // Badge will be animated out together with navigation in exit animation
-          logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
-        }).catch((error) => {
-          logger.error('❌ Failed to render journey boards:', String(error));
+        // Boards not yet rendered - prepare in background (deduped)
+        logger.info('🗺️ Boards not yet rendered - preparing now (non-blocking)');
+        this.prepareJourneyScreen().catch((error) => {
+          logger.error('❌ Failed to prepare journey boards:', String(error));
         });
       } else {
         logger.info('🗺️ Boards already rendered - skipping render');
@@ -652,10 +660,27 @@ class CollectiblesManager {
     // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
     
     try {
+      let enterAnimationStarted = false;
+      let fallbackRevealApplied = false;
+      const revealFallbackTimer = window.setTimeout(() => {
+        if (enterAnimationStarted) return;
+        fallbackRevealApplied = true;
+        (screen as HTMLElement).style.opacity = '1';
+        (screen as HTMLElement).style.visibility = 'visible';
+        (screen as HTMLElement).style.willChange = 'auto';
+        logger.warn('⚠️ Journey enter animation delayed - showing screen immediately to avoid blank state');
+      }, 220);
+
       // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
       // Then import and start animation immediately
       requestAnimationFrame(() => {
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
+          window.clearTimeout(revealFallbackTimer);
+          if (fallbackRevealApplied) {
+            logger.info('🎬 Journey screen already revealed by fallback - skipping enter animation');
+            return;
+          }
+          enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
@@ -663,6 +688,7 @@ class CollectiblesManager {
             animateCollectiblesScreenEnter();
           });
         }).catch((error) => {
+          window.clearTimeout(revealFallbackTimer);
           console.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
           (screen as HTMLElement).style.opacity = '1';

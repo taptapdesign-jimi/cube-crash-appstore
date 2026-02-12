@@ -37,6 +37,7 @@ class ErrorHandler {
   handleError(error: Error | Event, context = 'Unknown'): void {
     // CRITICAL: Skip asset loading errors during preloader phase
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    this.capturePixiTextureCrashFingerprint(errorMessage, context);
     const isAssetError = errorMessage.includes('asset') || errorMessage.includes('loading') || errorMessage.includes('fetch');
     
     // 🔥 CRITICAL FIX: Check if app is already initialized - don't show loading screen if it is
@@ -94,6 +95,93 @@ class ErrorHandler {
     
     // Handle specific error types
     this.handleSpecificError(error, context);
+  }
+
+  private capturePixiTextureCrashFingerprint(message: string, context: string): void {
+    try {
+      const msg = String(message || '').toLowerCase();
+      const isTextureBindCrash =
+        msg.includes('addressmodeu') ||
+        (msg.includes('cannot read properties of null') && msg.includes('texture')) ||
+        (msg.includes('cannot read properties of null') && msg.includes('style'));
+      if (!isTextureBindCrash) return;
+
+      const w = window as any;
+      const app = w?.CC?.app || null;
+      const stage = w?.CC?.stage || w?.STATE?.stage || null;
+      const renderer = app?.renderer || null;
+
+      const boundTextures = (() => {
+        try {
+          const texSystem = renderer?.texture;
+          const values = texSystem?.boundTextures ? Array.from(texSystem.boundTextures.values()) : [];
+          return values.slice(0, 8).map((t: any, idx: number) => {
+            const src = t?.source || t?.baseTexture || null;
+            return {
+              idx,
+              texDestroyed: !!t?.destroyed,
+              texLabel: t?.label || null,
+              srcDestroyed: !!src?.destroyed,
+              srcLabel: src?.label || null,
+              hasStyle: src?.style != null,
+              width: t?.width || src?.width || 0,
+              height: t?.height || src?.height || 0
+            };
+          });
+        } catch {
+          return [];
+        }
+      })();
+
+      const runtimeTextures = (() => {
+        try {
+          const rt = w.__ccRuntimeTextures;
+          if (!rt) return [];
+          const list = Array.isArray(rt) ? rt : (typeof rt.values === 'function' ? Array.from(rt.values()) : []);
+          return list.slice(0, 12).map((t: any, idx: number) => {
+            const src = t?.source || t?.baseTexture || null;
+            return {
+              idx,
+              texDestroyed: !!t?.destroyed,
+              texLabel: t?.label || null,
+              srcDestroyed: !!src?.destroyed,
+              srcLabel: src?.label || null,
+              hasStyle: src?.style != null,
+              width: t?.width || src?.width || 0,
+              height: t?.height || src?.height || 0
+            };
+          });
+        } catch {
+          return [];
+        }
+      })();
+
+      const stageInfo = {
+        exists: !!stage,
+        destroyed: !!stage?.destroyed,
+        visible: !!stage?.visible,
+        renderable: !!stage?.renderable,
+        children: Array.isArray(stage?.children) ? stage.children.length : 0
+      };
+
+      logger.error('🧪 PIXI texture crash fingerprint', 'error-handler', {
+        context,
+        message,
+        boardTransitionActive: w.__ccBoardTransitionActive === true,
+        tntActive: w.__ccTntAnimationActive === true,
+        stage: stageInfo,
+        boundTextures,
+        runtimeTextureCount: (() => {
+          try {
+            const rt = w.__ccRuntimeTextures;
+            return Array.isArray(rt) ? rt.length : (rt?.size ?? 0);
+          } catch {
+            return 0;
+          }
+        })(),
+        runtimeTextures
+      });
+    } catch {}
   }
 
   // Handle specific error types
@@ -220,12 +308,8 @@ class ErrorHandler {
   // Clear various caches
   private clearCaches(): void {
     try {
-      const pixi = (window as any).PIXI as undefined | { utils?: { destroyTextureCache?: () => void; clearTextureCache?: () => void } };
-      if (pixi?.utils?.destroyTextureCache) {
-        pixi.utils.destroyTextureCache();
-      } else if (pixi?.utils?.clearTextureCache) {
-        pixi.utils.clearTextureCache();
-      }
+      const app = container.get('app') as { renderer?: { textureGC?: { run?: () => void } } } | undefined;
+      try { app?.renderer?.textureGC?.run?.(); } catch {}
 
       const gsapGlobal = (window as any).gsap as undefined | { globalTimeline?: { clear: () => void } };
       if (gsapGlobal?.globalTimeline) {

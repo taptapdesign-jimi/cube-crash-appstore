@@ -3,7 +3,7 @@
 // Full-screen bubbles explosion effect for wild-beer merge 6 events
 // Uses custom bubble sprites (bubble 1-5) instead of runtime Graphics - lighter on memory
 
-import { Assets, Container, Sprite } from 'pixi.js';
+import { Assets, Container, Sprite, Texture } from 'pixi.js';
 import { getBubbleSpritePool, clearBubbleSpritePool } from './object-pool.ts';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
@@ -214,17 +214,29 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
   }
   stageRetryCount = 0;
 
-  // Load bubble sprites (bubble 1-5) from Assets cache
-  try {
-    for (const path of BUBBLE_SPRITE_PATHS) {
-      if (!Assets.get(path)) await Assets.load(path);
+  // Load bubble sprites (bubble 1-5) and keep direct references.
+  // Avoid Assets.get(path) cache-id mismatch (caused Pixi warnings + invalid textures).
+  const bubbleTextures: Texture[] = [];
+  for (const path of BUBBLE_SPRITE_PATHS) {
+    try {
+      const loaded = await Assets.load(path);
+      const texture = loaded as Texture;
+      if (!texture) {
+        throw new Error(`Loaded texture is empty for ${path}`);
+      }
+      bubbleTextures.push(texture);
+    } catch (e) {
+      console.warn(`⚠️ Bubble explosion aborted: required bubble sprite failed to load (${path})`, e);
+      return;
     }
-  } catch (e) {
-    console.warn('⚠️ Failed to load bubble sprites, skipping explosion:', e);
+  }
+
+  if (bubbleTextures.length !== BUBBLE_SPRITE_PATHS.length) {
+    console.warn('⚠️ Bubble explosion aborted: not all required bubble sprites are loaded');
     return;
   }
 
-  const bubblePool = getBubbleSpritePool(() => Assets.get(BUBBLE_SPRITE_PATHS[0]) || ({} as any));
+  const bubblePool = getBubbleSpritePool(() => bubbleTextures[0]);
 
   // 🔥 CRITICAL: Double-check that cleanup completed (defensive check)
   if (isExplosionActive || explosionContainer) {
@@ -429,8 +441,7 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
     // Prefer bubble 4 i 5 (više velikih vizualno) – 60% 4+5, 40% 1+2+3
     const r = Math.random();
     const idx = r < 0.3 ? 3 : r < 0.6 ? 4 : Math.floor(Math.random() * 3); // 30% bubble 4, 30% bubble 5, 40% 1/2/3
-    const path = BUBBLE_SPRITE_PATHS[idx];
-    const tex = Assets.get(path) || Assets.get(BUBBLE_SPRITE_PATHS[0]);
+    const tex = bubbleTextures[idx] || bubbleTextures[0];
     const bubble = bubblePool.acquire(tex);
 
     // 50% veliki, 50% mali – bimodalna distribucija
@@ -836,7 +847,14 @@ export function waitForBubblesExplosionToComplete(maxWaitMs = 6500): Promise<voi
 
       const elapsed = performance.now() - startTime;
       if (elapsed >= maxWaitMs) {
-        console.warn('⚠️ Bubbles explosion wait timeout, forcing cleanup');
+        const w = (typeof window !== 'undefined' ? (window as any) : null);
+        logger.info('ℹ️ Bubbles explosion wait reached timeout, forcing cleanup', 'wild-beer-bubbles-explosion', {
+          maxWaitMs,
+          elapsedMs: Math.round(elapsed),
+          boardTransitionActive: w?.__ccBoardTransitionActive === true,
+          cleanupInProgress,
+          isExplosionActive
+        });
         cleanup();
         safeResolve();
       }
@@ -1164,7 +1182,7 @@ function cleanup(): void {
 
       // Cleanup bubbles (release to pool)
       try {
-        const pool = getBubbleSpritePool(() => Assets.get(BUBBLE_SPRITE_PATHS[0]) || ({} as any));
+        const pool = getBubbleSpritePool(() => Texture.WHITE);
         const children = [...(container.children || [])];
         children.forEach((bubble) => {
           try {

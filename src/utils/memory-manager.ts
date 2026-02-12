@@ -192,9 +192,8 @@ class MemoryManager {
     
     toRemove.forEach(([name, data]) => {
       try {
-        if (data.texture && data.texture.destroy) {
-          data.texture.destroy();
-        }
+        // Stability-first: do not destroy textures from this generic cache manager.
+        // Texture lifecycle must be owned by feature modules / PIXI GC to avoid render-time crashes.
         this.textureCache.delete(name);
         logger.info(`🗑️ Cleaned up texture: ${name}`);
       } catch (error) {
@@ -212,11 +211,8 @@ class MemoryManager {
     
     toRemove.forEach(([name, data]) => {
       try {
-        if (data.object && data.object.destroy) {
-          data.object.destroy();
-        } else if (data.object && data.object.remove) {
-          data.object.remove();
-        }
+        // Stability-first: only forget references here; do not hard-destroy foreign objects.
+        // Their owning module is responsible for deterministic cleanup.
         this.objectCache.delete(name);
         logger.info(`🗑️ Cleaned up object: ${name}`);
       } catch (error) {
@@ -286,9 +282,7 @@ class MemoryManager {
     // Cleanup all textures
     this.textureCache.forEach((data, name) => {
       try {
-        if (data.texture && data.texture.destroy) {
-          data.texture.destroy();
-        }
+        // Intentionally non-destructive for runtime stability.
       } catch (error) {
         logger.warn(`⚠️ Failed to cleanup texture ${name}:`, error);
       }
@@ -298,11 +292,7 @@ class MemoryManager {
     // Cleanup all objects
     this.objectCache.forEach((data, name) => {
       try {
-        if (data.object && data.object.destroy) {
-          data.object.destroy();
-        } else if (data.object && data.object.remove) {
-          data.object.remove();
-        }
+        // Intentionally non-destructive for runtime stability.
       } catch (error) {
         logger.warn(`⚠️ Failed to cleanup object ${name}:`, error);
       }

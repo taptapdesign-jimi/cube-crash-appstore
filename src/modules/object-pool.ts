@@ -296,11 +296,14 @@ class BubbleSpritePool {
       s = undefined;
     }
 
+    const requestedTexture = (texture && !(texture as any).destroyed) ? texture : this.getDefaultTexture();
+    const safeTexture = (requestedTexture && !(requestedTexture as any).destroyed) ? requestedTexture : null;
+
     if (!s) {
-      s = new Sprite(texture || this.getDefaultTexture());
+      s = safeTexture ? new Sprite(safeTexture) : new Sprite();
       this.created++;
     } else {
-      s.texture = texture || this.getDefaultTexture();
+      s.texture = safeTexture || this.getDefaultTexture();
     }
 
     this.reset(s);
@@ -318,6 +321,16 @@ class BubbleSpritePool {
     try {
       gsap.killTweensOf(s);
       gsap.killTweensOf(s.scale);
+    } catch {}
+    try {
+      const tex: any = s.texture;
+      const textureInvalid = !tex || tex.destroyed || tex.source == null;
+      if (textureInvalid) {
+        const fallback = this.getDefaultTexture();
+        if (fallback && !(fallback as any).destroyed) {
+          s.texture = fallback;
+        }
+      }
     } catch {}
     try { s.visible = false; s.alpha = 0; } catch {}
     try { if (s.parent) s.parent.removeChild(s); } catch {}

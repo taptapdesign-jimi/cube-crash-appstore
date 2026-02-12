@@ -411,17 +411,34 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const totalClouds = 10;
     const moveDuration = 1.8;
     const BOUNCE_REPEAT = 3;
+    const viewportW = Math.max(320, window.innerWidth || 390);
+    const cloudBasePx = Math.min(240, Math.max(104, viewportW * 0.24));
+    const cloudStepPx = Math.max(18, cloudBasePx * 0.16);
+    const windStrength = 0.08;
+    const CLOUD_ASPECT = 1.15; // width:height - stable dimensions prevent layout jump on image load
 
     for (let i = 0; i < totalClouds; i++) {
-      const baseSize = 0.2 + (i % 3) * 0.12;
       const spawnTop = 15 + (i % 3) * 28 + (i * 3) % 12;
+      let sizeBoost = 1;
+      if (spawnTop < 32 && Math.random() < 0.55) {
+        sizeBoost = 1.25 + Math.random() * 0.22;
+      } else if (spawnTop >= 32 && spawnTop < 64 && Math.random() < 0.4) {
+        sizeBoost = 1.15 + Math.random() * 0.18;
+      }
+      const cloudSizePx = Math.round((cloudBasePx + (i % 3) * cloudStepPx) * sizeBoost);
+      const cloudHeightPx = Math.round(cloudSizePx / CLOUD_ASPECT);
+      const baseSize = (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
       const spawnLeft = 8 + (i * 9) % 84;
       const goesLeft = i % 2 === 0;
       const endXPercent = goesLeft ? -80 : 180;
-      const enterDelay = 0.08 + i * 0.05;
+      const enterDelay = i * 0.025;
       const rotation = (i % 5 - 2) * 6;
       const bounceAmount = 6 + (i % 3) * 3;
       const bounceSpeed = 0.45 + (i % 4) * 0.08;
+      const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength);
+      const windYOffset = (Math.random() * 2 - 1) * 10;
+      const windDuration = (moveDuration + 0.45) * windFactor;
+      const driftStartDelay = 0.2; // Appear at spawn first, then drift - no snap
 
       const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
       cloudImg.src = cloudImages[i % cloudImages.length];
@@ -431,6 +448,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'position: absolute',
         'pointer-events: none',
         'will-change: transform, opacity',
+        `width: ${cloudSizePx}px`,
+        `height: ${cloudHeightPx}px`,
+        'object-fit: contain',
+        `max-width: ${Math.round(viewportW * 0.74)}px`,
         `top: ${spawnTop}%`,
         `left: ${spawnLeft}%`,
         'transform-origin: center center'
@@ -445,12 +466,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       cloudTimelines.push(bounceTimeline);
 
       const enterTl = trackTimeline({ delay: enterDelay });
-      enterTl.to(cloudImg, { opacity: 1, scale: baseSize * 1.15, duration: 0.35, ease: 'back.out(1.8)' });
-      enterTl.to(cloudImg, { scale: baseSize, duration: 0.1, ease: 'power2.out' }, '>0');
-      enterTl.to(cloudImg, { x: `${endXPercent}%`, duration: moveDuration, ease: 'sine.inOut' }, '>0');
+      // Phase 1: Fade in + scale at spawn (no horizontal movement yet - prevents snap)
+      enterTl.to(cloudImg, { opacity: 1, scale: baseSize * 1.15, duration: 0.4, ease: 'back.out(1.6)' });
+      enterTl.to(cloudImg, { scale: baseSize, duration: 0.12, ease: 'power2.out' }, '>0');
+      // Phase 2: Start drift AFTER appearing (smooth, no jerk)
+      enterTl.to(cloudImg, { x: `${endXPercent}%`, duration: windDuration, ease: 'sine.inOut' }, driftStartDelay);
+      enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
       cloudTimelines.push(enterTl);
 
-      const exitStartTime = enterDelay + 0.5 + moveDuration * 0.5;
+      const exitStartTime = enterDelay + 0.5 + windDuration * 0.5;
       const delayedCall = trackDelayedCall(exitStartTime, () => {
         if (!activeCloudImages.includes(cloudImg)) return;
         bounceTimeline.kill();

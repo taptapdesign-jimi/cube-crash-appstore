@@ -18,6 +18,7 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 try {
   preloadWildStarTexture();
@@ -1579,12 +1580,14 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
   const params = getParams('regular');
   const color = getColor('regular');
   
-  console.log(`🎨 regularMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
-    color: `0x${color.toString(16)}`,
-    poolSize: pool.getStats?.()?.poolSize || 'unknown',
-    boardVisible: board.visible,
-    boardAlpha: board.alpha
-  });
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🎨 regularMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
+      color: `0x${color.toString(16)}`,
+      poolSize: pool.getStats?.()?.poolSize || 'unknown',
+      boardVisible: board.visible,
+      boardAlpha: board.alpha
+    });
+  }
   
   // Get position
   let x, y;
@@ -1597,7 +1600,9 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     y = pos.y;
   }
   
-  console.log(`🎨 regularMerge6ShardsTemplated: Position: (${x}, ${y})`);
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🎨 regularMerge6ShardsTemplated: Position: (${x}, ${y})`);
+  }
   
   // Create layer
   const layer = new Container();
@@ -1618,15 +1623,17 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     console.warn('⚠️ Failed to sort board children:', e);
   }
   
-  console.log(`🎨 regularMerge6ShardsTemplated: Layer created and added to board`, {
-    layerX: layer.x,
-    layerY: layer.y,
-    layerVisible: layer.visible,
-    layerAlpha: layer.alpha,
-    layerZIndex: layer.zIndex,
-    layerInBoard: board.children.includes(layer),
-    boardChildrenCount: board.children.length
-  });
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🎨 regularMerge6ShardsTemplated: Layer created and added to board`, {
+      layerX: layer.x,
+      layerY: layer.y,
+      layerVisible: layer.visible,
+      layerAlpha: layer.alpha,
+      layerZIndex: layer.zIndex,
+      layerInBoard: board.children.includes(layer),
+      boardChildrenCount: board.children.length
+    });
+  }
   
   // Track shards for cleanup
   const shardsInLayer = [];
@@ -1687,7 +1694,7 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     shardsInLayer.push(shard);
     
     // 🔥 DEBUG: Log first shard for verification
-    if (index === 0) {
+    if (index === 0 && isVerboseGameplayLogsEnabled()) {
       console.log(`🎨 regularMerge6ShardsTemplated: First shard created`, {
         shardVisible: shard.visible,
         shardAlpha: shard.alpha,
@@ -1738,14 +1745,18 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     });
   });
   
-  console.log(`🎨 regularMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🎨 regularMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
+  }
   
   // Cleanup layer after TTL
   // 🔥 MEMORY LEAK FIX: Use setTimeout instead of gsap.delayedCall to prevent cleanup from being killed
   // This ensures shards are ALWAYS returned to pool, even if killAllDelayedCalls() is called
   const ttl = params.ttl || 1.0;
   const cleanupTimeout = setTimeout(() => {
-    console.log(`🎨 regularMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log(`🎨 regularMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
+    }
     
     // Return all shards to pool
     let releasedCount = 0;
@@ -1768,12 +1779,16 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
       }
     });
     
-    console.log(`✅ regularMerge6ShardsTemplated: Released ${releasedCount}/${shardsInLayer.length} shards to pool`);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log(`✅ regularMerge6ShardsTemplated: Released ${releasedCount}/${shardsInLayer.length} shards to pool`);
+    }
     
     // Destroy layer
     try {
       layer.destroy({ children: false });
-      console.log(`✅ regularMerge6ShardsTemplated: Layer destroyed successfully`);
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log(`✅ regularMerge6ShardsTemplated: Layer destroyed successfully`);
+      }
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
     }
@@ -5443,7 +5458,9 @@ export function screenShake(app, opts = {}){
   try {
     const target = app?.canvas || app?.view || null;
     if (!target) return;
-    console.log('💥 SCREEN SHAKE: Starting with strength:', opts.strength || 18);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log('💥 SCREEN SHAKE: Starting with strength:', opts.strength || 18);
+    }
     
     const {
       duration = 0.35,
@@ -5457,7 +5474,7 @@ export function screenShake(app, opts = {}){
     } = opts || {};
     
     // Log enhanced parameters for wild merges
-    if (strength > 30) {
+    if (strength > 30 && isVerboseGameplayLogsEnabled()) {
       console.log('🎆 ENHANCED SHAKE: Wild merge detected with enhanced parameters:', {
         strength, duration, steps, yScale, scale
       });
@@ -5470,7 +5487,9 @@ export function screenShake(app, opts = {}){
     const boardIndicator = document.getElementById('hud-board-indicator');
     if (boardIndicator) {
       try { gsap.killTweensOf(boardIndicator); } catch {}
-      console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
+      }
     }
 
     const extraTargets = Array.isArray(alsoShake) ? alsoShake.filter(Boolean) : [];
@@ -5615,7 +5634,9 @@ export function createWildShimmer(tile) {
 // Enhanced wild cube impact effect - more organic and cute
 export function wildImpactEffect(tile, opts = {}) {
   if (!tile) return;
-  console.log('💥 WILD IMPACT: Starting enhanced wild impact effect');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('💥 WILD IMPACT: Starting enhanced wild impact effect');
+  }
   
   const g = tile.rotG || tile;
   const sx = g.scale?.x || 1;
@@ -5654,7 +5675,9 @@ export function wildImpactEffect(tile, opts = {}) {
     .to(proxy, { r: tilt * 0.5, duration: 0.14, ease: 'sine.inOut', onUpdate: sync })
     .to(proxy, { r: 0, duration: 0.18, ease: 'back.out(2.2)', onUpdate: sync });
   
-  console.log('✅ WILD IMPACT: Enhanced effect applied successfully');
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log('✅ WILD IMPACT: Enhanced effect applied successfully');
+  }
 }
 
 export function startWildIdle(tile, opts = {}){

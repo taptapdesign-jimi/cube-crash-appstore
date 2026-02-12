@@ -29,7 +29,8 @@
     "ios:build": "npm run build && npx cap sync ios",
     "ios:build:prod": "npm run build && CAPACITOR_USE_DEV_SERVER=false npx cap sync ios",
     "analyze": "npm run build && npx vite-bundle-analyzer dist",
-    "audit": "npm audit && npm run type-check && npm run lint"
+    "audit": "npm audit && npm run type-check && npm run lint",
+    "soak:check": "node soak-log-check.mjs"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

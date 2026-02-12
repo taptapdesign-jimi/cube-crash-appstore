@@ -547,15 +547,9 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       logger.warn('⚠️ Memory cleanup failed (post endgame)', 'app-core', error);
     }
     try {
-      // 🔥 SCALABILITY: Enable aggressive cleanup for 40+ boards - destroy orphaned unknown textures
-      const allowAggressive = (window as any).__ccAggressiveTextureCleanup === true;
-      const prevUnknown = (window as any).__ccUnknownTextureCleanup;
-      (window as any).__ccUnknownTextureCleanup = true;
-      try {
-        cleanupTexturesForBoardTransition('after-clean-board', true);
-      } finally {
-        (window as any).__ccUnknownTextureCleanup = prevUnknown ?? false;
-      }
+      // Stability-first: never run destructive texture cache cleanup here.
+      // Keep this pass non-destructive to avoid addressModeU crashes during next-board boot.
+      cleanupTexturesForBoardTransition('after-clean-board', false, true);
     } catch {}
     
     // 🔥 BOARD RECOVERY: Clean board flow completed successfully - clear recovery flag

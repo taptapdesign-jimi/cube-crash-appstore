@@ -131,14 +131,9 @@ class MemoryManager {
       if (!obj) {
         // Object was garbage collected
         toRemove.push(name);
-      } else if (obj.destroy && typeof obj.destroy === 'function') {
-        // Object has destroy method, call it
-        try {
-          obj.destroy();
-          toRemove.push(name);
-        } catch (error) {
-          logger.warn(`Failed to destroy object ${name}`, 'memory-manager', error);
-        }
+      } else if (obj?.destroyed === true) {
+        // Object already destroyed elsewhere
+        toRemove.push(name);
       }
     }
     
@@ -157,28 +152,17 @@ class MemoryManager {
     if (!window.PIXI || !window.PIXI.utils) return;
     
     try {
-      // Clear texture cache
-      window.PIXI.utils.clearTextureCache();
-      
-      // Clean up base textures
-      const baseTextureCache = window.PIXI.utils.BaseTextureCache;
-      const toRemove: string[] = [];
-      
-      for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
-        if (baseTexture && (!baseTexture.textureCacheIds || baseTexture.textureCacheIds.length === 0)) {
-          baseTexture.destroy();
-          toRemove.push(key);
-        }
-      }
-      
-      // Remove destroyed base textures
-      toRemove.forEach(key => {
-        delete baseTextureCache[key];
+      // Stability-first: run renderer-managed GC only, do not destroy cache entries manually.
+      // Manual cache/baseTexture destruction can race active render and crash with addressModeU.
+      const app = container.get('app') as Application | null;
+      try { app?.renderer?.textureGC?.run?.(); } catch {}
+      // Keep local tracking set clean from already-destroyed textures.
+      const staleTextures: Texture[] = [];
+      this.textureCache.forEach((tex) => {
+        const bt = tex?.baseTexture as any;
+        if (!tex || bt?.destroyed) staleTextures.push(tex);
       });
-      
-      if (toRemove.length > 0) {
-        logger.info(`Cleaned up ${toRemove.length} base textures`, 'memory-manager');
-      }
+      staleTextures.forEach((tex) => this.textureCache.delete(tex));
       
     } catch (error) {
       logger.warn('PIXI texture cleanup failed', 'memory-manager', error);
@@ -195,20 +179,6 @@ class MemoryManager {
           img.remove();
         }
       });
-      
-      // Clear image cache safely
-      try {
-        if (window.Image && window.Image.prototype) {
-          // Reset image loading safely
-          const imgProto = Image.prototype;
-          if (imgProto && typeof imgProto.src !== 'undefined') {
-            imgProto.src = '';
-          }
-        }
-      } catch (protoError) {
-        // Ignore prototype errors
-        logger.debug('Image prototype cleanup skipped', 'memory-manager');
-      }
       
       logger.info('Cleaned up unused images', 'memory-manager');
       

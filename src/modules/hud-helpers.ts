@@ -17,6 +17,7 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const hudLifecycle = createScreenLifecycle('hud');
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
@@ -2852,7 +2853,9 @@ function updateComboWobble(comboValue) {
       yoyo: true,
       repeat: -1 // Infinite repeat
     });
-    console.log('💧 Combo icon wobble animation started (combo >= 10)');
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log('💧 Combo icon wobble animation started (combo >= 10)');
+    }
   }
 }
 
@@ -2905,20 +2908,24 @@ export function setCombo(v){
       // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
       comboWrap.x = comboRightEdge - totalWidth / 2;
       
-      console.log('🎯 Combo positioned 12px left of wild preloader:', { 
-        wildRightEdge: wildPreloaderRightEdge, 
-        comboRightEdge: comboRightEdge,
-        comboCenter: comboWrap.x, 
-        actualComboRightEdge: comboWrap.x + totalWidth / 2,
-        totalWidth 
-      });
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log('🎯 Combo positioned 12px left of wild preloader:', {
+          wildRightEdge: wildPreloaderRightEdge,
+          comboRightEdge: comboRightEdge,
+          comboCenter: comboWrap.x,
+          actualComboRightEdge: comboWrap.x + totalWidth / 2,
+          totalWidth
+        });
+      }
       
       // Also scale down if still too wide after moving
       const maxAllowedWidth = screenWidth - 40; // No padding, just 40px margin for safety
       if (totalWidth > maxAllowedWidth && maxAllowedWidth > 0) {
         const scale = maxAllowedWidth / totalWidth;
         comboContainer.scale.set(Math.min(1, scale));
-        console.log(`💧 Combo scaled to ${(scale * 100).toFixed(1)}% to fit on screen`);
+        if (isVerboseGameplayLogsEnabled()) {
+          console.log(`💧 Combo scaled to ${(scale * 100).toFixed(1)}% to fit on screen`);
+        }
       } else {
         comboContainer.scale.set(1);
       }

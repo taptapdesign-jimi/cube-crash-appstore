@@ -12,6 +12,7 @@ import { logger } from '../core/logger.js';
 import { TILE } from './constants.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 // ============================================================================
 // TILE HELPER FUNCTIONS
@@ -89,12 +90,16 @@ export function killComboTimer(comboIdleTimer: any): any {
       // Check if it's a GSAP delayedCall (has kill method)
       if (typeof comboIdleTimer.kill === 'function') {
         comboIdleTimer.kill();
-        console.log('🔥 Combo timer killed (GSAP delayedCall)');
+        if (isVerboseGameplayLogsEnabled()) {
+          console.log('🔥 Combo timer killed (GSAP delayedCall)');
+        }
       } 
       // Check if it's a setTimeout (number type)
       else if (typeof comboIdleTimer === 'number') {
         clearTimeout(comboIdleTimer);
-        console.log('🔥 Combo timer killed (setTimeout)');
+        if (isVerboseGameplayLogsEnabled()) {
+          console.log('🔥 Combo timer killed (setTimeout)');
+        }
       }
       comboIdleTimer = null;
     }
@@ -130,10 +135,14 @@ export function scheduleComboDecay(
   // Combo timer should continue running even when bottom sheet is open
   const currentComboValue = combo;
   
-  console.log(`🔥 scheduleComboDecay: Setting timer for ${COMBO_IDLE_RESET_MS}ms, combo=${combo}`);
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🔥 scheduleComboDecay: Setting timer for ${COMBO_IDLE_RESET_MS}ms, combo=${combo}`);
+  }
   
   const timerId = setTimeout(() => {
-    console.log(`🔥 COMBO TIMER EXECUTED: Timer fired after ${COMBO_IDLE_RESET_MS}ms`);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log(`🔥 COMBO TIMER EXECUTED: Timer fired after ${COMBO_IDLE_RESET_MS}ms`);
+    }
     // 🔥 CRITICAL: Get current combo value at execution time (not from closure)
     // This ensures we use the actual combo value when timer executes, not the value when timer was created
     const comboAtExecution = typeof (window as any).CC?.getCombo === 'function' 
@@ -142,7 +151,9 @@ export function scheduleComboDecay(
     
     // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost
     if (comboAtExecution > 0) {
-      console.log(`💨 COMBO DEFLATE: Starting deflate animation for combo loss (combo: ${comboAtExecution})`);
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log(`💨 COMBO DEFLATE: Starting deflate animation for combo loss (combo: ${comboAtExecution})`);
+      }
       try {
         // Animate combo text deflate
         if ((window as any).comboText) {
@@ -169,15 +180,21 @@ export function scheduleComboDecay(
       : currentComboValue;
     
     if (finalCombo === comboAtExecution && finalCombo > 0) {
-      console.log(`💨 COMBO DEFLATE: Resetting combo from ${finalCombo} to 0`);
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log(`💨 COMBO DEFLATE: Resetting combo from ${finalCombo} to 0`);
+      }
       hudResetCombo();
       updateHUD();
     } else {
-      console.log(`💨 COMBO DEFLATE: Skipping reset - combo changed from ${comboAtExecution} to ${finalCombo} (user made merge during timer)`);
+      if (isVerboseGameplayLogsEnabled()) {
+        console.log(`💨 COMBO DEFLATE: Skipping reset - combo changed from ${comboAtExecution} to ${finalCombo} (user made merge during timer)`);
+      }
     }
   }, COMBO_IDLE_RESET_MS);
   
-  console.log(`🔥 scheduleComboDecay: Timer created with ID=${timerId}, type=${typeof timerId}`);
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`🔥 scheduleComboDecay: Timer created with ID=${timerId}, type=${typeof timerId}`);
+  }
   comboIdleTimer = timerId;
   
   return comboIdleTimer;

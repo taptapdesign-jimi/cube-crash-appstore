@@ -6,6 +6,17 @@ import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 
+function isAliasAlreadyInPixiResolver(alias: string): boolean {
+  try {
+    const resolver: any = (Assets as any)?.resolver;
+    if (!resolver) return false;
+    if (typeof resolver.hasKey === 'function') return !!resolver.hasKey(alias);
+    if (typeof resolver.hasAlias === 'function') return !!resolver.hasAlias(alias);
+    if (typeof resolver.has === 'function') return !!resolver.has(alias);
+  } catch {}
+  return false;
+}
+
 // Type definitions
 interface ProgressCallback {
   (percentage: number, loadedCount: number, totalCount: number): void;
@@ -527,6 +538,10 @@ export class AssetPreloader {
         CRITICAL_ASSETS.forEach((assetPath: string) => {
           if (registeredKeys.has(assetPath)) return;
           if (isAssetAliasRegistered(assetPath)) return;
+          if (isAliasAlreadyInPixiResolver(assetPath)) {
+            markAssetAliasRegistered(assetPath);
+            return;
+          }
           if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
             markAssetAliasRegistered(assetPath);
             return;
@@ -664,6 +679,10 @@ export class AssetPreloader {
       DEFERRED_ASSETS.forEach((assetPath: string) => {
         if (deferredKeys.has(assetPath)) return;
         if (isAssetAliasRegistered(assetPath)) return;
+        if (isAliasAlreadyInPixiResolver(assetPath)) {
+          markAssetAliasRegistered(assetPath);
+          return;
+        }
         if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
           markAssetAliasRegistered(assetPath);
           return;

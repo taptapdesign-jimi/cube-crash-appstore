@@ -7,6 +7,7 @@
 
 import woodenTemplate from './wooden-template.js';
 import { GraphicsPool } from '../object-pool.js';
+const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 
 // Type definitions
 interface ShardPattern {
@@ -226,11 +227,13 @@ export function selectPattern(mergeType: string): PatternSelection | null {
     return null;
   }
   
-  console.log(`✅ selectPattern: Selected pattern "${patternName}" for merge type "${mergeType}"`, {
-    poolKey,
-    shardCount: patternData.length,
-    poolStats: (pool as any).getStats?.()
-  });
+  if (isVerboseGameplayLogsEnabled()) {
+    console.log(`✅ selectPattern: Selected pattern "${patternName}" for merge type "${mergeType}"`, {
+      poolKey,
+      shardCount: patternData.length,
+      poolStats: (pool as any).getStats?.()
+    });
+  }
   
   return {
     patternName,
@@ -293,7 +296,7 @@ export function getDragParticleColors(tileSpecial: string | null): number[] {
   if (!globalObj.__dragParticleColorLogs) {
     globalObj.__dragParticleColorLogs = new Set();
   }
-  if (!globalObj.__dragParticleColorLogs.has(colorKey)) {
+  if (isVerboseGameplayLogsEnabled() && !globalObj.__dragParticleColorLogs.has(colorKey)) {
     console.log(`✅ getDragParticleColors: Loaded ${colors.length} colors for ${colorKey} (${tileSpecial}):`, colors.map(c => `0x${c.toString(16).toUpperCase()}`).join(', '));
     globalObj.__dragParticleColorLogs.add(colorKey);
   }

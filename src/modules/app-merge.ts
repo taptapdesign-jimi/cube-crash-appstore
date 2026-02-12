@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts";
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
@@ -639,21 +639,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const mult = 4;
 
   // 🔥 CRITICAL: Ensure grid coordinates are set before any positioning/logging
+  // 🔥 NEVER use pulled tile's grid position - those are SPAWN cells! Shards would appear at wrong place.
   if (dst && (!Number.isFinite(dst.gridX) || !Number.isFinite(dst.gridY))) {
     let found = false;
 
-    // Prefer a pulled tile's grid position if available
-    const fallbackTile = validTiles.find((t: any) => Number.isFinite(t?.gridX) && Number.isFinite(t?.gridY));
-    if (fallbackTile) {
-      dst.gridX = fallbackTile.gridX;
-      dst.gridY = fallbackTile.gridY;
-      found = true;
-      console.log('🧲 Using pulled tile grid coords for dst:', dst.gridX, dst.gridY);
-    }
-
-    // Try to find grid coordinates from STATE.grid (optimized search)
-    if (!found) {
-      for (let r = 0; r < ROWS && !found; r++) {
+    // Try to find grid coordinates from STATE.grid (merge 6 tile is at magnet position)
+    for (let r = 0; r < ROWS && !found; r++) {
         for (let c = 0; c < COLS && !found; c++) {
           if (STATE.grid?.[r]?.[c] === dst) {
             dst.gridX = c;
@@ -662,10 +653,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             found = true;
           }
         }
-      }
     }
 
-    // 🔥 FIX: If not found in grid, calculate from pixel position
+    // If not found in grid, calculate from pixel position (dst.x/y are already correct)
     if (!found) {
       const tileSize = TILE + GAP;
       const halfTile = TILE / 2;
@@ -708,66 +698,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
 
   console.log('🧲 Correct position calculated:', correctX, correctY, 'current position:', dst.x, dst.y);
 
+  // 🔥 CRITICAL: Capture shards position BEFORE overwriting dst - use tile's actual displayed position
+  // Same as first merge 6 in app-core.ts - centerInBoard uses x/y or toGlobal/toLocal
+  const shardsPos = STATE.board && dst && !dst.destroyed
+    ? centerInBoard(STATE.board, dst, TILE)
+    : { x: correctX, y: correctY };
+
   // 🔥 CRITICAL: Set position immediately using correct formula (same as createTile)
   gsap.set(dst, { x: correctX, y: correctY });
   dst.targetX = correctX;
   dst.targetY = correctY;
   
   // 🔥 CRITICAL: Red-brown shards animation when tiles gather (enhanced, visible)
-  // Trigger 0.200s earlier by calling it before other animations
+  // Use shardsPos captured BEFORE gsap.set - tile's actual position on screen
   if (dst && !dst.destroyed && STATE.board) {
-    // 🔥 CRITICAL: Calculate shards position DIRECTLY from grid coordinates or current position
-    // Don't rely on centerInBoard which might use toGlobal/toLocal transformations
-    let shardX: number;
-    let shardY: number;
-    
-    // First, try to use grid coordinates to calculate exact position (same as createTile)
-    if (typeof dst.gridX === 'number' && typeof dst.gridY === 'number' && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
-      // Use the same formula as createTile: c * (TILE + GAP) + TILE / 2
-      shardX = dst.gridX * (TILE + GAP) + TILE / 2;
-      shardY = dst.gridY * (TILE + GAP) + TILE / 2;
-      console.log('🧲 Shards: Using grid coordinates', dst.gridX, dst.gridY, '→ position', shardX, shardY);
-    } else if (typeof dst.x === 'number' && typeof dst.y === 'number' && Number.isFinite(dst.x) && Number.isFinite(dst.y)) {
-      // Fallback: Use current tile position directly
-      shardX = dst.x;
-      shardY = dst.y;
-      console.log('🧲 Shards: Using current tile position', shardX, shardY);
-    } else {
-      // Last resort: Use correctX/correctY that we calculated earlier
-      shardX = correctX;
-      shardY = correctY;
-      console.log('🧲 Shards: Using calculated correct position', shardX, shardY);
-    }
-    
-    // Ensure position is valid
+    const shardX = shardsPos.x;
+    const shardY = shardsPos.y;
+
     if (!Number.isFinite(shardX) || !Number.isFinite(shardY)) {
-      console.error('❌ Invalid shards position:', shardX, shardY, 'dst:', dst);
+      console.error('❌ Invalid shards position from centerInBoard:', shardX, shardY, 'dst:', dst);
     } else {
-      // Ensure tile position is set correctly
-      if (dst.x !== shardX || dst.y !== shardY) {
-        gsap.set(dst, { x: shardX, y: shardY });
-        dst.targetX = shardX;
-        dst.targetY = shardY;
-      }
-      
-      console.log('🧲 Creating shards at calculated position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY);
-      
-      // 🔥 CRITICAL FIX: Use dst tile directly (same as regular merge-6) instead of tileForShards object
-      // This ensures centerInBoard works correctly and shards appear at the right position
-      // Ensure dst position is set correctly before triggering shards
-      if (dst.x !== shardX || dst.y !== shardY) {
-        gsap.set(dst, { x: shardX, y: shardY });
-        dst.targetX = shardX;
-        dst.targetY = shardY;
-      }
-      
-      const mergePos = { x: shardX, y: shardY, gridX: dst.gridX, gridY: dst.gridY, zIndex: dst.zIndex || 9993 };
-      wildMagnetMerge6ShardsTemplated(STATE.board, mergePos as any, { 
+      console.log('🧲 Shards at magnet position (centerInBoard):', shardX, shardY, 'dst.grid:', dst.gridX, dst.gridY, 'dst.x/y:', dst.x, dst.y);
+
+      const mergePosForShards = { x: shardX, y: shardY, gridX: dst.gridX, gridY: dst.gridY, zIndex: dst.zIndex || 9993 };
+      wildMagnetMerge6ShardsTemplated(STATE.board, mergePosForShards as any, {
         zIndex: dst.zIndex || 9993,
         isPullAnimation: true  // 🔥 Use pull-specific patterns
       });
-      
-      console.log('🧲 Shards animation triggered at position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY, 'dst.x:', dst.x, 'dst.y:', dst.y);
     }
   }
   

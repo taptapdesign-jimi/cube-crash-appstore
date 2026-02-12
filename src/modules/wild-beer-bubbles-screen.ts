@@ -22,6 +22,18 @@ let healthCheckInterval: NodeJS.Timeout | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
 const lifecycle = createScreenLifecycle('wild-beer-bubbles-screen');
 
+function isUsableRuntimeTexture(tex: any): boolean {
+  if (!tex || tex.destroyed) return false;
+  try {
+    const source = tex.source ?? tex.baseTexture ?? null;
+    if (!source || source.destroyed) return false;
+    if (source.style == null && source.resource == null) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Start full-screen bubbles animation
  * Bubbles spawn from bottom, rise to top, go over everything
@@ -95,7 +107,13 @@ export function stopWildBeerBubblesScreen(): void {
  * Safe to call when the screen is inactive (preferred).
  */
 export function destroyWildBeerBubblesScreenCache(): void {
-  if (_cachedBubbleTexture && !_cachedBubbleTexture.destroyed) {
+  // Fail-safe: never destroy shared texture while bubbles can still reference it.
+  const textureStillInUse = activeBubbles.some((bubble) => bubble instanceof Sprite && (bubble as Sprite).texture === _cachedBubbleTexture);
+  if (isBubblesActive || textureStillInUse) {
+    console.warn('⚠️ Skipping bubble screen cache destroy - texture still in use');
+    return;
+  }
+  if (isUsableRuntimeTexture(_cachedBubbleTexture)) {
     try {
       _cachedBubbleTexture.destroy(true);
     } catch {}
@@ -114,7 +132,7 @@ export function isWildBeerBubblesActive(): boolean {
  * Initialize bubble texture for performance (texture pooling)
  */
 function initializeBubbleTexture(app: any): void {
-  if (_cachedBubbleTexture && !_cachedBubbleTexture.destroyed) {
+  if (isUsableRuntimeTexture(_cachedBubbleTexture)) {
     return; // Already initialized
   }
 
@@ -269,7 +287,7 @@ function spawnBubble(): void {
   const alpha = 0.55 + Math.random() * 0.35; // 0.55-0.9 alpha
 
   // Use Sprite with texture (performance) OR Graphics fallback
-  const useTexture = _cachedBubbleTexture && !_cachedBubbleTexture.destroyed;
+  const useTexture = isUsableRuntimeTexture(_cachedBubbleTexture);
   let isSprite = false;
 
   if (useTexture && _cachedBubbleTexture) {
