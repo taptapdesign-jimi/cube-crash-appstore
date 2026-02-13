@@ -1628,13 +1628,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     
     // 🔥 CRITICAL FIX: Spawn OBLIGATORY tile FIRST (priority)
     // Then spawn replacement tiles with cascading delays
-    // Obligatory tile spawns immediately (0ms delay), replacement tiles cascade (30ms, 60ms, 90ms)
+    // Obligatory tile spawns immediately (0ms delay), replacement tiles cascade (150ms, 300ms, 450ms)
     // 🔥 CRITICAL: Use Promise-based approach to track successful spawns
     for (let index = 0; index < spawnTargets.length && successfulSpawns < spawnCount; index++) {
       const { c, r } = spawnTargets[index];
       const isObligatory = obligatoryCell && c === obligatoryCell.c && r === obligatoryCell.r;
-      // Obligatory tile spawns first (0ms), replacement tiles cascade (30ms, 60ms, 90ms...)
-      const delay = isObligatory ? 0 : (successfulObligatorySpawn ? (successfulSpawns * 30) : 30);
+      // Obligatory tile spawns first (0ms), replacement tiles cascade (150ms, 300ms, 450ms...)
+      const delay = isObligatory ? 0 : (successfulObligatorySpawn ? (successfulSpawns * 150) : 150);
       const key = `${c},${r}`;
       const forcedValue = forcedSpawnValues.get(key);
       
@@ -1809,11 +1809,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Problem: User had 5 tiles spawn after magnet, started merging 3+3, got fail screen
   // Root cause: Spawn animations and tile bindings weren't complete when user tried to merge
   // Spawn bounce animation with timeScale 2.0 takes ~0.24s (240ms) per tile
-  // With cascading delays (0ms, 30ms, 60ms, 90ms, 120ms for 5 tiles), last tile finishes at ~450ms
-  // Plus unlock/bind/eventMode setup takes ~100ms per tile, so last tile is fully ready at ~550ms
-  // Plus safety margin for user to see tiles: Total safe delay: 1200ms (increased from 800ms)
+  // With cascading delays (0ms, 150ms, 300ms, 450ms, 600ms for 5 tiles), last tile finishes at ~840ms
+  // Plus unlock/bind/eventMode setup takes ~100ms per tile, so last tile is fully ready at ~940ms
+  // Plus safety margin: Total safe delay: 1200ms
   // This ensures ALL spawn animations, unlocks, and bindings are complete before endgame check
-  console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check (increased from 800ms for better safety)...');
+  console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check...');
   await new Promise(resolve => trackAppTimeout(resolve, 1200));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)

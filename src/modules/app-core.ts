@@ -17,7 +17,8 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames } from './tnt-animation.ts';
+import { showMagneticText } from './splash-text-overlay.ts';
+import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -164,6 +165,7 @@ let tntBlastWobbleTweens: Array<gsap.core.Tween> = [];
 let magnetBlastDelayedCalls: Array<gsap.core.Tween> = [];
 let magnetBlastReturnTweens: Array<gsap.core.Tween> = [];
 let lastTntBonusChangeAt = 0;
+let tntBonusGuardUntil = 0; // Prevent premature fail while TNT bonus changes board
 
 function cleanupTntBoomArtifacts(reason: string = 'unknown'): void {
   try {
@@ -2854,6 +2856,40 @@ function hideGhostPlaceholders() {
         });
       });
     }
+  } catch {}
+}
+
+// Smoothly fade visible ghost placeholders, then hide them.
+function fadeOutGhostPlaceholders(duration = 0.2) {
+  try {
+    const list: any[] = [];
+    if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
+      window._ghostPlaceholders.forEach((row: any[]) => {
+        row.forEach((ghost: any) => {
+          if (ghost && ghost.visible) list.push(ghost);
+        });
+      });
+    }
+    if (!list.length) return;
+    list.forEach((ghost) => {
+      try { gsap.killTweensOf(ghost); } catch {}
+      try {
+        const startAlpha = Number.isFinite(ghost.alpha) ? ghost.alpha : 1;
+        ghost.alpha = startAlpha;
+        gsap.to(ghost, {
+          alpha: 0,
+          duration,
+          ease: 'power2.out',
+          overwrite: 'auto',
+          onComplete: () => {
+            try {
+              ghost.visible = false;
+              ghost.alpha = 1;
+            } catch {}
+          }
+        });
+      } catch {}
+    });
   } catch {}
 }
 
@@ -6060,6 +6096,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     try { tntBlastWobbleTweens = []; } catch {}
                   });
                   if (returnCall) tntBoomDelayedCalls.push(returnCall);
+                  // Guard endgame check until TNT bonus break/spawn phase has enough time to complete.
+                  // Without this, fail screen can trigger on transient board state.
+                  tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
                   const bonusCall = trackDelayedCall(0.4 + 0.359 - 0.2 + 0.5, () => {
                     runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx: false });
                   });
@@ -6214,6 +6253,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
               zIndex: dstZIndex
             });
+            showMagneticText();
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow shards for wild star, orange for wild beer
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
@@ -6730,9 +6770,66 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const isFinalTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
           if (isFinalTntMerge && typeof onTntAnimationComplete === 'function') {
             devLog('💥 Final TNT merge: deferring clean board until TNT animation completes');
+            const cleanupFinalTntBoardArtifacts = () => {
+              try {
+                const clearTileFromGridForTntFinal = (tile: any) => {
+                  if (!tile || !grid) return;
+                  try {
+                    const gxCandidate = tile.gridX;
+                    const gyCandidate = tile.gridY;
+                    if (gyCandidate !== undefined && gxCandidate !== undefined && grid[gyCandidate] && grid[gyCandidate][gxCandidate] === tile) {
+                      grid[gyCandidate][gxCandidate] = null;
+                      return;
+                    }
+                  } catch {}
+                  try {
+                    for (let r = 0; r < grid.length; r++) {
+                      for (let c = 0; c < grid[r].length; c++) {
+                        if (grid[r][c] === tile) {
+                          grid[r][c] = null;
+                          return;
+                        }
+                      }
+                    }
+                  } catch {}
+                };
+
+                const placeholderRef = (dst as any)?._placeholderHolder || placeholderHolder;
+                if (placeholderRef && !placeholderRef.destroyed && STATE.tiles.includes(placeholderRef)) {
+                  clearTileFromGridForTntFinal(placeholderRef);
+                  removeTile(placeholderRef);
+                }
+                if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+                  clearTileFromGridForTntFinal(dst);
+                  dst.visible = false;
+                  dst.alpha = 0;
+                  dst.eventMode = 'none';
+                  removeTile(dst);
+                }
+                if (dst) {
+                  (dst as any)._placeholderHolder = undefined;
+                }
+                try { fadeOutGhostPlaceholders(0.22); } catch {}
+              } catch (cleanupError) {
+                devWarn('⚠️ Final TNT merge cleanup before clean board failed:', cleanupError);
+              }
+            };
+
+            // Run immediately as well (idempotent) so placeholder/locked tile cannot linger during TNT tail.
+            cleanupFinalTntBoardArtifacts();
+
             onTntAnimationComplete(() => {
+              cleanupFinalTntBoardArtifacts();
               try { triggerCleanBoardFlow('final_tnt_merge_after_tnt'); } catch {}
             });
+            // Safety timeout: if TNT completion callback fails to fire, force the same cleanup path.
+            trackAppTimeout(async () => {
+              cleanupFinalTntBoardArtifacts();
+              if (busyEnding) return;
+              try {
+                await triggerCleanBoardFlow('final_tnt_merge_fallback_timeout');
+              } catch {}
+            }, 2600);
             return;
           }
         } else {
@@ -6998,45 +7095,59 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const spawnC = gx;
           const spawnR = gy;
           
-          // 🔥 CRITICAL: Ensure grid position is clear before spawning
-          // Clear grid position to ensure openAtCell doesn't see merge 6 tile
+          // 🔥 CRITICAL: Force-clear grid position (any tile: merge 6, placeholder, or leftover)
+          // Prevents "locked tile" bug where openAtCell refuses to spawn and user sees stuck merge 6 / placeholder
           if (grid && grid[spawnR] && grid[spawnR][spawnC]) {
-            // Only clear if it's the dst tile (merge 6), not if it's a placeholder
             const tileAtPos = grid[spawnR][spawnC];
-            if (tileAtPos === dst || (tileAtPos && tileAtPos.value === 6)) {
-              devLog('🧹 END-GAME SPAWN: Clearing merge 6 tile from grid position before spawn');
+            if (tileAtPos) {
+              devLog('🧹 END-GAME SPAWN: Force-clearing cell before spawn (tile:', tileAtPos.value, 'locked:', tileAtPos.locked, ')');
               grid[spawnR][spawnC] = null;
+              if (!tileAtPos.destroyed && tiles.includes(tileAtPos)) {
+                removeTile(tileAtPos);
+              }
             }
           }
           
           // Spawn new ACTIVE tile with pips at dst position
           // Use tracked setTimeout to ensure grid is cleared and placeholder is removed
           trackAppTimeout(() => {
-            openAtCell(spawnC, spawnR, { 
-              value: wildMergeTarget ? (() => {
-                const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
-                return candidates[(Math.random() * candidates.length) | 0];
-              })() : null,
-              skipBind: false,
-              timeScale: 2.0  // Fast spawn animation
-            }).then((spawnResult) => {
+            // 🔥 BUG FIX: Force-clear cell again right before spawn (handles race / stale refs)
+            const runSpawn = (retry = false) => {
+              if (grid && grid[spawnR] && grid[spawnR][spawnC]) {
+                const existing = grid[spawnR][spawnC];
+                if (existing) {
+                  devLog('🧹 END-GAME SPAWN: Pre-spawn force-clear', retry ? '(retry)' : '', existing.value, existing.locked);
+                  grid[spawnR][spawnC] = null;
+                  if (!existing.destroyed && tiles.includes(existing)) removeTile(existing);
+                }
+              }
+              return openAtCell(spawnC, spawnR, {
+                value: wildMergeTarget ? (() => {
+                  const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+                  return candidates[(Math.random() * candidates.length) | 0];
+                })() : null,
+                skipBind: false,
+                timeScale: 2.0
+              });
+            };
+            runSpawn().then(async (spawnResult) => {
               if (spawnResult) {
                 devLog('✅✅✅ END-GAME SPAWN: Spawned new ACTIVE tile with pips at dst position (', spawnC, ',', spawnR, ')');
-              } else {
-                devWarn('⚠️ END-GAME SPAWN: Failed to spawn tile at dst position (', spawnC, ',', spawnR, ')');
+                return;
               }
-              // 🔥 BUG FIX: Reset spawn in progress flag after endgame spawn completes
-              merge6SpawnInProgress = false;
-              devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn completed');
-              if (merge6SpawnResetTimer) {
-                try { merge6SpawnResetTimer.kill(); } catch {}
-                merge6SpawnResetTimer = null;
+              devWarn('⚠️ END-GAME SPAWN: openAtCell returned false – retrying once after force-clear');
+              const retryResult = await runSpawn(true);
+              if (retryResult) {
+                devLog('✅ END-GAME SPAWN: Retry succeeded');
+              } else {
+                devWarn('⚠️ END-GAME SPAWN: Retry failed – spawn at (', spawnC, ',', spawnR, ') did not complete');
               }
             }).catch((err) => {
               devWarn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
-              // 🔥 BUG FIX: Reset spawn in progress flag even on error
+            }).finally(() => {
+              // 🔥 BUG FIX: Reset spawn flag only after primary spawn + optional retry complete
               merge6SpawnInProgress = false;
-              devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn error');
+              devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn flow completed');
               if (merge6SpawnResetTimer) {
                 try { merge6SpawnResetTimer.kill(); } catch {}
                 merge6SpawnResetTimer = null;
@@ -7196,18 +7307,24 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // Normal mode: remove dst tile immediately
             devLog('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
             
-            // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
-            // This prevents openAtCell from seeing merge 6 tile and not spawning
+            // 🔥 BUG FIX: Grid may have placeholder (not dst) at (gx, gy) – clear whatever is there
+            // Prevents "locked tile" bug where placeholder stays visible at merge 6 position
+            if (grid && grid[gy] && grid[gy][gx]) {
+              const atCell = grid[gy][gx];
+              grid[gy][gx] = null;
+              if (atCell && atCell !== dst && !atCell.destroyed && tiles.includes(atCell)) {
+                removeTile(atCell);
+                devLog('🧹 Removed placeholder/leftover from merge 6 cell (normal path)');
+              }
+            }
             if (clearTileFromGridSafe(dst)) {
               devLog('🧹 Explicitly cleared grid position before removeTile');
             }
             
-            // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
             dst.visible = false;
             dst.alpha = 0;
             dst.eventMode = 'none';
-            
-            removeTile(dst); // Remove from tiles array
+            removeTile(dst);
             devLog('✅ Dst tile removed successfully');
           }
           
@@ -7299,8 +7416,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Bubbles animation can run for 4+ seconds, which would delay fail screen detection
         // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
         // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
-        devLog('⏳ Waiting 500ms after spawn animations to let user see board state (bubbles animation continues in background)...');
-        await waitTracked(500);
+        const isWildTntMerge6 = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const postSpawnEndgameDelayMs = isWildTntMerge6 ? 1700 : 500;
+        devLog(`⏳ Waiting ${postSpawnEndgameDelayMs}ms after spawn animations before endgame check...`, {
+          isWildTntMerge6
+        });
+        await waitTracked(postSpawnEndgameDelayMs);
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
@@ -7464,6 +7585,34 @@ function checkLevelEnd(){
     logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
     const now = Date.now();
     const skipWindowExceeded = checkLevelEndSkipStartedAt !== null && (now - checkLevelEndSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
+    const tntAnimationRunning = !!isTntAnimationActive?.();
+    const tntBonusGuardActive = tntBonusGuardUntil > now;
+
+    // 🔥 CRITICAL FIX: Never evaluate fail/clean while TNT transition/bonus is still mutating board.
+    // This prevents false fail on transient states (e.g. temporary 4+5 before TNT replacement produces 4+2).
+    if ((tntAnimationRunning || tntBonusGuardActive) && !skipWindowExceeded) {
+      if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
+      checkLevelEndRetryCount++;
+      devLog('⏳ checkLevelEnd deferred - TNT animation/bonus in progress', {
+        retry: `${checkLevelEndRetryCount}/${MAX_CHECK_LEVEL_END_RETRIES}`,
+        tntAnimationRunning,
+        tntBonusGuardMsLeft: Math.max(0, tntBonusGuardUntil - now)
+      });
+      checkLevelEndTimer = trackDelayedCall(0.4, () => {
+        checkLevelEndTimer = null;
+        checkLevelEnd();
+      });
+      return;
+    }
+    if ((tntAnimationRunning || tntBonusGuardActive) && skipWindowExceeded) {
+      devWarn('⏱️ checkLevelEnd: TNT guard skip window exceeded - forcing check', {
+        tntAnimationRunning,
+        tntBonusGuardMsLeft: Math.max(0, tntBonusGuardUntil - now)
+      });
+      checkLevelEndRetryCount = 0;
+      checkLevelEndSkipStartedAt = null;
+      tntBonusGuardUntil = now;
+    }
     
     // 🔥 CRITICAL BUG FIX: Don't skip check if bubbles animation is running - it's just visual
     // Bubbles animation can run for 4+ seconds and shouldn't block end game detection
@@ -7764,6 +7913,8 @@ function runTntBoomBonusBreak2Tiles(deps: {
 }) {
   const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx } = deps;
   try {
+    // Keep guard active while TNT bonus break/spawn sequence is running.
+    tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
     if ((dst as any)?._isLastMerge) {
       devLog('🔥 TNT boom bonus: skip (last merge - clean board)');
       return;
@@ -7809,13 +7960,20 @@ function runTntBoomBonusBreak2Tiles(deps: {
           try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
           try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.0, { sizeScale: 1.5, spawnShape: 'box' }); } catch (e) { devWarn('TNT transition smoke:', e); }
         }
+        const oldValue = (tile.value | 0);
         removeTile(tile);
-        const available = pool.filter((v) => !used.includes(v));
+        // 🔥 CRITICAL: TNT bonus replacement must NEVER keep the same value.
+        // Prefer unique values across this TNT burst, but if that conflicts, keep "different from old" as source of truth.
+        let available = pool.filter((v) => !used.includes(v) && v !== oldValue);
+        if (available.length === 0) {
+          available = pool.filter((v) => v !== oldValue);
+        }
         const val = available[(Math.random() * available.length) | 0];
         used.push(val);
         openAtCell(c, r, { value: val, skipBind: false })
           .then(() => {
             lastTntBonusChangeAt = Date.now();
+            tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
           })
           .catch(() => {});
       };

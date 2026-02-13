@@ -13,6 +13,8 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+let priorityPaperBgLoadPromise: Promise<void> | null = null;
+
 interface LaunchScreenElements {
   container: HTMLElement | null;
   taptapContainer: HTMLElement | null;
@@ -42,6 +44,50 @@ class LaunchScreen {
       stackLogo: null,
       smokeShards: null
     };
+  }
+
+  /**
+   * Priority preload for paper background texture.
+   * Must start before other heavy launch preloads, while taptap logo is visible.
+   */
+  private preloadPriorityPaperBg(timeoutMs = 2000): Promise<void> {
+    if (priorityPaperBgLoadPromise) return priorityPaperBgLoadPromise;
+
+    priorityPaperBgLoadPromise = new Promise<void>((resolve) => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        resolve();
+      };
+
+      try {
+        const img = new Image();
+        img.decoding = 'async';
+        img.loading = 'eager';
+        try { (img as any).fetchPriority = 'high'; } catch {}
+        img.onload = () => {
+          logger.info('✅ Priority paper background loaded (paper-bg.png)');
+          finish();
+        };
+        img.onerror = () => {
+          logger.warn('⚠️ Priority paper background failed to load (continuing)');
+          finish();
+        };
+        img.src = './assets/paper-bg.png';
+      } catch {
+        finish();
+      }
+
+      setTimeout(() => {
+        if (!finished) {
+          logger.warn('⚠️ Priority paper background preload timeout (continuing)');
+        }
+        finish();
+      }, timeoutMs);
+    });
+
+    return priorityPaperBgLoadPromise;
   }
 
   /**
@@ -264,6 +310,10 @@ class LaunchScreen {
     console.log('🚀 Starting launch sequence...');
     logger.info('🚀 Starting launch sequence...');
 
+    // 🔥 PRIORITY: Start paper texture preload first, before other launch tasks.
+    // This runs while taptap logo is displayed.
+    const priorityPaperLoad = this.preloadPriorityPaperBg();
+
     // Start soundtrack as soon as taptap splash begins (fades out when board game starts)
     try {
       const { startSoundtrack } = await import('./soundtrack-manager.js');
@@ -321,9 +371,12 @@ class LaunchScreen {
       logger.warn('⚠️ Taptap logo image load timeout - continuing anyway');
     });
 
-    // Show taptap for 2 seconds
+    // Show taptap for 2 seconds while priority paper texture preloads
     logger.info('⏳ Phase 1: Waiting 2 seconds for taptap logo...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await Promise.all([
+      new Promise(resolve => setTimeout(resolve, 2000)),
+      priorityPaperLoad.catch(() => {})
+    ]);
     logger.info('✅ Phase 1: 2 seconds elapsed');
 
     // Before stack to six: quickly scale taptap into itself (0.3s)

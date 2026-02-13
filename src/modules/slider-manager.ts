@@ -35,6 +35,7 @@ class SliderManager {
   private startX: number = 0;
   private currentX: number = 0;
   private threshold: number = SLIDER_CONFIG.DRAG_THRESHOLD_PX;
+  private velocityThreshold: number = SLIDER_CONFIG.SWIPE_VELOCITY_THRESHOLD_PX_PER_MS;
   private isInitialized: boolean = false;
   private slideAnimation: gsap.core.Tween | null = null;
   private quickSetX: ((value: number) => void) | null = null;
@@ -54,6 +55,9 @@ class SliderManager {
   
   // 🔥 FIX: Track nav button GSAP animations for proper cleanup
   private navButtonAnimations: gsap.core.Tween[] = [];
+  private gestureLastX: number = 0;
+  private gestureLastTs: number = 0;
+  private gestureVelocityX: number = 0;
 
   // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
   private boundHandlers: {
@@ -74,6 +78,7 @@ class SliderManager {
     this.startX = 0;
     this.currentX = 0;
     this.threshold = SLIDER_CONFIG.DRAG_THRESHOLD_PX;
+    this.velocityThreshold = SLIDER_CONFIG.SWIPE_VELOCITY_THRESHOLD_PX_PER_MS;
     this.isInitialized = false;
     
     this.elements = {
@@ -82,6 +87,41 @@ class SliderManager {
       slides: null,  // 🔥 FIX: Use null instead of empty object hack
       divider: null
     };
+  }
+
+  private resetGestureVelocity(x: number): void {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    this.gestureLastX = x;
+    this.gestureLastTs = now;
+    this.gestureVelocityX = 0;
+  }
+
+  private updateGestureVelocity(x: number): void {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const dt = now - this.gestureLastTs;
+    if (dt > 0) {
+      this.gestureVelocityX = (x - this.gestureLastX) / dt; // px/ms
+    }
+    this.gestureLastX = x;
+    this.gestureLastTs = now;
+  }
+
+  private commitGesture(deltaX: number, velocityX: number): void {
+    const passesDistance = Math.abs(deltaX) > this.threshold;
+    const passesVelocity = Math.abs(velocityX) >= this.velocityThreshold;
+    const shouldChangeSlide = passesDistance || passesVelocity;
+
+    if (shouldChangeSlide) {
+      const directionSignal = Math.abs(deltaX) > 0 ? deltaX : velocityX;
+      if (directionSignal > 0) {
+        this.previousSlide();
+      } else {
+        this.nextSlide();
+      }
+    } else {
+      // Snap back to current slide
+      this.updateSlider();
+    }
   }
   
   // Initialize slider
@@ -344,6 +384,7 @@ class SliderManager {
         this.isDragging = true;
         this.startX = this.globalSwipeState.startX; // Use ORIGINAL touch start position!
         this.currentX = touch.clientX;
+        this.resetGestureVelocity(this.currentX);
         
         // Add dragging class
         if (this.elements.container) {
@@ -359,6 +400,7 @@ class SliderManager {
       // 🔥 FIX: Continue updating slider position while in horizontal swipe mode
       if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
         this.currentX = touch.clientX;
+        this.updateGestureVelocity(this.currentX);
         const swipeDeltaX = this.currentX - this.startX;
         this.updateSliderPosition(swipeDeltaX);
       }
@@ -376,18 +418,8 @@ class SliderManager {
         }
         
         logger.debug('Swipe ended', undefined, { deltaX, threshold: this.threshold });
-        
-        // Determine if slide should change (same logic as handleTouchEnd)
-        if (Math.abs(deltaX) > this.threshold) {
-          if (deltaX > 0) {
-            this.previousSlide();
-          } else {
-            this.nextSlide();
-          }
-        } else {
-          // Snap back to current slide
-          this.updateSlider();
-        }
+
+        this.commitGesture(deltaX, this.gestureVelocityX);
       }
       
       // 🔥 SWIPE FIX: No longer manipulating journey-screen pointer-events
@@ -443,6 +475,7 @@ class SliderManager {
     if (!touch) return;
     this.startX = touch.clientX;
     this.currentX = this.startX;
+    this.resetGestureVelocity(this.currentX);
     
     // Add dragging class
     if (this.elements.container) {
@@ -457,6 +490,7 @@ class SliderManager {
     const touch = event.touches[0];
     if (!touch) return;
     this.currentX = touch.clientX;
+    this.updateGestureVelocity(this.currentX);
     const deltaX = this.currentX - this.startX;
     
     // Update slider position
@@ -475,17 +509,7 @@ class SliderManager {
       this.elements.container.classList.remove('dragging');
     }
     
-    // Determine if slide should change
-    if (Math.abs(deltaX) > this.threshold) {
-      if (deltaX > 0) {
-        this.previousSlide();
-      } else {
-        this.nextSlide();
-      }
-    } else {
-      // Snap back to current slide
-      this.updateSlider();
-    }
+    this.commitGesture(deltaX, this.gestureVelocityX);
   }
   
   // Handle mouse down
@@ -503,6 +527,7 @@ class SliderManager {
     this.isDragging = true;
     this.startX = event.clientX;
     this.currentX = this.startX;
+    this.resetGestureVelocity(this.currentX);
     
     // Add dragging class
     if (this.elements.container) {
@@ -515,6 +540,7 @@ class SliderManager {
     if (!this.isDragging || gameState.get('sliderLocked')) return;
     
     this.currentX = event.clientX;
+    this.updateGestureVelocity(this.currentX);
     const deltaX = this.currentX - this.startX;
     
     // Update slider position
@@ -533,17 +559,7 @@ class SliderManager {
       this.elements.container.classList.remove('dragging');
     }
     
-    // Determine if slide should change
-    if (Math.abs(deltaX) > this.threshold) {
-      if (deltaX > 0) {
-        this.previousSlide();
-      } else {
-        this.nextSlide();
-      }
-    } else {
-      // Snap back to current slide
-      this.updateSlider();
-    }
+    this.commitGesture(deltaX, this.gestureVelocityX);
   }
   
   // Update slider position during drag

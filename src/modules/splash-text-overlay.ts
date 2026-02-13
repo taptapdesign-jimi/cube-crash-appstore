@@ -1,0 +1,286 @@
+// @ts-nocheck
+// Splash text overlay – SWOOP (magnet merge 6)
+// Same enter/exit as TNT BOOM, white color
+
+import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+let swoopOverlay: HTMLElement | null = null;
+let swoopTimelinesRef: gsap.core.Timeline[] = [];
+let swoopBounceTimelinesRef: gsap.core.Timeline[] = [];
+let swoopDelayedCallsRef: gsap.core.Tween[] = [];
+
+// Same as TNT BOOM
+const ENTER_BOUNCE_SCALE = 1.2;
+const ENTER_DURATION = 0.24;
+const SETTLE_DURATION = 0.1;
+const FINAL_SETTLE_DURATION = 0.1;
+const BOOM_ENTER_DELAY = 0.3;
+const BOOM_ENTER_STAGGER = 0.05;
+const BOOM_EXIT_STAGGER = 0.06;
+const BOOM_ENTER_EXTRA = 0.1;
+const BOOM_EXIT_EXTRA = 0.3;
+const EXIT_BOUNCE_DURATION = 0.13;
+const EXIT_FADE_DURATION = 0.17;
+
+function cleanupBuzzzOverlay(): void {
+  try {
+    swoopDelayedCallsRef.forEach((dc) => {
+      try { dc.kill(); } catch {}
+    });
+    swoopDelayedCallsRef = [];
+    swoopBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    swoopBounceTimelinesRef = [];
+    swoopTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    swoopTimelinesRef = [];
+    if (swoopOverlay) {
+      try {
+        gsap.killTweensOf(swoopOverlay);
+        swoopOverlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+      } catch {}
+    }
+    if (swoopOverlay?.parentNode) {
+      swoopOverlay.parentNode.removeChild(swoopOverlay);
+    }
+    swoopOverlay = null;
+  } catch {}
+}
+
+/**
+ * Show SWOOP text overlay (magnet merge 6)
+ * Same enter/exit as TNT BOOM, white color
+ */
+export function showMagneticText(): void {
+  try {
+    cleanupBuzzzOverlay();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'left: 0',
+      'top: 0',
+      'width: 100%',
+      'height: 100%',
+      'pointer-events: none',
+      'z-index: 9999999',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+    ].join(';');
+    swoopOverlay = overlay;
+
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position: absolute',
+      'left: 50%',
+      'top: 50%',
+      'transform: translate(-50%, -50%)',
+      'display: flex',
+      'flex-direction: row',
+      'align-items: center',
+      'justify-content: center',
+      'gap: -4px',
+      'margin: 0',
+      'padding: 0',
+      'width: fit-content',
+      'min-width: 0',
+      'max-width: 100%',
+      'box-sizing: border-box',
+      'z-index: 2',
+      'pointer-events: none',
+      'perspective: 1000px',
+      'transform-style: preserve-3d',
+    ].join(';');
+
+    const letters = ['S', 'W', 'O', 'O', 'P'];
+    const letterScales: number[] = [];
+    const letterRotations: number[] = [];
+    const swoopBounceTimelines: gsap.core.Timeline[] = [];
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(183, 152, 139, 0.5))';
+
+    letters.forEach((letter) => {
+      const letterScale = 0.9 + Math.random() * 0.4;
+      const rotation = (Math.random() - 0.5) * 24;
+      const el = document.createElement('span');
+      el.textContent = letter;
+      el.style.cssText = [
+        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+        'font-weight: 800',
+        'font-size: 83px',
+        'line-height: 1',
+        'color: #FFF',
+        'text-align: center',
+        'opacity: 0',
+        'transform: scale(0) perspective(1000px) translateZ(0)',
+        'display: inline-block',
+        'visibility: visible',
+        'pointer-events: none',
+        'margin-right: 0',
+        'padding: 0',
+        'border: 0',
+        'outline: 0',
+        'vertical-align: top',
+        `filter: ${dropShadow}`,
+        'transform-style: preserve-3d',
+        'backface-visibility: hidden',
+        '-webkit-font-smoothing: antialiased',
+        '-moz-osx-font-smoothing: grayscale',
+        'text-rendering: optimizeLegibility',
+        'transform-origin: center center',
+        'position: relative',
+        'z-index: 10',
+      ].join(';');
+      container.appendChild(el);
+      letterScales.push(letterScale);
+      letterRotations.push(rotation);
+
+      const bounceTl = trackTimeline({ repeat: -1, yoyo: true });
+      bounceTl.pause(0);
+      bounceTl.to(el, {
+        scale: letterScale * (1.02 + Math.random() * 0.06),
+        rotation: rotation * 1.1,
+        duration: 0.35,
+        ease: 'elastic.inOut(1, 0.2)'
+      });
+      swoopBounceTimelines.push(bounceTl);
+      swoopBounceTimelinesRef.push(bounceTl);
+      gsap.set(el, { rotation });
+    });
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    let exitStarted = false;
+    const startExit = () => {
+      if (exitStarted) return;
+      exitStarted = true;
+      swoopBounceTimelines.forEach((tl) => {
+        try { tl.kill(); } catch {}
+      });
+      letters.forEach((_, index) => {
+        const el = container.children[index] as HTMLElement;
+        if (!el) return;
+        const delay = index * BOOM_EXIT_STAGGER;
+        const tl = trackTimeline({ delay });
+        swoopTimelinesRef.push(tl);
+        const baseScale = letterScales[index] ?? 1;
+        const baseRot = letterRotations[index] ?? 0;
+        const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+        tl.to(el, {
+          scale: baseScale * 1.1,
+          z: 30,
+          duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
+          ease: 'power2.out'
+        });
+        tl.to(el, {
+          opacity: 0,
+          scale: 0,
+          rotation: exitRotation,
+          rotationX: baseRot >= 0 ? 45 : -45,
+          rotationY: baseRot >= 0 ? 30 : -30,
+          z: -100,
+          duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
+          ease: 'power2.in'
+        });
+      });
+      const exitTotal =
+        BOOM_EXIT_STAGGER * (letters.length - 1) +
+        EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
+        EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
+        0.05;
+      const exitCleanupCall = trackDelayedCall(exitTotal, () => cleanupBuzzzOverlay());
+      swoopDelayedCallsRef.push(exitCleanupCall);
+    };
+
+    let enterComplete = 0;
+    letters.forEach((_, index) => {
+      const el = container.children[index] as HTMLElement;
+      if (!el) return;
+      const delay = BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
+      const baseRotation = letterRotations[index] ?? 0;
+      const baseScale = letterScales[index] ?? 1;
+
+      el.style.willChange = 'transform, opacity';
+      el.style.transform = 'translateZ(0)';
+      el.style.backfaceVisibility = 'hidden';
+      el.style.webkitBackfaceVisibility = 'hidden';
+      el.style.contain = 'layout style paint';
+
+      gsap.set(el, {
+        opacity: 0,
+        scale: 0,
+        x: 0,
+        y: 0,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        force3D: true
+      });
+
+      const tl = trackTimeline({ delay });
+      swoopTimelinesRef.push(tl);
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale * ENTER_BOUNCE_SCALE,
+        rotation: baseRotation,
+        rotationX: -5,
+        rotationY: 0,
+        z: 20,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
+        ease: 'back.out(2.0)'
+      });
+      tl.to(el, {
+        scale: baseScale * 0.95,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'power2.out'
+      });
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'back.out(1.5)',
+        onComplete: () => {
+          try { swoopBounceTimelines[index]?.play(0); } catch {}
+          enterComplete += 1;
+          if (enterComplete === letters.length) {
+            startExit();
+          }
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('⚠️ showMagneticText (SWOOP) failed:', e);
+    cleanupBuzzzOverlay();
+  }
+}
+
+export function stopMagneticText(): void {
+  cleanupBuzzzOverlay();
+}

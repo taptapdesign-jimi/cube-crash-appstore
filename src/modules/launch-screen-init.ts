@@ -8,6 +8,16 @@
     document.addEventListener('DOMContentLoaded', initLaunchScreenDOM);
     return;
   }
+
+  // 🔥 PRIORITY: Kick off paper background request immediately.
+  // This starts before other startup preloads and runs while taptap logo is visible.
+  try {
+    const paperPriorityImg = new Image();
+    paperPriorityImg.decoding = 'async';
+    paperPriorityImg.loading = 'eager';
+    try { (paperPriorityImg as any).fetchPriority = 'high'; } catch {}
+    paperPriorityImg.src = './assets/paper-bg.png';
+  } catch {}
   
   // Create launch screen container IMMEDIATELY (synchronously, no async)
   const container = document.createElement('div');

@@ -126,14 +126,13 @@ export async function openLockedBounceParallel({
   for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }
   const picks = locked.slice(0, Math.min(k, locked.length));
 
-  // 🔥 CRITICAL FIX: Procedural spawn with fast cascading animations (same as magnet merge spawn)
-  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
-  // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
-  // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
+  // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 150ms between tiles
+  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 150ms between tiles for visible one-by-one
+  // Sequential spawning: 1st at 0ms, 2nd at 150ms, 3rd at 300ms, 4th at 450ms
   // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as magnet pull)
   for (let index = 0; index < picks.length; index++) {
     const t = picks[index];
-    const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
+    const delay = index * 150; // 0ms, 150ms, 300ms, 450ms...
     
     // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
     // This allows all tiles to be scheduled with delays, but animations run concurrently

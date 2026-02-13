@@ -389,7 +389,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       return;
     }
 
-    // 🔥 SIMPLIFIED: Clouds created all at once, no batching/reuse - prevents stacking/repeated appearance
+    // Clouds are prepared up front, then each cloud enters with a staggered pop-in.
     if (!cloudContainer) {
       cloudContainer = document.createElement('div');
       cloudContainer.className = 'cc-board-transition-clouds';
@@ -411,10 +411,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const totalClouds = 10;
     const moveDuration = 1.8;
     const BOUNCE_REPEAT = 3;
+    const CLOUD_STAGGER = 0.06; // faster cadence so drift starts sooner
+    const CLOUD_ENTER_DURATION = 0.34;
+    const CLOUD_SETTLE_DURATION = 0.14;
     const viewportW = Math.max(320, window.innerWidth || 390);
     const cloudBasePx = Math.min(240, Math.max(104, viewportW * 0.24));
     const cloudStepPx = Math.max(18, cloudBasePx * 0.16);
-    const windStrength = 0.08;
+    const windStrength = 0.18; // stronger variance but still stable
+    const driftDistanceMinPx = viewportW * 0.55;
+    const driftDistanceMaxPx = viewportW * 0.95;
     const CLOUD_ASPECT = 1.15; // width:height - stable dimensions prevent layout jump on image load
 
     for (let i = 0; i < totalClouds; i++) {
@@ -429,16 +434,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const cloudHeightPx = Math.round(cloudSizePx / CLOUD_ASPECT);
       const baseSize = (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
       const spawnLeft = 8 + (i * 9) % 84;
-      const goesLeft = i % 2 === 0;
-      const endXPercent = goesLeft ? -80 : 180;
-      const enterDelay = i * 0.025;
+      const goesLeft = Math.random() < 0.5; // random side push
+      const enterDelay = i * CLOUD_STAGGER;
       const rotation = (i % 5 - 2) * 6;
       const bounceAmount = 6 + (i % 3) * 3;
       const bounceSpeed = 0.45 + (i % 4) * 0.08;
-      const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength);
+      const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength); // 0.82..1.18
       const windYOffset = (Math.random() * 2 - 1) * 10;
-      const windDuration = (moveDuration + 0.45) * windFactor;
-      const driftStartDelay = 0.2; // Appear at spawn first, then drift - no snap
+      // Slowest clouds are ~2x faster than before.
+      const windDuration = (moveDuration * 0.52 + 0.22) * windFactor;
+      const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx)) * (goesLeft ? -1 : 1);
+      const driftStartDelay = 0.06;
 
       const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
       cloudImg.src = cloudImages[i % cloudImages.length];
@@ -458,7 +464,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       ].join(';');
 
       activeCloudImages.push(cloudImg);
-      gsap.set(cloudImg, { x: '-50%', y: '-50%', scale: 0, opacity: 0, rotation });
+      gsap.set(cloudImg, { xPercent: -50, yPercent: -50, x: 0, y: 0, scale: 0.12, opacity: 0, rotation });
 
       const bounceTimeline = trackTimeline({ repeat: BOUNCE_REPEAT - 1, delay: enterDelay + 0.5 });
       bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.out' });
@@ -466,11 +472,21 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       cloudTimelines.push(bounceTimeline);
 
       const enterTl = trackTimeline({ delay: enterDelay });
-      // Phase 1: Fade in + scale at spawn (no horizontal movement yet - prevents snap)
-      enterTl.to(cloudImg, { opacity: 1, scale: baseSize * 1.15, duration: 0.4, ease: 'back.out(1.6)' });
-      enterTl.to(cloudImg, { scale: baseSize, duration: 0.12, ease: 'power2.out' }, '>0');
-      // Phase 2: Start drift AFTER appearing (smooth, no jerk)
-      enterTl.to(cloudImg, { x: `${endXPercent}%`, duration: windDuration, ease: 'sine.inOut' }, driftStartDelay);
+      // Phase 1: visible one-by-one pop-in at spawn point (no horizontal movement yet)
+      enterTl.to(cloudImg, {
+        opacity: 1,
+        scale: baseSize * 1.22,
+        duration: CLOUD_ENTER_DURATION,
+        ease: 'back.out(2.2)'
+      });
+      // Phase 2: settle from pop-in overshoot
+      enterTl.to(cloudImg, {
+        scale: baseSize,
+        duration: CLOUD_SETTLE_DURATION,
+        ease: 'power2.out'
+      }, '>0');
+      // Phase 2: Visible lateral drift in viewport pixels (not element-relative percentages).
+      enterTl.to(cloudImg, { x: driftDistancePx, duration: windDuration, ease: 'sine.inOut' }, driftStartDelay);
       enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
       cloudTimelines.push(enterTl);
 
@@ -487,7 +503,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       cloudContainer.appendChild(cloudImg);
     }
 
-    logger.info(`☁️ board-transition-screen: Clouds created (${totalClouds} total, single batch)`);
+    logger.info(`☁️ board-transition-screen: Clouds created (${totalClouds} total, stagger ${CLOUD_STAGGER}s, pop-in enabled)`);
     overlay.appendChild(cloudContainer);
 
     // 🔥 USER REQUEST: Forest at bottom (-150px below viewport), in front of clouds, behind digits

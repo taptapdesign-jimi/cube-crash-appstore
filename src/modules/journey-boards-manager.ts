@@ -1733,14 +1733,9 @@ class JourneyBoardsManager {
         leftPx = 40;
         topPx -= 16;
       } else if (cardNumber === 2) {
-        // Kartica 2: 24px gore i desno za 56px (20px + 12px + 24px) - iPad ONLY
-        // iPhone keeps original centered position (50%)
+        // Kartica 2 (iPad): horizontalno centrirana u sredinu ekrana.
         topPx -= 24;
-        // Ensure leftPx is in pixels (not percentage) before adding iPad offset
-        if (typeof leftPx === 'number' && leftPx === 50) {
-          leftPx = (50 / 100) * viewportWidth;
-        }
-        leftPx += 56; // Pomjerena desno za 56px na iPad-u (iPhone ostaje centrirana)
+        leftPx = (viewportWidth - STANDARD_CARD_WIDTH) / 2 - 8 - 24 - 6; // centar pa 30px ulijevo
       } else if (cardNumber === 3) {
         // Kartica 3: 24px od desnog ruba, 48px gore (28px + 20px), pomjerena 128px lijevo (40px + 48px + 24px + 16px)
         leftPx = viewportWidth - STANDARD_CARD_WIDTH - 24 - 40 - 48 - 24 - 16;
@@ -4173,11 +4168,10 @@ class JourneyBoardsManager {
       let playButtonForAnimation: HTMLElement | null = null;
       
       if (!isInterim) {
-        // 🔥 USER REQUEST: Check if board has saved state to show "Continue" or "Play"
-        // This helps user distinguish between continuing an existing game vs starting fresh
+        // 🔥 USER REQUEST: Always show PLAY on board detail CTA (never CONTINUE).
         const boardHasSavedState = hasSavedStateForBoard(board.id);
-        const buttonText = boardHasSavedState ? 'Continue' : 'Play';
-        const ariaLabel = boardHasSavedState ? 'Continue Board' : 'Play Board';
+        const buttonText = 'Play';
+        const ariaLabel = 'Play Board';
         
         console.log(`🎮 Board ${board.id} CTA button text: "${buttonText}" (hasSavedState: ${boardHasSavedState})`);
         logger.info(`🎮 Board ${board.id} button will show: "${buttonText}"`);
@@ -4186,7 +4180,7 @@ class JourneyBoardsManager {
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
         floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
-        floatingPlayButton.textContent = buttonText; // "Continue" or "Play"
+        floatingPlayButton.textContent = buttonText; // Always "Play"
         floatingPlayButton.setAttribute('type', 'button');
         floatingPlayButton.setAttribute('aria-label', ariaLabel);
         

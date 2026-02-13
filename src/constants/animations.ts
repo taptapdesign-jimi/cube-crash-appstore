@@ -46,6 +46,7 @@ export const SLIDER_CONFIG = {
   
   // Drag thresholds (px)
   DRAG_THRESHOLD_PX: 100,           // Minimum drag distance to change slide
+  SWIPE_VELOCITY_THRESHOLD_PX_PER_MS: 0.35, // Fast flick threshold (px/ms) to change slide even on short drag
   
   // Elastic bounce at edges
   ELASTIC_LIMIT_MULTIPLIER: 0.03,   // 3% of slide width for elastic bounce
