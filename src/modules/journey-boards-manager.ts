@@ -2888,30 +2888,34 @@ class JourneyBoardsManager {
 
       // STEP 3: Header LAST (includes X, title, divider - animated as group, same as settings screen)
       // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
-      // This ensures all child elements (X, title, divider) animate together as a group
-      // 🔥 BUG FIX: Use otherContentElements.length (not contentElements.length) since PLAY button is separate
       const lastDelay = contentStartDelay + (otherContentElements.length > 0 ? (otherContentElements.length * 0.05) : 0);
       if (detailHeader) {
-        // 🔥 CRITICAL: Remove CSS transition classes and disable transitions on header child elements
-        // This ensures GSAP animation controls all header elements (X, title, divider) as a group
+        // 🔥 APP STORE: Remove enter animation listener if user closed before enter completed (no leak)
+        const enterEndHandler = (detailHeader as any).__detailHeaderEnterEnd;
+        if (typeof enterEndHandler === 'function') {
+          detailHeader.removeEventListener('animationend', enterEndHandler);
+          delete (detailHeader as any).__detailHeaderEnterEnd;
+        }
+        // 🔥 FIX: Remove CSS enter classes so GSAP owns transform/opacity for exit (no class vs inline conflict)
+        detailHeader.classList.remove('detail-header-enter', 'detail-header-enter-done', 'detail-header-before-enter');
+        detailHeader.style.removeProperty('transform');
+        detailHeader.style.removeProperty('opacity');
+        gsap.killTweensOf(detailHeader);
+        gsap.set(detailHeader, { scale: 1, opacity: 1, visibility: 'visible', force3D: true });
+
         const detailCloseBtn = modal.querySelector('#detail-close-btn') as HTMLElement;
         if (detailCloseBtn) {
           detailCloseBtn.classList.remove('animate-enter', 'animate-exit', 'animate-enter-initial', 'animate-reset');
           detailCloseBtn.style.setProperty('transition', 'none', 'important');
           detailCloseBtn.style.setProperty('transform', 'none', 'important');
         }
-        
-        // Disable transitions on all nested header child elements to ensure GSAP controls everything
         const headerChildren = detailHeader.querySelectorAll('*');
         headerChildren.forEach((child: Element) => {
           const childEl = child as HTMLElement;
           childEl.style.setProperty('transition', 'none', 'important');
           childEl.style.setProperty('transform', 'none', 'important');
         });
-        
-        // 🔥 CRITICAL: Animate header parent element EXACTLY like enter animation
-        // All child elements (X, title, divider) will animate together as a group
-        // This matches the enter animation pattern where header is animated as parent
+
         trackTween(detailHeader, {
           scale: 0,
           opacity: 0,
@@ -2945,7 +2949,22 @@ class JourneyBoardsManager {
           gsap.killTweensOf(detailImageEl);
           logger.info('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
         }
-        
+
+        // 🔥 APP STORE: Reset detail header to clean state for next open (no leftover refs or inline styles)
+        const headerForCleanup = modal.querySelector('.detail-header') as HTMLElement;
+        if (headerForCleanup) {
+          const handler = (headerForCleanup as any).__detailHeaderEnterEnd;
+          if (typeof handler === 'function') {
+            headerForCleanup.removeEventListener('animationend', handler);
+          }
+          delete (headerForCleanup as any).__detailHeaderEnterEnd;
+          gsap.killTweensOf(headerForCleanup);
+          headerForCleanup.style.removeProperty('transform');
+          headerForCleanup.style.removeProperty('opacity');
+          headerForCleanup.style.removeProperty('visibility');
+          headerForCleanup.classList.remove('detail-header-enter', 'detail-header-enter-done', 'detail-header-before-enter');
+        }
+
         // Hide modal (PLAY button is now in body, so it remains visible)
         modal.hidden = true;
         modal.style.display = 'none';
@@ -3645,79 +3664,71 @@ class JourneyBoardsManager {
         logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
       }
     }
-    // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
-    // This must NOT delay detail modal enter animation
-    try {
-      const { preloadJourneyBoardImages } = await import('../utils/comprehensive-image-preloader.js');
-      // Fire and forget - don't await, let it load in background
-      preloadJourneyBoardImages([board.id]).then(() => {
-        logger.info(`✅ Journey board ${board.id} image preloaded in background`);
-      }).catch((error) => {
-      logger.warn('⚠️ Failed to preload journey board images:', error);
-      });
-    } catch (error) {
-      logger.warn('⚠️ Failed to import preloadJourneyBoardImages:', error);
-    }
-    
-    // 🔥 CRITICAL: Preload game assets BEFORE Play button is clicked
-    // This prevents 20-second delay when starting board game
-    try {
-      const { Assets } = await import('pixi.js');
-      const gameAssets = [
-        './assets/tile.png',
-        './assets/tile_numbers.png',
-        './assets/tile_numbers2.png',
-        './assets/tile_numbers3.png',
-        './assets/tile_numbers4.png',
-        './assets/wild.png',
-        './assets/wild@2x.png',
-        './assets/wild@3x.png',
-        './assets/wild-magnet.png',
-        './assets/wild-beer.png',
-        './assets/wild-beer@2x.png',
-        './assets/wild-beer@3x.png',
-        './assets/shop/explosion pack/tnt.png',
-        './assets/shop/explosion pack/tnt@2x.png',
-        './assets/shop/explosion pack/tnt@3x.png',
-      ];
-      
-      logger.info(`🎮 Preloading ${gameAssets.length} game assets for board ${board.id}...`);
-      
-      // Preload in background (non-blocking)
-      Promise.allSettled(
-        gameAssets.map(async (assetPath) => {
-          try {
-            // Check if already loaded
-            const existing = Assets.get(assetPath);
-            if (existing) {
-              return; // Already loaded
-            }
-            
-            // Register and load into PIXI Assets cache (skip add if already in cache to avoid "already has key" warnings)
-            if (!isAssetAliasRegistered(assetPath) && (typeof Assets.cache?.has !== 'function' || !Assets.cache.has(assetPath))) {
-              try {
-                Assets.add({ alias: assetPath, src: assetPath });
-                markAssetAliasRegistered(assetPath);
-              } catch (err) {
-                // Already registered, ignore
-              }
-            }
-            
-            await Assets.load(assetPath);
-            logger.debug(`✅ Loaded ${assetPath} into PIXI Assets cache`);
-          } catch (err) {
-            logger.warn(`⚠️ Failed to preload ${assetPath}:`, err);
-          }
+    // 🔥 PERFORMANCE FIX: Defer preloads so first detail enter animation stays smooth.
+    // We still warm assets before PLAY in most cases, but we never block UI opening.
+    const preloadAfterEnterDelayMs = 550;
+    window.setTimeout(() => {
+      // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
+      void import('../utils/comprehensive-image-preloader.js')
+        .then(({ preloadJourneyBoardImages }) => preloadJourneyBoardImages([board.id]))
+        .then(() => {
+          logger.info(`✅ Journey board ${board.id} image preloaded in background`);
         })
-      ).then(() => {
-        logger.info(`✅ All ${gameAssets.length} game assets preloaded for board ${board.id}`);
-      }).catch((error) => {
-        logger.warn('⚠️ Error preloading game assets:', error);
-      });
-    } catch (error) {
-      logger.warn('⚠️ Failed to preload game assets:', error);
-      // Don't block - game will load assets when needed
-    }
+        .catch((error) => {
+          logger.warn('⚠️ Failed to preload journey board images:', error);
+        });
+
+      // 🔥 CRITICAL: Preload game assets in background to avoid delay on Play click.
+      void import('pixi.js')
+        .then(({ Assets }) => {
+          const gameAssets = [
+            './assets/tile.png',
+            './assets/tile_numbers.png',
+            './assets/tile_numbers2.png',
+            './assets/tile_numbers3.png',
+            './assets/tile_numbers4.png',
+            './assets/wild.png',
+            './assets/wild@2x.png',
+            './assets/wild@3x.png',
+            './assets/wild-magnet.png',
+            './assets/wild-beer.png',
+            './assets/wild-beer@2x.png',
+            './assets/wild-beer@3x.png',
+            './assets/shop/explosion pack/tnt.png',
+            './assets/shop/explosion pack/tnt@2x.png',
+            './assets/shop/explosion pack/tnt@3x.png',
+          ];
+
+          logger.info(`🎮 Preloading ${gameAssets.length} game assets for board ${board.id}...`);
+
+          return Promise.allSettled(
+            gameAssets.map(async (assetPath) => {
+              try {
+                const existing = Assets.get(assetPath);
+                if (existing) return;
+                if (!isAssetAliasRegistered(assetPath) && (typeof Assets.cache?.has !== 'function' || !Assets.cache.has(assetPath))) {
+                  try {
+                    Assets.add({ alias: assetPath, src: assetPath });
+                    markAssetAliasRegistered(assetPath);
+                  } catch {
+                    // Already registered.
+                  }
+                }
+                await Assets.load(assetPath);
+                logger.debug(`✅ Loaded ${assetPath} into PIXI Assets cache`);
+              } catch (err) {
+                logger.warn(`⚠️ Failed to preload ${assetPath}:`, err);
+              }
+            })
+          );
+        })
+        .then(() => {
+          logger.info(`✅ All game assets preloaded for board ${board.id}`);
+        })
+        .catch((error) => {
+          logger.warn('⚠️ Failed to preload game assets:', error);
+        });
+    }, preloadAfterEnterDelayMs);
     
     // 🔥 USER REQUEST: First exit animation on Journey screen (if visible), then enter animation on detail modal
     console.log(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
@@ -4588,15 +4599,14 @@ class JourneyBoardsManager {
         `;
       }
 
-      // 🔥 CRITICAL: Set initial state IMMEDIATELY (before showing modal) to prevent flash
+      // 🔥 iOS FIX: Header enter uses pure CSS animation (no GSAP) so compositor owns it and no frame skip at end
       if (detailHeader) {
-        gsap.set(detailHeader, {
-          scale: 0,
-          opacity: 0,
-          visibility: 'hidden',
-          force3D: true,
-          immediateRender: true
-        });
+        gsap.killTweensOf(detailHeader);
+        detailHeader.style.removeProperty('transform');
+        detailHeader.style.removeProperty('opacity');
+        detailHeader.style.removeProperty('visibility');
+        detailHeader.classList.remove('detail-header-enter', 'detail-header-enter-done');
+        detailHeader.classList.add('detail-header-before-enter');
       }
 
       // Set initial state for content elements (NOT card image - card is always visible)
@@ -4706,16 +4716,13 @@ class JourneyBoardsManager {
           detailModal.style.opacity = '1';
           detailModal.style.visibility = 'visible';
 
-          // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
+          // STEP 1: Header FIRST – pure CSS animation (iOS: compositor-owned, no frame skip at end)
           if (detailHeader) {
-            // 🔥 USER BUG FIX: Ensure X button is visible before animating header
             if (detailCloseBtn) {
               detailCloseBtn.style.display = 'flex';
               detailCloseBtn.style.visibility = 'visible';
               detailCloseBtn.style.opacity = '1';
               detailCloseBtn.style.pointerEvents = 'auto';
-              
-              // 🔥 CRITICAL: Ensure img element is visible
               const closeBtnImg = detailCloseBtn.querySelector('img') as HTMLImageElement;
               if (closeBtnImg) {
                 closeBtnImg.style.display = 'block';
@@ -4727,27 +4734,22 @@ class JourneyBoardsManager {
                   closeBtnImg.src = './assets/close-icon.png';
                 }
               }
-              
               logger.info('✅ X button made visible before header animation');
             }
-            
-            gsap.set(detailHeader, { visibility: 'visible', immediateRender: true });
-            trackTween(detailHeader, {
-              scale: 1,
-              opacity: 1,
-              duration: 0.5,
-              ease: 'back.out(1.7)',
-              delay: 0,
-              force3D: true,
-              immediateRender: false,
-              onComplete: () => {
-                // 🔥 USER BUG FIX: Ensure X button is still visible after header animation completes
+            detailHeader.classList.remove('detail-header-before-enter');
+            detailHeader.style.visibility = 'visible';
+            detailHeader.classList.add('detail-header-enter');
+            const onHeaderEnterEnd = () => {
+              detailHeader.removeEventListener('animationend', onHeaderEnterEnd);
+              delete (detailHeader as any).__detailHeaderEnterEnd;
+              detailHeader.classList.remove('detail-header-enter');
+              detailHeader.classList.add('detail-header-enter-done');
+              requestAnimationFrame(() => {
                 if (detailCloseBtn) {
                   detailCloseBtn.style.display = 'flex';
                   detailCloseBtn.style.visibility = 'visible';
                   detailCloseBtn.style.opacity = '1';
                   detailCloseBtn.style.pointerEvents = 'auto';
-                  
                   const closeBtnImg = detailCloseBtn.querySelector('img') as HTMLImageElement;
                   if (closeBtnImg) {
                     closeBtnImg.style.display = 'block';
@@ -4757,12 +4759,13 @@ class JourneyBoardsManager {
                       closeBtnImg.src = './assets/close-icon.png';
                     }
                   }
-                  
                   logger.info('✅ X button verified visible after header animation completes');
                 }
-              }
-            });
-            logger.info('📊 Step 1: Detail header pop-in - FIRST');
+              });
+            };
+            (detailHeader as any).__detailHeaderEnterEnd = onHeaderEnterEnd;
+            detailHeader.addEventListener('animationend', onHeaderEnterEnd);
+            logger.info('📊 Step 1: Detail header pop-in (CSS animation) - FIRST');
           }
 
           // STEP 2: PLAY button SECOND (0ms delay, immediately after header, BEFORE card and content)

@@ -874,6 +874,7 @@ const BUBBLY_ENTER_EXTRA = 0.1;
 const BUBBLY_EXIT_EXTRA = 0.3;
 const BUBBLY_EXIT_BOUNCE_DURATION = 0.13;
 const BUBBLY_EXIT_FADE_DURATION = 0.17;
+const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
 /**
  * BUBBLY text overlay – isti dizajn, font, boja, enter/exit animacije kao TNT BOOM
@@ -918,16 +919,18 @@ function createAndShowBubblyText(): void {
       'perspective: 1000px',
       'transform-style: preserve-3d',
     ].join(';');
+    const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+    bubblyContainer.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
     const bubblyLetters: HTMLElement[] = [];
     const bubblyScales: number[] = [];
     const bubblyRotations: number[] = [];
     const bubblyText = ['B', 'U', 'B', 'B', 'L', 'Y'];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(183, 152, 139, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
 
     bubblyText.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
-      const rotation = (Math.random() - 0.5) * 24;
+      const rotation = 0;
       const letterEl = document.createElement('span');
       letterEl.textContent = letter;
       letterEl.style.cssText = [

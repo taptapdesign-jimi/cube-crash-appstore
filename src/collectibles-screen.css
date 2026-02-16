@@ -836,11 +836,40 @@
   margin: 0 auto;
 }
 
+/* 🔥 iOS FIX: Header enter runs as pure CSS animation so compositor owns it; no JS handoff = no frame skip */
+@keyframes detail-header-enter {
+  0% {
+    transform: scale(0) translateZ(0);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) translateZ(0);
+    opacity: 1;
+  }
+}
+
+#collectibles-detail-modal .detail-header.detail-header-enter {
+  animation: detail-header-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
+}
+
+#collectibles-detail-modal .detail-header.detail-header-enter-done {
+  transform: scale(1) translateZ(0);
+  opacity: 1;
+  will-change: auto;
+}
+
+#collectibles-detail-modal .detail-header.detail-header-before-enter {
+  transform: scale(0) translateZ(0);
+  opacity: 0;
+  visibility: hidden;
+}
+
 #collectibles-detail-modal .detail-header {
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
+  padding-top: max(0px, calc(env(safe-area-inset-top, 0px) + 2vh - 16px)); /* Same as journey nav – lift 16px toward top */
   padding-bottom: 0;
   background: var(--collectibles-surface);
   flex-shrink: 0;

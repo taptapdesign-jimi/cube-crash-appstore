@@ -14,6 +14,11 @@ let swoopBounceTimelinesRef: gsap.core.Timeline[] = [];
 let swoopDelayedCallsRef: gsap.core.Tween[] = [];
 let magneticTextActive = false;
 let magneticTextWaiters: Array<() => void> = [];
+let sparkleOverlay: HTMLElement | null = null;
+let sparkleTimelinesRef: gsap.core.Timeline[] = [];
+let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
+let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
+let sparkleTextActive = false;
 
 function resolveMagneticTextWaiters(): void {
   if (!magneticTextWaiters.length) return;
@@ -36,6 +41,7 @@ const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.3;
 const EXIT_BOUNCE_DURATION = 0.13;
 const EXIT_FADE_DURATION = 0.17;
+const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
 function cleanupBuzzzOverlay(): void {
   try {
@@ -114,16 +120,18 @@ export function showMagneticText(): void {
       'perspective: 1000px',
       'transform-style: preserve-3d',
     ].join(';');
+    const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+    container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
     const letters = ['S', 'W', 'O', 'O', 'P'];
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const swoopBounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(183, 152, 139, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(196, 197, 193, 0.5))';
 
     letters.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
-      const rotation = (Math.random() - 0.5) * 24;
+      const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
       el.style.cssText = [
@@ -131,7 +139,7 @@ export function showMagneticText(): void {
         'font-weight: 800',
         'font-size: 83px',
         'line-height: 1',
-        'color: #FFF',
+        'color: #F35F33',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -320,4 +328,272 @@ export function waitForMagneticTextComplete(timeoutMs = 2200): Promise<void> {
       finish();
     }
   });
+}
+
+function cleanupSparkleOverlay(): void {
+  try {
+    sparkleDelayedCallsRef.forEach((dc) => {
+      try { dc.kill(); } catch {}
+    });
+    sparkleDelayedCallsRef = [];
+    sparkleBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    sparkleBounceTimelinesRef = [];
+    sparkleTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    sparkleTimelinesRef = [];
+    if (sparkleOverlay) {
+      try {
+        gsap.killTweensOf(sparkleOverlay);
+        sparkleOverlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+      } catch {}
+    }
+    if (sparkleOverlay?.parentNode) {
+      sparkleOverlay.parentNode.removeChild(sparkleOverlay);
+    }
+    sparkleOverlay = null;
+    sparkleTextActive = false;
+  } catch {}
+}
+
+/**
+ * Show SPARKLE text overlay for wild-star merge 6.
+ * Uses the same enter/exit style as BUBBLY, but in yellow.
+ */
+export function showSparkleText(): void {
+  try {
+    cleanupSparkleOverlay();
+    sparkleTextActive = true;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'left: 0',
+      'top: 0',
+      'width: 100%',
+      'height: 100%',
+      'pointer-events: none',
+      'z-index: 9999999',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+    ].join(';');
+    sparkleOverlay = overlay;
+
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position: absolute',
+      'left: 50%',
+      'top: 50%',
+      'transform: translate(-50%, -50%)',
+      'display: flex',
+      'flex-direction: row',
+      'align-items: center',
+      'justify-content: center',
+      'gap: -4px',
+      'margin: 0',
+      'padding: 0',
+      'width: fit-content',
+      'min-width: 0',
+      'max-width: 100%',
+      'box-sizing: border-box',
+      'z-index: 2',
+      'pointer-events: none',
+      'perspective: 1000px',
+      'transform-style: preserve-3d',
+    ].join(';');
+    const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+    container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
+
+    const letters = ['S', 'P', 'A', 'R', 'K', 'L', 'E'];
+    const letterScales: number[] = [];
+    const letterRotations: number[] = [];
+    const bounceTimelines: gsap.core.Timeline[] = [];
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(254, 226, 169, 0.5))';
+
+    letters.forEach((letter) => {
+      const letterScale = 0.9 + Math.random() * 0.4;
+      const rotation = 0;
+      const el = document.createElement('span');
+      el.textContent = letter;
+      el.style.cssText = [
+        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+        'font-weight: 800',
+        'font-size: 83px',
+        'line-height: 1',
+        'color: #FFFCE7',
+        'text-align: center',
+        'opacity: 0',
+        'transform: scale(0) perspective(1000px) translateZ(0)',
+        'display: inline-block',
+        'visibility: visible',
+        'pointer-events: none',
+        'margin-right: 0',
+        'padding: 0',
+        'border: 0',
+        'outline: 0',
+        'vertical-align: top',
+        'text-shadow: none',
+        `filter: ${dropShadow}`,
+        'transform-style: preserve-3d',
+        'backface-visibility: hidden',
+        '-webkit-font-smoothing: antialiased',
+        '-moz-osx-font-smoothing: grayscale',
+        'text-rendering: optimizeLegibility',
+        'transform-origin: center center',
+        'position: relative',
+        'z-index: 10',
+      ].join(';');
+      container.appendChild(el);
+      letterScales.push(letterScale);
+      letterRotations.push(rotation);
+
+      const bounceTl = trackTimeline({ repeat: -1, yoyo: true });
+      bounceTl.pause(0);
+      bounceTl.to(el, {
+        scale: letterScale * (1.02 + Math.random() * 0.06),
+        rotation: rotation * 1.1,
+        duration: 0.35,
+        ease: 'elastic.inOut(1, 0.2)'
+      });
+      bounceTimelines.push(bounceTl);
+      sparkleBounceTimelinesRef.push(bounceTl);
+      gsap.set(el, { rotation });
+    });
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    let exitStarted = false;
+    const startExit = () => {
+      if (exitStarted) return;
+      exitStarted = true;
+      bounceTimelines.forEach((tl) => {
+        try { tl.kill(); } catch {}
+      });
+      letters.forEach((_, index) => {
+        const el = container.children[index] as HTMLElement;
+        if (!el) return;
+        const delay = index * BOOM_EXIT_STAGGER;
+        const tl = trackTimeline({ delay });
+        sparkleTimelinesRef.push(tl);
+        const baseScale = letterScales[index] ?? 1;
+        const baseRot = letterRotations[index] ?? 0;
+        const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+        tl.to(el, {
+          scale: baseScale * 1.1,
+          z: 30,
+          duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
+          ease: 'power2.out'
+        });
+        tl.to(el, {
+          opacity: 0,
+          scale: 0,
+          rotation: exitRotation,
+          rotationX: baseRot >= 0 ? 45 : -45,
+          rotationY: baseRot >= 0 ? 30 : -30,
+          z: -100,
+          duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
+          ease: 'power2.in'
+        });
+      });
+      const exitTotal =
+        BOOM_EXIT_STAGGER * (letters.length - 1) +
+        EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
+        EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
+        0.05;
+      const exitCleanupCall = trackDelayedCall(exitTotal, () => cleanupSparkleOverlay());
+      sparkleDelayedCallsRef.push(exitCleanupCall);
+    };
+
+    let enterComplete = 0;
+    letters.forEach((_, index) => {
+      const el = container.children[index] as HTMLElement;
+      if (!el) return;
+      const delay = BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
+      const baseRotation = letterRotations[index] ?? 0;
+      const baseScale = letterScales[index] ?? 1;
+
+      el.style.willChange = 'transform, opacity';
+      el.style.transform = 'translateZ(0)';
+      el.style.backfaceVisibility = 'hidden';
+      el.style.webkitBackfaceVisibility = 'hidden';
+      el.style.contain = 'layout style paint';
+
+      gsap.set(el, {
+        opacity: 0,
+        scale: 0,
+        x: 0,
+        y: 0,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        force3D: true
+      });
+
+      const tl = trackTimeline({ delay });
+      sparkleTimelinesRef.push(tl);
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale * ENTER_BOUNCE_SCALE,
+        rotation: baseRotation,
+        rotationX: -5,
+        rotationY: 0,
+        z: 20,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
+        ease: 'back.out(2.0)'
+      });
+      tl.to(el, {
+        scale: baseScale * 0.95,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'power2.out'
+      });
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'back.out(1.5)',
+        onComplete: () => {
+          try { bounceTimelines[index]?.play(0); } catch {}
+          enterComplete += 1;
+          if (enterComplete === letters.length) {
+            startExit();
+          }
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('⚠️ showSparkleText failed:', e);
+    cleanupSparkleOverlay();
+  }
+}
+
+export function stopSparkleText(): void {
+  cleanupSparkleOverlay();
+}
+
+export function isSparkleTextActive(): boolean {
+  return sparkleTextActive;
 }

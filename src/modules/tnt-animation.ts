@@ -380,6 +380,7 @@ const BOOM_ENTER_STAGGER = 0.05;
 const BOOM_EXIT_STAGGER = 0.06;
 const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.3;
+const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
 /**
  * Play TNT explosion (tnt1..tnt12). Sve u centru viewporta.
@@ -388,6 +389,10 @@ const BOOM_EXIT_EXTRA = 0.3;
 export function showTntAnimation(options: {
   onComplete?: () => void;
   onBoomExitStart?: () => void;
+  onSprite6Start?: () => void;
+  onSprite10ExitStart?: () => void;
+  onSpriteSequenceComplete?: () => void;
+  onNinthSpriteStart?: () => void;
 } = {}): HTMLElement | null {
   tntMemInit();
   const now = Date.now();
@@ -405,7 +410,7 @@ export function showTntAnimation(options: {
     (window as any).__ccTntAnimationActive = true;
     (window as any).__ccTntDragBlocked = true;
   } catch {}
-  const { onComplete, onBoomExitStart } = options;
+  const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
 
   overlay = document.createElement('div');
   overlay.id = 'cc-tnt-animation-overlay';
@@ -475,6 +480,8 @@ export function showTntAnimation(options: {
     'perspective: 1000px',
     'transform-style: preserve-3d',
   ].join(';');
+  const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+  boomContainer.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
   const boomLetters: HTMLElement[] = [];
   const boomLetterScales: number[] = [];
@@ -483,7 +490,7 @@ export function showTntAnimation(options: {
   const boomText = ['B', 'O', 'O', 'M'];
   boomText.forEach((letter, idx) => {
     const letterScale = 0.9 + Math.random() * 0.4; // random veličina slova
-    const rotation = (Math.random() - 0.5) * 24; // -12 do +12 deg, svako slovo svoja random rotacija
+    const rotation = 0; // tilt is now applied to whole BOOM container
     const letterEl = document.createElement('span');
     letterEl.textContent = letter;
     const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(210, 109, 64, 0.25))';
@@ -550,11 +557,16 @@ export function showTntAnimation(options: {
     },
   });
 
-  // Frame 6 hold: kada 6. sprite dođe, ostani 0.3s bounce pa exit
-  const sprite5SettleTime = 0.07 + 5 * 0.04 + ENTER_DURATION + SETTLE_DURATION;
+  // Frame 6 timing helpers:
+  // - enter end: used to start board blast right after sprite enter animation
+  // - settle end: used for TNT internal hold/exit choreography
+  const sprite5EnterEndTime = 0.07 + 5 * 0.04 + ENTER_DURATION;
+  const sprite5SettleTime = sprite5EnterEndTime + SETTLE_DURATION;
   const exitStartTime = sprite5SettleTime + HOLD_AT_FRAME_6 + SPRITE_EXTRA_DURATION - 0.2;
   spriteBounceTweensRef = [];
 
+  let sprite10ExitTriggered = false;
+  let spriteSequenceCompleteTriggered = false;
   frameEls.forEach((frameEl, i) => {
     const randomRotation = (Math.random() - 0.5) * 20;
     const randomSize = 1 + Math.random() * 0.52;
@@ -617,6 +629,10 @@ export function showTntAnimation(options: {
     }, [], '+=0');
     tl.to({}, { duration: holdDuration }, '>0');
     tl.call(() => {
+      if (i === 9 && !sprite10ExitTriggered) {
+        sprite10ExitTriggered = true;
+        try { onSprite10ExitStart?.(); } catch {}
+      }
       try {
         gsap.killTweensOf(frameEl);
         gsap.killTweensOf(frameEl.scale);
@@ -636,7 +652,13 @@ export function showTntAnimation(options: {
           gsap.to(frameEl, {
             alpha: 0,
             duration: EXIT_FADE_DURATION,
-            ease: 'back.in(2.0)'
+            ease: 'back.in(2.0)',
+            onComplete: () => {
+              if (i === NUM_FRAMES - 1 && !spriteSequenceCompleteTriggered) {
+                spriteSequenceCompleteTriggered = true;
+                try { onSpriteSequenceComplete?.(); } catch {}
+              }
+            }
           });
           gsap.to(frameEl.scale, {
             x: 0,
@@ -648,6 +670,21 @@ export function showTntAnimation(options: {
       });
     }, [], '>0');
   });
+  // Fire once when frame 6 enter animation is complete (no settle wait)
+  let sprite6Triggered = false;
+  timeline.call(() => {
+    if (sprite6Triggered) return;
+    sprite6Triggered = true;
+    try { onSprite6Start?.(); } catch {}
+  }, [], sprite5EnterEndTime);
+
+  // Compatibility hook: around the 9th sprite start time (index 8): 0.07 + 8*0.04
+  let ninthSpriteTriggered = false;
+  timeline.call(() => {
+    if (ninthSpriteTriggered) return;
+    ninthSpriteTriggered = true;
+    try { onNinthSpriteStart?.(); } catch {}
+  }, [], 0.39);
   tntMemSample('tnt_2_timelines_created');
   const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
   const peakSampleB = trackDelayedCall(0.75, () => tntMemSample('tnt_peak_b_750ms'));

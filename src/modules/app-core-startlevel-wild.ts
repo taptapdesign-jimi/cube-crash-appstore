@@ -4,6 +4,7 @@ type StartLevelWildDeps = {
   setWildBeerSpawned: (v: boolean) => void;
   setWildMagnetSpawned: (v: boolean) => void;
   setFirstWildSpawned: (v: boolean) => void;
+  setWildSpawnCount?: (v: number) => void;
   clearEndGameCache: () => void;
 };
 
@@ -13,6 +14,7 @@ export function resetWildAndEndgameState({
   setWildBeerSpawned,
   setWildMagnetSpawned,
   setFirstWildSpawned,
+  setWildSpawnCount,
   clearEndGameCache,
 }: StartLevelWildDeps){
   // Reset wild-related state
@@ -21,6 +23,7 @@ export function resetWildAndEndgameState({
   setWildBeerSpawned(false);
   setWildMagnetSpawned(false);
   setFirstWildSpawned(false);
+  setWildSpawnCount?.(0);
   
   // Clear end game cache when starting new level
   clearEndGameCache();

@@ -814,7 +814,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               });
               
               pauseTimeline.to({}, {
-                duration: 0.7, // 🔥 USER REQUEST: 0.7s pause (reduced by 800ms from 1.5s) to shorten screen duration
+                duration: 0.2, // Start text/number exit 500ms earlier
                 ease: 'none'
               });
             }

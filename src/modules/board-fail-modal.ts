@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
-import { statsService } from '../services/stats-service.ts';
 import { pickRandom } from './clean-board-utils.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
 // public/src/modules/board-fail-modal.ts
@@ -128,8 +127,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       }>;
     }> = [];
     
-    // 🔥 MEMORY LEAK FIX: Flag to stop score spin animation
-    let scoreSpinActive = false;
     // 🔥 BUG FIX: Flag to prevent multiple resolveAndCleanup calls
     let isResolving = false;
     // 🔥 JOURNEY PROGRESSION: Handle board failure
@@ -258,19 +255,61 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       'display:flex',
       'flex-direction:column',
       'align-items:center',
-      'gap:40px'
+      'gap:72px'
     ].join(';');
 
     const infoStack = document.createElement('div');
-    infoStack.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:32px;width:100%;';
+    infoStack.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:64px;width:100%;';
 
-    const hero = document.createElement('img');
-    hero.src = './assets/melted-dice.png';
-    hero.alt = 'Melted dice';
-    hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto;';
-    hero.onerror = () => {
-      hero.style.cssText = 'width:min(220px,60vw);height:min(220px,60vw);border-radius:28px;background:rgba(215,122,83,0.3);display:block;margin:0 auto;';
-    };
+    const starsHero = document.createElement('div');
+    starsHero.style.cssText = [
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'gap:16px',
+      'width:min(280px,80vw)',
+      'height:auto',
+      'margin:0 auto',
+      'overflow:visible'
+    ].join(';');
+    const emptyStars: HTMLImageElement[] = [];
+    for (let i = 0; i < 3; i++) {
+      let transformStyle = '';
+      if (i === 0) {
+        transformStyle = 'rotate(-8deg)';
+      } else if (i === 1) {
+        transformStyle = 'translateY(-16px)';
+      } else {
+        transformStyle = 'rotate(8deg)';
+      }
+
+      const starWrapper = document.createElement('div');
+      starWrapper.style.cssText = [
+        'position:relative',
+        'width:clamp(60px, 20vw, 90px)',
+        'height:clamp(60px, 20vw, 90px)',
+        'flex-shrink:0',
+        `transform:${transformStyle}`,
+        'overflow:visible'
+      ].join(';');
+
+      const star = document.createElement('img');
+      star.src = '/assets/modals/star-empty.png';
+      star.alt = 'Empty star';
+      star.style.cssText = [
+        'position:absolute',
+        'inset:0',
+        'width:100%',
+        'height:100%',
+        'object-fit:contain',
+        'z-index:1',
+        'opacity:0.9'
+      ].join(';');
+
+      starWrapper.appendChild(star);
+      starsHero.appendChild(starWrapper);
+      emptyStars.push(star);
+    }
 
     const textCluster = document.createElement('div');
     textCluster.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;';
@@ -279,52 +318,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     title.textContent = pickRandom(HEADLINES);
     title.style.cssText = 'color:#D78157;font-weight:800;font-size:40px;line-height:1;margin:0;';
 
-    const scoreLabel = document.createElement('div');
-    scoreLabel.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
-
-    const currentScore = Math.max(0, Math.floor(score || 0));
-    const storedHighScore = (() => {
-      try {
-        const stats = statsService?.getStats?.();
-        if (stats && Number.isFinite(stats.highScore)) return stats.highScore | 0;
-      } catch (error) {
-        console.warn('⚠️ board-fail-modal: Failed to read stats high score:', error);
-      }
-      try {
-        const legacy = localStorage.getItem('cc_best_score_v1');
-        if (legacy) return parseInt(legacy, 10) || 0;
-      } catch (error) {
-        console.warn('⚠️ board-fail-modal: Failed to read legacy high score:', error);
-      }
-      return 0;
-    })();
-
-    const highScoreJustUpdated = typeof statsService?.wasHighScoreJustUpdated === 'function'
-      ? statsService.wasHighScoreJustUpdated(currentScore)
-      : false;
-
-    const isNewHighScore = currentScore > storedHighScore || highScoreJustUpdated;
-
-    if (isNewHighScore) {
-      scoreLabel.innerHTML = '<span style="color:#E97A55;font-weight:900;font-size:20px;letter-spacing:0.02em;">NEW</span> <span>Highscore</span>';
-    } else {
-      scoreLabel.textContent = 'Your score';
-    }
-
-    const scoreValue = document.createElement('div');
-    scoreValue.textContent = currentScore.toString();
-    scoreValue.style.cssText = 'color:#E77449;font-weight:800;font-size:64px;line-height:1;margin:0;';
-
     const boardStatus = document.createElement('div');
-    boardStatus.textContent = `Board #${Math.max(1, boardNumber | 0)} not cleared`;
+    const boardLabel = String(Math.max(1, boardNumber | 0)).padStart(2, '0');
+    boardStatus.textContent = `Board ${boardLabel} failed`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
     textCluster.appendChild(title);
-    textCluster.appendChild(scoreLabel);
-    textCluster.appendChild(scoreValue);
     textCluster.appendChild(boardStatus);
 
-    infoStack.appendChild(hero);
+    infoStack.appendChild(starsHero);
     infoStack.appendChild(textCluster);
 
     // Responsive width logic
@@ -392,9 +394,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         return;
       }
       isResolving = true;
-      
-      // 🔥 MEMORY LEAK FIX: Stop score spin animation
-      scoreSpinActive = false;
       
       // CRITICAL FIX: Update high score before resolving
       if (typeof (window as WindowWithCC).updateHighScore === 'function') {
@@ -681,11 +680,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       animatedNodes.push(el);
     };
 
-    prep(hero, -25, 0.7);
+    prep(starsHero, -25, 0.7);
+    emptyStars.forEach((star, index) => prep(star as unknown as HTMLElement, -8 + index * 3, 0.82));
     prep(title, -20, 0.75);
-    prep(scoreLabel, -16, 0.8);
-    prep(scoreValue, -12, 0.85);
-    prep(boardStatus, -8, 0.82);
+    prep(boardStatus, -10, 0.82);
     prep(continueBtn, 16, 0.7);
     prep(exitBtn, 20, 0.7);
 
@@ -695,7 +693,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     requestAnimationFrame(() => {
       const trans = 'opacity 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4), transform 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4)';
-      [hero, title, scoreLabel, scoreValue, boardStatus, continueBtn, exitBtn].forEach(el => {
+      [starsHero, ...emptyStars, title, boardStatus, continueBtn, exitBtn].forEach(el => {
         el.style.transition = trans;
       });
 
@@ -706,56 +704,25 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }, delay);
       };
 
-      schedule(hero, 120);
+      schedule(starsHero, 120);
+      emptyStars.forEach((star, index) => {
+        schedule(star as unknown as HTMLElement, 170 + index * 90);
+      });
       schedule(title, 240);
-      schedule(scoreLabel, 360);
-      schedule(scoreValue, 480);
-      schedule(boardStatus, 620);
-      schedule(continueBtn, 840);
-      schedule(exitBtn, 1020);
+      schedule(boardStatus, 420);
+      schedule(continueBtn, 640);
+      schedule(exitBtn, 820);
 
-      const finalScore = Math.max(0, Math.floor(score || 0));
-      const runScoreSpin = (): void => {
-        // 🔥 MEMORY LEAK FIX: Set flag to track active animation
-        scoreSpinActive = true;
-        
-        const duration = 1100;
-        const digits = Math.max(3, finalScore.toString().length);
-        const wobbleBase = Math.pow(10, Math.max(digits - 2, 0));
-        const start = performance.now();
-
-        const tick = (now: number): void => {
-          // 🔥 MEMORY LEAK FIX: Stop if scoreSpinActive is false
-          if (!scoreSpinActive) {
-            console.log('🛑 Score spin animation stopped early (cleanup called)');
-            return;
-          }
-          
-          const elapsed = now - start;
-          const p = Math.min(elapsed / duration, 1);
-          const ease = 1 - Math.pow(1 - p, 3);
-          const wobble = Math.floor((Math.random() - 0.5) * wobbleBase * 6 * (1 - ease) * 0.8);
-          const value = Math.max(0, finalScore + wobble);
-          
-          // 🔥 MEMORY LEAK FIX: Check if element still exists before updating
-          if (scoreValue && scoreValue.isConnected) {
-            scoreValue.textContent = value.toString();
-          }
-          
-          if (p < 1 && scoreSpinActive) {
-            trackFailAnimationFrame(tick);
-          } else {
-            if (scoreValue && scoreValue.isConnected) {
-              scoreValue.textContent = finalScore.toString();
-            }
-            scoreSpinActive = false;
-          }
-        };
-
-        trackFailAnimationFrame(tick);
-      };
-
-      trackFailTimeout(runScoreSpin, 700);
+      emptyStars.forEach((star, index) => {
+        trackFailTimeout(() => {
+          star.style.transform = 'scale(1.06)';
+          star.style.opacity = '1';
+          trackFailTimeout(() => {
+            star.style.transform = 'scale(1)';
+            star.style.opacity = '0.9';
+          }, 220);
+        }, 220 + index * 110);
+      });
     });
     } catch (outerError) {
       // 🔥 CRITICAL: Ensure promise ALWAYS resolves, even on catastrophic error

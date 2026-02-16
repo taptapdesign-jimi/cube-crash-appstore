@@ -17,6 +17,7 @@ const BOOM_ENTER_STAGGER = 0.05;
 const BOOM_EXIT_STAGGER = 0.012; // 80% faster (was 0.06)
 const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.06; // 80% faster (was 0.3)
+const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
 let shouldShow = false;
 let hintVisible = false;
@@ -93,7 +94,7 @@ function renderMessage(text: string): void {
   const chars = text.split('');
   chars.forEach((ch) => {
     const letterScale = 0.9 + Math.random() * 0.4;
-    const rotation = (Math.random() - 0.5) * 20;
+    const rotation = 0;
     const letterEl = document.createElement('span');
     if (ch === ' ') {
       letterEl.textContent = '\u00A0';
@@ -133,6 +134,8 @@ function renderMessage(text: string): void {
     letterRotations.push(rotation);
     gsap.set(letterEl, { rotation });
   });
+  const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+  hintEl.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 }
 
 function animateIn(): void {

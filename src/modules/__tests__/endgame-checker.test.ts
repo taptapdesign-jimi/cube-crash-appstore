@@ -104,3 +104,39 @@ test('getActiveTiles ignores destroyed and invisible tiles', () => {
   expect(active.length).toBe(1);
   expect(active[0].value).toBe(2);
 });
+
+test('non-mergeable non-stackable board returns stuck', () => {
+  const tiles = [
+    makeTile({ value: 1, stackDepth: 1 }),
+    makeTile({ value: 4, stackDepth: 1 }),
+    makeTile({ value: 5, stackDepth: 1 }),
+  ];
+  const context = makeContext(tiles, 5, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('no_merges_possible');
+});
+
+test('single non-6 tile returns single_non_6_tile stuck reason', () => {
+  const tiles = [makeTile({ value: 2, stackDepth: 1 })];
+  const context = makeContext(tiles, 4, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('single_non_6_tile');
+});
+
+test('single stack 3x2 is stuck (self-merge dead end into 6x1)', () => {
+  const tiles = [makeTile({ value: 3, stackDepth: 2 })];
+  const context = makeContext(tiles, 3, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('single_non_6_tile');
+});
+
+test('single stack 2x3 can continue (self-merge chain available)', () => {
+  const tiles = [makeTile({ value: 2, stackDepth: 3 })];
+  const context = makeContext(tiles, 3, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('continue');
+  expect(result.reason).toBe('merges_possible');
+});

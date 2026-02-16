@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showMagneticText, waitForMagneticTextComplete } from './splash-text-overlay.ts';
+import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, showSparkleText, stopSparkleText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
@@ -499,6 +499,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   wildBeerSpawned = false; // Reset wild-beer spawn tracking
   wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
   firstWildSpawned = false; // 🔥 USER REQUEST: Reset first wild spawn tracking
+  wildSpawnCount = 0;
 
   try {
     if (typeof HUD.resetWildMeter === 'function') {
@@ -666,6 +667,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { cleanupAllFxContainers?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
+  try { stopSparkleText?.(); } catch {}
   try { stopWildBeerBubblesScreen?.(); } catch {}
   // 🔥 Safety: kill active magnet pull animations on cleanup
   try {
@@ -3283,6 +3285,7 @@ function startLevel(n){
     setWildBeerSpawned: (v) => { wildBeerSpawned = v; },
     setWildMagnetSpawned: (v) => { wildMagnetSpawned = v; },
     setFirstWildSpawned: (v) => { firstWildSpawned = v; },
+    setWildSpawnCount: (v) => { wildSpawnCount = v; },
     clearEndGameCache,
   });
   
@@ -3419,6 +3422,8 @@ let wildBeerSpawned = false;
 let wildMagnetSpawned = false;
 // 🔥 USER REQUEST: Track if first wild has been spawned (must be wild zvjezdica)
 let firstWildSpawned = false;
+// Track total wild spawns to enforce first/second sequence.
+let wildSpawnCount = 0;
 const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer and wild-magnet)
 const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
 
@@ -3478,6 +3483,7 @@ async function spawnWildFromMeter(){
       const decided = decideWildType({
         boardNumber,
         firstWildSpawned,
+        wildSpawnCount,
         filterWildType,
         devLog,
         devWarn,
@@ -3504,6 +3510,7 @@ async function spawnWildFromMeter(){
         if (!firstWildSpawned) {
           firstWildSpawned = true;
         }
+        wildSpawnCount += 1;
         
         if (spawnBeer) {
           wildBeerSpawned = true; // Mark as spawned (but can spawn again)
@@ -4006,6 +4013,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
+                showSparkleText();
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -5834,6 +5842,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
+                showSparkleText();
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -6065,98 +6074,169 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             try {
               try { preloadTntFrames(); } catch {}
               const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
-              const tntOverlay = showTntAnimation({
-                onBoomExitStart: () => {
-                  const returnCall = trackDelayedCall(0.4, () => {
-                    blastReturnHandles.forEach((h) => {
-                      try { h.wobble.kill(); } catch {}
-                      gsap.to(h.tile, {
-                        x: h.origX,
-                        y: h.origY,
-                        duration: h.returnDuration,
-                        ease: `elastic.out(0.6, ${h.returnElastic})`,
-                        overwrite: 'auto'
-                      });
+              const startTntBoardBlast = () => {
+                // Pokreni blast+shake tek nakon što TNT sprite sekvenca završi.
+                try {
+                  const primaryTiles = Array.isArray(STATE?.tiles) ? STATE.tiles : [];
+                  const fallbackTiles = Array.isArray(tiles) ? tiles : [];
+                  const allBlastTiles = Array.from(new Set<Tile>([...primaryTiles, ...fallbackTiles]));
+                  const blastStrength = TILE * 0.4;
+                  const blastCenter = centerInBoard(board, dst, TILE);
+
+                  allBlastTiles.forEach((tile: Tile) => {
+                    if (!tile || tile.destroyed) return;
+                    // User requested: move only active cubes (no locked/ghost placeholders).
+                    if (tile.locked) return;
+                    const tileValue = (tile.value | 0);
+                    const isWildLike = typeof tile.special === 'string' && tile.special.startsWith('wild');
+                    if (!isWildLike && tileValue <= 0) return;
+                    const origX = tile.x ?? 0;
+                    const origY = tile.y ?? 0;
+                    const tileCenter = centerInBoard(board, tile, TILE);
+                    const dx = tileCenter.x - blastCenter.x;
+                    const dy = tileCenter.y - blastCenter.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    // Ensure every tile moves: if tile is exactly on blast center,
+                    // assign a random outward direction instead of skipping.
+                    let dirX = 0;
+                    let dirY = 0;
+                    if (distance < 1) {
+                      const angle = Math.random() * Math.PI * 2;
+                      dirX = Math.cos(angle);
+                      dirY = Math.sin(angle);
+                    } else {
+                      dirX = dx / distance;
+                      dirY = dy / distance;
+                    }
+                    const blastDist = blastStrength * (1 + Math.random() * 0.3);
+                    const blastX = origX + dirX * blastDist;
+                    const blastY = origY + dirY * blastDist;
+
+                    try { gsap.killTweensOf(tile); } catch {}
+                    gsap.set(tile, { x: origX, y: origY });
+
+                    const returnDuration = 1.7 + Math.random() * 0.3;
+                    const returnElastic = 0.06 + Math.random() * 0.06;
+                    const blastDuration = returnDuration;
+                    const wobbleAmp = TILE * (0.03 + Math.random() * 0.05);
+                    const wobbleDur = 0.7 + Math.random() * 0.5;
+                    const wobbleElastic = 0.35 + Math.random() * 0.2;
+
+                    gsap.to(tile, {
+                      x: blastX,
+                      y: blastY,
+                      duration: blastDuration,
+                      ease: `elastic.out(1, ${returnElastic})`,
+                      overwrite: 'auto'
                     });
-                    try { tntBlastWobbleTweens = []; } catch {}
+
+                    const wobble = gsap.to(tile, {
+                      x: blastX + (Math.random() - 0.5) * wobbleAmp,
+                      y: blastY + (Math.random() - 0.5) * wobbleAmp,
+                      duration: wobbleDur,
+                      delay: blastDuration,
+                      repeat: -1,
+                      yoyo: true,
+                      ease: `elastic.inOut(1, ${wobbleElastic})`
+                    });
+                    try { tntBlastWobbleTweens.push(wobble); } catch {}
+
+                    blastReturnHandles.push({
+                      tile,
+                      wobble,
+                      origX,
+                      origY,
+                      returnDuration,
+                      returnElastic
+                    });
                   });
-                  if (returnCall) tntBoomDelayedCalls.push(returnCall);
+                } catch (e) {
+                  devWarn('⚠️ Tile blast animation failed:', e);
+                }
+
+              };
+              const returnTntBlastTiles = (onDone?: () => void) => {
+                try {
+                  let pending = 0;
+                  const springReachThreshold = Math.max(3, Math.floor(TILE * 0.06));
+                  let firstSpringTriggered = false;
+                  blastReturnHandles.forEach((h) => {
+                    if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
+                    pending += 1;
+                    try { h.wobble.kill(); } catch {}
+                    gsap.to(h.tile, {
+                      x: h.origX,
+                      y: h.origY,
+                      duration: h.returnDuration,
+                      ease: `elastic.out(0.6, ${h.returnElastic})`,
+                      overwrite: 'auto',
+                      onUpdate: () => {
+                        if (firstSpringTriggered) return;
+                        try {
+                          const dx = Math.abs((h.tile.x ?? h.origX) - h.origX);
+                          const dy = Math.abs((h.tile.y ?? h.origY) - h.origY);
+                          if (dx <= springReachThreshold && dy <= springReachThreshold) {
+                            firstSpringTriggered = true;
+                            finish();
+                          }
+                        } catch {}
+                      },
+                      onComplete: () => {
+                        pending -= 1;
+                        if (pending <= 0) finish();
+                      }
+                    });
+                  });
+                  try { tntBlastWobbleTweens = []; } catch {}
+                  let done = false;
+                  const finish = () => {
+                    if (done) return;
+                    done = true;
+                    try { onDone?.(); } catch {}
+                  };
+                  if (pending <= 0) {
+                    finish();
+                    return;
+                  }
+                } catch (e) {
+                  devWarn('⚠️ TNT blast return failed:', e);
+                  try { onDone?.(); } catch {}
+                }
+              };
+              // Start tile separation immediately on TNT merge-6.
+              startTntBoardBlast();
+              const tntOverlay = showTntAnimation({
+                onSpriteSequenceComplete: () => {
                   // Guard endgame check until TNT bonus break/spawn phase has enough time to complete.
                   // Without this, fail screen can trigger on transient board state.
-                  tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
-                  const bonusCall = trackDelayedCall(0.4 + 0.359 - 0.2 + 0.5, () => {
-                    runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx: false });
+                  tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 3200);
+                  // User requested sequence:
+                  // 1) spread immediately
+                  // 2) when TNT sprite sequence ends
+                  // 3) return to original positions
+                  // 4) only then break 4 tiles (shards/smoke stay aligned)
+                  returnTntBlastTiles(() => {
+                    const bonusCall = trackDelayedCall(0, () => {
+                      runTntBoomBonusBreak2Tiles({
+                        board,
+                        dst,
+                        addWildProgress,
+                        WILD_INC_BIG,
+                        removeTile,
+                        openAtCell,
+                        regularMerge6ShardsTemplated,
+                        smokeBubblesAtTile,
+                        TILE,
+                        devLog,
+                        devWarn,
+                        skipFx: false
+                      });
+                    });
+                    if (bonusCall) tntBoomDelayedCalls.push(bonusCall);
                   });
-                  if (bonusCall) tntBoomDelayedCalls.push(bonusCall);
                 }
               });
               if (tntOverlay) alsoShakeTargets.push(tntOverlay);
-              
-              // Blast efekt - fluid spring wobble dok traju sprite+BOOM, return na onBoomExitStart
-              try {
-                const tiles = STATE.tiles || [];
-                const blastDelay = 0;
-                const blastStrength = TILE * 0.4;
-                const blastCenter = centerInBoard(board, dst, TILE);
-
-                tiles.forEach((tile: Tile) => {
-                  if (!tile || tile.destroyed || tile === dst) return;
-                  const origX = tile.x ?? 0;
-                  const origY = tile.y ?? 0;
-                  const tileCenter = centerInBoard(board, tile, TILE);
-                  const dx = tileCenter.x - blastCenter.x;
-                  const dy = tileCenter.y - blastCenter.y;
-                  const distance = Math.sqrt(dx * dx + dy * dy);
-                  if (distance < 1) return;
-
-                  const dirX = dx / distance;
-                  const dirY = dy / distance;
-                  const blastDist = blastStrength * (1 + Math.random() * 0.3);
-                  const blastX = origX + dirX * blastDist;
-                  const blastY = origY + dirY * blastDist;
-
-                  try { gsap.killTweensOf(tile); } catch {}
-                  gsap.set(tile, { x: origX, y: origY });
-
-                  const returnDuration = 1.7 + Math.random() * 0.3;
-                  const returnElastic = 0.06 + Math.random() * 0.06;
-                  const blastDuration = returnDuration;
-                  const wobbleAmp = TILE * (0.03 + Math.random() * 0.05);
-                  const wobbleDur = 0.7 + Math.random() * 0.5;
-                  const wobbleElastic = 0.35 + Math.random() * 0.2;
-
-                  gsap.to(tile, {
-                    x: blastX,
-                    y: blastY,
-                    duration: blastDuration,
-                    delay: blastDelay,
-                    ease: `elastic.out(1, ${returnElastic})`,
-                    overwrite: 'auto'
-                  });
-
-                  const wobble = gsap.to(tile, {
-                    x: blastX + (Math.random() - 0.5) * wobbleAmp,
-                    y: blastY + (Math.random() - 0.5) * wobbleAmp,
-                    duration: wobbleDur,
-                    delay: blastDelay + blastDuration,
-                    repeat: -1,
-                    yoyo: true,
-                    ease: `elastic.inOut(1, ${wobbleElastic})`
-                  });
-                  try { tntBlastWobbleTweens.push(wobble); } catch {}
-
-                  blastReturnHandles.push({
-                    tile,
-                    wobble,
-                    origX,
-                    origY,
-                    returnDuration,
-                    returnElastic
-                  });
-                });
-              } catch (e) {
-                devWarn('⚠️ Tile blast animation failed:', e);
-              }
             } catch (e) {
               devWarn('⚠️ TNT animation position failed:', e);
             }
@@ -6297,6 +6377,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   starsToHudTriggered = true;
                   (async () => {
                     try {
+                      showSparkleText();
                       devLog('⭐ Triggering stars-to-HUD between shards and smoke (INSTANT)');
                       await animateStarsToHudIcon(
                         board,
@@ -6909,7 +6990,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (isLastMergeFlagSet && !willPulledTilesMerge) {
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
           devLog('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
-          const isFinalMagnetMerge6 = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+          const isFinalMagnetMerge6 =
+            srcSpecial === 'wild-magnet' ||
+            dstSpecial === 'wild-magnet' ||
+            (dst as any)?._wasWildMagnetMerge6 === true ||
+            (dst as any)?._isWildMagnetLastTwo === true;
           const cleanupFinalMagnetBoardArtifacts = () => {
             try {
               const clearTileFromGridForFinal = (tile: any) => {
@@ -6959,6 +7044,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (isFinalMagnetMerge6) {
             // Run cleanup immediately so locked tile/ghost placeholders are gone during SWOOP.
             cleanupFinalMagnetBoardArtifacts();
+            // Fallback: if merge-6 FX path didn't start SWOOP for any reason, start it here.
+            if (!isMagneticTextActive()) {
+              devWarn('⚠️ Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
+              showMagneticText();
+            }
             devLog('🧲 Final wild-magnet merge-6: waiting for SWOOP text animation before clean board');
             await waitForMagneticTextComplete();
             // Idempotent second pass for safety in case anything recreated during wait.
@@ -7975,13 +8065,15 @@ function runTntBoomBonusBreak2Tiles(deps: {
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   skipFx?: boolean;
+  onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx } = deps;
+  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx, onComplete } = deps;
   try {
     // Keep guard active while TNT bonus break/spawn sequence is running.
     tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
     if ((dst as any)?._isLastMerge) {
       devLog('🔥 TNT boom bonus: skip (last merge - clean board)');
+      try { onComplete?.(); } catch {}
       return;
     }
     const allTiles = STATE?.tiles || [];
@@ -7995,6 +8087,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
     const count = Math.min(4, candidates.length);
     if (count < 1) {
       devLog('🔥 TNT boom bonus: no regular tiles to break');
+      try { onComplete?.(); } catch {}
       return;
     }
     const shuffled = [...candidates].sort(() => Math.random() - 0.5);
@@ -8002,7 +8095,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
     const pool = [1, 2, 3, 4, 5];
     const used: number[] = [];
     toBreak.forEach((tile: Tile, i: number) => {
-      const delay = i * 0.1;
+      const delay = i * 0.2; // 200ms stagger: break one-by-one
       const doBreak = () => {
         if (!tile || tile.destroyed || !board || !STATE?.tiles) return;
         const c = tile.gridX ?? 0;
@@ -8049,9 +8142,17 @@ function runTntBoomBonusBreak2Tiles(deps: {
         if (dc) tntBoomDelayedCalls.push(dc);
       }
     });
+    // Wait for TNT break FX (shards/smoke) to visually settle before returning
+    // expanded tiles, so FX stays synced to break positions.
+    const completionDelay = Math.max(0, (count - 1) * 0.2) + 0.75;
+    const doneCall = trackDelayedCall(completionDelay, () => {
+      try { onComplete?.(); } catch {}
+    });
+    if (doneCall) tntBoomDelayedCalls.push(doneCall);
     devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
   } catch (e) {
     devWarn('TNT boom bonus break2 failed:', e);
+    try { onComplete?.(); } catch {}
   }
 }
 
@@ -8627,6 +8728,11 @@ export function cleanupGame() {
     devLog('✅ TNT animation cleaned up in cleanupGame()');
   } catch (e) {
     devWarn('⚠️ Failed to cleanup TNT animation:', e);
+  }
+  try {
+    stopSparkleText?.();
+  } catch (e) {
+    devWarn('⚠️ Failed to cleanup SPARKLE text:', e);
   }
   
   // 🔥 NOTE: Global delayed calls/graphics cleanup handled by cleanupFxForBoardReset('cleanupGame')

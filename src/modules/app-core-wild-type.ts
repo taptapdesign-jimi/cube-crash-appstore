@@ -1,6 +1,7 @@
 type WildTypeDeps = {
   boardNumber: number;
   firstWildSpawned: boolean;
+  wildSpawnCount: number;
   filterWildType: (type: string, boardNumber: number) => string;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
@@ -9,6 +10,7 @@ type WildTypeDeps = {
 export function decideWildType({
   boardNumber,
   firstWildSpawned,
+  wildSpawnCount,
   filterWildType,
   devLog,
   devWarn,
@@ -23,12 +25,27 @@ export function decideWildType({
     spawnMagnet = true;
     spawnTnt = false;
     devLog('🧲 Board 1: First wild spawn: Forcing wild-magnet');
-  } else if (!firstWildSpawned) {
+  } else if (!firstWildSpawned || wildSpawnCount === 0) {
     // First wild spawn on other boards should be regular wild star.
     spawnBeer = false;
     spawnMagnet = false;
     spawnTnt = false;
     devLog('⭐ First wild spawn: Forcing wild star');
+  } else if (wildSpawnCount === 1) {
+    // Force second wild to TNT right after first wild star.
+    const filtered = filterWildType('wild-tnt', boardNumber);
+    if (filtered === 'wild-tnt') {
+      spawnBeer = false;
+      spawnMagnet = false;
+      spawnTnt = true;
+      devLog('💥 Second wild spawn: Forcing TNT');
+    } else {
+      // Fallback if this board blocks TNT.
+      spawnBeer = false;
+      spawnMagnet = false;
+      spawnTnt = false;
+      devWarn(`⚠️ Board ${boardNumber}: TNT blocked for second spawn, falling back to wild star`);
+    }
   } else if (boardNumber === 3) {
     // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
     spawnBeer = true;
