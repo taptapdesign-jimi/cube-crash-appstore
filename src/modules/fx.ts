@@ -4068,7 +4068,8 @@ export function cleanupExistingStarAnimations() {
  * @param {Object} hudStarIconPos - HUD star icon position: { x, y }
  */
 export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos, app = null) {
-  console.log('⭐ animateStarsToHudIcon CALLED with:', {
+  const verboseLogs = isVerboseGameplayLogsEnabled();
+  if (verboseLogs) console.log('⭐ animateStarsToHudIcon CALLED with:', {
     hasBoard: !!board,
     hasStage: !!stage,
     savedStarCount: savedStarPositions?.length || 0,
@@ -4106,11 +4107,11 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   let rendererApp = app;
   if (!rendererApp && stage && (stage as any).app) {
     rendererApp = (stage as any).app;
-    console.log('✅ Got app from stage');
+    if (verboseLogs) console.log('✅ Got app from stage');
   }
   if (!rendererApp && typeof window !== 'undefined' && (window as any).STATE && (window as any).STATE.app) {
     rendererApp = (window as any).STATE.app;
-    console.log('✅ Got app from window.STATE');
+    if (verboseLogs) console.log('✅ Got app from window.STATE');
   }
   
   // 🔥 CRITICAL FIX: Validate stage is valid Container (stage is Container, not Application)
@@ -4136,7 +4137,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       return;
     }
     
-    console.log('✅ Stage validation passed:', {
+    if (verboseLogs) console.log('✅ Stage validation passed:', {
       hasApp: !!rendererApp,
       hasRenderer: !!rendererApp.renderer,
       rendererWidth: rendererApp.renderer.width,
@@ -4153,15 +4154,21 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 PERFORMANCE FIX: Cleanup existing animations before starting new one (prevents lag)
   cleanupExistingStarAnimations();
   
-  // Use saved wild tile position or fallback to merge6CenterPos
-  const wildTileScreenX = savedWildTileScreenPos?.x ?? merge6CenterPos?.x ?? 0;
-  const wildTileScreenY = savedWildTileScreenPos?.y ?? merge6CenterPos?.y ?? 0;
+  // Merge-6 position is provided in screen coordinates by callers.
+  const merge6ScreenPos =
+    merge6CenterPos && Number.isFinite(merge6CenterPos.x) && Number.isFinite(merge6CenterPos.y)
+      ? { x: merge6CenterPos.x, y: merge6CenterPos.y }
+      : null;
+  
+  // Prefer saved wild tile global position (exact source), fallback to normalized merge center.
+  const wildTileScreenX = savedWildTileScreenPos?.x ?? merge6ScreenPos?.x ?? 0;
+  const wildTileScreenY = savedWildTileScreenPos?.y ?? merge6ScreenPos?.y ?? 0;
   
   // Get HUD star icon position (already in screen coordinates)
   const hudScreenX = hudStarIconPos.x;
   const hudScreenY = hudStarIconPos.y;
   
-  console.log('⭐ animateStarsToHudIcon: Positions:', {
+  if (verboseLogs) console.log('⭐ animateStarsToHudIcon: Positions:', {
     wildTileScreen: { x: wildTileScreenX, y: wildTileScreenY },
     hudScreen: { x: hudScreenX, y: hudScreenY },
     merge6Center: merge6CenterPos,
@@ -4183,7 +4190,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 CRITICAL: Mark container as PROTECTED to prevent it from being killed by cleanup functions
   animationContainer._isProtectedStarAnimation = true;
   
-  console.log('⭐ Creating star animation container:', {
+  if (verboseLogs) console.log('⭐ Creating star animation container:', {
     visible: animationContainer.visible,
     alpha: animationContainer.alpha,
     renderable: animationContainer.renderable,
@@ -4268,35 +4275,28 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   const textureSize = sharedStarTexture.width || 32; // Shared texture size
   
-  // Animation parameters
-  const baseDuration = 1.6; // 🔥 USER REQUEST: Increased by 0.6s (from 1.0s to 1.6s)
-  // 🔥 USER REQUEST: Different delays for each star to create better spacing
-  // Star 1: immediate (0ms)
-  // Star 2: small delay (0.08s)
-  // Star 3: larger delay (0.08s + 0.15s = 0.23s) - more separation from star 2
+  // Animation parameters (35% faster + hyper/magnetic pacing)
+  const baseDuration = 2.15 * 0.65;
   const getStarDelay = (index) => {
-    if (index === 0) return 0; // First star: immediate
-    if (index === 1) return 0.08; // Second star: 80ms delay
-    return 0.23; // Third star: 230ms delay (larger gap from star 2)
+    if (index <= 0) return Math.random() * 0.015;
+    // Small but controlled staggering so stars do not enter HUD at once.
+    const base = index === 1 ? 0.055 : 0.125;
+    return base + Math.random() * 0.03;
   };
-  // 🔥 USER REQUEST: Different durations for each star (slower animation for 2nd and 3rd star)
-  // Star 1: baseDuration (1.6s)
-  // Star 2: baseDuration + 0.3s (1.9s) - 300ms slower
-  // Star 3: baseDuration + 0.4s (2.0s) - 400ms slower
   const getStarDuration = (index, baseDur, distanceFactor) => {
-    let duration = baseDur * distanceFactor;
-    if (index === 1) {
-      duration += 0.3; // 🔥 Second star: 300ms slower
-    } else if (index === 2) {
-      duration += 0.4; // 🔥 Third star: 400ms slower
-    }
-    return duration;
+    // Faster overall, but with slight per-star offset for sequential arrivals.
+    const jitter = 0.06 + Math.random() * 0.28;
+    const arrivalOffset = index * 0.06;
+    return (baseDur * distanceFactor) + jitter + arrivalOffset;
   };
   const targetScaleSize = 28; // Target size when scaling down at 90%
+  const baseStarSizes = [56, 42, 30]; // large, medium, small (always different)
+  const shuffledStarSizes = [...baseStarSizes].sort(() => Math.random() - 0.5);
   
   // 🔥 CRITICAL: Track bounce delays to ensure sequential bounces (one after another)
   let bounceDelayTracker = 0;
   const bounceDelayBetweenStars = 0.23; // Duration of bounce animation (0.08 + 0.15 = 0.23s)
+  let previousPlannedArrival = 0;
   
   // Animate stars sequentially (one after another)
   for (let i = 0; i < STAR_COUNT; i++) {
@@ -4306,9 +4306,13 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       continue;
     }
     
-    // Use saved star position (already in screen coordinates)
-    const starStartX = savedStarData.globalX ?? wildTileScreenX;
-    const starStartY = savedStarData.globalY ?? wildTileScreenY;
+    // Start stars from merge-6 origin (screen space), with tiny spawn variance only.
+    const startCenterX = merge6ScreenPos?.x ?? savedWildTileScreenPos?.x ?? wildTileScreenX;
+    const startCenterY = merge6ScreenPos?.y ?? savedWildTileScreenPos?.y ?? wildTileScreenY;
+    const spreadAngle = Math.random() * Math.PI * 2;
+    const spreadRadius = Math.random() * 5; // 50% tighter: max 5px from merge-6 origin
+    const starStartX = startCenterX + Math.cos(spreadAngle) * spreadRadius;
+    const starStartY = startCenterY + Math.sin(spreadAngle) * spreadRadius;
     
     // 🔥 CRITICAL FIX: Validate positions are valid numbers
     if (!Number.isFinite(starStartX) || !Number.isFinite(starStartY)) {
@@ -4320,9 +4324,11 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       continue; // Skip this star
     }
     
-    // 1. Random size between 24-56px
-    const randomSize = 24 + Math.random() * 32; // 24-56px
-    const initialScale = randomSize / textureSize;
+    // Always keep three visibly different sizes (large/medium/small), shuffled per run.
+    const baseSizeForStar = shuffledStarSizes[i % shuffledStarSizes.length];
+    const sizeJitter = (Math.random() - 0.5) * 2.5; // tiny variation while preserving distinction
+    const resolvedSize = Math.max(22, baseSizeForStar + sizeJitter);
+    const initialScale = resolvedSize / textureSize;
     
     // 🔥 PERFORMANCE: Use shared texture instead of individual textures
     // Create animated star sprite with shared texture (no pooling needed - sprites are lightweight)
@@ -4345,95 +4351,79 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     // Do not call updateTransform() here - in Pixi v8 it can throw (reading 'x' of undefined).
     // PIXI updates transforms automatically on the next render frame.
 
-    // 🔥 CRITICAL FIX: Verify star position is within screen bounds
-    const screenWidth = stage.width || (rendererApp?.renderer?.width || window.innerWidth);
-    const screenHeight = stage.height || (rendererApp?.renderer?.height || window.innerHeight);
-    const isWithinBounds = starStartX >= -100 && starStartX <= screenWidth + 100 && 
-                          starStartY >= -100 && starStartY <= screenHeight + 100;
-    if (!isWithinBounds) {
-      console.warn(`⚠️ Star ${i + 1} start position is outside screen bounds:`, {
-        starStartX,
-        starStartY,
-        screenWidth,
-        screenHeight
-      });
+    if (verboseLogs) {
+      const screenWidth = stage.width || (rendererApp?.renderer?.width || window.innerWidth);
+      const screenHeight = stage.height || (rendererApp?.renderer?.height || window.innerHeight);
+      const isWithinBounds = starStartX >= -100 && starStartX <= screenWidth + 100 &&
+                            starStartY >= -100 && starStartY <= screenHeight + 100;
+      if (!isWithinBounds) {
+        console.warn(`⚠️ Star ${i + 1} start position is outside screen bounds:`, {
+          starStartX,
+          starStartY,
+          screenWidth,
+          screenHeight
+        });
+      }
     }
-    
-    console.log(`⭐ Created star ${i + 1}:`, {
-      x: animatedStar.x,
-      y: animatedStar.y,
-      worldX: animatedStar.worldTransform?.tx || 'N/A',
-      worldY: animatedStar.worldTransform?.ty || 'N/A',
-      scale: animatedStar.scale.x,
-      alpha: animatedStar.alpha,
-      visible: animatedStar.visible,
-      renderable: animatedStar.renderable,
-      inContainer: animatedStar.parent === animationContainer,
-      containerVisible: animationContainer.visible,
-      containerInStage: animationContainer.parent === stage,
-      stageVisible: stage.visible,
-      stageAlpha: stage.alpha,
-      textureValid: !!sharedStarTexture,
-      textureWidth: sharedStarTexture?.width || 0,
-      textureHeight: sharedStarTexture?.height || 0
-    });
     
     // Calculate path to HUD (upward wavy motion)
     const dx = hudScreenX - starStartX;
     const dy = hudScreenY - starStartY;
     const distance = Math.hypot(dx, dy);
     const distanceFactor = Math.min(1.0, Math.max(0.6, distance / 800));
-    // 🔥 USER REQUEST: Use different duration for each star (2nd and 3rd are slower)
-    const duration = getStarDuration(i, baseDuration, distanceFactor);
-    const delay = getStarDelay(i);
+    // Ensure strict entry order: star1 fastest, star2 follows, star3 follows (never same-time HUD entry).
+    let delay = getStarDelay(i);
+    let duration = getStarDuration(i, baseDuration, distanceFactor);
+    const minArrivalGap = 0.12; // enforce sequential HUD entry
+    const plannedArrival = delay + duration;
+    const requiredArrival = previousPlannedArrival + minArrivalGap;
+    if (plannedArrival < requiredArrival) {
+      duration += (requiredArrival - plannedArrival);
+    }
+    previousPlannedArrival = delay + duration;
     maxStarDuration = Math.max(maxStarDuration, duration + delay);
     
-    // 🔥 USER REQUEST: More randomized and fluid path for each star
-    // Each star gets unique random path parameters for more variety
+    // Magnetic path: long-wave movement + random lane + stronger attraction near HUD
     const pathPoints = [];
-    const numPoints = 16; // 🔥 More points for smoother, more fluid curve
-    
-    // 🔥 More randomization: Each star gets unique random parameters
-    const waveDirection = (i % 2 === 0) ? -1 : 1; // Alternating base direction
-    const randomDirectionVariation = (Math.random() - 0.5) * 0.3; // Add random variation
-    const finalWaveDirection = waveDirection + randomDirectionVariation;
-    
-    // More varied amplitude and frequency for each star
-    const waveAmplitude = 50 + Math.random() * 40; // 50-90px amplitude (more varied)
-    const waveFrequency = 1.5 + Math.random() * 1.5; // 1.5-3.0 frequency (more varied)
-    const wavePhaseOffset = Math.random() * Math.PI * 2; // Random phase offset for each star
-    
-    // Additional randomization: slight vertical/horizontal offset
-    const verticalOffset = (Math.random() - 0.5) * 20; // -10 to +10px vertical variation
-    const horizontalOffset = (Math.random() - 0.5) * 20; // -10 to +10px horizontal variation
+    const numPoints = 22;
+    const waveDirection = (Math.random() < 0.5 ? -1 : 1);
+    const waveAmplitude = 95 + Math.random() * 85; // longer, wider wave
+    const waveFrequency = 0.75 + Math.random() * 0.75; // long wave (not short)
+    const wavePhaseOffset = Math.random() * Math.PI * 2;
+    const laneDrift = (Math.random() - 0.5) * 110;
+    const launchKickX = (Math.random() - 0.5) * 90;
+    const launchKickY = -30 - Math.random() * 70;
     
     for (let p = 0; p <= numPoints; p++) {
       const t = p / numPoints;
       
-      // Base position along straight line to HUD
-      const baseX = starStartX + dx * t;
-      const baseY = starStartY + dy * t;
+      // Start looser and then "magnet" into HUD more aggressively near the end
+      const magnetT = Math.pow(t, 1.38);
+      const baseX = starStartX + dx * magnetT;
+      const baseY = starStartY + dy * magnetT;
       
-      // 🔥 More fluid path: Use bezier-like curve with multiple wave components
       const perpAngle = Math.atan2(dy, dx) + Math.PI / 2;
-      
-      // Primary wave component
       const wavePhase = t * Math.PI * waveFrequency + wavePhaseOffset;
-      const primaryWave = Math.sin(wavePhase) * waveAmplitude * (1 - t * 0.7); // Decreases more gradually
+      const primaryWave = Math.sin(wavePhase) * waveAmplitude * (1 - t * 0.58);
+      const microWave = Math.sin((t * Math.PI * (waveFrequency * 2.2)) + wavePhaseOffset * 0.65) * (waveAmplitude * 0.18) * (1 - t * 0.8);
+      const totalWaveOffset = (primaryWave + microWave) * waveDirection;
+
+      const laneOffset = laneDrift * (1 - t) * (1 - t * 0.35);
+      const kickWeight = Math.max(0, 1 - t * 2.4);
+      // Prevent far first-frame jumps: offsets ramp in from origin instead of applying fully at t=0.
+      const offsetRamp = Math.pow(t, 0.92);
+      const offsetX = (Math.cos(perpAngle) * (totalWaveOffset + laneOffset) + launchKickX * kickWeight) * offsetRamp;
+      const offsetY = (Math.sin(perpAngle) * (totalWaveOffset + laneOffset) + launchKickY * kickWeight) * offsetRamp;
       
-      // Secondary wave component for more fluid motion (smaller, faster)
-      const secondaryWaveFreq = waveFrequency * 2.5;
-      const secondaryWave = Math.sin(t * Math.PI * secondaryWaveFreq + wavePhaseOffset * 0.5) * (waveAmplitude * 0.3) * (1 - t);
-      
-      // Combined wave offset
-      const totalWaveOffset = (primaryWave + secondaryWave) * finalWaveDirection;
-      
-      // Apply random offsets for more variety
-      const offsetX = Math.cos(perpAngle) * totalWaveOffset + horizontalOffset * (1 - t);
-      const offsetY = Math.sin(perpAngle) * totalWaveOffset + verticalOffset * (1 - t);
-      
+      // First point MUST be exact spawn origin.
+      if (p === 0) {
+        pathPoints.push({
+          x: starStartX,
+          y: starStartY,
+          t: 0
+        });
+      } else if (p === numPoints) {
       // Final point MUST be exactly at HUD position (t = 1.0)
-      if (p === numPoints) {
         pathPoints.push({
           x: hudScreenX, // Exact HUD position
           y: hudScreenY, // Exact HUD position
@@ -4448,8 +4438,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       }
     }
     
-    // 2. Rotation: 10-15 degrees, matching wave direction (left wave = left rotation, right wave = right rotation)
-    const rotationDegrees = (10 + Math.random() * 5) * waveDirection; // 10-15 degrees, matches wave direction
+    // Rotation is varied and slightly exaggerated
+    const rotationDegrees = (12 + Math.random() * 20) * waveDirection;
     const rotationRadians = rotationDegrees * (Math.PI / 180);
     
     // Create timeline with custom delay (different for each star)
@@ -4460,7 +4450,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     
     // 🔥 FIX: distance is already calculated above (line 4830), don't redeclare
     // distance is already available from line 4830: const distance = Math.hypot(dx, dy);
-    console.log(`⭐ Starting animation for star ${i + 1}:`, {
+    if (verboseLogs) console.log(`⭐ Starting animation for star ${i + 1}:`, {
       delay: delay,
       duration: duration,
       startX: starStartX,
@@ -4476,28 +4466,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       containerInStage: animationContainer.parent === stage
     });
     
-    // 🔥 CRITICAL FIX: Verify star is still visible and in container before starting animation
-    if (!animatedStar.visible || animatedStar.alpha === 0 || animatedStar.parent !== animationContainer) {
-      console.error(`❌ Star ${i + 1} is not visible or not in container before animation start!`, {
-        visible: animatedStar.visible,
-        alpha: animatedStar.alpha,
-        inContainer: animatedStar.parent === animationContainer,
-        parent: animatedStar.parent?.constructor?.name
-      });
-    }
-    
     const tl = trackTimeline({
       delay,
-      onStart: () => {
-        console.log(`⭐ Star ${i + 1} animation STARTED (delay: ${delay}s)`, {
-          starX: animatedStar.x,
-          starY: animatedStar.y,
-          starVisible: animatedStar.visible,
-          starAlpha: animatedStar.alpha,
-          containerVisible: animationContainer.visible,
-          containerInStage: animationContainer.parent === stage
-        });
-      },
+      onStart: () => {},
       onComplete: () => {
         // Safety cleanup if star somehow didn't disappear at 50%
         if (!starDisappeared) {
@@ -4524,30 +4495,33 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     tl.to(path, {
       progress: 1,
       duration: duration,
-      ease: 'power1.inOut', // 🔥 Faster easing for better performance (less calculations than sine)
+      ease: 'none',
       onUpdate: () => {
         // 🔥 OPTIMIZATION: Cache calculations and reduce redundant operations
-        const t = path.progress;
+        const rawT = path.progress;
+        // Hyper-space pacing:
+        // 1) prepare/hover briefly, 2) accelerate hard, 3) magnetic pull,
+        // 4) slight settle before HUD to avoid all stars entering at once.
+        let t = rawT;
+        if (rawT < 0.18) {
+          const p = rawT / 0.18;
+          t = 0.06 * Math.pow(p, 2.4);
+        } else if (rawT < 0.82) {
+          const p = (rawT - 0.18) / 0.64;
+          t = 0.06 + 0.78 * Math.pow(p, 1.55);
+        } else if (rawT < 0.95) {
+          const p = (rawT - 0.82) / 0.13;
+          t = 0.84 + 0.145 * Math.pow(p, 0.68);
+        } else {
+          const p = (rawT - 0.95) / 0.05;
+          const smooth = p * p * (3 - 2 * p); // smoothstep for gentle settle-in
+          t = 0.985 + 0.015 * smooth;
+        }
         
         // Early exit if star already disappeared
         if (starDisappeared) return;
         
-        // 🔥 CRITICAL FIX: Ensure star is still visible during animation
-        if (!animatedStar.visible || animatedStar.alpha === 0) {
-          console.warn(`⚠️ Star ${i + 1} became invisible during animation at progress ${t.toFixed(2)} - forcing visible`);
-          animatedStar.visible = true;
-          animatedStar.alpha = 1.0;
-          animatedStar.renderable = true;
-        }
-        
-        // 🔥 CRITICAL FIX: Ensure star is still in container
-        if (animatedStar.parent !== animationContainer) {
-          console.warn(`⚠️ Star ${i + 1} lost parent during animation at progress ${t.toFixed(2)} - re-adding to container`);
-          if (animatedStar.parent) {
-            animatedStar.parent.removeChild(animatedStar);
-          }
-          animationContainer.addChild(animatedStar);
-        }
+        if (!animatedStar.parent || animatedStar.destroyed) return;
         
         // Optimized interpolation: use linear interpolation between cached points
         const pointIndex = Math.floor(t * (pathPoints.length - 1));
@@ -4568,16 +4542,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
         animatedStar.x = newX;
         animatedStar.y = newY;
         
-        // 🔥 CRITICAL FIX: Force update transform every frame to ensure star is rendered
-        // Only update if sprite has parent and valid position
-        try {
-          if (animatedStar.parent && Number.isFinite(animatedStar.x) && Number.isFinite(animatedStar.y)) {
-            animatedStar.updateTransform();
-          }
-        } catch (e) {
-          // Non-critical - PIXI will update transform automatically on next render
-          // Don't log here to avoid spam
-        }
+        // Avoid manual transform updates here; PIXI handles transforms per frame.
         
         // 1. MUST HAVE: Star disappears at 98% of its path (when it reaches 98% of distance to star-hud)
         // No waiting for other stars, no rotation animation at destination - instant disappear
@@ -4615,18 +4580,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           try {
             if (typeof window !== 'undefined' && window.CC && typeof window.CC.addStars === 'function') {
               window.CC.addStars(1);
-              console.log('⭐ Star', i, 'added via window.CC.addStars (triggers bounce via queue)');
             } else {
-              console.warn('⚠️ window.CC.addStars not available, falling back to dynamic import');
-              // Fallback: dynamic import (slower, but should not happen)
-              import('./stars-collector.js').then((StarsCollector) => {
-                if (typeof StarsCollector.addStars === 'function') {
-                  StarsCollector.addStars(1);
-                  console.log('⭐ Star added via dynamic import (fallback)');
-                }
-              }).catch((err) => {
-                console.warn('⚠️ Error importing stars-collector:', err);
-              });
+              // No-op fallback: avoid runtime import during animation path.
             }
           } catch (err) {
             console.warn('⚠️ Error adding star:', err);
@@ -4672,12 +4627,12 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   const performCleanup = () => {
     if (cleanupDone) {
-      console.log('⚠️ Star animation cleanup already done, skipping');
+      if (verboseLogs) console.log('⚠️ Star animation cleanup already done, skipping');
       return;
     }
     cleanupDone = true;
     
-    console.log(`🧹 Star animation cleanup starting: ${starSprites.length} sprites, ${timelines.length} timelines`);
+    if (verboseLogs) console.log(`🧹 Star animation cleanup starting: ${starSprites.length} sprites, ${timelines.length} timelines`);
     
     try {
       // 🔥 CRITICAL FIX: Clear cleanup timeout first (prevents memory leaks)
@@ -4776,28 +4731,14 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // Safety cleanup: ensure container is removed even if something goes wrong
   // Use shorter delay for faster cleanup (0.5s buffer instead of 1.0s)
   const cleanupTimeout = setTimeout(() => {
-    console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.5).toFixed(2)}s`);
+    if (verboseLogs) console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.5).toFixed(2)}s`);
     performCleanup();
-    console.log(`✅ Star animation cleanup completed`);
+    if (verboseLogs) console.log(`✅ Star animation cleanup completed`);
   }, (totalDuration + 0.5) * 1000); // Convert to milliseconds
   
   // Store timeout reference on container for manual cleanup if needed
   if (animationContainer) {
     animationContainer._cleanupTimeout = cleanupTimeout;
-    
-    // Also cleanup on container destroy (if container is destroyed externally)
-    const originalDestroy = animationContainer.destroy;
-    animationContainer.destroy = function(opts) {
-      try {
-        if (cleanupTimeout) {
-          clearTimeout(cleanupTimeout);
-        }
-      } catch {}
-      performCleanup();
-      if (originalDestroy) {
-        return originalDestroy.call(this, opts);
-      }
-    };
   }
   
   // 🔥 CRITICAL: Store reference to animation container and timelines for protection
@@ -4808,104 +4749,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     }
   });
   
-  console.log('🛡️ Star animation is PROTECTED and completely independent from board animations');
-  console.log('⭐ Star animation setup complete:', {
-    containerAdded: !!animationContainer.parent,
-    containerInStage: animationContainer.parent === stage,
-    containerVisible: animationContainer.visible,
-    containerAlpha: animationContainer.alpha,
-    containerRenderable: animationContainer.renderable,
-    starCount: starSprites.length,
-    timelineCount: timelines.length,
-    containerZIndex: animationContainer.zIndex,
-    stageSortable: stage.sortableChildren,
-    stageVisible: stage.visible,
-    stageAlpha: stage.alpha,
-    stageRenderable: stage.renderable,
-    hudScreenX: hudScreenX,
-    hudScreenY: hudScreenY,
-    wildTileScreenX: wildTileScreenX,
-    wildTileScreenY: wildTileScreenY
-  });
-  
-  // rendererApp is already set above in validation section
-  // Force render frame to ensure animation is visible
-  // This ensures stars are rendered immediately
-  if (rendererApp && rendererApp.renderer && !rendererApp.renderer.destroyed) {
-    try {
-      rendererApp.renderer.render(stage);
-      console.log('✅ Forced render frame for star animation');
-    } catch (e) {
-      console.warn('⚠️ Failed to force render frame:', e);
-    }
-  } else {
-    console.warn('⚠️ Cannot force render - app/renderer not available', {
-      rendererApp: !!rendererApp,
-      hasRenderer: !!rendererApp?.renderer,
-      rendererDestroyed: rendererApp?.renderer?.destroyed
-    });
-  }
-  
-  // 🔥 CRITICAL FIX: Verify stars are actually visible after creation and force render
-  setTimeout(() => {
-    starSprites.forEach((star, index) => {
-      if (star && !star.destroyed) {
-        // 🔥 CRITICAL FIX: Force star to be visible if it's not
-        if (!star.visible || star.alpha === 0) {
-          console.warn(`⚠️ Star ${index + 1} is not visible after 100ms - forcing visibility`);
-          star.visible = true;
-          star.alpha = 1.0;
-          star.renderable = true;
-        }
-        
-        console.log(`⭐ Star ${index + 1} status after 100ms:`, {
-          visible: star.visible,
-          alpha: star.alpha,
-          renderable: star.renderable,
-          x: star.x,
-          y: star.y,
-          worldX: star.worldTransform?.tx || 'N/A',
-          worldY: star.worldTransform?.ty || 'N/A',
-          scale: star.scale.x,
-          inContainer: star.parent === animationContainer,
-          containerVisible: animationContainer.visible,
-          containerInStage: animationContainer.parent === stage,
-          containerX: animationContainer.x,
-          containerY: animationContainer.y,
-          stageVisible: stage.visible,
-          stageAlpha: stage.alpha
-        });
-      }
-    });
-    
-    // 🔥 CRITICAL FIX: Force render again after 100ms to ensure stars are visible
-    if (rendererApp && rendererApp.renderer) {
-      try {
-        rendererApp.renderer.render(stage);
-        console.log('✅ Forced render frame for star animation (after 100ms)');
-      } catch (e) {
-        console.warn('⚠️ Failed to force render frame (after 100ms):', e);
-      }
-    }
-  }, 100);
-  
-  // 🔥 CRITICAL FIX: Also check after 500ms to see if animation is running
-  setTimeout(() => {
-    starSprites.forEach((star, index) => {
-      if (star && !star.destroyed) {
-        console.log(`⭐ Star ${index + 1} status after 500ms:`, {
-          visible: star.visible,
-          alpha: star.alpha,
-          x: star.x,
-          y: star.y,
-          worldX: star.worldTransform?.tx || 'N/A',
-          worldY: star.worldTransform?.ty || 'N/A',
-          inContainer: star.parent === animationContainer,
-          containerVisible: animationContainer.visible
-        });
-      }
-    });
-  }, 500);
+  if (verboseLogs) console.log('🛡️ Star animation is protected and independent from board FX');
 }
 
 export function innerFlashAtTile(board, tile, tileSize = 96, intensity = 1){

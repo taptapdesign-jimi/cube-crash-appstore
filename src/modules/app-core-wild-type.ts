@@ -24,11 +24,11 @@ export function decideWildType({
     spawnTnt = false;
     devLog('🧲 Board 1: First wild spawn: Forcing wild-magnet');
   } else if (!firstWildSpawned) {
-    // 🔥 USER REQUEST: First wild spawn on other boards is always TNT (Explosion Pack) – najjači efekat
+    // First wild spawn on other boards should be regular wild star.
     spawnBeer = false;
     spawnMagnet = false;
-    spawnTnt = true;
-    devLog('💥 First wild spawn: Forcing TNT (Explosion Pack)');
+    spawnTnt = false;
+    devLog('⭐ First wild spawn: Forcing wild star');
   } else if (boardNumber === 3) {
     // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
     spawnBeer = true;

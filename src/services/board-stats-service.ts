@@ -17,9 +17,15 @@ const STORAGE_KEY = 'cc_board_stats_v1';
 
 class BoardStatsService {
   private stats: AllBoardStats = {};
+  private saveTimer: number | null = null;
+  private isDirty = false;
+  private lastSavedSnapshot = '';
+  private readonly saveDebounceMs = 750;
 
   constructor() {
     this.loadStats();
+    this.lastSavedSnapshot = this.serializeStats(this.stats);
+    this.installFlushHandlers();
   }
 
   // Load stats from localStorage
@@ -36,11 +42,65 @@ class BoardStatsService {
     }
   }
 
-  // Save stats to localStorage
-  private saveStats(): void {
+  private serializeStats(stats: AllBoardStats): string {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.stats));
-      console.log('💾 Board stats saved');
+      return JSON.stringify(stats);
+    } catch {
+      return '';
+    }
+  }
+
+  private installFlushHandlers(): void {
+    // Ensure buffered stats are persisted when app/tab is backgrounded or closed.
+    const flush = () => this.flushStatsNow('lifecycle');
+    try {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('pagehide', flush);
+        window.addEventListener('beforeunload', flush);
+      }
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') flush();
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to install board stats flush handlers:', error);
+    }
+  }
+
+  private clearSaveTimer(): void {
+    if (this.saveTimer === null) return;
+    try {
+      globalThis.clearTimeout(this.saveTimer);
+    } catch {}
+    this.saveTimer = null;
+  }
+
+  private scheduleSave(reason: string): void {
+    this.isDirty = true;
+    if (this.saveTimer !== null) return;
+    this.saveTimer = globalThis.setTimeout(() => {
+      this.saveTimer = null;
+      this.flushStatsNow(`debounced:${reason}`);
+    }, this.saveDebounceMs);
+  }
+
+  // Save stats to localStorage immediately (used by debounced flush and lifecycle events)
+  public flushStatsNow(reason = 'manual'): void {
+    this.clearSaveTimer();
+    if (!this.isDirty) return;
+
+    const snapshot = this.serializeStats(this.stats);
+    if (!snapshot || snapshot === this.lastSavedSnapshot) {
+      this.isDirty = false;
+      return;
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY, snapshot);
+      this.lastSavedSnapshot = snapshot;
+      this.isDirty = false;
+      console.log(`💾 Board stats saved (${reason})`);
     } catch (error) {
       console.error('❌ Failed to save board stats:', error);
     }
@@ -77,7 +137,7 @@ class BoardStatsService {
         highScore: score,
         lastPlayed: Date.now()
       };
-      this.saveStats();
+      this.scheduleSave('high-score');
       console.log(`🏆 New high score for board ${boardId}: ${score} (previous: ${current.highScore})`);
       return true; // New high score!
     }
@@ -99,7 +159,7 @@ class BoardStatsService {
         longestCombo: combo,
         lastPlayed: Date.now()
       };
-      this.saveStats();
+      this.scheduleSave('longest-combo');
       console.log(`🎯 New longest combo for board ${boardId}: ${combo} (previous: ${current.longestCombo})`);
       return true; // New longest combo!
     }
@@ -114,7 +174,7 @@ class BoardStatsService {
       timesPlayed: current.timesPlayed + 1,
       lastPlayed: Date.now()
     };
-    this.saveStats();
+    this.scheduleSave('times-played');
     console.log(`🎮 Board ${boardId} played ${this.stats[boardId].timesPlayed} times`);
   }
 
@@ -133,7 +193,7 @@ class BoardStatsService {
       cubesCracked: newTotal,
       lastPlayed: Date.now()
     };
-    this.saveStats();
+    this.scheduleSave('cubes-cracked');
     console.log(`🧊 Board ${boardId} cubes cracked: ${current.cubesCracked} + ${cubes} = ${newTotal}`);
     return newTotal;
   }
@@ -141,14 +201,16 @@ class BoardStatsService {
   // Reset stats for specific board (for testing/debugging)
   public resetBoardStats(boardId: number): void {
     delete this.stats[boardId];
-    this.saveStats();
+    this.scheduleSave('reset-board');
+    this.flushStatsNow('reset-board');
     console.log(`🧹 Board ${boardId} stats reset`);
   }
 
   // Reset all stats (for testing/debugging)
   public resetAllStats(): void {
     this.stats = {};
-    this.saveStats();
+    this.scheduleSave('reset-all');
+    this.flushStatsNow('reset-all');
     console.log('🧹 All board stats reset');
   }
 }

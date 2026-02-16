@@ -15,7 +15,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
 import { showMagneticText, waitForMagneticTextComplete } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
@@ -3670,6 +3670,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   let savedStarSystemEarly = null;
   let savedStarPositionsEarly = [];
   let savedWildTileScreenPosEarly = null;
+  let starsToHudTriggered = false;
+  const getMerge6ScreenPos = (tileForCenter: any) => {
+    const local = centerInBoard(board, tileForCenter, TILE);
+    try {
+      if (board && typeof (board as any).toGlobal === 'function') {
+        const global = (board as any).toGlobal({ x: local.x, y: local.y });
+        if (global && Number.isFinite(global.x) && Number.isFinite(global.y)) {
+          return { x: global.x, y: global.y };
+        }
+      }
+    } catch {}
+    return local;
+  };
   
   // Calculate effSum early for wild star check (wild always merges to 6)
   const tempEffSum = wildActive ? 6 : sum;
@@ -3960,7 +3973,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const savedWildTileScreenPosSmall = savedWildTileScreenPosEarly;
         
         // Get merge 6 position for reference (convert to screen coordinates)
-        const merge6PosSmall = centerInBoard(board, dst, TILE);
+        const merge6PosSmall = getMerge6ScreenPos(dst);
         
         // Get HUD star icon position
         let hudStarPosSmall = null;
@@ -3981,7 +3994,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
-        if (shouldAnimateStarsToHUD) {
+        if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
           if (savedStarPositionsSmall.length > 0 && hudStarPosSmall) {
             devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositionsSmall.length,
@@ -3990,37 +4003,23 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
             
-            // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
-            // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
-            // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
-            trackAppAnimationFrame(() => {
-              // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
-              trackAppTimeout(async () => {
-                try {
-                  devLog('⭐ About to import animateStarsToHudIcon from fx.js...');
-                  // Import and call fx.js animation function with SAVED star data
-                  const { animateStarsToHudIcon } = await import('./fx.js');
-                  devLog('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
-                  if (typeof animateStarsToHudIcon === 'function') {
-                    devLog('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
-                      board: !!board, 
-                      stage: !!stage,
-                      savedStarCount: savedStarPositionsSmall.length,
-                      merge6Pos: merge6PosSmall,
-                      hudStarPos: hudStarPosSmall
-                    });
-                    // Pass saved star data instead of tile object
-                    // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
-                    await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall, app);
-                    devLog('✅ Stars animation to HUD completed (INDEPENDENT)');
-                  } else {
-                    devWarn('⚠️ animateStarsToHudIcon not available in fx.js');
-                  }
-                } catch (error) {
-                  devError('❌ Failed to animate stars to HUD:', error);
-                }
-              }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
-            });
+            starsToHudTriggered = true;
+            (async () => {
+              try {
+                devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
+                  board: !!board, 
+                  stage: !!stage,
+                  savedStarCount: savedStarPositionsSmall.length,
+                  merge6Pos: merge6PosSmall,
+                  hudStarPos: hudStarPosSmall
+                });
+                await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall, app);
+                devLog('✅ Stars animation to HUD completed (INSTANT)');
+              } catch (error) {
+                starsToHudTriggered = false;
+                devError('❌ Failed to animate stars to HUD:', error);
+              }
+            })();
           } else {
             devWarn('⭐ Stars animation skipped - missing data:', { 
               shouldAnimate: shouldAnimateStarsToHUD,
@@ -5802,7 +5801,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const savedWildTileScreenPos = savedWildTileScreenPosEarly;
         
         // Get merge 6 position for reference (convert to screen coordinates)
-        const merge6Pos = centerInBoard(board, dst, TILE);
+        const merge6Pos = getMerge6ScreenPos(dst);
         
         // Get HUD star icon position
         let hudStarPos = null;
@@ -5823,7 +5822,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
-        if (shouldAnimateStarsToHUD) {
+        if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
           if (savedStarPositions.length > 0 && hudStarPos) {
             devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositions.length,
@@ -5832,37 +5831,23 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
             
-            // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
-            // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
-            // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
-            trackAppAnimationFrame(() => {
-              // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
-              trackAppTimeout(async () => {
-                try {
-                  devLog('⭐ About to import animateStarsToHudIcon from fx.js...');
-                  // Import and call fx.js animation function with SAVED star data
-                  const { animateStarsToHudIcon } = await import('./fx.js');
-                  devLog('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
-                  if (typeof animateStarsToHudIcon === 'function') {
-                    devLog('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
-                      board: !!board, 
-                      stage: !!stage,
-                      savedStarCount: savedStarPositions.length,
-                      merge6Pos,
-                      hudStarPos
-                    });
-                    // Pass saved star data instead of tile object
-                    // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
-                    await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos, app);
-                    devLog('✅ Stars animation to HUD completed (INDEPENDENT)');
-                  } else {
-                    devWarn('⚠️ animateStarsToHudIcon not available in fx.js');
-                  }
-                } catch (error) {
-                  devError('❌ Failed to animate stars to HUD:', error);
-                }
-              }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
-            });
+            starsToHudTriggered = true;
+            (async () => {
+              try {
+                devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
+                  board: !!board, 
+                  stage: !!stage,
+                  savedStarCount: savedStarPositions.length,
+                  merge6Pos,
+                  hudStarPos
+                });
+                await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos, app);
+                devLog('✅ Stars animation to HUD completed (INSTANT)');
+              } catch (error) {
+                starsToHudTriggered = false;
+                devError('❌ Failed to animate stars to HUD:', error);
+              }
+            })();
           } else {
             devWarn('⭐ Stars animation skipped - missing data:', { 
               shouldAnimate: shouldAnimateStarsToHUD,
@@ -6297,6 +6282,38 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
                 zIndex: 9993
               });
+              // Trigger stars-to-HUD exactly between shards and smoke phase.
+              if (shouldAnimateStarsToHUD && !starsToHudTriggered && savedStarPositionsEarly.length > 0) {
+                const merge6PosForStars = getMerge6ScreenPos(dst);
+                let hudStarPosForStars = null;
+                if (typeof HUD.getStarHudPosition === 'function') {
+                  try {
+                    hudStarPosForStars = HUD.getStarHudPosition();
+                  } catch (e) {
+                    devWarn('⚠️ Failed to get HUD star position for between-shards trigger:', e);
+                  }
+                }
+                if (hudStarPosForStars) {
+                  starsToHudTriggered = true;
+                  (async () => {
+                    try {
+                      devLog('⭐ Triggering stars-to-HUD between shards and smoke (INSTANT)');
+                      await animateStarsToHudIcon(
+                        board,
+                        stage,
+                        savedStarPositionsEarly,
+                        savedWildTileScreenPosEarly,
+                        merge6PosForStars,
+                        hudStarPosForStars,
+                        app
+                      );
+                    } catch (error) {
+                      starsToHudTriggered = false;
+                      devError('❌ Failed between-shards stars-to-HUD trigger:', error);
+                    }
+                  })();
+                }
+              }
             } else {
               // Fallback to generic wild merge
               wildMerge6ShardsTemplated(board, dst, { 
