@@ -12,6 +12,17 @@ let swoopOverlay: HTMLElement | null = null;
 let swoopTimelinesRef: gsap.core.Timeline[] = [];
 let swoopBounceTimelinesRef: gsap.core.Timeline[] = [];
 let swoopDelayedCallsRef: gsap.core.Tween[] = [];
+let magneticTextActive = false;
+let magneticTextWaiters: Array<() => void> = [];
+
+function resolveMagneticTextWaiters(): void {
+  if (!magneticTextWaiters.length) return;
+  const waiters = magneticTextWaiters;
+  magneticTextWaiters = [];
+  waiters.forEach((resolve) => {
+    try { resolve(); } catch {}
+  });
+}
 
 // Same as TNT BOOM
 const ENTER_BOUNCE_SCALE = 1.2;
@@ -52,6 +63,8 @@ function cleanupBuzzzOverlay(): void {
       swoopOverlay.parentNode.removeChild(swoopOverlay);
     }
     swoopOverlay = null;
+    magneticTextActive = false;
+    resolveMagneticTextWaiters();
   } catch {}
 }
 
@@ -62,6 +75,7 @@ function cleanupBuzzzOverlay(): void {
 export function showMagneticText(): void {
   try {
     cleanupBuzzzOverlay();
+    magneticTextActive = true;
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -283,4 +297,27 @@ export function showMagneticText(): void {
 
 export function stopMagneticText(): void {
   cleanupBuzzzOverlay();
+}
+
+export function isMagneticTextActive(): boolean {
+  return magneticTextActive;
+}
+
+export function waitForMagneticTextComplete(timeoutMs = 2200): Promise<void> {
+  if (!magneticTextActive) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    magneticTextWaiters.push(finish);
+    // Failsafe: never block flow if animation is interrupted.
+    try {
+      window.setTimeout(finish, timeoutMs);
+    } catch {
+      finish();
+    }
+  });
 }

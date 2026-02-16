@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showMagneticText } from './splash-text-overlay.ts';
+import { showMagneticText, waitForMagneticTextComplete } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
@@ -6892,16 +6892,64 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (isLastMergeFlagSet && !willPulledTilesMerge) {
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
           devLog('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
+          const isFinalMagnetMerge6 = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+          const cleanupFinalMagnetBoardArtifacts = () => {
+            try {
+              const clearTileFromGridForFinal = (tile: any) => {
+                if (!tile || !grid) return;
+                try {
+                  const gxCandidate = tile.gridX;
+                  const gyCandidate = tile.gridY;
+                  if (gyCandidate !== undefined && gxCandidate !== undefined && grid[gyCandidate] && grid[gyCandidate][gxCandidate] === tile) {
+                    grid[gyCandidate][gxCandidate] = null;
+                    return;
+                  }
+                } catch {}
+                try {
+                  for (let r = 0; r < grid.length; r++) {
+                    for (let c = 0; c < grid[r].length; c++) {
+                      if (grid[r][c] === tile) {
+                        grid[r][c] = null;
+                        return;
+                      }
+                    }
+                  }
+                } catch {}
+              };
+
+              const placeholderRef = (dst as any)?._placeholderHolder || placeholderHolder;
+              if (placeholderRef && !placeholderRef.destroyed && STATE.tiles.includes(placeholderRef)) {
+                clearTileFromGridForFinal(placeholderRef);
+                removeTile(placeholderRef);
+              }
+              if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+                clearTileFromGridForFinal(dst);
+                dst.visible = false;
+                dst.alpha = 0;
+                dst.eventMode = 'none';
+                removeTile(dst);
+              }
+              if (dst) {
+                (dst as any)._placeholderHolder = undefined;
+              }
+              // Match TNT behavior: hide ghost placeholders while text animation plays.
+              try { fadeOutGhostPlaceholders(0.22); } catch {}
+            } catch (cleanupError) {
+              devWarn('⚠️ Final magnet merge cleanup before clean board failed:', cleanupError);
+            }
+          };
+
+          if (isFinalMagnetMerge6) {
+            // Run cleanup immediately so locked tile/ghost placeholders are gone during SWOOP.
+            cleanupFinalMagnetBoardArtifacts();
+            devLog('🧲 Final wild-magnet merge-6: waiting for SWOOP text animation before clean board');
+            await waitForMagneticTextComplete();
+            // Idempotent second pass for safety in case anything recreated during wait.
+            cleanupFinalMagnetBoardArtifacts();
+          }
           
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
-          
-          // Remove dst tile before triggering clean board
-          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-            grid[dst.gridY][dst.gridX] = null;
-            dst.visible = false;
-            removeTile(dst);
-          }
           
           // Reset wild meter locally (triggerCleanBoardFlow also resets it; this keeps state in sync before call)
           wildMeter = 0;
