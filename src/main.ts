@@ -1313,8 +1313,13 @@ async function startNewRun(boardId: number): Promise<void> {
     }
   };
   
-  // 🔥🔥🔥 NUCLEAR CLEANUP FIRST: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
-  // This must happen IMMEDIATELY before any animations or cleanup
+  // 🔥 USER REQUEST: Play STACK IT! exit animation first (must run BEFORE killing GSAP)
+  try {
+    const { hideEndgameHintWithAnimation } = await import('./modules/endgame-hint.js');
+    await hideEndgameHintWithAnimation();
+  } catch {}
+  
+  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
   killAllGsapTweensForExit('pre-exit');
   
   // 🔥 NOTE: FX cleanup happens after exit animations (see Step 3 below)

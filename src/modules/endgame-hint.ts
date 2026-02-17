@@ -343,3 +343,42 @@ export function resetEndgameHint(): void {
   messageIndex = 0;
   logger.debug('🧹 Endgame hint reset', 'endgame-hint');
 }
+
+/** Force-remove hint immediately (no animation). Use when exiting game – GSAP may be killed before hideHint completes. */
+export function forceClearEndgameHint(): void {
+  shouldShow = false;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = null;
+  stopRotate();
+  activeTween?.kill?.();
+  clearLetterAnimations();
+  if (hintEl && hintEl.isConnected) {
+    try { hintEl.remove(); } catch {}
+    hintEl = null;
+  }
+  hintVisible = false;
+  messageIndex = 0;
+}
+
+/** Play exit animation on STACK IT! hint, then remove. Returns Promise that resolves when done. Call BEFORE killing GSAP in exitToMenu. */
+export function hideEndgameHintWithAnimation(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!hintEl || !hintEl.isConnected) {
+      shouldShow = false;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = null;
+      resolve();
+      return;
+    }
+    shouldShow = false;
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = null;
+    hintVisible = false;
+    stopRotate();
+    animateOut(() => {
+      try { hintEl?.remove(); } catch {}
+      hintEl = null;
+      resolve();
+    });
+  });
+}
