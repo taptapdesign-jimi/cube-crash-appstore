@@ -5,6 +5,7 @@ import animationManager from './animation-manager.js';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
+import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete } from './splash-text-overlay.ts';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
@@ -1323,10 +1324,19 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - NO spawns, triggering CLEAN BOARD');
     console.log('🎯 This is the final merge (magnet + 1 tile = 2 tiles total) - should trigger clean board, NOT spawn tiles');
     
-    // Remove merge 6 tile
+    // Remove merge 6 tile (clean board visually; SWOOP overlay stays on top)
     if (dst && !dst.destroyed) {
       removeTile(dst);
     }
+    
+    // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
+    // Without this, clean board appears immediately and SWOOP gets cut off
+    if (!isMagneticTextActive()) {
+      console.log('🧲 Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
+      showMagneticText();
+    }
+    console.log('🧲 Final wild-magnet merge-6: waiting for SWOOP text animation before clean board');
+    await waitForMagneticTextComplete();
     
     // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
     const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;

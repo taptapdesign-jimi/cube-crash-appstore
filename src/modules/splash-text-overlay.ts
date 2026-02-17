@@ -425,7 +425,7 @@ export function showSparkleText(): void {
         'font-weight: 800',
         'font-size: 83px',
         'line-height: 1',
-        'color: #FFFCE7',
+        'color: #FFD256',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

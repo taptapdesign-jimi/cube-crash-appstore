@@ -2691,7 +2691,7 @@ let backgroundLayer = null;
 
 function initializeBackgroundLayer(){
   // CRITICAL: Always create new background layer for each game
-  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xEBE6E2, ALPHA=0.64;
+  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xF3E6DC, ALPHA=0.64;
   
   // 🔥 CRITICAL FIX: Remove existing background layer if it exists
   if (backgroundLayer) {
@@ -4941,8 +4941,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Regular merge 6 uses combinedCount (stackDepth sum) for multiplier
     const isWildStarOrBeer = srcSpecial === 'wild' || dstSpecial === 'wild' || 
                              srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
-    // Calculate multiplier: wild-magnet or wild star/beer = 2, regular merge 6 = combinedCount
-    let mult = (isWildMagnet || isWildStarOrBeer) ? 2 : (combinedCount >= 3 ? 3 : combinedCount); // Temporary, will be updated
+    // Calculate multiplier: wild-magnet or wild star/beer = 2, regular merge 6 = combinedCount (no cap: 2→2x, 3→3x, 4→4x, 5→5x, …)
+    let mult = (isWildMagnet || isWildStarOrBeer) ? 2 : combinedCount;
     
     // Store isWildMagnet for use in onComplete callback
     const wasWildMagnet = isWildMagnet;

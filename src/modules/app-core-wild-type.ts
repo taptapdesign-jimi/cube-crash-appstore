@@ -32,19 +32,19 @@ export function decideWildType({
     spawnTnt = false;
     devLog('⭐ First wild spawn: Forcing wild star');
   } else if (wildSpawnCount === 1) {
-    // Force second wild to TNT right after first wild star.
-    const filtered = filterWildType('wild-tnt', boardNumber);
-    if (filtered === 'wild-tnt') {
+    // Force second wild to magnet right after first wild star.
+    const filtered = filterWildType('wild-magnet', boardNumber);
+    if (filtered === 'wild-magnet') {
       spawnBeer = false;
-      spawnMagnet = false;
-      spawnTnt = true;
-      devLog('💥 Second wild spawn: Forcing TNT');
+      spawnMagnet = true;
+      spawnTnt = false;
+      devLog('🧲 Second wild spawn: Forcing wild-magnet');
     } else {
-      // Fallback if this board blocks TNT.
+      // Fallback if this board blocks magnet.
       spawnBeer = false;
       spawnMagnet = false;
       spawnTnt = false;
-      devWarn(`⚠️ Board ${boardNumber}: TNT blocked for second spawn, falling back to wild star`);
+      devWarn(`⚠️ Board ${boardNumber}: wild-magnet blocked for second spawn, falling back to wild star`);
     }
   } else if (boardNumber === 3) {
     // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)

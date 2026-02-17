@@ -1127,6 +1127,9 @@
   justify-content: center;
   gap: 0;
   flex: 1;
+  min-height: 72px; /* Match icon height for proper vertical centering with icon */
+  align-self: center;
+  margin-top: 8px; /* Nudge down – text block was visually shifted up relative to icon center */
 }
 
 #collectibles-detail-modal .detail-stat-value {
@@ -1150,7 +1153,7 @@
 #collectibles-detail-modal .detail-stat-divider {
   width: 100%;
   height: 2px;
-  background: #E0D8D6; /* Light brown divider from Figma */
+  background: #ECE2D9;
   flex-shrink: 0;
 }
 
