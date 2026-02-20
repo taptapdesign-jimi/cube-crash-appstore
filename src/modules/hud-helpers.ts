@@ -3031,10 +3031,13 @@ export function updateProgressBar(ratio, animate = false){
 export function resetWildMeter(instant = true) {
   console.log('🔄 PIXI RESET: resetWildMeter called, instant:', instant);
   
-  // Kill all GSAP animations for wild meter
+  // Kill all GSAP animations for wild meter and clear smoke interval
   try {
+    if (wild?.view?._smokeInterval) {
+      clearInterval(wild.view._smokeInterval);
+      wild.view._smokeInterval = null;
+    }
     gsap.killTweensOf(wild?.view?._fill);
-    gsap.killTweensOf({ width: 0 }); // Kill custom animation object
     if (wild?.view?._currentAnimation) {
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;

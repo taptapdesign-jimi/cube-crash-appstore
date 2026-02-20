@@ -1268,10 +1268,13 @@ function addWildProgress(amount){
     return;
   }
   
-  // Kill any existing animations first
+  // Kill any existing animations and smoke interval first
   try {
+    if (wild?.view?._smokeInterval) {
+      clearInterval(wild.view._smokeInterval);
+      wild.view._smokeInterval = null;
+    }
     gsap.killTweensOf(wild?.view?._fill);
-    gsap.killTweensOf({ width: 0 });
     if (wild?.view?._currentAnimation) {
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;
@@ -8006,6 +8009,8 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
+        // 🔥 ANTI-EXPLOIT: Persist stuck state so hard exit cannot revert to pre-fail state
+        try { saveGameState(); } catch (_) {}
         const minAfterTntChangeMs = 1000;
         const sinceTntChange = lastTntBonusChangeAt ? (Date.now() - lastTntBonusChangeAt) : Infinity;
         const extraWait = sinceTntChange < minAfterTntChangeMs ? (minAfterTntChangeMs - sinceTntChange) : 0;
@@ -8017,6 +8022,15 @@ function checkLevelEnd(){
       }
     } else {
       devLog('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
+      // 🔥 ANTI-EXPLOIT: Save state after merge (and spawn) have fully completed.
+      // Without this, save only ran on drop (before merge), so hard exit could restore
+      // pre-merge state (e.g. magnet back, revert move). Now resume always gets post-merge state.
+      try {
+        saveGameState();
+        devLog('💾 Game state saved after merge complete (prevents hard-exit revert exploit)');
+      } catch (e) {
+        devWarn('⚠️ Failed to save after merge complete:', e);
+      }
     }
   });
 }
@@ -8373,14 +8387,17 @@ function restartGame(){
         devLog('✅ RESTART GAME: Combo idle timer killed');
       } catch {}
       
-      // 🔥 CRITICAL: Stop wild loader animations
+      // 🔥 CRITICAL: Stop wild loader animations and clear smoke interval (prevents memory leak)
+      if (wild?.view?._smokeInterval) {
+        clearInterval(wild.view._smokeInterval);
+        wild.view._smokeInterval = null;
+        devLog('✅ RESTART GAME: Wild meter smoke interval cleared');
+      }
       gsap.killTweensOf(wild?.view?._fill);
-      gsap.killTweensOf({ width: 0 });
       if (wild?.view?._currentAnimation) {
         wild.view._currentAnimation.kill();
         wild.view._currentAnimation = null;
       }
-      
       // 🔥 CRITICAL: Kill HUD progress bar animations
       try {
         gsap.killTweensOf('[data-wild-loader]');
