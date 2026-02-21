@@ -572,6 +572,18 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     return lastCheckResult;
   }
 
+  // 🔥 BUG FIX: Only merge 6 remains = CLEAN BOARD (success), NOT stuck
+  // checkLevelEnd doesn't pass justRemovedSrc/dstTile, so isLastMergeScenario returns false.
+  // When only merge 6 stack remains (1 visible tile, value 6), show clean board modal, not fail screen.
+  const activeTilesForClean = getActiveTiles(tiles);
+  if (activeTilesForClean.length === 1 && (activeTilesForClean[0].value | 0) === MAX_MERGE_VALUE) {
+    console.log('🚨🚨🚨 EndGameChecker: Only merge 6 remains - CLEAN BOARD (last merge completed)');
+    lastCheckResult = { type: 'clean', reason: 'only_merge6_remains' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
+
   // 🔥 CRITICAL FIX: Check for magnet/wild + merge6 combinations BEFORE moves check
   // These combinations allow continuation even with 0 moves
   const activeTiles = getActiveTiles(tiles);

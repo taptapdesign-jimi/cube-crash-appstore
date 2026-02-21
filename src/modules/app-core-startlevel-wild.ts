@@ -5,6 +5,7 @@ type StartLevelWildDeps = {
   setWildMagnetSpawned: (v: boolean) => void;
   setFirstWildSpawned: (v: boolean) => void;
   setWildSpawnCount?: (v: number) => void;
+  setWildMergeLockedSpawnCount?: (v: number) => void;
   clearEndGameCache: () => void;
 };
 
@@ -15,6 +16,7 @@ export function resetWildAndEndgameState({
   setWildMagnetSpawned,
   setFirstWildSpawned,
   setWildSpawnCount,
+  setWildMergeLockedSpawnCount,
   clearEndGameCache,
 }: StartLevelWildDeps){
   // Reset wild-related state
@@ -24,6 +26,7 @@ export function resetWildAndEndgameState({
   setWildMagnetSpawned(false);
   setFirstWildSpawned(false);
   setWildSpawnCount?.(0);
+  setWildMergeLockedSpawnCount?.(0);
   
   // Clear end game cache when starting new level
   clearEndGameCache();

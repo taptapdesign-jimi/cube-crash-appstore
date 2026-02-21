@@ -35,6 +35,8 @@ interface SpawnBounceOptions {
   rebound?: number;
   wiggle?: number;
   fadeIn?: number;
+  /** When true, tile stays at 100% opacity (no fade from 0). Use for active (non-wild) spawns. */
+  keepFullOpacity?: boolean;
 }
 
 interface OpenAtCellOptions {
@@ -322,17 +324,35 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       }
     }
 
-    holder.alpha = 0;
-    spawnBounce(holder, () => {
+    // 🔥 ACTIVE TILES: Always full opacity. Only wild uses fade-in for effect.
+    const isActiveTile = !isWild && !isWildMagnet;
+    if (!isActiveTile) holder.alpha = 0;
+    else {
       holder.alpha = 1;
-      // Use enhanced wild impact effect for wild cubes
+      if (holder.rotG) holder.rotG.alpha = 1;
+      if (holder.base) holder.base.alpha = 1;
+      if (holder.overlay) { holder.overlay.alpha = 1; holder.overlay.visible = false; }
+      if (holder.num) holder.num.alpha = 1;
+      if (holder.pips) holder.pips.alpha = 1;
+    }
+    spawnBounce(holder, () => {
+      if (isActiveTile) {
+        holder.alpha = 1;
+        if (holder.rotG) holder.rotG.alpha = 1;
+        if (holder.base) holder.base.alpha = 1;
+        if (holder.overlay) { holder.overlay.alpha = 1; holder.overlay.visible = false; }
+        if (holder.num) holder.num.alpha = 1;
+        if (holder.pips) holder.pips.alpha = 1;
+      } else {
+        holder.alpha = 1;
+      }
       if (isWild) {
         wildImpactEffect(holder);
         smokeBubblesAtTile(STATE.board!, holder, TILE, 2.5);
       }
       sweepForUnanimatedSpawns();
       resolve();
-    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
+    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: isActiveTile });
   });
 }
 
@@ -343,23 +363,72 @@ export function spawnBounce(t: Tile, done: (() => void) | null, opts: SpawnBounc
     compress  = 0.96,
     rebound   = 1.02,
     wiggle    = 0.035,
-    fadeIn    = 0.10
+    fadeIn    = 0.10,
+    keepFullOpacity: explicitKeepFullOpacity
   } = opts;
+  // 🔥 CRITICAL: Active tiles (non-locked) MUST always have full opacity. Default to true when tile is not locked.
+  const keepFullOpacity = explicitKeepFullOpacity ?? !t.locked;
 
   const trg = t.rotG || t;
-  t.alpha = 0;
+  if (keepFullOpacity) {
+    try {
+      gsap.killTweensOf(t, 'alpha');
+      if (t.base) gsap.killTweensOf(t.base, 'alpha');
+      if (t.rotG) gsap.killTweensOf(t.rotG, 'alpha');
+    } catch (_) {}
+    t.alpha = 1;
+    if (t.rotG) t.rotG.alpha = 1;
+    if (t.base) t.base.alpha = 1;
+    if ((t as any).overlay) {
+      (t as any).overlay.alpha = 1;
+      (t as any).overlay.visible = false;
+    }
+    if ((t as any).num) (t as any).num.alpha = 1;
+    if ((t as any).pips) (t as any).pips.alpha = 1;
+    t._spawned = true;
+  } else {
+    t.alpha = 0;
+  }
   t.scale!.set(startScale, startScale);
   const dir = Math.random() < 0.5 ? 1 : -1;
-  const finish = () => { 
-    t._spawned = true; 
-    if (typeof done === 'function') done(); 
+  const finish = () => {
+    if (keepFullOpacity) {
+      t.alpha = 1;
+      if (t.rotG) t.rotG.alpha = 1;
+      if (t.base) t.base.alpha = 1;
+      if ((t as any).overlay) {
+        (t as any).overlay.alpha = 1;
+        (t as any).overlay.visible = false;
+      }
+      if ((t as any).num) (t as any).num.alpha = 1;
+      if ((t as any).pips) (t as any).pips.alpha = 1;
+    }
+    t._spawned = true;
+    if (typeof done === 'function') done();
   };
-  const tl = gsap.timeline({ onComplete: finish });
-  tl.to(t,       { alpha: 1,            duration: fadeIn,  ease: 'power1.out' }, 0)
-    .to(t.scale, { x: max,  y: max,     duration: 0.16,    ease: 'back.out(2.1)' }, 0)
+  const tl = gsap.timeline({
+    onComplete: finish,
+    onUpdate: keepFullOpacity
+      ? () => {
+          t.alpha = 1;
+          if (t.rotG) t.rotG.alpha = 1;
+          if (t.base) t.base.alpha = 1;
+          if ((t as any).overlay) {
+            (t as any).overlay.alpha = 1;
+            (t as any).overlay.visible = false;
+          }
+          if ((t as any).num) (t as any).num.alpha = 1;
+          if ((t as any).pips) (t as any).pips.alpha = 1;
+        }
+      : undefined
+  });
+  if (!keepFullOpacity) {
+    tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0);
+  }
+  tl.to(t.scale, { x: max, y: max, duration: 0.16, ease: 'back.out(2.1)' }, 0)
     .to(t.scale, { x: compress, y: compress, duration: 0.10, ease: 'power2.inOut' })
-    .to(t.scale, { x: rebound,  y: rebound,  duration: 0.10, ease: 'power2.out' })
-    .to(t.scale, { x: 1.00,     y: 1.00,     duration: 0.12, ease: 'back.out(2)' });
+    .to(t.scale, { x: rebound, y: rebound, duration: 0.10, ease: 'power2.out' })
+    .to(t.scale, { x: 1.00, y: 1.00, duration: 0.12, ease: 'back.out(2)' });
 
   gsap.timeline()
     .to(trg, { rotation:  wiggle*dir,        duration: 0.10, ease: 'power2.out' })
@@ -377,7 +446,8 @@ export function sweepForUnanimatedSpawns(): void {
       // This prevents re-animating existing tiles that were already on the board
       const isAlreadyVisible = (t.alpha ?? 1) >= 0.99; // Tile is already visible
       if (!t._spawned && !isAlreadyVisible){
-        spawnBounce(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
+        // 🔥 Active tiles (non-locked) must always have full opacity - never fade from 0
+        spawnBounce(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: true });
       }
     });
   }catch{}
@@ -498,7 +568,7 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
       clearTimeout(timeout);
       try{ fixHoverAnchor(t); }catch{}; 
       res(); 
-    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
+    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: true });
   }))).then(async () => { 
     try{ 
       // drawBoardBG function should be imported from app.js

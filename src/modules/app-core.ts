@@ -3289,6 +3289,7 @@ function startLevel(n){
     setWildMagnetSpawned: (v) => { wildMagnetSpawned = v; },
     setFirstWildSpawned: (v) => { firstWildSpawned = v; },
     setWildSpawnCount: (v) => { wildSpawnCount = v; },
+    setWildMergeLockedSpawnCount: (v) => { wildMergeLockedSpawnCount = v; },
     clearEndGameCache,
   });
   
@@ -3419,6 +3420,84 @@ function randomEmptyCell(excludeCells?: { r: number; c: number }[]){
   return getRandomEmptyCell({ ROWS, COLS, grid, excludeCells });
 }
 
+function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number; r: number }>): void {
+  if (!count || count <= 0) return;
+  if (!grid || !board || !makeBoard?.createTile) return;
+
+  const refLocked = tiles.find(t => t && !t.destroyed && t.locked && ((t.value | 0) <= 0) && Number.isFinite((t as any).alpha));
+  const lockedAlpha = Number.isFinite((refLocked as any)?.alpha) ? (refLocked as any).alpha : 0.20;
+
+  const excludeSet = excludeCells?.length ? new Set(excludeCells.map(({ c, r }) => `${c},${r}`)) : null;
+  const emptyCells: Array<{ c: number; r: number }> = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (excludeSet?.has(`${c},${r}`)) continue; // 🔥 ENDGAME: Exclude dst cell to avoid clash with openAtCell spawn
+      if (!grid?.[r]?.[c]) emptyCells.push({ c, r });
+    }
+  }
+  const toCreate: Array<{ c: number; r: number }> = [];
+  if (emptyCells.length) {
+    for (let i = emptyCells.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [emptyCells[i], emptyCells[j]] = [emptyCells[j], emptyCells[i]];
+    }
+    toCreate.push(...emptyCells.slice(0, Math.min(count, emptyCells.length)));
+  }
+
+  // If there aren't enough empty cells, spawn as many locked tiles as we can.
+
+  toCreate.forEach(({ c, r }, index) => {
+    try {
+      if (grid?.[r]?.[c]) return; // Cell filled meanwhile
+      const t = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
+      if (!t) return;
+      try { resetTileToNormalState?.(t); } catch {}
+      try { delete (t as any)._spawned; } catch {}
+      t.locked = true;
+      t.eventMode = 'none';
+      t.cursor = 'default';
+      t.alpha = lockedAlpha;
+      devLog('[SPAWN-OPACITY] spawnLockedTilesWithPop (LOCKED)', { cell: `(${c},${r})`, lockedAlpha, tileAlpha: t.alpha });
+
+      // Custom pop-in without setting _spawned (locked tiles must remain spawnable later)
+      // Keep alpha low the whole time (no fade to 100%)
+      const trg = t.rotG || t;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      t.scale?.set?.(0.30, 0.30);
+      const delay = index * 150;
+      const tl = gsap.timeline({
+        delay: delay / 1000,
+        onComplete: () => {
+          if (!t || t.destroyed) return;
+          // 🔥 CRITICAL FIX: Only apply lockedAlpha if tile is STILL locked!
+          // If openLockedBounceParallel already unlocked this tile (spawned as active), do NOT overwrite alpha
+          if (!t.locked) return;
+          t._spawned = false;
+          t.alpha = lockedAlpha;
+          // Ensure locked look persists after any deferred tweens
+          trackAppTimeout(() => {
+            if (!t || t.destroyed) return;
+            if (!t.locked) return; // 🔥 Same check - tile may have been unlocked meanwhile
+            t.alpha = lockedAlpha;
+            t._spawned = false;
+          }, 80);
+        }
+      });
+      tl.to(t.scale, { x: 1.08, y: 1.08,  duration: 0.16, ease: 'back.out(2.1)' }, 0)
+        .to(t.scale, { x: 0.96, y: 0.96,  duration: 0.10, ease: 'power2.inOut' })
+        .to(t.scale, { x: 1.02, y: 1.02,  duration: 0.10, ease: 'power2.out' })
+        .to(t.scale, { x: 1.00, y: 1.00,  duration: 0.12, ease: 'back.out(2)' });
+      gsap.timeline({ delay: delay / 1000 })
+        .to(trg, { rotation:  0.035*dir,      duration: 0.10, ease: 'power2.out' })
+        .to(trg, { rotation: -0.035*0.6*dir,  duration: 0.12, ease: 'power2.out' })
+        .to(trg, { rotation:  0,              duration: 0.14, ease: 'power2.out' });
+    } catch (err) {
+      devWarn('⚠️ Failed to spawn locked tile with pop:', err);
+    }
+  });
+  try { drawBoardBG?.(); } catch {}
+}
+
 // Track if wild-beer has been spawned (first wild spawn should be wild-beer)
 let wildBeerSpawned = false;
 // Track if wild-magnet has been spawned (second wild spawn should be wild-magnet)
@@ -3427,6 +3506,8 @@ let wildMagnetSpawned = false;
 let firstWildSpawned = false;
 // Track total wild spawns to enforce first/second sequence.
 let wildSpawnCount = 0;
+// Track wild-merge locked tile spawns (1st=7, 2nd=4)
+let wildMergeLockedSpawnCount = 0;
 const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer and wild-magnet)
 const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
 
@@ -6940,8 +7021,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         
         // Game continues - check moves and proceed with spawn
-        if (moves === 0) {
-          // Use centralized checker for moves depleted scenario
+        // 🔥 BUG FIX: For WILD merges (beer, star, TNT, magnet), ALWAYS spawn first (3 active + 6 locked)
+        // Don't return early on moves depleted - spawn will add new tiles; checkLevelEnd will re-check after spawn
+        const isWildMergeForMovesCheck = (srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild')) || (dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild'));
+        if (moves === 0 && !isWildMergeForMovesCheck) {
+          // Use centralized checker for moves depleted scenario (NON-wild merges only)
           const movesDepletedContext: EndGameContext = {
             tiles,
             moves: 0,
@@ -6961,6 +7045,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             return;
           }
+        } else if (moves === 0 && isWildMergeForMovesCheck) {
+          devLog('🍺⭐ Wild merge with moves depleted - spawning 3 active + 6 locked first, then checkLevelEnd will re-check');
         }
         // Pass wild merge target info for smart spawning
         const wildMergeTarget = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
@@ -6969,13 +7055,28 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Pulled tiles merge already spawns new tiles in mergePulledTilesIntoMerge6
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
           devLog('🧲 Skipping normal spawn - pulled tiles merge already spawned tiles');
+          // 🔥 BUG FIX: MUST remove merge 6 tile here - we return early and never reach the removal block below!
+          // Without this, merge 6 tile stays on board → "frozen 6 over another cube" + fail screen
+          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+            try {
+              const gxC = dst.gridX, gyC = dst.gridY;
+              if (grid && typeof gyC === 'number' && typeof gxC === 'number' && grid[gyC]?.[gxC] === dst) {
+                grid[gyC][gxC] = null;
+              }
+              dst.visible = false;
+              dst.alpha = 0;
+              dst.eventMode = 'none';
+              removeTile(dst);
+              devLog('🧲 Removed merge 6 tile (magnet pull early-return path)');
+            } catch (e) {
+              devWarn('⚠️ Failed to remove merge 6 tile in magnet pull early-return:', e);
+            }
+          }
           // 🔥 CRITICAL: Clean up flags AFTER checking (they were set before handleWildMagnetMergedPulledTiles)
           (dst as any)._wildMagnetPulledTilesMerge = undefined;
           (dst as any)._wildMagnetPulledTilesScoring = undefined;
           
           // 🔥 CRITICAL FIX: Don't call checkLevelEnd here - it's already called in mergePulledTilesIntoMerge6
-          // Calling it twice causes race conditions and premature fail screens
-          // mergePulledTilesIntoMerge6 waits for spawn animations and calls checkLevelEnd with proper timing
           devLog('🧲 Skipping checkLevelEnd call here - mergePulledTilesIntoMerge6 will handle it after spawn completes');
           return;
         }
@@ -7044,9 +7145,34 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
           };
 
+          const cleanupFinalGhostsAndLocked = () => {
+            try {
+              // Remove all locked tiles (including placeholders)
+              const lockedToRemove = tiles.filter((t: any) => t && !t.destroyed && t.locked);
+              lockedToRemove.forEach((t: any) => {
+                try {
+                  if (typeof t.gridX === 'number' && typeof t.gridY === 'number' && grid?.[t.gridY]?.[t.gridX] === t) {
+                    grid[t.gridY][t.gridX] = null;
+                  }
+                } catch {}
+                try {
+                  t.visible = false;
+                  t.alpha = 0;
+                  t.eventMode = 'none';
+                } catch {}
+                try { removeTile(t); } catch {}
+              });
+              // Hide all ghost placeholders during final wild animation
+              try { fadeOutGhostPlaceholders(0.22); } catch {}
+            } catch (err) {
+              devWarn('⚠️ Final merge cleanup for ghosts/locked failed:', err);
+            }
+          };
+
           if (isFinalMagnetMerge6) {
             // Run cleanup immediately so locked tile/ghost placeholders are gone during SWOOP.
             cleanupFinalMagnetBoardArtifacts();
+            cleanupFinalGhostsAndLocked();
             // Fallback: if merge-6 FX path didn't start SWOOP for any reason, start it here.
             if (!isMagneticTextActive()) {
               devWarn('⚠️ Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
@@ -7056,6 +7182,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             await waitForMagneticTextComplete();
             // Idempotent second pass for safety in case anything recreated during wait.
             cleanupFinalMagnetBoardArtifacts();
+            cleanupFinalGhostsAndLocked();
           }
           
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
@@ -7100,7 +7227,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // This code only handles reducing spawnMult for wild merges in endgame mode (if not final merge-6)
         const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
                                       srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
-        const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
+        const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked && (t.value | 0) <= 0).length;
         const isEndgameForMultCheck = lockedTilesForMultCheck === 0;
         
         // 🔥 SOURCE OF TRUTH: In endgame mode, wild merges spawn only 1 tile (Single Spawn Rule)
@@ -7113,12 +7240,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
         if (!spawnMult || spawnMult <= 0) {
           devWarn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
-          // 🔥 BUG FIX: Reset spawn flag if spawn is skipped (spawnMult = 0)
           merge6SpawnInProgress = false;
-          if (merge6SpawnResetTimer) {
-            try { merge6SpawnResetTimer.kill(); } catch {}
-            merge6SpawnResetTimer = null;
-          }
           if (merge6SpawnResetTimer) {
             try { merge6SpawnResetTimer.kill(); } catch {}
             merge6SpawnResetTimer = null;
@@ -7193,7 +7315,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 SOURCE OF TRUTH: Endgame Mode Detection
         // Endgame mode begins when: There are no available locked / armored slots left for spawning new normal dice
         // 🔥 CRITICAL: Check if there are locked tiles available for spawn (excluding placeholder at dst position)
-        const lockedTiles = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
+        const lockedTiles = tiles.filter(t => t && !t.destroyed && t.locked && t.scale && (t.value | 0) <= 0);
         const placeholderHolderRef = (dst as any)?._placeholderHolder;
         
         // Filter out placeholder at dst position and pulled cells
@@ -7222,22 +7344,25 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           totalActiveTiles: tiles.filter(t => t && !t.destroyed && !t.locked).length,
           spawnMult
         });
+
+        // 🔥 Wild-merge bonus: spawn 9 locked, open 3 → result: 3 active + 6 locked. All wilds (star, beer, TNT, magnet).
+        const isWildMerge6 =
+          (srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild')) ||
+          (dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild'));
+        let wildMergeLockedBonusCount = 0;
+        if (isWildMerge6 && !isLastMergeFlagSet) {
+          wildMergeLockedBonusCount = 9; // 9 locked total → open 3 = 3 active + 6 locked
+        }
         
         // 🔥 SOURCE OF TRUTH: Single Spawn Rule
         // In Endgame Mode, after any Merge-6 (normal or wild):
-        // - ONLY ONE tile may spawn
-        // - Spawn location = the Merge-6 cell
-        // - Forbidden: spawning elsewhere, multiple spawns, fallback random spawn logic
-        // 🔥 CRITICAL: If endgame mode AND not final merge-6, spawn ONLY 1 tile at merge-6 cell
-        // 🔥 CRITICAL: If final merge-6 (_isLastMerge flag), do NOT spawn (trigger CLEAN BOARD)
-        const isFinalMerge6 = isLastMergeFlagSet; // Already checked above, but keep for clarity
-        const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
+        // - ONLY ONE tile may spawn at merge-6 cell
+        // - If final merge-6 (_isLastMerge), do NOT spawn (trigger CLEAN BOARD)
+        const shouldSpawnAtDst = isEndgameMode && !isLastMergeFlagSet && spawnMult > 0;
         
         if (shouldSpawnAtDst) {
-          // 🔥 SOURCE OF TRUTH: Single Spawn Rule - spawn ONLY 1 tile at merge-6 cell in endgame mode
-          devLog('🎯🎯🎯 END-GAME SPAWN (Single Spawn Rule): Endgame mode detected - spawning EXACTLY 1 tile at merge-6 cell (', gx, ',', gy, ')');
-          devLog('🎯 Source of Truth: In Endgame Mode, after any Merge-6, ONLY ONE tile may spawn at Merge-6 cell');
-          devLog('🎯 Endgame mode:', isEndgameMode, 'Available locked tiles:', availableLockedTiles.length, 'Final merge-6:', isFinalMerge6);
+          devLog('🎯🎯🎯 END-GAME SPAWN (Single Spawn Rule): spawning EXACTLY 1 tile at merge-6 cell (', gx, ',', gy, ')');
+          devLog('🎯 Endgame mode:', isEndgameMode, 'Available locked tiles:', availableLockedTiles.length);
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
           if (placeholderHolderRef && !placeholderHolderRef.destroyed) {
@@ -7350,6 +7475,60 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             devLog('✅ Reset merge6SpawnInProgress = false after normal spawn error');
         });
+        }
+
+        if (wildMergeLockedBonusCount > 0) {
+          devLog('🔒 Wild merge bonus: spawning locked tiles', wildMergeLockedBonusCount);
+          // 🔥 ENDGAME: Exclude dst cell to prevent clash – we spawn 1 active tile there via openAtCell
+          spawnLockedTilesWithPop(wildMergeLockedBonusCount, shouldSpawnAtDst ? [{ c: gx, r: gy }] : undefined);
+          wildMergeLockedSpawnCount += 1;
+        }
+
+        if (isWildMerge6 && !isLastMergeFlagSet) {
+          // Always spawn 3 active tiles after wild merge 6 (all wilds: star, beer, TNT, magnet)
+          // 🔥 ENDGAME: Exclude dst cell – we spawn 1 active there; avoid picking that cell for openLockedBounceParallel
+          const wildSpawnExcludeCells = shouldSpawnAtDst
+            ? new Set([...pulledCellsSet, `${gx},${gy}`])
+            : pulledCellsSet;
+          trackAppTimeout(() => {
+            try {
+              FLOW.openLockedBounceParallel({
+                tiles,
+                k: 3,
+                drag,
+                makeBoard,
+                gsap,
+                drawBoardBG,
+                TILE,
+                fixHoverAnchor,
+                spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
+                wildMergeTarget,
+                excludeCells: wildSpawnExcludeCells
+              } as any);
+            } catch (err) {
+              devWarn('⚠️ Wild merge extra spawn failed:', err);
+            }
+          }, 80);
+          // 🔥 CRITICAL FIX: Safety sweep - spawnLockedTilesWithPop onComplete can race with openLockedBounceParallel
+          // Fix any active tiles that ended up with wrong alpha (runs after all spawn animations)
+          trackAppTimeout(() => {
+            try {
+              let fixed = 0;
+              for (const t of tiles) {
+                if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+                if ((t.alpha ?? 1) < 0.99) {
+                  t.alpha = 1;
+                  if ((t as any).rotG) (t as any).rotG.alpha = 1;
+                  if ((t as any).base) (t as any).base.alpha = 1;
+                  if ((t as any).overlay) { (t as any).overlay.alpha = 1; }
+                  if ((t as any).num) (t as any).num.alpha = 1;
+                  if ((t as any).pips) (t as any).pips.alpha = 1;
+                  fixed++;
+                }
+              }
+              if (fixed > 0) devLog('[SPAWN-OPACITY] Safety sweep: fixed', fixed, 'active tiles to full opacity');
+            } catch {}
+          }, 600);
         }
         
         // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
@@ -7575,7 +7754,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
         // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
         const isWildTntMerge6 = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
-        const postSpawnEndgameDelayMs = isWildTntMerge6 ? 1700 : 500;
+        // 🔥 BUG FIX: openLockedBounceParallel spawns at 80ms + 0/150/300ms delays; spawnBounce ~240ms each → last tile ~620ms
+        // Must wait long enough for all 3 wild bonus tiles to finish spawning before checkLevelEnd
+        const postSpawnEndgameDelayMs = isWildTntMerge6 ? 1700 : 850;
         devLog(`⏳ Waiting ${postSpawnEndgameDelayMs}ms after spawn animations before endgame check...`, {
           isWildTntMerge6
         });
@@ -7743,6 +7924,22 @@ function checkLevelEnd(){
     logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
     const now = Date.now();
     const skipWindowExceeded = checkLevelEndSkipStartedAt !== null && (now - checkLevelEndSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
+    // 🔥 BUG FIX: Skip if merge-6 spawn still in progress (prevents fail screen before 3 wild bonus tiles spawn)
+    if (merge6SpawnInProgress && !skipWindowExceeded) {
+      if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
+      checkLevelEndRetryCount++;
+      devLog('⏳ checkLevelEnd skipped - merge6 spawn in progress (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, ')');
+      if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
+        checkLevelEndRetryCount = 0;
+        checkLevelEndSkipStartedAt = null;
+      } else {
+        checkLevelEndTimer = trackDelayedCall(0.5, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
+    }
     const tntAnimationRunning = !!isTntAnimationActive?.();
     const tntBonusGuardActive = tntBonusGuardUntil > now;
 

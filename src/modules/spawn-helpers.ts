@@ -18,6 +18,8 @@ interface SpawnBounceOptions {
   wiggle?: number;
   fadeIn?: number;
   timeScale?: number;
+  /** When true, tile stays at 100% opacity (no fade from 0). Use for locked→active spawn after merge 6. */
+  keepFullOpacity?: boolean;
 }
 
 interface DealFromRimParams {
@@ -50,22 +52,73 @@ export function spawnBounce(
     compress = 0.96,
     rebound = 1.02,
     wiggle = 0.035,
-    fadeIn = 0.10
+    fadeIn = 0.10,
+    keepFullOpacity: explicitKeepFullOpacity
   } = opts || {};
+  // 🔥 CRITICAL: Active tiles (non-locked) MUST always have full opacity. Default to true when tile is not locked.
+  const keepFullOpacity = explicitKeepFullOpacity ?? !(t as any).locked;
 
   const trg = (t as any).rotG || t;
-  t.alpha = 0;
+  const cell = (t as any).gridX != null && (t as any).gridY != null ? `(${(t as any).gridX},${(t as any).gridY})` : '';
+
+  if (keepFullOpacity) {
+    (t as any)._spawned = true; // Prevent sweepForUnanimatedSpawns from re-running spawnBounce without keepFullOpacity
+    try {
+      gsap?.killTweensOf?.(t, 'alpha');
+      if ((t as any).base != null) gsap?.killTweensOf?.((t as any).base, 'alpha');
+      if ((t as any).rotG != null) gsap?.killTweensOf?.((t as any).rotG, 'alpha');
+    } catch (_) {}
+    t.alpha = 1;
+    if ((t as any).rotG != null) (t as any).rotG.alpha = 1;
+    if ((t as any).base != null) (t as any).base.alpha = 1;
+    if ((t as any).overlay != null) {
+      (t as any).overlay.alpha = 1;
+      (t as any).overlay.visible = false;
+    }
+    if ((t as any).num != null) (t as any).num.alpha = 1;
+    if ((t as any).pips != null) (t as any).pips.alpha = 1;
+  } else {
+    t.alpha = 0;
+  }
   t.scale.set(startScale);
 
   const dir = Math.random() < 0.5 ? 1 : -1;
   const finish = () => {
-    (t as any)._spawned = true;
+    if (!keepFullOpacity) (t as any)._spawned = true;
+    if (keepFullOpacity) {
+      t.alpha = 1;
+      if ((t as any).rotG != null) (t as any).rotG.alpha = 1;
+      if ((t as any).base != null) (t as any).base.alpha = 1;
+      if ((t as any).overlay != null) {
+        (t as any).overlay.alpha = 1;
+        (t as any).overlay.visible = false;
+      }
+      if ((t as any).num != null) (t as any).num.alpha = 1;
+      if ((t as any).pips != null) (t as any).pips.alpha = 1;
+    }
     if (typeof done === 'function') done();
   };
-  const tl = trackTimeline({ onComplete: finish });
+  const tl = trackTimeline({
+    onComplete: finish,
+    onUpdate: keepFullOpacity
+      ? () => {
+          t.alpha = 1;
+          if ((t as any).rotG != null) (t as any).rotG.alpha = 1;
+          if ((t as any).base != null) (t as any).base.alpha = 1;
+          if ((t as any).overlay != null) {
+            (t as any).overlay.alpha = 1;
+            (t as any).overlay.visible = false;
+          }
+          if ((t as any).num != null) (t as any).num.alpha = 1;
+          if ((t as any).pips != null) (t as any).pips.alpha = 1;
+        }
+      : undefined
+  });
 
-  tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0)
-    .to(t.scale, { x: max, y: max, duration: 0.12, ease: 'back.out(2.1)' }, 0)
+  if (!keepFullOpacity) {
+    tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0);
+  }
+  tl.to(t.scale, { x: max, y: max, duration: 0.12, ease: 'back.out(2.1)' }, 0)
     .to(t.scale, { x: compress, y: compress, duration: 0.08, ease: 'power2.inOut' })
     .to(t.scale, { x: rebound, y: rebound, duration: 0.08, ease: 'power2.out' })
     .to(t.scale, { x: 1.00, y: 1.00, duration: 0.10, ease: 'back.out(2)' });
@@ -81,7 +134,8 @@ export function sweepForUnanimatedSpawns(tiles: Tile[], gsap: typeof gsap): void
     tiles.forEach(t => {
       if (!t || (t as any).locked) return;
       if (!(t as any)._spawned) {
-        spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
+        // 🔥 Active tiles (non-locked) must always have full opacity - never fade from 0
+        spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: true });
       }
     });
   } catch {}
@@ -204,7 +258,7 @@ export async function openEmpties({
     try {
       fixHoverAnchor?.(t);
     } catch {}
-    spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 }, res);
+    spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: true }, res);
   })));
 
   try {

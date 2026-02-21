@@ -145,11 +145,27 @@ export async function openLockedBounceParallel({
         return;
       }
       
-      t.locked=false; 
-      // 🔥 USER BUG FIX: Enable eventMode='static' so tiles are interactive immediately after unlock
-      // This prevents fail screen when user tries to merge tiles that just spawned
-      t.eventMode='static'; 
-      t.cursor='pointer';
+      const ensureActiveFullOpacity = (tile: any) => {
+        try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
+        try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
+        try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
+        try {
+          tile.alpha = 1;
+          if (tile.rotG) tile.rotG.alpha = 1;
+          if (tile.base) tile.base.alpha = 1;
+          if (tile.overlay) {
+            tile.overlay.alpha = 1;
+            tile.overlay.visible = false;
+          }
+          if (tile.num) tile.num.alpha = 1;
+          if (tile.pips) tile.pips.alpha = 1;
+        } catch {}
+      };
+
+      t.locked = false;
+      t.eventMode = 'static';
+      t.cursor = 'pointer';
+      ensureActiveFullOpacity(t);
       if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
 
       resetTileToNormalState(t);
@@ -172,20 +188,23 @@ export async function openLockedBounceParallel({
       }
       
       makeBoard?.setValue?.(t, spawnValue, 0);
+      ensureActiveFullOpacity(t);
       try { fixHoverAnchor?.(t); } catch {}
-      
-      // 🔥 CRITICAL: Final check before spawnBounce (tile might have been destroyed during setValue)
+
       if (!t || t.destroyed || !t.scale) {
         logger.debug('Spawn skipped: tile destroyed during setValue', 'level-flow');
         return;
       }
-      
-      // 🔥 CRITICAL: Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
-      // Same as magnet merge spawn for consistent feel
-      spawnBounce?.(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0 });
+
+      spawnBounce?.(t, () => {
+        ensureActiveFullOpacity(t);
+        const reinforce = setTimeout(() => {
+          ensureActiveFullOpacity(t);
+        }, 160);
+        activeSpawnTimeouts.add(reinforce);
+      }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
     }, delay);
     activeSpawnTimeouts.add(timeout);
   }
   try { drawBoardBG?.(); } catch {}
 }
-

@@ -155,9 +155,28 @@ export function openAtCellCore({
     }
 
     holder.visible = true;
-    holder.alpha = 0;
-    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: timeScale }, () => {
+    const isActiveTile = !isWild && !isWildMagnet && !isWildBeer && !isWildTnt;
+    if (isActiveTile) {
       holder.alpha = 1;
+      if (holder.rotG) holder.rotG.alpha = 1;
+      if (holder.base) holder.base.alpha = 1;
+      if (holder.overlay) { holder.overlay.alpha = 1; holder.overlay.visible = false; }
+      if (holder.num) holder.num.alpha = 1;
+      if (holder.pips) holder.pips.alpha = 1;
+    } else {
+      holder.alpha = 0;
+    }
+    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: timeScale, keepFullOpacity: isActiveTile }, () => {
+      if (isActiveTile) {
+        holder.alpha = 1;
+        if (holder.rotG) holder.rotG.alpha = 1;
+        if (holder.base) holder.base.alpha = 1;
+        if (holder.overlay) { holder.overlay.alpha = 1; holder.overlay.visible = false; }
+        if (holder.num) holder.num.alpha = 1;
+        if (holder.pips) holder.pips.alpha = 1;
+      } else {
+        holder.alpha = 1;
+      }
       resolve(true);
     });
   });
