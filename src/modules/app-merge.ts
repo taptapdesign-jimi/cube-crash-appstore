@@ -14,6 +14,8 @@ import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
+import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
+import { fixHoverAnchor } from './app-core-helpers.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -52,7 +54,6 @@ const animateScore = (toValue, duration = 0.45) => {
     console.error('❌ Error calling HUD.animateScore:', error);
   }
 };
-// drawBoardBG is imported from app.js
 
 function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
   const checker = (window as any)?.CC?.checkLevelEnd;
@@ -635,6 +636,39 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     
     console.log(`🧲 Tile ${index + 1} removed and marked destroyed`);
   });
+
+  // 🔥 USER REQUEST: Hide/remove magnet merge-6 tile IMMEDIATELY after pull breaks (no visible delay)
+  try {
+    const isMagnetMerge6Immediate =
+      dst &&
+      !dst.destroyed &&
+      dst.value === 6 &&
+      (dst.special === 'wild-magnet' ||
+        (dst as any)._wasWildMagnetMerge6 === true ||
+        (dst as any)._isWildMagnetMerge === true ||
+        (dst as any)._isWildMagnetLastTwo === true ||
+        (dst as any)._wildMagnetPulledTilesMerge === true ||
+        (dst as any)._wildMagnetMergeCallback);
+    if (isMagnetMerge6Immediate) {
+      try {
+        const gx = dst.gridX;
+        const gy = dst.gridY;
+        if (gy !== undefined && gx !== undefined && STATE.grid?.[gy]?.[gx] === dst) {
+          STATE.grid[gy][gx] = null;
+        }
+      } catch {}
+      try {
+        dst.visible = false;
+        dst.alpha = 0;
+        dst.eventMode = 'none';
+        (dst as any)._magnetMerge6Hidden = true;
+      } catch {}
+      try { gsap?.killTweensOf?.(dst, true); } catch {}
+      console.log('🧲 IMMEDIATE: Hid magnet merge-6 tile after pull break');
+    }
+  } catch (err) {
+    console.warn('⚠️ Immediate magnet merge-6 hide failed:', err);
+  }
   
   // Set multiplier to 4x
   const mult = 4;
@@ -1486,19 +1520,42 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   });
   
   // Find replacement spawn targets (excluding obligatory cell and pulled cells)
-  let replacementTargets = findRandomEmptyCells(replacementSpawnCount);
+  // 🔥 USER REQUEST: Reserve 6 cells for locked placeholders (like regular merge-6)
+  // Request replacementSpawnCount + 6 cells; use only replacementSpawnCount for spawn.
+  // The 6 unused cells stay empty → fillNullCellsWithLockedPlaceholders fills them with locked.
+  const LOCKED_RESERVE_COUNT = 6;
+  let replacementTargets = findRandomEmptyCells(replacementSpawnCount + LOCKED_RESERVE_COUNT);
   // Filter out excluded cells
   replacementTargets = replacementTargets.filter(cell => {
     const key = `${cell.c},${cell.r}`;
     return !excludeCellsSet.has(key);
   });
   
-  // Combine obligatory cell + replacement targets
+  // 🔥 USER FIX: Reserve 6 cells for locked placeholders - NEVER spawn in these
+  const reservedForLocked = replacementTargets.slice(replacementSpawnCount, replacementSpawnCount + LOCKED_RESERVE_COUNT);
+  const reservedSet = new Set(reservedForLocked.map(c => `${c.c},${c.r}`));
+  
+  // Combine obligatory cell + replacement targets (use only replacementSpawnCount for spawn)
   let spawnTargets: { c: number; r: number }[] = [];
   if (obligatoryCell) {
     spawnTargets.push(obligatoryCell);
   }
   spawnTargets.push(...replacementTargets.slice(0, replacementSpawnCount));
+  const spawnTargetsSet = new Set(spawnTargets.map(c => `${c.c},${c.r}`));
+
+  // 🔥 SAFETY: Ensure we actually reserve 6 cells for locked placeholders
+  if (reservedForLocked.length < LOCKED_RESERVE_COUNT) {
+    const extras = findRandomEmptyCells(LOCKED_RESERVE_COUNT * 2);
+    for (const cell of extras) {
+      const key = `${cell.c},${cell.r}`;
+      if (reservedForLocked.length >= LOCKED_RESERVE_COUNT) break;
+      if (excludeCellsSet.has(key)) continue;
+      if (reservedSet.has(key)) continue;
+      if (spawnTargetsSet.has(key)) continue;
+      reservedForLocked.push(cell);
+      reservedSet.add(key);
+    }
+  }
 
   // 🔥 USER REQUEST: Always spawn mergeable pairs after magnet pull
   // Guarantee at least one pair that can merge to 6 (1+5, 2+4, 3+3, 2+2+2, 1+1+4, etc.)
@@ -1589,11 +1646,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
     
     // Retry with larger count (search for more cells than needed)
-    const retryTargets = findRandomEmptyCells(spawnCount + 2);
-    // Filter out excluded cells
+    const retryTargets = findRandomEmptyCells(spawnCount + 2 + LOCKED_RESERVE_COUNT);
+    // Filter out excluded cells AND reserved cells (6 locked placeholders)
     const filteredRetryTargets = retryTargets.filter(cell => {
       const key = `${cell.c},${cell.r}`;
-      return !excludeCellsSet.has(key);
+      return !excludeCellsSet.has(key) && !reservedSet.has(key);
     });
     
     // Add to spawnTargets if we found more
@@ -1629,6 +1686,45 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
+    
+    // 🔥 USER REQUEST: Wild magnet merge 6 must spawn 6 locked tiles SAME as wild beer/star/TNT
+    // Use spawnLockedTilesWithPop(9) + openLockedBounceParallel(3) → 3 active + 6 locked
+    let usedSpawnLockedTilesWithPop = false;
+    const spawnLockedTilesWithPopFn = helpers?.spawnLockedTilesWithPop;
+    const openLockedBounceParallelFn = helpers?.openLockedBounceParallel;
+    if (typeof spawnLockedTilesWithPopFn === 'function' && typeof openLockedBounceParallelFn === 'function') {
+      usedSpawnLockedTilesWithPop = true;
+      const excludeForLocked = [...spawnTargets];
+      if (dst && dst.gridX !== undefined && dst.gridY !== undefined) {
+        excludeForLocked.push({ c: dst.gridX, r: dst.gridY });
+      }
+      pulledCells.forEach(cell => excludeForLocked.push(cell));
+      console.log('🔒 Wild magnet: spawning 9 locked + opening 3 (same as wild beer/star/TNT) → 3 active + 6 locked');
+      spawnLockedTilesWithPopFn(9, excludeForLocked);
+      trackAppTimeout(() => {
+        try {
+          const gsapForSpawn = helpers?.gsap ?? gsap;
+          openLockedBounceParallelFn({
+            tiles: STATE.tiles,
+            k: 3,
+            drag: STATE.drag,
+            makeBoard: helpers?.makeBoard ?? makeBoard,
+            gsap: gsapForSpawn,
+            drawBoardBG: helpers?.drawBoardBG ?? drawBoardBG,
+            TILE,
+            fixHoverAnchor,
+            spawnBounce: (t, done, o) => (helpers?.SPAWN?.spawnBounce ?? spawnBounce)(t, gsapForSpawn, o, done),
+            wildMergeTarget: null,
+            excludeCells: new Set(excludeForLocked.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`))
+          });
+        } catch (err) {
+          console.warn('⚠️ Wild magnet openLockedBounceParallel failed:', err);
+        }
+      }, 80);
+    } else {
+      // Fallback: use fillNullCellsWithLockedPlaceholders for 6 locked (if helpers not available)
+      console.log('🔒 Wild magnet: fallback fillNullCellsWithLockedPlaceholders (6 locked)');
+    }
     
     // 🔥 CRITICAL FIX: Wait minimal time for merge-6 shards animation before spawning
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
@@ -1731,13 +1827,54 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Wait a bit for initial spawns to complete, then check if we need more
     await Promise.all(spawnPromises);
     
+    // 🔥 STUCK MERGE 6 FIX: Ensure merge 6 always has at least one adjacent tile
+    // Bug: Obligatory spawn at (4,7) can fail or get lost → merge 6 at (4,8) isolated → stuck
+    if (dst && !dst.destroyed && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
+      const m6c = dst.gridX | 0;
+      const m6r = dst.gridY | 0;
+      const adjacentCells = [
+        { c: m6c, r: m6r - 1 }, { c: m6c, r: m6r + 1 },
+        { c: m6c - 1, r: m6r }, { c: m6c + 1, r: m6r },
+        { c: m6c - 1, r: m6r - 1 }, { c: m6c + 1, r: m6r - 1 },
+        { c: m6c - 1, r: m6r + 1 }, { c: m6c + 1, r: m6r + 1 }
+      ].filter(cell => cell.r >= 0 && cell.r < ROWS && cell.c >= 0 && cell.c < COLS);
+      
+      const hasAdjacentTile = adjacentCells.some(cell => {
+        const t = STATE.grid?.[cell.r]?.[cell.c];
+        return t && !t.destroyed && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+      });
+      
+      if (!hasAdjacentTile) {
+        console.warn('🚨 STUCK MERGE 6 FIX: Merge 6 has no adjacent tiles - forcing spawn at obligatory cell');
+        const fallbackCell = obligatoryCell || adjacentCells[0];
+        if (fallbackCell) {
+          try {
+            await openAtCell(fallbackCell.c, fallbackCell.r, { skipBind: false, value: 1 + Math.floor(Math.random() * 3) });
+            const tile = STATE.grid?.[fallbackCell.r]?.[fallbackCell.c];
+            if (tile && !tile.destroyed && (tile.value|0) > 0) {
+              tile.eventMode = 'static';
+              tile.cursor = 'pointer';
+              const drag = STATE.drag as any;
+              if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(tile);
+              successfulSpawns++;
+              console.log('✅ STUCK MERGE 6 FIX: Spawned fallback tile at', fallbackCell);
+            }
+          } catch (e) {
+            console.warn('⚠️ STUCK MERGE 6 FIX: Fallback spawn failed:', e);
+          }
+        }
+      }
+    }
+    
     if (successfulSpawns < spawnCount && spawnCount > 0) {
       console.warn(`⚠️ Only ${successfulSpawns}/${spawnCount} tiles spawned successfully, attempting to spawn remaining tiles...`);
       
       // 🔥 USER REQUEST: When spawning additional tiles, ensure they are mergeable
       // Try to find additional empty cells for remaining spawns
+      // 🔥 CRITICAL: Exclude reserved cells (6 locked placeholders) - never spawn in them!
       const remainingCount = spawnCount - successfulSpawns;
-      const additionalTargets = findRandomEmptyCells(remainingCount);
+      let additionalTargets = findRandomEmptyCells(remainingCount + LOCKED_RESERVE_COUNT);
+      additionalTargets = additionalTargets.filter(c => !reservedSet.has(`${c.c},${c.r}`)).slice(0, remainingCount);
       
       // Generate mergeable values for remaining spawns
       const mergeableValues = [1, 2, 3, 4, 5]; // All can potentially merge
@@ -1783,6 +1920,32 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         console.error(`🚨🚨🚨 CRITICAL: Only ${successfulSpawns}/${spawnCount} tiles spawned! This will cause incorrect tile count!`);
       }
     }
+    
+    // 🔥 USER REQUEST: Create locked placeholders for null cells (like regular merge-6 does)
+    // When spawnLockedTilesWithPop was used, we already have 9 locked (3 opened → 6 locked). Skip fill.
+    // Otherwise use fillNullCellsWithLockedPlaceholders for 6 locked.
+    if (!usedSpawnLockedTilesWithPop) {
+      try {
+        const board = STATE.board;
+        const grid = STATE.grid;
+        const tiles = STATE.tiles;
+        const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+        if (board && grid && tiles && makeBoardForFill) {
+          fillNullCellsWithLockedPlaceholders({
+            ROWS,
+            COLS,
+            board,
+            grid,
+            tiles,
+            makeBoard: makeBoardForFill,
+            fixHoverAnchor,
+          }, { cells: reservedForLocked });
+          try { drawBoardBG?.(); } catch {}
+        }
+      } catch (err) {
+        console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed:', err);
+      }
+    }
   } else if (spawnCount > 0) {
     console.warn('⚠️ No spawn targets found!', {
       spawnCountRequested: spawnCount,
@@ -1791,6 +1954,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       hasTilesToRespawn,
       note: 'Wild-magnet merge did not spawn any new tiles - board might be full or spawn logic issue!'
     });
+    // Still fill null cells with locked placeholders (holes from removed pulled tiles)
+    try {
+      const board = STATE.board;
+      const grid = STATE.grid;
+      const tiles = STATE.tiles;
+      const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      if (board && grid && tiles && makeBoardForFill) {
+        fillNullCellsWithLockedPlaceholders({
+          ROWS,
+          COLS,
+          board,
+          grid,
+          tiles,
+          makeBoard: makeBoardForFill,
+          fixHoverAnchor,
+        }, { cells: reservedForLocked });
+        try { drawBoardBG?.(); } catch {}
+      }
+    } catch (err) {
+      console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed (no spawn targets):', err);
+    }
   }
 
   // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
@@ -1814,6 +1998,76 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // via checkLevelEnd (line 3251) which has proper delays and handles all edge cases
   
   console.log('🧲 Respawn complete - letting pulled tiles merge with merge 6 before endgame check');
+  // 🔥 USER FIX: Remove lingering magnet merge-6 tile FIRST (creates null cell), then fill with locked
+  try {
+    const isMagnetMerge6 =
+      dst &&
+      !dst.destroyed &&
+      dst.value === 6 &&
+      (dst.special === 'wild-magnet' ||
+        (dst as any)._wasWildMagnetMerge6 === true ||
+        (dst as any)._isWildMagnetMerge === true ||
+        (dst as any)._isWildMagnetLastTwo === true ||
+        (dst as any)._wildMagnetPulledTilesMerge === true ||
+        (dst as any)._wildMagnetMergeCallback);
+    if (isMagnetMerge6) {
+      const clearFromGrid = (tile: any) => {
+        try {
+          const gx = tile.gridX;
+          const gy = tile.gridY;
+          if (gy !== undefined && gx !== undefined && STATE.grid?.[gy]?.[gx] === tile) {
+            STATE.grid[gy][gx] = null;
+            return;
+          }
+        } catch {}
+        try {
+          for (let r = 0; r < (STATE.grid?.length || 0); r++) {
+            for (let c = 0; c < (STATE.grid?.[r]?.length || 0); c++) {
+              if (STATE.grid[r][c] === tile) {
+                STATE.grid[r][c] = null;
+                return;
+              }
+            }
+          }
+        } catch {}
+      };
+      clearFromGrid(dst);
+      try {
+        dst.visible = false;
+        dst.alpha = 0;
+        dst.eventMode = 'none';
+      } catch {}
+      removeTile(dst);
+      console.log('🧲 Removed lingering magnet merge-6 tile after pull merge');
+    }
+  } catch (err) {
+    console.warn('⚠️ Failed to remove lingering magnet merge-6 tile:', err);
+  }
+  
+  // 🔥 USER FIX: After removing merge 6, fill any null cells with locked placeholders (like wild beer/star)
+  // Must run AFTER merge 6 removal so the freed cell gets filled. Ensures 6+ locked tiles visible.
+  if (!(dst as any)?._isLastMerge) {
+    try {
+      const board = STATE.board;
+      const grid = STATE.grid;
+      const tiles = STATE.tiles;
+      const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      if (board && grid && tiles && makeBoardForFill) {
+        fillNullCellsWithLockedPlaceholders({
+          ROWS,
+          COLS,
+          board,
+          grid,
+          tiles,
+          makeBoard: makeBoardForFill,
+          fixHoverAnchor,
+        }, { cells: reservedForLocked });
+        try { drawBoardBG?.(); } catch {}
+      }
+    } catch (err) {
+      console.warn('⚠️ fillNullCellsWithLockedPlaceholders (post-merge6-removal) failed:', err);
+    }
+  }
   
   // 🔥 USER BUG FIX: Wait LONGER for spawn animations to complete before checking endgame
   // Problem: User had 5 tiles spawn after magnet, started merging 3+3, got fail screen
@@ -1925,7 +2179,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (recheckState.actualTileCount === 0) {
       const fallbackCount = Math.max(1, Math.min(spawnCount, 2));
       console.warn('⚠️ Fallback spawn attempt after zero tiles detected:', { fallbackCount });
-      const fallbackTargets = findRandomEmptyCells(fallbackCount);
+      let fallbackTargets = findRandomEmptyCells(fallbackCount + LOCKED_RESERVE_COUNT);
+      fallbackTargets = fallbackTargets.filter(c => !reservedSet.has(`${c.c},${c.r}`)).slice(0, fallbackCount);
       for (const target of fallbackTargets) {
         const fallbackValue = 1 + Math.floor(Math.random() * 3);
         try {
@@ -1977,6 +2232,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     delete (dst as any)._isWildMagnetMerge;
     // 🔥 CRITICAL: Keep _wildMagnetPulledTilesMerge and _wildMagnetMergeCallback until onComplete callback checks them!
     console.log('🧲 Cleared some magnet flags from merge 6 tile after spawning (kept _wildMagnetPulledTilesMerge and _wildMagnetMergeCallback for onComplete check)');
+    
+    // 🔥 STUCK MERGE 6 FIX: Convert merge 6 to NORMAL tile (remove any magnet residue)
+    dst.special = null;
+    dst.isWild = false;
+    dst.isWildFace = false;
+    try { stopMagnetIdleParticles(dst); } catch {}
+    if (dst.pips) dst.pips.visible = true;
+    dst.locked = false;
+    dst.visible = true;
+    if (dst.alpha !== undefined) dst.alpha = 1;
+    dst.eventMode = 'static';
+    dst.cursor = 'pointer';
+    // 🔥 CRITICAL: Defer bindToTile so it runs AFTER all spawn callbacks (they call bindToTile and overwrite drag.t)
+    const dstRef = dst;
+    trackAppTimeout(() => {
+      if (!dstRef || dstRef.destroyed) return;
+      const d = STATE.drag as any;
+      if (d && typeof d.bindToTile === 'function') {
+        try {
+          d.bindToTile(dstRef);
+          d.t = dstRef;
+          console.log('✅ STUCK MERGE 6 FIX: Re-enabled merge 6 tile (bindToTile)');
+        } catch (e) {
+          console.warn('⚠️ Failed to rebind merge 6 to drag:', e);
+        }
+      }
+    }, 200); // 200ms after re-enable block - ensures all spawn callbacks (50ms delay) have run
   }
   
   // 🔥 CRITICAL FIX: Check if board is clean BEFORE calling checkLevelEnd

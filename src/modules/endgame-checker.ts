@@ -1,16 +1,10 @@
 /**
  * 🔥 CENTRALIZED END GAME CHECKER
  * 
- * This is the SINGLE SOURCE OF TRUTH for all end game conditions.
- * All other end game checks should be replaced with calls to this module.
- * 
- * Handles ALL edge cases:
- * - Clean board (0 active tiles)
- * - Last merge (wild + regular → merge 6, only merge 6 remains)
- * - Game stuck (no merges possible)
- * - Moves depleted (moves = 0, no merges possible)
- * - Wild cubes with no non-wild tiles
- * - Post-spawn stuck state
+ * SIMPLIFIED RULES (user request):
+ * 1. If ANY locked tiles exist → game ALWAYS continues (wild can spawn new tiles)
+ * 2. Fail screen: ONLY when no locked tiles AND all tiles non-mergeable, non-stackable (stuck)
+ * 3. Clean board win: ONLY when 2 tiles (regular+regular or regular+wild) merge/stack to merge 6, last 2 on board, no locked tiles
  * 
  * OPTIMIZED: Includes debouncing to prevent race conditions
  */
@@ -300,6 +294,22 @@ function isLastMergeScenario(context: EndGameContext): boolean {
 }
 
 /**
+ * 🔥 CRITICAL: Check if any locked ACTIVE tiles exist on board (animating, not ghost placeholders).
+ * Only locked tiles with value > 0 block fail screen - these are tiles animating (merge, magnet pull).
+ * Ghost placeholders (locked, value 0) are just empty cells - they don't help when stuck; wild spawns
+ * from meter, not from placeholders. When no merges possible, meter won't fill → no wild → fail screen.
+ */
+function hasLockedTiles(tiles: any[]): boolean {
+  const hasAny = tiles.some((t: any) => {
+    if (!t || t.destroyed) return false;
+    if (!t.locked) return false;
+    // Only count locked tiles with value > 0 (animating) - NOT ghost placeholders (value 0)
+    return (t.value | 0) > 0;
+  });
+  return hasAny;
+}
+
+/**
  * Check if board is clean (0 active tiles)
  */
 function isBoardCleanCheck(tiles: any[]): boolean {
@@ -552,9 +562,18 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   
   const { tiles, moves, makeBoard } = context;
   
-  logger.debug('🎯 EndGameChecker: Starting comprehensive end game check', 'endgame-checker');
+  logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
   
-  // 1. Check for last merge scenario (highest priority)
+  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (wild can spawn new tiles)
+  if (hasLockedTiles(tiles)) {
+    console.log('✅ EndGameChecker: Locked tiles present - game continues (wild can spawn)');
+    lastCheckResult = { type: 'continue', reason: 'has_locked_tiles' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
+  
+  // 🔥 RULE 2: Clean board win - only when 2 tiles merge/stack to merge 6 (last 2, no locked)
   if (isLastMergeScenario(context)) {
     console.log('🚨🚨🚨 EndGameChecker: LAST MERGE detected - wild + regular → merge 6, only merge 6 remains');
     lastCheckResult = { type: 'clean', reason: 'last_merge' };
@@ -584,79 +603,22 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     return lastCheckResult;
   }
 
-  // 🔥 CRITICAL FIX: Check for magnet/wild + merge6 combinations BEFORE moves check
-  // These combinations allow continuation even with 0 moves
   const activeTiles = getActiveTiles(tiles);
-  const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
-  const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
-  const hasMerge6 = activeTiles.some(t => t.value === MAX_MERGE_VALUE);
 
-  // 🔥 DIAGNOSTIC LOG: Check anyMergePossible result vs additional conditions
-  const anyMergePossibleResult = makeBoard.anyMergePossible(tiles);
-  logger.debug('🔍 EndGameChecker DIAGNOSTIC: anyMergePossible result', 'endgame-checker', { anyMergePossibleResult, hasMagnet, hasWild, hasMerge6 });
-
-  // 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
-  if (hasMagnet && hasMerge6) {
-    console.log('🧲 EndGameChecker: Magnet + merge6 detected - game can continue (magnet can merge with merge6)');
-    lastCheckResult = { type: 'continue', reason: 'magnet_can_merge_with_merge6' };
-    lastCheckTime = now;
-    lastCheckContextHash = contextHash;
-    return lastCheckResult;
-  }
-
-  // 🔥 CRITICAL: If wild + merge6 exists, game can continue (wild can merge with merge6)
-  if (hasWild && hasMerge6) {
-    logger.debug('EndGameChecker: Wild + merge6 detected - game can continue', 'endgame-checker');
-    lastCheckResult = { type: 'continue', reason: 'wild_can_merge_with_merge6' };
-    lastCheckTime = now;
-    lastCheckContextHash = contextHash;
-    return lastCheckResult;
-  }
-
-  // 3. Check if moves are depleted
-  if (isMovesDepleted(context)) {
-    console.log('🎯 EndGameChecker: Moves depleted, checking if game is stuck...');
-
-    // If moves = 0, check if game is stuck
-    if (isGameStuck(context)) {
-      console.log('🚨🚨🚨 EndGameChecker: MOVES DEPLETED + GAME STUCK');
-      lastCheckResult = { type: 'stuck', reason: 'moves_depleted_stuck' };
-      lastCheckTime = now;
-      lastCheckContextHash = contextHash;
-      return lastCheckResult;
+  // 🔥 RULE 3: Fail screen - ONLY when no locked tiles AND stuck (non-mergeable, non-stackable)
+  if (isGameStuck(context)) {
+    console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges/stack possible, fail screen');
+    if (activeTiles.length === 1 && activeTiles[0].value !== MAX_MERGE_VALUE) {
+      lastCheckResult = { type: 'stuck', reason: 'single_non_6_tile' };
     } else {
-      console.log('✅ EndGameChecker: Moves depleted but merges still possible, game continues');
-      lastCheckResult = { type: 'continue', reason: 'moves_depleted_but_can_merge' };
-      lastCheckTime = now;
-      lastCheckContextHash = contextHash;
-      return lastCheckResult;
+      lastCheckResult = { type: 'stuck', reason: 'no_merges_possible' };
     }
-  }
-
-if (isGameStuck(context)) {
-  console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
-
-  // 🔥 REFACTORED: Uklonjen double-check - isGameStuck() već poziva anyMergePossible()
-  // Ako isGameStuck() vraća true, znači da anyMergePossible() već vratio false
-  // Nema potrebe za double-check-om
-
-  // 🔥 CRITICAL FIX: If only 1 tile remains and it's not merge 6, it's stuck
-  // This handles the case where user merges all spawned tiles into one non-6 tile
-  if (activeTiles.length === 1 && activeTiles[0].value !== MAX_MERGE_VALUE) {
-    console.log('🚨🚨🚨 EndGameChecker: SINGLE NON-6 TILE - DEFINITELY STUCK');
-    lastCheckResult = { type: 'stuck', reason: 'single_non_6_tile' };
     lastCheckTime = now;
     lastCheckContextHash = contextHash;
     return lastCheckResult;
   }
-
-  lastCheckResult = { type: 'stuck', reason: 'no_merges_possible' };
-  lastCheckTime = now;
-  lastCheckContextHash = contextHash;
-  return lastCheckResult;
-}
   
-  // 5. Game continues
+  // Game continues
   logger.debug('✅ EndGameChecker: Game continues - merges possible', 'endgame-checker');
   lastCheckResult = { type: 'continue', reason: 'merges_possible' };
   lastCheckTime = now;

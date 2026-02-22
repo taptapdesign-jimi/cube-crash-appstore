@@ -1318,6 +1318,10 @@ async function startNewRun(boardId: number): Promise<void> {
     const { hideEndgameHintWithAnimation } = await import('./modules/endgame-hint.js');
     await hideEndgameHintWithAnimation();
   } catch {}
+  try {
+    const { clearNoMovesText } = await import('./modules/splash-text-overlay.js');
+    clearNoMovesText();
+  } catch {}
   
   // 🔥🔥🔥 NUCLEAR CLEANUP: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
   killAllGsapTweensForExit('pre-exit');

@@ -41,17 +41,7 @@ const BOARD_RULES: BoardRule[] = [
     wildMeterFillRate: 1.0, // 🔥 USER REQUEST: Ista brzina kao board 1 (originalna brzina)
     allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet', 'wild-tnt'] // Svi wild types dostupni
   },
-  {
-    boardNumber: 3,
-    wildSpawnEnabled: true,
-    wildMeterEnabled: true,
-    allowedWildTypes: ['wild-beer'], // Only wild-beer allowed
-    customSpawnLogic: async (boardNumber: number) => {
-      // Custom logic for board 3 - only spawn wild-beer
-      logger.info(`🎯 Board ${boardNumber}: Custom spawn logic - only wild-beer allowed`);
-      return true; // Return true to use custom logic
-    }
-  }
+  // All boards use the same wild rules (no board-specific wild restrictions)
 ];
 
 class BoardSpecificRules {
@@ -313,4 +303,3 @@ export function filterWildType(
 export function getWildMeterFillRate(boardNumber?: number): number {
   return boardSpecificRules.getWildMeterFillRate(boardNumber);
 }
-

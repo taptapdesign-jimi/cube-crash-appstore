@@ -66,14 +66,36 @@ class AnimationManager {
   }
 
   // Track external tween created outside the manager
+  // 🔥 MEMORY LEAK FIX: Auto-remove when tween completes (same as trackTween)
+  // Without this, idle tile bounce smoke particles accumulate ~42k tweens/hour
   trackExternalTween(tween: gsap.core.Tween): gsap.core.Tween {
     this.activeTweens.add(tween);
+    const originalOnComplete = tween.eventCallback('onComplete');
+    tween.eventCallback('onComplete', () => {
+      try {
+        this.activeTweens.delete(tween);
+        if (typeof originalOnComplete === 'function') {
+          originalOnComplete.call(tween);
+        }
+      } catch {}
+    });
     return tween;
   }
 
   // Track external timeline created outside the manager
+  // 🔥 MEMORY LEAK FIX: Auto-remove when timeline completes
+  // Without this, idle tile bounce smoke creates ~42k timelines/hour that never get GC'd
   trackExternalTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
     this.activeTimelines.add(timeline);
+    const originalOnComplete = timeline.eventCallback('onComplete');
+    timeline.eventCallback('onComplete', () => {
+      try {
+        this.activeTimelines.delete(timeline);
+        if (typeof originalOnComplete === 'function') {
+          originalOnComplete.call(timeline);
+        }
+      } catch {}
+    });
     return timeline;
   }
   

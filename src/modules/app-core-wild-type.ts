@@ -18,114 +18,40 @@ export function decideWildType({
   let spawnBeer = false;
   let spawnMagnet = false;
   let spawnTnt = false;
-  
-  // 🔥 USER REQUEST: On board 1, first wild spawn is always magnet
-  if (!firstWildSpawned && boardNumber === 1) {
-    spawnBeer = false;
-    spawnMagnet = true;
-    spawnTnt = false;
-    devLog('🧲 Board 1: First wild spawn: Forcing wild-magnet');
-  } else if (!firstWildSpawned || wildSpawnCount === 0) {
-    // First wild spawn on other boards should be regular wild star.
-    spawnBeer = false;
-    spawnMagnet = false;
-    spawnTnt = false;
-    devLog('⭐ First wild spawn: Forcing wild star');
-  } else if (wildSpawnCount === 1) {
-    // Force second wild to magnet right after first wild star.
-    const filtered = filterWildType('wild-magnet', boardNumber);
-    if (filtered === 'wild-magnet') {
-      spawnBeer = false;
-      spawnMagnet = true;
-      spawnTnt = false;
-      devLog('🧲 Second wild spawn: Forcing wild-magnet');
-    } else {
-      // Fallback if this board blocks magnet.
-      spawnBeer = false;
-      spawnMagnet = false;
-      spawnTnt = false;
-      devWarn(`⚠️ Board ${boardNumber}: wild-magnet blocked for second spawn, falling back to wild star`);
-    }
-  } else if (boardNumber === 3) {
-    // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
+
+  // 🔥 USER REQUEST: Random wilds on ALL boards with consistent drop rates
+  // Common: wild star + wild beer, Uncommon: wild magnet, Legendary: wild TNT
+  const roll = Math.random();
+  // 50% wild star, remaining 50% split equally (beer/magnet/tnt = 16.67% each)
+  const preferred =
+    roll < 0.50 ? 'wild' :          // 50% wild star (common)
+    roll < 0.6667 ? 'wild-beer' :   // 16.67% wild beer
+    roll < 0.8334 ? 'wild-magnet' : // 16.67% wild magnet
+                    'wild-tnt';     // 16.66% wild TNT
+
+  const filtered = filterWildType(preferred, boardNumber);
+  if (filtered === 'wild-beer') {
     spawnBeer = true;
-    spawnMagnet = false;
-    spawnTnt = false;
-    devLog('🎯 Board 3: Forcing wild-beer spawn only');
+  } else if (filtered === 'wild-magnet') {
+    spawnMagnet = true;
+  } else if (filtered === 'wild-tnt') {
+    spawnTnt = true;
+  } else if (filtered === 'wild') {
+    // Regular wild star (default)
   } else {
-    // 🔥 Random wild spawn: 35% beer, 35% wild (stars), 20% magnet, 10% TNT (Explosion Pack)
-    const randomRoll = Math.random();
-    let preferredBeer = false;
-    let preferredMagnet = false;
-    let preferredWild = false;
-    let preferredTnt = false;
-    
-    if (randomRoll < 0.35) {
-      preferredBeer = true;
-    } else if (randomRoll < 0.70) {
-      preferredWild = true;
-    } else if (randomRoll < 0.90) {
-      preferredMagnet = true;
-    } else {
-      preferredTnt = true;
-    }
-    
-    // Apply board-specific rules
-    if (preferredBeer) {
-      const filtered = filterWildType('wild-beer', boardNumber);
-      spawnBeer = filtered === 'wild-beer';
-      spawnMagnet = false;
-      spawnTnt = false;
-    } else if (preferredMagnet) {
-      const filtered = filterWildType('wild-magnet', boardNumber);
-      spawnMagnet = filtered === 'wild-magnet';
-      spawnBeer = false;
-      spawnTnt = false;
-    } else if (preferredTnt) {
-      const filtered = filterWildType('wild-tnt', boardNumber);
-      spawnTnt = filtered === 'wild-tnt';
-      spawnBeer = false;
-      spawnMagnet = false;
-    } else if (preferredWild) {
-      // Regular wild (stars) - check if allowed
-      const filtered = filterWildType('wild', boardNumber);
-      if (filtered === 'wild-beer') {
-        spawnBeer = true;
-        spawnMagnet = false;
-        spawnTnt = false;
-      } else if (filtered === 'wild-magnet') {
-        spawnMagnet = true;
-        spawnBeer = false;
-        spawnTnt = false;
-      } else if (filtered === 'wild-tnt') {
-        spawnTnt = true;
-        spawnBeer = false;
-        spawnMagnet = false;
-      } else if (filtered === 'wild') {
-        spawnBeer = false;
-        spawnMagnet = false;
-        spawnTnt = false;
-      } else {
-        devWarn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
-        return null;
-      }
-    } else {
-      // Fallback: use filterWildType with 'wild'
-      const filtered = filterWildType('wild', boardNumber);
-      if (filtered === 'wild-beer') {
-        spawnBeer = true;
-      } else if (filtered === 'wild-magnet') {
-        spawnMagnet = true;
-      } else if (filtered === 'wild-tnt') {
-        spawnTnt = true;
-      } else if (filtered === 'wild') {
-        // Regular wild allowed
-      } else {
-        devWarn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
-        return null;
-      }
-    }
+    devWarn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
+    return null;
   }
-  
+
+  devLog('🎲 Wild drop roll:', {
+    roll: +roll.toFixed(4),
+    preferred,
+    filtered,
+    spawnBeer,
+    spawnMagnet,
+    spawnTnt,
+    boardNumber
+  });
+
   return { spawnBeer, spawnMagnet, spawnTnt };
 }

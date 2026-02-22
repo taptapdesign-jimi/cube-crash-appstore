@@ -618,11 +618,8 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
     return;
   }
   
-  // 🔥 CRITICAL: Ensure tile.special is set to 'wild-magnet' for correct color retrieval
-  if (!tile.special || tile.special !== 'wild-magnet') {
-    console.warn('⚠️ wildMagnetDragParticlesTemplated: tile.special is not "wild-magnet", setting it now');
-    tile.special = 'wild-magnet';
-  }
+  // 🔥 CRITICAL: Do NOT mutate tile.special - merge 6 (value 6, special: null) must stay normal
+  // Use fallback colors if tile is not magnet (e.g. merge 6 mistakenly passed)
 
   // 🔥 TEMPLATE-BASED: Select pattern from template (uses round-robin selection)
   const patternInfo = selectPattern('wildMagnetDrag');
@@ -5742,6 +5739,12 @@ export function stopWildShimmer(tile) {
 export function startMagnetIdleParticles(tile) {
   if (!tile) return;
   
+  // 🔥 CRITICAL FIX: NEVER run on non-magnet tiles! Merge 6 (value 6, special: null) must stay normal.
+  // Bug: Callers sometimes pass merge 6; we used to set tile.special='wild-magnet' → merge 6 became stuck magnet.
+  if (!tile.special || tile.special !== 'wild-magnet') {
+    return; // Do NOT mutate tile.special - would corrupt merge 6 into fake magnet
+  }
+  
   // Stop existing particles animation if any
   if (tile._magnetIdleParticlesInterval) {
     clearInterval(tile._magnetIdleParticlesInterval);
@@ -5761,11 +5764,7 @@ export function startMagnetIdleParticles(tile) {
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
     try {
-      // 🔥 CRITICAL: Ensure tile.special is set to 'wild-magnet' for correct color retrieval
-      if (!tile.special || tile.special !== 'wild-magnet') {
-        console.warn('⚠️ startMagnetIdleParticles: tile.special is not "wild-magnet", setting it now');
-        tile.special = 'wild-magnet';
-      }
+      // tile.special is already 'wild-magnet' (checked at entry)
       
       // Use normal size particles (no sizeMultiplier) - same as drag smoke effect (v78 style)
       // 🔥 USER REQUEST: Increased alpha for idle particles to make them more visible

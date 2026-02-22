@@ -19,6 +19,11 @@ let sparkleTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
 let sparkleTextActive = false;
+let noMovesOverlay: HTMLElement | null = null;
+let noMovesTimelinesRef: gsap.core.Timeline[] = [];
+let noMovesBounceTimelinesRef: gsap.core.Timeline[] = [];
+let noMovesLetterScales: number[] = [];
+let noMovesLetterRotations: number[] = [];
 
 function resolveMagneticTextWaiters(): void {
   if (!magneticTextWaiters.length) return;
@@ -596,4 +601,288 @@ export function stopSparkleText(): void {
 
 export function isSparkleTextActive(): boolean {
   return sparkleTextActive;
+}
+
+function cleanupNoMovesOverlay(): void {
+  try {
+    noMovesBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    noMovesBounceTimelinesRef.length = 0;
+    noMovesTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    noMovesTimelinesRef.length = 0;
+    noMovesLetterScales = [];
+    noMovesLetterRotations = [];
+    if (noMovesOverlay) {
+      try {
+        gsap.killTweensOf(noMovesOverlay);
+        noMovesOverlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+      } catch {}
+    }
+    if (noMovesOverlay?.parentNode) {
+      noMovesOverlay.parentNode.removeChild(noMovesOverlay);
+    }
+    noMovesOverlay = null;
+  } catch {}
+}
+
+/**
+ * Show "NO MOVES" text overlay during end-game wait (1.5s before fail screen).
+ * Same enter animation as STACK IT! / SWOOP. Stays visible until clearNoMovesText().
+ */
+export function showNoMovesText(): void {
+  try {
+    cleanupNoMovesOverlay();
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'left: 0',
+      'top: 0',
+      'width: 100%',
+      'height: 100%',
+      'pointer-events: none',
+      'z-index: 9999999',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+    ].join(';');
+    noMovesOverlay = overlay;
+
+    const container = document.createElement('div');
+    container.style.cssText = [
+      'position: absolute',
+      'left: 50%',
+      'top: 50%',
+      'transform: translate(-50%, -50%)',
+      'display: flex',
+      'flex-direction: row',
+      'align-items: center',
+      'justify-content: center',
+      'gap: -4px',
+      'margin: 0',
+      'padding: 0',
+      'width: fit-content',
+      'min-width: 0',
+      'max-width: 100%',
+      'box-sizing: border-box',
+      'z-index: 2',
+      'pointer-events: none',
+      'perspective: 1000px',
+      'transform-style: preserve-3d',
+    ].join(';');
+    const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
+    container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
+
+    const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
+    noMovesLetterScales = [];
+    noMovesLetterRotations = [];
+    const bounceTimelines: gsap.core.Timeline[] = [];
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(196, 197, 193, 0.5))';
+
+    letters.forEach((ch) => {
+      const letterScale = 0.9 + Math.random() * 0.4;
+      const rotation = 0;
+      const el = document.createElement('span');
+      if (ch === ' ') {
+        el.textContent = '\u00A0';
+        el.style.minWidth = '18px';
+      } else {
+        el.textContent = ch;
+      }
+      noMovesLetterScales.push(letterScale);
+      noMovesLetterRotations.push(rotation);
+      el.style.cssText = [
+        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+        'font-weight: 800',
+        'font-size: 64px',
+        'line-height: 1',
+        'color: #e77449',
+        'text-align: center',
+        'opacity: 0',
+        'transform: scale(0) perspective(1000px) translateZ(0)',
+        'display: inline-block',
+        'visibility: visible',
+        'pointer-events: none',
+        'margin-right: 0',
+        'padding: 0',
+        'border: 0',
+        'outline: 0',
+        'vertical-align: top',
+        `filter: ${dropShadow}`,
+        'transform-style: preserve-3d',
+        'backface-visibility: hidden',
+        '-webkit-font-smoothing: antialiased',
+        '-moz-osx-font-smoothing: grayscale',
+        'text-rendering: optimizeLegibility',
+        'transform-origin: center center',
+        'position: relative',
+        'z-index: 10',
+      ].join(';');
+      container.appendChild(el);
+
+      const bounceTl = trackTimeline({ repeat: -1, yoyo: true });
+      bounceTl.pause(0);
+      bounceTl.to(el, {
+        scale: letterScale * (1.02 + Math.random() * 0.06),
+        rotation: rotation * 1.1,
+        duration: 0.35,
+        ease: 'elastic.inOut(1, 0.2)'
+      });
+      bounceTimelines.push(bounceTl);
+      noMovesBounceTimelinesRef.push(bounceTl);
+      gsap.set(el, { rotation });
+    });
+
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    let enterComplete = 0;
+    letters.forEach((_, index) => {
+      const el = container.children[index] as HTMLElement;
+      if (!el) return;
+      const delay = BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
+      const baseRotation = noMovesLetterRotations[index] ?? 0;
+      const baseScale = noMovesLetterScales[index] ?? 1;
+
+      el.style.willChange = 'transform, opacity';
+      el.style.transform = 'translateZ(0)';
+      el.style.backfaceVisibility = 'hidden';
+      el.style.webkitBackfaceVisibility = 'hidden';
+      el.style.contain = 'layout style paint';
+
+      gsap.set(el, {
+        opacity: 0,
+        scale: 0,
+        x: 0,
+        y: 0,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        force3D: true
+      });
+
+      const tl = trackTimeline({ delay });
+      noMovesTimelinesRef.push(tl);
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale * ENTER_BOUNCE_SCALE,
+        rotation: baseRotation,
+        rotationX: -5,
+        rotationY: 0,
+        z: 20,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
+        ease: 'back.out(2.0)'
+      });
+      tl.to(el, {
+        scale: baseScale * 0.95,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'power2.out'
+      });
+      tl.to(el, {
+        opacity: 1,
+        scale: baseScale,
+        rotation: baseRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+        ease: 'back.out(1.5)',
+        onComplete: () => {
+          try { bounceTimelines[index]?.play(0); } catch {}
+          enterComplete += 1;
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('⚠️ showNoMovesText failed:', e);
+    cleanupNoMovesOverlay();
+  }
+}
+
+export function clearNoMovesText(): void {
+  cleanupNoMovesOverlay();
+}
+
+/**
+ * Play exit animation on NO MOVES text, then remove. Returns Promise that resolves when done.
+ * Call after 1.5s wait, before showFinalScreen().
+ */
+export function exitNoMovesText(): Promise<void> {
+  return new Promise((resolve) => {
+    if (!noMovesOverlay || !noMovesOverlay.isConnected) {
+      cleanupNoMovesOverlay();
+      resolve();
+      return;
+    }
+    const container = noMovesOverlay.querySelector('div');
+    if (!container || container.children.length === 0) {
+      cleanupNoMovesOverlay();
+      resolve();
+      return;
+    }
+    const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
+    noMovesBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    noMovesBounceTimelinesRef.length = 0;
+    noMovesTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    noMovesTimelinesRef.length = 0;
+
+    letters.forEach((_, index) => {
+      const el = container.children[index] as HTMLElement;
+      if (!el) return;
+      const delay = index * BOOM_EXIT_STAGGER;
+      const tl = trackTimeline({ delay });
+      noMovesTimelinesRef.push(tl);
+      const baseScale = noMovesLetterScales[index] ?? 1;
+      const baseRot = noMovesLetterRotations[index] ?? 0;
+      const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+      tl.to(el, {
+        scale: baseScale * 1.1,
+        z: 30,
+        duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
+        ease: 'power2.out'
+      });
+      tl.to(el, {
+        opacity: 0,
+        scale: 0,
+        rotation: exitRotation,
+        rotationX: baseRot >= 0 ? 45 : -45,
+        rotationY: baseRot >= 0 ? 30 : -30,
+        z: -100,
+        duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
+        ease: 'power2.in'
+      });
+    });
+    const exitTotal =
+      BOOM_EXIT_STAGGER * (letters.length - 1) +
+      EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
+      EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
+      0.05;
+    trackDelayedCall(exitTotal, () => {
+      cleanupNoMovesOverlay();
+      resolve();
+    });
+  });
 }

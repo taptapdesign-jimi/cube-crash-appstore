@@ -805,8 +805,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     return true;
   }
   
-  // 🚨 NOTE: Magnet + magnet merges are BLOCKED in app-core.ts (line 1681)
-  // So we DON'T check for magnets.length >= 2 here
+  // 🚨 NOTE: Magnet + magnet merges are BLOCKED in app-core.ts
   // If only magnets remain, game is stuck
 
   // 🔥 CRITICAL FIX v38: Check stackDepth for single tiles
