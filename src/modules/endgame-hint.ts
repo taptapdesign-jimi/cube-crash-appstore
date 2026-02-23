@@ -2,7 +2,7 @@
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 
-const HINT_MESSAGES = ['STACK IT!'];
+const HINT_MESSAGES = ['NO MOVES!'];
 const IDLE_DELAY_MS = 3000;
 const ROTATE_MS = 3000;
 const STYLE_ID = 'endgame-hint-style';
@@ -360,7 +360,7 @@ export function forceClearEndgameHint(): void {
   messageIndex = 0;
 }
 
-/** Play exit animation on STACK IT! hint, then remove. Returns Promise that resolves when done. Call BEFORE killing GSAP in exitToMenu. */
+/** Play exit animation on NO MOVES! hint, then remove. Returns Promise that resolves when done. Call BEFORE killing GSAP in exitToMenu. */
 export function hideEndgameHintWithAnimation(): Promise<void> {
   return new Promise((resolve) => {
     if (!hintEl || !hintEl.isConnected) {

@@ -61,6 +61,7 @@ interface OpenLockedBounceParallelParams {
   spawnBounce?: (tile: Tile, callback: () => void, options: SpawnBounceOptions) => void;
   wildMergeTarget?: number | null;
   excludeCells?: Set<string>; // 🔥 CRITICAL: Set of cell keys (format: "c,r") to exclude from spawning
+  preferCells?: Set<string>; // 🔥 CRITICAL: For regular merge 6 – prioritize opening placeholder at merge location (format: "c,r")
 }
 
 
@@ -86,8 +87,9 @@ export async function openLockedBounceParallel({
   fixHoverAnchor, 
   spawnBounce, 
   wildMergeTarget = null,
-  excludeCells = new Set<string>()  // 🔥 CRITICAL: Exclude cells where pulled tiles were
-}: OpenLockedBounceParallelParams = {}): Promise<void> {
+  excludeCells = new Set<string>(),  // 🔥 CRITICAL: Exclude cells where pulled tiles were
+  preferCells = new Set<string>()    // 🔥 CRITICAL: For regular merge 6 – prioritize placeholder at merge location
+}: OpenLockedBounceParallelParams = {}): Promise<number> {
   // 🔥 CRITICAL: Filter out destroyed tiles FIRST before any other checks
   // Also filter out tiles without scale (they can't be spawned)
   let locked = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
@@ -119,13 +121,27 @@ export async function openLockedBounceParallel({
     return true;
   });
   
-  if (!locked.length || k <= 0) return;
+  if (!locked.length || k <= 0) {
+    logger.warn(`🎯 openLockedBounceParallel: early return - locked=${locked.length} k=${k}`, 'level-flow');
+    return 0;
+  }
 
-  // 🔥 REVERTED: Back to old logic - no prioritization, just random shuffle and pick
-  // This ensures all k tiles are spawned correctly
-  for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }
-  const picks = locked.slice(0, Math.min(k, locked.length));
+  // 🔥 CRITICAL: For regular merge 6 – prioritize placeholder at merge location so it never stays locked
+  // Partition into preferred (at merge cell) and rest, pick preferred first, then fill from shuffled rest
+  let picks: any[];
+  if (preferCells.size > 0) {
+    const preferred = locked.filter((t: any) => typeof t.gridX === 'number' && typeof t.gridY === 'number' && preferCells.has(`${t.gridX},${t.gridY}`));
+    const rest = locked.filter((t: any) => !preferred.includes(t));
+    for (let i = rest.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    const nPreferred = Math.min(preferred.length, k);
+    const nRest = Math.min(k - nPreferred, rest.length);
+    picks = [...preferred.slice(0, nPreferred), ...rest.slice(0, nRest)];
+  } else {
+    for (let i = locked.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [locked[i], locked[j]] = [locked[j], locked[i]]; }
+    picks = locked.slice(0, Math.min(k, locked.length));
+  }
 
+  logger.warn(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 150ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 150ms between tiles for visible one-by-one
   // Sequential spawning: 1st at 0ms, 2nd at 150ms, 3rd at 300ms, 4th at 450ms
@@ -207,4 +223,5 @@ export async function openLockedBounceParallel({
     activeSpawnTimeouts.add(timeout);
   }
   try { drawBoardBG?.(); } catch {}
+  return picks.length;
 }

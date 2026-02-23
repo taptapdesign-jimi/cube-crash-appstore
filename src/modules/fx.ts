@@ -392,7 +392,17 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
         // Kill all GSAP animations on child and its children
         gsap.killTweensOf(child);
         if (child.children) {
-          child.children.forEach((c) => {
+          // 🔥 MEMORY LEAK FIX: Release pooled Graphics BEFORE killing tweens
+          // smokeBubblesAtTile (idle bounce, merge fx) uses graphicsPool; puff onComplete never runs if we kill first
+          const childrenCopy = [...child.children];
+          childrenCopy.forEach((c) => {
+            try {
+              if (c && !c.destroyed && typeof (c as any).clear === 'function') {
+                graphicsPool.release(c as any); // Return to pool so we don't leak ~50 Graphics per smoke
+              }
+            } catch {}
+          });
+          childrenCopy.forEach((c) => {
             try {
               gsap.killTweensOf(c);
               gsap.killTweensOf(c.x);
@@ -400,7 +410,6 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
               gsap.killTweensOf(c.alpha);
               gsap.killTweensOf(c.rotation);
               gsap.killTweensOf(c.scale);
-              // Remove from tracker if it's a tracked object
               if (__globalGraphicsObjects.has(c)) {
                 __globalGraphicsObjects.delete(c);
               }
@@ -412,7 +421,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
         __globalFxContainers.delete(child);
         
         parent.removeChild(child); 
-        child.destroy?.({ children:true }); 
+        child.destroy?.({ children: true }); 
         __globalDelayedCalls.delete(delayedCall); // Remove from tracker
       } catch {}
     });
@@ -474,10 +483,18 @@ export function cleanupAllFxContainers() {
   console.log(`🧹 Cleaning up ${__globalFxContainers.size} FX containers immediately`);
   __globalFxContainers.forEach(container => {
     try {
-      // Kill all GSAP animations on container and children
       gsap.killTweensOf(container);
       if (container.children) {
-        container.children.forEach((child) => {
+        // 🔥 MEMORY LEAK FIX: Release pooled Graphics before killing (same as autoAdd)
+        const childrenCopy = [...container.children];
+        childrenCopy.forEach((c) => {
+          try {
+            if (c && !c.destroyed && typeof (c as any).clear === 'function') {
+              graphicsPool.release(c as any);
+            }
+          } catch {}
+        });
+        childrenCopy.forEach((child) => {
           try {
             gsap.killTweensOf(child);
             gsap.killTweensOf(child.scale);
@@ -487,12 +504,10 @@ export function cleanupAllFxContainers() {
         });
       }
       
-      // Remove from parent
       if (container && container.parent && !container.destroyed) {
         container.parent.removeChild(container);
       }
       
-      // Destroy
       if (container && container.destroy && !container.destroyed) {
         container.destroy({ children: true });
       }

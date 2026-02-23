@@ -1313,7 +1313,7 @@ async function startNewRun(boardId: number): Promise<void> {
     }
   };
   
-  // 🔥 USER REQUEST: Play STACK IT! exit animation first (must run BEFORE killing GSAP)
+  // 🔥 USER REQUEST: Play NO MOVES! exit animation first (must run BEFORE killing GSAP)
   try {
     const { hideEndgameHintWithAnimation } = await import('./modules/endgame-hint.js');
     await hideEndgameHintWithAnimation();

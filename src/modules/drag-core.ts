@@ -270,7 +270,7 @@ export function initDrag(cfg) {
       console.warn('⚠️ Failed to notify board interaction:', error);
     }
 
-    // Hide STACK IT! on drag start and re-arm idle hint
+    // Hide NO MOVES! on drag start and re-arm idle hint
     try {
       import('./endgame-hint.js').then(mod => mod?.notifyEndgameHintInteraction?.()).catch(() => {});
     } catch {}
