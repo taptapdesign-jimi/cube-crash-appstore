@@ -1687,44 +1687,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
     
-    // 🔥 USER REQUEST: Wild magnet merge 6 must spawn 6 locked tiles SAME as wild beer/star/TNT
-    // Use spawnLockedTilesWithPop(9) + openLockedBounceParallel(3) → 3 active + 6 locked
-    let usedSpawnLockedTilesWithPop = false;
-    const spawnLockedTilesWithPopFn = helpers?.spawnLockedTilesWithPop;
-    const openLockedBounceParallelFn = helpers?.openLockedBounceParallel;
-    if (typeof spawnLockedTilesWithPopFn === 'function' && typeof openLockedBounceParallelFn === 'function') {
-      usedSpawnLockedTilesWithPop = true;
-      const excludeForLocked = [...spawnTargets];
-      if (dst && dst.gridX !== undefined && dst.gridY !== undefined) {
-        excludeForLocked.push({ c: dst.gridX, r: dst.gridY });
-      }
-      pulledCells.forEach(cell => excludeForLocked.push(cell));
-      console.log('🔒 Wild magnet: spawning 9 locked + opening 3 (same as wild beer/star/TNT) → 3 active + 6 locked');
-      spawnLockedTilesWithPopFn(9, excludeForLocked);
-      trackAppTimeout(() => {
-        try {
-          const gsapForSpawn = helpers?.gsap ?? gsap;
-          openLockedBounceParallelFn({
-            tiles: STATE.tiles,
-            k: 3,
-            drag: STATE.drag,
-            makeBoard: helpers?.makeBoard ?? makeBoard,
-            gsap: gsapForSpawn,
-            drawBoardBG: helpers?.drawBoardBG ?? drawBoardBG,
-            TILE,
-            fixHoverAnchor,
-            spawnBounce: (t, done, o) => (helpers?.SPAWN?.spawnBounce ?? spawnBounce)(t, gsapForSpawn, o, done),
-            wildMergeTarget: null,
-            excludeCells: new Set(excludeForLocked.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`))
-          });
-        } catch (err) {
-          console.warn('⚠️ Wild magnet openLockedBounceParallel failed:', err);
-        }
-      }, 80);
-    } else {
-      // Fallback: use fillNullCellsWithLockedPlaceholders for 6 locked (if helpers not available)
-      console.log('🔒 Wild magnet: fallback fillNullCellsWithLockedPlaceholders (6 locked)');
-    }
+    // 🔥 USER REQUEST: Wild-magnet should NOT spawn extra 3 active tiles.
     
     // 🔥 CRITICAL FIX: Wait minimal time for merge-6 shards animation before spawning
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s

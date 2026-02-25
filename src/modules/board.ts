@@ -340,7 +340,17 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
 
   // Ghost placeholders are now handled by drawBoardBG
 
-  if (addStack) t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
+  if (addStack) {
+    t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
+    try {
+      const st = (window as any).STATE;
+      if (st) {
+        const prev = Number.isFinite(st.maxStackDepth) ? st.maxStackDepth : 1;
+        const next = Math.max(prev, t.stackDepth || 1);
+        if (next !== prev) st.maxStackDepth = next;
+      }
+    } catch {}
+  }
   drawStack(t);
   
   // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
@@ -735,15 +745,16 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
   
-  // 🔥 CRITICAL FIX: Exclude locked tiles from active tiles
-  // User CANNOT drag or merge locked tiles, so they should NOT be counted as "active" for anyMergePossible
+  // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
+  // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
+  // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
+  if (tileIsWild(tile)) return true;
+  
+  // Exclude locked tiles from active tiles (non-wild)
   // Exception: Wild-magnet affected tiles are locked during pull animation but will unlock after merge
-  // These are handled separately in endgame-checker.ts
   const isWildMagnetAffected = (tile as any)?._wildMagnetAffected === true;
   
   if (tile.locked && !isWildMagnetAffected) {
-    // Locked tiles (except wild-magnet affected) are NOT active for gameplay
-    // User cannot drag or merge them, so they should not be counted in anyMergePossible
     return false;
   }
   
@@ -753,8 +764,7 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
     return true; // Active if unlocked (or wild-magnet affected)
   }
   
-  // Wild tiles are active even if locked temporarily (wild-magnet affected case)
-  return tileIsWild(tile);
+  return false;
 }
 
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {

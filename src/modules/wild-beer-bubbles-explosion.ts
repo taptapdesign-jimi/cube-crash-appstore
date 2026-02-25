@@ -9,6 +9,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { logger } from '../core/logger.js';
+import { attachPuffyClouds } from './text-clouds.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -34,6 +35,7 @@ let cleanupInProgress = false;
 let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
+let bubblyCloudCleanup: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-beer-bubbles-explosion');
 
 function getFxHost(stage: any): any {
@@ -896,6 +898,7 @@ function createAndShowBubblyText(): void {
       'justify-content: center',
     ].join(';');
     bubblyOverlay = overlay;
+    bubblyCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
 
     const bubblyContainer = document.createElement('div');
     bubblyContainer.style.cssText = [
@@ -936,7 +939,7 @@ function createAndShowBubblyText(): void {
       letterEl.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 83px',
+        'font-size: 64px',
         'line-height: 1',
         'color: #FFF',
         'text-align: center',
@@ -1114,6 +1117,10 @@ function cleanupBubblyOverlay(): void {
           try { gsap.killTweensOf(el); } catch {}
         });
       } catch {}
+    }
+    if (bubblyCloudCleanup) {
+      try { bubblyCloudCleanup(); } catch {}
+      bubblyCloudCleanup = null;
     }
     if (bubblyOverlay && bubblyOverlay.parentNode) {
       bubblyOverlay.parentNode.removeChild(bubblyOverlay);

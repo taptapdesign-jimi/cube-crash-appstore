@@ -4,6 +4,7 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import { attachPuffyClouds } from './text-clouds.js';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -12,18 +13,21 @@ let swoopOverlay: HTMLElement | null = null;
 let swoopTimelinesRef: gsap.core.Timeline[] = [];
 let swoopBounceTimelinesRef: gsap.core.Timeline[] = [];
 let swoopDelayedCallsRef: gsap.core.Tween[] = [];
+let swoopCloudCleanup: (() => void) | null = null;
 let magneticTextActive = false;
 let magneticTextWaiters: Array<() => void> = [];
 let sparkleOverlay: HTMLElement | null = null;
 let sparkleTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
+let sparkleCloudCleanup: (() => void) | null = null;
 let sparkleTextActive = false;
 let noMovesOverlay: HTMLElement | null = null;
 let noMovesTimelinesRef: gsap.core.Timeline[] = [];
 let noMovesBounceTimelinesRef: gsap.core.Timeline[] = [];
 let noMovesLetterScales: number[] = [];
 let noMovesLetterRotations: number[] = [];
+let noMovesCloudCleanup: (() => void) | null = null;
 
 function resolveMagneticTextWaiters(): void {
   if (!magneticTextWaiters.length) return;
@@ -70,6 +74,10 @@ function cleanupBuzzzOverlay(): void {
         });
       } catch {}
     }
+    if (swoopCloudCleanup) {
+      try { swoopCloudCleanup(); } catch {}
+      swoopCloudCleanup = null;
+    }
     if (swoopOverlay?.parentNode) {
       swoopOverlay.parentNode.removeChild(swoopOverlay);
     }
@@ -102,6 +110,7 @@ export function showMagneticText(): void {
       'justify-content: center',
     ].join(';');
     swoopOverlay = overlay;
+    swoopCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -132,7 +141,7 @@ export function showMagneticText(): void {
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const swoopBounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(196, 197, 193, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
 
     letters.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
@@ -142,9 +151,9 @@ export function showMagneticText(): void {
       el.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 83px',
+        'font-size: 64px',
         'line-height: 1',
-        'color: #F35F33',
+        'color: #FFF',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -357,6 +366,10 @@ function cleanupSparkleOverlay(): void {
         });
       } catch {}
     }
+    if (sparkleCloudCleanup) {
+      try { sparkleCloudCleanup(); } catch {}
+      sparkleCloudCleanup = null;
+    }
     if (sparkleOverlay?.parentNode) {
       sparkleOverlay.parentNode.removeChild(sparkleOverlay);
     }
@@ -388,6 +401,7 @@ export function showSparkleText(): void {
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
+    sparkleCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -418,7 +432,7 @@ export function showSparkleText(): void {
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const bounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(254, 226, 169, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
 
     letters.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
@@ -428,9 +442,9 @@ export function showSparkleText(): void {
       el.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 83px',
+        'font-size: 64px',
         'line-height: 1',
-        'color: #FFD256',
+        'color: #FFF',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -623,6 +637,10 @@ function cleanupNoMovesOverlay(): void {
         });
       } catch {}
     }
+    if (noMovesCloudCleanup) {
+      try { noMovesCloudCleanup(); } catch {}
+      noMovesCloudCleanup = null;
+    }
     if (noMovesOverlay?.parentNode) {
       noMovesOverlay.parentNode.removeChild(noMovesOverlay);
     }
@@ -652,6 +670,7 @@ export function showNoMovesText(): void {
       'justify-content: center',
     ].join(';');
     noMovesOverlay = overlay;
+    noMovesCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [

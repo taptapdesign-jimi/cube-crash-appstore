@@ -254,24 +254,16 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     const iconsToLoad: string[] = [];
     
     // Register all HUD icons with PIXI Assets FIRST and check cache
+    // 🔥 Use Assets.cache.has() instead of Assets.get() - get() triggers PixiJS warning when not found
     for (const iconPath of CRITICAL_HUD_ICONS) {
       try {
-        // Check if already loaded
-        const existing = Assets.get(iconPath);
-        if (existing) {
-          cachedCount++;
-          continue; // Already in cache
-        }
-        // Skip if already registered in resolver (avoids "already has key" warnings)
-        if (isAssetAliasRegistered(iconPath)) {
-          cachedCount++;
-          continue;
-        }
+        // Check if already loaded - use cache.has() to avoid "Asset was not found in Cache" warning
         if (typeof Assets.cache?.has === 'function' && Assets.cache.has(iconPath)) {
           cachedCount++;
           markAssetAliasRegistered(iconPath);
           continue;
         }
+        // Must load - add to queue and register
         iconsToLoad.push(iconPath);
         try {
           Assets.add({ alias: iconPath, src: iconPath });
@@ -299,8 +291,8 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     const loadIconWithRetry = async (iconPath: string, retries = 1): Promise<void> => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-          const existing = Assets.get(iconPath);
-          if (existing) return;
+          // Use cache.has() to avoid PixiJS "Asset was not found in Cache" warning
+          if (typeof Assets.cache?.has === 'function' && Assets.cache.has(iconPath)) return;
           await Assets.load(iconPath);
           logger.info(`✅ Loaded ${iconPath} into PIXI Assets cache`);
           return;

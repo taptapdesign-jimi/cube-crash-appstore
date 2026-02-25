@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
+import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -146,10 +147,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const effectiveBoard = Math.max(1, boardNumber | 0);
     const bonus = 500 + (effectiveBoard - 1) * 200; // Board 1: 500, Board 2: 700, Board 3: 900, Board 4: 1100
     
-    // 🔥 NEW: Calculate comboBonus and efficiencyBonus (SAME as dev clean board logic)
-    // This ensures consistent bonus animation timing between dev and real clean boards
-    const comboBonus = Math.floor(bonus * 0.5); // 50% for combo
-    const efficiencyBonus = bonus - comboBonus; // 50% for efficiency
+    // 🔥 Bonus breakdown:
+    // - Combo bonus: longestCombo × 50 (computed inside clean-board-modal)
+    // - Efficiency bonus: moves + stack depth (computed here)
+    const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber });
 
     // 🔥 ENDGAME ANIMATION-WAIT: Wait for stars + bubbles before clean board; skip stars when regular/magnet (none run)
     // 🔥 CLEAN BOARD DELAY FIX: 4s max (was 5.5s/6s). Bubbles safety timeout 4.4s + early resolve when done.
@@ -263,8 +264,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }
       }) : undefined,
       updateHUD: ctx.updateHUD,
-      comboBonus, // 🔥 NEW: Explicit combo bonus for consistent animations
-      efficiencyBonus, // 🔥 NEW: Explicit efficiency bonus for consistent animations
+      bonus,
+      efficiencyBonus,
       scoreCap: 999999,
       boardNumber,
       isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',

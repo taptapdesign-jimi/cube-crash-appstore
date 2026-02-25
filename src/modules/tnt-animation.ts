@@ -493,13 +493,13 @@ export function showTntAnimation(options: {
     const rotation = 0; // tilt is now applied to whole BOOM container
     const letterEl = document.createElement('span');
     letterEl.textContent = letter;
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(210, 109, 64, 0.25))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
     letterEl.style.cssText = [
       'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
-      'font-size: 83px',
+      'font-size: 64px',
       'line-height: 1',
-      'color: #e77449',
+      'color: #FFF',
       'text-align: center',
       'opacity: 0',
       'transform: scale(0) perspective(1000px) translateZ(0)',

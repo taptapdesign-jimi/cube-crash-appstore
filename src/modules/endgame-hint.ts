@@ -1,8 +1,9 @@
 // Lightweight endgame hint overlay for last-move guidance
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
+import { attachPuffyClouds } from './text-clouds.js';
 
-const HINT_MESSAGES = ['NO MOVES!'];
+const HINT_MESSAGES = ['STACK IT!'];
 const IDLE_DELAY_MS = 3000;
 const ROTATE_MS = 3000;
 const STYLE_ID = 'endgame-hint-style';
@@ -24,6 +25,8 @@ let hintVisible = false;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
 let rotateTimer: ReturnType<typeof setInterval> | null = null;
 let hintEl: HTMLDivElement | null = null;
+let hintCloudOverlay: HTMLDivElement | null = null;
+let hintCloudCleanup: (() => void) | null = null;
 let messageIndex = 0;
 let activeTween: gsap.core.Tween | gsap.core.Timeline | null = null;
 let letterEls: HTMLSpanElement[] = [];
@@ -65,12 +68,38 @@ function ensureStyles(): void {
 function ensureElement(): HTMLDivElement {
   if (hintEl && hintEl.isConnected) return hintEl;
   ensureStyles();
+  if (!hintCloudOverlay || !hintCloudOverlay.isConnected) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'left: 0',
+      'top: 0',
+      'width: 100%',
+      'height: 100%',
+      'pointer-events: none',
+      'z-index: 999998'
+    ].join(';');
+    document.body.appendChild(overlay);
+    hintCloudOverlay = overlay;
+    hintCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
+  }
   const el = document.createElement('div');
   el.className = 'endgame-hint';
   document.body.appendChild(el);
   hintEl = el;
   renderMessage(HINT_MESSAGES[messageIndex]);
   return el;
+}
+
+function cleanupHintClouds(): void {
+  if (hintCloudCleanup) {
+    try { hintCloudCleanup(); } catch {}
+    hintCloudCleanup = null;
+  }
+  if (hintCloudOverlay && hintCloudOverlay.parentNode) {
+    try { hintCloudOverlay.parentNode.removeChild(hintCloudOverlay); } catch {}
+  }
+  hintCloudOverlay = null;
 }
 
 function updateMessage(): void {
@@ -288,6 +317,7 @@ function hideHint(): void {
     animateOut(() => {
       try { hintEl?.remove(); } catch {}
       hintEl = null;
+      cleanupHintClouds();
     });
   }
 }
@@ -356,6 +386,7 @@ export function forceClearEndgameHint(): void {
     try { hintEl.remove(); } catch {}
     hintEl = null;
   }
+  cleanupHintClouds();
   hintVisible = false;
   messageIndex = 0;
 }
@@ -378,6 +409,7 @@ export function hideEndgameHintWithAnimation(): Promise<void> {
     animateOut(() => {
       try { hintEl?.remove(); } catch {}
       hintEl = null;
+      cleanupHintClouds();
       resolve();
     });
   });

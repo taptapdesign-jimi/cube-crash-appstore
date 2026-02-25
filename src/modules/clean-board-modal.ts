@@ -122,12 +122,12 @@ function attachNavigationCleanup(): void {
   if (_navigationCleanupAttached) return;
   _navigationCleanupAttached = true;
   
-  const cleanup = () => {
+  // Full cleanup: remove overlay, clear timeouts, etc. (for beforeunload, cc-navigation)
+  const fullCleanup = () => {
     _modalCleanupInProgress = true;
     console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
-    // Ensure overlay never blocks input if navigation interrupts exit cleanup
     try {
       const overlay = document.getElementById('cc-clean-board-overlay');
       if (overlay) {
@@ -138,7 +138,6 @@ function attachNavigationCleanup(): void {
         console.log('🧹 Clean board modal: Overlay removed during navigation cleanup');
       }
     } catch {}
-    // Remove star animation style tag if still present
     try {
       const styleTag = document.getElementById('clean-board-star-animations');
       if (styleTag) {
@@ -148,18 +147,21 @@ function attachNavigationCleanup(): void {
     } catch {}
   };
   
-  // Clean up when page is hidden (user switches tabs/apps)
+  // On visibility hidden: only clear timeouts/animations, do NOT remove overlay
+  // User may have switched tabs briefly – when they return, modal should still be visible
   lifecycle.trackListener(document, 'visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-      cleanup();
+      clearAllModalTimeouts();
+      clearAllModalAnimationFrames();
+      // Don't remove overlay – user will see modal when they come back
     }
   });
   
   // Clean up when page is unloaded
-  lifecycle.trackListener(window, 'beforeunload', cleanup);
+  lifecycle.trackListener(window, 'beforeunload', fullCleanup);
   
   // Clean up when navigating within app (custom event)
-  lifecycle.trackListener(window, 'cc-navigation', cleanup);
+  lifecycle.trackListener(window, 'cc-navigation', fullCleanup);
 }
 
 // Attach cleanup handlers on module load

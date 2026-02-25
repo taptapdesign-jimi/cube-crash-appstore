@@ -90,15 +90,22 @@ export function tileIsActive(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
   
-  // 🔥 CRITICAL: Locked tiles with value > 0 are still active (e.g. during magnet pull)
-  // Only exclude locked tiles with value 0 (ghost placeholders)
+  // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
+  // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
+  // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
+  if (tileIsWild(tile)) return true;
+  
+  // Exclude locked tiles from active tiles (non-wild)
+  // Exception: Wild-magnet affected tiles are locked during pull animation but will unlock after merge
+  const isWildMagnetAffected = (tile as any)?._wildMagnetAffected === true;
+  if (tile.locked && !isWildMagnetAffected) return false;
+  
   const value = (tile.value | 0);
   if (value > 0) {
-    return true; // Active regardless of locked status
+    return true; // Active if unlocked (or wild-magnet affected)
   }
   
-  // Wild tiles are active even if locked temporarily
-  return tileIsWild(tile);
+  return false;
 }
 
 function createTilesHash(tiles: any[]): string {
@@ -477,6 +484,16 @@ function isGameStuck(context: EndGameContext): boolean {
     return false;
   }
 
+  // 🔥 SAFETY: If ANY wild exists, game can continue (wild = definitively not fail screen)
+  // User: "kad imamo wild star da je to definitivno nastava igre a ne fail screen"
+  const rawWildsAll = tiles.filter((t: any) =>
+    t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet')
+  );
+  if (rawWildsAll.length > 0) {
+    console.log('✅ isGameStuck: Wild present on board - NOT stuck');
+    return false;
+  }
+
   // Get active tiles for detailed analysis
   const activeTiles = getActiveTiles(tiles);
   console.log('🔍 isGameStuck: Active tiles count:', activeTiles.length, 'Details:', activeTiles.map(t => ({
@@ -508,7 +525,20 @@ function isGameStuck(context: EndGameContext): boolean {
     return false;
   }
 
-  // Fifth check removed
+  // 🔥 SAFETY: Direct scan of raw tiles for wild - never skip wild in endgame
+  // User: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
+  // Bypasses cache/filtering - catches wilds that might be locked, animating, or missed
+  const rawWilds = tiles.filter((t: any) => t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt'));
+  const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-beer' && t.special !== 'wild-tnt' && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
+  if (rawWilds.length > 0) {
+    const hasMagnet = rawWilds.some((t: any) => t.special === 'wild-magnet');
+    const hasWildStar = rawWilds.some((t: any) => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+    // Wild+regular = merge; Magnet+anything = pull; Wild+wild = blocked
+    if ((hasWildStar && rawMergeable.length > 0) || (hasMagnet && (rawMergeable.length > 0 || hasWildStar))) {
+      console.log('✅ isGameStuck: SAFETY - raw scan found wild on board, game continues (wild = definitivno nastavak igre)');
+      return false;
+    }
+  }
 
   // If all checks fail, game is stuck
   console.log('🚨 isGameStuck: anyMergePossible returned FALSE and no edge cases apply - game IS STUCK');
@@ -639,4 +669,24 @@ export function clearEndGameCache(): void {
   lastCheckResult = null;
   lastCheckContextHash = '';
   logger.debug('🔄 EndGameChecker: All caches cleared', 'endgame-checker');
+}
+
+/**
+ * 🔧 DEBUG SIMULATOR: Locked non-wild (value > 0), no wild tiles.
+ * Expected: RULE 1 triggers → game continues (has locked tiles).
+ * Call manually in dev console when needed.
+ */
+export function debugSimulateLockedNonWildNoWildCase(makeBoard?: { anyMergePossible: (tiles: any[]) => boolean }): EndGameResult {
+  const tiles = [
+    { value: 2, locked: true, destroyed: false, visible: true, special: null, gridX: 0, gridY: 0 }
+  ];
+  const context: EndGameContext = {
+    tiles,
+    moves: 0,
+    makeBoard: makeBoard || { anyMergePossible: () => false }
+  };
+  clearEndGameCache();
+  const result = checkEndGame(context, true);
+  console.log('🧪 debugSimulateLockedNonWildNoWildCase result:', result);
+  return result;
 }
