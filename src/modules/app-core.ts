@@ -5146,6 +5146,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     
     // 🔥 END GAME FIX: Skip pull animation if this is last move scenario
     if (isWildMagnet && hasTilesToPull && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0 && !isLastMoveScenario) {
+      // 🔥 CRITICAL: Declare mergeStarted at outer scope so trackAppTimeout callback always has access
+      let mergeStarted = false;
       // 🔥 CRITICAL FIX: Reset flag if previous pull completed but flag wasn't reset
       // This fixes the bug where newly spawned magnet can't pull because flag is still true
       // Check if there are any active pull animations - if not, reset flag
@@ -5328,7 +5330,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const totalTiles = nearestTiles.length;
         let allTilesArrived = false;
         let multiplierShown = false;
-        let mergeStarted = false; // 🔥 CRITICAL: Track if merge has started (prevent cleanup after merge begins)
+        mergeStarted = false; // 🔥 CRITICAL: Reset for this pull (declared at outer scope)
         
         // 🔥 CRITICAL: Store all timeline references for cleanup (MEMORY LEAK FIX)
         const activeTimelines: any[] = [];
@@ -8178,6 +8180,11 @@ function checkLevelEnd(){
       checkLevelEndSkipStartedAt = null;
     }
     
+    // 🔥 USER BUG FIX: Update STACK IT! hint BEFORE tilesNotReady check - so it shows when we have 2 active
+    // stackable tiles even if there are locked tiles (ghost placeholders or animating). Hint logic uses
+    // getActiveTiles which excludes locked tiles, so we correctly show STACK IT! for 2+2, 3+2, etc.
+    updateEndgameHintState();
+    
     // 🔥 CRITICAL FIX: Skip check if there are LOCKED tiles with value > 0 (spawn animations in progress)
     // This prevents premature fail screen when tiles are still being spawned/animated
     // 🔥 FIX: Only count locked tiles with value > 0 (animating) - NOT ghost placeholders (value 0)
@@ -8260,8 +8267,7 @@ function checkLevelEnd(){
     checkLevelEndSkipStartedAt = null;
     
     // 🔥 NOTE: Removed per request (no magnet-only end state allowed)
-    
-    updateEndgameHintState();
+    // updateEndgameHintState() already called above (before tilesNotReady) so STACK IT! shows even with locked tiles
 
     // Use centralized end game checker
     const checkLevelEndContext: EndGameContext = {
@@ -8421,19 +8427,10 @@ function updateEndgameHintState(): void {
       return;
     }
     const hintTiles = getActiveTiles(tiles);
-    const hasTwoTiles = hintTiles.length === 2;
-    const hasThreeTiles = hintTiles.length === 3;
-    const allRegular = (hasTwoTiles || hasThreeTiles) && hintTiles.every(t => !t?.special);
-    const values = allRegular ? hintTiles.map(t => (t?.value | 0)) : [];
-    const canStackTwo = allRegular && hasTwoTiles
-      ? (values[0] + values[1] >= 2 && values[0] + values[1] <= 6)
-      : false;
-    const canStackThree = allRegular && hasThreeTiles
-      ? (values[0] + values[1] >= 2 && values[0] + values[1] <= 6) ||
-        (values[0] + values[2] >= 2 && values[0] + values[2] <= 6) ||
-        (values[1] + values[2] >= 2 && values[1] + values[2] <= 6)
-      : false;
-    const canStack = canStackTwo || canStackThree;
+    // 🔥 USER BUG FIX: Use anyMergePossible to detect ALL stackable combos - not just "all regular"
+    // Magnet + regular, wild + regular, 2 regulars - all should show STACK IT! when mergeable
+    const hasTwoOrThree = hintTiles.length >= 2 && hintTiles.length <= 3;
+    const canStack = hasTwoOrThree && makeBoard?.anyMergePossible?.(hintTiles) === true;
     updateEndgameHint(canStack);
   } catch {}
 }

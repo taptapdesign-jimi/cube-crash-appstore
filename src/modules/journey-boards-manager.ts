@@ -1897,7 +1897,7 @@ class JourneyBoardsManager {
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
-      // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+      // Eager-load card images once in DOM to ensure they appear reliably
       image.loading = 'eager';
       (image as any).fetchPriority = 'high';
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging

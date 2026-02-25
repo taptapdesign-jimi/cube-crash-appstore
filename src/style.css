@@ -1681,7 +1681,7 @@ body{
 
 .menu-stat-value {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
+  font-size: 80px;
   font-weight: 800;
   color: #E8744A;
   line-height: 1;
@@ -1714,7 +1714,7 @@ body{
 
 .menu-game-value {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 32px;
+  font-size: 40px;
   font-weight: 800;
   color: #AD8675;
   line-height: 1.1;
@@ -1988,6 +1988,8 @@ body{
   border: none;
   z-index: 4;
 }
+
+/* Slider CTA buttons - inherit base CTA styling */
 
 .menu-btn-primary::after {
   content: "";

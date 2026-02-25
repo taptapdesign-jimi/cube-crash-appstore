@@ -301,22 +301,6 @@ function isLastMergeScenario(context: EndGameContext): boolean {
 }
 
 /**
- * 🔥 CRITICAL: Check if any locked ACTIVE tiles exist on board (animating, not ghost placeholders).
- * Only locked tiles with value > 0 block fail screen - these are tiles animating (merge, magnet pull).
- * Ghost placeholders (locked, value 0) are just empty cells - they don't help when stuck; wild spawns
- * from meter, not from placeholders. When no merges possible, meter won't fill → no wild → fail screen.
- */
-function hasLockedTiles(tiles: any[]): boolean {
-  const hasAny = tiles.some((t: any) => {
-    if (!t || t.destroyed) return false;
-    if (!t.locked) return false;
-    // Only count locked tiles with value > 0 (animating) - NOT ghost placeholders (value 0)
-    return (t.value | 0) > 0;
-  });
-  return hasAny;
-}
-
-/**
  * Check if board is clean (0 active tiles)
  */
 function isBoardCleanCheck(tiles: any[]): boolean {
@@ -594,14 +578,11 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   
   logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
   
-  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (wild can spawn new tiles)
-  if (hasLockedTiles(tiles)) {
-    console.log('✅ EndGameChecker: Locked tiles present - game continues (wild can spawn)');
-    lastCheckResult = { type: 'continue', reason: 'has_locked_tiles' };
-    lastCheckTime = now;
-    lastCheckContextHash = contextHash;
-    return lastCheckResult;
-  }
+  // 🔥 USER BUG FIX: IGNORE locked tiles for stuck/STACK IT! logic - only consider ACTIVE (unlocked) tiles.
+  // Locked tiles (ghost placeholders or animating) don't give the player moves. If 2 active tiles can stack
+  // → moves available. If 2 active tiles can't stack (or 1 active tile) → no moves, show fail screen.
+  // (checkLevelEnd's tilesNotReady still reschedules when locked animating tiles exist - so we won't run
+  // this check during spawn. When we do run, we evaluate based on active tiles only.)
   
   // 🔥 RULE 2: Clean board win - only when 2 tiles merge/stack to merge 6 (last 2, no locked)
   if (isLastMergeScenario(context)) {
@@ -673,7 +654,7 @@ export function clearEndGameCache(): void {
 
 /**
  * 🔧 DEBUG SIMULATOR: Locked non-wild (value > 0), no wild tiles.
- * Expected: RULE 1 triggers → game continues (has locked tiles).
+ * Expected: Locked tiles are ignored; 0 active tiles → clean board.
  * Call manually in dev console when needed.
  */
 export function debugSimulateLockedNonWildNoWildCase(makeBoard?: { anyMergePossible: (tiles: any[]) => boolean }): EndGameResult {

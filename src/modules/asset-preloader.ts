@@ -501,13 +501,7 @@ export class AssetPreloader {
     journeyImages.push('./assets/journey assets/heart-nav@2x.png');
     journeyImages.push('./assets/journey assets/heart-nav@3x.png');
     
-    // Journey card images (all 16 boards use common collectibles 01-16)
-    for (let i = 1; i <= 16; i++) {
-      const id = String(i).padStart(2, '0');
-      journeyImages.push(`./assets/colelctibles/common/${id}.png`);
-    }
-    
-    // Journey placeholder images
+    // Journey placeholder images (used for lazy loading)
     journeyImages.push('./assets/colelctibles/journey-card-empty.png');
     journeyImages.push('./assets/colelctibles/common back.png');
     

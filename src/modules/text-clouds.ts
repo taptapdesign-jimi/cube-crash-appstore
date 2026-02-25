@@ -6,11 +6,17 @@ import animationManager from './animation-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 
 const CLOUD_IMAGES = [
-  './assets/board transition/oblak+srednji.png',
-  './assets/board transition/oblak mali desno.png',
-  './assets/board transition/oblak mali ljevo.png',
-  './assets/board transition/oblak veliki ljevo dole.png'
+  { base: './assets/board transition/cloud1.png', retina: './assets/board transition/cloud1@2x.png' },
+  { base: './assets/board transition/cloud2.png', retina: './assets/board transition/cloud2@2x.png' },
+  { base: './assets/board transition/cloud3.png', retina: './assets/board transition/cloud3@2x.png' },
+  { base: './assets/board transition/cloud4.png', retina: './assets/board transition/cloud4@2x.png' }
 ];
+
+function pickCloudSrc(index: number): string {
+  const entry = CLOUD_IMAGES[index % CLOUD_IMAGES.length];
+  const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+  return dpr >= 2 ? entry.retina : entry.base;
+}
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -71,14 +77,16 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength);
     const windYOffset = (Math.random() * 2 - 1) * 10;
     const windDuration = (moveDuration * 0.52 + 0.2) * windFactor;
-    const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx)) * (Math.random() < 0.5 ? -1 : 1);
+    const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx));
     const driftStartDelay = 0.06;
 
-    const spawnX = centerX + (Math.random() * 2 - 1) * Math.min(160, viewportW * 0.22);
+    const fromLeft = i % 2 === 0;
+    const sideInset = Math.min(120, viewportW * 0.22);
+    const spawnX = fromLeft ? (centerX - sideInset) : (centerX + sideInset);
     const spawnY = centerY + (Math.random() * 2 - 1) * Math.min(110, viewportH * 0.18);
 
     const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
-    cloudImg.src = CLOUD_IMAGES[i % CLOUD_IMAGES.length];
+    cloudImg.src = pickCloudSrc(i);
     cloudImg.className = 'cc-text-cloud';
     cloudImg.alt = '';
     cloudImg.style.cssText = [
@@ -114,7 +122,13 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
       duration: CLOUD_SETTLE_DURATION,
       ease: 'power2.out'
     }, '>0');
-    enterTl.to(cloudImg, { x: driftDistancePx, duration: windDuration, ease: 'sine.inOut' }, driftStartDelay);
+    const toCenterX = centerX - spawnX;
+    const approachX = toCenterX * 0.92;
+    enterTl.to(
+      cloudImg,
+      { x: approachX + (fromLeft ? driftDistancePx * 0.15 : -driftDistancePx * 0.15), duration: windDuration, ease: 'sine.inOut' },
+      driftStartDelay
+    );
     enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
     cloudTimelines.push(enterTl);
 

@@ -463,6 +463,15 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Remove merge 6 tile
     removeTile(dst);
     
+    // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
+    // Without this, clean board appears immediately and SWOOP gets cut off
+    if (!isMagneticTextActive()) {
+      console.log('🧲 Magnet merge with no pulled tiles: SWOOP was not active, starting fallback text animation');
+      showMagneticText();
+    }
+    console.log('🧲 Magnet merge with no pulled tiles: waiting for SWOOP text animation before clean board');
+    await waitForMagneticTextComplete();
+    
     // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
     // This ensures all wild magnet/beer/star endgame scenarios use the same flow with proper guards
     const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;

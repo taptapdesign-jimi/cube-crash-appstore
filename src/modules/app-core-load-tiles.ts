@@ -109,6 +109,18 @@ export function restoreTilesFromSave({
     const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
     const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
     const shouldLock = !openFlag;
+    const savedSpecial = snapshot?.special || null;
+    const isIllegalValue = value >= 6 && !savedSpecial;
+    if (isIllegalValue) {
+      devWarn('⚠️ loadGameState: Skipping illegal tile value on restore (value >= 6 without special)', {
+        value,
+        gridX: savedGridX,
+        gridY: savedGridY
+      });
+      gridToUse[savedGridY] = gridToUse[savedGridY] || [];
+      gridToUse[savedGridY][savedGridX] = null;
+      continue;
+    }
 
     const tile = makeBoard.createTile({ board, grid: gridToUse, tiles, c: savedGridX, r: savedGridY, val: value, locked: shouldLock });
     tile.gridX = savedGridX;
@@ -130,7 +142,6 @@ export function restoreTilesFromSave({
     tile.scale.set(1);
 
     tile.value = value;
-    const savedSpecial = snapshot?.special || null;
     const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-beer' || snapshot?.isWild || snapshot?.isWildFace;
     tile.special = savedSpecial;
     tile.isWild = !!isWildSnapshot;

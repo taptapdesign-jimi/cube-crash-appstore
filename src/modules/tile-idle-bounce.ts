@@ -218,15 +218,17 @@ function animateTile(tile: Tile): void {
   // Activate smoke bubbles at 0.1s (peak of animation)
   tl.call(() => {
     if (state.board && tile) {
-      smokeBubblesAtTile(state.board, tile, 96, {
+      // Match stack smoke (non-merge6) look
+      smokeBubblesAtTile(state.board, tile, 96, 0.6, {
         behind: true,
-        sizeScale: 0.67,  // Reduced by 40% (1.12 * 0.6 = 0.67)
-        distanceScale: 0.7,
-        countScale: 0.75,
-        haloScale: 1.1,
-        strength: 0.5 + Math.random() * 0.3,
-        trailAlpha: 0.3,  // Set to 0.3
-        baseAlpha: 0.3   // Set to 0.3
+        baseAlpha: 0.35,
+        sizeScale: 0.4,
+        distanceScale: 0.3,
+        countScale: 0.3,
+        ttl: 0.16,
+        durationScale: 0.4,
+        blendMode: 'add',
+        spawnShape: 'box'
       });
     }
   }, null, 0.1);
