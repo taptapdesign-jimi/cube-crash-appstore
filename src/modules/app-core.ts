@@ -3919,14 +3919,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
     // 🔥 USER REQUEST: Show smoke effect below stacked tiles (2 tiles that don't result in merge 6)
     // Smoke with 70% opacity, behind tiles, using object pooling
-    smokeBubblesAtTile(board, dst, TILE, 0.6, {
+    smokeBubblesAtTile(board, dst, TILE, 0.72, {
       behind: true,
-      baseAlpha: 0.35,
-      sizeScale: 0.4,
-      distanceScale: 0.3,
-      countScale: 0.3,
-      ttl: 0.16,
-      durationScale: 0.4,
+      baseAlpha: 0.42,
+      sizeScale: 0.48,
+      distanceScale: 0.345,
+      countScale: 0.36,
+      ttl: 0.192,
+      durationScale: 0.48,
+      fxTag: 'stack-smoke',
       blendMode: 'add',
       spawnShape: 'box'
     });

@@ -477,46 +477,65 @@ export function destroyAllGraphicsObjects() {
   __globalGraphicsObjects.clear();
 }
 
+function cleanupFxContainer(container: any) {
+  try {
+    gsap.killTweensOf(container);
+    if (container.children) {
+      // 🔥 MEMORY LEAK FIX: Release pooled Graphics before killing (same as autoAdd)
+      const childrenCopy = [...container.children];
+      childrenCopy.forEach((c) => {
+        try {
+          if (c && !c.destroyed && typeof (c as any).clear === 'function') {
+            graphicsPool.release(c as any);
+          }
+        } catch {}
+      });
+      childrenCopy.forEach((child) => {
+        try {
+          gsap.killTweensOf(child);
+          gsap.killTweensOf(child.scale);
+          gsap.killTweensOf(child.rotation);
+          gsap.killTweensOf(child.alpha);
+        } catch {}
+      });
+    }
+
+    if (container && container.parent && !container.destroyed) {
+      container.parent.removeChild(container);
+    }
+
+    if (container && container.destroy && !container.destroyed) {
+      container.destroy({ children: true });
+    }
+  } catch (e) {
+    console.warn('⚠️ Error cleaning up FX container:', e);
+  }
+}
+
 // 🔥 FIX: Immediately remove all FX containers (smoke, particles, shards) on exit
 // This prevents stuck animation artifacts when user exits during merge animations
 export function cleanupAllFxContainers() {
   console.log(`🧹 Cleaning up ${__globalFxContainers.size} FX containers immediately`);
-  __globalFxContainers.forEach(container => {
-    try {
-      gsap.killTweensOf(container);
-      if (container.children) {
-        // 🔥 MEMORY LEAK FIX: Release pooled Graphics before killing (same as autoAdd)
-        const childrenCopy = [...container.children];
-        childrenCopy.forEach((c) => {
-          try {
-            if (c && !c.destroyed && typeof (c as any).clear === 'function') {
-              graphicsPool.release(c as any);
-            }
-          } catch {}
-        });
-        childrenCopy.forEach((child) => {
-          try {
-            gsap.killTweensOf(child);
-            gsap.killTweensOf(child.scale);
-            gsap.killTweensOf(child.rotation);
-            gsap.killTweensOf(child.alpha);
-          } catch {}
-        });
-      }
-      
-      if (container && container.parent && !container.destroyed) {
-        container.parent.removeChild(container);
-      }
-      
-      if (container && container.destroy && !container.destroyed) {
-        container.destroy({ children: true });
-      }
-    } catch (e) {
-      console.warn('⚠️ Error cleaning up FX container:', e);
-    }
-  });
+  __globalFxContainers.forEach(container => cleanupFxContainer(container));
   __globalFxContainers.clear();
   console.log('✅ All FX containers cleaned up');
+}
+
+// 🔧 Targeted cleanup for a specific FX tag (e.g., stack smoke)
+export function cleanupFxContainersByTag(tag: string) {
+  if (!tag) return;
+  const toRemove: any[] = [];
+  __globalFxContainers.forEach(container => {
+    if (container && container._fxTag === tag) {
+      toRemove.push(container);
+    }
+  });
+  if (toRemove.length === 0) return;
+  console.log(`🧹 Cleaning up ${toRemove.length} FX containers with tag "${tag}"`);
+  toRemove.forEach(container => {
+    cleanupFxContainer(container);
+    __globalFxContainers.delete(container);
+  });
 }
 
 // Lightweight helper to trigger beer fizz immediately (standalone, no confetti reuse)
@@ -4929,6 +4948,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   layer.x = x; layer.y = y;
   const tileZ = tile?.zIndex ?? 0;
   layer.zIndex = behind ? tileZ - 0.001 : (options.zIndex ?? 9990);
+  if (options.fxTag) {
+    layer._fxTag = options.fxTag;
+  }
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
 
   // Rapid-merge throttling: reduce particle load if previous FX fired recently.

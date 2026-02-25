@@ -270,6 +270,15 @@ export function initDrag(cfg) {
       console.warn('⚠️ Failed to notify board interaction:', error);
     }
 
+    // 🔥 USER REQUEST: Clear lingering stack smoke immediately when drag starts
+    try {
+      import('./fx.js').then(fxModule => {
+        if (fxModule?.cleanupFxContainersByTag) {
+          fxModule.cleanupFxContainersByTag('stack-smoke');
+        }
+      }).catch(() => {});
+    } catch {}
+
     // Hide NO MOVES! on drag start and re-arm idle hint
     try {
       import('./endgame-hint.js').then(mod => mod?.notifyEndgameHintInteraction?.()).catch(() => {});
