@@ -121,14 +121,17 @@ export function notifyBoardInteraction(): void {
 
 function animateRandomTile(): void {
   if (!state.isActive) return;
-  
+
   // 🔥 MEMORY LEAK FIX: Don't run when tab is hidden - prevents 700MB+ leak over 1h idle
   // User left game open, tab in background → tile bounce kept creating smoke particles
   if (typeof document !== 'undefined' && document.hidden) {
     state.animationTimer = setTimeout(animateRandomTile, 2000); // Recheck in 2s
     return;
   }
-  
+
+  // Keep tile list fresh so idle effects can target newly spawned tiles
+  updateTileList(state.tiles);
+
   const idleTime = Date.now() - state.lastInteractionTime;
   if (idleTime < IDLE_WAIT_TIME) {
     state.animationTimer = setTimeout(animateRandomTile, 100);
@@ -218,15 +221,14 @@ function animateTile(tile: Tile): void {
   // Activate smoke bubbles at 0.1s (peak of animation)
   tl.call(() => {
     if (state.board && tile) {
-      // Match stack smoke (non-merge6) look
-      smokeBubblesAtTile(state.board, tile, 96, 0.6, {
+      smokeBubblesAtTile(state.board, tile, TILE, 1.10, {
         behind: true,
-        baseAlpha: 0.35,
-        sizeScale: 0.4,
-        distanceScale: 0.3,
-        countScale: 0.3,
-        ttl: 0.16,
-        durationScale: 0.4,
+        baseAlpha: 0.58,
+        sizeScale: 1.10,
+        distanceScale: 0.75,
+        countScale: 1.04,
+        ttl: 0.28,
+        durationScale: 0.84,
         blendMode: 'add',
         spawnShape: 'box'
       });

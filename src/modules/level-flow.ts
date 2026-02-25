@@ -145,83 +145,107 @@ export async function openLockedBounceParallel({
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 150ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 150ms between tiles for visible one-by-one
   // Sequential spawning: 1st at 0ms, 2nd at 150ms, 3rd at 300ms, 4th at 450ms
-  // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as magnet pull)
+  // 🔥 USER BUG FIX: Return Promise that resolves when ALL spawns complete (spawnBounce callbacks run).
+  // Previously returned immediately, causing merge6SpawnInProgress=false too early and checkLevelEnd to run
+  // before new tiles were spawned → false fail screen when locked placeholders (value 0) were about to spawn.
+  const spawnPromises: Promise<void>[] = [];
   for (let index = 0; index < picks.length; index++) {
     const t = picks[index];
     const delay = index * 150; // 0ms, 150ms, 300ms, 450ms...
-    
-    // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
-    // This allows all tiles to be scheduled with delays, but animations run concurrently
-    // 🔥 FIX: Track timeout for cleanup
-    const timeout = setTimeout(() => {
-      activeSpawnTimeouts.delete(timeout);
-      // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
-      if (!t || t.destroyed || !t.scale) {
-        logger.debug('Spawn skipped: tile null/destroyed/no scale', 'level-flow', { destroyed: t?.destroyed, hasScale: !!t?.scale });
-        return;
-      }
-      
-      const ensureActiveFullOpacity = (tile: any) => {
-        try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
-        try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
-        try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
-        try {
-          tile.alpha = 1;
-          if (tile.rotG) tile.rotG.alpha = 1;
-          if (tile.base) tile.base.alpha = 1;
-          if (tile.overlay) {
-            tile.overlay.alpha = 1;
-            tile.overlay.visible = false;
-          }
-          if (tile.num) tile.num.alpha = 1;
-          if (tile.pips) tile.pips.alpha = 1;
-        } catch {}
+    const spawnPromise = new Promise<void>((resolve) => {
+      let resolved = false;
+      const safeResolve = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
       };
+      const timeout = setTimeout(() => {
+        activeSpawnTimeouts.delete(timeout);
+        // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
+        if (!t || t.destroyed || !t.scale) {
+          logger.debug('Spawn skipped: tile null/destroyed/no scale', 'level-flow', { destroyed: t?.destroyed, hasScale: !!t?.scale });
+          safeResolve();
+          return;
+        }
 
-      t.locked = false;
-      t.eventMode = 'static';
-      t.cursor = 'pointer';
-      ensureActiveFullOpacity(t);
-      if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+        const ensureActiveFullOpacity = (tile: any) => {
+          try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
+          try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
+          try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
+          try {
+            tile.alpha = 1;
+            if (tile.rotG) tile.rotG.alpha = 1;
+            if (tile.base) tile.base.alpha = 1;
+            if (tile.overlay) {
+              tile.overlay.alpha = 1;
+              tile.overlay.visible = false;
+            }
+            if (tile.num) tile.num.alpha = 1;
+            if (tile.pips) tile.pips.alpha = 1;
+          } catch {}
+        };
 
-      resetTileToNormalState(t);
-      
-      // Smart spawning: if this is after wild merge, avoid the target number
-      let spawnValue: number;
-      if (wildMergeTarget) {
-        // Import pickWildValue function (assuming it's available globally or we need to pass it)
-        const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
-        spawnValue = candidates[(Math.random() * candidates.length) | 0];
-        logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
-      } else {
-        spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
-      }
-      
-      // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)
-      if (!t || t.destroyed || !t.scale) {
-        logger.debug('Spawn skipped: tile destroyed during resetTileToNormalState', 'level-flow');
-        return;
-      }
-      
-      makeBoard?.setValue?.(t, spawnValue, 0);
-      ensureActiveFullOpacity(t);
-      try { fixHoverAnchor?.(t); } catch {}
-
-      if (!t || t.destroyed || !t.scale) {
-        logger.debug('Spawn skipped: tile destroyed during setValue', 'level-flow');
-        return;
-      }
-
-      spawnBounce?.(t, () => {
+        t.locked = false;
+        t.eventMode = 'static';
+        t.cursor = 'pointer';
         ensureActiveFullOpacity(t);
-        const reinforce = setTimeout(() => {
+        if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+
+        resetTileToNormalState(t);
+
+        // Smart spawning: if this is after wild merge, avoid the target number
+        let spawnValue: number;
+        if (wildMergeTarget) {
+          const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+          spawnValue = candidates[(Math.random() * candidates.length) | 0];
+          logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
+        } else {
+          spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
+        }
+
+        // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)
+        if (!t || t.destroyed || !t.scale) {
+          logger.debug('Spawn skipped: tile destroyed during resetTileToNormalState', 'level-flow');
+          safeResolve();
+          return;
+        }
+
+        makeBoard?.setValue?.(t, spawnValue, 0);
+        ensureActiveFullOpacity(t);
+        try { fixHoverAnchor?.(t); } catch {}
+
+        if (!t || t.destroyed || !t.scale) {
+          logger.debug('Spawn skipped: tile destroyed during setValue', 'level-flow');
+          safeResolve();
+          return;
+        }
+
+        const onBounceComplete = () => {
           ensureActiveFullOpacity(t);
-        }, 160);
-        activeSpawnTimeouts.add(reinforce);
-      }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
-    }, delay);
-    activeSpawnTimeouts.add(timeout);
+          const reinforce = setTimeout(() => {
+            ensureActiveFullOpacity(t);
+          }, 160);
+          activeSpawnTimeouts.add(reinforce);
+          safeResolve();
+        };
+        if (spawnBounce) {
+          spawnBounce(t, onBounceComplete, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
+        } else {
+          safeResolve();
+        }
+      }, delay);
+      activeSpawnTimeouts.add(timeout);
+
+      // Fail-safe: resolve even if spawnBounce never calls back
+      const fallback = setTimeout(() => {
+        activeSpawnTimeouts.delete(fallback);
+        safeResolve();
+      }, delay + 1200);
+      activeSpawnTimeouts.add(fallback);
+    });
+    spawnPromises.push(spawnPromise);
   }
   try { drawBoardBG?.(); } catch {}
+  await Promise.all(spawnPromises);
   return picks.length;
 }
