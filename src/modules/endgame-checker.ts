@@ -462,12 +462,6 @@ function checkWildCombinations(wildStars: any[], magnets: any[], mergeableNonWil
 function isGameStuck(context: EndGameContext): boolean {
   const { tiles } = context;
 
-  // First check: anyMergePossible
-  if (checkAnyMergePossible(context)) {
-    logger.debug('✅ isGameStuck: Merges possible, game is NOT stuck', 'endgame-checker');
-    return false;
-  }
-
   // 🔥 SAFETY: If ANY wild exists, game can continue (wild = definitively not fail screen)
   // User: "kad imamo wild star da je to definitivno nastava igre a ne fail screen"
   const rawWildsAll = tiles.filter((t: any) =>
@@ -480,6 +474,14 @@ function isGameStuck(context: EndGameContext): boolean {
 
   // Get active tiles for detailed analysis
   const activeTiles = getActiveTiles(tiles);
+
+  // First check: anyMergePossible
+  // 🔥 CRITICAL: Do NOT short-circuit if only 1 active tile exists.
+  // Single-stack cases can return true in anyMergePossible, but the player has no move.
+  if (checkAnyMergePossible(context) && activeTiles.length >= 2) {
+    logger.debug('✅ isGameStuck: Merges possible, game is NOT stuck', 'endgame-checker');
+    return false;
+  }
   console.log('🔍 isGameStuck: Active tiles count:', activeTiles.length, 'Details:', activeTiles.map(t => ({
     value: t.value,
     special: t.special,

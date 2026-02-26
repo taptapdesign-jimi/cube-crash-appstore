@@ -7325,7 +7325,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         });
         
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
-        const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
+        // Only valid for wild-magnet merges; stale flags can block spawns in regular merges.
+        let pulledCells = (dst as any)?._wildMagnetPulledCells || [];
+        if (!isWildMagnet && !(dst as any)?._wasWildMagnetMerge6) {
+          // Stale magnet data should never affect regular merge spawns
+          pulledCells = [];
+          if ((dst as any)?._wildMagnetPulledCells) {
+            delete (dst as any)._wildMagnetPulledCells;
+          }
+        }
         const pulledCellsSet = new Set<string>(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
         
         // 🔥 DEBUG: Detailed spawn check for all merge-6 types

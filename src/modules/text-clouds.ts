@@ -61,8 +61,8 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
   const CLOUD_SETTLE_DURATION = 0.14;
   const moveDuration = 1.6;
   const windStrength = 0.18;
-  const driftDistanceMinPx = viewportW * 0.28;
-  const driftDistanceMaxPx = viewportW * 0.5;
+  const driftDistanceMinPx = viewportW * 0.32;
+  const driftDistanceMaxPx = viewportW * 0.62;
   const BOUNCE_REPEAT = 2;
 
   for (let i = 0; i < count; i++) {
@@ -81,9 +81,8 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     const driftStartDelay = 0.06;
 
     const fromLeft = i % 2 === 0;
-    const sideInset = Math.min(120, viewportW * 0.22);
-    const spawnX = fromLeft ? (centerX - sideInset) : (centerX + sideInset);
-    const spawnY = centerY + (Math.random() * 2 - 1) * Math.min(110, viewportH * 0.18);
+    const spawnX = centerX + (Math.random() * 2 - 1) * Math.min(26, viewportW * 0.04);
+    const spawnY = centerY + (Math.random() * 2 - 1) * Math.min(90, viewportH * 0.15);
 
     const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
     cloudImg.src = pickCloudSrc(i);
@@ -122,11 +121,10 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
       duration: CLOUD_SETTLE_DURATION,
       ease: 'power2.out'
     }, '>0');
-    const toCenterX = centerX - spawnX;
-    const approachX = toCenterX * 0.92;
+    const pushX = fromLeft ? -driftDistancePx : driftDistancePx;
     enterTl.to(
       cloudImg,
-      { x: approachX + (fromLeft ? driftDistancePx * 0.15 : -driftDistancePx * 0.15), duration: windDuration, ease: 'sine.inOut' },
+      { x: pushX, duration: windDuration, ease: 'sine.inOut' },
       driftStartDelay
     );
     enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
