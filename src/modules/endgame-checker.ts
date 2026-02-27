@@ -79,7 +79,12 @@ export function clearEndgameCheckerCache(): void {
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt';
+  return special === 'wild' ||
+    special === 'wild-magnet' ||
+    special === 'wild-beer' ||
+    special === 'wild-tnt' ||
+    tile.isWild === true ||
+    tile.isWildFace === true;
 }
 
 /**
@@ -411,12 +416,12 @@ function getTileCategories(activeTiles: any[]) {
   }
 
   console.log('🔄 getTileCategories: Computing tile categories');
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt');
-  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
+  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
   const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
 
   const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true) return false;
     const value = (t.value|0);
     return value > 0 && value <= MAX_MERGE_VALUE; // Wild can merge with 1-6
   });
@@ -465,7 +470,7 @@ function isGameStuck(context: EndGameContext): boolean {
   // 🔥 SAFETY: If ANY wild exists, game can continue (wild = definitively not fail screen)
   // User: "kad imamo wild star da je to definitivno nastava igre a ne fail screen"
   const rawWildsAll = tiles.filter((t: any) =>
-    t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet')
+    t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet' || t.isWild === true || t.isWildFace === true)
   );
   if (rawWildsAll.length > 0) {
     console.log('✅ isGameStuck: Wild present on board - NOT stuck');
@@ -514,11 +519,11 @@ function isGameStuck(context: EndGameContext): boolean {
   // 🔥 SAFETY: Direct scan of raw tiles for wild - never skip wild in endgame
   // User: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Bypasses cache/filtering - catches wilds that might be locked, animating, or missed
-  const rawWilds = tiles.filter((t: any) => t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt'));
-  const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-beer' && t.special !== 'wild-tnt' && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
+  const rawWilds = tiles.filter((t: any) => t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true));
+  const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-beer' && t.special !== 'wild-tnt' && t.isWild !== true && t.isWildFace !== true && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
   if (rawWilds.length > 0) {
     const hasMagnet = rawWilds.some((t: any) => t.special === 'wild-magnet');
-    const hasWildStar = rawWilds.some((t: any) => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+    const hasWildStar = rawWilds.some((t: any) => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
     // Wild+regular = merge; Magnet+anything = pull; Wild+wild = blocked
     if ((hasWildStar && rawMergeable.length > 0) || (hasMagnet && (rawMergeable.length > 0 || hasWildStar))) {
       console.log('✅ isGameStuck: SAFETY - raw scan found wild on board, game continues (wild = definitivno nastavak igre)');
@@ -579,6 +584,16 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   const { tiles, moves, makeBoard } = context;
   
   logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
+
+  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (spawn can open them)
+  // Prevents false fail when merge-6 spawn hasn't completed yet (locked placeholders about to open).
+  const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && t.scale);
+  if (hasLockedTiles) {
+    lastCheckResult = { type: 'continue', reason: 'locked_tiles_present' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
   
   // 🔥 USER BUG FIX: IGNORE locked tiles for stuck/STACK IT! logic - only consider ACTIVE (unlocked) tiles.
   // Locked tiles (ghost placeholders or animating) don't give the player moves. If 2 active tiles can stack
@@ -617,6 +632,17 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   }
 
   const activeTiles = getActiveTiles(tiles);
+
+  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (spawn can open them)
+  // Prevents false fail when merge-6 spawn hasn't completed yet (locked placeholders about to open)
+  const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && t.scale);
+  if (hasLockedTiles) {
+    logger.debug('✅ EndGameChecker: Locked tiles present - game continues (spawn can open them)', 'endgame-checker');
+    lastCheckResult = { type: 'continue', reason: 'locked_tiles_present' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
 
   // 🔥 RULE 3: Fail screen - ONLY when no locked tiles AND stuck (non-mergeable, non-stackable)
   if (isGameStuck(context)) {

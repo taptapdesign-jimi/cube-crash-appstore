@@ -422,6 +422,7 @@ window.comboText = null;
 let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
+let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -3690,9 +3691,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   if (busyEnding) { helpers.snapBack?.(src); return; }
   // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
   // If spawn is in progress from previous merge, block new merge to prevent duplicate spawns
-  if (merge6SpawnInProgress) {
-    devWarn('🚨🚨🚨 MERGE BLOCKED: Spawn in progress from previous merge - preventing duplicate spawn');
-    devWarn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+  if (merge6SpawnInProgress && merge6SpawnInProgressIsWild) {
+    devWarn('🚨🚨🚨 MERGE BLOCKED: Wild merge-6 spawn in progress - preventing rapid duplicate');
     helpers.snapBack?.(src);
     return;
   }
@@ -7293,6 +7293,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (!spawnMult || spawnMult <= 0) {
           devWarn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
           merge6SpawnInProgress = false;
+          merge6SpawnInProgressIsWild = false;
           if (merge6SpawnResetTimer) {
             try { merge6SpawnResetTimer.kill(); } catch {}
             merge6SpawnResetTimer = null;
@@ -7300,29 +7301,41 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           return;
         }
         
-        // 🔥 BUG FIX: Set spawn in progress flag to prevent duplicate spawns from rapid clicks
-        // This prevents bug where wild star/beer used rapidly cause duplicate spawns
+        // 🔥 BUG FIX: Block rapid duplicate spawns ONLY for wild merge-6.
+        // Regular merge-6 should remain responsive even if a wild merge animation is still running.
+        const isWildMerge6 =
+          srcSpecial === 'wild' || dstSpecial === 'wild' ||
+          srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet' ||
+          srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer' ||
+          srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt';
         if (merge6SpawnInProgress) {
-          devWarn('🚨🚨🚨 SPAWN BLOCKED: Spawn already in progress from previous merge - preventing duplicate spawn');
-          devWarn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
-          return;
-        }
-        merge6SpawnInProgress = true;
-        devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
-        if (merge6SpawnResetTimer) {
-          try { merge6SpawnResetTimer.kill(); } catch {}
-        }
-        merge6SpawnResetTimer = trackDelayedCall(2.5, () => {
-          if (merge6SpawnInProgress) {
-            devWarn('⚠️ merge6SpawnInProgress timed out - forcing reset');
-            merge6SpawnInProgress = false;
-            if (merge6SpawnResetTimer) {
-              try { merge6SpawnResetTimer.kill(); } catch {}
-              merge6SpawnResetTimer = null;
-            }
+          if (isWildMerge6) {
+            devWarn('🚨🚨🚨 SPAWN BLOCKED: Wild merge-6 spawn already in progress - preventing duplicate spawn');
+            devWarn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+            return;
           }
-          merge6SpawnResetTimer = null;
-        });
+          devWarn('⚠️ Spawn already in progress, but allowing regular merge-6 for responsiveness');
+        } else {
+          merge6SpawnInProgress = true;
+          merge6SpawnInProgressIsWild = isWildMerge6;
+          devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
+          if (merge6SpawnResetTimer) {
+            try { merge6SpawnResetTimer.kill(); } catch {}
+          }
+          merge6SpawnResetTimer = trackDelayedCall(2.5, () => {
+            if (merge6SpawnInProgress) {
+              devWarn('⚠️ merge6SpawnInProgress timed out - forcing reset');
+              merge6SpawnInProgress = false;
+              merge6SpawnInProgressIsWild = false;
+              merge6SpawnInProgressIsWild = false;
+              if (merge6SpawnResetTimer) {
+                try { merge6SpawnResetTimer.kill(); } catch {}
+                merge6SpawnResetTimer = null;
+              }
+            }
+            merge6SpawnResetTimer = null;
+          });
+        }
         
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
         // Only valid for wild-magnet merges; stale flags can block spawns in regular merges.
@@ -7409,9 +7422,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         });
 
         // 🔥 Wild-merge bonus: spawn 9 locked, open 3 → result: 3 active + 6 locked. All wilds (star, beer, TNT, magnet).
-        const isWildMerge6 =
-          (srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild')) ||
-          (dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild'));
+        // isWildMerge6 already declared above (spawn-block check)
         let wildMergeLockedBonusCount = 0;
         if (isWildMerge6 && !isLastMergeFlagSet) {
           wildMergeLockedBonusCount = 9; // 9 locked total → open 3 = 3 active + 6 locked
@@ -7506,6 +7517,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             };
             doEndgameSpawns().catch((err) => devWarn('⚠️ END-GAME SPAWN: Error:', err)).finally(() => {
               merge6SpawnInProgress = false;
+              merge6SpawnInProgressIsWild = false;
               if (merge6SpawnResetTimer) { try { merge6SpawnResetTimer.kill(); } catch {} merge6SpawnResetTimer = null; }
             });
           }, 50);
@@ -7571,6 +7583,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 .catch((err) => devWarn('⚠️ NORMAL SPAWN: Error:', err))
                 .finally(() => {
                   merge6SpawnInProgress = false;
+                  merge6SpawnInProgressIsWild = false;
                   if (merge6SpawnResetTimer) { try { merge6SpawnResetTimer.kill(); } catch {} merge6SpawnResetTimer = null; }
                 });
             }, 50);
@@ -7634,10 +7647,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 await Promise.all(remainderPromises);
               }
               merge6SpawnInProgress = false;
+              merge6SpawnInProgressIsWild = false;
               if (merge6SpawnResetTimer) { try { merge6SpawnResetTimer.kill(); } catch {} merge6SpawnResetTimer = null; }
             }).catch((err) => {
               devWarn('⚠️ openLockedBounceParallel error:', err);
               merge6SpawnInProgress = false;
+              merge6SpawnInProgressIsWild = false;
               if (merge6SpawnResetTimer) { try { merge6SpawnResetTimer.kill(); } catch {} merge6SpawnResetTimer = null; }
             });
           }

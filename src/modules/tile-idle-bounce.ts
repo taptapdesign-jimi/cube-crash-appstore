@@ -130,7 +130,10 @@ function animateRandomTile(): void {
   }
 
   // Keep tile list fresh so idle effects can target newly spawned tiles
-  updateTileList(state.tiles);
+  const liveTiles = (typeof window !== 'undefined' && (window as any).STATE?.tiles)
+    ? (window as any).STATE.tiles
+    : state.tiles;
+  updateTileList(liveTiles);
 
   const idleTime = Date.now() - state.lastInteractionTime;
   if (idleTime < IDLE_WAIT_TIME) {
@@ -143,7 +146,7 @@ function animateRandomTile(): void {
   );
   
   if (availableTiles.length === 0) {
-    state.animationTimer = setTimeout(animateRandomTile, 500);
+    state.animationTimer = setTimeout(animateRandomTile, 800);
     return;
   }
   
@@ -269,7 +272,19 @@ function stopTileAnimation(tile: Tile): void {
 }
 
 export function updateTileList(tiles: Tile[]): void {
-  state.tiles = tiles.filter(t => t && t.value > 0 && !t.locked && !t.destroyed);
+  const boardGrid = state.board?.grid;
+  state.tiles = tiles.filter(t => {
+    if (!t || t.destroyed) return false;
+    if (t.visible === false) return false;
+    if (t.locked) return false;
+    if ((t.value | 0) <= 0) return false;
+    if (t.eventMode && t.eventMode !== 'static') return false;
+    if (boardGrid && typeof t.gridX === 'number' && typeof t.gridY === 'number') {
+      const row = boardGrid[t.gridY];
+      if (!row || row[t.gridX] !== t) return false;
+    }
+    return true;
+  });
   if (isVerboseGameplayLogsEnabled()) {
     console.log('🔄 Updated tile list:', state.tiles.length, 'tiles');
   }

@@ -738,7 +738,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 function tileIsWild(tile: Tile | null | undefined): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt';
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt' || (tile as any).isWild === true || (tile as any).isWildFace === true;
 }
 
 function tileIsActive(tile: Tile | null | undefined): boolean {
@@ -771,14 +771,14 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
-  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true);
   
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
-  const wildStars = open.filter((t) => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+  const wildStars = open.filter((t) => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true);
   const magnets = open.filter((t) => t.special === 'wild-magnet');
   
   const mergeableNonWildTiles = open.filter((t) => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true) return false;
     const value = (t.value | 0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Changed from < 6 to <= 6
     // This was causing false "stuck" detection when board had merge 6 + wild star

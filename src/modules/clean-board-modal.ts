@@ -348,7 +348,8 @@ export async function showCleanBoardModal({
     ].join(';');
     
     // 🌟 NEW: Calculate number of stars based on FINAL score (after BOTH bonuses!)
-    const computedStars = finalScore < 1000 ? 1 : finalScore < 3000 ? 2 : 3;
+    // Targets: 1★ up to 2000, 2★ up to 4000, 3★ at 6000+ (linear thresholds)
+    const computedStars = finalScore < 2000 ? 1 : finalScore < 6000 ? 2 : 3;
     const numStars = Number.isFinite(forcedStars)
       ? Math.min(3, Math.max(1, forcedStars as number))
       : computedStars;
