@@ -33,6 +33,7 @@ import { wild } from './hud-helpers.ts';
 import animationManager from './animation-manager.ts';
 import * as FLOW  from './level-flow.js';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
+import { resetTileToNormalState } from './tile-state-utils.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';

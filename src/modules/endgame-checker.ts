@@ -633,17 +633,6 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
 
   const activeTiles = getActiveTiles(tiles);
 
-  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (spawn can open them)
-  // Prevents false fail when merge-6 spawn hasn't completed yet (locked placeholders about to open)
-  const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && t.scale);
-  if (hasLockedTiles) {
-    logger.debug('✅ EndGameChecker: Locked tiles present - game continues (spawn can open them)', 'endgame-checker');
-    lastCheckResult = { type: 'continue', reason: 'locked_tiles_present' };
-    lastCheckTime = now;
-    lastCheckContextHash = contextHash;
-    return lastCheckResult;
-  }
-
   // 🔥 RULE 3: Fail screen - ONLY when no locked tiles AND stuck (non-mergeable, non-stackable)
   if (isGameStuck(context)) {
     console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges/stack possible, fail screen');

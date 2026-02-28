@@ -93,7 +93,7 @@ class BoardService implements BoardServiceInterface {
       this.tiles.set(tileData.id, tileData);
       
       // Add to board
-      this.board.addChild(tile);
+      this.board.addChild(tile as unknown as Parameters<Container['addChild']>[0]);
       
       // Emit event
       eventBus.emit(EVENTS.BOARD_TILE_SPAWN, tileData);

@@ -11,6 +11,16 @@ const createLocalStorageMock = (store: StorageMap = {}) => {
     removeItem: (key: string) => {
       delete store[key];
     },
+    clear: () => {
+      Object.keys(store).forEach((k) => delete store[k]);
+    },
+    key: (index: number) => {
+      const keys = Object.keys(store);
+      return keys[index] ?? null;
+    },
+    get length() {
+      return Object.keys(store).length;
+    },
     _dump: () => ({ ...store }),
   };
 };

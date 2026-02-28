@@ -17,7 +17,7 @@ const STORAGE_KEY = 'cc_board_stats_v1';
 
 class BoardStatsService {
   private stats: AllBoardStats = {};
-  private saveTimer: number | null = null;
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private isDirty = false;
   private lastSavedSnapshot = '';
   private readonly saveDebounceMs = 750;
@@ -221,4 +221,3 @@ export const boardStatsService = new BoardStatsService();
 // Export class for testing
 export { BoardStatsService };
 export type { BoardStats, AllBoardStats };
-
