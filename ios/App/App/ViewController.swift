@@ -204,5 +204,14 @@ class ViewController: CAPBridgeViewController {
         }
     }
     
+    deinit {
+        // Prevent WKWebView -> WKUserContentController -> self retain cycles.
+        if let webView = self.value(forKey: "webView") as? WKWebView {
+            let controller = webView.configuration.userContentController
+            controller.removeScriptMessageHandler(forName: "hapticImpact")
+            controller.removeScriptMessageHandler(forName: "hapticSelection")
+            controller.removeScriptMessageHandler(forName: "hapticNotification")
+        }
+    }
+    
 }
-

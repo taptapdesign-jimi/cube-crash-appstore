@@ -8,6 +8,7 @@ import { boardStatsService } from '../services/board-stats-service.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 
 let modal: HTMLElement | null = null;
+let backdrop: HTMLElement | null = null;
 let isVisible = false;
 
 // Outside click handlers (same pattern as end-run-modal)
@@ -112,12 +113,28 @@ function createModal(): HTMLElement {
     modal.remove();
     modal = null;
   }
+  if (backdrop) {
+    backdrop.remove();
+    backdrop = null;
+  }
+
+  const backdropEl = document.createElement('div');
+  backdropEl.className = 'score-bottom-sheet-backdrop';
+  backdropEl.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 999999998;
+    pointer-events: auto;
+  `;
+  backdrop = backdropEl;
 
   const modalEl = document.createElement('div');
   modalEl.className = 'simple-bottom-sheet score-bottom-sheet';
   modalEl.setAttribute('role', 'dialog');
   modalEl.setAttribute('aria-modal', 'true');
   modalEl.setAttribute('aria-labelledby', 'score-sheet-title');
+  modalEl.style.touchAction = 'none';
   
   // CRITICAL: Start with display: none to prevent flash
   modalEl.style.display = 'none';
@@ -187,6 +204,7 @@ function createModal(): HTMLElement {
   // Add outside click functionality (same as end-run-modal)
   addOutsideClickFunctionality(modalEl);
 
+  document.body.appendChild(backdropEl);
   document.body.appendChild(modalEl);
   return modalEl;
 }
@@ -361,6 +379,10 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
     if (outsideTouchEndHandler && modalEl && modalEl.parentNode) {
       trackScoreSheetEventListener(document, 'touchend', outsideTouchEndHandler, { passive: false });
       console.log('📊 Outside touch handler attached for score bottom sheet');
+    }
+    if (backdrop && modalEl && modalEl.parentNode) {
+      trackScoreSheetEventListener(backdrop, 'click', () => hideScoreBottomSheet());
+      trackScoreSheetEventListener(backdrop, 'touchend', () => hideScoreBottomSheet(), { passive: false });
     }
   }, 200);
 }
@@ -660,10 +682,14 @@ export function hideScoreBottomSheet(): void {
     if (modalEl && modalEl.parentNode) {
       modalEl.parentNode.removeChild(modalEl);
     }
+    if (backdrop && backdrop.parentNode) {
+      backdrop.parentNode.removeChild(backdrop);
+    }
     
     // 🔥 CRITICAL: Reset all state AFTER modal is removed from DOM
     (modalEl as any)._closing = false;
     modal = null;
+    backdrop = null;
     isVisible = false;
     
     // 🔥 USER REQUEST: Unfreeze board when score bottom sheet closes
@@ -708,9 +734,13 @@ export function forceHideScoreBottomSheet(): void {
       console.log('📊 Found score bottom sheet in DOM - removing it');
       domElement.remove();
     }
+    if (backdrop && backdrop.parentNode) {
+      backdrop.parentNode.removeChild(backdrop);
+    }
     // 🔥 CRITICAL: Always reset state even if modal reference is null
     isVisible = false;
     modal = null;
+    backdrop = null;
     cleanupAllScoreSheetResources();
     // 🔥 Ensure game resumes if it was paused by the sheet
     const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
@@ -748,9 +778,13 @@ export function forceHideScoreBottomSheet(): void {
   if (modalEl.parentNode) {
     modalEl.parentNode.removeChild(modalEl);
   }
+  if (backdrop && backdrop.parentNode) {
+    backdrop.parentNode.removeChild(backdrop);
+  }
   
   // Reset state AFTER removing from DOM
   modal = null;
+  backdrop = null;
   
   // 🔥 USER REQUEST: Unfreeze board when score bottom sheet is force hidden
   // Only unfreeze if end-run modal is not open (end-run modal also freezes board)
@@ -781,6 +815,10 @@ export function resetScoreBottomSheetState(): void {
   console.log('📊 Resetting score bottom sheet state');
   isVisible = false;
   modal = null;
+  if (backdrop && backdrop.parentNode) {
+    backdrop.parentNode.removeChild(backdrop);
+  }
+  backdrop = null;
   cleanupAllScoreSheetResources();
   if (outsideClickHandler) {
     document.removeEventListener('click', outsideClickHandler);

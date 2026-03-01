@@ -585,10 +585,15 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   
   logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
 
-  // 🔥 RULE 1: If ANY locked tiles exist → game ALWAYS continues (spawn can open them)
-  // Prevents false fail when merge-6 spawn hasn't completed yet (locked placeholders about to open).
-  const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && t.scale);
-  if (hasLockedTiles) {
+  // 🔥 RULE 1: If ANY locked *active* tiles exist → game continues (spawn/animations not finished)
+  // Ignore ghost placeholders (value <= 0) because they never unlock and would block fail screen.
+  const hasLockedActiveTiles = tiles.some((t: any) => {
+    if (!t || t.destroyed || !t.locked) return false;
+    if (tileIsWild(t)) return true;
+    if (t._isBeingSpawned === true) return true;
+    return (t.value | 0) > 0;
+  });
+  if (hasLockedActiveTiles) {
     lastCheckResult = { type: 'continue', reason: 'locked_tiles_present' };
     lastCheckTime = now;
     lastCheckContextHash = contextHash;

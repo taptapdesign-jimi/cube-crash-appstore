@@ -246,7 +246,7 @@ function ensureBoardIndicator() {
   
   const label = document.createElement('div');
   label.id = 'hud-board-indicator-label';
-  label.textContent = 'Board 1';
+  label.textContent = 'Board 01';
   label.style.cssText = `
     min-width: 135px;
     padding: 4px 12px;
@@ -366,7 +366,8 @@ function updateBoardIndicatorValue(boardNumber) {
     ensureBoardIndicator();
   }
   if (boardIndicatorLabel) {
-    boardIndicatorLabel.textContent = `Board ${boardNumber}`;
+    const padded = String(Math.max(0, boardNumber | 0)).padStart(2, '0');
+    boardIndicatorLabel.textContent = `Board ${padded}`;
   }
 }
 

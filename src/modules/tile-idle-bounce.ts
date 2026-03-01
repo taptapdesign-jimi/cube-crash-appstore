@@ -233,7 +233,8 @@ function animateTile(tile: Tile): void {
         ttl: 0.28,
         durationScale: 0.84,
         blendMode: 'add',
-        spawnShape: 'box'
+        spawnShape: 'box',
+        fxTag: 'tile-idle-smoke'
       });
     }
   }, null, 0.1);

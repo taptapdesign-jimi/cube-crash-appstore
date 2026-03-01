@@ -15,7 +15,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, showSparkleText, stopSparkleText, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
@@ -473,6 +473,10 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     busyEnding = false;
     return;
   }
+
+  // 🔥 UX: Stop idle bounce smoke immediately before clean board flow
+  try { TILE_IDLE_BOUNCE.stop(); } catch {}
+  try { cleanupFxContainersByTag('tile-idle-smoke'); } catch {}
 
   // 🧪 DEV LOG: Snapshot when "clean board" is triggered (cleanup stats, stage/board children, tiles, renderer, assets, gsap, memoryManager, performance.memory)
   try {
@@ -3101,17 +3105,28 @@ function rebuildBoard(){
   const sweetPopInRunner = createSweetPopInRunner({
     tiles,
     sweetPopIn,
-    onHalf: () => handleHudDropOnHalf({
-      app,
-      HUD,
-      hudRootFromWindow: (window as any).HUD_ROOT || null,
-      trackAppAnimationFrame,
-      devLog,
-      devWarn,
-      devError,
-      hudDropPending: _hudDropPending,
-      setHudDropPending: (v) => { _hudDropPending = v; },
-    }),
+    onHalf: () => {
+      handleHudDropOnHalf({
+        app,
+        HUD,
+        hudRootFromWindow: (window as any).HUD_ROOT || null,
+        trackAppAnimationFrame,
+        devLog,
+        devWarn,
+        devError,
+        hudDropPending: _hudDropPending,
+        setHudDropPending: (v) => { _hudDropPending = v; },
+      });
+      // 🔥 UX: Stronger haptic on mid pop-in (double heavy tap)
+      try {
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('heavy');
+          trackAppTimeout(300, () => {
+            try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+          });
+        }
+      } catch {}
+    },
     devLog,
   });
   
@@ -8413,6 +8428,9 @@ function checkLevelEnd(){
         // 🔥 BUG FIX: Set fail-screen-pending IMMEDIATELY to block wild spawn during 1.5s wait
         // Prevents: game stuck → wild meter fills → spawnWildFromMeter → openAtCell on destroyed tile → setValue skipped
         (window as any).__ccFailScreenPending = true;
+        // 🔥 UX: Stop idle bounce smoke immediately when fail screen is pending
+        try { TILE_IDLE_BOUNCE.stop(); } catch {}
+        try { cleanupFxContainersByTag('tile-idle-smoke'); } catch {}
         // 🔥 ANTI-EXPLOIT: Persist stuck state so hard exit cannot revert to pre-fail state
         try { saveGameState(); } catch (_) {}
         const minAfterTntChangeMs = 1000;
@@ -8444,9 +8462,23 @@ function checkLevelEnd(){
 
 function updateEndgameHintState(): void {
   try {
+    // 🔥 CRITICAL: Never show STACK IT! during final merge / clean board flow
+    if (busyEnding) {
+      updateEndgameHint(false);
+      return;
+    }
+    const hasFinalMergeFlag = tiles.some((t: any) => t && !t.destroyed && (t as any)?._isLastMerge === true);
+    if (hasFinalMergeFlag) {
+      updateEndgameHint(false);
+      return;
+    }
     // 🔥 BUG FIX: If game is stuck (no moves), NEVER show STACK IT! - fail screen will show NO MOVES
     const checkContext: EndGameContext = { tiles, moves, makeBoard };
     const checkResult = checkEndGame(checkContext, true);
+    if (checkResult.type === 'clean') {
+      updateEndgameHint(false);
+      return;
+    }
     if (checkResult.type === 'stuck') {
       updateEndgameHint(false);
       return;
@@ -9737,6 +9769,15 @@ async function loadGameState(overrideBoardNumber?: number) {
           isHudDropPending: () => _hudDropPending,
           setHudDropPending: (v) => { _hudDropPending = v; },
         });
+        // 🔥 UX: Stronger haptic on mid pop-in (double heavy tap) for load/continue path
+        try {
+          if (typeof (window as any).triggerHapticImpact === 'function') {
+            (window as any).triggerHapticImpact('heavy');
+            trackAppTimeout(300, () => {
+              try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+            });
+          }
+        } catch {}
       },
       onComplete: () => {
         // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
