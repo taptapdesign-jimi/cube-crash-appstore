@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for src/modules/wild-beer-bubbles-explosion.ts</title>
+    <title>Code coverage report for src/modules/wild-juice-bubbles-explosion.ts</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
@@ -19,7 +19,7 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/modules</a> wild-beer-bubbles-explosion.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/modules</a> wild-juice-bubbles-explosion.ts</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
@@ -3230,8 +3230,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// @ts-nocheck
-// Wild Beer Bubbles Explosion
-// Full-screen bubbles explosion effect for wild-beer merge 6 events
+// Wild Juice Bubbles Explosion
+// Full-screen bubbles explosion effect for wild-juice merge 6 events
 // Works independently of board/tile hierarchy (like board-transition-screen)
 &nbsp;
 <span class="cstat-no" title="statement not covered" >import { Container, Graphics, Sprite } from 'pixi.js';</span>
@@ -3260,7 +3260,7 @@ let cleanupInProgress = <span class="cstat-no" title="statement not covered" >fa
 let bubblyOverlay: HTMLElement | null = <span class="cstat-no" title="statement not covered" >null;</span>
 let bubblyTimelinesRef: gsap.core.Timeline[] = <span class="cstat-no" title="statement not covered" >[];</span>
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = <span class="cstat-no" title="statement not covered" >[];</span>
-const lifecycle = <span class="cstat-no" title="statement not covered" >createScreenLifecycle('wild-beer-bubbles-explosion');</span>
+const lifecycle = <span class="cstat-no" title="statement not covered" >createScreenLifecycle('wild-juice-bubbles-explosion');</span>
 &nbsp;
 function <span class="fstat-no" title="function not covered" >getFxHost(</span>stage: any): any {
 <span class="cstat-no" title="statement not covered" >  if (!stage || stage.destroyed) <span class="cstat-no" title="statement not covered" >return null;</span></span>
@@ -3389,12 +3389,12 @@ function <span class="fstat-no" title="function not covered" >updateFpsCounter(<
 }
 &nbsp;
 /**
- * Show wild-beer bubbles explosion (full-screen burst)
+ * Show wild-juice bubbles explosion (full-screen burst)
  * Works independently of board/tile hierarchy
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>howWildBeerBubblesExplosion(</span>): void {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>howWildJuiceBubblesExplosion(</span>): void {
   // 🔥 CRITICAL DEBUG: Log state before checking
-<span class="cstat-no" title="statement not covered" >  console.log('💧 showWildBeerBubblesExplosion() called', {</span>
+<span class="cstat-no" title="statement not covered" >  console.log('💧 showWildJuiceBubblesExplosion() called', {</span>
     isExplosionActive,
     explosionStartTime,
     hasContainer: !!explosionContainer,
@@ -3410,18 +3410,18 @@ function <span class="fstat-no" title="function not covered" >updateFpsCounter(<
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
     // This prevents race conditions where cleanup and new explosion conflict
 <span class="cstat-no" title="statement not covered" >    lifecycle.trackRaf(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      showWildBeerBubblesExplosionInternal();</span>
+<span class="cstat-no" title="statement not covered" >      showWildJuiceBubblesExplosionInternal();</span>
     });
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  showWildBeerBubblesExplosionInternal();</span>
+<span class="cstat-no" title="statement not covered" >  showWildJuiceBubblesExplosionInternal();</span>
 }
 &nbsp;
 /**
  * Internal function to start bubbles explosion (called after cleanup if needed)
  */
-function <span class="fstat-no" title="function not covered" >showWildBeerBubblesExplosionInternal(</span>): void {
+function <span class="fstat-no" title="function not covered" >showWildJuiceBubblesExplosionInternal(</span>): void {
   const windowState = <span class="cstat-no" title="statement not covered" >typeof window !== 'undefined' ? (window as any).STATE : null;</span>
   const app = <span class="cstat-no" title="statement not covered" >(windowState &amp;&amp; windowState.app) || null;</span>
   const stateStage = <span class="cstat-no" title="statement not covered" >(windowState &amp;&amp; windowState.stage) || null;</span>
@@ -3439,7 +3439,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
   // This handles cases where stage is temporarily unavailable during board transition
   const isBoardTransitionActive = (<span class="cstat-no" title="statement not covered" >window as any).__ccBoardTransitionActive === true;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  console.log('💧 showWildBeerBubblesExplosionInternal() - checking stage', {</span>
+<span class="cstat-no" title="statement not covered" >  console.log('💧 showWildJuiceBubblesExplosionInternal() - checking stage', {</span>
     hasWindowState: !!windowState,
     hasApp: !!app,
     hasStage: !!stage,
@@ -3455,11 +3455,11 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
       const delay = <span class="cstat-no" title="statement not covered" >isBoardTransitionActive ? 100 : 80;</span>
 <span class="cstat-no" title="statement not covered" >      console.log(`⏸️ Stage unavailable (retry ${stageRetryCount}/${maxRetries})${isBoardTransitionActive ? ' during board transition' : ''}, retrying in ${delay}ms...`);</span>
 <span class="cstat-no" title="statement not covered" >      lifecycle.trackTimeout(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        showWildBeerBubblesExplosionInternal();</span>
+<span class="cstat-no" title="statement not covered" >        showWildJuiceBubblesExplosionInternal();</span>
       }, delay);
 <span class="cstat-no" title="statement not covered" >      return;</span>
     }
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Cannot start wild-beer bubbles explosion - no stage/host (retries exhausted)');</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Cannot start wild-juice bubbles explosion - no stage/host (retries exhausted)');</span>
 <span class="cstat-no" title="statement not covered" >    stageRetryCount = 0;</span>
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
@@ -3471,7 +3471,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 <span class="cstat-no" title="statement not covered" >    cleanup();</span>
     // Wait another frame
 <span class="cstat-no" title="statement not covered" >    lifecycle.trackRaf(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      showWildBeerBubblesExplosionInternal();</span>
+<span class="cstat-no" title="statement not covered" >      showWildJuiceBubblesExplosionInternal();</span>
     });
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
@@ -3482,7 +3482,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 &nbsp;
   // Create container on stage (full-screen)
 <span class="cstat-no" title="statement not covered" >  explosionContainer = new Container();</span>
-<span class="cstat-no" title="statement not covered" >  explosionContainer.label = 'wild-beer-explosion-bubbles';</span>
+<span class="cstat-no" title="statement not covered" >  explosionContainer.label = 'wild-juice-explosion-bubbles';</span>
   // 🔥 CRITICAL FIX: Use maximum zIndex to ensure bubbles are above everything
 <span class="cstat-no" title="statement not covered" >  explosionContainer.zIndex = 999999; </span>// Above everything (maximum)
 <span class="cstat-no" title="statement not covered" >  explosionContainer.eventMode = 'none';</span>
@@ -3653,7 +3653,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
   // Get bubble colors from template
   let bubbleColors;
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    bubbleColors = getBubbleColors('wild-beer');</span>
+<span class="cstat-no" title="statement not covered" >    bubbleColors = getBubbleColors('wild-juice');</span>
 <span class="cstat-no" title="statement not covered" >    if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {</span>
 <span class="cstat-no" title="statement not covered" >      bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; </span>// Default
     }
@@ -4187,7 +4187,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 <span class="cstat-no" title="statement not covered" >    console.error('❌ Failed to call initial spawnTicker():', e);</span>
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  console.log('✅ Wild-beer bubbles explosion started', {</span>
+<span class="cstat-no" title="statement not covered" >  console.log('✅ Wild-juice bubbles explosion started', {</span>
     isExplosionActive,
     hasContainer: !!explosionContainer,
     containerInStage: !!(explosionContainer?.parent),
@@ -4236,15 +4236,15 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 }
 &nbsp;
 /**
- * Stop wild-beer bubbles explosion
+ * Stop wild-juice bubbles explosion
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>topWildBeerBubblesExplosion(</span>): void {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>topWildJuiceBubblesExplosion(</span>): void {
   // 🔥 CRITICAL DEBUG: Log cleanup call to track premature cleanup
   const wasActive = <span class="cstat-no" title="statement not covered" >isExplosionActive;</span>
-  const wasRecentlyStarted = <span class="cstat-no" title="statement not covered" >isWildBeerBubblesExplosionRecentlyStarted();</span>
+  const wasRecentlyStarted = <span class="cstat-no" title="statement not covered" >isWildJuiceBubblesExplosionRecentlyStarted();</span>
   const elapsed = <span class="cstat-no" title="statement not covered" >explosionStartTime &gt; 0 ? performance.now() - explosionStartTime : 0;</span>
   
-<span class="cstat-no" title="statement not covered" >  console.log('🛑 stopWildBeerBubblesExplosion() called', {</span>
+<span class="cstat-no" title="statement not covered" >  console.log('🛑 stopWildJuiceBubblesExplosion() called', {</span>
     wasActive,
     wasRecentlyStarted,
     elapsed: elapsed &gt; 0 ? `${elapsed.toFixed(0)}ms` : 'N/A',
@@ -4257,7 +4257,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
   // 🔥 CRITICAL FIX: Don't cleanup if explosion was just started (&lt; 100ms ago)
   // This prevents premature cleanup on new board where animation might be starting
 <span class="cstat-no" title="statement not covered" >  if (wasRecentlyStarted &amp;&amp; elapsed &lt; 100) {</span>
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ stopWildBeerBubblesExplosion: Explosion just started (&lt; 100ms ago), skipping cleanup to prevent premature stop');</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ stopWildJuiceBubblesExplosion: Explosion just started (&lt; 100ms ago), skipping cleanup to prevent premature stop');</span>
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
   
@@ -4265,16 +4265,16 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 }
 &nbsp;
 /**
- * Force stop wild-beer bubbles explosion (bypass recent-start guard).
+ * Force stop wild-juice bubbles explosion (bypass recent-start guard).
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >f</span>orceStopWildBeerBubblesExplosion(</span>): void {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >f</span>orceStopWildJuiceBubblesExplosion(</span>): void {
 <span class="cstat-no" title="statement not covered" >  cleanup();</span>
 }
 &nbsp;
 /**
  * Destroy cached bubble texture to release GPU memory (call on hard cleanup).
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >d</span>estroyWildBeerBubblesExplosionCache(</span>): void {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >d</span>estroyWildJuiceBubblesExplosionCache(</span>): void {
 <span class="cstat-no" title="statement not covered" >  if (_cachedBubbleTexture &amp;&amp; !_cachedBubbleTexture.destroyed) {</span>
 <span class="cstat-no" title="statement not covered" >    try {</span>
 <span class="cstat-no" title="statement not covered" >      _cachedBubbleTexture.destroy(true);</span>
@@ -4287,7 +4287,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
  * Check if explosion was recently started (within last 5 seconds)
  * Used to protect animation from premature cleanup during board transitions
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildBeerBubblesExplosionRecentlyStarted(</span>): boolean {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildJuiceBubblesExplosionRecentlyStarted(</span>): boolean {
 <span class="cstat-no" title="statement not covered" >  if (!isExplosionActive || explosionStartTime === 0) <span class="cstat-no" title="statement not covered" >return false;</span></span>
   const elapsed = <span class="cstat-no" title="statement not covered" >performance.now() - explosionStartTime;</span>
 <span class="cstat-no" title="statement not covered" >  return elapsed &lt; 5000; </span>// Within last 5 seconds
@@ -4296,7 +4296,7 @@ function <span class="fstat-no" title="function not covered" >showWildBeerBubble
 /**
  * Check if explosion is active
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildBeerBubblesExplosionActive(</span>): boolean {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildJuiceBubblesExplosionActive(</span>): boolean {
 <span class="cstat-no" title="statement not covered" >  return isExplosionActive;</span>
 }
 &nbsp;
@@ -4359,7 +4359,7 @@ function <span class="fstat-no" title="function not covered" >initializeBubbleTe
 &nbsp;
   let bubbleColors;
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    bubbleColors = getBubbleColors('wild-beer');</span>
+<span class="cstat-no" title="statement not covered" >    bubbleColors = getBubbleColors('wild-juice');</span>
 <span class="cstat-no" title="statement not covered" >    if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {</span>
 <span class="cstat-no" title="statement not covered" >      bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2];</span>
     }
@@ -4389,7 +4389,7 @@ function <span class="fstat-no" title="function not covered" >initializeBubbleTe
 <span class="cstat-no" title="statement not covered" >        throw new Error('Texture generation returned invalid texture');</span>
       }
 <span class="cstat-no" title="statement not covered" >      try {</span>
-<span class="cstat-no" title="statement not covered" >        _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';</span>
+<span class="cstat-no" title="statement not covered" >        _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-explosion';</span>
         const src = (<span class="cstat-no" title="statement not covered" >_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;</span>
 <span class="cstat-no" title="statement not covered" >        if (src) <span class="cstat-no" title="statement not covered" >src.label = _cachedBubbleTexture.label;</span></span>
         const rt = (<span class="cstat-no" title="statement not covered" >window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());</span>
@@ -4405,7 +4405,7 @@ function <span class="fstat-no" title="function not covered" >initializeBubbleTe
 <span class="cstat-no" title="statement not covered" >          throw new Error('Low-res texture generation returned invalid texture');</span>
         }
 <span class="cstat-no" title="statement not covered" >        try {</span>
-<span class="cstat-no" title="statement not covered" >          _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';</span>
+<span class="cstat-no" title="statement not covered" >          _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-explosion';</span>
           const src = (<span class="cstat-no" title="statement not covered" >_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;</span>
 <span class="cstat-no" title="statement not covered" >        if (src) <span class="cstat-no" title="statement not covered" >src.label = _cachedBubbleTexture.label;</span></span>
           const rt = (<span class="cstat-no" title="statement not covered" >window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());</span>
@@ -4420,7 +4420,7 @@ function <span class="fstat-no" title="function not covered" >initializeBubbleTe
 <span class="cstat-no" title="statement not covered" >            throw new Error('Auto-region texture generation returned invalid texture');</span>
           }
 <span class="cstat-no" title="statement not covered" >          try {</span>
-<span class="cstat-no" title="statement not covered" >            _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';</span>
+<span class="cstat-no" title="statement not covered" >            _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-explosion';</span>
             const src = (<span class="cstat-no" title="statement not covered" >_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;</span>
 <span class="cstat-no" title="statement not covered" >        if (src) <span class="cstat-no" title="statement not covered" >src.label = _cachedBubbleTexture.label;</span></span>
             const rt = (<span class="cstat-no" title="statement not covered" >window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());</span>

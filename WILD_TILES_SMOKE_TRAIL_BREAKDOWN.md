@@ -1,6 +1,6 @@
 # 📊 WILD TILES SMOKE TRAIL BREAKDOWN
 
-## Analiza particlesa za wild zvjezdicu, wild beer i wild magnet
+## Analiza particlesa za wild zvjezdicu, wild juice i wild magnet
 
 ---
 
@@ -42,7 +42,7 @@
 
 ---
 
-## 2. WILD BEER 🍺
+## 2. WILD JUICE 🍺
 
 ### Količina particlesa:
 - **Base shard count:** 12 particles
@@ -120,7 +120,7 @@
 
 ## 📊 USPOREDBA
 
-| Parametar | Wild Zvjezdica ⭐ | Wild Beer 🍺 | Wild Magnet 🧲 |
+| Parametar | Wild Zvjezdica ⭐ | Wild Juice 🍺 | Wild Magnet 🧲 |
 |-----------|------------------|-------------|----------------|
 | **Količina** | 12 particles | 12 particles | 12 particles |
 | **Particles/sekundi** | 48 | 48 | 48 |
@@ -137,17 +137,17 @@
 
 ### 1. Oblik:
 - **Wild Zvjezdica:** Pravokutnik (rect)
-- **Wild Beer:** **Krug (circle)** 🔥 - jedini koristi krugove
+- **Wild Juice:** **Krug (circle)** 🔥 - jedini koristi krugove
 - **Wild Magnet:** Pravokutnik (rect)
 
 ### 2. Boja:
 - **Wild Zvjezdica:** 5 nijansi bež/krem
-- **Wild Beer:** 5 nijansi bež/krem (ista kao zvjezdica)
+- **Wild Juice:** 5 nijansi bež/krem (ista kao zvjezdica)
 - **Wild Magnet:** **6 nijansi (5 bež/krem + 1 crvena `0xF26034`)** 🔥
 
 ### 3. Veličina:
 - **Wild Zvjezdica:** 12-24px × 16-32px (pravokutnik)
-- **Wild Beer:** 16-32px diameter (krug) - slična veličina kao pravokutnik
+- **Wild Juice:** 16-32px diameter (krug) - slična veličina kao pravokutnik
 - **Wild Magnet:** 12-24px × 16-32px (pravokutnik)
 
 ---
@@ -155,9 +155,9 @@
 ## 💡 ZAKLJUČAK
 
 **Svi wild tiles koriste istu količinu particlesa (12) i isti spawn interval (250ms), ali se razlikuju po:**
-1. **Obliku:** Wild beer koristi krugove, ostali pravokutnike
+1. **Obliku:** Wild juice koristi krugove, ostali pravokutnike
 2. **Boji:** Wild magnet ima dodatnu crvenu boju u paleti
-3. **Veličini:** Wild beer koristi radius-based sizing (krug), ostali width/height-based (pravokutnik)
+3. **Veličini:** Wild juice koristi radius-based sizing (krug), ostali width/height-based (pravokutnik)
 
 **Performance:** Svi imaju isti performance impact (48 particles/sekundi, 0.3-0.6s duration).
 

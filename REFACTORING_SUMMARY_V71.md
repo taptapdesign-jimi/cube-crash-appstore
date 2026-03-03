@@ -27,7 +27,7 @@
 ---
 
 ### Korak 4: Poboljšana `isLastMergeScenario()` ✅
-- Poboljšana logika da pokriva sve scenarije (wild + regular, regular + regular, wild-beer + regular)
+- Poboljšana logika da pokriva sve scenarije (wild + regular, regular + regular, wild-juice + regular)
 - Uklonjena redundantna provjera u `checkEndGame()`
 
 **Rezultat:** Konsolidirana logika za "last merge" provjeru.

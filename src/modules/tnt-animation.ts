@@ -499,7 +499,7 @@ export function showTntAnimation(options: {
       'font-weight: 800',
       'font-size: 64px',
       'line-height: 1',
-      'color: #FFF',
+      'color: #CC9882',
       'text-align: center',
       'opacity: 0',
       'transform: scale(0) perspective(1000px) translateZ(0)',

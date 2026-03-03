@@ -6,7 +6,7 @@
 |------------|----------|----------|--------|
 | **Regular** (obične) | `regularMerge6ShardsTemplated()` | `selectPattern('regular')` | ✅ Templatiziran |
 | **Wild Zvjezdica** | `wildStarMerge6ShardsTemplated()` | `selectPattern('wildStar')` | ✅ Templatiziran |
-| **Wild Beer** | `wildBeerMerge6ShardsTemplated()` | `selectPattern('wildBeer')` | ✅ Templatiziran |
+| **Wild Juice** | `wildJuiceMerge6ShardsTemplated()` | `selectPattern('wildJuice')` | ✅ Templatiziran |
 | **Wild Magnet** | `wildMagnetMerge6ShardsTemplated()` | `selectPattern('wildMagnet')` | ✅ Templatiziran |
 | **Wild** (generic) | `wildMerge6ShardsTemplated()` | `selectPattern('wild')` | ✅ Templatiziran |
 
@@ -20,7 +20,7 @@
 |------------|----------|----------|--------|
 | **Regular** | `dragSmokeTrail()` | `getDragParticleColors(null)` | ✅ **Templatiziran** |
 | **Wild Zvjezdica** | `magicSparklesAtTile()` | `getDragParticleColors('wild')` | ✅ **Templatiziran** |
-| **Wild Beer** | `magicSparklesAtTile()` | `getDragParticleColors('wild-beer')` | ✅ **Templatiziran** |
+| **Wild Juice** | `magicSparklesAtTile()` | `getDragParticleColors('wild-juice')` | ✅ **Templatiziran** |
 | **Wild Magnet** | `magicSparklesAtTile()` | `getDragParticleColors('wild-magnet')` | ✅ **Templatiziran** |
 
 ### Detalji:
@@ -34,7 +34,7 @@
 - **Boje**: `getDragParticleColors(tile.special)` → paleta iz wooden template
   - Regular: `woodenDragParticleColors.regular` (beige/cream)
   - Wild Star: `woodenDragParticleColors.wild` (yellow)
-  - Wild Beer: `woodenDragParticleColors.wildBeer` (orange)
+  - Wild Juice: `woodenDragParticleColors.wildJuice` (orange)
   - Wild Magnet: `woodenDragParticleColors.wildMagnet` (red)
 - **Template**: ✅ Koristi `getDragParticleColors()` iz wooden template
 - **Status**: ✅ **Templatiziran**
@@ -56,8 +56,8 @@
 ## 📊 Sažetak
 
 ### ✅ Templatizirano:
-- ✅ **Merge 6 Shards** (svi tipovi): Regular, Wild, Wild Star, Wild Beer, Wild Magnet
-- ✅ **Drag Particles** (smoke trail): Regular, Wild Zvjezdica, Wild Beer, Wild Magnet
+- ✅ **Merge 6 Shards** (svi tipovi): Regular, Wild, Wild Star, Wild Juice, Wild Magnet
+- ✅ **Drag Particles** (smoke trail): Regular, Wild Zvjezdica, Wild Juice, Wild Magnet
 - ✅ **Idle Particles**: Wild Magnet
 
 **Zaključak**: ✅ **SVE JE TEMPLATIZIRANO!** Svi efekti, particles i shards koriste wooden template sistem.

@@ -26,7 +26,7 @@ Review of console output from a full playthrough (boards 5–9) with `__ccLogRun
 
 ### 3. Bubbles explosion timeout
 
-- **Log**: `⚠️ Bubbles explosion wait timeout, forcing cleanup` (`wild-beer-bubbles-explosion.ts:1109`)
+- **Log**: `⚠️ Bubbles explosion wait timeout, forcing cleanup` (`wild-juice-bubbles-explosion.ts:1109`)
 - **Status**: Expected when bubbles do not finish before a timeout; cleanup runs.
 - **Action**: Optional: tune timeout or bubble animation duration if this appears too often.
 

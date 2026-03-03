@@ -125,7 +125,7 @@
 
 **UI Elementi na koje utječe:**
 - **Board Container** (glavni board element)
-- **Wild Tiles** (wild-beer, wild-magnet, wild tiles)
+- **Wild Tiles** (wild-juice, wild-magnet, wild tiles)
 - **Tile Animacije** (spawn, merge, destroy animacije)
 
 **Konkretni utjecaj:**

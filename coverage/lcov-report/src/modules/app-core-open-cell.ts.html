@@ -388,7 +388,7 @@
     value?: number | null;
     isWild?: boolean;
     isWildMagnet?: boolean;
-    isWildBeer?: boolean;
+    isWildJuice?: boolean;
     isWildTnt?: boolean;
     skipBind?: boolean;
     timeScale?: number;
@@ -401,7 +401,7 @@
   bindTileWithFallback: (tile: any, skipBind: boolean) =&gt; void;
   applyWildSkinLocal: (tile: any) =&gt; void;
   startWildShimmer: (tile: any) =&gt; void;
-  startWildBeerBubbles: (tile: any) =&gt; void;
+  startWildJuiceBubbles: (tile: any) =&gt; void;
   startWildStars: (tile: any) =&gt; void;
   startTntIdleParticles: (tile: any) =&gt; void;
   startTntIdleShake: (tile: any) =&gt; void;
@@ -421,7 +421,7 @@
   bindTileWithFallback,
   applyWildSkinLocal,
   startWildShimmer,
-  startWildBeerBubbles,
+  startWildJuiceBubbles,
   startWildStars,
   startTntIdleParticles,
   startTntIdleShake,
@@ -432,7 +432,7 @@
     value = <span class="branch-0 cbranch-no" title="branch not covered" >null,</span>
     isWild = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
     isWildMagnet = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
-    isWildBeer = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
+    isWildJuice = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
     isWildTnt = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
     skipBind = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span>
     timeScale = <span class="branch-0 cbranch-no" title="branch not covered" >1.0,</span>
@@ -444,7 +444,7 @@
     // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
     // Check value and wild first — even locked tiles with value &gt; 0 must be skipped.
 <span class="cstat-no" title="statement not covered" >    if (holder) {</span>
-      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;</span>
+      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;</span>
       const hasValue = <span class="cstat-no" title="statement not covered" >(holder.value | 0) &gt; 0;</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      if (hasValue || isWildTile) {</span>
@@ -475,7 +475,7 @@
     // Double-check: re-read grid in case of race with another spawn
 <span class="cstat-no" title="statement not covered" >    holder = grid?.[r]?.[c] || null;</span>
 <span class="cstat-no" title="statement not covered" >    if (holder) {</span>
-      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;</span>
+      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;</span>
       const hasValue = <span class="cstat-no" title="statement not covered" >(holder.value | 0) &gt; 0;</span>
 <span class="cstat-no" title="statement not covered" >      if (hasValue || isWildTile || !holder.locked) {</span>
 <span class="cstat-no" title="statement not covered" >        resolve(false);</span>
@@ -484,7 +484,7 @@
     }
 &nbsp;
     // Wild spawn: prefer existing ghost placeholder; in end game cell can be null — create tile then apply wild
-<span class="cstat-no" title="statement not covered" >    if ((isWild || isWildMagnet || isWildBeer || isWildTnt) &amp;&amp; !holder) {</span>
+<span class="cstat-no" title="statement not covered" >    if ((isWild || isWildMagnet || isWildJuice || isWildTnt) &amp;&amp; !holder) {</span>
 <span class="cstat-no" title="statement not covered" >      holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });</span>
     }
 <span class="cstat-no" title="statement not covered" >    if (!holder) <span class="cstat-no" title="statement not covered" >holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });</span></span>
@@ -505,9 +505,9 @@
 <span class="cstat-no" title="statement not covered" >    delete holder._wildMagnetPulledTilesMerge;</span>
 <span class="cstat-no" title="statement not covered" >    delete holder._wildMagnetPulledTilesScoring;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (isWild || isWildMagnet || isWildBeer || isWildTnt){</span>
+<span class="cstat-no" title="statement not covered" >    if (isWild || isWildMagnet || isWildJuice || isWildTnt){</span>
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
-<span class="cstat-no" title="statement not covered" >      holder.special = isWildTnt ? 'wild-tnt' : (isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild'));</span>
+<span class="cstat-no" title="statement not covered" >      holder.special = isWildTnt ? 'wild-tnt' : (isWildJuice ? 'wild-juice' : (isWildMagnet ? 'wild-magnet' : 'wild'));</span>
 <span class="cstat-no" title="statement not covered" >      holder.isWild = true;</span>
 <span class="cstat-no" title="statement not covered" >      holder.isWildFace = true;</span>
 <span class="cstat-no" title="statement not covered" >      holder.value = 6;</span>
@@ -518,8 +518,8 @@
 <span class="cstat-no" title="statement not covered" >      try {</span>
 <span class="cstat-no" title="statement not covered" >        startWildShimmer(holder); </span>// Use shimmer instead of bounce
         // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-<span class="cstat-no" title="statement not covered" >        if (holder.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >          startWildBeerBubbles(holder);</span>
+<span class="cstat-no" title="statement not covered" >        if (holder.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >          startWildJuiceBubbles(holder);</span>
         } else <span class="cstat-no" title="statement not covered" >if (holder.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >          startTntIdleParticles(holder);</span>
 <span class="cstat-no" title="statement not covered" >          startTntIdleShake(holder);</span>

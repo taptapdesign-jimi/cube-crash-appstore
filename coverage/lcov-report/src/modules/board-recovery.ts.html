@@ -786,7 +786,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// src/modules/board-recovery.ts
 // 🔥 CRITICAL: Board stuck state detection and recovery module
 // Handles edge cases where app is force-quit during last merge animations
-// (e.g., wild beer bubbles, wild star particles) leaving board in stuck state
+// (e.g., wild juice bubbles, wild star particles) leaving board in stuck state
 &nbsp;
 <span class="cstat-no" title="statement not covered" >import { logger } from '../core/logger.js';</span>
 &nbsp;
@@ -970,7 +970,7 @@ const MAX_MERGE_VALUE = <span class="cstat-no" title="statement not covered" >6;
   // Wild + Wild same value can't merge, leading to stuck state
 <span class="cstat-no" title="statement not covered" >  if (activeTiles.length === 2 &amp;&amp; lockedTiles.length === 0) {</span>
     const bothWild = <span class="cstat-no" title="statement not covered" >activeTiles.every(<span class="fstat-no" title="function not covered" >t </span>=&gt; </span>
-<span class="cstat-no" title="statement not covered" >      t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet'</span>
+<span class="cstat-no" title="statement not covered" >      t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet'</span>
     );
     const sameValue = <span class="cstat-no" title="statement not covered" >activeTiles[0].value === activeTiles[1].value;</span>
     
@@ -1021,8 +1021,8 @@ function <span class="fstat-no" title="function not covered" >checkIfAnyMergePos
       const t1 = <span class="cstat-no" title="statement not covered" >tiles[i];</span>
       const t2 = <span class="cstat-no" title="statement not covered" >tiles[j];</span>
       
-      const t1IsWild = <span class="cstat-no" title="statement not covered" >t1.special === 'wild' || t1.special === 'wild-beer' || t1.special === 'wild-tnt' || t1.special === 'wild-magnet';</span>
-    const t2IsWild = <span class="cstat-no" title="statement not covered" >t2.special === 'wild' || t2.special === 'wild-beer' || t2.special === 'wild-tnt' || t2.special === 'wild-magnet';</span>
+      const t1IsWild = <span class="cstat-no" title="statement not covered" >t1.special === 'wild' || t1.special === 'wild-juice' || t1.special === 'wild-tnt' || t1.special === 'wild-magnet';</span>
+    const t2IsWild = <span class="cstat-no" title="statement not covered" >t2.special === 'wild' || t2.special === 'wild-juice' || t2.special === 'wild-tnt' || t2.special === 'wild-magnet';</span>
       
       // Wild + Wild same value can't merge
 <span class="cstat-no" title="statement not covered" >      if (t1IsWild &amp;&amp; t2IsWild &amp;&amp; t1.value === t2.value) {</span>

@@ -1,7 +1,7 @@
-# Assessment: Zašto postoji delay u animaciji mjehurića nakon merge 6 wild-beer
+# Assessment: Zašto postoji delay u animaciji mjehurića nakon merge 6 wild-juice
 
 ## Problem
-Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockicom. Postoji delay od ~1 sekunde.
+Mjehurići se ne vide odmah kada se napravi merge 6 wild-juice sa običnom kockicom. Postoji delay od ~1 sekunde.
 
 ## Root Cause Analysis
 
@@ -9,7 +9,7 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 **Lokacija:** `src/modules/app-core.ts`, linija ~3473
 
 **Problem:**
-- `createWildBeerBubblesExplosion` se poziva tek kada se pozove `woodShardsAtTile`
+- `createWildJuiceBubblesExplosion` se poziva tek kada se pozove `woodShardsAtTile`
 - Ali `woodShardsAtTile` se poziva tek nakon svih provjera u `effSum === 6` bloku:
   - Last merge detection (linija 2324-2578)
   - Wild-magnet pull logic (linija 2361-2418)
@@ -21,7 +21,7 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 
 **Rezultat:** Delay od ~500ms-1000ms između trenutka kada se merge 6 detektira i kada se bubbles animacija pokrene.
 
-### 2. Funkcija `createWildBeerBubblesExplosion` ima dodatni delay
+### 2. Funkcija `createWildJuiceBubblesExplosion` ima dodatni delay
 **Lokacija:** `src/modules/fx.js`, linija 1279-1653
 
 **Problem:**
@@ -40,8 +40,8 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 - Korisnik će vidjeti mjehuriće istovremeno s početkom merge 6 procesa
 
 **Implementacija:**
-1. Premjestiti poziv `createWildBeerBubblesExplosion` na liniju ~2318 (odmah nakon `if (effSum === 6){`)
-2. Provjeriti da li je wild-beer merge PRIJE nego što se pozove funkcija
+1. Premjestiti poziv `createWildJuiceBubblesExplosion` na liniju ~2318 (odmah nakon `if (effSum === 6){`)
+2. Provjeriti da li je wild-juice merge PRIJE nego što se pozove funkcija
 3. Koristiti `src` i `dst` tile-ove koji su još uvijek dostupni
 
 ### Rješenje 2: Spawnati prvi batch mjehurića SINHRONO prije ticker-a
@@ -50,7 +50,7 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 - Korisnik će vidjeti mjehuriće prije nego što se animacija zapravo pokrene
 
 **Implementacija:**
-1. U `createWildBeerBubblesExplosion`, spawnati prvi batch mjehurića SINHRONO (bez ticker-a)
+1. U `createWildJuiceBubblesExplosion`, spawnati prvi batch mjehurića SINHRONO (bez ticker-a)
 2. Postaviti ih na poziciju gdje će biti vidljivi odmah
 3. Zatim pokrenuti ticker za ostatak mjehurića
 
@@ -67,13 +67,13 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 ## Preporučeno Rješenje
 
 **Rješenje 3 (Kombinirano)** - najbolje korisničko iskustvo:
-1. Premjestiti poziv `createWildBeerBubblesExplosion` na sam početak `effSum === 6` bloka
+1. Premjestiti poziv `createWildJuiceBubblesExplosion` na sam početak `effSum === 6` bloka
 2. Spawnati prvi batch mjehurića sinhrono (bez ticker-a) za instant vidljivost
 3. Pokrenuti ticker za ostatak mjehurića
 
 ## Test Plan
 
-1. Napraviti merge 6 wild-beer sa običnom kockicom
+1. Napraviti merge 6 wild-juice sa običnom kockicom
 2. Provjeriti da li se mjehurići vide ODMAH (bez delay-a)
 3. Provjeriti da li se mjehurići vide PRIJE shards animacije
 4. Provjeriti da li animacija teče glatko bez lag-a

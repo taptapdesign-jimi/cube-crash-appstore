@@ -94,7 +94,7 @@
 
 **Sve animacije rade identično:**
 - ✅ Merge-6 shards eksplozija - ista animacija
-- ✅ Wild beer bubbles - iste particles
+- ✅ Wild juice bubbles - iste particles
 - ✅ Wild star sparkles - iste particles
 - ✅ Full-screen explosion - ista eksplozija
 

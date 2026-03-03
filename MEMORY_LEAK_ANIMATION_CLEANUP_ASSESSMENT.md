@@ -14,7 +14,7 @@ Provjera cleanup logike za animacije, memory management i save funkcionalnost ka
   - `stopWildIdle`
   - `stopWildShimmer`
   - `stopWildStars`
-  - `stopWildBeerBubbles`
+  - `stopWildJuiceBubbles`
   - `stopMagnetIdleParticles`
 - Killuje GSAP tweens: `gsap.killTweensOf(t)`, `gsap.killTweensOf(t.scale)`, `gsap.killTweensOf(t.rotG)`
 
@@ -64,7 +64,7 @@ Provjera cleanup logike za animacije, memory management i save funkcionalnost ka
     try { stopWildIdle?.(t); } catch {}
     try { stopWildShimmer?.(t); } catch {}
     try { stopWildStars?.(t); } catch {}
-    try { stopWildBeerBubbles?.(t); } catch {}
+    try { stopWildJuiceBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
     try { gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG); } catch {}
     t.destroy({children:true, texture:false, textureSource:false});
@@ -92,7 +92,7 @@ Provjera cleanup logike za animacije, memory management i save funkcionalnost ka
 - **Rješenje**: Dodati `saveGameState()` poziv nakon što se clean board modal zatvori i score je finaliziran
 
 ### 5. **NISKI**: Graphics objekti (shards, bubbles) možda se ne cleanupaju dovoljno agresivno
-- **Lokacija**: `fx.js` (woodShardsAtTile, startWildBeerBubbles)
+- **Lokacija**: `fx.js` (woodShardsAtTile, startWildJuiceBubbles)
 - **Status**: ✅ Djelomično radi (auto-destroy nakon TTL)
 - **Problem**: Ako se board završi prije nego što TTL istekne, objekti mogu ostati
 - **Rješenje**: Provjeriti da li se svi Graphics objekti cleanupaju u cleanup funkcijama

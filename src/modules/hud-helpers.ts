@@ -570,7 +570,16 @@ function makeWildLoader() {
     if (animate) {
       // Use GSAP to animate the width by redrawing the fill
       const startWidth = container._fill.width || 0;
-      
+      const isIPad = (() => {
+        if (typeof window === 'undefined') return false;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        return /iPad/.test(navigator.userAgent) ||
+          ((w >= 768 && w <= 1400) && (h >= 768 && h <= 1400)) ||
+          (navigator.maxTouchPoints > 1 && w >= 768 && w <= 1400);
+      })();
+      const duration = isIPad ? 0.32 : 0.4; // 20% faster on iPad
+
       // Start smoke effect during animation
       container._smokeInterval = setInterval(() => {
         if (!container?.parent || !container._fill) return;
@@ -616,7 +625,7 @@ function makeWildLoader() {
       
       container._currentAnimation = trackTween({ width: startWidth }, {
         width: width,
-        duration: 0.4,
+        duration,
         ease: 'power2.out',
         onUpdate: function() {
           const f = container._fill;

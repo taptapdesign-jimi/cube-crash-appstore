@@ -121,7 +121,7 @@ npx tsc --noEmit
 **Rezultat:** ⚠️ Existing TypeScript errors (nisu povezani sa našim promjenama)
 
 ### Runtime Test:
-- ⏳ **Potrebno testirati:** End game scenarije sa wild beer, wild star, wild magnet
+- ⏳ **Potrebno testirati:** End game scenarije sa wild juice, wild star, wild magnet
 - ⏳ **Potrebno testirati:** Merge 6 spawn logiku u end game
 - ⏳ **Potrebno testirati:** Wild-magnet pull logiku
 
@@ -201,7 +201,7 @@ Testing: End game scenarios need runtime testing
 
 ### Prioritet 1: Testing (URGENT)
 1. ⏳ **Testiraj end game scenarije:**
-   - Wild beer merge 6 u end game (1 kockica spawn na istom mjestu)
+   - Wild juice merge 6 u end game (1 kockica spawn na istom mjestu)
    - Wild star merge 6 u end game (1 kockica spawn na istom mjestu)
    - Wild magnet merge 6 u end game (pull + merge)
    - Obične kockice merge 6 u end game (clean board)

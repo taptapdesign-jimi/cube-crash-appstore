@@ -518,13 +518,13 @@
   stopTntIdleParticles?: (tile: any) =&gt; void;
   startTntIdleShake?: (tile: any) =&gt; void;
   stopTntIdleShake?: (tile: any) =&gt; void;
-  startWildBeerBubbles?: (tile: any) =&gt; void;
+  startWildJuiceBubbles?: (tile: any) =&gt; void;
   trackAppTimeout: (fn: () =&gt; void, ms: number) =&gt; any;
   STATE: { drag?: any };
   devLog: (...args: any[]) =&gt; void;
   devWarn: (...args: any[]) =&gt; void;
   devError: (...args: any[]) =&gt; void;
-  setWildBeerSpawned: (v: boolean) =&gt; void;
+  setWildJuiceSpawned: (v: boolean) =&gt; void;
 };
 &nbsp;
 type TileRestoreResult = {
@@ -550,13 +550,13 @@ type TileRestoreResult = {
   stopTntIdleParticles,
   startTntIdleShake,
   stopTntIdleShake,
-  startWildBeerBubbles,
+  startWildJuiceBubbles,
   trackAppTimeout,
   STATE,
   devLog,
   devWarn,
   devError,
-  setWildBeerSpawned,
+  setWildJuiceSpawned,
 }: TileRestoreDeps): TileRestoreResult {
 <span class="cstat-no" title="statement not covered" >  tiles.forEach(<span class="fstat-no" title="function not covered" >t </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    try { <span class="cstat-no" title="statement not covered" >stopWildIdle?.(t); </span>} catch {}</span>
@@ -632,7 +632,7 @@ type TileRestoreResult = {
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    tile.value = value;</span>
     const savedSpecial = <span class="cstat-no" title="statement not covered" >snapshot?.special || null;</span>
-    const isWildSnapshot = <span class="cstat-no" title="statement not covered" >savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-beer' || snapshot?.isWild || snapshot?.isWildFace;</span>
+    const isWildSnapshot = <span class="cstat-no" title="statement not covered" >savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-juice' || snapshot?.isWild || snapshot?.isWildFace;</span>
 <span class="cstat-no" title="statement not covered" >    tile.special = savedSpecial;</span>
 <span class="cstat-no" title="statement not covered" >    tile.isWild = !!isWildSnapshot;</span>
 <span class="cstat-no" title="statement not covered" >    tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);</span>
@@ -685,14 +685,14 @@ type TileRestoreResult = {
 <span class="cstat-no" title="statement not covered" >        try { <span class="cstat-no" title="statement not covered" >startTntIdleParticles?.(tile); </span>} catch {}</span>
 <span class="cstat-no" title="statement not covered" >        try { <span class="cstat-no" title="statement not covered" >startTntIdleShake?.(tile); </span>} catch {}</span>
       }
-<span class="cstat-no" title="statement not covered" >      if (tile.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >        setWildBeerSpawned(true);</span>
+<span class="cstat-no" title="statement not covered" >      if (tile.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >        setWildJuiceSpawned(true);</span>
 <span class="cstat-no" title="statement not covered" >        try {</span>
-<span class="cstat-no" title="statement not covered" >          if (typeof startWildBeerBubbles === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >            startWildBeerBubbles(tile);</span>
+<span class="cstat-no" title="statement not covered" >          if (typeof startWildJuiceBubbles === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >            startWildJuiceBubbles(tile);</span>
           }
         } catch (error) {
-<span class="cstat-no" title="statement not covered" >          devWarn('⚠️ Failed to start wild-beer bubbles on load:', error);</span>
+<span class="cstat-no" title="statement not covered" >          devWarn('⚠️ Failed to start wild-juice bubbles on load:', error);</span>
         }
       }
     } else {

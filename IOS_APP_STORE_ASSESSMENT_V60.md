@@ -291,7 +291,7 @@ tiles.forEach(t => {
 ### **5.2 Wild Animations - 92%**
 
 #### ✅ **Pozitivne Stvari:**
-- **Wild Beer Bubbles:** Optimizirane bubble animacije
+- **Wild Juice Bubbles:** Optimizirane bubble animacije
 - **Wild Stars:** Orbit animacije s proper cleanup
 - **Wild Shimmer:** Shimmer efekti s cleanup
 - **Magnet Particles:** Particle system s cleanup

@@ -22,7 +22,7 @@ interface TemplateColors {
   regular: number;
   wild: number;
   wildStar?: number;
-  wildBeer?: number;
+  wildJuice?: number;
   wildMagnet?: number;
   smoke?: number;
   [key: string]: number | undefined;
@@ -32,7 +32,7 @@ interface DragParticleColors {
   regular: number[];
   wild?: number[];
   wildStar?: number[];
-  wildBeer?: number[];
+  wildJuice?: number[];
   wildMagnet?: number[];
   [key: string]: number[] | undefined;
 }
@@ -41,7 +41,7 @@ interface BubbleColors {
   regular: number[];
   wild?: number[];
   wildStar?: number[];
-  wildBeer?: number[];
+  wildJuice?: number[];
   wildMagnet?: number[];
   [key: string]: number[] | undefined;
 }
@@ -259,7 +259,7 @@ export function getColor(colorType: string): number {
 
 /**
  * Get drag particle colors for a tile type
- * @param tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @param tileSpecial - 'wild', 'wild-juice', 'wild-magnet', or null for regular
  * @returns Array of color hex values
  */
 export function getDragParticleColors(tileSpecial: string | null): number[] {
@@ -272,8 +272,8 @@ export function getDragParticleColors(tileSpecial: string | null): number[] {
   let colorKey = 'regular'; // Default
   if (tileSpecial === 'wild') {
     colorKey = 'wild';
-  } else if (tileSpecial === 'wild-beer') {
-    colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-juice') {
+    colorKey = 'wildJuice';
   } else if (tileSpecial === 'wild-tnt') {
     colorKey = 'wildTnt';
   } else if (tileSpecial === 'wild-magnet') {
@@ -306,7 +306,7 @@ export function getDragParticleColors(tileSpecial: string | null): number[] {
 
 /**
  * Get bubble colors for a tile type (for full-screen bubbles explosion)
- * @param tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @param tileSpecial - 'wild', 'wild-juice', 'wild-magnet', or null for regular
  * @returns Array of color hex values
  */
 export function getBubbleColors(tileSpecial: string | null): number[] {
@@ -319,8 +319,8 @@ export function getBubbleColors(tileSpecial: string | null): number[] {
   let colorKey = 'regular'; // Default
   if (tileSpecial === 'wild') {
     colorKey = 'wild';
-  } else if (tileSpecial === 'wild-beer') {
-    colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-juice') {
+    colorKey = 'wildJuice';
   } else if (tileSpecial === 'wild-tnt') {
     colorKey = 'wildTnt';
   } else if (tileSpecial === 'wild-magnet') {

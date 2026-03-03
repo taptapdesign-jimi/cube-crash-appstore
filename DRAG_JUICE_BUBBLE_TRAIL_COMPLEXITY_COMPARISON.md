@@ -1,10 +1,10 @@
-# 📊 DRAG BEER BUBBLE TRAIL vs SHARDS COMPLEXITY COMPARISON
+# 📊 DRAG JUICE BUBBLE TRAIL vs SHARDS COMPLEXITY COMPARISON
 
 ## Analiza kompleksnosti sistema
 
 ---
 
-## 1. MAGICSPARKLESATTILE (Shards/Particles) - Wild Star & Wild Beer
+## 1. MAGICSPARKLESATTILE (Shards/Particles) - Wild Star & Wild Juice
 
 **Lokacija:** `src/modules/fx.js` linija 523-632
 
@@ -42,7 +42,7 @@ for (let i = 0; i < shardCount; i++) {
 
 ---
 
-## 2. DRAGBEERBUBBLETRAIL (Bubbles) - Wild Beer Only
+## 2. DRAGJUICEBUBBLETRAIL (Bubbles) - Wild Juice Only
 
 **Lokacija:** `src/modules/fx.js` linija 2561-2650
 
@@ -89,7 +89,7 @@ for (let i = 0; i < count; i++) {
 
 ### Po pozivu (jednom pozivu funkcije):
 
-| Metrika | magicSparklesAtTile | dragBeerBubbleTrail | Razlika |
+| Metrika | magicSparklesAtTile | dragJuiceBubbleTrail | Razlika |
 |---------|---------------------|---------------------|---------|
 | **Graphics objekti** | 12 | 7 (prosjek) | -42% (manje objekata) |
 | **GSAP animacije** | 12 | 21 (prosjek) | +75% (više animacija) |
@@ -100,7 +100,7 @@ for (let i = 0; i < count; i++) {
 
 ### Tijekom drag-a (svakih 120ms):
 
-| Metrika | magicSparklesAtTile | dragBeerBubbleTrail | Razlika |
+| Metrika | magicSparklesAtTile | dragJuiceBubbleTrail | Razlika |
 |---------|---------------------|---------------------|---------|
 | **Poziva po sekundi** | ~8.3 (120ms interval) | ~8.3 (120ms interval) | Isto |
 | **Graphics objekti/sekundi** | 100 (12 × 8.3) | 58 (7 × 8.3) | -42% |
@@ -111,7 +111,7 @@ for (let i = 0; i < count; i++) {
 
 ## 🎯 ZAKLJUČAK
 
-### dragBeerBubbleTrail je **75-200% kompleksniji** od magicSparklesAtTile:
+### dragJuiceBubbleTrail je **75-200% kompleksniji** od magicSparklesAtTile:
 
 1. **GSAP animacije:** +75% (21 vs 12 animacije po pozivu)
 2. **Animacije po objektu:** +200% (3 vs 1 animacija)
@@ -128,7 +128,7 @@ for (let i = 0; i < count; i++) {
 - **Delay u animaciji** (alpha fade s delay-om) = dodatna kompleksnost
 
 ### Preporuka:
-**Koristiti samo `magicSparklesAtTile` za wild beer** (kao wild zvjezdica) jer je:
+**Koristiti samo `magicSparklesAtTile` za wild juice** (kao wild zvjezdica) jer je:
 - **150% jednostavniji**
 - **75% manje GSAP animacija**
 - **2.5x brže cleanup** (0.3-0.6s vs 0.8-1.5s)

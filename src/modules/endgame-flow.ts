@@ -175,9 +175,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       if (result === 'timeout') {
         console.warn('⚠️ endgame-flow: Animation wait timed out - forcing cleanup to proceed');
         try {
-          const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
-          if (bubblesModule && typeof bubblesModule.stopWildBeerBubblesExplosion === 'function') {
-            bubblesModule.stopWildBeerBubblesExplosion();
+          const bubblesModule = await import('./wild-juice-bubbles-explosion.js');
+          if (bubblesModule && typeof bubblesModule.stopWildJuiceBubblesExplosion === 'function') {
+            bubblesModule.stopWildJuiceBubblesExplosion();
           }
         } catch {}
         try {
@@ -560,15 +560,15 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         // Ignore errors
       }
 
-      // 🔥 MEMORY SPIKE FIX: Stop and destroy wild-beer bubble caches BEFORE transition.
+      // 🔥 MEMORY SPIKE FIX: Stop and destroy wild-juice bubble caches BEFORE transition.
       // Board 6 often has explosion active; freeing these early reduces peak during 6→7 transition.
       try {
-        const bubbles = await import('./wild-beer-bubbles-explosion.js');
-        const bubblesScreen = await import('./wild-beer-bubbles-screen.js');
-        bubbles.forceStopWildBeerBubblesExplosion?.();
-        bubblesScreen.stopWildBeerBubblesScreen?.();
-        bubbles.destroyWildBeerBubblesExplosionCache?.();
-        bubblesScreen.destroyWildBeerBubblesScreenCache?.();
+        const bubbles = await import('./wild-juice-bubbles-explosion.js');
+        const bubblesScreen = await import('./wild-juice-bubbles-screen.js');
+        bubbles.forceStopWildJuiceBubblesExplosion?.();
+        bubblesScreen.stopWildJuiceBubblesScreen?.();
+        bubbles.destroyWildJuiceBubblesExplosionCache?.();
+        bubblesScreen.destroyWildJuiceBubblesScreenCache?.();
         console.log('✅ endgame-flow: Bubble caches destroyed before transition');
       } catch (e) {
         console.warn('⚠️ endgame-flow: Bubble cache cleanup failed (non-fatal):', e);
@@ -686,8 +686,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } catch {}
       // Defensive: stop heavy FX before transition to reduce crash risk
       try {
-        const bubbles = await import('./wild-beer-bubbles-explosion.js');
-        bubbles.forceStopWildBeerBubblesExplosion?.();
+        const bubbles = await import('./wild-juice-bubbles-explosion.js');
+        bubbles.forceStopWildJuiceBubblesExplosion?.();
         await new Promise(resolve => requestAnimationFrame(resolve));
       } catch {}
       try {
@@ -768,9 +768,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           (window as any).__ccBoardTransitionActive = false;
           console.log('✅ endgame-flow: Cleared __ccBoardTransitionActive flag - cleanup now allowed');
           try {
-            const bubbles = await import('./wild-beer-bubbles-explosion.js');
-            if (bubbles.isWildBeerBubblesExplosionActive?.()) {
-              bubbles.forceStopWildBeerBubblesExplosion?.();
+            const bubbles = await import('./wild-juice-bubbles-explosion.js');
+            if (bubbles.isWildJuiceBubblesExplosionActive?.()) {
+              bubbles.forceStopWildJuiceBubblesExplosion?.();
             }
           } catch {}
           // After transition screen completes, start the next board

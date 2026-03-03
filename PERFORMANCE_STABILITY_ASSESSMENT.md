@@ -51,7 +51,7 @@
 **Trenutno stanje:**
 - ✅ Magnet merge radi glatko (cascading spawn, brže animacije)
 - ✅ Spawn timing optimiziran (120ms delay, brže pojavljivanje)
-- ✅ Wild tile spawn order (wild-beer → wild-magnet → random)
+- ✅ Wild tile spawn order (wild-juice → wild-magnet → random)
 - ✅ Save game state radi (nakon merge-a, wild spawn-a, board starta)
 - ⚠️ Save se ne poziva eksplicitno nakon clean board flow (može izgubiti score ako se app zatvori)
 

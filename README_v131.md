@@ -127,7 +127,7 @@ Conflicts: 0 (app-merge.ts fixed)
 ## 🧪 SLJEDEĆI KORAK: TESTIRANJE
 
 ### 🎯 Kritični Testovi (MUST DO)
-1. **Wild beer end game** - 1 kockica spawn na merge mjestu
+1. **Wild juice end game** - 1 kockica spawn na merge mjestu
 2. **Wild star end game** - 1 kockica spawn na merge mjestu
 3. **Wild magnet end game** - pull + merge
 4. **Brzi merge test** - nema extra spawna

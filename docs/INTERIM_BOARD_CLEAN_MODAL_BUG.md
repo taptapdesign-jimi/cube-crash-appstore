@@ -2,7 +2,7 @@
 
 ## Sažetak problema
 
-Kada igraš **interim board** (interim kartica) i završiš s merge 6 (npr. wild beer + kockica), dobiješ clean board flow, ali umjesto **"Continue"** (jer je interim kartica) dobiješ **"Play Again"** i **"Exit"** kao da je otvorena redovna kartica.
+Kada igraš **interim board** (interim kartica) i završiš s merge 6 (npr. wild juice + kockica), dobiješ clean board flow, ali umjesto **"Continue"** (jer je interim kartica) dobiješ **"Play Again"** i **"Exit"** kao da je otvorena redovna kartica.
 
 **Uzrok:** Clean board modal odlučuje koje gumbe prikazati samo na temelju `window.__ccFromInterimBoard`. Kod putova koji pokreću interim board (npr. iz main.ts) postavlja se samo `window.__ccIsInterimBoard`, a ne i `__ccFromInterimBoard`, pa modal vidi "nije interim" i prikaže Play Again/Exit.
 

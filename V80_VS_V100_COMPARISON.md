@@ -41,7 +41,7 @@
 |-----------|-----|------|-----------|
 | **Regular Merge 6 Shards** | ✅ Jednostavna animacija | ❌ Bug s `requestAnimationFrame` | **v80** 🏆 |
 | **Wild Magnet Merge 6** | ✅ `woodShardsAtTile` | ✅ `spawnMerge6Shards` | **v100** 🏆 |
-| **Wild Beer Merge 6** | ✅ `woodShardsAtTile` | ✅ `spawnMerge6Shards` | **v100** 🏆 |
+| **Wild Juice Merge 6** | ✅ `woodShardsAtTile` | ✅ `spawnMerge6Shards` | **v100** 🏆 |
 | **Wild Star Merge 6** | ✅ `woodShardsAtTile` | ✅ `spawnMerge6Shards` + yellow explosion | **v100** 🏆 |
 | **Magnet Idle Particles** | ✅ `magicSparklesAtTile` (24% intensity) | ✅ `magicSparklesAtTile` (24% intensity) | **NERIJEŠENO** |
 | **Wild Star Idle** | ✅ `startWildStars()` | ✅ `startWildStars()` | **NERIJEŠENO** |

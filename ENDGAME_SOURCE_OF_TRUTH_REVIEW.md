@@ -33,7 +33,7 @@ Provedena je detaljna analiza end game logike u kodu i uspoređena sa **Source o
 - U endgame mode, spawna se SAMO 1 tile na merge-6 cell
 - Uklonjena logika koja je dozvoljavala spawn na locked tiles
 
-### 3. Wild Beer & Wild Star - Final Merge-6
+### 3. Wild Juice & Wild Star - Final Merge-6
 **Source of Truth:**
 > Case B — Board ends: If Merge-6 is the finishing state: Trigger CLEAN BOARD, Do NOT spawn a new tile
 
@@ -69,7 +69,7 @@ Provedena je detaljna analiza end game logike u kodu i uspoređena sa **Source o
 ### 7. Forbidden Behavior
 **Source of Truth:**
 > Must NEVER happen:
-> - Beer spawns 2 tiles in endgame
+> - Juice spawns 2 tiles in endgame
 > - Star spawns 2 tiles in endgame
 > - Magnet spawns tiles when nothing was attracted
 > - Endgame spawning outside merge cell
@@ -113,7 +113,7 @@ const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
 **Rezultat:**
 - U endgame mode, spawna se SAMO 1 tile na merge-6 cell, nikad na locked tiles
 
-### Fix 3: Wild Beer/Star Final Merge-6
+### Fix 3: Wild Juice/Star Final Merge-6
 **Lokacija:** `app-core.ts` line ~6378-6394
 
 **Promjena:**
@@ -121,7 +121,7 @@ const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
 - Ako je final merge-6, triggeruje se CLEAN BOARD, ne spawna se NISTA
 
 **Rezultat:**
-- Wild beer/star final merge-6 sada pravilno triggeruje CLEAN BOARD bez spawn-a
+- Wild juice/star final merge-6 sada pravilno triggeruje CLEAN BOARD bez spawn-a
 
 ### Fix 4: Final Two Tiles Merge-6
 **Lokacija:** `app-core.ts` line ~6322-6386
@@ -169,10 +169,10 @@ const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
 
 **Status:** ✅ FIXED
 
-### Scenario 2: Endgame Mode - Wild Beer Merge-6
+### Scenario 2: Endgame Mode - Wild Juice Merge-6
 **Input:**
 - No locked tiles (`availableLockedTiles.length === 0`)
-- Wild beer + regular tile → merge-6
+- Wild juice + regular tile → merge-6
 - NOT final merge-6 (ima više od 2 tiles)
 
 **Expected:**
@@ -181,9 +181,9 @@ const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
 
 **Status:** ✅ FIXED
 
-### Scenario 3: Final Merge-6 - Wild Beer
+### Scenario 3: Final Merge-6 - Wild Juice
 **Input:**
-- 2 tiles total (wild beer + regular tile)
+- 2 tiles total (wild juice + regular tile)
 - Merge-6
 - `_isLastMerge` flag = true
 
@@ -257,7 +257,7 @@ const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
 - [x] Endgame mode se detektuje kada `availableLockedTiles.length === 0`
 - [x] U endgame mode, spawna se SAMO 1 tile na merge-6 cell
 - [x] Final merge-6 triggeruje CLEAN BOARD, ne spawna se NISTA
-- [x] Wild beer/star final merge-6 triggeruje CLEAN BOARD
+- [x] Wild juice/star final merge-6 triggeruje CLEAN BOARD
 - [x] Wild magnet "no tiles to pull" triggeruje CLEAN BOARD
 - [x] Preload bar se blokira kada je final merge-6
 - [x] Svi komentari su dodati sa Source of Truth referencama

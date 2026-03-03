@@ -1,7 +1,7 @@
-# 🚨 WILD BEER MERGE 6 FPS DROP & FREEZE ASSESSMENT
+# 🚨 WILD JUICE MERGE 6 FPS DROP & FREEZE ASSESSMENT
 
 ## Problem
-Korisnik ima FPS drop, freeze i lag kada se radi merge 6 wild beer na kockicu.
+Korisnik ima FPS drop, freeze i lag kada se radi merge 6 wild juice na kockicu.
 
 ---
 
@@ -12,13 +12,13 @@ Korisnik ima FPS drop, freeze i lag kada se radi merge 6 wild beer na kockicu.
 **Lokacija:** `src/modules/app-core.ts` linija 4040-4123
 
 **Trenutno stanje:**
-Kada se wild beer merga s kockicom (merge 6), **SVE animacije se pokreću istovremeno** u `requestAnimationFrame` callback-u:
+Kada se wild juice merga s kockicom (merge 6), **SVE animacije se pokreću istovremeno** u `requestAnimationFrame` callback-u:
 
 ```typescript
 // app-core.ts linija 4066-4089
 requestAnimationFrame(() => {
   // 🔥 PROBLEM: Sve se pokreće istovremeno!
-  createWildBeerBubblesExplosion(board, dst); // 100 bubbles + GSAP ticker + FPS monitoring
+  createWildJuiceBubblesExplosion(board, dst); // 100 bubbles + GSAP ticker + FPS monitoring
   woodShardsAtTile(...); // 30 shards
   wildImpactEffect(...); // Tile animacija
   smokeBubblesAtTile(...); // Smoke efekti
@@ -30,7 +30,7 @@ requestAnimationFrame(() => {
 ```
 
 **Problem:**
-- **100 bubbles** se stvara u `createWildBeerBubblesExplosion()`
+- **100 bubbles** se stvara u `createWildJuiceBubblesExplosion()`
 - Svaki bubble ima **3 GSAP animacije** (position, scale, alpha)
 - **GSAP ticker** se dodaje za spawn logic (svaki frame)
 - **FPS monitoring** se pokreće i poziva se svaki frame
@@ -95,7 +95,7 @@ const maxActive = 80; // Max 80 aktivnih bubbles
 **Problem:**
 ```typescript
 requestAnimationFrame(() => {
-  createWildBeerBubblesExplosion(board, dst);
+  createWildJuiceBubblesExplosion(board, dst);
   // ... ostale animacije ...
 });
 ```
@@ -153,7 +153,7 @@ gsap.ticker.add(spawnTick);
 ### 6. KONFLIKT IZMEĐU ANIMACIJA ⚠️ **PROBLEM**
 
 **Problem:**
-- `createWildBeerBubblesExplosion()` se pokreće **istovremeno** s:
+- `createWildJuiceBubblesExplosion()` se pokreće **istovremeno** s:
   - `woodShardsAtTile()` - stvara 30 shards
   - `wildImpactEffect()` - animira tile
   - `smokeBubblesAtTile()` - stvara smoke
@@ -180,7 +180,7 @@ gsap.ticker.add(spawnTick);
 **Kod:**
 ```typescript
 // app-core.ts - Umjesto requestAnimationFrame s istovremenim pozivima
-if (isWildBeerMerge) {
+if (isWildJuiceMerge) {
   // 1. Pokreni shards i efekte PRVO (brzo, 0-200ms)
   woodShardsAtTile(board, dst, { ... });
   wildImpactEffect(dst, { ... });
@@ -190,7 +190,7 @@ if (isWildBeerMerge) {
   
   // 2. Pokreni bubbles NAKON 200ms (stagger)
   gsap.delayedCall(0.2, () => {
-    createWildBeerBubblesExplosion(board, dst);
+    createWildJuiceBubblesExplosion(board, dst);
   });
   
   // 3. Pokreni smoke NAKON 300ms (stagger)
@@ -303,14 +303,14 @@ const toSpawn = Math.min(2, Math.floor(acc)); // Smanjeno s 3 na 2
 **Kod:**
 ```typescript
 // app-core.ts - Ukloniti requestAnimationFrame
-if (isWildBeerMerge) {
+if (isWildJuiceMerge) {
   // Pokreni direktno, ali stagger-ano
   woodShardsAtTile(board, dst, { ... });
   wildImpactEffect(dst, { ... });
   
   // Stagger bubbles
   gsap.delayedCall(0.2, () => {
-    createWildBeerBubblesExplosion(board, dst);
+    createWildJuiceBubblesExplosion(board, dst);
   });
 }
 ```

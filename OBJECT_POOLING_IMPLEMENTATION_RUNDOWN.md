@@ -37,16 +37,16 @@
    - Shards eksplozija za magnet pull merge-6
    - ~20-40 shards po merge-u
 
-4. **`dragBeerBubbleTrail()`** - Wild beer drag bubbles
-   - 4-10 bubbles koje se spawnaju dok se vuče wild beer tile
+4. **`dragJuiceBubbleTrail()`** - Wild juice drag bubbles
+   - 4-10 bubbles koje se spawnaju dok se vuče wild juice tile
    - Rounded bubble style
 
-5. **`startWildBeerBubbles()`** - Wild beer idle bubbles
-   - Kontinuirano spawnanje bubbles za wild-beer tiles
+5. **`startWildJuiceBubbles()`** - Wild juice idle bubbles
+   - Kontinuirano spawnanje bubbles za wild-juice tiles
    - ~0.3-0.6s između bubbles
 
-6. **`createWildBeerBubblesExplosion()`** - Full-screen explosion
-   - 240 bubbles za full-screen wild beer merge-6 efekt
+6. **`createWildJuiceBubblesExplosion()`** - Full-screen explosion
+   - 240 bubbles za full-screen wild juice merge-6 efekt
    - ~3 sekunde animacije
 
 ---
@@ -57,10 +57,10 @@
 
 **Sve animacije trebaju raditi identično:**
 - ✅ Merge-6 shards eksplozija - ista animacija, iste boje, isti timing
-- ✅ Wild beer drag bubbles - iste bubble particles, isti stil
+- ✅ Wild juice drag bubbles - iste bubble particles, isti stil
 - ✅ Wild star sparkles - iste sparkles particles
-- ✅ Wild beer idle bubbles - iste kontinuirane bubbles
-- ✅ Full-screen wild beer explosion - ista eksplozija
+- ✅ Wild juice idle bubbles - iste kontinuirane bubbles
+- ✅ Full-screen wild juice explosion - ista eksplozija
 
 **Zaključak:** Vizualno, igra bi trebala izgledati **potpuno identično** kao prije.
 
@@ -100,8 +100,8 @@
    - Provjeri: Shards eksplozija se odvija normalno
    - Provjeri: Boje su iste (brown za regular, yellow/brown za wild)
 
-2. **Wild beer drag:**
-   - Vuci wild beer tile
+2. **Wild juice drag:**
+   - Vuci wild juice tile
    - Provjeri: Bubbles se spawnaju iza tile-a (z-index)
    - Provjeri: Bubbles su rounded, 3 nijanse boja
 
@@ -110,8 +110,8 @@
    - Provjeri: Sparkles se kontinuirano spawnaju
    - Provjeri: Nema lag-a ili frame drops
 
-4. **Wild beer idle bubbles:**
-   - Stani na wild beer tile
+4. **Wild juice idle bubbles:**
+   - Stani na wild juice tile
    - Provjeri: Bubbles se kontinuirano spawnaju odozdo
    - Provjeri: Nema lag-a ili frame drops
 
@@ -194,7 +194,7 @@
 
 **Vizualno:** Igra bi trebala izgledati **potpuno identično** kao prije.
 
-**Performance:** Igra bi trebala biti **glatkija, brža, i stabilnija**, posebno tijekom intenzivnih animacija (merge-6, magnet pull, wild beer explosion).
+**Performance:** Igra bi trebala biti **glatkija, brža, i stabilnija**, posebno tijekom intenzivnih animacija (merge-6, magnet pull, wild juice explosion).
 
 **Ako ne vidiš razliku vizualno → To je dobro!** Object pooling je optimizacija "ispod haube" koja ne mijenja gameplay, samo poboljšava performance.
 

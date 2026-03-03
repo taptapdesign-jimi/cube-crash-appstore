@@ -544,7 +544,7 @@ class JourneyBoardsManager {
       const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
       
       // 🔥 iPad FIX: Detect iPad and restore scale (1.76 for iPad, 1 for others)
-      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
       let originalScale = isIPad ? 1.76 : 1; // Default scale based on device
       // Extract existing scale if present
       const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
@@ -2898,7 +2898,10 @@ class JourneyBoardsManager {
         }
         // 🔥 FIX: Remove CSS enter classes so GSAP owns transform/opacity for exit (no class vs inline conflict)
         detailHeader.classList.remove('detail-header-enter', 'detail-header-enter-done', 'detail-header-before-enter');
-        detailHeader.style.removeProperty('transform');
+        const headerComputedTransform = window.getComputedStyle(detailHeader).transform;
+        if (headerComputedTransform && headerComputedTransform !== 'none') {
+          detailHeader.style.transform = headerComputedTransform;
+        }
         detailHeader.style.removeProperty('opacity');
         gsap.killTweensOf(detailHeader);
         gsap.set(detailHeader, { scale: 1, opacity: 1, visibility: 'visible', force3D: true });
@@ -2907,13 +2910,19 @@ class JourneyBoardsManager {
         if (detailCloseBtn) {
           detailCloseBtn.classList.remove('animate-enter', 'animate-exit', 'animate-enter-initial', 'animate-reset');
           detailCloseBtn.style.setProperty('transition', 'none', 'important');
-          detailCloseBtn.style.setProperty('transform', 'none', 'important');
+          const closeComputedTransform = window.getComputedStyle(detailCloseBtn).transform;
+          if (closeComputedTransform && closeComputedTransform !== 'none') {
+            detailCloseBtn.style.setProperty('transform', closeComputedTransform, 'important');
+          }
         }
         const headerChildren = detailHeader.querySelectorAll('*');
         headerChildren.forEach((child: Element) => {
           const childEl = child as HTMLElement;
           childEl.style.setProperty('transition', 'none', 'important');
-          childEl.style.setProperty('transform', 'none', 'important');
+          const childTransform = window.getComputedStyle(childEl).transform;
+          if (childTransform && childTransform !== 'none') {
+            childEl.style.setProperty('transform', childTransform, 'important');
+          }
         });
 
         trackTween(detailHeader, {
@@ -3691,9 +3700,9 @@ class JourneyBoardsManager {
             './assets/wild@2x.png',
             './assets/wild@3x.png',
             './assets/wild-magnet.png',
-            './assets/wild-beer.png',
-            './assets/wild-beer@2x.png',
-            './assets/wild-beer@3x.png',
+            './assets/wild-juice.png',
+            './assets/wild-juice@2x.png',
+            './assets/wild-juice@3x.png',
             './assets/shop/explosion pack/tnt.png',
             './assets/shop/explosion pack/tnt@2x.png',
             './assets/shop/explosion pack/tnt@3x.png',
@@ -3994,30 +4003,54 @@ class JourneyBoardsManager {
       // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
       const descEl = detailModal.querySelector('#detail-card-description') as HTMLElement;
       const statsCardSection = detailModal.querySelector('#detail-section-stats-card') as HTMLElement;
+      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
       
       // 🔥 CRITICAL: Ensure consistent padding on stats-card section (no right padding, container reduced by 200px)
-      if (statsCardSection) {
+      if (statsCardSection && !isIPad) {
         statsCardSection.style.padding = '0 0 24px 24px'; // No right padding (container reduced by 200px)
         statsCardSection.style.paddingTop = '0';
+      } else if (statsCardSection && isIPad) {
+        statsCardSection.style.padding = '';
+        statsCardSection.style.paddingTop = '';
       }
       
       if (descEl) {
         descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
-        descEl.style.cssText = `
-          display: block !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-          color: #AD8775 !important;
-          font-size: 20px !important;
-          text-align: center !important;
-          white-space: pre-line !important;
-          margin-left: 80px !important;
-          width: 220px !important;
-          max-width: 220px !important;
-          padding: 0 !important;
-          line-height: 1.4 !important;
-          flex-shrink: 0 !important;
-        `;
+        if (isIPad) {
+          descEl.style.cssText = `
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: #AD8775 !important;
+            font-size: 20px !important;
+            text-align: center !important;
+            white-space: normal !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 520px !important;
+            padding: 0 24px !important;
+            line-height: 1.4 !important;
+            flex-shrink: 0 !important;
+            align-self: center !important;
+            margin-top: 8% !important;
+          `;
+        } else {
+          descEl.style.cssText = `
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            color: #AD8775 !important;
+            font-size: 20px !important;
+            text-align: center !important;
+            white-space: pre-line !important;
+            margin-left: 80px !important;
+            width: 220px !important;
+            max-width: 220px !important;
+            padding: 0 !important;
+            line-height: 1.4 !important;
+            flex-shrink: 0 !important;
+          `;
+        }
       }
       
       // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked)
@@ -4058,8 +4091,35 @@ class JourneyBoardsManager {
       // 🔥 CLEAN START: Initialize simple swipe
       const swipeableContainer = detailModal.querySelector('.detail-swipeable-container') as HTMLElement;
       if (swipeableContainer) {
+        const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
         gsap.set(swipeableContainer, { x: 0 });
         setTimeout(() => {
+          if (isIPad) {
+            // iPad: no horizontal swipe. Reset any inline widths and remove handlers.
+            swipeableContainer.style.width = '100%';
+            swipeableContainer.style.transform = 'none';
+            swipeableContainer.style.willChange = 'auto';
+            const sections = swipeableContainer.querySelectorAll('.detail-section') as NodeListOf<HTMLElement>;
+            sections.forEach((section) => {
+              section.style.width = '100%';
+              section.style.minWidth = '0';
+              section.style.maxWidth = 'none';
+              section.style.flexShrink = '0';
+            });
+            if ((swipeableContainer as any).__detailSwipeHandlers) {
+              const handlers = (swipeableContainer as any).__detailSwipeHandlers;
+              swipeableContainer.removeEventListener('touchstart', handlers.touchStart);
+              swipeableContainer.removeEventListener('touchmove', handlers.touchMove);
+              swipeableContainer.removeEventListener('touchend', handlers.touchEnd);
+              swipeableContainer.removeEventListener('mousedown', handlers.mouseDown);
+              swipeableContainer.removeEventListener('mousemove', handlers.mouseMove);
+              swipeableContainer.removeEventListener('mouseup', handlers.mouseUp);
+              swipeableContainer.removeEventListener('mouseleave', handlers.mouseUp);
+              delete (swipeableContainer as any).__detailSwipeHandlers;
+            }
+            return;
+          }
+
           this.initDetailModalSwipe(swipeableContainer);
           
           // 🔥 USER REQUEST: Add peekaboo tap detection directly on swipeable container
@@ -4140,12 +4200,19 @@ class JourneyBoardsManager {
           const descElAfterInit = detailModal.querySelector('#detail-card-description') as HTMLElement;
           
           if (descElAfterInit) {
+            const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
             if (!descElAfterInit.textContent || descElAfterInit.textContent.trim() === '') {
               descElAfterInit.textContent = "The board waits.\nA single move appears.\nEverything begins.";
             }
-            descElAfterInit.style.marginLeft = '80px';
-            descElAfterInit.style.width = '220px';
-            descElAfterInit.style.maxWidth = '220px';
+            if (!isIPad) {
+              descElAfterInit.style.marginLeft = '80px';
+              descElAfterInit.style.width = '220px';
+              descElAfterInit.style.maxWidth = '220px';
+            } else {
+              descElAfterInit.style.marginLeft = '0';
+              descElAfterInit.style.width = '100%';
+              descElAfterInit.style.maxWidth = '520px';
+            }
             descElAfterInit.style.textAlign = 'center'; /* 🔥 USER REQUEST: Center text */
             descElAfterInit.style.whiteSpace = 'pre-line'; /* Each sentence on its own line */
             descElAfterInit.style.display = 'block';
@@ -4154,6 +4221,68 @@ class JourneyBoardsManager {
             descElAfterInit.style.flexShrink = '0';
           }
         }, 100);
+      }
+
+      // iPad-only: add elastic drag (fake bounce) on detail modal
+      const isIPadElastic = (() => {
+        const ua = navigator.userAgent || '';
+        const isIPadUA = /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
+        const vw = window.innerWidth || 0;
+        return isIPadUA || (vw >= 769 && vw <= 1366);
+      })();
+      if (isIPadElastic) {
+        const modalRoot = detailModal as HTMLElement;
+        const elasticTarget = detailModal.querySelector('.detail-content') as HTMLElement | null;
+        const headerEl = detailModal.querySelector('.detail-header') as HTMLElement | null;
+        const swipeable = detailModal.querySelector('.detail-swipeable-container') as HTMLElement | null;
+        if (modalRoot && elasticTarget) {
+          if ((elasticTarget as any).__detailElasticHandlers) {
+            const handlers = (elasticTarget as any).__detailElasticHandlers;
+            elasticTarget.removeEventListener('touchstart', handlers.start);
+            elasticTarget.removeEventListener('touchmove', handlers.move);
+            elasticTarget.removeEventListener('touchend', handlers.end);
+          }
+          let startY = 0;
+          let currentY = 0;
+          let isDragging = false;
+          const damping = 0.35;
+          const maxPull = 80;
+          const onStart = (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            if (headerEl && headerEl.contains(e.target as Node)) return;
+            startY = e.touches[0].clientY;
+            currentY = 0;
+            isDragging = true;
+            elasticTarget.style.transition = 'none';
+          };
+          const onMove = (e: TouchEvent) => {
+            if (!isDragging || e.touches.length !== 1) return;
+            const dy = e.touches[0].clientY - startY;
+            // Only allow a small elastic pull
+            const pull = Math.max(-maxPull, Math.min(maxPull, dy * damping));
+            currentY = pull;
+            // Move only content area (not header)
+            if (swipeable) {
+              swipeable.style.transform = `translateY(${pull}px)`;
+            } else {
+              elasticTarget.style.transform = `translateY(${pull}px)`;
+            }
+          };
+          const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            const target = swipeable || elasticTarget;
+            target.style.transition = 'transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+            target.style.transform = 'translateY(0px)';
+            window.setTimeout(() => {
+              target.style.transition = '';
+            }, 240);
+          };
+          elasticTarget.addEventListener('touchstart', onStart, { passive: true });
+          elasticTarget.addEventListener('touchmove', onMove, { passive: true });
+          elasticTarget.addEventListener('touchend', onEnd, { passive: true });
+          (elasticTarget as any).__detailElasticHandlers = { start: onStart, move: onMove, end: onEnd };
+        }
       }
 
       // 🔥 USER REQUEST: Show/hide buttons based on board state
@@ -4479,6 +4608,12 @@ class JourneyBoardsManager {
       // Find stats section (container) - stat items themselves are animated separately later
       const detailStatsSection = detailModal.querySelector('.detail-section-stats') as HTMLElement;
       const detailStatsList = detailModal.querySelector('.detail-stats-list') as HTMLElement | null;
+      const isIPadDevice = (() => {
+        const ua = navigator.userAgent || '';
+        const isIPadUA = /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
+        const vw = window.innerWidth || 0;
+        return isIPadUA || (vw >= 769 && vw <= 1366);
+      })();
       const statElementsForInit = detailStatsList ? Array.from(detailStatsList.querySelectorAll('.detail-stat-item, .detail-stat-divider')) as HTMLElement[] : [];
       // Pre-hide stat elements to prevent first-frame flash
       // 🔥 CRITICAL: Reset ALL stat elements to clean state (same pattern as card image)
@@ -4930,6 +5065,33 @@ class JourneyBoardsManager {
             detailStatsListResolved.style.opacity = '1';
           }
           
+          // 🔥 iPad FIX: Force tight horizontal stats layout (override any CSS/inlines)
+          const isIPad = isIPadDevice;
+          if (isIPad && detailStatsListResolved) {
+            detailStatsListResolved.style.flexDirection = 'row';
+            detailStatsListResolved.style.gap = '2px';
+            detailStatsListResolved.style.width = '100%';
+            detailStatsListResolved.style.maxWidth = '100%';
+            detailStatsListResolved.style.minWidth = '0';
+            detailStatsListResolved.style.justifyContent = 'center';
+            detailStatsListResolved.style.overflow = 'visible';
+            detailStatsListResolved.style.padding = '0';
+            detailStatsListResolved.style.alignSelf = 'center';
+            const statItemsIPad = Array.from(detailStatsListResolved.querySelectorAll('.detail-stat-item')) as HTMLElement[];
+            statItemsIPad.forEach((item) => {
+              item.style.flex = '0 0 auto';
+              item.style.width = 'auto';
+              item.style.minWidth = '0';
+              item.style.maxWidth = '150px';
+              item.style.padding = '0';
+              item.style.margin = '0';
+            });
+            const statDividersIPad = Array.from(detailStatsListResolved.querySelectorAll('.detail-stat-divider')) as HTMLElement[];
+            statDividersIPad.forEach((divider) => {
+              divider.style.display = 'block';
+            });
+          }
+          
           const nonStatElements = otherContentElements.filter(el => {
             if (!el) return false;
             // Exclude boardStatsContainer and detailStatsSection from regular animation (we'll animate stat-items individually)
@@ -5050,6 +5212,56 @@ class JourneyBoardsManager {
           };
           
           if (statElements.length > 0) {
+            if (isIPad) {
+              // iPad: keep layout rules but animate like mobile for smoothness
+              if (detailStatsSection) {
+                detailStatsSection.style.width = '100%';
+                detailStatsSection.style.maxWidth = '100%';
+                detailStatsSection.style.alignItems = 'center';
+                detailStatsSection.style.justifyContent = 'center';
+              }
+              if (detailStatsListResolved) {
+                detailStatsListResolved.style.display = 'grid';
+                detailStatsListResolved.style.gridTemplateColumns = 'minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr)';
+                detailStatsListResolved.style.columnGap = '0';
+                detailStatsListResolved.style.rowGap = '0';
+                detailStatsListResolved.style.width = '100%';
+                detailStatsListResolved.style.maxWidth = '100%';
+                detailStatsListResolved.style.justifyItems = 'center';
+                detailStatsListResolved.style.alignItems = 'center';
+                detailStatsListResolved.style.padding = '0 24px';
+              }
+              const children = detailStatsListResolved ? Array.from(detailStatsListResolved.children) as HTMLElement[] : statElements;
+              children.forEach((element, idx) => {
+                if (!element) return;
+                const isDivider = element.classList.contains('detail-stat-divider');
+                const elementDefaultDisplay = isDivider ? 'block' : 'flex';
+                element.style.setProperty('display', elementDefaultDisplay, 'important');
+                element.style.willChange = 'transform, opacity';
+                if (isDivider) {
+                  element.style.width = '2px';
+                  element.style.height = '64px';
+                  element.style.marginLeft = '3%';
+                  element.style.marginRight = '3%';
+                  element.style.background = '#ECE2D9';
+                }
+                if (!isDivider) {
+                  element.style.width = '100%';
+                  element.style.maxWidth = '100%';
+                  element.style.justifyContent = 'center';
+                  if (idx === 0) {
+                    element.style.paddingRight = '3%';
+                    element.style.paddingLeft = '0';
+                  } else if (idx === children.length - 1) {
+                    element.style.paddingLeft = '3%';
+                    element.style.paddingRight = '0';
+                  } else {
+                    element.style.paddingLeft = '3%';
+                    element.style.paddingRight = '3%';
+                  }
+                }
+              });
+            }
             statElements.forEach((element, elementIndex) => {
               if (!element) return;
               

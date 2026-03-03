@@ -22,7 +22,7 @@ export type Tile = Container & {
   // Wild properties
   isWild?: boolean;
   isWildFace?: boolean;
-  isWildBeer?: boolean;
+  isWildJuice?: boolean;
   isWildMagnet?: boolean;
   isWildStar?: boolean;
   _wildMergeTarget?: number;

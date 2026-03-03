@@ -3,9 +3,9 @@
 import { Assets, Texture, Container, Graphics } from 'pixi.js';
 import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
-import { ASSET_WILD_MAGNET, ASSET_WILD_BEER, ASSET_WILD_TNT } from './constants.js';
+import { ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildBeerBubbles } from "./fx.ts";
+import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildJuiceBubbles } from "./fx.ts";
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 // drawBoardBG function is now in app.js
@@ -219,8 +219,8 @@ function applyWildSkinLocal(tile: Tile): void {
     let assetPath = ASSET_WILD;
     if (tile.special === 'wild-magnet') {
       assetPath = ASSET_WILD_MAGNET;
-    } else if (tile.special === 'wild-beer') {
-      assetPath = ASSET_WILD_BEER;
+    } else if (tile.special === 'wild-juice') {
+      assetPath = ASSET_WILD_JUICE;
     } else if (tile.special === 'wild-tnt') {
       assetPath = ASSET_WILD_TNT;
     }
@@ -249,7 +249,7 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     
     // 🔥 CRITICAL: Check if cell is already occupied by an active tile
     if (holder && !holder.locked) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || (holder as any).isWild === true || (holder as any).isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || (holder as any).isWild === true || (holder as any).isWildFace === true;
       const isActive = (holder.value|0) > 0;
       
       // If cell has an active tile or wild tile, don't spawn here

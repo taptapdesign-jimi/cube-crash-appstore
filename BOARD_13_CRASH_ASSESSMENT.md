@@ -48,9 +48,9 @@ const spawnInterval = setInterval(() => {
 **Lokacija:** `src/modules/endgame-flow.ts` i `src/modules/fx.js`
 
 **Problem:**
-- `endgame-flow.ts` **NE poziva `cleanupWildBeerExplosion()`** prije nego što se clean board modal pojavi
+- `endgame-flow.ts` **NE poziva `cleanupWildJuiceExplosion()`** prije nego što se clean board modal pojavi
 - Ako bubbles animacija još traje (2-3 sekunde), ona pokušava renderirati na stage koji se mijenja
-- `rebuildBoard()` poziva `cleanupWildBeerExplosion()`, ali to se dešava **NAKON** clean board flow-a
+- `rebuildBoard()` poziva `cleanupWildJuiceExplosion()`, ali to se dešava **NAKON** clean board flow-a
 - Bubbles animacija može pokušati pristupati stage/board objektima koji su već u procesu cleanup-a
 
 **Kod problema:**
@@ -161,20 +161,20 @@ cleanupConfetti();
 ### 2. BUBBLES ANIMACIJA - CLEANUP PRIJE CLEAN BOARD ⚠️ **PRIORITET 1**
 
 **Rješenje:**
-- Dodati `cleanupWildBeerExplosion()` poziv u `endgame-flow.ts` **PRIJE** poziva `showCleanBoardModal()`
+- Dodati `cleanupWildJuiceExplosion()` poziv u `endgame-flow.ts` **PRIJE** poziva `showCleanBoardModal()`
 - Osigurati da se bubbles animacija čisti prije nego što se clean board modal pojavi
 
 **Kod:**
 ```typescript
 // endgame-flow.ts - PRIJE showCleanBoardModal
-import { cleanupWildBeerExplosion, isWildBeerExplosionRunning } from './fx.js';
+import { cleanupWildJuiceExplosion, isWildJuiceExplosionRunning } from './fx.js';
 
 // Linija 88 - PRIJE showCleanBoardModal
 try {
   // 🔥 CRITICAL: Cleanup bubbles animaciju PRIJE clean board flow-a
-  if (isWildBeerExplosionRunning && typeof cleanupWildBeerExplosion === 'function') {
-    cleanupWildBeerExplosion();
-    console.log('🧹 Cleaned up wild beer explosion before clean board flow');
+  if (isWildJuiceExplosionRunning && typeof cleanupWildJuiceExplosion === 'function') {
+    cleanupWildJuiceExplosion();
+    console.log('🧹 Cleaned up wild juice explosion before clean board flow');
   }
 } catch (e) {
   console.warn('⚠️ Failed to cleanup bubbles animation:', e);
@@ -219,8 +219,8 @@ try {
 function startLevel(n) {
   try {
     // Cleanup sve animacije prije rebuild-a
-    if (typeof cleanupWildBeerExplosion === 'function') {
-      cleanupWildBeerExplosion();
+    if (typeof cleanupWildJuiceExplosion === 'function') {
+      cleanupWildJuiceExplosion();
     }
     // ... rest of startLevel
   } catch (error) {
@@ -252,7 +252,7 @@ function startLevel(n) {
 
 **Rješenje:**
 - Dodati cleanup funkciju za konfete animaciju
-- Pozvati `cleanupWildBeerExplosion()` prije `showCleanBoardModal()`
+- Pozvati `cleanupWildJuiceExplosion()` prije `showCleanBoardModal()`
 - Dodati cleanup u `endgame-flow.ts` cleanup sekciju
 - Testirati na boardu 13+ da se osigura da se problem ne ponavlja
 

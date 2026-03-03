@@ -38,7 +38,7 @@ tiles.forEach(t => {
   try { stopWildIdle?.(t); } catch {}
   try { stopWildShimmer?.(t); } catch {}
   try { stopWildStars?.(t); } catch {}
-  try { stopWildBeerBubbles?.(t); } catch {}
+  try { stopWildJuiceBubbles?.(t); } catch {}
   try { stopMagnetIdleParticles?.(t); } catch {}
   try { gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG); } catch {}
   t.destroy({children:true, texture:false, textureSource:false});
@@ -92,7 +92,7 @@ if (!src || !dst || src.destroyed || dst.destroyed) {
 - ✅ `gsap.killTweensOf(t)` prije destroy tile-a
 - ✅ `gsap.killTweensOf(t.scale)` i `gsap.killTweensOf(t.rotG)` za sve animacije
 - ✅ Kill timeline-ova u `AnimationManager` modulu
-- ✅ Kill wild beer explosion ticker (`gsap.ticker.remove`)
+- ✅ Kill wild juice explosion ticker (`gsap.ticker.remove`)
 
 **Primjer:**
 ```typescript
@@ -162,7 +162,7 @@ try { gsap.killDelayedCalls(); } catch {}
 ```
 
 #### **C) Wild Animations Ticker**
-- ✅ **Rješenje:** Wild beer explosion ticker je tracked i cleanup-ovan
+- ✅ **Rješenje:** Wild juice explosion ticker je tracked i cleanup-ovan
 - ✅ **Rješenje:** Wild stars ticker je eksplicitno uklonjen (`gsap.ticker.remove`)
 
 ### 2. **Null Safety - Moguća Poboljšanja** ⚠️
@@ -319,7 +319,7 @@ const memoizedActiveTiles = memoize((tiles: Tile[]) =>
 - **Object Cleanup:** ✅ (Memory Manager)
 
 ### **Animation Cleanup**
-- **Wild Animations:** ✅ (stopWildIdle, stopWildShimmer, stopWildStars, stopWildBeerBubbles)
+- **Wild Animations:** ✅ (stopWildIdle, stopWildShimmer, stopWildStars, stopWildJuiceBubbles)
 - **GSAP Tweens:** ✅ (killTweensOf)
 - **Timelines:** ✅ (AnimationManager)
 - **Tickers:** ✅ (gsap.ticker.remove)

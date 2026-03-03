@@ -180,14 +180,14 @@ app-core.ts:497 🧪 DEV LOG: managedTextures list (raw): [
   },
   {
     "uid": 52,
-    "label": "http://localhost:5173/assets/wild-beer.png",
+    "label": "http://localhost:5173/assets/wild-juice.png",
     "width": 885,
     "height": 885,
     "url": ""
   },
   {
     "uid": 130,
-    "label": "runtime:wild-beer-bubbles-explosion",
+    "label": "runtime:wild-juice-bubbles-explosion",
     "width": 49,
     "height": 49,
     "url": ""
@@ -337,7 +337,7 @@ app-core.ts:497 🧪 DEV LOG: managedTextures list (raw): [
   },
   {
     "uid": 52,
-    "label": "http://localhost:5173/assets/wild-beer.png",
+    "label": "http://localhost:5173/assets/wild-juice.png",
     "width": 885,
     "height": 885,
     "url": ""
@@ -354,4 +354,4 @@ app-core.ts:497 🧪 DEV LOG: managedTextures list (raw): [
 
 ---
 
-**Sažetak:** Linija "🧹 Destroyed unknown runtime textures" **postoji**: `reason: 'triggerCleanBoardFlow', destroyed: 5`. Before-cleanup: 26 tekstura (uključujući `runtime:wild-beer-bubbles-explosion` uid 130). After-cleanup: lista ima 20 stavki; uklonjeno je 6 stavki iz liste (uid 113, 115, 117, 119, 127, 130 — od toga 130 je runtime:wild-beer-bubbles-explosion). Log kaže destroyed: 5; razlika 26→20 = 6 može biti zbog načina brojanja ili jedne dodatne teksture koja nije u „unknown runtime” skupini.
+**Sažetak:** Linija "🧹 Destroyed unknown runtime textures" **postoji**: `reason: 'triggerCleanBoardFlow', destroyed: 5`. Before-cleanup: 26 tekstura (uključujući `runtime:wild-juice-bubbles-explosion` uid 130). After-cleanup: lista ima 20 stavki; uklonjeno je 6 stavki iz liste (uid 113, 115, 117, 119, 127, 130 — od toga 130 je runtime:wild-juice-bubbles-explosion). Log kaže destroyed: 5; razlika 26→20 = 6 može biti zbog načina brojanja ili jedne dodatne teksture koja nije u „unknown runtime” skupini.

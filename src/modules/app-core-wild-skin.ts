@@ -5,11 +5,11 @@ type WildSkinDeps = {
   SCALE_MODES: any;
   ASSET_WILD: string;
   ASSET_WILD_MAGNET: string;
-  ASSET_WILD_BEER: string;
+  ASSET_WILD_JUICE: string;
   ASSET_WILD_TNT: string;
   TILE: number;
   startWildShimmer: (tile: any) => void;
-  startWildBeerBubbles: (tile: any) => void;
+  startWildJuiceBubbles: (tile: any) => void;
   startWildStars: (tile: any) => void;
   startMagnetIdleParticles: (tile: any) => void;
   startTntIdleParticles: (tile: any) => void;
@@ -26,11 +26,11 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     SCALE_MODES,
     ASSET_WILD,
     ASSET_WILD_MAGNET,
-    ASSET_WILD_BEER,
+    ASSET_WILD_JUICE,
     ASSET_WILD_TNT,
     TILE,
     startWildShimmer,
-    startWildBeerBubbles,
+    startWildJuiceBubbles,
     startWildStars,
     startMagnetIdleParticles,
     startTntIdleParticles,
@@ -40,12 +40,12 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
   } = deps;
   try {
     // 🔥 CRITICAL: Use appropriate texture based on special type
-    // Wild-beer / wild-tnt use their own textures
+    // Wild-juice / wild-tnt use their own textures
     let assetPath = ASSET_WILD;
     if (tile.special === 'wild-magnet') {
       assetPath = ASSET_WILD_MAGNET;
-    } else if (tile.special === 'wild-beer') {
-      assetPath = ASSET_WILD_BEER;
+    } else if (tile.special === 'wild-juice') {
+      assetPath = ASSET_WILD_JUICE;
     } else if (tile.special === 'wild-tnt') {
       assetPath = ASSET_WILD_TNT;
     }
@@ -59,7 +59,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       if (base) tile.base = base;
     }
     
-    // 🔥 CRITICAL: Always set wild-beer texture and ensure it's visible
+    // 🔥 CRITICAL: Always set wild-juice texture and ensure it's visible
     // This MUST be called every time to ensure texture is never lost
     if (base && tex && tex !== Texture.EMPTY){ 
       // Force set texture even if it's already set (prevents texture loss)
@@ -114,8 +114,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-      if (tile.special === 'wild-beer') {
-        startWildBeerBubbles(tile);
+      if (tile.special === 'wild-juice') {
+        startWildJuiceBubbles(tile);
       } else if (tile.special === 'wild-tnt') {
         startTntIdleParticles(tile);
         startTntIdleShake(tile);

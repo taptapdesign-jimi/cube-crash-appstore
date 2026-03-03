@@ -35,7 +35,7 @@
 - ✅ **Wild Magnet Merge 6**: `wildMagnetMerge6ShardsTemplated()` - pattern-specific pool
 - ✅ **Wild Merge 6**: `wildMerge6ShardsTemplated()` - pattern-specific pool
 - ✅ **Wild Star Merge 6**: `wildStarMerge6ShardsTemplated()` - pattern-specific pool
-- ✅ **Wild Beer Merge 6**: `wildBeerMerge6ShardsTemplated()` - pattern-specific pool
+- ✅ **Wild Juice Merge 6**: `wildJuiceMerge6ShardsTemplated()` - pattern-specific pool
 
 **Impact:**
 - **Memory Allocations**: 0 novih objekata (vs 29-34 u v117)
@@ -51,7 +51,7 @@
 - ✅ **Wild Tile Sparkles**: `graphicsPool.acquire()` / `graphicsPool.release()`
 - ✅ **Drag Smoke Trail**: `graphicsPool.acquire()` / `graphicsPool.release()`
 - ✅ **Smoke Bubbles**: `graphicsPool.acquire()` / `graphicsPool.release()`
-- ✅ **Wild Beer Bubbles**: `graphicsPool.acquire()` / `graphicsPool.release()`
+- ✅ **Wild Juice Bubbles**: `graphicsPool.acquire()` / `graphicsPool.release()`
 
 **Impact:**
 - **Pool Coverage**: 81% (13/16 efekata sa pooling-om)

@@ -1,7 +1,7 @@
-# 🔍 Deep Analysis: Wild Beer Bubbles Explosion - Board Transition Problem
+# 🔍 Deep Analysis: Wild Juice Bubbles Explosion - Board Transition Problem
 
 ## Problem Statement
-Bubble animation se ne pokreće kada se wild beer spoji s kockicom i rezultira merge 6, posebno kada se prelazi iz jednog boarda u drugi (continue na clean board flowu).
+Bubble animation se ne pokreće kada se wild juice spoji s kockicom i rezultira merge 6, posebno kada se prelazi iz jednog boarda u drugi (continue na clean board flowu).
 
 ## Root Cause Analysis
 
@@ -13,10 +13,10 @@ Bubble animation se ne pokreće kada se wild beer spoji s kockicom i rezultira m
 ```typescript
 setTimeout(() => {
   try {
-    if (isWildBeerBubblesExplosionActive()) {
-      stopWildBeerBubblesExplosion();
+    if (isWildJuiceBubblesExplosionActive()) {
+      stopWildJuiceBubblesExplosion();
     }
-    showWildBeerBubblesExplosion();
+    showWildJuiceBubblesExplosion();
   } catch (error) {
     console.error('❌ Failed to trigger bubbles explosion:', error);
   }
@@ -27,7 +27,7 @@ setTimeout(() => {
 - `setTimeout` delay od 200ms omogućava da se clean board flow pokrene PRIJE nego što se animacija pokrene
 - Ako se `triggerCleanBoardFlow()` pozove unutar 200ms nakon merge 6, animacija se neće pokrenuti jer:
   - `cleanupAllEffects()` se poziva u `clean-board-modal.ts` (linija 1389)
-  - `rebuildBoard()` se poziva i poziva `stopWildBeerBubblesExplosion()` (linija 2134)
+  - `rebuildBoard()` se poziva i poziva `stopWildJuiceBubblesExplosion()` (linija 2134)
   - Stage se može uništiti u `boot()` funkciji (linija 738-752)
 
 **Impact:** 🔴 **CRITICAL** - Glavni uzrok problema
@@ -43,7 +43,7 @@ setTimeout(() => {
 try {
   const fxModule = await import('./fx.js');
   if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-    fxModule.cleanupAllEffects(); // ← Ovo poziva cleanupWildBeerExplosion()
+    fxModule.cleanupAllEffects(); // ← Ovo poziva cleanupWildJuiceExplosion()
     console.log('🧹 clean-board-modal: Cleaned up all effects...');
   }
 } catch (e) {
@@ -52,7 +52,7 @@ try {
 ```
 
 **Analiza:**
-- `cleanupAllEffects()` poziva `cleanupWildBeerExplosion()` koji poziva `stopWildBeerBubblesExplosion()`
+- `cleanupAllEffects()` poziva `cleanupWildJuiceExplosion()` koji poziva `stopWildJuiceBubblesExplosion()`
 - Ako se ovo pozove prije nego što se `setTimeout` izvrši, animacija će biti zaustavljena prije nego što se pokrene
 - Clean board modal se može prikazati vrlo brzo nakon merge 6 (posebno ako je to zadnji merge)
 
@@ -67,18 +67,18 @@ try {
 **Problem:**
 ```typescript
 try {
-  if (typeof stopWildBeerBubblesExplosion === 'function') {
-    if (isWildBeerBubblesExplosionActive()) {
-      stopWildBeerBubblesExplosion();
-      console.log('🧹 rebuildBoard: Cleaned up active wild beer explosion...');
+  if (typeof stopWildJuiceBubblesExplosion === 'function') {
+    if (isWildJuiceBubblesExplosionActive()) {
+      stopWildJuiceBubblesExplosion();
+      console.log('🧹 rebuildBoard: Cleaned up active wild juice explosion...');
     } else {
       // 🔥 CRITICAL: Force cleanup even if flag says inactive
-      stopWildBeerBubblesExplosion();
-      console.log('🧹 rebuildBoard: Force cleaned up wild beer explosion...');
+      stopWildJuiceBubblesExplosion();
+      console.log('🧹 rebuildBoard: Force cleaned up wild juice explosion...');
     }
   }
 } catch (e) {
-  console.warn('⚠️ rebuildBoard: Error cleaning up wild beer explosion:', e);
+  console.warn('⚠️ rebuildBoard: Error cleaning up wild juice explosion:', e);
 }
 ```
 
@@ -123,7 +123,7 @@ if (app && app.canvas) {
 **Analiza:**
 - `boot()` se poziva kada se kreira novi board
 - Ako se `boot()` pozove prije nego što se `setTimeout` izvrši, stage će biti uništen
-- `showWildBeerBubblesExplosion()` provjerava `stage.destroyed` i neće pokrenuti animaciju ako je stage uništen
+- `showWildJuiceBubblesExplosion()` provjerava `stage.destroyed` i neće pokrenuti animaciju ako je stage uništen
 
 **Impact:** 🟠 **HIGH** - Sprječava animaciju ako se stage uništi prije pokretanja
 
@@ -151,22 +151,22 @@ try {
 **Analiza:**
 - Board transition screen se prikazuje prije nego što se pokrene novi board
 - `hideApp()` može sakriti stage ili učiniti ga nevidljivim
-- `showWildBeerBubblesExplosion()` provjerava `stage.visible`, `stage.alpha`, `stage.renderable`
+- `showWildJuiceBubblesExplosion()` provjerava `stage.visible`, `stage.alpha`, `stage.renderable`
 - Ako je stage sakriven, animacija se neće pokrenuti
 
 **Impact:** 🟡 **MEDIUM** - Može sprječavati animaciju ako je stage sakriven
 
 ---
 
-### 6. 🧪 **MODULE STATE VALIDATION: showWildBeerBubblesExplosion()**
+### 6. 🧪 **MODULE STATE VALIDATION: showWildJuiceBubblesExplosion()**
 
-**Lokacija:** `src/modules/wild-beer-bubbles-explosion.ts`, linija 63-76
+**Lokacija:** `src/modules/wild-juice-bubbles-explosion.ts`, linija 63-76
 
 **Problem:**
 ```typescript
-export function showWildBeerBubblesExplosion(): void {
+export function showWildJuiceBubblesExplosion(): void {
   if (isExplosionActive) {
-    console.log('💧 Wild-beer bubbles explosion already active, skipping');
+    console.log('💧 Wild-juice bubbles explosion already active, skipping');
     return;
   }
 
@@ -175,7 +175,7 @@ export function showWildBeerBubblesExplosion(): void {
   const stage = (windowState && windowState.stage) || (app && app.stage) || null;
 
   if (!stage || stage.destroyed) {
-    console.warn('⚠️ Cannot start wild-beer bubbles explosion - no stage');
+    console.warn('⚠️ Cannot start wild-juice bubbles explosion - no stage');
     return;
   }
   // ...
@@ -195,36 +195,36 @@ export function showWildBeerBubblesExplosion(): void {
 
 ### Scenario 1: Merge 6 → Clean Board Flow (Ideal)
 ```
-1. User merges wild-beer + regular tile → merge 6
-2. setTimeout(() => showWildBeerBubblesExplosion(), 200) scheduled
+1. User merges wild-juice + regular tile → merge 6
+2. setTimeout(() => showWildJuiceBubblesExplosion(), 200) scheduled
 3. triggerCleanBoardFlow() called
 4. runEndgameFlow() called
 5. showCleanBoardModal() called
 6. User clicks "Continue"
-7. cleanupAllEffects() called → stopWildBeerBubblesExplosion() → ❌ Animacija zaustavljena
-8. setTimeout fires → showWildBeerBubblesExplosion() → ❌ Ne može pokrenuti (stage destroyed/cleaned)
+7. cleanupAllEffects() called → stopWildJuiceBubblesExplosion() → ❌ Animacija zaustavljena
+8. setTimeout fires → showWildJuiceBubblesExplosion() → ❌ Ne može pokrenuti (stage destroyed/cleaned)
 ```
 
 ### Scenario 2: Merge 6 → Board Transition (Current Problem)
 ```
-1. User merges wild-beer + regular tile → merge 6
-2. setTimeout(() => showWildBeerBubblesExplosion(), 200) scheduled
+1. User merges wild-juice + regular tile → merge 6
+2. setTimeout(() => showWildJuiceBubblesExplosion(), 200) scheduled
 3. triggerCleanBoardFlow() called
 4. runEndgameFlow() called
 5. showBoardTransitionScreen() called
-6. setTimeout fires → showWildBeerBubblesExplosion() → ✅ Može pokrenuti (stage još postoji)
+6. setTimeout fires → showWildJuiceBubblesExplosion() → ✅ Može pokrenuti (stage još postoji)
 7. onComplete() → hideApp() → ❌ Stage sakriven → Animacija se ne vidi
 8. startLevel() → boot() → ❌ Stage destroyed → Animacija se zaustavlja
 ```
 
 ### Scenario 3: Merge 6 → Fast Clean Board (Worst Case)
 ```
-1. User merges wild-beer + regular tile → merge 6
-2. setTimeout(() => showWildBeerBubblesExplosion(), 200) scheduled
+1. User merges wild-juice + regular tile → merge 6
+2. setTimeout(() => showWildJuiceBubblesExplosion(), 200) scheduled
 3. triggerCleanBoardFlow() called IMMEDIATELY (< 200ms)
-4. cleanupAllEffects() called → stopWildBeerBubblesExplosion() → ❌ Animacija zaustavljena
-5. rebuildBoard() called → stopWildBeerBubblesExplosion() → ❌ Animacija zaustavljena
-6. setTimeout fires → showWildBeerBubblesExplosion() → ❌ Ne može pokrenuti (already stopped)
+4. cleanupAllEffects() called → stopWildJuiceBubblesExplosion() → ❌ Animacija zaustavljena
+5. rebuildBoard() called → stopWildJuiceBubblesExplosion() → ❌ Animacija zaustavljena
+6. setTimeout fires → showWildJuiceBubblesExplosion() → ❌ Ne može pokrenuti (already stopped)
 ```
 
 ---
@@ -245,7 +245,7 @@ export function showWildBeerBubblesExplosion(): void {
 **Idea:** Odgoditi cleanup animacije dok se board transition ne završi.
 
 **Implementation:**
-1. **Delay cleanup** - Ne pozivati `stopWildBeerBubblesExplosion()` u `cleanupAllEffects()` ako je animacija aktivna
+1. **Delay cleanup** - Ne pozivati `stopWildJuiceBubblesExplosion()` u `cleanupAllEffects()` ako je animacija aktivna
 2. **Wait for completion** - Čekati da se animacija završi prije nego što se pozove cleanup
 3. **Graceful shutdown** - Omogućiti animaciji da se završi prirodno prije nego što se stage uništi
 
@@ -264,7 +264,7 @@ export function showWildBeerBubblesExplosion(): void {
 
 ### Phase 1: Immediate Execution (Priority: 🔴 CRITICAL)
 1. ✅ Remove `setTimeout` delay u `app-core.ts` linija 6109
-2. ✅ Call `showWildBeerBubblesExplosion()` immediately after merge 6 detection
+2. ✅ Call `showWildJuiceBubblesExplosion()` immediately after merge 6 detection
 3. ✅ Add validation to ensure stage is valid before calling
 
 ### Phase 2: Cleanup Protection (Priority: 🔴 CRITICAL)
@@ -273,7 +273,7 @@ export function showWildBeerBubblesExplosion(): void {
 3. ✅ Modify `rebuildBoard()` to skip bubble explosion cleanup if transition is active
 
 ### Phase 3: Stage Protection (Priority: 🟠 HIGH)
-1. ✅ Add stage validation in `showWildBeerBubblesExplosion()` to handle transition state
+1. ✅ Add stage validation in `showWildJuiceBubblesExplosion()` to handle transition state
 2. ✅ Ensure stage is visible/rendering before starting animation
 3. ✅ Add retry logic if stage is temporarily unavailable
 
@@ -287,19 +287,19 @@ export function showWildBeerBubblesExplosion(): void {
 ## 🧪 Testing Scenarios
 
 ### Test 1: Fast Clean Board
-- Merge 6 wild-beer → Clean board flow starts immediately
+- Merge 6 wild-juice → Clean board flow starts immediately
 - **Expected:** Bubble animation starts immediately and completes before cleanup
 
 ### Test 2: Board Transition
-- Merge 6 wild-beer → Board transition screen shows
+- Merge 6 wild-juice → Board transition screen shows
 - **Expected:** Bubble animation starts and persists through transition
 
 ### Test 3: Multiple Boards
-- Merge 6 wild-beer → Continue → New board → Merge 6 wild-beer again
+- Merge 6 wild-juice → Continue → New board → Merge 6 wild-juice again
 - **Expected:** Both animations work independently
 
 ### Test 4: Stage Destruction
-- Merge 6 wild-beer → Stage destroyed during transition
+- Merge 6 wild-juice → Stage destroyed during transition
 - **Expected:** Animation handles gracefully, no errors
 
 ---
@@ -327,10 +327,10 @@ export function showWildBeerBubblesExplosion(): void {
 // BEFORE:
 setTimeout(() => {
   try {
-    if (isWildBeerBubblesExplosionActive()) {
-      stopWildBeerBubblesExplosion();
+    if (isWildJuiceBubblesExplosionActive()) {
+      stopWildJuiceBubblesExplosion();
     }
-    showWildBeerBubblesExplosion();
+    showWildJuiceBubblesExplosion();
   } catch (error) {
     console.error('❌ Failed to trigger bubbles explosion:', error);
   }
@@ -339,16 +339,16 @@ setTimeout(() => {
 // AFTER:
 // 🔥 CRITICAL FIX: Execute immediately (no delay) to prevent race condition with board transition
 try {
-  if (isWildBeerBubblesExplosionActive()) {
-    stopWildBeerBubblesExplosion();
+  if (isWildJuiceBubblesExplosionActive()) {
+    stopWildJuiceBubblesExplosion();
   }
-  showWildBeerBubblesExplosion();
+  showWildJuiceBubblesExplosion();
 } catch (error) {
   console.error('❌ Failed to trigger bubbles explosion:', error);
 }
 ```
 
-### 2. `src/modules/wild-beer-bubbles-explosion.ts` (linija 63)
+### 2. `src/modules/wild-juice-bubbles-explosion.ts` (linija 63)
 ```typescript
 // Add board transition check
 const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
@@ -358,11 +358,11 @@ if (!stage || stage.destroyed) {
   if (isBoardTransitionActive) {
     // Retry after short delay if in transition
     setTimeout(() => {
-      showWildBeerBubblesExplosion();
+      showWildJuiceBubblesExplosion();
     }, 100);
     return;
   }
-  console.warn('⚠️ Cannot start wild-beer bubbles explosion - no stage');
+  console.warn('⚠️ Cannot start wild-juice bubbles explosion - no stage');
   return;
 }
 ```
@@ -376,7 +376,7 @@ export function cleanupAllEffects() {
   // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition
   const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
   if (!isBoardTransitionActive) {
-    cleanupWildBeerExplosion();
+    cleanupWildJuiceExplosion();
   } else {
     console.log('⏸️ Skipping bubble explosion cleanup - board transition active');
   }
@@ -406,7 +406,7 @@ await showBoardTransitionScreen({
 
 ## ✅ Success Criteria
 
-1. ✅ Bubble animation se pokreće **odmah** nakon merge 6 wild-beer
+1. ✅ Bubble animation se pokreće **odmah** nakon merge 6 wild-juice
 2. ✅ Animacija **ne zaustavlja** tijekom board transitiona
 3. ✅ Animacija se **završava** prirodno prije nego što se stage uništi
 4. ✅ **Nema errora** u konzoli
@@ -417,7 +417,7 @@ await showBoardTransitionScreen({
 ## 🔗 Related Files
 
 - `src/modules/app-core.ts` - Merge 6 detection and animation trigger
-- `src/modules/wild-beer-bubbles-explosion.ts` - Animation module
+- `src/modules/wild-juice-bubbles-explosion.ts` - Animation module
 - `src/modules/fx.ts` - Cleanup functions
 - `src/modules/clean-board-modal.ts` - Clean board flow
 - `src/modules/endgame-flow.ts` - Endgame flow and board transition

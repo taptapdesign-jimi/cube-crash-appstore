@@ -1,7 +1,7 @@
-# 🔍 Deep Analysis: Wild Beer Bubbles Explosion - Not Triggering in New Board
+# 🔍 Deep Analysis: Wild Juice Bubbles Explosion - Not Triggering in New Board
 
 ## Problem Statement
-U novom boardu, kada se wild beer spoji s običnom kockicom i napravi merge 6, **explosion bubble animacija se ne poziva**. Također, **ghost placeholders se ponovno pojavljuju** nakon merge 6.
+U novom boardu, kada se wild juice spoji s običnom kockicom i napravi merge 6, **explosion bubble animacija se ne poziva**. Također, **ghost placeholders se ponovno pojavljuju** nakon merge 6.
 
 ## Root Cause Analysis
 
@@ -21,7 +21,7 @@ const dstSpecial = dst?.special; // ← OVO PREPISUJE PREVIOUS dstSpecial!
 
 // Linija 6033-6034 (u merge 6 bloku, kasnije):
 const isMainWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
+const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice') && !isMainWildMagnetMerge;
 ```
 
 **Analiza:**
@@ -51,7 +51,7 @@ const dstSpecial = dst?.special; // ← dst može biti modified (setValue, clear
 // removeTile(src) se poziva
 
 // Linija 6033-6034 (kasnije u merge 6 bloku):
-const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
+const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice') && !isMainWildMagnetMerge;
 // ← srcSpecial i dstSpecial mogu biti undefined ili promijenjeni!
 ```
 
@@ -63,7 +63,7 @@ const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || s
   - `removeTile(src)` - može uništiti `src`
 - Kada se dođe do linije 6033, `srcSpecial` i `dstSpecial` mogu biti **undefined** ili **promijenjeni**
 
-**Impact:** 🔴 **CRITICAL** - Sprječava ispravnu detekciju wild-beer merge
+**Impact:** 🔴 **CRITICAL** - Sprječava ispravnu detekciju wild-juice merge
 
 ---
 
@@ -94,16 +94,16 @@ dst.special = undefined; // ili null
 
 **Problem:**
 ```typescript
-const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
+const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice') && !isMainWildMagnetMerge;
 ```
 
 **Analiza:**
 - Ako je `srcSpecial` ili `dstSpecial` `undefined`, ova provjera će biti `false`
-- Ako je `srcSpecial === 'wild-beer'` ali je `dstSpecial` `undefined`, provjera će biti `true` (ispravno)
-- **ALI:** Ako je `srcSpecial` `undefined` i `dstSpecial === 'wild-beer'`, provjera će biti `true` (ispravno)
+- Ako je `srcSpecial === 'wild-juice'` ali je `dstSpecial` `undefined`, provjera će biti `true` (ispravno)
+- **ALI:** Ako je `srcSpecial` `undefined` i `dstSpecial === 'wild-juice'`, provjera će biti `true` (ispravno)
 - **PROBLEM:** Ako su OBA `undefined`, provjera će biti `false` (pogrešno)
 
-**Impact:** 🟡 **MEDIUM** - Može uzrokovati da se wild-beer merge ne detektira
+**Impact:** 🟡 **MEDIUM** - Može uzrokovati da se wild-juice merge ne detektira
 
 ---
 
@@ -138,26 +138,26 @@ function updateGhostVisibility() {
 
 ---
 
-## Flow Analysis: What Happens During Wild Beer Merge 6
+## Flow Analysis: What Happens During Wild Juice Merge 6
 
-### Scenario: Wild Beer + Regular Tile → Merge 6 (Current Problem)
+### Scenario: Wild Juice + Regular Tile → Merge 6 (Current Problem)
 ```
-1. User drags wild-beer tile onto regular tile
+1. User drags wild-juice tile onto regular tile
 2. merge() function called
-3. Line 3943-3944: srcSpecial = src?.special ('wild-beer'), dstSpecial = dst?.special (undefined)
+3. Line 3943-3944: srcSpecial = src?.special ('wild-juice'), dstSpecial = dst?.special (undefined)
 4. Line 4426: effSum === 6, enter merge 6 block
-5. Line 4429-4430: srcSpecial = src?.special ('wild-beer'), dstSpecial = dst?.special (undefined) ← PREPISUJE PREVIOUS!
+5. Line 4429-4430: srcSpecial = src?.special ('wild-juice'), dstSpecial = dst?.special (undefined) ← PREPISUJE PREVIOUS!
 6. Line ~4500+: dst.setValue(6) → dst.value = 6
 7. Line ~4500+: clearWildState(dst) → dst.special = undefined (ako je dst bio wild)
 8. Line ~4500+: removeTile(src) → src destroyed
 9. Line 6033-6034: Check isMainWildOnlyMerge
-   - srcSpecial = 'wild-beer' (ispravno, iz closure-a)
+   - srcSpecial = 'wild-juice' (ispravno, iz closure-a)
    - dstSpecial = undefined (možda ispravno, ali možda ne)
    - isMainWildOnlyMerge = (true || false || true || false) && !false = true ✅
-10. Line 6063: isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer'
-   - isWildBeerMerge = true || false = true ✅
-11. Line 6093: if (isWildBeerMerge) → TRUE ✅
-12. Line 6120: showWildBeerBubblesExplosion() → ✅ POZIVA SE
+10. Line 6063: isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice'
+   - isWildJuiceMerge = true || false = true ✅
+11. Line 6093: if (isWildJuiceMerge) → TRUE ✅
+12. Line 6120: showWildJuiceBubblesExplosion() → ✅ POZIVA SE
 ```
 
 **Ali zašto se ne poziva?**
@@ -191,16 +191,16 @@ console.log('🔍 MERGE 6: srcSpecial/dstSpecial (second):', { srcSpecial, dstSp
 
 // Linija 6033-6034:
 const isMainWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
+const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice') && !isMainWildMagnetMerge;
 console.log('🔍 MERGE 6: isMainWildOnlyMerge check:', { srcSpecial, dstSpecial, isMainWildMagnetMerge, isMainWildOnlyMerge, wasWild });
 
 // Linija 6063:
-const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
-console.log('🔍 MERGE 6: isWildBeerMerge check:', { srcSpecial, dstSpecial, isWildBeerMerge });
+const isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
+console.log('🔍 MERGE 6: isWildJuiceMerge check:', { srcSpecial, dstSpecial, isWildJuiceMerge });
 
 // Linija 6093:
-if (isWildBeerMerge) {
-  console.log('✅ MERGE 6: Wild-beer merge detected, calling showWildBeerBubblesExplosion()');
+if (isWildJuiceMerge) {
+  console.log('✅ MERGE 6: Wild-juice merge detected, calling showWildJuiceBubblesExplosion()');
   // ...
 }
 ```
@@ -216,7 +216,7 @@ console.log('🔍 MERGE 6: wasWild check:', { wasWild, wildActive, srcSpecial, d
 ### Step 3: Check Stage
 Provjeriti da li je stage validan:
 ```typescript
-// U showWildBeerBubblesExplosion():
+// U showWildJuiceBubblesExplosion():
 console.log('🔍 BUBBLES: Stage check:', { 
   hasWindowState: !!windowState, 
   hasApp: !!app, 
@@ -270,8 +270,8 @@ console.log('🔍 BUBBLES: Stage check:', {
 
 ### Phase 2: Add Debugging (Priority: 🟠 HIGH)
 1. ✅ Add comprehensive logging at critical points
-2. ✅ Log `wasWild`, `isMainWildOnlyMerge`, `isWildBeerMerge` values
-3. ✅ Log stage validation in `showWildBeerBubblesExplosion()`
+2. ✅ Log `wasWild`, `isMainWildOnlyMerge`, `isWildJuiceMerge` values
+3. ✅ Log stage validation in `showWildJuiceBubblesExplosion()`
 
 ### Phase 3: Fix Ghost Placeholders (Priority: 🟡 MEDIUM)
 1. ✅ Ensure `updateGhostVisibility()` is called after merge 6
@@ -282,17 +282,17 @@ console.log('🔍 BUBBLES: Stage check:', {
 
 ## 🧪 Testing Scenarios
 
-### Test 1: Wild Beer + Regular Tile → Merge 6
-- Drag wild-beer onto regular tile
-- **Expected:** `srcSpecial = 'wild-beer'`, `dstSpecial = undefined`, `isWildBeerMerge = true`, bubbles animation starts
+### Test 1: Wild Juice + Regular Tile → Merge 6
+- Drag wild-juice onto regular tile
+- **Expected:** `srcSpecial = 'wild-juice'`, `dstSpecial = undefined`, `isWildJuiceMerge = true`, bubbles animation starts
 
-### Test 2: Regular Tile + Wild Beer → Merge 6
-- Drag regular tile onto wild-beer
-- **Expected:** `srcSpecial = undefined`, `dstSpecial = 'wild-beer'`, `isWildBeerMerge = true`, bubbles animation starts
+### Test 2: Regular Tile + Wild Juice → Merge 6
+- Drag regular tile onto wild-juice
+- **Expected:** `srcSpecial = undefined`, `dstSpecial = 'wild-juice'`, `isWildJuiceMerge = true`, bubbles animation starts
 
 ### Test 3: Check Console Logs
 - Open browser console
-- **Expected:** See detailed logging of `srcSpecial`, `dstSpecial`, `isWildBeerMerge`, `wasWild` values
+- **Expected:** See detailed logging of `srcSpecial`, `dstSpecial`, `isWildJuiceMerge`, `wasWild` values
 
 ---
 

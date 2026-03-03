@@ -11,7 +11,7 @@
 
 2. **Graphics objekti** - `fx.js` (particles, shards, bubbles)
    - **Shards**: `woodShardsAtTile()` - ~20-40 shards po merge-6
-   - **Bubbles**: `dragBeerBubbleTrail()` - 4-10 bubbles po drag
+   - **Bubbles**: `dragJuiceBubbleTrail()` - 4-10 bubbles po drag
    - **Sparkles**: `magicSparklesAtTile()` - kontinuirano za wild tiles
    - **Crack overlay**: `regularMerge6Shards()` - 1 Graphics po merge
 
@@ -83,7 +83,7 @@
 **Koraci**:
 1. Kreirati `GraphicsPool` klasu
 2. Pool size: 100-200 Graphics objekata
-3. Modificirati `woodShardsAtTile()`, `dragBeerBubbleTrail()`, `magicSparklesAtTile()`
+3. Modificirati `woodShardsAtTile()`, `dragJuiceBubbleTrail()`, `magicSparklesAtTile()`
 4. Reset funkcija: `clear()`, reset `x`, `y`, `alpha`, `rotation`, `scale`
 5. Kill GSAP tweens prije vraćanja u pool
 
@@ -168,7 +168,7 @@
 - [ ] **1.2** Integrirati u `fx.js`
   - [ ] Import `GraphicsPool`
   - [ ] Modificirati `woodShardsAtTile()` - koristiti pool
-  - [ ] Modificirati `dragBeerBubbleTrail()` - koristiti pool
+  - [ ] Modificirati `dragJuiceBubbleTrail()` - koristiti pool
   - [ ] Modificirati `magicSparklesAtTile()` - koristiti pool
   - [ ] Modificirati `regularMerge6Shards()` - koristiti pool
 
@@ -179,7 +179,7 @@
 
 - [ ] **1.4** Testing
   - [ ] Test merge-6 animacije (shards)
-  - [ ] Test wild beer drag (bubbles)
+  - [ ] Test wild juice drag (bubbles)
   - [ ] Test wild star sparkles (kontinuirano)
   - [ ] Test memory usage (Chrome DevTools)
   - [ ] Test performance (FPS, GC pauses)

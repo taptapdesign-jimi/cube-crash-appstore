@@ -75,7 +75,7 @@ Home → Navigation:
    - **Zašto:** Najjednostavniji za implementirati, jasna vrijednost
 
 2. **Wild Tile Spawn** - $1.99
-   - Spawnaj random wild tile (star, beer, magnet)
+   - Spawnaj random wild tile (star, juice, magnet)
    - Consumable
    - **Zašto:** Korisno, satisfying, lako za implementirati
 

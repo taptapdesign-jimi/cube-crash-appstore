@@ -118,17 +118,17 @@
 
 #### B. Bubbles Animation - Potencijalni Overload
 **Problem:**
-- ⚠️ **Wild beer bubbles** se kreiraju ali možda nisu dovoljno agresivno cleanup-ovane
+- ⚠️ **Wild juice bubbles** se kreiraju ali možda nisu dovoljno agresivno cleanup-ovane
 - ⚠️ **Multiple bubbles** se mogu akumulirati ako se board resetuje brzo
 
 **Lokacija:**
-- `src/modules/fx.ts` - `startWildBeerBubbles()`
-- `src/modules/fx.ts` - `cleanupWildBeerExplosion()`
+- `src/modules/fx.ts` - `startWildJuiceBubbles()`
+- `src/modules/fx.ts` - `cleanupWildJuiceExplosion()`
 
 **Status:** ✅ Cleanup funkcija postoji, ali možda nije dovoljno agresivna
 
 **Preporuka:**
-- Provjeriti da li se `cleanupWildBeerExplosion()` poziva u svim slučajevima
+- Provjeriti da li se `cleanupWildJuiceExplosion()` poziva u svim slučajevima
 - Dodati force cleanup u `rebuildBoard()` ako bubbles još traju
 
 ### 2. **Memory Leaks - SREDNJI RIZIK** 🟡
@@ -282,7 +282,7 @@
 7. **Provjeriti Bubbles Cleanup**
    - **Impact**: Eliminisan memory leak od bubbles animacija
    - **Effort**: Nizak (provjera i dodavanje cleanup-a)
-   - **Lokacija**: `src/modules/fx.ts` - `startWildBeerBubbles()`
+   - **Lokacija**: `src/modules/fx.ts` - `startWildJuiceBubbles()`
 
 ---
 

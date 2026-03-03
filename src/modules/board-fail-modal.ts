@@ -524,6 +524,22 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           console.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
         }
         
+        // 🔥 BUG FIX: Cleanup board/FX immediately to avoid frozen board residue on exit
+        try { (window as any).CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
+        try {
+          const appEl = document.getElementById('app');
+          if (appEl) {
+            appEl.style.opacity = '0';
+            appEl.style.visibility = 'hidden';
+            appEl.style.pointerEvents = 'none';
+          }
+          const canvasEl = document.querySelector('canvas') as HTMLCanvasElement | null;
+          if (canvasEl) {
+            canvasEl.style.opacity = '0';
+            canvasEl.style.visibility = 'hidden';
+          }
+        } catch {}
+
         // 🔥 BUG FIX: Close modal FIRST (fade out), then call exitToMenu
         // This prevents blank screen - modal fades out while exitToMenu runs in background
         overlay.style.opacity = '0';

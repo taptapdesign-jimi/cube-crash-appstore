@@ -30,7 +30,7 @@ stopBubbleMonitor()
 1. **Otvori DevTools** (F12 ili Cmd+Option+I)
 2. **Idi na Performance tab**
 3. **Klikni Record** (●)
-4. **Trigger bubbles animaciju** (merge 6 wild-beer)
+4. **Trigger bubbles animaciju** (merge 6 wild-juice)
 5. **Čekaj 3-4 sekunde** (dovoljno za cijelu animaciju)
 6. **Stop Record** (■)
 7. **Analiziraj rezultate**

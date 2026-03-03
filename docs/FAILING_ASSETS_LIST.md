@@ -6,8 +6,8 @@ Ove putanje se u konzoli javljaju kao **Failed to load** / **could not be decode
 
 ```
 ./assets/logo.png
-./assets/wild-beer@2x.png
-./assets/wild-beer@3x.png
+./assets/wild-juice@2x.png
+./assets/wild-juice@3x.png
 ./assets/gold-coin.png
 ./assets/mystery-box.png
 ./assets/ripple.png
@@ -32,7 +32,7 @@ Ove putanje se u konzoli javljaju kao **Failed to load** / **could not be decode
 ## Napomene
 
 - **logo.png** – u preloaderu se učitava uz `logo-cube-crash.png`; ako koristiš samo logo-cube-crash, možeš izbaciti `logo.png` iz liste.
-- **wild-beer@2x.png, wild-beer@3x.png** – igra koristi `wild-beer` (wild-beer tile); ako imaš samo `wild-beer.png`, @2x/@3x mogu biti legacy ili krivi fileovi. Provjeri postoje li u `assets/`.
+- **wild-juice@2x.png, wild-juice@3x.png** – igra koristi `wild-juice` (wild-juice tile); ako imaš samo `wild-juice.png`, @2x/@3x mogu biti legacy ili krivi fileovi. Provjeri postoje li u `assets/`.
 - **gold-coin.png, mystery-box.png** – referencirani u `constants.ts` i preload-assets; ako su legacy, makni reference i iz preloada.
 - **ripple.png** – u `asset-preloader.ts` u ALL_ASSETS; ako se nigdje ne koristi, možeš izbaciti.
 - **fx/boom/boom_*.png** – cijela boom sekvenca (16 slika). Ako boom efekt više ne koristiš, možeš izbaciti iz preloada; ako koristiš, trebaju valjani PNG-ovi.

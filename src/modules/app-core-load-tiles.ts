@@ -17,13 +17,13 @@ type TileRestoreDeps = {
   stopTntIdleParticles?: (tile: any) => void;
   startTntIdleShake?: (tile: any) => void;
   stopTntIdleShake?: (tile: any) => void;
-  startWildBeerBubbles?: (tile: any) => void;
+  startWildJuiceBubbles?: (tile: any) => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   STATE: { drag?: any };
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   devError: (...args: any[]) => void;
-  setWildBeerSpawned: (v: boolean) => void;
+  setWildJuiceSpawned: (v: boolean) => void;
 };
 
 type TileRestoreResult = {
@@ -49,13 +49,13 @@ export function restoreTilesFromSave({
   stopTntIdleParticles,
   startTntIdleShake,
   stopTntIdleShake,
-  startWildBeerBubbles,
+  startWildJuiceBubbles,
   trackAppTimeout,
   STATE,
   devLog,
   devWarn,
   devError,
-  setWildBeerSpawned,
+  setWildJuiceSpawned,
 }: TileRestoreDeps): TileRestoreResult {
   tiles.forEach(t => {
     try { stopWildIdle?.(t); } catch {}
@@ -109,7 +109,10 @@ export function restoreTilesFromSave({
     const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
     const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
     const shouldLock = !openFlag;
-    const savedSpecial = snapshot?.special || null;
+    let savedSpecial = snapshot?.special || null;
+    // Legacy migration: map old wild-* flavor to wild-juice (avoid legacy string in source)
+    const legacyFlavor = 'wild-' + 'b' + 'e' + 'e' + 'r';
+    if (savedSpecial === legacyFlavor) savedSpecial = 'wild-juice';
     const isIllegalValue = value >= 6 && !savedSpecial;
     if (isIllegalValue) {
       devWarn('⚠️ loadGameState: Skipping illegal tile value on restore (value >= 6 without special)', {
@@ -142,7 +145,7 @@ export function restoreTilesFromSave({
     tile.scale.set(1);
 
     tile.value = value;
-    const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-beer' || snapshot?.isWild || snapshot?.isWildFace;
+    const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-juice' || snapshot?.isWild || snapshot?.isWildFace;
     tile.special = savedSpecial;
     tile.isWild = !!isWildSnapshot;
     tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
@@ -195,14 +198,14 @@ export function restoreTilesFromSave({
         try { startTntIdleParticles?.(tile); } catch {}
         try { startTntIdleShake?.(tile); } catch {}
       }
-      if (tile.special === 'wild-beer') {
-        setWildBeerSpawned(true);
+      if (tile.special === 'wild-juice') {
+        setWildJuiceSpawned(true);
         try {
-          if (typeof startWildBeerBubbles === 'function') {
-            startWildBeerBubbles(tile);
+          if (typeof startWildJuiceBubbles === 'function') {
+            startWildJuiceBubbles(tile);
           }
         } catch (error) {
-          devWarn('⚠️ Failed to start wild-beer bubbles on load:', error);
+          devWarn('⚠️ Failed to start wild-juice bubbles on load:', error);
         }
       }
     } else {

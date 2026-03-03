@@ -40,7 +40,7 @@ const CRITICAL_IMAGES: string[] = [
   './assets/tile_numbers4.png',
   './assets/wild.png',
   './assets/wild-magnet.png',
-  './assets/wild-beer.png',
+  './assets/wild-juice.png',
   './assets/shop/explosion pack/tnt.png',
   './assets/shop/explosion pack/animation/tnt1.png',
   './assets/shop/explosion pack/animation/tnt2.png',

@@ -2577,6 +2577,39 @@ body{
   margin: 0;
 }
 
+/* iPad-only: center all score stats content (icons + text) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .score-bottom-sheet .score-stats-container {
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: center;
+  }
+  .score-bottom-sheet .score-stats-container .stat-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    justify-content: center;
+    align-items: center;
+    text-align: left;
+    width: auto;
+    padding: 12px 20px;
+    border-radius: 18px;
+    background: none;
+    box-shadow: none;
+  }
+  .score-bottom-sheet .score-stats-container .stat-content {
+    align-items: flex-start;
+  }
+  .score-bottom-sheet .score-stats-container .stat-icon {
+    justify-content: center;
+  }
+  .score-bottom-sheet .score-stats-container .stat-label,
+  .score-bottom-sheet .score-stats-container .stat-value {
+    text-align: left;
+  }
+}
+
 /* Score bottom sheet uses modal-handle (same as end-run-modal) */
 .score-bottom-sheet .modal-handle {
   width: 24px;
@@ -4414,6 +4447,16 @@ body:has(:root) .tile.wild-3d-glow {
   margin-bottom: 16px;
   padding-left: 0;
   padding-right: 0;
+  transform: translateY(4px);
+  -webkit-transform: translateY(4px);
+}
+
+/* iPad-only: push settings header content 8px lower */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .settings-header-top {
+    transform: translateY(10px);
+    -webkit-transform: translateY(10px);
+  }
 }
 
 .settings-back-button {

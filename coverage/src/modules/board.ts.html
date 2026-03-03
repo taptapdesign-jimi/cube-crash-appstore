@@ -1907,7 +1907,7 @@
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
   ASSET_TILE,
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
-  ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER, ASSET_WILD_TNT,
+  ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
 } from './constants.js';
 &nbsp;
 const BOARD_BG_COLOR = <span class="cstat-no" title="statement not covered" >0xF3EEE8;</span>
@@ -2177,8 +2177,8 @@ function <span class="fstat-no" title="function not covered" >_setValueVisuals(<
   }
   
   // 🔥 CRITICAL: Check special FIRST before setting any texture
-  // This ensures wild-beer, wild-magnet, and wild tiles ALWAYS get correct texture
-<span class="cstat-no" title="statement not covered" >  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt') {</span>
+  // This ensures wild-juice, wild-magnet, and wild tiles ALWAYS get correct texture
+<span class="cstat-no" title="statement not covered" >  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >    try {</span>
       // 🔥 CRITICAL: Ensure base sprite exists
 <span class="cstat-no" title="statement not covered" >      if (!t.base) {</span>
@@ -2197,8 +2197,8 @@ function <span class="fstat-no" title="function not covered" >_setValueVisuals(<
       // 🔥 CRITICAL: Always use correct texture for wild type
       const assetPath = <span class="cstat-no" title="statement not covered" >t.special === 'wild-magnet'</span>
         ? ASSET_WILD_MAGNET
-        : t.special === 'wild-beer'
-          ? ASSET_WILD_BEER
+        : t.special === 'wild-juice'
+          ? ASSET_WILD_JUICE
           : t.special === 'wild-tnt'
             ? ASSET_WILD_TNT
             : ASSET_WILD;
@@ -2250,7 +2250,7 @@ function <span class="fstat-no" title="function not covered" >_setValueVisuals(<
 <span class="cstat-no" title="statement not covered" >  drawStack(t);</span>
   
   // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
-<span class="cstat-no" title="statement not covered" >  if (!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt')) {</span>
+<span class="cstat-no" title="statement not covered" >  if (!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt')) {</span>
 <span class="cstat-no" title="statement not covered" >    drawPips(t);</span>
   }
 }
@@ -2326,8 +2326,8 @@ let onMergeChainUpdate: ((value: number, count: number) =&gt; void) | null = <sp
 <span class="cstat-no" title="statement not covered" >    g.closePath();</span>
   };
   
-  // 🔥 USER REQUEST: Helper function to draw beer mug shape for wild-beer tile shadow
-  const drawBeerMug = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(g</span>: Graphics, x: number, y: number, width: number, height: number): void =&gt; {</span>
+  // 🔥 USER REQUEST: Helper function to draw juice mug shape for wild-juice tile shadow
+  const drawJuiceMug = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(g</span>: Graphics, x: number, y: number, width: number, height: number): void =&gt; {</span>
     const mugWidth = <span class="cstat-no" title="statement not covered" >width * 0.85;</span>
     const mugHeight = <span class="cstat-no" title="statement not covered" >height * 0.9;</span>
     const handleWidth = <span class="cstat-no" title="statement not covered" >width * 0.15;</span>
@@ -2453,7 +2453,7 @@ let onMergeChainUpdate: ((value: number, count: number) =&gt; void) | null = <sp
 &nbsp;
       // 🔥 USER REQUEST: Check tile type for custom shadow shapes
       const isWildStar = <span class="cstat-no" title="statement not covered" >t.special === 'wild';</span>
-      const isWildBeer = <span class="cstat-no" title="statement not covered" >t.special === 'wild-beer';</span>
+      const isWildJuice = <span class="cstat-no" title="statement not covered" >t.special === 'wild-juice';</span>
       const isWildMagnet = <span class="cstat-no" title="statement not covered" >t.special === 'wild-magnet';</span>
       const isWildTnt = <span class="cstat-no" title="statement not covered" >t.special === 'wild-tnt';</span>
 &nbsp;
@@ -2486,10 +2486,10 @@ let onMergeChainUpdate: ((value: number, count: number) =&gt; void) | null = <sp
             const innerRadius = <span class="cstat-no" title="statement not covered" >outerRadius * 0.4;</span>
 <span class="cstat-no" title="statement not covered" >            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);</span>
 <span class="cstat-no" title="statement not covered" >            shV8.fill({ color: 0xBDA38D, alpha });</span>
-          } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
+          } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
             const centerX = <span class="cstat-no" title="statement not covered" >ox + width / 2;</span>
             const centerY = <span class="cstat-no" title="statement not covered" >oy + height / 2;</span>
-<span class="cstat-no" title="statement not covered" >            drawBeerMug(sh, centerX, centerY, width, height);</span>
+<span class="cstat-no" title="statement not covered" >            drawJuiceMug(sh, centerX, centerY, width, height);</span>
 <span class="cstat-no" title="statement not covered" >            shV8.fill({ color: 0xBDA38D, alpha });</span>
           } else <span class="cstat-no" title="statement not covered" >if (isWildMagnet) {</span>
             const centerX = <span class="cstat-no" title="statement not covered" >ox + width / 2;</span>
@@ -2507,10 +2507,10 @@ let onMergeChainUpdate: ((value: number, count: number) =&gt; void) | null = <sp
             const outerRadius = <span class="cstat-no" title="statement not covered" >Math.min(width, height) * 0.45;</span>
             const innerRadius = <span class="cstat-no" title="statement not covered" >outerRadius * 0.4;</span>
 <span class="cstat-no" title="statement not covered" >            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);</span>
-          } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
+          } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
             const centerX = <span class="cstat-no" title="statement not covered" >ox + width / 2;</span>
             const centerY = <span class="cstat-no" title="statement not covered" >oy + height / 2;</span>
-<span class="cstat-no" title="statement not covered" >            drawBeerMug(sh, centerX, centerY, width, height);</span>
+<span class="cstat-no" title="statement not covered" >            drawJuiceMug(sh, centerX, centerY, width, height);</span>
           } else <span class="cstat-no" title="statement not covered" >if (isWildMagnet) {</span>
             const centerX = <span class="cstat-no" title="statement not covered" >ox + width / 2;</span>
             const centerY = <span class="cstat-no" title="statement not covered" >oy + height / 2;</span>
@@ -2634,7 +2634,7 @@ let onMergeChainUpdate: ((value: number, count: number) =&gt; void) | null = <sp
 function <span class="fstat-no" title="function not covered" >tileIsWild(</span>tile: Tile | null | undefined): boolean {
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return false;</span></span>
   const special = <span class="cstat-no" title="statement not covered" >tile.special;</span>
-<span class="cstat-no" title="statement not covered" >  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt';</span>
+<span class="cstat-no" title="statement not covered" >  return special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';</span>
 }
 &nbsp;
 function <span class="fstat-no" title="function not covered" >tileIsActive(</span>tile: Tile | null | undefined): boolean {
@@ -2667,14 +2667,14 @@ function <span class="fstat-no" title="function not covered" >tileIsActive(</spa
   const open = <span class="cstat-no" title="statement not covered" >allTiles.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >tileIsActive(t as Tile))</span> as Tile[];</span>
   
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
-  const wildCubes = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt')</span>;</span>
+  const wildCubes = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt')</span>;</span>
   
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
-  const wildStars = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt')</span>;</span>
+  const wildStars = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt')</span>;</span>
   const magnets = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; <span class="cstat-no" title="statement not covered" >t.special === 'wild-magnet')</span>;</span>
   
   const mergeableNonWildTiles = <span class="cstat-no" title="statement not covered" >open.filter(<span class="fstat-no" title="function not covered" >(t</span>) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return false;</span></span>
+<span class="cstat-no" title="statement not covered" >    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return false;</span></span>
     const value = (<span class="cstat-no" title="statement not covered" >t.value | 0)</span>;
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Changed from &lt; 6 to &lt;= 6
     // This was causing false "stuck" detection when board had merge 6 + wild star
@@ -2782,8 +2782,8 @@ function <span class="fstat-no" title="function not covered" >tileIsActive(</spa
       }
       
       // Skip wild cubes in this check (they're already handled above)
-<span class="cstat-no" title="statement not covered" >      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || tile1.special === 'wild-beer' || tile1.special === 'wild-tnt' || </span>
-          tile2.special === 'wild' || tile2.special === 'wild-magnet' || tile2.special === 'wild-beer' || tile2.special === 'wild-tnt') {
+<span class="cstat-no" title="statement not covered" >      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || tile1.special === 'wild-juice' || tile1.special === 'wild-tnt' || </span>
+          tile2.special === 'wild' || tile2.special === 'wild-magnet' || tile2.special === 'wild-juice' || tile2.special === 'wild-tnt') {
 <span class="cstat-no" title="statement not covered" >        continue;</span>
       }
       

@@ -2,7 +2,7 @@
 
 ## 📋 Executive Summary
 
-Ova procjena analizira novu bubbles animaciju za wild-beer merge 6 efekt, fokusirajući se na:
+Ova procjena analizira novu bubbles animaciju za wild-juice merge 6 efekt, fokusirajući se na:
 1. **Kako je animacija izvedena** (tehnička implementacija)
 2. **Utjecaj na memoriju na iOS-u** (memory management)
 3. **Performance optimizacije** (FPS monitoring, object pooling)
@@ -14,7 +14,7 @@ Ova procjena analizira novu bubbles animaciju za wild-beer merge 6 efekt, fokusi
 
 ## 🎯 Implementacija Bubbles Animacije
 
-### 1. Glavna Funkcija: `createWildBeerBubblesExplosion`
+### 1. Glavna Funkcija: `createWildJuiceBubblesExplosion`
 
 **Lokacija**: `src/modules/fx.js:1461-1618`
 
@@ -129,7 +129,7 @@ gsap.to(bubble, {
    - **Rizik**: Medium (cleanup je implementiran, ali može propustiti u edge cases)
 
 2. **Container References**:
-   - `wildBeerExplosionContainer` se čuva globalno
+   - `wildJuiceExplosionContainer` se čuva globalno
    - Ako cleanup propusti, container ostaje u memoriji
    - **Rizik**: Low (cleanup je pozvan u `onComplete`)
 
@@ -170,16 +170,16 @@ gsap.to(bubble, {
 
 **Implementacija**:
 ```javascript
-export function cleanupWildBeerExplosion() {
+export function cleanupWildJuiceExplosion() {
   try {
     // Stop FPS monitoring
     stopFpsMonitoring();
     
-    wildBeerExplosionActive = false;
+    wildJuiceExplosionActive = false;
     
-    if (wildBeerExplosionContainer) {
-      const container = wildBeerExplosionContainer;
-      wildBeerExplosionContainer = null;
+    if (wildJuiceExplosionContainer) {
+      const container = wildJuiceExplosionContainer;
+      wildJuiceExplosionContainer = null;
       
       // Clear spawn interval
       if (container._spawnInterval) {
@@ -205,7 +205,7 @@ export function cleanupWildBeerExplosion() {
 ```
 
 **Ocjena**: ✅ Dobro implementirano, ali:
-- **Problem**: Cleanup se poziva tek nakon 1.2s delay-a (`setTimeout(() => cleanupWildBeerExplosion(), 1200)`)
+- **Problem**: Cleanup se poziva tek nakon 1.2s delay-a (`setTimeout(() => cleanupWildJuiceExplosion(), 1200)`)
 - **Rizik**: Bubbles ostaju u memoriji 1.2s nakon što animacija završi
 - **Preporuka**: Smanjiti delay na 0.5s ili cleanup odmah kada svi bubbles završe
 
@@ -358,7 +358,7 @@ export function cleanupWildBeerExplosion() {
 1. **Smanjiti cleanup delay**:
    ```javascript
    // Umjesto 1200ms, koristiti 500ms
-   setTimeout(() => cleanupWildBeerExplosion(), 500);
+   setTimeout(() => cleanupWildJuiceExplosion(), 500);
    ```
 
 2. **Track completion**:
@@ -376,7 +376,7 @@ export function cleanupWildBeerExplosion() {
    // Umjesto setInterval, koristiti RAF
    function spawnTick() {
      if (spawned >= totalBubbles) {
-       cleanupWildBeerExplosion();
+       cleanupWildJuiceExplosion();
        return;
      }
      makeBubble();

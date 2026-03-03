@@ -21,7 +21,7 @@
 |------------|--------|---------|
 | **Regular Tiles Drag** | ✅ **100%** | `dragSmokeTrail()` koristi `graphicsPool.acquire()` |
 | **Wild Star Drag** | ✅ **100%** | `magicSparklesAtTile()` koristi `graphicsPool.acquire()` |
-| **Wild Beer Drag** | ✅ **100%** | `magicSparklesAtTile()` koristi `graphicsPool.acquire()` |
+| **Wild Juice Drag** | ✅ **100%** | `magicSparklesAtTile()` koristi `graphicsPool.acquire()` |
 | **Wild Magnet Drag** | ✅ **100%** | `magicSparklesAtTile()` koristi `graphicsPool.acquire()` |
 | **Wild Magnet Idle** | ✅ **100%** | `magicSparklesAtTile()` koristi `graphicsPool.acquire()` |
 | **Merge 6 Shards** | ✅ **100%** | Svi merge shards koriste pattern-specific pools |

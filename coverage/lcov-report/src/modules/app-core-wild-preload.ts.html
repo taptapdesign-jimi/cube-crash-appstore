@@ -166,7 +166,7 @@
 function <span class="fstat-no" title="function not covered" >getActiveTiles(</span>tiles: any[]): any[] {
 <span class="cstat-no" title="statement not covered" >  return tiles.filter(<span class="fstat-no" title="function not covered" >(t</span>: any) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (!t || t.destroyed) <span class="cstat-no" title="statement not covered" >return false;</span></span>
-    const isWild = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';</span>
+    const isWild = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';</span>
     const hasValue = <span class="cstat-no" title="statement not covered" >(t.value | 0) &gt; 0;</span>
 <span class="cstat-no" title="statement not covered" >    return isWild || hasValue;</span>
   });

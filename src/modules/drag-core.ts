@@ -9,7 +9,7 @@
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from "./fx.ts";
+import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
@@ -41,7 +41,7 @@ const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjeća
 const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
 const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
-const BOARD_WOBBLE_ENABLED = true; // 🔥 USER REQUEST: Disabled for wild-beer drag (may use later) - kept constant for future use
+const BOARD_WOBBLE_ENABLED = true; // 🔥 USER REQUEST: Disabled for wild-juice drag (may use later) - kept constant for future use
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
 const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
@@ -334,7 +334,7 @@ export function initDrag(cfg) {
     drag.lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     drag.lagX = 0; drag.lagY = 0;
     if (t.rotG) gsap.killTweensOf(t.rotG);
-    // Remember board baseline and enable wobble only for beer wild
+    // Remember board baseline and enable wobble only for juice wild
     drag._boardBaseX = board?.x ?? 0;
     drag._boardBaseY = board?.y ?? 0;
     drag._boardBaseRot = board?.rotation ?? 0;
@@ -342,8 +342,8 @@ export function initDrag(cfg) {
     drag._boardCenterY = board ? board.y : 0;
     drag._boardPivotX = board?.pivot?.x ?? 0;
     drag._boardPivotY = board?.pivot?.y ?? 0;
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
-    // drag._boardWobbleActive = t.special === 'wild-beer';
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
+    // drag._boardWobbleActive = t.special === 'wild-juice';
     drag._boardWobbleActive = false; // Disabled - commented out for future use
     drag._boardPivotApplied = false;
 
@@ -368,8 +368,11 @@ export function initDrag(cfg) {
 
     // Ghost placeholders are now in fixed background layer - always visible
 
-    // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha (wild-tnt: bez sjene tijekom draga)
-    if (t.shadow && (t as any).special !== 'wild-tnt') {
+    // 🔧 SHADOW PATCH: Hide shadow while dragging any wild tile (star/juice/tnt/magnet)
+    const isWildDrag = t?.special === 'wild' || t?.special === 'wild-juice' || t?.special === 'wild-tnt' || t?.special === 'wild-magnet';
+    if (t.shadow && isWildDrag) {
+      t.shadow.visible = false;
+    } else if (t.shadow) {
       t.shadow.visible = true;
       const prev = t.shadow.alpha;
       if (t.refreshShadow) { t.refreshShadow(); if (t.shadow) t.shadow.alpha = prev; }
@@ -377,26 +380,23 @@ export function initDrag(cfg) {
       gsap.killTweensOf(t.shadow);
       trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
     }
-    if (t.shadow && (t as any).special === 'wild-tnt') {
-      t.shadow.visible = false;
-    }
 
     trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
-    // 🔥 FPS DROP FIX: Stop wild beer idle bubbles when dragging starts (prevents conflict with drag particles)
-    if (t.special === 'wild-beer') {
+    // 🔥 FPS DROP FIX: Stop wild juice idle bubbles when dragging starts (prevents conflict with drag particles)
+    if (t.special === 'wild-juice') {
       try {
-        // Import stopWildBeerBubbles dynamically to avoid circular dependency
+        // Import stopWildJuiceBubbles dynamically to avoid circular dependency
         import('./fx.js').then(fxModule => {
-          if (fxModule && typeof fxModule.stopWildBeerBubbles === 'function') {
-            fxModule.stopWildBeerBubbles(t);
-            console.log('🧹 Stopped wild beer idle bubbles on drag start');
+          if (fxModule && typeof fxModule.stopWildJuiceBubbles === 'function') {
+            fxModule.stopWildJuiceBubbles(t);
+            console.log('🧹 Stopped wild juice idle bubbles on drag start');
           }
         }).catch(err => {
-          console.warn('⚠️ Failed to stop wild beer bubbles on drag start:', err);
+          console.warn('⚠️ Failed to stop wild juice bubbles on drag start:', err);
         });
       } catch (err) {
-        console.warn('⚠️ Error stopping wild beer bubbles on drag start:', err);
+        console.warn('⚠️ Error stopping wild juice bubbles on drag start:', err);
       }
     }
 
@@ -418,8 +418,8 @@ export function initDrag(cfg) {
     }
 
     // Start sparkles immediately when wild cube is picked up
-    // 🔥 CRITICAL: All wild tiles (wild star, wild beer, wild magnet) get sparkles with their original colors
-    if (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet') {
+    // 🔥 CRITICAL: All wild tiles (wild star, wild juice, wild magnet) get sparkles with their original colors
+    if (t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet') {
       try {
         // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
         // This ensures particles appear behind the wild tile when dragging
@@ -432,7 +432,7 @@ export function initDrag(cfg) {
         // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
         // Use velocity-based throttling to reduce particles when dragging fast
         drag._sparkleInterval = setInterval(() => {
-          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer' || drag.t.special === 'wild-tnt' || drag.t.special === 'wild-magnet') && !drag.t.destroyed) {
+          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-juice' || drag.t.special === 'wild-tnt' || drag.t.special === 'wild-magnet') && !drag.t.destroyed) {
             try {
               // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
               const dragSpeed = Math.hypot(drag.vx || 0, drag.vy || 0);
@@ -516,12 +516,12 @@ export function initDrag(cfg) {
     drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;
     drag.lastTime = now;
     
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
-    // Board wobble: subtle parallax for wild-beer drag (disabled during bubbles animation)
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
+    // Board wobble: subtle parallax for wild-juice drag (disabled during bubbles animation)
     /*
     if (BOARD_WOBBLE_ENABLED) {
       // 🔥 CRITICAL: Disable board wobble when bubbles animation is active to prevent conflicts
-      if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
+      if (drag._boardWobbleActive && board && !isWildJuiceExplosionRunning()) {
         const smooth = 0.16;
         const curShiftX = (board.x ?? 0) - drag._boardBaseX;
         const curShiftY = (board.y ?? 0) - drag._boardBaseY;
@@ -555,7 +555,7 @@ export function initDrag(cfg) {
     }
 
     // Wild cube sparkles effect - continuous when selected (picked up)
-    // 🔥 CRITICAL: wild-beer does NOT get sparkles, only bubbles (handled in else block)
+    // 🔥 CRITICAL: wild-juice does NOT get sparkles, only bubbles (handled in else block)
     if (t.special === 'wild') {
       // Store velocity for sparkles direction
       t._lastVelX = drag.vx;
@@ -575,7 +575,7 @@ export function initDrag(cfg) {
         }
       }
     } else if (t.special === 'wild-magnet') {
-      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-beer)
+      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-juice)
       // Sparkles are handled by the interval set in onDown function, no need for duplicate here
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;
@@ -585,7 +585,7 @@ export function initDrag(cfg) {
       // This provides the same gentle magnetic pull effect as wild tiles
       // No need for custom strong pull - updateMagnet handles it perfectly
     } else {
-      // Trails: beer wild gets bubbles; others get smoke
+      // Trails: juice wild gets bubbles; others get smoke
       if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms
         try {
           // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
@@ -593,13 +593,13 @@ export function initDrag(cfg) {
           const tileZ = t?.zIndex ?? 0;
           const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
           
-          // 🔥 USER REQUEST: Wild beer uses same particles as wild star (no bubbles, only magicSparklesAtTile)
-          // Removed dragBeerBubbleTrail - wild beer now uses only magicSparklesAtTile particles like wild star
-          if (t.special !== 'wild-beer' && t.special !== 'wild-tnt' && t.special !== 'wild') {
+          // 🔥 USER REQUEST: Wild juice uses same particles as wild star (no bubbles, only magicSparklesAtTile)
+          // Removed dragJuiceBubbleTrail - wild juice now uses only magicSparklesAtTile particles like wild star
+          if (t.special !== 'wild-juice' && t.special !== 'wild-tnt' && t.special !== 'wild') {
             // Only non-wild tiles use dragSmokeTrail
             dragSmokeTrail(board, t, 96, 0.7, { zIndex: particlesZ });
           }
-          // Wild and wild-beer use only magicSparklesAtTile (no additional bubbles or smoke)
+          // Wild and wild-juice use only magicSparklesAtTile (no additional bubbles or smoke)
           drag._lastSmokeTime = now;
         } catch (err) {
           console.warn('Trail error:', err);
@@ -619,7 +619,7 @@ export function initDrag(cfg) {
 
     const target = pickDropTarget(t);
     
-    // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-beer is dropped on regular tile (merge 6)
+    // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-juice is dropped on regular tile (merge 6)
     // This ensures bubbles start exactly when merge 6 happens, not when drag starts 
     
     // 🧲 MAGNETIC REACTION: For wild-magnet, apply gentle pull to ALL nearby tiles (like wild tile)
@@ -641,7 +641,7 @@ export function initDrag(cfg) {
         if (otherTile === t) return; // Skip the magnet itself
         if (otherTile.locked) return;
         if ((otherTile.value | 0) <= 0) return;
-        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-beer' || otherTile.special === 'wild-tnt') return; // Skip wild tiles
+        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-juice' || otherTile.special === 'wild-tnt') return; // Skip wild tiles
         if (otherTile._wildMagnetAffected) return; // Skip tiles that are already being pulled by magnet merge
         
         // Calculate distance from magnet to tile
@@ -847,7 +847,7 @@ export function initDrag(cfg) {
     if (drag._lastSmokeTime) {
       drag._lastSmokeTime = null;
     }
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
     // Stop board wobble and reset when drag ends
     /*
     if (drag._boardWobbleActive && board) {
@@ -954,10 +954,10 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
-        if (tileRef.special === 'wild-beer') {
+        if (tileRef.special === 'wild-juice') {
           try {
             import('./fx.js').then(fxModule => {
-              if (fxModule?.startWildBeerBubbles) fxModule.startWildBeerBubbles(tileRef);
+              if (fxModule?.startWildJuiceBubbles) fxModule.startWildJuiceBubbles(tileRef);
             }).catch(() => {});
           } catch {}
         }
@@ -983,8 +983,8 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-beer') {
-          try { import('./fx.js').then(fx => { if (fx?.startWildBeerBubbles) fx.startWildBeerBubbles(tileRef); }).catch(() => {}); } catch {}
+        if (tileRef.special === 'wild-juice') {
+          try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
         if (tileRef.special === 'wild-tnt') {
           try {
@@ -1027,8 +1027,8 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-beer') {
-          try { import('./fx.js').then(fx => { if (fx?.startWildBeerBubbles) fx.startWildBeerBubbles(tileRef); }).catch(() => {}); } catch {}
+        if (tileRef.special === 'wild-juice') {
+          try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
         if (tileRef.special === 'wild-tnt') {
           try {
@@ -1060,7 +1060,7 @@ export function initDrag(cfg) {
     // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
     restoreZ(t);
     
-    // Wild-beer bubbles explosion is triggered centrally in app-core effSum === 6 flow.
+    // Wild-juice bubbles explosion is triggered centrally in app-core effSum === 6 flow.
     
     onMerge?.(t, target, helpers);
   }
@@ -1461,10 +1461,10 @@ export function initDrag(cfg) {
     
     const srcSpecial = src.special;
     const targetSpecial = target.special;
-    // Wild, wild-magnet, and wild-beer can merge with any tile (show hover)
+    // Wild, wild-magnet, and wild-juice can merge with any tile (show hover)
     if (srcSpecial === 'wild' || targetSpecial === 'wild' || 
         srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet' ||
-        srcSpecial === 'wild-beer' || targetSpecial === 'wild-beer' ||
+        srcSpecial === 'wild-juice' || targetSpecial === 'wild-juice' ||
         srcSpecial === 'wild-tnt' || targetSpecial === 'wild-tnt') return true;
 
     const srcVal = Number(src.value) || 0;

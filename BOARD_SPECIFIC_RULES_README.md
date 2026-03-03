@@ -12,10 +12,10 @@ Modularni sistem za kontrolu wild tile spawning-a i drugih mehanika po boardovim
 - ❌ **Wild spawn disabled** - nijedan wild tile se ne spawna
 - ❌ **Wild meter disabled** - wild meter se ne puni (ostaje na 0)
 
-### **Board 3: Samo Wild-Beer**
+### **Board 3: Samo Wild-Juice**
 - ✅ **Wild spawn enabled** - wild tiles se spawnaju
 - ✅ **Wild meter enabled** - wild meter se puni normalno
-- 🍺 **Samo wild-beer** - spawna se samo wild-beer (ne wild-magnet, ne regular wild)
+- 🍺 **Samo wild-juice** - spawna se samo wild-juice (ne wild-magnet, ne regular wild)
 
 ---
 
@@ -52,7 +52,7 @@ U `src/modules/board-specific-rules.ts`, dodaj u `BOARD_RULES` array:
   boardNumber: 7,
   wildSpawnEnabled: true,
   wildMeterEnabled: true,
-  allowedWildTypes: ['wild'] // Samo regular wild (ne wild-beer, ne wild-magnet)
+  allowedWildTypes: ['wild'] // Samo regular wild (ne wild-juice, ne wild-magnet)
 }
 ```
 
@@ -70,13 +70,13 @@ isWildSpawnEnabled(boardNumber?: number): boolean
 isWildMeterEnabled(boardNumber?: number): boolean
 
 // Dohvati dozvoljene wild types za board
-getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet')[]
+getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet')[]
 
 // Provjeri je li specific wild type dozvoljen
-isWildTypeAllowed(wildType: 'wild' | 'wild-beer' | 'wild-magnet', boardNumber?: number): boolean
+isWildTypeAllowed(wildType: 'wild' | 'wild-juice' | 'wild-magnet', boardNumber?: number): boolean
 
 // Filtriraj wild type prema board rules
-filterWildType(preferredType: 'wild' | 'wild-beer' | 'wild-magnet', boardNumber?: number): 'wild' | 'wild-beer' | 'wild-magnet' | null
+filterWildType(preferredType: 'wild' | 'wild-juice' | 'wild-magnet', boardNumber?: number): 'wild' | 'wild-juice' | 'wild-magnet' | null
 ```
 
 ### **Dodavanje Pravila Programski:**
@@ -89,7 +89,7 @@ boardSpecificRules.addRule({
   boardNumber: 8,
   wildSpawnEnabled: true,
   wildMeterEnabled: true,
-  allowedWildTypes: ['wild-beer', 'wild-magnet'] // Wild-beer i wild-magnet, ali ne regular wild
+  allowedWildTypes: ['wild-juice', 'wild-magnet'] // Wild-juice i wild-magnet, ali ne regular wild
 });
 
 // Ukloni pravilo (revert na default)
@@ -117,7 +117,7 @@ boardSpecificRules.removeRule(8);
 ### **Board 3:**
 - ✅ Wild meter se puni normalno
 - ✅ Wild tiles se spawnaju
-- ✅ **Samo wild-beer** se spawna (ne wild-magnet, ne regular wild)
+- ✅ **Samo wild-juice** se spawna (ne wild-magnet, ne regular wild)
 
 ---
 

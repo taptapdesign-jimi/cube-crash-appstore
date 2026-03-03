@@ -106,7 +106,7 @@ This assessment evaluates the stability, performance, and reliability of v59 aft
 - ✅ `stopWildIdle()` - stops idle animations
 - ✅ `stopWildShimmer()` - stops shimmer animations
 - ✅ `stopWildStars()` - stops star orbit animations
-- ✅ `stopWildBeerBubbles()` - stops bubble animations
+- ✅ `stopWildJuiceBubbles()` - stops bubble animations
 - ✅ `stopMagnetIdleParticles()` - stops magnet particles
 - ✅ All called in `rebuildBoard()` before tile destruction
 
@@ -128,7 +128,7 @@ This assessment evaluates the stability, performance, and reliability of v59 aft
 ### **Memory Leak Risk: 🟢 LOW**
 - **Why:** Comprehensive cleanup implemented
 - **Potential Issues:**
-  - Wild beer explosion ticker cleanup (tracked via global variable)
+  - Wild juice explosion ticker cleanup (tracked via global variable)
   - GSAP timelines in magnet pull (tracked via `_magnetState`)
 
 ---
@@ -185,10 +185,10 @@ This assessment evaluates the stability, performance, and reliability of v59 aft
 - **Recommendation:** Test magnet pull scenarios
 - **Status:** ✅ Logic looks correct
 
-#### **4. Wild Beer Explosion Cleanup**
+#### **4. Wild Juice Explosion Cleanup**
 - **Risk:** Ticker not removed if animation interrupted
-- **Current Mitigation:** Global `wildBeerExplosionSpawnTick` variable tracked
-- **Recommendation:** Test wild beer merge scenarios
+- **Current Mitigation:** Global `wildJuiceExplosionSpawnTick` variable tracked
+- **Recommendation:** Test wild juice merge scenarios
 - **Status:** ✅ Cleanup implemented
 
 ### **🟢 LOW RISK**
@@ -208,7 +208,7 @@ This assessment evaluates the stability, performance, and reliability of v59 aft
 #### **1. Spawn Scenarios**
 - [ ] Normal merge-6 spawn (2 tiles)
 - [ ] Wild merge-6 spawn (wild + regular)
-- [ ] Wild-beer merge-6 spawn (wild-beer + regular)
+- [ ] Wild-juice merge-6 spawn (wild-juice + regular)
 - [ ] Wild-magnet merge-6 spawn (magnet + regular)
 - [ ] Magnet pull spawn (4 tiles pulled)
 - [ ] Spawn with many tiles on board (15+ tiles)
@@ -225,7 +225,7 @@ This assessment evaluates the stability, performance, and reliability of v59 aft
 - [ ] Long play session (30+ minutes)
 - [ ] Multiple board clears
 - [ ] Rapid merges (stress test)
-- [ ] Wild beer explosion cleanup
+- [ ] Wild juice explosion cleanup
 - [ ] Modal open/close cycles
 
 #### **4. Edge Cases**

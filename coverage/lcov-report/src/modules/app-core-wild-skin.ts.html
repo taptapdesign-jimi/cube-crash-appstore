@@ -348,11 +348,11 @@
   SCALE_MODES: any;
   ASSET_WILD: string;
   ASSET_WILD_MAGNET: string;
-  ASSET_WILD_BEER: string;
+  ASSET_WILD_JUICE: string;
   ASSET_WILD_TNT: string;
   TILE: number;
   startWildShimmer: (tile: any) =&gt; void;
-  startWildBeerBubbles: (tile: any) =&gt; void;
+  startWildJuiceBubbles: (tile: any) =&gt; void;
   startWildStars: (tile: any) =&gt; void;
   startMagnetIdleParticles: (tile: any) =&gt; void;
   startTntIdleParticles: (tile: any) =&gt; void;
@@ -369,11 +369,11 @@
     SCALE_MODES,
     ASSET_WILD,
     ASSET_WILD_MAGNET,
-    ASSET_WILD_BEER,
+    ASSET_WILD_JUICE,
     ASSET_WILD_TNT,
     TILE,
     startWildShimmer,
-    startWildBeerBubbles,
+    startWildJuiceBubbles,
     startWildStars,
     startMagnetIdleParticles,
     startTntIdleParticles,
@@ -383,12 +383,12 @@
   } = <span class="cstat-no" title="statement not covered" >deps;</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     // 🔥 CRITICAL: Use appropriate texture based on special type
-    // Wild-beer / wild-tnt use their own textures
+    // Wild-juice / wild-tnt use their own textures
     let assetPath = <span class="cstat-no" title="statement not covered" >ASSET_WILD;</span>
 <span class="cstat-no" title="statement not covered" >    if (tile.special === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_MAGNET;</span>
-    } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_BEER;</span>
+    } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_JUICE;</span>
     } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_TNT;</span>
     }
@@ -402,7 +402,7 @@
 <span class="cstat-no" title="statement not covered" >      if (base) <span class="cstat-no" title="statement not covered" >tile.base = base;</span></span>
     }
     
-    // 🔥 CRITICAL: Always set wild-beer texture and ensure it's visible
+    // 🔥 CRITICAL: Always set wild-juice texture and ensure it's visible
     // This MUST be called every time to ensure texture is never lost
 <span class="cstat-no" title="statement not covered" >    if (base &amp;&amp; tex &amp;&amp; tex !== Texture.EMPTY){ </span>
       // Force set texture even if it's already set (prevents texture loss)
@@ -457,8 +457,8 @@
 <span class="cstat-no" title="statement not covered" >    try {</span>
 <span class="cstat-no" title="statement not covered" >      startWildShimmer(tile); </span>// Use shimmer instead of bounce
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-<span class="cstat-no" title="statement not covered" >      if (tile.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >        startWildBeerBubbles(tile);</span>
+<span class="cstat-no" title="statement not covered" >      if (tile.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >        startWildJuiceBubbles(tile);</span>
       } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >        startTntIdleParticles(tile);</span>
 <span class="cstat-no" title="statement not covered" >        startTntIdleShake(tile);</span>

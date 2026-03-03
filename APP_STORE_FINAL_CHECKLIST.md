@@ -82,7 +82,7 @@ TypeScript errors: ~2,300 (type inference - nije blocker)
 ## 🧪 TESTING CHECKLIST
 
 ### Kritični Testovi (MUST DO)
-- [ ] **Wild beer end game** - 1 kockica spawn na merge mjestu
+- [ ] **Wild juice end game** - 1 kockica spawn na merge mjestu
 - [ ] **Wild star end game** - 1 kockica spawn na merge mjestu
 - [ ] **Wild magnet end game** - pull + merge bez bugova
 - [ ] **Obični merge 6 end game** - clean board flow

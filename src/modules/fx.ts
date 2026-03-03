@@ -47,8 +47,8 @@ export function stopWildStars(tile: Tile): void {
   detachWildStarHalo(tile);
 }
 
-// 🔥 WILD-BEER: Continuous bubble animation system
-const wildBeerBubbleSystems = new Map<any, any>();
+// 🔥 WILD-JUICE: Continuous bubble animation system
+const wildJuiceBubbleSystems = new Map<any, any>();
 
 // FPS monitoring for dynamic quality reduction
 let fpsMonitorActive: boolean = false;
@@ -116,20 +116,20 @@ function getDynamicBubbleCount(baseCount: number): number {
 }
 
 /**
- * Start continuous sparkling water bubbles for wild-beer tiles only.
+ * Start continuous sparkling water bubbles for wild-juice tiles only.
  * TNT uses its own explosion animation on merge 6 (no idle bubbles).
  */
-export function startWildBeerBubbles(tile) {
-  if (!tile || tile.special !== 'wild-beer') return;
+export function startWildJuiceBubbles(tile) {
+  if (!tile || tile.special !== 'wild-juice') return;
   
   // Stop existing bubble system if any
-  stopWildBeerBubbles(tile);
+  stopWildJuiceBubbles(tile);
   
   const host = (tile.rotG || tile);
   if (!host) return;
   
   const container = new Container();
-  container.label = 'wild-beer-bubbles';
+  container.label = 'wild-juice-bubbles';
   container.sortableChildren = false;
   container.zIndex = 2600; // Same z-index as wild stars
   container.visible = true;
@@ -157,10 +157,10 @@ export function startWildBeerBubbles(tile) {
   };
   
   try {
-    wildBeerBubbleSystems.set(tile, system);
-    tile._wildBeerBubbleSystem = system;
+    wildJuiceBubbleSystems.set(tile, system);
+    tile._wildJuiceBubbleSystem = system;
   } catch (error) {
-    console.warn('⚠️ Error setting wild-beer bubble system:', error);
+    console.warn('⚠️ Error setting wild-juice bubble system:', error);
     return;
   }
   
@@ -273,19 +273,19 @@ export function startWildBeerBubbles(tile) {
 }
 
 /**
- * Stop continuous bubble animation for wild-beer tiles
+ * Stop continuous bubble animation for wild-juice tiles
  */
-export function stopWildBeerBubbles(tile) {
+export function stopWildJuiceBubbles(tile) {
   if (!tile) return;
   
   let system = null;
   try {
-    system = wildBeerBubbleSystems.get(tile);
-    if (!system && tile._wildBeerBubbleSystem) {
-      system = tile._wildBeerBubbleSystem;
+    system = wildJuiceBubbleSystems.get(tile);
+    if (!system && tile._wildJuiceBubbleSystem) {
+      system = tile._wildJuiceBubbleSystem;
     }
   } catch (error) {
-    console.warn('⚠️ Error accessing wild-beer bubble system:', error);
+    console.warn('⚠️ Error accessing wild-juice bubble system:', error);
     return;
   }
   
@@ -336,12 +336,12 @@ export function stopWildBeerBubbles(tile) {
   }
   
   try {
-    wildBeerBubbleSystems.delete(tile);
-    if (tile._wildBeerBubbleSystem) {
-      delete tile._wildBeerBubbleSystem;
+    wildJuiceBubbleSystems.delete(tile);
+    if (tile._wildJuiceBubbleSystem) {
+      delete tile._wildJuiceBubbleSystem;
     }
   } catch (error) {
-    console.warn('⚠️ Error cleaning up wild-beer bubble system:', error);
+    console.warn('⚠️ Error cleaning up wild-juice bubble system:', error);
   }
 }
 
@@ -538,8 +538,8 @@ export function cleanupFxContainersByTag(tag: string) {
   });
 }
 
-// Lightweight helper to trigger beer fizz immediately (standalone, no confetti reuse)
-export function triggerBeerMergeFizz(board, tile) {
+// Lightweight helper to trigger juice fizz immediately (standalone, no confetti reuse)
+export function triggerJuiceMergeFizz(board, tile) {
   try {
     if (!board || !tile) return;
     const { x, y } = centerInBoard(board, tile, 96);
@@ -551,7 +551,7 @@ export function triggerBeerMergeFizz(board, tile) {
     autoAdd(board, layer, 1.6);
     createMerge6Bubbles(board, layer, x, y);
   } catch (error) {
-    console.warn('⚠️ triggerBeerMergeFizz failed:', error);
+    console.warn('⚠️ triggerJuiceMergeFizz failed:', error);
   }
 }
 
@@ -943,7 +943,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   
   const intensity = opts.intensity ?? 1.0; // Default intensity 1.0 (100%)
   const isIdleParticles = opts.trackForIdle === true;
-  // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild beer, wild star, wild magnet)
+  // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild juice, wild star, wild magnet)
   const baseShardCount = isIdleParticles ? 12 : 20; // Lower base for idle to reduce CPU/GPU
   let shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity
   if (isIdleParticles) {
@@ -954,14 +954,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   // 🔥 TEMPLATE-BASED: Get drag particle colors from active template (wooden style)
   // This ensures consistent colors across all effects and allows easy theming
   // Wild star (wild): Yellow colors (#FFCB47 and yellow shades) - ORIGINAL COLOR
-  // Wild beer: Orange colors (FBD295 / F9BE9C / F6E6C8 / F99D77) - ORIGINAL COLOR
+  // Wild juice: Orange colors (FBD295 / F9BE9C / F6E6C8 / F99D77) - ORIGINAL COLOR
   // Wild magnet: Red colors (#F26034 and red shades) - ORIGINAL COLOR
   // Default: Beige/cream colors for regular tiles
   let colors;
   const tileSpecial = tile?.special || null;
   
   // 🔥 DEBUG: Log particle creation for wild tiles
-  // if (tileSpecial === 'wild' || tileSpecial === 'wild-beer' || tileSpecial === 'wild-magnet') {
+  // if (tileSpecial === 'wild' || tileSpecial === 'wild-juice' || tileSpecial === 'wild-magnet') {
   //   console.log(`✨ magicSparklesAtTile: Creating ${shardCount} particles for ${tileSpecial} at (${x.toFixed(1)}, ${y.toFixed(1)}), intensity=${intensity}`);
   // }
   
@@ -970,9 +970,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     if (!colors || !Array.isArray(colors) || colors.length === 0) {
       console.error(`❌ getDragParticleColors returned empty/invalid array for ${tileSpecial}`);
       // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
-      if (tileSpecial === 'wild-beer') {
-        colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
-        console.warn(`⚠️ Using hardcoded orange fallback for wild-beer`);
+      if (tileSpecial === 'wild-juice') {
+        colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for juice
+        console.warn(`⚠️ Using hardcoded orange fallback for wild-juice`);
       } else if (tileSpecial === 'wild-tnt') {
         colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
         console.warn(`⚠️ Using hardcoded orange-red+yellow fallback for wild-tnt`);
@@ -990,8 +990,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   } catch (err) {
     console.error('❌ Failed to get drag particle colors from template:', err);
     // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
-    if (tileSpecial === 'wild-beer') {
-      colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
+    if (tileSpecial === 'wild-juice') {
+      colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for juice
     } else if (tileSpecial === 'wild-tnt') {
       colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
@@ -1006,8 +1006,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   // 🔥 CRITICAL: Ensure colors array is valid and not empty - NEVER use white fallback!
   if (!colors || !Array.isArray(colors) || colors.length === 0) {
     console.error(`❌ CRITICAL: Invalid colors array for ${tileSpecial}, using appropriate fallback`);
-    if (tileSpecial === 'wild-beer') {
-      colors = [0xF99D77]; // At least use orange for beer
+    if (tileSpecial === 'wild-juice') {
+      colors = [0xF99D77]; // At least use orange for juice
     } else if (tileSpecial === 'wild-tnt') {
       colors = [0xE85C3A, 0xFFD966]; // At least orange-red + yellow for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
@@ -1061,7 +1061,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     // Size multiplier support
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
     const isWildTnt = tile?.special === 'wild-tnt';
-    const isWildBeer = tile?.special === 'wild-beer';
+    const isWildJuice = tile?.special === 'wild-juice';
     
     // 🔥 CRITICAL: Calculate alpha BEFORE drawing (opts.fillAlpha overrides intensity for e.g. TNT idle)
     const fillAlpha = opts.fillAlpha ?? intensity; // 100% opacity when opts.fillAlpha === 1
@@ -1074,8 +1074,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       const height = baseHeight * sizeMultiplier;
       shard.rect(-width/2, -height/2, width, height)
            .fill({ color: color, alpha: fillAlpha });
-    } else if (isWildBeer) {
-      // Wild beer: circles (bubbles-like particles)
+    } else if (isWildJuice) {
+      // Wild juice: circles (bubbles-like particles)
       const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
       const radius = baseRadius * sizeMultiplier;
       shard.circle(0, 0, radius)
@@ -1192,31 +1192,31 @@ function getMerge6ShardConfig(src, dst) {
   const dstIsWildMagnet = dstSpecial === 'wild-magnet';
   const isWildMagnet = srcIsWildMagnet || dstIsWildMagnet;
 
-  // 🔥 CRITICAL: Check for wild-beer and wild-tnt (before wild star)
-  const srcIsWildBeer = srcSpecial === 'wild-beer';
-  const dstIsWildBeer = dstSpecial === 'wild-beer';
-  const isWildBeer = srcIsWildBeer || dstIsWildBeer;
+  // 🔥 CRITICAL: Check for wild-juice and wild-tnt (before wild star)
+  const srcIsWildJuice = srcSpecial === 'wild-juice';
+  const dstIsWildJuice = dstSpecial === 'wild-juice';
+  const isWildJuice = srcIsWildJuice || dstIsWildJuice;
   const srcIsWildTnt = srcSpecial === 'wild-tnt';
   const dstIsWildTnt = dstSpecial === 'wild-tnt';
   const isWildTnt = srcIsWildTnt || dstIsWildTnt;
 
-  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-beer, not wild-tnt)
-  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet && !srcIsWildBeer && !srcIsWildTnt;
-  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet && !dstIsWildBeer && !dstIsWildTnt;
+  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-juice, not wild-tnt)
+  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet && !srcIsWildJuice && !srcIsWildTnt;
+  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet && !dstIsWildJuice && !dstIsWildTnt;
   const isWild = srcIsWild || dstIsWild;
 
   // Determine shard color
   const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
-  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
+  const juiceColor = 0xF99D77;   // Orange (#F99D77) for wild-juice
   const tntColor = 0xE85C3A;    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = 0xD4A584;   // Brown (#D4A584) for regular merge 6
 
   let shardColor = brownColor;
   if (isWildMagnet) {
     shardColor = redColor; // Wild-magnet → red
-  } else if (isWildBeer) {
-    shardColor = beerColor; // Wild-beer → orange (#F99D77)
+  } else if (isWildJuice) {
+    shardColor = juiceColor; // Wild-juice → orange (#F99D77)
   } else if (isWildTnt) {
     shardColor = tntColor; // Wild-TNT → orange-red (#E85C3A)
   } else if (isWild) {
@@ -1234,19 +1234,19 @@ function getMerge6ShardConfig(src, dst) {
     srcIsWildMagnet,
     dstIsWildMagnet,
     isWildMagnet,
-    srcIsWildBeer,
-    dstIsWildBeer,
-    isWildBeer,
+    srcIsWildJuice,
+    dstIsWildJuice,
+    isWildJuice,
     shardColor: shardColor.toString(16)
   });
 
   return {
     isWild,
     isWildMagnet,
-    isWildBeer,
+    isWildJuice,
     isWildTnt,
     shardColor,
-    isRegular: !isWild && !isWildMagnet && !isWildBeer && !isWildTnt
+    isRegular: !isWild && !isWildMagnet && !isWildJuice && !isWildTnt
   };
 }
 
@@ -1282,9 +1282,9 @@ export function spawnMerge6Shards(board, src, dstLive, dstSnapshot = null, opts 
   // Prepare opts for woodShardsAtTile
   const shardOpts = {
     enhanced: true,
-    wild: config.isWild || config.isWildMagnet || config.isWildBeer || config.isWildTnt,
+    wild: config.isWild || config.isWildMagnet || config.isWildJuice || config.isWildTnt,
     wildMagnet: config.isWildMagnet,
-    isWildBeer: config.isWildBeer,
+    isWildJuice: config.isWildJuice,
     isWildTnt: config.isWildTnt, // Explosion Pack – correct color (#E85C3A)
     ...opts
   };
@@ -1392,9 +1392,9 @@ export function regularMerge6Shards(board, tile, opts = {}){
   const shardCount = opts.count ?? 10;
   const brownColor = 0xD4A584; // Brown color
   const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
-  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
+  const juiceColor = 0xF99D77;   // Orange (#F99D77) for wild-juice
   const isWildOnly = opts.isWildOnly === true; // Flag to use yellow/brown colors
-  const isWildBeer = opts.isWildBeer === true; // Flag to use beer color
+  const isWildJuice = opts.isWildJuice === true; // Flag to use juice color
   const baseTile = 96;
   const sizeMultiplier = opts.sizeMultiplier ?? 2.4; // Default 240% larger (20% increase from 2.0), can be overridden
   const distanceMultiplier = opts.distanceMultiplier ?? 5.6; // Default 560% larger distance (40% increase from 4.0), can be overridden
@@ -1433,11 +1433,11 @@ export function regularMerge6Shards(board, tile, opts = {}){
       points.push(px, py);
     }
     
-    // Determine shard color - beer color for wild-beer, yellow/brown for wild-only (wild star), brown for regular
+    // Determine shard color - juice color for wild-juice, yellow/brown for wild-only (wild star), brown for regular
     let shardColor = brownColor;
-    if (isWildBeer) {
-      // Wild-beer: use beer color (#F99D77)
-      shardColor = beerColor;
+    if (isWildJuice) {
+      // Wild-juice: use juice color (#F99D77)
+      shardColor = juiceColor;
     } else if (isWildOnly) {
       // Wild-only (wild star): 50% yellow, 50% brown
       shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
@@ -1859,7 +1859,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
       enhanced: true,
       wild: true,
       wildMagnet: true,
-      isWildBeer: false,
+      isWildJuice: false,
       count: 30,
       intensity: 1.9,
       spread: 0.3,
@@ -2108,7 +2108,7 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       skipStars: opts.skipStars,
       count: 18,
       intensity: 1.35,
@@ -2342,7 +2342,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       skipStars: opts.skipStars,
       count: 18,
       intensity: 1.35,
@@ -2563,32 +2563,32 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
 }
 
 /**
- * 🍺 Template-Based Wild Beer Merge 6 Shards
+ * 🍺 Template-Based Wild Juice Merge 6 Shards
  * 
- * Uses predefined patterns from the active template for wild beer merges.
+ * Uses predefined patterns from the active template for wild juice merges.
  * ORIGINAL COLOR: Orange (#F99D77)
  * 
  * @param {Container} board - Game board container
  * @param {object} tile - Tile object or snapshot with x/y coordinates
  * @param {object} opts - Options (zIndex, etc.)
  */
-export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
+export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
   if (!board || !tile) {
-    console.warn('⚠️ wildBeerMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });
+    console.warn('⚠️ wildJuiceMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });
     return;
   }
 
-  console.log('🍺 wildBeerMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });
+  console.log('🍺 wildJuiceMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });
 
   // Select pattern from template
-  const patternInfo = selectPattern('wildBeer');
+  const patternInfo = selectPattern('wildJuice');
   
   if (!patternInfo) {
-    console.error('❌ wildBeerMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');
+    console.error('❌ wildJuiceMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');
     console.error('❌ Debug info:', {
       activeTemplate: getActiveTemplate()?.name,
       patternMap: getActiveTemplate()?.patternMap,
-      wildBeerPatterns: getActiveTemplate()?.patternMap?.wildBeer
+      wildJuicePatterns: getActiveTemplate()?.patternMap?.wildJuice
     });
     // 🔥 FALLBACK: Use woodShardsAtTile for reliability
     console.log('🔄 Falling back to woodShardsAtTile');
@@ -2596,7 +2596,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: true,
+      isWildJuice: true,
       count: 18,
       intensity: 1.35,
       spread: 0.7,
@@ -2609,10 +2609,10 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
   }
   
   const { patternName, patternData, pool, template } = patternInfo;
-  const params = getParams('wildBeer');
-  const orangeColor = getColor('wildBeer'); // 🔥 ORIGINAL COLOR: Orange (#F99D77)
+  const params = getParams('wildJuice');
+  const orangeColor = getColor('wildJuice'); // 🔥 ORIGINAL COLOR: Orange (#F99D77)
   
-  console.log(`🍺 wildBeerMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
+  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
     orangeColor: `0x${orangeColor.toString(16)}`,
     poolSize: pool.getStats?.()?.poolSize || 'unknown',
     boardVisible: board.visible,
@@ -2688,7 +2688,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
       shard.poly(points).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });
       // 🔥 DEBUG: Log first shard drawing
       if (index === 0) {
-        console.log(`🍺 wildBeerMerge6ShardsTemplated: First shard drawn`, {
+        console.log(`🍺 wildJuiceMerge6ShardsTemplated: First shard drawn`, {
           pointsCount: points.length / 2,
           orangeColor: `0x${orangeColor.toString(16)}`,
           alpha: params.lineAlpha || 0.9,
@@ -2764,7 +2764,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
     });
   });
   
-  console.log(`🍺 wildBeerMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
+  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.2;
@@ -2800,7 +2800,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
 /**
  * 💥 Template-Based Wild TNT Merge 6 Shards (Explosion Pack)
  * Uses predefined patterns from the active template for wild-tnt merges.
- * Same logic as wild-beer, orange-red color (#E85C3A).
+ * Same logic as wild-juice, orange-red color (#E85C3A).
  */
 export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
   if (!board || !tile) {
@@ -2815,7 +2815,7 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       count: 18,
       intensity: 1.35,
       spread: 0.7,
@@ -3026,13 +3026,13 @@ export function woodShardsAtTile(board, tile, opts = {}){
   console.log('🔍 woodShardsAtTile wild detection:', {
     optsWild: opts.wild,
     optsWildMagnet: opts.wildMagnet,
-    optsIsWildBeer: opts.isWildBeer,
+    optsIsWildJuice: opts.isWildJuice,
     tileSpecial: tile?.special,
     wildMode
   });
   
   const enhanced = opts.enhanced ?? (wildMode || false);
-  const isWildBeerMerge = tile?.special === 'wild-beer' || opts.isWildBeer === true;
+  const isWildJuiceMerge = tile?.special === 'wild-juice' || opts.isWildJuice === true;
 
   const layer = new Container();
   layer.x = x; layer.y = y;
@@ -3053,9 +3053,9 @@ export function woodShardsAtTile(board, tile, opts = {}){
   }
 
 
-  // Extend layer lifetime for wild-beer so bubble animation can finish (spawnDuration ~2.7s)
+  // Extend layer lifetime for wild-juice so bubble animation can finish (spawnDuration ~2.7s)
   const ttlBase = opts.ttl ?? (wildMode ? 0.9 : 1.6);
-  const ttl = isWildBeerMerge ? Math.max(ttlBase, 3.6) : ttlBase;
+  const ttl = isWildJuiceMerge ? Math.max(ttlBase, 3.6) : ttlBase;
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
   
   // 🔥 CRITICAL: Verify layer was added to board
@@ -3106,11 +3106,11 @@ export function woodShardsAtTile(board, tile, opts = {}){
   } else if (opts.wild === false) {
     // Explicitly NOT wild
     isWildOnly = false;
-  } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-beer' || tile?.special === 'wild-tnt')) {
+  } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-juice' || tile?.special === 'wild-tnt')) {
     // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
     isWildOnly = true;
-  } else if (!isWildMagnet && opts.isWildBeer === true) {
-    // opts.isWildBeer is set, treat as wild-only (for wild-beer merge 6)
+  } else if (!isWildMagnet && opts.isWildJuice === true) {
+    // opts.isWildJuice is set, treat as wild-only (for wild-juice merge 6)
     isWildOnly = true;
   }
   
@@ -3155,13 +3155,13 @@ export function woodShardsAtTile(board, tile, opts = {}){
   const vanishDelay = opts.vanishDelay ?? (wildMode ? 0 : 0);
   const vanishJitter = opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);
 
-  // 🔥 CRITICAL: Check for wild-beer and wild-tnt separately
-  const isWildBeer = tile?.special === 'wild-beer' || opts.isWildBeer === true;
+  // 🔥 CRITICAL: Check for wild-juice and wild-tnt separately
+  const isWildJuice = tile?.special === 'wild-juice' || opts.isWildJuice === true;
   const isWildTnt = tile?.special === 'wild-tnt' || opts.isWildTnt === true;
   
   const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
-  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
+  const juiceColor = 0xF99D77;   // Orange (#F99D77) for wild-juice
   const tntColor = 0xE85C3A;    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = 0xD4A584;  // Brown (#D4A584) for regular merge 6
 
@@ -3169,8 +3169,8 @@ export function woodShardsAtTile(board, tile, opts = {}){
   let baseShardColor = brownColor; // Default: brown
   if (isWildMagnet) {
     baseShardColor = redColor; // Wild-magnet → red
-  } else if (isWildBeer) {
-    baseShardColor = beerColor; // Wild-beer → orange (#F99D77)
+  } else if (isWildJuice) {
+    baseShardColor = juiceColor; // Wild-juice → orange (#F99D77)
   } else if (isWildTnt) {
     baseShardColor = tntColor; // Wild-TNT → orange-red (#E85C3A)
   } else if (isWildOnly) {
@@ -3219,16 +3219,16 @@ export function woodShardsAtTile(board, tile, opts = {}){
     }
 
     // 🔥 CRITICAL: For wild-magnet, randomly mix red and brown (50/50)
-    // For wild-beer, use beer color (#F99D77)
+    // For wild-juice, use juice color (#F99D77)
     // For wild-only (wild star), randomly mix yellow and brown (50/50)
     // For regular, use only brown
     let shardColor = baseShardColor;
     if (isWildMagnet) {
       // Wild-magnet: 50% red, 50% brown
       shardColor = Math.random() < 0.5 ? redColor : brownColor;
-    } else if (isWildBeer) {
-      // Wild-beer: use beer color (#F99D77)
-      shardColor = beerColor;
+    } else if (isWildJuice) {
+      // Wild-juice: use juice color (#F99D77)
+      shardColor = juiceColor;
     } else if (isWildTnt) {
       // Wild-TNT: use TNT color (#E85C3A)
       shardColor = tntColor;
@@ -3443,26 +3443,26 @@ export function woodShardsAtTile(board, tile, opts = {}){
   // Generate 3 stars ONLY for wild-only merge (wild + ordinary or ordinary + wild)
   // NOT for wild-magnet merge, regular merge, or any other case
   // isWildOnly is determined above based on opts.wild and opts.wildMagnet
-  // 🔥 WILD-BEER SPECIAL: Use bubbles instead of stars for wild-beer merge
-  // Note: isWildBeer is already declared above (line 1080) - use that variable
+  // 🔥 WILD-JUICE SPECIAL: Use bubbles instead of stars for wild-juice merge
+  // Note: isWildJuice is already declared above (line 1080) - use that variable
   console.log('💧 Stars/Bubbles check:', { 
     isWildOnly, 
     isWildMagnet, 
-    isWildBeer, // Use isWildBeer declared above (line 1080) 
+    isWildJuice, // Use isWildJuice declared above (line 1080) 
     tileSpecial: tile?.special, 
-    optsIsWildBeer: opts.isWildBeer,
+    optsIsWildJuice: opts.isWildJuice,
     optsWild: opts.wild,
     optsWildMagnet: opts.wildMagnet
   });
   if (isWildOnly && !isWildMagnet) {
-    if (isWildBeer || isWildTnt) {
-      // Wild-beer / wild-tnt: skip local fizz here to avoid double wave; handled by explosion
-      console.log('💧 Skipping local merge6 bubbles for wild-beer/wild-tnt (handled elsewhere)');
+    if (isWildJuice || isWildTnt) {
+      // Wild-juice / wild-tnt: skip local fizz here to avoid double wave; handled by explosion
+      console.log('💧 Skipping local merge6 bubbles for wild-juice/wild-tnt (handled elsewhere)');
     } else {
       // 🔥 USER REQUEST: Skip creating star particles for wild star merge 6
       // Instead, orbiting stars will be animated to HUD icon via stars-collector module
       // Check opts.skipStars flag (passed from app-core.ts) or tile.special === 'wild'
-      const shouldSkipStars = opts.skipStars === true || (tile?.special === 'wild' && !isWildBeer && !isWildTnt && !isWildMagnet);
+      const shouldSkipStars = opts.skipStars === true || (tile?.special === 'wild' && !isWildJuice && !isWildTnt && !isWildMagnet);
       
       if (shouldSkipStars) {
         console.log('⭐ Skipping star particles for wild star merge 6 - orbiting stars will be animated to HUD instead');
@@ -3473,17 +3473,17 @@ export function woodShardsAtTile(board, tile, opts = {}){
       }
     }
   } else {
-    console.log('💧 Skipping stars/bubbles:', { isWildOnly, isWildMagnet, isWildBeer });
+    console.log('💧 Skipping stars/bubbles:', { isWildOnly, isWildMagnet, isWildJuice });
   }
 }
 
 /**
- * Create sparkling water bubbles for wild-beer merge 6 effect
+ * Create sparkling water bubbles for wild-juice merge 6 effect
  * Bubbles rise from bottom of tile to top, max 30% above tile, white/transparent, max 40px size
  */
 function createMerge6Bubbles(board, layer, centerX, centerY) {
   try {
-  console.log('💧 createMerge6Bubbles (beer fizz) triggered');
+  console.log('💧 createMerge6Bubbles (juice fizz) triggered');
   
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
   // Longer fizz: ~2.5s total emission
@@ -3627,34 +3627,34 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
   }
 }
 
-// --- Merge-6 wild-beer bubble explosion (organic drift) ---
-// 🔥 REMOVED: Old explosion code moved to wild-beer-bubbles-explosion.ts module
+// --- Merge-6 wild-juice bubble explosion (organic drift) ---
+// 🔥 REMOVED: Old explosion code moved to wild-juice-bubbles-explosion.ts module
 // Wrapper functions for backward compatibility:
 
 let _explosionModuleCache: any = null;
 
-export function cleanupWildBeerExplosion() {
+export function cleanupWildJuiceExplosion() {
   // 🔥 WRAPPER: Redirect to new modular explosion
   // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion (protects animation during board transitions)
-  import('./wild-beer-bubbles-explosion.js').then(module => {
+  import('./wild-juice-bubbles-explosion.js').then(module => {
     _explosionModuleCache = module;
-    const isRecentlyStarted = typeof module.isWildBeerBubblesExplosionRecentlyStarted === 'function' && module.isWildBeerBubblesExplosionRecentlyStarted();
+    const isRecentlyStarted = typeof module.isWildJuiceBubblesExplosionRecentlyStarted === 'function' && module.isWildJuiceBubblesExplosionRecentlyStarted();
     if (isRecentlyStarted) {
-      console.log('⏸️ cleanupWildBeerExplosion: Skipping cleanup - explosion recently started (within 5s), allowing animation to continue');
+      console.log('⏸️ cleanupWildJuiceExplosion: Skipping cleanup - explosion recently started (within 5s), allowing animation to continue');
       return;
     }
-    if (typeof module.stopWildBeerBubblesExplosion === 'function') {
-      module.stopWildBeerBubblesExplosion();
+    if (typeof module.stopWildJuiceBubblesExplosion === 'function') {
+      module.stopWildJuiceBubblesExplosion();
     }
   }).catch(() => {});
 }
 
-export function isWildBeerExplosionRunning() {
+export function isWildJuiceExplosionRunning() {
   // 🔥 WRAPPER: Redirect to new modular explosion
-  if (_explosionModuleCache && typeof _explosionModuleCache.isWildBeerBubblesExplosionActive === 'function') {
-    return _explosionModuleCache.isWildBeerBubblesExplosionActive();
+  if (_explosionModuleCache && typeof _explosionModuleCache.isWildJuiceBubblesExplosionActive === 'function') {
+    return _explosionModuleCache.isWildJuiceBubblesExplosionActive();
   }
-  import('./wild-beer-bubbles-explosion.js').then(module => {
+  import('./wild-juice-bubbles-explosion.js').then(module => {
     _explosionModuleCache = module;
   }).catch(() => {});
   return false;
@@ -3667,7 +3667,7 @@ export function isWildBeerExplosionRunning() {
  */
 export function waitForBubblesAnimationToComplete(maxWaitMs = 6500) {
   // 🔥 WRAPPER: Redirect to new modular explosion
-  return import('./wild-beer-bubbles-explosion.js').then(module => {
+  return import('./wild-juice-bubbles-explosion.js').then(module => {
     _explosionModuleCache = module;
     if (typeof module.waitForBubblesExplosionToComplete === 'function') {
       return module.waitForBubblesExplosionToComplete(maxWaitMs);
@@ -3730,19 +3730,19 @@ export function cleanupAllEffects() {
   // This prevents race condition where cleanup stops animation before it can start
   const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
   if (!isBoardTransitionActive) {
-    // Cleanup wild beer explosion (will check if recently started internally)
-    cleanupWildBeerExplosion();
+    // Cleanup wild juice explosion (will check if recently started internally)
+    cleanupWildJuiceExplosion();
   } else {
     console.log('⏸️ cleanupAllEffects: Skipping bubble explosion cleanup - board transition active');
   }
 
-  // Cleanup wild beer bubble systems
-  wildBeerBubbleSystems.forEach((system, tile) => {
+  // Cleanup wild juice bubble systems
+  wildJuiceBubbleSystems.forEach((system, tile) => {
     try {
-      stopWildBeerBubbles(tile);
+      stopWildJuiceBubbles(tile);
     } catch {}
   });
-  wildBeerBubbleSystems.clear();
+  wildJuiceBubbleSystems.clear();
 
   // 🔥 PERFORMANCE FIX: Cleanup active star animations (prevents lag)
   // Use regular cleanup (not force) to allow protected animations to complete
@@ -3771,14 +3771,14 @@ if (typeof window !== 'undefined') {
   };
 }
 
-// 🔥 REMOVED: createWildBeerBubblesExplosion - moved to wild-beer-bubbles-explosion.ts module
-// This function is no longer used - use showWildBeerBubblesExplosion() from wild-beer-bubbles-explosion.ts instead
-export function createWildBeerBubblesExplosion(board, tile) {
+// 🔥 REMOVED: createWildJuiceBubblesExplosion - moved to wild-juice-bubbles-explosion.ts module
+// This function is no longer used - use showWildJuiceBubblesExplosion() from wild-juice-bubbles-explosion.ts instead
+export function createWildJuiceBubblesExplosion(board, tile) {
   // 🔥 WRAPPER: Redirect to new modular explosion
-  import('./wild-beer-bubbles-explosion.js').then(module => {
+  import('./wild-juice-bubbles-explosion.js').then(module => {
     _explosionModuleCache = module;
-    if (typeof module.showWildBeerBubblesExplosion === 'function') {
-      module.showWildBeerBubblesExplosion();
+    if (typeof module.showWildJuiceBubblesExplosion === 'function') {
+      module.showWildJuiceBubblesExplosion();
     }
   }).catch(() => {});
 }
@@ -5225,8 +5225,8 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
   }
 }
 
-// Beer-specific drag bubbles (same style as idle bubbles, with three color shades)
-export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, opts = {}) {
+// Juice-specific drag bubbles (same style as idle bubbles, with three color shades)
+export function dragJuiceBubbleTrail(board, tile, tileSize = 96, strength = 1, opts = {}) {
   if (!board || !tile) return;
   
   // Max 4-10 bubbles per call
@@ -5235,7 +5235,7 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
   const baseRise = tileSize * 0.25;
   
   // Three color shades (same as idle bubbles but with color variation)
-  // 🔥 UPDATED: Using foam colors from wild-beer.png image
+  // 🔥 UPDATED: Using foam colors from wild-juice.png image
   const colors = [0xFFFFFF, 0xFEFCEF, 0xF2EFEA]; // White, light cream (foam), darker cream (foam)
   
   for (let i = 0; i < count; i++) {
@@ -5560,7 +5560,7 @@ export function wildImpactEffect(tile, opts = {}) {
 
 export function startWildIdle(tile, opts = {}){
   if (!tile) return;
-  // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za beer/magnet/tnt
+  // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za juice/magnet/tnt
   if (tile.special === 'wild') {
     try { stopWildIdle(tile); } catch {}
     try { startWildStars(tile); } catch {}

@@ -1,6 +1,6 @@
 // @ts-nocheck
-// Wild Beer Bubbles Screen
-// Full-screen continuous bubbles animation for wild-beer tiles
+// Wild Juice Bubbles Screen
+// Full-screen continuous bubbles animation for wild-juice tiles
 // Works independently of board/tile hierarchy (like board-transition-screen)
 
 import { Container, Graphics, Sprite } from 'pixi.js';
@@ -20,7 +20,7 @@ let spawnInterval: gsap.core.Tween | null = null;
 let activeBubbles: (Graphics | Sprite)[] = [];
 let healthCheckInterval: NodeJS.Timeout | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
-const lifecycle = createScreenLifecycle('wild-beer-bubbles-screen');
+const lifecycle = createScreenLifecycle('wild-juice-bubbles-screen');
 
 function isUsableRuntimeTexture(tex: any): boolean {
   if (!tex || tex.destroyed) return false;
@@ -39,9 +39,9 @@ function isUsableRuntimeTexture(tex: any): boolean {
  * Bubbles spawn from bottom, rise to top, go over everything
  * Works independently of board/tile hierarchy
  */
-export function startWildBeerBubblesScreen(): void {
+export function startWildJuiceBubblesScreen(): void {
   if (isBubblesActive) {
-    console.log('💧 Wild-beer bubbles screen already active, skipping');
+    console.log('💧 Wild-juice bubbles screen already active, skipping');
     return;
   }
 
@@ -50,7 +50,7 @@ export function startWildBeerBubblesScreen(): void {
   const stage = (windowState && windowState.stage) || (app && app.stage) || null;
 
   if (!stage || stage.destroyed) {
-    console.warn('⚠️ Cannot start wild-beer bubbles screen - no stage');
+    console.warn('⚠️ Cannot start wild-juice bubbles screen - no stage');
     return;
   }
 
@@ -59,7 +59,7 @@ export function startWildBeerBubblesScreen(): void {
 
   // Create container on stage (full-screen)
   bubblesContainer = new Container();
-  bubblesContainer.label = 'wild-beer-bubbles-screen';
+  bubblesContainer.label = 'wild-juice-bubbles-screen';
   bubblesContainer.zIndex = 20000; // Above everything
   bubblesContainer.eventMode = 'none';
   bubblesContainer.visible = true;
@@ -88,25 +88,25 @@ export function startWildBeerBubblesScreen(): void {
   // Start continuous spawning
   spawnBubblesLoop();
 
-  // Health check - ensure wild-beer tile exists
+  // Health check - ensure wild-juice tile exists
   startHealthCheck();
 
-  console.log('✅ Wild-beer bubbles screen started');
+  console.log('✅ Wild-juice bubbles screen started');
 }
 
 /**
  * Stop full-screen bubbles animation
  */
-export function stopWildBeerBubblesScreen(): void {
+export function stopWildJuiceBubblesScreen(): void {
   cleanup();
-  console.log('🛑 Wild-beer bubbles screen stopped');
+  console.log('🛑 Wild-juice bubbles screen stopped');
 }
 
 /**
  * Destroy cached bubble texture to release GPU memory.
  * Safe to call when the screen is inactive (preferred).
  */
-export function destroyWildBeerBubblesScreenCache(): void {
+export function destroyWildJuiceBubblesScreenCache(): void {
   // Fail-safe: never destroy shared texture while bubbles can still reference it.
   const textureStillInUse = activeBubbles.some((bubble) => bubble instanceof Sprite && (bubble as Sprite).texture === _cachedBubbleTexture);
   if (isBubblesActive || textureStillInUse) {
@@ -124,7 +124,7 @@ export function destroyWildBeerBubblesScreenCache(): void {
 /**
  * Check if bubbles are active
  */
-export function isWildBeerBubblesActive(): boolean {
+export function isWildJuiceBubblesActive(): boolean {
   return isBubblesActive;
 }
 
@@ -144,7 +144,7 @@ function initializeBubbleTexture(app: any): void {
   // Get bubble colors from template
   let bubbleColors;
   try {
-    bubbleColors = getBubbleColors('wild-beer');
+    bubbleColors = getBubbleColors('wild-juice');
     if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {
       bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default light orange/white
     }
@@ -179,7 +179,7 @@ function initializeBubbleTexture(app: any): void {
         throw new Error('Texture generation returned invalid texture');
       }
       try {
-        _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+        _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-screen';
         const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
         if (src) src.label = _cachedBubbleTexture.label;
         const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
@@ -197,7 +197,7 @@ function initializeBubbleTexture(app: any): void {
           throw new Error('Low-res texture generation returned invalid texture');
         }
         try {
-          _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+          _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-screen';
           const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
         if (src) src.label = _cachedBubbleTexture.label;
           const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
@@ -213,7 +213,7 @@ function initializeBubbleTexture(app: any): void {
             throw new Error('Auto-region texture generation returned invalid texture');
           }
           try {
-            _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+            _cachedBubbleTexture.label = 'runtime:wild-juice-bubbles-screen';
             const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
         if (src) src.label = _cachedBubbleTexture.label;
             const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
@@ -272,7 +272,7 @@ function spawnBubble(): void {
   // Get bubble colors from template
   let bubbleColors;
   try {
-    bubbleColors = getBubbleColors('wild-beer');
+    bubbleColors = getBubbleColors('wild-juice');
     if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {
       bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default
     }
@@ -407,10 +407,10 @@ function spawnBubble(): void {
 }
 
 /**
- * Start health check to ensure wild-beer tile exists
+ * Start health check to ensure wild-juice tile exists
  */
 function startHealthCheck(): void {
-  // Check every 2 seconds if wild-beer tile still exists
+  // Check every 2 seconds if wild-juice tile still exists
   healthCheckInterval = lifecycle.trackInterval(() => {
     if (!isBubblesActive) {
       if (healthCheckInterval) {
@@ -420,22 +420,22 @@ function startHealthCheck(): void {
       return;
     }
 
-    const hasWildBeer = checkWildBeerTileExists();
-    if (!hasWildBeer) {
-      console.log('💧 No wild-beer tile found, stopping bubbles screen');
-      stopWildBeerBubblesScreen();
+    const hasWildJuice = checkWildJuiceTileExists();
+    if (!hasWildJuice) {
+      console.log('💧 No wild-juice tile found, stopping bubbles screen');
+      stopWildJuiceBubblesScreen();
     }
   }, 2000);
 }
 
 /**
- * Check if wild-beer tile exists on board
+ * Check if wild-juice tile exists on board
  */
-function checkWildBeerTileExists(): boolean {
+function checkWildJuiceTileExists(): boolean {
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const tiles = (windowState && windowState.tiles) || [];
   return tiles.some((t: any) => 
-    t && !t.destroyed && t.special === 'wild-beer' && t.visible
+    t && !t.destroyed && t.special === 'wild-juice' && t.visible
   );
 }
 

@@ -190,7 +190,7 @@ npm run build
 
 ### End Game Test ⏳
 **Potrebno testirati:**
-1. Wild beer end game (1 kockica spawn)
+1. Wild juice end game (1 kockica spawn)
 2. Wild star end game (1 kockica spawn)
 3. Wild magnet end game (pull + merge)
 4. Obični merge 6 end game (clean board)
@@ -204,7 +204,7 @@ npm run build
 
 ### Prioritet 1: Testiranje (URGENT)
 - [ ] Test end game scenarije
-- [ ] Test wild merge logic (beer, star, magnet)
+- [ ] Test wild merge logic (juice, star, magnet)
 - [ ] Test memory usage (10-15 min gameplay)
 - [ ] Test iOS device (ako je moguće)
 
@@ -270,7 +270,7 @@ npm run build
 5. ✅ Production console.log handled by Vite
 
 **Što treba testirati:**
-- End game scenariji (wild beer, star, magnet)
+- End game scenariji (wild juice, star, magnet)
 - Memory usage (10-15 min gameplay)
 - Sve funcionlanosti rade kako treba
 

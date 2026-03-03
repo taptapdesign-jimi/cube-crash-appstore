@@ -222,7 +222,7 @@ src/types/tile-types.d.ts            ✅
 - wildMagnetMerge6ShardsTemplated()
 - wildMerge6ShardsTemplated()
 - wildStarMerge6ShardsTemplated()
-- wildBeerMerge6ShardsTemplated()
+- wildJuiceMerge6ShardsTemplated()
 
 // Graphics pool za efekte
 - graphicsPool.acquire() / release()

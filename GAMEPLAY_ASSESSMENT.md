@@ -37,7 +37,7 @@
 ### 1.3 Wild Tiles & Power-ups (85/100)
 - **Wild Star:** ✅ Merge s bilo kojom kockicom (1-6)
 - **Wild Magnet:** ✅ Privlači 4 najbliže kockice, stvara merge-6
-- **Wild Beer:** ✅ Full-screen bubble explosion, vizualno impresivno
+- **Wild Juice:** ✅ Full-screen bubble explosion, vizualno impresivno
 - **Wild meter:** ✅ Napreduje s merge-ovima, strategijski element
 
 **Ocjena:** 85/100 - Tri različita wild tile-a s jedinstvenim mehanikama
@@ -59,7 +59,7 @@
 ### 2.1 Animacije (92/100)
 - **Merge animacije:** ✅ Smooth, satisfying (pressure bounce, crack overlay, shards)
 - **Spawn animacije:** ✅ Premium speedy cascading effect (0ms, 25ms, 50ms, 75ms)
-- **Wild animacije:** ✅ Impresivne (stars orbit, beer bubbles, magnet particles)
+- **Wild animacije:** ✅ Impresivne (stars orbit, juice bubbles, magnet particles)
 - **Tile idle bounce:** ✅ Subtle, dodaje živost
 
 **Ocjena:** 92/100 - Vrlo polirane animacije, premium feel
@@ -67,7 +67,7 @@
 ### 2.2 Visual Effects (90/100)
 - **Particle effects:** ✅ Shards, bubbles, sparkles, smoke
 - **Screen shake:** ✅ Satisfying feedback za važne akcije
-- **Wild beer explosion:** ✅ Full-screen bubble effect, impresivno
+- **Wild juice explosion:** ✅ Full-screen bubble effect, impresivno
 - **Magnet pull:** ✅ Smooth animacija privlačenja
 
 **Ocjena:** 90/100 - Bogati visual effects, dobar feedback

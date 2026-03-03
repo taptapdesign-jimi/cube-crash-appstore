@@ -41,10 +41,10 @@
    - Rotirajuće zvjezdice animacije
    - Shimmer efekt
 
-2. **Wild-Beer** 🍺
+2. **Wild-Juice** 🍺
    - Ista funkcionalnost kao Wild
    - Bubbles animacija umjesto zvjezdica
-   - Posebna tekstura (`wild-beer.png`)
+   - Posebna tekstura (`wild-juice.png`)
 
 3. **Wild-Magnet** 🧲
    - Može se spojiti s bilo kojim tile-om (osim wild/wild-magnet)
@@ -82,7 +82,7 @@
 - **Spawn**: Kada se napuni, spawna se wild tile na random praznom mjestu
 - **Board-Specific Rules**:
   - Board 2: Wild meter enabled, normal fill rate
-  - Board 3: Samo wild-beer se spawna
+  - Board 3: Samo wild-juice se spawna
   - Može se disable-ati po boardovima
 
 ### **6. Combo System**
@@ -159,7 +159,7 @@ src/
 
 #### **fx.js** (Visual Effects)
 - Particle systems (bubbles, shards, stars)
-- Wild tile animations (beer bubbles, magnet particles, star rotation)
+- Wild tile animations (juice bubbles, magnet particles, star rotation)
 - Merge animations (explosions, shards, flashes)
 - Star collection animations (3 stars to HUD)
 
@@ -453,7 +453,7 @@ CoinsManager.spendCoins(cost); // For power-ups
 ### **Implemented Features**
 
 ✅ Core gameplay (merge, spawn, drag-drop)  
-✅ Wild tiles (wild, wild-beer, wild-magnet)  
+✅ Wild tiles (wild, wild-juice, wild-magnet)  
 ✅ Combo system  
 ✅ Score system  
 ✅ Stars collection  

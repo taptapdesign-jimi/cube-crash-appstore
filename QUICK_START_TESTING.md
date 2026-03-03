@@ -8,11 +8,11 @@
 
 ## 🎯 KRITIČNI TESTOVI (MUST DO)
 
-### 1. **Wild Beer End Game** 🍺
+### 1. **Wild Juice End Game** 🍺
 **Scenarij:**
-1. Igraj dok ne ostane samo 1-2 obične kockice + wild beer
+1. Igraj dok ne ostane samo 1-2 obične kockice + wild juice
 2. Nema više locked tiles (sve otvoreno)
-3. Stavi wild beer na običnu kockicu → merge 6
+3. Stavi wild juice na običnu kockicu → merge 6
 
 **Očekivano:**
 - ✅ 1 nova kockica spawna **NA ISTOM MJESTU** gdje je bio merge
@@ -28,11 +28,11 @@
 
 ### 2. **Wild Star End Game** ⭐
 **Scenarij:**
-1. Isti kao wild beer
+1. Isti kao wild juice
 2. Wild star + obična kockica → merge 6
 
 **Očekivano:**
-- ✅ Identično kao wild beer
+- ✅ Identično kao wild juice
 - ✅ 1 kockica na merge mjestu
 - ✅ Clean board ako je zadnja
 
@@ -51,7 +51,7 @@
 **Očekivano:**
 - ✅ Pull animacija radi
 - ✅ Merge se dogodi
-- ✅ Spawn logika kao wild beer/star
+- ✅ Spawn logika kao wild juice/star
 
 **Provjeri:**
 - [ ] Pull animacija radi
@@ -64,7 +64,7 @@
 **Scenarij:**
 1. Ostavi 5-6 kockica na boardu
 2. **VRLO BRZO** (bez delaya) stavljaj kockice jedna na drugu
-3. Wild beer → obična → wild star → obična (brzo!)
+3. Wild juice → obična → wild star → obična (brzo!)
 
 **Očekivano:**
 - ✅ Nema extra spawna
@@ -163,7 +163,7 @@
 - [ ] Git backup siguran (v131 branch)
 
 ### Tijekom Testiranja
-- [ ] Test 1: Wild beer end game ✅
+- [ ] Test 1: Wild juice end game ✅
 - [ ] Test 2: Wild star end game ✅
 - [ ] Test 3: Wild magnet end game ✅
 - [ ] Test 4: Brzi merge test ✅

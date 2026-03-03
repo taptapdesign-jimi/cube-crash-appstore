@@ -70,7 +70,7 @@ const DELTA_MAX = 2.0;
 function tileIsPureWild(tile: WildishTile | null | undefined): tile is WildishTile {
   if (!tile) return false;
   if (tile.special === 'wild-magnet') return false;
-  if (tile.special === 'wild' || tile.special === 'wild-beer' || tile.special === 'wild-tnt') return true;
+  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') return true;
   return tile.isWild === true || tile.isWildFace === true;
 }
 

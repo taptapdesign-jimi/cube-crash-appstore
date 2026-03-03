@@ -1031,7 +1031,7 @@ const DELTA_MAX = <span class="cstat-no" title="statement not covered" >2.0;</sp
 function <span class="fstat-no" title="function not covered" >tileIsPureWild(</span>tile: WildishTile | null | undefined): tile is WildishTile {
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return false;</span></span>
 <span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild-magnet') <span class="cstat-no" title="statement not covered" >return false;</span></span>
-<span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild' || tile.special === 'wild-beer' || tile.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return true;</span></span>
+<span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return true;</span></span>
 <span class="cstat-no" title="statement not covered" >  return tile.isWild === true || tile.isWildFace === true;</span>
 }
 &nbsp;

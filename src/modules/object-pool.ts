@@ -264,7 +264,7 @@ export const graphicsPool = new GraphicsPool();
 export { GraphicsPool };
 
 /**
- * BubbleSpritePool - Object pool for bubble Sprite objects (wild-beer bubbles explosion)
+ * BubbleSpritePool - Object pool for bubble Sprite objects (wild-juice bubbles explosion)
  * Reuses Sprite instances to reduce GC pressure
  */
 class BubbleSpritePool {

@@ -3156,7 +3156,7 @@
 <span class="cstat-no" title="statement not covered" >import { Graphics, Container, Sprite, Texture } from 'pixi.js';</span>
 <span class="cstat-no" title="statement not covered" >import { gsap } from 'gsap';</span>
 <span class="cstat-no" title="statement not covered" >import animationManager from './animation-manager.js';</span>
-<span class="cstat-no" title="statement not covered" >import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from "./fx.ts";</span>
+<span class="cstat-no" title="statement not covered" >import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";</span>
 <span class="cstat-no" title="statement not covered" >import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';</span>
 &nbsp;
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
@@ -3187,7 +3187,7 @@ const VEL_SMOOTH   = <span class="cstat-no" title="statement not covered" >0.10;
 const ROT_SMOOTH   = <span class="cstat-no" title="statement not covered" >0.08;</span>   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = <span class="cstat-no" title="statement not covered" >6;</span>      // maksimalni parallax pomak (px)
 const TILT_DUR     = <span class="cstat-no" title="statement not covered" >0.5;</span>    // zadržano za release tween na onUp
-const BOARD_WOBBLE_ENABLED = <span class="cstat-no" title="statement not covered" >true;</span> // 🔥 USER REQUEST: Disabled for wild-beer drag (may use later) - kept constant for future use
+const BOARD_WOBBLE_ENABLED = <span class="cstat-no" title="statement not covered" >true;</span> // 🔥 USER REQUEST: Disabled for wild-juice drag (may use later) - kept constant for future use
 &nbsp;
 const MAGNET_OFFSET_RATIO = <span class="cstat-no" title="statement not covered" >14 / 128;</span> // 14px od 128px pločice ≈ 10.9375%
 const MAGNET_SCALE_MULT  = <span class="cstat-no" title="statement not covered" >1.03;</span>    // 3% napuhavanje ciljane pločice
@@ -3460,7 +3460,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >    drag.lastTime = (typeof performance !== 'undefined' &amp;&amp; performance.now) ? performance.now() : Date.now();</span>
 <span class="cstat-no" title="statement not covered" >    drag.lagX = 0; <span class="cstat-no" title="statement not covered" ></span>drag.lagY = 0;</span>
 <span class="cstat-no" title="statement not covered" >    if (t.rotG) <span class="cstat-no" title="statement not covered" >gsap.killTweensOf(t.rotG);</span></span>
-    // Remember board baseline and enable wobble only for beer wild
+    // Remember board baseline and enable wobble only for juice wild
 <span class="cstat-no" title="statement not covered" >    drag._boardBaseX = board?.x ?? 0;</span>
 <span class="cstat-no" title="statement not covered" >    drag._boardBaseY = board?.y ?? 0;</span>
 <span class="cstat-no" title="statement not covered" >    drag._boardBaseRot = board?.rotation ?? 0;</span>
@@ -3468,8 +3468,8 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >    drag._boardCenterY = board ? board.y : 0;</span>
 <span class="cstat-no" title="statement not covered" >    drag._boardPivotX = board?.pivot?.x ?? 0;</span>
 <span class="cstat-no" title="statement not covered" >    drag._boardPivotY = board?.pivot?.y ?? 0;</span>
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
-    // drag._boardWobbleActive = t.special === 'wild-beer';
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
+    // drag._boardWobbleActive = t.special === 'wild-juice';
 <span class="cstat-no" title="statement not covered" >    drag._boardWobbleActive = false; </span>// Disabled - commented out for future use
 <span class="cstat-no" title="statement not covered" >    drag._boardPivotApplied = false;</span>
 &nbsp;
@@ -3509,20 +3509,20 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });</span>
 &nbsp;
-    // 🔥 FPS DROP FIX: Stop wild beer idle bubbles when dragging starts (prevents conflict with drag particles)
-<span class="cstat-no" title="statement not covered" >    if (t.special === 'wild-beer') {</span>
+    // 🔥 FPS DROP FIX: Stop wild juice idle bubbles when dragging starts (prevents conflict with drag particles)
+<span class="cstat-no" title="statement not covered" >    if (t.special === 'wild-juice') {</span>
 <span class="cstat-no" title="statement not covered" >      try {</span>
-        // Import stopWildBeerBubbles dynamically to avoid circular dependency
+        // Import stopWildJuiceBubbles dynamically to avoid circular dependency
 <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >        import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fxModule </span>=&gt; {</span>
-<span class="cstat-no" title="statement not covered" >          if (fxModule &amp;&amp; typeof fxModule.stopWildBeerBubbles === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >            fxModule.stopWildBeerBubbles(t);</span>
-<span class="cstat-no" title="statement not covered" >            console.log('🧹 Stopped wild beer idle bubbles on drag start');</span>
+<span class="cstat-no" title="statement not covered" >          if (fxModule &amp;&amp; typeof fxModule.stopWildJuiceBubbles === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >            fxModule.stopWildJuiceBubbles(t);</span>
+<span class="cstat-no" title="statement not covered" >            console.log('🧹 Stopped wild juice idle bubbles on drag start');</span>
           }
         }).catch(<span class="fstat-no" title="function not covered" >err </span>=&gt; {
-<span class="cstat-no" title="statement not covered" >          console.warn('⚠️ Failed to stop wild beer bubbles on drag start:', err);</span>
+<span class="cstat-no" title="statement not covered" >          console.warn('⚠️ Failed to stop wild juice bubbles on drag start:', err);</span>
         });
       } catch (err) {
-<span class="cstat-no" title="statement not covered" >        console.warn('⚠️ Error stopping wild beer bubbles on drag start:', err);</span>
+<span class="cstat-no" title="statement not covered" >        console.warn('⚠️ Error stopping wild juice bubbles on drag start:', err);</span>
       }
     }
 &nbsp;
@@ -3544,8 +3544,8 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
     }
 &nbsp;
     // Start sparkles immediately when wild cube is picked up
-    // 🔥 CRITICAL: All wild tiles (wild star, wild beer, wild magnet) get sparkles with their original colors
-<span class="cstat-no" title="statement not covered" >    if (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet') {</span>
+    // 🔥 CRITICAL: All wild tiles (wild star, wild juice, wild magnet) get sparkles with their original colors
+<span class="cstat-no" title="statement not covered" >    if (t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >      try {</span>
         // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
         // This ensures particles appear behind the wild tile when dragging
@@ -3558,7 +3558,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
         // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
         // Use velocity-based throttling to reduce particles when dragging fast
 <span class="cstat-no" title="statement not covered" >        drag._sparkleInterval = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
-<span class="cstat-no" title="statement not covered" >          if (drag.t &amp;&amp; (drag.t.special === 'wild' || drag.t.special === 'wild-beer' || drag.t.special === 'wild-tnt' || drag.t.special === 'wild-magnet') &amp;&amp; !drag.t.destroyed) {</span>
+<span class="cstat-no" title="statement not covered" >          if (drag.t &amp;&amp; (drag.t.special === 'wild' || drag.t.special === 'wild-juice' || drag.t.special === 'wild-tnt' || drag.t.special === 'wild-magnet') &amp;&amp; !drag.t.destroyed) {</span>
 <span class="cstat-no" title="statement not covered" >            try {</span>
               // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
               const dragSpeed = <span class="cstat-no" title="statement not covered" >Math.hypot(drag.vx || 0, drag.vy || 0);</span>
@@ -3642,12 +3642,12 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >    drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;</span>
 <span class="cstat-no" title="statement not covered" >    drag.lastTime = now;</span>
     
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
-    // Board wobble: subtle parallax for wild-beer drag (disabled during bubbles animation)
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
+    // Board wobble: subtle parallax for wild-juice drag (disabled during bubbles animation)
     /*
     if (BOARD_WOBBLE_ENABLED) {
       // 🔥 CRITICAL: Disable board wobble when bubbles animation is active to prevent conflicts
-      if (drag._boardWobbleActive &amp;&amp; board &amp;&amp; !isWildBeerExplosionRunning()) {
+      if (drag._boardWobbleActive &amp;&amp; board &amp;&amp; !isWildJuiceExplosionRunning()) {
         const smooth = 0.16;
         const curShiftX = (board.x ?? 0) - drag._boardBaseX;
         const curShiftY = (board.y ?? 0) - drag._boardBaseY;
@@ -3681,7 +3681,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
     }
 &nbsp;
     // Wild cube sparkles effect - continuous when selected (picked up)
-    // 🔥 CRITICAL: wild-beer does NOT get sparkles, only bubbles (handled in else block)
+    // 🔥 CRITICAL: wild-juice does NOT get sparkles, only bubbles (handled in else block)
 <span class="cstat-no" title="statement not covered" >    if (t.special === 'wild') {</span>
       // Store velocity for sparkles direction
 <span class="cstat-no" title="statement not covered" >      t._lastVelX = drag.vx;</span>
@@ -3701,7 +3701,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
         }
       }
     } else <span class="cstat-no" title="statement not covered" >if (t.special === 'wild-magnet') {</span>
-      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-beer)
+      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-juice)
       // Sparkles are handled by the interval set in onDown function, no need for duplicate here
 <span class="cstat-no" title="statement not covered" >      t._lastVelX = drag.vx;</span>
 <span class="cstat-no" title="statement not covered" >      t._lastVelY = drag.vy;</span>
@@ -3711,7 +3711,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
       // This provides the same gentle magnetic pull effect as wild tiles
       // No need for custom strong pull - updateMagnet handles it perfectly
     } else {
-      // Trails: beer wild gets bubbles; others get smoke
+      // Trails: juice wild gets bubbles; others get smoke
 <span class="cstat-no" title="statement not covered" >      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) &gt; 120) { // Every 120ms</span>
 <span class="cstat-no" title="statement not covered" >        try {</span>
           // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
@@ -3719,13 +3719,13 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
           const tileZ = <span class="cstat-no" title="statement not covered" >t?.zIndex ?? 0;</span>
           const particlesZ = <span class="cstat-no" title="statement not covered" >tileZ &gt; 9000 ? tileZ - 1 : tileZ - 0.001;</span> // Behind dragged tile
           
-          // 🔥 USER REQUEST: Wild beer uses same particles as wild star (no bubbles, only magicSparklesAtTile)
-          // Removed dragBeerBubbleTrail - wild beer now uses only magicSparklesAtTile particles like wild star
-<span class="cstat-no" title="statement not covered" >          if (t.special !== 'wild-beer' &amp;&amp; t.special !== 'wild-tnt' &amp;&amp; t.special !== 'wild') {</span>
+          // 🔥 USER REQUEST: Wild juice uses same particles as wild star (no bubbles, only magicSparklesAtTile)
+          // Removed dragJuiceBubbleTrail - wild juice now uses only magicSparklesAtTile particles like wild star
+<span class="cstat-no" title="statement not covered" >          if (t.special !== 'wild-juice' &amp;&amp; t.special !== 'wild-tnt' &amp;&amp; t.special !== 'wild') {</span>
             // Only non-wild tiles use dragSmokeTrail
 <span class="cstat-no" title="statement not covered" >            dragSmokeTrail(board, t, 96, 0.7, { zIndex: particlesZ });</span>
           }
-          // Wild and wild-beer use only magicSparklesAtTile (no additional bubbles or smoke)
+          // Wild and wild-juice use only magicSparklesAtTile (no additional bubbles or smoke)
 <span class="cstat-no" title="statement not covered" >          drag._lastSmokeTime = now;</span>
         } catch (err) {
 <span class="cstat-no" title="statement not covered" >          console.warn('Trail error:', err);</span>
@@ -3745,7 +3745,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 &nbsp;
     const target = <span class="cstat-no" title="statement not covered" >pickDropTarget(t);</span>
     
-    // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-beer is dropped on regular tile (merge 6)
+    // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-juice is dropped on regular tile (merge 6)
     // This ensures bubbles start exactly when merge 6 happens, not when drag starts 
     
     // 🧲 MAGNETIC REACTION: For wild-magnet, apply gentle pull to ALL nearby tiles (like wild tile)
@@ -3767,7 +3767,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >        if (otherTile === t) <span class="cstat-no" title="statement not covered" >return; </span></span>// Skip the magnet itself
 <span class="cstat-no" title="statement not covered" >        if (otherTile.locked) <span class="cstat-no" title="statement not covered" >return;</span></span>
 <span class="cstat-no" title="statement not covered" >        if ((otherTile.value | 0) &lt;= 0) <span class="cstat-no" title="statement not covered" >return;</span></span>
-<span class="cstat-no" title="statement not covered" >        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-beer' || otherTile.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return; </span></span>// Skip wild tiles
+<span class="cstat-no" title="statement not covered" >        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-juice' || otherTile.special === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return; </span></span>// Skip wild tiles
 <span class="cstat-no" title="statement not covered" >        if (otherTile._wildMagnetAffected) <span class="cstat-no" title="statement not covered" >return; </span></span>// Skip tiles that are already being pulled by magnet merge
         
         // Calculate distance from magnet to tile
@@ -3973,7 +3973,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >    if (drag._lastSmokeTime) {</span>
 <span class="cstat-no" title="statement not covered" >      drag._lastSmokeTime = null;</span>
     }
-    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
+    // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
     // Stop board wobble and reset when drag ends
     /*
     if (drag._boardWobbleActive &amp;&amp; board) {
@@ -4080,10 +4080,10 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
             }).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {});
           } catch {}
         }
-<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-beer') {</span>
+<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-juice') {</span>
 <span class="cstat-no" title="statement not covered" >          try {</span>
 <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >            import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fxModule </span>=&gt; {</span>
-<span class="cstat-no" title="statement not covered" >              if (fxModule?.startWildBeerBubbles) <span class="cstat-no" title="statement not covered" >fxModule.startWildBeerBubbles(tileRef);</span></span>
+<span class="cstat-no" title="statement not covered" >              if (fxModule?.startWildJuiceBubbles) <span class="cstat-no" title="statement not covered" >fxModule.startWildJuiceBubbles(tileRef);</span></span>
             }).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {});
           } catch {}
         }
@@ -4109,8 +4109,8 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startMagnetIdleParticles) <span class="cstat-no" title="statement not covered" >fx.startMagnetIdleParticles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
         }
-<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startWildBeerBubbles) <span class="cstat-no" title="statement not covered" >fx.startWildBeerBubbles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
+<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startWildJuiceBubbles) <span class="cstat-no" title="statement not covered" >fx.startWildJuiceBubbles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
         }
 <span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >          try {</span>
@@ -4153,8 +4153,8 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
 <span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startMagnetIdleParticles) <span class="cstat-no" title="statement not covered" >fx.startMagnetIdleParticles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
         }
-<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startWildBeerBubbles) <span class="cstat-no" title="statement not covered" >fx.startWildBeerBubbles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
+<span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >          try { <span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./fx.js').t</span>hen(<span class="fstat-no" title="function not covered" >fx </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (fx?.startWildJuiceBubbles) <span class="cstat-no" title="statement not covered" >fx.startWildJuiceBubbles(tileRef); </span></span>}).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}); </span>} catch {}</span>
         }
 <span class="cstat-no" title="statement not covered" >        if (tileRef.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >          try {</span>
@@ -4186,7 +4186,7 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
     // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
 <span class="cstat-no" title="statement not covered" >    restoreZ(t);</span>
     
-    // Wild-beer bubbles explosion is triggered centrally in app-core effSum === 6 flow.
+    // Wild-juice bubbles explosion is triggered centrally in app-core effSum === 6 flow.
     
 <span class="cstat-no" title="statement not covered" >    onMerge?.(t, target, helpers);</span>
   }
@@ -4588,10 +4588,10 @@ function <span class="fstat-no" title="function not covered" >__dg_makeLinearGra
     
     const srcSpecial = <span class="cstat-no" title="statement not covered" >src.special;</span>
     const targetSpecial = <span class="cstat-no" title="statement not covered" >target.special;</span>
-    // Wild, wild-magnet, and wild-beer can merge with any tile (show hover)
+    // Wild, wild-magnet, and wild-juice can merge with any tile (show hover)
 <span class="cstat-no" title="statement not covered" >    if (srcSpecial === 'wild' || targetSpecial === 'wild' || </span>
         srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet' ||
-        srcSpecial === 'wild-beer' || targetSpecial === 'wild-beer' ||
+        srcSpecial === 'wild-juice' || targetSpecial === 'wild-juice' ||
         srcSpecial === 'wild-tnt' || targetSpecial === 'wild-tnt') <span class="cstat-no" title="statement not covered" >return true;</span>
 &nbsp;
     const srcVal = <span class="cstat-no" title="statement not covered" >Number(src.value) || 0;</span>

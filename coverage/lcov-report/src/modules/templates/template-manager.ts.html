@@ -922,7 +922,7 @@ interface TemplateColors {
   regular: number;
   wild: number;
   wildStar?: number;
-  wildBeer?: number;
+  wildJuice?: number;
   wildMagnet?: number;
   smoke?: number;
   [key: string]: number | undefined;
@@ -932,7 +932,7 @@ interface DragParticleColors {
   regular: number[];
   wild?: number[];
   wildStar?: number[];
-  wildBeer?: number[];
+  wildJuice?: number[];
   wildMagnet?: number[];
   [key: string]: number[] | undefined;
 }
@@ -941,7 +941,7 @@ interface BubbleColors {
   regular: number[];
   wild?: number[];
   wildStar?: number[];
-  wildBeer?: number[];
+  wildJuice?: number[];
   wildMagnet?: number[];
   [key: string]: number[] | undefined;
 }
@@ -1157,7 +1157,7 @@ function <span class="fstat-no" title="function not covered" >initializePatternP
 &nbsp;
 /**
  * Get drag particle colors for a tile type
- * @param tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @param tileSpecial - 'wild', 'wild-juice', 'wild-magnet', or null for regular
  * @returns Array of color hex values
  */
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >g</span>etDragParticleColors(</span>tileSpecial: string | null): number[] {
@@ -1170,8 +1170,8 @@ function <span class="fstat-no" title="function not covered" >initializePatternP
   let colorKey = <span class="cstat-no" title="statement not covered" >'regular';</span> // Default
 <span class="cstat-no" title="statement not covered" >  if (tileSpecial === 'wild') {</span>
 <span class="cstat-no" title="statement not covered" >    colorKey = 'wild';</span>
-  } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >    colorKey = 'wildBeer';</span>
+  } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >    colorKey = 'wildJuice';</span>
   } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >    colorKey = 'wildTnt';</span>
   } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-magnet') {</span>
@@ -1204,7 +1204,7 @@ function <span class="fstat-no" title="function not covered" >initializePatternP
 &nbsp;
 /**
  * Get bubble colors for a tile type (for full-screen bubbles explosion)
- * @param tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @param tileSpecial - 'wild', 'wild-juice', 'wild-magnet', or null for regular
  * @returns Array of color hex values
  */
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >g</span>etBubbleColors(</span>tileSpecial: string | null): number[] {
@@ -1217,8 +1217,8 @@ function <span class="fstat-no" title="function not covered" >initializePatternP
   let colorKey = <span class="cstat-no" title="statement not covered" >'regular';</span> // Default
 <span class="cstat-no" title="statement not covered" >  if (tileSpecial === 'wild') {</span>
 <span class="cstat-no" title="statement not covered" >    colorKey = 'wild';</span>
-  } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >    colorKey = 'wildBeer';</span>
+  } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >    colorKey = 'wildJuice';</span>
   } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >    colorKey = 'wildTnt';</span>
   } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-magnet') {</span>

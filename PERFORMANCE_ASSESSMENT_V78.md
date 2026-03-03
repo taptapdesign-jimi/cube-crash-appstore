@@ -13,13 +13,13 @@
 
 **Status:** ✅ **App Store Ready** (with minor optimizations recommended)
 
-The game is **well-optimized** for mobile devices with comprehensive memory management, object pooling, and performance monitoring. However, there are areas for improvement, especially during peak animation moments (wild beer merge 6).
+The game is **well-optimized** for mobile devices with comprehensive memory management, object pooling, and performance monitoring. However, there are areas for improvement, especially during peak animation moments (wild juice merge 6).
 
 ---
 
 ## 💾 MEMORY USAGE ANALYSIS
 
-### 1. **Wild Beer Bubbles Animation** (Peak Memory Usage)
+### 1. **Wild Juice Bubbles Animation** (Peak Memory Usage)
 
 **Current Implementation:**
 - **Total Bubbles:** 70 (reduced from 100, -30% optimization)
@@ -66,7 +66,7 @@ The game is **well-optimized** for mobile devices with comprehensive memory mana
 **Current Implementation:**
 - **Particles per Wild Tile:** 20 (increased from 12, +67%)
 - **Wild Star:** 20 particles (rectangular shards)
-- **Wild Beer:** 20 particles (circular bubbles)
+- **Wild Juice:** 20 particles (circular bubbles)
 - **Wild Magnet:** 20 particles (rectangular shards, 200x size multiplier)
 - **Duration:** ~0.3-0.5s (short-lived)
 - **Object Pooling:** ✅ **YES** (Graphics objects pooled)
@@ -84,7 +84,7 @@ The game is **well-optimized** for mobile devices with comprehensive memory mana
 
 **Current Implementation:**
 - **Wild Star:** Stars animation (continuous)
-- **Wild Beer:** Bubbles animation (continuous)
+- **Wild Juice:** Bubbles animation (continuous)
 - **Wild Magnet:** Electric particles (continuous)
 - **Object Pooling:** ✅ **YES** (Graphics objects pooled)
 

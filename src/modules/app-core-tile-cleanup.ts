@@ -6,7 +6,7 @@ type CleanupDeps = {
   stopWildIdle?: (t: Tile) => void;
   stopWildShimmer?: (t: Tile) => void;
   stopWildStars?: (t: Tile) => void;
-  stopWildBeerBubbles?: (t: Tile) => void;
+  stopWildJuiceBubbles?: (t: Tile) => void;
   stopMagnetIdleParticles?: (t: Tile) => void;
   stopTntIdleParticles?: (t: Tile) => void;
   stopTntIdleShake?: (t: Tile) => void;
@@ -20,7 +20,7 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     stopWildIdle,
     stopWildShimmer,
     stopWildStars,
-    stopWildBeerBubbles,
+    stopWildJuiceBubbles,
     stopMagnetIdleParticles,
   stopTntIdleParticles,
   stopTntIdleShake,
@@ -31,7 +31,7 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     try { stopWildIdle?.(t); } catch {}
     try { stopWildShimmer?.(t); } catch {}
     try { stopWildStars?.(t); } catch {}
-    try { stopWildBeerBubbles?.(t); } catch {}
+    try { stopWildJuiceBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
     try { stopTntIdleParticles?.(t); } catch {}
     try { stopTntIdleShake?.(t); } catch {}

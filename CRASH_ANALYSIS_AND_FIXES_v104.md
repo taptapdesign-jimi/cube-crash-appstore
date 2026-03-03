@@ -38,7 +38,7 @@
 
 **Problem:**
 - `restartGame()` was not calling `cleanupAllEffects()`
-- Wild beer bubbles, explosions, and other effects accumulated
+- Wild juice bubbles, explosions, and other effects accumulated
 - After multiple board transitions, effects piled up
 
 **Fix Applied:**
@@ -66,7 +66,7 @@
 - **Status:** Appears to be handled correctly
 
 #### C. **Object Pooling Status**
-- ✅ All drag particles use object pooling (regular, wild star, wild beer, wild magnet)
+- ✅ All drag particles use object pooling (regular, wild star, wild juice, wild magnet)
 - ✅ All merge-6 shards use object pooling
 - ✅ All idle particles use object pooling
 - ✅ All bubbles use object pooling

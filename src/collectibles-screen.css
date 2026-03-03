@@ -101,6 +101,8 @@
   padding-left: 0;
   padding-right: 0;
   min-height: 40px;
+  transform: translateY(4px);
+  -webkit-transform: translateY(4px);
 }
 
 .collectibles-back-button {
@@ -890,6 +892,8 @@
   margin-bottom: 16px;
   padding-left: 0;
   padding-right: 0;
+  transform: translateY(4px);
+  -webkit-transform: translateY(4px);
 }
 
 #collectibles-detail-modal .detail-close-button {
@@ -1394,7 +1398,7 @@
 }
 
 /* iPad specific styles for 4 cards per row */
-@media (min-width: 769px) and (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1366px) {
   .collectibles-shell {
     --pad: 40px;
     max-width: none;
@@ -1884,7 +1888,7 @@
 }
 
 /* iPad specific: Ensure journey cards scale from center for proper positioning */
-@media (min-width: 769px) and (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1366px) {
   .journey-board-card-wrapper {
     transform-origin: center center;
   }
@@ -1904,6 +1908,128 @@
     box-sizing: border-box !important;
     width: 100% !important;
     height: 100% !important;
+  }
+
+  /* iPad-only: push journey and detail header content 8px lower */
+  .collectibles-header-top {
+    transform: translateY(10px);
+    -webkit-transform: translateY(10px);
+  }
+  #collectibles-detail-modal .detail-header-top {
+    transform: translateY(10px);
+    -webkit-transform: translateY(10px);
+  }
+
+  /* iPad-only: enable elastic bounce on the whole modal */
+  #collectibles-detail-modal {
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: auto;
+    touch-action: pan-y;
+  }
+
+  /* iPad-only: remove horizontal swipe, stack content vertically */
+  #collectibles-detail-modal .detail-swipeable-container {
+    flex-direction: column;
+    flex: 0 0 auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+    touch-action: pan-y;
+  }
+  #collectibles-detail-modal .detail-content {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  #collectibles-detail-modal .detail-section {
+    width: 100%;
+    min-width: 0;
+    overflow-y: visible;
+    height: auto;
+  }
+  #collectibles-detail-modal .detail-section-stats-card {
+    flex-direction: column !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 24px;
+    padding: 0 24px 24px 24px;
+    margin-top: 0;
+    transform: none;
+  }
+  #collectibles-detail-modal .detail-section-card {
+    order: 1;
+  }
+  #collectibles-detail-modal .detail-image {
+    width: 392px !important;
+    max-width: 392px !important;
+    min-width: 392px !important;
+    margin-top: 40px;
+  }
+  #collectibles-detail-modal .detail-section-stats {
+    order: 2;
+    width: 100%;
+    align-items: center;
+    gap: 12px;
+  }
+  #collectibles-detail-modal .detail-stats-list {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 5px;
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
+    padding: 0;
+    margin-top: 5%;
+  }
+  #collectibles-detail-modal #detail-card-description {
+    order: 3;
+    margin: 0;
+    width: 100%;
+    max-width: 520px;
+    text-align: center;
+    align-self: center;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+  #collectibles-detail-modal .detail-stat-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    align-items: center;
+    width: auto !important;
+    min-width: 0;
+    max-width: 170px;
+    padding: 0;
+    scroll-snap-align: start;
+  }
+  #collectibles-detail-modal .detail-stat-label {
+    white-space: nowrap;
+  }
+  #collectibles-detail-modal .detail-stat-icon {
+    width: 56px;
+    height: 56px;
+  }
+  #collectibles-detail-modal .detail-stat-content {
+    min-width: 0;
+  }
+  #collectibles-detail-modal .detail-stat-content {
+    align-items: flex-start;
+    padding-right: 8px;
+  }
+  #collectibles-detail-modal .detail-stat-divider {
+    display: none;
+  }
+  #collectibles-detail-modal .detail-section-description {
+    order: 3;
+    padding: 8px 24px 0 24px !important;
+    text-align: center;
+    align-items: center;
+  }
+  #collectibles-detail-content {
+    padding-bottom: 8px;
   }
 }
 

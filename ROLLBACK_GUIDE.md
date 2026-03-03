@@ -3,7 +3,7 @@
 ## ✅ Sigurnost v60 Commit-a
 
 **Commit**: `77ac5fa`  
-**Poruka**: "v60: Fix end game logic for wild-beer, wild meter reset on last merge, reduce fail screen delays, fix merge value update race condition"  
+**Poruka**: "v60: Fix end game logic for wild-juice, wild meter reset on last merge, reduce fail screen delays, fix merge value update race condition"  
 **Status**: ✅ **PUSHAN NA GITHUB** (siguran, ne može se izgubiti)
 
 ---

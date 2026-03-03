@@ -6,7 +6,7 @@ Bubbles animacija se zamrzne na pola animacije - par bubblesa se zamrzne i cijel
 ## 🎯 Problem
 Bubbles animacija se zamrzne na pola animacije - par bubblesa se zamrzne i cijela igra je frozen, korisnik ne može ništa. Animacija je super ali ne traje do kraja.
 
-**Kada se događa**: Tijekom merge 6 wild-beer animacije, nakon što se spawna ~100-200 bubblesa, animacija se zamrzne.
+**Kada se događa**: Tijekom merge 6 wild-juice animacije, nakon što se spawna ~100-200 bubblesa, animacija se zamrzne.
 
 **Simptomi**:
 - Bubbles se zamrzne na ekranu
@@ -27,7 +27,7 @@ Bubbles animacija se zamrzne na pola animacije - par bubblesa se zamrzne i cijel
 - **Lokacija**: `src/modules/fx.js:1555-1632` (bubble animacije)
 
 ### 3. **Duplicate GSAP Ticker**
-- **Problem**: Ako se `createWildBeerBubblesExplosion` pozove više puta, može se dodati više tickera
+- **Problem**: Ako se `createWildJuiceBubblesExplosion` pozove više puta, može se dodati više tickera
 - **Uzrok**: Nema provjere da ticker već postoji prije dodavanja
 - **Lokacija**: `src/modules/fx.js:1805-1810`
 
@@ -173,14 +173,14 @@ if (tickerId !== null) {
 
 **Lokacija**: 
 - `src/modules/drag-core.ts:334-345` (board wobble logic)
-- `src/modules/fx.js:1264, 1339, 1888` (`isWildBeerExplosionActive` flag)
+- `src/modules/fx.js:1264, 1339, 1888` (`isWildJuiceExplosionActive` flag)
 
-**Rješenje**: Koristiti `isWildBeerExplosionActive` flag da se onemogući board wobble:
+**Rješenje**: Koristiti `isWildJuiceExplosionActive` flag da se onemogući board wobble:
 ```javascript
 // U drag-core.ts onMove funkciji:
 if (drag._boardWobbleActive && board) {
-  // Import isWildBeerExplosionActive from fx.js ili provjeri globalno
-  const isBubblesActive = window.STATE?.isWildBeerExplosionActive || false;
+  // Import isWildJuiceExplosionActive from fx.js ili provjeri globalno
+  const isBubblesActive = window.STATE?.isWildJuiceExplosionActive || false;
   if (!isBubblesActive) {
     // Board wobble logic
   }
@@ -230,14 +230,14 @@ if (drag._boardWobbleActive && board) {
 ## 🛠️ Preporučena Rješenja
 
 ### 1. Onemogućiti Board Wobble Tijekom Bubbles Animacije
-**Problem**: `isWildBeerExplosionActive` flag postoji u `fx.js` ali se ne koristi u `drag-core.ts` za onemogućavanje board wobble-a.
+**Problem**: `isWildJuiceExplosionActive` flag postoji u `fx.js` ali se ne koristi u `drag-core.ts` za onemogućavanje board wobble-a.
 
 **Rješenje**:
 ```javascript
 // U drag-core.ts onMove funkciji (linija ~334):
 // Import flag ili provjeri globalno
 const windowState = typeof window !== 'undefined' ? window.STATE : null;
-const isBubblesActive = windowState?.isWildBeerExplosionActive || false;
+const isBubblesActive = windowState?.isWildJuiceExplosionActive || false;
 
 if (drag._boardWobbleActive && board && !isBubblesActive) {
   // Board wobble logic - samo ako bubbles animacija nije aktivna
@@ -246,16 +246,16 @@ if (drag._boardWobbleActive && board && !isBubblesActive) {
 }
 ```
 
-**Alternativno**: Export `isWildBeerExplosionActive` iz `fx.js` i import u `drag-core.ts`:
+**Alternativno**: Export `isWildJuiceExplosionActive` iz `fx.js` i import u `drag-core.ts`:
 ```javascript
 // U fx.js:
-export { isWildBeerExplosionActive };
+export { isWildJuiceExplosionActive };
 
 // U drag-core.ts:
-import { isWildBeerExplosionActive } from './fx.js';
+import { isWildJuiceExplosionActive } from './fx.js';
 
 // U onMove:
-if (drag._boardWobbleActive && board && !isWildBeerExplosionActive) {
+if (drag._boardWobbleActive && board && !isWildJuiceExplosionActive) {
   // Board wobble logic
 }
 ```
@@ -280,8 +280,8 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionActive) {
 
 ## 📝 Test Scenarios
 
-1. **Test 1**: Merge 6 wild-beer → provjeri da li se bubbles animacija zamrzne
-2. **Test 2**: Merge 6 wild-beer dok se board pomiče (drag) → provjeri konflikt
+1. **Test 1**: Merge 6 wild-juice → provjeri da li se bubbles animacija zamrzne
+2. **Test 2**: Merge 6 wild-juice dok se board pomiče (drag) → provjeri konflikt
 3. **Test 3**: Više merge 6 u kratkom vremenu → provjeri da li se tickeri duplicate-aju
 4. **Test 4**: Dugotrajna igra → provjeri memory leak
 5. **Test 5**: Slabiji uređaj → provjeri performanse s 500 bubblesa
@@ -289,12 +289,12 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionActive) {
 ## 🔗 Relevantne Datoteke
 
 - `src/modules/fx.js` - Bubbles animacija (linije 1264-1875)
-  - `isWildBeerExplosionActive` flag (linija 1264, 1339, 1888)
-  - `createWildBeerBubblesExplosion` funkcija (linija 1266)
+  - `isWildJuiceExplosionActive` flag (linija 1264, 1339, 1888)
+  - `createWildJuiceBubblesExplosion` funkcija (linija 1266)
   - Bubble animacije (linije 1555-1632)
   - Cleanup funkcija (linije 1820-1867)
 - `src/modules/drag-core.ts` - Board wobble, bubbles trigger
-  - Board wobble logic (linije 334-345) - **TREBA DODATI PROVJERU ZA isWildBeerExplosionActive**
+  - Board wobble logic (linije 334-345) - **TREBA DODATI PROVJERU ZA isWildJuiceExplosionActive**
   - Bubbles trigger (linije 797-808)
   - `pickDropTarget` throttling (linije 832-997)
 - `src/modules/app-core.ts` - Merge 6 animacije, canDrop

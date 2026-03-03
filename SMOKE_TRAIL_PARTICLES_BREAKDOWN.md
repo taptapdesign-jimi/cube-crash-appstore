@@ -5,7 +5,7 @@
 | Tip Pločice | Funkcija | Object Pooling | Metoda | Detalji |
 |------------|----------|----------------|---------|---------|
 | **Obične pločice** (regular tiles) | `dragSmokeTrail()` | ✅ **DA** | `graphicsPool.acquire()` | ✅ **AŽURIRANO**: Koristi object pooling. Particles se reusaju iz pool-a. |
-| **Wild Beer** | `magicSparklesAtTile()` | ✅ **DA** | `graphicsPool.acquire()` | Koristi object pooling. Particles se reusaju iz pool-a. |
+| **Wild Juice** | `magicSparklesAtTile()` | ✅ **DA** | `graphicsPool.acquire()` | Koristi object pooling. Particles se reusaju iz pool-a. |
 | **Wild Zvjezdica** (wild star) | `magicSparklesAtTile()` | ✅ **DA** | `graphicsPool.acquire()` | Koristi object pooling. Particles se reusaju iz pool-a. |
 | **Wild Magnet** | `magicSparklesAtTile()` | ✅ **DA** | `graphicsPool.acquire()` | Koristi object pooling. Particles se reusaju iz pool-a. |
 
@@ -18,7 +18,7 @@
 - **Cleanup**: `graphicsPool.release(puff)` nakon animacije
 - **Razlog**: ✅ **AŽURIRANO**: Object pooling za bolju performansu
 
-### Wild Beer
+### Wild Juice
 - **Funkcija**: `magicSparklesAtTile(board, tile, opts)`
 - **Metoda**: `graphicsPool.acquire()` - particles se uzimaju iz pool-a
 - **Lokacija**: `src/modules/fx.js:857`
@@ -42,6 +42,6 @@
 ## Zaključak
 
 - **Obične pločice**: ✅ **AŽURIRANO**: Ima pooling - koristi `graphicsPool.acquire()`
-- **Wild tiles** (beer, star, magnet): ✅ Ima pooling - koristi `graphicsPool.acquire()`
+- **Wild tiles** (juice, star, magnet): ✅ Ima pooling - koristi `graphicsPool.acquire()`
 
 **✅ SVI efekti su sada optimizovani sa object pooling-om!**

@@ -10,7 +10,7 @@ export const woodenColors = {
   regular: 0xD4A584,     // Brown - for regular tile merges
   wild: 0xFFCB47,        // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
   wildStar: 0xFFCB47,    // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
-  wildBeer: 0xF99D77,    // Orange (#F99D77) - for wild beer/juice merges (ORIGINAL COLOR)
+  wildJuice: 0xF99D77,    // Orange (#F99D77) - for wild juice/juice merges (ORIGINAL COLOR)
   wildTnt: 0xE85C3A,     // Orange-red (#E85C3A) - for wild TNT / Explosion Pack merges
   wildMagnet: 0xF26034,  // Red (#F26034) - for wild magnet merges
   smoke: 0xFFFFFF        // White smoke for wild effects
@@ -26,8 +26,8 @@ export const woodenDragParticleColors = {
   wild: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC],
   wildStar: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC], // Alias for wild
   
-  // Wild beer: Orange palette - ORIGINAL COLOR
-  wildBeer: [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77],
+  // Wild juice: Orange palette - ORIGINAL COLOR
+  wildJuice: [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77],
   
   // Wild TNT (Explosion Pack): Orange-red palette
   wildTnt: [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6],
@@ -46,8 +46,8 @@ export const woodenBubbleColors = {
   wild: [0xFFFFFF, 0xFFF8E1, 0xFFF3C4, 0xFFEEB3],
   wildStar: [0xFFFFFF, 0xFFF8E1, 0xFFF3C4, 0xFFEEB3], // Alias for wild
   
-  // Wild beer: Light orange/white bubbles - ORIGINAL COLOR (white with orange tint)
-  wildBeer: [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2],
+  // Wild juice: Light orange/white bubbles - ORIGINAL COLOR (white with orange tint)
+  wildJuice: [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2],
   
   // Wild TNT (Explosion Pack): Light orange-red/white bubbles
   wildTnt: [0xFFFFFF, 0xFFEDE6, 0xFFE0D4, 0xFFD4C2],
@@ -365,12 +365,12 @@ export const woodenPatternWildStarOrganic3 = [
 ];
 
 /**
- * 🍺 WILD BEER ORGANIC PATTERN 1: "Juice Explosion" - For wild beer merges
- * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * 🍺 WILD JUICE ORGANIC PATTERN 1: "Juice Explosion" - For wild juice merges
+ * Perfect for: Wild juice merge 6 (wild-juice + ordinary)
  * Shards: 18 shards with juice-like, organic distribution
  * Style: Juice explosion, oscillating distances, natural feel
  */
-export const woodenPatternWildBeerOrganic1 = [
+export const woodenPatternWildJuiceOrganic1 = [
   // Juice explosion - oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 22,  distance: 0.059, size: 1.800, speed: 0.88, alpha: 1.0 },   // 🔥 Close
   { angle: 56,  distance: 0.212, size: 1.320, speed: 1.02, alpha: 1.0 },  // 🔥 Far (20% closer)
@@ -393,12 +393,12 @@ export const woodenPatternWildBeerOrganic1 = [
 ];
 
 /**
- * 🍺 WILD BEER ORGANIC PATTERN 2: "Bubbly Burst" - For wild beer merges
- * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * 🍺 WILD JUICE ORGANIC PATTERN 2: "Bubbly Burst" - For wild juice merges
+ * Perfect for: Wild juice merge 6 (wild-juice + ordinary)
  * Shards: 20 shards with bubbly, organic distribution
  * Style: Bubbly spread, random angles, oscillating distances
  */
-export const woodenPatternWildBeerOrganic2 = [
+export const woodenPatternWildJuiceOrganic2 = [
   // Bubbly burst - random angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 14,  distance: 0.059, size: 1.680, speed: 0.93, alpha: 1.0 },   // 🔥 Close
   { angle: 48,  distance: 0.212, size: 1.380, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
@@ -422,12 +422,12 @@ export const woodenPatternWildBeerOrganic2 = [
 ];
 
 /**
- * 🍺 WILD BEER ORGANIC PATTERN 3: "Fizzy Spread" - For wild beer merges
- * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * 🍺 WILD JUICE ORGANIC PATTERN 3: "Fizzy Spread" - For wild juice merges
+ * Perfect for: Wild juice merge 6 (wild-juice + ordinary)
  * Shards: 19 shards with fizzy, organic distribution
  * Style: Fizzy spread, varied angles, natural feel
  */
-export const woodenPatternWildBeerOrganic3 = [
+export const woodenPatternWildJuiceOrganic3 = [
   // Fizzy spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 11,  distance: 0.049, size: 1.620, speed: 0.87, alpha: 1.0 },  // 🔥 Very close
   { angle: 41,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Far (20% closer)
@@ -510,12 +510,12 @@ export const woodenPatternWildStarOrganic5 = [
 ];
 
 /**
- * 🍺 WILD BEER ORGANIC PATTERN 4: "Splash Burst" - For wild beer merges
- * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * 🍺 WILD JUICE ORGANIC PATTERN 4: "Splash Burst" - For wild juice merges
+ * Perfect for: Wild juice merge 6 (wild-juice + ordinary)
  * Shards: 20 shards with splash-like, organic distribution
  * Style: Splash explosion, varied distances, natural feel
  */
-export const woodenPatternWildBeerOrganic4 = [
+export const woodenPatternWildJuiceOrganic4 = [
   // Splash burst - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 6,   distance: 0.071, size: 1.62, speed: 0.86, alpha: 1.0 },  // 🔥 Close
   { angle: 36,  distance: 0.254, size: 1.296, speed: 1.14, alpha: 1.0 }, // 🔥 Far
@@ -540,12 +540,12 @@ export const woodenPatternWildBeerOrganic4 = [
 ];
 
 /**
- * 🍺 WILD BEER ORGANIC PATTERN 5: "Foam Explosion" - For wild beer merges
- * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * 🍺 WILD JUICE ORGANIC PATTERN 5: "Foam Explosion" - For wild juice merges
+ * Perfect for: Wild juice merge 6 (wild-juice + ordinary)
  * Shards: 19 shards with foam-like, organic distribution
  * Style: Foam explosion, varied angles, natural feel
  */
-export const woodenPatternWildBeerOrganic5 = [
+export const woodenPatternWildJuiceOrganic5 = [
   // Foam explosion - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 9,   distance: 0.059, size: 1.62, speed: 0.83, alpha: 1.0 },  // 🔥 Very close
   { angle: 39,  distance: 0.301, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Far
@@ -777,11 +777,11 @@ export const woodenPatternMap = {
   // Wild star merge 6 (wild + ordinary) - use 5 organic patterns (stellar, radiant, cosmic, nova, galactic)
   wildStar: ['wildStarOrganic1', 'wildStarOrganic2', 'wildStarOrganic3', 'wildStarOrganic4', 'wildStarOrganic5'],
   
-  // Wild beer merge 6 (wild-beer + ordinary) - use 5 organic patterns (juice, bubbly, fizzy, splash, foam)
-  wildBeer: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5'],
+  // Wild juice merge 6 (wild-juice + ordinary) - use 5 organic patterns (juice, bubbly, fizzy, splash, foam)
+  wildJuice: ['wildJuiceOrganic1', 'wildJuiceOrganic2', 'wildJuiceOrganic3', 'wildJuiceOrganic4', 'wildJuiceOrganic5'],
   
-  // Wild TNT merge 6 (wild-tnt + ordinary) - reuse beer organic patterns (Explosion Pack)
-  wildTnt: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5'],
+  // Wild TNT merge 6 (wild-tnt + ordinary) - reuse juice organic patterns (Explosion Pack)
+  wildTnt: ['wildJuiceOrganic1', 'wildJuiceOrganic2', 'wildJuiceOrganic3', 'wildJuiceOrganic4', 'wildJuiceOrganic5'],
   
   // Wild-magnet drag particles (during drag and idle) - use 3 organic patterns for variety
   wildMagnetDrag: ['wildMagnetDrag1', 'wildMagnetDrag2', 'wildMagnetDrag3']
@@ -897,7 +897,7 @@ export const woodenParams = {
     intensity: 1.35
   },
   
-  wildBeer: {
+  wildJuice: {
     // Visual
     lineWidth: 3.0,
     lineAlpha: 1.0,              // 🔥 USER REQUEST: 100% opacity
@@ -926,7 +926,7 @@ export const woodenParams = {
   },
   
   wildTnt: {
-    // Same as wildBeer (Explosion Pack - TNT merge 6)
+    // Same as wildJuice (Explosion Pack - TNT merge 6)
     lineWidth: 3.0,
     lineAlpha: 1.0,
     travelDuration: 0.4,
@@ -978,7 +978,7 @@ export const woodenTemplate = {
   displayName: '🪵 Wooden (Original)',
   colors: woodenColors,
   dragParticleColors: woodenDragParticleColors, // 🔥 NEW: Drag particle color palettes
-  bubbleColors: woodenBubbleColors, // 🔥 FIX: Bubble colors for wild-beer bubbles explosion
+  bubbleColors: woodenBubbleColors, // 🔥 FIX: Bubble colors for wild-juice bubbles explosion
   patterns: {
     explosion: woodenPatternExplosion,
     burst: woodenPatternBurst,
@@ -996,11 +996,11 @@ export const woodenTemplate = {
     wildStarOrganic3: woodenPatternWildStarOrganic3,
     wildStarOrganic4: woodenPatternWildStarOrganic4,
     wildStarOrganic5: woodenPatternWildStarOrganic5,
-    wildBeerOrganic1: woodenPatternWildBeerOrganic1,
-    wildBeerOrganic2: woodenPatternWildBeerOrganic2,
-    wildBeerOrganic3: woodenPatternWildBeerOrganic3,
-    wildBeerOrganic4: woodenPatternWildBeerOrganic4,
-    wildBeerOrganic5: woodenPatternWildBeerOrganic5,
+    wildJuiceOrganic1: woodenPatternWildJuiceOrganic1,
+    wildJuiceOrganic2: woodenPatternWildJuiceOrganic2,
+    wildJuiceOrganic3: woodenPatternWildJuiceOrganic3,
+    wildJuiceOrganic4: woodenPatternWildJuiceOrganic4,
+    wildJuiceOrganic5: woodenPatternWildJuiceOrganic5,
     wildMagnetDrag1: woodenPatternWildMagnetDrag1,
     wildMagnetDrag2: woodenPatternWildMagnetDrag2,
     wildMagnetDrag3: woodenPatternWildMagnetDrag3

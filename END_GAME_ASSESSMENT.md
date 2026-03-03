@@ -2,7 +2,7 @@
 
 ## 📋 Executive Summary
 
-This document provides a comprehensive internal assessment of the end game detection system, covering all use cases for wild tiles (star, beer, magnet) and regular tiles, their interactions, and edge cases.
+This document provides a comprehensive internal assessment of the end game detection system, covering all use cases for wild tiles (star, juice, magnet) and regular tiles, their interactions, and edge cases.
 
 **Status**: ✅ **COMPREHENSIVE COVERAGE** - All major use cases are covered with proper logic.
 
@@ -40,10 +40,10 @@ This document provides a comprehensive internal assessment of the end game detec
 - **Wild Meter**: Reset immediately (early check + merge-6 block)
 - **Result**: Clean board ✅
 
-#### 1.2 Wild Beer + Regular Tile → Merge 6
+#### 1.2 Wild Juice + Regular Tile → Merge 6
 - **Status**: ✅ **COVERED** (recently fixed)
-- **Detection**: `isRegularWildLastTwo` check (line 2694) - includes `wild-beer`
-- **Logic**: `srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer'` + `activeTilesCount === 2`
+- **Detection**: `isRegularWildLastTwo` check (line 2694) - includes `wild-juice`
+- **Logic**: `srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice'` + `activeTilesCount === 2`
 - **Wild Meter**: Reset immediately (early check + merge-6 block)
 - **Result**: Clean board ✅
 
@@ -99,10 +99,10 @@ This document provides a comprehensive internal assessment of the end game detec
 - **Logic**: Wild can merge with merge 6 → game continues
 - **Result**: Game continues ✅
 
-#### 2.4 Merge 6 + Wild Beer → Can Merge
+#### 2.4 Merge 6 + Wild Juice → Can Merge
 - **Status**: ✅ **COVERED**
-- **Detection**: `checkEndGame` line 432 - `hasWild && hasMerge6` (includes wild-beer)
-- **Logic**: Wild beer can merge with merge 6 → game continues
+- **Detection**: `checkEndGame` line 432 - `hasWild && hasMerge6` (includes wild-juice)
+- **Logic**: Wild juice can merge with merge 6 → game continues
 - **Result**: Game continues ✅
 
 #### 2.5 Merge 6 + Wild Magnet → Can Merge
@@ -175,14 +175,14 @@ This document provides a comprehensive internal assessment of the end game detec
 - **Exception**: Pulled tiles (both `_wildMagnetAffected`) can merge
 - **Result**: Merge blocked ✅
 
-#### 5.2 Wild Beer + Wild Beer → Cannot Merge
+#### 5.2 Wild Juice + Wild Juice → Cannot Merge
 - **Status**: ✅ **COVERED**
 - **Detection**: Merge function line 2103 - blocks wild/wild merges
 - **Logic**: `srcIsWild && dstIsWild` → `helpers.snapBack(src)`
 - **Exception**: Pulled tiles (both `_wildMagnetAffected`) can merge
 - **Result**: Merge blocked ✅
 
-#### 5.3 Wild Star + Wild Beer → Cannot Merge
+#### 5.3 Wild Star + Wild Juice → Cannot Merge
 - **Status**: ✅ **COVERED**
 - **Detection**: Merge function line 2103 - blocks wild/wild merges
 - **Logic**: Both are wild → `helpers.snapBack(src)`
@@ -203,7 +203,7 @@ This document provides a comprehensive internal assessment of the end game detec
 - **Exception**: Pulled tiles (both `_wildMagnetAffected`) can merge
 - **Result**: Merge blocked ✅
 
-#### 5.6 Wild Beer + Wild Magnet → Cannot Merge
+#### 5.6 Wild Juice + Wild Magnet → Cannot Merge
 - **Status**: ✅ **COVERED**
 - **Detection**: Merge function line 2106 - blocks wild/magnet merges
 - **Logic**: `srcIsWild && dst.special === 'wild-magnet'` → `helpers.snapBack(src)`
@@ -324,8 +324,8 @@ This document provides a comprehensive internal assessment of the end game detec
 - ✅ Merge blocking: Blocks wild/wild, wild/magnet merges
 - ✅ Can merge with: Any tile (1-6, including merge 6)
 
-### **Wild Beer (`'wild-beer'`)**
-- ✅ Last merge detection: `srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer'` (recently added)
+### **Wild Juice (`'wild-juice'`)**
+- ✅ Last merge detection: `srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice'` (recently added)
 - ✅ Stuck detection: Included in `wildStars` filter (line 289)
 - ✅ Emergency rescue: Included in `wildCubes` filter (line 485)
 - ✅ Merge blocking: Blocks wild/wild, wild/magnet merges
@@ -344,11 +344,11 @@ This document provides a comprehensive internal assessment of the end game detec
 
 ## 🔄 INTERACTION MATRIX
 
-| Scenario | Wild Star | Wild Beer | Wild Magnet | Regular | Merge 6 | Result |
+| Scenario | Wild Star | Wild Juice | Wild Magnet | Regular | Merge 6 | Result |
 |----------|-----------|-----------|-------------|---------|---------|--------|
 | **Last Merge (2 tiles)** |
 | Wild Star + Regular | ✅ | - | - | ✅ | → | Clean Board |
-| Wild Beer + Regular | - | ✅ | - | ✅ | → | Clean Board |
+| Wild Juice + Regular | - | ✅ | - | ✅ | → | Clean Board |
 | Magnet + Regular (no pull) | - | - | ✅ | ✅ | → | Clean Board |
 | Regular + Regular | - | - | - | ✅ | → | Clean Board |
 | **Game Continues** |
@@ -416,7 +416,7 @@ This document provides a comprehensive internal assessment of the end game detec
 ### **✅ Strengths**
 1. **Comprehensive Coverage**: All major use cases are covered
 2. **Multiple Protection Layers**: 5 layers prevent race conditions
-3. **Wild Beer Integration**: Recently fixed to match wild star behavior
+3. **Wild Juice Integration**: Recently fixed to match wild star behavior
 4. **Stacked Tiles Support**: Proper stackDepth counting and self-merge checks
 5. **Magnet Special Cases**: Handles pull behavior correctly
 
@@ -439,7 +439,7 @@ This document provides a comprehensive internal assessment of the end game detec
 **Overall Assessment**: ✅ **EXCELLENT COVERAGE**
 
 The end game logic is comprehensive and covers all major use cases:
-- ✅ All wild tile types (star, beer, magnet) properly handled
+- ✅ All wild tile types (star, juice, magnet) properly handled
 - ✅ Last merge detection works for all scenarios
 - ✅ Stuck detection is robust with proper edge case handling
 - ✅ Wild meter and spawn protection is multi-layered
@@ -450,6 +450,6 @@ The end game logic is comprehensive and covers all major use cases:
 
 ---
 
-*Last Updated: After wild-beer last merge fix*
+*Last Updated: After wild-juice last merge fix*
 *Assessment Version: 1.0*
 

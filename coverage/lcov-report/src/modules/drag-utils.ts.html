@@ -1215,8 +1215,8 @@ const __dg_orig_set = <span class="cstat-no" title="statement not covered" >gsap
 <span class="cstat-no" title="statement not covered" >    g.closePath();</span>
   };
   
-  // 🔥 USER REQUEST: Helper function to draw beer mug shape for wild-beer tile shadow
-  const drawBeerMug = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(g</span>: Graphics, x: number, y: number, width: number, height: number): void =&gt; {</span>
+  // 🔥 USER REQUEST: Helper function to draw juice mug shape for wild-juice tile shadow
+  const drawJuiceMug = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >(g</span>: Graphics, x: number, y: number, width: number, height: number): void =&gt; {</span>
     const mugWidth = <span class="cstat-no" title="statement not covered" >width * 0.85;</span>
     const mugHeight = <span class="cstat-no" title="statement not covered" >height * 0.9;</span>
     const handleWidth = <span class="cstat-no" title="statement not covered" >width * 0.15;</span>
@@ -1302,7 +1302,7 @@ const __dg_orig_set = <span class="cstat-no" title="statement not covered" >gsap
   
   // 🔥 USER REQUEST: Check tile type for custom shadow shapes
   const isWildStar = <span class="cstat-no" title="statement not covered" >tile.special === 'wild';</span>
-  const isWildBeer = <span class="cstat-no" title="statement not covered" >tile.special === 'wild-beer';</span>
+  const isWildJuice = <span class="cstat-no" title="statement not covered" >tile.special === 'wild-juice';</span>
   const isWildMagnet = <span class="cstat-no" title="statement not covered" >tile.special === 'wild-magnet';</span>
   const isWildTnt = <span class="cstat-no" title="statement not covered" >tile.special === 'wild-tnt';</span>
   
@@ -1315,11 +1315,11 @@ const __dg_orig_set = <span class="cstat-no" title="statement not covered" >gsap
     const outerRadius = <span class="cstat-no" title="statement not covered" >Math.min(tile.width, tile.height) * 0.45;</span>
     const innerRadius = <span class="cstat-no" title="statement not covered" >outerRadius * 0.4;</span>
 <span class="cstat-no" title="statement not covered" >    drawStar(shadow, centerX, centerY, outerRadius, innerRadius, 5);</span>
-  } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
-    // 🔥 USER REQUEST: Draw beer mug-shaped shadow for wild-beer tile
+  } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
+    // 🔥 USER REQUEST: Draw juice mug-shaped shadow for wild-juice tile
     const centerX = <span class="cstat-no" title="statement not covered" >VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;</span>
     const centerY = <span class="cstat-no" title="statement not covered" >VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;</span>
-<span class="cstat-no" title="statement not covered" >    drawBeerMug(shadow, centerX, centerY, tile.width, tile.height);</span>
+<span class="cstat-no" title="statement not covered" >    drawJuiceMug(shadow, centerX, centerY, tile.width, tile.height);</span>
   } else <span class="cstat-no" title="statement not covered" >if (isWildMagnet) {</span>
     // 🔥 USER REQUEST: Draw magnet-shaped shadow for wild-magnet tile
     const centerX = <span class="cstat-no" title="statement not covered" >VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;</span>

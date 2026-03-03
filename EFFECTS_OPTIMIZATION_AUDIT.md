@@ -5,7 +5,7 @@
 ### 1. **Wild Tile Sparkles** - `magicSparklesAtTile()`
 - **Status**: ✅ OPTIMIZOVANO
 - **Pooling**: `graphicsPool.acquire()` / `graphicsPool.release()`
-- **Koristi se za**: Wild star, Wild-magnet, Wild-beer idle sparkles
+- **Koristi se za**: Wild star, Wild-magnet, Wild-juice idle sparkles
 - **Lokacija**: `src/modules/fx.ts:835`
 - **Cleanup**: ✅ Properly releases back to pool after animation
 - **Memory tracking**: ✅ Tracked in `__globalGraphicsObjects`
@@ -58,31 +58,31 @@
 - **Lokacija**: `src/modules/fx.ts:2164`
 - **Cleanup**: ✅ Properly releases back to pattern-specific pool
 
-### 8. **Wild Beer Merge 6 Shards (Template)** - `wildBeerMerge6ShardsTemplated()`
+### 8. **Wild Juice Merge 6 Shards (Template)** - `wildJuiceMerge6ShardsTemplated()`
 - **Status**: ✅ OPTIMIZOVANO
 - **Pooling**: Pattern-specific pool (`pool.acquire()` / `pool.release()`)
-- **Koristi se za**: Wild-beer merge 6 shards
+- **Koristi se za**: Wild-juice merge 6 shards
 - **Lokacija**: `src/modules/fx.ts:2418`
 - **Cleanup**: ✅ Properly releases back to pattern-specific pool
 
-### 9. **Wild Beer Idle Bubbles** - `startWildBeerBubbles()`
+### 9. **Wild Juice Idle Bubbles** - `startWildJuiceBubbles()`
 - **Status**: ✅ OPTIMIZOVANO
 - **Pooling**: `graphicsPool.acquire()` / `graphicsPool.release()`
-- **Koristi se za**: Wild-beer idle bubble animations
+- **Koristi se za**: Wild-juice idle bubble animations
 - **Lokacija**: `src/modules/fx.ts:3140`
 - **Cleanup**: ✅ Properly releases back to pool after animation
 
-### 10. **Wild Beer Drag Bubbles** - `dragBeerBubbleTrail()`
+### 10. **Wild Juice Drag Bubbles** - `dragJuiceBubbleTrail()`
 - **Status**: ✅ OPTIMIZOVANO
 - **Pooling**: `graphicsPool.acquire()` / `graphicsPool.release()`
-- **Koristi se za**: Wild-beer drag bubble trail
+- **Koristi se za**: Wild-juice drag bubble trail
 - **Lokacija**: `src/modules/fx.ts:164`
 - **Cleanup**: ✅ Properly releases back to pool after animation
 
-### 11. **Wild Beer Full-Screen Explosion** - `createWildBeerBubblesExplosion()`
+### 11. **Wild Juice Full-Screen Explosion** - `createWildJuiceBubblesExplosion()`
 - **Status**: ✅ OPTIMIZOVANO
 - **Pooling**: Texture pooling (Sprite) + Graphics pooling fallback
-- **Koristi se za**: Wild-beer merge 6 full-screen explosion
+- **Koristi se za**: Wild-juice merge 6 full-screen explosion
 - **Lokacija**: `src/modules/fx.ts:3636`
 - **Cleanup**: ✅ Properly releases back to pool
 - **Optimizacija**: Uses texture pooling for bubbles, Graphics fallback if texture unavailable
@@ -137,17 +137,17 @@
 ## 📊 Sumarni Pregled
 
 ### ✅ Optimizovano sa Pooling-om: **13 efekata**
-1. Wild tile sparkles (wild star, wild-magnet, wild-beer)
+1. Wild tile sparkles (wild star, wild-magnet, wild-juice)
 2. Drag smoke trail (regular tiles)
 3. Smoke bubbles (merge 6)
 4. Regular merge 6 shards (template) ⭐ **GLAVNI SISTEM**
 5. Wild magnet merge 6 shards (template)
 6. Wild merge 6 shards (template)
 7. Wild star merge 6 shards (template)
-8. Wild beer merge 6 shards (template)
-9. Wild beer idle bubbles
-10. Wild beer drag bubbles
-11. Wild beer full-screen explosion
+8. Wild juice merge 6 shards (template)
+9. Wild juice idle bubbles
+10. Wild juice drag bubbles
+11. Wild juice full-screen explosion
 12. Wild magnet drag particles (template)
 13. Smoke puffs (drag trail)
 
@@ -181,7 +181,7 @@
 
 **SVI GLAVNI EFEKTI SU OPTIMIZOVANI SA OBJECT POOLING-OM!**
 
-- ✅ **Wild efekti** (star, magnet, beer) - KORISTE pooling
+- ✅ **Wild efekti** (star, magnet, juice) - KORISTE pooling
 - ✅ **Drag efekti** (smoke trail, bubbles) - KORISTE pooling
 - ✅ **Merge 6 shards** (svi tipovi) - KORISTE template-based pooling
 - ✅ **Smoke bubbles** - KORISTE pooling

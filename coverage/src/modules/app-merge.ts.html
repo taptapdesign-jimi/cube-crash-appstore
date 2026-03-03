@@ -4451,7 +4451,7 @@
 <span class="cstat-no" title="statement not covered" >import animationManager from './animation-manager.js';</span>
 <span class="cstat-no" title="statement not covered" >import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';</span>
 import * as makeBoard from './board.js';
-<span class="cstat-no" title="statement not covered" >import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts";</span>
+<span class="cstat-no" title="statement not covered" >import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildJuiceBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts";</span>
 <span class="cstat-no" title="statement not covered" >import { COLS, ROWS, TILE, GAP } from './constants.js';</span>
 <span class="cstat-no" title="statement not covered" >import * as HUD from './hud-helpers.ts';</span>
 <span class="cstat-no" title="statement not covered" >import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';</span>
@@ -4518,7 +4518,7 @@ function <span class="fstat-no" title="function not covered" >play(</span>name, 
 function <span class="fstat-no" title="function not covered" >tileIsWild(</span>tile: any): boolean {
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return false;</span></span>
   const special = <span class="cstat-no" title="statement not covered" >tile.special;</span>
-<span class="cstat-no" title="statement not covered" >  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;</span>
+<span class="cstat-no" title="statement not covered" >  return special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;</span>
 }
 &nbsp;
 function <span class="fstat-no" title="function not covered" >tileIsActive(</span>tile: any): boolean {
@@ -4579,7 +4579,7 @@ function <span class="fstat-no" title="function not covered" >removeTile(</span>
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return;</span></span>
 <span class="cstat-no" title="statement not covered" >  try { <span class="cstat-no" title="statement not covered" >stopWildIdle(tile); </span>} catch {}</span>
   // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
-<span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild' || tile.special === 'wild-beer' || tile.special === 'wild-tnt') {</span>
+<span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >    tile.special = null;</span>
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -4814,7 +4814,7 @@ async function <span class="fstat-no" title="function not covered" >checkIfAllTi
     // Simulate merges by creating a copy of tile values
     const tileValues = <span class="cstat-no" title="statement not covered" >activeTiles.map(<span class="fstat-no" title="function not covered" >(t</span>: any) =&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
       value: t.value|0,
-      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt',
+      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt',
       original: t
     }));
     
@@ -4908,7 +4908,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
 <span class="cstat-no" title="statement not covered" >    removeTile(dst);</span>
     
     // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-    // This ensures all wild magnet/beer/star endgame scenarios use the same flow with proper guards
+    // This ensures all wild magnet/juice/star endgame scenarios use the same flow with proper guards
     const triggerCleanBoardFlow = (<span class="cstat-no" title="statement not covered" >window as any).CC?.triggerCleanBoardFlow;</span>
 <span class="cstat-no" title="statement not covered" >    if (typeof triggerCleanBoardFlow === 'function') {</span>
 <span class="cstat-no" title="statement not covered" >      await triggerCleanBoardFlow('clean_board_from_wild_magnet_no_pulled_tiles');</span>
@@ -5019,8 +5019,8 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
   // 🔥 CRITICAL: Store pulled cells in dst tile so they can be excluded from normal spawn
   (<span class="cstat-no" title="statement not covered" >dst as any)._wildMagnetPulledCells = pulledCells;</span>
   
-  // 🔥 CRITICAL: Stop all animations INCLUDING wild animations (wild-beer bubbles, wild stars, wild shimmer, wild idle)
-  // This prevents animation conflicts when wild-beer tiles are pulled by magnet
+  // 🔥 CRITICAL: Stop all animations INCLUDING wild animations (wild-juice bubbles, wild stars, wild shimmer, wild idle)
+  // This prevents animation conflicts when wild-juice tiles are pulled by magnet
 <span class="cstat-no" title="statement not covered" >  validTiles.forEach(<span class="fstat-no" title="function not covered" >(t</span>ile: any) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (!tile || tile.destroyed) <span class="cstat-no" title="statement not covered" >return;</span></span>
     
@@ -5034,7 +5034,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
     
     // 🔥 CRITICAL: Stop wild animations BEFORE removeTile (prevents conflicts)
 <span class="cstat-no" title="statement not covered" >    try { </span>
-<span class="cstat-no" title="statement not covered" >      if (typeof stopWildBeerBubbles === 'function') <span class="cstat-no" title="statement not covered" >stopWildBeerBubbles(tile); </span></span>
+<span class="cstat-no" title="statement not covered" >      if (typeof stopWildJuiceBubbles === 'function') <span class="cstat-no" title="statement not covered" >stopWildJuiceBubbles(tile); </span></span>
     } catch {}
 <span class="cstat-no" title="statement not covered" >    try { </span>
 <span class="cstat-no" title="statement not covered" >      if (typeof stopWildStars === 'function') <span class="cstat-no" title="statement not covered" >stopWildStars(tile); </span></span>
@@ -5709,7 +5709,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
         const isMissing = <span class="cstat-no" title="statement not covered" >!t;</span>
         const isLocked = <span class="cstat-no" title="statement not covered" >!!(t &amp;&amp; t.locked === true);</span>
         const hasValue = <span class="cstat-no" title="statement not covered" >!!(t &amp;&amp; (t.value|0) &gt; 0);</span>
-        const isWildTile = <span class="cstat-no" title="statement not covered" >!!(t &amp;&amp; (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));</span>
+        const isWildTile = <span class="cstat-no" title="statement not covered" >!!(t &amp;&amp; (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));</span>
         
         // 🔥 CRITICAL FIX: NEVER spawn on a tile with value &gt; 0, even if it's locked!
         // Locked tiles with value &gt; 0 are tiles that are being animated (e.g., during magnet pull)
@@ -6148,7 +6148,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
           const existingTile = <span class="cstat-no" title="statement not covered" >STATE.grid?.[r]?.[c];</span>
 <span class="cstat-no" title="statement not covered" >          if (existingTile) {</span>
             const isActive = <span class="cstat-no" title="statement not covered" >(existingTile.value|0) &gt; 0;</span>
-            const isWildTile = <span class="cstat-no" title="statement not covered" >existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;</span>
+            const isWildTile = <span class="cstat-no" title="statement not covered" >existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-juice' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;</span>
             
             // 🔥 CRITICAL: NEVER spawn on a tile that has value &gt; 0 or is wild, even if it's locked!
             // Locked tiles with value &gt; 0 are active tiles (e.g., during animations)
@@ -6331,7 +6331,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
   const lockedActiveTiles = <span class="cstat-no" title="statement not covered" >STATE.tiles.filter(<span class="fstat-no" title="function not covered" >(t</span>: any) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (!t || t.destroyed) <span class="cstat-no" title="statement not covered" >return false;</span></span>
 <span class="cstat-no" title="statement not covered" >    if (!t.locked) <span class="cstat-no" title="statement not covered" >return false; </span></span>// Only check locked tiles
-<span class="cstat-no" title="statement not covered" >    return (t.value|0) &gt; 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';</span>
+<span class="cstat-no" title="statement not covered" >    return (t.value|0) &gt; 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';</span>
   });
   
   // 🔥 USER BUG FIX: Also check for tiles that are still being spawned or not yet interactive
@@ -6342,7 +6342,7 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
 <span class="cstat-no" title="statement not covered" >    if (t._isBeingSpawned === true) <span class="cstat-no" title="statement not covered" >return true;</span></span>
     // Check if tile doesn't have eventMode='static' yet (not interactive) - critical for user merges
 <span class="cstat-no" title="statement not covered" >    if (t.eventMode !== 'static' &amp;&amp; (t.value|0) &gt; 0) {</span>
-      const isWildTile = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';</span>
+      const isWildTile = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';</span>
       // Only consider it as "still spawning" if it's a regular tile without eventMode
 <span class="cstat-no" title="statement not covered" >      if (!isWildTile) <span class="cstat-no" title="statement not covered" >return true;</span></span>
     }
@@ -6415,12 +6415,12 @@ async function <span class="fstat-no" title="function not covered" >mergePulledT
     });
   }
   
-  // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-beer merge)
+  // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-juice merge)
   // Bubbles animation can run for 4+ seconds and shouldn't block endgame detection
   // BUT: We should ensure spawn animations are complete before checking endgame
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const { isWildBeerExplosionRunning } = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./fx.js');</span>
-<span class="cstat-no" title="statement not covered" >    if (typeof isWildBeerExplosionRunning === 'function' &amp;&amp; isWildBeerExplosionRunning()) {</span>
+    const { isWildJuiceExplosionRunning } = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./fx.js');</span>
+<span class="cstat-no" title="statement not covered" >    if (typeof isWildJuiceExplosionRunning === 'function' &amp;&amp; isWildJuiceExplosionRunning()) {</span>
 <span class="cstat-no" title="statement not covered" >      console.log('💧 Bubbles animation is running, but spawn animations are complete - proceeding with endgame check');</span>
       // Bubbles animation is visual only and doesn't block endgame detection
     }

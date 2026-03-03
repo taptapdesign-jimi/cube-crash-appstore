@@ -1,7 +1,7 @@
-# Wild Beer Bubbles Explosion Module - Assessment Review
+# Wild Juice Bubbles Explosion Module - Assessment Review
 
 ## 📋 Overview
-Modul `wild-beer-bubbles-explosion.ts` je dizajniran kao **standalone, outside-the-game modul** slično kao `board-transition-screen.ts`. Radi neovisno o board/tile hijerarhiji i renderira direktno na PixiJS stage.
+Modul `wild-juice-bubbles-explosion.ts` je dizajniran kao **standalone, outside-the-game modul** slično kao `board-transition-screen.ts`. Radi neovisno o board/tile hijerarhiji i renderira direktno na PixiJS stage.
 
 ## 🏗️ Arhitektura (usporedba s board-transition-screen)
 
@@ -10,17 +10,17 @@ Modul `wild-beer-bubbles-explosion.ts` je dizajniran kao **standalone, outside-t
 2. **Independent lifecycle** - upravlja vlastitim cleanup-om, ne ovisi o board state-u
 3. **Direct stage access** - renderira direktno na `stage` (zIndex: 20000), izvan board hijerarhije
 4. **Self-contained** - sve logika je unutar modula, nema ovisnosti o tile/board objektima
-5. **Cleanup functions** - `stopWildBeerBubblesExplosion()`, `cleanup()` funkcije za potpuni cleanup
+5. **Cleanup functions** - `stopWildJuiceBubblesExplosion()`, `cleanup()` funkcije za potpuni cleanup
 
 ### 🔍 Ključne razlike:
 - **board-transition-screen**: Koristi DOM overlay (HTML/CSS), ne PixiJS
-- **wild-beer-bubbles-explosion**: Koristi PixiJS Container na stage-u
+- **wild-juice-bubbles-explosion**: Koristi PixiJS Container na stage-u
 
 ## 🎯 Kako radi (outside the game):
 
 ### 1. **Initialization**
 ```typescript
-export function showWildBeerBubblesExplosion(): void {
+export function showWildJuiceBubblesExplosion(): void {
   // Dohvaća stage preko window.STATE (ne ovisi o board objektu)
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const stage = (windowState && windowState.stage) || (app && app.stage) || null;

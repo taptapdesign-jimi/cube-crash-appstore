@@ -2309,9 +2309,9 @@ interface CleanBoardModalOptions {
 <span class="cstat-no" title="statement not covered" >      if (result === 'timeout') {</span>
 <span class="cstat-no" title="statement not covered" >        console.warn('⚠️ endgame-flow: Animation wait timed out - forcing cleanup to proceed');</span>
 <span class="cstat-no" title="statement not covered" >        try {</span>
-          const bubblesModule = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-beer-bubbles-explosion.js');</span>
-<span class="cstat-no" title="statement not covered" >          if (bubblesModule &amp;&amp; typeof bubblesModule.stopWildBeerBubblesExplosion === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >            bubblesModule.stopWildBeerBubblesExplosion();</span>
+          const bubblesModule = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-juice-bubbles-explosion.js');</span>
+<span class="cstat-no" title="statement not covered" >          if (bubblesModule &amp;&amp; typeof bubblesModule.stopWildJuiceBubblesExplosion === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >            bubblesModule.stopWildJuiceBubblesExplosion();</span>
           }
         } catch {}
 <span class="cstat-no" title="statement not covered" >        try {</span>
@@ -2848,8 +2848,8 @@ interface CleanBoardModalOptions {
       } catch {}
       // Defensive: stop heavy FX before transition to reduce crash risk
 <span class="cstat-no" title="statement not covered" >      try {</span>
-        const bubbles = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-beer-bubbles-explosion.js');</span>
-<span class="cstat-no" title="statement not covered" >        bubbles.forceStopWildBeerBubblesExplosion?.();</span>
+        const bubbles = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-juice-bubbles-explosion.js');</span>
+<span class="cstat-no" title="statement not covered" >        bubbles.forceStopWildJuiceBubblesExplosion?.();</span>
 <span class="cstat-no" title="statement not covered" >        await new Promise(<span class="fstat-no" title="function not covered" >resolve </span>=&gt; <span class="cstat-no" title="statement not covered" >requestAnimationFrame(resolve))</span>;</span>
       } catch {}
 <span class="cstat-no" title="statement not covered" >      try {</span>
@@ -2925,9 +2925,9 @@ interface CleanBoardModalOptions {
           (<span class="cstat-no" title="statement not covered" >window as any).__ccBoardTransitionActive = false;</span>
 <span class="cstat-no" title="statement not covered" >          console.log('✅ endgame-flow: Cleared __ccBoardTransitionActive flag - cleanup now allowed');</span>
 <span class="cstat-no" title="statement not covered" >          try {</span>
-            const bubbles = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-beer-bubbles-explosion.js');</span>
-<span class="cstat-no" title="statement not covered" >            if (bubbles.isWildBeerBubblesExplosionActive?.()) {</span>
-<span class="cstat-no" title="statement not covered" >              bubbles.forceStopWildBeerBubblesExplosion?.();</span>
+            const bubbles = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >await import('</span>./wild-juice-bubbles-explosion.js');</span>
+<span class="cstat-no" title="statement not covered" >            if (bubbles.isWildJuiceBubblesExplosionActive?.()) {</span>
+<span class="cstat-no" title="statement not covered" >              bubbles.forceStopWildJuiceBubblesExplosion?.();</span>
             }
           } catch {}
           // After transition screen completes, start the next board

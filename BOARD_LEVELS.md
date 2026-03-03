@@ -22,12 +22,12 @@ Ovaj dokument objašnjava kako podesiti **board-specific pravila** za svaki boar
 
 #### `allowedWildTypes` (array)
 - **Opis:** Koje wild types su dozvoljene za board
-- **Moguće vrijednosti:** `'wild'`, `'wild-beer'`, `'wild-magnet'`
-- **Default:** `['wild', 'wild-beer', 'wild-magnet']` (sve dozvoljeno)
+- **Moguće vrijednosti:** `'wild'`, `'wild-juice'`, `'wild-magnet'`
+- **Default:** `['wild', 'wild-juice', 'wild-magnet']` (sve dozvoljeno)
 - **Primjeri:**
   ```typescript
-  allowedWildTypes: ['wild-beer']           // Samo wild-beer
-  allowedWildTypes: ['wild', 'wild-beer']  // Wild i wild-beer (ne wild-magnet)
+  allowedWildTypes: ['wild-juice']           // Samo wild-juice
+  allowedWildTypes: ['wild', 'wild-juice']  // Wild i wild-juice (ne wild-magnet)
   allowedWildTypes: []                      // Nijedan wild type (wild spawn disabled)
   ```
 
@@ -189,7 +189,7 @@ const BOARD_RULES: BoardRule[] = [
     boardNumber: 3,
     wildSpawnEnabled: true,
     wildMeterEnabled: true,
-    allowedWildTypes: ['wild-beer']
+    allowedWildTypes: ['wild-juice']
   }
 ];
 ```
@@ -207,7 +207,7 @@ const BOARD_RULES: BoardRule[] = [
     scoreMultiplier: 2.0,
     difficulty: 'hard',
     wildMeterFillRate: 0.5,
-    allowedWildTypes: ['wild', 'wild-beer']
+    allowedWildTypes: ['wild', 'wild-juice']
   }
 ];
 ```
@@ -238,21 +238,21 @@ Spremi fajl i testiraj u igri.
 
 ---
 
-### **Primjer 2: Board 3 - Samo Wild-Beer**
+### **Primjer 2: Board 3 - Samo Wild-Juice**
 
 ```typescript
 {
   boardNumber: 3,
   wildSpawnEnabled: true,      // Wild tiles se spawnaju
   wildMeterEnabled: true,       // Wild meter se puni
-  allowedWildTypes: ['wild-beer']  // Samo wild-beer dozvoljen
+  allowedWildTypes: ['wild-juice']  // Samo wild-juice dozvoljen
 }
 ```
 
 **Rezultat:**
 - ✅ Wild meter se puni normalno
 - ✅ Wild tiles se spawnaju
-- ✅ **Samo wild-beer** se spawna (ne wild-magnet, ne regular wild)
+- ✅ **Samo wild-juice** se spawna (ne wild-magnet, ne regular wild)
 
 ---
 
@@ -265,7 +265,7 @@ Spremi fajl i testiraj u igri.
   scoreMultiplier: 2.0,        // Duplo više bodova
   difficulty: 'hard',
   wildMeterFillRate: 0.5,      // Sporije punjenje wild meter-a
-  allowedWildTypes: ['wild', 'wild-beer']  // Wild i wild-beer (ne wild-magnet)
+  allowedWildTypes: ['wild', 'wild-juice']  // Wild i wild-juice (ne wild-magnet)
 }
 ```
 
@@ -273,7 +273,7 @@ Spremi fajl i testiraj u igri.
 - ✅ 30 poteza umjesto 50
 - ✅ Duplo više bodova za sve akcije
 - ✅ Sporije punjenje wild meter-a
-- ✅ Wild i wild-beer dozvoljeni (wild-magnet nije)
+- ✅ Wild i wild-juice dozvoljeni (wild-magnet nije)
 
 ---
 
@@ -286,7 +286,7 @@ Spremi fajl i testiraj u igri.
   scoreMultiplier: 1.5,        // 50% više bodova
   difficulty: 'easy',
   wildMeterFillRate: 2.0,      // Brže punjenje wild meter-a
-  allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet']  // Sve dozvoljeno
+  allowedWildTypes: ['wild', 'wild-juice', 'wild-magnet']  // Sve dozvoljeno
 }
 ```
 
@@ -307,7 +307,7 @@ Spremi fajl i testiraj u igri.
   scoreMultiplier: 3.0,        // Tri puta više bodova
   difficulty: 'extreme',
   wildMeterFillRate: 0.3,      // Jako sporo punjenje
-  allowedWildTypes: ['wild']   // Samo regular wild (nema wild-beer, nema wild-magnet)
+  allowedWildTypes: ['wild']   // Samo regular wild (nema wild-juice, nema wild-magnet)
 }
 ```
 
@@ -361,7 +361,7 @@ Možeš kombinirati više parametara za kompleksnije boardove:
   wildSpawnEnabled: true,
   wildMeterEnabled: true,
   wildMeterFillRate: 1.5,
-  allowedWildTypes: ['wild-beer', 'wild-magnet'],
+  allowedWildTypes: ['wild-juice', 'wild-magnet'],
   
   // Gameplay settings
   maxMoves: 35,
@@ -409,7 +409,7 @@ Možeš kombinirati više parametara za kompleksnije boardove:
   boardNumber: 3,
   wildSpawnEnabled: true,
   wildMeterEnabled: true,
-  allowedWildTypes: ['wild-beer']
+  allowedWildTypes: ['wild-juice']
 }
 ```
 
@@ -427,7 +427,7 @@ Možeš kombinirati više parametara za kompleksnije boardove:
   scoreMultiplier: 2.0,
   difficulty: 'hard',
   wildMeterFillRate: 0.5,
-  allowedWildTypes: ['wild', 'wild-beer']
+  allowedWildTypes: ['wild', 'wild-juice']
 }
 ```
 
@@ -440,7 +440,7 @@ Možeš kombinirati više parametara za kompleksnije boardove:
   scoreMultiplier: 1.5,
   difficulty: 'easy',
   wildMeterFillRate: 2.0,
-  allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet']
+  allowedWildTypes: ['wild', 'wild-juice', 'wild-magnet']
 }
 ```
 

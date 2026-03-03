@@ -1,10 +1,10 @@
-# 🔍 WILD BEER DRAG PARTICLES & IDLE ANIMATION ASSESSMENT
+# 🔍 WILD JUICE DRAG PARTICLES & IDLE ANIMATION ASSESSMENT
 
 ## Problem
 Korisnik je prijavio:
-1. **Wild beer drag particles (smoke trail) imaju lag i nisu fluidni** - želi da budu isti kao wild zvjezdica
+1. **Wild juice drag particles (smoke trail) imaju lag i nisu fluidni** - želi da budu isti kao wild zvjezdica
 2. **Osjeća da uzimaju puno CPU i memorije**
-3. **Idle animacija na wild beeru kada se draga je i dalje prisutna** (što je dobro), ali nije siguran da li je dobro uništena na merge 6 kada wild beer mergamo sa drugom kockicom
+3. **Idle animacija na wild juiceu kada se draga je i dalje prisutna** (što je dobro), ali nije siguran da li je dobro uništena na merge 6 kada wild juice mergamo sa drugom kockicom
 
 ---
 
@@ -15,7 +15,7 @@ Korisnik je prijavio:
 **Lokacija:** `src/modules/drag-core.ts` linija 280-306
 
 **Trenutno stanje:**
-- Wild beer i wild zvjezdica **koriste isti sistem** - `magicSparklesAtTile()`
+- Wild juice i wild zvjezdica **koriste isti sistem** - `magicSparklesAtTile()`
 - Oba koriste `setInterval` koji poziva `magicSparklesAtTile()` svakih 100ms tijekom drag-a
 - Interval se čisti samo kada se drag završi ili tile postane destroyed
 
@@ -23,7 +23,7 @@ Korisnik je prijavio:
 ```typescript
 // drag-core.ts linija 289-306
 drag._sparkleInterval = setInterval(() => {
-  if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
+  if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-juice') && !drag.t.destroyed) {
     try {
       const tileZ = drag.t?.zIndex ?? 0;
       const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
@@ -57,20 +57,20 @@ drag._sparkleInterval = setInterval(() => {
 
 ### 2. IDLE ANIMACIJA (BUBBLES) ⚠️ **PROBLEM**
 
-**Lokacija:** `src/modules/fx.js` linija 96-247 (`startWildBeerBubbles`)
+**Lokacija:** `src/modules/fx.js` linija 96-247 (`startWildJuiceBubbles`)
 
 **Trenutno stanje:**
-- Wild beer ima kontinuirane bubble animacije koje se pokreću kada se tile spawna
+- Wild juice ima kontinuirane bubble animacije koje se pokreću kada se tile spawna
 - Bubbles se spawnaju svakih 0.3-0.6s
 - Svaki bubble ima 3 GSAP animacije (scale, position, alpha)
-- Bubbles se čiste u `stopWildBeerBubbles()` funkciji
+- Bubbles se čiste u `stopWildJuiceBubbles()` funkciji
 
 **Cleanup na merge 6:**
-- `removeTile()` poziva `stopWildBeerBubbles(t)` (linija 5006 u app-core.ts)
+- `removeTile()` poziva `stopWildJuiceBubbles(t)` (linija 5006 u app-core.ts)
 - `removeTile()` se poziva za **src tile** (linija 1507 u app-merge.ts)
 - `removeTile()` se poziva za **dst tile** (linija 1775 u app-merge.ts)
-- **PROBLEM:** Ako je wild beer **dst tile**, bubbles se čiste **NAKON** merge 6 animacije
-- **PROBLEM:** Ako je wild beer **src tile**, bubbles se čiste **PRIJE** merge 6 animacije, ali možda ne dovoljno brzo
+- **PROBLEM:** Ako je wild juice **dst tile**, bubbles se čiste **NAKON** merge 6 animacije
+- **PROBLEM:** Ako je wild juice **src tile**, bubbles se čiste **PRIJE** merge 6 animacije, ali možda ne dovoljno brzo
 
 **Kod problema:**
 ```typescript
@@ -127,7 +127,7 @@ gsap.to(src, {
 ```typescript
 // drag-core.ts - Optimizirati interval
 drag._sparkleInterval = setInterval(() => {
-  if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
+  if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-juice') && !drag.t.destroyed) {
     try {
       const tileZ = drag.t?.zIndex ?? 0;
       const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
@@ -147,30 +147,30 @@ drag._sparkleInterval = setInterval(() => {
 
 **Ili još bolje - koristiti isti sistem kao wild zvjezdica:**
 - Wild zvjezdica koristi `attachWildStarHalo()` koji stvara fiksni broj orbitirajućih zvjezdica
-- Možemo napraviti sličan sistem za wild beer - fiksni broj orbitirajućih bubbles umjesto kontinuiranog spawnanja
+- Možemo napraviti sličan sistem za wild juice - fiksni broj orbitirajućih bubbles umjesto kontinuiranog spawnanja
 
 ---
 
 ### 2. OSIGURATI CLEANUP IDLE ANIMACIJE NA MERGE 6 ⚠️ **PRIORITET 1**
 
 **Rješenje:**
-- Pozvati `stopWildBeerBubbles()` **PRIJE** merge 6 animacije za **oba tile-a** (src i dst)
+- Pozvati `stopWildJuiceBubbles()` **PRIJE** merge 6 animacije za **oba tile-a** (src i dst)
 - Osigurati da se bubbles čiste **odmah** kada se merge 6 pokrene
 
 **Kod:**
 ```typescript
 // app-merge.ts - PRIJE gsap.to(src, ...)
-// 🔥 CRITICAL: Stop wild beer bubbles PRIJE merge 6 animacije
-if (src?.special === 'wild-beer') {
+// 🔥 CRITICAL: Stop wild juice bubbles PRIJE merge 6 animacije
+if (src?.special === 'wild-juice') {
   try {
-    stopWildBeerBubbles(src);
-    console.log('🧹 Stopped wild beer bubbles for src tile before merge 6');
+    stopWildJuiceBubbles(src);
+    console.log('🧹 Stopped wild juice bubbles for src tile before merge 6');
   } catch {}
 }
-if (dst?.special === 'wild-beer') {
+if (dst?.special === 'wild-juice') {
   try {
-    stopWildBeerBubbles(dst);
-    console.log('🧹 Stopped wild beer bubbles for dst tile before merge 6');
+    stopWildJuiceBubbles(dst);
+    console.log('🧹 Stopped wild juice bubbles for dst tile before merge 6');
   } catch {}
 }
 

@@ -1,8 +1,8 @@
-# Wild Beer Bubbles Animation - Comprehensive Assessment & Changes Rundown
+# Wild Juice Bubbles Animation - Comprehensive Assessment & Changes Rundown
 
 ## 📋 Executive Summary
 
-This document provides a complete assessment of all changes made to implement and optimize the wild-beer bubbles explosion animation that triggers during a "merge 6 wild beer" event. The animation was designed to appear immediately and simultaneously with the merge animation, before the shards animation. Multiple iterations addressed timing issues, performance problems, memory leaks, and animation freezes.
+This document provides a complete assessment of all changes made to implement and optimize the wild-juice bubbles explosion animation that triggers during a "merge 6 wild juice" event. The animation was designed to appear immediately and simultaneously with the merge animation, before the shards animation. Multiple iterations addressed timing issues, performance problems, memory leaks, and animation freezes.
 
 **Current Status**: The animation is functional but may still experience freezes on some devices. Several optimizations have been implemented, but additional work may be needed for complete stability.
 
@@ -14,7 +14,7 @@ This document provides a complete assessment of all changes made to implement an
 2. **Timing**: No delay - bubbles should start moving instantly when merge 6 begins
 3. **Visual Effect**: Bubbles should rise from the bottom of the screen (CO2 effect)
 4. **Performance**: Animation must be solid, without memory leaks, lagging, or crashes
-5. **Gameplay**: After initial wild-beer tile drop, 40% chance for another wild-beer tile to spawn on the board
+5. **Gameplay**: After initial wild-juice tile drop, 40% chance for another wild-juice tile to spawn on the board
 6. **Bubble Count**: 500 bubbles total (doubled from original "safety" number of 250)
 
 ---
@@ -22,7 +22,7 @@ This document provides a complete assessment of all changes made to implement an
 ## 📁 Files Modified
 
 ### 1. `src/modules/fx.js`
-**Primary File**: Contains the `createWildBeerBubblesExplosion` function and all bubble animation logic.
+**Primary File**: Contains the `createWildJuiceBubblesExplosion` function and all bubble animation logic.
 
 **Key Changes**:
 - Bubble count increased from 250 to 500
@@ -38,27 +38,27 @@ This document provides a complete assessment of all changes made to implement an
 - Changed bubbles container to `app.stage` (screen space) instead of `board.parent` (board space)
 
 **Key Functions**:
-- `createWildBeerBubblesExplosion(board, tile)` - Main function (line ~1281)
-- `isWildBeerExplosionRunning()` - Guard function to prevent duplicates (line ~1273)
-- `setWildBeerExplosionActive(active)` - State management (line ~1266)
+- `createWildJuiceBubblesExplosion(board, tile)` - Main function (line ~1281)
+- `isWildJuiceExplosionRunning()` - Guard function to prevent duplicates (line ~1273)
+- `setWildJuiceExplosionActive(active)` - State management (line ~1266)
 - `cleanupBubbles()` - Enhanced cleanup (line ~1820)
 
 ### 2. `src/modules/drag-core.ts`
 **Trigger Point**: Where the bubbles animation is triggered (earliest possible point).
 
 **Key Changes**:
-- Moved `createWildBeerBubblesExplosion` call to `onUp` function (line ~797-809)
-- Trigger happens immediately when wild-beer tile is dropped on regular tile, BEFORE `merge` function is called
+- Moved `createWildJuiceBubblesExplosion` call to `onUp` function (line ~797-809)
+- Trigger happens immediately when wild-juice tile is dropped on regular tile, BEFORE `merge` function is called
 - Added immediate GSAP ticker wake and render calls to force instant animation start
 - Added throttling for `pickDropTarget` function (16ms throttle, caching)
 - Removed extensive `console.log` calls from `pickDropTarget` and `canDrop` functions
-- Board wobble only active for wild-beer tiles during drag
+- Board wobble only active for wild-juice tiles during drag
 
 **Key Code Location**:
 ```typescript
 // Line ~797-809: Bubbles trigger
-if (isWildBeerTile && isRegularTarget) {
-  createWildBeerBubblesExplosion(board, target);
+if (isWildJuiceTile && isRegularTarget) {
+  createWildJuiceBubblesExplosion(board, target);
   // Force immediate render
   gsap.ticker.wake();
   gsap.ticker.tick();
@@ -67,19 +67,19 @@ if (isWildBeerTile && isRegularTarget) {
 ```
 
 ### 3. `src/modules/app-core.ts`
-**Merge Logic**: Contains the main `merge` function and wild-beer respawn logic.
+**Merge Logic**: Contains the main `merge` function and wild-juice respawn logic.
 
 **Key Changes**:
-- Removed `createWildBeerBubblesExplosion` call from merge 6 block (moved to drag-core.ts)
-- Added wild-beer respawn logic: `WILD_BEER_RESPAWN_CHANCE = 0.4` (40% chance after first spawn)
+- Removed `createWildJuiceBubblesExplosion` call from merge 6 block (moved to drag-core.ts)
+- Added wild-juice respawn logic: `WILD_JUICE_RESPAWN_CHANCE = 0.4` (40% chance after first spawn)
 - Modified `spawnWildFromMeter` function to implement respawn chance
 - Removed `console.log` calls from `canDrop` function
 
 **Key Code Location**:
 ```typescript
-// Line ~4300+: Wild-beer respawn logic in spawnWildFromMeter
-const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
-const spawnBeer = isFirstWild || (!wildBeerSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
+// Line ~4300+: Wild-juice respawn logic in spawnWildFromMeter
+const WILD_JUICE_RESPAWN_CHANCE = 0.4; // 40% chance wild-juice spawns again after first spawn
+const spawnJuice = isFirstWild || (!wildJuiceSpawned && Math.random() < WILD_JUICE_RESPAWN_CHANCE);
 ```
 
 ---
@@ -89,7 +89,7 @@ const spawnBeer = isFirstWild || (!wildBeerSpawned && Math.random() < WILD_BEER_
 ### Change 1: Animation Trigger Timing
 **Problem**: Initial implementation had bubbles triggered in `app-core.ts` after merge 6 detection, causing ~1 second delay.
 
-**Solution**: Moved trigger to `drag-core.ts` `onUp` function, immediately when wild-beer tile is dropped on regular tile, BEFORE `merge` function is called.
+**Solution**: Moved trigger to `drag-core.ts` `onUp` function, immediately when wild-juice tile is dropped on regular tile, BEFORE `merge` function is called.
 
 **Files**: `src/modules/drag-core.ts:797-809`, `src/modules/app-core.ts` (removed call)
 
@@ -205,7 +205,7 @@ if (oscillationCycles > 0 && cycleDuration > 0.1) {
 ---
 
 ### Change 8: Duplicate Ticker Prevention
-**Problem**: If `createWildBeerBubblesExplosion` was called multiple times, duplicate GSAP tickers could be added, causing freezes.
+**Problem**: If `createWildJuiceBubblesExplosion` was called multiple times, duplicate GSAP tickers could be added, causing freezes.
 
 **Solution**: Added guard check before adding ticker:
 - Check if `tickerId === null` before adding
@@ -295,24 +295,24 @@ function pickDropTarget(src) {
 
 ---
 
-### Change 12: Wild-Beer Respawn Logic
-**Problem**: User wanted 40% chance for wild-beer tile to respawn after initial drop.
+### Change 12: Wild-Juice Respawn Logic
+**Problem**: User wanted 40% chance for wild-juice tile to respawn after initial drop.
 
-**Solution**: Added `WILD_BEER_RESPAWN_CHANCE = 0.4` in `spawnWildFromMeter` function:
-- First wild spawn is always wild-beer
-- After first spawn, 40% chance for subsequent wild spawns to be wild-beer
-- 30% chance for wild-magnet (if not wild-beer)
+**Solution**: Added `WILD_JUICE_RESPAWN_CHANCE = 0.4` in `spawnWildFromMeter` function:
+- First wild spawn is always wild-juice
+- After first spawn, 40% chance for subsequent wild spawns to be wild-juice
+- 30% chance for wild-magnet (if not wild-juice)
 
 **Files**: `src/modules/app-core.ts:4300+` (in `spawnWildFromMeter`)
 
 **Code**:
 ```typescript
-const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
-const spawnBeer = isFirstWild || (!wildBeerSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
-const spawnMagnet = !spawnBeer && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+const WILD_JUICE_RESPAWN_CHANCE = 0.4; // 40% chance wild-juice spawns again after first spawn
+const spawnJuice = isFirstWild || (!wildJuiceSpawned && Math.random() < WILD_JUICE_RESPAWN_CHANCE);
+const spawnMagnet = !spawnJuice && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
 ```
 
-**Impact**: Adds gameplay variety with wild-beer respawns.
+**Impact**: Adds gameplay variety with wild-juice respawns.
 
 ---
 
@@ -351,12 +351,12 @@ const spawnMagnet = !spawnBeer && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
 
 **Location**: 
 - `src/modules/drag-core.ts:334-345` (board wobble logic)
-- `src/modules/fx.js:1264, 1339, 1888` (`isWildBeerExplosionActive` flag)
+- `src/modules/fx.js:1264, 1339, 1888` (`isWildJuiceExplosionActive` flag)
 
-**Recommended Solution**: Disable board wobble when `isWildBeerExplosionActive` is true:
+**Recommended Solution**: Disable board wobble when `isWildJuiceExplosionActive` is true:
 ```typescript
 // In drag-core.ts onMove function:
-if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
+if (drag._boardWobbleActive && board && !isWildJuiceExplosionRunning()) {
   // Board wobble logic - only if bubbles animation is not active
   // ... wobble code ...
 }
@@ -420,7 +420,7 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 ## 🛠️ Recommended Next Steps
 
 ### Priority 1: Board Wobble Conflict
-1. Import `isWildBeerExplosionRunning` in `drag-core.ts`
+1. Import `isWildJuiceExplosionRunning` in `drag-core.ts`
 2. Add check in `onMove` function to disable board wobble when bubbles are active
 3. Test to verify conflict is resolved
 
@@ -453,7 +453,7 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 - Removed `onUpdate` callbacks (GPU-accelerated animations)
 - Throttling for `pickDropTarget`
 - Removed console.log calls
-- Wild-beer respawn logic (40% chance)
+- Wild-juice respawn logic (40% chance)
 - Immediate render optimization
 - Error handling in `spawnTick`
 - Bubble count increased to 500
@@ -470,10 +470,10 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 ## 🔗 Key File Locations
 
 ### `src/modules/fx.js`
-- **Line ~1264**: `isWildBeerExplosionActive` flag
-- **Line ~1266**: `setWildBeerExplosionActive(active)` function
-- **Line ~1273**: `isWildBeerExplosionRunning()` function
-- **Line ~1281**: `createWildBeerBubblesExplosion(board, tile)` function
+- **Line ~1264**: `isWildJuiceExplosionActive` flag
+- **Line ~1266**: `setWildJuiceExplosionActive(active)` function
+- **Line ~1273**: `isWildJuiceExplosionRunning()` function
+- **Line ~1281**: `createWildJuiceBubblesExplosion(board, tile)` function
 - **Line ~1304-1307**: Bubbles container position (app.stage)
 - **Line ~1397-1417**: Bubble count constants
 - **Line ~1555-1632**: Bubble animation creation (no onUpdate callbacks)
@@ -485,22 +485,22 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 - **Line ~797-809**: Bubbles trigger (immediate, before merge)
 - **Line ~812-815**: Immediate render calls (GSAP ticker wake)
 - **Line ~832-842**: `pickDropTarget` throttling
-- **Line ~334-345**: Board wobble logic (NEEDS: check for `isWildBeerExplosionRunning`)
+- **Line ~334-345**: Board wobble logic (NEEDS: check for `isWildJuiceExplosionRunning`)
 
 ### `src/modules/app-core.ts`
-- **Line ~4300+**: Wild-beer respawn logic in `spawnWildFromMeter`
+- **Line ~4300+**: Wild-juice respawn logic in `spawnWildFromMeter`
 - **Line ~665**: `canDrop` function (console.log removed)
 
 ---
 
 ## 📝 Test Scenarios
 
-1. **Test 1**: Merge 6 wild-beer → Verify bubbles appear immediately and don't freeze
-2. **Test 2**: Merge 6 wild-beer during drag (board wobble active) → Verify no conflict
+1. **Test 1**: Merge 6 wild-juice → Verify bubbles appear immediately and don't freeze
+2. **Test 2**: Merge 6 wild-juice during drag (board wobble active) → Verify no conflict
 3. **Test 3**: Multiple merge 6 events in quick succession → Verify no duplicate tickers
 4. **Test 4**: Long gameplay session → Verify no memory leaks
 5. **Test 5**: Lower-end device → Verify performance with 500 bubbles
-6. **Test 6**: Wild-beer respawn → Verify 40% chance works correctly
+6. **Test 6**: Wild-juice respawn → Verify 40% chance works correctly
 
 ---
 
@@ -511,7 +511,7 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 - ✅ Animation completes without freezing
 - ✅ No memory leaks after animation completes
 - ✅ No crashes or performance issues
-- ✅ Wild-beer respawn works (40% chance)
+- ✅ Wild-juice respawn works (40% chance)
 - ⚠️ Board wobble conflict resolved (needs implementation)
 - ⚠️ Performance acceptable on all devices (needs testing)
 
@@ -556,7 +556,7 @@ if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
 6. **Visual Fix**: Increased bubble count, optimized initial spawn
 7. **Position Fix**: Changed container to `app.stage` (screen space)
 8. **Validation Fix**: Added animation parameter validation
-9. **Gameplay Fix**: Added wild-beer respawn logic (40% chance)
+9. **Gameplay Fix**: Added wild-juice respawn logic (40% chance)
 
 ---
 

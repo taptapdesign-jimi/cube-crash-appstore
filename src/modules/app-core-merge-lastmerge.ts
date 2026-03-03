@@ -31,7 +31,7 @@ export function handleLastMergeEarly({
 }: LastMergeDeps){
   const activeTilesBeforeWildProgress = tiles.filter(t => {
     if (!t || t.locked) return false;
-    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
     const hasValue = (t.value|0) > 0;
     return isWild || hasValue;
   });
@@ -54,7 +54,7 @@ export function handleLastMergeEarly({
   const srcSpecialForCheck = src?.special;
   const dstSpecialForCheck = dst?.special;
   const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
-                            srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer' ||
+                            srcSpecialForCheck === 'wild-juice' || dstSpecialForCheck === 'wild-juice' ||
                             srcSpecialForCheck === 'wild-tnt' || dstSpecialForCheck === 'wild-tnt' ||
                             srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet');
   const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 

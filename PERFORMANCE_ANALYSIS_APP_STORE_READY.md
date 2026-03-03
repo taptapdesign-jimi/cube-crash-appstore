@@ -3,7 +3,7 @@
 ## 🔍 Trenutno Stanje (Current Version) - **UPDATED**
 
 ### Object Pooling Implementation
-- ✅ **Svi smoke trail particles koriste pooling**: Regular, Wild Beer, Wild Star, Wild Magnet
+- ✅ **Svi smoke trail particles koriste pooling**: Regular, Wild Juice, Wild Star, Wild Magnet
 - ✅ **GraphicsPool sistem**: Max 150 objekata, automatski cleanup
 - ✅ **Memory tracking**: `__globalGraphicsObjects` za cleanup
 - ✅ **GSAP cleanup**: Automatski kill animacije pri release
@@ -82,7 +82,7 @@
 | Tip Pločice | v80 | v100 | Current | Status |
 |------------|-----|------|---------|--------|
 | **Regular Tiles** | `new Graphics()` | `new Graphics()` | `graphicsPool.acquire()` | ✅ **Pooling (NOVO)** |
-| **Wild Beer** | `new Graphics()` | `graphicsPool.acquire()` | `graphicsPool.acquire()` | ✅ Pooling |
+| **Wild Juice** | `new Graphics()` | `graphicsPool.acquire()` | `graphicsPool.acquire()` | ✅ Pooling |
 | **Wild Star** | `new Graphics()` | `graphicsPool.acquire()` | `graphicsPool.acquire()` | ✅ Pooling |
 | **Wild Magnet** | `new Graphics()` | `graphicsPool.acquire()` | `graphicsPool.acquire()` | ✅ Pooling |
 

@@ -10,7 +10,7 @@ Modul `board-specific-rules.ts` omogućava ti da kontroliraš **SVE parametre** 
 
 ### **1. Wild Tile Settings**
 - ✅ `wildSpawnEnabled` - Enable/disable wild spawning
-- ✅ `allowedWildTypes` - Koje wild types su dozvoljene (`'wild'`, `'wild-beer'`, `'wild-magnet'`)
+- ✅ `allowedWildTypes` - Koje wild types su dozvoljene (`'wild'`, `'wild-juice'`, `'wild-magnet'`)
 - ✅ `wildMeterEnabled` - Enable/disable wild meter
 - ✅ `wildMeterFillRate` - Brzina punjenja wild meter-a (multiplier, default: 1.0)
 
@@ -44,7 +44,7 @@ Modul `board-specific-rules.ts` omogućava ti da kontroliraš **SVE parametre** 
   scoreMultiplier: 2.0, // Duplo više bodova
   difficulty: 'hard',
   wildMeterFillRate: 0.5, // Sporije punjenje wild meter-a
-  allowedWildTypes: ['wild', 'wild-beer'] // Ne wild-magnet
+  allowedWildTypes: ['wild', 'wild-juice'] // Ne wild-magnet
 }
 ```
 
@@ -57,7 +57,7 @@ Modul `board-specific-rules.ts` omogućava ti da kontroliraš **SVE parametre** 
   scoreMultiplier: 1.5, // Više bodova
   difficulty: 'easy',
   wildMeterFillRate: 2.0, // Brže punjenje wild meter-a
-  allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet'] // Sve dozvoljeno
+  allowedWildTypes: ['wild', 'wild-juice', 'wild-magnet'] // Sve dozvoljeno
 }
 ```
 
@@ -70,7 +70,7 @@ Modul `board-specific-rules.ts` omogućava ti da kontroliraš **SVE parametre** 
   scoreMultiplier: 3.0, // Tri puta više bodova
   difficulty: 'extreme',
   wildMeterFillRate: 0.3, // Jako sporo punjenje
-  allowedWildTypes: ['wild'] // Samo regular wild (nema wild-beer, nema wild-magnet)
+  allowedWildTypes: ['wild'] // Samo regular wild (nema wild-juice, nema wild-magnet)
 }
 ```
 
@@ -109,7 +109,7 @@ const BOARD_RULES: BoardRule[] = [
     scoreMultiplier: 2.0,
     difficulty: 'hard',
     wildMeterFillRate: 0.5,
-    allowedWildTypes: ['wild', 'wild-beer']
+    allowedWildTypes: ['wild', 'wild-juice']
   }
 ];
 ```
@@ -126,7 +126,7 @@ boardSpecificRules.addRule({
   scoreMultiplier: 1.5,
   difficulty: 'normal',
   wildMeterFillRate: 1.2,
-  allowedWildTypes: ['wild-beer', 'wild-magnet']
+  allowedWildTypes: ['wild-juice', 'wild-magnet']
 });
 ```
 
@@ -138,7 +138,7 @@ boardSpecificRules.addRule({
 ```typescript
 isWildSpawnEnabled(boardNumber?: number): boolean
 isWildMeterEnabled(boardNumber?: number): boolean
-getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet')[]
+getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet')[]
 getWildMeterFillRate(boardNumber?: number): number
 ```
 
@@ -201,7 +201,7 @@ Trenutno je integrirano:
   boardNumber: 3,
   wildSpawnEnabled: true,
   wildMeterEnabled: true,
-  allowedWildTypes: ['wild-beer']
+  allowedWildTypes: ['wild-juice']
 }
 ```
 

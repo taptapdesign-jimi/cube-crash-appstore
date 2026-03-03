@@ -306,38 +306,38 @@
   devLog,
   devWarn,
 }: WildTypeDeps){
-  let spawnBeer = <span class="cstat-no" title="statement not covered" >false;</span>
+  let spawnJuice = <span class="cstat-no" title="statement not covered" >false;</span>
   let spawnMagnet = <span class="cstat-no" title="statement not covered" >false;</span>
   let spawnTnt = <span class="cstat-no" title="statement not covered" >false;</span>
   
   // 🔥 USER REQUEST: On board 1, first wild spawn is always magnet
 <span class="cstat-no" title="statement not covered" >  if (!firstWildSpawned &amp;&amp; boardNumber === 1) {</span>
-<span class="cstat-no" title="statement not covered" >    spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >    spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >    spawnMagnet = true;</span>
 <span class="cstat-no" title="statement not covered" >    spawnTnt = false;</span>
 <span class="cstat-no" title="statement not covered" >    devLog('🧲 Board 1: First wild spawn: Forcing wild-magnet');</span>
   } else <span class="cstat-no" title="statement not covered" >if (!firstWildSpawned) {</span>
     // 🔥 USER REQUEST: First wild spawn on other boards is always TNT (Explosion Pack) – najjači efekat
-<span class="cstat-no" title="statement not covered" >    spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >    spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >    spawnMagnet = false;</span>
 <span class="cstat-no" title="statement not covered" >    spawnTnt = true;</span>
 <span class="cstat-no" title="statement not covered" >    devLog('💥 First wild spawn: Forcing TNT (Explosion Pack)');</span>
   } else <span class="cstat-no" title="statement not covered" >if (boardNumber === 3) {</span>
-    // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
-<span class="cstat-no" title="statement not covered" >    spawnBeer = true;</span>
+    // 🎯 BOARD 3: Force wild-juice only (check first, before default logic)
+<span class="cstat-no" title="statement not covered" >    spawnJuice = true;</span>
 <span class="cstat-no" title="statement not covered" >    spawnMagnet = false;</span>
 <span class="cstat-no" title="statement not covered" >    spawnTnt = false;</span>
-<span class="cstat-no" title="statement not covered" >    devLog('🎯 Board 3: Forcing wild-beer spawn only');</span>
+<span class="cstat-no" title="statement not covered" >    devLog('🎯 Board 3: Forcing wild-juice spawn only');</span>
   } else {
-    // 🔥 Random wild spawn: 35% beer, 35% wild (stars), 20% magnet, 10% TNT (Explosion Pack)
+    // 🔥 Random wild spawn: 35% juice, 35% wild (stars), 20% magnet, 10% TNT (Explosion Pack)
     const randomRoll = <span class="cstat-no" title="statement not covered" >Math.random();</span>
-    let preferredBeer = <span class="cstat-no" title="statement not covered" >false;</span>
+    let preferredJuice = <span class="cstat-no" title="statement not covered" >false;</span>
     let preferredMagnet = <span class="cstat-no" title="statement not covered" >false;</span>
     let preferredWild = <span class="cstat-no" title="statement not covered" >false;</span>
     let preferredTnt = <span class="cstat-no" title="statement not covered" >false;</span>
     
 <span class="cstat-no" title="statement not covered" >    if (randomRoll &lt; 0.35) {</span>
-<span class="cstat-no" title="statement not covered" >      preferredBeer = true;</span>
+<span class="cstat-no" title="statement not covered" >      preferredJuice = true;</span>
     } else <span class="cstat-no" title="statement not covered" >if (randomRoll &lt; 0.70) {</span>
 <span class="cstat-no" title="statement not covered" >      preferredWild = true;</span>
     } else <span class="cstat-no" title="statement not covered" >if (randomRoll &lt; 0.90) {</span>
@@ -347,38 +347,38 @@
     }
     
     // Apply board-specific rules
-<span class="cstat-no" title="statement not covered" >    if (preferredBeer) {</span>
-      const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild-beer', boardNumber);</span>
-<span class="cstat-no" title="statement not covered" >      spawnBeer = filtered === 'wild-beer';</span>
+<span class="cstat-no" title="statement not covered" >    if (preferredJuice) {</span>
+      const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild-juice', boardNumber);</span>
+<span class="cstat-no" title="statement not covered" >      spawnJuice = filtered === 'wild-juice';</span>
 <span class="cstat-no" title="statement not covered" >      spawnMagnet = false;</span>
 <span class="cstat-no" title="statement not covered" >      spawnTnt = false;</span>
     } else <span class="cstat-no" title="statement not covered" >if (preferredMagnet) {</span>
       const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild-magnet', boardNumber);</span>
 <span class="cstat-no" title="statement not covered" >      spawnMagnet = filtered === 'wild-magnet';</span>
-<span class="cstat-no" title="statement not covered" >      spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >      spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >      spawnTnt = false;</span>
     } else <span class="cstat-no" title="statement not covered" >if (preferredTnt) {</span>
       const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild-tnt', boardNumber);</span>
 <span class="cstat-no" title="statement not covered" >      spawnTnt = filtered === 'wild-tnt';</span>
-<span class="cstat-no" title="statement not covered" >      spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >      spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >      spawnMagnet = false;</span>
     } else <span class="cstat-no" title="statement not covered" >if (preferredWild) {</span>
       // Regular wild (stars) - check if allowed
       const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild', boardNumber);</span>
-<span class="cstat-no" title="statement not covered" >      if (filtered === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >        spawnBeer = true;</span>
+<span class="cstat-no" title="statement not covered" >      if (filtered === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >        spawnJuice = true;</span>
 <span class="cstat-no" title="statement not covered" >        spawnMagnet = false;</span>
 <span class="cstat-no" title="statement not covered" >        spawnTnt = false;</span>
       } else <span class="cstat-no" title="statement not covered" >if (filtered === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >        spawnMagnet = true;</span>
-<span class="cstat-no" title="statement not covered" >        spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >        spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >        spawnTnt = false;</span>
       } else <span class="cstat-no" title="statement not covered" >if (filtered === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >        spawnTnt = true;</span>
-<span class="cstat-no" title="statement not covered" >        spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >        spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >        spawnMagnet = false;</span>
       } else <span class="cstat-no" title="statement not covered" >if (filtered === 'wild') {</span>
-<span class="cstat-no" title="statement not covered" >        spawnBeer = false;</span>
+<span class="cstat-no" title="statement not covered" >        spawnJuice = false;</span>
 <span class="cstat-no" title="statement not covered" >        spawnMagnet = false;</span>
 <span class="cstat-no" title="statement not covered" >        spawnTnt = false;</span>
       } else {
@@ -388,8 +388,8 @@
     } else {
       // Fallback: use filterWildType with 'wild'
       const filtered = <span class="cstat-no" title="statement not covered" >filterWildType('wild', boardNumber);</span>
-<span class="cstat-no" title="statement not covered" >      if (filtered === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >        spawnBeer = true;</span>
+<span class="cstat-no" title="statement not covered" >      if (filtered === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >        spawnJuice = true;</span>
       } else <span class="cstat-no" title="statement not covered" >if (filtered === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >        spawnMagnet = true;</span>
       } else <span class="cstat-no" title="statement not covered" >if (filtered === 'wild-tnt') {</span>
@@ -403,7 +403,7 @@
     }
   }
   
-<span class="cstat-no" title="statement not covered" >  return { spawnBeer, spawnMagnet, spawnTnt };</span>
+<span class="cstat-no" title="statement not covered" >  return { spawnJuice, spawnMagnet, spawnTnt };</span>
 }
 &nbsp;</pre></td></tr></table></pre>
 

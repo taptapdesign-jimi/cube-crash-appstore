@@ -110,7 +110,7 @@
 #### **Memory Management:**
 - ✅ Object pooling (GraphicsPool) - nema memory leak-a
 - ✅ Texture pooling (bubble texture cached) - nema memory leak-a
-- ✅ Cleanup functions (cleanupWildBeerExplosion) - nema memory leak-a
+- ✅ Cleanup functions (cleanupWildJuiceExplosion) - nema memory leak-a
 - ✅ Memory monitoring (memory-manager.ts) - nema memory leak-a
 - ✅ GC-friendly (saw-tooth pattern normalno)
 

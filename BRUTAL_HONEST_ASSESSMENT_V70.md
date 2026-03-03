@@ -38,7 +38,7 @@ Ovo je **brutalno iskren** assessment bez "pulling punches". Ako nešto nije dob
 **Pozitivno:**
 - ✅ ✅ **Animacije su VRLO polirane** - premium feel, smooth, satisfying
 - ✅ ✅ **Particle effects su bogati** - shards, bubbles, sparkles, smoke
-- ✅ ✅ **Wild tile animacije su impresivne** - wild beer bubbles, wild star orbit, magnet particles
+- ✅ ✅ **Wild tile animacije su impresivne** - wild juice bubbles, wild star orbit, magnet particles
 - ✅ **UI je čist i informativan** - HUD je dobro dizajniran
 
 **Negativno:**
@@ -246,7 +246,7 @@ Ovo je **brutalno iskren** assessment bez "pulling punches". Ako nešto nije dob
 
 **Pozitivno:**
 - ✅ **Premium visual quality** - polirane animacije, bogati particle effects
-- ✅ **Wild tile animacije su impresivne** - wild beer bubbles, wild star orbit
+- ✅ **Wild tile animacije su impresivne** - wild juice bubbles, wild star orbit
 
 **Negativno:**
 - ⚠️ **Nedostaje jedinstveni visual style** - izgleda kao standardna puzzle igra
@@ -566,7 +566,7 @@ Ovo je **brutalno iskren** assessment bez "pulling punches". Ako nešto nije dob
 
 **Negativno:**
 - ⚠️ **Moglo bi biti više variety** - moglo bi biti više različitih haptic patterns
-- ⚠️ **Moglo bi biti više haptic za wild tiles** - wild beer, wild star mogu imati specifične haptic patterns
+- ⚠️ **Moglo bi biti više haptic za wild tiles** - wild juice, wild star mogu imati specifične haptic patterns
 
 **Ocjena:** 75/100 - DOBAR - haptic feedback je implementiran i radi kako treba
 

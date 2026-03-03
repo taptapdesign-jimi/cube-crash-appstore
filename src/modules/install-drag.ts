@@ -88,8 +88,8 @@ export function installDrag({
       // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
       const srcIsWildMagnet = (src as any)?.special === 'wild-magnet';
       const dstIsWildMagnet = (dst as any)?.special === 'wild-magnet';
-      const srcIsWild = (src as any)?.special === 'wild' || (src as any)?.special === 'wild-beer' || (src as any)?.special === 'wild-tnt';
-      const dstIsWild = (dst as any)?.special === 'wild' || (dst as any)?.special === 'wild-beer' || (dst as any)?.special === 'wild-tnt';
+      const srcIsWild = (src as any)?.special === 'wild' || (src as any)?.special === 'wild-juice' || (src as any)?.special === 'wild-tnt';
+      const dstIsWild = (dst as any)?.special === 'wild' || (dst as any)?.special === 'wild-juice' || (dst as any)?.special === 'wild-tnt';
 
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet

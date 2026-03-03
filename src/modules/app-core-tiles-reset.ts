@@ -4,7 +4,7 @@ type ResetTilesDeps = {
   stopWildIdle: (...args: any[]) => void;
   stopWildShimmer: (...args: any[]) => void;
   stopWildStars: (...args: any[]) => void;
-  stopWildBeerBubbles: (...args: any[]) => void;
+  stopWildJuiceBubbles: (...args: any[]) => void;
   stopMagnetIdleParticles: (...args: any[]) => void;
   stopTntIdleParticles: (...args: any[]) => void;
   stopTntIdleShake: (...args: any[]) => void;
@@ -14,7 +14,7 @@ type ResetTilesDeps = {
     stopWildIdle: (...args: any[]) => void;
     stopWildShimmer: (...args: any[]) => void;
     stopWildStars: (...args: any[]) => void;
-    stopWildBeerBubbles: (...args: any[]) => void;
+    stopWildJuiceBubbles: (...args: any[]) => void;
     stopMagnetIdleParticles: (...args: any[]) => void;
     stopTntIdleParticles: (...args: any[]) => void;
     stopTntIdleShake: (...args: any[]) => void;
@@ -29,7 +29,7 @@ export function resetTilesForRebuild({
   stopWildIdle,
   stopWildShimmer,
   stopWildStars,
-  stopWildBeerBubbles,
+  stopWildJuiceBubbles,
   stopMagnetIdleParticles,
   stopTntIdleParticles,
   stopTntIdleShake,
@@ -42,7 +42,7 @@ export function resetTilesForRebuild({
     stopWildIdle,
     stopWildShimmer,
     stopWildStars,
-    stopWildBeerBubbles,
+    stopWildJuiceBubbles,
     stopMagnetIdleParticles,
     stopTntIdleParticles,
     stopTntIdleShake,

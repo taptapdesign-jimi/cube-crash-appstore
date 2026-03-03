@@ -12751,8 +12751,8 @@ function <span class="fstat-no" title="function not covered" >getFxHotFactor(</s
 <span class="cstat-no" title="statement not covered" >  detachWildStarHalo(tile);</span>
 }
 &nbsp;
-// 🔥 WILD-BEER: Continuous bubble animation system
-const wildBeerBubbleSystems = <span class="cstat-no" title="statement not covered" >new Map&lt;any, any&gt;();</span>
+// 🔥 WILD-JUICE: Continuous bubble animation system
+const wildJuiceBubbleSystems = <span class="cstat-no" title="statement not covered" >new Map&lt;any, any&gt;();</span>
 &nbsp;
 // FPS monitoring for dynamic quality reduction
 let fpsMonitorActive: boolean = <span class="cstat-no" title="statement not covered" >false;</span>
@@ -12820,20 +12820,20 @@ function <span class="fstat-no" title="function not covered" >getDynamicBubbleCo
 }
 &nbsp;
 /**
- * Start continuous sparkling water bubbles for wild-beer tiles only.
+ * Start continuous sparkling water bubbles for wild-juice tiles only.
  * TNT uses its own explosion animation on merge 6 (no idle bubbles).
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>tartWildBeerBubbles(</span>tile) {
-<span class="cstat-no" title="statement not covered" >  if (!tile || tile.special !== 'wild-beer') <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>tartWildJuiceBubbles(</span>tile) {
+<span class="cstat-no" title="statement not covered" >  if (!tile || tile.special !== 'wild-juice') <span class="cstat-no" title="statement not covered" >return;</span></span>
   
   // Stop existing bubble system if any
-<span class="cstat-no" title="statement not covered" >  stopWildBeerBubbles(tile);</span>
+<span class="cstat-no" title="statement not covered" >  stopWildJuiceBubbles(tile);</span>
   
   const host = (<span class="cstat-no" title="statement not covered" >tile.rotG || tile)</span>;
 <span class="cstat-no" title="statement not covered" >  if (!host) <span class="cstat-no" title="statement not covered" >return;</span></span>
   
   const container = <span class="cstat-no" title="statement not covered" >new Container();</span>
-<span class="cstat-no" title="statement not covered" >  container.label = 'wild-beer-bubbles';</span>
+<span class="cstat-no" title="statement not covered" >  container.label = 'wild-juice-bubbles';</span>
 <span class="cstat-no" title="statement not covered" >  container.sortableChildren = false;</span>
 <span class="cstat-no" title="statement not covered" >  container.zIndex = 2600; </span>// Same z-index as wild stars
 <span class="cstat-no" title="statement not covered" >  container.visible = true;</span>
@@ -12861,10 +12861,10 @@ function <span class="fstat-no" title="function not covered" >getDynamicBubbleCo
   };
   
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    wildBeerBubbleSystems.set(tile, system);</span>
-<span class="cstat-no" title="statement not covered" >    tile._wildBeerBubbleSystem = system;</span>
+<span class="cstat-no" title="statement not covered" >    wildJuiceBubbleSystems.set(tile, system);</span>
+<span class="cstat-no" title="statement not covered" >    tile._wildJuiceBubbleSystem = system;</span>
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error setting wild-beer bubble system:', error);</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error setting wild-juice bubble system:', error);</span>
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
   
@@ -12977,19 +12977,19 @@ function <span class="fstat-no" title="function not covered" >getDynamicBubbleCo
 }
 &nbsp;
 /**
- * Stop continuous bubble animation for wild-beer tiles
+ * Stop continuous bubble animation for wild-juice tiles
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>topWildBeerBubbles(</span>tile) {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>topWildJuiceBubbles(</span>tile) {
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return;</span></span>
   
   let system = <span class="cstat-no" title="statement not covered" >null;</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    system = wildBeerBubbleSystems.get(tile);</span>
-<span class="cstat-no" title="statement not covered" >    if (!system &amp;&amp; tile._wildBeerBubbleSystem) {</span>
-<span class="cstat-no" title="statement not covered" >      system = tile._wildBeerBubbleSystem;</span>
+<span class="cstat-no" title="statement not covered" >    system = wildJuiceBubbleSystems.get(tile);</span>
+<span class="cstat-no" title="statement not covered" >    if (!system &amp;&amp; tile._wildJuiceBubbleSystem) {</span>
+<span class="cstat-no" title="statement not covered" >      system = tile._wildJuiceBubbleSystem;</span>
     }
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error accessing wild-beer bubble system:', error);</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error accessing wild-juice bubble system:', error);</span>
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
   
@@ -13040,12 +13040,12 @@ function <span class="fstat-no" title="function not covered" >getDynamicBubbleCo
   }
   
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    wildBeerBubbleSystems.delete(tile);</span>
-<span class="cstat-no" title="statement not covered" >    if (tile._wildBeerBubbleSystem) {</span>
-<span class="cstat-no" title="statement not covered" >      delete tile._wildBeerBubbleSystem;</span>
+<span class="cstat-no" title="statement not covered" >    wildJuiceBubbleSystems.delete(tile);</span>
+<span class="cstat-no" title="statement not covered" >    if (tile._wildJuiceBubbleSystem) {</span>
+<span class="cstat-no" title="statement not covered" >      delete tile._wildJuiceBubbleSystem;</span>
     }
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error cleaning up wild-beer bubble system:', error);</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ Error cleaning up wild-juice bubble system:', error);</span>
   }
 }
 &nbsp;
@@ -13208,8 +13208,8 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
 <span class="cstat-no" title="statement not covered" >  console.log('✅ All FX containers cleaned up');</span>
 }
 &nbsp;
-// Lightweight helper to trigger beer fizz immediately (standalone, no confetti reuse)
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >t</span>riggerBeerMergeFizz(</span>board, tile) {
+// Lightweight helper to trigger juice fizz immediately (standalone, no confetti reuse)
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >t</span>riggerJuiceMergeFizz(</span>board, tile) {
 <span class="cstat-no" title="statement not covered" >  try {</span>
 <span class="cstat-no" title="statement not covered" >    if (!board || !tile) <span class="cstat-no" title="statement not covered" >return;</span></span>
     const { x, y } = <span class="cstat-no" title="statement not covered" >centerInBoard(board, tile, 96);</span>
@@ -13221,7 +13221,7 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
 <span class="cstat-no" title="statement not covered" >    autoAdd(board, layer, 1.6);</span>
 <span class="cstat-no" title="statement not covered" >    createMerge6Bubbles(board, layer, x, y);</span>
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ triggerBeerMergeFizz failed:', error);</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ triggerJuiceMergeFizz failed:', error);</span>
   }
 }
 &nbsp;
@@ -13615,7 +13615,7 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
   }
   
   const intensity = <span class="cstat-no" title="statement not covered" >opts.intensity ?? 1.0;</span> // Default intensity 1.0 (100%)
-  // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild beer, wild star, wild magnet)
+  // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild juice, wild star, wild magnet)
   const baseShardCount = <span class="cstat-no" title="statement not covered" >20;</span> // Increased from 12 to 20 (67% increase) for more visible smoke trail
   const shardCount = <span class="cstat-no" title="statement not covered" >Math.max(1, Math.round(baseShardCount * intensity));</span> // Scale shard count by intensity (50% = 10 shards, 100% = 20 shards)
   const baseTile = <span class="cstat-no" title="statement not covered" >Math.max(60, Math.min(200, opts.tileSize ?? 96));</span>
@@ -13623,14 +13623,14 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
   // 🔥 TEMPLATE-BASED: Get drag particle colors from active template (wooden style)
   // This ensures consistent colors across all effects and allows easy theming
   // Wild star (wild): Yellow colors (#FFCB47 and yellow shades) - ORIGINAL COLOR
-  // Wild beer: Orange colors (FBD295 / F9BE9C / F6E6C8 / F99D77) - ORIGINAL COLOR
+  // Wild juice: Orange colors (FBD295 / F9BE9C / F6E6C8 / F99D77) - ORIGINAL COLOR
   // Wild magnet: Red colors (#F26034 and red shades) - ORIGINAL COLOR
   // Default: Beige/cream colors for regular tiles
   let colors;
   const tileSpecial = <span class="cstat-no" title="statement not covered" >tile?.special || null;</span>
   
   // 🔥 DEBUG: Log particle creation for wild tiles
-  // if (tileSpecial === 'wild' || tileSpecial === 'wild-beer' || tileSpecial === 'wild-magnet') {
+  // if (tileSpecial === 'wild' || tileSpecial === 'wild-juice' || tileSpecial === 'wild-magnet') {
   //   console.log(`✨ magicSparklesAtTile: Creating ${shardCount} particles for ${tileSpecial} at (${x.toFixed(1)}, ${y.toFixed(1)}), intensity=${intensity}`);
   // }
   
@@ -13639,9 +13639,9 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
 <span class="cstat-no" title="statement not covered" >    if (!colors || !Array.isArray(colors) || colors.length === 0) {</span>
 <span class="cstat-no" title="statement not covered" >      console.error(`❌ getDragParticleColors returned empty/invalid array for ${tileSpecial}`);</span>
       // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
-<span class="cstat-no" title="statement not covered" >      if (tileSpecial === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >        colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; </span>// Orange palette for beer
-<span class="cstat-no" title="statement not covered" >        console.warn(`⚠️ Using hardcoded orange fallback for wild-beer`);</span>
+<span class="cstat-no" title="statement not covered" >      if (tileSpecial === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >        colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; </span>// Orange palette for juice
+<span class="cstat-no" title="statement not covered" >        console.warn(`⚠️ Using hardcoded orange fallback for wild-juice`);</span>
       } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >        colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; </span>// Orange-red + žuta for TNT
 <span class="cstat-no" title="statement not covered" >        console.warn(`⚠️ Using hardcoded orange-red+yellow fallback for wild-tnt`);</span>
@@ -13659,8 +13659,8 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('❌ Failed to get drag particle colors from template:', err);</span>
     // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
-<span class="cstat-no" title="statement not covered" >    if (tileSpecial === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >      colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; </span>// Orange palette for beer
+<span class="cstat-no" title="statement not covered" >    if (tileSpecial === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >      colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; </span>// Orange palette for juice
     } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >      colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; </span>// Orange-red + žuta for TNT
     } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {</span>
@@ -13675,8 +13675,8 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
   // 🔥 CRITICAL: Ensure colors array is valid and not empty - NEVER use white fallback!
 <span class="cstat-no" title="statement not covered" >  if (!colors || !Array.isArray(colors) || colors.length === 0) {</span>
 <span class="cstat-no" title="statement not covered" >    console.error(`❌ CRITICAL: Invalid colors array for ${tileSpecial}, using appropriate fallback`);</span>
-<span class="cstat-no" title="statement not covered" >    if (tileSpecial === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >      colors = [0xF99D77]; </span>// At least use orange for beer
+<span class="cstat-no" title="statement not covered" >    if (tileSpecial === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >      colors = [0xF99D77]; </span>// At least use orange for juice
     } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >      colors = [0xE85C3A, 0xFFD966]; </span>// At least orange-red + yellow for TNT
     } else <span class="cstat-no" title="statement not covered" >if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {</span>
@@ -13731,7 +13731,7 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
     // Size multiplier support
     const sizeMultiplier = <span class="cstat-no" title="statement not covered" >opts.sizeMultiplier ?? 1;</span>
     const isWildTnt = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-tnt';</span>
-    const isWildBeer = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-beer';</span>
+    const isWildJuice = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-juice';</span>
     
     // 🔥 CRITICAL: Calculate alpha BEFORE drawing (opts.fillAlpha overrides intensity for e.g. TNT idle)
     const fillAlpha = <span class="cstat-no" title="statement not covered" >opts.fillAlpha ?? intensity;</span> // 100% opacity when opts.fillAlpha === 1
@@ -13744,8 +13744,8 @@ function <span class="fstat-no" title="function not covered" >autoAdd(</span>par
       const height = <span class="cstat-no" title="statement not covered" >baseHeight * sizeMultiplier;</span>
 <span class="cstat-no" title="statement not covered" >      shard.rect(-width/2, -height/2, width, height)</span>
            .fill({ color: color, alpha: fillAlpha });
-    } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
-      // Wild beer: circles (bubbles-like particles)
+    } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
+      // Wild juice: circles (bubbles-like particles)
       const baseRadius = <span class="cstat-no" title="statement not covered" >8 + Math.random() * 8;</span> // 8-16px base radius
       const radius = <span class="cstat-no" title="statement not covered" >baseRadius * sizeMultiplier;</span>
 <span class="cstat-no" title="statement not covered" >      shard.circle(0, 0, radius)</span>
@@ -13862,31 +13862,31 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   const dstIsWildMagnet = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild-magnet';</span>
   const isWildMagnet = <span class="cstat-no" title="statement not covered" >srcIsWildMagnet || dstIsWildMagnet;</span>
 &nbsp;
-  // 🔥 CRITICAL: Check for wild-beer and wild-tnt (before wild star)
-  const srcIsWildBeer = <span class="cstat-no" title="statement not covered" >srcSpecial === 'wild-beer';</span>
-  const dstIsWildBeer = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild-beer';</span>
-  const isWildBeer = <span class="cstat-no" title="statement not covered" >srcIsWildBeer || dstIsWildBeer;</span>
+  // 🔥 CRITICAL: Check for wild-juice and wild-tnt (before wild star)
+  const srcIsWildJuice = <span class="cstat-no" title="statement not covered" >srcSpecial === 'wild-juice';</span>
+  const dstIsWildJuice = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild-juice';</span>
+  const isWildJuice = <span class="cstat-no" title="statement not covered" >srcIsWildJuice || dstIsWildJuice;</span>
   const srcIsWildTnt = <span class="cstat-no" title="statement not covered" >srcSpecial === 'wild-tnt';</span>
   const dstIsWildTnt = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild-tnt';</span>
   const isWildTnt = <span class="cstat-no" title="statement not covered" >srcIsWildTnt || dstIsWildTnt;</span>
 &nbsp;
-  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-beer, not wild-tnt)
-  const srcIsWild = <span class="cstat-no" title="statement not covered" >srcSpecial === 'wild' &amp;&amp; !srcIsWildMagnet &amp;&amp; !srcIsWildBeer &amp;&amp; !srcIsWildTnt;</span>
-  const dstIsWild = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild' &amp;&amp; !dstIsWildMagnet &amp;&amp; !dstIsWildBeer &amp;&amp; !dstIsWildTnt;</span>
+  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-juice, not wild-tnt)
+  const srcIsWild = <span class="cstat-no" title="statement not covered" >srcSpecial === 'wild' &amp;&amp; !srcIsWildMagnet &amp;&amp; !srcIsWildJuice &amp;&amp; !srcIsWildTnt;</span>
+  const dstIsWild = <span class="cstat-no" title="statement not covered" >dstSpecial === 'wild' &amp;&amp; !dstIsWildMagnet &amp;&amp; !dstIsWildJuice &amp;&amp; !dstIsWildTnt;</span>
   const isWild = <span class="cstat-no" title="statement not covered" >srcIsWild || dstIsWild;</span>
 &nbsp;
   // Determine shard color
   const yellowColor = <span class="cstat-no" title="statement not covered" >0xFFCB47;</span> // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = <span class="cstat-no" title="statement not covered" >0xF26034;</span>    // Red (#F26034) for wild-magnet
-  const beerColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-beer
+  const juiceColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-juice
   const tntColor = <span class="cstat-no" title="statement not covered" >0xE85C3A;</span>    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = <span class="cstat-no" title="statement not covered" >0xD4A584;</span>   // Brown (#D4A584) for regular merge 6
 &nbsp;
   let shardColor = <span class="cstat-no" title="statement not covered" >brownColor;</span>
 <span class="cstat-no" title="statement not covered" >  if (isWildMagnet) {</span>
 <span class="cstat-no" title="statement not covered" >    shardColor = redColor; </span>// Wild-magnet → red
-  } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
-<span class="cstat-no" title="statement not covered" >    shardColor = beerColor; </span>// Wild-beer → orange (#F99D77)
+  } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
+<span class="cstat-no" title="statement not covered" >    shardColor = juiceColor; </span>// Wild-juice → orange (#F99D77)
   } else <span class="cstat-no" title="statement not covered" >if (isWildTnt) {</span>
 <span class="cstat-no" title="statement not covered" >    shardColor = tntColor; </span>// Wild-TNT → orange-red (#E85C3A)
   } else <span class="cstat-no" title="statement not covered" >if (isWild) {</span>
@@ -13904,19 +13904,19 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
     srcIsWildMagnet,
     dstIsWildMagnet,
     isWildMagnet,
-    srcIsWildBeer,
-    dstIsWildBeer,
-    isWildBeer,
+    srcIsWildJuice,
+    dstIsWildJuice,
+    isWildJuice,
     shardColor: shardColor.toString(16)
   });
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return {</span>
     isWild,
     isWildMagnet,
-    isWildBeer,
+    isWildJuice,
     isWildTnt,
     shardColor,
-    isRegular: !isWild &amp;&amp; !isWildMagnet &amp;&amp; !isWildBeer &amp;&amp; !isWildTnt
+    isRegular: !isWild &amp;&amp; !isWildMagnet &amp;&amp; !isWildJuice &amp;&amp; !isWildTnt
   };
 }
 &nbsp;
@@ -13952,9 +13952,9 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   // Prepare opts for woodShardsAtTile
   const shardOpts = <span class="cstat-no" title="statement not covered" >{</span>
     enhanced: true,
-    wild: config.isWild || config.isWildMagnet || config.isWildBeer || config.isWildTnt,
+    wild: config.isWild || config.isWildMagnet || config.isWildJuice || config.isWildTnt,
     wildMagnet: config.isWildMagnet,
-    isWildBeer: config.isWildBeer,
+    isWildJuice: config.isWildJuice,
     isWildTnt: config.isWildTnt, // Explosion Pack – correct color (#E85C3A)
     ...opts
   };
@@ -14062,9 +14062,9 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   const shardCount = <span class="cstat-no" title="statement not covered" >opts.count ?? 10;</span>
   const brownColor = <span class="cstat-no" title="statement not covered" >0xD4A584;</span> // Brown color
   const yellowColor = <span class="cstat-no" title="statement not covered" >0xFFCB47;</span> // Yellow (#FFCB47) for wild-only (wild star)
-  const beerColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-beer
+  const juiceColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-juice
   const isWildOnly = <span class="cstat-no" title="statement not covered" >opts.isWildOnly === true;</span> // Flag to use yellow/brown colors
-  const isWildBeer = <span class="cstat-no" title="statement not covered" >opts.isWildBeer === true;</span> // Flag to use beer color
+  const isWildJuice = <span class="cstat-no" title="statement not covered" >opts.isWildJuice === true;</span> // Flag to use juice color
   const baseTile = <span class="cstat-no" title="statement not covered" >96;</span>
   const sizeMultiplier = <span class="cstat-no" title="statement not covered" >opts.sizeMultiplier ?? 2.4;</span> // Default 240% larger (20% increase from 2.0), can be overridden
   const distanceMultiplier = <span class="cstat-no" title="statement not covered" >opts.distanceMultiplier ?? 5.6;</span> // Default 560% larger distance (40% increase from 4.0), can be overridden
@@ -14103,11 +14103,11 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
 <span class="cstat-no" title="statement not covered" >      points.push(px, py);</span>
     }
     
-    // Determine shard color - beer color for wild-beer, yellow/brown for wild-only (wild star), brown for regular
+    // Determine shard color - juice color for wild-juice, yellow/brown for wild-only (wild star), brown for regular
     let shardColor = <span class="cstat-no" title="statement not covered" >brownColor;</span>
-<span class="cstat-no" title="statement not covered" >    if (isWildBeer) {</span>
-      // Wild-beer: use beer color (#F99D77)
-<span class="cstat-no" title="statement not covered" >      shardColor = beerColor;</span>
+<span class="cstat-no" title="statement not covered" >    if (isWildJuice) {</span>
+      // Wild-juice: use juice color (#F99D77)
+<span class="cstat-no" title="statement not covered" >      shardColor = juiceColor;</span>
     } else <span class="cstat-no" title="statement not covered" >if (isWildOnly) {</span>
       // Wild-only (wild star): 50% yellow, 50% brown
 <span class="cstat-no" title="statement not covered" >      shardColor = Math.random() &lt; 0.5 ? yellowColor : brownColor;</span>
@@ -14503,7 +14503,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       enhanced: true,
       wild: true,
       wildMagnet: true,
-      isWildBeer: false,
+      isWildJuice: false,
       count: 30,
       intensity: 1.9,
       spread: 0.3,
@@ -14752,7 +14752,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       skipStars: opts.skipStars,
       count: 18,
       intensity: 1.35,
@@ -14986,7 +14986,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       skipStars: opts.skipStars,
       count: 18,
       intensity: 1.35,
@@ -15207,32 +15207,32 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
 }
 &nbsp;
 /**
- * 🍺 Template-Based Wild Beer Merge 6 Shards
+ * 🍺 Template-Based Wild Juice Merge 6 Shards
  * 
- * Uses predefined patterns from the active template for wild beer merges.
+ * Uses predefined patterns from the active template for wild juice merges.
  * ORIGINAL COLOR: Orange (#F99D77)
  * 
  * @param {Container} board - Game board container
  * @param {object} tile - Tile object or snapshot with x/y coordinates
  * @param {object} opts - Options (zIndex, etc.)
  */
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >w</span>ildBeerMerge6ShardsTemplated(</span>board, tile, opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >w</span>ildJuiceMerge6ShardsTemplated(</span>board, tile, opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
 <span class="cstat-no" title="statement not covered" >  if (!board || !tile) {</span>
-<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ wildBeerMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });</span>
+<span class="cstat-no" title="statement not covered" >    console.warn('⚠️ wildJuiceMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });</span>
 <span class="cstat-no" title="statement not covered" >    return;</span>
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  console.log('🍺 wildBeerMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });</span>
+<span class="cstat-no" title="statement not covered" >  console.log('🍺 wildJuiceMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });</span>
 &nbsp;
   // Select pattern from template
-  const patternInfo = <span class="cstat-no" title="statement not covered" >selectPattern('wildBeer');</span>
+  const patternInfo = <span class="cstat-no" title="statement not covered" >selectPattern('wildJuice');</span>
   
 <span class="cstat-no" title="statement not covered" >  if (!patternInfo) {</span>
-<span class="cstat-no" title="statement not covered" >    console.error('❌ wildBeerMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');</span>
+<span class="cstat-no" title="statement not covered" >    console.error('❌ wildJuiceMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');</span>
 <span class="cstat-no" title="statement not covered" >    console.error('❌ Debug info:', {</span>
       activeTemplate: getActiveTemplate()?.name,
       patternMap: getActiveTemplate()?.patternMap,
-      wildBeerPatterns: getActiveTemplate()?.patternMap?.wildBeer
+      wildJuicePatterns: getActiveTemplate()?.patternMap?.wildJuice
     });
     // 🔥 FALLBACK: Use woodShardsAtTile for reliability
 <span class="cstat-no" title="statement not covered" >    console.log('🔄 Falling back to woodShardsAtTile');</span>
@@ -15240,7 +15240,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: true,
+      isWildJuice: true,
       count: 18,
       intensity: 1.35,
       spread: 0.7,
@@ -15253,10 +15253,10 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   }
   
   const { patternName, patternData, pool, template } = <span class="cstat-no" title="statement not covered" >patternInfo;</span>
-  const params = <span class="cstat-no" title="statement not covered" >getParams('wildBeer');</span>
-  const orangeColor = <span class="cstat-no" title="statement not covered" >getColor('wildBeer');</span> // 🔥 ORIGINAL COLOR: Orange (#F99D77)
+  const params = <span class="cstat-no" title="statement not covered" >getParams('wildJuice');</span>
+  const orangeColor = <span class="cstat-no" title="statement not covered" >getColor('wildJuice');</span> // 🔥 ORIGINAL COLOR: Orange (#F99D77)
   
-<span class="cstat-no" title="statement not covered" >  console.log(`🍺 wildBeerMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {</span>
+<span class="cstat-no" title="statement not covered" >  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {</span>
     orangeColor: `0x${orangeColor.toString(16)}`,
     poolSize: pool.getStats?.()?.poolSize || 'unknown',
     boardVisible: board.visible,
@@ -15332,7 +15332,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
 <span class="cstat-no" title="statement not covered" >      shard.poly(points).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });</span>
       // 🔥 DEBUG: Log first shard drawing
 <span class="cstat-no" title="statement not covered" >      if (index === 0) {</span>
-<span class="cstat-no" title="statement not covered" >        console.log(`🍺 wildBeerMerge6ShardsTemplated: First shard drawn`, {</span>
+<span class="cstat-no" title="statement not covered" >        console.log(`🍺 wildJuiceMerge6ShardsTemplated: First shard drawn`, {</span>
           pointsCount: points.length / 2,
           orangeColor: `0x${orangeColor.toString(16)}`,
           alpha: params.lineAlpha || 0.9,
@@ -15408,7 +15408,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
     });
   });
   
-<span class="cstat-no" title="statement not covered" >  console.log(`🍺 wildBeerMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);</span>
+<span class="cstat-no" title="statement not covered" >  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);</span>
   
   // Cleanup layer after TTL
   const ttl = <span class="cstat-no" title="statement not covered" >params.ttl || 1.2;</span>
@@ -15444,7 +15444,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
 /**
  * 💥 Template-Based Wild TNT Merge 6 Shards (Explosion Pack)
  * Uses predefined patterns from the active template for wild-tnt merges.
- * Same logic as wild-beer, orange-red color (#E85C3A).
+ * Same logic as wild-juice, orange-red color (#E85C3A).
  */
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >w</span>ildTntMerge6ShardsTemplated(</span>board, tile, opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
 <span class="cstat-no" title="statement not covered" >  if (!board || !tile) {</span>
@@ -15459,7 +15459,7 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       enhanced: true,
       wild: true,
       wildMagnet: false,
-      isWildBeer: false,
+      isWildJuice: false,
       count: 18,
       intensity: 1.35,
       spread: 0.7,
@@ -15670,13 +15670,13 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
 <span class="cstat-no" title="statement not covered" >  console.log('🔍 woodShardsAtTile wild detection:', {</span>
     optsWild: opts.wild,
     optsWildMagnet: opts.wildMagnet,
-    optsIsWildBeer: opts.isWildBeer,
+    optsIsWildJuice: opts.isWildJuice,
     tileSpecial: tile?.special,
     wildMode
   });
   
   const enhanced = <span class="cstat-no" title="statement not covered" >opts.enhanced ?? (wildMode || false);</span>
-  const isWildBeerMerge = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-beer' || opts.isWildBeer === true;</span>
+  const isWildJuiceMerge = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-juice' || opts.isWildJuice === true;</span>
 &nbsp;
   const layer = <span class="cstat-no" title="statement not covered" >new Container();</span>
 <span class="cstat-no" title="statement not covered" >  layer.x = x; <span class="cstat-no" title="statement not covered" ></span>layer.y = y;</span>
@@ -15697,9 +15697,9 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   }
 &nbsp;
 &nbsp;
-  // Extend layer lifetime for wild-beer so bubble animation can finish (spawnDuration ~2.7s)
+  // Extend layer lifetime for wild-juice so bubble animation can finish (spawnDuration ~2.7s)
   const ttlBase = <span class="cstat-no" title="statement not covered" >opts.ttl ?? (wildMode ? 0.9 : 1.6);</span>
-  const ttl = <span class="cstat-no" title="statement not covered" >isWildBeerMerge ? Math.max(ttlBase, 3.6) : ttlBase;</span>
+  const ttl = <span class="cstat-no" title="statement not covered" >isWildJuiceMerge ? Math.max(ttlBase, 3.6) : ttlBase;</span>
 <span class="cstat-no" title="statement not covered" >  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);</span>
   
   // 🔥 CRITICAL: Verify layer was added to board
@@ -15750,11 +15750,11 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   } else <span class="cstat-no" title="statement not covered" >if (opts.wild === false) {</span>
     // Explicitly NOT wild
 <span class="cstat-no" title="statement not covered" >    isWildOnly = false;</span>
-  } else <span class="cstat-no" title="statement not covered" >if (!isWildMagnet &amp;&amp; (tile?.special === 'wild' || tile?.special === 'wild-beer' || tile?.special === 'wild-tnt')) {</span>
+  } else <span class="cstat-no" title="statement not covered" >if (!isWildMagnet &amp;&amp; (tile?.special === 'wild' || tile?.special === 'wild-juice' || tile?.special === 'wild-tnt')) {</span>
     // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
 <span class="cstat-no" title="statement not covered" >    isWildOnly = true;</span>
-  } else <span class="cstat-no" title="statement not covered" >if (!isWildMagnet &amp;&amp; opts.isWildBeer === true) {</span>
-    // opts.isWildBeer is set, treat as wild-only (for wild-beer merge 6)
+  } else <span class="cstat-no" title="statement not covered" >if (!isWildMagnet &amp;&amp; opts.isWildJuice === true) {</span>
+    // opts.isWildJuice is set, treat as wild-only (for wild-juice merge 6)
 <span class="cstat-no" title="statement not covered" >    isWildOnly = true;</span>
   }
   
@@ -15799,13 +15799,13 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   const vanishDelay = <span class="cstat-no" title="statement not covered" >opts.vanishDelay ?? (wildMode ? 0 : 0);</span>
   const vanishJitter = <span class="cstat-no" title="statement not covered" >opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);</span>
 &nbsp;
-  // 🔥 CRITICAL: Check for wild-beer and wild-tnt separately
-  const isWildBeer = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-beer' || opts.isWildBeer === true;</span>
+  // 🔥 CRITICAL: Check for wild-juice and wild-tnt separately
+  const isWildJuice = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-juice' || opts.isWildJuice === true;</span>
   const isWildTnt = <span class="cstat-no" title="statement not covered" >tile?.special === 'wild-tnt' || opts.isWildTnt === true;</span>
   
   const yellowColor = <span class="cstat-no" title="statement not covered" >0xFFCB47;</span> // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = <span class="cstat-no" title="statement not covered" >0xF26034;</span>    // Red (#F26034) for wild-magnet
-  const beerColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-beer
+  const juiceColor = <span class="cstat-no" title="statement not covered" >0xF99D77;</span>   // Orange (#F99D77) for wild-juice
   const tntColor = <span class="cstat-no" title="statement not covered" >0xE85C3A;</span>    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = <span class="cstat-no" title="statement not covered" >0xD4A584;</span>  // Brown (#D4A584) for regular merge 6
 &nbsp;
@@ -15813,8 +15813,8 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   let baseShardColor = <span class="cstat-no" title="statement not covered" >brownColor;</span> // Default: brown
 <span class="cstat-no" title="statement not covered" >  if (isWildMagnet) {</span>
 <span class="cstat-no" title="statement not covered" >    baseShardColor = redColor; </span>// Wild-magnet → red
-  } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
-<span class="cstat-no" title="statement not covered" >    baseShardColor = beerColor; </span>// Wild-beer → orange (#F99D77)
+  } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
+<span class="cstat-no" title="statement not covered" >    baseShardColor = juiceColor; </span>// Wild-juice → orange (#F99D77)
   } else <span class="cstat-no" title="statement not covered" >if (isWildTnt) {</span>
 <span class="cstat-no" title="statement not covered" >    baseShardColor = tntColor; </span>// Wild-TNT → orange-red (#E85C3A)
   } else <span class="cstat-no" title="statement not covered" >if (isWildOnly) {</span>
@@ -15863,16 +15863,16 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
     }
 &nbsp;
     // 🔥 CRITICAL: For wild-magnet, randomly mix red and brown (50/50)
-    // For wild-beer, use beer color (#F99D77)
+    // For wild-juice, use juice color (#F99D77)
     // For wild-only (wild star), randomly mix yellow and brown (50/50)
     // For regular, use only brown
     let shardColor = <span class="cstat-no" title="statement not covered" >baseShardColor;</span>
 <span class="cstat-no" title="statement not covered" >    if (isWildMagnet) {</span>
       // Wild-magnet: 50% red, 50% brown
 <span class="cstat-no" title="statement not covered" >      shardColor = Math.random() &lt; 0.5 ? redColor : brownColor;</span>
-    } else <span class="cstat-no" title="statement not covered" >if (isWildBeer) {</span>
-      // Wild-beer: use beer color (#F99D77)
-<span class="cstat-no" title="statement not covered" >      shardColor = beerColor;</span>
+    } else <span class="cstat-no" title="statement not covered" >if (isWildJuice) {</span>
+      // Wild-juice: use juice color (#F99D77)
+<span class="cstat-no" title="statement not covered" >      shardColor = juiceColor;</span>
     } else <span class="cstat-no" title="statement not covered" >if (isWildTnt) {</span>
       // Wild-TNT: use TNT color (#E85C3A)
 <span class="cstat-no" title="statement not covered" >      shardColor = tntColor;</span>
@@ -16087,26 +16087,26 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
   // Generate 3 stars ONLY for wild-only merge (wild + ordinary or ordinary + wild)
   // NOT for wild-magnet merge, regular merge, or any other case
   // isWildOnly is determined above based on opts.wild and opts.wildMagnet
-  // 🔥 WILD-BEER SPECIAL: Use bubbles instead of stars for wild-beer merge
-  // Note: isWildBeer is already declared above (line 1080) - use that variable
+  // 🔥 WILD-JUICE SPECIAL: Use bubbles instead of stars for wild-juice merge
+  // Note: isWildJuice is already declared above (line 1080) - use that variable
 <span class="cstat-no" title="statement not covered" >  console.log('💧 Stars/Bubbles check:', { </span>
     isWildOnly, 
     isWildMagnet, 
-    isWildBeer, // Use isWildBeer declared above (line 1080) 
+    isWildJuice, // Use isWildJuice declared above (line 1080) 
     tileSpecial: tile?.special, 
-    optsIsWildBeer: opts.isWildBeer,
+    optsIsWildJuice: opts.isWildJuice,
     optsWild: opts.wild,
     optsWildMagnet: opts.wildMagnet
   });
 <span class="cstat-no" title="statement not covered" >  if (isWildOnly &amp;&amp; !isWildMagnet) {</span>
-<span class="cstat-no" title="statement not covered" >    if (isWildBeer || isWildTnt) {</span>
-      // Wild-beer / wild-tnt: skip local fizz here to avoid double wave; handled by explosion
-<span class="cstat-no" title="statement not covered" >      console.log('💧 Skipping local merge6 bubbles for wild-beer/wild-tnt (handled elsewhere)');</span>
+<span class="cstat-no" title="statement not covered" >    if (isWildJuice || isWildTnt) {</span>
+      // Wild-juice / wild-tnt: skip local fizz here to avoid double wave; handled by explosion
+<span class="cstat-no" title="statement not covered" >      console.log('💧 Skipping local merge6 bubbles for wild-juice/wild-tnt (handled elsewhere)');</span>
     } else {
       // 🔥 USER REQUEST: Skip creating star particles for wild star merge 6
       // Instead, orbiting stars will be animated to HUD icon via stars-collector module
       // Check opts.skipStars flag (passed from app-core.ts) or tile.special === 'wild'
-      const shouldSkipStars = <span class="cstat-no" title="statement not covered" >opts.skipStars === true || (tile?.special === 'wild' &amp;&amp; !isWildBeer &amp;&amp; !isWildTnt &amp;&amp; !isWildMagnet);</span>
+      const shouldSkipStars = <span class="cstat-no" title="statement not covered" >opts.skipStars === true || (tile?.special === 'wild' &amp;&amp; !isWildJuice &amp;&amp; !isWildTnt &amp;&amp; !isWildMagnet);</span>
       
 <span class="cstat-no" title="statement not covered" >      if (shouldSkipStars) {</span>
 <span class="cstat-no" title="statement not covered" >        console.log('⭐ Skipping star particles for wild star merge 6 - orbiting stars will be animated to HUD instead');</span>
@@ -16117,17 +16117,17 @@ function <span class="fstat-no" title="function not covered" >getMerge6ShardConf
       }
     }
   } else {
-<span class="cstat-no" title="statement not covered" >    console.log('💧 Skipping stars/bubbles:', { isWildOnly, isWildMagnet, isWildBeer });</span>
+<span class="cstat-no" title="statement not covered" >    console.log('💧 Skipping stars/bubbles:', { isWildOnly, isWildMagnet, isWildJuice });</span>
   }
 }
 &nbsp;
 /**
- * Create sparkling water bubbles for wild-beer merge 6 effect
+ * Create sparkling water bubbles for wild-juice merge 6 effect
  * Bubbles rise from bottom of tile to top, max 30% above tile, white/transparent, max 40px size
  */
 function <span class="fstat-no" title="function not covered" >createMerge6Bubbles(</span>board, layer, centerX, centerY) {
 <span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >  console.log('💧 createMerge6Bubbles (beer fizz) triggered');</span>
+<span class="cstat-no" title="statement not covered" >  console.log('💧 createMerge6Bubbles (juice fizz) triggered');</span>
   
   const screenH = <span class="cstat-no" title="statement not covered" >typeof window !== 'undefined' ? window.innerHeight : 800;</span>
   // Longer fizz: ~2.5s total emission
@@ -16271,34 +16271,34 @@ function <span class="fstat-no" title="function not covered" >createMerge6Bubble
   }
 }
 &nbsp;
-// --- Merge-6 wild-beer bubble explosion (organic drift) ---
-// 🔥 REMOVED: Old explosion code moved to wild-beer-bubbles-explosion.ts module
+// --- Merge-6 wild-juice bubble explosion (organic drift) ---
+// 🔥 REMOVED: Old explosion code moved to wild-juice-bubbles-explosion.ts module
 // Wrapper functions for backward compatibility:
 &nbsp;
 let _explosionModuleCache: any = <span class="cstat-no" title="statement not covered" >null;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >c</span>leanupWildBeerExplosion(</span>) {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >c</span>leanupWildJuiceExplosion(</span>) {
   // 🔥 WRAPPER: Redirect to new modular explosion
   // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion (protects animation during board transitions)
-<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-beer-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
+<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-juice-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    _explosionModuleCache = module;</span>
-    const isRecentlyStarted = <span class="cstat-no" title="statement not covered" >typeof module.isWildBeerBubblesExplosionRecentlyStarted === 'function' &amp;&amp; module.isWildBeerBubblesExplosionRecentlyStarted();</span>
+    const isRecentlyStarted = <span class="cstat-no" title="statement not covered" >typeof module.isWildJuiceBubblesExplosionRecentlyStarted === 'function' &amp;&amp; module.isWildJuiceBubblesExplosionRecentlyStarted();</span>
 <span class="cstat-no" title="statement not covered" >    if (isRecentlyStarted) {</span>
-<span class="cstat-no" title="statement not covered" >      console.log('⏸️ cleanupWildBeerExplosion: Skipping cleanup - explosion recently started (within 5s), allowing animation to continue');</span>
+<span class="cstat-no" title="statement not covered" >      console.log('⏸️ cleanupWildJuiceExplosion: Skipping cleanup - explosion recently started (within 5s), allowing animation to continue');</span>
 <span class="cstat-no" title="statement not covered" >      return;</span>
     }
-<span class="cstat-no" title="statement not covered" >    if (typeof module.stopWildBeerBubblesExplosion === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >      module.stopWildBeerBubblesExplosion();</span>
+<span class="cstat-no" title="statement not covered" >    if (typeof module.stopWildJuiceBubblesExplosion === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >      module.stopWildJuiceBubblesExplosion();</span>
     }
   }).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {});
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildBeerExplosionRunning(</span>) {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildJuiceExplosionRunning(</span>) {
   // 🔥 WRAPPER: Redirect to new modular explosion
-<span class="cstat-no" title="statement not covered" >  if (_explosionModuleCache &amp;&amp; typeof _explosionModuleCache.isWildBeerBubblesExplosionActive === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >    return _explosionModuleCache.isWildBeerBubblesExplosionActive();</span>
+<span class="cstat-no" title="statement not covered" >  if (_explosionModuleCache &amp;&amp; typeof _explosionModuleCache.isWildJuiceBubblesExplosionActive === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >    return _explosionModuleCache.isWildJuiceBubblesExplosionActive();</span>
   }
-<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-beer-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
+<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-juice-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    _explosionModuleCache = module;</span>
   }).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {});
 <span class="cstat-no" title="statement not covered" >  return false;</span>
@@ -16311,7 +16311,7 @@ let _explosionModuleCache: any = <span class="cstat-no" title="statement not cov
  */
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >w</span>aitForBubblesAnimationToComplete(</span>maxWaitMs = <span class="branch-0 cbranch-no" title="branch not covered" >5000)</span> {
   // 🔥 WRAPPER: Redirect to new modular explosion
-<span class="cstat-no" title="statement not covered" >  return <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./wild-beer-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  return <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >import('</span>./wild-juice-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    _explosionModuleCache = module;</span>
 <span class="cstat-no" title="statement not covered" >    if (typeof module.waitForBubblesExplosionToComplete === 'function') {</span>
 <span class="cstat-no" title="statement not covered" >      return module.waitForBubblesExplosionToComplete(maxWaitMs);</span>
@@ -16374,19 +16374,19 @@ let _explosionModuleCache: any = <span class="cstat-no" title="statement not cov
   // This prevents race condition where cleanup stops animation before it can start
   const isBoardTransitionActive = (<span class="cstat-no" title="statement not covered" >window as any).__ccBoardTransitionActive === true;</span>
 <span class="cstat-no" title="statement not covered" >  if (!isBoardTransitionActive) {</span>
-    // Cleanup wild beer explosion (will check if recently started internally)
-<span class="cstat-no" title="statement not covered" >    cleanupWildBeerExplosion();</span>
+    // Cleanup wild juice explosion (will check if recently started internally)
+<span class="cstat-no" title="statement not covered" >    cleanupWildJuiceExplosion();</span>
   } else {
 <span class="cstat-no" title="statement not covered" >    console.log('⏸️ cleanupAllEffects: Skipping bubble explosion cleanup - board transition active');</span>
   }
 &nbsp;
-  // Cleanup wild beer bubble systems
-<span class="cstat-no" title="statement not covered" >  wildBeerBubbleSystems.forEach(<span class="fstat-no" title="function not covered" >(s</span>ystem, tile) =&gt; {</span>
+  // Cleanup wild juice bubble systems
+<span class="cstat-no" title="statement not covered" >  wildJuiceBubbleSystems.forEach(<span class="fstat-no" title="function not covered" >(s</span>ystem, tile) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      stopWildBeerBubbles(tile);</span>
+<span class="cstat-no" title="statement not covered" >      stopWildJuiceBubbles(tile);</span>
     } catch {}
   });
-<span class="cstat-no" title="statement not covered" >  wildBeerBubbleSystems.clear();</span>
+<span class="cstat-no" title="statement not covered" >  wildJuiceBubbleSystems.clear();</span>
 &nbsp;
   // 🔥 PERFORMANCE FIX: Cleanup active star animations (prevents lag)
   // Use regular cleanup (not force) to allow protected animations to complete
@@ -16415,14 +16415,14 @@ let _explosionModuleCache: any = <span class="cstat-no" title="statement not cov
   };
 }
 &nbsp;
-// 🔥 REMOVED: createWildBeerBubblesExplosion - moved to wild-beer-bubbles-explosion.ts module
-// This function is no longer used - use showWildBeerBubblesExplosion() from wild-beer-bubbles-explosion.ts instead
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >c</span>reateWildBeerBubblesExplosion(</span>board, tile) {
+// 🔥 REMOVED: createWildJuiceBubblesExplosion - moved to wild-juice-bubbles-explosion.ts module
+// This function is no longer used - use showWildJuiceBubblesExplosion() from wild-juice-bubbles-explosion.ts instead
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >c</span>reateWildJuiceBubblesExplosion(</span>board, tile) {
   // 🔥 WRAPPER: Redirect to new modular explosion
-<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-beer-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
+<span class="cstat-no" title="statement not covered" ><span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >  import('</span>./wild-juice-bubbles-explosion.js').t</span>hen(<span class="fstat-no" title="function not covered" >module </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    _explosionModuleCache = module;</span>
-<span class="cstat-no" title="statement not covered" >    if (typeof module.showWildBeerBubblesExplosion === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >      module.showWildBeerBubblesExplosion();</span>
+<span class="cstat-no" title="statement not covered" >    if (typeof module.showWildJuiceBubblesExplosion === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >      module.showWildJuiceBubblesExplosion();</span>
     }
   }).catch(<span class="fstat-no" title="function not covered" >() =</span>&gt; {});
 }
@@ -17987,8 +17987,8 @@ let activeStarAnimationContainers = <span class="cstat-no" title="statement not 
   }
 }
 &nbsp;
-// Beer-specific drag bubbles (same style as idle bubbles, with three color shades)
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >d</span>ragBeerBubbleTrail(</span>board, tile, tileSize = <span class="branch-0 cbranch-no" title="branch not covered" >96,</span> strength = <span class="branch-0 cbranch-no" title="branch not covered" >1,</span> opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
+// Juice-specific drag bubbles (same style as idle bubbles, with three color shades)
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >d</span>ragJuiceBubbleTrail(</span>board, tile, tileSize = <span class="branch-0 cbranch-no" title="branch not covered" >96,</span> strength = <span class="branch-0 cbranch-no" title="branch not covered" >1,</span> opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
 <span class="cstat-no" title="statement not covered" >  if (!board || !tile) <span class="cstat-no" title="statement not covered" >return;</span></span>
   
   // Max 4-10 bubbles per call
@@ -17997,7 +17997,7 @@ let activeStarAnimationContainers = <span class="cstat-no" title="statement not 
   const baseRise = <span class="cstat-no" title="statement not covered" >tileSize * 0.25;</span>
   
   // Three color shades (same as idle bubbles but with color variation)
-  // 🔥 UPDATED: Using foam colors from wild-beer.png image
+  // 🔥 UPDATED: Using foam colors from wild-juice.png image
   const colors = <span class="cstat-no" title="statement not covered" >[0xFFFFFF, 0xFEFCEF, 0xF2EFEA];</span> // White, light cream (foam), darker cream (foam)
   
 <span class="cstat-no" title="statement not covered" >  for (let i = <span class="cstat-no" title="statement not covered" >0;</span> i &lt; count; i++) {</span>
@@ -18310,7 +18310,7 @@ function <span class="fstat-no" title="function not covered" >makeLinearGradient
 &nbsp;
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>tartWildIdle(</span>tile, opts = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span>{
 <span class="cstat-no" title="statement not covered" >  if (!tile) <span class="cstat-no" title="statement not covered" >return;</span></span>
-  // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za beer/magnet/tnt
+  // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za juice/magnet/tnt
 <span class="cstat-no" title="statement not covered" >  if (tile.special === 'wild') {</span>
 <span class="cstat-no" title="statement not covered" >    try { <span class="cstat-no" title="statement not covered" >stopWildIdle(tile); </span>} catch {}</span>
 <span class="cstat-no" title="statement not covered" >    try { <span class="cstat-no" title="statement not covered" >startWildStars(tile); </span>} catch {}</span>

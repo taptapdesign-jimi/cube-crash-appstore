@@ -366,7 +366,7 @@
 }: LastMergeDeps){
   const activeTilesBeforeWildProgress = <span class="cstat-no" title="statement not covered" >tiles.filter(<span class="fstat-no" title="function not covered" >t </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    if (!t || t.locked) <span class="cstat-no" title="statement not covered" >return false;</span></span>
-    const isWild = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';</span>
+    const isWild = <span class="cstat-no" title="statement not covered" >t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';</span>
     const hasValue = <span class="cstat-no" title="statement not covered" >(t.value|0) &gt; 0;</span>
 <span class="cstat-no" title="statement not covered" >    return isWild || hasValue;</span>
   });
@@ -389,7 +389,7 @@
   const srcSpecialForCheck = <span class="cstat-no" title="statement not covered" >src?.special;</span>
   const dstSpecialForCheck = <span class="cstat-no" title="statement not covered" >dst?.special;</span>
   const oneIsWildForCheck = (<span class="cstat-no" title="statement not covered" >srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || </span>
-                            srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer' ||
+                            srcSpecialForCheck === 'wild-juice' || dstSpecialForCheck === 'wild-juice' ||
                             srcSpecialForCheck === 'wild-tnt' || dstSpecialForCheck === 'wild-tnt' ||
                             srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet');
   const bothAreRegular = <span class="cstat-no" title="statement not covered" >!srcSpecialForCheck &amp;&amp; !dstSpecialForCheck &amp;&amp; </span>

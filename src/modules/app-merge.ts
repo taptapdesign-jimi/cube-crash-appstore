@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildJuiceBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete } from './splash-text-overlay.ts';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
@@ -73,7 +73,7 @@ function play(name, vol=null){ /* muted */ }
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;
 }
 
 function tileIsActive(tile: any): boolean {
@@ -134,7 +134,7 @@ export function clearWildState(tile){
   if (!tile) return;
   try { stopWildIdle(tile); } catch {}
   // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
-  if (tile.special === 'wild' || tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
+  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {
     tile.special = null;
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -369,7 +369,7 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
     // Simulate merges by creating a copy of tile values
     const tileValues = activeTiles.map((t: any) => ({
       value: t.value|0,
-      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt',
+      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt',
       original: t
     }));
     
@@ -473,7 +473,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     await waitForMagneticTextComplete();
     
     // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-    // This ensures all wild magnet/beer/star endgame scenarios use the same flow with proper guards
+    // This ensures all wild magnet/juice/star endgame scenarios use the same flow with proper guards
     const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
     if (typeof triggerCleanBoardFlow === 'function') {
       await triggerCleanBoardFlow('clean_board_from_wild_magnet_no_pulled_tiles');
@@ -584,8 +584,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Store pulled cells in dst tile so they can be excluded from normal spawn
   (dst as any)._wildMagnetPulledCells = pulledCells;
   
-  // 🔥 CRITICAL: Stop all animations INCLUDING wild animations (wild-beer bubbles, wild stars, wild shimmer, wild idle)
-  // This prevents animation conflicts when wild-beer tiles are pulled by magnet
+  // 🔥 CRITICAL: Stop all animations INCLUDING wild animations (wild-juice bubbles, wild stars, wild shimmer, wild idle)
+  // This prevents animation conflicts when wild-juice tiles are pulled by magnet
   validTiles.forEach((tile: any) => {
     if (!tile || tile.destroyed) return;
     
@@ -599,7 +599,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     
     // 🔥 CRITICAL: Stop wild animations BEFORE removeTile (prevents conflicts)
     try { 
-      if (typeof stopWildBeerBubbles === 'function') stopWildBeerBubbles(tile); 
+      if (typeof stopWildJuiceBubbles === 'function') stopWildJuiceBubbles(tile); 
     } catch {}
     try { 
       if (typeof stopWildStars === 'function') stopWildStars(tile); 
@@ -1253,7 +1253,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const isMissing = !t;
         const isLocked = !!(t && t.locked === true);
         const hasValue = !!(t && (t.value|0) > 0);
-        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));
+        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));
         
         // 🔥 CRITICAL FIX: NEVER spawn on a tile with value > 0, even if it's locked!
         // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
@@ -1726,7 +1726,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           const existingTile = STATE.grid?.[r]?.[c];
           if (existingTile) {
             const isActive = (existingTile.value|0) > 0;
-            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-juice' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
             
             // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
             // Locked tiles with value > 0 are active tiles (e.g., during animations)
@@ -1813,7 +1813,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       
       const hasAdjacentTile = adjacentCells.some(cell => {
         const t = STATE.grid?.[cell.r]?.[cell.c];
-        return t && !t.destroyed && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+        return t && !t.destroyed && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt');
       });
       
       if (!hasAdjacentTile) {
@@ -2016,7 +2016,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Failed to remove lingering magnet merge-6 tile:', err);
   }
   
-  // 🔥 USER FIX: After removing merge 6, fill any null cells with locked placeholders (like wild beer/star)
+  // 🔥 USER FIX: After removing merge 6, fill any null cells with locked placeholders (like wild juice/star)
   // Must run AFTER merge 6 removal so the freed cell gets filled. Ensures 6+ locked tiles visible.
   if (!(dst as any)?._isLastMerge) {
     try {
@@ -2069,7 +2069,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     const lockedActiveTiles = STATE.tiles.filter((t: any) => {
       if (!t || t.destroyed) return false;
       if (!t.locked) return false; // Only check locked tiles
-      return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+      return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
     });
     
     const tilesStillSpawning = STATE.tiles.filter((t: any) => {
@@ -2077,7 +2077,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       if (t.locked) return true; // Locked tiles are still spawning
       if (t._isBeingSpawned === true) return true;
       if (t.eventMode !== 'static' && (t.value|0) > 0) {
-        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
         if (!isWildTile) return true;
       }
       return false;
@@ -2178,12 +2178,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
   }
   
-  // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-beer merge)
+  // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-juice merge)
   // Bubbles animation can run for 4+ seconds and shouldn't block endgame detection
   // BUT: We should ensure spawn animations are complete before checking endgame
   try {
-    const { isWildBeerExplosionRunning } = await import('./fx.js');
-    if (typeof isWildBeerExplosionRunning === 'function' && isWildBeerExplosionRunning()) {
+    const { isWildJuiceExplosionRunning } = await import('./fx.js');
+    if (typeof isWildJuiceExplosionRunning === 'function' && isWildJuiceExplosionRunning()) {
       console.log('💧 Bubbles animation is running, but spawn animations are complete - proceeding with endgame check');
       // Bubbles animation is visual only and doesn't block endgame detection
     }

@@ -213,8 +213,8 @@ export function createTileShadow(tile: Tile): Graphics {
     g.closePath();
   };
   
-  // 🔥 USER REQUEST: Helper function to draw beer mug shape for wild-beer tile shadow
-  const drawBeerMug = (g: Graphics, x: number, y: number, width: number, height: number): void => {
+  // 🔥 USER REQUEST: Helper function to draw juice mug shape for wild-juice tile shadow
+  const drawJuiceMug = (g: Graphics, x: number, y: number, width: number, height: number): void => {
     const mugWidth = width * 0.85;
     const mugHeight = height * 0.9;
     const handleWidth = width * 0.15;
@@ -300,7 +300,7 @@ export function createTileShadow(tile: Tile): Graphics {
   
   // 🔥 USER REQUEST: Check tile type for custom shadow shapes
   const isWildStar = tile.special === 'wild';
-  const isWildBeer = tile.special === 'wild-beer';
+  const isWildJuice = tile.special === 'wild-juice';
   const isWildMagnet = tile.special === 'wild-magnet';
   const isWildTnt = tile.special === 'wild-tnt';
   
@@ -313,11 +313,11 @@ export function createTileShadow(tile: Tile): Graphics {
     const outerRadius = Math.min(tile.width, tile.height) * 0.45;
     const innerRadius = outerRadius * 0.4;
     drawStar(shadow, centerX, centerY, outerRadius, innerRadius, 5);
-  } else if (isWildBeer) {
-    // 🔥 USER REQUEST: Draw beer mug-shaped shadow for wild-beer tile
+  } else if (isWildJuice) {
+    // 🔥 USER REQUEST: Draw juice mug-shaped shadow for wild-juice tile
     const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;
     const centerY = VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;
-    drawBeerMug(shadow, centerX, centerY, tile.width, tile.height);
+    drawJuiceMug(shadow, centerX, centerY, tile.width, tile.height);
   } else if (isWildMagnet) {
     // 🔥 USER REQUEST: Draw magnet-shaped shadow for wild-magnet tile
     const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;

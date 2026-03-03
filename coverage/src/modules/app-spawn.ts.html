@@ -1120,9 +1120,9 @@
 <span class="cstat-no" title="statement not covered" >import { Assets, Texture, Container, Graphics } from 'pixi.js';</span>
 <span class="cstat-no" title="statement not covered" >import { gsap } from 'gsap';</span>
 <span class="cstat-no" title="statement not covered" >import { STATE, TILE, ASSET_WILD } from './app-state.js';</span>
-<span class="cstat-no" title="statement not covered" >import { ASSET_WILD_MAGNET, ASSET_WILD_BEER, ASSET_WILD_TNT } from './constants.js';</span>
+<span class="cstat-no" title="statement not covered" >import { ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';</span>
 <span class="cstat-no" title="statement not covered" >import * as makeBoard from './board.js';</span>
-<span class="cstat-no" title="statement not covered" >import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildBeerBubbles } from "./fx.ts";</span>
+<span class="cstat-no" title="statement not covered" >import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildJuiceBubbles } from "./fx.ts";</span>
 <span class="cstat-no" title="statement not covered" >import { logger } from '../core/logger.js';</span>
 <span class="cstat-no" title="statement not covered" >import { resetTileToNormalState } from './tile-state-utils.ts';</span>
 // drawBoardBG function is now in app.js
@@ -1334,8 +1334,8 @@ function <span class="fstat-no" title="function not covered" >applyWildSkinLocal
     let assetPath = <span class="cstat-no" title="statement not covered" >ASSET_WILD;</span>
 <span class="cstat-no" title="statement not covered" >    if (tile.special === 'wild-magnet') {</span>
 <span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_MAGNET;</span>
-    } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-beer') {</span>
-<span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_BEER;</span>
+    } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-juice') {</span>
+<span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_JUICE;</span>
     } else <span class="cstat-no" title="statement not covered" >if (tile.special === 'wild-tnt') {</span>
 <span class="cstat-no" title="statement not covered" >      assetPath = ASSET_WILD_TNT;</span>
     }
@@ -1364,7 +1364,7 @@ function <span class="fstat-no" title="function not covered" >applyWildSkinLocal
     
     // 🔥 CRITICAL: Check if cell is already occupied by an active tile
 <span class="cstat-no" title="statement not covered" >    if (holder &amp;&amp; !holder.locked) {</span>
-      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || (holder as any).isWild === true || (holder as any).isWildFace === true;</span>
+      const isWildTile = <span class="cstat-no" title="statement not covered" >holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || (holder as any).isWild === true || (holder as any).isWildFace === true;</span>
       const isActive = <span class="cstat-no" title="statement not covered" >(holder.value|0) &gt; 0;</span>
       
       // If cell has an active tile or wild tile, don't spawn here

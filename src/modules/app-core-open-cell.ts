@@ -7,7 +7,7 @@ type OpenCellDeps = {
     value?: number | null;
     isWild?: boolean;
     isWildMagnet?: boolean;
-    isWildBeer?: boolean;
+    isWildJuice?: boolean;
     isWildTnt?: boolean;
     skipBind?: boolean;
     timeScale?: number;
@@ -20,7 +20,7 @@ type OpenCellDeps = {
   bindTileWithFallback: (tile: any, skipBind: boolean) => void;
   applyWildSkinLocal: (tile: any) => void;
   startWildShimmer: (tile: any) => void;
-  startWildBeerBubbles: (tile: any) => void;
+  startWildJuiceBubbles: (tile: any) => void;
   startWildStars: (tile: any) => void;
   startTntIdleParticles: (tile: any) => void;
   startTntIdleShake: (tile: any) => void;
@@ -40,7 +40,7 @@ export function openAtCellCore({
   bindTileWithFallback,
   applyWildSkinLocal,
   startWildShimmer,
-  startWildBeerBubbles,
+  startWildJuiceBubbles,
   startWildStars,
   startTntIdleParticles,
   startTntIdleShake,
@@ -51,7 +51,7 @@ export function openAtCellCore({
     value = null,
     isWild = false,
     isWildMagnet = false,
-    isWildBeer = false,
+    isWildJuice = false,
     isWildTnt = false,
     skipBind = false,
     timeScale = 1.0,
@@ -65,7 +65,7 @@ export function openAtCellCore({
     // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
     // Check value and wild first — even locked tiles with value > 0 must be skipped.
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
       const hasValue = (holder.value | 0) > 0;
 
       if (hasValue || isWildTile) {
@@ -97,7 +97,7 @@ export function openAtCellCore({
     holder = grid?.[r]?.[c] || null;
     if (holder && (holder as any).destroyed) holder = null;
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
       const hasValue = (holder.value | 0) > 0;
       if (hasValue || isWildTile || !holder.locked) {
         resolve(false);
@@ -106,7 +106,7 @@ export function openAtCellCore({
     }
 
     // Wild spawn: prefer existing ghost placeholder; in end game cell can be null — create tile then apply wild
-    if ((isWild || isWildMagnet || isWildBeer || isWildTnt) && !holder) {
+    if ((isWild || isWildMagnet || isWildJuice || isWildTnt) && !holder) {
       holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
     }
     if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
@@ -127,12 +127,12 @@ export function openAtCellCore({
     delete holder._wildMagnetPulledTilesMerge;
     delete holder._wildMagnetPulledTilesScoring;
 
-    if (isWild || isWildMagnet || isWildBeer || isWildTnt){
+    if (isWild || isWildMagnet || isWildJuice || isWildTnt){
       if (isWildTnt) {
         try { preloadTntFrames(); } catch {}
       }
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
-      holder.special = isWildTnt ? 'wild-tnt' : (isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild'));
+      holder.special = isWildTnt ? 'wild-tnt' : (isWildJuice ? 'wild-juice' : (isWildMagnet ? 'wild-magnet' : 'wild'));
       holder.isWild = true;
       holder.isWildFace = true;
       holder.value = 6;
@@ -165,8 +165,8 @@ export function openAtCellCore({
       try {
         startWildShimmer(holder); // Use shimmer instead of bounce
         // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-        if (holder.special === 'wild-beer') {
-          startWildBeerBubbles(holder);
+        if (holder.special === 'wild-juice') {
+          startWildJuiceBubbles(holder);
         } else if (holder.special === 'wild-tnt') {
           startTntIdleParticles(holder);
           startTntIdleShake(holder);
@@ -190,7 +190,7 @@ export function openAtCellCore({
     }
 
     holder.visible = true;
-    const isWildSpawn = isWild || isWildMagnet || isWildBeer || isWildTnt;
+    const isWildSpawn = isWild || isWildMagnet || isWildJuice || isWildTnt;
     const isActiveTile = !isWildSpawn;
     if (isActiveTile || isWildSpawn) {
       try { gsap?.killTweensOf?.(holder, true); } catch {}

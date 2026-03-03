@@ -162,7 +162,7 @@ export async function checkGameOver(){
 1. ⏳ Build test: `npm run build`
 2. ⏳ TypeScript check: `npx tsc --noEmit`
 3. ⏳ Runtime test: Pokreni igru i testiraj sve scenarije
-4. ⏳ End game test: Testiraj wild beer, wild star, wild magnet u end game
+4. ⏳ End game test: Testiraj wild juice, wild star, wild magnet u end game
 5. ⏳ Git commit: Dokumentiraj sve promjene
 
 ---

@@ -507,6 +507,13 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     overlay.appendChild(cloudContainer);
 
     // 🔥 USER REQUEST: Forest at bottom (-150px below viewport), in front of clouds, behind digits
+    const isIPad = (() => {
+      const ua = navigator.userAgent || '';
+      const isIPadUA = /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
+      const vw = window.innerWidth || 0;
+      return isIPadUA || (vw >= 769 && vw <= 1366);
+    })();
+
     if (!forestContainer) {
       forestContainer = document.createElement('div');
       forestContainer.className = 'cc-board-transition-forest';
@@ -543,6 +550,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       'transform: translateZ(0)',
       'backface-visibility: hidden'
     ].join(';');
+    // iPad: move forest down by 40%
+    forestContainer.style.transform = isIPad ? 'translateY(40%)' : 'translateY(0)';
     activeForestImages = [forestImg];
     if (!forestImg.parentNode) {
       forestContainer.appendChild(forestImg);

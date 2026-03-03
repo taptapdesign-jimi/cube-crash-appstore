@@ -3,7 +3,7 @@
 ## 📋 Scenarij:
 - **2 obične kockice** (npr. value 3 i 3)
 - **2 magneta** (wild-magnet)
-- **1 wild beer** (wild-beer)
+- **1 wild juice** (wild-juice)
 - **1 wild zvjezdica** (wild)
 - **Ukupno: 6 tile-ova** na boardu
 
@@ -24,7 +24,7 @@ const isRegularMergeLastTwo = !wildActive &&
 ```
 
 **Rezultat:**
-- `activeTilesCount = 6` (2 obične + 2 magneta + wild beer + wild zvjezdica)
+- `activeTilesCount = 6` (2 obične + 2 magneta + wild juice + wild zvjezdica)
 - `isRegularMergeLastTwo = FALSE` (jer `activeTilesCount === 2` je FALSE)
 - `_isLastMerge` se **NE POSTAVLJA** ✅
 
@@ -68,9 +68,9 @@ const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
 ```
 
 **Rezultat:**
-- Nakon merge-6, ostane: **merge-6 tile + 2 magneta + wild beer + wild zvjezdica = 5 tile-ova**
+- Nakon merge-6, ostane: **merge-6 tile + 2 magneta + wild juice + wild zvjezdica = 5 tile-ova**
 - `needsEmergencyRescue()` provjerava:
-  - Wild cubes: 4 (2 magneta + wild beer + wild zvjezdica)
+  - Wild cubes: 4 (2 magneta + wild juice + wild zvjezdica)
   - Mergeable non-wild tiles: 1 (merge-6)
   - **Rezultat: FALSE** (ima merge-6 koji može mergeati s wild-om)
 
@@ -82,7 +82,7 @@ const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
 
 ```typescript
 const mergeableNonWildTiles = activeTiles.filter(t => {
-  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
+  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice') return false;
   const value = (t.value|0);
   return value > 0 && value <= 6; // ✅ Wild može mergeati s merge-6!
 });
@@ -95,7 +95,7 @@ if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
 
 **Rezultat:**
 - `mergeableNonWildTiles = [merge-6]` (1 tile)
-- `wildStars = [wild beer, wild zvjezdica]` (2 tile-a)
+- `wildStars = [wild juice, wild zvjezdica]` (2 tile-a)
 - `isGameStuck()` = **FALSE** ✅
 - Game continues! ✅
 
@@ -140,7 +140,7 @@ if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length 
 **Rezultat:**
 - `magnets.length = 2` (2 magneta)
 - `mergeableNonWildTiles.length = 1` (merge-6)
-- `wildStars.length = 2` (wild beer + wild zvjezdica)
+- `wildStars.length = 2` (wild juice + wild zvjezdica)
 - `isGameStuck()` = **FALSE** ✅
 
 ---
@@ -152,7 +152,7 @@ if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length 
 1. ✅ Merge-6 se izvršava (2 obične kockice se spajaju)
 2. ✅ `_isLastMerge` se **NE POSTAVLJA** (jer ima 6 tile-ova, ne 2)
 3. ✅ Spawn se **IZVRŠAVA** (nove kockice se spawnaju)
-4. ✅ Nakon spawna, ostane: merge-6 + 2 magneta + wild beer + wild zvjezdica
+4. ✅ Nakon spawna, ostane: merge-6 + 2 magneta + wild juice + wild zvjezdica
 5. ✅ `checkEndGame()` vidi da wild može mergeati s merge-6
 6. ✅ `isGameStuck()` = FALSE
 7. ✅ **Game continues!** ✅

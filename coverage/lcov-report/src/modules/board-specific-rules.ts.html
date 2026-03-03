@@ -707,7 +707,7 @@ export interface BoardRule {
   
   // Wild tile settings
   wildSpawnEnabled?: boolean;
-  allowedWildTypes?: ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[];
+  allowedWildTypes?: ('wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt')[];
   wildMeterEnabled?: boolean; // If false, wild meter won't fill
   wildMeterFillRate?: number; // Multiplier for wild meter fill rate (default: 1.0)
   
@@ -736,16 +736,16 @@ const BOARD_RULES: BoardRule[] = <span class="cstat-no" title="statement not cov
     wildSpawnEnabled: true, // Enable wild spawning
     wildMeterEnabled: true, // Enable wild meter
     wildMeterFillRate: 1.0, // 🔥 USER REQUEST: Ista brzina kao board 1 (originalna brzina)
-    allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet', 'wild-tnt'] // Svi wild types dostupni
+    allowedWildTypes: ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'] // Svi wild types dostupni
   },
   {
     boardNumber: 3,
     wildSpawnEnabled: true,
     wildMeterEnabled: true,
-    allowedWildTypes: ['wild-beer'], // Only wild-beer allowed
+    allowedWildTypes: ['wild-juice'], // Only wild-juice allowed
     customSpawnLogic: <span class="fstat-no" title="function not covered" >async </span>(boardNumber: number) =&gt; {
-      // Custom logic for board 3 - only spawn wild-beer
-<span class="cstat-no" title="statement not covered" >      logger.info(`🎯 Board ${boardNumber}: Custom spawn logic - only wild-beer allowed`);</span>
+      // Custom logic for board 3 - only spawn wild-juice
+<span class="cstat-no" title="statement not covered" >      logger.info(`🎯 Board ${boardNumber}: Custom spawn logic - only wild-juice allowed`);</span>
 <span class="cstat-no" title="statement not covered" >      return true; </span>// Return true to use custom logic
     }
   }
@@ -818,13 +818,13 @@ class BoardSpecificRules {
   /**
    * Get allowed wild types for current board
    */
-<span class="fstat-no" title="function not covered" >  getAllowedWildTypes(</span>boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[] {
+<span class="fstat-no" title="function not covered" >  getAllowedWildTypes(</span>boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt')[] {
     const board = <span class="cstat-no" title="statement not covered" >boardNumber ?? this.currentBoard;</span>
     const rule = <span class="cstat-no" title="statement not covered" >this.rules.get(board);</span>
     
 <span class="cstat-no" title="statement not covered" >    if (!rule || !rule.allowedWildTypes) {</span>
       // Default: all wild types allowed (including wild-tnt from Explosion Pack)
-<span class="cstat-no" title="statement not covered" >      return ['wild', 'wild-beer', 'wild-magnet', 'wild-tnt'];</span>
+<span class="cstat-no" title="statement not covered" >      return ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'];</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    return rule.allowedWildTypes;</span>
@@ -833,7 +833,7 @@ class BoardSpecificRules {
   /**
    * Check if specific wild type is allowed for current board
    */
-<span class="fstat-no" title="function not covered" >  isWildTypeAllowed(</span>wildType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
+<span class="fstat-no" title="function not covered" >  isWildTypeAllowed(</span>wildType: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
     const allowed = <span class="cstat-no" title="statement not covered" >this.getAllowedWildTypes(boardNumber);</span>
 <span class="cstat-no" title="statement not covered" >    return allowed.includes(wildType);</span>
   }
@@ -843,9 +843,9 @@ class BoardSpecificRules {
    * Returns the allowed wild type or null if not allowed
    */
 <span class="fstat-no" title="function not covered" >  filterWildType(</span>
-    preferredType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt',
+    preferredType: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt',
     boardNumber?: number
-  ): 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt' | null {
+  ): 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt' | null {
     const board = <span class="cstat-no" title="statement not covered" >boardNumber ?? this.currentBoard;</span>
     const allowed = <span class="cstat-no" title="statement not covered" >this.getAllowedWildTypes(board);</span>
     
@@ -992,18 +992,18 @@ export const <span class="cstat-no" title="statement not covered" >boardSpecific
 <span class="cstat-no" title="statement not covered" >  return boardSpecificRules.isWildMeterEnabled(boardNumber);</span>
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >g</span>etAllowedWildTypes(</span>boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[] {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >g</span>etAllowedWildTypes(</span>boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt')[] {
 <span class="cstat-no" title="statement not covered" >  return boardSpecificRules.getAllowedWildTypes(boardNumber);</span>
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildTypeAllowed(</span>wildType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
+<span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >i</span>sWildTypeAllowed(</span>wildType: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
 <span class="cstat-no" title="statement not covered" >  return boardSpecificRules.isWildTypeAllowed(wildType, boardNumber);</span>
 }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >f</span>ilterWildType(</span>
-  preferredType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt',
+  preferredType: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt',
   boardNumber?: number
-): 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt' | null {
+): 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt' | null {
 <span class="cstat-no" title="statement not covered" >  return boardSpecificRules.filterWildType(preferredType, boardNumber);</span>
 }
 &nbsp;

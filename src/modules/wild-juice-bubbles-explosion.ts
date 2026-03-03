@@ -1,6 +1,6 @@
 // @ts-nocheck
-// Wild Beer Bubbles Explosion
-// Full-screen bubbles explosion effect for wild-beer merge 6 events
+// Wild Juice Bubbles Explosion
+// Full-screen bubbles explosion effect for wild-juice merge 6 events
 // Uses custom bubble sprites (bubble 1-5) instead of runtime Graphics - lighter on memory
 
 import { Assets, Container, Sprite, Texture } from 'pixi.js';
@@ -36,7 +36,7 @@ let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyCloudCleanup: (() => void) | null = null;
-const lifecycle = createScreenLifecycle('wild-beer-bubbles-explosion');
+const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 
 function getFxHost(stage: any): any {
   if (!stage || stage.destroyed) return null;
@@ -161,27 +161,27 @@ function updateFpsCounter(): void {
 }
 
 /**
- * Show wild-beer bubbles explosion (full-screen burst)
+ * Show wild-juice bubbles explosion (full-screen burst)
  * Works independently of board/tile hierarchy
  */
-export function showWildBeerBubblesExplosion(): void {
+export function showWildJuiceBubblesExplosion(): void {
   if (isExplosionActive || explosionContainer) {
     cleanup();
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
     // This prevents race conditions where cleanup and new explosion conflict
     lifecycle.trackRaf(() => {
-      showWildBeerBubblesExplosionInternal();
+      showWildJuiceBubblesExplosionInternal();
     });
     return;
   }
 
-  showWildBeerBubblesExplosionInternal();
+  showWildJuiceBubblesExplosionInternal();
 }
 
 /**
  * Internal function to start bubbles explosion (called after cleanup if needed)
  */
-async function showWildBeerBubblesExplosionInternal(): Promise<void> {
+async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const app = (windowState && windowState.app) || null;
   const stateStage = (windowState && windowState.stage) || null;
@@ -206,7 +206,7 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
       const delay = isBoardTransitionActive ? 100 : 80;
       logger.debug('Stage unavailable, retrying', undefined, { retry: stageRetryCount, maxRetries });
       lifecycle.trackTimeout(() => {
-        showWildBeerBubblesExplosionInternal();
+        showWildJuiceBubblesExplosionInternal();
       }, delay);
       return;
     }
@@ -246,7 +246,7 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
     cleanup();
     // Wait another frame
     lifecycle.trackRaf(() => {
-      showWildBeerBubblesExplosionInternal();
+      showWildJuiceBubblesExplosionInternal();
     });
     return;
   }
@@ -257,7 +257,7 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
 
   // Create container on stage (full-screen)
   explosionContainer = new Container();
-  explosionContainer.label = 'wild-beer-explosion-bubbles';
+  explosionContainer.label = 'wild-juice-explosion-bubbles';
   // 🔥 CRITICAL FIX: Use maximum zIndex to ensure bubbles are above everything
   explosionContainer.zIndex = 999999; // Above everything (maximum)
   explosionContainer.eventMode = 'none';
@@ -753,15 +753,15 @@ async function showWildBeerBubblesExplosionInternal(): Promise<void> {
 }
 
 /**
- * Stop wild-beer bubbles explosion
+ * Stop wild-juice bubbles explosion
  */
-export function stopWildBeerBubblesExplosion(): void {
+export function stopWildJuiceBubblesExplosion(): void {
   // 🔥 CRITICAL DEBUG: Log cleanup call to track premature cleanup
   const wasActive = isExplosionActive;
-  const wasRecentlyStarted = isWildBeerBubblesExplosionRecentlyStarted();
+  const wasRecentlyStarted = isWildJuiceBubblesExplosionRecentlyStarted();
   const elapsed = explosionStartTime > 0 ? performance.now() - explosionStartTime : 0;
   
-  console.log('🛑 stopWildBeerBubblesExplosion() called', {
+  console.log('🛑 stopWildJuiceBubblesExplosion() called', {
     wasActive,
     wasRecentlyStarted,
     elapsed: elapsed > 0 ? `${elapsed.toFixed(0)}ms` : 'N/A',
@@ -774,7 +774,7 @@ export function stopWildBeerBubblesExplosion(): void {
   // 🔥 CRITICAL FIX: Don't cleanup if explosion was just started (< 100ms ago)
   // This prevents premature cleanup on new board where animation might be starting
   if (wasRecentlyStarted && elapsed < 100) {
-    console.warn('⚠️ stopWildBeerBubblesExplosion: Explosion just started (< 100ms ago), skipping cleanup to prevent premature stop');
+    console.warn('⚠️ stopWildJuiceBubblesExplosion: Explosion just started (< 100ms ago), skipping cleanup to prevent premature stop');
     return;
   }
   
@@ -782,16 +782,16 @@ export function stopWildBeerBubblesExplosion(): void {
 }
 
 /**
- * Force stop wild-beer bubbles explosion (bypass recent-start guard).
+ * Force stop wild-juice bubbles explosion (bypass recent-start guard).
  */
-export function forceStopWildBeerBubblesExplosion(): void {
+export function forceStopWildJuiceBubblesExplosion(): void {
   cleanup();
 }
 
 /**
  * Destroy cached bubble texture to release GPU memory (call on hard cleanup).
  */
-export function destroyWildBeerBubblesExplosionCache(): void {
+export function destroyWildJuiceBubblesExplosionCache(): void {
   clearBubbleSpritePool(); // Release pooled sprites to free memory
 }
 
@@ -799,7 +799,7 @@ export function destroyWildBeerBubblesExplosionCache(): void {
  * Check if explosion was recently started (within last 5 seconds)
  * Used to protect animation from premature cleanup during board transitions
  */
-export function isWildBeerBubblesExplosionRecentlyStarted(): boolean {
+export function isWildJuiceBubblesExplosionRecentlyStarted(): boolean {
   if (!isExplosionActive || explosionStartTime === 0) return false;
   const elapsed = performance.now() - explosionStartTime;
   return elapsed < 5000; // Within last 5 seconds
@@ -808,7 +808,7 @@ export function isWildBeerBubblesExplosionRecentlyStarted(): boolean {
 /**
  * Check if explosion is active
  */
-export function isWildBeerBubblesExplosionActive(): boolean {
+export function isWildJuiceBubblesExplosionActive(): boolean {
   return isExplosionActive;
 }
 
@@ -850,7 +850,7 @@ export function waitForBubblesExplosionToComplete(maxWaitMs = 6500): Promise<voi
       const elapsed = performance.now() - startTime;
       if (elapsed >= maxWaitMs) {
         const w = (typeof window !== 'undefined' ? (window as any) : null);
-        logger.info('ℹ️ Bubbles explosion wait reached timeout, forcing cleanup', 'wild-beer-bubbles-explosion', {
+        logger.info('ℹ️ Bubbles explosion wait reached timeout, forcing cleanup', 'wild-juice-bubbles-explosion', {
           maxWaitMs,
           elapsedMs: Math.round(elapsed),
           boardTransitionActive: w?.__ccBoardTransitionActive === true,
@@ -941,7 +941,7 @@ function createAndShowBubblyText(): void {
         'font-weight: 800',
         'font-size: 64px',
         'line-height: 1',
-        'color: #FFF',
+        'color: #CC9882',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
