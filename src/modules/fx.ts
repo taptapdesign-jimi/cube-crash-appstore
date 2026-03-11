@@ -4210,7 +4210,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // This ensures it's independent of board animations and won't be killed by cleanup
   const animationContainer = new Container();
   animationContainer.label = 'stars-to-hud-animation';
-  animationContainer.zIndex = 30000; // 🔥 VERY HIGH z-index to be above all board animations
+  animationContainer.zIndex = 999999; // 🔥 EXTREME z-index to sit above HUD layers
   animationContainer.eventMode = 'none';
   animationContainer.x = 0;
   animationContainer.y = 0;

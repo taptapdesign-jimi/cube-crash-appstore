@@ -346,7 +346,10 @@ function createHeartsModal(): HTMLElement {
   const showCTA = currentHearts < maxHearts; // Only show when 0, 1, or 2 hearts
   const ctaHTML = showCTA 
     ? `<div class="hearts-cta">
-        <button class="get-heart-btn primary-button">Get a heart</button>
+        <button class="get-heart-btn primary-button">
+          <span class="get-heart-text">Get 1 heart</span>
+          <img class="get-heart-tv" src="./assets/tv.png" alt="" />
+        </button>
       </div>`
     : ''; // No CTA when all hearts are full
   

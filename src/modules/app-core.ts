@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
-import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, showSparkleText, stopSparkleText, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
+import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, showSparkleText, stopSparkleText, isSparkleTextActive, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
@@ -464,6 +464,10 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     return;
   }
   busyEnding = true;
+
+  // 🔥 BUG FIX: Clear STACK IT! hint IMMEDIATELY when entering clean board flow
+  // Prevents hint from appearing during/after boom animation when board is empty
+  try { resetEndgameHint(); } catch {}
   
   // If we explicitly requested a clean-board skip (e.g., resuming straight into next board after hard-exit),
   // consume the flag and bail before any modal/animation starts.
@@ -3121,9 +3125,9 @@ function rebuildBoard(){
       try {
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('heavy');
-          trackAppTimeout(300, () => {
+          trackAppTimeout(() => {
             try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
-          });
+          }, 300);
         }
       } catch {}
     },
@@ -3901,6 +3905,49 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     } else {
       devLog('⭐ Not a wild star merge:', { srcSpecialForStarCheck, dstSpecialForStarCheck });
     }
+    
+    // ✨ Non-star wilds (juice only): send 1-3 stars to HUD
+    if (!shouldAnimateStarsToHUD) {
+      const srcIsNonStarWild = srcSpecialForStarCheck === 'wild-juice';
+      const dstIsNonStarWild = dstSpecialForStarCheck === 'wild-juice';
+      if (srcIsNonStarWild || dstIsNonStarWild) {
+        const wildTile = srcIsNonStarWild ? src : (dstIsNonStarWild ? dst : null);
+        const starCount = 1 + Math.floor(Math.random() * 3); // 1..3
+        if (starCount > 0) {
+          const starTexture = Texture.from('./assets/small-star.png');
+          let basePos = null;
+          try {
+            if (wildTile && typeof wildTile.getGlobalPosition === 'function') {
+              const gp = wildTile.getGlobalPosition();
+              if (gp && Number.isFinite(gp.x) && Number.isFinite(gp.y)) {
+                basePos = { x: gp.x, y: gp.y };
+              }
+            }
+          } catch {}
+          if (!basePos) {
+            const fallback = getMerge6ScreenPos(wildTile || dst);
+            basePos = { x: fallback.x, y: fallback.y };
+          }
+          
+          savedWildTileScreenPosEarly = basePos;
+          savedStarPositionsEarly = [];
+          for (let i = 0; i < starCount; i++) {
+            const offsetX = (Math.random() - 0.5) * TILE * 0.6;
+            const offsetY = (Math.random() - 0.5) * TILE * 0.6;
+            const scale = 0.45 + Math.random() * 0.25;
+            savedStarPositionsEarly.push({
+              texture: starTexture,
+              globalX: basePos.x + offsetX,
+              globalY: basePos.y + offsetY,
+              scale: { x: scale, y: scale }
+            });
+          }
+          
+          shouldAnimateStarsToHUD = savedStarPositionsEarly.length > 0;
+          devLog('✨ Non-star wild: prepared stars to HUD', { starCount, basePos, shouldAnimateStarsToHUD });
+        }
+      }
+    }
   } else {
     devLog('⭐ Not merge 6, tempEffSum:', tempEffSum);
   }
@@ -4124,8 +4171,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
-        if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
-          if (savedStarPositionsSmall.length > 0 && hudStarPosSmall) {
+            const isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
+            if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
+              if (savedStarPositionsSmall.length > 0 && hudStarPosSmall) {
             devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositionsSmall.length,
               merge6Pos: merge6PosSmall,
@@ -4136,7 +4184,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                showSparkleText();
+                if (!isWildJuiceMerge) showSparkleText();
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -4613,10 +4661,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Wild tiles should be counted as active tiles for last merge detection
     // 🔥 CRITICAL FIX: Include wild-juice in wild tile check (same as wild star)
     const activeTilesBeforeMerge = tiles.filter(t => {
-      if (!t || t.locked) return false;
+      if (!t) return false;
       const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+      if (isWild) return true; // Wild counts even if locked (last-merge detection)
+      if (t.locked) return false;
       const hasValue = (t.value|0) > 0;
-      return isWild || hasValue; // Include if wild OR has value > 0
+      return hasValue; // Include if value > 0
     });
     
     // 🔥 CRITICAL FIX v36: Count TOTAL tiles including stacked tiles (stackDepth)
@@ -4909,7 +4959,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 SIMPLIFIED: Use isAnyWildLastTwo as PRIMARY check for wild + regular (covers all wild types)
     // 🔥 CRITICAL FIX: Also check if wild magnet was marked as last two (stored on dst tile)
     const isWildMagnetLastTwo = (dst as any)?._isWildMagnetLastTwo === true;
-    const isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
+    let isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
+    // 🔥 SAFETY: If more than 2 visible tiles existed before merge, this can NEVER be the last merge
+    if (isLastMerge && visibleTilesCount > 2) {
+      devWarn('⚠️ LAST MERGE OVERRIDE: visibleTilesCount > 2, forcing NOT last merge', {
+        visibleTilesCount,
+        isRegularRegularLastTwoMerge6,
+        isAnyWildLastTwo,
+        isWildRegularLastTwo,
+        isLastMergeableTiles,
+        isWildLastTileMerge,
+        isWildMagnetLastTwo
+      });
+      isLastMerge = false;
+    }
     
     if (isLastMerge) {
       const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : 
@@ -5981,8 +6044,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
-        if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
-          if (savedStarPositions.length > 0 && hudStarPos) {
+          const isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
+          if (shouldAnimateStarsToHUD && !starsToHudTriggered) {
+            if (savedStarPositions.length > 0 && hudStarPos) {
             devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositions.length,
               merge6Pos,
@@ -5993,7 +6057,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                showSparkleText();
+                if (!isWildJuiceMerge) showSparkleText();
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -6743,6 +6807,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // Set busyEnding flag IMMEDIATELY to prevent any other code from running
             busyEnding = true;
+            // 🔥 BUG FIX: Clear STACK IT! hint immediately - board will be clean
+            try { resetEndgameHint(); } catch {}
             
             // Remove dst tile (merge 6) to make board clean
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
@@ -6991,7 +7057,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                                                 activeTilesAfterMerge[0] === dst && 
                                                 dst.value === 6;
           
-          isActuallyLastMerge = hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
+          // 🔥 HARD RULE: If ONLY 2 active tiles existed before merge, this is ALWAYS last merge (locked tiles ignored)
+          const onlyTwoActiveBeforeMerge =
+            activeTilesBeforeMerge.length === 2 &&
+            activeTilesBeforeMerge.includes(src) &&
+            activeTilesBeforeMerge.includes(dst) &&
+            !hasTilesToPull;
+          
+          if (onlyTwoActiveBeforeMerge) {
+            devWarn('🛑 FORCING LAST MERGE: only 2 active tiles before merge (locked tiles ignored)');
+            (dst as any)._isLastMerge = true;
+          }
+          
+          isActuallyLastMerge = onlyTwoActiveBeforeMerge || hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
         
           devLog('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
             hasLastMergeFlag,
@@ -7028,6 +7106,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const isFinalTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
           if (isFinalTntMerge && typeof onTntAnimationComplete === 'function') {
             devLog('💥 Final TNT merge: deferring clean board until TNT animation completes');
+            // 🔥 BUG FIX: Clear STACK IT! hint NOW - don't wait for animation (timer could fire during boom)
+            try { resetEndgameHint(); } catch {}
             const cleanupFinalTntBoardArtifacts = () => {
               try {
                 const clearTileFromGridForTntFinal = (tile: any) => {
@@ -7253,6 +7333,36 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             cleanupFinalGhostsAndLocked();
           }
           
+          // 🔥 FINAL WILD ANIMATION WAIT: let wild visuals finish before clean board
+          const isFinalTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+          const isFinalJuiceMerge = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
+          const isFinalWildStarMerge = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild') && !isFinalJuiceMerge && !isFinalTntMerge;
+          const waitForWildFinaleAnimations = async () => {
+            const deadline = Date.now() + 5200;
+            const waitWhile = async (check: () => boolean, label: string) => {
+              if (!check()) return;
+              devLog(`⏳ Waiting for ${label} to finish before clean board`);
+              while (check() && Date.now() < deadline) {
+                await waitTracked(120);
+              }
+            };
+            if (isFinalTntMerge && isTntAnimationActive?.()) {
+              await new Promise<void>((resolve) => {
+                let done = false;
+                const finish = () => { if (done) return; done = true; resolve(); };
+                try { onTntAnimationComplete?.(finish); } catch {}
+                trackAppTimeout(finish, 5200);
+              });
+            }
+            if (isFinalJuiceMerge) {
+              await waitWhile(() => !!isWildJuiceBubblesExplosionActive?.(), 'wild-juice bubbles');
+            }
+            if (isFinalWildStarMerge) {
+              await waitWhile(() => !!isSparkleTextActive?.(), 'sparkle text');
+            }
+          };
+          await waitForWildFinaleAnimations();
+          
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
           
@@ -7407,11 +7517,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 BUG FIX: Count ALL locked tiles (not just value<=0) - must match level-flow.ts openLockedBounceParallel.
         // Locked tiles with value>0 (e.g. from wild merge) are openable; excluding them caused false isEndgameMode
         // and only 1 spawn when randomEmptyCell returned null (it doesn't consider locked value>0 as "empty").
-        const lockedTiles = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
+        // Use raw locked tiles for endgame detection (scale can be missing on some locked tiles)
+        const lockedTilesRaw = tiles.filter(t => t && !t.destroyed && t.locked);
+        const lockedTiles = lockedTilesRaw.filter((t: any) => t && (t as any).scale);
         const placeholderHolderRef = (dst as any)?._placeholderHolder;
         
         // Filter out placeholder at dst position and pulled cells
-        const availableLockedTiles = lockedTiles.filter((t: any) => {
+        const availableLockedTiles = lockedTilesRaw.filter((t: any) => {
           if (!t || t.destroyed) return false;
           // Exclude placeholder at dst position
           if (placeholderHolderRef && t === placeholderHolderRef) {
@@ -7430,18 +7542,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 DEBUG: Log endgame mode detection
         devLog('🎮 ENDGAME CHECK:', {
-          lockedTilesCount: lockedTiles.length,
+          lockedTilesCount: lockedTilesRaw.length,
+          spawnableLockedTilesCount: lockedTiles.length,
           availableLockedTilesCount: availableLockedTiles.length,
           isEndgameMode,
           totalActiveTiles: tiles.filter(t => t && !t.destroyed && !t.locked).length,
           spawnMult
         });
 
-        // 🔥 Wild-merge bonus: spawn 9 locked, open 3 → result: 3 active + 6 locked. All wilds (star, juice, TNT, magnet).
+        // 🔥 Wild-merge bonus:
+        // - wild star / TNT / magnet: spawn 9 locked, open 3 → result: 3 active + 6 locked
+        // - wild juice: spawn 3 locked, open 2 → result: 2 active + 3 locked
         // isWildMerge6 already declared above (spawn-block check)
         let wildMergeLockedBonusCount = 0;
         if (isWildMerge6 && !isLastMergeFlagSet) {
-          wildMergeLockedBonusCount = 9; // 9 locked total → open 3 = 3 active + 6 locked
+          const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
+          wildMergeLockedBonusCount = isWildJuiceMerge6 ? 3 : 9;
         }
         
         // 🔥 SOURCE OF TRUTH: Regular merge 6 (cube on cube) spawn rules:
@@ -7496,12 +7612,38 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 timeScale: 2.0
               });
             };
-            const doEndgameSpawns = async () => {
-              let firstResult = await runSpawn();
-              if (!firstResult) firstResult = await runSpawn(true);
-              if (!firstResult) devWarn('⚠️ END-GAME SPAWN: Retry failed at (', spawnC, ',', spawnR, ')');
-              if (isRegularMerge6 && endgameSpawnCount > 1) {
-                const cell = randomEmptyCell([{ r: spawnR, c: spawnC }]);
+          const doEndgameSpawns = async () => {
+            let firstResult = await runSpawn();
+            if (!firstResult) firstResult = await runSpawn(true);
+            if (!firstResult) devWarn('⚠️ END-GAME SPAWN: Retry failed at (', spawnC, ',', spawnR, ')');
+            // 🔥 WILD-JUICE ENDGAME: ensure total 3 active tiles (1 at dst + 2 extra)
+            const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
+            const isWildMerge6Local =
+              srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' ||
+              srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet' ||
+              srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' ||
+              srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+            if (isWildMerge6Local && isWildJuiceMerge6) {
+              const extraExclude: { r: number; c: number }[] = [{ r: spawnR, c: spawnC }];
+              for (let i = 0; i < 2; i++) {
+                const extraCell = randomEmptyCell(extraExclude);
+                if (extraCell) {
+                  extraExclude.push({ r: extraCell.r, c: extraCell.c });
+                  await openAtCell(extraCell.c, extraCell.r, {
+                    value: wildMergeTarget ? (() => {
+                      const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+                      return candidates[(Math.random() * candidates.length) | 0];
+                    })() : null,
+                    skipBind: false,
+                    timeScale: 2.0
+                  });
+                } else {
+                  devLog('🎯 END-GAME WILD-JUICE: No empty cell for extra active spawn');
+                }
+              }
+            }
+            if (isRegularMerge6 && endgameSpawnCount > 1) {
+              const cell = randomEmptyCell([{ r: spawnR, c: spawnC }]);
                 if (cell) {
                   await openAtCell(cell.c, cell.r, {
                     value: wildMergeTarget ? (() => {
@@ -7545,6 +7687,68 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const regularSpawnCount = Math.min(3, Math.max(2, (spawnMult || 0) - 1));
             const tilesForSpawn = Array.isArray(STATE.tiles) ? STATE.tiles : tiles;
             const spawnFromLocked = async () => {
+              try {
+                const excludeSetDebug = new Set([...pulledCellsSet, `${gx},${gy}`]);
+                const lockedRawDebug = tilesForSpawn.filter((t: any) => t && !t.destroyed && t.locked);
+                const lockedWithScaleDebug = lockedRawDebug.filter((t: any) => t && (t as any).scale);
+                const lockedExcludedDebug = lockedRawDebug.filter((t: any) => {
+                  if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
+                    return excludeSetDebug.has(`${t.gridX},${t.gridY}`);
+                  }
+                  return false;
+                });
+                devLog('🧪 SPAWN DEBUG (regular merge-6):', {
+                  regularSpawnCount,
+                  lockedRaw: lockedRawDebug.length,
+                  lockedWithScale: lockedWithScaleDebug.length,
+                  lockedExcluded: lockedExcludedDebug.length,
+                  excludeCells: Array.from(excludeSetDebug).slice(0, 6),
+                });
+              } catch {}
+              const forceUnlockLockedTiles = async (k: number) => {
+                if (!k || k <= 0) return 0;
+                const excludeSet = new Set([...pulledCellsSet, `${gx},${gy}`]);
+                const lockedCandidates = tilesForSpawn.filter((t: any) => {
+                  if (!t || t.destroyed || !t.locked) return false;
+                  if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
+                    const key = `${t.gridX},${t.gridY}`;
+                    if (excludeSet.has(key)) return false;
+                  }
+                  return true;
+                });
+                if (!lockedCandidates.length) return 0;
+                let opened = 0;
+                for (let i = 0; i < lockedCandidates.length && opened < k; i++) {
+                  const t = lockedCandidates[i];
+                  try {
+                    t.locked = false;
+                    t.eventMode = 'static';
+                    t.cursor = 'pointer';
+                    resetTileToNormalState?.(t);
+                    if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+                    const spawnValue = wildMergeTarget
+                      ? (() => {
+                          const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+                          return candidates[(Math.random() * candidates.length) | 0];
+                        })()
+                      : [1,2,3,4,5][(Math.random()*5)|0];
+                    makeBoard?.setValue?.(t, spawnValue, 0);
+                    if (t) {
+                      t.alpha = 1;
+                      if (t.rotG) t.rotG.alpha = 1;
+                      if (t.base) t.base.alpha = 1;
+                      if (t.overlay) t.overlay.alpha = 1;
+                      if (t.num) t.num.alpha = 1;
+                      if (t.pips) t.pips.alpha = 1;
+                    }
+                    try { fixHoverAnchor?.(t); } catch {}
+                    opened++;
+                  } catch (err) {
+                    devWarn('⚠️ FORCE UNLOCK failed:', err);
+                  }
+                }
+                return opened;
+              };
               const opened = await FLOW.openLockedBounceParallel({
                 tiles: tilesForSpawn,
                 k: regularSpawnCount,
@@ -7558,6 +7762,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 wildMergeTarget,
                 excludeCells: new Set([...pulledCellsSet, `${gx},${gy}`]),
               } as any);
+              if ((opened || 0) === 0 && regularSpawnCount > 0) {
+                devWarn('⚠️ NORMAL SPAWN: openLockedBounceParallel opened 0, forcing unlock of locked tiles');
+                await forceUnlockLockedTiles(regularSpawnCount);
+              }
               const remainder = Math.max(0, regularSpawnCount - (opened || 0));
               if (remainder > 0) {
                 const excludeCells: { r: number; c: number }[] = [{ r: gy, c: gx }];
@@ -7685,8 +7893,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
         const isWildTntMerge6 =
           srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const isWildJuiceMerge6 =
+          srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
         if (isWildMerge6 && !isLastMergeFlagSet && !isWildMagnetMerge6 && !isWildTntMerge6) {
-          // Always spawn 3 active tiles after wild merge 6 (all wilds: star, juice, TNT, magnet)
+          // Wild merge 6 extra active tiles:
+          // - wild juice: 0 extra (base wild spawn already opens 2)
+          // - other wilds (star): 3 extra
+          const wildExtraActiveCount = isWildJuiceMerge6 ? 0 : 3;
           // 🔥 ENDGAME: Exclude dst cell – we spawn 1 active there; avoid picking that cell for openLockedBounceParallel
           const wildSpawnExcludeCells = shouldSpawnAtDst
             ? new Set([...pulledCellsSet, `${gx},${gy}`])
@@ -7695,7 +7908,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             try {
               FLOW.openLockedBounceParallel({
                 tiles: Array.isArray(STATE.tiles) ? STATE.tiles : tiles,
-                k: 3,
+                k: wildExtraActiveCount,
                 drag,
                 makeBoard,
                 gsap,
@@ -7975,6 +8188,60 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           isTntMergeForDelay
         });
         await waitTracked(postSpawnEndgameDelayMs);
+
+        // 🛡️ SAFETY: Never allow board to end up with < 2 active tiles unless clean board flow is active.
+        try {
+          const isActiveTile = (t: any) => {
+            if (!t || t.destroyed || t.locked) return false;
+            const value = (t.value | 0);
+            const special = t.special;
+            const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
+            return value > 0 || isWild;
+          };
+          const activeTilesNow = tiles.filter(isActiveTile);
+          if (activeTilesNow.length < 2) {
+            const needed = 2 - activeTilesNow.length;
+            devWarn('🛟 SAFETY: Active tiles below minimum after spawn, forcing extra spawn', {
+              activeTiles: activeTilesNow.length,
+              needed
+            });
+            const tilesForSpawn = Array.isArray(STATE.tiles) ? STATE.tiles : tiles;
+            const opened = await FLOW.openLockedBounceParallel({
+              tiles: tilesForSpawn,
+              k: needed,
+              drag,
+              makeBoard,
+              gsap,
+              drawBoardBG,
+              TILE,
+              fixHoverAnchor,
+              spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
+              wildMergeTarget,
+              excludeCells: pulledCellsSet,
+            } as any);
+            let remaining = Math.max(0, needed - (opened || 0));
+            if (remaining > 0) {
+              const excludeCells: { r: number; c: number }[] = activeTilesNow
+                .filter((t: any) => typeof t.gridX === 'number' && typeof t.gridY === 'number')
+                .map((t: any) => ({ r: t.gridY, c: t.gridX }));
+              for (let i = 0; i < remaining; i++) {
+                const cell = randomEmptyCell(excludeCells);
+                if (!cell) break;
+                excludeCells.push({ r: cell.r, c: cell.c });
+                await openAtCell(cell.c, cell.r, {
+                  value: wildMergeTarget ? (() => {
+                    const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+                    return candidates[(Math.random() * candidates.length) | 0];
+                  })() : null,
+                  skipBind: false,
+                  timeScale: 2.0
+                });
+              }
+            }
+          }
+        } catch (err) {
+          devWarn('⚠️ SAFETY: Failed to enforce minimum active tiles:', err);
+        }
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
@@ -8520,6 +8787,27 @@ function runTntBoomBonusBreak2Tiles(deps: {
 }) {
   const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx, onComplete } = deps;
   try {
+    const getScreenPos = (tileForCenter: any) => {
+      const local = centerInBoard(board, tileForCenter, TILE);
+      try {
+        if (board && typeof (board as any).toGlobal === 'function') {
+          const global = (board as any).toGlobal({ x: local.x, y: local.y });
+          if (global && Number.isFinite(global.x) && Number.isFinite(global.y)) {
+            return { x: global.x, y: global.y };
+          }
+        }
+      } catch {}
+      return local;
+    };
+    const tntStarTexture = Texture.from('./assets/small-star.png');
+    let hudStarPos: { x: number; y: number } | null = null;
+    try {
+      if (typeof HUD.getStarHudPosition === 'function') {
+        hudStarPos = HUD.getStarHudPosition();
+      }
+    } catch {}
+    if (!hudStarPos) hudStarPos = { x: 0, y: 0 };
+
     // Keep guard active while TNT bonus break/spawn sequence is running.
     tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
     if ((dst as any)?._isLastMerge) {
@@ -8570,7 +8858,28 @@ function runTntBoomBonusBreak2Tiles(deps: {
           try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.0, { sizeScale: 1.5, spawnShape: 'box' }); } catch (e) { devWarn('TNT transition smoke:', e); }
         }
         const oldValue = (tile.value | 0);
+        const basePos = getScreenPos(tile);
         removeTile(tile);
+        // ⭐ Wild TNT: 1 star per broken tile → HUD (ignore merge-6 1-3)
+        try {
+          const starPositions = [{
+            texture: tntStarTexture,
+            globalX: basePos.x,
+            globalY: basePos.y,
+            scale: { x: 0.55, y: 0.55 }
+          }];
+          // Fire-and-forget; use board/stage/app like other HUD star animations
+          const appForAnimation = STATE.app || (STATE.stage as any)?.app;
+          devLog('⭐ TNT bonus star: spawning from broken tile', {
+            gridX: c,
+            gridY: r,
+            screenX: basePos.x,
+            screenY: basePos.y
+          });
+          void animateStarsToHudIcon(board, STATE.stage, starPositions, basePos, basePos, hudStarPos, appForAnimation);
+        } catch (e) {
+          devWarn('⚠️ TNT bonus star animation failed:', e);
+        }
         // 🔥 CRITICAL: TNT bonus replacement must NEVER keep the same value.
         // Prefer unique values across this TNT burst, but if that conflicts, keep "different from old" as source of truth.
         let available = pool.filter((v) => !used.includes(v) && v !== oldValue);

@@ -3705,7 +3705,33 @@ html.collectible-reward-open body {
 
 .get-heart-btn {
   width: 100%;
-  max-width: 265px;
+  max-width: 320px;
+  font-size: 18px;
+  font-weight: 400;
+  white-space: nowrap;
+  position: relative;
+  padding-right: 78px !important; /* room for TV icon overlap */
+  padding-left: 40px !important; /* keep text slightly left */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+}
+.get-heart-text {
+  display: inline-block;
+  width: 100%;
+  text-align: left;
+  margin-left: -16px;
+}
+.get-heart-tv {
+  position: absolute;
+  right: 14px;
+  top: -2px;
+  width: 60px;
+  height: auto;
+  transform: none;
+  pointer-events: none;
+  z-index: 2;
 }
 
 /* Mobile adjustments */
