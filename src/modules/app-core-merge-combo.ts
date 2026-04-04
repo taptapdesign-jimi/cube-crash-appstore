@@ -1,3 +1,6 @@
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
+
 type MergeComboDeps = {
   combo: number;
   effSum: number;
@@ -43,6 +46,9 @@ export function handleMergeCombo({
   if (!willPullTilesForCombo) {
     // Stats: track longest combo (global and per-board) - use NEW combo value
     statsService.updateLongestCombo(newComboValue);
+    if (isArcadeHomeRunMode()) {
+      arcadeStatsService.updateLongestCombo(newComboValue);
+    }
     
     // 🔥 JOURNEY BOARDS: Track longest combo per board - use NEW combo value
     try {

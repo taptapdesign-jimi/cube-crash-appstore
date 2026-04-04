@@ -4,6 +4,7 @@
 interface ArcadeStats {
   highScore: number;
   cubesCracked: number;
+  longestCombo: number;
   lastPlayed: number;
 }
 
@@ -13,6 +14,7 @@ class ArcadeStatsService {
   private stats: ArcadeStats = {
     highScore: 0,
     cubesCracked: 0,
+    longestCombo: 0,
     lastPlayed: 0,
   };
 
@@ -29,12 +31,13 @@ class ArcadeStatsService {
         this.stats = {
           highScore: Number.isFinite(parsed.highScore) ? (parsed.highScore | 0) : 0,
           cubesCracked: Number.isFinite(parsed.cubesCracked) ? (parsed.cubesCracked | 0) : 0,
+          longestCombo: Number.isFinite(parsed.longestCombo) ? (parsed.longestCombo | 0) : 0,
           lastPlayed: Number.isFinite(parsed.lastPlayed) ? parsed.lastPlayed : 0,
         };
       }
     } catch (error) {
       console.warn('⚠️ Failed to load arcade stats:', error);
-      this.stats = { highScore: 0, cubesCracked: 0, lastPlayed: 0 };
+      this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, lastPlayed: 0 };
     }
   }
 
@@ -70,8 +73,19 @@ class ArcadeStatsService {
     return this.stats.cubesCracked;
   }
 
+  public updateLongestCombo(combo: number): boolean {
+    if (!Number.isFinite(combo) || combo < 0) return false;
+    const safeCombo = combo | 0;
+    if (safeCombo <= this.stats.longestCombo) return false;
+    this.stats.longestCombo = safeCombo;
+    this.stats.lastPlayed = Date.now();
+    this.saveStats();
+    console.log(`🎯 New ARCADE longest combo: ${safeCombo}`);
+    return true;
+  }
+
   public resetStats(): void {
-    this.stats = { highScore: 0, cubesCracked: 0, lastPlayed: 0 };
+    this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, lastPlayed: 0 };
     this.saveStats();
   }
 }

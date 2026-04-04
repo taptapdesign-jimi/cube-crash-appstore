@@ -1411,8 +1411,11 @@ function addWildProgress(amount){
   const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
   const iPadSlowdown = isIPad ? (globalSlowdown * 0.8925) : 1.0; // ~0.536 s globalSlowdown=0.6
   
-  const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown;
-  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
+  // After first 2 spawned wilds, make next wild take 30% longer to charge.
+  // +30% time => increment multiplier 1 / 1.3.
+  const postSecondWildMultiplier = wildSpawnCount >= 2 ? (1 / 1.3) : 1.0;
+  const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown * postSecondWildMultiplier;
+  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, post-second-wild multiplier: ${postSecondWildMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
 
   const target = wildMeter + adjustedInc;
   devLog('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
@@ -7071,6 +7074,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           : combo;
         if (currentComboForMerge6 > 0) {
           statsService.updateLongestCombo(currentComboForMerge6);
+          if (isArcadeHomeRunMode()) {
+            arcadeStatsService.updateLongestCombo(currentComboForMerge6);
+          }
           
           // 🔥 JOURNEY BOARDS: Track longest combo per board for merge-6
           try {
@@ -7678,6 +7684,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         
         const isRegularMerge6 = !isWildMerge6;
+        if (isRegularMerge6 && !isLastMergeFlagSet) {
+          pendingMandatoryMergeCellSpawn = {
+            c: gx | 0,
+            r: gy | 0,
+            expiresAt: Date.now() + 3500
+          };
+        }
         // 🔥 BUG FIX (Journey / magnet / locked boards): Do NOT spawn-at-dst just because activeTilesCount ≤ 3.
         // While ANY spawnable locked tiles exist (isEndgameMode === false), merge-6 must STAY on the board and
         // new cubes must come from openLockedBounceParallel / randomEmptyCell. Old logic replaced merge 6 with
@@ -8715,6 +8728,79 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
             return value > 0 || isWild;
           };
+          const hasActiveAtMergeCell = () => {
+            return tiles.some((t: any) => {
+              if (!isActiveTile(t)) return false;
+              return (t.gridX | 0) === (gx | 0) && (t.gridY | 0) === (gy | 0);
+            });
+          };
+          const forceSpawnAtMergeCell = async (): Promise<boolean> => {
+            const pickSpawnValue = () => (wildMergeTarget ? (() => {
+              const candidates = [1, 2, 3, 4, 5].filter(v => v !== wildMergeTarget);
+              return candidates[(Math.random() * candidates.length) | 0];
+            })() : null);
+
+            // Try openAtCell twice (race-safe) before hard fallback.
+            for (let attempt = 0; attempt < 2; attempt++) {
+              const ok = await openAtCell(gx, gy, {
+                value: pickSpawnValue(),
+                skipBind: false,
+                timeScale: 2.0,
+                forceFreshPlaceholder: true,
+              }).catch(() => false);
+              if (ok || hasActiveAtMergeCell()) return true;
+              await waitTracked(80);
+            }
+
+            // Hard fallback: forcibly create/unlock tile at merge cell.
+            try {
+              if (grid?.[gy]?.[gx]) {
+                const existing = grid[gy][gx];
+                if (existing && !existing.destroyed && tiles.includes(existing)) {
+                  removeTile(existing);
+                }
+                grid[gy][gx] = null;
+              }
+              const t = makeBoard?.createTile?.({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
+              if (!t) return false;
+              t.locked = false;
+              t.eventMode = 'static';
+              t.cursor = 'pointer';
+              resetTileToNormalState?.(t);
+              if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+              const forcedValue = wildMergeTarget ? (() => {
+                const candidates = [1, 2, 3, 4, 5].filter(v => v !== wildMergeTarget);
+                return candidates[(Math.random() * candidates.length) | 0];
+              })() : [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
+              makeBoard?.setValue?.(t, forcedValue, 0, { immediate: true });
+              t.visible = true;
+              t.alpha = 1;
+              if (t.rotG) t.rotG.alpha = 1;
+              if (t.base) t.base.alpha = 1;
+              if (t.overlay) { t.overlay.alpha = 1; t.overlay.visible = false; }
+              if (t.num) t.num.alpha = 1;
+              if (t.pips) { t.pips.alpha = 1; t.pips.visible = true; }
+              try { fixHoverAnchor?.(t); } catch {}
+              SPAWN?.spawnBounce?.(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: 2.0, keepFullOpacity: true });
+              return hasActiveAtMergeCell();
+            } catch (err) {
+              devWarn('⚠️ SAFETY: Hard fallback spawn at merge cell failed', err);
+              return false;
+            }
+          };
+
+          // 🔥 P1 BUG FIX: For regular merge-6 (non-final), merge result must ALWAYS be visible at merge cell.
+          // If merge-cell refill races/fails, force it before endgame check to avoid "invisible merge result + instant fail".
+          if (isRegularMerge6 && !isLastMergeFlagSet && !hasActiveAtMergeCell()) {
+            devWarn('🚨 SAFETY: Regular merge-6 missing tile at merge cell - forcing refill before endgame check');
+            const forcedMergeCell = await forceSpawnAtMergeCell();
+            if (!forcedMergeCell) {
+              devWarn('⚠️ SAFETY: Could not guarantee merge-cell refill for regular merge-6');
+            } else {
+              pendingMandatoryMergeCellSpawn = null;
+            }
+          }
+
           const activeTilesNow = tiles.filter(isActiveTile);
           if (activeTilesNow.length < 2) {
             const needed = 2 - activeTilesNow.length;
@@ -9163,8 +9249,83 @@ function checkLevelEnd(){
         });
         return;
       } else {
-        devWarn('⚠️ Mandatory merge-cell spawn confirmation timed out; clearing pending guard', { c, r });
-        pendingMandatoryMergeCellSpawn = null;
+        devWarn('⚠️ Mandatory merge-cell spawn confirmation timed out; forcing merge-cell repair before endgame check', { c, r });
+
+        const ghostAtMandatoryCell = tiles.find((t: any) => {
+          if (!t || t.destroyed) return false;
+          if ((t.gridX | 0) !== (c | 0) || (t.gridY | 0) !== (r | 0)) return false;
+          const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+          return !!t.locked && !isWildTile && ((t.value | 0) <= 0);
+        });
+
+        if (ghostAtMandatoryCell) {
+          try {
+            if (grid?.[r]?.[c] === ghostAtMandatoryCell) grid[r][c] = null;
+            if (!ghostAtMandatoryCell.destroyed && tiles.includes(ghostAtMandatoryCell)) removeTile(ghostAtMandatoryCell);
+            devWarn('🧹 Removed stuck ghost placeholder from mandatory merge cell before forced spawn', { c, r });
+          } catch (err) {
+            devWarn('⚠️ Failed removing ghost placeholder at mandatory merge cell', { c, r, err });
+          }
+        }
+
+        pendingMandatoryMergeCellSpawn = {
+          c,
+          r,
+          expiresAt: Date.now() + 1200,
+        };
+
+        void (async () => {
+          let spawned = false;
+          try {
+            spawned = !!(await openAtCell(c, r, {
+              skipBind: false,
+              timeScale: 2.0,
+              forceFreshPlaceholder: true,
+            }));
+          } catch (err) {
+            devWarn('⚠️ Forced openAtCell failed for mandatory merge cell repair', { c, r, err });
+          }
+
+          if (!spawned) {
+            try {
+              if (grid?.[r]?.[c]) {
+                const existing = grid[r][c];
+                if (existing && !existing.destroyed && tiles.includes(existing)) removeTile(existing);
+                grid[r][c] = null;
+              }
+              const t = makeBoard?.createTile?.({ board, grid, tiles, c, r, val: 0, locked: true });
+              if (t) {
+                t.locked = false;
+                t.eventMode = 'static';
+                t.cursor = 'pointer';
+                resetTileToNormalState?.(t);
+                if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+                const forcedValue = [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
+                makeBoard?.setValue?.(t, forcedValue, 0, { immediate: true });
+                t.visible = true;
+                t.alpha = 1;
+                if (t.rotG) t.rotG.alpha = 1;
+                if (t.base) t.base.alpha = 1;
+                if (t.overlay) { t.overlay.alpha = 1; t.overlay.visible = false; }
+                if (t.num) t.num.alpha = 1;
+                if (t.pips) { t.pips.alpha = 1; t.pips.visible = true; }
+                try { fixHoverAnchor?.(t); } catch {}
+                try { drawBoardBG?.(); } catch {}
+                SPAWN?.spawnBounce?.(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: 2.0, keepFullOpacity: true });
+                spawned = true;
+              }
+            } catch (err) {
+              devWarn('⚠️ Hard fallback spawn failed for mandatory merge cell repair', { c, r, err });
+            }
+          }
+
+          if (!spawned) {
+            pendingMandatoryMergeCellSpawn = null;
+          }
+
+          checkLevelEnd();
+        })();
+        return;
       }
     }
     

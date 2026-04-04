@@ -604,13 +604,11 @@ export async function showCleanBoardModal({
     const buttonContainer = document.createElement('div');
     buttonContainer.style.cssText = `width:${buttonWidth};max-width:80vw;display:flex;flex-direction:column;gap:16px;`;
     
-    // 🔥 NEW: Primary button (either "Continue" for interim or "Play Again" for regular)
+    // 🔥 NEW: Primary button (Continue for interim Journey, Play Again otherwise including Arcade)
     const primaryBtn = document.createElement('button');
     primaryBtn.type = 'button';
-    // 🧪 DEV: In dev mode, always show "Continue" to test board transition screen
-    primaryBtn.textContent = isArcadeHomeRun
-      ? 'Exit'
-      : ((devMode || isFromInterimBoard) ? 'Continue' : 'Play Again');
+    // 🧪 DEV: In dev mode, keep Continue for interim-board transition testing
+    primaryBtn.textContent = (devMode || isFromInterimBoard) ? 'Continue' : 'Play Again';
     primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     primaryBtn.style.width = '100%';
     primaryBtn.style.maxWidth = buttonWidth;
@@ -627,9 +625,7 @@ export async function showCleanBoardModal({
     secondaryBtn.style.whiteSpace = 'nowrap';
     
     // Add buttons to container
-    if (!isArcadeHomeRun) {
-      buttonContainer.appendChild(primaryBtn);
-    }
+    buttonContainer.appendChild(primaryBtn);
     if (secondaryBtn) {
       buttonContainer.appendChild(secondaryBtn);
     }
@@ -775,9 +771,7 @@ export async function showCleanBoardModal({
     boardCleared.style.transition = 'none';
     
     // 🎯 PURE CSS: Set BOTH buttons to hidden state (CSS handles all animations)
-    if (!isArcadeHomeRun) {
-      setButtonInitialState(primaryBtn);
-    }
+    setButtonInitialState(primaryBtn);
     if (secondaryBtn) {
       setButtonInitialState(secondaryBtn);
     }

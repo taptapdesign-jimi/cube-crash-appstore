@@ -961,6 +961,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Stats: track longest combo (global and per-board) - use ACTUAL current combo value after magnet pull
   statsService.updateLongestCombo(currentComboAfterMagnet);
+  if (isArcadeHomeRunMode()) {
+    arcadeStatsService.updateLongestCombo(currentComboAfterMagnet);
+  }
   
   // 🔥 JOURNEY BOARDS: Track longest combo per board - use ACTUAL current combo value after magnet pull
   try {

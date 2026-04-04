@@ -905,7 +905,8 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       
       // Coin center is 80px left of combo icon left edge.
       // Keep right-aligned pair in arcade as well.
-      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing;
+      const arcadeScoreLeftShift = isArcadeRun ? (comboToCoinSpacing * 0.2) : 0; // +20% left only in Arcade
+      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing - arcadeScoreLeftShift;
       coin.container.x = coinDefaultX;
       coin.container.y = yValue;
       

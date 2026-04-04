@@ -17,21 +17,48 @@ let isVisible = false;
 let outsideClickHandler: ((e: Event) => void) | null = null;
 let outsideTouchEndHandler: ((e: TouchEvent) => void) | null = null;
 
-function getScoreSheetStats(boardNumber: number): { highScore: number; cubesCracked: number; subtitle: string } {
+function ensureScoreStatDividerExists(): void {
+  const container = document.querySelector('.score-bottom-sheet .score-stats-container') as HTMLElement | null;
+  if (!container) return;
+  if (container.querySelector('.score-stat-divider')) return;
+
+  const statItems = container.querySelectorAll('.stat-item');
+  if (statItems.length < 2) return;
+
+  const divider = document.createElement('div');
+  divider.className = 'score-stat-divider';
+  divider.setAttribute('aria-hidden', 'true');
+  container.insertBefore(divider, statItems[1]);
+}
+
+function getScoreSheetStats(boardNumber: number): {
+  title: string;
+  highScore: number;
+  secondaryValue: number;
+  secondaryLabel: string;
+  secondaryIcon: string;
+  subtitle: string;
+} {
   if (isArcadeHomeRunMode()) {
     const arcadeStats = arcadeStatsService.getStats();
     return {
+      title: 'High Score',
       highScore: arcadeStats.highScore,
-      cubesCracked: arcadeStats.cubesCracked,
-      subtitle: 'Your Arcade trophy.<br>Beat it to earn a new one.'
+      secondaryValue: arcadeStats.longestCombo,
+      secondaryLabel: 'Longest combo',
+      secondaryIcon: './assets/combo-icon.png',
+      subtitle: 'Your best Arcade run lives here.<br>Beat it to set a new record.'
     };
   }
 
   const boardStats = boardStatsService.getBoardStats(boardNumber);
   const boardNumberStr = boardNumber.toString().padStart(2, '0');
   return {
+    title: 'Score Stats',
     highScore: boardStats.highScore,
-    cubesCracked: boardStats.cubesCracked,
+    secondaryValue: boardStats.cubesCracked,
+    secondaryLabel: 'Cubes cracked',
+    secondaryIcon: './assets/cubes-cracked.png',
     subtitle: `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`
   };
 }
@@ -182,17 +209,16 @@ function createModal(): HTMLElement {
     console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
   }
   
-  const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
-  const subtitleText = isArcadeHomeRunMode()
-    ? 'Your Arcade trophy.<br>Beat it to earn a new one.'
-    : `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`;
+  const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
+  const titleText = scoreSheetStats.title;
+  const subtitleText = scoreSheetStats.subtitle;
   
   modalEl.innerHTML = `
     <div class="modal-handle"></div>
     <div class="simple-content">
       <div class="simple-header">
         <div class="simple-title-section">
-          <h2 id="score-sheet-title">Score Stats</h2>
+          <h2 id="score-sheet-title">${titleText}</h2>
           <p id="score-sheet-subtitle">${subtitleText}</p>
         </div>
         <div class="score-stats-container">
@@ -206,15 +232,16 @@ function createModal(): HTMLElement {
               <div class="stat-label">High score</div>
             </div>
           </div>
+          <div class="score-stat-divider" aria-hidden="true"></div>
           
           <!-- Cubes Cracked -->
           <div class="stat-item">
             <div class="stat-icon">
-              <img src="./assets/cubes-cracked.png" alt="" aria-hidden="true">
+              <img id="score-sheet-secondary-icon" src="./assets/cubes-cracked.png" alt="" aria-hidden="true">
             </div>
             <div class="stat-content">
-              <div id="score-sheet-cubes-cracked" class="stat-value">0</div>
-              <div class="stat-label">Cubes cracked</div>
+              <div id="score-sheet-secondary-value" class="stat-value">0</div>
+              <div id="score-sheet-secondary-label" class="stat-label">Cubes cracked</div>
             </div>
           </div>
         </div>
@@ -477,6 +504,7 @@ export function showScoreBottomSheet(): void {
   // This ensures stats are updated when reset is clicked on detail card modal
   if (isScoreBottomSheetVisible() && modal) {
     console.log('📊 Score bottom sheet already open - refreshing stats');
+    ensureScoreStatDividerExists();
     
     // Get current board number
     let currentBoardNumber = 1;
@@ -502,15 +530,24 @@ export function showScoreBottomSheet(): void {
     const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
     
     // Update values with fresh stats
+    const titleEl = document.getElementById('score-sheet-title');
+    const subtitleEl = document.getElementById('score-sheet-subtitle');
     const highScoreEl = document.getElementById('score-sheet-high-score');
-    const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
+    const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
+    const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
+    const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
     
+    if (titleEl) titleEl.textContent = scoreSheetStats.title;
+    if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
     if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
-    if (cubesCrackedEl) cubesCrackedEl.textContent = scoreSheetStats.cubesCracked.toLocaleString();
+    if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
+    if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
+    if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
     
     console.log(`📊 Score bottom sheet stats refreshed for board ${currentBoardNumber}:`, {
       highScore: scoreSheetStats.highScore,
-      cubesCracked: scoreSheetStats.cubesCracked,
+      secondaryValue: scoreSheetStats.secondaryValue,
+      secondaryLabel: scoreSheetStats.secondaryLabel,
       arcade: isArcadeHomeRunMode()
     });
     
@@ -545,6 +582,7 @@ export function showScoreBottomSheet(): void {
   }
 
   const el = createModal();
+  ensureScoreStatDividerExists();
   console.log('🎯 SCORE BOTTOM SHEET CREATED');
 
   // Mark modal as visible and set closing flag to false
@@ -572,23 +610,29 @@ export function showScoreBottomSheet(): void {
     console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
   }
   
-  const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
+  const titleEl = document.getElementById('score-sheet-title');
   const subtitleEl = document.getElementById('score-sheet-subtitle');
   const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
+  if (titleEl) titleEl.textContent = scoreSheetStats.title;
   if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
   
   // Update values with mode-specific stats:
   // - Journey: board-specific
   // - Arcade: arcade-only (independent from Journey)
   const highScoreEl = document.getElementById('score-sheet-high-score');
-  const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
+  const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
+  const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
+  const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
   
   if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
-  if (cubesCrackedEl) cubesCrackedEl.textContent = scoreSheetStats.cubesCracked.toLocaleString();
+  if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
+  if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
+  if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
   
   console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
     highScore: scoreSheetStats.highScore,
-    cubesCracked: scoreSheetStats.cubesCracked,
+    secondaryValue: scoreSheetStats.secondaryValue,
+    secondaryLabel: scoreSheetStats.secondaryLabel,
     arcade: isArcadeHomeRunMode()
   });
 
