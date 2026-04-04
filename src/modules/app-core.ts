@@ -7684,13 +7684,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         
         const isRegularMerge6 = !isWildMerge6;
-        if (isRegularMerge6 && !isLastMergeFlagSet) {
-          pendingMandatoryMergeCellSpawn = {
-            c: gx | 0,
-            r: gy | 0,
-            expiresAt: Date.now() + 3500
-          };
-        }
         // 🔥 BUG FIX (Journey / magnet / locked boards): Do NOT spawn-at-dst just because activeTilesCount ≤ 3.
         // While ANY spawnable locked tiles exist (isEndgameMode === false), merge-6 must STAY on the board and
         // new cubes must come from openLockedBounceParallel / randomEmptyCell. Old logic replaced merge 6 with
@@ -7974,6 +7967,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const regularSpawnCount = Math.min(3, Math.max(2, (spawnMult || 0) - 1));
             const tilesForSpawn = Array.isArray(STATE.tiles) ? STATE.tiles : tiles;
             const spawnFromLocked = async () => {
+              devWarn('🧪 DEBUG REGULAR_MERGE6_RANDOM_LOCKED_SPAWN: entered', {
+                regularSpawnCount,
+                spawnMult,
+                pulledCellsExcluded: pulledCellsSet.size,
+                lockedCandidates: tilesForSpawn.filter((t: any) => t && !t.destroyed && t.locked).length,
+                mergeCell: { c: gx, r: gy },
+              });
+
               const pickSpawnValue = () => (wildMergeTarget
                 ? (() => {
                     const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
@@ -7997,49 +7998,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
               };
 
-              const ensureMergeCellRefill = async (): Promise<number> => {
-                try {
-                  const atMergeCell = tilesForSpawn.find((t: any) =>
-                    t && !t.destroyed && (t.gridX | 0) === (gx | 0) && (t.gridY | 0) === (gy | 0)
-                  );
-                  if (atMergeCell) {
-                    const spec = (atMergeCell as any).special;
-                    const isActive = !atMergeCell.locked && (
-                      (atMergeCell.value | 0) > 0 ||
-                      spec === 'wild' || spec === 'wild-magnet' || spec === 'wild-juice' || spec === 'wild-tnt'
-                    );
-                    if (isActive) return 1;
-
-                    try {
-                      if (grid?.[gy]?.[gx] === atMergeCell) grid[gy][gx] = null;
-                      if (!atMergeCell.destroyed && tilesForSpawn.includes(atMergeCell)) removeTile(atMergeCell);
-                    } catch (err) {
-                      devWarn('⚠️ REGULAR SPAWN: Failed to remove merge-6 placeholder before fresh spawn', err);
-                    }
-                  }
-                } catch (err) {
-                  devWarn('⚠️ REGULAR SPAWN: merge-6 cell prep failed, falling back to openAtCell', err);
-                }
-
-                try {
-                  const ok = await openAtCell(gx, gy, {
-                    value: pickSpawnValue(),
-                    skipBind: false,
-                    timeScale: 2.0,
-                    forceFreshPlaceholder: true,
-                  });
-                  if (ok) {
-                    devLog('🧩 REGULAR SPAWN: Refilled merge-6 cell with fresh tile (openAtCell)');
-                    return 1;
-                  }
-                } catch (err) {
-                  devWarn('⚠️ REGULAR SPAWN: openAtCell refill at merge-6 cell failed', err);
-                }
-                return 0;
-              };
-
-              const mergeCellOpened = await ensureMergeCellRefill();
-              const remainingSpawnCount = Math.max(0, regularSpawnCount - mergeCellOpened);
+              const remainingSpawnCount = Math.max(0, regularSpawnCount);
 
               const ensureMinimumActiveTilesAfterSpawn = async () => {
                 const activeNow = tilesForSpawn.filter(tileIsActive).length;
@@ -8059,7 +8018,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   fixHoverAnchor,
                   spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
                   wildMergeTarget,
-                  excludeCells: new Set([...pulledCellsSet, `${gx},${gy}`]),
+                  excludeCells: pulledCellsSet,
                 } as any);
                 if ((emergencyOpened || 0) > 0) return;
 
@@ -8067,7 +8026,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   if (!t || t.destroyed || !t.locked) return false;
                   if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
                     const key = `${t.gridX},${t.gridY}`;
-                    if (pulledCellsSet.has(key) || key === `${gx},${gy}`) return false;
+                    if (pulledCellsSet.has(key)) return false;
                   }
                   return true;
                 });
@@ -8088,7 +8047,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
               };
               try {
-                const excludeSetDebug = new Set([...pulledCellsSet, `${gx},${gy}`]);
+                const excludeSetDebug = new Set([...pulledCellsSet]);
                 const lockedRawDebug = tilesForSpawn.filter((t: any) => t && !t.destroyed && t.locked);
                 const lockedWithScaleDebug = lockedRawDebug.filter((t: any) => t && (t as any).scale);
                 const lockedExcludedDebug = lockedRawDebug.filter((t: any) => {
@@ -8107,7 +8066,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               } catch {}
               const forceUnlockLockedTiles = async (k: number) => {
                 if (!k || k <= 0) return 0;
-                const excludeSet = new Set([...pulledCellsSet, `${gx},${gy}`]);
+                const excludeSet = new Set([...pulledCellsSet]);
                 const lockedCandidates = tilesForSpawn.filter((t: any) => {
                   if (!t || t.destroyed || !t.locked) return false;
                   if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
@@ -8148,7 +8107,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 fixHoverAnchor,
                 spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
                 wildMergeTarget,
-                excludeCells: new Set([...pulledCellsSet, `${gx},${gy}`]),
+                excludeCells: pulledCellsSet,
               } as any);
               if ((opened || 0) === 0 && remainingSpawnCount > 0) {
                 devWarn('⚠️ NORMAL SPAWN: openLockedBounceParallel opened 0, forcing unlock of locked tiles');
@@ -8156,7 +8115,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 opened += (forcedOpened || 0);
               }
               const remainder = Math.max(0, remainingSpawnCount - (opened || 0));
-              devLog(`🧪 SPAWN QA (regular): requested=${regularSpawnCount} mergeCell=${mergeCellOpened} opened=${opened || 0} remainder=${remainder}`);
+              devLog(`🧪 SPAWN QA (regular): requested=${regularSpawnCount} opened=${opened || 0} remainder=${remainder}`);
               if (remainder > 0) {
                 const excludeCells: { r: number; c: number }[] = [{ r: gy, c: gx }];
                 for (let i = 0; i < remainder; i++) {
@@ -8184,7 +8143,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       fixHoverAnchor,
                       spawnBounce: (t, done, o) => SPAWN.spawnBounce(t, gsap, o, done),
                       wildMergeTarget,
-                      excludeCells: new Set([...pulledCellsSet, `${gx},${gy}`]),
+                      excludeCells: pulledCellsSet,
                     } as any);
                   }
                 }
@@ -8728,78 +8687,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
             return value > 0 || isWild;
           };
-          const hasActiveAtMergeCell = () => {
-            return tiles.some((t: any) => {
-              if (!isActiveTile(t)) return false;
-              return (t.gridX | 0) === (gx | 0) && (t.gridY | 0) === (gy | 0);
-            });
-          };
-          const forceSpawnAtMergeCell = async (): Promise<boolean> => {
-            const pickSpawnValue = () => (wildMergeTarget ? (() => {
-              const candidates = [1, 2, 3, 4, 5].filter(v => v !== wildMergeTarget);
-              return candidates[(Math.random() * candidates.length) | 0];
-            })() : null);
-
-            // Try openAtCell twice (race-safe) before hard fallback.
-            for (let attempt = 0; attempt < 2; attempt++) {
-              const ok = await openAtCell(gx, gy, {
-                value: pickSpawnValue(),
-                skipBind: false,
-                timeScale: 2.0,
-                forceFreshPlaceholder: true,
-              }).catch(() => false);
-              if (ok || hasActiveAtMergeCell()) return true;
-              await waitTracked(80);
-            }
-
-            // Hard fallback: forcibly create/unlock tile at merge cell.
-            try {
-              if (grid?.[gy]?.[gx]) {
-                const existing = grid[gy][gx];
-                if (existing && !existing.destroyed && tiles.includes(existing)) {
-                  removeTile(existing);
-                }
-                grid[gy][gx] = null;
-              }
-              const t = makeBoard?.createTile?.({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
-              if (!t) return false;
-              t.locked = false;
-              t.eventMode = 'static';
-              t.cursor = 'pointer';
-              resetTileToNormalState?.(t);
-              if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
-              const forcedValue = wildMergeTarget ? (() => {
-                const candidates = [1, 2, 3, 4, 5].filter(v => v !== wildMergeTarget);
-                return candidates[(Math.random() * candidates.length) | 0];
-              })() : [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
-              makeBoard?.setValue?.(t, forcedValue, 0, { immediate: true });
-              t.visible = true;
-              t.alpha = 1;
-              if (t.rotG) t.rotG.alpha = 1;
-              if (t.base) t.base.alpha = 1;
-              if (t.overlay) { t.overlay.alpha = 1; t.overlay.visible = false; }
-              if (t.num) t.num.alpha = 1;
-              if (t.pips) { t.pips.alpha = 1; t.pips.visible = true; }
-              try { fixHoverAnchor?.(t); } catch {}
-              SPAWN?.spawnBounce?.(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: 2.0, keepFullOpacity: true });
-              return hasActiveAtMergeCell();
-            } catch (err) {
-              devWarn('⚠️ SAFETY: Hard fallback spawn at merge cell failed', err);
-              return false;
-            }
-          };
-
-          // 🔥 P1 BUG FIX: For regular merge-6 (non-final), merge result must ALWAYS be visible at merge cell.
-          // If merge-cell refill races/fails, force it before endgame check to avoid "invisible merge result + instant fail".
-          if (isRegularMerge6 && !isLastMergeFlagSet && !hasActiveAtMergeCell()) {
-            devWarn('🚨 SAFETY: Regular merge-6 missing tile at merge cell - forcing refill before endgame check');
-            const forcedMergeCell = await forceSpawnAtMergeCell();
-            if (!forcedMergeCell) {
-              devWarn('⚠️ SAFETY: Could not guarantee merge-cell refill for regular merge-6');
-            } else {
-              pendingMandatoryMergeCellSpawn = null;
-            }
-          }
 
           const activeTilesNow = tiles.filter(isActiveTile);
           if (activeTilesNow.length < 2) {
@@ -8808,32 +8695,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               activeTiles: activeTilesNow.length,
               needed
             });
-            // 🔥 HARD RULE: For regular merge-6 (not last merge), first try to refill original merge cell.
-            if (isRegularMerge6 && !isLastMergeFlagSet) {
-              const hasActiveAtDst = tiles.some((t: any) => {
-                if (!t || t.destroyed || t.locked) return false;
-                if ((t.gridX | 0) !== (gx | 0) || (t.gridY | 0) !== (gy | 0)) return false;
-                const v = (t.value | 0);
-                return v > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
-              });
-              if (!hasActiveAtDst) {
-                const forcedDst = await openAtCell(gx, gy, {
-                  value: wildMergeTarget ? (() => {
-                    const candidates = [1, 2, 3, 4, 5].filter(v => v !== wildMergeTarget);
-                    return candidates[(Math.random() * candidates.length) | 0];
-                  })() : null,
-                  skipBind: false,
-                  timeScale: 2.0,
-                  forceFreshPlaceholder: true,
-                }).catch(() => false);
-                if (forcedDst) {
-                  devWarn('🛡️ SAFETY: Forced refill at merge cell succeeded before generic fallback');
-                  pendingMandatoryMergeCellSpawn = null;
-                } else {
-                  devWarn('⚠️ SAFETY: Forced refill at merge cell failed, continuing generic fallback');
-                }
-              }
-            }
             const tilesForSpawn = Array.isArray(STATE.tiles) ? STATE.tiles : tiles;
             const opened = await FLOW.openLockedBounceParallel({
               tiles: tilesForSpawn,
