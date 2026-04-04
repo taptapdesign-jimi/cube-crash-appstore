@@ -3,6 +3,9 @@ type SaveGuardDeps = {
   userMadeMove: boolean;
   gameHasEnded: boolean;
   gridReady: boolean;
+  runMode?: string | null;
+  cameFromJourney?: boolean;
+  cameFromInterimBoard?: boolean;
   devLog: (...args: any[]) => void;
 };
 
@@ -11,8 +14,22 @@ export function canSaveGameState({
   userMadeMove,
   gameHasEnded,
   gridReady,
+  runMode,
+  cameFromJourney,
+  cameFromInterimBoard,
   devLog,
 }: SaveGuardDeps){
+  // Homepage one-time run must not persist state (no resume/continue flow).
+  if (runMode === 'arcade_home') {
+    // Journey context has priority: stale runMode must not disable journey resume.
+    if (cameFromJourney || cameFromInterimBoard) {
+      devLog('💾 Arcade runMode ignored because Journey context is active');
+    } else {
+    devLog('💾 Arcade home one-time run, skipping save');
+    return false;
+    }
+  }
+
   // CRITICAL FIX: Don't save game state if game has ended
   if (gameHasEnded) {
     devLog('💾 Game has ended, skipping save');

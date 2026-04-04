@@ -13,7 +13,8 @@ import { logger } from '../core/logger.js';
 const HEARTS_STORAGE_KEY = 'cc_journey_hearts';
 const HEARTS_REFILL_TIME_KEY = 'cc_journey_hearts_refill_time';
 const MAX_HEARTS = 3;
-const REFILL_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes per heart
+// NOTE: Temporary prod tweak per request. Revert to 30 * 60 * 1000 when done testing.
+const REFILL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes per heart (all modes)
 
 interface HeartsState {
   currentHearts: number;
@@ -245,4 +246,3 @@ class HeartsSystem {
 
 // Export singleton instance
 export const heartsSystem = new HeartsSystem();
-

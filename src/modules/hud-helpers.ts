@@ -9,6 +9,7 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.ts';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -246,7 +247,7 @@ function ensureBoardIndicator() {
   
   const label = document.createElement('div');
   label.id = 'hud-board-indicator-label';
-  label.textContent = 'Board 01';
+  label.textContent = isArcadeHomeRunMode() ? 'Arcade' : 'Board 01';
   label.style.cssText = `
     min-width: 135px;
     padding: 4px 12px;
@@ -366,6 +367,10 @@ function updateBoardIndicatorValue(boardNumber) {
     ensureBoardIndicator();
   }
   if (boardIndicatorLabel) {
+    if (isArcadeHomeRunMode()) {
+      boardIndicatorLabel.textContent = 'Arcade';
+      return;
+    }
     const padded = String(Math.max(0, boardNumber | 0)).padStart(2, '0');
     boardIndicatorLabel.textContent = `Board ${padded}`;
   }
@@ -767,6 +772,7 @@ function stopComboFX(){
 
 export function layout({ app, top }: { app: Application; top?: number }): void { 
   if (!HUD_ROOT) return;
+  const isArcadeRun = isArcadeHomeRunMode();
   const vw = app.renderer.width;
   const vh = app.renderer.height;
   
@@ -878,9 +884,10 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       // Combo right edge should be 12px left of wild preloader right edge
       const comboRightEdge = wildPreloaderRightEdge - 12; // vw - 36px
       
-      // Position combo so its right edge is 8px left of wild preloader right edge
-      // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
-      comboWrap.x = comboRightEdge - totalWidth / 2;
+      // Position combo so its right edge is 12px left of wild preloader right edge.
+      // Keep right alignment in arcade as well.
+      const comboDefaultX = comboRightEdge - totalWidth / 2;
+      comboWrap.x = comboDefaultX;
       comboWrap.y = yValue;
       
     }
@@ -896,9 +903,10 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       // Icon center is at comboCenterX - estimatedComboWidth/2 + 14 (half of 28px)
       const comboIconLeftEdge = comboCenterX - estimatedComboWidth / 2;
       
-      // Coin center is 80px left of combo icon left edge
-      // Since coin container anchor is at center, we need to position it correctly
-      coin.container.x = comboIconLeftEdge - comboToCoinSpacing;
+      // Coin center is 80px left of combo icon left edge.
+      // Keep right-aligned pair in arcade as well.
+      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing;
+      coin.container.x = coinDefaultX;
       coin.container.y = yValue;
       
       // 🔥 USER REQUEST: Position score touch area (red rectangle) over coinHud
@@ -914,6 +922,13 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     
     // Star - 64px left of Coin ICON (not center) - fixed position (same spacing as before)
     if (star && star.container) {
+      if (isArcadeRun) {
+        star.container.visible = false;
+        star.container.renderable = false;
+      } else {
+        star.container.visible = true;
+        star.container.renderable = true;
+      }
       // Calculate combo and coin positions
       const estimatedComboWidth = 62;
       const comboCenterX = rightEdge - estimatedComboWidth / 2;
@@ -1630,6 +1645,11 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     fontWeight: 'bold',
     fontStyle: 'normal'
   });
+  if (isArcadeHomeRunMode()) {
+    starHud.container.visible = false;
+    starHud.container.renderable = false;
+    starHud.container.eventMode = 'none';
+  }
   
   // 2. Coin (score) - third - using score-hud.png instead of coin-hud.png
   const coinHud = createHudElement('./assets/hud/score-hud.png', '0', {
@@ -3245,6 +3265,7 @@ export function animateHUDDrop() {
  * Get star HUD icon position in screen coordinates
  */
 export function getStarHudPosition() {
+  if (isArcadeHomeRunMode()) return null;
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
     return null;
   }
@@ -3266,6 +3287,12 @@ export function getStarHudPosition() {
  * Bounce animation on star HUD icon (like stack merge bounce)
  */
 export function bounceStarIcon(onComplete) {
+  if (isArcadeHomeRunMode()) {
+    if (onComplete && typeof onComplete === 'function') {
+      try { onComplete(); } catch {}
+    }
+    return;
+  }
   console.log('⭐ bounceStarIcon called, has callback:', !!onComplete);
   
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
@@ -3348,6 +3375,7 @@ export function bounceStarIcon(onComplete) {
  * Set stars count and update HUD display
  */
 export function setStarsCount(count) {
+  if (isArcadeHomeRunMode()) return;
   if (!starText) {
     console.warn('⚠️ starText not available, cannot set stars count');
     return;

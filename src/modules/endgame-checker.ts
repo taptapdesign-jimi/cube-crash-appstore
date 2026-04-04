@@ -74,7 +74,7 @@ export function clearEndgameCheckerCache(): void {
 /**
  * Create a hash of tile array for cache invalidation
  * Uses tile references and key properties to detect changes
- * OPTIMIZED: Uses simple hash instead of full string concatenation for performance
+ * NOTE: We include ALL tiles to avoid stale cache causing false fail screens.
  */
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
@@ -85,6 +85,15 @@ function tileIsWild(tile: any): boolean {
     special === 'wild-tnt' ||
     tile.isWild === true ||
     tile.isWildFace === true;
+}
+
+function isWildEffectivelyPresent(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (!tileIsWild(tile)) return false;
+  if (tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  if (tile.eventMode === 'none') return false;
+  return true;
 }
 
 /**
@@ -115,23 +124,19 @@ export function tileIsActive(tile: any): boolean {
 
 function createTilesHash(tiles: any[]): string {
   try {
-    // OPTIMIZED: Use simple hash based on length + first few tile properties
-    // This is much faster than concatenating all tile properties
+    // Use full hash based on length + ALL tile properties to prevent stale cache.
+    // Board is small (4x6), so this is safe and avoids false endgame detection.
     let hash = tiles.length.toString();
-    
-    // Only check first 10 tiles for hash (enough to detect changes)
-    const checkCount = Math.min(10, tiles.length);
-    for (let i = 0; i < checkCount; i++) {
+    for (let i = 0; i < tiles.length; i++) {
       const t = tiles[i];
       if (!t) {
         hash += '|null';
         continue;
       }
-      // Use key properties: value, locked, special
-      const tileId = (t as any).uid || (t as any).gridX + '_' + (t as any).gridY || i;
+      const tileId = (t as any).uid || `${(t as any).gridX}_${(t as any).gridY}` || i;
       const aliveFlag = t.destroyed ? 'D' : 'A';
       const visibleFlag = t.visible === false ? 'H' : 'V';
-      const modeFlag = t.eventMode === 'none' ? 'N' : 'S';
+      const modeFlag = t.eventMode === 'none' ? 'N' : (t.eventMode || 'S');
       hash += `|${tileId}:${(t.value|0)}:${t.locked ? 'L' : 'U'}:${aliveFlag}${visibleFlag}${modeFlag}:${t.special || 'none'}`;
     }
     
@@ -467,15 +472,9 @@ function checkWildCombinations(wildStars: any[], magnets: any[], mergeableNonWil
 function isGameStuck(context: EndGameContext): boolean {
   const { tiles } = context;
 
-  // 🔥 SAFETY: If ANY wild exists, game can continue (wild = definitively not fail screen)
-  // User: "kad imamo wild star da je to definitivno nastava igre a ne fail screen"
-  const rawWildsAll = tiles.filter((t: any) =>
-    t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet' || t.isWild === true || t.isWildFace === true)
-  );
-  if (rawWildsAll.length > 0) {
-    console.log('✅ isGameStuck: Wild present on board - NOT stuck');
-    return false;
-  }
+  // Do NOT short-circuit on "any wild visible". Wild + wild is blocked; a lone wild with no
+  // merge partner is stuck; magnet may have nothing to pull. anyMergePossible + checks below
+  // already treat "wild that can continue" (wild+regular, magnet+other) as not stuck.
 
   // Get active tiles for detailed analysis
   const activeTiles = getActiveTiles(tiles);
@@ -510,7 +509,7 @@ function isGameStuck(context: EndGameContext): boolean {
   }
 
   // Fourth check: wild tile combinations
-  const { wildCubes, wildStars, magnets, mergeableNonWildTiles } = getTileCategories(activeTiles);
+  const { wildStars, magnets, mergeableNonWildTiles } = getTileCategories(activeTiles);
 
   if (checkWildCombinations(wildStars, magnets, mergeableNonWildTiles)) {
     return false;
@@ -519,7 +518,7 @@ function isGameStuck(context: EndGameContext): boolean {
   // 🔥 SAFETY: Direct scan of raw tiles for wild - never skip wild in endgame
   // User: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Bypasses cache/filtering - catches wilds that might be locked, animating, or missed
-  const rawWilds = tiles.filter((t: any) => t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true));
+  const rawWilds = tiles.filter((t: any) => isWildEffectivelyPresent(t));
   const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-juice' && t.special !== 'wild-tnt' && t.isWild !== true && t.isWildFace !== true && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
   if (rawWilds.length > 0) {
     const hasMagnet = rawWilds.some((t: any) => t.special === 'wild-magnet');
@@ -558,6 +557,21 @@ function isMovesDepleted(context: EndGameContext): boolean {
 export function checkEndGame(context: EndGameContext, forceRefresh: boolean = false): EndGameResult {
   const now = Date.now();
   const contextHash = createContextHash(context);
+
+  // External transition guard (set from app-core/app-merge) - avoid evaluating transient states.
+  try {
+    const guardState = (typeof window !== 'undefined' && (window as any)?.CC?.getEndgameGuardState)
+      ? (window as any).CC.getEndgameGuardState()
+      : null;
+    if (guardState?.active) {
+      const guardedResult: EndGameResult = { type: 'continue', reason: 'external_guard_active' };
+      lastCheckResult = guardedResult;
+      lastCheckTime = now;
+      lastCheckContextHash = contextHash;
+      logger.debug('🛡️ EndGameChecker: external guard active, skipping evaluation', 'endgame-checker', guardState);
+      return guardedResult;
+    }
+  } catch {}
   
   // If forceRefresh is true, skip debouncing (for critical checks like after tile removal)
   if (!forceRefresh) {

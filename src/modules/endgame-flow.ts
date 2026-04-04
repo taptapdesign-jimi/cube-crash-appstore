@@ -2,6 +2,7 @@
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
+import { isArcadeHomeRunMode } from './run-mode.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -297,6 +298,27 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     if (modalResult?.action === 'exit') {
+      if (isArcadeHomeRunMode()) {
+        console.log('🚪 endgame-flow: Exit action in arcade_home mode - returning to homepage');
+        logger.info('🚪 endgame-flow: arcade_home exit -> homepage');
+        try {
+          (window as any).__ccCameFromHomepage = true;
+          (window as any).__ccCameFromJourney = false;
+          localStorage.setItem('__ccCameFromHomepage', 'true');
+          localStorage.removeItem('__ccCameFromJourney');
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+          delete (window as any).__skipBoardExitAnimation;
+          if (typeof (window as any).exitToMenu === 'function') {
+            await (window as any).exitToMenu();
+          }
+        } catch (error) {
+          console.error('❌ endgame-flow: Failed to exit arcade_home run:', error);
+          logger.error('❌ endgame-flow: Failed to exit arcade_home run:', error);
+        }
+        return;
+      }
+
       // User clicked "Exit" → return DIRECTLY to detail modal (not Journey screen)
       console.log('🚪 endgame-flow: Exit action - returning DIRECTLY to detail modal');
       logger.info(`🚪 endgame-flow: Exit action - opening detail modal for board ${boardNumber}`);

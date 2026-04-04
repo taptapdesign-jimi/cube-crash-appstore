@@ -5,7 +5,9 @@
  */
 
 import { boardStatsService } from '../services/board-stats-service.js';
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
@@ -14,6 +16,25 @@ let isVisible = false;
 // Outside click handlers (same pattern as end-run-modal)
 let outsideClickHandler: ((e: Event) => void) | null = null;
 let outsideTouchEndHandler: ((e: TouchEvent) => void) | null = null;
+
+function getScoreSheetStats(boardNumber: number): { highScore: number; cubesCracked: number; subtitle: string } {
+  if (isArcadeHomeRunMode()) {
+    const arcadeStats = arcadeStatsService.getStats();
+    return {
+      highScore: arcadeStats.highScore,
+      cubesCracked: arcadeStats.cubesCracked,
+      subtitle: 'Your Arcade trophy.<br>Beat it to earn a new one.'
+    };
+  }
+
+  const boardStats = boardStatsService.getBoardStats(boardNumber);
+  const boardNumberStr = boardNumber.toString().padStart(2, '0');
+  return {
+    highScore: boardStats.highScore,
+    cubesCracked: boardStats.cubesCracked,
+    subtitle: `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`
+  };
+}
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, rAFs, and event listeners for cleanup
 const _scoreSheetTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -162,6 +183,9 @@ function createModal(): HTMLElement {
   }
   
   const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
+  const subtitleText = isArcadeHomeRunMode()
+    ? 'Your Arcade trophy.<br>Beat it to earn a new one.'
+    : `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`;
   
   modalEl.innerHTML = `
     <div class="modal-handle"></div>
@@ -169,7 +193,7 @@ function createModal(): HTMLElement {
       <div class="simple-header">
         <div class="simple-title-section">
           <h2 id="score-sheet-title">Score Stats</h2>
-          <p id="score-sheet-subtitle">Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.</p>
+          <p id="score-sheet-subtitle">${subtitleText}</p>
         </div>
         <div class="score-stats-container">
           <!-- High Score -->
@@ -475,19 +499,19 @@ export function showScoreBottomSheet(): void {
       console.warn('⚠️ Failed to get board number for score bottom sheet refresh:', error);
     }
     
-    // Get fresh board-specific stats
-    const boardStats = boardStatsService.getBoardStats(currentBoardNumber);
+    const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
     
     // Update values with fresh stats
     const highScoreEl = document.getElementById('score-sheet-high-score');
     const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
     
-    if (highScoreEl) highScoreEl.textContent = boardStats.highScore.toLocaleString();
-    if (cubesCrackedEl) cubesCrackedEl.textContent = boardStats.cubesCracked.toLocaleString();
+    if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
+    if (cubesCrackedEl) cubesCrackedEl.textContent = scoreSheetStats.cubesCracked.toLocaleString();
     
     console.log(`📊 Score bottom sheet stats refreshed for board ${currentBoardNumber}:`, {
-      highScore: boardStats.highScore,
-      cubesCracked: boardStats.cubesCracked
+      highScore: scoreSheetStats.highScore,
+      cubesCracked: scoreSheetStats.cubesCracked,
+      arcade: isArcadeHomeRunMode()
     });
     
     return; // Don't recreate modal, just refresh stats
@@ -550,25 +574,22 @@ export function showScoreBottomSheet(): void {
   
   const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
   const subtitleEl = document.getElementById('score-sheet-subtitle');
-  if (subtitleEl) {
-    subtitleEl.innerHTML = `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`;
-  }
+  const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
+  if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
   
-  // 🔥 CRITICAL FIX: Use board-specific stats instead of global stats
-  // This ensures score bottom sheet shows correct stats for current board
-  // and updates correctly when reset is clicked on detail card modal
-  const boardStats = boardStatsService.getBoardStats(currentBoardNumber);
-  
-  // Update values with board-specific stats
+  // Update values with mode-specific stats:
+  // - Journey: board-specific
+  // - Arcade: arcade-only (independent from Journey)
   const highScoreEl = document.getElementById('score-sheet-high-score');
   const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
   
-  if (highScoreEl) highScoreEl.textContent = boardStats.highScore.toLocaleString();
-  if (cubesCrackedEl) cubesCrackedEl.textContent = boardStats.cubesCracked.toLocaleString();
+  if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
+  if (cubesCrackedEl) cubesCrackedEl.textContent = scoreSheetStats.cubesCracked.toLocaleString();
   
   console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
-    highScore: boardStats.highScore,
-    cubesCracked: boardStats.cubesCracked
+    highScore: scoreSheetStats.highScore,
+    cubesCracked: scoreSheetStats.cubesCracked,
+    arcade: isArcadeHomeRunMode()
   });
 
   // Show modal with animation (same as end-run-modal)

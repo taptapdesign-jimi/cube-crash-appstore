@@ -847,15 +847,21 @@ export function clearNoMovesText(): void {
  */
 export function exitNoMovesText(): Promise<void> {
   return new Promise((resolve) => {
-    if (!noMovesOverlay || !noMovesOverlay.isConnected) {
+    let resolved = false;
+    const safeResolve = () => {
+      if (resolved) return;
+      resolved = true;
       cleanupNoMovesOverlay();
       resolve();
+    };
+
+    if (!noMovesOverlay || !noMovesOverlay.isConnected) {
+      safeResolve();
       return;
     }
     const container = noMovesOverlay.querySelector('div');
     if (!container || container.children.length === 0) {
-      cleanupNoMovesOverlay();
-      resolve();
+      safeResolve();
       return;
     }
     const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
@@ -899,9 +905,16 @@ export function exitNoMovesText(): Promise<void> {
       EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
       EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
       0.05;
+
+    // Fallback: even if GSAP delayedCall gets killed by global cleanup, never hang fail flow.
+    const fallbackMs = Math.max(250, Math.ceil(exitTotal * 1000) + 120);
+    const fallbackTimer = setTimeout(() => {
+      safeResolve();
+    }, fallbackMs);
+
     trackDelayedCall(exitTotal, () => {
-      cleanupNoMovesOverlay();
-      resolve();
+      try { clearTimeout(fallbackTimer); } catch {}
+      safeResolve();
     });
   });
 }

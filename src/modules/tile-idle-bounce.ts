@@ -42,6 +42,14 @@ let state: IdleBounceState = {
 // 🔥 FIX: Track initial timeout separately
 let initialTimeout: ReturnType<typeof setTimeout> | null = null;
 
+function isWildTile(tile: Tile | null | undefined): boolean {
+  if (!tile) return false;
+  if (tile.isWild === true || tile.isWildFace === true) return true;
+  const special = typeof tile.special === 'string' ? tile.special.toLowerCase() : '';
+  // Covers current and future wild flavors: wild, wild-juice, wild-magnet, wild-tnt, etc.
+  return special === 'wild' || special.startsWith('wild-');
+}
+
 export function startTileIdleBounce(tiles: Tile[], board: any): void {
   if (!ENABLE_TILE_IDLE_BOUNCE) return;
   
@@ -223,7 +231,8 @@ function animateTile(tile: Tile): void {
   
   // Activate smoke bubbles at 0.1s (peak of animation)
   tl.call(() => {
-    if (state.board && tile) {
+    // USER REQUEST: Idle smoke belongs only to regular cubes, never to active wild cubes.
+    if (state.board && tile && !isWildTile(tile)) {
       smokeBubblesAtTile(state.board, tile, TILE, 1.10, {
         behind: true,
         baseAlpha: 0.58,

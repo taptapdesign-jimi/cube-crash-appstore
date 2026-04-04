@@ -14,9 +14,11 @@ import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -444,11 +446,24 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
 
 async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any): Promise<void> {
   console.log('🧲 mergePulledTilesIntoMerge6: Removing', tiles.length, 'pulled tiles and adding 4x multiplier animations to existing merge 6');
+  const endgameGuardSource = 'mergePulledTilesIntoMerge6';
+  const beginEndgameGuard = (window as any)?.CC?.beginEndgameGuard;
+  const endEndgameGuard = (window as any)?.CC?.endEndgameGuard;
+  let endgameGuardActive = false;
+  if (typeof beginEndgameGuard === 'function') {
+    try {
+      beginEndgameGuard(endgameGuardSource, 2200);
+      endgameGuardActive = true;
+    } catch (error) {
+      console.warn('⚠️ Failed to begin endgame guard in mergePulledTilesIntoMerge6', error);
+    }
+  }
   
-  // Filter valid tiles
-  const validTiles = tiles.filter((t: any) => t && !t.destroyed);
-  const pulledTileCount = validTiles.length;
-  const pulledCells: { c: number; r: number }[] = [];
+  try {
+    // Filter valid tiles
+    const validTiles = tiles.filter((t: any) => t && !t.destroyed);
+    const pulledTileCount = validTiles.length;
+    const pulledCells: { c: number; r: number }[] = [];
   
   // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode B — No tiles to attract
   // Magnet must not invent attraction. If the merge is final Merge-6 → trigger CLEAN BOARD
@@ -1081,6 +1096,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Stats - track cubes cracked for magnet pull merge
   statsService.incrementCubesCracked(1);
   statsService.incrementHelpersUsed(1);
+  if (isArcadeHomeRunMode()) {
+    arcadeStatsService.addCubesCracked(1);
+  }
   
   // 🔥 USER REQUEST: Track cubes cracked per-board for magnet pull merge
   try {
@@ -2461,18 +2479,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Clear the flag since new tiles were spawned
     (dst as any)._isLastMerge = false;
   }
-  console.log('🧲 Board has mergeable tiles OR new tiles were spawned - NOT calling checkLevelEnd yet, waiting for player to merge');
-  console.log('🧲 Details:', {
-    isBoardClean,
-    hasUnlockedTiles,
-    hasMergeOrStackPotential,
-    isLastMergeFlagSet,
-    hasSpawnedNewTiles,
-    isActuallyLastMerge,
-    activeTilesCount: activeTilesFinal.length,
-    unlockedTilesCount: unlockedActiveTiles.length,
-    note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
-  });
+    console.log('🧲 Board has mergeable tiles OR new tiles were spawned - NOT calling checkLevelEnd yet, waiting for player to merge');
+    console.log('🧲 Details:', {
+      isBoardClean,
+      hasUnlockedTiles,
+      hasMergeOrStackPotential,
+      isLastMergeFlagSet,
+      hasSpawnedNewTiles,
+      isActuallyLastMerge,
+      activeTilesCount: activeTilesFinal.length,
+      unlockedTilesCount: unlockedActiveTiles.length,
+      note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
+    });
+  } finally {
+    if (endgameGuardActive && typeof endEndgameGuard === 'function') {
+      try {
+        endEndgameGuard(endgameGuardSource);
+      } catch (error) {
+        console.warn('⚠️ Failed to end endgame guard in mergePulledTilesIntoMerge6', error);
+      }
+    }
+  }
 }
 
 export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<boolean> {

@@ -6,6 +6,7 @@ import { Container, Sprite, Graphics, Assets, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { detachWildStarHalo } from './wild-stars.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -213,6 +214,9 @@ function processBounceQueue() {
 }
 
 export function addStars(count: number): void {
+  if (isArcadeHomeRunMode()) {
+    return;
+  }
   const oldCount = starsCount;
   starsCount += count;
   console.log('⭐ Stars added:', count, 'Total:', starsCount, 'Old count:', oldCount);
@@ -240,6 +244,10 @@ export function addStars(count: number): void {
  * Set stars count directly
  */
 export function setStarsCount(count: number): void {
+  if (isArcadeHomeRunMode()) {
+    starsCount = 0;
+    return;
+  }
   starsCount = Math.max(0, count);
   console.log('⭐ Stars count set to:', starsCount);
   
@@ -256,6 +264,10 @@ export async function collectStarsFromWildTile(
   wildTile: any,
   merge6Position: { x: number; y: number }
 ): Promise<void> {
+  if (isArcadeHomeRunMode()) {
+    try { detachWildStarHalo(wildTile); } catch {}
+    return;
+  }
   if (!config || !wildTile) {
     console.warn('⚠️ Cannot collect stars: config or wildTile missing');
     return;

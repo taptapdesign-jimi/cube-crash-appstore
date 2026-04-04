@@ -9,11 +9,13 @@ import animationManager from './animation-manager.js';
 import { allowConfettiSpawns, createConfettiExplosion } from './confetti-system.js';
 import { statsService } from '../services/stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
 import { formatScoreSimple } from './hud-utils.js';
 import { clearPendingCleanBoard } from './board-recovery.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -246,8 +248,19 @@ export async function showCleanBoardModal({
     const scoreAfterCombo = Math.min(scoreCap, currentScore + safeComboBonus);
     const finalScore = Math.min(scoreCap, scoreAfterCombo + safeEfficiencyBonus);
     
-    // Get previous best score (board-specific first, then legacy/global fallback)
+    const isArcadeHomeRun = isArcadeHomeRunMode();
+
+    // Get previous best score (mode-specific).
     const getBestScore = (): number => {
+      if (isArcadeHomeRun) {
+        try {
+          const arcadeHighScore = arcadeStatsService.getStats().highScore;
+          if (Number.isFinite(arcadeHighScore)) return arcadeHighScore | 0;
+        } catch (error) {
+          console.warn('⚠️ Failed to read arcade high score:', error);
+        }
+      }
+
       try {
         const boardStats = boardStatsService?.getBoardStats?.(boardNumber);
         const boardHighScore = boardStats?.highScore;
@@ -280,7 +293,7 @@ export async function showCleanBoardModal({
       return 0;
     };
     const previousBestScore = getBestScore();
-    const highScoreJustUpdated = typeof statsService?.wasHighScoreJustUpdated === 'function'
+    const highScoreJustUpdated = !isArcadeHomeRun && typeof statsService?.wasHighScoreJustUpdated === 'function'
       ? statsService.wasHighScoreJustUpdated(finalScore)
       : false;
     // Use final score (includes bonus) against board-specific high score
@@ -575,6 +588,7 @@ export async function showCleanBoardModal({
       console.log('🎯 Clean board: opened from detail modal → Play Again + Exit only');
     }
     console.log('🎯 Clean board modal: isFromInterimBoard =', isFromInterimBoard, {
+      isArcadeHomeRun,
       cameFromDetailModal,
       __ccFromInterimBoard: (window as any).__ccFromInterimBoard,
       __ccIsInterimBoard: (window as any).__ccIsInterimBoard,
@@ -594,7 +608,9 @@ export async function showCleanBoardModal({
     const primaryBtn = document.createElement('button');
     primaryBtn.type = 'button';
     // 🧪 DEV: In dev mode, always show "Continue" to test board transition screen
-    primaryBtn.textContent = (devMode || isFromInterimBoard) ? 'Continue' : 'Play Again';
+    primaryBtn.textContent = isArcadeHomeRun
+      ? 'Exit'
+      : ((devMode || isFromInterimBoard) ? 'Continue' : 'Play Again');
     primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     primaryBtn.style.width = '100%';
     primaryBtn.style.maxWidth = buttonWidth;
@@ -611,7 +627,9 @@ export async function showCleanBoardModal({
     secondaryBtn.style.whiteSpace = 'nowrap';
     
     // Add buttons to container
-    buttonContainer.appendChild(primaryBtn);
+    if (!isArcadeHomeRun) {
+      buttonContainer.appendChild(primaryBtn);
+    }
     if (secondaryBtn) {
       buttonContainer.appendChild(secondaryBtn);
     }
@@ -708,16 +726,25 @@ export async function showCleanBoardModal({
     // This ensures the score (with bonuses) is saved even if user hard-exits before clicking CTA
     // Previously, high score was only updated when user clicked Continue/Exit/Play Again
     try {
-      const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
-      if (isNewHigh) {
-        console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
+      if (isArcadeHomeRun) {
+        const isNewArcadeHigh = arcadeStatsService.updateHighScore(finalScore);
+        if (isNewArcadeHigh) {
+          console.log(`🏆 clean-board-modal: New ARCADE high score: ${finalScore} (saved immediately on modal show)`);
+        } else {
+          console.log(`✅ clean-board-modal: ARCADE high score checked: ${finalScore} (not a new high)`);
+        }
       } else {
-        console.log(`✅ clean-board-modal: Board ${boardNumber} high score checked: ${finalScore} (not a new high)`);
+        const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+        if (isNewHigh) {
+          console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
+        } else {
+          console.log(`✅ clean-board-modal: Board ${boardNumber} high score checked: ${finalScore} (not a new high)`);
+        }
+        
+        // Also update global high score immediately
+        statsService.updateHighScore(finalScore);
+        console.log(`✅ clean-board-modal: Global high score updated to ${finalScore} (on modal show)`);
       }
-      
-      // Also update global high score immediately
-      statsService.updateHighScore(finalScore);
-      console.log(`✅ clean-board-modal: Global high score updated to ${finalScore} (on modal show)`);
     } catch (e) {
       console.warn('⚠️ clean-board-modal: Failed to update high score on modal show:', e);
     }
@@ -748,7 +775,9 @@ export async function showCleanBoardModal({
     boardCleared.style.transition = 'none';
     
     // 🎯 PURE CSS: Set BOTH buttons to hidden state (CSS handles all animations)
-    setButtonInitialState(primaryBtn);
+    if (!isArcadeHomeRun) {
+      setButtonInitialState(primaryBtn);
+    }
     if (secondaryBtn) {
       setButtonInitialState(secondaryBtn);
     }
@@ -1037,14 +1066,18 @@ export async function showCleanBoardModal({
         // 🎯 SEQUENCE 8: Button(s) pop-in (sequential bounce - Play Again first, then Exit)
         // Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
         setTimeout(() => {
-          // PRIMARY BUTTON (Play Again) - bounce in immediately
-          animateButtonIn(primaryBtn);
-          
-          // SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (sekvencijalno)
-          if (secondaryBtn) {
-            setTimeout(() => {
-              animateButtonIn(secondaryBtn);
-            }, buttonStaggerMs); // 350ms delay between buttons
+          if (isArcadeHomeRun) {
+            // Homepage one-time run: show only Exit CTA.
+            if (secondaryBtn) animateButtonIn(secondaryBtn);
+          } else {
+            // PRIMARY BUTTON (Play Again) - bounce in immediately
+            animateButtonIn(primaryBtn);
+            // SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (sekvencijalno)
+            if (secondaryBtn) {
+              setTimeout(() => {
+                animateButtonIn(secondaryBtn);
+              }, buttonStaggerMs); // 350ms delay between buttons
+            }
           }
         }, 6620); // After boardCleared (6100 + 320 + 200)
       }
@@ -1374,20 +1407,19 @@ export async function showCleanBoardModal({
         }
         try { (window as any).updateHighScore?.(next); } catch {}
         
-        // Update high score with FINAL score (including bonuses) in board-stats-service
+        // Ensure final score is persisted in the correct high score bucket for this mode.
         try {
-          boardStatsService.updateBoardHighScore(boardNumber, finalScore);
-          console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore} on Continue`);
+          if (isArcadeHomeRun) {
+            arcadeStatsService.updateHighScore(finalScore);
+            console.log(`✅ clean-board-modal: Updated ARCADE high score: ${finalScore} on Continue`);
+          } else {
+            boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+            console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore} on Continue`);
+            statsService.updateHighScore(finalScore);
+            console.log(`✅ clean-board-modal: Updated global high score: ${finalScore} on Continue`);
+          }
         } catch (error) {
           console.warn(`⚠️ clean-board-modal: Failed to update high score on Continue:`, error);
-        }
-        
-        // Also update global high score
-        try {
-          statsService.updateHighScore(finalScore);
-          console.log(`✅ clean-board-modal: Updated global high score: ${finalScore} on Continue`);
-        } catch (error) {
-          console.warn(`⚠️ clean-board-modal: Failed to update global high score on Continue:`, error);
         }
         
         // SIMPLE: Clear completed board state (user clicked Continue, normal flow)
@@ -1667,20 +1699,19 @@ export async function showCleanBoardModal({
           console.warn(`⚠️ clean-board-modal: Failed to clear board saved state on Exit:`, clearError);
         }
         
-        // Update high score with FINAL score (including bonuses)
+        // Update high score with FINAL score (including bonuses) in correct mode bucket
         try {
-          boardStatsService.updateBoardHighScore(boardNumber, finalScore);
-          console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore}`);
+          if (isArcadeHomeRun) {
+            arcadeStatsService.updateHighScore(finalScore);
+            console.log(`✅ clean-board-modal: Updated ARCADE high score: ${finalScore}`);
+          } else {
+            boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+            console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore}`);
+            statsService.updateHighScore(finalScore);
+            console.log(`✅ clean-board-modal: Updated global high score: ${finalScore}`);
+          }
         } catch (error) {
           console.warn(`⚠️ clean-board-modal: Failed to update high score on Exit:`, error);
-        }
-        
-        // Also update global high score
-        try {
-          statsService.updateHighScore(finalScore);
-          console.log(`✅ clean-board-modal: Updated global high score: ${finalScore}`);
-        } catch (error) {
-          console.warn(`⚠️ clean-board-modal: Failed to update global high score on Exit:`, error);
         }
         
         // 🔥 MEMORY LEAK FIX: Final cleanup before resolving

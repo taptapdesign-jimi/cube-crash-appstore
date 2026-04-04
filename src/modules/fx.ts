@@ -12,6 +12,7 @@ import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -39,6 +40,7 @@ function getFxHotFactor(): number {
 
 /** Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild. */
 export function startWildStars(tile: Tile): void {
+  if (isArcadeHomeRunMode()) return;
   if (!tile || tile.special !== 'wild') return;
   attachWildStarHalo(tile);
 }
@@ -4099,6 +4101,9 @@ export function cleanupExistingStarAnimations() {
  * @param {Object} hudStarIconPos - HUD star icon position: { x, y }
  */
 export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos, app = null) {
+  if (isArcadeHomeRunMode()) {
+    return;
+  }
   const verboseLogs = isVerboseGameplayLogsEnabled();
   if (verboseLogs) console.log('⭐ animateStarsToHudIcon CALLED with:', {
     hasBoard: !!board,
@@ -5561,9 +5566,11 @@ export function wildImpactEffect(tile, opts = {}) {
 export function startWildIdle(tile, opts = {}){
   if (!tile) return;
   // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za juice/magnet/tnt
-  if (tile.special === 'wild') {
+  if (tile.special === 'wild' && !isArcadeHomeRunMode()) {
     try { stopWildIdle(tile); } catch {}
     try { startWildStars(tile); } catch {}
+  } else if (tile.special === 'wild' && isArcadeHomeRunMode()) {
+    try { stopWildStars(tile); } catch {}
   }
 
   const g = tile.rotG || tile;

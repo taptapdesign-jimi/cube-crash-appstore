@@ -14,6 +14,7 @@ import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idl
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
@@ -232,6 +233,7 @@ class JourneyBoardsManager {
   }
 
   private setJourneyOriginFlags(opts: { fromInterim: boolean; returningFromInterim?: boolean } ): void {
+    setRunMode(RUN_MODE_JOURNEY);
     (window as any).__ccCameFromJourney = true;
     (window as any).__ccCameFromHomepage = false;
     localStorage.setItem('__ccCameFromJourney', 'true');

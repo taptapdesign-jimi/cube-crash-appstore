@@ -1,3 +1,6 @@
+import { isArcadeHomeRunMode } from './run-mode.js';
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
+
 type MergeScoreDeps = {
   effSum: number;
   score: number;
@@ -32,6 +35,16 @@ export function applyMergeScore({
     devLog('✅ MERGE: statsService.updateHighScore called successfully');
   } catch (error) {
     devError('❌ MERGE: statsService.updateHighScore failed:', error);
+  }
+
+  // Arcade one-off run keeps its own independent high score.
+  if (isArcadeHomeRunMode()) {
+    try {
+      arcadeStatsService.updateHighScore(nextScore);
+      devLog('✅ MERGE: arcadeStatsService.updateHighScore called successfully');
+    } catch (error) {
+      devError('❌ MERGE: arcadeStatsService.updateHighScore failed:', error);
+    }
   }
   
   // COLLECTIBLES: Check for score-based unlocks

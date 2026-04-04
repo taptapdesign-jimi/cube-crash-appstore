@@ -3,6 +3,7 @@
 // Clean, modular architecture
 
 import './utils/console-suppress.js';
+import './utils/gsap-safe.js';
 
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
@@ -89,6 +90,7 @@ import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
+import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
 
 // Type definitions (ultra-permissive for quick TypeScript fix)
 interface GameState {
@@ -681,6 +683,7 @@ initializeApp().catch((error: Error) => {
 // 🔥 JOURNEY PROGRESSION: Helper function to start a new run for a specific board
 async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
+  setRunMode(RUN_MODE_JOURNEY);
   
   // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
   // This prevents wrong board from opening when exiting
@@ -792,6 +795,7 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).continueGameWithSavedState = async () => {
   memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
+  setRunMode(RUN_MODE_JOURNEY);
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
@@ -1136,6 +1140,7 @@ async function startNewRun(boardId: number): Promise<void> {
   memoryManager.start();
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
+  setRunMode(RUN_MODE_JOURNEY);
   
   // 🔥 Keep __ccCameFromDetailModal so clean board can show Play Again + Exit (not Continue)
   delete (window as any).__ccDetailModalBoardId;
@@ -1214,6 +1219,7 @@ async function startNewRun(boardId: number): Promise<void> {
 // New sequence handler: bottom sheet close → exit anim → game start
 (window as any).triggerGameStartSequence = async () => {
   logger.info('🎬 Starting game start sequence...');
+  setRunMode(RUN_MODE_ARCADE_HOME);
   
   // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
   // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -1321,6 +1327,16 @@ async function startNewRun(boardId: number): Promise<void> {
   try {
     const { clearNoMovesText } = await import('./modules/splash-text-overlay.js');
     clearNoMovesText();
+  } catch {}
+
+  // Remove any idle-smoke frame immediately so it doesn't get "baked" during exit.
+  try {
+    const { TILE_IDLE_BOUNCE } = await import('./modules/tile-idle-bounce.js');
+    TILE_IDLE_BOUNCE?.stop?.();
+  } catch {}
+  try {
+    const { cleanupFxContainersByTag } = await import('./modules/fx.js');
+    cleanupFxContainersByTag?.('tile-idle-smoke');
   } catch {}
   
   // 🔥🔥🔥 NUCLEAR CLEANUP: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
@@ -1826,8 +1842,23 @@ async function startNewRun(boardId: number): Promise<void> {
       // 3. If came from Journey Continue button → return to Journey (slide 1)
       let targetSlide = 0; // Default to homepage
       // returnToDetailModal and detailModalBoardId already declared at top of function
+      const isArcadeHomeRun = (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
       
       try {
+        // HARD OVERRIDE: Homepage arcade run must ALWAYS exit to homepage slide 0.
+        // Ignore stale Journey/detail-modal flags from previous sessions.
+        if (isArcadeHomeRun) {
+          targetSlide = 0;
+          returnToDetailModal = false;
+          detailModalBoardId = null;
+          (window as any).__ccCameFromHomepage = true;
+          (window as any).__ccCameFromJourney = false;
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+          localStorage.setItem('__ccCameFromHomepage', 'true');
+          localStorage.removeItem('__ccCameFromJourney');
+          console.log('🎮 Arcade exit override: forcing homepage slide 0 and clearing detail/journey flags');
+        } else {
         // 🔥 USER REQUEST: Check if user came from detail modal FIRST
         const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
         const detailModalBoardIdWindow = (window as any).__ccDetailModalBoardId;
@@ -1955,6 +1986,7 @@ async function startNewRun(boardId: number): Promise<void> {
           await resolveExitContext();
         } else {
           await resolveExitContext();
+        }
         }
       } catch (error) {
         console.warn('⚠️ Failed to determine target slide:', error);

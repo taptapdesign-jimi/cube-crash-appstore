@@ -47,3 +47,26 @@ export function resetTileToNormalState(tile: TileLike | null | undefined): void 
   delete tile._wildMagnetSpeedUp;
   delete tile._skipIdleScaleReset;
 }
+
+/**
+ * Locked tiles that still represent real board / level content (ice, not-yet-open cells).
+ * Excludes tiles temporarily `locked` during wild-magnet pull (`_wildMagnetAffected`).
+ * Aligns with endgame-checker RULE 1 (ignore value≤0 ghost placeholders).
+ */
+export function boardHasPersistentLockedTiles(tiles: any[] | null | undefined): boolean {
+  if (!tiles?.length) return false;
+  return tiles.some((t: any) => {
+    if (!t || t.destroyed || !t.locked) return false;
+    if (t._wildMagnetAffected === true) return false;
+    const isWild =
+      t.special === 'wild' ||
+      t.special === 'wild-magnet' ||
+      t.special === 'wild-juice' ||
+      t.special === 'wild-tnt' ||
+      t.isWild === true ||
+      t.isWildFace === true;
+    if (isWild) return true;
+    if (t._isBeingSpawned === true) return true;
+    return (t.value | 0) > 0;
+  });
+}

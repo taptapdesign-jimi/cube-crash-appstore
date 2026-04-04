@@ -11,6 +11,7 @@ import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
+import { RUN_MODE_ARCADE_HOME, setRunMode } from './run-mode.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -378,9 +379,24 @@ class UIManager {
     if (typeof (window as any).triggerHapticImpact === 'function') {
       (window as any).triggerHapticImpact('light');
     }
-    
-    // Check for saved game (starts exit animation)
-    this.checkForSavedGame();
+
+    // Separate homepage run from Journey: one-time arcade run with no resume/continue flow.
+    // IMPORTANT: Do not clear board-specific Journey saves here.
+    setRunMode(RUN_MODE_ARCADE_HOME);
+    try {
+      localStorage.removeItem('cc_saved_game');
+      localStorage.removeItem('cc_board_completed');
+      localStorage.removeItem('cubeCrash_gameState');
+      logger.info('🧹 Home Play: cleared transient global save keys (Journey board saves preserved)');
+    } catch (error) {
+      logger.warn('⚠️ Home Play: failed to clear saves before one-time run:', error);
+    }
+
+    if ((window as any).triggerGameStartSequence) {
+      (window as any).triggerGameStartSequence();
+    } else {
+      this.startNewGame();
+    }
   }
   
   // Reset all slider buttons to prevent :active state persistence
@@ -550,18 +566,13 @@ class UIManager {
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     (window as any).__ccCameFromHomepage = true;
     (window as any).__ccCameFromJourney = false;
+    setRunMode(RUN_MODE_ARCADE_HOME);
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
       console.log('🎮 ====================================');
       console.log('🎮 START NEW GAME CALLED (Board 1)');
       console.log('🎮 ====================================');
       logger.info('🎮 Starting new game from Board 1...');
-      
-      // 🔥 JOURNEY PROGRESSION: Reset Journey progression state for New Game
-      const { journeyProgressionState } = await import('./journey-progression-state.js');
-      journeyProgressionState.reset(); // Clear lastOpened and currentRun
-      journeyProgressionState.setLastOpenedBoardId(1); // Set to Board 1
-      journeyProgressionState.setCurrentRunState(1, 0); // Start new run for Board 1
       
       // Set game state
       gameState.setState({

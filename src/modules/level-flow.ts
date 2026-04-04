@@ -6,6 +6,9 @@ import { resetTileToNormalState } from './tile-state-utils.ts';
 // 🔥 FIX: Track spawn timeouts for cleanup
 const activeSpawnTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 
+/** Serialize openLockedBounceParallel — parallel calls (wild merge + timers) were racing on the same locked tiles. */
+let openLockedBounceMutex: Promise<void> = Promise.resolve();
+
 /**
  * Cleanup all spawn timeouts
  * Call this when game ends or app is destroyed
@@ -76,19 +79,33 @@ export function checkLevelEnd({ makeBoard, tiles, onCleanBoard }: CheckLevelEndP
   if (!makeBoard.anyMergePossible(tiles)) onCleanBoard?.();
 }
 
-export async function openLockedBounceParallel({ 
-  tiles = [], 
-  k = 0, 
-  drag, 
-  makeBoard, 
-  gsap, 
-  drawBoardBG, 
-  TILE, 
-  fixHoverAnchor, 
-  spawnBounce, 
+export async function openLockedBounceParallel(params: OpenLockedBounceParallelParams = {}): Promise<number> {
+  const prev = openLockedBounceMutex;
+  let release!: () => void;
+  openLockedBounceMutex = new Promise<void>((r) => {
+    release = r;
+  });
+  await prev;
+  try {
+    return await openLockedBounceParallelImpl(params);
+  } finally {
+    release();
+  }
+}
+
+async function openLockedBounceParallelImpl({
+  tiles = [],
+  k = 0,
+  drag,
+  makeBoard,
+  gsap,
+  drawBoardBG,
+  TILE,
+  fixHoverAnchor,
+  spawnBounce,
   wildMergeTarget = null,
-  excludeCells = new Set<string>(),  // 🔥 CRITICAL: Exclude cells where pulled tiles were
-  preferCells = new Set<string>()    // 🔥 CRITICAL: For regular merge 6 – prioritize placeholder at merge location
+  excludeCells = new Set<string>(),
+  preferCells = new Set<string>(),
 }: OpenLockedBounceParallelParams = {}): Promise<number> {
   // 🔥 CRITICAL: Filter out destroyed tiles FIRST before any other checks
   // Also filter out tiles without scale (they can't be spawned)
@@ -142,22 +159,57 @@ export async function openLockedBounceParallel({
   }
 
   logger.warn(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
-  // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 150ms between tiles
-  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 150ms between tiles for visible one-by-one
-  // Sequential spawning: 1st at 0ms, 2nd at 150ms, 3rd at 300ms, 4th at 450ms
+  // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 100ms between tiles
+  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 100ms between tiles for visible one-by-one
+  // Sequential spawning: 1st at 0ms, 2nd at 100ms, 3rd at 200ms, 4th at 300ms
   // 🔥 USER BUG FIX: Return Promise that resolves when ALL spawns complete (spawnBounce callbacks run).
   // Previously returned immediately, causing merge6SpawnInProgress=false too early and checkLevelEnd to run
   // before new tiles were spawned → false fail screen when locked placeholders (value 0) were about to spawn.
   const spawnPromises: Promise<void>[] = [];
+  let successfulSpawns = 0;
   for (let index = 0; index < picks.length; index++) {
     const t = picks[index];
-    const delay = index * 150; // 0ms, 150ms, 300ms, 450ms...
+    const delay = index * 100; // 0ms, 100ms, 200ms, 300ms...
     const spawnPromise = new Promise<void>((resolve) => {
       let resolved = false;
+      let countedSuccess = false;
       const safeResolve = () => {
         if (resolved) return;
         resolved = true;
         resolve();
+      };
+      const ensureActiveFullOpacity = (tile: any) => {
+        try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
+        try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
+        try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
+        try {
+          tile.alpha = 1;
+          if (tile.rotG) tile.rotG.alpha = 1;
+          if (tile.base) tile.base.alpha = 1;
+          if (tile.overlay) {
+            tile.overlay.alpha = 1;
+            tile.overlay.visible = false;
+          }
+          if (tile.num) tile.num.alpha = 1;
+          if (tile.pips) {
+            tile.pips.alpha = 1;
+            tile.pips.visible = true;
+          }
+        } catch {}
+      };
+      const markSuccessfulSpawn = () => {
+        if (!t || t.destroyed) return false;
+        const tileValue = (t.value | 0);
+        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true;
+        if (t.locked) return false;
+        return tileValue > 0 || isWildTile;
+      };
+      const countSuccessOnce = () => {
+        if (countedSuccess) return;
+        if (markSuccessfulSpawn()) {
+          countedSuccess = true;
+          successfulSpawns++;
+        }
       };
       const timeout = setTimeout(() => {
         activeSpawnTimeouts.delete(timeout);
@@ -167,23 +219,6 @@ export async function openLockedBounceParallel({
           safeResolve();
           return;
         }
-
-        const ensureActiveFullOpacity = (tile: any) => {
-          try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
-          try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
-          try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
-          try {
-            tile.alpha = 1;
-            if (tile.rotG) tile.rotG.alpha = 1;
-            if (tile.base) tile.base.alpha = 1;
-            if (tile.overlay) {
-              tile.overlay.alpha = 1;
-              tile.overlay.visible = false;
-            }
-            if (tile.num) tile.num.alpha = 1;
-            if (tile.pips) tile.pips.alpha = 1;
-          } catch {}
-        };
 
         t.locked = false;
         t.eventMode = 'static';
@@ -210,7 +245,7 @@ export async function openLockedBounceParallel({
           return;
         }
 
-        makeBoard?.setValue?.(t, spawnValue, 0);
+        makeBoard?.setValue?.(t, spawnValue, 0, { immediate: true });
         ensureActiveFullOpacity(t);
         try { fixHoverAnchor?.(t); } catch {}
 
@@ -220,8 +255,19 @@ export async function openLockedBounceParallel({
           return;
         }
 
+        // Count as soon as value + unlock are applied — GSAP/TNT can kill bounce timelines before onComplete,
+        // which previously left successfulSpawns < picks.length and triggered bogus "remainder" spawns.
+        countSuccessOnce();
+
+        let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
         const onBounceComplete = () => {
+          if (fallbackTimer != null) {
+            clearTimeout(fallbackTimer);
+            activeSpawnTimeouts.delete(fallbackTimer);
+            fallbackTimer = null;
+          }
           ensureActiveFullOpacity(t);
+          countSuccessOnce();
           const reinforce = setTimeout(() => {
             ensureActiveFullOpacity(t);
           }, 160);
@@ -230,22 +276,26 @@ export async function openLockedBounceParallel({
         };
         if (spawnBounce) {
           spawnBounce(t, onBounceComplete, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
+          fallbackTimer = setTimeout(() => {
+            if (fallbackTimer != null) {
+              activeSpawnTimeouts.delete(fallbackTimer);
+              fallbackTimer = null;
+            }
+            ensureActiveFullOpacity(t);
+            countSuccessOnce();
+            safeResolve();
+          }, delay + 1200);
+          activeSpawnTimeouts.add(fallbackTimer);
         } else {
           safeResolve();
         }
       }, delay);
       activeSpawnTimeouts.add(timeout);
-
-      // Fail-safe: resolve even if spawnBounce never calls back
-      const fallback = setTimeout(() => {
-        activeSpawnTimeouts.delete(fallback);
-        safeResolve();
-      }, delay + 1200);
-      activeSpawnTimeouts.add(fallback);
     });
     spawnPromises.push(spawnPromise);
   }
   try { drawBoardBG?.(); } catch {}
   await Promise.all(spawnPromises);
-  return picks.length;
+  logger.warn(`🎯 openLockedBounceParallel: completed requested=${picks.length} successful=${successfulSpawns}`, 'level-flow');
+  return successfulSpawns;
 }
