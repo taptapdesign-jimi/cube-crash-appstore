@@ -2,6 +2,7 @@
 import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -320,7 +321,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     const boardStatus = document.createElement('div');
     const boardLabel = String(Math.max(1, boardNumber | 0)).padStart(2, '0');
-    boardStatus.textContent = `Board ${boardLabel} failed`;
+    boardStatus.textContent = isArcadeHomeRunMode()
+      ? 'Arcade board not cleared'
+      : `Board ${boardLabel} not cleared`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
     textCluster.appendChild(title);

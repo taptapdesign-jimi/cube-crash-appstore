@@ -605,6 +605,14 @@ class UIManager {
       // Start game
       console.log('🎯 Starting game boot...');
       try {
+        // Ensure no stale level-flow spawn timers from previous run can leak into a fresh board.
+        try {
+          const flow = await import('./level-flow.js');
+          flow.cleanupLevelFlowTimeouts?.();
+        } catch (e) {
+          console.warn('⚠️ Failed to cleanup level-flow timeouts before startNewGame:', e);
+        }
+
         // Use static import instead of dynamic import for instant response
         console.log('✅ app-core already available (static import)');
         
@@ -1245,7 +1253,9 @@ class UIManager {
         logger.info('✅ HUD container hidden');
       }
       
-      const boardIndicator = document.getElementById('hud-board');
+      const boardIndicator =
+        document.getElementById('hud-board-indicator') ||
+        document.getElementById('hud-board');
       if (boardIndicator) {
         boardIndicator.style.display = 'none';
         boardIndicator.style.visibility = 'hidden';

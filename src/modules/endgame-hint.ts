@@ -349,9 +349,9 @@ export function notifyEndgameHintInteraction(): void {
   if (hintVisible) {
     hideHint();
   }
-  if (shouldShow) {
-    scheduleShow();
-  }
+  // IMPORTANT: Do not auto-reschedule here.
+  // Reshow must always come from a fresh board-state evaluation via updateEndgameHint(true),
+  // otherwise stale "STACK IT!" timers can fire after board changed to no-moves (e.g. 4+3).
 }
 
 /** On drag start: hide and re-arm idle hint (no immediate show). */
@@ -362,7 +362,8 @@ export function showEndgameHintOnDragStart(): void {
   if (hintVisible) {
     hideHint();
   }
-  scheduleShow();
+  // IMPORTANT: Do not auto-reschedule on drag start.
+  // Let app-core re-enable hint only after recomputing current board validity.
 }
 
 export function resetEndgameHint(): void {

@@ -106,9 +106,12 @@ export function ensureHudAfterLoad({
     
     // Ensure board indicator is visible
     try {
-      const boardIndicator = document.getElementById('hud-board');
+      const boardIndicator =
+        document.getElementById('hud-board-indicator') ||
+        document.getElementById('hud-board');
       if (boardIndicator) {
         boardIndicator.style.display = 'flex';
+        boardIndicator.style.visibility = 'visible';
         boardIndicator.style.opacity = '1';
         boardIndicator.setAttribute('data-state', 'visible');
         devLog('✅ Board indicator made visible');

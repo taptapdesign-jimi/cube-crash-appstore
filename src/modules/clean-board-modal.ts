@@ -561,7 +561,9 @@ export async function showCleanBoardModal({
     // Board cleared text (initially hidden)
     const boardCleared = document.createElement('div');
     const boardNumberLabel = boardNumber.toString().padStart(2, '0');
-    boardCleared.textContent = `Board ${boardNumberLabel} cleared`;
+    boardCleared.textContent = isArcadeHomeRun
+      ? 'Arcade Board Cleared'
+      : `Board ${boardNumberLabel} cleared`;
     // SIMPLE: Just text, no transforms, no animations
     boardCleared.style.position = 'absolute';
     boardCleared.style.color = '#b69077';
@@ -607,8 +609,10 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Primary button (Continue for interim Journey, Play Again otherwise including Arcade)
     const primaryBtn = document.createElement('button');
     primaryBtn.type = 'button';
-    // 🧪 DEV: In dev mode, keep Continue for interim-board transition testing
-    primaryBtn.textContent = (devMode || isFromInterimBoard) ? 'Continue' : 'Play Again';
+    // Arcade rule: always "Play Again" on clean board.
+    // Journey/interim keeps "Continue" behavior (and dev override for testing).
+    const shouldShowContinue = !isArcadeHomeRun && (devMode || isFromInterimBoard);
+    primaryBtn.textContent = shouldShowContinue ? 'Continue' : 'Play Again';
     primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     primaryBtn.style.width = '100%';
     primaryBtn.style.maxWidth = buttonWidth;
@@ -1060,18 +1064,13 @@ export async function showCleanBoardModal({
         // 🎯 SEQUENCE 8: Button(s) pop-in (sequential bounce - Play Again first, then Exit)
         // Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
         setTimeout(() => {
-          if (isArcadeHomeRun) {
-            // Homepage one-time run: show only Exit CTA.
-            if (secondaryBtn) animateButtonIn(secondaryBtn);
-          } else {
-            // PRIMARY BUTTON (Play Again) - bounce in immediately
-            animateButtonIn(primaryBtn);
-            // SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (sekvencijalno)
-            if (secondaryBtn) {
-              setTimeout(() => {
-                animateButtonIn(secondaryBtn);
-              }, buttonStaggerMs); // 350ms delay between buttons
-            }
+          // Show BOTH CTAs in all modes: primary first (Play Again/Continue), then Exit.
+          // Arcade regression fix: Play Again was unintentionally hidden.
+          animateButtonIn(primaryBtn);
+          if (secondaryBtn) {
+            setTimeout(() => {
+              animateButtonIn(secondaryBtn);
+            }, buttonStaggerMs); // 350ms delay between buttons
           }
         }, 6620); // After boardCleared (6100 + 320 + 200)
       }
@@ -1524,7 +1523,7 @@ export async function showCleanBoardModal({
         } catch {}
         
         // 🔥 NEW: Return action based on which button was clicked
-        const action = isFromInterimBoard ? 'continue' : 'play-again';
+        const action = (!isArcadeHomeRun && isFromInterimBoard) ? 'continue' : 'play-again';
         console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
         resolve({ action }); 
       }, collapseDuration + 220);

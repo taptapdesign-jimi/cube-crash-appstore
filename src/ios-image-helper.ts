@@ -129,10 +129,15 @@ class IOSImageOptimizer {
   }
   
   private preloadImage(src: string): void {
+    if (document.head.querySelector(`link[data-ios-prefetch="1"][href="${src}"]`)) {
+      return;
+    }
     const link = document.createElement('link');
-    link.rel = 'preload';
+    // Use prefetch to avoid noisy "preload was not used quickly" warnings.
+    link.rel = 'prefetch';
     link.as = 'image';
     link.href = src;
+    link.setAttribute('data-ios-prefetch', '1');
     document.head.appendChild(link);
   }
   

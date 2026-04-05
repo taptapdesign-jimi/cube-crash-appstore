@@ -13,6 +13,8 @@ import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
 interface BoardTransitionOptions {
   boardNumber: number;
   onComplete: () => void;
+  hideForest?: boolean;
+  displayText?: string;
 }
 
 let isTransitionActive = false;
@@ -75,13 +77,15 @@ function ensureCloudStyles(): void {
   document.head.appendChild(style);
 }
 
-async function preloadTransitionAssets(): Promise<void> {
+async function preloadTransitionAssets(includeForest: boolean = true): Promise<void> {
   if (assetsPreloaded) return;
   if (assetsPreloadPromise) return assetsPreloadPromise;
   assetsPreloadPromise = (async () => {
     try {
       logger.info('🧩 board-transition-screen: Preloading transition assets...');
-      const urls = [...TRANSITION_CLOUD_IMAGES, TRANSITION_FOREST_IMAGE];
+      const urls = includeForest
+        ? [...TRANSITION_CLOUD_IMAGES, TRANSITION_FOREST_IMAGE]
+        : [...TRANSITION_CLOUD_IMAGES];
       await Promise.all(urls.map((src) => new Promise<void>((resolve) => {
         const img = new Image();
         img.src = src;
@@ -144,17 +148,20 @@ function stopMemSampling(label: string): void {
  * @param options - Board number and completion callback
  */
 export async function showBoardTransitionScreen(options: BoardTransitionOptions): Promise<void> {
-  const { boardNumber, onComplete } = options;
+  const { boardNumber, onComplete, hideForest = false, displayText } = options;
 
   // 🔥 CRITICAL FIX: Validate boardNumber
   if (!Number.isFinite(boardNumber) || boardNumber < 1) {
     logger.error(`❌ board-transition-screen: Invalid boardNumber ${boardNumber}, using fallback 1`);
     // Don't return - use fallback instead
     const validBoardNumber = 1;
-    return showBoardTransitionScreen({ boardNumber: validBoardNumber, onComplete });
+    return showBoardTransitionScreen({ ...options, boardNumber: validBoardNumber });
   }
 
-  logger.info(`🎯 board-transition-screen: Showing transition for board ${boardNumber}`);
+  logger.info(`🎯 board-transition-screen: Showing transition for board ${boardNumber}`, {
+    hideForest,
+    displayText
+  });
 
   // Prevent duplicate calls
   if (isTransitionActive) {
@@ -174,7 +181,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   } catch (_) { /* ignore */ }
 
   // Preload transition assets (clouds, forest) - required for transition to display correctly
-  await preloadTransitionAssets();
+  await preloadTransitionAssets(!hideForest);
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });
@@ -288,10 +295,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     }
 
     // Format board number as string (01, 02, etc.)
-    const boardNumberStr = boardNumber.toString().padStart(2, '0');
-    const digits = boardNumberStr.split('');
+    const transitionText = (typeof displayText === 'string' && displayText.trim().length > 0)
+      ? displayText.trim().toUpperCase()
+      : boardNumber.toString().padStart(2, '0');
+    const digits = Array.from(transitionText);
     
-    logger.info(`🎯 board-transition-screen: Formatting board number ${boardNumber} as "${boardNumberStr}" with ${digits.length} digits`);
+    logger.info(`🎯 board-transition-screen: Formatting transition text "${transitionText}" with ${digits.length} characters`);
 
     // 🔥 CRITICAL FIX: Validate digits array is not empty
     if (digits.length === 0) {
@@ -514,49 +523,62 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       return isIPadUA || (vw >= 769 && vw <= 1366);
     })();
 
-    if (!forestContainer) {
-      forestContainer = document.createElement('div');
-      forestContainer.className = 'cc-board-transition-forest';
-      forestContainer.style.cssText = [
+    if (!hideForest) {
+      if (!forestContainer) {
+        forestContainer = document.createElement('div');
+        forestContainer.className = 'cc-board-transition-forest';
+        forestContainer.style.cssText = [
+          'position: absolute',
+          'left: 0',
+          'right: 0',
+          'bottom: -190px',
+          'width: 100%',
+          'height: 42vh',
+          'pointer-events: none',
+          'z-index: 0',
+          'overflow: hidden',
+          'transform-origin: center bottom',
+          'transform-style: preserve-3d',
+          'will-change: transform, opacity',
+          'contain: layout paint' // Rasterize forest layer for cheaper transforms
+        ].join(';');
+      }
+      const existingForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
+      const forestImg = existingForestImg || (domElementPool.acquire('img') as HTMLImageElement);
+      forestImg.src = TRANSITION_FOREST_IMAGE;
+      forestImg.alt = 'Forest';
+      forestImg.style.cssText = [
         'position: absolute',
         'left: 0',
-        'right: 0',
-        'bottom: -190px',
+        'bottom: 0',
         'width: 100%',
-        'height: 42vh',
+        'height: 100%',
+        'object-fit: cover',
+        'object-position: bottom center',
+        'display: block',
         'pointer-events: none',
-        'z-index: 0',
-        'overflow: hidden',
-        'transform-origin: center bottom',
-        'transform-style: preserve-3d',
-        'will-change: transform, opacity',
-        'contain: layout paint' // Rasterize forest layer for cheaper transforms
+        'transform: translateZ(0)',
+        'backface-visibility: hidden'
       ].join(';');
+      // iPad: move forest down by 40%
+      forestContainer.style.transform = isIPad ? 'translateY(40%)' : 'translateY(0)';
+      activeForestImages = [forestImg];
+      if (!forestImg.parentNode) {
+        forestContainer.appendChild(forestImg);
+      }
+      overlay.appendChild(forestContainer);
+    } else {
+      // Arcade variant: explicitly remove/disable forest layer if a reused overlay still has it.
+      if (forestContainer && forestContainer.parentNode) {
+        const staleForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
+        if (staleForestImg) {
+          try { domElementPool.release(staleForestImg); } catch {}
+        }
+        try { forestContainer.parentNode.removeChild(forestContainer); } catch {}
+      }
+      forestContainer = null;
+      activeForestImages = [];
     }
-    const existingForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
-    const forestImg = existingForestImg || (domElementPool.acquire('img') as HTMLImageElement);
-    forestImg.src = TRANSITION_FOREST_IMAGE;
-    forestImg.alt = 'Forest';
-    forestImg.style.cssText = [
-      'position: absolute',
-      'left: 0',
-      'bottom: 0',
-      'width: 100%',
-      'height: 100%',
-      'object-fit: cover',
-      'object-position: bottom center',
-      'display: block',
-      'pointer-events: none',
-      'transform: translateZ(0)',
-      'backface-visibility: hidden'
-    ].join(';');
-    // iPad: move forest down by 40%
-    forestContainer.style.transform = isIPad ? 'translateY(40%)' : 'translateY(0)';
-    activeForestImages = [forestImg];
-    if (!forestImg.parentNode) {
-      forestContainer.appendChild(forestImg);
-    }
-    overlay.appendChild(forestContainer);
 
     // Assemble DOM
     container.appendChild(numberContainer);
@@ -656,36 +678,38 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     }, null, 0);
 
     // 🔥 USER REQUEST: Forest enter animation, transform-origin center bottom
-    gsap.set(forestContainer, {
-      opacity: 0,
-      scale: 0,
-      rotation: -15,
-      transformOrigin: 'center bottom'
-    });
-    const forestEnterTimeline = trackTimeline();
-    contentTimelines.push(forestEnterTimeline); // 🔥 FIX: Track for cleanup
-    forestEnterTimeline.to(forestContainer, {
-      opacity: 1,
-      scale: 1.01, // 🔥 USER REQUEST: Minimal bounce overshoot
-      rotation: 0,
-      z: 10,
-      duration: 0.4,
-      ease: 'back.out(2.0)'
-    });
-    forestEnterTimeline.to(forestContainer, {
-      scale: 0.95,
-      z: 0,
-      duration: 0.15,
-      ease: 'power2.out'
-    });
-    forestEnterTimeline.to(forestContainer, {
-      opacity: 1,
-      scale: 1.0,
-      z: 0,
-      duration: 0.2,
-      ease: 'back.out(1.5)'
-    });
-    enterTimeline.add(forestEnterTimeline, 0.1);
+    if (forestContainer) {
+      gsap.set(forestContainer, {
+        opacity: 0,
+        scale: 0,
+        rotation: -15,
+        transformOrigin: 'center bottom'
+      });
+      const forestEnterTimeline = trackTimeline();
+      contentTimelines.push(forestEnterTimeline); // 🔥 FIX: Track for cleanup
+      forestEnterTimeline.to(forestContainer, {
+        opacity: 1,
+        scale: 1.01, // 🔥 USER REQUEST: Minimal bounce overshoot
+        rotation: 0,
+        z: 10,
+        duration: 0.4,
+        ease: 'back.out(2.0)'
+      });
+      forestEnterTimeline.to(forestContainer, {
+        scale: 0.95,
+        z: 0,
+        duration: 0.15,
+        ease: 'power2.out'
+      });
+      forestEnterTimeline.to(forestContainer, {
+        opacity: 1,
+        scale: 1.0,
+        z: 0,
+        duration: 0.2,
+        ease: 'back.out(1.5)'
+      });
+      enterTimeline.add(forestEnterTimeline, 0.1);
+    }
 
     // Step 3: Animate digits with bounce animation (staggered)
     digitElements.forEach((digitEl, index) => {

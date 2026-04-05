@@ -1175,6 +1175,14 @@ async function startNewRun(boardId: number): Promise<void> {
   console.log(`✅ Homepage hidden`);
   
   try {
+    // Ensure no stale locked-open timers from previous board survive into fresh run.
+    try {
+      const flow = await import('./modules/level-flow.js');
+      flow.cleanupLevelFlowTimeouts?.();
+    } catch (e) {
+      console.warn('⚠️ Failed to cleanup level-flow timeouts before startNewRunFromJourney:', e);
+    }
+
     // 🔥 CRITICAL FIX: Clear ALL flags before starting fresh board
     // This prevents leftover flags from previous boards (e.g., __ccSkipRebuildBoard)
     delete (window as any).__ccSkipRebuildBoard;
@@ -1821,7 +1829,9 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 CRITICAL FIX: Also hide board indicator if it exists
     try {
-      const boardIndicator = document.getElementById('hud-board');
+      const boardIndicator =
+        document.getElementById('hud-board-indicator') ||
+        document.getElementById('hud-board');
       if (boardIndicator) {
         boardIndicator.style.display = 'none';
         boardIndicator.style.visibility = 'hidden';

@@ -5,6 +5,7 @@ import { resetTileToNormalState } from './tile-state-utils.ts';
 
 // 🔥 FIX: Track spawn timeouts for cleanup
 const activeSpawnTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+let levelFlowGeneration = 0;
 
 /** Serialize openLockedBounceParallel — parallel calls (wild merge + timers) were racing on the same locked tiles. */
 let openLockedBounceMutex: Promise<void> = Promise.resolve();
@@ -14,10 +15,13 @@ let openLockedBounceMutex: Promise<void> = Promise.resolve();
  * Call this when game ends or app is destroyed
  */
 export function cleanupLevelFlowTimeouts(): void {
+  levelFlowGeneration++;
   activeSpawnTimeouts.forEach(timeout => {
     try { clearTimeout(timeout); } catch {}
   });
   activeSpawnTimeouts.clear();
+  // Reset serialized queue so a stale previous run cannot delay a fresh run.
+  openLockedBounceMutex = Promise.resolve();
   console.log('✅ Level flow timeouts cleaned up');
 }
 
@@ -80,14 +84,19 @@ export function checkLevelEnd({ makeBoard, tiles, onCleanBoard }: CheckLevelEndP
 }
 
 export async function openLockedBounceParallel(params: OpenLockedBounceParallelParams = {}): Promise<number> {
+  const generationAtStart = levelFlowGeneration;
   const prev = openLockedBounceMutex;
   let release!: () => void;
   openLockedBounceMutex = new Promise<void>((r) => {
     release = r;
   });
   await prev;
+  if (generationAtStart !== levelFlowGeneration) {
+    release();
+    return 0;
+  }
   try {
-    return await openLockedBounceParallelImpl(params);
+    return await openLockedBounceParallelImpl(params, generationAtStart);
   } finally {
     release();
   }
@@ -106,7 +115,8 @@ async function openLockedBounceParallelImpl({
   wildMergeTarget = null,
   excludeCells = new Set<string>(),
   preferCells = new Set<string>(),
-}: OpenLockedBounceParallelParams = {}): Promise<number> {
+}: OpenLockedBounceParallelParams = {}, generationAtStart = levelFlowGeneration): Promise<number> {
+  if (generationAtStart !== levelFlowGeneration) return 0;
   // 🔥 CRITICAL: Filter out destroyed tiles FIRST before any other checks
   // Also filter out tiles without scale (they can't be spawned)
   let locked = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
@@ -161,7 +171,7 @@ async function openLockedBounceParallelImpl({
   logger.warn(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 100ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 100ms between tiles for visible one-by-one
-  // Sequential spawning: 1st at 0ms, 2nd at 100ms, 3rd at 200ms, 4th at 300ms
+  // Sequential spawning (shifted by +50ms): 1st at 50ms, 2nd at 150ms, 3rd at 250ms, 4th at 350ms
   // 🔥 USER BUG FIX: Return Promise that resolves when ALL spawns complete (spawnBounce callbacks run).
   // Previously returned immediately, causing merge6SpawnInProgress=false too early and checkLevelEnd to run
   // before new tiles were spawned → false fail screen when locked placeholders (value 0) were about to spawn.
@@ -169,7 +179,7 @@ async function openLockedBounceParallelImpl({
   let successfulSpawns = 0;
   for (let index = 0; index < picks.length; index++) {
     const t = picks[index];
-    const delay = index * 100; // 0ms, 100ms, 200ms, 300ms...
+    const delay = 50 + index * 100; // 50ms, 150ms, 250ms, 350ms...
     const spawnPromise = new Promise<void>((resolve) => {
       let resolved = false;
       let countedSuccess = false;
@@ -212,6 +222,11 @@ async function openLockedBounceParallelImpl({
         }
       };
       const timeout = setTimeout(() => {
+        if (generationAtStart !== levelFlowGeneration) {
+          activeSpawnTimeouts.delete(timeout);
+          safeResolve();
+          return;
+        }
         activeSpawnTimeouts.delete(timeout);
         // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
         if (!t || t.destroyed || !t.scale) {
@@ -277,6 +292,14 @@ async function openLockedBounceParallelImpl({
         if (spawnBounce) {
           spawnBounce(t, onBounceComplete, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
           fallbackTimer = setTimeout(() => {
+            if (generationAtStart !== levelFlowGeneration) {
+              if (fallbackTimer != null) {
+                activeSpawnTimeouts.delete(fallbackTimer);
+                fallbackTimer = null;
+              }
+              safeResolve();
+              return;
+            }
             if (fallbackTimer != null) {
               activeSpawnTimeouts.delete(fallbackTimer);
               fallbackTimer = null;

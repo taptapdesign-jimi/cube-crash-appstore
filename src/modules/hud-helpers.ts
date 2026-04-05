@@ -376,6 +376,36 @@ function updateBoardIndicatorValue(boardNumber) {
   }
 }
 
+function syncBoardIndicatorForHudInit(initialHide = false) {
+  const indicator = ensureBoardIndicator();
+  const stateBoard = Number((window as any)?.STATE?.boardNumber);
+  const boardNumber = Number.isFinite(stateBoard) && stateBoard > 0 ? stateBoard : 1;
+  updateBoardIndicatorValue(boardNumber);
+  
+  if (initialHide) {
+    indicator.style.display = 'none';
+    indicator.setAttribute('data-state', 'hidden');
+    gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
+    return;
+  }
+  
+  const shouldAnimateEnter =
+    indicator.getAttribute('data-state') !== 'visible' ||
+    indicator.style.display === 'none' ||
+    indicator.style.opacity === '0';
+  
+  if (shouldAnimateEnter) {
+    animateBoardIndicatorEnter(0.35);
+    return;
+  }
+  
+  indicator.style.display = 'flex';
+  indicator.style.visibility = 'visible';
+  indicator.style.opacity = '1';
+  indicator.style.pointerEvents = 'none';
+  indicator.setAttribute('data-state', 'visible');
+}
+
 function animateBoardIndicatorEnter(duration = 0.8) {
   const indicator = ensureBoardIndicator();
   try { gsap.killTweensOf(indicator); } catch {}
@@ -1053,6 +1083,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     HUD_ROOT._stageWasVisible = stageWasVisible;
     // Re-layout in case screen size changed (e.g. rotation)
     try { layout({ app, top }); } catch {}
+    try { syncBoardIndicatorForHudInit(initialHide); } catch {}
     return; // Early return - HUD already exists and is valid
   }
   
@@ -1153,6 +1184,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   stage.addChild(HUD_ROOT);
   console.log('✅ HUD_ROOT created and added to stage');
   }
+  
+  try { syncBoardIndicatorForHudInit(initialHide); } catch {}
 
   // vrijednosti - Use system font stack for better App Store compatibility
   const valMain  = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };

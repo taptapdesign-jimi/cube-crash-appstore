@@ -5,6 +5,7 @@ import { setModalVisible, isModalVisible } from './end-run-utils.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
@@ -379,6 +380,8 @@ function createModal(): HTMLElement {
     modal = null;
   }
 
+  const isArcadeRun = isArcadeHomeRunMode();
+
   modal = document.createElement('div');
   modal.className = 'simple-bottom-sheet';
   
@@ -396,8 +399,8 @@ function createModal(): HTMLElement {
         <div class="simple-buttons">
           <div class="simple-button-row">
             <button type="button" class="restart-btn">Restart</button>
-            <button type="button" class="complete-board-btn">Clean Board</button>
-            <button type="button" class="transition-screen-btn">Transition</button>
+            ${isArcadeRun ? '' : '<button type="button" class="complete-board-btn">Clean Board</button>'}
+            ${isArcadeRun ? '' : '<button type="button" class="transition-screen-btn">Transition</button>'}
             <button type="button" class="exit-btn">Exit</button>
           </div>
         </div>
@@ -787,11 +790,13 @@ function createModal(): HTMLElement {
     transitionScreenBtn.style.pointerEvents = 'auto';
     transitionScreenBtn.style.cursor = 'pointer';
     console.log('✅ Transition Screen button styles set (pointer-events: auto, cursor: pointer)');
-  } else {
+  } else if (!isArcadeRun) {
     console.error('❌ Transition Screen button NOT FOUND in DOM!');
     console.error('❌ Modal:', modal);
     console.error('❌ Modal HTML:', modal?.innerHTML);
     console.error('❌ Query result:', modal?.querySelector('.transition-screen-btn'));
+  } else {
+    console.log('✅ Arcade mode: Transition/Clean Board buttons intentionally hidden');
   }
   
   // Add drag functionality

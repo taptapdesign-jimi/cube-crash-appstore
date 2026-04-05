@@ -439,7 +439,13 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }
         
         // Restart current board (fresh start)
-        if (typeof (window as any).startNewRunFromJourney === 'function') {
+        // Arcade: use arcade boot path (fresh board 1, no journey state side effects).
+        // Journey/interim: keep startNewRunFromJourney flow.
+        if (isArcadeHomeRunMode()) {
+          const uiManagerModule = await import('./ui-manager.js');
+          await uiManagerModule.default.startNewGame();
+          console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');
+        } else if (typeof (window as any).startNewRunFromJourney === 'function') {
           await (window as any).startNewRunFromJourney(boardNumber);
           console.log(`✅ endgame-flow: Restarted board ${boardNumber} via startNewRunFromJourney`);
         } else {
