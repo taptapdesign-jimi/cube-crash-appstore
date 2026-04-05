@@ -1,7 +1,7 @@
 // @ts-nocheck
 // Wild Juice Bubbles Explosion
 // Full-screen bubbles explosion effect for wild-juice merge 6 events
-// Uses custom bubble sprites (bubble 1-5) instead of runtime Graphics - lighter on memory
+// Uses custom bubble sprites (bubble 1-8) instead of runtime Graphics - lighter on memory
 
 import { Assets, Container, Sprite, Texture } from 'pixi.js';
 import { getBubbleSpritePool, clearBubbleSpritePool } from './object-pool.ts';
@@ -9,7 +9,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { logger } from '../core/logger.js';
-import { attachPuffyClouds } from './text-clouds.js';
+import { attachBubblySprites } from './text-bubbly-sprites.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -23,11 +23,14 @@ let explosionContainer: Container | null = null;
 let spawnTick: (() => void) | null = null;
 let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const BUBBLE_SPRITE_PATHS = [
-  './assets/shop/bubbles pack/bubble 1.png',
+  './assets/shop/bubbles pack/bubble1.png',
   './assets/shop/bubbles pack/bubble 2.png',
   './assets/shop/bubbles pack/bubble 3.png',
   './assets/shop/bubbles pack/bubble 4.png',
   './assets/shop/bubbles pack/bubble 5.png',
+  './assets/shop/bubbles pack/bubble 6.png',
+  './assets/shop/bubbles pack/bubble 7.png',
+  './assets/shop/bubbles pack/bubble 8.png',
 ];
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
@@ -35,7 +38,7 @@ let cleanupInProgress = false;
 let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
-let bubblyCloudCleanup: (() => void) | null = null;
+let bubblyFxCleanup: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 
 function getFxHost(stage: any): any {
@@ -216,7 +219,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   }
   stageRetryCount = 0;
 
-  // Load bubble sprites (bubble 1-5) and keep direct references.
+  // Load bubble sprites (bubble 1-8) and keep direct references.
   // Avoid Assets.get(path) cache-id mismatch (caused Pixi warnings + invalid textures).
   const bubbleTextures: Texture[] = [];
   for (const path of BUBBLE_SPRITE_PATHS) {
@@ -228,13 +231,13 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
       }
       bubbleTextures.push(texture);
     } catch (e) {
-      console.warn(`⚠️ Bubble explosion aborted: required bubble sprite failed to load (${path})`, e);
-      return;
+      // Fail-soft: keep effect alive with remaining textures.
+      console.warn(`⚠️ Bubble sprite failed to load, skipping (${path})`, e);
     }
   }
 
-  if (bubbleTextures.length !== BUBBLE_SPRITE_PATHS.length) {
-    console.warn('⚠️ Bubble explosion aborted: not all required bubble sprites are loaded');
+  if (bubbleTextures.length === 0) {
+    console.warn('⚠️ Bubble explosion aborted: no bubble sprites loaded');
     return;
   }
 
@@ -366,7 +369,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;
 
-  // Animation parameters – gušće, jače, spawn 5 odjednom (sve kao mobile)
+  // Animation parameters – original density
   const totalBubbles = 80;
   const lateBurstCount = 40; // 40 extra pred kraj animacije
   const spawnDuration = 1800;
@@ -440,15 +443,27 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     spawned += 1;
     active += 1;
     
-    // Prefer bubble 4 i 5 (više velikih vizualno) – 60% 4+5, 40% 1+2+3
+    // Prefer larger-looking variants (4-8), but keep 1-3 in rotation.
+    // Distribution:
+    // - 70% bubbles 4-8 (with slight bias to 4/5)
+    // - 30% bubbles 1-3
     const r = Math.random();
-    const idx = r < 0.3 ? 3 : r < 0.6 ? 4 : Math.floor(Math.random() * 3); // 30% bubble 4, 30% bubble 5, 40% 1/2/3
+    let idx = 0;
+    if (r < 0.2) idx = 3;         // bubble 4
+    else if (r < 0.4) idx = 4;    // bubble 5
+    else if (r < 0.5) idx = 5;    // bubble 6
+    else if (r < 0.6) idx = 6;    // bubble 7
+    else if (r < 0.7) idx = 7;    // bubble 8
+    else idx = Math.floor(Math.random() * 3); // bubble 1/2/3
     const tex = bubbleTextures[idx] || bubbleTextures[0];
     const bubble = bubblePool.acquire(tex);
 
     // 50% veliki, 50% mali – bimodalna distribucija
     const isBig = Math.random() < 0.5;
-    const size = isBig ? 55 + Math.random() * 35 : 18 + Math.random() * 25; // veliki 55–90px, mali 18–43px
+    const baseSize = isBig ? 55 + Math.random() * 35 : 18 + Math.random() * 25; // veliki 55–90px, mali 18–43px
+    // Size-only tweak: ~25% smaller bubbles with slight per-bubble randomness
+    const sizeShrink = 0.75 + Math.random() * 0.08; // 25%-17% reduction
+    const size = baseSize * sizeShrink;
     const sizeRatio = size / 80;
     
     // Random distribution
@@ -461,7 +476,11 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
 
     bubble.x = startX;
     bubble.y = startY;
-    bubble.alpha = 1;
+    // Opacity distribution:
+    // - 85% fully opaque (1.0)
+    // - 15% in range 0.80-0.90
+    const useFullOpacity = Math.random() < 0.85;
+    bubble.alpha = useFullOpacity ? 1 : (0.8 + Math.random() * 0.1);
     const bubbleScale = (0.5 + Math.random() * 0.4) * sizeRatio;
     bubble.scale.set(bubbleScale);
     bubble.renderable = true;
@@ -898,7 +917,8 @@ function createAndShowBubblyText(): void {
       'justify-content: center',
     ].join(';');
     bubblyOverlay = overlay;
-    bubblyCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
+    // Replace clouds with pooled bubble sprites (rise + pop).
+    bubblyFxCleanup = attachBubblySprites(overlay, { count: 22, zIndex: 1 });
 
     const bubblyContainer = document.createElement('div');
     bubblyContainer.style.cssText = [
@@ -941,7 +961,8 @@ function createAndShowBubblyText(): void {
         'font-weight: 800',
         'font-size: 64px',
         'line-height: 1',
-        'color: #CC9882',
+        'color: #ffffff',
+        '-webkit-text-fill-color: #ffffff',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -1118,9 +1139,9 @@ function cleanupBubblyOverlay(): void {
         });
       } catch {}
     }
-    if (bubblyCloudCleanup) {
-      try { bubblyCloudCleanup(); } catch {}
-      bubblyCloudCleanup = null;
+    if (bubblyFxCleanup) {
+      try { bubblyFxCleanup(); } catch {}
+      bubblyFxCleanup = null;
     }
     if (bubblyOverlay && bubblyOverlay.parentNode) {
       bubblyOverlay.parentNode.removeChild(bubblyOverlay);

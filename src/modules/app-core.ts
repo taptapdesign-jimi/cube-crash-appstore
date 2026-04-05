@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
-import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, showSparkleText, stopSparkleText, isSparkleTextActive, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
+import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
@@ -773,6 +773,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { cleanupAllFxContainers?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
+  try { stopMagneticText?.(); } catch {}
   try { stopSparkleText?.(); } catch {}
   try { stopWildJuiceBubblesScreen?.(); } catch {}
   // 🔥 Safety: kill active magnet pull animations on cleanup
@@ -6762,6 +6763,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
+              try {
+                if (!isSparkleTextActive?.()) showSparkleText();
+              } catch {}
               wildStarMerge6ShardsTemplated(board, dst, { 
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
                 zIndex: 9993
@@ -6781,7 +6786,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   starsToHudTriggered = true;
                   (async () => {
                     try {
-                      showSparkleText();
                       devLog('⭐ Triggering stars-to-HUD between shards and smoke (INSTANT)');
                       await animateStarsToHudIcon(
                         board,
@@ -7781,8 +7785,33 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const isWildJuiceMerge6Spawn =
           srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
 
+        // Fallback safety: if last-merge flag was missed, but board effectively has only merge-6 left,
+        // do not run any spawn/open logic; trigger clean-board flow instead.
+        const maybeForceCleanBoardFromSingleMerge6 = async (reason: string): Promise<boolean> => {
+          if (busyEnding) return true;
+          const activeNow = tiles.filter(tileIsActive);
+          const onlyDstMerge6Remains =
+            !!dst &&
+            !dst.destroyed &&
+            (dst.value | 0) === 6 &&
+            activeNow.length === 1 &&
+            activeNow[0] === dst;
+          if (!onlyDstMerge6Remains) return false;
+          devWarn('🚨 MERGE-6 SPAWN GUARD: only merge-6 remains, forcing clean-board flow', {
+            reason,
+            activeNow: activeNow.length,
+            dstValue: dst ? (dst.value | 0) : null,
+            lastMergeFlag: (dst as any)?._isLastMerge === true,
+          });
+          (dst as any)._isLastMerge = true;
+          setFinalMergeVisualSuppression(true);
+          await triggerCleanBoardFlow(`clean_board_from_spawn_guard_${reason}`);
+          return true;
+        };
+
         /** Wild star merge opens k extra locked tiles — must run AFTER primary wild openLockedBounceParallel finishes (no parallel race on same locks). */
         const runWildStarExtraLockedOpens = async (): Promise<void> => {
+          if (await maybeForceCleanBoardFromSingleMerge6('wild_star_extra_locked')) return;
           if (!isWildMerge6 || isLastMergeFlagSet || isWildMagnetMerge6Spawn || isWildTntMerge6Spawn) return;
           const wildExtraActiveCount = isWildJuiceMerge6Spawn ? 0 : 3;
           if (wildExtraActiveCount <= 0) return;
@@ -7945,6 +7974,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               });
             };
           const doEndgameSpawns = async () => {
+            if (await maybeForceCleanBoardFromSingleMerge6('endgame_before_spawn')) return;
             let firstResult = await runSpawn();
             if (!firstResult) {
               forceClearSpawnCell();
@@ -7974,6 +8004,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (hasActiveTileAtMergeCell()) {
               pendingMandatoryMergeCellSpawn = null;
             }
+            if (await maybeForceCleanBoardFromSingleMerge6('endgame_after_spawn')) return;
             // 🔥 WILD-JUICE ENDGAME: ensure total 3 active tiles (1 at dst + 2 extra)
             const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
             const isWildMerge6Local =
@@ -8583,6 +8614,21 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           return cleared;
         };
+
+        // Remove any lingering locked/value0 placeholder artifact from merge cell.
+        // In magnet branches, grid can briefly hold a placeholder object instead of dst.
+        const clearMergeCellPlaceholderArtifact = () => {
+          if (!grid || !grid[gy]) return;
+          const atMergeCell = grid[gy][gx];
+          if (!atMergeCell || atMergeCell === dst) return;
+          const isLockedPlaceholder = !!atMergeCell.locked && ((atMergeCell.value | 0) <= 0);
+          if (!isLockedPlaceholder) return;
+          grid[gy][gx] = null;
+          if (!atMergeCell.destroyed && tiles.includes(atMergeCell)) {
+            try { removeTile(atMergeCell); } catch {}
+          }
+          devLog('🧹 Removed lingering locked placeholder artifact from merge cell (magnet flow)');
+        };
         
         // 🔥 POJEDNOSTAVLJENO: Ako je magnet merge i NEMA pulled tiles merge, obriši merge 6 tile
         // Ovo pokriva SVE scenarije: hasTilesToPull=false, nearestTiles.length=0, validTiles.length=0
@@ -8590,6 +8636,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         if (isMagnetMergeWithoutPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           devLog('🧲🧲🧲 MAGNET MERGE WITHOUT PULL - Removing merge 6 tile (simplified logic)');
+          clearMergeCellPlaceholderArtifact();
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
           if (clearTileFromGridSafe(dst)) {
@@ -8602,6 +8649,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           dst.eventMode = 'none';
           
           removeTile(dst); // Remove from tiles array
+          clearMergeCellPlaceholderArtifact();
           devLog('✅ Merge 6 tile removed successfully (magnet merge without pull)');
           
           // Clean up flags
@@ -8661,6 +8709,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
         } else if (isMagnetPullMergeFinal) {
           devLog('🧲 Magnet pull merge detected - removing merge 6 tile to prevent stuck value 6');
+          clearMergeCellPlaceholderArtifact();
           
           // Remove merge-6 tile even for magnet pulls (after pulled merge is done)
           if (dst && !dst.destroyed) {
@@ -8671,6 +8720,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             dst.alpha = 0;
             dst.eventMode = 'none';
             removeTile(dst);
+            clearMergeCellPlaceholderArtifact();
             devLog('✅ Magnet pull merge dst removed successfully');
           }
           
@@ -8686,11 +8736,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         // 🛡️ FAILSAFE: If a wild-magnet merge6 tile is still lingering, force-remove it
         if (wasWildMagnet && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          clearMergeCellPlaceholderArtifact();
           clearTileFromGridSafe(dst);
           dst.visible = false;
           dst.alpha = 0;
           dst.eventMode = 'none';
           removeTile(dst);
+          clearMergeCellPlaceholderArtifact();
           devWarn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
         }
         
@@ -9448,6 +9500,31 @@ function checkLevelEnd(){
         return;
       }
 
+      // Hard guard: merge-6 continuation must never enter fail flow.
+      // If active board contains 6 + (1..5), player still has a legal move.
+      const activeForMerge6Guard = tiles.filter((t: any) => tileIsActive(t as any));
+      const hasMerge6ContinuationPair = activeForMerge6Guard.some((a: any, i: number) => {
+        if (!a || a.destroyed || a.special) return false;
+        const av = (a.value | 0);
+        if (av !== 6) return false;
+        for (let j = 0; j < activeForMerge6Guard.length; j++) {
+          if (j === i) continue;
+          const b = activeForMerge6Guard[j] as any;
+          if (!b || b.destroyed || b.special) continue;
+          const bv = (b.value | 0);
+          if (bv >= 1 && bv <= 5) return true;
+        }
+        return false;
+      });
+      if (hasMerge6ContinuationPair) {
+        devWarn('🛡️ checkLevelEnd: Aborting stuck/fail - detected active merge6 continuation pair (6 + 1..5)');
+        checkLevelEndTimer = trackDelayedCall(0.12, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
+
       // Hard recovery: if a plain merge-6 is lingering while board is considered stuck,
       // consume it and force-spawn one fresh tile at the same cell before fail evaluation.
       // This prevents false fail when merge-6 cleanup/spawn order races in endgame scenarios.
@@ -9653,6 +9730,10 @@ function checkLevelEnd(){
 
       if (!stableStuckConfirmed) {
         devWarn('🧪 FAILFLOW DEBUG: stableStuckConfirmed=false, exiting stuck branch without fail modal');
+        checkLevelEndTimer = trackDelayedCall(0.25, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
         return;
       }
 
@@ -9736,6 +9817,10 @@ function checkLevelEnd(){
       } else {
         devWarn('🧪 FAILFLOW DEBUG: blocked because busyEnding=true');
         devWarn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
+        checkLevelEndTimer = trackDelayedCall(0.35, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
       }
     } else {
       devLog('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
@@ -10138,6 +10223,12 @@ function restartGame(){
   
   // CRITICAL FIX: Reset game ended flag when restarting
   window._gameHasEnded = false;
+  // Hard reset fail/endgame guards to avoid stale "pending fail" or final-merge suppression on Play Again.
+  try { (window as any).__ccFailScreenPending = false; } catch {}
+  try { setFinalMergeVisualSuppression(false); } catch {}
+  try { resetEndgameHint(); } catch {}
+  try { clearEndGameCache(); } catch {}
+  try { busyEnding = false; } catch {}
 
   const killAllGsapTweensForRestart = () => {
     try {

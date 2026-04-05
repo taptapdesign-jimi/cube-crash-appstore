@@ -5,6 +5,8 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { attachPuffyClouds } from './text-clouds.js';
+import { attachSparkleSprites } from './text-sparkles.js';
+import { attachBoltSprites } from './text-bolts.js';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -13,14 +15,14 @@ let swoopOverlay: HTMLElement | null = null;
 let swoopTimelinesRef: gsap.core.Timeline[] = [];
 let swoopBounceTimelinesRef: gsap.core.Timeline[] = [];
 let swoopDelayedCallsRef: gsap.core.Tween[] = [];
-let swoopCloudCleanup: (() => void) | null = null;
+let swoopFxCleanup: (() => void) | null = null;
 let magneticTextActive = false;
 let magneticTextWaiters: Array<() => void> = [];
 let sparkleOverlay: HTMLElement | null = null;
 let sparkleTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
-let sparkleCloudCleanup: (() => void) | null = null;
+let sparkleFxCleanup: (() => void) | null = null;
 let sparkleTextActive = false;
 let noMovesOverlay: HTMLElement | null = null;
 let noMovesTimelinesRef: gsap.core.Timeline[] = [];
@@ -74,9 +76,9 @@ function cleanupBuzzzOverlay(): void {
         });
       } catch {}
     }
-    if (swoopCloudCleanup) {
-      try { swoopCloudCleanup(); } catch {}
-      swoopCloudCleanup = null;
+    if (swoopFxCleanup) {
+      try { swoopFxCleanup(); } catch {}
+      swoopFxCleanup = null;
     }
     if (swoopOverlay?.parentNode) {
       swoopOverlay.parentNode.removeChild(swoopOverlay);
@@ -110,7 +112,8 @@ export function showMagneticText(): void {
       'justify-content: center',
     ].join(';');
     swoopOverlay = overlay;
-    swoopCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
+    // Wild-magnet SWOOP uses pooled bolt sprites instead of clouds.
+    swoopFxCleanup = attachBoltSprites(overlay, { count: 16, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -141,7 +144,7 @@ export function showMagneticText(): void {
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const swoopBounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(255, 148, 114, 0.45))';
 
     letters.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
@@ -153,7 +156,8 @@ export function showMagneticText(): void {
         'font-weight: 800',
         'font-size: 64px',
         'line-height: 1',
-        'color: #CC9882',
+        'color: #FF9472',
+        '-webkit-text-fill-color: #FF9472',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -366,9 +370,9 @@ function cleanupSparkleOverlay(): void {
         });
       } catch {}
     }
-    if (sparkleCloudCleanup) {
-      try { sparkleCloudCleanup(); } catch {}
-      sparkleCloudCleanup = null;
+    if (sparkleFxCleanup) {
+      try { sparkleFxCleanup(); } catch {}
+      sparkleFxCleanup = null;
     }
     if (sparkleOverlay?.parentNode) {
       sparkleOverlay.parentNode.removeChild(sparkleOverlay);
@@ -401,7 +405,8 @@ export function showSparkleText(): void {
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
-    sparkleCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
+    // Replace cloud layer with pooled sparkle sprite field (35 sprites, sequential twinkles).
+    sparkleFxCleanup = attachSparkleSprites(overlay, { count: 35, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -432,7 +437,7 @@ export function showSparkleText(): void {
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const bounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(255, 231, 157, 0.45))';
 
     letters.forEach((letter) => {
       const letterScale = 0.9 + Math.random() * 0.4;
@@ -444,7 +449,8 @@ export function showSparkleText(): void {
         'font-weight: 800',
         'font-size: 64px',
         'line-height: 1',
-        'color: #CC9882',
+        'color: #FFFCEA',
+        '-webkit-text-fill-color: #FFFCEA',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

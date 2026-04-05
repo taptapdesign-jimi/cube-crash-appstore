@@ -881,7 +881,13 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       const val1 = (tile1.value || 0);
       const val2 = (tile2.value || 0);
       const s = val1 + val2;
-      const isValid = s >= 2 && s <= 6;
+      // Keep merge-possibility rules aligned with app-core canDrop():
+      // - regular sums in [2..6] are valid
+      // - merge 6 can merge with any regular 1..5 to continue the run
+      const isMerge6Continuation =
+        (val1 === 6 && val2 >= 1 && val2 <= 5) ||
+        (val2 === 6 && val1 >= 1 && val1 <= 5);
+      const isValid = isMerge6Continuation || (s >= 2 && s <= 6);
       
       // 🔥 CRITICAL: Log each pair being checked for debugging
       if (open.length <= 6) { // Only log for small boards to avoid spam

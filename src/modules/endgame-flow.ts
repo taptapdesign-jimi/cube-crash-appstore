@@ -442,6 +442,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         // Arcade: use arcade boot path (fresh board 1, no journey state side effects).
         // Journey/interim: keep startNewRunFromJourney flow.
         if (isArcadeHomeRunMode()) {
+          // Force HUD entry/drop sequence for Arcade Play Again (same visual path as fresh arcade start).
+          (window as any).__ccTriggerHudDrop = true;
           const uiManagerModule = await import('./ui-manager.js');
           await uiManagerModule.default.startNewGame();
           console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');

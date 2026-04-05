@@ -566,6 +566,8 @@ class UIManager {
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     (window as any).__ccCameFromHomepage = true;
     (window as any).__ccCameFromJourney = false;
+    // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
+    (window as any).__ccTriggerHudDrop = true;
     setRunMode(RUN_MODE_ARCADE_HOME);
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
@@ -623,6 +625,10 @@ class UIManager {
         layoutGame();
         console.log('✅ layout() complete');
         
+        // Clear one-shot flags after boot/layout has consumed them.
+        delete (window as any).__ccTriggerHudDrop;
+        delete (window as any).__ccBoardJustCompleted;
+        
         // Start time tracking
         if (typeof (window as any).startTimeTracking === 'function') {
           (window as any).startTimeTracking();
@@ -664,6 +670,7 @@ class UIManager {
       }
       
     } catch (error) {
+      delete (window as any).__ccTriggerHudDrop;
       console.error('❌ Failed to start new game:', error);
       logger.error('❌ Failed to start new game:', error);
     }

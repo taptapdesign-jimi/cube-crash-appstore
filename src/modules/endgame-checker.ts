@@ -96,6 +96,20 @@ function isWildEffectivelyPresent(tile: any): boolean {
   return true;
 }
 
+function isMagnetContinuationCandidate(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (tile.special !== 'wild-magnet') return false;
+  if (!isWildEffectivelyPresent(tile)) return false;
+
+  // Ignore transient magnets in pull/cleanup pipeline; they should not block final-merge clean board.
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
+
+  return true;
+}
+
 /**
  * 🔥 EXPORTED: Check if tile is active (can be merged/moved)
  * Used by app-core.ts and other modules for consistent tile filtering
@@ -241,11 +255,20 @@ function isLastMergeScenario(context: EndGameContext): boolean {
 
   logger.debug('🔍 isLastMergeScenario: Active tiles excluding dst', 'endgame-checker', { tiles: activeTiles.map(t => ({ value: t.value, special: t.special })) });
 
-  // 🔥 CRITICAL FIX: If magnet exists on board as separate tile, it's NOT a last merge
-  // User can still merge magnet with merge 6 to create final merge
-  const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
-  if (hasMagnet) {
-    console.log('🧲 isLastMergeScenario: Magnet detected on board - NOT a last merge');
+  // 🔥 CRITICAL FIX: Magnet should block "last merge" only if it's a real continuation candidate.
+  // Transient/cleanup magnets (in pull/remove pipeline) must not block clean-board detection.
+  const blockingMagnets = activeTiles.filter(isMagnetContinuationCandidate);
+  if (blockingMagnets.length > 0) {
+    console.log('🧲 isLastMergeScenario: Continuation magnet detected on board - NOT a last merge', {
+      magnets: blockingMagnets.map((t: any) => ({
+        x: (t as any).gridX,
+        y: (t as any).gridY,
+        alpha: t.alpha,
+        visible: t.visible,
+        eventMode: t.eventMode,
+        value: (t.value | 0),
+      }))
+    });
     return false;
   }
   
