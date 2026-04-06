@@ -68,6 +68,10 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const lifecycle = createScreenLifecycle('board-transition-screen');
+const TRANSITION_HAPTIC_FIRST_DELAY = 0.25;
+const TRANSITION_HAPTIC_OTHER_DELAY = 0.3;
+const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
+const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
 
 function ensureCloudStyles(): void {
   if (document.getElementById('cc-board-transition-cloud-styles')) return;
@@ -714,6 +718,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     // Step 3: Animate digits with bounce animation (staggered)
     digitElements.forEach((digitEl, index) => {
       const delay = 0.3 + (index * 0.3); // Stagger by 0.3s per digit
+      const digitHapticLocalDelay = index === 0 ? TRANSITION_HAPTIC_FIRST_DELAY : TRANSITION_HAPTIC_OTHER_DELAY;
+      const digitHapticDelay = delay + digitHapticLocalDelay;
+
+      if (typeof (window as any).triggerHapticImpact === 'function') {
+        const hapticCall = trackDelayedCall(digitHapticDelay, () => {
+          try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+        });
+        activeTweens.push(hapticCall as any);
+      }
       
       // 🔥 USER REQUEST: Generate random rotation with opposite poles for adjacent digits
       // First digit: random between -8 and +8, second digit: opposite sign (always -+ or +-)
@@ -907,6 +920,21 @@ function startExitAnimation(
       onComplete();
     }
   });
+
+  // Replay same two digit haptics on exit (numbers disappearing), after requested base delay.
+  if (typeof (window as any).triggerHapticImpact === 'function') {
+    const exitHapticDigits = Math.min(2, digitElements.length);
+    for (let i = 0; i < exitHapticDigits; i++) {
+      const exitDelay =
+        i === 0
+          ? TRANSITION_EXIT_HAPTIC_FIRST_DELAY
+          : TRANSITION_EXIT_HAPTIC_FIRST_DELAY + TRANSITION_EXIT_HAPTIC_SECOND_GAP;
+      const hapticCall = trackDelayedCall(exitDelay, () => {
+        try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+      });
+      activeTweens.push(hapticCall as any);
+    }
+  }
 
   // Reverse order: digits first (last to first), then forest, then overlay
 

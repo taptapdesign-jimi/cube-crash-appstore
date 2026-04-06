@@ -5137,16 +5137,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       });
       isLastMerge = false;
     }
-    // 🔥 BUG FIX: 2 unlocked tiles + locked ice still on board ≠ true last merge (spawn must run or soft-lock)
-    if (isLastMerge && boardHasPersistentLockedTiles(tiles)) {
-      devWarn('⚠️ LAST MERGE OVERRIDE: persistent locked tiles on board — forcing NOT last merge', {
-        visibleTilesCount,
-        isRegularRegularLastTwoMerge6,
-        isAnyWildLastTwo,
-      });
-      isLastMerge = false;
-      (dst as any)._isWildMagnetLastTwo = false;
-    }
+    // SOURCE OF TRUTH: Final merge-6 is determined by active/visible merge candidates.
+    // Locked/persistent tiles must NOT cancel last-merge detection.
     
     if (isLastMerge) {
       const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : 
@@ -5258,7 +5250,27 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     if (typeof (window as any).triggerHapticImpact === 'function') {
       const isWildTntMergeHaptic = srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt';
       if (isWildTntMergeHaptic) {
-        // Wild-TNT haptics are now driven from tnt-animation.ts per sprite frame.
+        // Main wild merge impact must fire immediately on merge-6.
+        (window as any).triggerHapticImpact('heavy');
+
+        // Wild-TNT merge-6 pattern:
+        // immediate main impact -> delay 400ms -> 5x @150ms -> pause 2000ms -> 4x @100ms
+        const triggerImpact = () => {
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
+        };
+        const startDelayMs = 400;
+        const wave1Count = 5;
+        const wave1IntervalMs = 150;
+        const wave2PauseMs = 500;
+        const wave2Count = 4;
+        const wave2IntervalMs = 100;
+        for (let i = 0; i < wave1Count; i++) {
+          trackAppTimeout(triggerImpact, startDelayMs + i * wave1IntervalMs);
+        }
+        const wave2StartMs = startDelayMs + (wave1Count * wave1IntervalMs) + wave2PauseMs;
+        for (let i = 0; i < wave2Count; i++) {
+          trackAppTimeout(triggerImpact, wave2StartMs + i * wave2IntervalMs);
+        }
       } else if (wildActive) {
         // Other wild merge 6 = Double HEAVY for longer feel
         (window as any).triggerHapticImpact('heavy');
