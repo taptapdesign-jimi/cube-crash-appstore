@@ -5256,8 +5256,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     
     // Haptic feedback for merge 6
     if (typeof (window as any).triggerHapticImpact === 'function') {
-      if (wildActive) {
-        // Wild merge 6 = Double HEAVY for longer feel
+      const isWildTntMergeHaptic = srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt';
+      if (isWildTntMergeHaptic) {
+        // Wild-TNT haptics are now driven from tnt-animation.ts per sprite frame.
+      } else if (wildActive) {
+        // Other wild merge 6 = Double HEAVY for longer feel
         (window as any).triggerHapticImpact('heavy');
         trackAppTimeout(() => {
           (window as any).triggerHapticImpact('heavy');
@@ -11227,15 +11230,6 @@ async function loadGameState(overrideBoardNumber?: number) {
           isHudDropPending: () => _hudDropPending,
           setHudDropPending: (v) => { _hudDropPending = v; },
         });
-        // 🔥 UX: Stronger haptic on mid pop-in (double heavy tap) for load/continue path
-        try {
-          if (typeof (window as any).triggerHapticImpact === 'function') {
-            (window as any).triggerHapticImpact('heavy');
-            trackAppTimeout(() => {
-              try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
-            }, 300);
-          }
-        } catch {}
       },
       onComplete: () => {
         // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation

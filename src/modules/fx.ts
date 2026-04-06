@@ -4614,6 +4614,11 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           // 🔥 CRITICAL: Add star count - this triggers bounce via queue system (sequential, no overlap)
           // Only ONE call to addStars per star (removed duplicate)
           try {
+            try {
+              if (typeof (window as any)?.triggerHapticImpact === 'function') {
+                (window as any).triggerHapticImpact('light');
+              }
+            } catch {}
             if (typeof window !== 'undefined' && window.CC && typeof window.CC.addStars === 'function') {
               window.CC.addStars(1);
             } else {

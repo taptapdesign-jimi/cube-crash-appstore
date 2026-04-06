@@ -105,6 +105,43 @@ let pooledFrameContainer: Container | null = null;
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
+const triggerTntFrameHaptic = (frameIndex: number) => {
+  try {
+    const w = window as any;
+    if (typeof w?.triggerHapticImpact !== 'function') return;
+    const kind = (frameIndex === 5 || frameIndex === 11) ? 'medium' : 'light';
+    w.triggerHapticImpact(kind);
+  } catch {}
+};
+const triggerTntOutroHaptics = () => {
+  try {
+    const w = window as any;
+    if (typeof w?.triggerHapticImpact !== 'function') return;
+    // Outro build-up right before TNT bonus board break phase.
+    const firstWave: Array<{ delay: number; kind: 'light' | 'medium' }> = [
+      { delay: 0, kind: 'medium' },
+      { delay: 70, kind: 'light' },
+      { delay: 140, kind: 'light' },
+      { delay: 210, kind: 'medium' },
+    ];
+    const secondWavePauseMs = 800;
+    const secondWaveIntervalMs = 100;
+    const secondWaveStartMs = firstWave[firstWave.length - 1].delay + secondWavePauseMs;
+    const secondWave: Array<{ delay: number; kind: 'light' | 'medium' }> = [
+      { delay: secondWaveStartMs + 0 * secondWaveIntervalMs, kind: 'medium' },
+      { delay: secondWaveStartMs + 1 * secondWaveIntervalMs, kind: 'light' },
+      { delay: secondWaveStartMs + 2 * secondWaveIntervalMs, kind: 'light' },
+      { delay: secondWaveStartMs + 3 * secondWaveIntervalMs, kind: 'medium' },
+    ];
+    const pulses = [...firstWave, ...secondWave];
+    pulses.forEach(({ delay, kind }) => {
+      const h = trackDelayedCall(delay / 1000, () => {
+        try { w.triggerHapticImpact(kind); } catch {}
+      });
+      if (h) memSampleCallsRef.push(h as any);
+    });
+  } catch {}
+};
 let memorySpikeTrackerPromise: Promise<any | null> | null = null;
 function loadMemorySpikeTracker(): Promise<any | null> {
   if (!memorySpikeTrackerPromise) {
@@ -375,6 +412,7 @@ const EXIT_FADE_DURATION = 0.17;
 const HOLD_AT_FRAME_6 = 0.3;
 const SPRITE_EXTRA_DURATION = 0.3;
 const SPRITE_EXIT_STAGGER = 0.04;
+const TNT_HAPTIC_START_DELAY_MS = 200;
 const BOOM_ENTER_DELAY = 0.3;
 const BOOM_ENTER_STAGGER = 0.05;
 const BOOM_EXIT_STAGGER = 0.06;
@@ -587,6 +625,9 @@ export function showTntAnimation(options: {
 
     const tl = trackTimeline({ delay: enterDelay });
     extraTimelines.push(tl);
+    // Sync one haptic pulse with each sprite frame reveal.
+    const frameHaptic = trackDelayedCall(enterDelay + (TNT_HAPTIC_START_DELAY_MS / 1000), () => triggerTntFrameHaptic(i));
+    if (frameHaptic) memSampleCallsRef.push(frameHaptic as any);
     tl.to(frameEl, {
       alpha: 1,
       duration: dEnter,
@@ -697,6 +738,7 @@ export function showTntAnimation(options: {
   const startBoomExit = () => {
     if (boomExitStarted) return;
     boomExitStarted = true;
+    triggerTntOutroHaptics();
     try { onBoomExitStart?.(); } catch {}
     boomBounceTimelines.forEach((tl) => {
       try { tl.kill(); } catch {}

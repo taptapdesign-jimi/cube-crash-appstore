@@ -40,6 +40,73 @@ let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
+const WILD_JUICE_HAPTIC_INITIAL_COUNT = 6;
+const WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS = 50;
+const WILD_JUICE_HAPTIC_GLOBAL_START_DELAY_MS = 200;
+const WILD_JUICE_HAPTIC_FLOW_START_MS = 320;
+const WILD_JUICE_HAPTIC_FLOW_INTERVAL_MS = 180;
+const WILD_JUICE_HAPTIC_LATE_BURST_COUNT = 10;
+const WILD_JUICE_HAPTIC_LATE_BURST_INTERVAL_MS = 70;
+const WILD_JUICE_HAPTIC_TAIL_COUNT = 4;
+const WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS = 140;
+const WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT = 5;
+const WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS = 100;
+
+function scheduleHapticPulseTrain(startMs: number, count: number, intervalMs: number): void {
+  for (let i = 0; i < count; i++) {
+    lifecycle.trackTimeout(() => {
+      try {
+        (window as any).triggerHapticImpact?.('light');
+      } catch {}
+    }, Math.max(0, startMs + i * intervalMs));
+  }
+}
+
+function triggerWildJuiceHapticBurst(spawnDurationMs: number): void {
+  try {
+    const trigger = (window as any)?.triggerHapticImpact;
+    if (typeof trigger !== 'function') return;
+
+    const baseStartMs = WILD_JUICE_HAPTIC_GLOBAL_START_DELAY_MS;
+    const lateBurstStartMs = Math.max(0, Math.floor(spawnDurationMs * 0.75));
+
+    // Phase 1: initial visual burst (first 20 bubbles spawned instantly).
+    scheduleHapticPulseTrain(baseStartMs, WILD_JUICE_HAPTIC_INITIAL_COUNT, WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS);
+
+    // Phase 2: continuous bubble flow.
+    for (
+      let t = WILD_JUICE_HAPTIC_FLOW_START_MS;
+      t < lateBurstStartMs - 120;
+      t += WILD_JUICE_HAPTIC_FLOW_INTERVAL_MS
+    ) {
+      lifecycle.trackTimeout(() => {
+        try {
+          (window as any).triggerHapticImpact?.('light');
+        } catch {}
+      }, baseStartMs + t);
+    }
+
+    // Phase 3: late visual burst (+40 bubbles at 75% of spawn duration).
+    scheduleHapticPulseTrain(
+      baseStartMs + lateBurstStartMs,
+      WILD_JUICE_HAPTIC_LATE_BURST_COUNT,
+      WILD_JUICE_HAPTIC_LATE_BURST_INTERVAL_MS
+    );
+
+    // Phase 4: tail while bubbles finish drifting out.
+    const tailStartMs = baseStartMs + lateBurstStartMs + 900;
+    scheduleHapticPulseTrain(tailStartMs, WILD_JUICE_HAPTIC_TAIL_COUNT, WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS);
+
+    // Phase 5: final ending pulses at the very end.
+    const finalTailStartMs =
+      tailStartMs + (WILD_JUICE_HAPTIC_TAIL_COUNT * WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS);
+    scheduleHapticPulseTrain(
+      finalTailStartMs,
+      WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT,
+      WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS
+    );
+  } catch {}
+}
 
 function getFxHost(stage: any): any {
   if (!stage || stage.destroyed) return null;
@@ -377,6 +444,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   const maxActive = 60;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
+  triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;

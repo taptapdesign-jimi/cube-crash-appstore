@@ -58,6 +58,23 @@ const animateScore = (toValue, duration = 0.45) => {
   }
 };
 
+function triggerMagnetQuickHapticBurst(count = 4, intervalMs = 50): void {
+  try {
+    if (typeof (window as any).triggerHapticImpact !== 'function') return;
+    const lastTwoStart = Math.max(0, count - 2);
+    for (let i = 0; i < count; i++) {
+      const isLastTwo = i >= lastTwoStart;
+      const delay = i * intervalMs + (isLastTwo ? 50 : 0);
+      const strength: 'light' | 'medium' = isLastTwo ? 'medium' : 'light';
+      trackAppTimeout(() => {
+        try {
+          (window as any).triggerHapticImpact?.(strength);
+        } catch {}
+      }, delay);
+    }
+  } catch {}
+}
+
 function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
   const checker = (window as any)?.CC?.checkLevelEnd;
   if (typeof checker !== 'function') return false;
@@ -1122,12 +1139,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore, 'combo updated to', newCombo);
 
-  if (pulledTileCount >= 4 && typeof (window as any).triggerHapticImpact === 'function') {
-    try {
-      (window as any).triggerHapticImpact('medium');
-    } catch (error) {
-      console.warn('⚠️ Failed to trigger haptic for pulled tiles merge:', error);
-    }
+  if (pulledTileCount > 0) {
+    // Burst scales with pull size: 1..4 quick taps for 1..4 pulled tiles.
+    const burstCount = Math.max(1, Math.min(4, pulledTileCount | 0));
+    triggerMagnetQuickHapticBurst(burstCount, 50);
   }
 
   // 🔥 CRITICAL: Check if magnet merge 6 is left with few tiles (3 or less) - if so, pull remaining tiles and trigger clean board

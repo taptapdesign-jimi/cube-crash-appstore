@@ -15,6 +15,7 @@ const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
 interface SweetPopOptions {
   onHalf?: () => void;
 }
+const ENTRY_POPIN_HAPTIC_START_DELAY_MS = 200;
 
 // reset container while preserving boardBG and backgroundLayer
 export function resetBoardContainer(): void {
@@ -116,6 +117,8 @@ export function rebuildBoard(): void {
 // Fun bouncy animation with smart optimization
 export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promise<void> {
   const list = [...listTiles];
+  const isLoadPopInHaptics = (window as any).__ccLoadPopInHapticPerTile === true;
+  const isEntryPopInHaptics = (window as any).__ccEnterAnimationActive === true;
 
   // FULL random order — no spatial pattern
   for (let i = list.length - 1; i > 0; i--) {
@@ -160,6 +163,16 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       // Povremeni "burst" – dio kockica krene ranije
       const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0; // do -160ms
       const enterDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
+
+      const shouldTriggerPopInHaptic =
+        isLoadPopInHaptics || (isEntryPopInHaptics && i % 2 === 0);
+      if (shouldTriggerPopInHaptic && typeof (window as any).triggerHapticImpact === 'function') {
+        const hapticDelay = enterDel + (isEntryPopInHaptics ? ENTRY_POPIN_HAPTIC_START_DELAY_MS / 1000 : 0);
+        const hapticCall = trackDelayedCall(hapticDelay, () => {
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
+        });
+        activeDelayedCalls.push(hapticCall);
+      }
 
       // Trajanja uvijek brza, s blagom varijacijom
       const durMul = 0.55 + Math.random() * 0.20; // 0.55–0.75
