@@ -956,7 +956,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Schedule combo decay (same as normal merge) - reset combo timer but don't reset combo value
   // This starts a NEW timer for the updated combo value
   if (typeof (window as any).CC?.scheduleComboDecay === 'function') {
-    (window as any).CC.scheduleComboDecay();
+    // Wild-magnet merge-6 uses extended combo window before returning to normal 2s on later merges.
+    (window as any).CC.scheduleComboDecay(4000);
     console.log('🔥 MAGNET COMBO: Scheduled combo decay for combo=', newCombo);
   } else {
     console.error('❌ MAGNET COMBO: window.CC.scheduleComboDecay is not a function!');

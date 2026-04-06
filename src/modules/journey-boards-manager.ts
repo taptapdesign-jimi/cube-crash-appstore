@@ -4927,6 +4927,8 @@ class JourneyBoardsManager {
             setTimeout(() => {
               playButtonForEnter.classList.remove('animate-enter-initial');
               playButtonForEnter.classList.add('animate-enter');
+              // CTA appearance haptic in detail modal enter flow.
+              try { (window as any).triggerHapticImpact?.('medium'); } catch {}
             }, 0);
           }
 
@@ -5365,6 +5367,13 @@ class JourneyBoardsManager {
                     if (elementValue) elementValue.style.visibility = 'visible';
                     if (elementLabel) elementLabel.style.visibility = 'visible';
                     if (elementContent) elementContent.style.visibility = 'visible';
+                    // One light haptic per stat item appearance (3 stats => 3 haptics).
+                    const isStatItem =
+                      element.classList.contains('detail-stat-item') ||
+                      element.classList.contains('stat-item');
+                    if (isStatItem) {
+                      try { (window as any).triggerHapticImpact?.('light'); } catch {}
+                    }
                   },
                   onUpdate: () => {
                     // 🔥 CRITICAL: Sync children opacity with parent during animation (same as card)

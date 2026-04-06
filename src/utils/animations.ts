@@ -134,6 +134,9 @@ let isAnimatingEnter = false;
 
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+const HOMEPAGE_ENTER_HAPTIC_OFFSET_MS = 400;
+const HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS = 95;
+const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 200;
 
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
@@ -175,6 +178,27 @@ const ensureJourneyBadge = (journeyNavButton: HTMLElement | null): number => {
     }
   }
   return effectiveCount;
+};
+
+const scheduleHomepageEnterPatternHaptics = (): void => {
+  if (typeof (window as any).triggerHapticImpact !== 'function') return;
+  // 1) first pulse, 2) immediately after first, 3) +100ms after second
+  const t0 = HOMEPAGE_ENTER_HAPTIC_OFFSET_MS;
+  const t1 = t0 + HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS;
+  const t2 = t1 + HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS;
+
+  const schedule = (delayMs: number, label: string) => {
+    const timeout = setTimeout(() => {
+      activeTimeouts.delete(timeout);
+      try { (window as any).triggerHapticImpact?.('light'); } catch {}
+      logger.info(`📳 Homepage enter haptic: ${label} @ ${delayMs}ms`);
+    }, Math.max(0, delayMs));
+    activeTimeouts.add(timeout);
+  };
+
+  schedule(t0, 'central-image');
+  schedule(t1, 'cta');
+  schedule(t2, 'logo-end');
 };
 
 // Cache DOM elements for performance (prevent repeated querySelector calls on first click)
@@ -692,6 +716,7 @@ export const animateSliderEnter = (): void => {
 // Separate function for the actual enter animation sequence
 function startEnterAnimationSequence(): void {
   try {
+    scheduleHomepageEnterPatternHaptics();
     // 🔥 CRITICAL: Verify homepage is visible before starting animation
     const homeElement = document.getElementById('home');
     if (!homeElement) {
@@ -1056,6 +1081,7 @@ function startEnterAnimationSequence(): void {
 
 // Legacy fallback for enter animation when no active slide is found
 function startEnterAnimationSequenceLegacy(): void {
+  scheduleHomepageEnterPatternHaptics();
   // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
   
   // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit

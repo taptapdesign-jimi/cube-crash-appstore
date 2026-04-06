@@ -68,7 +68,7 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const lifecycle = createScreenLifecycle('board-transition-screen');
-const TRANSITION_HAPTIC_FIRST_DELAY = 0.25;
+const TRANSITION_HAPTIC_FIRST_DELAY = 0.15;
 const TRANSITION_HAPTIC_OTHER_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
@@ -723,7 +723,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
       if (typeof (window as any).triggerHapticImpact === 'function') {
         const hapticCall = trackDelayedCall(digitHapticDelay, () => {
-          try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
         });
         activeTweens.push(hapticCall as any);
       }
@@ -930,7 +930,7 @@ function startExitAnimation(
           ? TRANSITION_EXIT_HAPTIC_FIRST_DELAY
           : TRANSITION_EXIT_HAPTIC_FIRST_DELAY + TRANSITION_EXIT_HAPTIC_SECOND_GAP;
       const hapticCall = trackDelayedCall(exitDelay, () => {
-        try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
+        try { (window as any).triggerHapticImpact?.('light'); } catch {}
       });
       activeTweens.push(hapticCall as any);
     }

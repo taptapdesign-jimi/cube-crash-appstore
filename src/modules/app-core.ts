@@ -358,11 +358,14 @@ function killComboTimer(){
   comboIdleTimer = killComboTimerHelper(comboIdleTimer);
 }
 
-function scheduleComboDecay(){
-  devLog(`🔥 scheduleComboDecay called: combo=${combo}, currentTimer=${comboIdleTimer}`);
+function scheduleComboDecay(customResetMs?: number){
+  const resetMs = (typeof customResetMs === 'number' && Number.isFinite(customResetMs) && customResetMs > 0)
+    ? Math.floor(customResetMs)
+    : COMBO_IDLE_RESET_MS;
+  devLog(`🔥 scheduleComboDecay called: combo=${combo}, currentTimer=${comboIdleTimer}, resetMs=${resetMs}`);
   comboIdleTimer = scheduleComboDecayHelper(
     comboIdleTimer,
-    COMBO_IDLE_RESET_MS,
+    resetMs,
     combo,
     hudResetCombo,
     updateHUD
@@ -2373,7 +2376,7 @@ export async function boot(){
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
-    scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
+    scheduleComboDecay: (ms?: number) => scheduleComboDecay(ms), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
     killComboTimer: () => killComboTimer(), // 🔥 CRITICAL: Export killComboTimer to kill existing timer before updating combo
     addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
@@ -6445,8 +6448,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Combo++ + bump (merge 6 hits maximum balloon)
         hudSetCombo(combo + 1);
         try { HUD.bumpCombo?.({ kind: 'merge6', combo }); } catch {}
-        
-        scheduleComboDecay();
+
+        // Wild merge-6 gets a longer combo window (4s); next merges return to default 2s.
+        const isWildMerge6ForComboWindow =
+          srcSpecial === 'wild' ||
+          srcSpecial === 'wild-magnet' ||
+          srcSpecial === 'wild-juice' ||
+          srcSpecial === 'wild-tnt' ||
+          dstSpecial === 'wild' ||
+          dstSpecial === 'wild-magnet' ||
+          dstSpecial === 'wild-juice' ||
+          dstSpecial === 'wild-tnt';
+        scheduleComboDecay(isWildMerge6ForComboWindow ? 4000 : undefined);
 
         // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se pozovu shardovi!
         // Nakon removeTile(dst), dst može biti destroyed ili undefined

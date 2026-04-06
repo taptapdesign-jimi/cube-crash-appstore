@@ -70,6 +70,29 @@ const _modalTimeouts: Set<NodeJS.Timeout> = new Set();
 // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
 const _modalAnimationFrames: Set<number> = new Set();
 let _modalCleanupInProgress = false;
+const CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS = 65;
+
+function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
+  try {
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact(kind);
+    }
+  } catch {}
+}
+
+function createCounterLightHapticTrigger(minIntervalMs = CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS) {
+  let lastAt = 0;
+  let lastValue = Number.NaN;
+  return (value: number) => {
+    const safeValue = Number.isFinite(value) ? Math.round(value) : 0;
+    if (safeValue === lastValue) return;
+    lastValue = safeValue;
+    const now = Date.now();
+    if (now - lastAt < minIntervalMs) return;
+    lastAt = now;
+    triggerHapticImpactSafe('light');
+  };
+}
 
 function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
   if (_modalCleanupInProgress) {
@@ -651,6 +674,10 @@ export async function showCleanBoardModal({
     // 🎯 PURE CSS APPROACH - JavaScript only adds/removes classes
     // All animations handled by CSS classes in style.css
     const buttonStaggerMs = 350; // Delay between Play Again and Exit button appearance
+    let cleanBoardStarAppearHapticPlayed = false;
+    const triggerMainScoreCounterHaptic = createCounterLightHapticTrigger();
+    const triggerComboCounterHaptic = createCounterLightHapticTrigger();
+    const triggerEfficiencyCounterHaptic = createCounterLightHapticTrigger();
 
     // Set button to hidden state (before animation)
     const setButtonInitialState = (button: HTMLButtonElement) => {
@@ -662,6 +689,8 @@ export async function showCleanBoardModal({
       button.removeAttribute('data-clean-board-exiting');
       button.classList.remove('clean-board-button-hidden');
       button.classList.add('clean-board-button-visible');
+      // CTA appearing on screen should feel confirmatory.
+      triggerHapticImpactSafe('medium');
     };
 
     const buttonExitDurationMs = 650; // CSS animate-exit duration
@@ -846,6 +875,7 @@ export async function showCleanBoardModal({
             const rounded = Math.round(scoreProxy.value);
             const formatted = formatScoreSimple(rounded);
             mainScore.textContent = formatted;
+            triggerMainScoreCounterHaptic(rounded);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
@@ -875,7 +905,9 @@ export async function showCleanBoardModal({
           duration: durationSec,
           ease: 'power2.out',
           onUpdate: () => {
-            comboValue.textContent = `+${formatScoreSimple(Math.round(comboProxy.value))}`;
+            const rounded = Math.round(comboProxy.value);
+            comboValue.textContent = `+${formatScoreSimple(rounded)}`;
+            triggerComboCounterHaptic(rounded);
           },
           onComplete: () => {
             comboValue.textContent = '+0';
@@ -905,7 +937,9 @@ export async function showCleanBoardModal({
           duration: durationSec,
           ease: 'power2.out',
           onUpdate: () => {
-            efficiencyValue.textContent = `+${formatScoreSimple(Math.round(efficiencyProxy.value))}`;
+            const rounded = Math.round(efficiencyProxy.value);
+            efficiencyValue.textContent = `+${formatScoreSimple(rounded)}`;
+            triggerEfficiencyCounterHaptic(rounded);
           },
           onComplete: () => {
             efficiencyValue.textContent = '+0';
@@ -926,6 +960,10 @@ export async function showCleanBoardModal({
           hero.style.transition = trans;
           hero.style.opacity = '1';
           hero.style.transform = 'scale(1) translateY(0)';
+          if (!cleanBoardStarAppearHapticPlayed) {
+            cleanBoardStarAppearHapticPlayed = true;
+            triggerHapticImpactSafe('medium');
+          }
           console.log('🌟 Hero styles set:', { opacity: hero.style.opacity, transform: hero.style.transform });
           
           // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
@@ -936,6 +974,8 @@ export async function showCleanBoardModal({
               if (index < numStars) {
                 setTimeout(() => {
                   const { filledImg, emptyImg } = star;
+                  // One medium haptic per earned (filled) star.
+                  triggerHapticImpactSafe('medium');
                   
                   // 🌟 Hide empty star when filled star appears (no background visibility when pulsing)
                   emptyImg.style.opacity = '0';
