@@ -1509,23 +1509,28 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🎯 NEW: Skip board exit animation if flag is set (clean board scenario - no tiles to animate)
     // 🔥 CRITICAL FIX: Double-check flag value and log it for debugging
     const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
+    const isFastArcadeCleanExit = (window as any).__ccFastArcadeCleanExit === true;
     console.log(`🔍 exitToMenu: shouldSkipBoardExit = ${shouldSkipBoardExit}, flag value = ${(window as any).__skipBoardExitAnimation}`);
     if (shouldSkipBoardExit) {
       console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
       
       // 🔥 CRITICAL FIX: Still play HUD exit animation even when skipping board exit
       // This ensures HUD animates out properly before returning to Journey screen
-      try {
-        const { STATE } = await import('./modules/app-state.js');
-        if (STATE && STATE.hud && typeof STATE.hud.playHudRise === 'function') {
-          console.log('🎯 Playing HUD exit animation (board exit skipped)');
-          STATE.hud.playHudRise({});
-          // Wait for HUD exit animation to complete (~300ms)
-          await new Promise(resolve => setTimeout(resolve, 350));
-          console.log('✅ HUD exit animation completed');
+      if (!isFastArcadeCleanExit) {
+        try {
+          const { STATE } = await import('./modules/app-state.js');
+          if (STATE && STATE.hud && typeof STATE.hud.playHudRise === 'function') {
+            console.log('🎯 Playing HUD exit animation (board exit skipped)');
+            STATE.hud.playHudRise({});
+            // Wait for HUD exit animation to complete (~300ms)
+            await new Promise(resolve => setTimeout(resolve, 350));
+            console.log('✅ HUD exit animation completed');
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to play HUD exit animation:', error);
         }
-      } catch (error) {
-        console.warn('⚠️ Failed to play HUD exit animation:', error);
+      } else {
+        console.log('⚡ Fast arcade clean exit: skipping duplicate HUD exit wait');
       }
       
       // Hide board and HUD immediately (no animation)
@@ -1549,6 +1554,7 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // Clear flag after use
       delete (window as any).__skipBoardExitAnimation;
+      delete (window as any).__ccFastArcadeCleanExit;
     } else {
       console.log('🎬 Playing board exit animations...');
       // 🔥 CRITICAL FIX: Double-check that flag is NOT set (defensive check)

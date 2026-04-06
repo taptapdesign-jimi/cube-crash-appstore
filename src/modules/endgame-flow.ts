@@ -309,6 +309,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           delete (window as any).__ccCameFromDetailModal;
           delete (window as any).__ccDetailModalBoardId;
           delete (window as any).__skipBoardExitAnimation;
+          // Clean-board modal already played board exit animation.
+          // Tell exitToMenu to skip duplicate board/HUD exit for faster return to homepage.
+          (window as any).__skipBoardExitAnimation = true;
+          (window as any).__ccFastArcadeCleanExit = true;
           if (typeof (window as any).exitToMenu === 'function') {
             await (window as any).exitToMenu();
           }
