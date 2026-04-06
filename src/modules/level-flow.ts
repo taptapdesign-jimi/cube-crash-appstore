@@ -183,9 +183,22 @@ async function openLockedBounceParallelImpl({
     const spawnPromise = new Promise<void>((resolve) => {
       let resolved = false;
       let countedSuccess = false;
+      const clearSpawnFlag = () => {
+        try {
+          if (t && !t.destroyed) {
+            (t as any)._isBeingSpawned = false;
+          }
+        } catch {}
+      };
+      try {
+        if (t && !t.destroyed) {
+          (t as any)._isBeingSpawned = true;
+        }
+      } catch {}
       const safeResolve = () => {
         if (resolved) return;
         resolved = true;
+        clearSpawnFlag();
         resolve();
       };
       const ensureActiveFullOpacity = (tile: any) => {

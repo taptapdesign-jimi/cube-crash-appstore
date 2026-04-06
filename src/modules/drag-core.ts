@@ -143,6 +143,8 @@ export function initDrag(cfg) {
 
   const drag = {
     t: null,
+    pointerId: null as number | null,
+    pointerType: null as string | null,
     startGX: 0, startGY: 0,
     startX: 0,  startY: 0,
     offX: 0,    offY: 0,
@@ -178,6 +180,20 @@ export function initDrag(cfg) {
     _boardPivotApplied: false,
   };
 
+  function eventPointerId(e: any): number | null {
+    const pid = e?.pointerId;
+    return Number.isFinite(pid) ? pid : null;
+  }
+
+  function isActivePointerEvent(e: any): boolean {
+    // If no owner pointer is set, accept event.
+    if (drag.pointerId === null) return true;
+    const pid = eventPointerId(e);
+    // If event has no pointer id, treat as non-owner and ignore.
+    if (pid === null) return false;
+    return pid === drag.pointerId;
+  }
+
   const helpers = { snapBack, clearHover };
 
   // ⚙️ Z-INDEX SAFETY HELPERS
@@ -206,6 +222,13 @@ export function initDrag(cfg) {
   }
 
   function onDown(e, t) {
+    // Multi-touch guard: only one active pointer can own drag.
+    if (drag.t && !drag.t.destroyed) {
+      try { e?.stopPropagation?.(); } catch {}
+      try { e?.preventDefault?.(); } catch {}
+      return;
+    }
+
     // 🔥 USER REQUEST: Block drag if game is paused (bottom sheet is open)
     try {
       const { container } = require('../core/dependency-injection.js');
@@ -317,6 +340,8 @@ export function initDrag(cfg) {
       } catch {}
     }
     drag.t = t;
+    drag.pointerId = eventPointerId(e);
+    drag.pointerType = e?.pointerType || null;
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
     drag.startX = t.x;
@@ -466,10 +491,13 @@ export function initDrag(cfg) {
 
   function onMove(e) {
     if (!drag.t) return;
+    if (!isActivePointerEvent(e)) return;
     const t = drag.t;
     if (!t || t.destroyed || !t.position) {
       // 🔥 FIX: Clean up listeners and interval if tile was destroyed mid-drag
       drag.t = null;
+      drag.pointerId = null;
+      drag.pointerType = null;
       clearHover();
       
       // Clean up event listeners
@@ -819,13 +847,17 @@ export function initDrag(cfg) {
     // Ghost placeholders are now fixed and don't need redrawing
   }
 
-  function onUp() {
+  function onUp(e) {
+    if (!isActivePointerEvent(e)) return;
+
     app.stage.off('pointermove', onMove);
     app.stage.off('pointerup', onUp);
     app.stage.off('pointerupoutside', onUp);
 
     const t = drag.t;
     drag.t = null;
+    drag.pointerId = null;
+    drag.pointerType = null;
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
     try {
@@ -1552,6 +1584,8 @@ export function initDrag(cfg) {
     
     // Clear drag state
     drag.t = null;
+    drag.pointerId = null;
+    drag.pointerType = null;
     drag.hover = null;
     
     console.log('✅ Drag system cleaned up');

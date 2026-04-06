@@ -622,16 +622,14 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   
   logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
 
-  // 🔥 RULE 1: If ANY locked *active* tiles exist → game continues (spawn/animations not finished)
-  // Ignore ghost placeholders (value <= 0) because they never unlock and would block fail screen.
-  const hasLockedActiveTiles = tiles.some((t: any) => {
+  // 🔥 RULE 1: Only transient spawn/animation locks should defer endgame.
+  // Persistent locked tiles are NOT playable moves and must not block NO MOVES fail screen.
+  const hasTransientLockedTiles = tiles.some((t: any) => {
     if (!t || t.destroyed || !t.locked) return false;
-    if (tileIsWild(t)) return true;
-    if (t._isBeingSpawned === true) return true;
-    return (t.value | 0) > 0;
+    return t._isBeingSpawned === true;
   });
-  if (hasLockedActiveTiles) {
-    lastCheckResult = { type: 'continue', reason: 'locked_tiles_present' };
+  if (hasTransientLockedTiles) {
+    lastCheckResult = { type: 'continue', reason: 'transient_locked_spawn' };
     lastCheckTime = now;
     lastCheckContextHash = contextHash;
     return lastCheckResult;

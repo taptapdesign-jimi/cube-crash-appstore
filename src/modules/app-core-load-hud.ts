@@ -113,6 +113,8 @@ export function ensureHudAfterLoad({
         boardIndicator.style.display = 'flex';
         boardIndicator.style.visibility = 'visible';
         boardIndicator.style.opacity = '1';
+        boardIndicator.style.zIndex = '2500';
+        boardIndicator.style.pointerEvents = 'none';
         boardIndicator.setAttribute('data-state', 'visible');
         devLog('✅ Board indicator made visible');
       }

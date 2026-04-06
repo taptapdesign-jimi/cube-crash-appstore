@@ -1408,20 +1408,12 @@ function addWildProgress(amount){
     return;
   }
 
-  // 🎯 BOARD-SPECIFIC RULES: Apply wild meter fill rate multiplier
+  // 🎯 BOARD-SPECIFIC RULES: Apply board fill multiplier first.
   const fillRate = getWildMeterFillRate(boardNumber);
-  // 🔥 USER REQUEST: Reduce wild meter fill rate by 40% for all boards
-  const globalSlowdown = 0.6; // 40% slower = 60% of original speed
-  
-  // 🔥 iPad BALANCE FIX: Zadrži isti relativni omjer kao prije (0.714/0.8 ≈ 0.8925)
-  const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-  const iPadSlowdown = isIPad ? (globalSlowdown * 0.8925) : 1.0; // ~0.536 s globalSlowdown=0.6
-  
-  // After first 2 spawned wilds, make next wild take 15% longer to charge.
-  // +15% time => increment multiplier 1 / 1.15.
-  const postSecondWildMultiplier = wildSpawnCount >= 2 ? (1 / 1.15) : 1.0;
-  const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown * postSecondWildMultiplier;
-  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, post-second-wild multiplier: ${postSecondWildMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
+  // USER REQUEST: First 2 wild spawns charge at 1x, then slow to 0.6x.
+  const progressionMultiplier = wildSpawnCount >= 2 ? 0.6 : 1.0;
+  const adjustedInc = inc * fillRate * progressionMultiplier;
+  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, progression multiplier: ${progressionMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
 
   const target = wildMeter + adjustedInc;
   devLog('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
@@ -9168,20 +9160,15 @@ function checkLevelEnd(){
     });
     
     // 🔥 USER BUG FIX: Also check for tiles that are still being spawned (not yet interactive)
-    // This prevents fail screen when user tries to merge tiles that just spawned after magnet
-    // Tiles that are still spawning may not have eventMode='static' yet or may have _isBeingSpawned flag
+    // IMPORTANT: Do NOT treat `eventMode !== 'static'` as a spawn signal.
+    // Some legit endgame tiles can remain in `none` due other flows, which caused
+    // endless reschedule loop (stuck detected in checker, but fail flow never starts).
+    // We only block on explicit spawning markers.
     const tilesStillSpawning = tiles.filter((t: any) => {
       if (!t || t.destroyed) return false;
       if (t.locked && (t.value | 0) > 0) return true; // Locked animating tiles only, not ghost placeholders
       // Check if tile is still being spawned (animation in progress)
       if (t._isBeingSpawned === true) return true;
-      // Check if tile doesn't have eventMode='static' yet (not interactive)
-      if (t.eventMode !== 'static' && (t.value|0) > 0) {
-        // Wild tiles might not have eventMode set immediately, so check if tile is actually active
-        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
-        // Only consider it as "still spawning" if it's a regular tile without eventMode
-        if (!isWildTile) return true;
-      }
       return false;
     });
     
@@ -9697,10 +9684,6 @@ function checkLevelEnd(){
           if (t.special === 'wild-juice') return false;
           if (t.locked && (t.value | 0) > 0) return true;
           if ((t as any)._isBeingSpawned === true) return true;
-          if (t.eventMode !== 'static' && (t.value | 0) > 0) {
-            const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
-            if (!isWildTile) return true;
-          }
           return false;
         });
       };

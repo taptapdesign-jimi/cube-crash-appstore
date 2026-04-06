@@ -402,6 +402,7 @@ function syncBoardIndicatorForHudInit(initialHide = false) {
   indicator.style.display = 'flex';
   indicator.style.visibility = 'visible';
   indicator.style.opacity = '1';
+  indicator.style.zIndex = '2500';
   indicator.style.pointerEvents = 'none';
   indicator.setAttribute('data-state', 'visible');
 }
@@ -412,6 +413,10 @@ function animateBoardIndicatorEnter(duration = 0.8) {
   // CRITICAL: Make sure element is visible before animating
   if (indicator) {
     indicator.style.display = 'flex'; // Restore display (was set to 'none' on exit)
+    indicator.style.visibility = 'visible';
+    indicator.style.opacity = '1';
+    indicator.style.zIndex = '2500';
+    indicator.style.pointerEvents = 'none';
     indicator.setAttribute('data-state', 'entering');
   }
   gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
