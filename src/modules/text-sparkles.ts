@@ -10,7 +10,10 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const SPARKLE_IMAGES = [
   './assets/animations/sparkle1.png',
   './assets/animations/sparkle2.png',
-  './assets/animations/sparkle3.png'
+  './assets/animations/sparkle3.png',
+  './assets/animations/sparkle4.png',
+  './assets/animations/sparkle5.png',
+  './assets/animations/sparkle6.png'
 ];
 
 interface SparkleFieldOptions {
@@ -22,10 +25,31 @@ function sparkleSrc(index: number): string {
   return SPARKLE_IMAGES[index % SPARKLE_IMAGES.length];
 }
 
+function pickWeightedSparkleSrc(index: number): string {
+  // Target distribution:
+  // - 80%: sparkle1/2/3 (dominant)
+  // - 20%: sparkle4/5/6
+  const r = Math.random();
+  if (r < 0.8) {
+    const low = [
+      './assets/animations/sparkle1.png',
+      './assets/animations/sparkle2.png',
+      './assets/animations/sparkle3.png'
+    ];
+    return low[index % low.length];
+  }
+  const hi = [
+    './assets/animations/sparkle4.png',
+    './assets/animations/sparkle5.png',
+    './assets/animations/sparkle6.png'
+  ];
+  return hi[index % hi.length];
+}
+
 export function attachSparkleSprites(overlay: HTMLElement, opts: SparkleFieldOptions = {}): () => void {
   if (!overlay) return () => {};
 
-  const count = Math.max(8, Math.min(48, opts.count ?? 25));
+  const count = Math.max(8, Math.min(72, opts.count ?? 25));
   const zIndex = opts.zIndex ?? 1;
 
   const field = document.createElement('div');
@@ -52,7 +76,7 @@ export function attachSparkleSprites(overlay: HTMLElement, opts: SparkleFieldOpt
 
   for (let i = 0; i < count; i++) {
     const img = domElementPool.acquire('img') as HTMLImageElement;
-    img.src = sparkleSrc(i);
+    img.src = pickWeightedSparkleSrc(i);
     img.alt = '';
     img.className = 'cc-sparkle-sprite';
 

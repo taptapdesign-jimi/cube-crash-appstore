@@ -405,8 +405,8 @@ export function showSparkleText(): void {
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
-    // Replace cloud layer with pooled sparkle sprite field (35 sprites, sequential twinkles).
-    sparkleFxCleanup = attachSparkleSprites(overlay, { count: 35, zIndex: 1 });
+    // Replace cloud layer with pooled sparkle sprite field (51 sprites, sequential twinkles).
+    sparkleFxCleanup = attachSparkleSprites(overlay, { count: 51, zIndex: 1 });
 
     const container = document.createElement('div');
     container.style.cssText = [

@@ -439,6 +439,8 @@ let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let busyEnding = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
+let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
+const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
 
 function beginEndgameGuard(source: string, ttlMs: number = 1500): number {
   const normalizedSource = String(source || 'unknown');
@@ -9411,6 +9413,10 @@ function checkLevelEnd(){
       return;
     }
     
+    if (checkLevelEndResult.type !== 'stuck') {
+      stuckWildDeferralStartedAt = null;
+    }
+
     if (checkLevelEndResult.type === 'clean') {
       const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
       if (wildReady) {
@@ -9490,15 +9496,37 @@ function checkLevelEnd(){
       try { resetEndgameHint(); } catch {}
       const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
       if (wildReady) {
+        const now = Date.now();
+        if (stuckWildDeferralStartedAt === null) {
+          stuckWildDeferralStartedAt = now;
+        }
+        const deferMs = now - stuckWildDeferralStartedAt;
         devWarn('🧪 FAILFLOW DEBUG: defer because wildReady', {
           wildMeter,
           wildSpawnInProgress,
           hasRetryTimer: wildSpawnRetryTimer !== null,
+          deferMs,
+          maxDeferMs: MAX_STUCK_WILD_DEFERRAL_MS,
         });
-        devLog('⚠️ checkLevelEnd: Stuck detected but wild meter is ready/spawning – deferring fail screen until wild cube drops');
-        queueWildSpawnIfNeeded();
-        return;
+        if (deferMs < MAX_STUCK_WILD_DEFERRAL_MS) {
+          devLog('⚠️ checkLevelEnd: Stuck detected but wild meter is ready/spawning – deferring fail screen until wild cube drops');
+          queueWildSpawnIfNeeded();
+          checkLevelEndTimer = trackDelayedCall(0.35, () => {
+            checkLevelEndTimer = null;
+            checkLevelEnd();
+          });
+          return;
+        }
+
+        devWarn('🚨 checkLevelEnd: Wild defer timeout exceeded in stuck state - forcing fail evaluation', {
+          deferMs,
+          wildMeter,
+          wildSpawnInProgress,
+          hasRetryTimer: wildSpawnRetryTimer !== null,
+        });
       }
+
+      stuckWildDeferralStartedAt = null;
 
       // Hard guard: merge-6 continuation must never enter fail flow.
       // If active board contains 6 + (1..5), player still has a legal move.
