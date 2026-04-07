@@ -68,8 +68,8 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const lifecycle = createScreenLifecycle('board-transition-screen');
-const TRANSITION_HAPTIC_FIRST_DELAY = 0.15;
-const TRANSITION_HAPTIC_OTHER_DELAY = 0.3;
+const TRANSITION_HAPTIC_FIRST_DELAY = 0.1;
+const TRANSITION_HAPTIC_OTHER_DELAY = 0.25;
 const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
 

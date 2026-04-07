@@ -638,6 +638,9 @@ class CollectiblesManager {
               window.setTimeout(() => heartsContainer.classList.remove('tap-bounce'), 260);
             } catch {}
 
+            // Haptic on Journey top-nav hearts icon tap.
+            try { (window as any).triggerHapticImpact?.('light'); } catch {}
+
             logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
             const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
             showHeartsModal();

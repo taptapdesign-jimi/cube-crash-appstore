@@ -2276,6 +2276,9 @@ class UIManager {
     const gameSoundsToggle = document.getElementById('toggle-game-sounds') as HTMLInputElement;
     const musicToggle = document.getElementById('toggle-music') as HTMLInputElement;
     const vibrationToggle = document.getElementById('toggle-vibration') as HTMLInputElement;
+    const footerHapticText =
+      (document.getElementById('settings-footer-haptic') as HTMLElement | null) ||
+      (settingsScreen.querySelector('.settings-footer-text') as HTMLElement | null);
     
     if (!gameSoundsToggle || !vibrationToggle) {
       console.warn('⚠️ Settings toggle checkboxes not found:', {
@@ -2299,6 +2302,9 @@ class UIManager {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
       console.log('🔊 Game sounds toggle changed:', enabled);
+      if (typeof (window as any).triggerHapticImpact === 'function') {
+        (window as any).triggerHapticImpact('light');
+      }
       
       // Update status text IMMEDIATELY (synchronously)
       const statusEl = document.getElementById('status-game-sounds');
@@ -2321,6 +2327,9 @@ class UIManager {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
       console.log('🎵 Music toggle changed:', enabled);
+      if (typeof (window as any).triggerHapticImpact === 'function') {
+        (window as any).triggerHapticImpact('light');
+      }
       const statusEl = document.getElementById('status-music');
       if (statusEl) {
         statusEl.textContent = enabled ? 'ON' : 'OFF';
@@ -2354,19 +2363,32 @@ class UIManager {
         console.log('✅ Vibration status updated to:', enabled ? 'ON' : 'OFF');
       }
       
-      // Update global state
-      if ((window as any)._settings) {
-        (window as any)._settings.hapticsEnabled = enabled;
-      }
-      if (typeof (window as any).saveSettings === 'function') {
-        (window as any).saveSettings((window as any)._settings);
+      // Update global state + haptic order:
+      // - ON: persist enabled first, then trigger haptic
+      // - OFF: trigger haptic first, then persist disabled
+      if (enabled) {
+        if ((window as any)._settings) {
+          (window as any)._settings.hapticsEnabled = true;
+        }
+        if (typeof (window as any).saveSettings === 'function') {
+          (window as any).saveSettings((window as any)._settings);
+        }
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
+      } else {
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
+        if ((window as any)._settings) {
+          (window as any)._settings.hapticsEnabled = false;
+        }
+        if (typeof (window as any).saveSettings === 'function') {
+          (window as any).saveSettings((window as any)._settings);
+        }
       }
       
-      // Only trigger haptic feedback when ENABLING vibration
-      if (enabled && typeof (window as any).triggerHapticImpact === 'function') {
-        (window as any).triggerHapticImpact('light');
-        console.log('✅ Haptic feedback triggered (vibration enabled)');
-      }
+      console.log('✅ Haptic feedback triggered (vibration toggle changed, ON/OFF path)');
     };
     
     // Store handlers on elements for cleanup
@@ -2378,6 +2400,47 @@ class UIManager {
     if (musicToggle) {
       (musicToggle as any).__ccToggleHandler = musicHandler;
       musicToggle.addEventListener('change', musicHandler);
+    }
+
+    // Footer "Made with ❤️..." haptic (attach every Settings open; resilient to cleanup/rebuild)
+    if (footerHapticText) {
+      const oldTouch = (footerHapticText as any).__ccFooterHapticTouchHandler as EventListener | undefined;
+      const oldClick = (footerHapticText as any).__ccFooterHapticClickHandler as EventListener | undefined;
+      if (oldTouch) footerHapticText.removeEventListener('touchstart', oldTouch);
+      if (oldClick) footerHapticText.removeEventListener('click', oldClick);
+
+      let lastFooterHapticAt = 0;
+      const fireFooterHaptic = () => {
+        const now = Date.now();
+        if (now - lastFooterHapticAt < 120) return;
+        lastFooterHapticAt = now;
+        try {
+          if (
+            (window as any).webkit &&
+            (window as any).webkit.messageHandlers &&
+            (window as any).webkit.messageHandlers.hapticImpact
+          ) {
+            (window as any).webkit.messageHandlers.hapticImpact.postMessage({ style: 'light' });
+          } else if (typeof (window as any).triggerHapticImpact === 'function') {
+            (window as any).triggerHapticImpact('light');
+          } else if (navigator.vibrate) {
+            navigator.vibrate(30);
+          }
+          console.log('📳 Settings footer haptic fired via UIManager');
+        } catch (err) {
+          console.warn('⚠️ Settings footer haptic failed:', err);
+        }
+      };
+
+      const footerTouchHandler = () => fireFooterHaptic();
+      const footerClickHandler = () => fireFooterHaptic();
+      (footerHapticText as any).__ccFooterHapticTouchHandler = footerTouchHandler;
+      (footerHapticText as any).__ccFooterHapticClickHandler = footerClickHandler;
+      footerHapticText.addEventListener('touchstart', footerTouchHandler, { passive: true });
+      footerHapticText.addEventListener('click', footerClickHandler);
+      console.log('✅ Settings footer haptic handlers attached via UIManager');
+    } else {
+      console.warn('⚠️ Settings footer text not found for haptic attach');
     }
     
     console.log('✅ Settings toggle event listeners attached directly to checkboxes');

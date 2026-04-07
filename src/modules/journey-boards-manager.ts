@@ -4927,8 +4927,6 @@ class JourneyBoardsManager {
             setTimeout(() => {
               playButtonForEnter.classList.remove('animate-enter-initial');
               playButtonForEnter.classList.add('animate-enter');
-              // CTA appearance haptic in detail modal enter flow.
-              try { (window as any).triggerHapticImpact?.('medium'); } catch {}
             }, 0);
           }
 

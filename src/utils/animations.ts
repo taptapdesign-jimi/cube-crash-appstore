@@ -134,9 +134,9 @@ let isAnimatingEnter = false;
 
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
-const HOMEPAGE_ENTER_HAPTIC_OFFSET_MS = 400;
-const HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS = 95;
-const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 200;
+const HOMEPAGE_ENTER_HAPTIC_OFFSET_MS = 200;
+const HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS = 155;
+const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 130;
 
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
