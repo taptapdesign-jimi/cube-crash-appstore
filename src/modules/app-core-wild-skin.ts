@@ -68,8 +68,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       base.alpha = 1;
       base.visible = true;
       // Optimize texture for pixel-perfect rendering (Pixi v8: use source + 'nearest')
-      const texSrc = base.texture && ((base.texture as { source?: { scaleMode?: number } }).source ?? (base.texture as { baseTexture?: { scaleMode?: number } }).baseTexture);
-      if (texSrc) texSrc.scaleMode = SCALE_MODES?.NEAREST ?? 0;
+      const texSrc = base.texture && ((base.texture as { source?: { scaleMode?: any } }).source ?? (base.texture as { baseTexture?: { scaleMode?: any } }).baseTexture);
+      if (texSrc) texSrc.scaleMode = 'nearest';
     }
     
     // 🔥 CRITICAL: Hide pips and num for wild tiles

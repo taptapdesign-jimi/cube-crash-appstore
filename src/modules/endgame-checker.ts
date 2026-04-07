@@ -10,6 +10,7 @@
  */
 
 import { logger } from '../core/logger.js';
+import { isTileTransientlySpawning } from './tile-state-utils.ts';
 
 export type EndGameResult = 
   | { type: 'clean'; reason: string }
@@ -625,8 +626,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   // 🔥 RULE 1: Only transient spawn/animation locks should defer endgame.
   // Persistent locked tiles are NOT playable moves and must not block NO MOVES fail screen.
   const hasTransientLockedTiles = tiles.some((t: any) => {
-    if (!t || t.destroyed || !t.locked) return false;
-    return t._isBeingSpawned === true;
+    return isTileTransientlySpawning(t, { autoClearStaleFlag: true, ignoreWildJuice: true });
   });
   if (hasTransientLockedTiles) {
     lastCheckResult = { type: 'continue', reason: 'transient_locked_spawn' };

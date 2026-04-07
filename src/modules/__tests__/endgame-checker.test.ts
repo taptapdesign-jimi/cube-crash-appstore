@@ -151,3 +151,16 @@ test('single stack 2x3 can continue (self-merge chain available)', () => {
   expect(result.type).toBe('continue');
   expect(result.reason).toBe('merges_possible');
 });
+
+test('stale _isBeingSpawned on interactive regular tiles does not block stuck detection', () => {
+  const tiles = [
+    makeTile({ value: 5, _isBeingSpawned: true, eventMode: 'static', locked: false }),
+    makeTile({ value: 4, _isBeingSpawned: false, eventMode: 'static', locked: false }),
+    makeTile({ value: 5, _isBeingSpawned: false, eventMode: 'static', locked: false }),
+    makeTile({ value: 3, _isBeingSpawned: true, eventMode: 'static', locked: false }),
+  ];
+  const context = makeContext(tiles, 8, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('no_merges_possible');
+});

@@ -1217,6 +1217,12 @@ export async function showCleanBoardModal({
     const addButtonPressHandling = (button: HTMLButtonElement, action: () => void): void => {
       let touchStarted = false;
       let touchStartedOnButton = false;
+      let actionTriggered = false;
+      const triggerActionOnce = () => {
+        if (actionTriggered || button.disabled) return;
+        actionTriggered = true;
+        action();
+      };
       
       const handleTouchStart = (e: TouchEvent) => {
         touchStarted = true;
@@ -1248,9 +1254,7 @@ export async function showCleanBoardModal({
           const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
                             touch.clientY >= rect.top && touch.clientY <= rect.bottom;
           
-          if (isOnButton) {
-            action();
-          }
+          if (isOnButton) triggerActionOnce();
         }
         
         // 🔥 REMOVED inline style reset - CSS handles it
@@ -1264,9 +1268,7 @@ export async function showCleanBoardModal({
       };
       
       const handleMouseUp = (e: MouseEvent) => {
-        if (touchStartedOnButton && button.contains(e.target as Node)) {
-          action();
-        }
+        if (touchStartedOnButton && button.contains(e.target as Node)) triggerActionOnce();
         
         // 🔥 REMOVED inline style reset - CSS handles it
         touchStartedOnButton = false;

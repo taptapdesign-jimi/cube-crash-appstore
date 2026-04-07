@@ -420,6 +420,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       logger.info(`🔁 endgame-flow: Play Again action - restarting board ${boardNumber}`);
       
       try {
+        if ((window as any).__ccPlayAgainRestartInProgress) {
+          logger.warn('⚠️ endgame-flow: Play Again restart already in progress, skipping duplicate');
+          return;
+        }
+        (window as any).__ccPlayAgainRestartInProgress = true;
+
         // Clear board save state for fresh restart
         const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
         clearBoardSaveState(boardNumber);
@@ -441,6 +447,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         } catch (error) {
           logger.warn('⚠️ Failed to update board high score before Play Again:', error);
         }
+
+        // Stabilize runtime before fresh Journey restart (prevents half-loaded board/HUD race).
+        try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+        try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
+        try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
         
         // Restart current board (fresh start)
         // Arcade: use arcade boot path (fresh board 1, no journey state side effects).
@@ -460,6 +471,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } catch (error) {
         console.error('❌ endgame-flow: Failed to restart board:', error);
         logger.error('❌ endgame-flow: Failed to restart board:', error);
+      } finally {
+        delete (window as any).__ccPlayAgainRestartInProgress;
       }
       
       return; // Exit function - don't continue to next board

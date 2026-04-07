@@ -338,6 +338,16 @@
     }
     
     window._settings = loadSettings();
+    window.__ccUserInteracted = false;
+    const __ccMarkUserInteracted = () => {
+      window.__ccUserInteracted = true;
+      try { window.removeEventListener('pointerdown', __ccMarkUserInteracted, true); } catch (e) {}
+      try { window.removeEventListener('touchstart', __ccMarkUserInteracted, true); } catch (e) {}
+      try { window.removeEventListener('keydown', __ccMarkUserInteracted, true); } catch (e) {}
+    };
+    try { window.addEventListener('pointerdown', __ccMarkUserInteracted, true); } catch (e) {}
+    try { window.addEventListener('touchstart', __ccMarkUserInteracted, true); } catch (e) {}
+    try { window.addEventListener('keydown', __ccMarkUserInteracted, true); } catch (e) {}
     
     // Haptic feedback helpers for iOS WebView and iPad
     window.triggerHapticImpact = function(style = 'medium') {
@@ -352,7 +362,7 @@
           });
           return;
         }
-        if (navigator.vibrate) {
+        if (navigator.vibrate && window.__ccUserInteracted === true) {
           const duration = style === 'heavy' ? 70 : style === 'light' ? 30 : 50;
           navigator.vibrate(duration);
           return;
@@ -374,7 +384,7 @@
           });
           return;
         }
-        if (navigator.vibrate) {
+        if (navigator.vibrate && window.__ccUserInteracted === true) {
           navigator.vibrate(30);
           return;
         }
@@ -395,7 +405,7 @@
           });
           return;
         }
-        if (navigator.vibrate) {
+        if (navigator.vibrate && window.__ccUserInteracted === true) {
           const duration = type === 'error' ? 100 : type === 'warning' ? 70 : 50;
           navigator.vibrate(duration);
           return;

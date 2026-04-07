@@ -57,7 +57,7 @@ if (Assets.addParser) {
     }
   });
 } else {
-  logger.warn('🔊 Assets.addParser not available, skipping audio parser');
+  logger.debug?.('🔊 Assets.addParser not available, skipping audio parser');
 }
 
 // All game assets that need to be preloaded

@@ -33,7 +33,7 @@ import { wild } from './hud-helpers.ts';
 import animationManager from './animation-manager.ts';
 import * as FLOW  from './level-flow.js';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
-import { resetTileToNormalState, boardHasPersistentLockedTiles } from './tile-state-utils.ts';
+import { resetTileToNormalState, boardHasPersistentLockedTiles, isTileTransientlySpawning, getTransientSpawnState } from './tile-state-utils.ts';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
@@ -3015,15 +3015,38 @@ function updateGhostVisibility() {
   }
   
   let visibleCount = 0;
+  const tilesSet = new Set(Array.isArray(tiles) ? tiles : []);
   
   for (let r=0; r<ROWS; r++) {
     for (let c=0; c<COLS; c++) {
       const cell = grid[r]?.[c];
-      // Show placeholder only if truly empty, or if locked empty tile is NOT visible
-      const shouldShow = (cell === null) || (!!cell && cell.locked && (cell.value|0) <= 0 && cell.visible === false);
+      const cellMissingFromTiles = !!cell && !tilesSet.has(cell);
+      const staleOrDestroyedCell = !!cell && (cell.destroyed === true || cellMissingFromTiles);
+      if (staleOrDestroyedCell) {
+        try {
+          if (grid?.[r]?.[c] === cell) grid[r][c] = null;
+        } catch {}
+      }
+
+      // Show placeholder for any effectively empty cell:
+      // - null/undefined (sparse grid)
+      // - stale/destroyed references left in grid
+      // - hidden locked value<=0 holders (fallback safety)
+      const emptyLike = (cell == null) || staleOrDestroyedCell;
+      const hiddenLockedPlaceholder = !!cell && cell.locked && (cell.value|0) <= 0 && (cell.visible === false || (cell.alpha ?? 1) <= 0.01);
+      const shouldShow = emptyLike || hiddenLockedPlaceholder;
       
-      if (window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
-        window._ghostPlaceholders[r][c].visible = shouldShow;
+      // Self-heal missing ghost references for this cell
+      if (!window._ghostPlaceholders[r]) window._ghostPlaceholders[r] = [];
+      if (!window._ghostPlaceholders[r][c] && backgroundLayer) {
+        const ghostLabel = `Ghost_${c}_${r}`;
+        const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
+        if (ghost) window._ghostPlaceholders[r][c] = ghost;
+      }
+
+      const ghostAtCell = window._ghostPlaceholders[r]?.[c];
+      if (ghostAtCell) {
+        ghostAtCell.visible = shouldShow;
         if (shouldShow) visibleCount++;
       }
     }
@@ -5104,6 +5127,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                              activeTilesBeforeMerge.includes(src) && 
                              activeTilesBeforeMerge.includes(dst) &&
                              !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
+
+    // 🔥 HARD RULE (catastrophic bug fix):
+    // pure wild-star + regular as the last two ACTIVE tiles must ALWAYS resolve to clean-board.
+    // Locked tiles are irrelevant for this rule.
+    const isPureWildStarLastTwo =
+      visibleTilesCount === 2 &&
+      activeTilesBeforeMerge.includes(src) &&
+      activeTilesBeforeMerge.includes(dst) &&
+      (
+        (srcSpecialMerge6 === 'wild' && !dstIsWild) ||
+        (dstSpecialMerge6 === 'wild' && !srcIsWild)
+      ) &&
+      !(isWildMagnetMerge && hasTilesToPull);
     
     devLog('🔍 isAnyWildLastTwo CHECK:', {
       srcIsWild,
@@ -5116,7 +5152,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dstInActive: activeTilesBeforeMerge.includes(dst),
       isWildMagnetMerge,
       hasTilesToPull,
-      isAnyWildLastTwo
+      isAnyWildLastTwo,
+      isPureWildStarLastTwo
     });
     
     // 🔥 USER REQUEST: Mark as last merge if:
@@ -5127,6 +5164,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL FIX: Also check if wild magnet was marked as last two (stored on dst tile)
     const isWildMagnetLastTwo = (dst as any)?._isWildMagnetLastTwo === true;
     let isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
+    if (isPureWildStarLastTwo) {
+      isLastMerge = true;
+    }
     // 🔥 SAFETY: If more than 2 visible tiles existed before merge, this can NEVER be the last merge
     if (isLastMerge && visibleTilesCount > 2) {
       devWarn('⚠️ LAST MERGE OVERRIDE: visibleTilesCount > 2, forcing NOT last merge', {
@@ -5136,7 +5176,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isWildRegularLastTwo,
         isLastMergeableTiles,
         isWildLastTileMerge,
-        isWildMagnetLastTwo
+        isWildMagnetLastTwo,
+        isPureWildStarLastTwo
       });
       isLastMerge = false;
     }
@@ -5155,6 +5196,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isLastMergeableTiles,
         isWildLastTileMerge,
         isWildMagnetLastTwo,
+        isPureWildStarLastTwo,
         srcIsWild,
         dstIsWild,
         srcSpecial,
@@ -5184,6 +5226,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
       (dst as any)._isLastMerge = true;
+      try { (src as any)._isLastMerge = true; } catch {}
       devLog('✅✅✅ _isLastMerge flag SET to TRUE on dst tile (merge-6 block):', {
         dstValue: dst.value,
         dstSpecial: dst.special,
@@ -5193,7 +5236,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isAnyWildLastTwo,
         isWildRegularLastTwo,
         isLastMergeableTiles,
-        isWildLastTileMerge
+        isWildLastTileMerge,
+        isPureWildStarLastTwo
       });
       
       // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
@@ -7253,7 +7297,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const hasTilesToPull = (dst as any)?._hasTilesToPull === true;
         // If hasTilesToPull is true, it means wild-magnet merge will pull tiles (only for merge 6)
         const willPullTiles = willPulledTilesMerge || hasTilesToPull;
-        const hasLastMergeFlag = (dst as any)?._isLastMerge === true;
+        const hasLastMergeFlag = (dst as any)?._isLastMerge === true || (src as any)?._isLastMerge === true;
         
         // 🔥 CRITICAL FIX: If pulled tiles will merge, skip last merge check (new tiles will spawn)
         let isActuallyLastMerge = false;
@@ -7294,12 +7338,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             (dst as any)._isLastMerge = true;
           }
           
-          isActuallyLastMerge = onlyTwoActiveBeforeMerge || hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
+          isActuallyLastMerge = onlyTwoActiveBeforeMerge || hasLastMergeFlag || onlyMerge6RemainsInOnComplete || isPureWildStarLastTwo;
         
           devLog('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
             hasLastMergeFlag,
             onlyMerge6RemainsInOnComplete,
             isActuallyLastMerge,
+            isPureWildStarLastTwo,
             activeTilesAfterMergeCount: activeTilesAfterMerge.length,
             srcSpecial: src?.special,
             dstSpecial: dst?.special,
@@ -7462,7 +7507,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
         // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
-        const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+        const isLastMergeFlagSet =
+          (dst as any)?._isLastMerge === true ||
+          (src as any)?._isLastMerge === true ||
+          isPureWildStarLastTwo;
         
         // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), trigger CLEAN BOARD, do NOT spawn
         // This applies to ALL merge types: normal, wild juice, wild star, wild magnet
@@ -9180,25 +9228,11 @@ function checkLevelEnd(){
     // This prevents premature fail screen when tiles are still being spawned/animated
     // 🔥 FIX: Only count locked tiles with value > 0 (animating) - NOT ghost placeholders (value 0)
     // Ghost placeholders never unlock → would cause infinite reschedule when stuck (4,5,4,5,3)
-    const lockedActiveTiles = tiles.filter((t: any) => {
-      if (!t || t.destroyed) return false;
-      if (!t.locked) return false;
-      if (t.special === 'wild-juice') return false; // Bubbles animation is visual only
-      return (t.value | 0) > 0; // Only animating tiles (value > 0), not ghost placeholders
+    const spawnStateNow = getTransientSpawnState(tiles, {
+      autoClearStaleFlag: true,
+      ignoreWildJuice: true,
     });
-    
-    // 🔥 USER BUG FIX: Also check for tiles that are still being spawned (not yet interactive)
-    // IMPORTANT: Do NOT treat `eventMode !== 'static'` as a spawn signal.
-    // Some legit endgame tiles can remain in `none` due other flows, which caused
-    // endless reschedule loop (stuck detected in checker, but fail flow never starts).
-    // We only block on explicit spawning markers.
-    const tilesStillSpawning = tiles.filter((t: any) => {
-      if (!t || t.destroyed) return false;
-      if (t.locked && (t.value | 0) > 0) return true; // Locked animating tiles only, not ghost placeholders
-      // Check if tile is still being spawned (animation in progress)
-      if (t._isBeingSpawned === true) return true;
-      return false;
-    });
+    const { lockedActiveTiles, tilesStillSpawning } = spawnStateNow;
     
     // Combine both checks - if any tiles are locked or still spawning, wait
     const tilesNotReady = lockedActiveTiles.length > 0 || tilesStillSpawning.length > 0;
@@ -9708,11 +9742,7 @@ function checkLevelEnd(){
 
       const hasNotReadyTilesNow = () => {
         return tiles.some((t: any) => {
-          if (!t || t.destroyed) return false;
-          if (t.special === 'wild-juice') return false;
-          if (t.locked && (t.value | 0) > 0) return true;
-          if ((t as any)._isBeingSpawned === true) return true;
-          return false;
+          return isTileTransientlySpawning(t, { autoClearStaleFlag: true, ignoreWildJuice: true });
         });
       };
 
@@ -9737,10 +9767,17 @@ function checkLevelEnd(){
           break;
         }
         if (hasNotReadyTilesNow()) {
-          devWarn('🧪 FAILFLOW DEBUG: abort during confirmation because tiles not ready');
-          devLog('🛡️ checkLevelEnd: Abort fail - tiles are still spawning/animating during stuck confirmation');
-          stableStuckConfirmed = false;
-          break;
+          const sinceMutationDuringConfirm = lastEndgameBoardMutationAt ? (Date.now() - lastEndgameBoardMutationAt) : Infinity;
+          if (sinceMutationDuringConfirm <= MAX_CHECK_LEVEL_END_SKIP_MS) {
+            devWarn('🧪 FAILFLOW DEBUG: abort during confirmation because tiles not ready');
+            devLog('🛡️ checkLevelEnd: Abort fail - tiles are still spawning/animating during stuck confirmation');
+            stableStuckConfirmed = false;
+            break;
+          }
+          devWarn('🧪 FAILFLOW DEBUG: forcing stuck confirmation despite stale not-ready flags (board stable too long)', {
+            sinceMutationDuringConfirm,
+            maxSkipMs: MAX_CHECK_LEVEL_END_SKIP_MS,
+          });
         }
         const recheckContext: EndGameContext = { tiles, moves, makeBoard };
         const recheckResult = checkEndGame(recheckContext, true);

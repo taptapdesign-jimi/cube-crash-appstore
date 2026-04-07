@@ -27,7 +27,11 @@ export function ensureStartLevelLayout({
   if (!layer) {
     initializeBackgroundLayer();
     try { hideGhostPlaceholders(); } catch {}
-    layer = backgroundLayer;
+    try {
+      layer = board?.children?.find?.((c: any) => c && c.label === 'BackgroundLayer') ?? null;
+    } catch {
+      layer = null;
+    }
   }
   if (layer) {
     layer.visible = true;

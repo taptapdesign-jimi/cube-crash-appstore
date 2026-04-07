@@ -19,6 +19,7 @@ import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { getTransientSpawnState } from './tile-state-utils.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -2089,6 +2090,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
   }
 
+  // Keep board placeholders in sync after magnet respawn/fill paths before any endgame branching.
+  try { (window as any).updateGhostVisibility?.(); } catch {}
+  try { drawBoardBG?.(); } catch {}
+
   // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
   // when magnet pulled wild star (e.g., magnet + regular + wild scenario)
   // The check would see only merge 6 tile BEFORE wild merged with it
@@ -2249,23 +2254,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const expectedSpawnedTiles = successfulSpawns > 0 ? successfulSpawns : spawnCount;
   
   const computeSpawnState = () => {
-    const lockedActiveTiles = STATE.tiles.filter((t: any) => {
-      if (!t || t.destroyed) return false;
-      if (!t.locked) return false; // Only check locked tiles
-      return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+    const spawnState = getTransientSpawnState(STATE.tiles, {
+      autoClearStaleFlag: true,
+      ignoreWildJuice: true,
     });
-    
-    const tilesStillSpawning = STATE.tiles.filter((t: any) => {
-      if (!t || t.destroyed) return false;
-      if (t.locked) return true; // Locked tiles are still spawning
-      if (t._isBeingSpawned === true) return true;
-      if (t.eventMode !== 'static' && (t.value|0) > 0) {
-        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
-        if (!isWildTile) return true;
-      }
-      return false;
-    });
-    
+    const { lockedActiveTiles, tilesStillSpawning } = spawnState;
+
     const activeTilesAfterSpawn = STATE.tiles.filter(tileIsActive);
     return {
       lockedActiveTiles,
@@ -2474,6 +2468,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       // Clear the flag since new tiles with merge potential were spawned
       (dst as any)._isLastMerge = false;
     }
+    // Keep board placeholders/hint state in sync even when we skip full checkLevelEnd fail/clean path.
+    try { (window as any).updateGhostVisibility?.(); } catch {}
+    // 🔥 UX FIX: STACK IT! hint is recomputed inside checkLevelEnd().
+    // This branch previously returned early and could leave hint stale/hidden after magnet flows.
+    trackAppTimeout(() => {
+      try { triggerCentralEndgameCheck('mergePulledTiles_mergePotential_refresh'); } catch {}
+    }, 80);
     console.log('✅ Spawned tiles have merge/stack potential - game continues, NOT calling checkLevelEnd');
     return; // Don't call checkLevelEnd - let player merge/stack tiles
   }

@@ -11,6 +11,11 @@ export interface TileLike {
   [key: string]: any;
 }
 
+export interface SpawnReadinessOptions {
+  autoClearStaleFlag?: boolean;
+  ignoreWildJuice?: boolean;
+}
+
 /**
  * Fully resets a tile so it behaves like a fresh, normal cube.
  * Use this immediately before re-spawning a regular tile on a recycled holder.
@@ -69,4 +74,61 @@ export function boardHasPersistentLockedTiles(tiles: any[] | null | undefined): 
     if (t._isBeingSpawned === true) return true;
     return (t.value | 0) > 0;
   });
+}
+
+function tileIsWild(tile: any): boolean {
+  if (!tile) return false;
+  return (
+    tile.special === 'wild' ||
+    tile.special === 'wild-magnet' ||
+    tile.special === 'wild-juice' ||
+    tile.special === 'wild-tnt' ||
+    tile.isWild === true ||
+    tile.isWildFace === true
+  );
+}
+
+export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOptions = {}): boolean {
+  if (!tile || tile.destroyed) return false;
+  const { autoClearStaleFlag = false, ignoreWildJuice = true } = options;
+
+  if (ignoreWildJuice && tile.special === 'wild-juice') return false;
+
+  // Locked tiles with real payload/value are treated as in-flight spawn animation.
+  if (tile.locked && (tile.value | 0) > 0) return true;
+
+  if (tile._isBeingSpawned === true) {
+    const value = (tile.value | 0);
+    const looksInteractive =
+      !tile.locked &&
+      (value > 0 || tileIsWild(tile)) &&
+      tile.visible !== false &&
+      tile.eventMode === 'static';
+
+    // Defensive cleanup: stale spawn-flag should not indefinitely block fail/no-moves flow.
+    if (looksInteractive) {
+      if (autoClearStaleFlag) {
+        try { tile._isBeingSpawned = false; } catch {}
+      }
+      return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
+export function getTransientSpawnState(tiles: any[] | null | undefined, options: SpawnReadinessOptions = {}) {
+  const source = Array.isArray(tiles) ? tiles : [];
+  const lockedActiveTiles = source.filter((t: any) => {
+    if (!t || t.destroyed || !t.locked) return false;
+    if (options.ignoreWildJuice !== false && t.special === 'wild-juice') return false;
+    return (t.value | 0) > 0;
+  });
+  const tilesStillSpawning = source.filter((t: any) => isTileTransientlySpawning(t, options));
+  return {
+    lockedActiveTiles,
+    tilesStillSpawning,
+    hasNotReadyTiles: lockedActiveTiles.length > 0 || tilesStillSpawning.length > 0,
+  };
 }

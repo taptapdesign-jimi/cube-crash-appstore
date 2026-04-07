@@ -149,7 +149,7 @@ async function openLockedBounceParallelImpl({
   });
   
   if (!locked.length || k <= 0) {
-    logger.warn(`🎯 openLockedBounceParallel: early return - locked=${locked.length} k=${k}`, 'level-flow');
+    logger.debug(`🎯 openLockedBounceParallel: early return - locked=${locked.length} k=${k}`, 'level-flow');
     return 0;
   }
 
@@ -168,7 +168,7 @@ async function openLockedBounceParallelImpl({
     picks = locked.slice(0, Math.min(k, locked.length));
   }
 
-  logger.warn(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
+  logger.debug(`🎯 openLockedBounceParallel: locked=${locked.length} picks=${picks.length} k=${k}`, 'level-flow');
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 100ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 100ms between tiles for visible one-by-one
   // Sequential spawning (shifted by +50ms): 1st at 50ms, 2nd at 150ms, 3rd at 250ms, 4th at 350ms
@@ -332,6 +332,6 @@ async function openLockedBounceParallelImpl({
   }
   try { drawBoardBG?.(); } catch {}
   await Promise.all(spawnPromises);
-  logger.warn(`🎯 openLockedBounceParallel: completed requested=${picks.length} successful=${successfulSpawns}`, 'level-flow');
+  logger.debug(`🎯 openLockedBounceParallel: completed requested=${picks.length} successful=${successfulSpawns}`, 'level-flow');
   return successfulSpawns;
 }
