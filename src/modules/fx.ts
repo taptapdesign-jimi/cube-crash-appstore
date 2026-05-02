@@ -4614,7 +4614,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
               }
             } catch {}
             if (typeof window !== 'undefined' && window.CC && typeof window.CC.addScoreFromHudStar === 'function') {
-              window.CC.addScoreFromHudStar(200);
+              window.CC.addScoreFromHudStar(100);
             } else {
               // No-op fallback: avoid runtime import during animation path.
             }

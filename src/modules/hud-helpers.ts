@@ -1056,38 +1056,16 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     wild.setWidth(barW);
   }
   
-  // 🔥 USER REQUEST: Position X button (top left corner) within HUD
-  // Must be 24px from left edge of SCREEN (not HUD container)
-  // SIMPLE SOLUTION: Use absolute screen coordinates, then convert to HUD-relative
+  // Position X button with the same HUD-relative left edge as the wild/preload bar.
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
-    const screenLeftPadding = 24; // 24px from left edge of SCREEN
+    const hudLeftPadding = SIDE; // Match wild.view.x / preload bar left edge.
     const xTopPadding = 2 - 16 - 8 - 4 - 2 - 16 + 6 + 2; // Move up 38px from yValue (2px lower - user requested)
-    
-    // 🔥 CRITICAL FIX: Get actual HUD_ROOT position on screen
-    const hudRootX = HUD_ROOT.x || 0;
-    const hudRootY = HUD_ROOT.y || top;
-    
-    // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 22)
-    // Red rectangle starts at debugRectX = -24 within container
-    // So when container.x = 24, red rectangle starts at screen x = 24 + (-24) = 0px (left edge) ✓
-    // Red rectangle extends to: 24 + (-24) + 96 = 96px (16px over X button on right) ✓
-    xButton.x = screenLeftPadding - hudRootX;
+
+    // The visible dashed border starts at local x=0, so this aligns that border
+    // with the preload bar. The larger invisible hit area still extends left.
+    xButton.x = hudLeftPadding;
     xButton.y = yValue + xTopPadding;
-    
-    // 🔥 VERIFY: Calculate actual screen position
-    // Red rectangle left edge = HUD_ROOT.x + container.x + debugRectX = hudRootX + 24 + (-24) = 0px (left edge) ✓
-    // Red rectangle right edge = 0 + 116 = 116px (16px over X button, reduced by 8px) ✓
-    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 22) ✓
-    const actualScreenX = hudRootX + xButton.x;
-    const actualScreenY = hudRootY + xButton.y;
-    const redRectLeftEdge = actualScreenX + (-24); // Should be 0px (left edge)
-    const redRectRightEdge = redRectLeftEdge + 96; // Should be 96px (16px over X button)
-    
-    // 🔥 WARNING: If position is wrong, log error
-    if (Math.abs(actualScreenX - 24) >= 1) {
-      console.error('❌ X button position is WRONG! Expected 24px from left, got:', actualScreenX);
-    }
   }
   
   // Ensure HUD is properly positioned

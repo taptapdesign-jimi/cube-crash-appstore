@@ -613,7 +613,7 @@ function triggerStarHudBounce(): void {
 function addScoreFromCollectedStar(): void {
   try {
     if (typeof window !== 'undefined' && (window as any).CC && typeof (window as any).CC.addScoreFromHudStar === 'function') {
-      (window as any).CC.addScoreFromHudStar(200);
+      (window as any).CC.addScoreFromHudStar(100);
       return;
     }
   } catch (error) {

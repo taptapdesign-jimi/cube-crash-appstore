@@ -94,8 +94,25 @@ export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOpti
 
   if (ignoreWildJuice && tile.special === 'wild-juice') return false;
 
-  // Locked tiles with real payload/value are treated as in-flight spawn animation.
-  if (tile.locked && (tile.value | 0) > 0) return true;
+  // A plain locked value tile is not automatically "still spawning".
+  // Persistent locked/stack content is not a playable move and must not
+  // keep the no-moves fail screen deferred forever. Only explicit transient
+  // flags/tweens below should block endgame evaluation.
+  if (tile.locked && (tile.value | 0) > 0) {
+    if (tile._wildMagnetAffected === true) return true;
+    if (tile._spawnTween) {
+      let tweenActive = false;
+      try {
+        tweenActive = typeof tile._spawnTween.isActive === 'function'
+          ? tile._spawnTween.isActive()
+          : !!tile._spawnTween.isActive;
+      } catch {}
+      if (tweenActive) return true;
+      if (autoClearStaleFlag) {
+        try { tile._spawnTween = null; } catch {}
+      }
+    }
+  }
 
   if (tile._isBeingSpawned === true) {
     const value = (tile.value | 0);
@@ -123,7 +140,8 @@ export function getTransientSpawnState(tiles: any[] | null | undefined, options:
   const lockedActiveTiles = source.filter((t: any) => {
     if (!t || t.destroyed || !t.locked) return false;
     if (options.ignoreWildJuice !== false && t.special === 'wild-juice') return false;
-    return (t.value | 0) > 0;
+    if ((t.value | 0) <= 0) return false;
+    return isTileTransientlySpawning(t, options);
   });
   const tilesStillSpawning = source.filter((t: any) => isTileTransientlySpawning(t, options));
   return {

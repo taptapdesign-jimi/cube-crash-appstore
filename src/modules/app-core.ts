@@ -2356,7 +2356,7 @@ export async function boot(){
     getScore: () => score,
     setScore: (v) => { score = (v|0); updateHUD(); },
     animateScoreTo: (v, d=0.45) => animateScore((v|0), d),
-    addScoreFromHudStar: (amount = 200) => {
+    addScoreFromHudStar: (amount = 100) => {
       const bonus = Math.max(0, amount | 0);
       if (bonus <= 0) return score;
       score = Math.min(SCORE_CAP, score + bonus);

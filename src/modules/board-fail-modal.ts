@@ -175,17 +175,21 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
       
-      // 💚 Lose one heart when failing to clean a board
-      try {
-        const { heartsSystem } = await import('./hearts-system.js');
-        const heartLost = heartsSystem.loseHeart();
-        if (heartLost) {
-          logger.info('💔 Lost 1 heart due to board failure, remaining:', heartsSystem.getCurrentHearts());
-        } else {
-          logger.warn('⚠️ No hearts available to lose - player has 0 hearts');
+      // 💚 Lose one heart only in Journey. Arcade retries are not gated by hearts.
+      if (!isArcadeHomeRunMode()) {
+        try {
+          const { heartsSystem } = await import('./hearts-system.js');
+          const heartLost = heartsSystem.loseHeart();
+          if (heartLost) {
+            logger.info('💔 Lost 1 heart due to board failure, remaining:', heartsSystem.getCurrentHearts());
+          } else {
+            logger.warn('⚠️ No hearts available to lose - player has 0 hearts');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to lose heart on board failure:', error);
         }
-      } catch (error) {
-        logger.warn('⚠️ Failed to lose heart on board failure:', error);
+      } else {
+        logger.info('🎮 Arcade failure - hearts are not consumed');
       }
       
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
@@ -322,7 +326,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     const boardStatus = document.createElement('div');
     const boardLabel = String(Math.max(1, boardNumber | 0)).padStart(2, '0');
     boardStatus.textContent = isArcadeHomeRunMode()
-      ? 'Arcade board not cleared'
+      ? 'Board not cleared'
       : `Board ${boardLabel} not cleared`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
@@ -410,21 +414,25 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
-        // 🔥 USER REQUEST: Check hearts BEFORE restarting - if 0 hearts, show hearts bottom sheet
+        // Check hearts only in Journey. Arcade Play Again should restart freely.
         (async () => {
           try {
-            const { heartsSystem } = await import('./hearts-system.js');
-            if (!heartsSystem.hasHearts()) {
-              logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
-              // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
-              // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
-              // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
-              // 🔥 CRITICAL FIX: Reset isResolving flag so user can click Play Again again after closing hearts bottom sheet
-              isResolving = false;
-              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-              showHeartsModal();
-              // Don't resolve or close modal - just show bottom sheet over it
-              return; // Don't continue to restart
+            if (!isArcadeHomeRunMode()) {
+              const { heartsSystem } = await import('./hearts-system.js');
+              if (!heartsSystem.hasHearts()) {
+                logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
+                // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
+                // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
+                // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
+                // 🔥 CRITICAL FIX: Reset isResolving flag so user can click Play Again again after closing hearts bottom sheet
+                isResolving = false;
+                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+                showHeartsModal();
+                // Don't resolve or close modal - just show bottom sheet over it
+                return; // Don't continue to restart
+              }
+            } else {
+              logger.info('🎮 Arcade Play Again - skipping hearts check');
             }
             
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
