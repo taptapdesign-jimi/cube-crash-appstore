@@ -153,6 +153,10 @@
   animation: settingsGlow 3.5s ease-in-out infinite;
 }
 
+.slider-slide.settings-slide .hero-image {
+  animation: settingsGlow 3.5s ease-in-out infinite;
+}
+
 @keyframes settingsGlow {
   0%, 100% {
     transform: translateY(0px) rotate(0deg) scale(1);

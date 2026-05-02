@@ -141,6 +141,9 @@ const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 130;
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
 
+// Journey nav badge module: kept in code/storage for later restore, currently hidden by request.
+const JOURNEY_NAV_BADGE_ENABLED = false;
+
 const readPersistedJourneyBadge = (): number => {
   try {
     const raw = localStorage.getItem(BADGE_STORAGE_KEY);
@@ -148,6 +151,16 @@ const readPersistedJourneyBadge = (): number => {
     return Number.isFinite(parsed) ? parsed : 0;
   } catch {
     return 0;
+  }
+};
+
+const writePersistedJourneyBadge = (count: number): void => {
+  try {
+    if (count > 0) {
+      localStorage.setItem(BADGE_STORAGE_KEY, String(count));
+    }
+  } catch {
+    // Ignore storage errors.
   }
 };
 
@@ -159,6 +172,16 @@ const ensureJourneyBadge = (journeyNavButton: HTMLElement | null): number => {
     ? parseInt(existingBadge.querySelector('.nav-badge-text')?.textContent || '0', 10)
     : 0;
   const effectiveCount = Math.max(cachedCount, persistedCount, domCount);
+
+  if (!JOURNEY_NAV_BADGE_ENABLED) {
+    if (effectiveCount > 0) {
+      (window as any).__ccJourneyBadgeCount = effectiveCount;
+      writePersistedJourneyBadge(effectiveCount);
+    }
+    existingBadge?.remove();
+    return effectiveCount;
+  }
+
   if (effectiveCount > 0) {
     (window as any).__ccJourneyBadgeCount = effectiveCount;
     if (journeyNavButton && !existingBadge) {
@@ -254,8 +277,10 @@ export const animateSliderExit = (): void => {
     const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
     if (journeyNavButton) {
       const ensuredCount = ensureJourneyBadge(journeyNavButton);
-      if (ensuredCount > 0) {
+      if (JOURNEY_NAV_BADGE_ENABLED && ensuredCount > 0) {
         logger.info(`🎯 Badge ensured before exit animation: ${ensuredCount}`);
+      } else if (!JOURNEY_NAV_BADGE_ENABLED && ensuredCount > 0) {
+        logger.debug(`🗺️ Journey badge count preserved but hidden: ${ensuredCount}`);
       } else {
         logger.debug('🗺️ No journey badge to preserve (count=0)');
       }

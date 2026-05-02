@@ -1,4 +1,6 @@
 // Animation constants
+import { ACTIVE_SLIDER_TOTAL_SLIDES } from '../modules/shop-module.js';
+
 export const ANIMATION_DELAYS = {
   SHORT: 50,
   MEDIUM: 100,
@@ -42,7 +44,7 @@ export const SLIDER_ANIMATION = {
 // Slider drag and navigation constants
 export const SLIDER_CONFIG = {
   // Slide configuration
-  TOTAL_SLIDES: 4,
+  TOTAL_SLIDES: ACTIVE_SLIDER_TOTAL_SLIDES,
   
   // Drag thresholds (px)
   DRAG_THRESHOLD_PX: 100,           // Minimum drag distance to change slide
@@ -59,7 +61,7 @@ export const SLIDER_CONFIG = {
   SLIDE_DURATION_S: 0.4,            // Duration in seconds for slide transition
   SLIDE_EASING: 'power2.out',       // GSAP easing for smooth slide
   
-  // Navigation button sizes (px)
+  // Navigation button sizes (px) — desktop / default; iPhone & iPad use getNavButton*Size()
   NAV_BUTTON_INACTIVE_SIZE: 48,
   NAV_BUTTON_ACTIVE_SIZE: 72,
   NAV_BUTTON_ANIM_DURATION_S: 0.1,  // Duration in seconds
@@ -67,6 +69,27 @@ export const SLIDER_CONFIG = {
   NAV_IMAGE_INACTIVE_Y: 0,          // Y offset when inactive
   NAV_BUTTON_EASING: 'power2.inOut'
 } as const;
+
+/** Match independent-navigation.css + GSAP: inactive icon box per viewport */
+export function getNavButtonInactiveSize(): number {
+  if (typeof window === 'undefined') return SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
+  if (window.matchMedia('(min-width: 768px) and (max-width: 1024px)').matches) {
+    return 64;
+  }
+  if (window.matchMedia('(max-width: 430px)').matches) {
+    return 64;
+  }
+  return SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
+}
+
+/** Active icon box — iPad 96px per CSS; phone / desktop 72px */
+export function getNavButtonActiveSize(): number {
+  if (typeof window === 'undefined') return SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE;
+  if (window.matchMedia('(min-width: 768px) and (max-width: 1024px)').matches) {
+    return 96;
+  }
+  return SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE;
+}
 
 export const ANIMATION_EASING = {
   EASE: 'ease',

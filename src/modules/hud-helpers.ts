@@ -763,6 +763,9 @@ let __scoreTweening: boolean = false;
 let __boardTweening = false;
 let __prevScore = 0;
 let __prevBoard = 0;
+let __scoreStarBurstCount = 0;
+let __scoreStarDeflateTimeout: ReturnType<typeof setTimeout> | null = null;
+let __scoreStarBumpTl: gsap.core.Timeline | null = null;
 
 function bounceText(obj, { peak=1.28, back=1.06, up=0.10, down=0.24 } = {}){
   if (!obj) return;
@@ -803,6 +806,53 @@ function stopComboFX(){
     __shakeTl = trackTween(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
     }
   } catch {}
+}
+
+export function bumpScoreNumberFromHudStar(): void {
+  if (!scoreText) return;
+
+  __scoreStarBurstCount = Math.min(__scoreStarBurstCount + 1, 6);
+  const peak = Math.min(1.79, 1.46 + (__scoreStarBurstCount - 1) * 0.084);
+  const cur = Math.max(scoreText.scale?.x || 1, scoreText.scale?.y || 1);
+  const upDur = Math.max(0.08, 0.16 - (cur - 1) * 0.06);
+
+  try {
+    __scoreStarBumpTl?.kill?.();
+  } catch {}
+  try { gsap.killTweensOf(scoreText.scale); } catch {}
+
+  if (__scoreStarDeflateTimeout) {
+    try {
+      clearTimeout(__scoreStarDeflateTimeout);
+      activeHudTimeouts.delete(__scoreStarDeflateTimeout);
+    } catch {}
+    __scoreStarDeflateTimeout = null;
+  }
+
+  __scoreStarBumpTl = trackTimeline({
+    onComplete: () => {
+      __scoreStarBumpTl = null;
+      __scoreStarBurstCount = 0;
+    }
+  });
+  __scoreStarBumpTl
+    .to(scoreText.scale, {
+      x: peak,
+      y: peak,
+      duration: upDur,
+      ease: 'back.out(3)'
+    }, 0)
+    .to(scoreText.scale, {
+      x: 1.0,
+      y: 1.0,
+      duration: 1.05,
+      ease: 'power2.out'
+    }, '>-0.01');
+
+  __scoreStarDeflateTimeout = trackHudTimeout(() => {
+    __scoreStarDeflateTimeout = null;
+    __scoreStarBurstCount = 0;
+  }, 2600);
 }
 
 export function layout({ app, top }: { app: Application; top?: number }): void { 
@@ -874,8 +924,9 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
-  const comboToCoinSpacing = 80; // 80px spacing from combo icon to coin element
+  const comboToCoinSpacing = 92; // 15% wider spacing between score and combo areas
   const coinToStarSpacing = 64; // 64px spacing from coin icon to star element
+  const hudStatsComboLeftShift = Math.round(vw * 0.05); // Move score + combo group 5% toward the X icon
   // 🔥 USER REQUEST: 24px padding from right edge (calculated as percentage of screen width)
   // For iPhone 13 (390px width): 24px = 6.15% of screen width
   // We'll use fixed 24px but calculate it relative to screen width for consistency
@@ -922,7 +973,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       // Position combo so its right edge is 12px left of wild preloader right edge.
       // Keep right alignment in arcade as well.
       const comboDefaultX = comboRightEdge - totalWidth / 2;
-      comboWrap.x = comboDefaultX;
+      comboWrap.x = comboDefaultX - hudStatsComboLeftShift;
       comboWrap.y = yValue;
       
     }
@@ -941,7 +992,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       // Coin center is 80px left of combo icon left edge.
       // Keep right-aligned pair in arcade as well.
       const arcadeScoreLeftShift = isArcadeRun ? (comboToCoinSpacing * 0.2) : 0; // +20% left only in Arcade
-      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing - arcadeScoreLeftShift;
+      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing - arcadeScoreLeftShift - hudStatsComboLeftShift;
       coin.container.x = coinDefaultX;
       coin.container.y = yValue;
       
@@ -958,13 +1009,9 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     
     // Star - 64px left of Coin ICON (not center) - fixed position (same spacing as before)
     if (star && star.container) {
-      if (isArcadeRun) {
-        star.container.visible = false;
-        star.container.renderable = false;
-      } else {
-        star.container.visible = true;
-        star.container.renderable = true;
-      }
+      star.container.visible = false;
+      star.container.renderable = false;
+      star.container.eventMode = 'none';
       // Calculate combo and coin positions
       const estimatedComboWidth = 62;
       const comboCenterX = rightEdge - estimatedComboWidth / 2;
@@ -1684,11 +1731,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     fontWeight: 'bold',
     fontStyle: 'normal'
   });
-  if (isArcadeHomeRunMode()) {
-    starHud.container.visible = false;
-    starHud.container.renderable = false;
-    starHud.container.eventMode = 'none';
-  }
+  // Shop/star currency HUD is currently hidden. Keep the element wired so it can be restored later.
+  starHud.container.visible = false;
+  starHud.container.renderable = false;
+  starHud.container.eventMode = 'none';
   
   // 2. Coin (score) - third - using score-hud.png instead of coin-hud.png
   const coinHud = createHudElement('./assets/hud/score-hud.png', '0', {
@@ -1847,7 +1893,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   if (typeof window !== 'undefined') {
     window.HUD = window.HUD || {};
     window.HUD.bounceStarIcon = bounceStarIcon;
+    window.HUD.bounceScoreIcon = bounceScoreIcon;
+    window.HUD.bumpScoreNumberFromHudStar = bumpScoreNumberFromHudStar;
     window.HUD.getStarHudPosition = getStarHudPosition;
+    window.HUD.getScoreHudPosition = getScoreHudPosition;
     window.HUD.setStarsCount = setStarsCount;
     window.HUD.cleanupComboAnimations = cleanupComboAnimations; // 🔥 Export cleanup function
     // 🔥 CRITICAL FIX: Export HUD_ROOT to window for access from app-core.ts
@@ -2612,6 +2661,7 @@ export function updateHUD({ score, board, moves, combo }) {
         // We'll use the same approach: rightEdge = screenWidth - 24px padding
         const comboRightPadding = 24; // 24px from right edge
         const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
+        const hudStatsComboLeftShift = Math.round(screenWidth * 0.05);
         
         // Calculate total combo width (icon + spacing + "x" + number)
         const iconWidth = comboEl.iconSprite ? comboEl.iconSprite.width * comboEl.iconSprite.scale.x : 28;
@@ -2629,7 +2679,7 @@ export function updateHUD({ score, board, moves, combo }) {
         
         // Position combo so its right edge is 8px left of wild preloader right edge
         // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
-        comboWrap.x = comboRightEdge - totalWidth / 2;
+        comboWrap.x = comboRightEdge - totalWidth / 2 - hudStatsComboLeftShift;
         
         // Also scale down if still too wide after moving
         const maxAllowedWidth = screenWidth - 40; // No padding, just 40px margin for safety
@@ -2958,6 +3008,7 @@ export function setCombo(v){
       // We'll use the same approach: rightEdge = screenWidth - 24px padding
       const comboRightPadding = 24; // 24px from right edge
       const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
+      const hudStatsComboLeftShift = Math.round(screenWidth * 0.05);
       
       // Calculate total combo width (icon + spacing + "x" + number)
       const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
@@ -2975,7 +3026,7 @@ export function setCombo(v){
       
       // Position combo so its right edge is 12px left of wild preloader right edge
       // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
-      comboWrap.x = comboRightEdge - totalWidth / 2;
+      comboWrap.x = comboRightEdge - totalWidth / 2 - hudStatsComboLeftShift;
       
       if (isVerboseGameplayLogsEnabled()) {
         console.log('🎯 Combo positioned 12px left of wild preloader:', {
@@ -3243,8 +3294,10 @@ export function animateScore({ scoreRef, setScore, updateHUD, SCORE_CAP, gsap },
   if (to === from) { setScore(to); updateHUD?.({ score: to }); return; }
   const proxy = { v: from };
   __scoreTweening = true;
-  // inflate score text slightly at start
-  bounceText(scoreText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
+  // Skip the default score pop while the wild-star burst owns the score number scale.
+  if (__scoreStarBurstCount <= 0 && !__scoreStarDeflateTimeout) {
+    bounceText(scoreText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
+  }
   trackTween(proxy, {
     v: to, duration: duration || 0.5, ease: 'power2.out',
     onUpdate: () => { const val = Math.round(proxy.v); setScore(val); try { updateHUD?.({ score: val }); } catch {} },
@@ -3304,22 +3357,93 @@ export function animateHUDDrop() {
  * Get star HUD icon position in screen coordinates
  */
 export function getStarHudPosition() {
-  if (isArcadeHomeRunMode()) return null;
-  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
+  return getScoreHudPosition();
+}
+
+/**
+ * Get score HUD icon position in screen coordinates.
+ */
+export function getScoreHudPosition() {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.coin) {
     return null;
   }
   
-  const starElement = HUD_ROOT._hudElements.star;
-  if (!starElement.container) {
+  const scoreElement = HUD_ROOT._hudElements.coin;
+  if (!scoreElement.container) {
     return null;
   }
   
   // Get global position (screen coordinates)
-  const globalPos = starElement.container.getGlobalPosition();
+  const globalPos = scoreElement.container.getGlobalPosition();
   return {
     x: globalPos.x,
     y: globalPos.y
   };
+}
+
+/**
+ * Bounce animation on score HUD icon.
+ */
+export function bounceScoreIcon(onComplete) {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.coin) {
+    if (onComplete && typeof onComplete === 'function') {
+      try { onComplete(); } catch {}
+    }
+    return;
+  }
+
+  const scoreElement = HUD_ROOT._hudElements.coin;
+  if (!scoreElement.container) {
+    if (onComplete && typeof onComplete === 'function') {
+      try { onComplete(); } catch {}
+    }
+    return;
+  }
+
+  const bounceTarget = scoreElement.iconSprite || scoreElement.container;
+  const bounceScale = bounceTarget.scale;
+  if (scoreElement.iconSprite && typeof scoreElement.iconSprite._scoreBounceBaseScaleX !== 'number') {
+    scoreElement.iconSprite._scoreBounceBaseScaleX = scoreElement.iconSprite.scale.x || 1;
+    scoreElement.iconSprite._scoreBounceBaseScaleY = scoreElement.iconSprite.scale.y || 1;
+  }
+  const baseScaleX = scoreElement.iconSprite ? scoreElement.iconSprite._scoreBounceBaseScaleX : 1;
+  const baseScaleY = scoreElement.iconSprite ? scoreElement.iconSprite._scoreBounceBaseScaleY : 1;
+
+  try {
+    gsap.killTweensOf(bounceScale);
+    if (bounceTarget._bounceTimeline) {
+      try {
+        bounceTarget._bounceTimeline.kill();
+      } catch {}
+    }
+  } catch {}
+
+  const tl = trackTimeline({
+    onComplete: () => {
+      try {
+        if (bounceTarget) {
+          bounceTarget._bounceTimeline = null;
+        }
+      } catch {}
+      if (onComplete && typeof onComplete === 'function') {
+        try { onComplete(); } catch {}
+      }
+    }
+  });
+
+  bounceTarget._bounceTimeline = tl;
+  tl.to(bounceScale, {
+    x: baseScaleX * 1.30,
+    y: baseScaleY * 1.30,
+    duration: 0.08,
+    ease: 'power2.out'
+  });
+  tl.to(bounceScale, {
+    x: baseScaleX,
+    y: baseScaleY,
+    duration: 0.15,
+    ease: 'back.out(1.7)'
+  });
 }
 
 /**

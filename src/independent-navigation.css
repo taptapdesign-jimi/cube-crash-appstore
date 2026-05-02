@@ -73,7 +73,7 @@
   align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
   justify-content: space-between;
   gap: 0;
-  width: 85%;
+  width: 93.5%; /* 85% × 1.1 — ikone ~10% dalje od sredine prema rubovima */
   padding: 0 20px; /* Original padding za iPhone */
   position: relative;
   z-index: 999999999;
@@ -105,7 +105,7 @@
   .independent-nav-buttons {
     gap: 0;
     padding: 0 12px;
-    width: 85%;
+    width: 93.5%;
     justify-content: space-between;
     align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
     transform: translateY(-8px) !important; /* 🔥 FIX: Move all navigation icons up by 8px on iPhone (was -16px, now -8px = 8px more down) - works better than margin-top */
@@ -113,8 +113,8 @@
   }
   
   .independent-nav-button {
-    width: 48px; /* Default inactive size on iPhone - GSAP controls animation */
-    height: 48px;
+    width: 64px; /* Inactive size on phone — GSAP must match (slider-manager) */
+    height: 64px;
     transform: scale(1.0);
     margin-top: -107px; /* 🔥 FIX: Moved up 24px (from -83px to -107px) on iPhone - CSS only, no inline styles */
   }
@@ -360,6 +360,14 @@
   box-sizing: border-box; /* Ensure fixed size */
 }
 
+/* Journey nav badge module is hidden for now, but kept restorable in code/storage. */
+.independent-nav-button[data-slide="1"] .nav-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* 🔥 USER REQUEST: Badge prati bounce animaciju aktivne navigacijske ikone */
 .independent-nav-button.active .nav-badge {
   animation: idleFloat 3s ease-in-out infinite; /* Ista animacija kao img element */
@@ -380,7 +388,7 @@
   .independent-nav-buttons {
     gap: 0 !important; /* Ukloniti gap */
     justify-content: space-between !important;
-    width: 85% !important;
+    width: 93.5% !important;
     padding: 0 68px !important; /* Slightly wider spacing while staying centered */
   }
   

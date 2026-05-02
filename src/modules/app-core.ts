@@ -2356,6 +2356,30 @@ export async function boot(){
     getScore: () => score,
     setScore: (v) => { score = (v|0); updateHUD(); },
     animateScoreTo: (v, d=0.45) => animateScore((v|0), d),
+    addScoreFromHudStar: (amount = 200) => {
+      const bonus = Math.max(0, amount | 0);
+      if (bonus <= 0) return score;
+      score = Math.min(SCORE_CAP, score + bonus);
+      try {
+        if (STATE) STATE.score = score;
+      } catch {}
+      try {
+        animateScore(score, 0.18);
+      } catch {
+        updateHUD();
+      }
+      try {
+        if (typeof HUD.bumpScoreNumberFromHudStar === 'function') {
+          HUD.bumpScoreNumberFromHudStar();
+        }
+      } catch {}
+      try {
+        if (typeof HUD.bounceScoreIcon === 'function') {
+          HUD.bounceScoreIcon();
+        }
+      } catch {}
+      return score;
+    },
     updateHUD: () => updateHUD(),
     getHudMetrics: () => ({ ...__hudMetrics }),
     getUnifiedHudInfo: () => HUD.getUnifiedHudInfo ? HUD.getUnifiedHudInfo() : { y: 0, height: 0, parent: null, dropped: false },

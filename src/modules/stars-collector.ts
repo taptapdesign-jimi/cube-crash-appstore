@@ -104,7 +104,9 @@ function trackTimeout(callback: () => void, delay: number): ReturnType<typeof se
 }
 
 function triggerBounceWithCallback(onComplete?: () => void) {
-  if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceStarIcon === 'function') {
+  if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceScoreIcon === 'function') {
+    window.HUD.bounceScoreIcon(onComplete);
+  } else if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceStarIcon === 'function') {
     // Call bounce function with callback
     window.HUD.bounceStarIcon(onComplete);
   } else if (onComplete) {
@@ -264,10 +266,6 @@ export async function collectStarsFromWildTile(
   wildTile: any,
   merge6Position: { x: number; y: number }
 ): Promise<void> {
-  if (isArcadeHomeRunMode()) {
-    try { detachWildStarHalo(wildTile); } catch {}
-    return;
-  }
   if (!config || !wildTile) {
     console.warn('⚠️ Cannot collect stars: config or wildTile missing');
     return;
@@ -553,12 +551,8 @@ function animateStarToHUD(
         star.y = path.y;
       },
       onComplete: () => {
-        // 🔥 USER REQUEST: Bounce animation when star enters HUD icon (like stack merge)
-        // Trigger bounce for each star as it arrives
-        triggerStarHudBounce();
-        
-        // Also increment stars count for this star (sequential)
-        addStars(1);
+        // Add score and bounce score HUD when each star enters.
+        addScoreFromCollectedStar();
       }
     });
     
@@ -614,6 +608,18 @@ function triggerStarHudBounce(): void {
   }).catch((error) => {
     console.warn('⚠️ Failed to import HUD module for bounce:', error);
   });
+}
+
+function addScoreFromCollectedStar(): void {
+  try {
+    if (typeof window !== 'undefined' && (window as any).CC && typeof (window as any).CC.addScoreFromHudStar === 'function') {
+      (window as any).CC.addScoreFromHudStar(200);
+      return;
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to add score from collected star:', error);
+  }
+  triggerStarHudBounce();
 }
 
 /**

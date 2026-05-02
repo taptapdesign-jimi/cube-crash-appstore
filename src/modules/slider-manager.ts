@@ -5,7 +5,7 @@ import { gsap } from 'gsap';
 import gameState from './game-state.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
-import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
+import { SLIDER_ANIMATION, SLIDER_CONFIG, getNavButtonActiveSize, getNavButtonInactiveSize } from '../constants/animations.js';
 import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
@@ -850,8 +850,8 @@ class SliderManager {
         if (isActive) {
           // Animate to active state - smooth ease-in ease-out from current position
           const buttonTween = trackTween(navButton, {
-            width: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
-            height: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
+            width: getNavButtonActiveSize(),
+            height: getNavButtonActiveSize(),
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
             ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true
@@ -870,8 +870,8 @@ class SliderManager {
         } else {
           // Animate to inactive state - smooth ease-in ease-out from current position
           const buttonTween = trackTween(navButton, {
-            width: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
-            height: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
+            width: getNavButtonInactiveSize(),
+            height: getNavButtonInactiveSize(),
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
             ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true

@@ -1,6 +1,9 @@
 // Navigation Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
-import { isSlideVisible } from '../../modules/shop-module.js';
+import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../../modules/shop-module.js';
+
+// Journey nav badge module: kept in code for later restore, currently hidden by request.
+const JOURNEY_NAV_BADGE_ENABLED = false;
 
 // 🔥 FIX: Track navigation timeouts for cleanup
 const activeNavTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -44,8 +47,8 @@ export function createNavigation(config: NavigationConfig = {}): HTMLElementConf
         children: [
           createNavButton(0, 'Home', './assets/nav/cube-nav.png', currentSlide === 0, onSlideChange),
           createNavButton(1, 'Journey', './assets/nav/stats-nav.png', currentSlide === 1, onSlideChange, journeyBadgeCount),
-          isSlideVisible(2) ? createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange) : null,
-          createNavButton(3, 'Settings', './assets/nav/settings-nav.png', currentSlide === 3, onSlideChange),
+          SHOP_MODULE_ENABLED ? createNavButton(SHOP_MODULE_SLIDE_INDEX, 'Shop', './assets/nav/collectibles-nav.png', currentSlide === SHOP_MODULE_SLIDE_INDEX, onSlideChange) : null,
+          createNavButton(SETTINGS_SLIDE_INDEX, 'Settings', './assets/nav/settings-nav.png', currentSlide === SETTINGS_SLIDE_INDEX, onSlideChange),
         ].filter((child): child is HTMLElementConfig => child !== null),
       },
     ],
@@ -78,7 +81,7 @@ function createNavButton(
 
   // 🔥 USER REQUEST: Badge ONLY on Journey icon (index 1, stats-nav.png), nowhere else
   // Badge shows count of newly unlocked journey boards that user hasn't viewed yet
-  if (slideIndex === 1 && badgeCount !== undefined && badgeCount > 0) {
+  if (JOURNEY_NAV_BADGE_ENABLED && slideIndex === 1 && badgeCount !== undefined && badgeCount > 0) {
     children.push({
       tag: 'div',
       className: 'nav-badge',
@@ -122,7 +125,7 @@ export function renderNavigation(container: HTMLElement, config: NavigationConfi
     Number.isFinite(lastJourneyBadge) ? lastJourneyBadge : 0,
     persistedBadge
   );
-  if (restoreCount > 0) {
+  if (JOURNEY_NAV_BADGE_ENABLED && restoreCount > 0) {
     updateNavBadge(restoreCount, 1);
   }
 }
@@ -180,6 +183,18 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
   // 🔥 USER REQUEST: Badge ONLY on Journey icon (slideIndex 1, stats-nav.png), nowhere else
   if (slideIndex !== 1) {
     console.log(`⚠️ updateNavBadge called with slideIndex ${slideIndex} - ignoring (badge only on Journey/slideIndex 1)`);
+    return;
+  }
+
+  if (!JOURNEY_NAV_BADGE_ENABLED) {
+    const currentCount = getCurrentBadgeCount(slideIndex);
+    const preservedCount = Math.max(Number.isFinite(count) ? count : 0, currentCount);
+    lastJourneyBadgeCount = preservedCount;
+    (window as any).__ccJourneyBadgeCount = preservedCount;
+    writePersistedBadge(preservedCount);
+
+    const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement | null;
+    navButton?.querySelector('.nav-badge')?.remove();
     return;
   }
   

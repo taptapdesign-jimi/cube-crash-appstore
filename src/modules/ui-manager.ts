@@ -12,6 +12,7 @@ import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 import { RUN_MODE_ARCADE_HOME, setRunMode } from './run-mode.js';
+import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -1992,11 +1993,12 @@ class UIManager {
     logger.info('⚙️ Showing settings screen - with exit animation');
     logger.info('✅ [Settings ENTER] Paper background set to 60% opacity IMMEDIATELY (at function start)');
     
-    // CRITICAL: Switch to Settings slide (index 3) BEFORE animation so it animates the correct slide
+    // CRITICAL: Switch to Settings slide BEFORE animation so it animates the correct slide
     const navButtons = document.querySelectorAll('.independent-nav-button');
     const slides = document.querySelectorAll('.slider-slide');
-    slides.forEach((slide, index) => {
-      if (index === 3) {
+    slides.forEach((slide) => {
+      const slideIndex = parseInt(slide.getAttribute('data-slide') || '0', 10);
+      if (slideIndex === SETTINGS_SLIDE_INDEX) {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
@@ -2004,7 +2006,7 @@ class UIManager {
     });
     navButtons.forEach((button) => {
       const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-      if (slideIndex === 3) {
+      if (slideIndex === SETTINGS_SLIDE_INDEX) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
@@ -2178,11 +2180,12 @@ class UIManager {
     
     // 🔥 CRITICAL: Show homepage QUIETLY IMMEDIATELY (before animation completes)
     // This ensures gradient is visible right away, preventing gray color flash
-    // Also reset slider to Settings slide (index 3) BEFORE showing homepage
+    // Also reset slider to Settings slide BEFORE showing homepage
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 3) {
+    slides.forEach((slide) => {
+      const slideIndex = parseInt(slide.getAttribute('data-slide') || '0', 10);
+      if (slideIndex === SETTINGS_SLIDE_INDEX) {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
@@ -2190,7 +2193,7 @@ class UIManager {
     });
     navButtons.forEach((button) => {
       const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-      if (slideIndex === 3) {
+      if (slideIndex === SETTINGS_SLIDE_INDEX) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
@@ -2220,13 +2223,13 @@ class UIManager {
       }
       
       // Force reflow to ensure DOM is updated before animation
-      void slides[3]?.offsetHeight;
+      void document.querySelector(`.slider-slide[data-slide="${SETTINGS_SLIDE_INDEX}"]`)?.offsetHeight;
       
-      // Step 2: Play enter animation for Settings slide (index 3)
+      // Step 2: Play enter animation for Settings slide
       // Use requestAnimationFrame to ensure DOM is fully updated
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          console.log('🎬 Playing enter animation for Settings slide (index 3)');
+          console.log(`🎬 Playing enter animation for Settings slide (index ${SETTINGS_SLIDE_INDEX})`);
           animateSliderEnter();
         });
       });

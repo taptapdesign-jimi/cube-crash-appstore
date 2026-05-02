@@ -12,7 +12,6 @@ import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
-import { isArcadeHomeRunMode } from './run-mode.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -40,7 +39,6 @@ function getFxHotFactor(): number {
 
 /** Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild. */
 export function startWildStars(tile: Tile): void {
-  if (isArcadeHomeRunMode()) return;
   if (!tile || tile.special !== 'wild') return;
   attachWildStarHalo(tile);
 }
@@ -4101,9 +4099,6 @@ export function cleanupExistingStarAnimations() {
  * @param {Object} hudStarIconPos - HUD star icon position: { x, y }
  */
 export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos, app = null) {
-  if (isArcadeHomeRunMode()) {
-    return;
-  }
   const verboseLogs = isVerboseGameplayLogsEnabled();
   if (verboseLogs) console.log('⭐ animateStarsToHudIcon CALLED with:', {
     hasBoard: !!board,
@@ -4611,21 +4606,20 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
             console.warn('⚠️ Error removing star:', err);
           }
           
-          // 🔥 CRITICAL: Add star count - this triggers bounce via queue system (sequential, no overlap)
-          // Only ONE call to addStars per star (removed duplicate)
+          // Add score only when each star reaches the score HUD.
           try {
             try {
               if (typeof (window as any)?.triggerHapticImpact === 'function') {
                 (window as any).triggerHapticImpact('light');
               }
             } catch {}
-            if (typeof window !== 'undefined' && window.CC && typeof window.CC.addStars === 'function') {
-              window.CC.addStars(1);
+            if (typeof window !== 'undefined' && window.CC && typeof window.CC.addScoreFromHudStar === 'function') {
+              window.CC.addScoreFromHudStar(200);
             } else {
               // No-op fallback: avoid runtime import during animation path.
             }
           } catch (err) {
-            console.warn('⚠️ Error adding star:', err);
+            console.warn('⚠️ Error adding star score:', err);
           }
           
           // Stop timeline for this star (it has disappeared)
@@ -5571,11 +5565,9 @@ export function wildImpactEffect(tile, opts = {}) {
 export function startWildIdle(tile, opts = {}){
   if (!tile) return;
   // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za juice/magnet/tnt
-  if (tile.special === 'wild' && !isArcadeHomeRunMode()) {
+  if (tile.special === 'wild') {
     try { stopWildIdle(tile); } catch {}
     try { startWildStars(tile); } catch {}
-  } else if (tile.special === 'wild' && isArcadeHomeRunMode()) {
-    try { stopWildStars(tile); } catch {}
   }
 
   const g = tile.rotG || tile;

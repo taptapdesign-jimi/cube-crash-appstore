@@ -12,7 +12,7 @@ export function createSettingsSlide(config: SlideConfig): HTMLElementConfig {
 
   return {
     tag: 'div',
-    className: `slider-slide${isActive ? ' active' : ''}`,
+    className: `slider-slide settings-slide${isActive ? ' active' : ''}`,
     attributes: {
       'data-slide': slideIndex.toString(),
     },
