@@ -2252,8 +2252,9 @@ async function startNewRun(boardId: number): Promise<void> {
           // Za aktivni slide, animate-enter-initial će biti uklonjen u startEnterAnimationSequence
         }
       });
-      navButtons.forEach((button, index) => {
-        if (index === targetSlide) {
+      navButtons.forEach((button) => {
+        const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        if (slideIndex === targetSlide) {
           button.classList.add('active');
         } else {
           button.classList.remove('active');

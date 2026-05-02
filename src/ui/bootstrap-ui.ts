@@ -16,6 +16,7 @@ import { renderNavigation, updateNavBadge } from './components/navigation.js';
 // import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
+import { SHOP_MODULE_ENABLED } from '../modules/shop-module.js';
 // Note: preloadCriticalAssets removed - assetPreloader.preloadAll() handles all preloading
 
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
@@ -246,7 +247,7 @@ function renderHome(root: HTMLElement): void {
 
   renderHomeSlide(sliderWrapper, { slideIndex: 0, isActive: true });
   renderStatsSlide(sliderWrapper, { slideIndex: 1 });
-  renderCollectiblesSlide(sliderWrapper, { slideIndex: 2 });
+  renderCollectiblesSlide(sliderWrapper, { slideIndex: 2, isShopModuleEnabled: SHOP_MODULE_ENABLED });
   renderSettingsSlide(sliderWrapper, { slideIndex: 3 });
 }
 

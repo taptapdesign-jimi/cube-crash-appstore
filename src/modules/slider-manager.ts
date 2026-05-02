@@ -9,6 +9,7 @@ import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
 import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
+import { isSlideVisible } from './shop-module.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -58,6 +59,21 @@ class SliderManager {
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
   private gestureVelocityX: number = 0;
+
+  private getSlideStep(direction: 1 | -1): number | null {
+    let target = this.currentSlide + direction;
+    while (target >= 0 && target < this.totalSlides) {
+      if (isSlideVisible(target)) return target;
+      target += direction;
+    }
+    return null;
+  }
+
+  private resolveHiddenSlideTarget(slideIndex: number): number {
+    if (isSlideVisible(slideIndex)) return slideIndex;
+    const direction: 1 | -1 = slideIndex > this.currentSlide ? 1 : -1;
+    return this.getSlideStep(direction) ?? this.currentSlide;
+  }
 
   // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
   private boundHandlers: {
@@ -215,13 +231,14 @@ class SliderManager {
     // Independent navigation buttons
     this.boundHandlers.navButtonClick = new Map();
     const navButtons = document.querySelectorAll('.independent-nav-button');
-    navButtons.forEach((button, index) => {
+    navButtons.forEach((button) => {
       const handler = () => {
         // Light haptic for nav buttons
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('light');
         }
-        this.goToSlide(index);
+        const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        this.goToSlide(slideIndex);
       };
       this.boundHandlers.navButtonClick!.set(button, handler);
       button.addEventListener('click', handler);
@@ -599,6 +616,7 @@ class SliderManager {
   
   // Go to specific slide
   goToSlide(slideIndex: number): void {
+    slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     // 🔥 DEBUG: Log every goToSlide call
     const isLocked = gameState.get('sliderLocked');
     const isAnimating = sliderState.isAnimatingEnter;
@@ -670,8 +688,9 @@ class SliderManager {
   // Go to next slide
   nextSlide(): void {
     // iOS SAFETY: Prevent going beyond last slide
-    if (this.currentSlide < this.totalSlides - 1) {
-      this.goToSlide(this.currentSlide + 1);
+    const next = this.getSlideStep(1);
+    if (next !== null) {
+      this.goToSlide(next);
     } else {
       // Last slide: snap back with bounce
       this.updateSlider();
@@ -681,8 +700,9 @@ class SliderManager {
   // Go to previous slide
   previousSlide(): void {
     // iOS SAFETY: Prevent going beyond first slide
-    if (this.currentSlide > 0) {
-      this.goToSlide(this.currentSlide - 1);
+    const previous = this.getSlideStep(-1);
+    if (previous !== null) {
+      this.goToSlide(previous);
     } else {
       // First slide: snap back with bounce
       this.updateSlider();
@@ -801,8 +821,9 @@ class SliderManager {
       this.navButtonAnimations = [];
       
       const navButtons = document.querySelectorAll('.independent-nav-button');
-      navButtons.forEach((button, index) => {
-        const isActive = index === this.currentSlide;
+      navButtons.forEach((button) => {
+        const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        const isActive = slideIndex === this.currentSlide;
         const navButton = button as HTMLElement;
         const navImage = navButton.querySelector('img') as HTMLElement;
         
@@ -919,6 +940,7 @@ class SliderManager {
    * Use this when showing homepage at specific slide to avoid visual glitches
    */
   setSlideInstant(slideIndex: number): void {
+    slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     if (slideIndex < 0 || slideIndex >= this.totalSlides) {
       logger.warn(`⚠️ Invalid slide index: ${slideIndex}`);
       return;
@@ -976,8 +998,9 @@ class SliderManager {
     
     // 5. Update navigation buttons
     const navButtons = document.querySelectorAll('.independent-nav-button');
-    navButtons.forEach((button, index) => {
-      if (index === slideIndex) {
+    navButtons.forEach((button) => {
+      const buttonSlideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+      if (buttonSlideIndex === slideIndex) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
@@ -1199,8 +1222,9 @@ class SliderManager {
     
     // 11. Update navigation button active states
     const navButtons = document.querySelectorAll('.independent-nav-button');
-    navButtons.forEach((button, index) => {
-      button.classList.toggle('active', index === this.currentSlide);
+    navButtons.forEach((button) => {
+      const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+      button.classList.toggle('active', slideIndex === this.currentSlide);
     });
     
     logger.info('✅ FORCE READY: Slider nuclear reset complete - should be fully interactive');

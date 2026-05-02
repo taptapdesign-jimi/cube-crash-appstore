@@ -73,12 +73,12 @@
   align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
   justify-content: space-between;
   gap: 0;
-  width: 100%;
+  width: 85%;
   padding: 0 20px; /* Original padding za iPhone */
   position: relative;
   z-index: 999999999;
   pointer-events: auto;
-  margin: 0;
+  margin: 0 auto;
   box-sizing: border-box;
   transform: translateY(-8px); /* 🔥 FIX: Move all navigation icons up by 8px (was -16px, now -8px = 8px more down) - works better than margin-top */
   -webkit-transform: translateY(-8px);
@@ -105,6 +105,7 @@
   .independent-nav-buttons {
     gap: 0;
     padding: 0 12px;
+    width: 85%;
     justify-content: space-between;
     align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
     transform: translateY(-8px) !important; /* 🔥 FIX: Move all navigation icons up by 8px on iPhone (was -16px, now -8px = 8px more down) - works better than margin-top */
@@ -265,7 +266,7 @@
   transform: translateX(-50%);
   width: 60px; /* Elliptical width */
   height: 15px; /* Elliptical height */
-  background: rgba(244, 222, 203, 0.8); /* #F4DECB - 80% opacity */
+  background: rgba(238, 218, 202, 0.8); /* #EEDACA - 80% opacity */
   border-radius: 50%; /* Perfect ellipse */
   z-index: -1; /* Behind the icon */
   /* Add blur filter for shadow effect (20% blur) */
@@ -379,7 +380,8 @@
   .independent-nav-buttons {
     gap: 0 !important; /* Ukloniti gap */
     justify-content: space-between !important;
-    padding: 0 80px !important; /* 80px padding od rubova ekrana */
+    width: 85% !important;
+    padding: 0 68px !important; /* Slightly wider spacing while staying centered */
   }
   
   /* 4. Povećati veličine navigacijskih ikona na iPad-u */

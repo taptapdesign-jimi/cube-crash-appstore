@@ -4,17 +4,19 @@ import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 export interface SlideConfig {
   slideIndex: number;
   isActive?: boolean;
+  isShopModuleEnabled?: boolean;
   onButtonClick?: () => void;
 }
 
 export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig {
-  const { slideIndex, isActive = false, onButtonClick } = config;
+  const { slideIndex, isActive = false, isShopModuleEnabled = true, onButtonClick } = config;
 
   return {
     tag: 'div',
-    className: `slider-slide${isActive ? ' active' : ''}`,
+    className: `slider-slide shop-module-slide${isShopModuleEnabled ? '' : ' shop-module-hidden'}${isActive ? ' active' : ''}`,
     attributes: {
       'data-slide': slideIndex.toString(),
+      'aria-hidden': isShopModuleEnabled ? 'false' : 'true',
     },
     children: [
       {

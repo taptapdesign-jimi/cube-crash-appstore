@@ -2,6 +2,33 @@
 export class AccessibilityManager {
   private static instance: AccessibilityManager;
   private isEnabled: boolean = true;
+  private isInitialized: boolean = false;
+  private motionQuery: MediaQueryList | null = null;
+  private readonly handleMotionPreferenceChange = (e: MediaQueryListEvent): void => {
+    this.isEnabled = !e.matches;
+    if (!this.isEnabled) {
+      this.disableAnimations();
+    }
+  };
+  private readonly handleKeyboardNavigation = (event: KeyboardEvent): void => {
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'ArrowDown':
+      case 'ArrowLeft':
+      case 'ArrowRight':
+        event.preventDefault();
+        // Handle game navigation
+        break;
+      case ' ':
+        event.preventDefault();
+        // Handle pause/play
+        break;
+      case 'Escape':
+        event.preventDefault();
+        // Handle escape actions
+        break;
+    }
+  };
 
   static getInstance(): AccessibilityManager {
     if (!AccessibilityManager.instance) {
@@ -11,19 +38,18 @@ export class AccessibilityManager {
   }
 
   init(): void {
+    if (this.isInitialized) return;
+    this.isInitialized = true;
+
     // Check for reduced motion preference
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    this.motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (this.motionQuery.matches) {
       this.isEnabled = false;
       this.disableAnimations();
     }
 
     // Listen for changes in motion preference
-    window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (e) => {
-      this.isEnabled = !e.matches;
-      if (!this.isEnabled) {
-        this.disableAnimations();
-      }
-    });
+    this.motionQuery.addEventListener('change', this.handleMotionPreferenceChange);
 
     // Add keyboard navigation support
     this.addKeyboardNavigation();
@@ -36,25 +62,7 @@ export class AccessibilityManager {
 
   private addKeyboardNavigation(): void {
     // Add keyboard event listeners for game controls
-    document.addEventListener('keydown', (event) => {
-      switch (event.key) {
-        case 'ArrowUp':
-        case 'ArrowDown':
-        case 'ArrowLeft':
-        case 'ArrowRight':
-          event.preventDefault();
-          // Handle game navigation
-          break;
-        case ' ':
-          event.preventDefault();
-          // Handle pause/play
-          break;
-        case 'Escape':
-          event.preventDefault();
-          // Handle escape actions
-          break;
-      }
-    });
+    document.addEventListener('keydown', this.handleKeyboardNavigation);
   }
 
   announceToScreenReader(message: string): void {
@@ -76,5 +84,19 @@ export class AccessibilityManager {
     if (this.isEnabled && element) {
       element.focus();
     }
+  }
+
+  destroy(): void {
+    if (!this.isInitialized) return;
+    this.isInitialized = false;
+
+    try {
+      this.motionQuery?.removeEventListener('change', this.handleMotionPreferenceChange);
+    } catch {}
+    this.motionQuery = null;
+
+    try {
+      document.removeEventListener('keydown', this.handleKeyboardNavigation);
+    } catch {}
   }
 }

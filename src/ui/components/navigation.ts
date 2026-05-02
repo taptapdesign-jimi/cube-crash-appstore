@@ -1,5 +1,6 @@
 // Navigation Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { isSlideVisible } from '../../modules/shop-module.js';
 
 // 🔥 FIX: Track navigation timeouts for cleanup
 const activeNavTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -43,9 +44,9 @@ export function createNavigation(config: NavigationConfig = {}): HTMLElementConf
         children: [
           createNavButton(0, 'Home', './assets/nav/cube-nav.png', currentSlide === 0, onSlideChange),
           createNavButton(1, 'Journey', './assets/nav/stats-nav.png', currentSlide === 1, onSlideChange, journeyBadgeCount),
-          createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange),
+          isSlideVisible(2) ? createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange) : null,
           createNavButton(3, 'Settings', './assets/nav/settings-nav.png', currentSlide === 3, onSlideChange),
-        ],
+        ].filter((child): child is HTMLElementConfig => child !== null),
       },
     ],
       },

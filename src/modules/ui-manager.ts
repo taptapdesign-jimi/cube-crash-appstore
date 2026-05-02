@@ -1548,8 +1548,9 @@ class UIManager {
           slide.classList.remove('active');
         }
       });
-      navButtons.forEach((button, index) => {
-        if (index === 1) {
+      navButtons.forEach((button) => {
+        const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        if (slideIndex === 1) {
           button.classList.add('active');
         } else {
           button.classList.remove('active');
@@ -2001,8 +2002,9 @@ class UIManager {
         slide.classList.remove('active');
       }
     });
-    navButtons.forEach((button, index) => {
-      if (index === 3) {
+    navButtons.forEach((button) => {
+      const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+      if (slideIndex === 3) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
@@ -2186,8 +2188,9 @@ class UIManager {
         slide.classList.remove('active');
       }
     });
-    navButtons.forEach((button, index) => {
-      if (index === 3) {
+    navButtons.forEach((button) => {
+      const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+      if (slideIndex === 3) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');

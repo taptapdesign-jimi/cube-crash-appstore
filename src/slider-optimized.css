@@ -55,6 +55,11 @@
   -webkit-backface-visibility: hidden;
 }
 
+.slider-slide.shop-module-hidden {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .slide-content {
   display: flex;
   flex-direction: column;

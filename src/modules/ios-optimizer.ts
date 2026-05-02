@@ -30,10 +30,18 @@ class IOSOptimizer {
   private isIOS: boolean;
   private isInitialized: boolean;
   private optimizations: Optimizations;
+  private unsubscribeCurrentSlide: (() => void) | null;
+  private unsubscribeGameActive: (() => void) | null;
+  private disableSelectionStyleEl: HTMLStyleElement | null;
+  private animationOptimizationStyleEl: HTMLStyleElement | null;
 
   constructor() {
     this.isIOS = false;
     this.isInitialized = false;
+    this.unsubscribeCurrentSlide = null;
+    this.unsubscribeGameActive = null;
+    this.disableSelectionStyleEl = null;
+    this.animationOptimizationStyleEl = null;
     this.optimizations = {
       passiveTouchEvents: false,
       hardwareAcceleration: false,
@@ -149,7 +157,7 @@ class IOSOptimizer {
   // Setup memory optimization
   private setupMemoryOptimization(): void {
     // Hide inactive slider slides
-    gameState.subscribe('currentSlide', (slide: number) => {
+    this.unsubscribeCurrentSlide = gameState.subscribe('currentSlide', (slide: number) => {
       const slides = document.querySelectorAll('.slider__slide');
       slides.forEach((slideEl, index) => {
         if (index !== slide) {
@@ -187,8 +195,8 @@ class IOSOptimizer {
     if (this.optimizations.animationOptimization) return;
     
     // CRITICAL: Disable text selection and long-press menu on iOS
-    const disableSelection = document.createElement('style');
-    disableSelection.textContent = `
+    this.disableSelectionStyleEl = document.createElement('style');
+    this.disableSelectionStyleEl.textContent = `
       /* iOS: Disable text selection and long-press menu everywhere */
       body * {
         -webkit-user-select: none !important;
@@ -206,11 +214,11 @@ class IOSOptimizer {
         user-select: none !important;
       }
     `;
-    document.head.appendChild(disableSelection);
+    document.head.appendChild(this.disableSelectionStyleEl);
     
     // Optimize animations for iOS
-    const style = document.createElement('style');
-    style.textContent = `
+    this.animationOptimizationStyleEl = document.createElement('style');
+    this.animationOptimizationStyleEl.textContent = `
       .ios-device * {
         -webkit-transform: translateZ(0);
         transform: translateZ(0);
@@ -234,7 +242,7 @@ class IOSOptimizer {
         backface-visibility: hidden;
       }
     `;
-    document.head.appendChild(style);
+    document.head.appendChild(this.animationOptimizationStyleEl);
     
     this.optimizations.animationOptimization = true;
     logger.info('📱 Animation optimization enabled');
@@ -243,7 +251,7 @@ class IOSOptimizer {
   // Setup state subscriptions
   private setupStateSubscriptions(): void {
     // Game state changes
-    gameState.subscribe('isGameActive', (isActive: boolean) => {
+    this.unsubscribeGameActive = gameState.subscribe('isGameActive', (isActive: boolean) => {
       if (isActive) {
         this.onGameStart();
       } else {
@@ -337,6 +345,31 @@ class IOSOptimizer {
   
   // Cleanup
   destroy(): void {
+    if (!this.isInitialized) return;
+
+    try {
+      this.unsubscribeCurrentSlide?.();
+    } catch {}
+    this.unsubscribeCurrentSlide = null;
+
+    try {
+      this.unsubscribeGameActive?.();
+    } catch {}
+    this.unsubscribeGameActive = null;
+
+    try {
+      document.removeEventListener('touchstart', this.handlePassiveTouch);
+      document.removeEventListener('touchmove', this.handlePassiveTouch);
+      document.removeEventListener('touchend', this.handlePassiveTouch);
+    } catch {}
+
+    try { this.disableSelectionStyleEl?.remove(); } catch {}
+    this.disableSelectionStyleEl = null;
+    try { this.animationOptimizationStyleEl?.remove(); } catch {}
+    this.animationOptimizationStyleEl = null;
+
+    document.body.classList.remove('game-mode');
+
     this.isInitialized = false;
     this.optimizations = {
       passiveTouchEvents: false,
@@ -356,4 +389,3 @@ export default iosOptimizer;
 
 // Export class for testing
 export { IOSOptimizer };
-

@@ -2,6 +2,7 @@
 export class AppStoreCompliance {
   private static instance: AppStoreCompliance;
   private isCompliant: boolean = true;
+  private isInitialized: boolean = false;
 
   static getInstance(): AppStoreCompliance {
     if (!AppStoreCompliance.instance) {
@@ -11,6 +12,8 @@ export class AppStoreCompliance {
   }
 
   init(): void {
+    if (this.isInitialized) return;
+    this.isInitialized = true;
     this.checkCompliance();
     this.setupComplianceMonitoring();
   }
@@ -36,6 +39,10 @@ export class AppStoreCompliance {
   private complianceIntervalId: ReturnType<typeof setInterval> | null = null;
   
   private setupComplianceMonitoring(): void {
+    if (this.complianceIntervalId !== null) {
+      clearInterval(this.complianceIntervalId);
+      this.complianceIntervalId = null;
+    }
     // Monitor for compliance issues
     this.complianceIntervalId = setInterval(() => {
       this.checkCompliance();
@@ -44,6 +51,7 @@ export class AppStoreCompliance {
   
   // 🔥 FIX: Add destroy method to clean up interval
   destroy(): void {
+    this.isInitialized = false;
     if (this.complianceIntervalId !== null) {
       clearInterval(this.complianceIntervalId);
       this.complianceIntervalId = null;
