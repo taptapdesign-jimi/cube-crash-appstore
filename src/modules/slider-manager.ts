@@ -17,6 +17,10 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+const trackTimeline = (timeline: gsap.core.Timeline) => {
+  return animationManager.trackExternalTimeline(timeline);
+};
+
 // Type definitions
 interface SliderElements {
   container: HTMLElement | null;
@@ -55,10 +59,129 @@ class SliderManager {
   private activeRAFs: Set<number> = new Set();
   
   // 🔥 FIX: Track nav button GSAP animations for proper cleanup
-  private navButtonAnimations: gsap.core.Tween[] = [];
+  private navButtonAnimations: gsap.core.Animation[] = [];
+  private pendingNavBounceSlide: number | null = null;
+  private suppressCurrentSlideSubscription: boolean = false;
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
   private gestureVelocityX: number = 0;
+
+  private setNavButtonVisualState(
+    navButton: HTMLElement,
+    isActive: boolean,
+    bounceVisual: boolean,
+    animateLayout: boolean = true
+  ): void {
+    const navMotion = (navButton.querySelector('.nav-icon-motion') || navButton.querySelector('.nav-icon-visual') || navButton.querySelector('img')) as HTMLElement | null;
+    const navVisual = (navButton.querySelector('.nav-icon-visual') || navMotion) as HTMLElement | null;
+    const navImage = navButton.querySelector('img') as HTMLElement | null;
+
+    gsap.killTweensOf(navButton);
+    if (navMotion) gsap.killTweensOf(navMotion);
+    if (navVisual) gsap.killTweensOf(navVisual);
+    if (navImage) {
+      gsap.killTweensOf(navImage);
+      gsap.set(navImage, { clearProps: 'transform' });
+    }
+
+    if (isActive) {
+      navButton.classList.add('active');
+    } else {
+      navButton.classList.remove('active');
+    }
+
+    gsap.set(navButton, {
+      clearProps: 'marginTop'
+    });
+
+    const sizeTween = trackTween(navButton, {
+      width: isActive ? getNavButtonActiveSize() : getNavButtonInactiveSize(),
+      height: isActive ? getNavButtonActiveSize() : getNavButtonInactiveSize(),
+      duration: animateLayout ? SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S : 0,
+      ease: isActive ? 'power3.out' : 'power2.out',
+      force3D: true
+    });
+    this.navButtonAnimations.push(sizeTween);
+
+    if (!navMotion || !navVisual) return;
+
+    gsap.set([navMotion, navVisual], {
+      transformOrigin: '50% 70%',
+      willChange: 'transform'
+    });
+
+    const motionTween = trackTween(navMotion, {
+      y: isActive ? SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
+      duration: animateLayout ? SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S : 0,
+      ease: 'power3.out',
+      force3D: true,
+      onComplete: () => {
+        gsap.set(navMotion, { willChange: 'auto' });
+      }
+    });
+    this.navButtonAnimations.push(motionTween);
+
+    if (!bounceVisual) {
+      const visualSettleTween = trackTween(navVisual, {
+        scaleX: 1,
+        scaleY: 1,
+        duration: animateLayout ? SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S : 0,
+        ease: 'power3.out',
+        force3D: true,
+        onComplete: () => {
+          gsap.set(navVisual, { willChange: 'auto' });
+        }
+      });
+      this.navButtonAnimations.push(visualSettleTween);
+    }
+
+    if (bounceVisual) {
+      return;
+    }
+  }
+
+  private playNavButtonBounce(navButton: HTMLElement): void {
+    const navVisual = (navButton.querySelector('.nav-icon-visual') || navButton.querySelector('img')) as HTMLElement | null;
+    if (!navVisual) return;
+
+    gsap.killTweensOf(navVisual, 'scaleX,scaleY');
+    gsap.set(navVisual, {
+      scaleX: 1,
+      scaleY: 1,
+      transformOrigin: '50% 70%',
+      willChange: 'transform',
+      force3D: true
+    });
+
+    const timeline = trackTimeline(gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        gsap.set(navVisual, { willChange: 'auto' });
+      }
+    }));
+
+    timeline
+      .to(navVisual, {
+        scaleX: 1.16,
+        scaleY: 1.16,
+        duration: 0.15,
+        ease: 'back.out(2.2)'
+      })
+      .to(navVisual, {
+        scaleX: 0.92,
+        scaleY: 0.92,
+        duration: 0.09,
+        ease: 'power2.out'
+      })
+      .to(navVisual, {
+        scaleX: 1,
+        scaleY: 1,
+        duration: 0.3,
+        ease: 'back.out(1.9)'
+      });
+
+    this.navButtonAnimations.push(timeline);
+  }
 
   private getSlideStep(direction: 1 | -1): number | null {
     let target = this.currentSlide + direction;
@@ -238,6 +361,7 @@ class SliderManager {
           (window as any).triggerHapticImpact('light');
         }
         const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        this.pendingNavBounceSlide = this.resolveHiddenSlideTarget(slideIndex);
         this.goToSlide(slideIndex);
       };
       this.boundHandlers.navButtonClick!.set(button, handler);
@@ -469,6 +593,7 @@ class SliderManager {
     
     // Current slide state
     const unsubscribeCurrentSlide = gameState.subscribe('currentSlide', (slide: number) => {
+      if (this.suppressCurrentSlideSubscription) return;
       this.currentSlide = slide;
       this.updateSlider();
     });
@@ -648,7 +773,12 @@ class SliderManager {
           setTimeout(() => {
             if (slideIndex >= 0 && slideIndex < this.totalSlides) {
               this.currentSlide = slideIndex;
-              gameState.set('currentSlide', slideIndex);
+              this.suppressCurrentSlideSubscription = true;
+              try {
+                gameState.set('currentSlide', slideIndex);
+              } finally {
+                this.suppressCurrentSlideSubscription = false;
+              }
               this.updateSlider(true);
               logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
             }
@@ -670,7 +800,12 @@ class SliderManager {
         }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.currentSlide = slideIndex;
-          gameState.set('currentSlide', slideIndex);
+          this.suppressCurrentSlideSubscription = true;
+          try {
+            gameState.set('currentSlide', slideIndex);
+          } finally {
+            this.suppressCurrentSlideSubscription = false;
+          }
           this.updateSlider(true);
         }
       }, SLIDER_ANIMATION.FALLBACK_TIMEOUT);
@@ -680,7 +815,12 @@ class SliderManager {
     
     if (slideIndex >= 0 && slideIndex < this.totalSlides) {
       this.currentSlide = slideIndex;
-      gameState.set('currentSlide', slideIndex);
+      this.suppressCurrentSlideSubscription = true;
+      try {
+        gameState.set('currentSlide', slideIndex);
+      } finally {
+        this.suppressCurrentSlideSubscription = false;
+      }
       this.updateSlider(true);
     }
   }
@@ -820,75 +960,26 @@ class SliderManager {
       });
       this.navButtonAnimations = [];
       
+      const pendingBounceSlide = this.pendingNavBounceSlide;
+      this.pendingNavBounceSlide = null;
+      let bounceTarget: HTMLElement | null = null;
       const navButtons = document.querySelectorAll('.independent-nav-button');
       navButtons.forEach((button) => {
         const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+        const wasActive = button.classList.contains('active');
         const isActive = slideIndex === this.currentSlide;
         const navButton = button as HTMLElement;
-        const navImage = navButton.querySelector('img') as HTMLElement;
-        
-        // Kill any existing animations first
-        gsap.killTweensOf(navButton);
-        if (navImage) {
-          gsap.killTweensOf(navImage);
-        }
-        
-        // Set class immediately - CSS will handle marginTop positioning (no inline styles)
-        if (isActive) {
-          button.classList.add('active');
-        } else {
-          button.classList.remove('active');
-        }
-        
-        // Clear any existing inline marginTop to let CSS take control
-        gsap.set(navButton, {
-          clearProps: 'marginTop' // Clear inline marginTop, let CSS handle it
-        });
-        
-        // Animate only width and height - CSS handles marginTop positioning
-        // 🔥 FIX: Track animations for proper cleanup
-        if (isActive) {
-          // Animate to active state - smooth ease-in ease-out from current position
-          const buttonTween = trackTween(navButton, {
-            width: getNavButtonActiveSize(),
-            height: getNavButtonActiveSize(),
-            duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
-            ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
-            force3D: true
-          });
-          this.navButtonAnimations.push(buttonTween);
-          
-          if (navImage) {
-            const imageTween = trackTween(navImage, {
-              y: SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y,
-              duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
-              ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
-              force3D: true
-            });
-            this.navButtonAnimations.push(imageTween);
-          }
-        } else {
-          // Animate to inactive state - smooth ease-in ease-out from current position
-          const buttonTween = trackTween(navButton, {
-            width: getNavButtonInactiveSize(),
-            height: getNavButtonInactiveSize(),
-            duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
-            ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
-            force3D: true
-          });
-          this.navButtonAnimations.push(buttonTween);
-          
-          if (navImage) {
-            const imageTween = trackTween(navImage, {
-              y: SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
-              duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
-              ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
-              force3D: true
-            });
-            this.navButtonAnimations.push(imageTween);
-          }
+        const shouldAnimate = pendingBounceSlide !== null
+          ? slideIndex === pendingBounceSlide
+          : !wasActive && isActive;
+        this.setNavButtonVisualState(navButton, isActive, shouldAnimate, true);
+        if (shouldAnimate) {
+          bounceTarget = navButton;
         }
       });
+      if (bounceTarget) {
+        this.playNavButtonBounce(bounceTarget);
+      }
     });
     this.activeRAFs.add(navRafId);
     
@@ -1000,11 +1091,7 @@ class SliderManager {
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button) => {
       const buttonSlideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-      if (buttonSlideIndex === slideIndex) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
+      this.setNavButtonVisualState(button as HTMLElement, buttonSlideIndex === slideIndex, false, false);
     });
     
     logger.info(`✅ setSlideInstant: All states synced to slide ${slideIndex}`);
@@ -1224,7 +1311,7 @@ class SliderManager {
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button) => {
       const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-      button.classList.toggle('active', slideIndex === this.currentSlide);
+      this.setNavButtonVisualState(button as HTMLElement, slideIndex === this.currentSlide, false, false);
     });
     
     logger.info('✅ FORCE READY: Slider nuclear reset complete - should be fully interactive');

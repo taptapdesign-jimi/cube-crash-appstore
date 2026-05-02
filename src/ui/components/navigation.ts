@@ -66,17 +66,29 @@ function createNavButton(
   badgeCount?: number
 ): HTMLElementConfig {
   const children: HTMLElementConfig[] = [
-      {
-        tag: 'img',
-        attributes: {
-          src: iconSrc,
-          alt: '',
-          loading: 'eager',
-          fetchpriority: 'high',
-          draggable: 'false',
-          'aria-hidden': 'true',
+    {
+      tag: 'span',
+      className: 'nav-icon-motion',
+      children: [
+        {
+          tag: 'span',
+          className: 'nav-icon-visual',
+          children: [
+            {
+              tag: 'img',
+              attributes: {
+                src: iconSrc,
+                alt: '',
+                loading: 'eager',
+                fetchpriority: 'high',
+                draggable: 'false',
+                'aria-hidden': 'true',
+              },
+            },
+          ],
         },
-      },
+      ],
+    },
   ];
 
   // 🔥 USER REQUEST: Badge ONLY on Journey icon (index 1, stats-nav.png), nowhere else

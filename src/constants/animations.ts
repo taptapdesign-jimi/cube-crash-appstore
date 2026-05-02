@@ -64,7 +64,7 @@ export const SLIDER_CONFIG = {
   // Navigation button sizes (px) — desktop / default; iPhone & iPad use getNavButton*Size()
   NAV_BUTTON_INACTIVE_SIZE: 48,
   NAV_BUTTON_ACTIVE_SIZE: 72,
-  NAV_BUTTON_ANIM_DURATION_S: 0.1,  // Duration in seconds
+  NAV_BUTTON_ANIM_DURATION_S: 0.38,  // Duration in seconds
   NAV_IMAGE_ACTIVE_Y: -12,          // Y offset when active
   NAV_IMAGE_INACTIVE_Y: 0,          // Y offset when inactive
   NAV_BUTTON_EASING: 'power2.inOut'

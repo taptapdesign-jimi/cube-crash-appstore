@@ -178,6 +178,20 @@
   -webkit-filter: none !important;
 }
 
+.nav-icon-motion,
+.nav-icon-visual {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate3d(0, 0, 0) scale(1);
+  -webkit-transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: 50% 70%;
+  will-change: transform;
+  pointer-events: none;
+}
+
 .independent-nav-button img {
   width: 100%;
   height: 100%;
@@ -251,7 +265,7 @@
 }
 
 .independent-nav-button.active img {
-  transform: translateY(-12px); /* 🔥 FIX: Restored original -12px (was changed to -4px, but should stay -12px) */
+  transform: translateY(0);
   animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
   /* Remove drop shadow - we'll use elliptical shadow instead */
   filter: none;
@@ -279,10 +293,10 @@
 /* Idle floating animation for active icons */
 @keyframes idleFloat {
   0%, 100% {
-    transform: translateY(-12px); /* 🔥 FIX: Restored original -12px base position */
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(-16px); /* 🔥 FIX: Restored original -16px peak position */
+    transform: translateY(-4px);
   }
 }
 
