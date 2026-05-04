@@ -10,9 +10,48 @@ const makeTile = (overrides: Partial<any> = {}) => ({
   ...overrides,
 });
 
-test('isTileTransientlySpawning returns true for locked value tile', () => {
+test('isTileTransientlySpawning is false for plain locked value tile (no spawn tween / magnet pull)', () => {
   const tile = makeTile({ locked: true, value: 4 });
+  expect(isTileTransientlySpawning(tile, { autoClearStaleFlag: true, ignoreWildJuice: true })).toBe(false);
+});
+
+test('isTileTransientlySpawning is true for locked value tile while spawn tween is active', () => {
+  const tile: any = makeTile({
+    locked: true,
+    value: 3,
+    _spawnTween: { isActive: () => true },
+  });
+  expect(isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true })).toBe(true);
+});
+
+test('isTileTransientlySpawning is true for locked tile under wild-magnet pull (_wildMagnetAffected)', () => {
+  const tile: any = makeTile({ locked: true, value: 2, _wildMagnetAffected: true });
   expect(isTileTransientlySpawning(tile, { autoClearStaleFlag: true, ignoreWildJuice: true })).toBe(true);
+});
+
+test('getTransientSpawnState lists locked tile when locked + active spawn tween', () => {
+  const tiles = [
+    makeTile({
+      locked: true,
+      value: 3,
+      _spawnTween: { isActive: () => true },
+    }),
+    makeTile({ locked: false, value: 1 }),
+  ];
+  const state = getTransientSpawnState(tiles, { autoClearStaleFlag: false, ignoreWildJuice: true });
+  expect(state.lockedActiveTiles.length).toBe(1);
+  expect(state.tilesStillSpawning.length).toBe(1);
+  expect(state.hasNotReadyTiles).toBe(true);
+});
+
+test('isTileTransientlySpawning clears stale _spawnTween on locked tile when tween inactive and autoClearStaleFlag', () => {
+  const tile: any = makeTile({
+    locked: true,
+    value: 4,
+    _spawnTween: { isActive: () => false },
+  });
+  expect(isTileTransientlySpawning(tile, { autoClearStaleFlag: true, ignoreWildJuice: true })).toBe(false);
+  expect(tile._spawnTween).toBeNull();
 });
 
 test('isTileTransientlySpawning clears stale _isBeingSpawned on interactive tile', () => {
@@ -27,14 +66,14 @@ test('isTileTransientlySpawning keeps true when tile is still non-interactive', 
   expect(tile._isBeingSpawned).toBe(true);
 });
 
-test('getTransientSpawnState returns both locked and spawning sets', () => {
+test('getTransientSpawnState: locked-only tiles without tween are not “spawning”; _isBeingSpawned still counts when non-interactive', () => {
   const tiles = [
     makeTile({ locked: true, value: 3 }),
     makeTile({ locked: false, value: 2, _isBeingSpawned: true, eventMode: 'none' }),
     makeTile({ locked: false, value: 4 }),
   ];
   const state = getTransientSpawnState(tiles, { autoClearStaleFlag: true, ignoreWildJuice: true });
-  expect(state.lockedActiveTiles.length).toBe(1);
-  expect(state.tilesStillSpawning.length).toBe(2);
+  expect(state.lockedActiveTiles.length).toBe(0);
+  expect(state.tilesStillSpawning.length).toBe(1);
   expect(state.hasNotReadyTiles).toBe(true);
 });

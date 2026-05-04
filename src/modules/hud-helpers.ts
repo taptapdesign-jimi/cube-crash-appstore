@@ -3320,7 +3320,7 @@ export function getScoreHudPosition() {
 /**
  * Bounce animation on score HUD icon.
  */
-export function bounceScoreIcon(onComplete) {
+export function bounceScoreIcon(onComplete?: () => void) {
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.coin) {
     if (onComplete && typeof onComplete === 'function') {
       try { onComplete(); } catch {}

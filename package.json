@@ -23,6 +23,7 @@
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist coverage node_modules/.vite",
     "prepare": "npm run type-check && npm run lint && npm run test:ci",
+    "check:pre-ios": "npm run build:check && npm run lint && npm run test:ci",
     "build:app-store": "npm run clean && npm run type-check && npm run lint && npm run build && CAPACITOR_USE_DEV_SERVER=false npx cap sync ios",
     "ios:sync": "npx cap sync ios",
     "ios:sync:prod": "CAPACITOR_USE_DEV_SERVER=false npx cap sync ios",
