@@ -6777,11 +6777,28 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const returnTntBlastTiles = (onDone?: () => void) => {
                 try {
                   let pending = 0;
-                  const springReachThreshold = Math.max(3, Math.floor(TILE * 0.06));
-                  let firstSpringTriggered = false;
+                  let maxReturnDuration = 0;
+                  let done = false;
+                  const restoreAllTntBlastTiles = () => {
+                    blastReturnHandles.forEach((h) => {
+                      try {
+                        if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
+                        gsap.set(h.tile, { x: h.origX, y: h.origY });
+                        h.tile.refreshShadow?.();
+                      } catch {}
+                    });
+                  };
+                  const finish = () => {
+                    if (done) return;
+                    done = true;
+                    restoreAllTntBlastTiles();
+                    try { onDone?.(); } catch {}
+                  };
+
                   blastReturnHandles.forEach((h) => {
                     if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
                     pending += 1;
+                    maxReturnDuration = Math.max(maxReturnDuration, h.returnDuration);
                     try { h.wobble.kill(); } catch {}
                     gsap.to(h.tile, {
                       x: h.origX,
@@ -6789,34 +6806,24 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       duration: h.returnDuration,
                       ease: `elastic.out(0.6, ${h.returnElastic})`,
                       overwrite: 'auto',
-                      onUpdate: () => {
-                        if (firstSpringTriggered) return;
-                        try {
-                          const dx = Math.abs((h.tile.x ?? h.origX) - h.origX);
-                          const dy = Math.abs((h.tile.y ?? h.origY) - h.origY);
-                          if (dx <= springReachThreshold && dy <= springReachThreshold) {
-                            firstSpringTriggered = true;
-                            finish();
-                          }
-                        } catch {}
-                      },
+                      onUpdate: () => { try { h.tile.refreshShadow?.(); } catch {} },
                       onComplete: () => {
+                        try { gsap.set(h.tile, { x: h.origX, y: h.origY }); } catch {}
                         pending -= 1;
                         if (pending <= 0) finish();
                       }
                     });
                   });
                   try { tntBlastWobbleTweens = []; } catch {}
-                  let done = false;
-                  const finish = () => {
-                    if (done) return;
-                    done = true;
-                    try { onDone?.(); } catch {}
-                  };
                   if (pending <= 0) {
                     finish();
                     return;
                   }
+                  const safetyCall = trackDelayedCall(Math.max(0.35, maxReturnDuration + 0.45), () => {
+                    devWarn('⚠️ TNT blast return safety: forcing all tiles back to original positions');
+                    finish();
+                  });
+                  if (safetyCall) tntBoomDelayedCalls.push(safetyCall);
                 } catch (e) {
                   devWarn('⚠️ TNT blast return failed:', e);
                   try { onDone?.(); } catch {}
