@@ -3640,12 +3640,20 @@ function bindTileWithFallback(tile, skipBind){
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false } = {}){
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false }: {
+  value?: number | null;
+  isWild?: boolean;
+  isWildMagnet?: boolean;
+  isWildJuice?: boolean;
+  isWildTnt?: boolean;
+  skipBind?: boolean;
+  timeScale?: number;
+  forceFreshPlaceholder?: boolean;
+} = {}){
   return openAtCellCore({
     c,
     r,
     options: { value, isWild, isWildMagnet, isWildJuice, isWildTnt, skipBind, timeScale, forceFreshPlaceholder },
-    removeTile,
     grid,
     board,
     tiles,
@@ -8337,7 +8345,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   resetTileToNormalState?.(fallbackLocked);
                   if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(fallbackLocked);
                   const emergencyValue = pickSpawnValue();
-                  makeBoard?.setValue?.(fallbackLocked, emergencyValue, 0, { immediate: true });
+                  makeBoard?.setValue?.(fallbackLocked, emergencyValue, 0);
                   normalizeSpawnedTileVisual(fallbackLocked);
                   try { fixHoverAnchor?.(fallbackLocked); } catch {}
                   devWarn('🛡️ NORMAL SPAWN SAFETY: Forced unlock fallback succeeded');
@@ -8401,7 +8409,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     resetTileToNormalState?.(t);
                     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
                     const spawnValue = pickSpawnValue();
-                    makeBoard?.setValue?.(t, spawnValue, 0, { immediate: true });
+                    makeBoard?.setValue?.(t, spawnValue, 0);
                     normalizeSpawnedTileVisual(t);
                     try { fixHoverAnchor?.(t); } catch {}
                     opened++;
@@ -8587,7 +8595,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                           return candidates[(Math.random() * candidates.length) | 0];
                         })()
                       : [1,2,3,4,5][(Math.random()*5)|0];
-                    makeBoard?.setValue?.(fallbackLocked, emergencyValue, 0, { immediate: true });
+                    makeBoard?.setValue?.(fallbackLocked, emergencyValue, 0);
                     if (fallbackLocked) {
                       fallbackLocked.alpha = 1;
                       if (fallbackLocked.rotG) fallbackLocked.rotG.alpha = 1;
@@ -8686,7 +8694,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                                 return candidates[(Math.random() * candidates.length) | 0];
                               })()
                             : [1,2,3,4,5][(Math.random()*5)|0];
-                          makeBoard?.setValue?.(t, spawnValue, 0, { immediate: true });
+                          makeBoard?.setValue?.(t, spawnValue, 0);
                           if (t) {
                             t.alpha = 1;
                             if (t.rotG) t.rotG.alpha = 1;
@@ -9491,7 +9499,7 @@ function checkLevelEnd(){
                 resetTileToNormalState?.(t);
                 if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
                 const forcedValue = [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
-                makeBoard?.setValue?.(t, forcedValue, 0, { immediate: true });
+                makeBoard?.setValue?.(t, forcedValue, 0);
                 t.visible = true;
                 t.alpha = 1;
                 if (t.rotG) t.rotG.alpha = 1;
@@ -9806,7 +9814,7 @@ function checkLevelEnd(){
                 resetTileToNormalState?.(t);
                 if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
                 const forcedValue = [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
-                makeBoard?.setValue?.(t, forcedValue, 0, { immediate: true });
+                makeBoard?.setValue?.(t, forcedValue, 0);
                 t.visible = true;
                 t.alpha = 1;
                 if (t.rotG) t.rotG.alpha = 1;

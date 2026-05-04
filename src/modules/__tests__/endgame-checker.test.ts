@@ -37,7 +37,7 @@ test('magnet + merge6 allows continue', () => {
   const context = makeContext(tiles, 10, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('magnet_can_merge_with_merge6');
+  expect(result.reason).toBe('merges_possible');
 });
 
 test('moves depleted and stuck returns stuck', () => {
@@ -48,7 +48,7 @@ test('moves depleted and stuck returns stuck', () => {
   const context = makeContext(tiles, 0, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('stuck');
-  expect(result.reason).toBe('moves_depleted_stuck');
+  expect(result.reason).toBe('no_merges_possible');
 });
 
 test('moves depleted but merge possible returns continue', () => {
@@ -59,7 +59,7 @@ test('moves depleted but merge possible returns continue', () => {
   const context = makeContext(tiles, 0, true);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('moves_depleted_but_can_merge');
+  expect(result.reason).toBe('merges_possible');
 });
 
 test('wild + merge6 allows continue', () => {
@@ -70,7 +70,7 @@ test('wild + merge6 allows continue', () => {
   const context = makeContext(tiles, 10, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('wild_can_merge_with_merge6');
+  expect(result.reason).toBe('merges_possible');
 });
 
 test('last merge scenario returns clean', () => {
@@ -152,4 +152,51 @@ test('stale _isBeingSpawned on interactive regular tiles does not block stuck de
   const result = checkEndGame(context, true);
   expect(result.type).toBe('stuck');
   expect(result.reason).toBe('no_merges_possible');
+});
+
+test('arcade-style no-moves board with stacks returns stuck, not continue', () => {
+  const tiles = [
+    makeTile({ value: 5, stackDepth: 2, gridX: 0, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 1, gridY: 1 }),
+    makeTile({ value: 4, stackDepth: 2, gridX: 2, gridY: 2 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 3, gridY: 3 }),
+    makeTile({ value: 5, stackDepth: 2, gridX: 4, gridY: 4 }),
+    makeTile({ value: 5, stackDepth: 1, gridX: 0, gridY: 5 }),
+    makeTile({ value: 5, stackDepth: 3, gridX: 1, gridY: 6 }),
+    makeTile({ value: 2, stackDepth: 2, gridX: 2, gridY: 7 }),
+  ];
+  const context = makeContext(tiles, 12, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('no_merges_possible');
+});
+
+test('repeated stuck checks stay stuck for unchanged board state', () => {
+  const tiles = [
+    makeTile({ value: 5, stackDepth: 2, gridX: 0, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 1, gridY: 1 }),
+    makeTile({ value: 4, stackDepth: 2, gridX: 2, gridY: 2 }),
+    makeTile({ value: 5, stackDepth: 1, gridX: 3, gridY: 3 }),
+  ];
+  const context = makeContext(tiles, 9, false);
+  const first = checkEndGame(context, true);
+  const second = checkEndGame(context, false);
+  const third = checkEndGame(context, true);
+
+  expect(first).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+  expect(second).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+  expect(third).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+});
+
+test('stuck board becomes continue immediately when a valid move appears', () => {
+  const tiles = [
+    makeTile({ value: 5, stackDepth: 1, gridX: 0, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 1, gridY: 1 }),
+  ];
+  const context = makeContext(tiles, 9, false);
+  expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+
+  tiles.push(makeTile({ value: 4, stackDepth: 1, gridX: 2, gridY: 2 }));
+  const recoveredContext = makeContext(tiles, 9, true);
+  expect(checkEndGame(recoveredContext, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
 });

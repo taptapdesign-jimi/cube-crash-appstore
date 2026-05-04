@@ -11,6 +11,7 @@ type OpenCellDeps = {
     isWildTnt?: boolean;
     skipBind?: boolean;
     timeScale?: number;
+    forceFreshPlaceholder?: boolean;
   };
   grid: any[][];
   board: any;
