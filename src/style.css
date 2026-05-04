@@ -4760,8 +4760,8 @@ body:has(:root) .tile.wild-3d-glow {
 
 @keyframes sliderHeroCartoonBounce {
   0% { scale: 1; }
-  30% { scale: 1.13; }
-  54% { scale: 0.95; }
+  31% { scale: 1.054; }
+  54% { scale: 0.979; }
   100% { scale: 1; }
 }
 

@@ -4,6 +4,7 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import { syncTileZIndex } from './board.js';
 import type { Tile } from '../types/game-types.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
@@ -176,8 +177,7 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap }: DealFrom
     list.forEach((t) => {
       const target = { x: (t as any).x, y: (t as any).y };
       (t as any).visible = true;
-      (t as any).zIndex = 100;
-      board?.sortChildren?.();
+      syncTileZIndex(t, board, true);
       const dx = target.x - center.x, dy = target.y - center.y;
       const len = Math.hypot(dx, dy) || 1;
       const ux = dx / len, uy = dy / len;
@@ -198,9 +198,8 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap }: DealFrom
       const tl = trackTimeline({
         delay: enterDel,
         onComplete: () => {
-          (t as any).zIndex = 10;
+          syncTileZIndex(t, board);
           (t as any)._spawned = true;
-          board?.sortChildren?.();
           if (++done === list.length) {
             clearTimeout(safetyTimeout); // 🔥 FIX: Clear safety timeout on success
             resolve();

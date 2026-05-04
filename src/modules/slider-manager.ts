@@ -209,7 +209,7 @@ class SliderManager {
   private scheduleHeroBounceBeforeSlideSettle(): void {
     const slideDuration = SLIDER_CONFIG.SLIDE_DURATION_S;
     const desiredLead = 0.5;
-    const fallbackLead = Math.min(0.16, slideDuration * 0.42);
+    const fallbackLead = Math.min(0.24, slideDuration * 0.6);
     const leadTime = slideDuration > desiredLead ? desiredLead : fallbackLead;
     const delay = Math.max(0, slideDuration - leadTime);
 
@@ -258,19 +258,19 @@ class SliderManager {
 
     timeline
       .to(heroContainer, {
-        scale: 1.13,
-        duration: 0.12,
-        ease: 'back.out(2.2)'
+        scale: 1.054,
+        duration: 0.16,
+        ease: 'back.out(1.85)'
       })
       .to(heroContainer, {
-        scale: 0.95,
-        duration: 0.09,
+        scale: 0.979,
+        duration: 0.12,
         ease: 'power2.out'
       })
       .to(heroContainer, {
         scale: 1,
-        duration: 0.17,
-        ease: 'back.out(1.9)'
+        duration: 0.24,
+        ease: 'back.out(1.55)'
       });
   }
 

@@ -35,7 +35,8 @@ interface Tile {
 
 interface MakeBoard {
   anyMergePossible?: (tiles: Tile[]) => boolean;
-  setValue?: (tile: Tile, value: number, stackDepth: number) => void;
+  setValue?: (tile: Tile, value: number, stackDepth: number, opts?: any) => void;
+  syncTileZIndex?: (tile: Tile, board?: any, animating?: boolean) => void;
 }
 
 interface Drag {
@@ -249,6 +250,7 @@ async function openLockedBounceParallelImpl({
         }
 
         t.locked = false;
+        makeBoard?.syncTileZIndex?.(t, (t as any)?.parent);
         t.eventMode = 'static';
         t.cursor = 'pointer';
         ensureActiveFullOpacity(t);
@@ -274,6 +276,7 @@ async function openLockedBounceParallelImpl({
         }
 
         makeBoard?.setValue?.(t, spawnValue, 0, { immediate: true });
+        makeBoard?.syncTileZIndex?.(t, (t as any)?.parent);
         ensureActiveFullOpacity(t);
         try { fixHoverAnchor?.(t); } catch {}
 

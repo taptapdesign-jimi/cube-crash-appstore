@@ -2164,6 +2164,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         dst.isWild = false;
         dst.isWildFace = false;
         dst.locked = false;
+        makeBoard.syncTileZIndex(dst, STATE.board);
         dst.visible = true;
         dst.alpha = 1;
         dst.eventMode = 'static';

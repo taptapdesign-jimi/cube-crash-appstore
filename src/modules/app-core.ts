@@ -4430,6 +4430,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Re-enable drag on the merged tile and ensure drag points to the new stack
         // 🔥 CRITICAL FIX: Ensure dst is NOT locked and is interactive after merge
         dst.locked = false; // Ensure tile is not locked after merge
+        try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
         dst.eventMode = 'static';
         dst.interactiveChildren = true;
         dst.cursor = 'pointer';
@@ -5736,6 +5737,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // 🔥 CRITICAL: Re-enable drag and unlock tile (restore original state)
           tile.locked = false;
+          try { makeBoard.syncTileZIndex?.(tile, board); } catch {}
           tile.eventMode = 'static';
           tile.cursor = 'pointer';
           
@@ -6577,11 +6579,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
         const isMainWildMagnetMerge = srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
         const isMainWildTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const isMainWildStarMerge = srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild';
+        const isMainWildJuiceMerge = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
         const isMainWildOnlyMerge = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt') && !isMainWildMagnetMerge;
         const playShortWildMerge6TileBlast = (label: string) => {
           try {
             const blastCenter = centerInBoard(board, dst, TILE);
-            const blastStrength = TILE * 0.40;
+            const blastStrength = TILE * 0.52;
             const blastDuration = 0.40;
             const returnDelay = 0.10;
             const returnDuration = 0.64;
@@ -6638,9 +6642,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const blastY = origY + dirY * blastDist;
               const tileBlastDuration = blastDuration * (0.88 + Math.random() * 0.22);
               const tileReturnDuration = returnDuration * (0.9 + Math.random() * 0.22);
+              let zIndexRestored = false;
+              const restoreZIndex = () => {
+                if (zIndexRestored || tile.destroyed) return;
+                zIndexRestored = true;
+                try { makeBoard.syncTileZIndex(tile, board); } catch {}
+              };
               try { gsap.killTweensOf(tile); } catch {}
-              gsap.set(tile, { x: origX, y: origY });
-              gsap.timeline()
+              gsap.set(tile, { x: origX, y: origY, zIndex: 320 });
+              try { board?.sortChildren?.(); } catch {}
+              gsap.timeline({
+                onComplete: restoreZIndex,
+                onInterrupt: restoreZIndex
+              })
                 .to(tile, {
                   x: blastX,
                   y: blastY,
@@ -6904,10 +6918,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
           }
           try {
+            const useLongerWildShake = !isMainWildTntMerge && (isMainWildStarMerge || isMainWildJuiceMerge);
             screenShake(app, {
-              strength: baseShake,
-              duration: 0.26,
-              steps: 16,
+              strength: useLongerWildShake ? Math.round(baseShake * 1.25) : baseShake,
+              duration: useLongerWildShake ? 0.52 : 0.26,
+              steps: useLongerWildShake ? 32 : 16,
               ease: 'sine.inOut',
               alsoShake: alsoShakeTargets
             });
@@ -7269,6 +7284,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // Placeholder replacement here can leak as locked ghost and break merge result visuals.
           if (keepRegularMerge6Visible) {
             dst.locked = false;
+            try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
             dst.visible = true;
             dst.alpha = 1;
             dst.eventMode = 'static';
@@ -8150,6 +8166,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const t = makeBoard?.createTile?.({ board, grid, tiles, c: spawnC, r: spawnR, val: 0, locked: true });
                 if (!t) return false;
                 t.locked = false;
+                try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                 t.eventMode = 'static';
                 t.cursor = 'pointer';
                 bindTileWithFallback(t, false);
@@ -8340,6 +8357,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 if (!fallbackLocked) return;
                 try {
                   fallbackLocked.locked = false;
+                  try { makeBoard.syncTileZIndex?.(fallbackLocked, board); } catch {}
                   fallbackLocked.eventMode = 'static';
                   fallbackLocked.cursor = 'pointer';
                   resetTileToNormalState?.(fallbackLocked);
@@ -8404,6 +8422,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const t = lockedCandidates[i];
                   try {
                     t.locked = false;
+                    try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                     t.eventMode = 'static';
                     t.cursor = 'pointer';
                     resetTileToNormalState?.(t);
@@ -8585,6 +8604,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   if (!fallbackLocked) return;
                   try {
                     fallbackLocked.locked = false;
+                    try { makeBoard.syncTileZIndex?.(fallbackLocked, board); } catch {}
                     fallbackLocked.eventMode = 'static';
                     fallbackLocked.cursor = 'pointer';
                     resetTileToNormalState?.(fallbackLocked);
@@ -8684,6 +8704,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         const t = lockedCandidates[i];
                         try {
                           t.locked = false;
+                          try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                           t.eventMode = 'static';
                           t.cursor = 'pointer';
                           resetTileToNormalState?.(t);
@@ -9494,6 +9515,7 @@ function checkLevelEnd(){
               const t = makeBoard?.createTile?.({ board, grid, tiles, c, r, val: 0, locked: true });
               if (t) {
                 t.locked = false;
+                try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                 t.eventMode = 'static';
                 t.cursor = 'pointer';
                 resetTileToNormalState?.(t);
@@ -9809,6 +9831,7 @@ function checkLevelEnd(){
               const t = makeBoard?.createTile?.({ board, grid, tiles, c: rescueGX, r: rescueGY, val: 0, locked: true });
               if (t) {
                 t.locked = false;
+                try { makeBoard.syncTileZIndex?.(t, board); } catch {}
                 t.eventMode = 'static';
                 t.cursor = 'pointer';
                 resetTileToNormalState?.(t);

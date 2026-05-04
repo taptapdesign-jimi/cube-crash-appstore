@@ -16,7 +16,11 @@ type OpenCellDeps = {
   grid: any[][];
   board: any;
   tiles: any[];
-  makeBoard: { createTile: (args: any) => any; setValue: (tile: any, value: number, delay?: number) => void };
+  makeBoard: {
+    createTile: (args: any) => any;
+    setValue: (tile: any, value: number, delay?: number) => void;
+    syncTileZIndex?: (tile: any, board?: any, animating?: boolean) => void;
+  };
   devWarn: (...args: any[]) => void;
   bindTileWithFallback: (tile: any, skipBind: boolean) => void;
   applyWildSkinLocal: (tile: any) => void;
@@ -113,6 +117,7 @@ export function openAtCellCore({
     if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
 
     holder.locked = false;
+    makeBoard.syncTileZIndex?.(holder, board);
     holder.eventMode = 'static';
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
@@ -153,6 +158,7 @@ export function openAtCellCore({
       applyWildSkinLocal(holder);
       // Wild tiles are ALWAYS active/full opacity
       holder.locked = false;
+      makeBoard.syncTileZIndex?.(holder, board);
       holder.eventMode = 'static';
       holder.cursor = 'pointer';
       try { gsap?.killTweensOf?.(holder, true); } catch {}

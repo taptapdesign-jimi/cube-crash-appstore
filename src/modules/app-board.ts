@@ -147,7 +147,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       // Start hidden
       tile.visible = true;
       tile.scale.set(0);
-      tile.zIndex = 100;
+      makeBoard.syncTileZIndex(tile, STATE.board, true);
 
       // alpha by lock state
       if (tile.locked) {
@@ -187,7 +187,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       const tl = trackTimeline({
         delay: enterDel,
         onComplete: () => {
-          tile.zIndex = 10;
+          makeBoard.syncTileZIndex(tile, STATE.board);
           completed++;
           // Halfway callback
           if (!halfFired && completed >= halfTotal) {
@@ -433,8 +433,7 @@ function dealFromRim(listTiles: Tile[]): Promise<void> {
       const tile = t as any;
       const target = { x: tile.x, y: tile.y };
       tile.visible = true;
-      tile.zIndex = 100;
-      STATE.board.sortChildren?.();
+      makeBoard.syncTileZIndex(tile, STATE.board, true);
 
       const dx = target.x - center.x, dy = target.y - center.y;
       const len = Math.hypot(dx, dy) || 1;
@@ -455,8 +454,7 @@ function dealFromRim(listTiles: Tile[]): Promise<void> {
       trackTimeline({
         delay: enterDel,
         onComplete: () => {
-          tile.zIndex = 10;
-          STATE.board.sortChildren?.();
+          makeBoard.syncTileZIndex(tile, STATE.board);
           if (++done === list.length) resolve();
         }
       })

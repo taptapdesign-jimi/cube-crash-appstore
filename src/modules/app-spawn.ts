@@ -263,6 +263,7 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     if (!holder) holder = makeBoard.createTile({ board: STATE.board!, grid: STATE.grid, tiles: STATE.tiles, c, r, val: 0, locked: true });
 
     holder.locked = false; 
+    makeBoard.syncTileZIndex(holder, STATE.board);
     holder.eventMode = 'static'; 
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
@@ -522,9 +523,10 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
   }
   const picks = locked.slice(0, Math.min(count, locked.length));
 
-  return Promise.all(picks.map(t => new Promise<void>(res => {
-    t.locked = false; 
-    t.eventMode = 'static'; 
+	  return Promise.all(picks.map(t => new Promise<void>(res => {
+	    t.locked = false; 
+	    makeBoard.syncTileZIndex(t, STATE.board);
+	    t.eventMode = 'static'; 
     t.cursor = 'pointer';
     if (STATE.drag && (STATE.drag as any).bindToTile) (STATE.drag as any).bindToTile(t);
     

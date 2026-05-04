@@ -50,6 +50,25 @@ interface CreateTileParams {
   locked?: boolean;
 }
 
+export const TILE_Z_LOCKED = 5;
+export const TILE_Z_ACTIVE = 20;
+export const TILE_Z_LOCKED_ANIMATING = 80;
+export const TILE_Z_ACTIVE_ANIMATING = 120;
+
+export function getTileBaseZIndex(tile: Partial<Tile> | any): number {
+  return tile?.locked ? TILE_Z_LOCKED : TILE_Z_ACTIVE;
+}
+
+export function getTileAnimatingZIndex(tile: Partial<Tile> | any): number {
+  return tile?.locked ? TILE_Z_LOCKED_ANIMATING : TILE_Z_ACTIVE_ANIMATING;
+}
+
+export function syncTileZIndex(tile: Partial<Tile> | any, board?: { sortChildren?: () => void } | null, animating = false): void {
+  if (!tile || tile.destroyed) return;
+  tile.zIndex = animating ? getTileAnimatingZIndex(tile) : getTileBaseZIndex(tile);
+  try { board?.sortChildren?.(); } catch {}
+}
+
 // random skin: 40% base, 30% alt2, 20% alt3, 10% alt4
 function pickNumbersSkin() {
   const p = Math.random();
@@ -397,6 +416,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.value = val;
   t.stackDepth = 1;
   t.locked = locked;
+  syncTileZIndex(t, null);
 
   // meka "sjena"
   const sh = new Graphics();
