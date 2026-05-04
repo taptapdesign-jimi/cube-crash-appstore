@@ -20,22 +20,6 @@ class ViewController: CAPBridgeViewController {
     private let launchBackgroundColor = UIColor(red: 249/255.0, green: 249/255.0, blue: 249/255.0, alpha: 1.0) // #F9F9F9
     private var backgroundView: UIView?
     
-    // 🔥 CRITICAL: Override loadView to set background BEFORE WebView is created
-    override func loadView() {
-        super.loadView()
-        
-        // Set view background to #F9F9F9 - this will be visible behind transparent WebView
-        self.view.backgroundColor = launchBackgroundColor
-        
-        // 🔥 CRITICAL: Create background view with #F9F9F9 color BEFORE WebView is initialized
-        // This ensures consistent background during WKWebView initialization (for logo screen)
-        let bgView = UIView(frame: self.view.bounds)
-        bgView.backgroundColor = launchBackgroundColor
-        bgView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        self.view.insertSubview(bgView, at: 0)
-        self.backgroundView = bgView
-    }
-    
     // 🔥 CRITICAL: Set WKWebView to transparent
     // White background view will be visible behind transparent WebView (for logo screen)
     override func viewDidLoad() {
@@ -47,7 +31,7 @@ class ViewController: CAPBridgeViewController {
         // Only allow dev server in DEBUG mode
         #else
         // PRODUCTION: Force local bundle - remove any server URL that might be set
-        if let webView = self.value(forKey: "webView") as? WKWebView {
+        if self.value(forKey: "webView") as? WKWebView != nil {
             // Ensure WebView loads from local bundle, not remote server
             // Capacitor should handle this automatically, but we ensure it here
             print("✅ PRODUCTION MODE: Using local bundle (no dev server)")
@@ -144,14 +128,14 @@ class ViewController: CAPBridgeViewController {
         // Ensure background view is visible
         if let bgView = self.backgroundView {
             bgView.frame = self.view.bounds
-            bgView.backgroundColor = whiteColor
+            bgView.backgroundColor = launchBackgroundColor
             if bgView.superview == nil {
                 self.view.insertSubview(bgView, at: 0)
             }
         }
         
-        // Set view background to white - visible behind transparent WebView
-        self.view.backgroundColor = whiteColor
+        // Set view background to launch color - visible behind transparent WebView
+        self.view.backgroundColor = launchBackgroundColor
         
         // Set WebView to transparent (synchronous for immediate effect)
         if let webView = self.value(forKey: "webView") as? WKWebView {
