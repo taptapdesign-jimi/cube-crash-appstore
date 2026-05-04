@@ -243,7 +243,7 @@ export function addStyles(): void {
       padding: 12px 24px;
       border: none;
       border-radius: 25px;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.3s ease;

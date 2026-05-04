@@ -1969,7 +1969,7 @@ body{
   height: auto;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   letter-spacing: 0.3px;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   align-self: center;
   background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
@@ -2402,7 +2402,7 @@ body{
   .slide-button.tap-scale.menu-btn-primary {
     max-width: 349px !important;  /* 249px * 1.4 = 349px */
     height: 77px !important;       /* 64px * 1.2 = 77px */
-    font-size: 28px !important;    /* 26px → 28px */
+    font-size: 30px !important;    /* 28px → 30px */
     font-weight: 800 !important;   /* 700 → 800 */
   }
   
@@ -4274,7 +4274,7 @@ body:has(:root) .tile.wild-3d-glow {
   min-height: 64px !important;
   padding: 0 56px !important;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-  font-size: 24px !important;
+  font-size: 26px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
   /* transition: none !important; REMOVED - conflicts with animation classes */
@@ -4357,7 +4357,7 @@ body:has(:root) .tile.wild-3d-glow {
   min-height: 64px !important;
   padding: 0 56px !important;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-  font-size: 24px !important;
+  font-size: 26px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #E9DCD6 !important;
   transition: none !important;
@@ -4724,6 +4724,45 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-toggle-switch input:checked + .settings-toggle-slider:before {
   transform: translateX(20px);
+}
+
+.settings-toggle-switch.soft-cartoon-bounce {
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.settings-toggle-slider.soft-cartoon-bounce {
+  animation: settingsToggleCartoonBounce 380ms both;
+}
+
+.settings-toggle-slider.soft-cartoon-bounce::before {
+  animation: settingsToggleKnobCartoonBounce 380ms both;
+}
+
+@keyframes settingsToggleCartoonBounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.18); }
+  54% { transform: scale(0.93); }
+  100% { transform: scale(1); }
+}
+
+@keyframes settingsToggleKnobCartoonBounce {
+  0% { scale: 1; }
+  30% { scale: 1.22; }
+  54% { scale: 0.90; }
+  100% { scale: 1; }
+}
+
+.slider-slide.active .hero-container.soft-cartoon-bounce {
+  transform-origin: 50% 65%;
+  will-change: transform;
+}
+
+@keyframes sliderHeroCartoonBounce {
+  0% { scale: 1; }
+  30% { scale: 1.13; }
+  54% { scale: 0.95; }
+  100% { scale: 1; }
 }
 
 /* 🔥 CRITICAL OVERRIDE: Exit button animate-exit MUST be at the END to override ALL other .exit-btn selectors */

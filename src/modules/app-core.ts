@@ -5363,7 +5363,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Then clearWildState makes pips visible, but they're not drawn because drawPips wasn't called.
     // Solution: Clear wild state first, then setValue will see tile as regular and draw pips.
     if (wildActive) {
-      clearWildState(dst);
+      // Wild star on dst: defer stopWildIdle (orbiting stars destroy) to rAF after this block so the 80ms fly tween starts without a freeze
+      clearWildState(dst, { skipStopWildIdle: dstSpecial === 'wild' });
       // Ensure special is null so _setValueVisuals treats it as regular tile
       dst.special = null;
       dst.isWild = false;
@@ -6261,6 +6262,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // busyEnding = true; // REMOVED - was preventing animations and clean board flow
     }
 
+    if (wildActive && dstSpecial === 'wild') {
+      const dstRef = dst;
+      requestAnimationFrame(() => {
+        try {
+          if (dstRef && !dstRef.destroyed) stopWildIdle(dstRef);
+        } catch {}
+      });
+    }
+
     trackTween(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
@@ -6270,6 +6280,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           try { removeTile(src); } catch {}
           return;
         }
+        try {
+          if ((dst as any)?._wildStarSystem) stopWildIdle(dst);
+        } catch {}
         // 🔥 CRITICAL: srcSpecial i dstSpecial su već snimljeni PRIJE setValue i clearWildState!
         // Koristimo ih iz closure-a, ne snimamo ih ponovo (jer bi mogli biti već promijenjeni)
         
@@ -11432,7 +11445,7 @@ async function showResumeGameModal(): Promise<void> {
       'border: none',
       'padding: 18px 32px',
       'border-radius: 40px',
-      'font-size: 20px',
+      'font-size: 22px',
       'font-weight: 700',
       'cursor: pointer',
       'box-shadow: 0 8px 0 0 #C24921',
@@ -11464,7 +11477,7 @@ async function showResumeGameModal(): Promise<void> {
       'border: 1px solid #E9DCD6',
       'padding: 18px 32px',
       'border-radius: 40px',
-      'font-size: 20px',
+      'font-size: 22px',
       'font-weight: 700',
       'cursor: pointer',
       'box-shadow: 0 8px 0 0 #E9DCD6',

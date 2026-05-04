@@ -30,6 +30,52 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+const DETAIL_CLOSE_TAP_BOUNCE_EXIT_DELAY_MS = 410;
+
+function playDetailCloseSoftCartoonBounce(closeBtn: HTMLElement | null): void {
+  const visualTarget = (closeBtn?.querySelector('img') as HTMLElement | null) || closeBtn;
+  if (!visualTarget) return;
+
+  try {
+    gsap.killTweensOf(visualTarget);
+    gsap.set(visualTarget, {
+      scale: 1,
+      transformOrigin: '50% 50%',
+      willChange: 'transform',
+      force3D: true,
+    });
+
+    trackTimeline({
+      onComplete: () => {
+        gsap.set(visualTarget, {
+          scale: 1,
+          clearProps: 'scale,willChange,force3D',
+        });
+      },
+    })
+      .to(visualTarget, {
+        scale: 1.18,
+        duration: 0.12,
+        ease: 'back.out(2.2)',
+        force3D: true,
+      })
+      .to(visualTarget, {
+        scale: 0.93,
+        duration: 0.09,
+        ease: 'power2.out',
+        force3D: true,
+      })
+      .to(visualTarget, {
+        scale: 1,
+        duration: 0.17,
+        ease: 'back.out(1.9)',
+        force3D: true,
+      });
+  } catch (error) {
+    logger.warn('⚠️ Failed to animate detail close soft cartoon bounce:', error);
+  }
+}
+
 export interface JourneyBoard {
   id: number;
   unlocked: boolean;
@@ -5481,22 +5527,35 @@ class JourneyBoardsManager {
         logger.info('✅ X button made visible and clickable after cloning');
         
         // Add click listener that uses journey boards exit animation (GSAP, header as group)
-        const handleCloseClick = async (e: Event) => {
+        const handleCloseClick = (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
+          (e as any).stopImmediatePropagation?.();
           logger.info('🎁 Journey boards detail modal close button clicked - using GSAP exit animation');
-          
-          // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
-          (window as any).__ccReturningFromDetailModal = true;
-          
-          // Use journey boards exit animation (header animates as group)
-          await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close button', { hideCollectibles: false, hideJourney: false, cleanup: true });
-          
-          // Show Journey screen after modal closes
-          const collectiblesManager = (window as any).collectiblesManager;
-          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-            collectiblesManager.showCollectibles();
+
+          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
+            return;
           }
+
+          playDetailCloseSoftCartoonBounce(newCloseBtn);
+          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
+          window.setTimeout(async () => {
+            try {
+              // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
+              (window as any).__ccReturningFromDetailModal = true;
+
+              // Use journey boards exit animation (header animates as group)
+              await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close button', { hideCollectibles: false, hideJourney: false, cleanup: true });
+
+              // Show Journey screen after modal closes
+              const collectiblesManager = (window as any).collectiblesManager;
+              if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+                collectiblesManager.showCollectibles();
+              }
+            } finally {
+              newCloseBtn.removeAttribute('data-detail-close-exit-pending');
+            }
+          }, DETAIL_CLOSE_TAP_BOUNCE_EXIT_DELAY_MS);
         };
         
         // Multiple ways to attach listener for maximum compatibility
@@ -5505,22 +5564,35 @@ class JourneyBoardsManager {
         newCloseBtn.onclick = handleCloseClick;
         
         // Also handle touch events for mobile
-        newCloseBtn.addEventListener('touchend', async (e) => {
+        newCloseBtn.addEventListener('touchend', (e) => {
           e.preventDefault();
           e.stopPropagation();
+          (e as any).stopImmediatePropagation?.();
           logger.info('🎁 Journey boards detail modal close button touched - using GSAP exit animation');
-          
-          // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
-          (window as any).__ccReturningFromDetailModal = true;
-          
-          // Use journey boards exit animation (header animates as group)
-          await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close touch', { hideCollectibles: false, hideJourney: false, cleanup: true });
-          
-          // Show Journey screen after modal closes
-          const collectiblesManager = (window as any).collectiblesManager;
-          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-            collectiblesManager.showCollectibles();
+
+          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
+            return;
           }
+
+          playDetailCloseSoftCartoonBounce(newCloseBtn);
+          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
+          window.setTimeout(async () => {
+            try {
+              // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
+              (window as any).__ccReturningFromDetailModal = true;
+
+              // Use journey boards exit animation (header animates as group)
+              await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close touch', { hideCollectibles: false, hideJourney: false, cleanup: true });
+
+              // Show Journey screen after modal closes
+              const collectiblesManager = (window as any).collectiblesManager;
+              if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+                collectiblesManager.showCollectibles();
+              }
+            } finally {
+              newCloseBtn.removeAttribute('data-detail-close-exit-pending');
+            }
+          }, DETAIL_CLOSE_TAP_BOUNCE_EXIT_DELAY_MS);
         }, { capture: true, passive: false });
         
         logger.info('✅ Journey boards detail modal close button listener attached (GSAP exit animation)');

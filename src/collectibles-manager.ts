@@ -1,8 +1,52 @@
 // @ts-nocheck
 import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
+import { gsap } from 'gsap';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
+
+const JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS = 410;
+
+function playJourneySoftCartoonBounce(target: HTMLElement | null): void {
+  if (!target) return;
+
+  try {
+    gsap.killTweensOf(target);
+    gsap.set(target, {
+      scale: 1,
+      transformOrigin: '50% 50%',
+      willChange: 'transform',
+      force3D: true,
+    });
+
+    gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        gsap.set(target, {
+          scale: 1,
+          clearProps: 'scale,willChange,force3D',
+        });
+      },
+    })
+      .to(target, {
+        scale: 1.18,
+        duration: 0.12,
+        ease: 'back.out(2.2)',
+      })
+      .to(target, {
+        scale: 0.93,
+        duration: 0.09,
+        ease: 'power2.out',
+      })
+      .to(target, {
+        scale: 1,
+        duration: 0.17,
+        ease: 'back.out(1.9)',
+      });
+  } catch (error) {
+    logger.warn('⚠️ Failed to animate Journey soft cartoon bounce:', String(error));
+  }
+}
 
 // Type definitions
 interface CollectibleCard {
@@ -128,6 +172,71 @@ class CollectiblesManager {
     }
   }
 
+  private playJourneyBackButtonBounce(backBtn: Element | null): void {
+    const visualTarget = (backBtn?.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement | null);
+    playJourneySoftCartoonBounce(visualTarget);
+  }
+
+  private playDetailCloseButtonBounce(closeBtn: Element | null): void {
+    const visualTarget = (closeBtn?.querySelector('img') as HTMLElement | null) || (closeBtn as HTMLElement | null);
+    playJourneySoftCartoonBounce(visualTarget);
+  }
+
+  private scheduleJourneyBackExit(backBtn: Element | null): void {
+    const backButtonEl = backBtn as HTMLElement | null;
+
+    if ((window as any).__ccIsHidingCollectibles) {
+      logger.warn('⚠️ hideCollectiblesScreenWithAnimation already in progress, ignoring duplicate click');
+      return;
+    }
+
+    if (backButtonEl?.getAttribute('data-journey-back-exit-pending') === 'true') {
+      return;
+    }
+
+    backButtonEl?.setAttribute('data-journey-back-exit-pending', 'true');
+    window.setTimeout(() => {
+      try {
+        this.runJourneyBackExit();
+      } finally {
+        backButtonEl?.removeAttribute('data-journey-back-exit-pending');
+      }
+    }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
+  }
+
+  private runJourneyBackExit(): void {
+    logger.info('🎁 Collectibles back button clicked');
+
+    // Explicitly mark this hide as "toHome" so hideCollectibles doesn't get confused by __ccCameFromJourney flags
+    (window as any).__ccJourneyExitMode = 'toHome';
+
+    // Try to use animated version first, fallback to non-animated
+    if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
+      logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
+      (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
+        logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
+        (window as any).__ccIsHidingCollectibles = false; // Reset on error
+      });
+    } else if (typeof window.hideCollectiblesScreen === 'function') {
+      logger.info('🎁 Calling window.hideCollectiblesScreen()');
+      try {
+        const result: any = window.hideCollectiblesScreen();
+        if (result && typeof result.catch === 'function') {
+          (result as Promise<void>).catch((err: any) => {
+            logger.error('❌ Error in hideCollectiblesScreen:', err);
+          });
+        }
+      } catch (err: any) {
+        logger.error('❌ Error calling hideCollectiblesScreen:', err);
+      }
+    } else {
+      logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
+      this.hideCollectibles().catch((err: any) => {
+        logger.error('❌ Error in hideCollectibles:', err);
+      });
+    }
+  }
+
   private loadCollectiblesState(): void {
     try {
       const saved = localStorage.getItem('collectibles_state');
@@ -175,47 +284,12 @@ class CollectiblesManager {
       const target = e.target as HTMLElement;
       const backBtn = target.closest('#collectibles-back');
       if (backBtn) {
-        // 🔥 FIX: Prevent duplicate calls (iOS optimization)
-        if ((window as any).__ccIsHidingCollectibles) {
-          logger.warn('⚠️ hideCollectiblesScreenWithAnimation already in progress, ignoring duplicate click');
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-        
-        logger.info('🎁 Collectibles back button clicked');
         e.preventDefault();
         e.stopPropagation();
-        
-        // 🔥 BUG FIX: Set exit mode to 'toHome' so hideCollectibles properly shows homepage/navigation
-        // Without this, stale __ccCameFromJourney flags can prevent navigation from showing
-        (window as any).__ccJourneyExitMode = 'toHome';
-        
-        // Try to use animated version first, fallback to non-animated
-        if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
-          logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
-          (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
-            logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
-            (window as any).__ccIsHidingCollectibles = false; // Reset on error
-          });
-        } else if (typeof window.hideCollectiblesScreen === 'function') {
-          logger.info('🎁 Calling window.hideCollectiblesScreen()');
-          try {
-            const result: any = window.hideCollectiblesScreen();
-            if (result && typeof result.catch === 'function') {
-              (result as Promise<void>).catch((err: any) => {
-                logger.error('❌ Error in hideCollectiblesScreen:', err);
-              });
-            }
-          } catch (err: any) {
-            logger.error('❌ Error calling hideCollectiblesScreen:', err);
-          }
-        } else {
-          logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
-          this.hideCollectibles().catch((err: any) => {
-            logger.error('❌ Error in hideCollectibles:', err);
-          });
-        }
+        (e as any).stopImmediatePropagation?.();
+
+        this.playJourneyBackButtonBounce(backBtn);
+        this.scheduleJourneyBackExit(backBtn);
       }
     };
     document.addEventListener('click', this.boundHandlers.backButtonClick);
@@ -263,7 +337,11 @@ class CollectiblesManager {
     if (closeBtn) {
       this.boundHandlers.closeBtnClick = (e: Event) => {
         console.log('🎁 Close button clicked!', e);
-        this.hideCardDetail();
+        e.preventDefault();
+        e.stopPropagation();
+        (e as any).stopImmediatePropagation?.();
+        this.playDetailCloseButtonBounce(closeBtn);
+        window.setTimeout(() => this.hideCardDetail(), JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
       };
       closeBtn.addEventListener('click', this.boundHandlers.closeBtnClick);
     }
@@ -477,43 +555,13 @@ class CollectiblesManager {
     if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
       console.log('🔌 Attaching back button listener in showCollectibles');
       // 🔥 FIX: Store handler for proper cleanup
-      const backBtnHandler = () => {
-        // Sweet bounce tap feedback (match hearts tap style)
-        try {
-          backBtn.classList.remove('sweet-bounce');
-          void (backBtn as HTMLElement).offsetHeight; // force reflow to retrigger
-          backBtn.classList.add('sweet-bounce');
-          window.setTimeout(() => backBtn.classList.remove('sweet-bounce'), 260);
-        } catch {}
+      const backBtnHandler = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        (e as any).stopImmediatePropagation?.();
 
-        logger.info('🎁 Collectibles back button clicked');
-        // Explicitly mark this hide as "toHome" so hideCollectibles doesn't get confused by __ccCameFromJourney flags
-        (window as any).__ccJourneyExitMode = 'toHome';
-        
-        // Try to use animated version first, fallback to non-animated
-        if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
-          logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
-          (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
-            logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
-          });
-        } else if (typeof window.hideCollectiblesScreen === 'function') {
-          logger.info('🎁 Calling window.hideCollectiblesScreen()');
-          try {
-            const result: any = window.hideCollectiblesScreen();
-            if (result && typeof result.catch === 'function') {
-              (result as Promise<void>).catch((err: any) => {
-                logger.error('❌ Error in hideCollectiblesScreen:', err);
-              });
-            }
-          } catch (err: any) {
-            logger.error('❌ Error calling hideCollectiblesScreen:', err);
-          }
-        } else {
-          logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
-          this.hideCollectibles().catch((err: any) => {
-            logger.error('❌ Error in hideCollectibles:', err);
-          });
-        }
+        this.playJourneyBackButtonBounce(backBtn);
+        this.scheduleJourneyBackExit(backBtn);
       };
       backBtn.addEventListener('click', backBtnHandler);
       // 🔥 FIX: Store handler for cleanup
@@ -628,22 +676,27 @@ class CollectiblesManager {
         const heartsContainer = document.getElementById('journey-lives-container');
         if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
           heartsContainer.style.cursor = 'pointer';
-          heartsContainer.addEventListener('click', async () => {
-            // Sweet fast tap bounce (visual feedback)
-            try {
-              heartsContainer.classList.remove('tap-bounce');
-              // Force reflow so the animation can retrigger on rapid taps
-              void (heartsContainer as HTMLElement).offsetHeight;
-              heartsContainer.classList.add('tap-bounce');
-              window.setTimeout(() => heartsContainer.classList.remove('tap-bounce'), 260);
-            } catch {}
+          heartsContainer.addEventListener('click', () => {
+            const heartIcon = document.getElementById('journey-lives-icon') as HTMLElement | null;
+            playJourneySoftCartoonBounce(heartIcon || heartsContainer);
 
             // Haptic on Journey top-nav hearts icon tap.
             try { (window as any).triggerHapticImpact?.('light'); } catch {}
 
-            logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
-            const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
-            showHeartsModal();
+            if (heartsContainer.getAttribute('data-heart-modal-opening') === 'true') {
+              return;
+            }
+
+            heartsContainer.setAttribute('data-heart-modal-opening', 'true');
+            window.setTimeout(async () => {
+              try {
+                logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
+                const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
+                showHeartsModal();
+              } finally {
+                heartsContainer.removeAttribute('data-heart-modal-opening');
+              }
+            }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
           });
           heartsContainer.setAttribute('data-hearts-listener-attached', 'true');
           logger.info('💚 Hearts click handler attached');
@@ -1608,8 +1661,20 @@ class CollectiblesManager {
         const handleCloseClick = (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
+          (e as any).stopImmediatePropagation?.();
           console.log('🎁 Close button clicked (direct listener)!');
-          this.hideCardDetail();
+          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
+            return;
+          }
+          this.playDetailCloseButtonBounce(newCloseBtn);
+          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
+          window.setTimeout(() => {
+            try {
+              this.hideCardDetail();
+            } finally {
+              newCloseBtn.removeAttribute('data-detail-close-exit-pending');
+            }
+          }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
         };
         
         // Multiple ways to attach listener for maximum compatibility
@@ -1621,8 +1686,20 @@ class CollectiblesManager {
         newCloseBtn.addEventListener('touchend', (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
+          (e as any).stopImmediatePropagation?.();
           console.log('🎁 Close button touched (touchend)!');
-          this.hideCardDetail();
+          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
+            return;
+          }
+          this.playDetailCloseButtonBounce(newCloseBtn);
+          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
+          window.setTimeout(() => {
+            try {
+              this.hideCardDetail();
+            } finally {
+              newCloseBtn.removeAttribute('data-detail-close-exit-pending');
+            }
+          }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
         }, { capture: true, passive: false });
         
         console.log('✅ Close button made clickable with multiple listeners');

@@ -61,6 +61,7 @@ class SliderManager {
   // 🔥 FIX: Track nav button GSAP animations for proper cleanup
   private navButtonAnimations: gsap.core.Animation[] = [];
   private pendingNavBounceSlide: number | null = null;
+  private pendingHeroBounceSlide: number | null = null;
   private suppressCurrentSlideSubscription: boolean = false;
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
@@ -183,6 +184,96 @@ class SliderManager {
     this.navButtonAnimations.push(timeline);
   }
 
+  private resetHeroBounceState(exceptHero?: HTMLElement | null): void {
+    if (!this.elements.container) return;
+
+    const heroContainers = this.elements.container.querySelectorAll('.hero-container') as NodeListOf<HTMLElement>;
+    heroContainers.forEach((heroContainer) => {
+      if (exceptHero && heroContainer === exceptHero) return;
+      gsap.killTweensOf(heroContainer, 'scale');
+      heroContainer.classList.remove('soft-cartoon-bounce');
+      gsap.set(heroContainer, {
+        scale: 1,
+        clearProps: 'scale,willChange,force3D'
+      });
+    });
+  }
+
+  private playCurrentSlideHeroBounce(): void {
+    if (!this.elements.container) return;
+    const activeHero = this.elements.container.querySelector('.slider-slide.active .hero-container') as HTMLElement | null;
+    if (!activeHero || !activeHero.querySelector('.hero-image')) return;
+    this.playHeroSoftCartoonBounce(activeHero);
+  }
+
+  private scheduleHeroBounceBeforeSlideSettle(): void {
+    const slideDuration = SLIDER_CONFIG.SLIDE_DURATION_S;
+    const desiredLead = 0.5;
+    const fallbackLead = Math.min(0.16, slideDuration * 0.42);
+    const leadTime = slideDuration > desiredLead ? desiredLead : fallbackLead;
+    const delay = Math.max(0, slideDuration - leadTime);
+
+    const delayedBounce = gsap.delayedCall(delay, () => {
+      if (!this.isInitialized || this.isDragging) return;
+      this.playCurrentSlideHeroBounce();
+    });
+    animationManager.trackExternalTween(delayedBounce);
+  }
+
+  private playHeroSoftCartoonBounce(heroContainer: HTMLElement): void {
+    if (
+      heroContainer.classList.contains('animate-enter') ||
+      heroContainer.classList.contains('animate-enter-initial') ||
+      heroContainer.classList.contains('animate-exit')
+    ) {
+      return;
+    }
+
+    this.resetHeroBounceState(heroContainer);
+
+    heroContainer.classList.add('soft-cartoon-bounce');
+
+    gsap.killTweensOf(heroContainer, 'scale');
+    gsap.set(heroContainer, {
+      scale: 1,
+      transformOrigin: '50% 65%',
+      willChange: 'transform',
+      force3D: true
+    });
+
+    const cleanup = () => {
+      if (!heroContainer.isConnected) return;
+      gsap.set(heroContainer, {
+        scale: 1,
+        clearProps: 'scale,willChange,force3D'
+      });
+      heroContainer.classList.remove('soft-cartoon-bounce');
+    };
+
+    const timeline = trackTimeline(gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: cleanup,
+      onInterrupt: cleanup
+    }));
+
+    timeline
+      .to(heroContainer, {
+        scale: 1.13,
+        duration: 0.12,
+        ease: 'back.out(2.2)'
+      })
+      .to(heroContainer, {
+        scale: 0.95,
+        duration: 0.09,
+        ease: 'power2.out'
+      })
+      .to(heroContainer, {
+        scale: 1,
+        duration: 0.17,
+        ease: 'back.out(1.9)'
+      });
+  }
+
   private getSlideStep(direction: 1 | -1): number | null {
     let target = this.currentSlide + direction;
     while (target >= 0 && target < this.totalSlides) {
@@ -206,6 +297,7 @@ class SliderManager {
     mouseDown?: (e: SliderMouseEvent) => void;
     mouseMove?: (e: SliderMouseEvent) => void;
     mouseUp?: (e: SliderMouseEvent) => void;
+    heroTapClick?: (e: Event) => void;
     navButtonClick?: Map<Element, (e: Event) => void>;
   } = {};
   private unsubscribeFunctions: (() => void)[] = [];
@@ -343,6 +435,29 @@ class SliderManager {
       this.elements.container.addEventListener('mousemove', this.boundHandlers.mouseMove);
       this.elements.container.addEventListener('mouseup', this.boundHandlers.mouseUp);
       this.elements.container.addEventListener('mouseleave', this.boundHandlers.mouseUp);
+
+      this.boundHandlers.heroTapClick = (e: Event) => {
+        const target = e.target as Element | null;
+        if (!target) return;
+
+        if (target.closest('button, a, input, select, textarea, .slide-button, .independent-nav-button, .nav-icon, .nav-icon-visual')) {
+          return;
+        }
+
+        const heroContainer = target.closest('.hero-container') as HTMLElement | null;
+        if (!heroContainer || !this.elements.container?.contains(heroContainer)) return;
+
+        const slide = heroContainer.closest('.slider-slide') as HTMLElement | null;
+        if (!slide?.classList.contains('active')) return;
+        if (!heroContainer.querySelector('.hero-image')) return;
+
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
+
+        this.playHeroSoftCartoonBounce(heroContainer);
+      };
+      this.elements.container.addEventListener('click', this.boundHandlers.heroTapClick);
     }
     
     // 🔥 SWIPE FIX: Re-enable global swipe detection for Journey screen horizontal swipes
@@ -751,6 +866,8 @@ class SliderManager {
       logger.debug('SLIDE BLOCKED', undefined, { slideIndex });
       return;
     }
+
+    const shouldBounceHeroOnArrival = slideIndex !== this.currentSlide;
     
     // 🔥 CRITICAL FIX: Ensure isDragging is false before slide change
     // This prevents drag state from blocking nav button animations
@@ -772,6 +889,7 @@ class SliderManager {
           
           setTimeout(() => {
             if (slideIndex >= 0 && slideIndex < this.totalSlides) {
+              this.pendingHeroBounceSlide = shouldBounceHeroOnArrival ? slideIndex : null;
               this.currentSlide = slideIndex;
               this.suppressCurrentSlideSubscription = true;
               try {
@@ -799,6 +917,7 @@ class SliderManager {
           sliderState.setAnimatingEnter(false); // 🔥 FIX: Reset stuck flag
         }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
+          this.pendingHeroBounceSlide = shouldBounceHeroOnArrival ? slideIndex : null;
           this.currentSlide = slideIndex;
           this.suppressCurrentSlideSubscription = true;
           try {
@@ -814,6 +933,7 @@ class SliderManager {
     }
     
     if (slideIndex >= 0 && slideIndex < this.totalSlides) {
+      this.pendingHeroBounceSlide = shouldBounceHeroOnArrival ? slideIndex : null;
       this.currentSlide = slideIndex;
       this.suppressCurrentSlideSubscription = true;
       try {
@@ -852,6 +972,7 @@ class SliderManager {
   // Update slider display
   private updateSlider(forceAnimate: boolean = false): void {
     if (!this.elements.wrapper || !this.elements.container) return;
+    this.resetHeroBounceState();
     
     // 🔥 FIX: Calculate slide width correctly - each slide is 25% of 400% = 100vw
     const slideWidth = this.elements.container.offsetWidth; // This should be viewport width
@@ -906,6 +1027,10 @@ class SliderManager {
             force3D: true, // GPU acceleration
             overwrite: 'auto', // 🔥 FIX: 'auto' instead of true - prevents killing animation before it starts
             onStart: () => {
+              if (forceAnimate && this.pendingHeroBounceSlide === this.currentSlide) {
+                this.pendingHeroBounceSlide = null;
+                this.scheduleHeroBounceBeforeSlideSettle();
+              }
               logger.info(`🎬 GSAP animation STARTED: ${offset}px`);
             },
             onUpdate: () => {
@@ -1380,6 +1505,9 @@ class SliderManager {
       if (this.boundHandlers.mouseUp) {
         this.elements.container.removeEventListener('mouseup', this.boundHandlers.mouseUp);
         this.elements.container.removeEventListener('mouseleave', this.boundHandlers.mouseUp);
+      }
+      if (this.boundHandlers.heroTapClick) {
+        this.elements.container.removeEventListener('click', this.boundHandlers.heroTapClick);
       }
     }
     

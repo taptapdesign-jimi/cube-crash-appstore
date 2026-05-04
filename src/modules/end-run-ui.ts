@@ -34,7 +34,7 @@ export function addEndRunModalStyles(): void {
       min-height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 26px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
       transition: none !important;
@@ -82,7 +82,7 @@ export function addEndRunModalStyles(): void {
       height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 26px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #4A5A7A !important;
       cursor: pointer !important;
@@ -116,7 +116,7 @@ export function addEndRunModalStyles(): void {
       height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 26px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #388E3C !important;
       cursor: pointer !important;
@@ -227,7 +227,7 @@ export function addEndRunModalStyles(): void {
       .exit-btn,
       .clean-btn {
         height: 56px !important;
-        font-size: 20px !important;
+        font-size: 22px !important;
         padding: 0 40px !important;
       }
     }

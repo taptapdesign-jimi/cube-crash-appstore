@@ -22,6 +22,48 @@ import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsA
 // We achieve this by setting the paper texture opacity directly, with a solid base color underneath
 const PAPER_BG_IMAGE = "url('./assets/paper-bg.png')";
 const PAPER_BG_STYLE = "#f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat";
+const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 410;
+
+function playDomSoftCartoonBounce(target: HTMLElement | null): void {
+  if (!target) return;
+
+  try {
+    gsap.killTweensOf(target);
+    gsap.set(target, {
+      scale: 1,
+      transformOrigin: '50% 50%',
+      willChange: 'transform',
+      force3D: true,
+    });
+
+    gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        gsap.set(target, {
+          scale: 1,
+          clearProps: 'scale,willChange,force3D',
+        });
+      },
+    })
+      .to(target, {
+        scale: 1.18,
+        duration: 0.12,
+        ease: 'back.out(2.2)',
+      })
+      .to(target, {
+        scale: 0.93,
+        duration: 0.09,
+        ease: 'power2.out',
+      })
+      .to(target, {
+        scale: 1,
+        duration: 0.17,
+        ease: 'back.out(1.9)',
+      });
+  } catch (err) {
+    logger.warn('⚠️ Error playing soft cartoon bounce:', err);
+  }
+}
 
 function clearSliderBackgrounds(): void {
   const homeContainer = document.getElementById('home');
@@ -2109,7 +2151,8 @@ class UIManager {
           if (!backBtnEl) return;
           e.preventDefault();
           e.stopPropagation();
-          this.hideSettingsScreenWithAnimation();
+          (e as any).stopImmediatePropagation?.();
+          this.handleSettingsBackClick(e);
         };
         document.addEventListener('click', globalBackHandler, true);
       }
@@ -2240,6 +2283,7 @@ class UIManager {
   private handleSettingsBackClick(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
+    (event as any).stopImmediatePropagation?.();
     logger.info('⚙️ Settings back button clicked');
     
     // 🔥 CRITICAL: Refresh button reference in case it changed
@@ -2248,22 +2292,24 @@ class UIManager {
       this.elements.settingsBackButton = btn;
     }
     
-    // 🔥 USER REQUEST: Sweet bounce tap feedback (visual only)
-    try {
-      const buttonToAnimate = this.elements.settingsBackButton || btn;
-      if (buttonToAnimate) {
-        buttonToAnimate.classList.remove('sweet-bounce');
-        void buttonToAnimate.offsetHeight; // force reflow to retrigger
-        buttonToAnimate.classList.add('sweet-bounce');
-        window.setTimeout(() => buttonToAnimate.classList.remove('sweet-bounce'), 260);
-      }
-    } catch (err) {
-      logger.warn('⚠️ Error adding bounce animation to settings back button:', err);
+    const buttonToAnimate = this.elements.settingsBackButton || btn;
+    const visualTarget = (buttonToAnimate?.querySelector('img') as HTMLElement | null) || buttonToAnimate;
+    playDomSoftCartoonBounce(visualTarget);
+
+    if (buttonToAnimate?.getAttribute('data-settings-back-exit-pending') === 'true') {
+      return;
     }
-    
-    // 🔥 CRITICAL: Call hide function
-    logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
-    this.hideSettingsScreenWithAnimation();
+
+    buttonToAnimate?.setAttribute('data-settings-back-exit-pending', 'true');
+    window.setTimeout(() => {
+      try {
+        // 🔥 CRITICAL: Call hide function after tap feedback is visible
+        logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
+        this.hideSettingsScreenWithAnimation();
+      } finally {
+        buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
+      }
+    }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
   }
   
   // 🔥 MEMORY LEAK FIX: Store settings toggle handlers
@@ -2293,6 +2339,32 @@ class UIManager {
       });
       return;
     }
+
+    const playSettingsToggleBounce = (input: HTMLInputElement | null) => {
+      const switchEl = input?.closest('.settings-toggle-switch') as HTMLElement | null;
+      const sliderEl = switchEl?.querySelector('.settings-toggle-slider') as HTMLElement | null;
+      if (!switchEl || !sliderEl) return;
+
+      switchEl.classList.remove('soft-cartoon-bounce');
+      sliderEl.classList.remove('soft-cartoon-bounce');
+      void switchEl.offsetHeight;
+      switchEl.classList.add('soft-cartoon-bounce');
+      sliderEl.classList.add('soft-cartoon-bounce');
+
+      gsap.killTweensOf(switchEl);
+      gsap.set(switchEl, { scale: 1, transformOrigin: '50% 50%', willChange: 'transform', force3D: true });
+      gsap.timeline({
+        defaults: { overwrite: 'auto' },
+        onComplete: () => {
+          gsap.set(switchEl, { clearProps: 'scale,willChange,force3D' });
+          switchEl.classList.remove('soft-cartoon-bounce');
+          sliderEl.classList.remove('soft-cartoon-bounce');
+        },
+      })
+        .to(switchEl, { scale: 1.18, duration: 0.12, ease: 'back.out(2.2)', force3D: true })
+        .to(switchEl, { scale: 0.93, duration: 0.09, ease: 'power2.out', force3D: true })
+        .to(switchEl, { scale: 1, duration: 0.17, ease: 'back.out(1.9)', force3D: true });
+    };
     
     // Remove old event listeners first (if any)
     const gameSoundsOldHandler = (gameSoundsToggle as any).__ccToggleHandler;
@@ -2308,6 +2380,7 @@ class UIManager {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
       console.log('🔊 Game sounds toggle changed:', enabled);
+      playSettingsToggleBounce(target);
       if (typeof (window as any).triggerHapticImpact === 'function') {
         (window as any).triggerHapticImpact('light');
       }
@@ -2333,6 +2406,7 @@ class UIManager {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
       console.log('🎵 Music toggle changed:', enabled);
+      playSettingsToggleBounce(target);
       if (typeof (window as any).triggerHapticImpact === 'function') {
         (window as any).triggerHapticImpact('light');
       }
@@ -2360,6 +2434,7 @@ class UIManager {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
       console.log('📳 Vibration toggle changed:', enabled);
+      playSettingsToggleBounce(target);
       
       // Update status text IMMEDIATELY (synchronously)
       const statusEl = document.getElementById('status-vibration');

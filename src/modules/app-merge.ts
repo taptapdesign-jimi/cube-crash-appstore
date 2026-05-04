@@ -151,9 +151,12 @@ function removeTile(t){
   t.destroy?.({children:true, texture:false, textureSource:false});
 }
 
-export function clearWildState(tile){
+export function clearWildState(tile, opts = undefined){
   if (!tile) return;
-  try { stopWildIdle(tile); } catch {}
+  // Optional: skip heavy teardown (detachWildStarHalo, shimmer kill) until after merge tween is scheduled — avoids main-thread hitch when dst is wild star
+  if (!opts?.skipStopWildIdle) {
+    try { stopWildIdle(tile); } catch {}
+  }
   // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
   if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {
     tile.special = null;

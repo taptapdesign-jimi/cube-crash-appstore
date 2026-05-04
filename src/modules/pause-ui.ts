@@ -94,7 +94,7 @@ export function createPauseModalContent(): HTMLElement {
         min-height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 24px !important;
+        font-size: 26px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #C24921 !important;
         cursor: pointer !important;
@@ -123,7 +123,7 @@ export function createPauseModalContent(): HTMLElement {
         height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 20px !important;
+        font-size: 22px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #4A5A7A !important;
         cursor: pointer !important;
@@ -146,7 +146,7 @@ export function createPauseModalContent(): HTMLElement {
         height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 24px !important;
+        font-size: 26px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #A71E2A !important;
         cursor: pointer !important;

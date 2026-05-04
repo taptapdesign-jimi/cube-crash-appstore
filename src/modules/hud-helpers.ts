@@ -19,6 +19,68 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const hudLifecycle = createScreenLifecycle('hud');
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
+const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 410;
+
+function playPixiSoftCartoonBounce(target: any): void {
+  const visualTarget = target?._bounceVisual || target;
+  if (!visualTarget || visualTarget.destroyed) return;
+
+  try {
+    const baseScaleX = Number.isFinite(visualTarget._softBounceBaseScaleX)
+      ? visualTarget._softBounceBaseScaleX
+      : (visualTarget.scale?.x ?? 1);
+    const baseScaleY = Number.isFinite(visualTarget._softBounceBaseScaleY)
+      ? visualTarget._softBounceBaseScaleY
+      : (visualTarget.scale?.y ?? 1);
+    visualTarget._softBounceBaseScaleX = baseScaleX;
+    visualTarget._softBounceBaseScaleY = baseScaleY;
+
+    gsap.killTweensOf(visualTarget.scale);
+    visualTarget.scale.set(baseScaleX, baseScaleY);
+
+    const tl = gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        visualTarget._softBounceActive = false;
+        if (!visualTarget.destroyed) visualTarget.scale.set(baseScaleX, baseScaleY);
+      }
+    });
+    visualTarget._softBounceActive = true;
+
+    tl.to(visualTarget.scale, {
+      x: baseScaleX * 1.18,
+      y: baseScaleY * 1.18,
+      duration: 0.12,
+      ease: 'back.out(2.2)'
+    });
+    tl.to(visualTarget.scale, {
+      x: baseScaleX * 0.93,
+      y: baseScaleY * 0.93,
+      duration: 0.09,
+      ease: 'power2.out'
+    });
+    tl.to(visualTarget.scale, {
+      x: baseScaleX,
+      y: baseScaleY,
+      duration: 0.17,
+      ease: 'back.out(1.9)'
+    });
+  } catch (err) {
+    console.warn('⚠️ Error animating PIXI soft cartoon bounce:', err);
+  }
+}
+
+function playHudCloseSoftCartoonBounce(target: any): void {
+  const visibleClose = (HUD_ROOT as any)?._visibleCloseButton || closeIconSprite || target;
+  playPixiSoftCartoonBounce(visibleClose);
+}
+
+function playHudScoreSoftCartoonBounce(coinHud: any): void {
+  const visibleScoreIcon = coinHud?.iconSprite && !coinHud.iconSprite.destroyed
+    ? coinHud.iconSprite
+    : coinHud?.container?.children?.find((child: any) => child instanceof Sprite && !child.destroyed);
+  playPixiSoftCartoonBounce(visibleScoreIcon || coinHud?.container);
+}
 
 function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
@@ -592,7 +654,56 @@ function makeWildLoader() {
   container._dashLine = dashLine;
   container._drawDashLine = drawDashLine;
   container._maxWidth = 200;
-  
+  const fillRestY = 0;
+
+  const drawFill = (targetFill: Graphics, w: number) => {
+    targetFill.clear();
+    const maxVisibleWidth = (container._maxWidth || 0) * 1.05;
+    const clampedWidth = Math.max(0, Math.min(maxVisibleWidth, w));
+    const fr = targetFill as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
+    if (typeof fr.roundRect === 'function' && typeof fr.fill === 'function') {
+      fr.roundRect(0, 0, clampedWidth, 10, 5);
+      fr.fill({ color: 0xE7744A });
+    } else {
+      targetFill.beginFill(0xE7744A);
+      targetFill.drawRoundedRect(0, 0, clampedWidth, 10, 5);
+      targetFill.endFill();
+    }
+  };
+
+  const playFillVerticalBounce = (targetFill: any) => {
+    if (!targetFill || targetFill.destroyed) return;
+    try {
+      if (container._springTimeline) {
+        container._springTimeline.kill();
+        container._springTimeline = null;
+      }
+      gsap.killTweensOf(targetFill, 'y');
+      targetFill.y = fillRestY;
+      container._springTimeline = trackTimeline({
+        onComplete: () => {
+          container._springTimeline = null;
+          if (!targetFill.destroyed) targetFill.y = fillRestY;
+        },
+      })
+        .to(targetFill, {
+          y: fillRestY - 2.5,
+          duration: 0.16,
+          ease: 'sine.out',
+        })
+        .to(targetFill, {
+          y: fillRestY + 1.3,
+          duration: 0.18,
+          ease: 'sine.inOut',
+        })
+        .to(targetFill, {
+          y: fillRestY,
+          duration: 0.24,
+          ease: 'elastic.out(1, 0.82)',
+        });
+    } catch {}
+  };
+
   // Methods
   container.setProgress = (ratio, animate = false) => {
     const fill = container._fill;
@@ -603,6 +714,12 @@ function makeWildLoader() {
       container._currentAnimation.kill();
       container._currentAnimation = null;
     }
+    if (container._springTimeline) {
+      container._springTimeline.kill();
+      container._springTimeline = null;
+    }
+    gsap.killTweensOf(fill);
+    fill.y = fillRestY;
     if (container._smokeInterval) {
       clearInterval(container._smokeInterval);
       container._smokeInterval = null;
@@ -619,14 +736,19 @@ function makeWildLoader() {
           (navigator.maxTouchPoints > 1 && w >= 768 && w <= 1400);
       })();
       const duration = isIPad ? 0.32 : 0.4; // 20% faster on iPad
+      const isGrowing = width > startWidth + 0.5;
+      const reachedFull = progress >= 0.999;
 
       // Start smoke effect during animation
       container._smokeInterval = setInterval(() => {
         if (!container?.parent || !container._fill) return;
         const hudStage = container.parent;
         if (!hudStage) return;
-        const globalX = container.x + (container._fill?.width || 0);
-        const globalY = container.y + 5; // Middle of the bar (10px height / 2)
+        const fillWidth = container._fill?.width || 0;
+        const smokeStartX = fillWidth * 0.5;
+        const smokeRange = Math.max(1, fillWidth - smokeStartX);
+        const globalX = container.x + smokeStartX + (Math.random() * smokeRange);
+        const globalY = container.y + 5 + ((Math.random() - 0.5) * 5); // Spread across bar thickness
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
@@ -640,7 +762,7 @@ function makeWildLoader() {
         
         smokeBubble.circle(0, 0, radius).fill({ color: color, alpha: alpha });
         
-        // Position at the growing edge of the progress bar
+        // Position across the active orange fill, biased to the filled half instead of a single edge point.
         smokeBubble.x = globalX;
         smokeBubble.y = globalY;
         smokeBubble.zIndex = 2000; // Above the progress bar (which is z-index 1000)
@@ -663,47 +785,66 @@ function makeWildLoader() {
         });
       }, 100); // Every 100ms during animation
       
-      container._currentAnimation = trackTween({ width: startWidth }, {
-        width: width,
-        duration,
-        ease: 'power2.out',
-        onUpdate: function() {
-          const f = container._fill;
-          if (!f || (f as { destroyed?: boolean }).destroyed) return;
-          try {
-            f.clear();
-            const w = this.targets()[0].width;
-            const fr = f as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
-            if (typeof fr.roundRect === 'function' && typeof fr.fill === 'function') {
-              fr.roundRect(0, 0, w, 10, 5);
-              fr.fill({ color: 0xE7744A });
-            } else {
-              f.beginFill(0xE7744A);
-              f.drawRoundedRect(0, 0, w, 10, 5);
-              f.endFill();
-            }
-          } catch {}
-        },
-        onComplete: () => {
-          if (container._smokeInterval) {
-            clearInterval(container._smokeInterval);
-            container._smokeInterval = null;
-          }
-          container._currentAnimation = null;
+      const animatedFill = { width: startWidth };
+      const redrawAnimatedFill = () => {
+        const f = container._fill;
+        if (!f || (f as { destroyed?: boolean }).destroyed) return;
+        try {
+          drawFill(f, animatedFill.width);
+        } catch {}
+      };
+      const finishAnimation = () => {
+        drawFill(fill, width);
+        if (container._smokeInterval) {
+          clearInterval(container._smokeInterval);
+          container._smokeInterval = null;
         }
-      });
+        container._currentAnimation = null;
+      };
+
+      if (isGrowing) {
+        playFillVerticalBounce(fill);
+        const overshootDistance = Math.max(3.5, width * 0.05);
+        const overWidth = width + overshootDistance;
+        const underWidth = Math.max(0, width - Math.max(1.5, overshootDistance * 0.36));
+        const secondOverWidth = width + Math.max(2, overshootDistance * 0.58);
+        container._currentAnimation = trackTimeline({ onComplete: finishAnimation })
+          .to(animatedFill, {
+            width: overWidth,
+            duration: duration * 0.68,
+            ease: 'power4.out',
+            onUpdate: redrawAnimatedFill,
+          })
+          .to(animatedFill, {
+            width: underWidth,
+            duration: reachedFull ? 0.13 : 0.11,
+            ease: 'sine.inOut',
+            onUpdate: redrawAnimatedFill,
+          })
+          .to(animatedFill, {
+            width: secondOverWidth,
+            duration: reachedFull ? 0.15 : 0.13,
+            ease: 'sine.out',
+            onUpdate: redrawAnimatedFill,
+          })
+          .to(animatedFill, {
+            width,
+            duration: reachedFull ? 0.26 : 0.22,
+            ease: reachedFull ? 'elastic.out(1, 0.74)' : 'back.out(1.15)',
+            onUpdate: redrawAnimatedFill,
+          });
+      } else {
+        container._currentAnimation = trackTween(animatedFill, {
+          width: width,
+          duration,
+          ease: 'power2.out',
+          onUpdate: redrawAnimatedFill,
+          onComplete: finishAnimation,
+        });
+      }
     } else {
       try {
-        fill.clear();
-        const fr = fill as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
-        if (typeof fr.roundRect === 'function' && typeof fr.fill === 'function') {
-          fr.roundRect(0, 0, width, 10, 5);
-          fr.fill({ color: 0xE7744A });
-        } else {
-          fill.beginFill(0xE7744A);
-          fill.drawRoundedRect(0, 0, width, 10, 5);
-          fill.endFill();
-        }
+        drawFill(fill, width);
       } catch {}
     }
   };
@@ -729,7 +870,7 @@ function makeWildLoader() {
       }
     };
     drawRect(container._bg, width, 0xEADFD6);
-    drawRect(container._fill, 0, 0xE7744A);
+    drawFill(container._fill, 0);
     if (container._drawDashLine) {
       container._drawDashLine(width);
     }
@@ -1283,6 +1424,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       
       // Store reference to container (not just sprite)
       closeIconSprite = closeButtonContainer;
+      HUD_ROOT._visibleCloseButton = closeButtonContainer;
       
       // 🔥 FIX: Change to open End Run modal instead of going to homepage
       const handleCloseClick = (e) => {
@@ -1317,39 +1459,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             window.triggerHapticImpact('light');
           }
           
-          // 🔥 USER REQUEST: Tap bounce animation on X button when closing
-          const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
-          if (buttonToAnimate && !buttonToAnimate.destroyed) {
-            try {
-              if (typeof gsap !== 'undefined') {
-                if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
-                  buttonToAnimate.scale.set(1, 1);
-                }
-                gsap.killTweensOf(buttonToAnimate.scale);
-                const tl = trackTimeline();
-                tl.to(buttonToAnimate.scale, {
-                  x: 0.92,
-                  y: 0.92,
-                  duration: 0.077,
-                  ease: 'power2.out'
-                });
-                tl.to(buttonToAnimate.scale, {
-                  x: 1.06,
-                  y: 1.06,
-                  duration: 0.077,
-                  ease: 'back.out(1.7)'
-                });
-                tl.to(buttonToAnimate.scale, {
-                  x: 1,
-                  y: 1,
-                  duration: 0.066,
-                  ease: 'power2.out'
-                });
-              }
-            } catch (err) {
-              console.warn('⚠️ Error animating X button:', err);
-            }
-          }
+          playHudCloseSoftCartoonBounce(closeButtonContainer);
           
           if (typeof window.hideEndRunModal === 'function') {
             window.hideEndRunModal();
@@ -1397,14 +1507,14 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       
       // Add interactive behavior
       closeButtonContainer.on('pointerdown', (e) => {
-        closeButtonContainer.scale.set(0.92);
-        handleCloseClick(e);
-      });
-      closeButtonContainer.on('pointerup', () => {
-        closeButtonContainer.scale.set(1);
-      });
-      closeButtonContainer.on('pointerleave', () => {
-        closeButtonContainer.scale.set(1);
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        playHudCloseSoftCartoonBounce(closeButtonContainer);
+        trackHudTimeout(() => {
+          if (!closeButtonContainer.destroyed) {
+            handleCloseClick(e);
+          }
+        }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
       });
       
       HUD_ROOT.addChild(closeButtonContainer);
@@ -1466,6 +1576,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
           // Store reference
           closeIconSprite = closeButtonContainer;
+          HUD_ROOT._visibleCloseButton = closeButtonContainer;
           
           // 🔥 FIX: Change to open End Run modal instead of going to homepage
           const handleCloseClick = (e) => {
@@ -1500,39 +1611,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
                 window.triggerHapticImpact('light');
               }
               
-              // 🔥 USER REQUEST: Tap bounce animation on X button when closing
-              const buttonToAnimate = closeButtonContainer || xButton || (HUD_ROOT && HUD_ROOT._xButton);
-              if (buttonToAnimate && !buttonToAnimate.destroyed) {
-                try {
-                  if (typeof gsap !== 'undefined') {
-                    if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
-                      buttonToAnimate.scale.set(1, 1);
-                    }
-                    gsap.killTweensOf(buttonToAnimate.scale);
-                    const tl = trackTimeline();
-                    tl.to(buttonToAnimate.scale, {
-                      x: 0.92,
-                      y: 0.92,
-                      duration: 0.077,
-                      ease: 'power2.out'
-                    });
-                    tl.to(buttonToAnimate.scale, {
-                      x: 1.06,
-                      y: 1.06,
-                      duration: 0.077,
-                      ease: 'back.out(1.7)'
-                    });
-                    tl.to(buttonToAnimate.scale, {
-                      x: 1,
-                      y: 1,
-                      duration: 0.066,
-                      ease: 'power2.out'
-                    });
-                  }
-                } catch (err) {
-                  console.warn('⚠️ Error animating X button:', err);
-                }
-              }
+              playHudCloseSoftCartoonBounce(closeButtonContainer);
               
               if (typeof window.hideEndRunModal === 'function') {
                 window.hideEndRunModal();
@@ -1580,14 +1659,14 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           
           // Add interactive behavior
           closeButtonContainer.on('pointerdown', (e) => {
-            closeButtonContainer.scale.set(0.92);
-            handleCloseClick(e);
-          });
-          closeButtonContainer.on('pointerup', () => {
-            closeButtonContainer.scale.set(1);
-          });
-          closeButtonContainer.on('pointerleave', () => {
-            closeButtonContainer.scale.set(1);
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            playHudCloseSoftCartoonBounce(closeButtonContainer);
+            trackHudTimeout(() => {
+              if (!closeButtonContainer.destroyed) {
+                handleCloseClick(e);
+              }
+            }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
           });
           
           HUD_ROOT.addChild(closeButtonContainer);
@@ -1931,6 +2010,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const touchAreaHeight = 44 + 16; // 60px height (8px top + 8px bottom)
   const centerX = touchAreaWidth / 2; // 28px - center X within container (56/2)
   const centerY = touchAreaHeight / 2; // 30px - center Y within container
+
+  const xVisual = new Container();
+  xVisual.eventMode = 'none';
+  xVisual.pivot.set(centerX, centerY);
+  xVisual.position.set(centerX, centerY);
+  xButton._bounceVisual = xVisual;
+  xButton.addChild(xVisual);
   
   // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
   // X button is 56px wide, positioned at 24px from left edge
@@ -1953,7 +2039,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xGraphics.eventMode = 'none';
   xGraphics.cursor = 'default';
   try { xGraphics.interactiveChildren = false; } catch {}
-  xButton.addChild(xGraphics); // Added FIRST = BELOW
+  xVisual.addChild(xGraphics); // Added FIRST = BELOW
   
   // Draw dotted border around X button area
   const borderBg = new Graphics();
@@ -1999,7 +2085,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
   borderBg.eventMode = 'none';
   borderBg.cursor = 'default';
-  xButton.addChild(borderBg); // Added SECOND = MIDDLE
+  xVisual.addChild(borderBg); // Added SECOND = MIDDLE
   
   // 🔥 SIMPLE: Red RECTANGLE = HIT AREA = Opens bottom sheet when clicked
   // LONG RECTANGLE: From left edge (0px) to 24px over X button on right (124px total)
@@ -2053,10 +2139,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 SIMPLE: Red rectangle (debugBg) = HIT AREA = Opens bottom sheet when clicked
   // No animations, no complications - just click red rectangle → open modal
   debugBg.on('pointerdown', (e) => {
-          e.stopPropagation();
+    e.stopPropagation();
     e.stopImmediatePropagation();
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
+    playHudCloseSoftCartoonBounce(HUD_ROOT?._visibleCloseButton || xButton);
+    trackHudTimeout(() => {
+      if (!xButton.destroyed) {
+        openEndRunFromHudClose();
+      }
+    }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
+  });
+
+  const openEndRunFromHudClose = () => {
 
     // 🔥 USER REQUEST: Check if end-run modal is already open (toggle behavior)
           let isEndRunModalOpen = false;
@@ -2075,40 +2170,6 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       // Haptic feedback for closing
       if (typeof window.triggerHapticImpact === 'function') {
         window.triggerHapticImpact('light');
-      }
-      
-      // 🔥 USER REQUEST: Tap bounce animation on X button when closing
-      const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
-      if (buttonToAnimate && !buttonToAnimate.destroyed) {
-        try {
-          if (typeof gsap !== 'undefined') {
-            if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
-              buttonToAnimate.scale.set(1, 1);
-            }
-            gsap.killTweensOf(buttonToAnimate.scale);
-            const tl = trackTimeline();
-            tl.to(buttonToAnimate.scale, {
-              x: 0.92,
-              y: 0.92,
-              duration: 0.077,
-              ease: 'power2.out'
-            });
-            tl.to(buttonToAnimate.scale, {
-              x: 1.06,
-              y: 1.06,
-              duration: 0.077,
-              ease: 'back.out(1.7)'
-            });
-            tl.to(buttonToAnimate.scale, {
-              x: 1,
-              y: 1,
-              duration: 0.066,
-              ease: 'power2.out'
-            });
-          }
-        } catch (err) {
-          console.warn('⚠️ Error animating X button:', err);
-        }
       }
       
       if (typeof window.hideEndRunModal === 'function') {
@@ -2146,63 +2207,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       if (typeof window.triggerHapticImpact === 'function') {
         window.triggerHapticImpact('light');
           }
-
-      // 🔥 USER REQUEST: Tap bounce animation on X button (entire container with border)
-      // Get xButton from parent or stored reference to ensure it's available
-      const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
-      if (buttonToAnimate && !buttonToAnimate.destroyed) {
-        try {
-          // Kill any existing animation
-          if (typeof gsap !== 'undefined') {
-            // 🔥 CRITICAL: Ensure scale exists and is initialized (PIXI Container has scale by default, but ensure it's set)
-            if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
-              buttonToAnimate.scale.set(1, 1);
-            }
-            
-            gsap.killTweensOf(buttonToAnimate.scale);
-            
-            // Tap bounce: scale down → scale up → back to normal
-            // Animates entire container (X icon + dashed border)
-            // Same timing and easing as journey hearts tap-bounce (220ms total, cubic-bezier(0.34, 1.56, 0.64, 1))
-            // Use 'back.out' for bounce effect similar to CSS cubic-bezier
-            const tl = trackTimeline();
-            
-            // Phase 1: Scale down (0-35% = 77ms)
-            tl.to(buttonToAnimate.scale, {
-              x: 0.92,
-              y: 0.92,
-              duration: 0.077, // 35% of 220ms
-              ease: 'power2.out'
-            });
-            
-            // Phase 2: Scale up (35-70% = 77ms)
-            tl.to(buttonToAnimate.scale, {
-              x: 1.06,
-              y: 1.06,
-              duration: 0.077, // 35% of 220ms (70% - 35%)
-              ease: 'back.out(1.7)' // Bounce effect similar to journey hearts
-            });
-            
-            // Phase 3: Return to normal (70-100% = 66ms)
-            tl.to(buttonToAnimate.scale, {
-              x: 1,
-              y: 1,
-              duration: 0.066, // 30% of 220ms (100% - 70%)
-              ease: 'power2.out'
-            });
-          }
-        } catch (err) {
-          console.warn('⚠️ Error animating X button:', err);
-        }
-      }
-
     // Open bottom sheet - function will handle duplicate checks
           if (typeof window.showEndRunModalFromGame === 'function') {
             window.showEndRunModalFromGame();
           } else {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
-  });
+  };
   
   // 🔥 USER REQUEST: Add red touch area on score area (coinHud) for score bottom sheet
   // Same approach as X button - red rectangle = hit area = opens score stats bottom sheet
@@ -2271,42 +2282,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           window.triggerHapticImpact('light');
         }
         
-        // 🔥 USER REQUEST: Tap bounce animation on score icon when closing
-        if (coinHud && coinHud.iconSprite && !coinHud.iconSprite.destroyed) {
-          try {
-            if (typeof gsap !== 'undefined') {
-              gsap.killTweensOf(coinHud.iconSprite.scale);
-              trackTween(coinHud.iconSprite.scale, {
-                x: 0.92,
-                y: 0.92,
-                duration: 0.077,
-                ease: 'power2.out',
-                onComplete: () => {
-                  trackTween(coinHud.iconSprite.scale, {
-                    x: 1.06,
-                    y: 1.06,
-                    duration: 0.077,
-                    ease: 'power2.out',
-                    onComplete: () => {
-                      trackTween(coinHud.iconSprite.scale, {
-                        x: 1,
-                        y: 1,
-                        duration: 0.066,
-                        ease: 'power2.out'
-                      });
-                    }
-                  });
-                }
-              });
-            }
-          } catch (err) {
-            console.warn('⚠️ Error animating score icon:', err);
+        playHudScoreSoftCartoonBounce(coinHud);
+        trackHudTimeout(() => {
+          if (typeof window.hideScoreBottomSheet === 'function') {
+            window.hideScoreBottomSheet();
           }
-        }
-        
-        if (typeof window.hideScoreBottomSheet === 'function') {
-          window.hideScoreBottomSheet();
-        }
+        }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
         return;
       }
       
@@ -2340,47 +2321,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         window.triggerHapticImpact('light');
       }
       
-      // 🔥 USER REQUEST: Tap bounce animation on score icon
-      if (coinHud && coinHud.iconSprite && !coinHud.iconSprite.destroyed) {
-        try {
-          // Kill any existing animation
-          if (typeof gsap !== 'undefined') {
-            gsap.killTweensOf(coinHud.iconSprite.scale);
-            // Tap bounce: scale down → scale up → back to normal
-            trackTween(coinHud.iconSprite.scale, {
-              x: 0.92,
-              y: 0.92,
-              duration: 0.077, // 35% of 220ms
-              ease: 'power2.out',
-              onComplete: () => {
-                trackTween(coinHud.iconSprite.scale, {
-                  x: 1.06,
-                  y: 1.06,
-                  duration: 0.077, // 35% of 220ms (70% - 35%)
-                  ease: 'power2.out',
-                  onComplete: () => {
-                    trackTween(coinHud.iconSprite.scale, {
-                      x: 1,
-                      y: 1,
-                      duration: 0.066, // 30% of 220ms (100% - 70%)
-                      ease: 'power2.out'
-                    });
-                  }
-                });
-              }
-            });
-          }
-        } catch (err) {
-          console.warn('⚠️ Error animating score icon:', err);
-        }
-      }
+      playHudScoreSoftCartoonBounce(coinHud);
       
       // Open score bottom sheet - function will handle duplicate checks
-      if (typeof window.showScoreBottomSheet === 'function') {
-        window.showScoreBottomSheet();
-            } else {
-        console.error('❌ showScoreBottomSheet function not available!');
-            }
+      trackHudTimeout(() => {
+        if (typeof window.showScoreBottomSheet === 'function') {
+          window.showScoreBottomSheet();
+        } else {
+          console.error('❌ showScoreBottomSheet function not available!');
+        }
+      }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
     });
     
     // Remove old event handler from coinHud.container (replaced by red touch area)
@@ -3136,6 +3086,14 @@ export function resetWildMeter(instant = true) {
       wild.view._smokeInterval = null;
     }
     gsap.killTweensOf(wild?.view?._fill);
+    gsap.killTweensOf(wild?.view?._fill?.scale);
+    if (wild?.view?._fill) {
+      wild.view._fill.y = 0;
+    }
+    if (wild?.view?._springTimeline) {
+      wild.view._springTimeline.kill();
+      wild.view._springTimeline = null;
+    }
     if (wild?.view?._currentAnimation) {
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;

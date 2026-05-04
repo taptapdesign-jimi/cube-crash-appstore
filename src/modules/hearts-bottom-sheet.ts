@@ -250,8 +250,11 @@ function updateTimer(): void {
   const maxHearts = heartsSystem.getMaxHearts();
 
   const timerElement = heartsModal.querySelector('.hearts-timer-value');
+  const timerRow = heartsModal.querySelector('.hearts-timer') as HTMLElement | null;
+  if (timerRow) {
+    timerRow.style.display = currentHearts >= maxHearts ? 'none' : '';
+  }
   if (timerElement) {
-    // 🔥 USER REQUEST: Stop counter at 00:00 when all hearts are full
     if (currentHearts >= maxHearts) {
       timerElement.textContent = '00:00';
     } else {
@@ -344,6 +347,12 @@ function createHeartsModal(): HTMLElement {
   
   // 🔥 USER REQUEST: Hide CTA button when all 3 hearts are full
   const showCTA = currentHearts < maxHearts; // Only show when 0, 1, or 2 hearts
+  const timerHTML = showCTA
+    ? `<p class="hearts-timer">
+        <span class="hearts-timer-text">Next heart in </span>
+        <span class="hearts-timer-value">${timeString}</span>
+      </p>`
+    : '';
   const ctaHTML = showCTA 
     ? `<div class="hearts-cta">
         <button class="get-heart-btn primary-button">
@@ -365,10 +374,7 @@ function createHeartsModal(): HTMLElement {
         ${heartsHTML}
       </div>
       
-      <p class="hearts-timer">
-        <span class="hearts-timer-text">Next heart in </span>
-        <span class="hearts-timer-value">${timeString}</span>
-      </p>
+      ${timerHTML}
       
       <p class="hearts-description">
         Hearts let you play boards<br>

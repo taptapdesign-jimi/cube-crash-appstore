@@ -260,7 +260,7 @@ export function setStarsCount(count: number): void {
 
 /**
  * Collect stars from wild tile after merge 6
- * This animates the 3 orbiting stars from the wild tile to the HUD icon
+ * This animates the orbiting stars from the wild tile to the HUD icon
  */
 export async function collectStarsFromWildTile(
   wildTile: any,
@@ -271,7 +271,7 @@ export async function collectStarsFromWildTile(
     return;
   }
   
-  // Get the wild star system (3 orbiting stars)
+  // Get the wild star system (random 1-3 orbiting stars)
   const wildStarSystem = (wildTile as any)?._wildStarSystem;
   if (!wildStarSystem || !wildStarSystem.stars || wildStarSystem.stars.length === 0) {
     console.warn('⚠️ No wild star system found on tile');
@@ -342,7 +342,7 @@ export async function collectStarsFromWildTile(
   stage.addChild(animationContainer);
   
   // Animate each star sequentially (one after another)
-  const STAR_COUNT = Math.min(3, orbitingStars.length);
+  const STAR_COUNT = orbitingStars.length;
   const animations: Promise<void>[] = [];
   
   for (let i = 0; i < STAR_COUNT; i++) {

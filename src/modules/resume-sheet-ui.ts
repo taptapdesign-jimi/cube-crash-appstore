@@ -104,7 +104,7 @@ export function addBottomSheetStyles(): void {
       button[data-action="resume"] {
         height: 64px !important;
         min-height: 64px !important;
-        font-size: 24px !important;
+        font-size: 26px !important;
         width: 100% !important;
         max-width: 310px !important;
       }
@@ -114,7 +114,7 @@ export function addBottomSheetStyles(): void {
       button[data-action="pause"] {
         height: 64px !important;
         min-height: 64px !important;
-        font-size: 24px !important;
+        font-size: 26px !important;
         width: 100% !important;
         max-width: 310px !important;
       }

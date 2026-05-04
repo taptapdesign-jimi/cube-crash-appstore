@@ -1,4 +1,5 @@
 // Settings Screen Component
+import { gsap } from 'gsap';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 
 export interface SettingsScreenConfig {
@@ -14,6 +15,54 @@ export interface SettingToggle {
   label: string;
   description: string;
   onToggle?: (enabled: boolean) => void;
+}
+
+const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 410;
+
+function playSoftCartoonBounce(target: HTMLElement | null): void {
+  if (!target) return;
+
+  const switchEl = (target.closest('.settings-toggle-switch') || target) as HTMLElement;
+  gsap.killTweensOf(switchEl);
+  gsap.set(switchEl, {
+    scale: 1,
+    transformOrigin: '50% 50%',
+    willChange: 'transform',
+    force3D: true,
+  });
+
+  gsap.timeline({
+    defaults: { overwrite: 'auto' },
+    onComplete: () => {
+      gsap.set(switchEl, { clearProps: 'scale,willChange,force3D' });
+    },
+  })
+    .to(switchEl, {
+      scale: 1.18,
+      duration: 0.12,
+      ease: 'back.out(2.2)',
+      force3D: true,
+    })
+    .to(switchEl, {
+      scale: 0.93,
+      duration: 0.09,
+      ease: 'power2.out',
+      force3D: true,
+    })
+    .to(switchEl, {
+      scale: 1,
+      duration: 0.17,
+      ease: 'back.out(1.9)',
+      force3D: true,
+    });
+}
+
+function getSettingsToggleTarget(event: Event): HTMLElement | null {
+  const targetNode = event.target as Node | null;
+  const target = (targetNode && targetNode.nodeType === Node.ELEMENT_NODE
+    ? (targetNode as Element)
+    : targetNode?.parentElement) as Element | null;
+  return (target?.closest('.settings-toggle-switch') as HTMLElement | null) || null;
 }
 
 function createSettingsToggle(toggle: SettingToggle): HTMLElementConfig {
@@ -232,12 +281,26 @@ export function renderSettingsScreen(
     if (backBtn) {
       e.preventDefault();
       e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
       
       console.log('🔙 Settings back button clicked via event delegation');
+      playSoftCartoonBounce((backBtn.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement));
+
+      if ((backBtn as HTMLElement).getAttribute('data-settings-back-exit-pending') === 'true') {
+        return;
+      }
+
+      (backBtn as HTMLElement).setAttribute('data-settings-back-exit-pending', 'true');
       
       // Call config.onBack if provided
       if (config.onBack) {
-        config.onBack();
+        window.setTimeout(() => {
+          try {
+            config.onBack?.();
+          } finally {
+            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+          }
+        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
         return;
       }
       
@@ -246,20 +309,31 @@ export function renderSettingsScreen(
       let uiManager = (window as any).uiManager;
       if (!uiManager) {
         // Try importing UIManager module
-        import('../../modules/ui-manager.js').then((module) => {
-          uiManager = module.default || (module as any).uiManager;
-          if (uiManager && typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
-            console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() via import');
-            uiManager.hideSettingsScreenWithAnimation();
-          }
-        }).catch(() => {
-          console.warn('⚠️ Failed to import UIManager');
-        });
+        window.setTimeout(() => {
+          import('../../modules/ui-manager.js').then((module) => {
+            uiManager = module.default || (module as any).uiManager;
+            if (uiManager && typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
+              console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() via import');
+              uiManager.hideSettingsScreenWithAnimation();
+            }
+          }).catch(() => {
+            console.warn('⚠️ Failed to import UIManager');
+          }).finally(() => {
+            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+          });
+        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
       } else if (typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
-        console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() from window');
-        uiManager.hideSettingsScreenWithAnimation();
+        window.setTimeout(() => {
+          try {
+            console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() from window');
+            uiManager.hideSettingsScreenWithAnimation();
+          } finally {
+            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+          }
+        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
       } else {
         console.warn('⚠️ UIManager found but hideSettingsScreenWithAnimation method not available');
+        (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
       }
     }
   };
@@ -282,6 +356,21 @@ export function renderSettingsScreen(
     }).catch(() => {});
   };
   element.addEventListener('change', changeHandler);
+
+  let lastToggleBounceAt = 0;
+  let lastToggleBounceTarget: HTMLElement | null = null;
+  const toggleBounceHandler = (e: Event) => {
+    const toggleTarget = getSettingsToggleTarget(e);
+    if (!toggleTarget) return;
+    const now = Date.now();
+    if (toggleTarget === lastToggleBounceTarget && now - lastToggleBounceAt < 140) return;
+    lastToggleBounceTarget = toggleTarget;
+    lastToggleBounceAt = now;
+    playSoftCartoonBounce(toggleTarget);
+  };
+  element.addEventListener('pointerdown', toggleBounceHandler, true);
+  element.addEventListener('touchstart', toggleBounceHandler, { capture: true, passive: true });
+  element.addEventListener('click', toggleBounceHandler, true);
 
   // Safety: cleanup on in-app navigation
   const navCleanupHandler = () => {
@@ -327,6 +416,9 @@ export function renderSettingsScreen(
   (element as any)._settingsCleanup = () => {
     element.removeEventListener('click', clickHandler);
     element.removeEventListener('change', changeHandler);
+    element.removeEventListener('pointerdown', toggleBounceHandler, true);
+    element.removeEventListener('touchstart', toggleBounceHandler, true);
+    element.removeEventListener('click', toggleBounceHandler, true);
     window.removeEventListener('cc-navigation', navCleanupHandler);
     if (footerText) {
       footerText.removeEventListener('touchstart', footerHapticHandler);

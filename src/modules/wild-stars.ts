@@ -60,12 +60,17 @@ const debugLog = (...args: any[]) => {
   }
 };
 
-const BABY_STAR_COUNT = 3;
+const MIN_BABY_STAR_COUNT = 1;
+const MAX_BABY_STAR_COUNT = 3;
 const BASE_RADIUS_FACTOR = 0.6;
 const STAR_TARGET_SIZE = 56; // Maksimalna veličina zvijezdice u px
 const ORBIT_SPEED = 0.04;
 const DELTA_MIN = 0.55;
 const DELTA_MAX = 2.0;
+
+function getRandomBabyStarCount(): number {
+  return MIN_BABY_STAR_COUNT + Math.floor(Math.random() * (MAX_BABY_STAR_COUNT - MIN_BABY_STAR_COUNT + 1));
+}
 
 function tileIsPureWild(tile: WildishTile | null | undefined): tile is WildishTile {
   if (!tile) return false;
@@ -231,16 +236,16 @@ function createStarSprite(texture: Texture, star: OrbitingStar): Sprite {
   return sprite;
 }
 
-function setupStars(system: WildStarSystem, texture: Texture): void {
+function setupStars(system: WildStarSystem, texture: Texture, starCount = MAX_BABY_STAR_COUNT): void {
   system.container.removeChildren();
   system.stars = [];
 
-  debugLog('🌟 Creating stars with texture:', texture);
+  debugLog('🌟 Creating stars with texture:', texture, 'count:', starCount);
 
-  for (let i = 0; i < BABY_STAR_COUNT; i += 1) {
+  for (let i = 0; i < starCount; i += 1) {
     const star: OrbitingStar = {
       sprite: null as unknown as Sprite | Graphics,
-      angle: (Math.PI * 2 * i) / BABY_STAR_COUNT,
+      angle: (Math.PI * 2 * i) / starCount,
       speed: 0.4 + Math.random() * 0.3, // Sporije brzine
       direction: i === 0 ? 1 : -1, // Prva u smjeru kazaljke, ostale suprotno
       orbitRadius: 0.6 + Math.random() * 0.17, // Povećano za 10%: maksimum 0.77 umjesto 0.7
@@ -347,6 +352,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
 
   const host = (tile.rotG as Container) || tile;
   if (!host) return;
+  const babyStarCount = getRandomBabyStarCount();
 
   const container = new Container();
   container.label = 'wild-baby-star-orbit';
@@ -383,7 +389,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
   const startSystemWithTexture = (texture: Texture) => {
     if (system.disposed) return;
     
-    setupStars(system, texture);
+    setupStars(system, texture, babyStarCount);
     container.alpha = 1.0;
     container.visible = true;
     container.renderable = true;
@@ -398,10 +404,10 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     
     system.container.removeChildren();
     system.stars = [];
-    for (let i = 0; i < BABY_STAR_COUNT; i += 1) {
+    for (let i = 0; i < babyStarCount; i += 1) {
       const star: OrbitingStar = {
         sprite: null as unknown as Sprite | Graphics,
-        angle: (Math.PI * 2 * i) / BABY_STAR_COUNT,
+        angle: (Math.PI * 2 * i) / babyStarCount,
         speed: 0.4 + Math.random() * 0.3,
         direction: i === 0 ? 1 : -1,
         orbitRadius: 0.6 + Math.random() * 0.17,
