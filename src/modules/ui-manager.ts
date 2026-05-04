@@ -233,7 +233,9 @@ class UIManager {
       this.elements.collectiblesButton = document.getElementById('btn-collectibles') as HTMLButtonElement;
       this.elements.settingsButton = document.getElementById('btn-settings') as HTMLButtonElement;
       this.elements.statsBackButton = document.getElementById('stats-back-btn') as HTMLButtonElement;
-      
+
+      this.detachSliderHeroCtaListeners();
+
       // Helper to add listener and track it (same as in setupEventListeners)
       const addTrackedListener = (element: HTMLElement, event: string, handler: EventListener) => {
         element.addEventListener(event, handler);
@@ -296,7 +298,9 @@ class UIManager {
         addTrackedListener(this.elements.settingsButton, 'click', handler);
         logger.info('✅ Settings button event listener reattached');
       }
-      
+
+      this.attachSliderHeroCtaListeners(addTrackedListener);
+
       // Also reattach stats back button if needed
       if (this.elements.statsBackButton) {
         if (this.boundEventHandlers.has(this.elements.statsBackButton)) {
@@ -382,11 +386,54 @@ class UIManager {
     
     // Setup settings toggles
     this.setupSettingsToggles();
+
+    this.attachSliderHeroCtaListeners(addTrackedListener);
   }
   
   // 🔥 MEMORY LEAK FIX: Store unsubscribe functions for cleanup
   private unsubscribeFunctions: (() => void)[] = [];
   private boundEventHandlers: Map<HTMLElement, Array<{ event: string; handler: EventListener }>> = new Map();
+
+  /** Slider hero images: same handlers as primary CTAs (wired here; bootstrap does not pass onButtonClick). */
+  private detachSliderHeroCtaListeners(): void {
+    const selectors = [
+      '[data-hero-cta="play"]',
+      '[data-hero-cta="journey"]',
+      '[data-hero-cta="collectibles"]',
+      '[data-hero-cta="settings"]',
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel) as HTMLElement | null;
+      if (!el || !this.boundEventHandlers.has(el)) continue;
+      const oldHandlers = this.boundEventHandlers.get(el)!;
+      oldHandlers.forEach(({ event, handler }) => {
+        el.removeEventListener(event, handler);
+      });
+      this.boundEventHandlers.delete(el);
+    }
+  }
+
+  private attachSliderHeroCtaListeners(
+    addTrackedListener: (element: HTMLElement, event: string, handler: EventListener) => void
+  ): void {
+    const attachPair = (selector: string, clickHandler: EventListener) => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (!el) return;
+      const keyHandler: EventListener = (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Enter' || ke.key === ' ') {
+          ke.preventDefault();
+          (clickHandler as (ev: Event) => unknown)(ke);
+        }
+      };
+      addTrackedListener(el, 'click', clickHandler);
+      addTrackedListener(el, 'keydown', keyHandler);
+    };
+    attachPair('[data-hero-cta="play"]', this.handlePlayClick.bind(this));
+    attachPair('[data-hero-cta="journey"]', this.handleStatsClick.bind(this));
+    attachPair('[data-hero-cta="collectibles"]', this.handleCollectiblesClick.bind(this));
+    attachPair('[data-hero-cta="settings"]', this.handleSettingsClick.bind(this));
+  }
   
   // Setup state subscriptions
   private setupStateSubscriptions(): void {

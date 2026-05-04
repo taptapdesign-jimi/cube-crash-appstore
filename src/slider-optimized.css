@@ -104,6 +104,12 @@
   -webkit-backface-visibility: hidden;
 }
 
+.hero-image.hero-image-cta {
+  cursor: pointer;
+  /* Home hero uses .slider-parallax-image { pointer-events: none } in style.css */
+  pointer-events: auto;
+}
+
 /* Individual animations moved below */
 
 /* Idle animations for all slides */

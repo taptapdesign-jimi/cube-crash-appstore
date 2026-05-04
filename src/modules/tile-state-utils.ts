@@ -103,13 +103,16 @@ export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOpti
     if (tile._spawnTween) {
       let tweenActive = false;
       try {
-        tweenActive = typeof tile._spawnTween.isActive === 'function'
-          ? tile._spawnTween.isActive()
-          : !!tile._spawnTween.isActive;
+        tweenActive =
+          typeof tile._spawnTween.isActive === 'function'
+            ? tile._spawnTween.isActive()
+            : !!tile._spawnTween.isActive;
       } catch {}
       if (tweenActive) return true;
       if (autoClearStaleFlag) {
-        try { tile._spawnTween = null; } catch {}
+        try {
+          tile._spawnTween = null;
+        } catch {}
       }
     }
   }
@@ -125,7 +128,9 @@ export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOpti
     // Defensive cleanup: stale spawn-flag should not indefinitely block fail/no-moves flow.
     if (looksInteractive) {
       if (autoClearStaleFlag) {
-        try { tile._isBeingSpawned = false; } catch {}
+        try {
+          tile._isBeingSpawned = false;
+        } catch {}
       }
       return false;
     }

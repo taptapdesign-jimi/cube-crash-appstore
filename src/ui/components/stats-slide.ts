@@ -27,10 +27,14 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
             children: [
               {
                 tag: 'img',
-                className: 'hero-image',
+                className: 'hero-image hero-image-cta tap-scale',
                 attributes: {
                   src: './assets/journey-map-homepage.png',
                   alt: 'Journey Map',
+                  'data-hero-cta': 'journey',
+                  role: 'button',
+                  tabindex: '0',
+                  'aria-label': 'View Journey',
                 },
               },
               {

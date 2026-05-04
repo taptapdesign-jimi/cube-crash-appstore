@@ -1,5 +1,4 @@
 import { preloadTntFrames } from './tnt-animation.ts';
-import { resetTileToNormalState } from './tile-state-utils.ts';
 
 type OpenCellDeps = {
   c: number;
@@ -12,17 +11,11 @@ type OpenCellDeps = {
     isWildTnt?: boolean;
     skipBind?: boolean;
     timeScale?: number;
-    /** When true, remove locked empty placeholder at cell and create a new tile instead of unlocking in place (merge-6 reward). */
-    forceFreshPlaceholder?: boolean;
   };
-  removeTile?: (tile: any) => void;
   grid: any[][];
   board: any;
   tiles: any[];
-  makeBoard: {
-    createTile: (args: any) => any;
-    setValue: (tile: any, value: number, addStack?: number, opts?: { immediate?: boolean }) => void;
-  };
+  makeBoard: { createTile: (args: any) => any; setValue: (tile: any, value: number, delay?: number) => void };
   devWarn: (...args: any[]) => void;
   bindTileWithFallback: (tile: any, skipBind: boolean) => void;
   applyWildSkinLocal: (tile: any) => void;
@@ -53,7 +46,6 @@ export function openAtCellCore({
   startTntIdleShake,
   SPAWN,
   gsap,
-  removeTile,
 }: OpenCellDeps){
   const {
     value = null,
@@ -63,23 +55,12 @@ export function openAtCellCore({
     isWildTnt = false,
     skipBind = false,
     timeScale = 1.0,
-    forceFreshPlaceholder = false,
   } = options || {};
   return new Promise((resolve) => {
     // Re-read from grid so we never spawn on a cell that was updated by another spawn (e.g. merge-6)
     let holder = grid?.[r]?.[c] || null;
     // 🔥 RACE FIX: If holder was destroyed (e.g. by magnet pull), treat as empty
     if (holder && (holder as any).destroyed) holder = null;
-
-    if (forceFreshPlaceholder && holder && typeof removeTile === 'function') {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
-      const hasValue = (holder.value | 0) > 0;
-      if (holder.locked && !hasValue && !isWildTile) {
-        if (grid?.[r]?.[c] === holder) grid[r][c] = null;
-        try { removeTile(holder); } catch {}
-        holder = null;
-      }
-    }
 
     // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
     // Check value and wild first — even locked tiles with value > 0 must be skipped.
@@ -161,7 +142,7 @@ export function openAtCellCore({
         resolve(false);
         return;
       }
-      makeBoard.setValue(holder, 6, 0, { immediate: true });
+      makeBoard.setValue(holder, 6, 0);
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed after setValue (wild)', { c, r });
         resolve(false);
@@ -199,10 +180,8 @@ export function openAtCellCore({
         resolve(false);
         return;
       }
-      // Ensure stale wild/magnet flags cannot make _setValueVisuals treat this as wild (hides pips, wrong base).
-      resetTileToNormalState(holder);
       const v = (value == null) ? [1, 2, 3, 4, 5][(Math.random() * 5) | 0] : value;
-      makeBoard.setValue(holder, v, 0, { immediate: true });
+      makeBoard.setValue(holder, v, 0);
       if ((holder as any).destroyed || (holder.value | 0) <= 0) {
         devWarn('⚠️ openAtCell: Holder destroyed or invalid after setValue', { c, r, value: holder?.value });
         resolve(false);

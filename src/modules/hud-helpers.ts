@@ -745,9 +745,7 @@ function makeWildLoader() {
         const hudStage = container.parent;
         if (!hudStage) return;
         const fillWidth = container._fill?.width || 0;
-        const smokeStartX = fillWidth * 0.5;
-        const smokeRange = Math.max(1, fillWidth - smokeStartX);
-        const globalX = container.x + smokeStartX + (Math.random() * smokeRange);
+        const globalX = container.x + (Math.random() * Math.max(1, fillWidth));
         const globalY = container.y + 5 + ((Math.random() - 0.5) * 5); // Spread across bar thickness
         
         // Create anonymous Graphics for smoke
@@ -762,7 +760,7 @@ function makeWildLoader() {
         
         smokeBubble.circle(0, 0, radius).fill({ color: color, alpha: alpha });
         
-        // Position across the active orange fill, biased to the filled half instead of a single edge point.
+        // Position across the full active orange fill instead of a single edge point.
         smokeBubble.x = globalX;
         smokeBubble.y = globalY;
         smokeBubble.zIndex = 2000; // Above the progress bar (which is z-index 1000)

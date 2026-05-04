@@ -441,6 +441,7 @@ let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let busyEnding = false;
+let failScreenFlowInProgress = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
 let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
 const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
@@ -675,6 +676,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   } finally {
     try { setFinalMergeVisualSuppression(false); } catch {}
     busyEnding = false;
+    failScreenFlowInProgress = false;
   }
 }
 
@@ -6568,6 +6570,93 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const isMainWildMagnetMerge = srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
         const isMainWildTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
         const isMainWildOnlyMerge = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt') && !isMainWildMagnetMerge;
+        const playShortWildMerge6TileBlast = (label: string) => {
+          try {
+            const blastCenter = centerInBoard(board, dst, TILE);
+            const blastStrength = TILE * 0.40;
+            const blastDuration = 0.40;
+            const returnDelay = 0.10;
+            const returnDuration = 0.64;
+            const allTiles = Array.from(new Set<Tile>([
+              ...(Array.isArray(STATE?.tiles) ? STATE.tiles : []),
+              ...(Array.isArray(tiles) ? tiles : [])
+            ]));
+            let blastCount = 0;
+            const blastTargets: Array<{
+              tile: Tile;
+              origX: number;
+              origY: number;
+              dirX: number;
+              dirY: number;
+              distance: number;
+            }> = [];
+            let maxDistance = 1;
+
+            allTiles.forEach((tile: Tile) => {
+              if (!tile || tile.destroyed || tile === dst || tile === src) return;
+              if (tile.locked) return;
+              const tileValue = (tile.value | 0);
+              const isWildLike = typeof tile.special === 'string' && tile.special.startsWith('wild');
+              if (!isWildLike && tileValue <= 0) return;
+
+              const origX = tile.x ?? 0;
+              const origY = tile.y ?? 0;
+              const tileCenter = centerInBoard(board, tile, TILE);
+              const dx = tileCenter.x - blastCenter.x;
+              const dy = tileCenter.y - blastCenter.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              let dirX = 0;
+              let dirY = 0;
+              if (distance < 1) {
+                const angle = Math.random() * Math.PI * 2;
+                dirX = Math.cos(angle);
+                dirY = Math.sin(angle);
+              } else {
+                const jitterAngle = (Math.random() - 0.5) * 0.58;
+                const baseAngle = Math.atan2(dy, dx) + jitterAngle;
+                dirX = Math.cos(baseAngle);
+                dirY = Math.sin(baseAngle);
+              }
+
+              maxDistance = Math.max(maxDistance, distance);
+              blastTargets.push({ tile, origX, origY, dirX, dirY, distance });
+            });
+
+            blastTargets.forEach(({ tile, origX, origY, dirX, dirY, distance }) => {
+              const waveProgress = Math.min(1, distance / maxDistance);
+              const waveDelay = (waveProgress * 0.26) + (Math.random() * 0.035);
+              const blastDist = blastStrength * (0.86 + Math.random() * 0.52);
+              const blastX = origX + dirX * blastDist;
+              const blastY = origY + dirY * blastDist;
+              const tileBlastDuration = blastDuration * (0.88 + Math.random() * 0.22);
+              const tileReturnDuration = returnDuration * (0.9 + Math.random() * 0.22);
+              try { gsap.killTweensOf(tile); } catch {}
+              gsap.set(tile, { x: origX, y: origY });
+              gsap.timeline()
+                .to(tile, {
+                  x: blastX,
+                  y: blastY,
+                  duration: tileBlastDuration,
+                  delay: waveDelay,
+                  ease: 'back.out(2.9)',
+                  overwrite: 'auto'
+                })
+                .to(tile, {
+                  x: origX,
+                  y: origY,
+                  duration: tileReturnDuration,
+                  delay: returnDelay,
+                  ease: `elastic.out(1, ${0.30 + Math.random() * 0.12})`,
+                  overwrite: 'auto'
+                });
+              blastCount += 1;
+            });
+
+            devLog(`✨ ${label} merge 6 - short bouncy tile blast started for`, blastCount, 'tiles');
+          } catch (e) {
+            devWarn(`⚠️ ${label} tile blast animation failed:`, e);
+          }
+        };
         
         if (wasWild) {
           // Standard screen shake for all wild merges; TNT merge = 5× jači shake (Explosion Pack)
@@ -6857,6 +6946,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (isWildJuiceMerge) {
               // 🍺 Wild-juice merge: orange shards using template-based pooling (ORIGINAL COLOR)
               devLog('🍺 Wild-juice merge 6 - using template-based pooling with orange shards (ORIGINAL COLOR)');
+              playShortWildMerge6TileBlast('Wild-juice');
               wildJuiceMerge6ShardsTemplated(board, dst, { 
                 zIndex: 9993
               });
@@ -6866,6 +6956,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              playShortWildMerge6TileBlast('Wild-star');
               // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
               try {
                 if (!isSparkleTextActive?.()) showSparkleText();
@@ -9076,6 +9167,11 @@ function checkLevelEnd(){
       checkLevelEndTimer = null;
       // Safety sweep before any decision
       forceRemoveMagnetMergeResidues('checkLevelEnd');
+      if (failScreenFlowInProgress || (window as any).__ccFailScreenPending === true) {
+        devLog('⏳ checkLevelEnd skipped - fail screen flow already pending/in progress');
+        checkLevelEndRetryCount = 0;
+        return;
+      }
       if (busyEnding) {
         devLog('⏳ checkLevelEnd skipped - busyEnding is true');
         checkLevelEndRetryCount = 0; // Reset on exit
@@ -9909,6 +10005,10 @@ function checkLevelEnd(){
       if (!busyEnding) {
         devWarn('🧪 FAILFLOW DEBUG: final fail path starting (will show NO MOVES then fail modal)');
         dumpEndgameSnapshot('checkLevelEnd_stuck_before_fail');
+        // Lock the fail flow immediately. The NO MOVES delay is visual only; no other
+        // endgame check should re-enter stuck handling while it is waiting.
+        failScreenFlowInProgress = true;
+        busyEnding = true;
         // 🔥 BUG FIX: Set fail-screen-pending IMMEDIATELY to block wild spawn during 1.5s wait
         // Prevents: game stuck → wild meter fills → spawnWildFromMeter → openAtCell on destroyed tile → setValue skipped
         (window as any).__ccFailScreenPending = true;
@@ -9926,7 +10026,7 @@ function checkLevelEnd(){
         await waitTracked(1500 + extraWait);
         try { await exitNoMovesText(); } catch {}
         devWarn('🧪 FAILFLOW DEBUG: invoking showFinalScreen now');
-        showFinalScreen();
+        showFinalScreen({ confirmedFailFlow: true });
       } else {
         devWarn('🧪 FAILFLOW DEBUG: blocked because busyEnding=true');
         devWarn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
@@ -10240,14 +10340,15 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   devLog('🍬 Playing combined merge impact + absorb animation on tile');
 }
 
-async function showFinalScreen(){
+async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlow?: boolean } = {}){
   // 🔥 CRITICAL: Guard against multiple simultaneous calls
-  if (busyEnding) {
+  if (busyEnding && !confirmedFailFlow) {
     devWarn('⚠️ showFinalScreen: busyEnding is true, skipping duplicate call');
     return;
   }
   
   busyEnding = true;
+  failScreenFlowInProgress = true;
   // Clear fail-screen-pending flag (busyEnding now covers this)
   (window as any).__ccFailScreenPending = false;
 
@@ -10328,6 +10429,7 @@ async function showFinalScreen(){
     try { setFinalMergeVisualSuppression(false); } catch {}
     // 🔥 FIX: Ensure busyEnding is always reset, even on error
     busyEnding = false;
+    failScreenFlowInProgress = false;
   }
 }
 
@@ -10342,6 +10444,7 @@ function restartGame(){
   try { resetEndgameHint(); } catch {}
   try { clearEndGameCache(); } catch {}
   try { busyEnding = false; } catch {}
+  try { failScreenFlowInProgress = false; } catch {}
 
   const killAllGsapTweensForRestart = () => {
     try {
@@ -10763,6 +10866,7 @@ export function cleanupGame() {
   combo = 0;
   wildMeter = 0;
   busyEnding = false;
+  failScreenFlowInProgress = false;
   
   // Clear timers
   try { 

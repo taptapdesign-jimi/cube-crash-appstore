@@ -28,7 +28,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'img',
                 id: 'slider-parallax-image',
-                className: 'hero-image slider-parallax-image',
+                className: 'hero-image slider-parallax-image hero-image-cta tap-scale',
                 attributes: {
                   src: './assets/crash-cubes-homepage.png',
                   srcset: [
@@ -41,6 +41,10 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                   loading: 'eager',
                   fetchpriority: 'high',
                   decoding: 'async',
+                  'data-hero-cta': 'play',
+                  role: 'button',
+                  tabindex: '0',
+                  'aria-label': 'Play Game',
                 },
               },
               {

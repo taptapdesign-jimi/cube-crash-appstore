@@ -29,10 +29,14 @@ export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig 
             children: [
               {
                 tag: 'img',
-                className: 'hero-image',
+                className: 'hero-image hero-image-cta tap-scale',
                 attributes: {
                   src: './assets/collectibles-box.png',
                   alt: 'Collectibles box',
+                  'data-hero-cta': 'collectibles',
+                  role: 'button',
+                  tabindex: '0',
+                  'aria-label': 'View Collectibles',
                 },
               },
               {

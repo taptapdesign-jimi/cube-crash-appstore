@@ -156,6 +156,38 @@ function cleanupAllScoreSheetResources(): void {
   console.log('✅ score-bottom-sheet: All resources cleaned up!');
 }
 
+/** Undo freeze + pause from opening the sheet; skip if end-run (other) bottom sheet is open. */
+function restoreGameplayAfterScoreSheetDismissed(reason: string): void {
+  if (document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)')) {
+    console.log(`📊 restoreGameplayAfterScoreSheetDismissed(${reason}): skipped — other bottom sheet open`);
+    return;
+  }
+  try {
+    document.querySelectorAll('.score-bottom-sheet-backdrop').forEach((el) => {
+      try {
+        el.remove();
+      } catch {
+        /* non-fatal */
+      }
+    });
+  } catch {
+    /* non-fatal */
+  }
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.style.removeProperty('pointer-events');
+    boardContainer.style.removeProperty('user-select');
+    boardContainer.style.removeProperty('touch-action');
+    console.log(`🔓 Board unfrozen (${reason})`);
+  }
+  try {
+    resumeGame();
+    console.log(`🔓 Game resumed (${reason})`);
+  } catch (error) {
+    console.warn('⚠️ Failed to resume game after score sheet:', error);
+  }
+}
+
 function createModal(): HTMLElement {
   if (modal) {
     modal.remove();
@@ -449,6 +481,7 @@ export function isScoreBottomSheetVisible(): boolean {
     if (isVisible && !modal && !hasDomElement) {
       console.log('🔍 isScoreBottomSheetVisible: isVisible=true but no modal or DOM element - resetting state');
       isVisible = false;
+      restoreGameplayAfterScoreSheetDismissed('visible-flag-stale');
       return false;
     }
     
@@ -561,92 +594,97 @@ export function showScoreBottomSheet(): void {
     (window as any).triggerHapticImpact('light');
   }
 
-  // 🔥 USER REQUEST: Freeze board to prevent tile dragging when score bottom sheet is open
-  const boardContainer = document.getElementById('board-container');
-  if (boardContainer) {
-    boardContainer.style.pointerEvents = 'none';
-    boardContainer.style.userSelect = 'none';
-    boardContainer.style.touchAction = 'none';
-    console.log('🔒 Board frozen - ALL events disabled (score bottom sheet)');
-  }
-  
-  // 🔥 NOTE: Combo timer now uses setTimeout and works independently
-  // No need to kill/restart combo timer when bottom sheet opens/closes
-  
-  // 🔥 USER REQUEST: Pause game to prevent tile interactions
   try {
-    pauseGame();
-    console.log('🔒 Game paused (score bottom sheet)');
-  } catch (error) {
-    console.warn('⚠️ Failed to pause game:', error);
-  }
+    // 🔥 USER REQUEST: Freeze board to prevent tile dragging when score bottom sheet is open
+    const boardContainer = document.getElementById('board-container');
+    if (boardContainer) {
+      boardContainer.style.pointerEvents = 'none';
+      boardContainer.style.userSelect = 'none';
+      boardContainer.style.touchAction = 'none';
+      console.log('🔒 Board frozen - ALL events disabled (score bottom sheet)');
+    }
 
-  const el = createModal();
-  ensureScoreStatDividerExists();
-  console.log('🎯 SCORE BOTTOM SHEET CREATED');
+    // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+    // No need to kill/restart combo timer when bottom sheet opens/closes
 
-  // Mark modal as visible and set closing flag to false
-  (el as any)._closing = false;
+    // 🔥 USER REQUEST: Pause game to prevent tile interactions
+    try {
+      pauseGame();
+      console.log('🔒 Game paused (score bottom sheet)');
+    } catch (error) {
+      console.warn('⚠️ Failed to pause game:', error);
+    }
 
-  // 🔥 USER REQUEST: Update subtitle with current board number
-  let currentBoardNumber = 1;
-  try {
-    const STATE = (window as any).STATE;
-    if (STATE && Number.isFinite(STATE.boardNumber)) {
-      currentBoardNumber = STATE.boardNumber;
-    } else {
-      // Fallback: try to get from saved game state
-      const savedGame = localStorage.getItem('cc_saved_game');
-      if (savedGame) {
-        const gameState = JSON.parse(savedGame);
-        if (Number.isFinite(gameState.boardNumber)) {
-          currentBoardNumber = gameState.boardNumber;
-        } else if (Number.isFinite(gameState.level)) {
-          currentBoardNumber = gameState.level;
+    const el = createModal();
+    ensureScoreStatDividerExists();
+    console.log('🎯 SCORE BOTTOM SHEET CREATED');
+
+    // Mark modal as visible and set closing flag to false
+    (el as any)._closing = false;
+
+    // 🔥 USER REQUEST: Update subtitle with current board number
+    let currentBoardNumber = 1;
+    try {
+      const STATE = (window as any).STATE;
+      if (STATE && Number.isFinite(STATE.boardNumber)) {
+        currentBoardNumber = STATE.boardNumber;
+      } else {
+        // Fallback: try to get from saved game state
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          const gameState = JSON.parse(savedGame);
+          if (Number.isFinite(gameState.boardNumber)) {
+            currentBoardNumber = gameState.boardNumber;
+          } else if (Number.isFinite(gameState.level)) {
+            currentBoardNumber = gameState.level;
+          }
         }
       }
+    } catch (error) {
+      console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
     }
+
+    const titleEl = document.getElementById('score-sheet-title');
+    const subtitleEl = document.getElementById('score-sheet-subtitle');
+    const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
+    if (titleEl) titleEl.textContent = scoreSheetStats.title;
+    if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
+
+    // Update values with mode-specific stats:
+    // - Journey: board-specific
+    // - Arcade: arcade-only (independent from Journey)
+    const highScoreEl = document.getElementById('score-sheet-high-score');
+    const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
+    const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
+    const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
+
+    if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
+    if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
+    if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
+    if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
+
+    console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
+      highScore: scoreSheetStats.highScore,
+      secondaryValue: scoreSheetStats.secondaryValue,
+      secondaryLabel: scoreSheetStats.secondaryLabel,
+      arcade: isArcadeHomeRunMode()
+    });
+
+    // Show modal with animation (same as end-run-modal)
+    el.style.display = 'block';
+    el.style.transform = 'translateY(100%)';
+
+    trackScoreSheetAnimationFrame(() => {
+      el.classList.add('visible');
+      el.style.transition = 'transform 0.3s ease-out';
+      el.style.transform = 'translateY(0)';
+    });
+
+    isVisible = true;
   } catch (error) {
-    console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
+    console.error('❌ Failed to open score bottom sheet — restoring gameplay:', error);
+    restoreGameplayAfterScoreSheetDismissed('show:failed');
   }
-  
-  const titleEl = document.getElementById('score-sheet-title');
-  const subtitleEl = document.getElementById('score-sheet-subtitle');
-  const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
-  if (titleEl) titleEl.textContent = scoreSheetStats.title;
-  if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
-  
-  // Update values with mode-specific stats:
-  // - Journey: board-specific
-  // - Arcade: arcade-only (independent from Journey)
-  const highScoreEl = document.getElementById('score-sheet-high-score');
-  const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
-  const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
-  const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
-  
-  if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
-  if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
-  if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
-  if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
-  
-  console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
-    highScore: scoreSheetStats.highScore,
-    secondaryValue: scoreSheetStats.secondaryValue,
-    secondaryLabel: scoreSheetStats.secondaryLabel,
-    arcade: isArcadeHomeRunMode()
-  });
-
-  // Show modal with animation (same as end-run-modal)
-  el.style.display = 'block';
-  el.style.transform = 'translateY(100%)';
-  
-  trackScoreSheetAnimationFrame(() => {
-    el.classList.add('visible');
-    el.style.transition = 'transform 0.3s ease-out';
-    el.style.transform = 'translateY(0)';
-  });
-
-  isVisible = true;
 }
 
 export function hideScoreBottomSheet(): void {
@@ -683,11 +721,7 @@ export function hideScoreBottomSheet(): void {
         outsideTouchEndHandler = null;
       }
       document.onclick = null;
-      // 🔥 Ensure game resumes if it was paused by the sheet
-      const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
-      if (!endRunModalExists) {
-        try { resumeGame(); } catch {}
-      }
+      restoreGameplayAfterScoreSheetDismissed('hide:no-modal-ref');
       return;
     }
   }
@@ -729,6 +763,7 @@ export function hideScoreBottomSheet(): void {
     // 🔥 FIX: Reset flag on error so modal can be reopened
     console.error('❌ Error during hideScoreBottomSheet:', error);
     (modalEl as any)._closing = false;
+    restoreGameplayAfterScoreSheetDismissed('hide:error');
     return;
   }
 
@@ -757,29 +792,7 @@ export function hideScoreBottomSheet(): void {
     backdrop = null;
     isVisible = false;
     
-    // 🔥 USER REQUEST: Unfreeze board when score bottom sheet closes
-    // Only unfreeze if end-run modal is not open (end-run modal also freezes board)
-    const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
-    if (!endRunModalExists) {
-      const boardContainer = document.getElementById('board-container');
-      if (boardContainer) {
-        boardContainer.style.pointerEvents = 'auto';
-        boardContainer.style.userSelect = '';
-        boardContainer.style.touchAction = '';
-        console.log('🔓 Board unfrozen - ALL events enabled (score bottom sheet closed)');
-      }
-      
-      // 🔥 USER REQUEST: Resume game when score bottom sheet closes
-      try {
-        resumeGame();
-        console.log('🔓 Game resumed (score bottom sheet closed)');
-      } catch (error) {
-        console.warn('⚠️ Failed to resume game:', error);
-      }
-      
-      // 🔥 NOTE: Combo timer now uses setTimeout and works independently
-      // No need to kill/restart combo timer when bottom sheet closes
-    }
+    restoreGameplayAfterScoreSheetDismissed('hide:closed');
     
     console.log('✅ Score bottom sheet fully closed and reset - modal removed, isVisible=false');
   }, 400);
@@ -807,11 +820,7 @@ export function forceHideScoreBottomSheet(): void {
     modal = null;
     backdrop = null;
     cleanupAllScoreSheetResources();
-    // 🔥 Ensure game resumes if it was paused by the sheet
-    const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
-    if (!endRunModalExists) {
-      try { resumeGame(); } catch {}
-    }
+    restoreGameplayAfterScoreSheetDismissed('forceHide:no-modal-ref');
     return;
   }
   
@@ -851,26 +860,7 @@ export function forceHideScoreBottomSheet(): void {
   modal = null;
   backdrop = null;
   
-  // 🔥 USER REQUEST: Unfreeze board when score bottom sheet is force hidden
-  // Only unfreeze if end-run modal is not open (end-run modal also freezes board)
-  const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
-  if (!endRunModalExists) {
-    const boardContainer = document.getElementById('board-container');
-    if (boardContainer) {
-      boardContainer.style.pointerEvents = 'auto';
-      boardContainer.style.userSelect = '';
-      boardContainer.style.touchAction = '';
-      console.log('🔓 Board unfrozen - ALL events enabled (score bottom sheet force hidden)');
-    }
-    
-    // 🔥 USER REQUEST: Resume game when score bottom sheet is force hidden
-    try {
-      resumeGame();
-      console.log('🔓 Game resumed (score bottom sheet force hidden)');
-    } catch (error) {
-      console.warn('⚠️ Failed to resume game:', error);
-    }
-  }
+  restoreGameplayAfterScoreSheetDismissed('forceHide:immediate');
   
   console.log('✅ Score bottom sheet force hidden and removed - isVisible=false, modal=null');
 }
@@ -894,11 +884,7 @@ export function resetScoreBottomSheetState(): void {
     outsideTouchEndHandler = null;
   }
   document.onclick = null;
-  // 🔥 Ensure game resumes if it was paused by the sheet
-  const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
-  if (!endRunModalExists) {
-    try { resumeGame(); } catch {}
-  }
+  restoreGameplayAfterScoreSheetDismissed('reset-state');
   console.log('✅ Score bottom sheet state reset');
 }
 

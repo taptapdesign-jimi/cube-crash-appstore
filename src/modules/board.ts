@@ -233,24 +233,12 @@ function _drawPipsInternal(t: Tile): void {
 }
 
 // ✅ PATCH: nema "ghost alpha"; prazno briše pips i gasi overlay
-export function setValue(t: Tile, v: number, addStack = 0, opts?: { immediate?: boolean }): void {
+export function setValue(t: Tile, v: number, addStack = 0): void {
   t.value = v;
 
   // Pločica NIKAD nije poluprozirna - osim ako nije locked
   if (!t.locked) {
     t.alpha = 1;
-  }
-
-  const immediate = opts?.immediate === true;
-
-  // Spawn/unlock paths: apply pips/textures immediately so parallel spawns and success checks never see a blank face
-  if (immediate) {
-    if (!t || t.destroyed) {
-      console.warn('⚠️ setValue skipped: tile is null or destroyed', { tile: t, destroyed: t?.destroyed });
-      return;
-    }
-    _setValueVisuals(t, v, addStack);
-    return;
   }
 
   // 🔥 OPTIMIZATION: Use requestAnimationFrame for visual updates to prevent blocking during animations

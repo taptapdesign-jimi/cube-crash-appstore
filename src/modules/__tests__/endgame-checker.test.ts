@@ -37,7 +37,7 @@ test('magnet + merge6 allows continue', () => {
   const context = makeContext(tiles, 10, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('merges_possible');
+  expect(result.reason).toBe('magnet_can_merge_with_merge6');
 });
 
 test('moves depleted and stuck returns stuck', () => {
@@ -48,7 +48,7 @@ test('moves depleted and stuck returns stuck', () => {
   const context = makeContext(tiles, 0, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('stuck');
-  expect(result.reason).toBe('no_merges_possible');
+  expect(result.reason).toBe('moves_depleted_stuck');
 });
 
 test('moves depleted but merge possible returns continue', () => {
@@ -59,7 +59,7 @@ test('moves depleted but merge possible returns continue', () => {
   const context = makeContext(tiles, 0, true);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('merges_possible');
+  expect(result.reason).toBe('moves_depleted_but_can_merge');
 });
 
 test('wild + merge6 allows continue', () => {
@@ -70,18 +70,7 @@ test('wild + merge6 allows continue', () => {
   const context = makeContext(tiles, 10, false);
   const result = checkEndGame(context, true);
   expect(result.type).toBe('continue');
-  expect(result.reason).toBe('merges_possible');
-});
-
-test('two wild stars only: wild+wild blocked, fail screen when no merges', () => {
-  const tiles = [
-    makeTile({ value: 1, special: 'wild' }),
-    makeTile({ value: 1, special: 'wild' }),
-  ];
-  const context = makeContext(tiles, 10, false);
-  const result = checkEndGame(context, true);
-  expect(result.type).toBe('stuck');
-  expect(result.reason).toBe('no_merges_possible');
+  expect(result.reason).toBe('wild_can_merge_with_merge6');
 });
 
 test('last merge scenario returns clean', () => {

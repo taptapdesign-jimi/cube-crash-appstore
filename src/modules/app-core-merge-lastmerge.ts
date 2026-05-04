@@ -1,5 +1,3 @@
-import { boardHasPersistentLockedTiles } from './tile-state-utils.ts';
-
 type LastMergeDeps = {
   tiles: any[];
   src: any;
@@ -81,15 +79,8 @@ export function handleLastMergeEarly({
   const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2;
   const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
   const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false);
-  // 🔥 BUG FIX: "2 unlocked tiles" ≠ end of level if locked ice / cells still exist — last-merge skips spawns → soft-lock
-  const hasPersistentLocked = boardHasPersistentLockedTiles(tiles);
-  const isActuallyLastMerge =
-    (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles && !hasPersistentLocked;
-
-  if (hasPersistentLocked && (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles) {
-    devLog('⚠️ LAST MERGE (early): blocked — persistent locked tiles still on board');
-  }
-
+  const isActuallyLastMerge = (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles;
+  
   if (isActuallyLastMerge) {
     const mergeType = isWildLastTwoForCheck ? (isWildMagnetMerge ? 'Wild-magnet + regular' : 'Wild + regular') : 'Regular + regular';
     devLog(`🚨🚨🚨 LAST MERGE DETECTED (early check) - ${mergeType} → merge 6, resetting wild meter and skipping addWildProgress`);

@@ -27,10 +27,14 @@ export function createSettingsSlide(config: SlideConfig): HTMLElementConfig {
             children: [
               {
                 tag: 'img',
-                className: 'hero-image',
+                className: 'hero-image hero-image-cta tap-scale',
                 attributes: {
                   src: './assets/settings-slider.png',
                   alt: 'Settings slider',
+                  'data-hero-cta': 'settings',
+                  role: 'button',
+                  tabindex: '0',
+                  'aria-label': 'Open Settings',
                 },
               },
               {
