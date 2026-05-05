@@ -448,21 +448,24 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           logger.warn('⚠️ Failed to update board high score before Play Again:', error);
         }
 
-        // Stabilize runtime before fresh Journey restart (prevents half-loaded board/HUD race).
-        try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
-        try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
-        try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
-        
         // Restart current board (fresh start)
         // Arcade: use arcade boot path (fresh board 1, no journey state side effects).
         // Journey/interim: keep startNewRunFromJourney flow.
         if (isArcadeHomeRunMode()) {
+          // Do not dispatch cc-navigation here: its delayed global cleanup can erase the freshly
+          // created Arcade board after startNewGame(), leaving HUD/FX visible without tiles.
+          (window as any).__ccArcadePlayAgainStarting = true;
+          try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-arcade-play-again'); } catch {}
           // Force HUD entry/drop sequence for Arcade Play Again (same visual path as fresh arcade start).
           (window as any).__ccTriggerHudDrop = true;
           const uiManagerModule = await import('./ui-manager.js');
           await uiManagerModule.default.startNewGame();
           console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');
         } else if (typeof (window as any).startNewRunFromJourney === 'function') {
+          // Stabilize runtime before fresh Journey restart (prevents half-loaded board/HUD race).
+          try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+          try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
+          try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
           await (window as any).startNewRunFromJourney(boardNumber);
           console.log(`✅ endgame-flow: Restarted board ${boardNumber} via startNewRunFromJourney`);
         } else {

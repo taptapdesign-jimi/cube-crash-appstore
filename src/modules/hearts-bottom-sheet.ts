@@ -450,6 +450,9 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
     
     // Step 2: Force reflow
     void modal.offsetHeight;
+
+    modal.classList.remove('hearts-shadow-fade-out');
+    modal.classList.add('hearts-shadow-active');
     
     // Step 3: Trigger animation immediately
     modal.style.transform = 'translateY(0)';
@@ -528,6 +531,8 @@ export function hideHeartsModal(): void {
     }
     
     // Animate out
+    modalEl.classList.remove('hearts-shadow-active');
+    modalEl.classList.add('hearts-shadow-fade-out');
     modalEl.style.transition = 'transform 0.3s ease-in-out';
     modalEl.style.transform = 'translateY(100%)';
     
@@ -549,6 +554,8 @@ export function hideHeartsModal(): void {
     
     trackHeartsTimeout(() => {
       modalEl.classList.remove('visible');
+      modalEl.classList.remove('hearts-shadow-active');
+      modalEl.classList.add('hearts-shadow-fade-out');
       
       // Force hide
       modalEl.style.display = 'none';

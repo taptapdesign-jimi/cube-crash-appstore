@@ -6,16 +6,61 @@
 
 import { boardStatsService } from '../services/board-stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
-import { pauseGame, resumeGame } from './pause-utils.js';
+import { resumeGame } from './pause-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
 let isVisible = false;
+type ScoreSheetMode = 'score' | 'combo';
+let activeMode: ScoreSheetMode = 'score';
+let scoreSheetLifecycleId = 0;
 
 // Outside click handlers (same pattern as end-run-modal)
 let outsideClickHandler: ((e: Event) => void) | null = null;
 let outsideTouchEndHandler: ((e: TouchEvent) => void) | null = null;
+let outsideTouchCancelHandler: ((e: TouchEvent) => void) | null = null;
+
+function cleanupOutsideScoreSheetHandlers(): void {
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler);
+    outsideClickHandler = null;
+  }
+  if (outsideTouchEndHandler) {
+    document.removeEventListener('touchend', outsideTouchEndHandler);
+    outsideTouchEndHandler = null;
+  }
+  if (outsideTouchCancelHandler) {
+    document.removeEventListener('touchcancel', outsideTouchCancelHandler);
+    outsideTouchCancelHandler = null;
+  }
+  document.onclick = null;
+}
+
+function cleanupStaleScoreSheetBeforeOpen(reason: string): void {
+  const domSheet = document.querySelector('.score-bottom-sheet') as HTMLElement | null;
+  const hasClosingSheet = !!(modal && (modal as any)._closing);
+  if (!domSheet && !backdrop && !hasClosingSheet) return;
+
+  console.log(`🧯 Cleaning stale score sheet before open (${reason})`);
+  scoreSheetLifecycleId += 1;
+  cleanupOutsideScoreSheetHandlers();
+  cleanupAllScoreSheetResources();
+  disableScoreSheetBackdrop();
+
+  try {
+    document.querySelectorAll('.score-bottom-sheet').forEach((el) => el.remove());
+    document.querySelectorAll('.score-bottom-sheet-backdrop').forEach((el) => el.remove());
+  } catch {
+    /* non-fatal */
+  }
+
+  modal = null;
+  backdrop = null;
+  isVisible = false;
+  unfreezeScoreSheetGameplay(`stale-cleanup:${reason}`);
+}
 
 function ensureScoreStatDividerExists(): void {
   const container = document.querySelector('.score-bottom-sheet .score-stats-container') as HTMLElement | null;
@@ -31,22 +76,59 @@ function ensureScoreStatDividerExists(): void {
   container.insertBefore(divider, statItems[1]);
 }
 
-function getScoreSheetStats(boardNumber: number): {
+function getCurrentBoardNumber(): number {
+  let currentBoardNumber = 1;
+  try {
+    const STATE = (window as any).STATE;
+    if (STATE && Number.isFinite(STATE.boardNumber)) {
+      currentBoardNumber = STATE.boardNumber;
+    } else {
+      const savedGame = localStorage.getItem('cc_saved_game');
+      if (savedGame) {
+        const gameState = JSON.parse(savedGame);
+        if (Number.isFinite(gameState.boardNumber)) {
+          currentBoardNumber = gameState.boardNumber;
+        } else if (Number.isFinite(gameState.level)) {
+          currentBoardNumber = gameState.level;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
+  }
+  return currentBoardNumber;
+}
+
+function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMode): {
   title: string;
-  highScore: number;
-  secondaryValue: number;
-  secondaryLabel: string;
-  secondaryIcon: string;
+  primaryValue: number;
+  primaryLabel: string;
+  primaryIcon: string;
+  secondaryValue?: number;
+  secondaryLabel?: string;
+  secondaryIcon?: string;
   subtitle: string;
 } {
+  if (mode === 'combo') {
+    const longestCombo = isArcadeHomeRunMode()
+      ? arcadeStatsService.getStats().longestCombo
+      : boardStatsService.getBoardStats(boardNumber).longestCombo;
+    return {
+      title: 'Combo',
+      primaryValue: longestCombo,
+      primaryLabel: 'Longest combo',
+      primaryIcon: './assets/combo-icon.png',
+      subtitle: 'Build your multiplier with quick moves.<br>Don’t stop to keep your score climbing.'
+    };
+  }
+
   if (isArcadeHomeRunMode()) {
     const arcadeStats = arcadeStatsService.getStats();
     return {
       title: 'High Score',
-      highScore: arcadeStats.highScore,
-      secondaryValue: arcadeStats.longestCombo,
-      secondaryLabel: 'Longest combo',
-      secondaryIcon: './assets/combo-icon.png',
+      primaryValue: arcadeStats.highScore,
+      primaryLabel: 'High score',
+      primaryIcon: './assets/highscore-icon.png',
       subtitle: 'Your best Arcade run lives here.<br>Beat it to set a new record.'
     };
   }
@@ -55,12 +137,98 @@ function getScoreSheetStats(boardNumber: number): {
   const boardNumberStr = boardNumber.toString().padStart(2, '0');
   return {
     title: 'Score Stats',
-    highScore: boardStats.highScore,
-    secondaryValue: boardStats.cubesCracked,
-    secondaryLabel: 'Cubes cracked',
-    secondaryIcon: './assets/cubes-cracked.png',
+    primaryValue: boardStats.highScore,
+    primaryLabel: 'High score',
+    primaryIcon: './assets/highscore-icon.png',
     subtitle: `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`
   };
+}
+
+function renderStatsItems(scoreSheetStats: ReturnType<typeof getScoreSheetStats>): string {
+  const hasSecondary = typeof scoreSheetStats.secondaryValue === 'number';
+  return `
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img id="score-sheet-primary-icon" src="${scoreSheetStats.primaryIcon}" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div id="score-sheet-high-score" class="stat-value">${scoreSheetStats.primaryValue.toLocaleString()}</div>
+              <div id="score-sheet-primary-label" class="stat-label">${scoreSheetStats.primaryLabel}</div>
+            </div>
+          </div>
+          ${hasSecondary ? `
+          <div class="score-stat-divider" aria-hidden="true"></div>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img id="score-sheet-secondary-icon" src="${scoreSheetStats.secondaryIcon}" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div id="score-sheet-secondary-value" class="stat-value">${scoreSheetStats.secondaryValue!.toLocaleString()}</div>
+              <div id="score-sheet-secondary-label" class="stat-label">${scoreSheetStats.secondaryLabel}</div>
+            </div>
+          </div>` : ''}
+  `;
+}
+
+function refreshScoreSheetContent(mode: ScoreSheetMode = activeMode): void {
+  const currentBoardNumber = getCurrentBoardNumber();
+  const scoreSheetStats = getScoreSheetStats(currentBoardNumber, mode);
+  const titleEl = document.getElementById('score-sheet-title');
+  const subtitleEl = document.getElementById('score-sheet-subtitle');
+  const statsContainer = document.querySelector('.score-bottom-sheet .score-stats-container') as HTMLElement | null;
+
+  if (titleEl) titleEl.textContent = scoreSheetStats.title;
+  if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
+  if (statsContainer) statsContainer.innerHTML = renderStatsItems(scoreSheetStats);
+  ensureScoreStatDividerExists();
+
+  console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet stats refreshed for board ${currentBoardNumber}:`, {
+    primaryValue: scoreSheetStats.primaryValue,
+    primaryLabel: scoreSheetStats.primaryLabel,
+    secondaryValue: scoreSheetStats.secondaryValue,
+    secondaryLabel: scoreSheetStats.secondaryLabel,
+    arcade: isArcadeHomeRunMode()
+  });
+}
+
+function getPointerClientPoint(e: Event): { x: number; y: number } | null {
+  const touchEvent = e as TouchEvent;
+  const touch = touchEvent.changedTouches?.[0] || touchEvent.touches?.[0];
+  if (touch) return { x: touch.clientX, y: touch.clientY };
+  const mouseEvent = e as MouseEvent;
+  if (Number.isFinite(mouseEvent.clientX) && Number.isFinite(mouseEvent.clientY)) {
+    return { x: mouseEvent.clientX, y: mouseEvent.clientY };
+  }
+  return null;
+}
+
+function maybeBounceHudAreaFromOutsideTap(e: Event): void {
+  const point = getPointerClientPoint(e);
+  if (!point) return;
+
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    const hudApi = (window as any).HUD;
+    const touchArea = activeMode === 'combo' ? hudRoot?._comboTouchArea : hudRoot?._scoreTouchArea;
+    if (!touchArea || typeof touchArea.getBounds !== 'function') return;
+
+    const bounds = touchArea.getBounds();
+    const withinHudArea =
+      point.x >= bounds.x &&
+      point.x <= bounds.x + bounds.width &&
+      point.y >= bounds.y &&
+      point.y <= bounds.y + bounds.height;
+
+    if (!withinHudArea) return;
+
+    if (activeMode === 'combo' && typeof hudApi?.bounceComboArea === 'function') {
+      hudApi.bounceComboArea();
+    } else if (typeof hudApi?.bounceScoreArea === 'function') {
+      hudApi.bounceScoreArea();
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to bounce HUD area from score sheet outside tap:', error);
+  }
 }
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, rAFs, and event listeners for cleanup
@@ -156,6 +324,41 @@ function cleanupAllScoreSheetResources(): void {
   console.log('✅ score-bottom-sheet: All resources cleaned up!');
 }
 
+function disableScoreSheetBackdrop(): void {
+  try {
+    if (backdrop) {
+      backdrop.style.pointerEvents = 'none';
+      backdrop.style.display = 'none';
+    }
+    document.querySelectorAll('.score-bottom-sheet-backdrop').forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.style.pointerEvents = 'none';
+        el.style.display = 'none';
+      }
+    });
+  } catch {
+    /* non-fatal */
+  }
+}
+
+function unfreezeScoreSheetGameplay(reason: string): void {
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.style.removeProperty('pointer-events');
+    boardContainer.style.removeProperty('user-select');
+    boardContainer.style.removeProperty('touch-action');
+  }
+  try {
+    if (container && typeof (container as any).set === 'function') {
+      (container as any).set('gamePaused', false);
+    }
+  } catch {
+    /* non-fatal */
+  }
+  (window as any)._gamePaused = false;
+  console.log(`🔓 Score sheet gameplay unfrozen (${reason})`);
+}
+
 /** Undo freeze + pause from opening the sheet; skip if end-run (other) bottom sheet is open. */
 function restoreGameplayAfterScoreSheetDismissed(reason: string): void {
   if (document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)')) {
@@ -180,6 +383,7 @@ function restoreGameplayAfterScoreSheetDismissed(reason: string): void {
     boardContainer.style.removeProperty('touch-action');
     console.log(`🔓 Board unfrozen (${reason})`);
   }
+  unfreezeScoreSheetGameplay(reason);
   try {
     resumeGame();
     console.log(`🔓 Game resumed (${reason})`);
@@ -219,29 +423,8 @@ function createModal(): HTMLElement {
   // CRITICAL: Start with display: none to prevent flash
   modalEl.style.display = 'none';
 
-  // 🔥 USER REQUEST: Get current board number for subtitle
-  let currentBoardNumber = 1;
-  try {
-    const STATE = (window as any).STATE;
-    if (STATE && Number.isFinite(STATE.boardNumber)) {
-      currentBoardNumber = STATE.boardNumber;
-    } else {
-      // Fallback: try to get from saved game state
-      const savedGame = localStorage.getItem('cc_saved_game');
-      if (savedGame) {
-        const gameState = JSON.parse(savedGame);
-        if (Number.isFinite(gameState.boardNumber)) {
-          currentBoardNumber = gameState.boardNumber;
-        } else if (Number.isFinite(gameState.level)) {
-          currentBoardNumber = gameState.level;
-        }
-      }
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
-  }
-  
-  const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
+  const currentBoardNumber = getCurrentBoardNumber();
+  const scoreSheetStats = getScoreSheetStats(currentBoardNumber, activeMode);
   const titleText = scoreSheetStats.title;
   const subtitleText = scoreSheetStats.subtitle;
   
@@ -254,28 +437,7 @@ function createModal(): HTMLElement {
           <p id="score-sheet-subtitle">${subtitleText}</p>
         </div>
         <div class="score-stats-container">
-          <!-- High Score -->
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div id="score-sheet-high-score" class="stat-value">0</div>
-              <div class="stat-label">High score</div>
-            </div>
-          </div>
-          <div class="score-stat-divider" aria-hidden="true"></div>
-          
-          <!-- Cubes Cracked -->
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img id="score-sheet-secondary-icon" src="./assets/cubes-cracked.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div id="score-sheet-secondary-value" class="stat-value">0</div>
-              <div id="score-sheet-secondary-label" class="stat-label">Cubes cracked</div>
-            </div>
-          </div>
+${renderStatsItems(scoreSheetStats)}
         </div>
       </div>
     </div>
@@ -289,6 +451,7 @@ function createModal(): HTMLElement {
 
   document.body.appendChild(backdropEl);
   document.body.appendChild(modalEl);
+  modal = modalEl;
   return modalEl;
 }
 
@@ -350,8 +513,17 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = 'translateY(100vh)';
       // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
       isVisible = false;
+      disableScoreSheetBackdrop();
+      modalEl.classList.remove('score-sheet-shadow-active');
+      modalEl.classList.add('score-sheet-shadow-fade-out');
+      unfreezeScoreSheetGameplay('drag-close-touch');
       console.log('📊 Score sheet drag close - isVisible reset to false immediately');
+      const dragCloseLifecycleId = scoreSheetLifecycleId;
       trackScoreSheetTimeout(() => {
+        if (dragCloseLifecycleId !== scoreSheetLifecycleId || modalEl !== modal) {
+          console.log('📊 Skipping stale score sheet drag close timeout');
+          return;
+        }
         console.log('📊 setTimeout callback - calling hideScoreBottomSheet()');
         hideScoreBottomSheet();
       }, 400);
@@ -404,8 +576,17 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = 'translateY(100vh)';
       // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
       isVisible = false;
+      disableScoreSheetBackdrop();
+      modalEl.classList.remove('score-sheet-shadow-active');
+      modalEl.classList.add('score-sheet-shadow-fade-out');
+      unfreezeScoreSheetGameplay('drag-close-mouse');
       console.log('📊 Score sheet drag close (mouse) - isVisible reset to false immediately');
+      const dragCloseLifecycleId = scoreSheetLifecycleId;
       trackScoreSheetTimeout(() => {
+        if (dragCloseLifecycleId !== scoreSheetLifecycleId || modalEl !== modal) {
+          console.log('📊 Skipping stale score sheet mouse drag close timeout');
+          return;
+        }
         console.log('📊 setTimeout callback (mouse) - calling hideScoreBottomSheet()');
         hideScoreBottomSheet();
       }, 400);
@@ -421,14 +602,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
 
 function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   // Clean up previous handlers first
-  if (outsideClickHandler) {
-    document.removeEventListener('click', outsideClickHandler);
-    outsideClickHandler = null;
-  }
-  if (outsideTouchEndHandler) {
-    document.removeEventListener('touchend', outsideTouchEndHandler);
-    outsideTouchEndHandler = null;
-  }
+  cleanupOutsideScoreSheetHandlers();
+  let backdropStartY: number | null = null;
+  let backdropDragCloseStarted = false;
   
   // Create named handlers for proper cleanup
   outsideClickHandler = (e: Event) => {
@@ -437,6 +613,7 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       // Check if modal is visible (has 'visible' class or isVisible flag is true)
       if (modalEl.classList.contains('visible') || isVisible) {
         console.log('📊 Outside click detected - closing score bottom sheet');
+        maybeBounceHudAreaFromOutsideTap(e);
         hideScoreBottomSheet();
       }
     }
@@ -448,6 +625,17 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       // Check if modal is visible (has 'visible' class or isVisible flag is true)
       if (modalEl.classList.contains('visible') || isVisible) {
         console.log('📊 Outside touch detected - closing score bottom sheet');
+        maybeBounceHudAreaFromOutsideTap(e);
+        hideScoreBottomSheet();
+      }
+    }
+  };
+
+  outsideTouchCancelHandler = (e: TouchEvent) => {
+    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+      if (modalEl.classList.contains('visible') || isVisible) {
+        console.log('📊 Outside touch cancelled - closing score bottom sheet safely');
+        maybeBounceHudAreaFromOutsideTap(e);
         hideScoreBottomSheet();
       }
     }
@@ -463,9 +651,41 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       trackScoreSheetEventListener(document, 'touchend', outsideTouchEndHandler, { passive: false });
       console.log('📊 Outside touch handler attached for score bottom sheet');
     }
+    if (outsideTouchCancelHandler && modalEl && modalEl.parentNode) {
+      trackScoreSheetEventListener(document, 'touchcancel', outsideTouchCancelHandler, { passive: false });
+      console.log('📊 Outside touchcancel handler attached for score bottom sheet');
+    }
     if (backdrop && modalEl && modalEl.parentNode) {
-      trackScoreSheetEventListener(backdrop, 'click', () => hideScoreBottomSheet());
-      trackScoreSheetEventListener(backdrop, 'touchend', () => hideScoreBottomSheet(), { passive: false });
+      trackScoreSheetEventListener(backdrop, 'touchstart', (event) => {
+        const point = getPointerClientPoint(event);
+        backdropStartY = point?.y ?? null;
+        backdropDragCloseStarted = false;
+      }, { passive: true });
+      trackScoreSheetEventListener(backdrop, 'touchmove', (event) => {
+        if (backdropDragCloseStarted || backdropStartY === null) return;
+        const point = getPointerClientPoint(event);
+        if (!point) return;
+
+        const deltaY = point.y - backdropStartY;
+        if (deltaY > 28) {
+          backdropDragCloseStarted = true;
+          event.preventDefault();
+          console.log('📊 Outside downward drag detected - closing score bottom sheet safely');
+          hideScoreBottomSheet();
+        }
+      }, { passive: false });
+      trackScoreSheetEventListener(backdrop, 'click', (event) => {
+        maybeBounceHudAreaFromOutsideTap(event);
+        hideScoreBottomSheet();
+      });
+      trackScoreSheetEventListener(backdrop, 'touchend', (event) => {
+        maybeBounceHudAreaFromOutsideTap(event);
+        hideScoreBottomSheet();
+      }, { passive: false });
+      trackScoreSheetEventListener(backdrop, 'touchcancel', (event) => {
+        maybeBounceHudAreaFromOutsideTap(event);
+        hideScoreBottomSheet();
+      }, { passive: false });
     }
   }, 200);
 }
@@ -531,63 +751,26 @@ if (typeof window !== 'undefined') {
   (window as any).isScoreBottomSheetVisible = isScoreBottomSheetVisible;
 }
 
-export function showScoreBottomSheet(): void {
+export function getScoreBottomSheetMode(): ScoreSheetMode {
+  return activeMode;
+}
+
+export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
+  activeMode = mode;
   // 🔥 SAME LOGIC AS END RUN MODAL: Check if already visible
   // 🔥 CRITICAL FIX: If already visible, refresh stats instead of returning
   // This ensures stats are updated when reset is clicked on detail card modal
   if (isScoreBottomSheetVisible() && modal) {
-    console.log('📊 Score bottom sheet already open - refreshing stats');
-    ensureScoreStatDividerExists();
-    
-    // Get current board number
-    let currentBoardNumber = 1;
-    try {
-      const STATE = (window as any).STATE;
-      if (STATE && Number.isFinite(STATE.boardNumber)) {
-        currentBoardNumber = STATE.boardNumber;
-      } else {
-        const savedGame = localStorage.getItem('cc_saved_game');
-        if (savedGame) {
-          const gameState = JSON.parse(savedGame);
-          if (Number.isFinite(gameState.boardNumber)) {
-            currentBoardNumber = gameState.boardNumber;
-          } else if (Number.isFinite(gameState.level)) {
-            currentBoardNumber = gameState.level;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to get board number for score bottom sheet refresh:', error);
-    }
-    
-    const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
-    
-    // Update values with fresh stats
-    const titleEl = document.getElementById('score-sheet-title');
-    const subtitleEl = document.getElementById('score-sheet-subtitle');
-    const highScoreEl = document.getElementById('score-sheet-high-score');
-    const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
-    const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
-    const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
-    
-    if (titleEl) titleEl.textContent = scoreSheetStats.title;
-    if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
-    if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
-    if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
-    if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
-    if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
-    
-    console.log(`📊 Score bottom sheet stats refreshed for board ${currentBoardNumber}:`, {
-      highScore: scoreSheetStats.highScore,
-      secondaryValue: scoreSheetStats.secondaryValue,
-      secondaryLabel: scoreSheetStats.secondaryLabel,
-      arcade: isArcadeHomeRunMode()
-    });
-    
+    console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet already open - refreshing stats`);
+    refreshScoreSheetContent(mode);
     return; // Don't recreate modal, just refresh stats
   }
 
-  console.log('📊 Opening score bottom sheet');
+  cleanupStaleScoreSheetBeforeOpen('show');
+  scoreSheetLifecycleId += 1;
+  const openLifecycleId = scoreSheetLifecycleId;
+
+  console.log(`📊 Opening ${mode === 'combo' ? 'combo' : 'score'} bottom sheet`);
 
   // Light haptic for opening bottom sheet
   if (typeof (window as any).triggerHapticImpact === 'function') {
@@ -607,12 +790,15 @@ export function showScoreBottomSheet(): void {
     // 🔥 NOTE: Combo timer now uses setTimeout and works independently
     // No need to kill/restart combo timer when bottom sheet opens/closes
 
-    // 🔥 USER REQUEST: Pause game to prevent tile interactions
+    // Soft-pause only: block interactions, but keep GSAP/PIXI running so HUD tap bounces render.
     try {
-      pauseGame();
-      console.log('🔒 Game paused (score bottom sheet)');
+      if (container && typeof (container as any).set === 'function') {
+        (container as any).set('gamePaused', true);
+      }
+      (window as any)._gamePaused = true;
+      console.log('🔒 Game soft-paused (score bottom sheet)');
     } catch (error) {
-      console.warn('⚠️ Failed to pause game:', error);
+      console.warn('⚠️ Failed to soft-pause game:', error);
     }
 
     const el = createModal();
@@ -622,49 +808,13 @@ export function showScoreBottomSheet(): void {
     // Mark modal as visible and set closing flag to false
     (el as any)._closing = false;
 
-    // 🔥 USER REQUEST: Update subtitle with current board number
-    let currentBoardNumber = 1;
-    try {
-      const STATE = (window as any).STATE;
-      if (STATE && Number.isFinite(STATE.boardNumber)) {
-        currentBoardNumber = STATE.boardNumber;
-      } else {
-        // Fallback: try to get from saved game state
-        const savedGame = localStorage.getItem('cc_saved_game');
-        if (savedGame) {
-          const gameState = JSON.parse(savedGame);
-          if (Number.isFinite(gameState.boardNumber)) {
-            currentBoardNumber = gameState.boardNumber;
-          } else if (Number.isFinite(gameState.level)) {
-            currentBoardNumber = gameState.level;
-          }
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
-    }
+    const currentBoardNumber = getCurrentBoardNumber();
+    const scoreSheetStats = getScoreSheetStats(currentBoardNumber, mode);
+    refreshScoreSheetContent(mode);
 
-    const titleEl = document.getElementById('score-sheet-title');
-    const subtitleEl = document.getElementById('score-sheet-subtitle');
-    const scoreSheetStats = getScoreSheetStats(currentBoardNumber);
-    if (titleEl) titleEl.textContent = scoreSheetStats.title;
-    if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
-
-    // Update values with mode-specific stats:
-    // - Journey: board-specific
-    // - Arcade: arcade-only (independent from Journey)
-    const highScoreEl = document.getElementById('score-sheet-high-score');
-    const secondaryValueEl = document.getElementById('score-sheet-secondary-value');
-    const secondaryLabelEl = document.getElementById('score-sheet-secondary-label');
-    const secondaryIconEl = document.getElementById('score-sheet-secondary-icon') as HTMLImageElement | null;
-
-    if (highScoreEl) highScoreEl.textContent = scoreSheetStats.highScore.toLocaleString();
-    if (secondaryValueEl) secondaryValueEl.textContent = scoreSheetStats.secondaryValue.toLocaleString();
-    if (secondaryLabelEl) secondaryLabelEl.textContent = scoreSheetStats.secondaryLabel;
-    if (secondaryIconEl) secondaryIconEl.src = scoreSheetStats.secondaryIcon;
-
-    console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
-      highScore: scoreSheetStats.highScore,
+    console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet showing board ${currentBoardNumber} stats:`, {
+      primaryValue: scoreSheetStats.primaryValue,
+      primaryLabel: scoreSheetStats.primaryLabel,
       secondaryValue: scoreSheetStats.secondaryValue,
       secondaryLabel: scoreSheetStats.secondaryLabel,
       arcade: isArcadeHomeRunMode()
@@ -673,8 +823,12 @@ export function showScoreBottomSheet(): void {
     // Show modal with animation (same as end-run-modal)
     el.style.display = 'block';
     el.style.transform = 'translateY(100%)';
+    void el.offsetHeight;
+    el.classList.remove('score-sheet-shadow-fade-out');
+    el.classList.add('score-sheet-shadow-active');
 
     trackScoreSheetAnimationFrame(() => {
+      if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
       el.classList.add('visible');
       el.style.transition = 'transform 0.3s ease-out';
       el.style.transform = 'translateY(0)';
@@ -712,15 +866,7 @@ export function hideScoreBottomSheet(): void {
       modal = null;
       cleanupAllScoreSheetResources();
       // Clean up handlers anyway
-      if (outsideClickHandler) {
-        document.removeEventListener('click', outsideClickHandler);
-        outsideClickHandler = null;
-      }
-      if (outsideTouchEndHandler) {
-        document.removeEventListener('touchend', outsideTouchEndHandler);
-        outsideTouchEndHandler = null;
-      }
-      document.onclick = null;
+      cleanupOutsideScoreSheetHandlers();
       restoreGameplayAfterScoreSheetDismissed('hide:no-modal-ref');
       return;
     }
@@ -728,32 +874,30 @@ export function hideScoreBottomSheet(): void {
   
   if ((modalEl as any)._closing) {
     console.warn('⚠️ hideScoreBottomSheet: Modal already closing');
+    disableScoreSheetBackdrop();
+    cleanupOutsideScoreSheetHandlers();
+    unfreezeScoreSheetGameplay('hide:already-closing');
     return;
   }
 
   (modalEl as any)._closing = true;
+  const closeLifecycleId = scoreSheetLifecycleId;
   // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when closing starts
   // This ensures isScoreBottomSheetVisible() returns false right away
   isVisible = false;
 
   console.log('📊 Closing score bottom sheet - isVisible reset to false', { isVisible });
+  disableScoreSheetBackdrop();
+  modalEl.classList.remove('score-sheet-shadow-active');
+  modalEl.classList.add('score-sheet-shadow-fade-out');
+  unfreezeScoreSheetGameplay('hide:start');
 
   // 🔥 FIX: Wrap in try-catch to ensure flag is reset on error
   try {
     // 🔥 REMOVED: Haptic on close - not needed for outside click dismiss
 
     // Clean up outside click handlers immediately
-    if (outsideClickHandler) {
-      document.removeEventListener('click', outsideClickHandler);
-      outsideClickHandler = null;
-    }
-    if (outsideTouchEndHandler) {
-      document.removeEventListener('touchend', outsideTouchEndHandler);
-      outsideTouchEndHandler = null;
-    }
-
-    // Clear document.onclick if it was set (legacy cleanup)
-    document.onclick = null;
+    cleanupOutsideScoreSheetHandlers();
 
     // Animate out with 0.4s duration (same as end-run-modal)
     modalEl.classList.remove('visible');
@@ -769,6 +913,10 @@ export function hideScoreBottomSheet(): void {
 
   // Remove modal after animation
   trackScoreSheetTimeout(() => {
+    if (closeLifecycleId !== scoreSheetLifecycleId || modalEl !== modal) {
+      console.log('📊 Skipping stale score sheet close timeout');
+      return;
+    }
     // 🔥 MEMORY LEAK FIX: Cleanup all resources before removing modal
     cleanupAllScoreSheetResources();
     
@@ -826,23 +974,18 @@ export function forceHideScoreBottomSheet(): void {
   
   // 🔥 CRITICAL: Clean up outside click handlers FIRST (before removing modal)
   // This prevents event handlers from trying to access removed modal
-  if (outsideClickHandler) {
-    document.removeEventListener('click', outsideClickHandler);
-    outsideClickHandler = null;
-  }
-  if (outsideTouchEndHandler) {
-    document.removeEventListener('touchend', outsideTouchEndHandler);
-    outsideTouchEndHandler = null;
-  }
-  document.onclick = null;
+  cleanupOutsideScoreSheetHandlers();
   
   // Reset visibility state immediately
   isVisible = false;
   (modalEl as any)._closing = false;
+  unfreezeScoreSheetGameplay('forceHide:start');
   cleanupAllScoreSheetResources();
   
   // Immediately hide and remove from DOM (no animation)
   modalEl.classList.remove('visible');
+  modalEl.classList.remove('score-sheet-shadow-active');
+  modalEl.classList.add('score-sheet-shadow-fade-out');
   modalEl.style.display = 'none';
   modalEl.style.visibility = 'hidden';
   modalEl.style.transform = 'translateY(100%)';
@@ -875,15 +1018,8 @@ export function resetScoreBottomSheetState(): void {
   }
   backdrop = null;
   cleanupAllScoreSheetResources();
-  if (outsideClickHandler) {
-    document.removeEventListener('click', outsideClickHandler);
-    outsideClickHandler = null;
-  }
-  if (outsideTouchEndHandler) {
-    document.removeEventListener('touchend', outsideTouchEndHandler);
-    outsideTouchEndHandler = null;
-  }
-  document.onclick = null;
+  cleanupOutsideScoreSheetHandlers();
+  unfreezeScoreSheetGameplay('reset-state:start');
   restoreGameplayAfterScoreSheetDismissed('reset-state');
   console.log('✅ Score bottom sheet state reset');
 }
@@ -891,6 +1027,8 @@ export function resetScoreBottomSheetState(): void {
 // Export to window for HUD access
 if (typeof window !== 'undefined') {
   (window as any).showScoreBottomSheet = showScoreBottomSheet;
+  (window as any).showComboBottomSheet = () => showScoreBottomSheet('combo');
+  (window as any).getScoreBottomSheetMode = getScoreBottomSheetMode;
   (window as any).hideScoreBottomSheet = hideScoreBottomSheet;
   (window as any).forceHideScoreBottomSheet = forceHideScoreBottomSheet;
 }

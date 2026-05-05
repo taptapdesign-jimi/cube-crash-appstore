@@ -125,6 +125,9 @@ function figmaToPercent(xOffset: number, yOffset: number): { x: number; y: numbe
 // This ensures identical positions on all devices (iPhone 13, 14, 17, etc.)
 const BASE_VIEWPORT_WIDTH = 390; // iPhone 13/14 base width in pixels (for conversion calculations)
 const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for conversion calculations)
+const JOURNEY_CONTENT_TOP_BASE_PX = 50;
+const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
+const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -136,6 +139,10 @@ function pxToVW(px: number, baseWidth: number = BASE_VIEWPORT_WIDTH): number {
 // This ensures cards are always at the same position relative to screen height
 function pxToVH(px: number, baseHeight: number = BASE_VIEWPORT_HEIGHT): number {
   return (px / baseHeight) * 100;
+}
+
+function getJourneyContentTopPx(): number {
+  return (pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight;
 }
 
 // Legacy helpers for backward compatibility - now convert to viewport units
@@ -1462,7 +1469,7 @@ class JourneyBoardsManager {
     // Background starts at a fixed position from top of viewport
     // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
     // Convert to viewport height units for consistency
-    const FIXED_BG_TOP_VH = pxToVH(50, BASE_VIEWPORT_HEIGHT); // Fixed top position in vh (moved up 150px from original 200px)
+    const FIXED_BG_TOP_VH = pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT); // Shared Journey content top anchor
     
     // 🔥 PRODUCTION READY: Verify image is in browser cache before rendering
     // This ensures instant display, no loading delay
@@ -1489,7 +1496,7 @@ class JourneyBoardsManager {
       
       // 🔥 SCROLLABLE FIX: Put elements INSIDE journey-boards-container so they scroll with content
       // Calculate top offset in pixels for absolute positioning within container
-      const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+      const FIXED_BG_TOP_PX = getJourneyContentTopPx();
       
       // Set container height to accommodate FULL background image height + top offset
       const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
@@ -1518,7 +1525,7 @@ class JourneyBoardsManager {
       const imageAspectRatio = KNOWN_ASPECT_RATIO;
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
       const bgHeightPx = viewportWidth * imageAspectRatio;
-      const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+      const FIXED_BG_TOP_PX = getJourneyContentTopPx();
       const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
       container.style.height = `${containerHeightPx}px`;
       container.style.minHeight = `${containerHeightPx}px`;
@@ -1528,7 +1535,7 @@ class JourneyBoardsManager {
     // Use fallback aspect ratio for initial calculation
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const initialBgHeightPx = viewportWidth * KNOWN_ASPECT_RATIO;
-    const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+    const FIXED_BG_TOP_PX = getJourneyContentTopPx();
     const initialContainerHeightPx = initialBgHeightPx + FIXED_BG_TOP_PX;
     
     // Set initial container height
@@ -1724,7 +1731,7 @@ class JourneyBoardsManager {
     
     // 🔥 SCROLLABLE FIX: Use pixel-based positioning within scrollable container
     // Background starts at FIXED_BG_TOP_PX, so we add card's top offset to that
-    const FIXED_BG_TOP_PX = (pxToVH(50, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight; // Moved up 150px from original 200px
+    const FIXED_BG_TOP_PX = getJourneyContentTopPx();
     
     // Calculate background height in pixels
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
@@ -5635,18 +5642,7 @@ class JourneyBoardsManager {
           const containerWidth = container.offsetWidth || container.clientWidth || 375;
           const calculatedHeight = containerWidth * imageAspectRatio;
           
-          // Find the "Boards" subtitle header
-          const sectionHeader = container.closest('.collectibles-section')?.querySelector('.collectibles-section-header');
-          let topOffset = 0;
-          
-          if (sectionHeader) {
-            const containerRect = container.getBoundingClientRect();
-            const headerRect = sectionHeader.getBoundingClientRect();
-            const containerTop = containerRect.top;
-            const headerBottom = headerRect.bottom;
-            const headerBottomRelativeToContainer = headerBottom - containerTop;
-            topOffset = Math.max(0, headerBottomRelativeToContainer + 160 - 24 - 24 - 24);
-          }
+          const topOffset = getJourneyContentTopPx();
           
           // Update positions - hide during update if position changed significantly
           const currentTop = parseFloat(bgContainer.style.top) || 0;
@@ -5664,6 +5660,12 @@ class JourneyBoardsManager {
           bgContainer.style.height = `${calculatedHeight}px`;
           bgContainer.style.top = `${topOffset}px`;
           bgContainer.style.position = 'absolute';
+
+          const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+          if (cardsContainer) {
+            cardsContainer.style.height = `${calculatedHeight}px`;
+            cardsContainer.style.top = `${topOffset}px`;
+          }
           
           // Show container after position is set (if it was hidden)
           if (positionChanged) {

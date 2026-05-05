@@ -112,23 +112,6 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                 children: [
                   {
                     tag: 'div',
-                    className: 'collectibles-section-header',
-                    children: [
-                      {
-                        tag: 'h2',
-                        className: 'collectibles-section-title',
-                        text: 'Boards',
-                      },
-                      {
-                        tag: 'span',
-                        id: 'boards-counter',
-                        className: 'collectibles-counter',
-                        text: '09/25',
-                      },
-                    ],
-                  },
-                  {
-                    tag: 'div',
                     id: 'journey-boards-container',
                     className: 'journey-boards-container',
                   },

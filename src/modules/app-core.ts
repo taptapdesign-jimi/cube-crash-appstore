@@ -446,6 +446,14 @@ let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to fo
 let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
 const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
 
+function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'): void {
+  wildMagnetPullInProgress = active;
+  try {
+    (window as any).__ccWildMagnetPullInProgress = active;
+  } catch {}
+  devLog(`🧲 Wild-magnet pull interaction guard ${active ? 'ON' : 'OFF'} (${reason})`);
+}
+
 function beginEndgameGuard(source: string, ttlMs: number = 1500): number {
   const normalizedSource = String(source || 'unknown');
   const now = Date.now();
@@ -1519,12 +1527,16 @@ export async function boot(){
           if (__ccNavCleanupTimer) {
             clearTimeout(__ccNavCleanupTimer);
             __ccNavCleanupTimer = null;
-          }
-          __ccNavCleanupTimer = window.setTimeout(() => {
-            __ccNavCleanupTimer = null;
-            try { cleanupFxForBoardReset('cc-navigation'); } catch {}
-            try { softResetBoardView('cc-navigation'); } catch {}
-          }, 220);
+	          }
+	          __ccNavCleanupTimer = window.setTimeout(() => {
+	            __ccNavCleanupTimer = null;
+	            if ((window as any).__ccArcadePlayAgainStarting === true) {
+	              devLog('⏭️ Skipping delayed cc-navigation cleanup during Arcade Play Again start');
+	              return;
+	            }
+	            try { cleanupFxForBoardReset('cc-navigation'); } catch {}
+	            try { softResetBoardView('cc-navigation'); } catch {}
+	          }, 220);
         } catch {
           try { cleanupFxForBoardReset('cc-navigation'); } catch {}
           try { softResetBoardView('cc-navigation'); } catch {}
@@ -2399,6 +2411,7 @@ export async function boot(){
     beginEndgameGuard: (source: string, ttlMs?: number) => beginEndgameGuard(source, ttlMs),
     endEndgameGuard: (source: string) => endEndgameGuard(source),
     getEndgameGuardState: () => getEndgameGuardState(),
+    isWildMagnetPullInProgress: () => wildMagnetPullInProgress === true,
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
@@ -5507,7 +5520,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       const hasActivePullAnimations = STATE.tiles.some((t: any) => t && !t.destroyed && t._wildMagnetAffected === true);
       if (wildMagnetPullInProgress && !hasActivePullAnimations) {
         devLog('🧲 Resetting wildMagnetPullInProgress flag - no active pull animations found');
-        wildMagnetPullInProgress = false;
+        setWildMagnetPullInProgress(false, 'no-active-pull-animations');
       }
       
       // 🔥 CRITICAL: Prevent overlapping wild-magnet pull animations
@@ -5516,7 +5529,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Set mult to 1 for regular merge 6 scoring
         mult = 1;
       } else {
-        wildMagnetPullInProgress = true;
+        setWildMagnetPullInProgress(true, 'pull-start');
       devLog('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
       
       // Find up to 4 nearest tiles to the merge location (use dst position BEFORE merge animation)
@@ -5620,7 +5633,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 CRITICAL: Reset wildMagnetPullInProgress if no tiles to pull
         // Otherwise, subsequent magnet merges will be blocked!
-        wildMagnetPullInProgress = false;
+        setWildMagnetPullInProgress(false, 'no-tiles-to-pull');
         devLog('✅ wildMagnetPullInProgress reset to false (no tiles to pull)');
         
         // 🔥 POJEDNOSTAVLJENO: Flag više nije potreban - logika u onComplete callback-u provjerava isMagnetPullMergeFinal
@@ -5790,7 +5803,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 CRITICAL: Reset wildMagnetPullInProgress when cleanup is called (FAST DRAG BUG FIX)
           // This ensures that a new pull can start even if the previous one was interrupted
           if (wildMagnetPullInProgress) {
-            wildMagnetPullInProgress = false;
+            setWildMagnetPullInProgress(false, 'cleanup-all-pull-animations');
             devLog('✅ wildMagnetPullInProgress reset to false after cleanup');
           }
           try { (window as any).__ccActiveMagnetPullCleanup = null; } catch {}
@@ -5934,7 +5947,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 cleanupAllPullAnimations();
                 
                 // 🔥 CRITICAL: Reset wildMagnetPullInProgress after successful merge
-                wildMagnetPullInProgress = false;
+                setWildMagnetPullInProgress(false, 'merge-completed');
                 devLog('✅ Wild-magnet pull animation guard reset (merge completed)');
                 
                 // 🔥 CRITICAL: DON'T clean up flags immediately - they need to stay until onComplete callback checks them
@@ -5961,7 +5974,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   }
                 });
                 // Reset guard after cleanup (redundant but safe - cleanupAllPullAnimations also resets)
-                wildMagnetPullInProgress = false;
+                setWildMagnetPullInProgress(false, 'not-enough-valid-tiles');
               }
             } catch (err) {
               devError('❌ Error merging pulled tiles:', err);
@@ -5980,7 +5993,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
               });
               // Reset guard after error
-              wildMagnetPullInProgress = false;
+              setWildMagnetPullInProgress(false, 'merge-error');
             }
           }
         };
@@ -6220,7 +6233,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // Cleanup all timelines (MEMORY LEAK FIX)
             cleanupAllPullAnimations();
             // Reset guard on error
-            wildMagnetPullInProgress = false;
+            setWildMagnetPullInProgress(false, 'multiplier-callback-error');
           }
         };
       }
@@ -6248,7 +6261,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             });
             
-            wildMagnetPullInProgress = false;
+            setWildMagnetPullInProgress(false, 'timeout-fallback-cleanup');
             devLog('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
           }
         }, 2000); // 2 second timeout (animation should complete in ~1s)
@@ -6734,9 +6747,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     try { gsap.killTweensOf(tile); } catch {}
                     gsap.set(tile, { x: origX, y: origY });
 
-                    const returnDuration = 1.7 + Math.random() * 0.3;
-                    const returnElastic = 0.06 + Math.random() * 0.06;
-                    const blastDuration = returnDuration;
+	                    const returnDuration = 0.58 + Math.random() * 0.12;
+	                    const returnElastic = 0.14 + Math.random() * 0.08;
+	                    const blastDuration = 0.62 + Math.random() * 0.14;
                     const wobbleAmp = TILE * (0.03 + Math.random() * 0.05);
                     const wobbleDur = 0.7 + Math.random() * 0.5;
                     const wobbleElastic = 0.35 + Math.random() * 0.2;
@@ -6819,7 +6832,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     finish();
                     return;
                   }
-                  const safetyCall = trackDelayedCall(Math.max(0.35, maxReturnDuration + 0.45), () => {
+                  const safetyCall = trackDelayedCall(Math.max(0.35, maxReturnDuration + 0.18), () => {
                     devWarn('⚠️ TNT blast return safety: forcing all tiles back to original positions');
                     finish();
                   });
@@ -6828,40 +6841,44 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   devWarn('⚠️ TNT blast return failed:', e);
                   try { onDone?.(); } catch {}
                 }
-              };
-              // Start tile separation immediately on TNT merge-6.
-              startTntBoardBlast();
-              const tntOverlay = showTntAnimation({
-                onSpriteSequenceComplete: () => {
-                  // Guard endgame check until TNT bonus break/spawn phase has enough time to complete.
-                  // Without this, fail screen can trigger on transient board state.
-                  tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 3200);
-                  // User requested sequence:
-                  // 1) spread immediately
-                  // 2) when TNT sprite sequence ends
-                  // 3) return to original positions
-                  // 4) only then break 4 tiles (shards/smoke stay aligned)
-                  returnTntBlastTiles(() => {
-                    const bonusCall = trackDelayedCall(0, () => {
-                      runTntBoomBonusBreak2Tiles({
-                        board,
-                        dst,
-                        addWildProgress,
-                        WILD_INC_BIG,
-                        removeTile,
-                        openAtCell,
-                        regularMerge6ShardsTemplated,
-                        smokeBubblesAtTile,
-                        TILE,
-                        devLog,
-                        devWarn,
-                        skipFx: false
-                      });
-                    });
-                    if (bonusCall) tntBoomDelayedCalls.push(bonusCall);
-                  });
-                }
-              });
+	              };
+	              // Start tile separation immediately on TNT merge-6.
+	              startTntBoardBlast();
+	              let tntBonusTriggered = false;
+	              const triggerTntBonusBreak = (reason: string) => {
+	                if (tntBonusTriggered) return;
+	                tntBonusTriggered = true;
+	                // Guard endgame check until TNT bonus break/spawn phase has enough time to complete.
+	                // Triggering at the ninth sprite removes the long dead wait after the TNT visual.
+	                tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 3200);
+	                devLog('🔥 TNT bonus break trigger:', reason);
+	                returnTntBlastTiles(() => {
+	                  trackAppTimeout(() => {
+	                    runTntBoomBonusBreak2Tiles({
+	                      board,
+	                      dst,
+	                      addWildProgress,
+	                      WILD_INC_BIG,
+	                      removeTile,
+	                      openAtCell,
+	                      regularMerge6ShardsTemplated,
+	                      smokeBubblesAtTile,
+	                      TILE,
+	                      devLog,
+	                      devWarn,
+	                      skipFx: false
+	                    });
+	                  }, 0);
+	                });
+	              };
+	              const tntOverlay = showTntAnimation({
+	                onSprite10ExitLeadStart: () => {
+	                  triggerTntBonusBreak('sprite-10-exit-minus-300ms');
+	                },
+	                onSpriteSequenceComplete: () => {
+	                  triggerTntBonusBreak('sequence-complete-fallback');
+	                }
+	              });
               if (tntOverlay) alsoShakeTargets.push(tntOverlay);
             } catch (e) {
               devWarn('⚠️ TNT animation position failed:', e);
@@ -10198,25 +10215,45 @@ function runTntBoomBonusBreak2Tiles(deps: {
       try { onComplete?.(); } catch {}
       return;
     }
-    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
-    const toBreak = shuffled.slice(0, count);
-    const pool = [1, 2, 3, 4, 5];
-    const used: number[] = [];
-    toBreak.forEach((tile: Tile, i: number) => {
-      const delay = i * 0.2; // 200ms stagger: break one-by-one
-      const doBreak = () => {
-        if (!tile || tile.destroyed || !board || !STATE?.tiles) return;
+	    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+	    const toBreak = shuffled.slice(0, count);
+	    const pool = [1, 2, 3, 4, 5];
+	    const used: number[] = [];
+	    let completedBreaks = 0;
+	    let completed = false;
+	    const markBreakComplete = () => {
+	      completedBreaks += 1;
+	      if (completedBreaks < count || completed) return;
+	      completed = true;
+	      tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 450);
+	      trackAppTimeout(() => {
+	        try { onComplete?.(); } catch {}
+	        try { checkLevelEnd(); } catch {}
+	      }, 80);
+	    };
+	    const forceCompleteTimeout = trackAppTimeout(() => {
+	      if (completed) return;
+	      devWarn('⚠️ TNT boom bonus safety: forcing completion after native timeout');
+	      completedBreaks = count;
+	      markBreakComplete();
+	    }, Math.max(1600, Math.round(((count - 1) * 0.2 + 1.6) * 1000)));
+	    toBreak.forEach((tile: Tile, i: number) => {
+	      const delayMs = i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
+	      const doBreak = () => {
+	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
+	          markBreakComplete();
+	          return;
+	        }
         const c = tile.gridX ?? 0;
         const r = tile.gridY ?? 0;
         // Wild preload: cap immediate gain to 2, delay remaining to reduce spike
-        if (i < 2) {
-          addWildProgress(WILD_INC_BIG);
-        } else {
-          const delayedGain = trackDelayedCall(0.4 + (i - 2) * 0.1, () => {
-            addWildProgress(WILD_INC_BIG);
-          });
-          if (delayedGain) tntBoomDelayedCalls.push(delayedGain);
-        }
+	        if (i < 2) {
+	          addWildProgress(WILD_INC_BIG);
+	        } else {
+	          trackAppTimeout(() => {
+	            addWildProgress(WILD_INC_BIG);
+	          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
+	        }
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('heavy');
         }
@@ -10257,28 +10294,24 @@ function runTntBoomBonusBreak2Tiles(deps: {
         }
         const val = available[(Math.random() * available.length) | 0];
         used.push(val);
-        openAtCell(c, r, { value: val, skipBind: false })
-          .then(() => {
-            lastTntBonusChangeAt = Date.now();
-            tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
-          })
-          .catch(() => {});
-      };
-      if (delay <= 0) {
-        doBreak();
-      } else {
-        const dc = trackDelayedCall(delay, doBreak);
-        if (dc) tntBoomDelayedCalls.push(dc);
-      }
-    });
-    // Wait for TNT break FX (shards/smoke) to visually settle before returning
-    // expanded tiles, so FX stays synced to break positions.
-    const completionDelay = Math.max(0, (count - 1) * 0.2) + 0.75;
-    const doneCall = trackDelayedCall(completionDelay, () => {
-      try { onComplete?.(); } catch {}
-    });
-    if (doneCall) tntBoomDelayedCalls.push(doneCall);
-    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
+	        openAtCell(c, r, { value: val, skipBind: false })
+	          .then(() => {
+	            lastTntBonusChangeAt = Date.now();
+	            tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
+	          })
+	          .catch(() => {})
+	          .finally(() => {
+	            markBreakComplete();
+	          });
+	      };
+	      if (delayMs <= 0) {
+	        doBreak();
+	      } else {
+	        trackAppTimeout(doBreak, delayMs);
+	      }
+	    });
+	    void forceCompleteTimeout;
+	    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
   } catch (e) {
     devWarn('TNT boom bonus break2 failed:', e);
     try { onComplete?.(); } catch {}

@@ -2229,7 +2229,7 @@ body{
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -24px 48px rgba(233, 210, 200, 0.7); /* Pushed shadow further and darker */
+  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7); /* Extended 50% further upward */
   max-height: 60vh;
   z-index: 9999999999; /* Higher than navigation (999999999) */
   /* NO DEFAULT TRANSITION - CSS classes control transitions */
@@ -2472,7 +2472,7 @@ body{
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -24px 48px rgba(233, 210, 200, 0.7); /* Pushed shadow further and darker */
+  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7); /* Extended 50% further upward */
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.3s ease-out;
@@ -2489,6 +2489,50 @@ body{
   -webkit-overflow-scrolling: touch;
   -webkit-transform: translateY(100%);
   will-change: transform;
+}
+
+.simple-bottom-sheet:not(.score-bottom-sheet) {
+  box-shadow: none;
+  overflow: visible;
+}
+
+.score-bottom-sheet {
+  box-shadow: none;
+  overflow: visible;
+}
+
+.simple-bottom-sheet:not(.score-bottom-sheet)::before,
+.score-bottom-sheet::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -100vh;
+  height: 100vh;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease-out;
+  background: linear-gradient(
+    to top,
+    rgba(233, 210, 200, 0.42) 0%,
+    rgba(233, 210, 200, 0.30) 38%,
+    rgba(233, 210, 200, 0.14) 72%,
+    rgba(233, 210, 200, 0) 100%
+  );
+  box-shadow:
+    0 -36px 72px rgba(233, 210, 200, 0.7),
+    0 -42vh 120px 36vh rgba(233, 210, 200, 0.38);
+}
+
+.simple-bottom-sheet.end-run-shadow-active:not(.score-bottom-sheet)::before,
+.score-bottom-sheet.score-sheet-shadow-active::before {
+  opacity: 1;
+}
+
+.simple-bottom-sheet.end-run-shadow-fade-out:not(.score-bottom-sheet)::before,
+.score-bottom-sheet.score-sheet-shadow-fade-out::before {
+  opacity: 0;
+  transition-duration: 0.2s;
 }
 
 .simple-bottom-sheet.visible {
@@ -2699,7 +2743,7 @@ body{
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0;
-  box-shadow: 0 -24px 48px rgba(233, 210, 200, 0.7);
+  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7);
   padding: 32px 32px 40px;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -3603,7 +3647,8 @@ html.collectible-reward-open body {
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0;
-  box-shadow: 0 -24px 48px rgba(233, 210, 200, 0.7);
+  box-shadow: none;
+  overflow: visible;
   max-height: 60vh;
   z-index: 10000000000001;
   transition: transform 0.3s ease-out;
@@ -3620,6 +3665,37 @@ html.collectible-reward-open body {
   -webkit-overflow-scrolling: touch;
   -webkit-transform: translateY(100%);
   will-change: transform;
+}
+
+.hearts-bottom-sheet::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -100vh;
+  height: 100vh;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease-out;
+  background: linear-gradient(
+    to top,
+    rgba(233, 210, 200, 0.42) 0%,
+    rgba(233, 210, 200, 0.30) 38%,
+    rgba(233, 210, 200, 0.14) 72%,
+    rgba(233, 210, 200, 0) 100%
+  );
+  box-shadow:
+    0 -36px 72px rgba(233, 210, 200, 0.7),
+    0 -42vh 120px 36vh rgba(233, 210, 200, 0.38);
+}
+
+.hearts-bottom-sheet.hearts-shadow-active::before {
+  opacity: 1;
+}
+
+.hearts-bottom-sheet.hearts-shadow-fade-out::before {
+  opacity: 0;
+  transition-duration: 0.2s;
 }
 
 .hearts-bottom-sheet.visible {

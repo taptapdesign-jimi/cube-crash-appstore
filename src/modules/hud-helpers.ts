@@ -19,7 +19,8 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const hudLifecycle = createScreenLifecycle('hud');
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
-const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 410;
+const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 0;
+const HUD_TAP_BOUNCE_CLOSE_DELAY_MS = 120;
 
 function playPixiSoftCartoonBounce(target: any): void {
   const visualTarget = target?._bounceVisual || target;
@@ -39,7 +40,6 @@ function playPixiSoftCartoonBounce(target: any): void {
     visualTarget.scale.set(baseScaleX, baseScaleY);
 
     const tl = gsap.timeline({
-      defaults: { force3D: true },
       onComplete: () => {
         visualTarget._softBounceActive = false;
         if (!visualTarget.destroyed) visualTarget.scale.set(baseScaleX, baseScaleY);
@@ -76,10 +76,10 @@ function playHudCloseSoftCartoonBounce(target: any): void {
 }
 
 function playHudScoreSoftCartoonBounce(coinHud: any): void {
-  const visibleScoreIcon = coinHud?.iconSprite && !coinHud.iconSprite.destroyed
-    ? coinHud.iconSprite
-    : coinHud?.container?.children?.find((child: any) => child instanceof Sprite && !child.destroyed);
-  playPixiSoftCartoonBounce(visibleScoreIcon || coinHud?.container);
+  const visibleScoreArea = coinHud?.container && !coinHud.container.destroyed
+    ? coinHud.container
+    : (coinHud?.iconSprite && !coinHud.iconSprite.destroyed ? coinHud.iconSprite : null);
+  playPixiSoftCartoonBounce(visibleScoreArea);
 }
 
 function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
@@ -1114,6 +1114,12 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       const comboDefaultX = comboRightEdge - totalWidth / 2;
       comboWrap.x = comboDefaultX - hudStatsComboLeftShift;
       comboWrap.y = yValue;
+
+      if (HUD_ROOT._comboTouchArea) {
+        const comboTouchArea = HUD_ROOT._comboTouchArea;
+        comboTouchArea.x = comboWrap.x - 53;
+        comboTouchArea.y = comboWrap.y - 30;
+      }
       
     }
     
@@ -1949,6 +1955,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     window.HUD = window.HUD || {};
     window.HUD.bounceStarIcon = bounceStarIcon;
     window.HUD.bounceScoreIcon = bounceScoreIcon;
+    window.HUD.bounceScoreArea = () => playHudScoreSoftCartoonBounce(coinHud);
+    window.HUD.bounceComboArea = () => playHudScoreSoftCartoonBounce(comboHud);
     window.HUD.bumpScoreNumberFromHudStar = bumpScoreNumberFromHudStar;
     window.HUD.getStarHudPosition = getStarHudPosition;
     window.HUD.getScoreHudPosition = getScoreHudPosition;
@@ -2280,13 +2288,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           window.triggerHapticImpact('light');
         }
         
-        playHudScoreSoftCartoonBounce(coinHud);
-        trackHudTimeout(() => {
-          if (typeof window.hideScoreBottomSheet === 'function') {
-            window.hideScoreBottomSheet();
-          }
-        }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
-        return;
+	        playHudScoreSoftCartoonBounce(coinHud);
+	        trackHudTimeout(() => {
+	          if (typeof window.hideScoreBottomSheet === 'function') {
+	            window.hideScoreBottomSheet();
+	          }
+	        }, HUD_TAP_BOUNCE_CLOSE_DELAY_MS);
+	        return;
       }
       
       // 🔥 USER REQUEST: If end-run modal is open, close it first, then open score bottom sheet
@@ -2319,26 +2327,139 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         window.triggerHapticImpact('light');
       }
       
-      playHudScoreSoftCartoonBounce(coinHud);
-      
-      // Open score bottom sheet - function will handle duplicate checks
-      trackHudTimeout(() => {
-        if (typeof window.showScoreBottomSheet === 'function') {
-          window.showScoreBottomSheet();
-        } else {
-          console.error('❌ showScoreBottomSheet function not available!');
-        }
-      }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
+	      playHudScoreSoftCartoonBounce(coinHud);
+	      
+	      // Open score bottom sheet - function will handle duplicate checks
+	      if (typeof window.showScoreBottomSheet === 'function') {
+	        window.showScoreBottomSheet();
+	      } else {
+	        console.error('❌ showScoreBottomSheet function not available!');
+	      }
     });
     
-    // Remove old event handler from coinHud.container (replaced by red touch area)
-    coinHud.container.interactive = false;
-    coinHud.container.eventMode = 'none';
-  }
-  
-  // Store X button reference for layout
-  HUD_ROOT._xButton = xButton;
-}
+	    // Remove old event handler from coinHud.container (replaced by red touch area)
+	    coinHud.container.interactive = false;
+	    coinHud.container.eventMode = 'none';
+	  }
+
+	  if (comboHud && comboWrap) {
+	    const comboTouchAreaWidth = 106;
+	    const comboTouchAreaHeight = 60;
+	    const comboTouchArea = new Container();
+	    comboTouchArea.interactive = true;
+	    comboTouchArea.cursor = 'pointer';
+	    comboTouchArea.eventMode = 'static';
+	    comboTouchArea.zIndex = 1000;
+
+	    const comboDebugBg = new Graphics();
+	    comboDebugBg.clear();
+	    comboDebugBg.roundRect(0, 0, comboTouchAreaWidth, comboTouchAreaHeight, 8);
+	    comboDebugBg.fill({ color: 0xFF0000, alpha: 0 });
+	    comboDebugBg.eventMode = 'static';
+	    comboDebugBg.cursor = 'pointer';
+	    comboDebugBg.interactive = true;
+	    comboDebugBg.zIndex = 1000;
+	    comboTouchArea.addChild(comboDebugBg);
+
+	    comboTouchArea.hitArea = new Rectangle(0, 0, comboTouchAreaWidth, comboTouchAreaHeight);
+	    comboTouchArea._isComboTouchArea = true;
+	    HUD_ROOT.addChild(comboTouchArea);
+	    HUD_ROOT._comboTouchArea = comboTouchArea;
+
+	    comboDebugBg.on('pointerdown', (e) => {
+	      e.stopPropagation();
+	      e.stopImmediatePropagation();
+
+	      console.log('🔥 COMBO AREA CLICKED - Opening combo bottom sheet');
+
+	      let isScoreSheetOpen = false;
+	      let scoreSheetMode = 'score';
+	      try {
+	        if (typeof window.isScoreBottomSheetVisible === 'function') {
+	          isScoreSheetOpen = window.isScoreBottomSheetVisible();
+	        }
+	        if (typeof window.getScoreBottomSheetMode === 'function') {
+	          scoreSheetMode = window.getScoreBottomSheetMode();
+	        }
+	      } catch (err) {
+	        console.warn('⚠️ Error checking score modal visibility:', err);
+	      }
+
+	      if (isScoreSheetOpen) {
+	        if (typeof window.triggerHapticImpact === 'function') {
+	          window.triggerHapticImpact('light');
+	        }
+	        playHudScoreSoftCartoonBounce(comboHud);
+
+		        if (scoreSheetMode === 'combo') {
+		          console.log('🔥 Combo bottom sheet already open - closing it');
+		          trackHudTimeout(() => {
+		            if (typeof window.hideScoreBottomSheet === 'function') {
+		              window.hideScoreBottomSheet();
+		            }
+		          }, HUD_TAP_BOUNCE_CLOSE_DELAY_MS);
+		          return;
+		        }
+
+	        console.log('🔥 Score bottom sheet is open - switching to combo bottom sheet');
+	        if (typeof window.hideScoreBottomSheet === 'function') {
+	          window.hideScoreBottomSheet();
+	        }
+	        trackHudTimeout(() => {
+	          if (typeof window.showComboBottomSheet === 'function') {
+	            window.showComboBottomSheet();
+	          } else if (typeof window.showScoreBottomSheet === 'function') {
+	            window.showScoreBottomSheet('combo');
+	          }
+	        }, 450);
+	        return;
+	      }
+
+	      let isEndRunModalOpen = false;
+	      try {
+	        if (typeof window.isEndRunModalVisible === 'function') {
+	          isEndRunModalOpen = window.isEndRunModalVisible();
+	        }
+	      } catch (err) {
+	        console.warn('⚠️ Error checking end-run modal visibility:', err);
+	      }
+
+	      if (isEndRunModalOpen) {
+	        console.log('🔥 End-run modal is open - closing it and opening combo bottom sheet');
+	        if (typeof window.hideEndRunModal === 'function') {
+	          window.hideEndRunModal();
+	        }
+	        trackHudTimeout(() => {
+	          if (typeof window.showComboBottomSheet === 'function') {
+	            window.showComboBottomSheet();
+	          } else if (typeof window.showScoreBottomSheet === 'function') {
+	            window.showScoreBottomSheet('combo');
+	          }
+	        }, 450);
+	        return;
+	      }
+
+	      if (typeof window.triggerHapticImpact === 'function') {
+	        window.triggerHapticImpact('light');
+	      }
+
+		      playHudScoreSoftCartoonBounce(comboHud);
+		      if (typeof window.showComboBottomSheet === 'function') {
+		        window.showComboBottomSheet();
+		      } else if (typeof window.showScoreBottomSheet === 'function') {
+		        window.showScoreBottomSheet('combo');
+		      } else {
+		        console.error('❌ showComboBottomSheet function not available!');
+		      }
+		    });
+
+	    comboHud.container.interactive = false;
+	    comboHud.container.eventMode = 'none';
+	  }
+	  
+	  // Store X button reference for layout
+	  HUD_ROOT._xButton = xButton;
+	}
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)
 export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){

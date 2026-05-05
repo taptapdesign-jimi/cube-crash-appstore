@@ -967,6 +967,7 @@ export function showEndRunModal(): void {
       });
     }).catch((error) => {
       console.error('❌ Failed to load animation:', error);
+      el.classList.add('end-run-shadow-active');
       el.classList.add('visible');
     });
   });
@@ -1066,6 +1067,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
         if (modalEl) {
           modalEl.classList.remove('visible');
+          modalEl.classList.remove('end-run-shadow-active');
         }
         setModalVisible(false);
       try {
@@ -1164,6 +1166,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
         if (modalEl) {
           modalEl.classList.remove('visible');
+          modalEl.classList.remove('end-run-shadow-active');
         }
         setModalVisible(false);
       try {
@@ -1333,6 +1336,7 @@ export function hideModal(): void {
   // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
   if (modalEl) {
     modalEl.classList.remove('visible');
+    modalEl.classList.remove('end-run-shadow-active');
   }
   if (isModalVisible()) {
     console.log('📊 hideModal called directly (not from drag) - resetting visibility');

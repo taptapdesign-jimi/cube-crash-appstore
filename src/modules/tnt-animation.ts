@@ -391,6 +391,7 @@ export function showTntAnimation(options: {
   onBoomExitStart?: () => void;
   onSprite6Start?: () => void;
   onSprite10ExitStart?: () => void;
+  onSprite10ExitLeadStart?: () => void;
   onSpriteSequenceComplete?: () => void;
   onNinthSpriteStart?: () => void;
 } = {}): HTMLElement | null {
@@ -410,7 +411,7 @@ export function showTntAnimation(options: {
     (window as any).__ccTntAnimationActive = true;
     (window as any).__ccTntDragBlocked = true;
   } catch {}
-  const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
+  const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSprite10ExitLeadStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
 
   overlay = document.createElement('div');
   overlay.id = 'cc-tnt-animation-overlay';
@@ -686,6 +687,13 @@ export function showTntAnimation(options: {
     ninthSpriteTriggered = true;
     try { onNinthSpriteStart?.(); } catch {}
   }, [], 0.39);
+  const sprite10ExitLeadTime = Math.max(0, exitStartTime + (9 * SPRITE_EXIT_STAGGER) - 0.3);
+  let sprite10ExitLeadTriggered = false;
+  timeline.call(() => {
+    if (sprite10ExitLeadTriggered) return;
+    sprite10ExitLeadTriggered = true;
+    try { onSprite10ExitLeadStart?.(); } catch {}
+  }, [], sprite10ExitLeadTime);
   tntMemSample('tnt_2_timelines_created');
   const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
   const peakSampleB = trackDelayedCall(0.75, () => tntMemSample('tnt_peak_b_750ms'));

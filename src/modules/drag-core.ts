@@ -258,6 +258,27 @@ export function initDrag(cfg) {
       return;
     }
 
+    // 🧲 CRITICAL: During wild-magnet pull/merge cleanup, block all new drags.
+    // Fast tap-drag during this window can desync grid vs visible tiles and leave a stale merge-6 tile.
+    try {
+      const magnetPullActive =
+        (window as any).__ccWildMagnetPullInProgress === true ||
+        (typeof (window as any).CC?.isWildMagnetPullInProgress === 'function' &&
+          (window as any).CC.isWildMagnetPullInProgress() === true) ||
+        typeof (window as any).__ccActiveMagnetPullCleanup === 'function';
+      if (magnetPullActive) {
+        console.log('🛡️ DRAG BLOCKED: Wild-magnet pull/cleanup in progress');
+        try { e?.stopPropagation?.(); } catch {}
+        try { e?.preventDefault?.(); } catch {}
+        return;
+      }
+    } catch {
+      if ((window as any).__ccWildMagnetPullInProgress === true) {
+        console.log('🛡️ DRAG BLOCKED: Wild-magnet pull in progress (fallback)');
+        return;
+      }
+    }
+
     // 🛡️ Block drag only until BOOM exit completes
     if ((window as any).__ccTntDragBlocked === true) {
       console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');

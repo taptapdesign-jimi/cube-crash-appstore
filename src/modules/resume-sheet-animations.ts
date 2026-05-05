@@ -18,6 +18,10 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
     
     // Step 2: Force reflow
     void modal.offsetHeight;
+
+    if (modal.classList.contains('simple-bottom-sheet') && !modal.classList.contains('score-bottom-sheet')) {
+      modal.classList.add('end-run-shadow-active');
+    }
     
     // Step 3: Trigger animation IMMEDIATELY (no requestAnimationFrame delay)
     modal.style.transform = 'translateY(0)';

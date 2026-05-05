@@ -715,9 +715,10 @@ class UIManager {
         layoutGame();
         console.log('✅ layout() complete');
         
-        // Clear one-shot flags after boot/layout has consumed them.
-        delete (window as any).__ccTriggerHudDrop;
-        delete (window as any).__ccBoardJustCompleted;
+	        // Clear one-shot flags after boot/layout has consumed them.
+	        delete (window as any).__ccTriggerHudDrop;
+	        delete (window as any).__ccBoardJustCompleted;
+	        delete (window as any).__ccArcadePlayAgainStarting;
         
         // Start time tracking
         if (typeof (window as any).startTimeTracking === 'function') {
