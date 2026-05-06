@@ -2,6 +2,8 @@
 import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
 import { gsap } from 'gsap';
+import { animateCollectiblesScreenExit, cleanupCollectiblesAnimations } from './ui/collectibles-animations.js';
+import { showHeartsModal } from './modules/hearts-bottom-sheet.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -195,13 +197,10 @@ class CollectiblesManager {
     }
 
     backButtonEl?.setAttribute('data-journey-back-exit-pending', 'true');
+    this.runJourneyBackExit();
     window.setTimeout(() => {
-      try {
-        this.runJourneyBackExit();
-      } finally {
-        backButtonEl?.removeAttribute('data-journey-back-exit-pending');
-      }
-    }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
+      backButtonEl?.removeAttribute('data-journey-back-exit-pending');
+    }, 700);
   }
 
   private runJourneyBackExit(): void {
@@ -210,29 +209,38 @@ class CollectiblesManager {
     // Explicitly mark this hide as "toHome" so hideCollectibles doesn't get confused by __ccCameFromJourney flags
     (window as any).__ccJourneyExitMode = 'toHome';
 
-    // Try to use animated version first, fallback to non-animated
-    if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
-      logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
-      (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
-        logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
-        (window as any).__ccIsHidingCollectibles = false; // Reset on error
-      });
-    } else if (typeof window.hideCollectiblesScreen === 'function') {
-      logger.info('🎁 Calling window.hideCollectiblesScreen()');
+    // Back-to-home must start the visual exit immediately. The UI wrapper performs
+    // async cleanup first, which makes the back button feel delayed.
+    if (typeof window.hideCollectiblesScreen === 'function') {
+      (window as any).__ccIsHidingCollectibles = true;
+      logger.info('🎁 Calling window.hideCollectiblesScreen() immediately for Journey back');
       try {
         const result: any = window.hideCollectiblesScreen();
         if (result && typeof result.catch === 'function') {
           (result as Promise<void>).catch((err: any) => {
             logger.error('❌ Error in hideCollectiblesScreen:', err);
+          }).finally(() => {
+            (window as any).__ccIsHidingCollectibles = false;
           });
+        } else {
+          (window as any).__ccIsHidingCollectibles = false;
         }
       } catch (err: any) {
         logger.error('❌ Error calling hideCollectiblesScreen:', err);
+        (window as any).__ccIsHidingCollectibles = false;
       }
+    } else if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
+      logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation() fallback');
+      (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
+        logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
+        (window as any).__ccIsHidingCollectibles = false;
+      });
     } else {
       logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
       this.hideCollectibles().catch((err: any) => {
         logger.error('❌ Error in hideCollectibles:', err);
+      }).finally(() => {
+        (window as any).__ccIsHidingCollectibles = false;
       });
     }
   }
@@ -688,15 +696,12 @@ class CollectiblesManager {
             }
 
             heartsContainer.setAttribute('data-heart-modal-opening', 'true');
-            window.setTimeout(async () => {
-              try {
-                logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
-                const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
-                showHeartsModal();
-              } finally {
-                heartsContainer.removeAttribute('data-heart-modal-opening');
-              }
-            }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
+            try {
+              logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
+              showHeartsModal();
+            } finally {
+              heartsContainer.removeAttribute('data-heart-modal-opening');
+            }
           });
           heartsContainer.setAttribute('data-hearts-listener-attached', 'true');
           logger.info('💚 Hearts click handler attached');
@@ -855,8 +860,42 @@ class CollectiblesManager {
       
       if (isBackButton) {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
-        // 🔥 CRITICAL: Stop ALL Journey animations BEFORE exit animation to prevent frame drops and lag
-        console.log('🛑 Stopping all Journey animations before exit...');
+        // Start the exit animation immediately; keep pre-cleanup synchronous so the
+        // first visible response happens on the back tap, not after dynamic imports.
+        console.log('🛑 Preparing Journey visual exit immediately...');
+
+        try {
+          const journeyScreen = document.getElementById('journey-screen');
+          if (journeyScreen) {
+            const animatedElements = journeyScreen.querySelectorAll(
+              '.journey-board-card, .journey-board-card-wrapper, .collectible-card-wrapper'
+            );
+            if (animatedElements.length > 0) {
+              gsap.killTweensOf(animatedElements);
+              console.log(`✅ Killed GSAP animations on ${animatedElements.length} Journey elements`);
+            }
+
+            const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
+            interimCards.forEach((card) => {
+              const cardEl = card as HTMLElement;
+              cardEl.style.animation = 'none';
+              cardEl.style.animationPlayState = 'paused';
+              cardEl.classList.remove('interim-shimmer-trigger', 'interim-glow-pulse');
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to prepare Journey exit synchronously:', error);
+        }
+
+        console.log('🎬 Step 1: Journey exit animation starting immediately...');
+        try {
+          await animateCollectiblesScreenExit();
+          console.log('✅ Step 1: Journey exit animation completed');
+        } catch (error) {
+          console.error('❌ Failed to trigger Journey exit animation:', error);
+        }
+
+        console.log('🛑 Stopping remaining Journey animations after exit...');
         
         // Step 0: Stop Journey card idle bounce animations
         try {
@@ -897,18 +936,6 @@ class CollectiblesManager {
         } catch (error) {
           console.warn('⚠️ Failed to kill GSAP animations:', error);
         }
-        
-        console.log('✅ All Journey animations stopped - starting exit animation...');
-        
-        // Step 1: Play Journey screen exit animation (now without interference)
-        try {
-          const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
-          console.log('🎬 Step 1: Journey exit animation starting...');
-          await animateCollectiblesScreenExit();
-          console.log('✅ Step 1: Journey exit animation completed');
-        } catch (error) {
-          console.error('❌ Failed to trigger Journey exit animation:', error);
-        }
       } else {
         // 🎮 INTERIM CARD pathway: Journey → Game
         // Skip exit animation - already played in continueFromInterimBoard
@@ -921,6 +948,8 @@ class CollectiblesManager {
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManager.cleanup();
       }
+
+      cleanupCollectiblesAnimations();
       
       screen.classList.remove('show');
       screen.classList.add('hidden');

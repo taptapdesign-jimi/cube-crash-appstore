@@ -1,10 +1,24 @@
 import gsap from 'gsap';
 import animationManager from '../modules/animation-manager.js';
 
-const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
-
 // 🔥 FIX: Track active GSAP tweens for cleanup
 const activeCollectiblesTweens: gsap.core.Tween[] = [];
+
+const trackTween = (target: any, vars: any) => {
+  const tween = animationManager.trackExternalTween(gsap.to(target, vars));
+  activeCollectiblesTweens.push(tween);
+
+  const originalOnComplete = tween.eventCallback('onComplete');
+  tween.eventCallback('onComplete', () => {
+    const index = activeCollectiblesTweens.indexOf(tween);
+    if (index >= 0) activeCollectiblesTweens.splice(index, 1);
+    if (typeof originalOnComplete === 'function') {
+      originalOnComplete.call(tween);
+    }
+  });
+
+  return tween;
+};
 
 /**
  * Cleanup all collectibles animations
@@ -23,11 +37,20 @@ export function cleanupCollectiblesAnimations(): void {
     gsap.killTweensOf(journeyScreen);
     const header = journeyScreen.querySelector('.collectibles-header');
     const scrollable = journeyScreen.querySelector('.collectibles-scrollable');
-    const cards = journeyScreen.querySelectorAll('.collectible-card');
+    const cards = journeyScreen.querySelectorAll(
+      '.collectible-card, .collectible-card-wrapper, .journey-board-card, .journey-board-card-wrapper'
+    );
     
     if (header) gsap.killTweensOf(header);
     if (scrollable) gsap.killTweensOf(scrollable);
-    cards.forEach(card => gsap.killTweensOf(card));
+    cards.forEach(card => {
+      gsap.killTweensOf(card);
+      const el = card as HTMLElement;
+      el.style.willChange = 'auto';
+      if (el.parentElement) {
+        el.parentElement.style.removeProperty('contain');
+      }
+    });
   }
 }
 

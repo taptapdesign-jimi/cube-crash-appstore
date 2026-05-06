@@ -2,10 +2,23 @@ import { logger } from '../core/logger.js';
 import gsap from 'gsap';
 import animationManager from '../modules/animation-manager.js';
 
-const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
-
 // 🔥 FIX: Track active tweens for proper cleanup
 let activeSettingsTweens: gsap.core.Tween[] = [];
+
+const trackTween = (target: any, vars: any) => {
+  const tween = animationManager.trackExternalTween(gsap.to(target, vars));
+  activeSettingsTweens.push(tween);
+
+  const originalOnComplete = tween.eventCallback('onComplete');
+  tween.eventCallback('onComplete', () => {
+    activeSettingsTweens = activeSettingsTweens.filter(activeTween => activeTween !== tween);
+    if (typeof originalOnComplete === 'function') {
+      originalOnComplete.call(tween);
+    }
+  });
+
+  return tween;
+};
 
 /**
  * Cleanup all active settings animations
@@ -71,7 +84,6 @@ export function animateSettingsScreenEnter(): void {
       ease: 'back.out(1.7)', 
       delay: 0
     });
-    activeSettingsTweens.push(headerTween);
     console.log('📊 Step 1: Settings header pop-in - FIRST');
   }
   
@@ -93,7 +105,6 @@ export function animateSettingsScreenEnter(): void {
       ease: 'back.out(1.7)',
       delay: delay
     });
-    activeSettingsTweens.push(toggleTween);
     console.log(`⚙️ Step ${animationIndex + 2}: Toggle ${i + 1} pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
     animationIndex++;
     
@@ -108,7 +119,6 @@ export function animateSettingsScreenEnter(): void {
         ease: 'back.out(1.7)',
         delay: dividerDelay
       });
-      activeSettingsTweens.push(dividerTween);
       console.log(`➖ Step ${animationIndex + 2}: Divider ${i + 1} pop-in - delay ${(dividerDelay * 1000).toFixed(0)}ms`);
       animationIndex++;
     }
@@ -150,18 +160,17 @@ export function animateSettingsScreenExit(): void {
   // Reverse for bottom-to-top exit
   interleavedElements.reverse().forEach((element, index) => {
     const baseDelay = 0;
-    const stagger = 0.05; // Faster stagger for exit
+    const stagger = 0.04;
     const delay = baseDelay + (index * stagger);
     
     // 🔥 FIX: Track tween for cleanup
     const exitTween = trackTween(element, {
       scale: 0,
       opacity: 0,
-      duration: 0.4,
+      duration: 0.34,
       ease: 'back.in(1.7)',
       delay: delay
     });
-    activeSettingsTweens.push(exitTween);
     
     const elementType = element.classList.contains('settings-divider') ? 'Divider' : 'Toggle';
     console.log(`⚙️ Step ${index + 1}: ${elementType} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
@@ -169,17 +178,16 @@ export function animateSettingsScreenExit(): void {
   
   // STEP 2: Header LAST
   if (settingsHeader) {
-    const lastDelay = interleavedElements.length > 0 ? (interleavedElements.length * 0.05) : 0;
+    const lastDelay = interleavedElements.length > 0 ? (interleavedElements.length * 0.04) : 0;
     
     // 🔥 FIX: Track tween for cleanup
     const headerExitTween = trackTween(settingsHeader, {
       scale: 0,
       opacity: 0,
-      duration: 0.4,
+      duration: 0.34,
       ease: 'back.in(1.7)',
       delay: lastDelay + 0.05
     });
-    activeSettingsTweens.push(headerExitTween);
     console.log('📊 Header pop-out - LAST');
   }
   

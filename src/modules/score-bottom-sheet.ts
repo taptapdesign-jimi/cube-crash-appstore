@@ -9,6 +9,7 @@ import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { resumeGame } from './pause-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { container } from '../core/dependency-injection.js';
+import { gsap } from 'gsap';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
@@ -16,6 +17,7 @@ let isVisible = false;
 type ScoreSheetMode = 'score' | 'combo';
 let activeMode: ScoreSheetMode = 'score';
 let scoreSheetLifecycleId = 0;
+let scoreSheetEntranceTimeline: gsap.core.Timeline | null = null;
 
 // Outside click handlers (same pattern as end-run-modal)
 let outsideClickHandler: ((e: Event) => void) | null = null;
@@ -317,6 +319,10 @@ function clearAllScoreSheetOnEventHandlers(): void {
 }
 
 function cleanupAllScoreSheetResources(): void {
+  if (scoreSheetEntranceTimeline) {
+    try { scoreSheetEntranceTimeline.kill(); } catch {}
+    scoreSheetEntranceTimeline = null;
+  }
   clearAllScoreSheetTimeouts();
   clearAllScoreSheetAnimationFrames();
   clearAllScoreSheetEventListeners();
@@ -822,7 +828,15 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
 
     // Show modal with animation (same as end-run-modal)
     el.style.display = 'block';
-    el.style.transform = 'translateY(100%)';
+    el.classList.remove('score-sheet-container-boing');
+    el.style.transition = 'none';
+    gsap.killTweensOf(el);
+    gsap.set(el, {
+      yPercent: 100,
+      scale: 1,
+      transformOrigin: '50% 100%',
+      force3D: true,
+    });
     void el.offsetHeight;
     el.classList.remove('score-sheet-shadow-fade-out');
     el.classList.add('score-sheet-shadow-active');
@@ -830,8 +844,39 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     trackScoreSheetAnimationFrame(() => {
       if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
       el.classList.add('visible');
-      el.style.transition = 'transform 0.3s ease-out';
-      el.style.transform = 'translateY(0)';
+      if (scoreSheetEntranceTimeline) {
+        try { scoreSheetEntranceTimeline.kill(); } catch {}
+      }
+
+      scoreSheetEntranceTimeline = gsap.timeline({
+        defaults: { force3D: true },
+        onComplete: () => {
+          if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
+          scoreSheetEntranceTimeline = null;
+          gsap.set(el, {
+            yPercent: 0,
+            scale: 1,
+            clearProps: 'willChange,force3D',
+          });
+        },
+      });
+
+      scoreSheetEntranceTimeline
+        .to(el, {
+          yPercent: -5.5,
+          duration: 0.32,
+          ease: 'power3.out',
+        }, 0)
+        .to(el, {
+          yPercent: 2,
+          duration: 0.09,
+          ease: 'power2.out',
+        }, 0.32)
+        .to(el, {
+          yPercent: 0,
+          duration: 0.14,
+          ease: 'back.out(1.55)',
+        }, 0.41);
     });
 
     isVisible = true;
@@ -891,6 +936,12 @@ export function hideScoreBottomSheet(): void {
   modalEl.classList.remove('score-sheet-shadow-active');
   modalEl.classList.add('score-sheet-shadow-fade-out');
   unfreezeScoreSheetGameplay('hide:start');
+
+  if (scoreSheetEntranceTimeline) {
+    try { scoreSheetEntranceTimeline.kill(); } catch {}
+    scoreSheetEntranceTimeline = null;
+  }
+  gsap.killTweensOf(modalEl);
 
   // 🔥 FIX: Wrap in try-catch to ensure flag is reset on error
   try {

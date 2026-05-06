@@ -2499,6 +2499,7 @@ body{
 .score-bottom-sheet {
   box-shadow: none;
   overflow: visible;
+  transform-origin: 50% 100%;
 }
 
 .simple-bottom-sheet:not(.score-bottom-sheet)::before,
@@ -2537,6 +2538,10 @@ body{
 
 .simple-bottom-sheet.visible {
   transform: translateY(0);
+}
+
+.score-bottom-sheet.visible {
+  transform: none;
 }
 
 /* Score bottom sheet specific styles */
@@ -3476,8 +3481,8 @@ html.collectible-reward-open body {
   color: #AD8675 !important; /* Keep original text color */
 }
 
-/* Tablet and iPad responsive */
-@media screen and (min-width: 768px) and (max-width: 1024px) {
+/* Tablet and iPad responsive, including iPad landscape widths */
+@media screen and (min-width: 768px) and (max-width: 1400px) {
   .simple-bottom-sheet {
     max-width: none; /* Full width edge to edge on iPad */
     width: 100%;
@@ -3702,7 +3707,7 @@ html.collectible-reward-open body {
   transform: translateY(0);
 }
 
-@media screen and (min-width: 768px) and (max-width: 1024px) {
+@media screen and (min-width: 768px) and (max-width: 1400px) {
   .hearts-bottom-sheet {
     max-width: none;
     width: 100%;

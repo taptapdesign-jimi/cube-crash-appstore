@@ -22,7 +22,7 @@ import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsA
 // We achieve this by setting the paper texture opacity directly, with a solid base color underneath
 const PAPER_BG_IMAGE = "url('./assets/paper-bg.png')";
 const PAPER_BG_STYLE = "#f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat";
-const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 410;
+const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
 
 function playDomSoftCartoonBounce(target: HTMLElement | null): void {
   if (!target) return;
@@ -2267,7 +2267,7 @@ class UIManager {
     logger.info('✅ [Settings EXIT] Paper background set to 60% opacity IMMEDIATELY');
     
     // 🔥 CRITICAL: Fade duration for Settings exit animation timing
-    const fadeDuration = 0.8;
+    const fadeDuration = 0.65;
     
     // 🔥 CRITICAL: Show homepage QUIETLY IMMEDIATELY (before animation completes)
     // This ensures gradient is visible right away, preventing gray color flash
@@ -2349,15 +2349,22 @@ class UIManager {
     }
 
     buttonToAnimate?.setAttribute('data-settings-back-exit-pending', 'true');
-    window.setTimeout(() => {
+    const runExit = () => {
       try {
-        // 🔥 CRITICAL: Call hide function after tap feedback is visible
         logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
         this.hideSettingsScreenWithAnimation();
       } finally {
-        buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
+        window.setTimeout(() => {
+          buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
+        }, 650);
       }
-    }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+    };
+
+    if (SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS > 0) {
+      window.setTimeout(runExit, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+    } else {
+      runExit();
+    }
   }
   
   // 🔥 MEMORY LEAK FIX: Store settings toggle handlers

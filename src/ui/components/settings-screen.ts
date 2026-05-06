@@ -17,7 +17,7 @@ export interface SettingToggle {
   onToggle?: (enabled: boolean) => void;
 }
 
-const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 410;
+const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
 
 function playSoftCartoonBounce(target: HTMLElement | null): void {
   if (!target) return;
@@ -294,13 +294,20 @@ export function renderSettingsScreen(
       
       // Call config.onBack if provided
       if (config.onBack) {
-        window.setTimeout(() => {
+        const runBack = () => {
           try {
             config.onBack?.();
           } finally {
-            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            window.setTimeout(() => {
+              (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            }, 650);
           }
-        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        };
+        if (SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS > 0) {
+          window.setTimeout(runBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        } else {
+          runBack();
+        }
         return;
       }
       
@@ -309,7 +316,7 @@ export function renderSettingsScreen(
       let uiManager = (window as any).uiManager;
       if (!uiManager) {
         // Try importing UIManager module
-        window.setTimeout(() => {
+        const runImportBack = () => {
           import('../../modules/ui-manager.js').then((module) => {
             uiManager = module.default || (module as any).uiManager;
             if (uiManager && typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
@@ -319,18 +326,32 @@ export function renderSettingsScreen(
           }).catch(() => {
             console.warn('⚠️ Failed to import UIManager');
           }).finally(() => {
-            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            window.setTimeout(() => {
+              (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            }, 650);
           });
-        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        };
+        if (SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS > 0) {
+          window.setTimeout(runImportBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        } else {
+          runImportBack();
+        }
       } else if (typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
-        window.setTimeout(() => {
+        const runWindowBack = () => {
           try {
             console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() from window');
             uiManager.hideSettingsScreenWithAnimation();
           } finally {
-            (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            window.setTimeout(() => {
+              (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');
+            }, 650);
           }
-        }, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        };
+        if (SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS > 0) {
+          window.setTimeout(runWindowBack, SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS);
+        } else {
+          runWindowBack();
+        }
       } else {
         console.warn('⚠️ UIManager found but hideSettingsScreenWithAnimation method not available');
         (backBtn as HTMLElement).removeAttribute('data-settings-back-exit-pending');

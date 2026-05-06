@@ -25,6 +25,7 @@ let _heartsOpenedAt = 0;
 const _heartsTimeouts = new Set<ReturnType<typeof setTimeout>>();
 const _heartsIntervals = new Set<ReturnType<typeof setInterval>>();
 const _heartsGSAPTweens: gsap.core.Tween[] = [];
+let heartsEntranceTimeline: gsap.core.Timeline | null = null;
 
 function trackHeartsTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
@@ -56,6 +57,13 @@ function clearAllHeartsIntervals(): void {
 }
 
 function clearAllHeartsGSAPTweens(): void {
+  if (heartsEntranceTimeline) {
+    try {
+      heartsEntranceTimeline.kill();
+    } catch (e) {}
+    heartsEntranceTimeline = null;
+  }
+
   const count = _heartsGSAPTweens.length;
   _heartsGSAPTweens.forEach(tween => {
     try {
@@ -445,8 +453,16 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
     
     // Step 1: Set initial state
     modal.style.display = 'block';
-    modal.style.transform = 'translateY(100%)';
-    modal.style.transition = 'transform 0.4s ease-in-out';
+    modal.style.transition = 'none';
+    if (heartsEntranceTimeline) {
+      try { heartsEntranceTimeline.kill(); } catch {}
+    }
+    gsap.killTweensOf(modal);
+    gsap.set(modal, {
+      yPercent: 100,
+      transformOrigin: '50% 100%',
+      force3D: true,
+    });
     
     // Step 2: Force reflow
     void modal.offsetHeight;
@@ -454,15 +470,34 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
     modal.classList.remove('hearts-shadow-fade-out');
     modal.classList.add('hearts-shadow-active');
     
-    // Step 3: Trigger animation immediately
-    modal.style.transform = 'translateY(0)';
-    
-    // Step 4: Wait for completion
-    trackHeartsTimeout(() => {
-      modal.classList.add('visible');
-      logger.info('💚 Hearts bottom sheet shown');
-      resolve();
-    }, 400);
+    // Step 3: Trigger springy Y overshoot immediately
+    heartsEntranceTimeline = gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        heartsEntranceTimeline = null;
+        modal.classList.add('visible');
+        gsap.set(modal, { yPercent: 0, clearProps: 'willChange,force3D' });
+        logger.info('💚 Hearts bottom sheet shown');
+        resolve();
+      },
+    });
+
+    heartsEntranceTimeline
+      .to(modal, {
+        yPercent: -5.5,
+        duration: 0.32,
+        ease: 'power3.out',
+      }, 0)
+      .to(modal, {
+        yPercent: 2,
+        duration: 0.09,
+        ease: 'power2.out',
+      }, 0.32)
+      .to(modal, {
+        yPercent: 0,
+        duration: 0.14,
+        ease: 'back.out(1.55)',
+      }, 0.41);
   });
 }
 

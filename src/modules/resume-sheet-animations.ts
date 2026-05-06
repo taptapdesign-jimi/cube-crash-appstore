@@ -3,6 +3,8 @@
 // 🔥 DEAD CODE REMOVED: All unused animation functions removed (~350 lines)
 // Only keeping animateBottomSheetEntrance which is the only function actually used
 
+import { gsap } from 'gsap';
+
 /**
  * Animate bottom sheet entrance
  * OPTIMIZED: Removed unnecessary requestAnimationFrame delay for instant response
@@ -13,8 +15,13 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
     
     // Step 1: Set initial state while hidden
     modal.style.display = 'block';
-    modal.style.transform = 'translateY(100%)';
-    modal.style.transition = 'transform 0.4s ease-in-out';
+    modal.style.transition = 'none';
+    gsap.killTweensOf(modal);
+    gsap.set(modal, {
+      yPercent: 100,
+      transformOrigin: '50% 100%',
+      force3D: true,
+    });
     
     // Step 2: Force reflow
     void modal.offsetHeight;
@@ -23,16 +30,32 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
       modal.classList.add('end-run-shadow-active');
     }
     
-    // Step 3: Trigger animation IMMEDIATELY (no requestAnimationFrame delay)
-    modal.style.transform = 'translateY(0)';
+    // Step 3: Trigger springy Y overshoot IMMEDIATELY (no requestAnimationFrame delay)
+    gsap.timeline({
+      defaults: { force3D: true },
+      onComplete: () => {
+        modal.classList.add('visible');
+        gsap.set(modal, { yPercent: 0, clearProps: 'willChange,force3D' });
+        console.log('✅ Animation complete');
+        resolve();
+      },
+    })
+      .to(modal, {
+        yPercent: -5.5,
+        duration: 0.32,
+        ease: 'power3.out',
+      }, 0)
+      .to(modal, {
+        yPercent: 2,
+        duration: 0.09,
+        ease: 'power2.out',
+      }, 0.32)
+      .to(modal, {
+        yPercent: 0,
+        duration: 0.14,
+        ease: 'back.out(1.55)',
+      }, 0.41);
     
     console.log('✅ Animation triggered');
-    
-    // Step 4: Wait for completion
-    setTimeout(() => {
-      modal.classList.add('visible');
-      console.log('✅ Animation complete');
-      resolve();
-    }, 400);
   });
 }
