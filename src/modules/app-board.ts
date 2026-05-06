@@ -298,6 +298,23 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
 
   return new Promise(resolve => {
     let completed = 0;
+    let delayedCallRef: gsap.core.Tween | null = null;
+    let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+    let settled = false;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
+        safetyTimeout = null;
+      }
+      if (delayedCallRef) {
+        try { delayedCallRef.kill(); } catch {}
+        delayedCallRef = null;
+      }
+      resolve();
+    };
 
     list.forEach((t, i) => {
       const tile = t as any;
@@ -305,7 +322,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       if (!tile || !tile.scale || tile.alpha === undefined) {
         console.warn(`⚠️ sweetPopOut: skipping null/destroyed tile at index ${i}`);
         completed++;
-        if (completed === total) resolve();
+        if (completed === total) finish();
         return;
       }
 
@@ -337,7 +354,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
           }
 
           if (completed === total) {
-            resolve();
+            finish();
           }
         }
       });
@@ -385,7 +402,6 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     console.log('🎯 Starting board exit pop-out — random order like entry');
 
     // Fire onHalf at 50% of overall animation timeframe
-    let delayedCallRef: gsap.core.Tween | null = null;
     if (typeof opts.onHalf === 'function') {
       const fireAt = Math.max(0.01, maxEndTime * 0.5);
       delayedCallRef = trackDelayedCall(fireAt, () => {
@@ -399,16 +415,20 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     }
     
     // 🔥 FIX: Add safety timeout to resolve and cleanup if animations hang
-    const safetyTimeout = setTimeout(() => {
+    safetyTimeout = setTimeout(() => {
       console.warn('⚠️ sweetPopOut: Safety timeout - killing all timelines and resolving');
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }
-      resolve();
+      finish();
     }, 5000); // 5 second safety
+    if (settled && safetyTimeout) {
+      clearTimeout(safetyTimeout);
+      safetyTimeout = null;
+    }
     
     // Store cleanup function for external access
     (resolve as any)._cleanup = () => {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }
     };

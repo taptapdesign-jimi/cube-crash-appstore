@@ -918,7 +918,7 @@ export function smokeBubblesAtCard(
 
   // 🚧 SAFETY: Skip if center is outside the cards container (prevents ghost smoke near header/back arrow)
   if (centerX < 0 || centerY < 0 || centerX > cardsRect.width || centerY > cardsRect.height) {
-    console.warn('⚠️ smokeBubblesAtCard skipped – center outside container', {
+    console.debug('smokeBubblesAtCard skipped: center outside container', {
       centerX,
       centerY,
       containerWidth: cardsRect.width,

@@ -348,7 +348,7 @@ class UIManager {
       const handler = this.handleCollectiblesClick.bind(this);
       addTrackedListener(this.elements.collectiblesButton, 'click', handler);
     } else {
-      console.warn('⚠️ Collectibles button not found! btn-collectibles element missing');
+      logger.debug('Collectibles button not present in current UI; Journey CTA is handled by the slider button.');
     }
     
     // Settings button

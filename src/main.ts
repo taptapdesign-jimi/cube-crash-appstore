@@ -1425,7 +1425,12 @@ async function startNewRun(boardId: number): Promise<void> {
             console.warn(`⚠️ Failed to verify saved game state for board ${exitingBoardNumber}:`, e);
           }
         } else {
-          console.warn(`⚠️ WARNING: Game state was not saved for board ${exitingBoardNumber}!`);
+          const userMadeMove = (window as any)._userMadeMove === true;
+          if (userMadeMove) {
+            console.warn(`⚠️ WARNING: Game state was not saved for board ${exitingBoardNumber}!`);
+          } else {
+            console.log(`💾 No board save for board ${exitingBoardNumber}; user made no moves, so exit intentionally leaves no resume state.`);
+          }
         }
       }
     } catch (error) {
