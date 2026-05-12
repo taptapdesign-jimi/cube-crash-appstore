@@ -172,7 +172,7 @@ class UIManager {
     this.isInitialized = false;
     this.logoFadeInStarted = false;
   }
-  
+
   // Initialize UI elements
   init(): void {
     if (this.isInitialized) return;
@@ -394,7 +394,6 @@ class UIManager {
   private unsubscribeFunctions: (() => void)[] = [];
   private boundEventHandlers: Map<HTMLElement, Array<{ event: string; handler: EventListener }>> = new Map();
 
-  /** Slider hero images: same handlers as primary CTAs (wired here; bootstrap does not pass onButtonClick). */
   private detachSliderHeroCtaListeners(): void {
     const selectors = [
       '[data-hero-cta="play"]',
@@ -402,8 +401,9 @@ class UIManager {
       '[data-hero-cta="collectibles"]',
       '[data-hero-cta="settings"]',
     ];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel) as HTMLElement | null;
+
+    for (const selector of selectors) {
+      const el = document.querySelector(selector) as HTMLElement | null;
       if (!el || !this.boundEventHandlers.has(el)) continue;
       const oldHandlers = this.boundEventHandlers.get(el)!;
       oldHandlers.forEach(({ event, handler }) => {
@@ -418,17 +418,19 @@ class UIManager {
   ): void {
     const attachPair = (selector: string, clickHandler: EventListener) => {
       const el = document.querySelector(selector) as HTMLElement | null;
-      if (!el) return;
-      const keyHandler: EventListener = (e: Event) => {
-        const ke = e as KeyboardEvent;
-        if (ke.key === 'Enter' || ke.key === ' ') {
-          ke.preventDefault();
-          (clickHandler as (ev: Event) => unknown)(ke);
-        }
+      if (!el || this.boundEventHandlers.has(el)) return;
+
+      const keyHandler: EventListener = (event: Event) => {
+        const keyEvent = event as KeyboardEvent;
+        if (keyEvent.key !== 'Enter' && keyEvent.key !== ' ') return;
+        keyEvent.preventDefault();
+        (clickHandler as (ev: Event) => unknown)(keyEvent);
       };
+
       addTrackedListener(el, 'click', clickHandler);
       addTrackedListener(el, 'keydown', keyHandler);
     };
+
     attachPair('[data-hero-cta="play"]', this.handlePlayClick.bind(this));
     attachPair('[data-hero-cta="journey"]', this.handleStatsClick.bind(this));
     attachPair('[data-hero-cta="collectibles"]', this.handleCollectiblesClick.bind(this));
@@ -1609,6 +1611,7 @@ class UIManager {
       return;
     }
     (window as any).__ccUiJourneyTransitioning = true;
+    gameState.set('sliderLocked', true);
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
@@ -2082,6 +2085,7 @@ class UIManager {
     // NOW log and continue with rest of function
     logger.info('⚙️ Showing settings screen - with exit animation');
     logger.info('✅ [Settings ENTER] Paper background set to 60% opacity IMMEDIATELY (at function start)');
+    gameState.set('sliderLocked', true);
     
     // CRITICAL: Switch to Settings slide BEFORE animation so it animates the correct slide
     const navButtons = document.querySelectorAll('.independent-nav-button');
@@ -2267,7 +2271,7 @@ class UIManager {
     logger.info('✅ [Settings EXIT] Paper background set to 60% opacity IMMEDIATELY');
     
     // 🔥 CRITICAL: Fade duration for Settings exit animation timing
-    const fadeDuration = 0.65;
+    const fadeDuration = 0.8;
     
     // 🔥 CRITICAL: Show homepage QUIETLY IMMEDIATELY (before animation completes)
     // This ensures gradient is visible right away, preventing gray color flash
@@ -2354,9 +2358,7 @@ class UIManager {
         logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
         this.hideSettingsScreenWithAnimation();
       } finally {
-        window.setTimeout(() => {
-          buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
-        }, 650);
+        buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
       }
     };
 

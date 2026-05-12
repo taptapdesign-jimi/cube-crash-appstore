@@ -200,3 +200,28 @@ test('stuck board becomes continue immediately when a valid move appears', () =>
   const recoveredContext = makeContext(tiles, 9, true);
   expect(checkEndGame(recoveredContext, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
 });
+
+test('magnet respawn no-moves state with locked placeholders returns stuck', () => {
+  const tiles = [
+    makeTile({ value: 3, locked: false, gridX: 1, gridY: 1 }),
+    makeTile({ value: 4, locked: false, gridX: 3, gridY: 2 }),
+    makeTile({ value: 1, locked: true, gridX: 0, gridY: 0 }),
+    makeTile({ value: 5, locked: true, gridX: 2, gridY: 0 }),
+    makeTile({ value: 2, locked: true, gridX: 4, gridY: 1 }),
+    makeTile({ value: 4, locked: true, gridX: 0, gridY: 3 }),
+    makeTile({ value: 3, locked: true, gridX: 2, gridY: 4 }),
+    makeTile({ value: 5, locked: true, gridX: 4, gridY: 5 }),
+  ];
+  const context: EndGameContext = {
+    tiles,
+    moves: 8,
+    makeBoard: {
+      anyMergePossible: (allTiles: any[]) => {
+        const open = allTiles.filter((t) => t && !t.destroyed && !t.locked && t.visible !== false && (t.value | 0) > 0);
+        return open.some((a, i) => open.some((b, j) => i < j && (a.value | 0) + (b.value | 0) <= 6));
+      },
+    },
+  };
+
+  expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+});

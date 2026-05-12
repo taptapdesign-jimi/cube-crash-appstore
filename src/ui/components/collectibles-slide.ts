@@ -29,7 +29,7 @@ export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig 
             children: [
               {
                 tag: 'img',
-                className: 'hero-image hero-image-cta tap-scale',
+                className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/collectibles-box.png',
                   alt: 'Collectibles box',

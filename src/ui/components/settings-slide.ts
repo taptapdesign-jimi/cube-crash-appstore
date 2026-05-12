@@ -27,7 +27,7 @@ export function createSettingsSlide(config: SlideConfig): HTMLElementConfig {
             children: [
               {
                 tag: 'img',
-                className: 'hero-image hero-image-cta tap-scale',
+                className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/settings-slider.png',
                   alt: 'Settings slider',

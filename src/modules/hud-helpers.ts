@@ -996,7 +996,6 @@ export function bumpScoreNumberFromHudStar(): void {
 
 export function layout({ app, top }: { app: Application; top?: number }): void { 
   if (!HUD_ROOT) return;
-  const isArcadeRun = isArcadeHomeRunMode();
   const vw = app.renderer.width;
   const vh = app.renderer.height;
   
@@ -1134,10 +1133,8 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       // Icon center is at comboCenterX - estimatedComboWidth/2 + 14 (half of 28px)
       const comboIconLeftEdge = comboCenterX - estimatedComboWidth / 2;
       
-      // Coin center is 80px left of combo icon left edge.
-      // Keep right-aligned pair in arcade as well.
-      const arcadeScoreLeftShift = isArcadeRun ? (comboToCoinSpacing * 0.2) : 0; // +20% left only in Arcade
-      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing - arcadeScoreLeftShift - hudStatsComboLeftShift;
+      // Coin center: same spacing as Journey (no extra arcade-only shift).
+      const coinDefaultX = comboIconLeftEdge - comboToCoinSpacing - hudStatsComboLeftShift;
       coin.container.x = coinDefaultX;
       coin.container.y = yValue;
       

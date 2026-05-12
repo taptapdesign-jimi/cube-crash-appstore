@@ -27,7 +27,7 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
             children: [
               {
                 tag: 'img',
-                className: 'hero-image hero-image-cta tap-scale',
+                className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/journey-map-homepage.png',
                   alt: 'Journey Map',

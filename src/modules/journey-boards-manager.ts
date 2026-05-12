@@ -31,47 +31,70 @@ const trackTween = (target: any, vars: any) => {
 };
 
 function playDetailCloseSoftCartoonBounce(closeBtn: HTMLElement | null): void {
-  const visualTarget = (closeBtn?.querySelector('img') as HTMLElement | null) || closeBtn;
-  if (!visualTarget) return;
+  if (!closeBtn) return;
 
   try {
-    gsap.killTweensOf(visualTarget);
-    gsap.set(visualTarget, {
-      scale: 1,
-      transformOrigin: '50% 50%',
-      willChange: 'transform',
-      force3D: true,
-    });
-
-    trackTimeline({
-      onComplete: () => {
-        gsap.set(visualTarget, {
-          scale: 1,
-          clearProps: 'scale,willChange,force3D',
-        });
-      },
-    })
-      .to(visualTarget, {
-        scale: 1.18,
-        duration: 0.12,
-        ease: 'back.out(2.2)',
-        force3D: true,
-      })
-      .to(visualTarget, {
-        scale: 0.93,
-        duration: 0.09,
-        ease: 'power2.out',
-        force3D: true,
-      })
-      .to(visualTarget, {
-        scale: 1,
-        duration: 0.17,
-        ease: 'back.out(1.9)',
-        force3D: true,
-      });
+    closeBtn.classList.remove('detail-close-cartoon-bounce');
+    void closeBtn.offsetWidth;
+    closeBtn.classList.add('detail-close-cartoon-bounce');
+    window.setTimeout(() => {
+      closeBtn.classList.remove('detail-close-cartoon-bounce');
+    }, 420);
   } catch (error) {
     logger.warn('⚠️ Failed to animate detail close soft cartoon bounce:', error);
   }
+}
+
+function playDetailCardTapCartoonBounce(detailImage: HTMLElement | null): void {
+  if (!detailImage) return;
+
+  try {
+    detailImage.classList.remove('detail-card-tap-cartoon-bounce');
+    void detailImage.offsetWidth;
+    detailImage.classList.add('detail-card-tap-cartoon-bounce');
+    window.setTimeout(() => {
+      detailImage.classList.remove('detail-card-tap-cartoon-bounce');
+    }, 460);
+  } catch (error) {
+    logger.warn('⚠️ Failed to animate detail card tap cartoon bounce:', error);
+  }
+}
+
+function playJourneyDetailPlayScreenShake(target: HTMLElement | null): Promise<void> {
+  return new Promise((resolve) => {
+    if (!target) {
+      resolve();
+      return;
+    }
+
+    try {
+      gsap.killTweensOf(target);
+      const duration = 0.24;
+      const steps = 9;
+      const strength = 8;
+      const stepDuration = duration / steps;
+      const tl = trackTimeline({
+        onComplete: () => {
+          try { gsap.set(target, { x: 0, y: 0 }); } catch {}
+          resolve();
+        },
+      });
+
+      for (let i = 0; i < steps; i++) {
+        const fade = 1 - (i / steps);
+        const amp = strength * fade * fade;
+        const x = (Math.random() * 2 - 1) * amp;
+        const y = (Math.random() * 2 - 1) * amp * 0.55;
+        tl.to(target, { x, y, duration: stepDuration, ease: 'sine.inOut', force3D: true }, i * stepDuration);
+      }
+
+      tl.to(target, { x: 0, y: 0, duration: 0.08, ease: 'power2.out', force3D: true }, '>');
+    } catch (error) {
+      logger.warn('⚠️ Failed to animate Journey detail play screen shake:', error);
+      try { gsap.set(target, { x: 0, y: 0 }); } catch {}
+      resolve();
+    }
+  });
 }
 
 export interface JourneyBoard {
@@ -2623,6 +2646,18 @@ class JourneyBoardsManager {
         swipeableContainer.removeEventListener('mousemove', handlers.mouseMove);
         swipeableContainer.removeEventListener('mouseup', handlers.mouseUp);
         swipeableContainer.removeEventListener('mouseleave', handlers.mouseUp);
+        if (handlers.cardTapTouchStart) {
+          swipeableContainer.removeEventListener('touchstart', handlers.cardTapTouchStart, { capture: true } as any);
+        }
+        if (handlers.cardTapTouchEnd) {
+          swipeableContainer.removeEventListener('touchend', handlers.cardTapTouchEnd, { capture: true } as any);
+        }
+        if (handlers.cardTapMouseDown) {
+          swipeableContainer.removeEventListener('mousedown', handlers.cardTapMouseDown, { capture: true } as any);
+        }
+        if (handlers.cardTapMouseUp) {
+          swipeableContainer.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+        }
         
         // Kill GSAP animations
         if (handlers.quickSetX) {
@@ -3441,6 +3476,12 @@ class JourneyBoardsManager {
     let lastTime = 0;
     let velocity = 0;
     let momentumAnimation: gsap.core.Tween | null = null;
+    const detailImageForTap = container.querySelector('#detail-card-image') as HTMLElement | null;
+    let cardTapStartX = 0;
+    let cardTapStartY = 0;
+    let cardTapStartTime = 0;
+    const CARD_TAP_MOVE_THRESHOLD = 10;
+    const CARD_TAP_TIME_THRESHOLD = 320;
     
     quickSetX(0);
     container.style.willChange = 'transform';
@@ -3674,6 +3715,47 @@ class JourneyBoardsManager {
         }
       });
     };
+
+    const isPointInsideDetailCard = (clientX: number, clientY: number) => {
+      if (!detailImageForTap) return false;
+      const rect = detailImageForTap.getBoundingClientRect();
+      return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+    };
+    const maybePlayCenteredCardTapBounce = (clientX: number, clientY: number, startX: number, startY: number, startTime: number) => {
+      if (isDragging || !isPointInsideDetailCard(clientX, clientY)) return;
+      const moveDistance = Math.sqrt(Math.pow(clientX - startX, 2) + Math.pow(clientY - startY, 2));
+      const tapDuration = performance.now() - startTime;
+      if (moveDistance > CARD_TAP_MOVE_THRESHOLD || tapDuration > CARD_TAP_TIME_THRESHOLD) return;
+      playDetailCardTapCartoonBounce(detailImageForTap);
+    };
+
+    const handleCardTapTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      cardTapStartX = e.touches[0].clientX;
+      cardTapStartY = e.touches[0].clientY;
+      cardTapStartTime = performance.now();
+    };
+
+    const handleCardTapTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length !== 1) return;
+      const touch = e.changedTouches[0];
+      maybePlayCenteredCardTapBounce(touch.clientX, touch.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
+    };
+
+    const handleCardTapMouseDown = (e: MouseEvent) => {
+      cardTapStartX = e.clientX;
+      cardTapStartY = e.clientY;
+      cardTapStartTime = performance.now();
+    };
+
+    const handleCardTapMouseUp = (e: MouseEvent) => {
+      maybePlayCenteredCardTapBounce(e.clientX, e.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
+    };
+
+    container.addEventListener('touchstart', handleCardTapTouchStart, { passive: true, capture: true });
+    container.addEventListener('touchend', handleCardTapTouchEnd, { passive: true, capture: true });
+    container.addEventListener('mousedown', handleCardTapMouseDown, { capture: true });
+    container.addEventListener('mouseup', handleCardTapMouseUp, { capture: true });
     
     // Store handlers for cleanup
     (container as any).__detailSwipeHandlers = {
@@ -3683,6 +3765,10 @@ class JourneyBoardsManager {
       mouseDown: handleMouseDown,
       mouseMove: handleMouseMove,
       mouseUp: handleMouseUp,
+      cardTapTouchStart: handleCardTapTouchStart,
+      cardTapTouchEnd: handleCardTapTouchEnd,
+      cardTapMouseDown: handleCardTapMouseDown,
+      cardTapMouseUp: handleCardTapMouseUp,
       quickSetX: quickSetX,
       slideToPosition: slideToPosition,
       snapPoints: snapPoints,
@@ -4435,6 +4521,8 @@ class JourneyBoardsManager {
             logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
             // Continue if hearts check fails (fallback behavior)
           }
+
+          await playJourneyDetailPlayScreenShake(detailModal as HTMLElement);
 
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.stop();
@@ -5530,6 +5618,10 @@ class JourneyBoardsManager {
         }
         
         logger.info('✅ X button made visible and clickable after cloning');
+
+        newCloseBtn.addEventListener('pointerdown', () => {
+          playDetailCloseSoftCartoonBounce(newCloseBtn);
+        }, { passive: true });
         
         // Add click listener that uses journey boards exit animation (GSAP, header as group)
         const handleCloseClick = (e: Event) => {

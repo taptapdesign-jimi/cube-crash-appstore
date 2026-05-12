@@ -75,7 +75,7 @@ body{
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   z-index: 1;
   opacity: 1;
   pointer-events: none;
@@ -88,6 +88,25 @@ body{
 .slider-slide[data-slide="3"] .hero-image {
   opacity: 1;
   transform: scale(1) translateZ(0);  /* Combine scale + iOS GPU acceleration */
+}
+
+.slider-slide[data-slide="1"] .hero-image {
+  width: 115% !important;
+  height: 115% !important;
+  max-width: none !important;
+}
+
+.slider-slide[data-slide="3"] .hero-image {
+  width: 120% !important;
+  height: 120% !important;
+  max-width: none !important;
+}
+
+.slider-slide.settings-slide .hero-image,
+.slider-slide .hero-image[src*="settings-slider"] {
+  width: 120% !important;
+  height: 120% !important;
+  max-width: none !important;
 }
 
 
@@ -439,19 +458,19 @@ body{
 
 /* Lower CTA buttons on slider screens - all on same position */
 #btn-home {
-  margin-top: 20px !important;
+  margin-top: 12px !important;
 }
 
 #btn-stats,
 #btn-journey,
 #btn-collectibles,
 #btn-settings {
-  margin-top: 20px !important;
+  margin-top: 12px !important;
 }
 
 /* Position text and CTA together on home screen - spušteno za 16px */
 .slider-slide[data-slide="0"] .slide-text {
-  transform: translateY(-26px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (-42px + 16px = -26px) */
+  transform: translateY(-34px) !important;
 }
 
 /* Position tagline text on home screen - podignuto za 8px gore */
@@ -461,7 +480,7 @@ body{
 
 /* Position text and CTA together on stats slide (Journey) - spušteno za 16px */
 .slider-slide[data-slide="1"] .slide-text {
-  transform: translateY(-26px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (-42px + 16px = -26px) */
+  transform: translateY(-34px) !important;
 }
 
 /* Position tagline text on stats slide (Journey) - podignuto za 8px gore */
@@ -471,7 +490,7 @@ body{
 
 /* Position text and CTA together on collectibles slide - spušteno za 16px */
 .slider-slide[data-slide="2"] .slide-text {
-  transform: translateY(-26px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (-42px + 16px = -26px) */
+  transform: translateY(-34px) !important;
 }
 
 /* Position tagline text on collectibles slide - podignuto za 8px gore */
@@ -481,7 +500,7 @@ body{
 
 /* Position text and CTA together on settings slide - spušteno za 16px */
 .slider-slide[data-slide="3"] .slide-text {
-  transform: translateY(-26px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (-42px + 16px = -26px) */
+  transform: translateY(-34px) !important;
 }
 
 /* Position tagline text on settings slide - podignuto za 8px gore */
@@ -4841,8 +4860,8 @@ body:has(:root) .tile.wild-3d-glow {
 
 @keyframes sliderHeroCartoonBounce {
   0% { scale: 1; }
-  31% { scale: 1.054; }
-  54% { scale: 0.979; }
+  30% { scale: 1.13; }
+  54% { scale: 0.95; }
   100% { scale: 1; }
 }
 

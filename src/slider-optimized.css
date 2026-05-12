@@ -83,14 +83,18 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 40px;
-  margin-top: 28px; /* 🔥 36px - 8px podignuto gore = 28px */
+  margin-top: 36px;
+}
+
+.slider-slide[data-slide="1"] .hero-container {
+  top: 5%;
 }
 
 /* 🔥 REMOVED: Hero image particles overlay - feature no longer needed */
 
 .hero-image {
-  width: 100%;
-  height: 100%;
+  width: 105%;
+  height: 105%;
   object-fit: contain;
   position: relative;
   z-index: 2;
@@ -108,6 +112,31 @@
   cursor: pointer;
   /* Home hero uses .slider-parallax-image { pointer-events: none } in style.css */
   pointer-events: auto;
+}
+
+.slider-slide[data-slide="0"] .hero-image {
+  width: 120%;
+  height: 120%;
+}
+
+.slider-slide[data-slide="1"] .hero-image {
+  width: 115%;
+  height: 115%;
+}
+
+.slider-slide[data-slide="2"] .hero-image {
+  width: 105%;
+  height: 105%;
+}
+
+.slider-slide[data-slide="3"] .hero-image {
+  width: 120%;
+  height: 120%;
+}
+
+.slider-slide.settings-slide .hero-image {
+  width: 120%;
+  height: 120%;
 }
 
 /* Individual animations moved below */
@@ -222,6 +251,9 @@
   margin: 0;
   margin-top: -4px; /* 🔥 USER REQUEST: Podignuto za 8px gore (4px - 8px = -4px) */
   padding: 0;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .slide-button {
@@ -235,7 +267,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
-  margin-top: 24px !important; /* 🔥 USER REQUEST: Spušteno za 8px prema donjem rubu (16px + 8px = 24px) - samo CTA, subtitle i main image ostaju gdje jesu */
+  margin-top: 0 !important; /* CTA lifted 24px; keep transform animations untouched */
 }
 
 /* Navigation Icons */
@@ -667,7 +699,7 @@
     width: 220px;
     height: 50px;
     font-size: 24px;
-    margin-top: 40px !important;
+    margin-top: 16px !important; /* CTA lifted 24px; transforms/animations unchanged */
     transform: translateY(2.25vh) !important; /* ~18px u postotcima viewport height za responsive dizajn */
     -webkit-transform: translateY(2.25vh) !important;
     transition: transform 0.15s ease-in-out !important; /* 🔥 CRITICAL: Vratiti tap animacije */
@@ -718,7 +750,7 @@
     transform: translateY(2.25vh) scale(1) !important;
     -webkit-transform: translateY(2.25vh) scale(1) !important;
   }
-  
+
   .home-logo-wrapper {
     margin-top: -30px; /* 🔥 USER REQUEST: Podignuto za 16px gore (-14px - 16px = -30px) - iPhone originalna vrijednost */
   }

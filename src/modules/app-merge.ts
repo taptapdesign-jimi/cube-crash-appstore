@@ -471,6 +471,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const beginEndgameGuard = (window as any)?.CC?.beginEndgameGuard;
   const endEndgameGuard = (window as any)?.CC?.endEndgameGuard;
   let endgameGuardActive = false;
+  let shouldRunPostMagnetEndgameCheck = false;
   if (typeof beginEndgameGuard === 'function') {
     try {
       beginEndgameGuard(endgameGuardSource, 2200);
@@ -2096,6 +2097,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Keep board placeholders in sync after magnet respawn/fill paths before any endgame branching.
   try { (window as any).updateGhostVisibility?.(); } catch {}
   try { drawBoardBG?.(); } catch {}
+  shouldRunPostMagnetEndgameCheck = true;
 
   // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
   // when magnet pulled wild star (e.g., magnet + regular + wild scenario)
@@ -2548,6 +2550,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       } catch (error) {
         console.warn('⚠️ Failed to end endgame guard in mergePulledTilesIntoMerge6', error);
       }
+    }
+    if (shouldRunPostMagnetEndgameCheck) {
+      trackAppTimeout(() => {
+        try { triggerCentralEndgameCheck('mergePulledTiles_postGuard_settle'); } catch {}
+      }, 180);
+      trackAppTimeout(() => {
+        try { triggerCentralEndgameCheck('mergePulledTiles_postGuard_safety'); } catch {}
+      }, 720);
     }
   }
 }

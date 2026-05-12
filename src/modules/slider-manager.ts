@@ -209,7 +209,7 @@ class SliderManager {
   private scheduleHeroBounceBeforeSlideSettle(): void {
     const slideDuration = SLIDER_CONFIG.SLIDE_DURATION_S;
     const desiredLead = 0.5;
-    const fallbackLead = Math.min(0.24, slideDuration * 0.6);
+    const fallbackLead = Math.min(0.16, slideDuration * 0.42);
     const leadTime = slideDuration > desiredLead ? desiredLead : fallbackLead;
     const delay = Math.max(0, slideDuration - leadTime);
 
@@ -258,19 +258,19 @@ class SliderManager {
 
     timeline
       .to(heroContainer, {
-        scale: 1.054,
-        duration: 0.16,
-        ease: 'back.out(1.85)'
+        scale: 1.065,
+        duration: 0.18,
+        ease: 'back.out(1.55)'
       })
       .to(heroContainer, {
-        scale: 0.979,
-        duration: 0.12,
+        scale: 0.975,
+        duration: 0.135,
         ease: 'power2.out'
       })
       .to(heroContainer, {
         scale: 1,
-        duration: 0.24,
-        ease: 'back.out(1.55)'
+        duration: 0.255,
+        ease: 'back.out(1.35)'
       });
   }
 
@@ -444,6 +444,10 @@ class SliderManager {
           return;
         }
 
+        if (target.closest('.hero-image-cta')) {
+          return;
+        }
+
         const heroContainer = target.closest('.hero-container') as HTMLElement | null;
         if (!heroContainer || !this.elements.container?.contains(heroContainer)) return;
 
@@ -503,6 +507,10 @@ class SliderManager {
       if (!target || !(target instanceof Element)) return false;
       
       const element = target as Element;
+
+      if (element.closest('.hero-image-cta')) {
+        return false;
+      }
       
       // Check the element and its ancestors for interactive elements
       let current: Element | null = element;
@@ -577,7 +585,7 @@ class SliderManager {
     };
     
     const handleGlobalTouchStart = (e: TouchEvent) => {
-      if (gameState.get('sliderLocked')) return;
+      if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) return;
       
       const touch = e.touches[0];
       if (!touch) return;
@@ -619,7 +627,7 @@ class SliderManager {
     };
     
     const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (!this.globalSwipeState.isTracking || gameState.get('sliderLocked')) return;
+      if (!this.globalSwipeState.isTracking || gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) return;
       
       const touch = e.touches[0];
       if (!touch) return;
@@ -654,6 +662,14 @@ class SliderManager {
       }
       
       // 🔥 FIX: Continue updating slider position while in horizontal swipe mode
+      if ((gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) && this.isDragging) {
+        this.isDragging = false;
+        this.globalSwipeState.isTracking = false;
+        this.globalSwipeState.isHorizontalSwipe = false;
+        this.elements.container?.classList.remove('dragging');
+        return;
+      }
+
       if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
         this.currentX = touch.clientX;
         this.updateGestureVelocity(this.currentX);
@@ -673,9 +689,12 @@ class SliderManager {
           this.elements.container.classList.remove('dragging');
         }
         
-        logger.debug('Swipe ended', undefined, { deltaX, threshold: this.threshold });
-
-        this.commitGesture(deltaX, this.gestureVelocityX);
+        if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
+          logger.debug('Swipe commit blocked during slider animation/lock');
+        } else {
+          logger.debug('Swipe ended', undefined, { deltaX, threshold: this.threshold });
+          this.commitGesture(deltaX, this.gestureVelocityX);
+        }
       }
       
       // 🔥 SWIPE FIX: No longer manipulating journey-screen pointer-events
@@ -722,8 +741,8 @@ class SliderManager {
     const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
     logger.debug('TOUCH START', undefined, { isLocked, isAnimating, isDragging: this.isDragging });
     
-    if (isLocked) {
-      logger.debug('TOUCH BLOCKED', undefined, { isLocked });
+    if (isLocked || isAnimating) {
+      logger.debug('TOUCH BLOCKED', undefined, { isLocked, isAnimating });
       return;
     }
     
@@ -742,7 +761,7 @@ class SliderManager {
   
   // Handle touch move
   private handleTouchMove(event: SliderTouchEvent): void {
-    if (!this.isDragging || gameState.get('sliderLocked')) return;
+    if (!this.isDragging || gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) return;
     
     const touch = event.touches[0];
     if (!touch) return;
@@ -757,6 +776,12 @@ class SliderManager {
   // Handle touch end
   private handleTouchEnd(event: SliderTouchEvent): void {
     if (!this.isDragging) return;
+
+    if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
+      this.isDragging = false;
+      this.elements.container?.classList.remove('dragging');
+      return;
+    }
     
     this.isDragging = false;
     const deltaX = this.currentX - this.startX;
@@ -776,8 +801,8 @@ class SliderManager {
     const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
     logger.debug('MOUSE DOWN', undefined, { isLocked, isAnimating, isDragging: this.isDragging });
     
-    if (isLocked) {
-      logger.debug('MOUSE BLOCKED', undefined, { isLocked });
+    if (isLocked || isAnimating) {
+      logger.debug('MOUSE BLOCKED', undefined, { isLocked, isAnimating });
       return;
     }
     
@@ -794,7 +819,7 @@ class SliderManager {
   
   // Handle mouse move
   private handleMouseMove(event: SliderMouseEvent): void {
-    if (!this.isDragging || gameState.get('sliderLocked')) return;
+    if (!this.isDragging || gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) return;
     
     this.currentX = event.clientX;
     this.updateGestureVelocity(this.currentX);
@@ -807,7 +832,13 @@ class SliderManager {
   // Handle mouse up
   private handleMouseUp(event: SliderMouseEvent): void {
     if (!this.isDragging) return;
-    
+
+    if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
+      this.isDragging = false;
+      this.elements.container?.classList.remove('dragging');
+      return;
+    }
+
     this.isDragging = false;
     const deltaX = this.currentX - this.startX;
     
@@ -859,11 +890,11 @@ class SliderManager {
     slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     // 🔥 DEBUG: Log every goToSlide call
     const isLocked = gameState.get('sliderLocked');
-    const isAnimating = sliderState.isAnimatingEnter;
+    const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
     logger.debug('GO TO SLIDE', undefined, { slideIndex, isLocked, isAnimating, currentSlide: this.currentSlide });
     
-    if (isLocked) {
-      logger.debug('SLIDE BLOCKED', undefined, { slideIndex });
+    if (isLocked || sliderState.isAnimatingExit) {
+      logger.debug('SLIDE BLOCKED', undefined, { slideIndex, isLocked, isAnimatingExit: sliderState.isAnimatingExit });
       return;
     }
 

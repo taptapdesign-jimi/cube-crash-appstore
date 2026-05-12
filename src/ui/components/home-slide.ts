@@ -28,7 +28,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'img',
                 id: 'slider-parallax-image',
-                className: 'hero-image slider-parallax-image hero-image-cta tap-scale',
+                className: 'hero-image slider-parallax-image hero-image-cta',
                 attributes: {
                   src: './assets/crash-cubes-homepage.png',
                   srcset: [

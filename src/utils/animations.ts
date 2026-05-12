@@ -1,5 +1,6 @@
 import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
+import gameState from '../modules/game-state.js';
 import { sliderState } from '../modules/slider-state.js';
 
 // Safe element getter
@@ -269,6 +270,7 @@ export const animateSliderExit = (): void => {
   // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingExit = true;
   sliderState.setAnimatingExit(true);
+  gameState.set('sliderLocked', true);
   
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
@@ -296,6 +298,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       sliderState.setAnimatingExit(false);
+      gameState.set('sliderLocked', false);
       logger.info('✅ Exit animation guard reset');
     }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
     activeTimeouts.add(timeout);
@@ -304,6 +307,7 @@ export const animateSliderExit = (): void => {
     // 🔥 FIX: Always reset flags on error
     isAnimatingExit = false;
     sliderState.setAnimatingExit(false);
+    gameState.set('sliderLocked', false);
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
