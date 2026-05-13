@@ -1612,5 +1612,5 @@ export function initDrag(cfg) {
     console.log('✅ Drag system cleaned up');
   }
 
-  return { bindToTile, clearHover, snapBack, cleanup }; 
+  return Object.assign(drag, { bindToTile, clearHover, snapBack, cleanup }); 
 }

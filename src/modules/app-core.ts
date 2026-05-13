@@ -443,6 +443,7 @@ let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull an
 let busyEnding = false;
 let failScreenFlowInProgress = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
+let activeDragEndgameSkipStartedAt: number | null = null; // Track stale drag blocks separately from spawn guards
 let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
 const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
 
@@ -4047,6 +4048,24 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     } catch {}
     return local;
   };
+  const getMerge6DomOrigin = (tileForCenter: any) => {
+    const pos = getMerge6ScreenPos(tileForCenter);
+    try {
+      const canvas = (app as any)?.canvas || (app as any)?.view || (app as any)?.renderer?.canvas;
+      const rect = canvas?.getBoundingClientRect?.();
+      const screen = (app as any)?.renderer?.screen;
+      const screenW = Number(screen?.width) || Number((app as any)?.renderer?.width) || rect?.width || window.innerWidth;
+      const screenH = Number(screen?.height) || Number((app as any)?.renderer?.height) || rect?.height || window.innerHeight;
+      if (rect && Number.isFinite(pos?.x) && Number.isFinite(pos?.y) && screenW > 0 && screenH > 0) {
+        const x = rect.left + (pos.x / screenW) * rect.width;
+        const y = rect.top + (pos.y / screenH) * rect.height;
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          return { x, y };
+        }
+      }
+    } catch {}
+    return pos;
+  };
   
   // Calculate effSum early for wild star check (wild always merges to 6)
   const tempEffSum = wildActive ? 6 : sum;
@@ -4415,7 +4434,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                if (!isWildJuiceMerge) showSparkleText();
+                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst));
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -4453,7 +4472,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (STATE.drag && typeof (STATE.drag as any).bindToTile === 'function') {
           try {
             (STATE.drag as any).bindToTile(dst);
-            (STATE.drag as any).t = dst;
           } catch (error) {
             devWarn('⚠️ Failed to rebind drag to merged tile', error);
           }
@@ -6359,7 +6377,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                if (!isWildJuiceMerge) showSparkleText();
+                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst));
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -7006,7 +7024,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               playShortWildMerge6TileBlast('Wild-star');
               // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
               try {
-                if (!isSparkleTextActive?.()) showSparkleText();
+                if (!isSparkleTextActive?.()) showSparkleText(getMerge6DomOrigin(dst));
               } catch {}
               wildStarMerge6ShardsTemplated(board, dst, { 
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
@@ -9573,22 +9591,85 @@ function checkLevelEnd(){
       }
     }
     
+    const forceClearStaleEndgameDrag = (tile: any, reason: string) => {
+      try {
+        const dragState = ((STATE as any)?.drag) || (drag as any);
+        const startGX = Number.isFinite(dragState?.startGX) ? dragState.startGX | 0 : tile?.gridX | 0;
+        const startGY = Number.isFinite(dragState?.startGY) ? dragState.startGY | 0 : tile?.gridY | 0;
+        const startX = Number.isFinite(dragState?.startX) ? dragState.startX : tile?.x;
+        const startY = Number.isFinite(dragState?.startY) ? dragState.startY : tile?.y;
+
+        if (tile && !tile.destroyed) {
+          if (grid?.[startGY] && !grid[startGY][startGX]) {
+            grid[startGY][startGX] = tile;
+          }
+          if (Number.isFinite(startGX)) tile.gridX = startGX;
+          if (Number.isFinite(startGY)) tile.gridY = startGY;
+          if (Number.isFinite(startX)) tile.x = startX;
+          if (Number.isFinite(startY)) tile.y = startY;
+          if (tile.scale) {
+            tile.scale.x = 1;
+            tile.scale.y = 1;
+          }
+          tile.rotation = 0;
+          tile.eventMode = tile.locked ? 'none' : 'static';
+          tile.cursor = tile.locked ? 'default' : 'pointer';
+          tile.interactiveChildren = true;
+          try { makeBoard?.syncTileZIndex?.(tile, board); } catch {}
+          try { resetTileToNormalState?.(tile); } catch {}
+        }
+
+        try { dragState?.clearHover?.({ immediateMagnet: true }); } catch {}
+        try { dragState?.cleanup?.(); } catch {}
+        try { if (dragState) dragState.t = null; } catch {}
+        try { if ((drag as any)) (drag as any).t = null; } catch {}
+        try { (STATE as any).drag = dragState; } catch {}
+        try {
+          if (tile && !tile.destroyed && dragState?.bindToTile && !tile.locked) {
+            dragState.bindToTile(tile);
+          }
+        } catch {}
+        try { drawBoardBG?.(); } catch {}
+        try { (window as any).updateGhostVisibility?.(); } catch {}
+        devWarn('🧹 checkLevelEnd: Cleared stale drag state that was blocking endgame flow', {
+          reason,
+          value: tile?.value,
+          special: tile?.special,
+          gridX: tile?.gridX,
+          gridY: tile?.gridY,
+        });
+      } catch (err) {
+        devWarn('⚠️ checkLevelEnd: Failed to clear stale drag state', err);
+      }
+      activeDragEndgameSkipStartedAt = null;
+    };
+
     // Do not evaluate endgame while user is actively dragging a tile.
     // Drag temporarily mutates board/grid state and can produce transient false "stuck".
+    // If the pointerup is lost on iOS, force-release the stale drag after a hard timeout.
     const activeDragTile = ((STATE as any)?.drag?.t) || ((drag as any)?.t);
     if (activeDragTile && !activeDragTile.destroyed) {
-      logger.debug('⏳ checkLevelEnd skipped - active drag in progress', 'app-core', {
-        value: activeDragTile.value,
-        special: activeDragTile.special,
-        gridX: activeDragTile.gridX,
-        gridY: activeDragTile.gridY
-      });
-      checkLevelEndTimer = trackDelayedCall(0.25, () => {
-        checkLevelEndTimer = null;
-        checkLevelEnd();
-      });
-      return;
+      const dragNow = Date.now();
+      if (activeDragEndgameSkipStartedAt === null) activeDragEndgameSkipStartedAt = dragNow;
+      const activeDragSkipExceeded = (dragNow - activeDragEndgameSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
+      if (activeDragSkipExceeded) {
+        forceClearStaleEndgameDrag(activeDragTile, 'pre-endgame-check-timeout');
+      } else {
+        logger.debug('⏳ checkLevelEnd skipped - active drag in progress', 'app-core', {
+          value: activeDragTile.value,
+          special: activeDragTile.special,
+          gridX: activeDragTile.gridX,
+          gridY: activeDragTile.gridY,
+          msActive: dragNow - activeDragEndgameSkipStartedAt
+        });
+        checkLevelEndTimer = trackDelayedCall(0.25, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
     }
+    activeDragEndgameSkipStartedAt = null;
 
     // 🔥 v38: Reset retry counter after successful reschedule bypass (tiles no longer locked/spawn done)
     checkLevelEndRetryCount = 0;

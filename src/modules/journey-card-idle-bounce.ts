@@ -70,9 +70,80 @@ let state: JourneyCardIdleState = {
   shimmerTimers: new Map()
 };
 
+function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
+  if (!smokeContainer || (smokeContainer as any)._cleanedUp) return;
+
+  try {
+    (smokeContainer as any)._cleanedUp = true;
+
+    if ((smokeContainer as any)._cleanupTimer) {
+      try { (smokeContainer as any)._cleanupTimer.kill(); } catch {}
+      (smokeContainer as any)._cleanupTimer = null;
+    }
+    if ((smokeContainer as any)._fadeOutTimer) {
+      try { (smokeContainer as any)._fadeOutTimer.kill(); } catch {}
+      (smokeContainer as any)._fadeOutTimer = null;
+    }
+
+    gsap.killTweensOf(smokeContainer);
+    const children = smokeContainer.querySelectorAll('*');
+    children.forEach(child => {
+      const childEl = child as HTMLElement;
+      gsap.killTweensOf(childEl);
+      try {
+        if (
+          childEl.classList.contains('journey-card-smoke-particle') ||
+          childEl.style.borderRadius === '50%'
+        ) {
+          domElementPool.release(childEl);
+          return;
+        }
+      } catch {}
+      try {
+        if (childEl.parentNode) childEl.parentNode.removeChild(childEl);
+      } catch {}
+    });
+
+    if (smokeContainer.parentNode) {
+      smokeContainer.parentNode.removeChild(smokeContainer);
+    }
+
+    const sourceCard = (smokeContainer as any)._sourceCard as HTMLElement | null;
+    if (sourceCard && (sourceCard as any)._smokeActive) {
+      (sourceCard as any)._smokeActive = false;
+    }
+  } catch (e) {
+    console.warn('⚠️ Error cleaning up journey smoke container:', e);
+  } finally {
+    state.smokeContainers.delete(smokeContainer);
+  }
+}
+
+export function cleanupJourneySmokeEffects(card?: HTMLElement | null): void {
+  const trackedContainers = Array.from(state.smokeContainers);
+  trackedContainers.forEach(container => {
+    const sourceCard = (container as any)._sourceCard as HTMLElement | null;
+    if (!card || sourceCard === card) {
+      cleanupSmokeContainer(container);
+    }
+  });
+
+  const selector = card
+    ? `.journey-card-smoke-container[data-source-board-id="${card.getAttribute('data-board-id') || ''}"]`
+    : '.journey-card-smoke-container';
+  document.querySelectorAll(selector).forEach(container => {
+    cleanupSmokeContainer(container as HTMLElement);
+  });
+
+  if (card && (card as any)._smokeActive) {
+    (card as any)._smokeActive = false;
+  }
+}
+
 export function startJourneyCardIdleBounce(container: HTMLElement | null): void {
   if (!ENABLE_JOURNEY_CARD_IDLE_BOUNCE) return;
   if (!container) return;
+  cleanupJourneySmokeEffects();
   
   // 🔥 USER REQUEST: Get all unlocked AND interim cards (cards with 'unlocked' or 'interim' class)
   // Interim cards should also have idle bounce and smoke animations
@@ -176,46 +247,7 @@ export function stopJourneyCardIdleBounce(): void {
   }
   state.isBlockingHorizontal = false;
   
-  // 🔥 MEMORY FIX: Clean up all smoke containers
-  state.smokeContainers.forEach(smokeContainer => {
-    try {
-      // Kill cleanup timer if it exists
-      if ((smokeContainer as any)._cleanupTimer) {
-        try {
-          (smokeContainer as any)._cleanupTimer.kill();
-        } catch {}
-        (smokeContainer as any)._cleanupTimer = null;
-      }
-      // Kill fade-out timer if it exists
-      if ((smokeContainer as any)._fadeOutTimer) {
-        try {
-          (smokeContainer as any)._fadeOutTimer.kill();
-        } catch {}
-        (smokeContainer as any)._fadeOutTimer = null;
-      }
-      // Kill any GSAP animations on smoke container
-      gsap.killTweensOf(smokeContainer);
-      // Kill animations on all children (smoke particles + halo)
-      const children = smokeContainer.querySelectorAll('*');
-      children.forEach(child => {
-        gsap.killTweensOf(child);
-        // 🔥 MEMORY FIX: Release smoke particles back to pool if they exist
-        if (child.classList && child.classList.length === 0) {
-          // Likely a smoke particle - try to release to pool
-          try {
-            domElementPool.release(child as HTMLElement);
-          } catch {}
-        }
-      });
-      // Remove from DOM
-      if (smokeContainer && smokeContainer.parentNode) {
-        smokeContainer.parentNode.removeChild(smokeContainer);
-      }
-    } catch (e) {
-      console.warn('⚠️ Error cleaning up smoke container:', e);
-    }
-  });
-  state.smokeContainers.clear();
+  cleanupJourneySmokeEffects();
 
   // Stop shimmer timers and remove shimmer class from all tracked cards
   state.shimmerTimers.forEach((timeoutId, card) => {
@@ -297,6 +329,26 @@ export function markCardAsViewed(card: HTMLElement | null): void {
   }
   
   console.log('✅ Card marked as viewed - animations stopped forever:', card);
+}
+
+export function pauseCardMotionForTap(card: HTMLElement | null): void {
+  if (!card) return;
+
+  stopCardAnimation(card);
+  cleanupJourneySmokeEffects(card);
+
+  const shimmerTimeout = state.shimmerTimers.get(card);
+  if (shimmerTimeout) {
+    clearTimeout(shimmerTimeout);
+    state.shimmerTimers.delete(card);
+  }
+
+  state.activeAnimations.delete(card);
+  card.classList.remove('idle-shimmer-trigger');
+
+  if (state.activeAnimations.size === 0) {
+    state.isBlockingHorizontal = false;
+  }
 }
 
 export function notifyJourneyInteraction(): void {
@@ -897,6 +949,12 @@ export function smokeBubblesAtCard(
   }
   
   const smokeContainer = document.createElement('div');
+  smokeContainer.className = 'journey-card-smoke-container';
+  (smokeContainer as any)._sourceCard = card;
+  const sourceBoardId = card.getAttribute('data-board-id');
+  if (sourceBoardId) {
+    smokeContainer.setAttribute('data-source-board-id', sourceBoardId);
+  }
   smokeContainer.style.width = `${containerWidth}px`;
   smokeContainer.style.height = `${containerHeight}px`;
   smokeContainer.style.pointerEvents = 'none';
@@ -1006,6 +1064,7 @@ export function smokeBubblesAtCard(
       const side = pickRandomAllowedSide();
       // 🔥 PERFORMANCE: Use object pooling for DOM elements
       const smoke = domElementPool.acquire();
+      smoke.className = 'journey-card-smoke-particle smoke-particle';
       
       // Random size
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
@@ -1158,6 +1217,7 @@ export function smokeBubblesAtCard(
   
   // 🔥 USER REQUEST: Better quality halo effect (similar to tiles)
   const halo = document.createElement('div');
+  halo.className = 'journey-card-smoke-halo';
   const haloPad = cardSize * (0.22 + 0.05 * baseStrength) * haloScale;
   const haloWidth = cardWidth + haloPad * 2;
   const haloHeight = cardHeight + haloPad * 2;
@@ -1257,29 +1317,7 @@ export function smokeBubblesAtCard(
         const retryCleanup = trackDelayedCall(2.0, () => {
           if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
             (smokeContainer as any)._preventCleanup = false; // Allow cleanup now
-            // Continue with normal cleanup
-            (smokeContainer as any)._cleanedUp = true;
-            gsap.killTweensOf(smokeContainer);
-            
-            const children = smokeContainer.querySelectorAll('*');
-            children.forEach(child => {
-              gsap.killTweensOf(child);
-              if (child.parentNode !== smokeContainer) return;
-              try {
-                if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
-                  domElementPool.release(child as HTMLElement);
-                }
-              } catch {}
-            });
-            
-            if (smokeContainer.parentNode) {
-              smokeContainer.parentNode.removeChild(smokeContainer);
-            }
-            state.smokeContainers.delete(smokeContainer);
-            
-            if (card && (card as any)._smokeActive) {
-              (card as any)._smokeActive = false;
-            }
+            cleanupSmokeContainer(smokeContainer);
           }
         });
         (smokeContainer as any)._cleanupTimer = retryCleanup;
@@ -1291,8 +1329,6 @@ export function smokeBubblesAtCard(
         console.warn('⚠️ Smoke container already cleaned up, skipping duplicate');
         return;
       }
-      (smokeContainer as any)._cleanedUp = true;
-      
       // 🔥 USER REQUEST: Don't cleanup first smoke if it's marked for extended life
       // This prevents first smoke from being killed when second smoke starts
       if ((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup) {
@@ -1301,33 +1337,7 @@ export function smokeBubblesAtCard(
         return;
       }
       
-      // Kill any remaining GSAP animations on container (including fade-out)
-      gsap.killTweensOf(smokeContainer);
-      
-      // Kill animations on all children and release smoke particles to pool
-      const children = smokeContainer.querySelectorAll('*');
-      children.forEach(child => {
-        gsap.killTweensOf(child);
-        // 🔥 FIX: Only release if still in container (particles that finished were already released by onComplete)
-        if (child.parentNode !== smokeContainer) return;
-        // 🔥 MEMORY FIX: Release smoke particles back to pool
-        // Halo elements will be removed by DOM removal below
-        try {
-          if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
-            domElementPool.release(child as HTMLElement);
-          }
-        } catch {}
-      });
-      
-      // Remove from DOM (this removes halo and any remaining elements)
-      smokeContainer.parentNode.removeChild(smokeContainer);
-      // Remove from tracking set
-      state.smokeContainers.delete(smokeContainer);
-      
-      // 🔥 CRITICAL FIX: Clear smoke active flag when cleanup completes
-      if (card && (card as any)._smokeActive) {
-        (card as any)._smokeActive = false;
-      }
+      cleanupSmokeContainer(smokeContainer);
       
       // Smoke container cleaned up (debug only)
     } catch (e) {
@@ -1387,5 +1397,7 @@ export const JOURNEY_CARD_IDLE_BOUNCE = {
   reset: resetJourneyCardIdleBounce,
   notifyInteraction: notifyJourneyInteraction,
   updateCardList: updateJourneyCardList,
+  pauseCardMotionForTap,
+  cleanupSmokeEffects: cleanupJourneySmokeEffects,
   markCardAsViewed: markCardAsViewed // 🔥 USER REQUEST: Export function to mark cards as viewed
 };

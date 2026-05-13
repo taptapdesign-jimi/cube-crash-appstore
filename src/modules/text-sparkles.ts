@@ -8,17 +8,19 @@ import { domElementPool } from './dom-element-pool.js';
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const SPARKLE_IMAGES = [
-  './assets/animations/sparkle1.png',
-  './assets/animations/sparkle2.png',
-  './assets/animations/sparkle3.png',
-  './assets/animations/sparkle4.png',
-  './assets/animations/sparkle5.png',
-  './assets/animations/sparkle6.png'
+  './assets/small-star.png'
 ];
 
 interface SparkleFieldOptions {
   count?: number;
   zIndex?: number;
+  origin?: { x: number; y: number } | null;
+}
+
+interface SmallStarBurstOptions {
+  count?: number;
+  zIndex?: number;
+  origin?: { x: number; y: number } | null;
 }
 
 function sparkleSrc(index: number): string {
@@ -68,8 +70,10 @@ export function attachSparkleSprites(overlay: HTMLElement, opts: SparkleFieldOpt
 
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
-  const centerX = viewportW * 0.5;
-  const centerY = viewportH * 0.5;
+  const originX = Number.isFinite(opts.origin?.x) ? opts.origin!.x : viewportW * 0.5;
+  const originY = Number.isFinite(opts.origin?.y) ? opts.origin!.y : viewportH * 0.5;
+  const centerX = originX;
+  const centerY = originY;
 
   const activeSprites: HTMLImageElement[] = [];
   const sparkleTimelines: gsap.core.Timeline[] = [];
@@ -104,8 +108,8 @@ export function attachSparkleSprites(overlay: HTMLElement, opts: SparkleFieldOpt
       `width: ${Math.round(size)}px`,
       `height: ${Math.round(size)}px`,
       'object-fit: contain',
-      'transform-origin: center center',
-      'mix-blend-mode: screen'
+      'transform-origin: center center'
+      // To restore extra bling on wild-star burst, add back: 'mix-blend-mode: screen'
     ].join(';');
 
     activeSprites.push(img);
@@ -180,6 +184,146 @@ export function attachSparkleSprites(overlay: HTMLElement, opts: SparkleFieldOpt
       try { tl.kill(); } catch {}
     });
     activeSprites.forEach((img) => {
+      try {
+        gsap.killTweensOf(img);
+        domElementPool.release(img);
+      } catch {}
+    });
+    try { field.remove(); } catch {}
+  };
+}
+
+export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStarBurstOptions = {}): () => void {
+  if (!overlay) return () => {};
+
+  const count = Math.max(4, Math.min(40, opts.count ?? 20));
+  const zIndex = opts.zIndex ?? 2;
+  const viewportW = Math.max(320, window.innerWidth || 390);
+  const viewportH = Math.max(520, window.innerHeight || 844);
+  const originX = viewportW * 0.5;
+  const originY = viewportH * 0.5;
+
+  const field = document.createElement('div');
+  field.className = 'cc-small-star-center-burst';
+  field.style.cssText = [
+    'position: absolute',
+    'left: 0',
+    'top: 0',
+    'width: 100%',
+    'height: 100%',
+    'pointer-events: none',
+    `z-index: ${zIndex}`,
+    'overflow: visible'
+  ].join(';');
+  overlay.appendChild(field);
+
+  const activeStars: HTMLImageElement[] = [];
+  const starTimelines: gsap.core.Timeline[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const img = domElementPool.acquire('img') as HTMLImageElement;
+    img.src = sparkleSrc(i);
+    img.alt = '';
+    img.className = 'cc-sparkle-burst-sprite';
+
+    const side = i % 2 === 0 ? -1 : 1;
+    const laneOffset = 26 + Math.random() * Math.min(110, viewportW * 0.24);
+    const birthX = originX + side * laneOffset + (Math.random() - 0.5) * 44;
+    const birthY = originY + (Math.random() - 0.5) * Math.min(170, viewportH * 0.2);
+    const angle = side < 0
+      ? Math.PI + (Math.random() - 0.5) * 0.72
+      : (Math.random() - 0.5) * 0.72;
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    const spreadDistance = Math.min(Math.max(viewportW, viewportH) * (0.38 + Math.random() * 0.28), 500 + Math.random() * 190);
+    const midDistanceA = spreadDistance * (0.22 + Math.random() * 0.08);
+    const midDistanceB = spreadDistance * (0.54 + Math.random() * 0.1);
+    const birthProgress = count <= 1 ? 0 : i / (count - 1);
+    const lateSizeScale = 1 - birthProgress * 0.24;
+    const size = (26 + Math.random() * 42) * lateSizeScale;
+    const baseScale = 0.85 + Math.random() * 0.5;
+    const baseOpacity = 0.42 + Math.random() * 0.58;
+    const blinkOpacity = Math.min(1, baseOpacity + 0.22 + Math.random() * 0.28);
+    const rotateStart = (Math.random() * 360) - 180;
+    const rotateOut = rotateStart + (Math.random() - 0.5) * 38;
+    const delay = Math.min(1.35, i * (1.3 / Math.max(1, count - 1)) + Math.random() * 0.05);
+    const isFastStar = Math.random() < 0.55;
+    const launchDuration = isFastStar ? 0.04 + Math.random() * 0.02 : 0.06 + Math.random() * 0.025;
+    const travelDuration = isFastStar ? 0.58 + Math.random() * 0.18 : 0.78 + Math.random() * 0.24;
+
+    img.style.cssText = [
+      'position: absolute',
+      'pointer-events: none',
+      'will-change: transform, opacity',
+      `left: ${Math.round(birthX)}px`,
+      `top: ${Math.round(birthY)}px`,
+      `width: ${Math.round(size)}px`,
+      `height: ${Math.round(size)}px`,
+      'object-fit: contain',
+      'transform-origin: center center',
+      'mix-blend-mode: screen'
+    ].join(';');
+
+    field.appendChild(img);
+    activeStars.push(img);
+
+    const driftAngle = angle + Math.PI / 2;
+    const wobbleA = (Math.random() > 0.5 ? 1 : -1) * (18 + Math.random() * 34);
+    const wobbleB = -wobbleA * (0.45 + Math.random() * 0.35);
+    const x1 = dirX * midDistanceA + Math.cos(driftAngle) * wobbleA;
+    const y1 = dirY * midDistanceA + Math.sin(driftAngle) * wobbleA;
+    const x2 = dirX * midDistanceB + Math.cos(driftAngle) * wobbleB;
+    const y2 = dirY * midDistanceB + Math.sin(driftAngle) * wobbleB;
+    const exitDistance = Math.hypot(viewportW * 0.5, viewportH * 0.5) + size + 110 + Math.random() * 110;
+    const x4 = dirX * exitDistance + Math.cos(driftAngle) * ((Math.random() - 0.5) * 70);
+    const y4 = dirY * exitDistance + Math.sin(driftAngle) * ((Math.random() - 0.5) * 70);
+
+    gsap.set(img, {
+      xPercent: -50,
+      yPercent: -50,
+      x: 0,
+      y: 0,
+      scale: 0,
+      opacity: 0,
+      rotation: rotateStart,
+      visibility: 'visible',
+      force3D: true
+    });
+
+    const tl = trackTimeline({ delay });
+    const twinkleLow = baseOpacity * (0.38 + Math.random() * 0.22);
+    const twinkleHigh = blinkOpacity;
+
+    tl.to(img, {
+      opacity: twinkleHigh,
+      scale: baseScale * (1.04 + Math.random() * 0.06),
+      x: dirX * 18,
+      y: dirY * 18,
+      rotation: rotateOut,
+      duration: launchDuration,
+      ease: 'power1.in'
+    });
+    tl.to(img, {
+      keyframes: [
+        { x: x1, y: y1, opacity: twinkleHigh, rotation: rotateOut + (Math.random() - 0.5) * 18, scale: baseScale * 0.92 },
+        { x: x2, y: y2, opacity: twinkleHigh, rotation: rotateOut + (Math.random() - 0.5) * 28, scale: baseScale * 1.02 },
+        { x: x4 * 0.9, y: y4 * 0.9, opacity: twinkleLow, rotation: rotateOut + (Math.random() - 0.5) * 34, scale: baseScale * 0.84 },
+        { x: x4, y: y4, opacity: 0, rotation: rotateOut + (Math.random() - 0.5) * 36, scale: baseScale * 0.72 }
+      ],
+      duration: travelDuration,
+      ease: 'none',
+      onComplete: () => {
+        try { gsap.set(img, { visibility: 'hidden', opacity: 0 }); } catch {}
+      }
+    });
+    starTimelines.push(tl);
+  }
+
+  return () => {
+    starTimelines.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    activeStars.forEach((img) => {
       try {
         gsap.killTweensOf(img);
         domElementPool.release(img);

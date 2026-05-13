@@ -1228,7 +1228,7 @@
   filter: drop-shadow(0 12px 26px var(--collectibles-card-shadow));
   background-color: transparent;
   position: relative;
-  overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer to card boundaries only */
+  overflow: visible !important;
   will-change: transform;
   cursor: default; /* 🔥 USER REQUEST: Remove grab cursor - no automatic drag on tap */
   -webkit-user-select: none;
@@ -1241,8 +1241,30 @@
   /* visibility: visible !important; REMOVED - GSAP controls visibility for enter animation */
   /* opacity: 1 !important; REMOVED - GSAP controls opacity for enter animation */
   z-index: 10 !important; /* 🔥 CRITICAL: Ensure card is above other elements */
-  /* Idle animation - continuous forever like slide 1 main image */
+  animation: none;
+}
+
+#collectibles-detail-modal .detail-image-motion {
+  width: 100%;
+  height: 100%;
+  border-radius: 40px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
   animation: detailImageIdle 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+#collectibles-detail-modal .detail-image.detail-card-tapping .detail-image-motion,
+#collectibles-detail-modal .detail-image.detail-card-tapping .detail-image-motion::after {
+  animation-play-state: paused !important;
+}
+
+#collectibles-detail-modal .detail-image.detail-card-tapping .detail-image-motion::after {
+  opacity: 0 !important;
 }
 
 /* 🔥 CRITICAL: Style img element inside detail-image */
@@ -1260,23 +1282,26 @@
 }
 
 #collectibles-detail-modal .detail-image.detail-card-tap-cartoon-bounce {
-  animation: detailCardTapCartoonBounce 430ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  animation: detailCardTapCartoonBounce 440ms linear 1 !important;
   transform-origin: 50% 50% !important;
-  will-change: transform !important;
+  will-change: transform, scale !important;
 }
 
 @keyframes detailCardTapCartoonBounce {
   0% {
-    transform: scale(1);
+    scale: 1;
   }
   34% {
-    transform: scale(1.14);
+    scale: 1.145;
   }
-  58% {
-    transform: scale(0.985);
+  64% {
+    scale: 0.992;
+  }
+  82% {
+    scale: 1.028;
   }
   100% {
-    transform: scale(1);
+    scale: 1;
   }
 }
 
@@ -1285,7 +1310,7 @@
 }
 
 
-#collectibles-detail-modal .detail-image::after {
+#collectibles-detail-modal .detail-image-motion::after {
   content: "";
   position: absolute;
   top: 0;
@@ -1807,6 +1832,16 @@
 .journey-board-card.unlocked.idle-shimmer-trigger::after {
   animation: journey-interim-shimmer 2s linear !important;
   animation-delay: 0s !important;
+}
+
+.journey-board-card.journey-card-tapping {
+  transition: none !important;
+  will-change: transform !important;
+}
+
+.journey-board-card.journey-card-tapping::after {
+  animation-play-state: paused !important;
+  opacity: 0 !important;
 }
 
 /* 🔥 USER REQUEST: Remove shadow from viewed cards (cards that have been clicked in details) */

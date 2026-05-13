@@ -49,12 +49,43 @@ function playDetailCardTapCartoonBounce(detailImage: HTMLElement | null): void {
   if (!detailImage) return;
 
   try {
+    const existingTimeline = (detailImage as any).__detailCardTapBounceTimeline;
+    try { existingTimeline?.kill?.(); } catch {}
+    try { gsap.killTweensOf(detailImage); } catch {}
+    const motionEl = detailImage.querySelector('.detail-image-motion') as HTMLElement | null;
     detailImage.classList.remove('detail-card-tap-cartoon-bounce');
-    void detailImage.offsetWidth;
-    detailImage.classList.add('detail-card-tap-cartoon-bounce');
-    window.setTimeout(() => {
-      detailImage.classList.remove('detail-card-tap-cartoon-bounce');
-    }, 460);
+    detailImage.classList.add('detail-card-tapping');
+    detailImage.style.transformOrigin = '50% 50%';
+    detailImage.style.willChange = 'transform';
+    if (motionEl) {
+      motionEl.style.animationPlayState = 'paused';
+    }
+
+    const timeline = trackTimeline({
+      defaults: { overwrite: 'auto' },
+      onComplete: () => {
+        if ((detailImage as any).__detailCardTapBounceTimeline === timeline) {
+          (detailImage as any).__detailCardTapBounceTimeline = null;
+        }
+        detailImage.classList.remove('detail-card-tapping');
+        if (motionEl) {
+          motionEl.style.animationPlayState = 'running';
+        }
+        detailImage.style.willChange = 'transform';
+      },
+      onInterrupt: () => {
+        detailImage.classList.remove('detail-card-tapping');
+        if (motionEl) {
+          motionEl.style.animationPlayState = 'running';
+        }
+        detailImage.style.willChange = 'transform';
+      },
+    });
+    (detailImage as any).__detailCardTapBounceTimeline = timeline;
+    timeline
+      .set(detailImage, { scale: 1, force3D: true, transformOrigin: '50% 50%' })
+      .to(detailImage, { scale: 1.08, duration: 0.14, ease: 'power2.out', force3D: true })
+      .to(detailImage, { scale: 1, duration: 0.26, ease: 'back.out(1.6)', force3D: true });
   } catch (error) {
     logger.warn('⚠️ Failed to animate detail card tap cartoon bounce:', error);
   }
@@ -1689,6 +1720,9 @@ class JourneyBoardsManager {
     // Scroll listener
     const scrollHandler = () => {
       notifyThrottled();
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
+      }
       
       // 🔥 USER REQUEST: Check if interim card is in viewport during scroll
       // If user manually scrolls to interim card, save state to skip auto-scroll later
@@ -1734,7 +1768,12 @@ class JourneyBoardsManager {
     // Touch/click listeners on cards container
     const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
     if (cardsContainer) {
-      const touchHandler = () => notifyThrottled();
+      const touchHandler = (event?: Event) => {
+        notifyThrottled();
+        if (event?.type === 'touchmove' && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
+        }
+      };
       cardsContainer.addEventListener('touchstart', touchHandler, { passive: true });
       cardsContainer.addEventListener('touchmove', touchHandler, { passive: true });
       // Store handler for cleanup
@@ -2083,6 +2122,27 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingDetail = true;
 
+        const previousTransition = cardEl.style.transition || '';
+        const previousWillChange = cardEl.style.willChange || '';
+        const restoreJourneyCardTapState = () => {
+          try {
+            cardEl.classList.remove('journey-card-tapping');
+            cardEl.style.transition = previousTransition;
+            cardEl.style.willChange = previousWillChange;
+          } catch {}
+        };
+
+        try {
+          if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
+            JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);
+          }
+          cardEl.classList.add('journey-card-tapping');
+          cardEl.classList.remove('idle-shimmer-trigger');
+          cardEl.style.transition = 'none';
+          cardEl.style.transformOrigin = '50% 50%';
+          cardEl.style.willChange = 'transform';
+        } catch {}
+
         const journeyExitPromise = this.startJourneyExitAnimation();
 
         // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
@@ -2128,6 +2188,7 @@ class JourneyBoardsManager {
           try { gsap.killTweensOf(cardEl); } catch {}
           const tl = trackTimeline({
             onComplete: () => {
+              restoreJourneyCardTapState();
               (cardEl as any)._openingDetail = false;
               logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
               this.openBoardDetails(board, true, journeyExitPromise).catch((error) => {
@@ -2139,6 +2200,7 @@ class JourneyBoardsManager {
             .to(cardEl, { scale: 1.69, rotation: rotationDeg, duration: upMs / 1000, ease: 'power2.out' })
             .to(cardEl, { scale: 1.0, rotation: 0, duration: settleMs / 1000, ease: 'power2.inOut' });
         } catch (error) {
+          restoreJourneyCardTapState();
           (cardEl as any)._openingDetail = false;
           logger.warn('⚠️ Tap animation failed, opening detail modal immediately:', error);
           this.openBoardDetails(board, true, journeyExitPromise).catch((err) => {
@@ -2377,6 +2439,11 @@ class JourneyBoardsManager {
 
           // Stop interim bounce so it doesn't fight with tap animation
           try { this.stopInterimBounce(cardEl); } catch {}
+          try {
+            if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
+              JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects(cardEl);
+            }
+          } catch {}
 
           // 🔥 CRITICAL: Preserve wrapper transforms; only reset transform on card itself
           if (animTarget === cardEl) {
@@ -2673,20 +2740,23 @@ class JourneyBoardsManager {
       // This prevents jarring "snap back" when animation is stopped
       const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
       if (detailImageEl) {
+        const detailMotionEl = detailImageEl.querySelector('.detail-image-motion') as HTMLElement | null;
         // Step 1: Capture current computed transform (includes animation position)
-        const computedStyle = window.getComputedStyle(detailImageEl);
+        const computedStyle = window.getComputedStyle(detailMotionEl || detailImageEl);
         const currentTransform = computedStyle.transform;
         
         // Step 2: Apply computed transform as inline style to "freeze" at current position
         // This ensures the card stays where it is visually
-        if (currentTransform && currentTransform !== 'none') {
-          detailImageEl.style.transform = currentTransform;
+        if (detailMotionEl && currentTransform && currentTransform !== 'none') {
+          detailMotionEl.style.transform = currentTransform;
           logger.info('🎬 Card frozen at current animated position:', currentTransform);
         }
         
         // Step 3: NOW stop the CSS animation (card stays frozen at captured position)
-        detailImageEl.style.animation = 'none';
-        detailImageEl.style.animationPlayState = 'paused';
+        if (detailMotionEl) {
+          detailMotionEl.style.animation = 'none';
+          detailMotionEl.style.animationPlayState = 'paused';
+        }
         
         // Stop shimmer animation on ::after pseudo-element by stopping parent animation
         logger.info('🧹 Detail image CSS animations stopped (no snap-back)');
@@ -3037,9 +3107,13 @@ class JourneyBoardsManager {
         // 🔥 MEMORY LEAK FIX: Full cleanup of detail image element
         const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
         if (detailImageEl) {
+          const detailMotionEl = detailImageEl.querySelector('.detail-image-motion') as HTMLElement | null;
           // Stop CSS animations
-          detailImageEl.style.animation = 'none';
-          detailImageEl.style.animationPlayState = 'paused';
+          if (detailMotionEl) {
+            detailMotionEl.style.animation = 'none';
+            detailMotionEl.style.animationPlayState = 'paused';
+            detailMotionEl.style.removeProperty('transform');
+          }
           // 🔥 CLEANUP: Reset frozen transform from smooth transition fix
           detailImageEl.style.removeProperty('transform');
           // Kill any GSAP animations on this element
@@ -3363,6 +3437,26 @@ class JourneyBoardsManager {
   // 🔥 FIGMA DESIGN: Simple swipe - stats+card+text visible, swipe to buttons
   public initDetailModalSwipe(container: HTMLElement): void {
     if (!container) return;
+
+    if ((container as any).__detailSwipeHandlers) {
+      const handlers = (container as any).__detailSwipeHandlers;
+      try { container.removeEventListener('touchstart', handlers.touchStart); } catch {}
+      try { container.removeEventListener('touchmove', handlers.touchMove); } catch {}
+      try { container.removeEventListener('touchend', handlers.touchEnd); } catch {}
+      try { container.removeEventListener('mousedown', handlers.mouseDown); } catch {}
+      try { container.removeEventListener('mousemove', handlers.mouseMove); } catch {}
+      try { container.removeEventListener('mouseup', handlers.mouseUp); } catch {}
+      try { container.removeEventListener('mouseleave', handlers.mouseUp); } catch {}
+      try {
+        if (handlers.cardTapTouchStart) container.removeEventListener('touchstart', handlers.cardTapTouchStart, { capture: true } as any);
+        if (handlers.cardTapTouchEnd) container.removeEventListener('touchend', handlers.cardTapTouchEnd, { capture: true } as any);
+        if (handlers.cardTapMouseDown) container.removeEventListener('mousedown', handlers.cardTapMouseDown, { capture: true } as any);
+        if (handlers.cardTapMouseUp) container.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+      } catch {}
+      try { handlers.quickSetX && gsap.killTweensOf(container); } catch {}
+      delete (container as any).__detailSwipeHandlers;
+      logger.info('🧹 Cleaned stale detail swipe/tap handlers before re-init');
+    }
     
     // 🔥 CRITICAL: Calculate actual content width (not viewport width)
     // Content: 24px (left padding) + 246px (stats) + 48px (gap) + 310px (card) + 48px (gap) + 80px (text margin) + text width + right padding
@@ -3480,6 +3574,8 @@ class JourneyBoardsManager {
     let cardTapStartX = 0;
     let cardTapStartY = 0;
     let cardTapStartTime = 0;
+    let lastCardTapBounceAt = 0;
+    let lastCardTapTouchAt = 0;
     const CARD_TAP_MOVE_THRESHOLD = 10;
     const CARD_TAP_TIME_THRESHOLD = 320;
     
@@ -3721,11 +3817,24 @@ class JourneyBoardsManager {
       const rect = detailImageForTap.getBoundingClientRect();
       return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
     };
-    const maybePlayCenteredCardTapBounce = (clientX: number, clientY: number, startX: number, startY: number, startTime: number) => {
-      if (isDragging || !isPointInsideDetailCard(clientX, clientY)) return;
+    const maybePlayCenteredCardTapBounce = (source: string, clientX: number, clientY: number, startX: number, startY: number, startTime: number) => {
+      const now = performance.now();
+      const insideCard = isPointInsideDetailCard(clientX, clientY);
+      if (isDragging || !insideCard) {
+        return;
+      }
       const moveDistance = Math.sqrt(Math.pow(clientX - startX, 2) + Math.pow(clientY - startY, 2));
-      const tapDuration = performance.now() - startTime;
-      if (moveDistance > CARD_TAP_MOVE_THRESHOLD || tapDuration > CARD_TAP_TIME_THRESHOLD) return;
+      const tapDuration = now - startTime;
+      if (moveDistance > CARD_TAP_MOVE_THRESHOLD || tapDuration > CARD_TAP_TIME_THRESHOLD) {
+        return;
+      }
+      if (source === 'mouse' && now - lastCardTapTouchAt < 700) {
+        return;
+      }
+      if (now - lastCardTapBounceAt < 260) {
+        return;
+      }
+      lastCardTapBounceAt = now;
       playDetailCardTapCartoonBounce(detailImageForTap);
     };
 
@@ -3738,8 +3847,9 @@ class JourneyBoardsManager {
 
     const handleCardTapTouchEnd = (e: TouchEvent) => {
       if (e.changedTouches.length !== 1) return;
+      lastCardTapTouchAt = performance.now();
       const touch = e.changedTouches[0];
-      maybePlayCenteredCardTapBounce(touch.clientX, touch.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
+      maybePlayCenteredCardTapBounce('touch', touch.clientX, touch.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
     };
 
     const handleCardTapMouseDown = (e: MouseEvent) => {
@@ -3749,7 +3859,7 @@ class JourneyBoardsManager {
     };
 
     const handleCardTapMouseUp = (e: MouseEvent) => {
-      maybePlayCenteredCardTapBounce(e.clientX, e.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
+      maybePlayCenteredCardTapBounce('mouse', e.clientX, e.clientY, cardTapStartX, cardTapStartY, cardTapStartTime);
     };
 
     container.addEventListener('touchstart', handleCardTapTouchStart, { passive: true, capture: true });
@@ -3774,6 +3884,7 @@ class JourneyBoardsManager {
       snapPoints: snapPoints,
       getIsDragging: () => isDragging // Expose isDragging state
     };
+    (container as any).__detailSwipeHandlersSetAt = Date.now();
     
     logger.info('✅ Apple style GSAP smooth swipe initialized');
   }
@@ -3807,8 +3918,13 @@ class JourneyBoardsManager {
     if (existingModal) {
       const existingImage = existingModal.querySelector('#detail-card-image') as HTMLElement;
       if (existingImage) {
+        const existingMotion = existingImage.querySelector('.detail-image-motion') as HTMLElement | null;
         existingImage.style.animation = 'none';
         existingImage.style.animationPlayState = 'paused';
+        if (existingMotion) {
+          existingMotion.style.animation = 'none';
+          existingMotion.style.animationPlayState = 'paused';
+        }
         logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
       }
     }
@@ -4095,10 +4211,13 @@ class JourneyBoardsManager {
       const imageEl = detailModal.querySelector('#detail-card-image') as HTMLElement;
       if (imageEl) {
         imageEl.innerHTML = '';
+        const motionEl = document.createElement('div');
+        motionEl.className = 'detail-image-motion';
         const img = document.createElement('img');
         img.src = board.interim ? './assets/colelctibles/common back.png' : (board.imagePath || '');
         img.alt = board.name || `Board ${board.id}`;
-        imageEl.appendChild(img);
+        motionEl.appendChild(img);
+        imageEl.appendChild(motionEl);
         
         // 🔥 BUG FIX: Set initial hidden state to avoid flash before GSAP enter
         imageEl.style.display = 'flex';
@@ -4110,6 +4229,9 @@ class JourneyBoardsManager {
         imageEl.style.animation = 'none';
         imageEl.style.animationPlayState = 'paused';
         imageEl.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+
+        motionEl.style.animation = 'none';
+        motionEl.style.animationPlayState = 'paused';
         
         img.style.display = 'block';
         img.style.width = '100%';
@@ -4522,7 +4644,12 @@ class JourneyBoardsManager {
             // Continue if hearts check fails (fallback behavior)
           }
 
-          await playJourneyDetailPlayScreenShake(detailModal as HTMLElement);
+          const shakeTarget = (
+            detailModal.querySelector('.detail-content') ||
+            detailModal.querySelector('.detail-swipeable-container') ||
+            detailModal
+          ) as HTMLElement | null;
+          void playJourneyDetailPlayScreenShake(shakeTarget).catch(() => {});
 
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.stop();
@@ -5073,6 +5200,13 @@ class JourneyBoardsManager {
           if (detailImage) {
             // 🔥 CRITICAL: Ensure card is hidden before animation starts and no stale tweens exist
             gsap.killTweensOf(detailImage);
+            const detailMotionEl = detailImage.querySelector('.detail-image-motion') as HTMLElement | null;
+            if (detailMotionEl) {
+              gsap.killTweensOf(detailMotionEl);
+              detailMotionEl.style.animation = 'none';
+              detailMotionEl.style.animationPlayState = 'paused';
+              detailMotionEl.style.removeProperty('transform');
+            }
             const detailImgEl = detailImage.querySelector('img') as HTMLElement | null;
             if (detailImgEl) {
               gsap.killTweensOf(detailImgEl);
@@ -5141,8 +5275,10 @@ class JourneyBoardsManager {
                   // 🔥 USER REQUEST: Restore idle animation on detail card image
                   // Only if modal is still active (prevents memory leak if modal closed during animation)
                   if (detailModal && !detailModal.hidden && detailModal.style.display !== 'none') {
-                    detailImage.style.animation = 'detailImageIdle 3s ease-in-out infinite';
-                    detailImage.style.animationPlayState = 'running';
+                    if (detailMotionEl) {
+                      detailMotionEl.style.animation = 'detailImageIdle 3s ease-in-out infinite';
+                      detailMotionEl.style.animationPlayState = 'running';
+                    }
                     logger.info('🃏 Card image idle animation started - modal is active');
                   } else {
                     logger.warn('⚠️ Modal is not active - idle animation not started');

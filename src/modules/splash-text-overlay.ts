@@ -5,7 +5,7 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { attachPuffyClouds } from './text-clouds.js';
-import { attachSparkleSprites } from './text-sparkles.js';
+import { attachSmallStarCenterBurst } from './text-sparkles.js';
 import { attachBoltSprites } from './text-bolts.js';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
@@ -53,6 +53,20 @@ const BOOM_EXIT_EXTRA = 0.3;
 const EXIT_BOUNCE_DURATION = 0.13;
 const EXIT_FADE_DURATION = 0.17;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
+const SPARKLE_HAPTIC_COUNT = 7;
+const SPARKLE_HAPTIC_INTERVAL = 0.095;
+
+function triggerSparkleHapticTrain(): void {
+  try {
+    if (typeof (window as any).triggerHapticImpact !== 'function') return;
+    for (let i = 0; i < SPARKLE_HAPTIC_COUNT; i++) {
+      const call = trackDelayedCall(i * SPARKLE_HAPTIC_INTERVAL, () => {
+        try { (window as any).triggerHapticImpact?.('light'); } catch {}
+      });
+      sparkleDelayedCallsRef.push(call);
+    }
+  } catch {}
+}
 
 function cleanupBuzzzOverlay(): void {
   try {
@@ -386,7 +400,7 @@ function cleanupSparkleOverlay(): void {
  * Show SPARKLE text overlay for wild-star merge 6.
  * Uses the same enter/exit style as BUBBLY, but in yellow.
  */
-export function showSparkleText(): void {
+export function showSparkleText(origin?: { x: number; y: number } | null): void {
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
@@ -405,8 +419,11 @@ export function showSparkleText(): void {
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
-    // Replace cloud layer with pooled sparkle sprite field (51 sprites, sequential twinkles).
-    sparkleFxCleanup = attachSparkleSprites(overlay, { count: 51, zIndex: 1 });
+    const smallStarBurstCleanup = attachSmallStarCenterBurst(overlay, { count: 26, zIndex: 2, origin });
+    sparkleFxCleanup = () => {
+      try { smallStarBurstCleanup(); } catch {}
+    };
+    triggerSparkleHapticTrain();
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -425,7 +442,7 @@ export function showSparkleText(): void {
       'min-width: 0',
       'max-width: 100%',
       'box-sizing: border-box',
-      'z-index: 2',
+      'z-index: 3',
       'pointer-events: none',
       'perspective: 1000px',
       'transform-style: preserve-3d',
@@ -449,8 +466,8 @@ export function showSparkleText(): void {
         'font-weight: 800',
         'font-size: 64px',
         'line-height: 1',
-        'color: #FFFCEA',
-        '-webkit-text-fill-color: #FFFCEA',
+        'color: #FFCB81',
+        '-webkit-text-fill-color: #FFCB81',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
