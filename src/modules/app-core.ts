@@ -121,6 +121,7 @@ import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { consumeWildCharge } from './app-core-wild-meter.ts';
 import { decideWildType } from './app-core-wild-type.ts';
+import { animateWildSpawnDropFromMeter } from './wild-spawn-drop.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -2171,6 +2172,26 @@ export async function boot(){
     cellXY, // Add cellXY function
     merge,
     canDrop: (s, d) => {
+      const normalizeWildSpecial = (tile: any) => {
+        if (!tile) return null;
+        const special = typeof tile.special === 'string' ? tile.special : '';
+        if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') return special;
+        if (tile.isWild === true || tile.isWildFace === true) {
+          tile.special = 'wild';
+          tile.isWild = true;
+          tile.isWildFace = true;
+          tile.value = 6;
+          try { if (tile.pips) { tile.pips.visible = false; tile.pips.clear?.(); } } catch {}
+          try { if (tile.num) tile.num.visible = false; } catch {}
+          try { if (tile.overlay) tile.overlay.visible = false; } catch {}
+          return 'wild';
+        }
+        return null;
+      };
+      if ((s as any)?._ccWildSpawnDropping === true || (d as any)?._ccWildSpawnDropping === true) {
+        devLog('🛡️ canDrop (app-core): Incoming wild drop is not mergeable yet');
+        return false;
+      }
       // CRITICAL: Check if destination is valid FIRST
       if (!d || d.locked || (d.value | 0) <= 0) {
         devLog('🔥 canDrop (app-core): Invalid destination (null, locked, or value = 0)');
@@ -2179,12 +2200,14 @@ export async function boot(){
       
       const sv = (s && (s.value|0)) || 0;
       const dv = (d && (d.value|0)) || 0;
+      const srcSpecial = normalizeWildSpecial(s);
+      const dstSpecial = normalizeWildSpecial(d);
       
       // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
-      const srcIsWildMagnet = s?.special === 'wild-magnet';
-      const dstIsWildMagnet = d?.special === 'wild-magnet';
-      const srcIsWild = s?.special === 'wild' || s?.special === 'wild-juice' || s?.special === 'wild-tnt';
-      const dstIsWild = d?.special === 'wild' || d?.special === 'wild-juice' || d?.special === 'wild-tnt';
+      const srcIsWildMagnet = srcSpecial === 'wild-magnet';
+      const dstIsWildMagnet = dstSpecial === 'wild-magnet';
+      const srcIsWild = srcSpecial === 'wild' || srcSpecial === 'wild-juice' || srcSpecial === 'wild-tnt';
+      const dstIsWild = dstSpecial === 'wild' || dstSpecial === 'wild-juice' || dstSpecial === 'wild-tnt';
       
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet
@@ -2207,46 +2230,34 @@ export async function boot(){
         devLog('🔥 canDrop (app-core): Normal tile can merge into wild-magnet');
         return true;
       }
-      
-      const wild = (srcIsWild || dstIsWild);
-      
-      // WILD LOGIC: Wild cube cannot merge into same value
-      if (wild) {
-        if (srcIsWild && !dstIsWild) {
-          // Wild merging into normal tile - check if target value is different
-          const canMerge = sv !== dv;
-          // 🔥 PERFORMANCE: Removed console.log to prevent lag during drag (called hundreds of times)
-          // devLog('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
-          return canMerge;
-        } else if (dstIsWild && !srcIsWild) {
-          // Normal tile merging into wild - check if source value is different
-          const canMerge = sv !== dv;
-          // 🔥 PERFORMANCE: Removed console.log to prevent lag
-          // devLog('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
-          return canMerge;
-        } else if (srcIsWild && dstIsWild) {
-          // Wild merging into wild - not allowed
-          // 🔥 PERFORMANCE: Removed console.log to prevent lag
-          // devLog('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
-          return false;
-        }
-      }
-      
-      // 🔥 CRITICAL: If one tile is wild-magnet affected, it can merge with the other
+
+      // 🔥 CRITICAL: If one tile is wild-magnet affected, it can merge only with another affected tile.
       const srcIsWildMagnetAffected = (s as any)?._wildMagnetAffected === true;
       const dstIsWildMagnetAffected = (d as any)?._wildMagnetAffected === true;
-      
-      // 🔥 CRITICAL: Only allow merge if BOTH tiles are wild-magnet affected (pulled tiles merging together)
-      // If only one is affected, block the merge (protected tile cannot merge with other tiles)
       if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
         devLog('🧲 canDrop (app-core): Both tiles are wild-magnet affected (pulled tiles) - can merge');
         return true;
       }
-      
-      // 🔥 CRITICAL: Block merge if only one tile is wild-magnet affected (protected tile)
       if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
         devLog('🛡️ canDrop (app-core): One tile is wild-magnet affected (protected) - blocking merge with other tiles');
         return false;
+      }
+      
+      const wild = (srcIsWild || dstIsWild);
+      
+      // WILD LOGIC: Direct wilds merge with any regular active tile.
+      // Do not compare values here: wild tiles carry value 6 internally, and comparing
+      // against a regular 6 made some first wild drops snap back even though the move is valid.
+      if (wild) {
+        if (srcIsWild && dstIsWild) {
+          // Wild merging into wild - not allowed
+          return false;
+        }
+        if (srcIsWild && !dstIsWild) {
+          return dv > 0 && !d?.special;
+        } else if (dstIsWild && !srcIsWild) {
+          return sv > 0 && !s?.special;
+        }
       }
       
       // NORMAL LOGIC: Regular merge rules
@@ -2255,8 +2266,8 @@ export async function boot(){
       
       // 🔥 NEW: Allow wild star to merge with merge 6 tile (value 6)
       // Wild star (special='wild') can merge with merge 6 tile to create new merge 6
-      const sIsWild = s?.special === 'wild' || s?.special === 'wild-juice' || s?.special === 'wild-tnt';
-      const dIsWild = d?.special === 'wild' || d?.special === 'wild-juice' || d?.special === 'wild-tnt';
+      const sIsWild = srcSpecial === 'wild' || srcSpecial === 'wild-juice' || srcSpecial === 'wild-tnt';
+      const dIsWild = dstSpecial === 'wild' || dstSpecial === 'wild-juice' || dstSpecial === 'wild-tnt';
       if ((sIsWild && dv === 6 && !d?.special) || (dIsWild && sv === 6 && !s?.special)) {
         devLog('⭐ canDrop (app-core): Wild star can merge with merge 6 tile');
         return true; // Allow wild star to merge with merge 6
@@ -3654,7 +3665,7 @@ function bindTileWithFallback(tile, skipBind){
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false }: {
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildJuice=false, isWildTnt=false, skipBind=false, timeScale=1.0, forceFreshPlaceholder=false, skipSpawnAnimation=false }: {
   value?: number | null;
   isWild?: boolean;
   isWildMagnet?: boolean;
@@ -3663,11 +3674,12 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
   skipBind?: boolean;
   timeScale?: number;
   forceFreshPlaceholder?: boolean;
+  skipSpawnAnimation?: boolean;
 } = {}){
   return openAtCellCore({
     c,
     r,
-    options: { value, isWild, isWildMagnet, isWildJuice, isWildTnt, skipBind, timeScale, forceFreshPlaceholder },
+    options: { value, isWild, isWildMagnet, isWildJuice, isWildTnt, skipBind, timeScale, forceFreshPlaceholder, skipSpawnAnimation },
     grid,
     board,
     tiles,
@@ -3852,18 +3864,90 @@ async function spawnWildFromMeter(){
         continue;
       }
       const { spawnJuice, spawnMagnet, spawnTnt } = decided;
+      const wildAssetPath = spawnTnt
+        ? ASSET_WILD_TNT
+        : spawnJuice
+          ? ASSET_WILD_JUICE
+          : spawnMagnet
+            ? ASSET_WILD_MAGNET
+            : ASSET_WILD;
+      const wildDropOrigin = HUD.getWildMeterDropOrigin?.() || null;
       
       const ok = await openAtCell(cell.c, cell.r, { 
         isWild: true, 
         isWildMagnet: spawnMagnet,
         isWildJuice: spawnJuice,
-        isWildTnt: spawnTnt
+        isWildTnt: spawnTnt,
+        skipSpawnAnimation: true
       });
       
       if (ok) {
+        const spawnedTile = grid?.[cell.r]?.[cell.c] || null;
         consumeCharge();
         spawned = true;
-        
+        try {
+          await animateWildSpawnDropFromMeter({
+            app,
+            tile: spawnedTile,
+            assetPath: wildAssetPath,
+            from: wildDropOrigin,
+            tileSize: TILE,
+            onImpact: () => {
+              try {
+                screenShake(app, { strength: 14, duration: 0.38, steps: 18, ease: 'power2.out', yScale: 0.85 });
+              } catch {}
+              try {
+                if (spawnedTile && !spawnedTile.destroyed) {
+                  smokeBubblesAtTile(board, spawnedTile, TILE * 1.05, 1.35, {
+                    behind: true,
+                    fxTag: 'wild-spawn-drop-smoke',
+                    sizeScale: 1.35,
+                    spawnShape: 'box',
+                    ttl: 1.15,
+                  });
+                }
+              } catch {}
+            },
+          });
+        } catch (dropError) {
+          devWarn('⚠️ Wild spawn drop animation failed; revealing tile immediately', dropError);
+          try {
+            if (spawnedTile && !spawnedTile.destroyed) {
+              spawnedTile.visible = true;
+              spawnedTile.alpha = 1;
+              spawnedTile.eventMode = 'static';
+              spawnedTile.cursor = 'pointer';
+              delete (spawnedTile as any)._ccWildSpawnDropping;
+            }
+          } catch {}
+        } finally {
+          try {
+            if (spawnedTile && !spawnedTile.destroyed) {
+              delete (spawnedTile as any)._ccWildSpawnDropping;
+              spawnedTile.visible = true;
+              spawnedTile.alpha = 1;
+              spawnedTile.eventMode = 'static';
+              spawnedTile.cursor = 'pointer';
+              bindTileWithFallback(spawnedTile, false);
+            }
+          } catch {}
+        }
+
+        try {
+          if (spawnedTile && !spawnedTile.destroyed) {
+            delete (spawnedTile as any)._ccDeferWildIdleFx;
+            startWildShimmer(spawnedTile);
+            if (spawnedTile.special === 'wild-juice') {
+              startWildJuiceBubbles(spawnedTile);
+            } else if (spawnedTile.special === 'wild-tnt') {
+              startTntIdleParticles(spawnedTile);
+              startTntIdleShake(spawnedTile);
+            } else if (spawnedTile.special === 'wild') {
+              startWildStars(spawnedTile, { introBounce: true });
+            }
+          }
+        } catch {}
+
         // 🔥 USER REQUEST: Mark first wild as spawned
         const wasFirstWild = !firstWildSpawned;
         if (!firstWildSpawned) {

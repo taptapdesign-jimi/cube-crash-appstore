@@ -38,9 +38,9 @@ function getFxHotFactor(): number {
 }
 
 /** Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild. */
-export function startWildStars(tile: Tile): void {
+export function startWildStars(tile: Tile, opts: any = {}): void {
   if (!tile || tile.special !== 'wild') return;
-  attachWildStarHalo(tile);
+  attachWildStarHalo(tile, opts);
 }
 
 export function stopWildStars(tile: Tile): void {
@@ -4940,6 +4940,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const ttl            = options.ttl ?? 1.0;
   const blendMode      = options.blendMode ?? 'add';
   const bubbleAlpha    = options.baseAlpha ?? 1.0;
+  const bubbleColor    = options.color ?? options.bubbleColor ?? 0xFFFFFF;
+  const haloColor      = options.haloColor ?? bubbleColor;
   const startScaleHint = options.startScale ?? null;
   const sizeBoostChance = options.sizeBoostChance ?? 0;
   const sizeBoostScale = options.sizeBoostScale ?? 1;
@@ -5018,10 +5020,10 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       
       if (isEllipse) {
         // Ellipse shape for variety
-        puff.ellipse(0, 0, rx, ry).fill({ color: 0xFFFFFF, alpha: randomAlpha });
+        puff.ellipse(0, 0, rx, ry).fill({ color: bubbleColor, alpha: randomAlpha });
       } else {
         // Circle shape
-        puff.circle(0, 0, rx).fill({ color: 0xFFFFFF, alpha: randomAlpha });
+        puff.circle(0, 0, rx).fill({ color: bubbleColor, alpha: randomAlpha });
       }
       
       puff.alpha = 0.0;
@@ -5111,7 +5113,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   halo.clear();
   const haloScale = options.haloScale ?? 1;
   const rr = size * (0.22 + 0.05*baseStrength) * haloScale;
-  halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 * (options.haloAlpha ?? 1) });
+  halo.circle(0, 0, rr).fill({ color: haloColor, alpha: 0.10 * (options.haloAlpha ?? 1) });
   halo.alpha = 0;
   layer.addChildAt(halo, 0);
   trackTween(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });

@@ -64,6 +64,9 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     if (base && tex && tex !== Texture.EMPTY){ 
       // Force set texture even if it's already set (prevents texture loss)
       base.texture = tex; 
+      const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
+      base.width = faceSize;
+      base.height = faceSize;
       base.tint = 0xFFFFFF; 
       base.alpha = 1;
       base.visible = true;
@@ -79,6 +82,9 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       tile.pips.clear?.(); // Clear pips to prevent them from showing
     }
     tile.isWildFace = true;
+    try {
+      if (tile.shadow) tile.shadow.visible = false;
+    } catch {}
   
     // Wild-magnet grab reliability: ensure hit area and pointer mode are solid
     if (tile.special === 'wild-magnet') {
@@ -112,6 +118,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     }
   
     try {
+      if ((tile as any)._ccDeferWildIdleFx === true) return;
       startWildShimmer(tile); // Use shimmer instead of bounce
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
       if (tile.special === 'wild-juice') {

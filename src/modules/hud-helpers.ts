@@ -888,6 +888,25 @@ export { wild };
 /** No-op; used by app-core before wild spawn. Optional wild meter refresh. */
 export function shimmerProgress(): void {}
 
+export function getWildMeterDropOrigin(): { x: number; y: number } | null {
+  try {
+    const view = wild?.view;
+    if (!view || view.destroyed) return null;
+    const width = Number(view._maxWidth) || 200;
+    const local = { x: width, y: 5 };
+    if (typeof view.toGlobal === 'function') {
+      const global = view.toGlobal(local);
+      if (global && Number.isFinite(global.x) && Number.isFinite(global.y)) {
+        return { x: global.x, y: global.y };
+      }
+    }
+    if (Number.isFinite(view.x) && Number.isFinite(view.y)) {
+      return { x: view.x + local.x, y: view.y + local.y };
+    }
+  } catch {}
+  return null;
+}
+
 /** True if HUD container has been destroyed (for cleanup checks). */
 export function isHUDDestroyed(): boolean {
   return !!(HUD_ROOT && (HUD_ROOT as { destroyed?: boolean }).destroyed);

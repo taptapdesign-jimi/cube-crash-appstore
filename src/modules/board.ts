@@ -319,6 +319,9 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       const tex = Assets.get(assetPath) || Texture.from(assetPath);
       if (t.base && tex && tex !== Texture.EMPTY) {
         t.base.texture = tex;
+        const wildFaceSize = t.special === 'wild-magnet' ? TILE * 0.96 : TILE;
+        t.base.width = wildFaceSize;
+        t.base.height = wildFaceSize;
         (t.base as any).tint = 0xFFFFFF;
         (t.base as any).alpha = 1;
         t.base.visible = true;
@@ -333,6 +336,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
         t.pips.visible = false;
         t.pips.clear?.(); // Clear pips to prevent them from showing
       }
+      if (t.shadow) t.shadow.visible = false;
       t.isWild = true;
       t.isWildFace = true;
     } catch (error) {
@@ -342,6 +346,8 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
     // aktivna pločica (only if NOT a wild tile)
     if (t.base) {
       t.base.texture = pickNumbersSkin();
+      t.base.width = TILE;
+      t.base.height = TILE;
       const bt2 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
       if (bt2) bt2.scaleMode = 'nearest';
     }
@@ -350,6 +356,8 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
     // prazno/locked
     if (t.base) {
       t.base.texture = Assets.get(ASSET_TILE);
+      t.base.width = TILE;
+      t.base.height = TILE;
       const bt3 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
       if (bt3) bt3.scaleMode = 'nearest';
     }

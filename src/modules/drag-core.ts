@@ -49,6 +49,23 @@ const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
 const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
 
+function getTileSpecial(tile: any): string | null {
+  if (!tile) return null;
+  const special = typeof tile.special === 'string' ? tile.special : '';
+  if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') return special;
+  if (tile.isWild === true || tile.isWildFace === true) return 'wild';
+  return null;
+}
+
+function isAnyWildTile(tile: any): boolean {
+  return !!getTileSpecial(tile);
+}
+
+function isDirectWildTile(tile: any): boolean {
+  const special = getTileSpecial(tile);
+  return special === 'wild' || special === 'wild-juice' || special === 'wild-tnt';
+}
+
 function __dg_alive(target){
   if (!target) return false;
   if (Array.isArray(target)) return target.some(t => t && !t.destroyed);
@@ -284,7 +301,12 @@ export function initDrag(cfg) {
       console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');
       return;
     }
-    
+
+    if ((t as any)?._ccWildSpawnDropping === true) {
+      console.log('🛡️ DRAG BLOCKED: Incoming wild is still landing');
+      return;
+    }
+
     // 🛡️ CRITICAL: Block drag for tiles that are being pulled by magnet
     // These tiles are protected and cannot be dragged or merged with other tiles
     if ((t as any)?._wildMagnetAffected === true) {
@@ -371,6 +393,13 @@ export function initDrag(cfg) {
     drag.offY = p.y - t.y;
     drag.moved = false;
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
+
+    // New drag must never inherit a cached null/target from the previous interaction.
+    // This is especially important for freshly dropped wild tiles: the first drag after
+    // spawn can otherwise snap back before hover/merge gets a fresh target read.
+    lastPickDropTime = 0;
+    lastPickDropResult = null;
+    lastPickDropSrc = null;
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -415,7 +444,7 @@ export function initDrag(cfg) {
     // Ghost placeholders are now in fixed background layer - always visible
 
     // 🔧 SHADOW PATCH: Hide shadow while dragging any wild tile (star/juice/tnt/magnet)
-    const isWildDrag = t?.special === 'wild' || t?.special === 'wild-juice' || t?.special === 'wild-tnt' || t?.special === 'wild-magnet';
+    const isWildDrag = isAnyWildTile(t);
     if (t.shadow && isWildDrag) {
       t.shadow.visible = false;
     } else if (t.shadow) {
@@ -465,7 +494,7 @@ export function initDrag(cfg) {
 
     // Start sparkles immediately when wild cube is picked up
     // 🔥 CRITICAL: All wild tiles (wild star, wild juice, wild magnet) get sparkles with their original colors
-    if (t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet') {
+    if (isAnyWildTile(t)) {
       try {
         // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
         // This ensures particles appear behind the wild tile when dragging
@@ -478,7 +507,7 @@ export function initDrag(cfg) {
         // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
         // Use velocity-based throttling to reduce particles when dragging fast
         drag._sparkleInterval = setInterval(() => {
-          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-juice' || drag.t.special === 'wild-tnt' || drag.t.special === 'wild-magnet') && !drag.t.destroyed) {
+          if (drag.t && isAnyWildTile(drag.t) && !drag.t.destroyed) {
             try {
               // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
               const dragSpeed = Math.hypot(drag.vx || 0, drag.vy || 0);
@@ -689,8 +718,9 @@ export function initDrag(cfg) {
         if (!otherTile || otherTile.destroyed) return;
         if (otherTile === t) return; // Skip the magnet itself
         if (otherTile.locked) return;
+        if (otherTile._ccWildSpawnDropping === true) return;
         if ((otherTile.value | 0) <= 0) return;
-        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-juice' || otherTile.special === 'wild-tnt') return; // Skip wild tiles
+        if (isAnyWildTile(otherTile)) return; // Skip wild tiles
         if (otherTile._wildMagnetAffected) return; // Skip tiles that are already being pulled by magnet merge
         
         // Calculate distance from magnet to tile
@@ -1062,7 +1092,8 @@ export function initDrag(cfg) {
     
     // CRITICAL: Check if target is valid (not ghost placeholder, not locked, has value > 0)
     // Also check if target is actually in tiles list (not a ghost placeholder)
-    const isValidTarget = !target.destroyed && 
+    const isValidTarget = !target.destroyed &&
+                          !(target as any)._ccWildSpawnDropping &&
                           !target.locked && 
                           (target.value | 0) > 0 &&
                           typeof getTiles === 'function' && 
@@ -1144,6 +1175,7 @@ export function initDrag(cfg) {
       if (!t || t.destroyed) return false;
       if (t === src) return false;
       if (t.locked) return false;
+      if ((t as any)._ccWildSpawnDropping === true) return false;
       if ((t.value | 0) <= 0) return false;
       // CRITICAL: Make sure tile has gridX and gridY (real tiles have grid positions)
       if (typeof t.gridX !== 'number' || typeof t.gridY !== 'number') return false;
@@ -1206,6 +1238,59 @@ export function initDrag(cfg) {
     // Keep a bit stricter than baseThreshold to avoid accidental edge touches.
     const baseThreshold = Number.isFinite(drag.threshold) ? drag.threshold : 0.05;
     const th = src.special === 'wild-magnet' ? Math.max(baseThreshold, 0.12) : baseThreshold;
+
+    // Wild-magnet uses custom hover/selection logic while dragging. Keep the final
+    // drop target aligned with that visual feedback so a highlighted tile cannot
+    // snap back solely because PIXI overlap/bounds were too strict on pointerup.
+    const isWildMagnetTile = (tile) => tile?.special === 'wild-magnet';
+    const magnetCenterFallbackAllowed = isWildMagnetTile(src) || candidates.some(isWildMagnetTile);
+    if (magnetCenterFallbackAllowed && (!best || bestRatio < th)) {
+      let closest = null;
+      let closestDist = Infinity;
+      const maxCenterDist = tileSize * 0.98;
+      for (const t of candidates) {
+        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if ((t as any)._ccWildSpawnDropping === true) continue;
+        if (!isWildMagnetTile(src) && !isWildMagnetTile(t)) continue;
+        if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
+        const dist = Math.hypot((src.x ?? 0) - (t.x ?? 0), (src.y ?? 0) - (t.y ?? 0));
+        if (dist < closestDist && dist <= maxCenterDist) {
+          closestDist = dist;
+          closest = t;
+        }
+      }
+      if (closest) {
+        best = closest;
+        bestRatio = Math.max(bestRatio, th);
+      }
+    }
+
+    // Wild star/juice/tnt should be deterministic in both directions:
+    // wild -> regular and regular -> wild. PIXI bounds can be stale after reparent/drop
+    // or during scale tweens, so use board-space centers as a stable fallback whenever
+    // overlap is missing or below threshold.
+    const isDirectWild = (tile) => isDirectWildTile(tile);
+    const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
+    if (wildCenterFallbackAllowed && (!best || bestRatio < th)) {
+      let closest = null;
+      let closestDist = Infinity;
+      const maxCenterDist = tileSize * 1.08;
+      for (const t of candidates) {
+        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if ((t as any)._ccWildSpawnDropping === true) continue;
+        if (!isDirectWild(src) && !isDirectWild(t)) continue;
+        if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
+        const dist = Math.hypot((src.x ?? 0) - (t.x ?? 0), (src.y ?? 0) - (t.y ?? 0));
+        if (dist < closestDist && dist <= maxCenterDist) {
+          closestDist = dist;
+          closest = t;
+        }
+      }
+      if (closest) {
+        best = closest;
+        bestRatio = Math.max(bestRatio, th);
+      }
+    }
     
     // 🔥 CRITICAL: For wild-magnet, if no tile passed position check, result is ALWAYS null
     // This ensures that if magnet is not directly above any tile, no merge happens
@@ -1236,6 +1321,10 @@ export function initDrag(cfg) {
       // Make sure result is valid tile
       if (result.destroyed || result.locked || (result.value | 0) <= 0) {
         console.warn('⚠️ pickDropTarget: Returning invalid target (destroyed, locked, or value = 0), returning null instead');
+        return null;
+      }
+      if ((result as any)._ccWildSpawnDropping === true) {
+        console.warn('⚠️ pickDropTarget: Target is incoming wild drop, returning null instead');
         return null;
       }
       // Make sure result is in tiles list
@@ -1507,13 +1596,14 @@ export function initDrag(cfg) {
 
   function isHoverValid(src, target) {
     if (!src || !target) return false;
+    if ((src as any)._ccWildSpawnDropping === true || (target as any)._ccWildSpawnDropping === true) return false;
     
     // CRITICAL: Don't show hover on empty slots (ghost placeholders)
     // Only show hover on tiles with actual values
     if ((target.value|0) <= 0) return false;
     
-    const srcSpecial = src.special;
-    const targetSpecial = target.special;
+    const srcSpecial = getTileSpecial(src);
+    const targetSpecial = getTileSpecial(target);
     // Wild, wild-magnet, and wild-juice can merge with any tile (show hover)
     if (srcSpecial === 'wild' || targetSpecial === 'wild' || 
         srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet' ||

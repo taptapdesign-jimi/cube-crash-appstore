@@ -70,6 +70,10 @@ export function installDrag({
     cellXY, // Pass cellXY to drag manager
     onMerge: merge,
     canDrop: canDrop ?? ((src: Tile, dst: Tile) => {
+      if ((src as any)?._ccWildSpawnDropping === true || (dst as any)?._ccWildSpawnDropping === true) {
+        console.log('🔥 canDrop: Incoming wild drop is not mergeable yet');
+        return false;
+      }
       console.log('🔥 canDrop check:', {
         src: (src as any)?.value,
         dst: (dst as any)?.value,
@@ -120,22 +124,17 @@ export function installDrag({
 
       const wild = (srcIsWild || dstIsWild);
 
-      // WILD LOGIC: Wild cube cannot merge into same value
+      // WILD LOGIC: Direct wilds merge with any regular active tile.
+      // They internally carry value 6, so comparing values makes regular 6 snap back.
       if (wild) {
-        if (srcIsWild && !dstIsWild) {
-          // Wild merging into normal tile - check if target value is different
-          const canMerge = sv !== dv; // Wild cannot merge into same value as itself
-          console.log('🔥 Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
-          return canMerge;
-        } else if (dstIsWild && !srcIsWild) {
-          // Normal tile merging into wild - check if source value is different
-          const canMerge = sv !== dv; // Normal cannot merge into wild of same value
-          console.log('🔥 Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
-          return canMerge;
-        } else if (srcIsWild && dstIsWild) {
-          // Wild merging into wild - not allowed
+        if (srcIsWild && dstIsWild) {
           console.log('🔥 Wild merge check (wild->wild): not allowed');
           return false;
+        }
+        if (srcIsWild && !dstIsWild) {
+          return dv > 0 && !(dst as any)?.special;
+        } else if (dstIsWild && !srcIsWild) {
+          return sv > 0 && !(src as any)?.special;
         }
       }
 
@@ -167,4 +166,3 @@ export function installDrag({
 
   return { drag, cleanup };
 }
-

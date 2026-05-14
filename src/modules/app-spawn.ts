@@ -234,6 +234,9 @@ function applyWildSkinLocal(tile: Tile): void {
     }
     if (base){ 
       base.texture = tex; 
+      const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
+      (base as any).width = faceSize;
+      (base as any).height = faceSize;
       (base as any).tint = 0xFFFFFF; 
       (base as any).alpha = 1; 
     }

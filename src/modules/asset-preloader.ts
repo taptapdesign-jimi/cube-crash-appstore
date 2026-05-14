@@ -401,6 +401,10 @@ export class AssetPreloader {
       './assets/journey assets/forest.png',
       './assets/colelctibles/journey-card-empty.png',
       './assets/colelctibles/common back.png',
+      './assets/board transition/cloud1.png',
+      './assets/board transition/cloud2.png',
+      './assets/board transition/cloud3.png',
+      './assets/board transition/cloud4.png',
     ];
     
     logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);

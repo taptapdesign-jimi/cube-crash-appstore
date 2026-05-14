@@ -29,6 +29,9 @@ interface OrbitingStar {
   rotationPhase: number; // Početna faza za rotaciju
   rotationAmplitude: number; // Amplituda rotacije (4-8 stupnjeva)
   scaleNormalizer: number;
+  revealAt?: number;
+  revealed?: boolean;
+  introAnimating?: boolean;
 }
 
 interface WildStarSystem {
@@ -40,6 +43,7 @@ interface WildStarSystem {
   disposed: boolean;
   lastUpdateTime: number;
   updateIntervalMs: number;
+  introBounce?: boolean;
 }
 
 const STAR_TEXTURE_SOURCES = [
@@ -258,10 +262,17 @@ function setupStars(system: WildStarSystem, texture: Texture, starCount = MAX_BA
       rotationPhase: Math.random() * Math.PI * 2, // Početna faza za rotaciju
       rotationAmplitude: (4 + Math.random() * 4) * (Math.PI / 180), // 4-8 stupnjeva u radijanima
       scaleNormalizer: 1,
+      revealAt: system.introBounce ? performance.now() + i * 500 : 0,
+      revealed: !system.introBounce,
+      introAnimating: false,
     };
 
     // FORSIRANO koristimo samo teksturu - NEMA fallback-a!
     const display = createStarSprite(texture, star);
+    if (system.introBounce) {
+      display.alpha = 0;
+      display.scale.set(star.scaleNormalizer * star.baseScale * 0.08);
+    }
     star.sprite = display;
     system.stars.push(star);
     system.container.addChild(display);
@@ -325,9 +336,7 @@ function tickSystem(system: WildStarSystem): void {
   const time = now * 0.001;
 
   system.stars.forEach((star) => {
-    // FORCE visibility for each star
     star.sprite.visible = true;
-    star.sprite.alpha = 1.0;
 
     star.angle += star.speed * star.direction * delta * ORBIT_SPEED;
 
@@ -341,11 +350,62 @@ function tickSystem(system: WildStarSystem): void {
     star.sprite.rotation = Math.sin(time * star.rotationSpeed + star.rotationPhase) * star.rotationAmplitude;
 
     const pulse = star.baseScale * (0.92 + Math.sin(time * star.pulseSpeed + star.pulsePhase) * 0.1);
-    star.sprite.scale.set(star.scaleNormalizer * pulse);
+    if (system.introBounce && !star.revealed) {
+      if (now < (star.revealAt ?? 0)) {
+        star.sprite.alpha = 0;
+        star.sprite.scale.set(star.scaleNormalizer * star.baseScale * 0.08);
+        return;
+      }
+      star.revealed = true;
+      star.introAnimating = true;
+      star.sprite.alpha = 1;
+      gsap.killTweensOf(star.sprite.scale);
+      star.sprite.scale.set(star.scaleNormalizer * star.baseScale * 0.12);
+      gsap.timeline({
+        onComplete: () => {
+          star.introAnimating = false;
+        },
+      })
+        .to(star.sprite.scale, {
+          x: star.scaleNormalizer * star.baseScale * 1.26,
+          y: star.scaleNormalizer * star.baseScale * 1.26,
+          duration: 0.18,
+          ease: 'back.out(3.4)',
+        })
+        .to(star.sprite.scale, {
+          x: star.scaleNormalizer * star.baseScale * 0.86,
+          y: star.scaleNormalizer * star.baseScale * 0.86,
+          duration: 0.08,
+          ease: 'power2.inOut',
+        })
+        .to(star.sprite.scale, {
+          x: star.scaleNormalizer * star.baseScale,
+          y: star.scaleNormalizer * star.baseScale,
+          duration: 0.22,
+          ease: 'elastic.out(1, 0.68)',
+        });
+      return;
+    }
+
+    star.sprite.alpha = 1.0;
+    if (!star.introAnimating) {
+      star.sprite.scale.set(star.scaleNormalizer * pulse);
+    }
   });
 }
 
-export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
+function playOrbitIntro(container: Container): void {
+  try {
+    gsap.killTweensOf(container.scale);
+    container.scale.set(0.35);
+    gsap.timeline()
+      .to(container.scale, { x: 1.18, y: 1.18, duration: 0.16, ease: 'back.out(3.2)' })
+      .to(container.scale, { x: 0.92, y: 0.92, duration: 0.08, ease: 'power2.inOut' })
+      .to(container.scale, { x: 1, y: 1, duration: 0.2, ease: 'elastic.out(1, 0.72)' });
+  } catch {}
+}
+
+export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: any = {}): void {
   if (!tileIsPureWild(tile)) return;
 
   detachWildStarHalo(tile);
@@ -380,6 +440,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     disposed: false,
     lastUpdateTime: performance.now() - 1000 / 30,
     updateIntervalMs: 1000 / 30,
+    introBounce: opts?.introBounce === true,
   };
 
   systems.set(tile, system);
@@ -393,7 +454,6 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     container.alpha = 1.0;
     container.visible = true;
     container.renderable = true;
-    
     activeSystems.add(system);
     ensureSharedTicker();
   };
@@ -420,8 +480,15 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
         rotationPhase: Math.random() * Math.PI * 2,
         rotationAmplitude: (4 + Math.random() * 4) * (Math.PI / 180),
         scaleNormalizer: 1,
+        revealAt: system.introBounce ? performance.now() + i * 500 : 0,
+        revealed: !system.introBounce,
+        introAnimating: false,
       };
       const display = createFallbackStar();
+      if (system.introBounce) {
+        display.alpha = 0;
+        display.scale.set(0.08);
+      }
       star.sprite = display;
       system.stars.push(star);
       system.container.addChild(display);
@@ -429,7 +496,6 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     container.alpha = 1.0;
     container.visible = true;
     container.renderable = true;
-    
     activeSystems.add(system);
     ensureSharedTicker();
   };

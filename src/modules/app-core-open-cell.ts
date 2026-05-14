@@ -12,6 +12,7 @@ type OpenCellDeps = {
     skipBind?: boolean;
     timeScale?: number;
     forceFreshPlaceholder?: boolean;
+    skipSpawnAnimation?: boolean;
   };
   grid: any[][];
   board: any;
@@ -60,6 +61,7 @@ export function openAtCellCore({
     isWildTnt = false,
     skipBind = false,
     timeScale = 1.0,
+    skipSpawnAnimation = false,
   } = options || {};
   return new Promise((resolve) => {
     // Re-read from grid so we never spawn on a cell that was updated by another spawn (e.g. merge-6)
@@ -148,6 +150,9 @@ export function openAtCellCore({
         resolve(false);
         return;
       }
+      if (skipSpawnAnimation) {
+        (holder as any)._ccDeferWildIdleFx = true;
+      }
       makeBoard.setValue(holder, 6, 0);
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed after setValue (wild)', { c, r });
@@ -169,7 +174,7 @@ export function openAtCellCore({
       if (holder.overlay) { holder.overlay.alpha = 1; holder.overlay.visible = false; }
       if (holder.num) holder.num.alpha = 1;
       if (holder.pips) holder.pips.alpha = 1;
-      try {
+      if (!skipSpawnAnimation) try {
         startWildShimmer(holder); // Use shimmer instead of bounce
         // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
         if (holder.special === 'wild-juice') {
@@ -196,9 +201,16 @@ export function openAtCellCore({
       }
     }
 
-    holder.visible = true;
     const isWildSpawn = isWild || isWildMagnet || isWildJuice || isWildTnt;
     const isActiveTile = !isWildSpawn;
+    if (skipSpawnAnimation) {
+      holder.visible = false;
+      holder.alpha = 0;
+      holder.eventMode = 'none';
+      resolve(true);
+      return;
+    }
+    holder.visible = true;
     if (isActiveTile || isWildSpawn) {
       try { gsap?.killTweensOf?.(holder, true); } catch {}
       try { if (holder.base) gsap?.killTweensOf?.(holder.base, true); } catch {}
