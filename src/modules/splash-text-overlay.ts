@@ -55,12 +55,21 @@ const EXIT_FADE_DURATION = 0.17;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 const SPARKLE_HAPTIC_COUNT = 7;
 const SPARKLE_HAPTIC_INTERVAL = 0.095;
+const SPARKLE_LATE_HAPTIC_COUNT = 6;
+const SPARKLE_LATE_HAPTIC_START = 1.0;
+const SPARKLE_LATE_HAPTIC_INTERVAL = 0.11;
 
 function triggerSparkleHapticTrain(): void {
   try {
     if (typeof (window as any).triggerHapticImpact !== 'function') return;
     for (let i = 0; i < SPARKLE_HAPTIC_COUNT; i++) {
       const call = trackDelayedCall(i * SPARKLE_HAPTIC_INTERVAL, () => {
+        try { (window as any).triggerHapticImpact?.('light'); } catch {}
+      });
+      sparkleDelayedCallsRef.push(call);
+    }
+    for (let i = 0; i < SPARKLE_LATE_HAPTIC_COUNT; i++) {
+      const call = trackDelayedCall(SPARKLE_LATE_HAPTIC_START + i * SPARKLE_LATE_HAPTIC_INTERVAL, () => {
         try { (window as any).triggerHapticImpact?.('light'); } catch {}
       });
       sparkleDelayedCallsRef.push(call);

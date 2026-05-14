@@ -39,6 +39,9 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     devWarn,
   } = deps;
   try {
+    if (tile.special === 'wild' || tile.special === 'wild-magnet' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {
+      tile._ccWildSpecial = tile.special;
+    }
     // 🔥 CRITICAL: Use appropriate texture based on special type
     // Wild-juice / wild-tnt use their own textures
     let assetPath = ASSET_WILD;

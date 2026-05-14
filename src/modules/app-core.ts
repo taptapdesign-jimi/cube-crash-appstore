@@ -171,6 +171,35 @@ let magnetBlastReturnTweens: Array<gsap.core.Tween> = [];
 let lastTntBonusChangeAt = 0;
 let tntBonusGuardUntil = 0; // Prevent premature fail while TNT bonus changes board
 
+function isTileBoardBlastDisplacing(tile: any): boolean {
+  return tile?._ccBoardBlastDisplacing === true;
+}
+
+function markTileBoardBlastDisplacing(tile: any, homeX: number, homeY: number): void {
+  if (!tile || tile.destroyed) return;
+  tile._ccBoardBlastDisplacing = true;
+  tile._ccBoardBlastHomeX = homeX;
+  tile._ccBoardBlastHomeY = homeY;
+}
+
+function clearTileBoardBlastDisplacement(tile: any, homeX?: number, homeY?: number): void {
+  if (!tile || tile.destroyed) return;
+  const x = typeof homeX === 'number' && Number.isFinite(homeX) ? homeX : tile._ccBoardBlastHomeX;
+  const y = typeof homeY === 'number' && Number.isFinite(homeY) ? homeY : tile._ccBoardBlastHomeY;
+  if (Number.isFinite(x) && Number.isFinite(y)) {
+    try { gsap.set(tile, { x, y }); } catch {
+      try {
+        tile.x = x;
+        tile.y = y;
+      } catch {}
+    }
+  }
+  try { tile.refreshShadow?.(); } catch {}
+  delete tile._ccBoardBlastDisplacing;
+  delete tile._ccBoardBlastHomeX;
+  delete tile._ccBoardBlastHomeY;
+}
+
 function cleanupTntBoomArtifacts(reason: string = 'unknown'): void {
   try {
     tntBoomDelayedCalls.forEach((dc) => {
@@ -2175,15 +2204,34 @@ export async function boot(){
       const normalizeWildSpecial = (tile: any) => {
         if (!tile) return null;
         const special = typeof tile.special === 'string' ? tile.special : '';
-        if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') return special;
-        if (tile.isWild === true || tile.isWildFace === true) {
-          tile.special = 'wild';
+        if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') {
+          tile._ccWildSpecial = special;
+          try { if (tile.shadow) tile.shadow.visible = false; } catch {}
+          return special;
+        }
+        const remembered = typeof tile._ccWildSpecial === 'string' ? tile._ccWildSpecial : '';
+        if (remembered === 'wild' || remembered === 'wild-magnet' || remembered === 'wild-juice' || remembered === 'wild-tnt') {
+          tile.special = remembered;
           tile.isWild = true;
           tile.isWildFace = true;
           tile.value = 6;
           try { if (tile.pips) { tile.pips.visible = false; tile.pips.clear?.(); } } catch {}
           try { if (tile.num) tile.num.visible = false; } catch {}
           try { if (tile.overlay) tile.overlay.visible = false; } catch {}
+          try { if (tile.shadow) tile.shadow.visible = false; } catch {}
+          try { applyWildSkinLocal?.(tile); } catch {}
+          return remembered;
+        }
+        if (tile.isWild === true || tile.isWildFace === true) {
+          tile.special = 'wild';
+          tile._ccWildSpecial = 'wild';
+          tile.isWild = true;
+          tile.isWildFace = true;
+          tile.value = 6;
+          try { if (tile.pips) { tile.pips.visible = false; tile.pips.clear?.(); } } catch {}
+          try { if (tile.num) tile.num.visible = false; } catch {}
+          try { if (tile.overlay) tile.overlay.visible = false; } catch {}
+          try { if (tile.shadow) tile.shadow.visible = false; } catch {}
           return 'wild';
         }
         return null;
@@ -6721,6 +6769,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
             allTiles.forEach((tile: Tile) => {
               if (!tile || tile.destroyed || tile === dst || tile === src) return;
+              if ((tile as any)._ccWildSpawnDropping === true) return;
+              if (isTileBoardBlastDisplacing(tile)) return;
               if (tile.locked) return;
               const tileValue = (tile.value | 0);
               const isWildLike = typeof tile.special === 'string' && tile.special.startsWith('wild');
@@ -6763,12 +6813,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 zIndexRestored = true;
                 try { makeBoard.syncTileZIndex(tile, board); } catch {}
               };
+              const finishBlastTile = () => {
+                clearTileBoardBlastDisplacement(tile, origX, origY);
+                restoreZIndex();
+              };
+              markTileBoardBlastDisplacing(tile, origX, origY);
               try { gsap.killTweensOf(tile); } catch {}
               gsap.set(tile, { x: origX, y: origY, zIndex: 320 });
               try { board?.sortChildren?.(); } catch {}
               gsap.timeline({
-                onComplete: restoreZIndex,
-                onInterrupt: restoreZIndex
+                onComplete: finishBlastTile,
+                onInterrupt: finishBlastTile
               })
                 .to(tile, {
                   x: blastX,
@@ -6819,6 +6874,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
                   allBlastTiles.forEach((tile: Tile) => {
                     if (!tile || tile.destroyed) return;
+                    if ((tile as any)._ccWildSpawnDropping === true) return;
+                    if (isTileBoardBlastDisplacing(tile)) return;
                     // User requested: move only active cubes (no locked/ghost placeholders).
                     if (tile.locked) return;
                     const tileValue = (tile.value | 0);
@@ -6846,6 +6903,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     const blastX = origX + dirX * blastDist;
                     const blastY = origY + dirY * blastDist;
 
+                    markTileBoardBlastDisplacing(tile, origX, origY);
                     try { gsap.killTweensOf(tile); } catch {}
                     gsap.set(tile, { x: origX, y: origY });
 
@@ -6898,8 +6956,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     blastReturnHandles.forEach((h) => {
                       try {
                         if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
-                        gsap.set(h.tile, { x: h.origX, y: h.origY });
-                        h.tile.refreshShadow?.();
+                        clearTileBoardBlastDisplacement(h.tile, h.origX, h.origY);
                       } catch {}
                     });
                   };
@@ -6924,6 +6981,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       onUpdate: () => { try { h.tile.refreshShadow?.(); } catch {} },
                       onComplete: () => {
                         try { gsap.set(h.tile, { x: h.origX, y: h.origY }); } catch {}
+                        try { clearTileBoardBlastDisplacement(h.tile, h.origX, h.origY); } catch {}
                         pending -= 1;
                         if (pending <= 0) finish();
                       }
@@ -6999,6 +7057,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const magnetBlastHandles: Array<{ tile: Tile; origX: number; origY: number }> = [];
               allTiles.forEach((tile: Tile) => {
                 if (!tile || tile.destroyed || tile === dst) return;
+                if ((tile as any)._ccWildSpawnDropping === true) return;
+                if (isTileBoardBlastDisplacing(tile)) return;
                 if ((tile as any)._wildMagnetAffected === true) return;
                 const origX = tile.x ?? 0;
                 const origY = tile.y ?? 0;
@@ -7012,6 +7072,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const blastDist = magnetBlastStrength * (0.9 + Math.random() * 0.3);
                 const blastX = origX + dirX * blastDist;
                 const blastY = origY + dirY * blastDist;
+                markTileBoardBlastDisplacing(tile, origX, origY);
                 try { gsap.killTweensOf(tile); } catch {}
                 gsap.set(tile, { x: origX, y: origY });
                 gsap.to(tile, {
@@ -7031,7 +7092,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       y: h.origY,
                       duration: magnetReturnDuration,
                       ease: `elastic.out(0.6, ${magnetReturnElastic + Math.random() * 0.04})`,
-                      overwrite: 'auto'
+                      overwrite: 'auto',
+                      onComplete: () => {
+                        clearTileBoardBlastDisplacement(h.tile, h.origX, h.origY);
+                      },
+                      onInterrupt: () => {
+                        clearTileBoardBlastDisplacement(h.tile, h.origX, h.origY);
+                      }
                     });
                     try { magnetBlastReturnTweens.push(retTween); } catch {}
                   }

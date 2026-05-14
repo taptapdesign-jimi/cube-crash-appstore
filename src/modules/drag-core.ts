@@ -32,6 +32,7 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(__dg_orig_to(target, vars));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
+const WILD_SPECIALS = new Set(['wild', 'wild-magnet', 'wild-juice', 'wild-tnt']);
 
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
@@ -52,13 +53,37 @@ const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
 function getTileSpecial(tile: any): string | null {
   if (!tile) return null;
   const special = typeof tile.special === 'string' ? tile.special : '';
-  if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') return special;
+  if (WILD_SPECIALS.has(special)) return special;
+  const remembered = typeof tile._ccWildSpecial === 'string' ? tile._ccWildSpecial : '';
+  if (WILD_SPECIALS.has(remembered)) return remembered;
   if (tile.isWild === true || tile.isWildFace === true) return 'wild';
   return null;
 }
 
+function repairWildTileState(tile: any): string | null {
+  if (!tile || tile.destroyed) return null;
+  const special = getTileSpecial(tile);
+  if (!special) return null;
+  tile.special = special;
+  tile._ccWildSpecial = special;
+  tile.isWild = true;
+  tile.isWildFace = true;
+  tile.value = 6;
+  try {
+    if (tile.pips) {
+      tile.pips.visible = false;
+      tile.pips.clear?.();
+    }
+  } catch {}
+  try { if (tile.num) tile.num.visible = false; } catch {}
+  try { if (tile.overlay) tile.overlay.visible = false; } catch {}
+  try { if (tile.shadow) tile.shadow.visible = false; } catch {}
+  try { (window as any).CC?.applyWildSkinLocal?.(tile); } catch {}
+  return special;
+}
+
 function isAnyWildTile(tile: any): boolean {
-  return !!getTileSpecial(tile);
+  return !!repairWildTileState(tile);
 }
 
 function isDirectWildTile(tile: any): boolean {
@@ -299,6 +324,14 @@ export function initDrag(cfg) {
     // 🛡️ Block drag only until BOOM exit completes
     if ((window as any).__ccTntDragBlocked === true) {
       console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');
+      return;
+    }
+
+    const repairedSpecialAtDragStart = repairWildTileState(t);
+    if ((window as any).__ccWildSpawnDropInProgress === true && repairedSpecialAtDragStart) {
+      console.log('🛡️ DRAG BLOCKED: Wild spawn/drop animation active - wild tiles are protected', repairedSpecialAtDragStart);
+      try { e?.stopPropagation?.(); } catch {}
+      try { e?.preventDefault?.(); } catch {}
       return;
     }
 
@@ -1596,6 +1629,8 @@ export function initDrag(cfg) {
 
   function isHoverValid(src, target) {
     if (!src || !target) return false;
+    repairWildTileState(src);
+    repairWildTileState(target);
     if ((src as any)._ccWildSpawnDropping === true || (target as any)._ccWildSpawnDropping === true) return false;
     
     // CRITICAL: Don't show hover on empty slots (ghost placeholders)

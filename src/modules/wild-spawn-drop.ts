@@ -2,6 +2,7 @@ import { gsap } from 'gsap';
 import { Assets, Sprite, Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 type Point = { x: number; y: number };
 
@@ -16,108 +17,162 @@ type WildSpawnDropOptions = {
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
-const CLOUD_SOURCES = [
-  './assets/board transition/cloud1.png',
-  './assets/board transition/cloud2.png',
-  './assets/board transition/cloud3.png',
-  './assets/board transition/cloud4.png',
-];
+const BACKPACK_PLAYBACK_SOURCES = Array.from({ length: 20 }, (_, index) => `./assets/animations/backpack/backpack-${index + 1}.png`);
+const CRATE_IN_SOURCES = Array.from({ length: 10 }, (_, index) => `./assets/animations/crate/box-${index + 1}.png`);
+const CRATE_PLAYBACK_SOURCES = [...CRATE_IN_SOURCES, ...CRATE_IN_SOURCES.slice().reverse()];
 
-const WILD_REVEAL_DELAY = 0.1;
-const WILD_HOLD_AT_METER = 0.3;
-const WILD_TRAVEL_START = WILD_REVEAL_DELAY + WILD_HOLD_AT_METER;
-const CLOUD_BOUNCE_OUT_START = 0.3;
-const CLOUD_DRIFT_DURATION = 0.66;
-const CLOUD_EXIT_SCALE_DURATION = 0.34;
-const CLOUD_EXIT_FADE_DURATION = 0.1;
-const CLOUD_CLEANUP_DELAY = 0.92;
+const BACKPACK_ENTER_DURATION = 0.28;
+const BACKPACK_FRAME_DURATION = 0.0375;
+const BACKPACK_CLOSE_FRAME_DURATION = BACKPACK_FRAME_DURATION * 0.6;
+const BACKPACK_FRAME_10_HOLD = 0.2;
+const BACKPACK_FRAME_COUNT = BACKPACK_PLAYBACK_SOURCES.length;
+const BACKPACK_WILD_REVEAL_TIME = BACKPACK_ENTER_DURATION + BACKPACK_FRAME_DURATION * 6;
+const BACKPACK_WILD_POP_DURATION = 0.36;
+const BACKPACK_WILD_TRAVEL_START = BACKPACK_WILD_REVEAL_TIME + BACKPACK_WILD_POP_DURATION;
+const BACKPACK_SEQUENCE_END_TIME = BACKPACK_ENTER_DURATION + BACKPACK_FRAME_DURATION * 10 + BACKPACK_FRAME_10_HOLD + BACKPACK_CLOSE_FRAME_DURATION * 10;
+const BACKPACK_TEXTURE_WIDTH = 379;
+const CRATE_TEXTURE_WIDTH = 290;
+const BACKPACK_BODY_CLASS = 'cc-wild-backpack-active';
+const BACKPACK_DIVIDER_STYLE_ID = 'cc-wild-backpack-divider-mask-style';
 
-void Assets.load(CLOUD_SOURCES).catch(() => {});
+void Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES]).catch(() => {});
 
-function createSpawnClouds(stage: any, point: Point, tileSize: number, baseZ: number): () => void {
-  const clouds: any[] = [];
-  let cleaned = false;
+function maskBoardIndicatorDividersForBackpack(): () => void {
   try {
-    stage.sortableChildren = true;
-    const count = 4;
-    for (let i = 0; i < count; i += 1) {
-      const source = CLOUD_SOURCES[i % CLOUD_SOURCES.length];
-      const texture = Assets.get(source) || Texture.from(source);
-      const cloud = new Sprite(texture);
-      cloud.label = 'wild-spawn-cloud';
-      cloud.eventMode = 'none';
-      cloud.cursor = 'default';
-      cloud.zIndex = baseZ;
-      cloud.alpha = 0;
-      cloud.visible = true;
-      cloud.renderable = true;
-      cloud.anchor?.set?.(0.5);
-      const side = i % 2 === 0 ? -1 : 1;
-      const size = tileSize * (2.03 + Math.random() * 0.39);
-      cloud.width = size;
-      cloud.height = size * 0.52;
-      cloud.x = point.x + side * tileSize * (0.16 + Math.random() * 0.12);
-      cloud.y = point.y + (Math.random() - 0.5) * tileSize * 0.26;
-      cloud.rotation = (-0.08 + Math.random() * 0.16);
-      const fullScaleX = cloud.scale.x;
-      const fullScaleY = cloud.scale.y;
-      cloud.scale.set(fullScaleX * 0.18, fullScaleY * 0.18);
-      stage.addChild(cloud);
-      clouds.push(cloud);
-
-      const driftX = side * tileSize * (0.46 + Math.random() * 0.18);
-      const driftY = (Math.random() - 0.5) * tileSize * 0.18;
-      const appearDelay = i * 0.035;
-      trackTimeline()
-        .to(cloud, { alpha: 0.78, duration: 0.14, ease: 'power2.out' }, appearDelay)
-        .to(cloud.scale, { x: fullScaleX, y: fullScaleY, duration: 0.22, ease: 'back.out(2.1)' }, appearDelay)
-        .to(cloud, {
-          x: cloud.x + driftX,
-          y: cloud.y + driftY,
-          rotation: cloud.rotation + side * (0.08 + Math.random() * 0.08),
-          duration: CLOUD_DRIFT_DURATION,
-          ease: 'sine.inOut',
-        }, appearDelay)
-        .to(cloud.scale, {
-          x: fullScaleX * 1.1,
-          y: fullScaleY * 1.1,
-          duration: 0.08,
-          ease: 'power2.out',
-        }, CLOUD_BOUNCE_OUT_START + appearDelay)
-        .to(cloud.scale, {
-          x: fullScaleX * 0.08,
-          y: fullScaleY * 0.08,
-          duration: CLOUD_EXIT_SCALE_DURATION,
-          ease: 'back.in(2.2)',
-        }, CLOUD_BOUNCE_OUT_START + 0.08 + appearDelay)
-        .to(cloud.scale, {
-          x: 0,
-          y: 0,
-          duration: 0.06,
-          ease: 'power1.in',
-        }, CLOUD_BOUNCE_OUT_START + 0.08 + CLOUD_EXIT_SCALE_DURATION + appearDelay)
-        .to(cloud, {
-          alpha: 0,
-          duration: CLOUD_EXIT_FADE_DURATION,
-          ease: 'power1.in',
-        }, CLOUD_BOUNCE_OUT_START + 0.08 + CLOUD_EXIT_SCALE_DURATION - CLOUD_EXIT_FADE_DURATION + appearDelay);
+    if (typeof document === 'undefined') return () => {};
+    if (!document.getElementById(BACKPACK_DIVIDER_STYLE_ID)) {
+      const style = document.createElement('style');
+      style.id = BACKPACK_DIVIDER_STYLE_ID;
+      style.textContent = `
+        body.${BACKPACK_BODY_CLASS} #hud-board-indicator > div:not(#hud-board-indicator-label) {
+          opacity: 0 !important;
+        }
+      `;
+      document.head.appendChild(style);
     }
+    const w = window as any;
+    w.__ccWildBackpackDividerMaskCount = Math.max(0, (w.__ccWildBackpackDividerMaskCount || 0) + 1);
+    document.body.classList.add(BACKPACK_BODY_CLASS);
+    return () => {
+      try {
+        const win = window as any;
+        win.__ccWildBackpackDividerMaskCount = Math.max(0, (win.__ccWildBackpackDividerMaskCount || 0) - 1);
+        if (win.__ccWildBackpackDividerMaskCount <= 0) {
+          document.body.classList.remove(BACKPACK_BODY_CLASS);
+        }
+      } catch {}
+    };
+  } catch {}
+  return () => {};
+}
+
+function setWildSpawnDropActive(active: boolean): void {
+  try {
+    const w = window as any;
+    const count = Math.max(0, (w.__ccWildSpawnDropActiveCount || 0) + (active ? 1 : -1));
+    w.__ccWildSpawnDropActiveCount = count;
+    w.__ccWildSpawnDropInProgress = count > 0;
+  } catch {}
+}
+
+function getBackpackSpawnPoint(app: any, stage: any, tileSize: number): Point {
+  const screen = app?.screen || app?.renderer?.screen || {};
+  const width = Number(screen.width) || Number(app?.renderer?.width) || 390;
+  const height = Number(screen.height) || Number(app?.renderer?.height) || 844;
+  const globalPoint = {
+    x: width - tileSize * 1.15,
+    y: height - tileSize * 1.35 + 32,
+  };
+  return toParentPoint(stage, globalPoint);
+}
+
+function getBackpackWildExitPoint(backpackPoint: Point, stageScale: number): Point {
+  return {
+    x: backpackPoint.x - 34 * stageScale,
+    y: backpackPoint.y - 96 * stageScale,
+  };
+}
+
+function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: number): () => void {
+  let cleaned = false;
+  let backpack: any = null;
+  let frameTimeline: gsap.core.Timeline | null = null;
+  let bounceTimeline: gsap.core.Timeline | null = null;
+  const restoreBoardIndicatorDividers = maskBoardIndicatorDividersForBackpack();
+  try {
+    const useArcadeCrate = isArcadeHomeRunMode();
+    const playbackSources = useArcadeCrate ? CRATE_PLAYBACK_SOURCES : BACKPACK_PLAYBACK_SOURCES;
+    const textureWidth = useArcadeCrate ? CRATE_TEXTURE_WIDTH : BACKPACK_TEXTURE_WIDTH;
+    stage.sortableChildren = true;
+    const texture = Assets.get(playbackSources[0]) || Texture.from(playbackSources[0]);
+    backpack = new Sprite(texture);
+    backpack.label = useArcadeCrate ? 'wild-spawn-crate' : 'wild-spawn-backpack';
+    backpack.eventMode = 'none';
+    backpack.cursor = 'default';
+    backpack.zIndex = baseZ;
+    backpack.alpha = 0;
+    backpack.visible = true;
+    backpack.renderable = true;
+    backpack.anchor?.set?.(0.5, 0.72);
+    backpack.x = point.x;
+    backpack.y = point.y + tileSize * 2.2;
+    const rotationSign = Math.random() < 0.5 ? -1 : 1;
+    const rotationDegrees = 4 + Math.random();
+    const restingRotation = rotationSign * rotationDegrees * (Math.PI / 180);
+    backpack.rotation = restingRotation;
+    const backpackScale = ((tileSize * 2.15 * 1.15) / textureWidth) * (useArcadeCrate ? 0.95 : 1);
+    backpack.scale.set(backpackScale * 0.82, backpackScale * 0.82);
+    stage.addChild(backpack);
+
+    bounceTimeline = trackTimeline();
+    bounceTimeline
+      .to(backpack, { alpha: 1, duration: 0.08, ease: 'power2.out' }, 0)
+      .to(backpack, { y: point.y, duration: BACKPACK_ENTER_DURATION, ease: 'back.out(2.3)' }, 0)
+      .to(backpack.scale, { x: backpackScale * 1.18, y: backpackScale * 0.84, duration: 0.13, ease: 'power2.out' }, 0)
+      .to(backpack.scale, { x: backpackScale * 0.9, y: backpackScale * 1.12, duration: 0.1, ease: 'power2.inOut' }, 0.11)
+      .to(backpack.scale, { x: backpackScale * 1.05, y: backpackScale * 0.97, duration: 0.1, ease: 'power2.out' }, 0.2)
+      .to(backpack.scale, { x: backpackScale, y: backpackScale, duration: 0.16, ease: 'elastic.out(1, 0.72)' }, 0.29);
+
+    frameTimeline = trackTimeline();
+    frameTimeline.to({}, { duration: BACKPACK_ENTER_DURATION, ease: 'none' });
+    playbackSources.forEach((source, index) => {
+      if (!frameTimeline) return;
+      frameTimeline.call(() => {
+        if (!backpack || backpack.destroyed) return;
+        backpack.texture = Assets.get(source) || Texture.from(source);
+      });
+      const closingStartIndex = Math.ceil(playbackSources.length / 2);
+      const frameDuration = index >= closingStartIndex ? BACKPACK_CLOSE_FRAME_DURATION : BACKPACK_FRAME_DURATION;
+      frameTimeline.to({}, { duration: frameDuration, ease: index >= closingStartIndex ? 'sine.inOut' : 'none' });
+      if (index === 9) {
+        frameTimeline.to({}, { duration: BACKPACK_FRAME_10_HOLD, ease: 'none' });
+      }
+    });
+    frameTimeline
+      .call(() => {
+        if (!backpack || backpack.destroyed) return;
+        backpack.texture = Assets.get(playbackSources[playbackSources.length - 1]) || Texture.from(playbackSources[playbackSources.length - 1]);
+      })
+      .set(backpack.scale, { x: backpackScale, y: backpackScale })
+      .to(backpack.scale, { x: 0, y: 0, duration: 0.24, ease: 'back.in(2.2)' })
+      .to(backpack, { alpha: 0, duration: 0.1, ease: 'power1.in' }, '>-0.2');
   } catch {}
 
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
-    clouds.forEach((cloud) => {
-      try { gsap.killTweensOf(cloud); } catch {}
-      try { gsap.killTweensOf(cloud.scale); } catch {}
-      try {
-        if (cloud.parent) cloud.parent.removeChild(cloud);
-        cloud.destroy?.();
-      } catch {}
-    });
-    clouds.length = 0;
+    try { frameTimeline?.kill(); } catch {}
+    try { bounceTimeline?.kill(); } catch {}
+    try { gsap.killTweensOf(backpack); } catch {}
+    try { gsap.killTweensOf(backpack?.scale); } catch {}
+    try { restoreBoardIndicatorDividers(); } catch {}
+    try {
+      if (backpack?.parent) backpack.parent.removeChild(backpack);
+      backpack?.destroy?.();
+    } catch {}
+    backpack = null;
   };
-  trackTimeline({ onComplete: cleanup }).to({}, { duration: CLOUD_CLEANUP_DELAY });
+  trackTimeline({ onComplete: cleanup }).to({}, { duration: BACKPACK_SEQUENCE_END_TIME + 0.32 });
   return cleanup;
 }
 
@@ -191,6 +246,7 @@ function repairWildIdentity(tile: any, assetPath?: string): void {
     const isKnownWild = currentSpecial === 'wild' || currentSpecial === 'wild-magnet' || currentSpecial === 'wild-juice' || currentSpecial === 'wild-tnt';
     if (isKnownWild || tile.isWild === true || tile.isWildFace === true) {
       tile.special = isKnownWild ? currentSpecial : expectedSpecial;
+      tile._ccWildSpecial = tile.special;
       tile.isWild = true;
       tile.isWildFace = true;
       tile.value = 6;
@@ -209,15 +265,16 @@ export function animateWildSpawnDropFromMeter({
   app,
   tile,
   assetPath,
-  from,
   tileSize,
   onImpact,
 }: WildSpawnDropOptions): Promise<void> {
   return new Promise((resolve) => {
     const stage = app?.stage;
+    setWildSpawnDropActive(true);
     repairWildIdentity(tile, assetPath);
     if (!stage || !tile || tile.destroyed) {
       revealTile(tile);
+      setWildSpawnDropActive(false);
       resolve();
       return;
     }
@@ -227,28 +284,46 @@ export function animateWildSpawnDropFromMeter({
       x: Number(tile.x),
       y: Number(tile.y),
     };
-    if (!Number.isFinite(target.x) || !Number.isFinite(target.y) || !from) {
+    if (!Number.isFinite(target.x) || !Number.isFinite(target.y)) {
       revealTile(tile);
       try {
         gsap.killTweensOf(tile.scale);
         tile.scale?.set?.(0.3, 0.3);
-        trackTimeline({ onComplete: resolve })
+        trackTimeline({ onComplete: () => { setWildSpawnDropActive(false); resolve(); } })
           .to(tile.scale, { x: 1.1, y: 1.1, duration: 0.18, ease: 'back.out(2.2)' })
           .to(tile.scale, { x: 0.96, y: 0.96, duration: 0.1, ease: 'power2.inOut' })
           .to(tile.scale, { x: 1, y: 1, duration: 0.18, ease: 'elastic.out(1, 0.72)' });
       } catch {
+        setWildSpawnDropActive(false);
         resolve();
       }
       return;
     }
 
-    const start = toParentPoint(stage, from);
+    const stageVisualScale = getGlobalScale(parent);
+    const backpackPoint = getBackpackSpawnPoint(app, stage, tileSize * stageVisualScale);
+    const wildStartPoint = { x: backpackPoint.x, y: backpackPoint.y };
+    if (isArcadeHomeRunMode()) {
+      const arcadeCrateLiftRatio = 0.1 + 58 / Math.max(1, tileSize);
+      const arcadeCrateLeftRatio = 24 / Math.max(1, tileSize);
+      backpackPoint.x -= tileSize * arcadeCrateLeftRatio * stageVisualScale;
+      backpackPoint.y -= tileSize * arcadeCrateLiftRatio * stageVisualScale;
+      wildStartPoint.y -= tileSize * arcadeCrateLiftRatio * stageVisualScale;
+    }
+    const start = getBackpackWildExitPoint(wildStartPoint, stageVisualScale);
+    if (isArcadeHomeRunMode()) {
+      const arcadeWildStartLiftRatio = 48 / Math.max(1, tileSize);
+      start.y -= tileSize * arcadeWildStartLiftRatio * stageVisualScale;
+    }
     const targetGlobal = toGlobalPoint(parent, target);
     const stageTarget = toParentPoint(stage, targetGlobal);
-    const stageVisualScale = getGlobalScale(parent);
     const originalZIndex = tile.zIndex;
     const originalRotation = tile.rotation || 0;
-    const cleanupSpawnClouds = createSpawnClouds(stage, start, tileSize * stageVisualScale, 99_999);
+    const cleanupBackpackSpawn = createBackpackSpawn(stage, backpackPoint, tileSize * stageVisualScale, 1_000_002);
+    const launch = {
+      x: start.x,
+      y: start.y - 14 * stageVisualScale,
+    };
     try {
       tile._ccWildSpawnDropping = true;
       try { gsap.killTweensOf(tile); } catch {}
@@ -258,7 +333,7 @@ export function animateWildSpawnDropFromMeter({
         stage.addChild(tile);
       }
       stage.sortableChildren = true;
-      tile.zIndex = 100_000;
+      tile.zIndex = 1_000_003;
       tile.visible = false;
       tile.alpha = 0;
       tile.eventMode = 'none';
@@ -271,13 +346,13 @@ export function animateWildSpawnDropFromMeter({
       if (tile.base) tile.base.alpha = 1;
     } catch {}
 
-    const dx = stageTarget.x - start.x;
-    const dy = stageTarget.y - start.y;
+    const dx = stageTarget.x - launch.x;
+    const dy = stageTarget.y - launch.y;
     const arcLift = Math.max(54, Math.min(112, Math.abs(dy) * 0.16 + 38));
     const side = dx >= 0 ? 1 : -1;
     const control = {
-      x: start.x + dx * 0.48 + side * (10 + Math.random() * 12),
-      y: start.y + dy * 0.22 - arcLift,
+      x: launch.x + dx * 0.48 + side * (10 + Math.random() * 12),
+      y: launch.y + dy * 0.22 - arcLift,
     };
     const travel = { p: 0 };
 
@@ -300,8 +375,9 @@ export function animateWildSpawnDropFromMeter({
         tile.scale?.set?.(1, 1);
         repairWildIdentity(tile, assetPath);
         delete tile._ccWildSpawnDropping;
-        cleanupSpawnClouds();
+        cleanupBackpackSpawn();
         revealTile(tile);
+        setWildSpawnDropActive(false);
       } catch {}
     };
     const finish = () => {
@@ -313,17 +389,33 @@ export function animateWildSpawnDropFromMeter({
     const completeTravel = () => {
       if (completed) return;
       completed = true;
+      setWildSpawnDropActive(false);
       resolve();
     };
 
     try {
+      const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+      const easeInOut = (value: number) => 0.5 - Math.cos(clamp01(value) * Math.PI) * 0.5;
+      const easeOutBack = (value: number, amount = 2.4) => {
+        const t = clamp01(value) - 1;
+        return 1 + (amount + 1) * t * t * t + amount * t * t;
+      };
+      const lerp = (fromValue: number, toValue: number, t: number) => fromValue + (toValue - fromValue) * t;
+      const popState = { p: 0 };
+      const popStartY = start.y + 16 * stageVisualScale;
+      const popMidY = start.y + 2 * stageVisualScale;
+      const popTopY = start.y - 24 * stageVisualScale;
+
       spawnRevealTimeline = trackTimeline();
       spawnRevealTimeline
-        .to({}, { duration: WILD_REVEAL_DELAY })
+        .to({}, { duration: BACKPACK_WILD_REVEAL_TIME })
         .call(() => {
           if (completed || !tile || tile.destroyed) return;
           tile.visible = true;
-          tile.alpha = 1;
+          tile.alpha = 0;
+          tile.x = start.x;
+          tile.y = popStartY;
+          tile.scale?.set?.(stageVisualScale * 0.5, stageVisualScale * 0.5);
           if (tile.rotG) tile.rotG.alpha = 1;
           if (tile.base) tile.base.alpha = 1;
           if (tile.overlay) {
@@ -333,23 +425,46 @@ export function animateWildSpawnDropFromMeter({
           if (tile.num) tile.num.alpha = 1;
           if (tile.pips) tile.pips.alpha = 1;
         })
-        .to(tile.scale, {
-          x: stageVisualScale * 1.22,
-          y: stageVisualScale * 1.08,
-          duration: 0.16,
-          ease: 'back.out(3.1)',
-        })
-        .to(tile.scale, {
-          x: stageVisualScale * 0.94,
-          y: stageVisualScale * 0.98,
-          duration: 0.08,
-          ease: 'power2.inOut',
-        })
-        .to(tile.scale, {
-          x: stageVisualScale,
-          y: stageVisualScale,
-          duration: 0.2,
-          ease: 'elastic.out(1, 0.72)',
+        .to(popState, {
+          p: 1,
+          duration: BACKPACK_WILD_POP_DURATION,
+          ease: 'none',
+          onUpdate: () => {
+            if (!tile || tile.destroyed) return;
+            const p = popState.p;
+            tile.alpha = clamp01(p / 0.28);
+            tile.x = start.x;
+
+            let y = launch.y;
+            let sx = stageVisualScale * 0.8;
+            let sy = stageVisualScale * 0.8;
+            if (p < 0.34) {
+              const t = easeInOut(p / 0.34);
+              y = lerp(popStartY, popMidY, t);
+              sx = stageVisualScale * lerp(0.5, 0.62, t);
+              sy = stageVisualScale * lerp(0.5, 0.58, t);
+            } else if (p < 0.78) {
+              const t = easeOutBack((p - 0.34) / 0.44, 2.45);
+              y = lerp(popMidY, popTopY, t);
+              sx = stageVisualScale * lerp(0.62, 0.9, t);
+              sy = stageVisualScale * lerp(0.58, 0.82, t);
+            } else {
+              const t = easeInOut((p - 0.78) / 0.22);
+              y = lerp(popTopY, launch.y, t);
+              sx = stageVisualScale * lerp(0.9, 0.8, t);
+              sy = stageVisualScale * lerp(0.82, 0.8, t);
+            }
+
+            tile.y = y;
+            tile.scale?.set?.(sx, sy);
+          },
+          onComplete: () => {
+            if (!tile || tile.destroyed) return;
+            tile.alpha = 1;
+            tile.x = launch.x;
+            tile.y = launch.y;
+            tile.scale?.set?.(stageVisualScale * 0.8, stageVisualScale * 0.8);
+          },
         });
     } catch {}
 
@@ -360,18 +475,12 @@ export function animateWildSpawnDropFromMeter({
     });
 
     tl.to({}, {
-      duration: WILD_TRAVEL_START,
+      duration: BACKPACK_WILD_TRAVEL_START,
       ease: 'none',
       onStart: () => {
         try {
           tile.x = start.x;
-          tile.y = start.y;
-        } catch {}
-      },
-      onUpdate: () => {
-        try {
-          tile.x = start.x;
-          tile.y = start.y;
+          if (!tile.visible) tile.y = launch.y;
         } catch {}
       },
     });
@@ -392,21 +501,21 @@ export function animateWildSpawnDropFromMeter({
           }
           if (tile.num) tile.num.alpha = 1;
           if (tile.pips) tile.pips.alpha = 1;
-          tile.scale?.set?.(stageVisualScale * 1.24, stageVisualScale * 1.1);
+          tile.scale?.set?.(stageVisualScale * 0.8, stageVisualScale * 0.8);
         } catch {}
       },
       onUpdate: () => {
         const p = travel.p;
         const inv = 1 - p;
-        tile.x = inv * inv * start.x + 2 * inv * p * control.x + p * p * stageTarget.x;
-        tile.y = inv * inv * start.y + 2 * inv * p * control.y + p * p * stageTarget.y;
+        tile.x = inv * inv * launch.x + 2 * inv * p * control.x + p * p * stageTarget.x;
+        tile.y = inv * inv * launch.y + 2 * inv * p * control.y + p * p * stageTarget.y;
         tile.rotation = originalRotation + side * Math.sin(p * Math.PI) * 0.18;
         const arcPulse = Math.sin(p * Math.PI) * 0.04;
         const cartoonBounce = Math.sin(p * Math.PI * 7.5) * (1 - p * 0.25) * 0.075;
         const squash = Math.sin(p * Math.PI * 7.5 + Math.PI * 0.5) * (1 - p * 0.35) * 0.03;
         const spawnT = Math.min(1, p / 0.34);
-        const spawnPop = Math.max(0, 1 - spawnT) * 0.24;
-        const spawnBounce = Math.sin(spawnT * Math.PI * 2.25) * Math.max(0, 1 - spawnT) * 0.09;
+        const spawnPop = Math.max(0, 1 - spawnT) * 0.1;
+        const spawnBounce = Math.sin(spawnT * Math.PI * 2.25) * Math.max(0, 1 - spawnT) * 0.05;
         const sx = stageVisualScale * (1 + spawnPop + spawnBounce + arcPulse + cartoonBounce + squash);
         const sy = stageVisualScale * (1 + spawnPop * 0.68 - spawnBounce * 0.5 + arcPulse - cartoonBounce * 0.45 - squash * 0.55);
         tile.scale?.set?.(sx, sy);

@@ -339,6 +339,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       if (t.shadow) t.shadow.visible = false;
       t.isWild = true;
       t.isWildFace = true;
+      (t as any)._ccWildSpecial = t.special;
     } catch (error) {
       console.error('❌ Error setting wild texture:', error);
     }

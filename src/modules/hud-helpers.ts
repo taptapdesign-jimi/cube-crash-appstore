@@ -271,6 +271,7 @@ export function cleanupComboAnimations() {
 }
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
 const BOARD_INDICATOR_BOTTOM = 24;
+const BOARD_INDICATOR_Z_INDEX = '9';
 
 function ensureBoardIndicator() {
   if (boardIndicator && document.body.contains(boardIndicator)) {
@@ -289,7 +290,7 @@ function ensureBoardIndicator() {
     display: flex;
     align-items: center;
     gap: 24px;
-    z-index: 2500;
+    z-index: ${BOARD_INDICATOR_Z_INDEX};
     pointer-events: none;
     font-family: 'LTCrow', 'Arial', sans-serif;
     transform: translateY(0);
@@ -464,7 +465,7 @@ function syncBoardIndicatorForHudInit(initialHide = false) {
   indicator.style.display = 'flex';
   indicator.style.visibility = 'visible';
   indicator.style.opacity = '1';
-  indicator.style.zIndex = '2500';
+  indicator.style.zIndex = BOARD_INDICATOR_Z_INDEX;
   indicator.style.pointerEvents = 'none';
   indicator.setAttribute('data-state', 'visible');
 }
@@ -477,7 +478,7 @@ function animateBoardIndicatorEnter(duration = 0.8) {
     indicator.style.display = 'flex'; // Restore display (was set to 'none' on exit)
     indicator.style.visibility = 'visible';
     indicator.style.opacity = '1';
-    indicator.style.zIndex = '2500';
+    indicator.style.zIndex = BOARD_INDICATOR_Z_INDEX;
     indicator.style.pointerEvents = 'none';
     indicator.setAttribute('data-state', 'entering');
   }
