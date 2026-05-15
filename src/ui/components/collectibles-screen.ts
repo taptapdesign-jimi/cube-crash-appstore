@@ -121,28 +121,6 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
           },
         ],
       },
-      // 🔥 Floating buttons - DIRECTLY in journey-screen, outside collectibles-shell
-      // This ensures they're on the same level as cards and can have highest z-index
-      {
-        tag: 'div',
-        className: 'journey-floating-buttons-container',
-        children: [
-          {
-            tag: 'button',
-            id: 'journey-unlock-btn',
-            className: 'journey-floating-btn',
-            text: 'Show Card',
-            attributes: { type: 'button' },
-          },
-          {
-            tag: 'button',
-            id: 'journey-hide-btn',
-            className: 'journey-floating-btn',
-            text: 'Hide Card',
-            attributes: { type: 'button' },
-          },
-        ],
-      },
     ],
   };
 }
@@ -198,15 +176,11 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                     text: '',
                   },
                   {
-                    tag: 'button',
-                    id: 'detail-reset-stats-btn',
-                    className: 'detail-reset-stats-button tap-scale',
+                    tag: 'div',
+                    className: 'detail-header-spacer',
                     attributes: {
-                      type: 'button',
-                      'aria-label': 'Reset board stats (dev)',
-                      title: 'Reset all stats for this board (dev)',
+                      'aria-hidden': 'true',
                     },
-                    text: 'Reset',
                   },
                 ],
               },

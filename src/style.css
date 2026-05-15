@@ -2510,6 +2510,22 @@ body{
   will-change: transform;
 }
 
+.simple-bottom-sheet::after,
+.hearts-bottom-sheet::after,
+.collectible-reward-bottom-sheet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 1px);
+  height: max(96px, env(safe-area-inset-bottom, 0px) + 72px);
+  background: inherit;
+  background-size: inherit;
+  background-position: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
 .simple-bottom-sheet:not(.score-bottom-sheet) {
   box-shadow: none;
   overflow: visible;
@@ -2772,7 +2788,7 @@ body{
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: transform;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3689,6 +3705,10 @@ html.collectible-reward-open body {
   -webkit-overflow-scrolling: touch;
   -webkit-transform: translateY(100%);
   will-change: transform;
+}
+
+.hearts-bottom-sheet::after {
+  z-index: 0;
 }
 
 .hearts-bottom-sheet::before {
@@ -4764,6 +4784,89 @@ body:has(:root) .tile.wild-3d-glow {
   height: 2px;
   background: #F0ECEB;
   margin: 16px 0;
+}
+
+.settings-dev-divider {
+  margin-top: 24px;
+}
+
+.settings-dev-area {
+  padding: 18px 0 96px;
+}
+
+.settings-dev-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.settings-dev-kicker {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: #E8744A;
+  letter-spacing: 0.02em;
+}
+
+.settings-dev-description {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: #AD8775;
+  margin: 0;
+}
+
+.settings-dev-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-dev-button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 18px;
+  min-height: 48px;
+  padding: 10px 8px;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: #FFFFFF;
+  background: #E8744A;
+  box-shadow: 0 7px 0 #C95E39;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-dev-button-hide {
+  background: #AD8775;
+  box-shadow: 0 7px 0 #8D6E61;
+}
+
+.settings-dev-button-reset {
+  background: #735C4C;
+  box-shadow: 0 7px 0 #5A4639;
+}
+
+.settings-dev-button:active {
+  transform: translateY(3px) scale(0.98);
+  box-shadow: 0 4px 0 rgba(90, 70, 57, 0.9);
+}
+
+@media (max-width: 374px) {
+  .settings-dev-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-dev-button {
+    font-size: 18px;
+  }
 }
 
 /* Toggle Switch */

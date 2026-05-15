@@ -32,6 +32,18 @@
   transition: none;
 }
 
+.resume-bottom-sheet::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 1px);
+  height: max(96px, env(safe-area-inset-bottom, 0px) + 72px);
+  background: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* Visible state - entrance animation controlled by CSS */
 .resume-bottom-sheet.visible {
   transform: translateY(0);

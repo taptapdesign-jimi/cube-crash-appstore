@@ -6437,7 +6437,38 @@ class JourneyBoardsManager {
     }
   }
 
-  public showBoardPickerModal(action: 'show' | 'hide'): void {
+  public async resetBoardByNumber(boardNumber: number): Promise<boolean> {
+    if (boardNumber < 1 || boardNumber > 16) return false;
+
+    try {
+      const { boardStatsService } = await import('../services/board-stats-service.js');
+      boardStatsService.resetBoardStats(boardNumber);
+      logger.info(`🧹 Board ${boardNumber} stats reset (high score, longest combo, cubes cracked)`);
+    } catch (error) {
+      logger.warn(`⚠️ Failed to reset board ${boardNumber} stats:`, error);
+    }
+
+    try {
+      const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+      clearBoardSaveState(boardNumber);
+      logger.info(`🧹 Board ${boardNumber} saved state cleared`);
+    } catch (error) {
+      logger.warn(`⚠️ Failed to clear board ${boardNumber} saved state:`, error);
+    }
+
+    try {
+      const scoreBottomSheetModule = await import('../modules/score-bottom-sheet.js');
+      if (scoreBottomSheetModule?.isScoreBottomSheetVisible?.()) {
+        scoreBottomSheetModule.showScoreBottomSheet?.();
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to refresh score bottom sheet after board reset:', error);
+    }
+
+    return true;
+  }
+
+  public showBoardPickerModal(action: 'show' | 'hide' | 'reset'): void {
     console.log('🗺️ showBoardPickerModal called with action:', action);
     
     // Create modal overlay
@@ -6476,7 +6507,11 @@ class JourneyBoardsManager {
 
     // Title
     const title = document.createElement('h3');
-    title.textContent = action === 'show' ? 'Show Boards' : 'Hide Boards';
+    title.textContent = action === 'show'
+      ? 'Show Boards'
+      : action === 'hide'
+        ? 'Hide Boards'
+        : 'Reset Board';
     title.style.cssText = `
       font-size: 24px;
       font-weight: 800;
@@ -6506,9 +6541,10 @@ class JourneyBoardsManager {
       const board = this.boards.find(b => b.id === i);
       const isUnlocked = board?.unlocked ?? false;
       
-      // For "show" action, only show locked boards
-      // For "hide" action, only show unlocked boards
-      const shouldShow = action === 'show' ? !isUnlocked : isUnlocked;
+      // For "show" action, only show locked boards.
+      // For "hide" action, only show unlocked boards.
+      // For "reset", allow every board to be selected.
+      const shouldShow = action === 'show' ? !isUnlocked : action === 'hide' ? isUnlocked : true;
       
       btn.style.cssText = `
         background: ${shouldShow ? '#f3eee8' : '#e0e0e0'};
@@ -6598,14 +6634,19 @@ class JourneyBoardsManager {
       }
     };
 
-    okBtn.addEventListener('click', () => {
-      selectedBoards.forEach(boardNum => {
+    okBtn.addEventListener('click', async () => {
+      for (const boardNum of selectedBoards) {
         if (action === 'show') {
           this.unlockBoardByNumber(boardNum);
-        } else {
+        } else if (action === 'hide') {
           this.lockBoardByNumber(boardNum);
+        } else {
+          await this.resetBoardByNumber(boardNum);
         }
-      });
+      }
+      if (action === 'reset' && selectedBoards.size > 0) {
+        alert(`Reset board${selectedBoards.size > 1 ? 's' : ''}: ${Array.from(selectedBoards).map(n => n.toString().padStart(2, '0')).join(', ')}`);
+      }
       handleClose();
     });
 
@@ -6674,8 +6715,6 @@ class JourneyBoardsManager {
       unlockBtn.disabled = false;
       
       logger.debug('Journey Show Card button listener attached', undefined, { onclick: true });
-    } else {
-      console.warn('⚠️ journey-unlock-btn not found');
     }
 
     const hideBtn = document.getElementById('journey-hide-btn') as HTMLButtonElement | null;
@@ -6701,8 +6740,6 @@ class JourneyBoardsManager {
       hideBtn.disabled = false;
       
       logger.debug('Journey Hide Card button listener attached', undefined, { onclick: true });
-    } else {
-      console.warn('⚠️ journey-hide-btn not found');
     }
   }
 }

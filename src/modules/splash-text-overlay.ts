@@ -77,6 +77,86 @@ function triggerSparkleHapticTrain(): void {
   } catch {}
 }
 
+function attachMagneticEnergyFallback(overlay: HTMLElement): () => void {
+  if (!overlay) return () => {};
+
+  const field = document.createElement('div');
+  field.className = 'cc-swoop-energy-fallback';
+  field.style.cssText = [
+    'position:absolute',
+    'left:0',
+    'top:0',
+    'width:100%',
+    'height:100%',
+    'pointer-events:none',
+    'overflow:hidden',
+    'z-index:1',
+    'mix-blend-mode:screen'
+  ].join(';');
+  overlay.appendChild(field);
+
+  const timelines: gsap.core.Timeline[] = [];
+  const viewportW = Math.max(320, window.innerWidth || 390);
+  const viewportH = Math.max(520, window.innerHeight || 844);
+  const centerX = viewportW * 0.5;
+  const centerY = viewportH * 0.5;
+
+  const makeEnergyEl = (className: string, cssParts: string[]): HTMLDivElement => {
+    const el = document.createElement('div');
+    el.className = className;
+    el.style.cssText = cssParts.join(';');
+    field.appendChild(el);
+    return el;
+  };
+
+  for (let i = 0; i < 3; i += 1) {
+    const size = Math.min(viewportW * (0.72 + i * 0.18), 440 + i * 80);
+    const ring = makeEnergyEl('cc-swoop-energy-ring', [
+      'position:absolute',
+      `left:${Math.round(centerX - size / 2)}px`,
+      `top:${Math.round(centerY - size * 0.34)}px`,
+      `width:${Math.round(size)}px`,
+      `height:${Math.round(size * 0.68)}px`,
+      'border-radius:50%',
+      'border:0',
+      'background:radial-gradient(ellipse at center, rgba(255,255,255,0) 50%, rgba(255,203,71,0.10) 58%, rgba(255,148,114,0.24) 66%, rgba(255,203,71,0.08) 74%, rgba(255,255,255,0) 82%)',
+      'box-shadow:none',
+      'opacity:0',
+      'transform-origin:center center',
+      'filter:blur(0.8px)'
+    ]);
+    const tl = trackTimeline({ repeat: -1, delay: i * 0.1 });
+    tl.to(ring, {
+      opacity: 0.36,
+      scale: 0.82 + i * 0.06,
+      rotation: i % 2 === 0 ? 4 : -4,
+      duration: 0.16,
+      ease: 'power2.out'
+    });
+    tl.to(ring, {
+      opacity: 0,
+      scale: 1.18 + i * 0.08,
+      rotation: i % 2 === 0 ? -9 : 9,
+      duration: 0.42,
+      ease: 'power2.in'
+    });
+    timelines.push(tl);
+  }
+
+  return () => {
+    timelines.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    try {
+      gsap.killTweensOf(field);
+      field.querySelectorAll('*').forEach((el) => {
+        try { gsap.killTweensOf(el); } catch {}
+      });
+    } catch {}
+    try { field.remove(); } catch {}
+  };
+}
+
 function cleanupBuzzzOverlay(): void {
   try {
     swoopDelayedCallsRef.forEach((dc) => {
@@ -135,8 +215,14 @@ export function showMagneticText(): void {
       'justify-content: center',
     ].join(';');
     swoopOverlay = overlay;
-    // Wild-magnet SWOOP uses pooled bolt sprites instead of clouds.
-    swoopFxCleanup = attachBoltSprites(overlay, { count: 16, zIndex: 1 });
+    // Wild-magnet SWOOP always gets an energy layer. Image bolts are enhanced
+    // by a CSS/GSAP fallback so the final magnet flow can never show letters only.
+    const energyFallbackCleanup = attachMagneticEnergyFallback(overlay);
+    const boltCleanup = attachBoltSprites(overlay, { count: 16, zIndex: 1 });
+    swoopFxCleanup = () => {
+      try { boltCleanup?.(); } catch {}
+      try { energyFallbackCleanup?.(); } catch {}
+    };
 
     const container = document.createElement('div');
     container.style.cssText = [

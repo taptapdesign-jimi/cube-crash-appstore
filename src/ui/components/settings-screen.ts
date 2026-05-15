@@ -65,6 +65,71 @@ function getSettingsToggleTarget(event: Event): HTMLElement | null {
   return (target?.closest('.settings-toggle-switch') as HTMLElement | null) || null;
 }
 
+function openJourneyDevPicker(action: 'show' | 'hide' | 'reset'): void {
+  import('../../modules/journey-boards-manager.js')
+    .then(({ journeyBoardsManager }) => {
+      journeyBoardsManager.showBoardPickerModal(action);
+    })
+    .catch((error) => {
+      console.error(`❌ Failed to open Journey dev ${action} picker:`, error);
+      alert('Journey dev tools are not available right now.');
+    });
+}
+
+function createDevButton(id: string, text: string, action: 'show' | 'hide' | 'reset'): HTMLElementConfig {
+  return {
+    tag: 'button',
+    id,
+    className: `settings-dev-button settings-dev-button-${action} tap-scale`,
+    text,
+    attributes: {
+      type: 'button',
+      'aria-label': text,
+    },
+    eventListeners: {
+      click: (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openJourneyDevPicker(action);
+      },
+    },
+  };
+}
+
+function createSettingsDevArea(): HTMLElementConfig {
+  return {
+    tag: 'section',
+    className: 'settings-dev-area',
+    children: [
+      {
+        tag: 'div',
+        className: 'settings-dev-header',
+        children: [
+          {
+            tag: 'div',
+            className: 'settings-dev-kicker',
+            text: 'DEV',
+          },
+          {
+            tag: 'p',
+            className: 'settings-dev-description',
+            text: 'Journey card tools',
+          },
+        ],
+      },
+      {
+        tag: 'div',
+        className: 'settings-dev-actions',
+        children: [
+          createDevButton('settings-dev-show-card-btn', 'Show Card', 'show'),
+          createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
+          createDevButton('settings-dev-reset-board-btn', 'Reset Board', 'reset'),
+        ],
+      },
+    ],
+  };
+}
+
 function createSettingsToggle(toggle: SettingToggle): HTMLElementConfig {
   const toggleId = `toggle-${toggle.id}`;
   const statusId = `status-${toggle.id}`;
@@ -241,6 +306,8 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
               createSettingsToggle(musicToggle),
               { tag: 'div', className: 'settings-divider' },
               createSettingsToggle(vibrationToggle),
+              { tag: 'div', className: 'settings-divider settings-dev-divider' },
+              createSettingsDevArea(),
             ],
           },
           {
