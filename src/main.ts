@@ -2317,6 +2317,9 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
     // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (returnToDetailModal && detailModalBoardId !== null) {
+      (window as any).__ccSuppressJourneyShowForDirectDetailReturn = true;
+      (window as any).__ccDirectDetailModalReturnActive = true;
+
       // ⚡ SKIP if detail modal already opened from exit button (fast path)
       const modalAlreadyOpened = (window as any).__ccDetailModalAlreadyOpened === true;
       if (modalAlreadyOpened) {
@@ -2354,11 +2357,16 @@ async function startNewRun(boardId: number): Promise<void> {
             // Skip Journey exit animation because Journey screen is already hidden
             await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
             console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
+            window.setTimeout(() => {
+              delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+            }, 2000);
           } else {
             console.warn('⚠️ openBoardDetailsById method not found');
+            delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
           }
         }).catch((error) => {
           console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+          delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
         });
       }
       
@@ -2477,6 +2485,8 @@ async function startNewRun(boardId: number): Promise<void> {
   } catch (error) {
     logger.error('❌ Failed to exit to menu:', String(error));
   } finally {
+    (window as any).__ccLastGameExitAt = Date.now();
+    (window as any).__ccLastGameExitWasArcade = (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
     // Resume soundtrack if not already triggered in pathway (e.g. error path)
     try {
       const { soundtrackManager } = await import('./modules/soundtrack-manager.js');

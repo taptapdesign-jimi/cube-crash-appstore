@@ -31,6 +31,7 @@ const trackTween = (target: any, vars: any) => {
 const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
 // 🔒 Toggle for smoke on Journey cards (keep enabled with guards to avoid ghost puff)
 const ENABLE_JOURNEY_CARD_SMOKE = true;
+const ENABLE_UNLOCKED_CARD_IDLE_BOUNCE = false;
 
 const IDLE_WAIT_TIME = 0;  // No idle wait - start immediately
 const MIN_ANIMATION_INTERVAL = 450; // 🔥 USER REQUEST: Fixed interval 0.45s for active cards
@@ -84,6 +85,10 @@ function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
       try { (smokeContainer as any)._fadeOutTimer.kill(); } catch {}
       (smokeContainer as any)._fadeOutTimer = null;
     }
+    if ((smokeContainer as any)._activeFlagTimer) {
+      try { (smokeContainer as any)._activeFlagTimer.kill(); } catch {}
+      (smokeContainer as any)._activeFlagTimer = null;
+    }
 
     gsap.killTweensOf(smokeContainer);
     const children = smokeContainer.querySelectorAll('*');
@@ -93,6 +98,7 @@ function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
       try {
         if (
           childEl.classList.contains('journey-card-smoke-particle') ||
+          childEl.classList.contains('journey-card-smoke-halo') ||
           childEl.style.borderRadius === '50%'
         ) {
           domElementPool.release(childEl);
@@ -104,9 +110,7 @@ function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
       } catch {}
     });
 
-    if (smokeContainer.parentNode) {
-      smokeContainer.parentNode.removeChild(smokeContainer);
-    }
+    domElementPool.release(smokeContainer);
 
     const sourceCard = (smokeContainer as any)._sourceCard as HTMLElement | null;
     if (sourceCard && (sourceCard as any)._smokeActive) {
@@ -140,10 +144,35 @@ export function cleanupJourneySmokeEffects(card?: HTMLElement | null): void {
   }
 }
 
+function cleanupNonInterimCardMotion(container: HTMLElement | Document = document): void {
+  const regularCards = container.querySelectorAll('.journey-board-card:not(.interim)') as NodeListOf<HTMLElement>;
+  regularCards.forEach(card => {
+    try {
+      stopCardAnimation(card);
+      cleanupJourneySmokeEffects(card);
+      stopIdleShimmerForCard(card);
+      card.classList.remove('idle-shimmer-trigger');
+      (card as any)._smokeActive = false;
+    } catch {}
+  });
+}
+
 export function startJourneyCardIdleBounce(container: HTMLElement | null): void {
   if (!ENABLE_JOURNEY_CARD_IDLE_BOUNCE) return;
   if (!container) return;
+  stopJourneyCardIdleBounce();
   cleanupJourneySmokeEffects();
+  cleanupNonInterimCardMotion(container);
+
+  if (!ENABLE_UNLOCKED_CARD_IDLE_BOUNCE) {
+    state.container = container;
+    state.isActive = true;
+    state.cards = [];
+    state.activeAnimations = new Set();
+    state.lastInteractionTime = Date.now();
+    console.log('✅ Journey unlocked-card idle bounce disabled; interim card owns bounce/smoke');
+    return;
+  }
   
   // 🔥 USER REQUEST: Get all unlocked AND interim cards (cards with 'unlocked' or 'interim' class)
   // Interim cards should also have idle bounce and smoke animations
@@ -248,6 +277,7 @@ export function stopJourneyCardIdleBounce(): void {
   state.isBlockingHorizontal = false;
   
   cleanupJourneySmokeEffects();
+  cleanupNonInterimCardMotion(document);
 
   // Stop shimmer timers and remove shimmer class from all tracked cards
   state.shimmerTimers.forEach((timeoutId, card) => {
@@ -804,8 +834,15 @@ function stopCardAnimation(card: HTMLElement): void {
       // This ensures scale is preserved even if card is re-rendered or re-animated
       // delete (cardWrapper as any)._originalTransform;
     } else {
-      // 🔥 iPad FIX: Fallback - preserve scale for iPad, keep rotation
       const currentTransform = cardWrapper.style.transform || '';
+      // If the card was not actually animated, keep its exact render transform.
+      // Centered cards use translateX(calc(...)); rebuilding it as rotate/scale only
+      // drops centering and makes cards like Board 04 jump right.
+      if (currentTransform && currentTransform !== 'none') {
+        return;
+      }
+
+      // 🔥 iPad FIX: Fallback - preserve scale for iPad, keep rotation
       const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
       const expectedScale = isIPad ? 1.76 : 1; // Use the same scale as in createBoardCardFixed
       
@@ -861,6 +898,10 @@ export function smokeBubblesAtCard(
   // Skip duplicate check if this is a board transition digit (has __ccSmokeTimestamp)
   const isBoardTransitionDigit = (card as any).__ccSmokeTimestamp !== undefined || 
                                   (card as any).__ccSmokePosition !== undefined;
+
+  if (!card.classList.contains('interim') && !isBoardTransitionDigit) {
+    return;
+  }
   
   if ((card as any)._smokeActive && !isBoardTransitionDigit) {
     // Smoke already active, skipping duplicate (but allow board transition digits)
@@ -948,7 +989,7 @@ export function smokeBubblesAtCard(
     return;
   }
   
-  const smokeContainer = document.createElement('div');
+  const smokeContainer = domElementPool.acquire('div') as HTMLElement;
   smokeContainer.className = 'journey-card-smoke-container';
   (smokeContainer as any)._sourceCard = card;
   const sourceBoardId = card.getAttribute('data-board-id');
@@ -1216,7 +1257,7 @@ export function smokeBubblesAtCard(
   }
   
   // 🔥 USER REQUEST: Better quality halo effect (similar to tiles)
-  const halo = document.createElement('div');
+  const halo = domElementPool.acquire('div') as HTMLElement;
   halo.className = 'journey-card-smoke-halo';
   const haloPad = cardSize * (0.22 + 0.05 * baseStrength) * haloScale;
   const haloWidth = cardWidth + haloPad * 2;
@@ -1326,7 +1367,6 @@ export function smokeBubblesAtCard(
       
       // 🔥 CRITICAL FIX: Mark as cleaned up to prevent duplicate cleanup
       if ((smokeContainer as any)._cleanedUp) {
-        console.warn('⚠️ Smoke container already cleaned up, skipping duplicate');
         return;
       }
       // 🔥 USER REQUEST: Don't cleanup first smoke if it's marked for extended life
@@ -1372,21 +1412,19 @@ export function smokeBubblesAtCard(
   
   // 🔥 CRITICAL FIX: Clear smoke active flag after a delay (in case cleanup fails)
   // This ensures the flag is cleared even if cleanup doesn't run
-  setTimeout(() => {
+  const activeFlagTimer = trackDelayedCall(4.5, () => {
     if (card && (card as any)._smokeActive) {
       (card as any)._smokeActive = false;
     }
-  }, 4500); // Clear after 4.5s (longer than cleanup delay of 4.0s)
+  });
+  (smokeContainer as any)._activeFlagTimer = activeFlagTimer; // Clear after cleanup delay of 4.0s
 }
 
 export function updateJourneyCardList(container: HTMLElement | null): void {
   if (!container) return;
-  // 🔥 USER REQUEST: Include both unlocked AND interim cards
-  const unlockedCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
-  const interimCards = container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
-  const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
-  state.cards = allCards.filter(card => card && card.parentElement);
-  console.log('🔄 Updated journey card list:', state.cards.length, 'cards (unlocked + interim)');
+  cleanupNonInterimCardMotion(container);
+  state.cards = [];
+  console.log('🔄 Journey unlocked-card idle list kept empty; interim animation is managed separately');
 }
 
 // Exports for easy access

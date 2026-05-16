@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/272</span>
+                <span class='fraction'>0/282</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/75</span>
+                <span class='fraction'>0/84</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/36</span>
+                <span class='fraction'>0/37</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/233</span>
+                <span class='fraction'>0/242</span>
             </div>
         
             
@@ -532,7 +532,20 @@
 <a name='L467'></a><a href='#L467'>467</a>
 <a name='L468'></a><a href='#L468'>468</a>
 <a name='L469'></a><a href='#L469'>469</a>
-<a name='L470'></a><a href='#L470'>470</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -549,6 +562,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -648,6 +662,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -690,10 +706,20 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1018,6 +1044,7 @@ const trackDelayedCall = <span class="cstat-no" title="statement not covered" ><
 interface SweetPopOptions {
   onHalf?: () =&gt; void;
 }
+const ENTRY_POPIN_HAPTIC_START_DELAY_MS = <span class="cstat-no" title="statement not covered" >200;</span>
 &nbsp;
 // reset container while preserving boardBG and backgroundLayer
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >r</span>esetBoardContainer(</span>): void {
@@ -1119,6 +1146,8 @@ interface SweetPopOptions {
 // Fun bouncy animation with smart optimization
 <span class="cstat-no" title="statement not covered" >export function <span class="fstat-no" title="function not covered" >s</span>weetPopIn(</span>listTiles: Tile[], opts: SweetPopOptions = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span>: Promise&lt;void&gt; {
   const list = <span class="cstat-no" title="statement not covered" >[...listTiles];</span>
+  const isLoadPopInHaptics = (<span class="cstat-no" title="statement not covered" >window as any).__ccLoadPopInHapticPerTile === true;</span>
+  const isEntryPopInHaptics = (<span class="cstat-no" title="statement not covered" >window as any).__ccEnterAnimationActive === true;</span>
 &nbsp;
   // FULL random order — no spatial pattern
 <span class="cstat-no" title="statement not covered" >  for (let i = <span class="cstat-no" title="statement not covered" >list.length - 1;</span> i &gt; 0; i--) {</span>
@@ -1163,6 +1192,16 @@ interface SweetPopOptions {
       // Povremeni "burst" – dio kockica krene ranije
       const burst = <span class="cstat-no" title="statement not covered" >(Math.random() &lt; 0.22) ? (-Math.random() * 0.16) : 0;</span> // do -160ms
       const enterDel = <span class="cstat-no" title="statement not covered" >Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);</span>
+&nbsp;
+      const shouldTriggerPopInHaptic =
+<span class="cstat-no" title="statement not covered" >        isLoadPopInHaptics || (isEntryPopInHaptics &amp;&amp; i % 2 === 0);</span>
+<span class="cstat-no" title="statement not covered" >      if (shouldTriggerPopInHaptic &amp;&amp; typeof (window as any).triggerHapticImpact === 'function') {</span>
+        const hapticDelay = <span class="cstat-no" title="statement not covered" >enterDel + (isEntryPopInHaptics ? ENTRY_POPIN_HAPTIC_START_DELAY_MS / 1000 : 0);</span>
+        const hapticCall = <span class="cstat-no" title="statement not covered" >trackDelayedCall(hapticDelay, <span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+<span class="cstat-no" title="statement not covered" >          try { (<span class="cstat-no" title="statement not covered" >window as any).triggerHapticImpact?.('light'); </span>} catch {}</span>
+        });
+<span class="cstat-no" title="statement not covered" >        activeDelayedCalls.push(hapticCall);</span>
+      }
 &nbsp;
       // Trajanja uvijek brza, s blagom varijacijom
       const durMul = <span class="cstat-no" title="statement not covered" >0.55 + Math.random() * 0.20;</span> // 0.55–0.75
@@ -1477,7 +1516,7 @@ function <span class="fstat-no" title="function not covered" >dealFromRim(</span
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-05T16:27:29.965Z
+                at 2026-05-04T21:17:56.094Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

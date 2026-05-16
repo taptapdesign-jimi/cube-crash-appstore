@@ -105,6 +105,19 @@ let pooledFrameContainer: Container | null = null;
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
+function createRandomTextLetterSizes(count: number): number[] {
+  const large = [92, 98, 104];
+  const medium = [66, 72, 80];
+  const small = [30, 36, 44, 50];
+  const buckets = [large, medium, small, medium, large, small, medium, small, large];
+  const offset = Math.floor(Math.random() * buckets.length);
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = buckets[(index + offset) % buckets.length];
+    const base = bucket[Math.floor(Math.random() * bucket.length)];
+    const size = Math.max(28, base + (Math.random() * 10 - 5));
+    return index === 0 ? Math.max(75, size) : size;
+  });
+}
 let memorySpikeTrackerPromise: Promise<any | null> | null = null;
 function loadMemorySpikeTracker(): Promise<any | null> {
   if (!memorySpikeTrackerPromise) {
@@ -469,7 +482,7 @@ export function showTntAnimation(options: {
     'flex-direction: row',
     'align-items: center',
     'justify-content: center',
-    'gap: -4px',
+    'gap: 0',
     'margin: 0',
     'padding: 0',
     'width: fit-content',
@@ -489,16 +502,17 @@ export function showTntAnimation(options: {
   const boomLetterRotations: number[] = [];
   const boomBounceTimelines: gsap.core.Timeline[] = [];
   const boomText = ['B', 'O', 'O', 'M'];
+  const boomFontSizes = createRandomTextLetterSizes(boomText.length);
   boomText.forEach((letter, idx) => {
-    const letterScale = 0.9 + Math.random() * 0.4; // random veličina slova
+    const letterScale = 1;
+    const letterFontSize = boomFontSizes[idx];
     const rotation = 0; // tilt is now applied to whole BOOM container
     const letterEl = document.createElement('span');
     letterEl.textContent = letter;
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(241, 132, 83, 0.45))';
     letterEl.style.cssText = [
       'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
-      'font-size: 64px',
+      `font-size: ${letterFontSize.toFixed(1)}px`,
       'line-height: 1',
       'color: #F18453',
       '-webkit-text-fill-color: #F18453',
@@ -509,11 +523,11 @@ export function showTntAnimation(options: {
       'visibility: visible',
       'pointer-events: none',
       'margin-right: 0',
+      idx === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
       'padding: 0',
       'border: 0',
       'outline: 0',
       'vertical-align: top',
-      `filter: ${dropShadow}`,
       'transform-style: preserve-3d',
       'backface-visibility: hidden',
       '-webkit-font-smoothing: antialiased',

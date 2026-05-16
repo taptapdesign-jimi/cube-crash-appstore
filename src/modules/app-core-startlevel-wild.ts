@@ -6,6 +6,8 @@ type StartLevelWildDeps = {
   setFirstWildSpawned: (v: boolean) => void;
   setWildSpawnCount?: (v: number) => void;
   setWildMergeLockedSpawnCount?: (v: number) => void;
+  setLastWildDropType?: (v: string | null) => void;
+  setWildDropTypeStreak?: (v: number) => void;
   clearEndGameCache: () => void;
 };
 
@@ -17,6 +19,8 @@ export function resetWildAndEndgameState({
   setFirstWildSpawned,
   setWildSpawnCount,
   setWildMergeLockedSpawnCount,
+  setLastWildDropType,
+  setWildDropTypeStreak,
   clearEndGameCache,
 }: StartLevelWildDeps){
   // Reset wild-related state
@@ -27,6 +31,8 @@ export function resetWildAndEndgameState({
   setFirstWildSpawned(false);
   setWildSpawnCount?.(0);
   setWildMergeLockedSpawnCount?.(0);
+  setLastWildDropType?.(null);
+  setWildDropTypeStreak?.(0);
   
   // Clear end game cache when starting new level
   clearEndGameCache();

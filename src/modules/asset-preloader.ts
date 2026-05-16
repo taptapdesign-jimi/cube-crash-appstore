@@ -144,6 +144,9 @@ const ALL_ASSETS: string[] = [
   './assets/hud/score-hud.png',
   './assets/hud/score-hud@2x.png',
   './assets/hud/score-hud@3x.png',
+  './assets/hud/help.png',
+  './assets/hud/help@2x.png',
+  './assets/hud/help@3x.png',
   './assets/hud/combo-hud.png',
   './assets/hud/combo-hud@2x.png',
   './assets/hud/combo-hud@3x.png',
@@ -233,6 +236,9 @@ const CRITICAL_ASSETS: string[] = [
   // Essential UI (first frame only)
   './assets/close-button.png',
   './assets/close-icon.png',
+  './assets/hud/help.png',
+  './assets/hud/help@2x.png',
+  './assets/hud/help@3x.png',
   // './assets/stop.png' - removed: decode fails in preload
   
   // Bottom sheet icons (preload to prevent blurry loading when modals open)

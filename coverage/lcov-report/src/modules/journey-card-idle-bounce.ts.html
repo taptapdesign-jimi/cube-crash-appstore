@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/673</span>
+                <span class='fraction'>0/675</span>
             </div>
         
             
@@ -1454,13 +1454,7 @@
 <a name='L1389'></a><a href='#L1389'>1389</a>
 <a name='L1390'></a><a href='#L1390'>1390</a>
 <a name='L1391'></a><a href='#L1391'>1391</a>
-<a name='L1392'></a><a href='#L1392'>1392</a>
-<a name='L1393'></a><a href='#L1393'>1393</a>
-<a name='L1394'></a><a href='#L1394'>1394</a>
-<a name='L1395'></a><a href='#L1395'>1395</a>
-<a name='L1396'></a><a href='#L1396'>1396</a>
-<a name='L1397'></a><a href='#L1397'>1397</a>
-<a name='L1398'></a><a href='#L1398'>1398</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L1392'></a><a href='#L1392'>1392</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2428,7 +2422,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -2735,7 +2728,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2772,17 +2764,13 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -3823,17 +3811,16 @@ function <span class="fstat-no" title="function not covered" >stopCardAnimation(
   
   // Calculate particle properties
   const baseStrength = <span class="cstat-no" title="statement not covered" >Math.max(0.4, strength);</span>
-  // 🔥 iOS OPTIMIZATION: Reduced particle count from 44-58 to 30-40 for better performance
-  // Original: (44 + random(14)) = 44-58 particles
-  // Optimized: (30 + random(10)) = 30-40 particles (30-35% reduction)
-  const COUNT = <span class="cstat-no" title="statement not covered" >Math.max(6, Math.round((30 + Math.random() * 10) * baseStrength * countScale));</span>
+  // 🔥 PERFORMANCE: Further reduce particle count for smoother UI
+  // Optimized: (24 + random(8)) = 24-32 particles
+  const COUNT = <span class="cstat-no" title="statement not covered" >Math.max(4, Math.round((24 + Math.random() * 8) * baseStrength * countScale));</span>
   const BASE_R = <span class="cstat-no" title="statement not covered" >Math.max(6, Math.round(cardSize * 0.051 * sizeScale));</span>
   const MAX_R = <span class="cstat-no" title="statement not covered" >Math.max(18, Math.round(cardSize * 0.24 * sizeScale));</span>
   const INSET = <span class="cstat-no" title="statement not covered" >cardSize * 0.02;</span>
   const OUT_MIN = <span class="cstat-no" title="statement not covered" >cardSize * 0.15 * distanceScale;</span>
   const OUT_MAX = <span class="cstat-no" title="statement not covered" >cardSize * 0.34 * distanceScale;</span>
-  const BURSTS = <span class="cstat-no" title="statement not covered" >5;</span>
-  const BURST_GAP = <span class="cstat-no" title="statement not covered" >0.035;</span>
+  const BURSTS = <span class="cstat-no" title="statement not covered" >4;</span>
+  const BURST_GAP = <span class="cstat-no" title="statement not covered" >0.04;</span>
   
   // Spawn on side of card (accounting for aspect ratio)
   // Coordinates are relative to container center (0,0) after rotation
@@ -4124,13 +4111,12 @@ function <span class="fstat-no" title="function not covered" >stopCardAnimation(
             const children = <span class="cstat-no" title="statement not covered" >smokeContainer.querySelectorAll('*');</span>
 <span class="cstat-no" title="statement not covered" >            children.forEach(<span class="fstat-no" title="function not covered" >child </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >              gsap.killTweensOf(child);</span>
-<span class="cstat-no" title="statement not covered" >              if (child.parentNode === smokeContainer) {</span>
-<span class="cstat-no" title="statement not covered" >                try {</span>
-<span class="cstat-no" title="statement not covered" >                  if ((child as HTMLElement).style &amp;&amp; (child as HTMLElement).style.borderRadius === '50%') {</span>
-<span class="cstat-no" title="statement not covered" >                    domElementPool.release(child as HTMLElement);</span>
-                  }
-                } catch {}
-              }
+<span class="cstat-no" title="statement not covered" >              if (child.parentNode !== smokeContainer) <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >              try {</span>
+<span class="cstat-no" title="statement not covered" >                if ((child as HTMLElement).style &amp;&amp; (child as HTMLElement).style.borderRadius === '50%') {</span>
+<span class="cstat-no" title="statement not covered" >                  domElementPool.release(child as HTMLElement);</span>
+                }
+              } catch {}
             });
             
 <span class="cstat-no" title="statement not covered" >            if (smokeContainer.parentNode) {</span>
@@ -4169,19 +4155,15 @@ function <span class="fstat-no" title="function not covered" >stopCardAnimation(
       const children = <span class="cstat-no" title="statement not covered" >smokeContainer.querySelectorAll('*');</span>
 <span class="cstat-no" title="statement not covered" >      children.forEach(<span class="fstat-no" title="function not covered" >child </span>=&gt; {</span>
 <span class="cstat-no" title="statement not covered" >        gsap.killTweensOf(child);</span>
+        // 🔥 FIX: Only release if still in container (particles that finished were already released by onComplete)
+<span class="cstat-no" title="statement not covered" >        if (child.parentNode !== smokeContainer) <span class="cstat-no" title="statement not covered" >return;</span></span>
         // 🔥 MEMORY FIX: Release smoke particles back to pool
         // Halo elements will be removed by DOM removal below
-<span class="cstat-no" title="statement not covered" >        if (child.parentNode === smokeContainer) {</span>
-          // Only release if it's a direct child (smoke particles)
-          // Halo is also a direct child but we'll let DOM removal handle it
-<span class="cstat-no" title="statement not covered" >          try {</span>
-            // Try to release to pool (will fail silently if not a pooled element)
-<span class="cstat-no" title="statement not covered" >            if ((child as HTMLElement).style &amp;&amp; (child as HTMLElement).style.borderRadius === '50%') {</span>
-              // Likely a smoke particle (has border-radius: 50%)
-<span class="cstat-no" title="statement not covered" >              domElementPool.release(child as HTMLElement);</span>
-            }
-          } catch {}
-        }
+<span class="cstat-no" title="statement not covered" >        try {</span>
+<span class="cstat-no" title="statement not covered" >          if ((child as HTMLElement).style &amp;&amp; (child as HTMLElement).style.borderRadius === '50%') {</span>
+<span class="cstat-no" title="statement not covered" >            domElementPool.release(child as HTMLElement);</span>
+          }
+        } catch {}
       });
       
       // Remove from DOM (this removes halo and any remaining elements)
@@ -4261,7 +4243,7 @@ export const <span class="cstat-no" title="statement not covered" >JOURNEY_CARD_
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-05T16:27:29.676Z
+                at 2026-05-04T21:17:55.730Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

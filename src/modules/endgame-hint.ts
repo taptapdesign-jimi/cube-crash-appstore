@@ -19,6 +19,19 @@ const BOOM_EXIT_STAGGER = 0.012; // 80% faster (was 0.06)
 const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.06; // 80% faster (was 0.3)
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
+function createRandomTextLetterSizes(count: number): number[] {
+  const large = [92, 98, 104];
+  const medium = [66, 72, 80];
+  const small = [30, 36, 44, 50];
+  const buckets = [large, medium, small, medium, large, small, medium, small, large];
+  const offset = Math.floor(Math.random() * buckets.length);
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = buckets[(index + offset) % buckets.length];
+    const base = bucket[Math.floor(Math.random() * bucket.length)];
+    const size = Math.max(28, base + (Math.random() * 10 - 5));
+    return index === 0 ? Math.max(75, size) : size;
+  });
+}
 
 let shouldShow = false;
 let hintVisible = false;
@@ -50,7 +63,7 @@ function ensureStyles(): void {
       flex-direction: row;
       align-items: center;
       justify-content: center;
-      gap: -4px;
+      gap: 0;
       margin: 0;
       padding: 0;
       width: fit-content;
@@ -121,8 +134,10 @@ function renderMessage(text: string): void {
   letterScales = [];
   letterRotations = [];
   const chars = text.split('');
-  chars.forEach((ch) => {
-    const letterScale = 0.9 + Math.random() * 0.4;
+  const letterFontSizes = createRandomTextLetterSizes(chars.length);
+  chars.forEach((ch, index) => {
+    const letterScale = 1;
+    const letterFontSize = ch === ' ' ? 64 : letterFontSizes[index];
     const rotation = 0;
     const letterEl = document.createElement('span');
     if (ch === ' ') {
@@ -134,7 +149,7 @@ function renderMessage(text: string): void {
     letterEl.style.cssText = [
       'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
-      'font-size: 64px',
+      `font-size: ${letterFontSize.toFixed(1)}px`,
       'line-height: 1',
       'color: #e77449',
       'text-align: center',
@@ -143,7 +158,8 @@ function renderMessage(text: string): void {
       'display: inline-block',
       'visibility: visible',
       'pointer-events: none',
-      'margin-right: 0',
+    'margin-right: 0',
+    letterEls.length === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
       'padding: 0',
       'border: 0',
       'outline: 0',

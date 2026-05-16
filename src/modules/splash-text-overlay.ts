@@ -58,6 +58,19 @@ const SPARKLE_HAPTIC_INTERVAL = 0.095;
 const SPARKLE_LATE_HAPTIC_COUNT = 6;
 const SPARKLE_LATE_HAPTIC_START = 1.0;
 const SPARKLE_LATE_HAPTIC_INTERVAL = 0.11;
+function createRandomTextLetterSizes(count: number): number[] {
+  const large = [92, 98, 104];
+  const medium = [66, 72, 80];
+  const small = [30, 36, 44, 50];
+  const buckets = [large, medium, small, medium, large, small, medium, small, large];
+  const offset = Math.floor(Math.random() * buckets.length);
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = buckets[(index + offset) % buckets.length];
+    const base = bucket[Math.floor(Math.random() * bucket.length)];
+    const size = Math.max(28, base + (Math.random() * 10 - 5));
+    return index === 0 ? Math.max(75, size) : size;
+  });
+}
 
 function triggerSparkleHapticTrain(): void {
   try {
@@ -75,86 +88,6 @@ function triggerSparkleHapticTrain(): void {
       sparkleDelayedCallsRef.push(call);
     }
   } catch {}
-}
-
-function attachMagneticEnergyFallback(overlay: HTMLElement): () => void {
-  if (!overlay) return () => {};
-
-  const field = document.createElement('div');
-  field.className = 'cc-swoop-energy-fallback';
-  field.style.cssText = [
-    'position:absolute',
-    'left:0',
-    'top:0',
-    'width:100%',
-    'height:100%',
-    'pointer-events:none',
-    'overflow:hidden',
-    'z-index:1',
-    'mix-blend-mode:screen'
-  ].join(';');
-  overlay.appendChild(field);
-
-  const timelines: gsap.core.Timeline[] = [];
-  const viewportW = Math.max(320, window.innerWidth || 390);
-  const viewportH = Math.max(520, window.innerHeight || 844);
-  const centerX = viewportW * 0.5;
-  const centerY = viewportH * 0.5;
-
-  const makeEnergyEl = (className: string, cssParts: string[]): HTMLDivElement => {
-    const el = document.createElement('div');
-    el.className = className;
-    el.style.cssText = cssParts.join(';');
-    field.appendChild(el);
-    return el;
-  };
-
-  for (let i = 0; i < 3; i += 1) {
-    const size = Math.min(viewportW * (0.72 + i * 0.18), 440 + i * 80);
-    const ring = makeEnergyEl('cc-swoop-energy-ring', [
-      'position:absolute',
-      `left:${Math.round(centerX - size / 2)}px`,
-      `top:${Math.round(centerY - size * 0.34)}px`,
-      `width:${Math.round(size)}px`,
-      `height:${Math.round(size * 0.68)}px`,
-      'border-radius:50%',
-      'border:0',
-      'background:radial-gradient(ellipse at center, rgba(255,255,255,0) 50%, rgba(255,203,71,0.10) 58%, rgba(255,148,114,0.24) 66%, rgba(255,203,71,0.08) 74%, rgba(255,255,255,0) 82%)',
-      'box-shadow:none',
-      'opacity:0',
-      'transform-origin:center center',
-      'filter:blur(0.8px)'
-    ]);
-    const tl = trackTimeline({ repeat: -1, delay: i * 0.1 });
-    tl.to(ring, {
-      opacity: 0.36,
-      scale: 0.82 + i * 0.06,
-      rotation: i % 2 === 0 ? 4 : -4,
-      duration: 0.16,
-      ease: 'power2.out'
-    });
-    tl.to(ring, {
-      opacity: 0,
-      scale: 1.18 + i * 0.08,
-      rotation: i % 2 === 0 ? -9 : 9,
-      duration: 0.42,
-      ease: 'power2.in'
-    });
-    timelines.push(tl);
-  }
-
-  return () => {
-    timelines.forEach((tl) => {
-      try { tl.kill(); } catch {}
-    });
-    try {
-      gsap.killTweensOf(field);
-      field.querySelectorAll('*').forEach((el) => {
-        try { gsap.killTweensOf(el); } catch {}
-      });
-    } catch {}
-    try { field.remove(); } catch {}
-  };
 }
 
 function cleanupBuzzzOverlay(): void {
@@ -215,13 +148,13 @@ export function showMagneticText(): void {
       'justify-content: center',
     ].join(';');
     swoopOverlay = overlay;
-    // Wild-magnet SWOOP always gets an energy layer. Image bolts are enhanced
-    // by a CSS/GSAP fallback so the final magnet flow can never show letters only.
-    const energyFallbackCleanup = attachMagneticEnergyFallback(overlay);
+    // Wild-magnet SWOOP uses only pooled bolt sprites.
     const boltCleanup = attachBoltSprites(overlay, { count: 16, zIndex: 1 });
     swoopFxCleanup = () => {
       try { boltCleanup?.(); } catch {}
-      try { energyFallbackCleanup?.(); } catch {}
+    };
+    (swoopFxCleanup as any).startExit = () => {
+      try { (boltCleanup as any)?.startExit?.(); } catch {}
     };
 
     const container = document.createElement('div');
@@ -234,7 +167,7 @@ export function showMagneticText(): void {
       'flex-direction: row',
       'align-items: center',
       'justify-content: center',
-      'gap: -4px',
+      'gap: 0',
       'margin: 0',
       'padding: 0',
       'width: fit-content',
@@ -250,20 +183,21 @@ export function showMagneticText(): void {
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
     const letters = ['S', 'W', 'O', 'O', 'P'];
+    const letterFontSizes = createRandomTextLetterSizes(letters.length);
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const swoopBounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(255, 148, 114, 0.45))';
 
-    letters.forEach((letter) => {
-      const letterScale = 0.9 + Math.random() * 0.4;
+    letters.forEach((letter, index) => {
+      const letterScale = 1;
+      const letterFontSize = letterFontSizes[index];
       const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
       el.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 64px',
+        `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
         'color: #FF9472',
         '-webkit-text-fill-color: #FF9472',
@@ -274,11 +208,11 @@ export function showMagneticText(): void {
         'visibility: visible',
         'pointer-events: none',
         'margin-right: 0',
+        index === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
         'padding: 0',
         'border: 0',
         'outline: 0',
         'vertical-align: top',
-        `filter: ${dropShadow}`,
         'transform-style: preserve-3d',
         'backface-visibility: hidden',
         '-webkit-font-smoothing: antialiased',
@@ -312,6 +246,7 @@ export function showMagneticText(): void {
     const startExit = () => {
       if (exitStarted) return;
       exitStarted = true;
+      try { (swoopFxCleanup as any)?.startExit?.(); } catch {}
       swoopBounceTimelines.forEach((tl) => {
         try { tl.kill(); } catch {}
       });
@@ -530,7 +465,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
       'flex-direction: row',
       'align-items: center',
       'justify-content: center',
-      'gap: -4px',
+      'gap: 0',
       'margin: 0',
       'padding: 0',
       'width: fit-content',
@@ -546,20 +481,21 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
     const letters = ['S', 'P', 'A', 'R', 'K', 'L', 'E'];
+    const letterFontSizes = createRandomTextLetterSizes(letters.length);
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
     const bounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(255, 231, 157, 0.45))';
 
-    letters.forEach((letter) => {
-      const letterScale = 0.9 + Math.random() * 0.4;
+    letters.forEach((letter, index) => {
+      const letterScale = 1;
+      const letterFontSize = letterFontSizes[index];
       const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
       el.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 64px',
+        `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
         'color: #FFCB81',
         '-webkit-text-fill-color: #FFCB81',
@@ -570,12 +506,12 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
         'visibility: visible',
         'pointer-events: none',
         'margin-right: 0',
+        index === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
         'padding: 0',
         'border: 0',
         'outline: 0',
         'vertical-align: top',
         'text-shadow: none',
-        `filter: ${dropShadow}`,
         'transform-style: preserve-3d',
         'backface-visibility: hidden',
         '-webkit-font-smoothing: antialiased',
@@ -800,7 +736,7 @@ export function showNoMovesText(): void {
       'flex-direction: row',
       'align-items: center',
       'justify-content: center',
-      'gap: -4px',
+      'gap: 0',
       'margin: 0',
       'padding: 0',
       'width: fit-content',
@@ -816,13 +752,14 @@ export function showNoMovesText(): void {
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
     const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
+    const letterFontSizes = createRandomTextLetterSizes(letters.length);
     noMovesLetterScales = [];
     noMovesLetterRotations = [];
     const bounceTimelines: gsap.core.Timeline[] = [];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(196, 197, 193, 0.5))';
 
-    letters.forEach((ch) => {
-      const letterScale = 0.9 + Math.random() * 0.4;
+    letters.forEach((ch, index) => {
+      const letterScale = 1;
+      const letterFontSize = ch === ' ' ? 64 : letterFontSizes[index];
       const rotation = 0;
       const el = document.createElement('span');
       if (ch === ' ') {
@@ -836,7 +773,7 @@ export function showNoMovesText(): void {
       el.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 64px',
+        `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
         'color: #CC9882',
         'text-align: center',
@@ -846,11 +783,11 @@ export function showNoMovesText(): void {
         'visibility: visible',
         'pointer-events: none',
         'margin-right: 0',
+        index === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
         'padding: 0',
         'border: 0',
         'outline: 0',
         'vertical-align: top',
-        `filter: ${dropShadow}`,
         'transform-style: preserve-3d',
         'backface-visibility: hidden',
         '-webkit-font-smoothing: antialiased',

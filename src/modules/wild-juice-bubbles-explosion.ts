@@ -16,6 +16,19 @@ const trackTween = (target: any, vars: any) => animationManager.trackExternalTwe
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
+function createRandomTextLetterSizes(count: number): number[] {
+  const large = [92, 98, 104];
+  const medium = [66, 72, 80];
+  const small = [30, 36, 44, 50];
+  const buckets = [large, medium, small, medium, large, small, medium, small, large];
+  const offset = Math.floor(Math.random() * buckets.length);
+  return Array.from({ length: count }, (_, index) => {
+    const bucket = buckets[(index + offset) % buckets.length];
+    const base = bucket[Math.floor(Math.random() * bucket.length)];
+    const size = Math.max(28, base + (Math.random() * 10 - 5));
+    return index === 0 ? Math.max(75, size) : size;
+  });
+}
 
 // Module-level state (like board-transition-screen)
 let isExplosionActive = false;
@@ -40,17 +53,17 @@ let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
-const WILD_JUICE_HAPTIC_INITIAL_COUNT = 6;
-const WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS = 50;
+const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
+const WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS = 70;
 const WILD_JUICE_HAPTIC_GLOBAL_START_DELAY_MS = 200;
 const WILD_JUICE_HAPTIC_FLOW_START_MS = 320;
-const WILD_JUICE_HAPTIC_FLOW_INTERVAL_MS = 180;
-const WILD_JUICE_HAPTIC_LATE_BURST_COUNT = 10;
-const WILD_JUICE_HAPTIC_LATE_BURST_INTERVAL_MS = 70;
-const WILD_JUICE_HAPTIC_TAIL_COUNT = 4;
-const WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS = 140;
-const WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT = 5;
-const WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS = 100;
+const WILD_JUICE_HAPTIC_FLOW_INTERVAL_MS = 260;
+const WILD_JUICE_HAPTIC_LATE_BURST_COUNT = 4;
+const WILD_JUICE_HAPTIC_LATE_BURST_INTERVAL_MS = 100;
+const WILD_JUICE_HAPTIC_TAIL_COUNT = 2;
+const WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS = 180;
+const WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT = 2;
+const WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS = 140;
 
 function scheduleHapticPulseTrain(startMs: number, count: number, intervalMs: number): void {
   for (let i = 0; i < count; i++) {
@@ -436,12 +449,12 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;
 
-  // Animation parameters – original density
-  const totalBubbles = 80;
-  const lateBurstCount = 40; // 40 extra pred kraj animacije
-  const spawnDuration = 1800;
-  const spawnBatchSize = 5;
-  const maxActive = 60;
+  // iOS stability: keep the premium feel, but avoid saturating the renderer during repeated wild merges.
+  const totalBubbles = 48;
+  const lateBurstCount = 18;
+  const spawnDuration = 1500;
+  const spawnBatchSize = 3;
+  const maxActive = 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
@@ -784,8 +797,8 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     }
   };
 
-  // Initial burst – puno od starta da izgleda bogato
-  const initialBurst = spawnBatchSize * 4; // 20 bubblea odjednom
+  // Initial burst stays visible, but avoids a 20-sprite spike on mobile GPUs.
+  const initialBurst = spawnBatchSize * 3;
   for (let i = 0; i < initialBurst; i++) {
     try {
       makeBubble();
@@ -986,7 +999,7 @@ function createAndShowBubblyText(): void {
     ].join(';');
     bubblyOverlay = overlay;
     // Replace clouds with pooled bubble sprites (rise + pop).
-    bubblyFxCleanup = attachBubblySprites(overlay, { count: 22, zIndex: 1 });
+    bubblyFxCleanup = attachBubblySprites(overlay, { count: 14, zIndex: 1 });
 
     const bubblyContainer = document.createElement('div');
     bubblyContainer.style.cssText = [
@@ -998,7 +1011,7 @@ function createAndShowBubblyText(): void {
       'flex-direction: row',
       'align-items: center',
       'justify-content: center',
-      'gap: -4px',
+      'gap: 0',
       'margin: 0',
       'padding: 0',
       'width: fit-content',
@@ -1017,20 +1030,21 @@ function createAndShowBubblyText(): void {
     const bubblyScales: number[] = [];
     const bubblyRotations: number[] = [];
     const bubblyText = ['B', 'U', 'B', 'B', 'L', 'Y'];
-    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5))';
+    const bubblyFontSizes = createRandomTextLetterSizes(bubblyText.length);
 
-    bubblyText.forEach((letter) => {
-      const letterScale = 0.9 + Math.random() * 0.4;
+    bubblyText.forEach((letter, index) => {
+      const letterScale = 1;
+      const letterFontSize = bubblyFontSizes[index];
       const rotation = 0;
       const letterEl = document.createElement('span');
       letterEl.textContent = letter;
       letterEl.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 64px',
+        `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        'color: #FFC0C7',
-        '-webkit-text-fill-color: #FFC0C7',
+        'color: #FFA6AF',
+        '-webkit-text-fill-color: #FFA6AF',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -1038,11 +1052,11 @@ function createAndShowBubblyText(): void {
         'visibility: visible',
         'pointer-events: none',
         'margin-right: 0',
+        index === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
         'padding: 0',
         'border: 0',
         'outline: 0',
         'vertical-align: top',
-        `filter: ${dropShadow}`,
         'transform-style: preserve-3d',
         'backface-visibility: hidden',
         '-webkit-font-smoothing: antialiased',

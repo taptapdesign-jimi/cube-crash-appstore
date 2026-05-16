@@ -30,6 +30,68 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+function shouldSkipDetailModalGameAssetPreload(): boolean {
+  try {
+    const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
+    const recentGameExit = lastGameExitAt > 0 && Date.now() - lastGameExitAt < 15000;
+    if (recentGameExit) return true;
+
+    const appCanvas = document.querySelector('#app canvas');
+    const pixiApp = (window as any).STATE?.app || (window as any).CC?.app || (window as any).app;
+    const appDestroyed = pixiApp?.destroyed === true || pixiApp?.renderer?.destroyed === true;
+    return appDestroyed || !appCanvas;
+  } catch {
+    return true;
+  }
+}
+
+function wasRecentGameExitForDetailMotion(): boolean {
+  try {
+    const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
+    return lastGameExitAt > 0 && Date.now() - lastGameExitAt < 15000;
+  } catch {
+    return false;
+  }
+}
+
+function cleanupDetailStatsEnterAnimation(modal: HTMLElement | null | undefined): void {
+  if (!modal) return;
+
+  try {
+    const tweens = (modal as any).__detailStatsEnterTweens;
+    if (Array.isArray(tweens)) {
+      tweens.forEach((tween) => {
+        try { tween?.kill?.(); } catch {}
+      });
+    }
+    (modal as any).__detailStatsEnterTweens = null;
+  } catch {}
+
+  try {
+    const timeline = (modal as any).__detailStatsEnterTimeline;
+    if (timeline && typeof timeline.kill === 'function') {
+      timeline.kill();
+    }
+    (modal as any).__detailStatsEnterTimeline = null;
+  } catch {}
+
+  try {
+    const restoreTimer = (modal as any).__detailStatsRestoreTimer;
+    if (restoreTimer) {
+      window.clearTimeout(restoreTimer);
+    }
+    (modal as any).__detailStatsRestoreTimer = null;
+  } catch {}
+
+  try {
+    const statNodes = modal.querySelectorAll('.detail-stat-item, .detail-stat-divider, .detail-stat-icon, .stat-icon, .detail-stat-value, .stat-value, .detail-stat-label, .stat-label, .detail-stat-content, .stat-content');
+    statNodes.forEach((node) => {
+      try { gsap.killTweensOf(node); } catch {}
+      try { (node as HTMLElement).style.removeProperty('will-change'); } catch {}
+    });
+  } catch {}
+}
+
 function playDetailCloseSoftCartoonBounce(closeBtn: HTMLElement | null): void {
   if (!closeBtn) return;
 
@@ -938,28 +1000,7 @@ class JourneyBoardsManager {
       // cleanup any that might be in DOM from interim card bounce animations
       const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
       if (cardsContainer) {
-        // Find all smoke containers (they are direct children of cards container)
-        // Smoke containers don't have a specific class, but they contain smoke particles
-        const allDivs = cardsContainer.querySelectorAll('div');
-        allDivs.forEach(div => {
-          const divEl = div as HTMLElement;
-          // Check if this is a smoke container (has smoke particles as children)
-          const hasSmokeParticles = divEl.querySelectorAll('div[style*="border-radius: 50%"]').length > 0;
-          if (hasSmokeParticles && divEl.style.position === 'absolute') {
-            // This is likely a smoke container - kill animations and remove
-            if (typeof gsap !== 'undefined') {
-              gsap.killTweensOf(divEl);
-              // Kill animations on all children (smoke particles)
-              const children = divEl.querySelectorAll('*');
-              children.forEach(child => {
-                gsap.killTweensOf(child);
-              });
-            }
-            if (divEl.parentNode) {
-              divEl.parentNode.removeChild(divEl);
-            }
-          }
-        });
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
       }
       
       // Kill card animations
@@ -2692,6 +2733,7 @@ class JourneyBoardsManager {
       
       // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
       (modal as any).__detailModalExiting = true;
+      cleanupDetailStatsEnterAnimation(modal);
       
       // 🔥 FIX: Safety cleanup function to ensure flag is always reset
       const cleanupFlag = () => {
@@ -2986,7 +3028,8 @@ class JourneyBoardsManager {
             child.style.transition = 'none';
           }
 
-          // 🔥 CRITICAL: Animate parent with onUpdate to sync children (same pattern as enter)
+          // Animate only the parent. Child opacity is kept visible and inherited by the parent,
+          // avoiding per-frame DOM writes during close on iOS.
           trackTween(child, {
             scale: 0,
             opacity: 0,
@@ -2995,27 +3038,6 @@ class JourneyBoardsManager {
             delay: contentStartDelay + 0.05 + i * 0.05,
             force3D: true,
             overwrite: true, // 🔥 CRITICAL: Prevent duplicate animations
-            onUpdate: () => {
-              // 🔥 CRITICAL: Sync children opacity with parent during exit animation
-              const currentOpacity = gsap.getProperty(child, 'opacity') as number;
-              const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
-              const childValue = child.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
-              const childLabel = child.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
-              const childContent = child.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
-              
-              if (childIcon) {
-                childIcon.style.opacity = currentOpacity.toString();
-              }
-              if (childValue) {
-                childValue.style.opacity = currentOpacity.toString();
-              }
-              if (childLabel) {
-                childLabel.style.opacity = currentOpacity.toString();
-              }
-              if (childContent) {
-                childContent.style.opacity = currentOpacity.toString();
-              }
-            },
             onComplete: () => {
               // 🔥 CRITICAL: Ensure children are hidden after animation
               const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
@@ -3916,6 +3938,8 @@ class JourneyBoardsManager {
     // 🔥 MEMORY LEAK FIX: Stop any existing detail image idle animation from previous modal
     const existingModal = document.getElementById('collectibles-detail-modal') as HTMLElement;
     if (existingModal) {
+      cleanupDetailStatsEnterAnimation(existingModal);
+
       const existingImage = existingModal.querySelector('#detail-card-image') as HTMLElement;
       if (existingImage) {
         const existingMotion = existingImage.querySelector('.detail-image-motion') as HTMLElement | null;
@@ -3932,6 +3956,17 @@ class JourneyBoardsManager {
     // We still warm assets before PLAY in most cases, but we never block UI opening.
     const preloadAfterEnterDelayMs = 550;
     window.setTimeout(() => {
+      const activeDetailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+      const modalStillShowingBoard =
+        !!activeDetailModal &&
+        activeDetailModal.hidden !== true &&
+        activeDetailModal.style.display !== 'none' &&
+        activeDetailModal.getAttribute('data-journey-board-id') === String(board.id);
+      if (!modalStillShowingBoard) {
+        logger.info(`⏭️ Skipping board ${board.id} delayed preload because detail modal is no longer active`);
+        return;
+      }
+
       // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
       void import('../utils/comprehensive-image-preloader.js')
         .then(({ preloadJourneyBoardImages }) => preloadJourneyBoardImages([board.id]))
@@ -3943,6 +3978,11 @@ class JourneyBoardsManager {
         });
 
       // 🔥 CRITICAL: Preload game assets in background to avoid delay on Play click.
+      if (shouldSkipDetailModalGameAssetPreload()) {
+        logger.info(`⏭️ Skipping board ${board.id} game asset preload during detail modal open (recent game exit or inactive PIXI app)`);
+        return;
+      }
+
       void import('pixi.js')
         .then(({ Assets }) => {
           const gameAssets = [
@@ -4625,6 +4665,8 @@ class JourneyBoardsManager {
 
           console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardIdForPlay}, Board Name: ${boardNameForPlay}`);
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`);
+          delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+          delete (window as any).__ccDirectDetailModalReturnActive;
 
           // Haptic feedback (match homepage slider CTA)
           try { (window as any).triggerHapticImpact?.('light'); } catch {}
@@ -5029,8 +5071,10 @@ class JourneyBoardsManager {
       }
       
       // Other elements: use GSAP
-      // 🔥 CRITICAL: Exclude detailStatsSection from initial hide - we'll animate stat-items individually
-      const elementsToHide = otherElements.filter(el => el !== detailStatsSection);
+      // 🔥 CRITICAL: Exclude the whole stats container/section from generic hide.
+      // Stat items animate individually; hiding the parent with scale(0) makes the child enter
+      // appear delayed/slow or invisible until a later cleanup restores the parent.
+      const elementsToHide = otherElements.filter(el => el !== detailStatsSection && el !== boardStatsContainer);
       
       elementsToHide.forEach(el => {
         if (el) {
@@ -5318,6 +5362,8 @@ class JourneyBoardsManager {
             boardStatsContainer.style.transition = 'none';
             boardStatsContainer.style.opacity = '1';
             boardStatsContainer.style.visibility = 'visible';
+            boardStatsContainer.style.transform = 'none';
+            boardStatsContainer.style.willChange = 'auto';
           }
           
           if (detailStatsSection) {
@@ -5326,6 +5372,8 @@ class JourneyBoardsManager {
             detailStatsSection.style.transition = 'none';
             detailStatsSection.style.opacity = '1';
             detailStatsSection.style.visibility = 'visible';
+            detailStatsSection.style.transform = 'none';
+            detailStatsSection.style.willChange = 'auto';
           }
           
           // 🔥 CRITICAL: Ensure detailStatsSection is visible (it contains the stats list)
@@ -5340,6 +5388,8 @@ class JourneyBoardsManager {
             detailStatsListResolved.style.display = 'flex';
             detailStatsListResolved.style.visibility = 'visible';
             detailStatsListResolved.style.opacity = '1';
+            detailStatsListResolved.style.transform = 'none';
+            detailStatsListResolved.style.willChange = 'auto';
           }
           
           // 🔥 iPad FIX: Force tight horizontal stats layout (override any CSS/inlines)
@@ -5455,25 +5505,34 @@ class JourneyBoardsManager {
           
           // 🔥 OPTIMIZATION: Animate each stat element (stat-item or divider) one by one
           // 🔥 USER REQUEST: Better stagger for fluid enter animation (more time between elements)
-          const statStagger = 0.08; // Better stagger for fluidity (0.08s between each element - more visible than 0.05s)
-          const statBaseDelay = baseDelay + (currentIndex * regularStagger); // Start after other elements
+          const statStagger = 0.08; // v300 timing: visible bounce, but full group stays near 1s total.
+          const statBaseDelay = baseDelay + (currentIndex * regularStagger); // v300 timing: start after non-stat elements.
           
           const restoreStatsVisibility = () => {
+            if (!detailModal || detailModal.hidden || detailModal.style.display === 'none' || (detailModal as any).__detailModalExiting === true) {
+              return;
+            }
             if (boardStatsContainer) {
               boardStatsContainer.style.opacity = '1';
               boardStatsContainer.style.visibility = 'visible';
               boardStatsContainer.style.display = 'flex';
+              boardStatsContainer.style.transform = 'none';
+              boardStatsContainer.style.willChange = 'auto';
             }
             if (detailStatsSection) {
               detailStatsSection.style.opacity = '1';
               detailStatsSection.style.visibility = 'visible';
               detailStatsSection.style.display = 'flex';
+              detailStatsSection.style.transform = 'none';
+              detailStatsSection.style.willChange = 'auto';
             }
             if (detailStatsListResolved) {
               const defaultDisplay = detailStatsListResolved.classList.contains('detail-stat-divider') ? 'block' : 'flex';
               detailStatsListResolved.style.display = detailStatsListResolved.dataset.statOriginalDisplay || defaultDisplay || 'flex';
               detailStatsListResolved.style.opacity = '1';
               detailStatsListResolved.style.visibility = 'visible';
+              detailStatsListResolved.style.transform = 'none';
+              detailStatsListResolved.style.willChange = 'auto';
             }
             statElements.forEach((el) => {
               const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
@@ -5489,6 +5548,7 @@ class JourneyBoardsManager {
           };
           
           if (statElements.length > 0) {
+            cleanupDetailStatsEnterAnimation(detailModal as HTMLElement);
             if (isIPad) {
               // iPad: keep layout rules but animate like mobile for smoothness
               if (detailStatsSection) {
@@ -5539,21 +5599,20 @@ class JourneyBoardsManager {
                 }
               });
             }
+
+            const statsEnterTweens: any[] = [];
+            (detailModal as any).__detailStatsEnterTweens = statsEnterTweens;
+
             statElements.forEach((element, elementIndex) => {
               if (!element) return;
               
-              // 🔥 USER REQUEST: First stat element needs more time to show bounce animation
-              // Other elements use better stagger (0.08s) for fluidity
-              const isFirstElement = elementIndex === 0;
               const delay = statBaseDelay + (elementIndex * statStagger); // Use consistent stagger for all elements
               
-              // 🔥 USER REQUEST: First element needs longer duration to see bounce animation
-              // All elements use same duration and ease for consistency and fluidity
-              const duration = 0.5; // All elements: 0.5s for better bounce visibility
-              const ease = 'back.out(1.8)'; // All elements: back.out(1.8) for consistent bounce
+              const duration = 0.5;
+              const ease = 'back.out(1.8)';
               
-              // 🔥 CRITICAL: Use EXACT same pattern as card image enter animation
-              // 🔥 CRITICAL: Ensure element is hidden before animation starts and no stale tweens exist
+              // v300 behavior: direct per-element tween with delay. Avoid wrapping this in a
+              // timeline; that changed the perceived sequencing and made stats feel slow.
               gsap.killTweensOf(element);
               const elementIcon = element.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
               const elementValue = element.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
@@ -5565,18 +5624,15 @@ class JourneyBoardsManager {
               if (elementLabel) gsap.killTweensOf(elementLabel);
               if (elementContent) gsap.killTweensOf(elementContent);
               
-              // 🔥 SCREEN ARTIFACTS FIX: CRITICAL - Set ALL properties with !important to prevent 1-frame flash
-              // Inline stilovi sa !important override-uju SVE (čak i GSAP u prvom frame-u)
               element.style.setProperty('opacity', '0', 'important');
               element.style.setProperty('visibility', 'hidden', 'important');
               element.style.setProperty('transform', 'scale(0)', 'important');
               element.style.setProperty('transform-origin', 'center center', 'important');
               element.style.setProperty('transition', 'none', 'important');
               element.style.setProperty('will-change', 'transform, opacity', 'important');
-              
-              // 🔥 SCREEN ARTIFACTS FIX: FORCE display AFTER opacity/visibility to prevent flash
-              // Divideri moraju biti display: block PRIJE nego što GSAP animacija krene, ALI nakon opacity: 0!
-              const elementDefaultDisplay = element.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+
+              const isDivider = element.classList.contains('detail-stat-divider');
+              const elementDefaultDisplay = isDivider ? 'block' : 'flex';
               element.style.setProperty('display', elementDefaultDisplay, 'important');
               
               // 🔥 CRITICAL: Reset children (icons, values, labels) - ensure they're visible
@@ -5601,9 +5657,8 @@ class JourneyBoardsManager {
                 elementContent.style.opacity = '0';
                 elementContent.style.visibility = 'hidden';
               }
-              
-              // Hard-set start state then pop to visible (first element has longer duration for better bounce visibility)
-              gsap.fromTo(
+
+              const tween = gsap.fromTo(
                 element,
                 {
                   scale: 0.65,
@@ -5616,23 +5671,24 @@ class JourneyBoardsManager {
                   scale: 1,
                   opacity: 1,
                   visibility: 'visible',
-                  duration: duration, // First: 0.5s for better bounce visibility, others: 0.4s for fluidity
-                  ease: ease, // First: back.out(1.8) for more bounce, others: back.out(1.7) for speed
-                  delay: delay,
+                  duration,
+                  ease,
+                  delay,
                   force3D: true,
                   overwrite: true,
                   onStart: () => {
-                    // 🔥 SCREEN ARTIFACTS FIX: Remove !important flags so GSAP can animate properly
                     element.style.removeProperty('opacity');
                     element.style.removeProperty('visibility');
                     element.style.removeProperty('transform');
                     element.style.removeProperty('transform-origin');
                     element.style.removeProperty('transition');
                     element.style.removeProperty('will-change');
-                    
-                    // Set visibility without !important
+
                     element.style.visibility = 'visible';
-                    // 🔥 CRITICAL: Make children visible when animation starts (same as card)
+                    const isStatItem = element.classList.contains('detail-stat-item') || element.classList.contains('stat-item');
+                    if (isStatItem) {
+                      try { (window as any).triggerHapticImpact?.('light'); } catch {}
+                    }
                     if (elementIcon) {
                       elementIcon.style.visibility = 'visible';
                       elementIcon.style.opacity = '0';
@@ -5640,37 +5696,18 @@ class JourneyBoardsManager {
                     if (elementValue) elementValue.style.visibility = 'visible';
                     if (elementLabel) elementLabel.style.visibility = 'visible';
                     if (elementContent) elementContent.style.visibility = 'visible';
-                    // One light haptic per stat item appearance (3 stats => 3 haptics).
-                    const isStatItem =
-                      element.classList.contains('detail-stat-item') ||
-                      element.classList.contains('stat-item');
-                    if (isStatItem) {
-                      try { (window as any).triggerHapticImpact?.('light'); } catch {}
-                    }
                   },
                   onUpdate: () => {
-                    // 🔥 CRITICAL: Sync children opacity with parent during animation (same as card)
-                    if (elementIcon) {
-                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
-                      elementIcon.style.opacity = currentOpacity.toString();
-                    }
-                    if (elementValue) {
-                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
-                      elementValue.style.opacity = currentOpacity.toString();
-                    }
-                    if (elementLabel) {
-                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
-                      elementLabel.style.opacity = currentOpacity.toString();
-                    }
-                    if (elementContent) {
-                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
-                      elementContent.style.opacity = currentOpacity.toString();
-                    }
+                    const currentOpacity = gsap.getProperty(element, 'opacity') as number;
+                    if (elementIcon) elementIcon.style.opacity = currentOpacity.toString();
+                    if (elementValue) elementValue.style.opacity = currentOpacity.toString();
+                    if (elementLabel) elementLabel.style.opacity = currentOpacity.toString();
+                    if (elementContent) elementContent.style.opacity = currentOpacity.toString();
                   },
                   onComplete: () => {
-                    // 🔥 CRITICAL: Ensure element and children remain visible after animation (same as card)
                     element.style.visibility = 'visible';
                     element.style.opacity = '1';
+                    element.style.willChange = 'auto';
                     if (elementIcon) {
                       elementIcon.style.visibility = 'visible';
                       elementIcon.style.opacity = '1';
@@ -5690,11 +5727,17 @@ class JourneyBoardsManager {
                   }
                 }
               );
+              statsEnterTweens.push(tween);
             });
             
             // 🔒 Safety net: after animations finish, force stats visible in final state
             const totalDelay = statBaseDelay + (statElements.length * statStagger) + 0.6;
-            window.setTimeout(restoreStatsVisibility, totalDelay * 1000);
+            (detailModal as any).__detailStatsRestoreTimer = window.setTimeout(() => {
+              (detailModal as any).__detailStatsRestoreTimer = null;
+              (detailModal as any).__detailStatsEnterTweens = null;
+              restoreStatsVisibility();
+            }, totalDelay * 1000);
+            logger.info(`📊 Detail stats enter animation restored to v300 direct tween flow (${statElements.length} elements)`);
           } else {
             logger.error(`❌ No stat elements found to animate!`);
             // Fallback: show stats container so content is visible even without animation
@@ -5776,6 +5819,8 @@ class JourneyBoardsManager {
             try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
             (window as any).__ccReturningFromDetailModal = true;
+            delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+            delete (window as any).__ccDirectDetailModalReturnActive;
 
             // Use journey boards exit animation (header animates as group)
             await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close button', { hideCollectibles: false, hideJourney: false, cleanup: true });
@@ -5813,6 +5858,8 @@ class JourneyBoardsManager {
             try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
             (window as any).__ccReturningFromDetailModal = true;
+            delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+            delete (window as any).__ccDirectDetailModalReturnActive;
 
             // Use journey boards exit animation (header animates as group)
             await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close touch', { hideCollectibles: false, hideJourney: false, cleanup: true });

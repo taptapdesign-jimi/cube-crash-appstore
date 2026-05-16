@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/280</span>
+                <span class='fraction'>0/284</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/102</span>
+                <span class='fraction'>0/108</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/263</span>
+                <span class='fraction'>0/267</span>
             </div>
         
             
@@ -640,7 +640,16 @@
 <a name='L575'></a><a href='#L575'>575</a>
 <a name='L576'></a><a href='#L576'>576</a>
 <a name='L577'></a><a href='#L577'>577</a>
-<a name='L578'></a><a href='#L578'>578</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -893,9 +902,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -993,9 +1005,15 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1469,8 +1487,11 @@ function <span class="fstat-no" title="function not covered" >updateTimer(</span
   const maxHearts = <span class="cstat-no" title="statement not covered" >heartsSystem.getMaxHearts();</span>
 &nbsp;
   const timerElement = <span class="cstat-no" title="statement not covered" >heartsModal.querySelector('.hearts-timer-value');</span>
+  const timerRow = <span class="cstat-no" title="statement not covered" >heartsModal.querySelector('.hearts-timer') as HTMLElement | null;</span>
+<span class="cstat-no" title="statement not covered" >  if (timerRow) {</span>
+<span class="cstat-no" title="statement not covered" >    timerRow.style.display = currentHearts &gt;= maxHearts ? 'none' : '';</span>
+  }
 <span class="cstat-no" title="statement not covered" >  if (timerElement) {</span>
-    // 🔥 USER REQUEST: Stop counter at 00:00 when all hearts are full
 <span class="cstat-no" title="statement not covered" >    if (currentHearts &gt;= maxHearts) {</span>
 <span class="cstat-no" title="statement not covered" >      timerElement.textContent = '00:00';</span>
     } else {
@@ -1563,9 +1584,18 @@ function <span class="fstat-no" title="function not covered" >createHeartsModal(
   
   // 🔥 USER REQUEST: Hide CTA button when all 3 hearts are full
   const showCTA = <span class="cstat-no" title="statement not covered" >currentHearts &lt; maxHearts;</span> // Only show when 0, 1, or 2 hearts
+  const timerHTML = <span class="cstat-no" title="statement not covered" >showCTA</span>
+    ? `&lt;p class="hearts-timer"&gt;
+        &lt;span class="hearts-timer-text"&gt;Next heart in &lt;/span&gt;
+        &lt;span class="hearts-timer-value"&gt;${timeString}&lt;/span&gt;
+      &lt;/p&gt;`
+    : '';
   const ctaHTML = <span class="cstat-no" title="statement not covered" >showCTA </span>
     ? `&lt;div class="hearts-cta"&gt;
-        &lt;button class="get-heart-btn primary-button"&gt;Get a heart&lt;/button&gt;
+        &lt;button class="get-heart-btn primary-button"&gt;
+          &lt;span class="get-heart-text"&gt;Get 1 heart&lt;/span&gt;
+          &lt;img class="get-heart-tv" src="./assets/tv.png" alt="" /&gt;
+        &lt;/button&gt;
       &lt;/div&gt;`
     : ''; // No CTA when all hearts are full
   
@@ -1581,10 +1611,7 @@ function <span class="fstat-no" title="function not covered" >createHeartsModal(
         ${heartsHTML}
       &lt;/div&gt;
       
-      &lt;p class="hearts-timer"&gt;
-        &lt;span class="hearts-timer-text"&gt;Next heart in &lt;/span&gt;
-        &lt;span class="hearts-timer-value"&gt;${timeString}&lt;/span&gt;
-      &lt;/p&gt;
+      ${timerHTML}
       
       &lt;p class="hearts-description"&gt;
         Hearts let you play boards&lt;br&gt;
@@ -1801,7 +1828,7 @@ function <span class="fstat-no" title="function not covered" >closeHeartsOnOverl
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-05T16:27:29.965Z
+                at 2026-05-04T21:17:56.094Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

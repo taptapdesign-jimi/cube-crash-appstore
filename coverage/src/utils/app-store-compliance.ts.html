@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">27.58% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>7/21</span>
+                <span class='fraction'>8/29</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">25% </span>
+                <span class="strong">18.75% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>3/12</span>
+                <span class='fraction'>3/16</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">33.33% </span>
+                <span class="strong">28.57% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>7/21</span>
+                <span class='fraction'>8/28</span>
             </div>
         
             
@@ -130,19 +130,30 @@
 <a name='L65'></a><a href='#L65'>65</a>
 <a name='L66'></a><a href='#L66'>66</a>
 <a name='L67'></a><a href='#L67'>67</a>
-<a name='L68'></a><a href='#L68'>68</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,6 +179,10 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -176,6 +191,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -201,6 +217,7 @@
 export class AppStoreCompliance {
   private static instance: AppStoreCompliance;
   private isCompliant: boolean = true;
+  private isInitialized: boolean = false;
 &nbsp;
   static getInstance(): AppStoreCompliance {
     <span class="missing-if-branch" title="else path not taken" >E</span>if (!AppStoreCompliance.instance) {
@@ -210,6 +227,8 @@ export class AppStoreCompliance {
   }
 &nbsp;
 <span class="fstat-no" title="function not covered" >  init(</span>): void {
+<span class="cstat-no" title="statement not covered" >    if (this.isInitialized) <span class="cstat-no" title="statement not covered" >return;</span></span>
+<span class="cstat-no" title="statement not covered" >    this.isInitialized = true;</span>
 <span class="cstat-no" title="statement not covered" >    this.checkCompliance();</span>
 <span class="cstat-no" title="statement not covered" >    this.setupComplianceMonitoring();</span>
   }
@@ -235,6 +254,10 @@ export class AppStoreCompliance {
   private complianceIntervalId: ReturnType&lt;typeof setInterval&gt; | null = null;
   
   private <span class="fstat-no" title="function not covered" >setupComplianceMonitoring(</span>): void {
+<span class="cstat-no" title="statement not covered" >    if (this.complianceIntervalId !== null) {</span>
+<span class="cstat-no" title="statement not covered" >      clearInterval(this.complianceIntervalId);</span>
+<span class="cstat-no" title="statement not covered" >      this.complianceIntervalId = null;</span>
+    }
     // Monitor for compliance issues
 <span class="cstat-no" title="statement not covered" >    this.complianceIntervalId = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
 <span class="cstat-no" title="statement not covered" >      this.checkCompliance();</span>
@@ -243,6 +266,7 @@ export class AppStoreCompliance {
   
   // 🔥 FIX: Add destroy method to clean up interval
 <span class="fstat-no" title="function not covered" >  destroy(</span>): void {
+<span class="cstat-no" title="statement not covered" >    this.isInitialized = false;</span>
 <span class="cstat-no" title="statement not covered" >    if (this.complianceIntervalId !== null) {</span>
 <span class="cstat-no" title="statement not covered" >      clearInterval(this.complianceIntervalId);</span>
 <span class="cstat-no" title="statement not covered" >      this.complianceIntervalId = null;</span>
@@ -271,7 +295,7 @@ export class AppStoreCompliance {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-02-05T16:27:29.965Z
+                at 2026-05-04T21:17:56.094Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

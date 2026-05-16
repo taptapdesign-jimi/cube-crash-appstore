@@ -502,6 +502,25 @@ class CollectiblesManager {
       return;
     }
 
+    const suppressDirectDetailReturn =
+      (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true ||
+      (window as any).__ccDirectDetailModalReturnActive === true;
+    if (suppressDirectDetailReturn) {
+      const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+      const detailModalOpeningOrVisible =
+        !!detailModal &&
+        detailModal.hidden !== true &&
+        detailModal.style.display !== 'none';
+      if (detailModalOpeningOrVisible || (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true) {
+        (screen as HTMLElement).style.display = 'flex';
+        (screen as HTMLElement).style.opacity = '0';
+        (screen as HTMLElement).style.visibility = 'hidden';
+        (screen as HTMLElement).style.pointerEvents = 'none';
+        logger.info('⏭️ Suppressed Journey enter animation during direct detail-modal return');
+        return;
+      }
+    }
+
     // 🔥 Hide homepage when showing Journey screen
     const homeElement = document.getElementById('home');
     if (homeElement) {

@@ -2,15 +2,23 @@ type WildTypeDeps = {
   boardNumber: number;
   firstWildSpawned: boolean;
   wildSpawnCount: number;
+  lastWildDropType?: WildDropType | null;
+  wildDropTypeStreak?: number;
   filterWildType: (type: string, boardNumber: number) => string;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
 };
 
+type WildDropType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
+const WILD_DROP_TYPES: WildDropType[] = ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'];
+const MAX_SAME_WILD_DROP_STREAK = 2;
+
 export function decideWildType({
   boardNumber,
   firstWildSpawned,
   wildSpawnCount,
+  lastWildDropType = null,
+  wildDropTypeStreak = 0,
   filterWildType,
   devLog,
   devWarn,
@@ -29,7 +37,29 @@ export function decideWildType({
     roll < 0.8334 ? 'wild-magnet' : // 16.67% wild magnet
                     'wild-tnt';     // 16.66% wild TNT
 
-  const filtered = filterWildType(preferred, boardNumber);
+  let filtered = filterWildType(preferred, boardNumber) as WildDropType | null;
+  const wouldExceedStreak =
+    filtered &&
+    filtered === lastWildDropType &&
+    wildDropTypeStreak >= MAX_SAME_WILD_DROP_STREAK;
+
+  if (wouldExceedStreak) {
+    const allowedAlternatives = WILD_DROP_TYPES
+      .map((type) => filterWildType(type, boardNumber) as WildDropType | null)
+      .filter((type, index, arr): type is WildDropType => !!type && type !== filtered && arr.indexOf(type) === index);
+
+    if (allowedAlternatives.length > 0) {
+      const alternative = allowedAlternatives[(Math.random() * allowedAlternatives.length) | 0];
+      devLog('🎲 Wild drop streak guard rerolled type:', {
+        blockedType: filtered,
+        streak: wildDropTypeStreak,
+        alternative,
+        boardNumber
+      });
+      filtered = alternative;
+    }
+  }
+
   if (filtered === 'wild-juice') {
     spawnJuice = true;
   } else if (filtered === 'wild-magnet') {
@@ -47,11 +77,13 @@ export function decideWildType({
     roll: +roll.toFixed(4),
     preferred,
     filtered,
+    lastWildDropType,
+    wildDropTypeStreak,
     spawnJuice,
     spawnMagnet,
     spawnTnt,
     boardNumber
   });
 
-  return { spawnJuice, spawnMagnet, spawnTnt };
+  return { spawnJuice, spawnMagnet, spawnTnt, wildType: filtered };
 }

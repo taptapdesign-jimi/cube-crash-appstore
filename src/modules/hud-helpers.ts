@@ -91,6 +91,65 @@ function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof
   return timeout;
 }
 
+function openScoreStatsBottomSheetFromHud(bounceTarget: any, sourceLabel = 'HUD'): void {
+  let isScoreSheetOpen = false;
+  try {
+    if (typeof window.isScoreBottomSheetVisible === 'function') {
+      isScoreSheetOpen = window.isScoreBottomSheetVisible();
+    }
+  } catch (err) {
+    console.warn(`⚠️ Error checking score modal visibility from ${sourceLabel}:`, err);
+  }
+
+  if (isScoreSheetOpen) {
+    console.log(`📊 ${sourceLabel} tapped - score bottom sheet already open, closing it`);
+    if (typeof window.triggerHapticImpact === 'function') {
+      window.triggerHapticImpact('light');
+    }
+    playPixiSoftCartoonBounce(bounceTarget);
+    trackHudTimeout(() => {
+      if (typeof window.hideScoreBottomSheet === 'function') {
+        window.hideScoreBottomSheet();
+      }
+    }, HUD_TAP_BOUNCE_CLOSE_DELAY_MS);
+    return;
+  }
+
+  let isEndRunModalOpen = false;
+  try {
+    if (typeof window.isEndRunModalVisible === 'function') {
+      isEndRunModalOpen = window.isEndRunModalVisible();
+    }
+  } catch (err) {
+    console.warn(`⚠️ Error checking end-run modal visibility from ${sourceLabel}:`, err);
+  }
+
+  if (isEndRunModalOpen) {
+    console.log(`📊 ${sourceLabel} tapped - closing end-run modal before score bottom sheet`);
+    if (typeof window.hideEndRunModal === 'function') {
+      window.hideEndRunModal();
+    }
+    trackHudTimeout(() => {
+      if (typeof window.showScoreBottomSheet === 'function') {
+        window.showScoreBottomSheet();
+      }
+    }, 450);
+    return;
+  }
+
+  if (typeof window.triggerHapticImpact === 'function') {
+    window.triggerHapticImpact('light');
+  }
+
+  playPixiSoftCartoonBounce(bounceTarget);
+
+  if (typeof window.showScoreBottomSheet === 'function') {
+    window.showScoreBottomSheet();
+  } else {
+    console.error('❌ showScoreBottomSheet function not available!');
+  }
+}
+
 /**
  * Cleanup all HUD timeouts
  */
@@ -1229,6 +1288,17 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     xButton.x = hudLeftPadding;
     xButton.y = yValue + xTopPadding;
   }
+
+  if (HUD_ROOT._helpButton) {
+    const helpButton = HUD_ROOT._helpButton;
+    const hudLeftPadding = SIDE;
+    const helpButtonSize = 44;
+    const xTouchAreaWidth = 56;
+    const helpGapFromClose = 16;
+
+    helpButton.x = hudLeftPadding + xTouchAreaWidth + helpGapFromClose;
+    helpButton.y = yValue - helpButtonSize / 2;
+  }
   
   // Ensure HUD is properly positioned
   if (HUD_ROOT) {
@@ -2237,6 +2307,75 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
   };
+
+  const helpButton = new Container();
+  helpButton.interactive = true;
+  helpButton.cursor = 'pointer';
+  helpButton.eventMode = 'static';
+  helpButton.zIndex = 1000;
+
+  const helpButtonSize = 44;
+  const helpVisual = new Container();
+  helpVisual.eventMode = 'none';
+  helpVisual.pivot.set(helpButtonSize / 2, helpButtonSize / 2);
+  helpVisual.position.set(helpButtonSize / 2, helpButtonSize / 2);
+  helpButton._bounceVisual = helpVisual;
+  helpButton.addChild(helpVisual);
+
+  const helpHitBg = new Graphics();
+  helpHitBg.clear();
+  helpHitBg.roundRect(0, 0, helpButtonSize, helpButtonSize, 10);
+  helpHitBg.fill({ color: 0xFF0000, alpha: 0 });
+  helpHitBg.eventMode = 'static';
+  helpHitBg.cursor = 'pointer';
+  helpHitBg.interactive = true;
+  helpHitBg.zIndex = 1000;
+  helpButton.addChild(helpHitBg);
+  helpButton.hitArea = new Rectangle(0, 0, helpButtonSize, helpButtonSize);
+
+  const applyHelpTexture = (tex: any) => {
+    if (!tex || helpButton.destroyed || helpVisual.destroyed) return;
+    if ((helpButton as any)._helpIconApplied === true) return;
+    (helpButton as any)._helpIconApplied = true;
+    helpVisual.removeChildren();
+    const iconSprite = new Sprite(tex);
+    iconSprite.anchor.set(0.5, 0.5);
+    iconSprite.position.set(helpButtonSize / 2, helpButtonSize / 2);
+    const targetSize = 32;
+    if (iconSprite.width > 0 && iconSprite.height > 0) {
+      const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
+      iconSprite.scale.set(scale);
+    }
+    iconSprite.eventMode = 'none';
+    iconSprite.cursor = 'default';
+    helpVisual.addChild(iconSprite);
+  };
+
+  try {
+    const helpTexture = Assets.get('./assets/hud/help.png');
+    if (helpTexture) {
+      applyHelpTexture(helpTexture);
+    } else {
+      Assets.load('./assets/hud/help.png')
+        .then((tex) => applyHelpTexture(tex))
+        .catch((err) => console.warn('⚠️ Failed to load HUD help icon:', err));
+    }
+  } catch (err) {
+    Assets.load('./assets/hud/help.png')
+      .then((tex) => applyHelpTexture(tex))
+      .catch((loadErr) => console.warn('⚠️ Failed to load HUD help icon:', loadErr || err));
+  }
+
+  helpHitBg.on('pointerdown', (e) => {
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    console.log('📊 HELP HUD ICON CLICKED - Opening score stats bottom sheet');
+    openScoreStatsBottomSheetFromHud(helpButton, 'Help HUD icon');
+  });
+
+  helpButton._isHelpButton = true;
+  HUD_ROOT.addChild(helpButton);
+  HUD_ROOT._helpButton = helpButton;
   
   // 🔥 USER REQUEST: Add red touch area on score area (coinHud) for score bottom sheet
   // Same approach as X button - red rectangle = hit area = opens score stats bottom sheet
