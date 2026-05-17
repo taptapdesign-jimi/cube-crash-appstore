@@ -84,6 +84,8 @@
       min-height: 100dvh;
       min-height: -webkit-fill-available;
       overflow: hidden;
+      overscroll-behavior: none;
+      overscroll-behavior-y: none;
       position: fixed;
       top: 0;
       left: 0;
@@ -348,12 +350,48 @@
     try { window.addEventListener('pointerdown', __ccMarkUserInteracted, true); } catch (e) {}
     try { window.addEventListener('touchstart', __ccMarkUserInteracted, true); } catch (e) {}
     try { window.addEventListener('keydown', __ccMarkUserInteracted, true); } catch (e) {}
+
+    const __ccHapticState = {
+      lastAnyAt: 0,
+      lastByKey: Object.create(null),
+      minAnyGapMs: 85,
+      minSameGapMs: 160,
+      minByStyleMs: {
+        light: 120,
+        medium: 95,
+        heavy: 120,
+        notification: 180,
+        selection: 140
+      }
+    };
+
+    function shouldSendHaptic(key, priority) {
+      const now = Date.now();
+      const lastAnyAt = __ccHapticState.lastAnyAt || 0;
+      const lastSameAt = __ccHapticState.lastByKey[key] || 0;
+      const minAnyGapMs = priority === 'heavy'
+        ? __ccHapticState.minByStyleMs.heavy
+        : priority === 'medium'
+          ? __ccHapticState.minByStyleMs.medium
+          : priority === 'selection'
+            ? __ccHapticState.minByStyleMs.selection
+            : priority === 'notification'
+              ? __ccHapticState.minByStyleMs.notification
+              : __ccHapticState.minAnyGapMs;
+      if (now - lastAnyAt < minAnyGapMs) return false;
+      if (now - lastSameAt < __ccHapticState.minSameGapMs) return false;
+      __ccHapticState.lastAnyAt = now;
+      __ccHapticState.lastByKey[key] = now;
+      return true;
+    }
     
     // Haptic feedback helpers for iOS WebView and iPad
     window.triggerHapticImpact = function(style = 'medium') {
       try {
         // Check if haptics are enabled
         if (window._settings && !window._settings.hapticsEnabled) return;
+        const hapticKey = 'impact:' + style;
+        if (!shouldSendHaptic(hapticKey, style)) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
@@ -376,6 +414,7 @@
       try {
         // Check if haptics are enabled
         if (window._settings && !window._settings.hapticsEnabled) return;
+        if (!shouldSendHaptic('selection', 'selection')) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticSelection.postMessage({});
@@ -397,6 +436,7 @@
       try {
         // Check if haptics are enabled
         if (window._settings && !window._settings.hapticsEnabled) return;
+        if (!shouldSendHaptic('notification:' + type, 'notification')) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
@@ -484,27 +524,23 @@
   </script>
   
   <!-- 🔥 CRITICAL: Start launch screen sequence IMMEDIATELY (DOM already exists in HTML) -->
-  <script>
-    (function startLaunchScreenSequence() {
-      // Only run if DOM is ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', startLaunchScreenSequence);
-        return;
-      }
-      
+  <script type="module">
+    import { launchScreen } from './src/modules/launch-screen.ts';
+
+    function startLaunchScreenSequence() {
       // Launch screen Phase 2 preloads critical images; no preload here
-      import('./src/modules/launch-screen.ts').then(function(module) {
-        const launchScreen = module.launchScreen;
-        launchScreen.init();
-        launchScreen.start(function() {}).catch(function(error) {
-          console.error('❌ Launch screen sequence error:', error);
-          console.error('Error details:', error.stack);
-        });
-      }).catch(function(error) {
-        console.error('❌ Failed to initialize launch screen:', error);
+      launchScreen.init();
+      launchScreen.start(function() {}).catch(function(error) {
+        console.error('❌ Launch screen sequence error:', error);
         console.error('Error details:', error.stack);
       });
-    })();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startLaunchScreenSequence, { once: true });
+    } else {
+      startLaunchScreenSequence();
+    }
   </script>
   
   <script type="module" src="./src/main.ts"></script>

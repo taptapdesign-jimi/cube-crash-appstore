@@ -121,7 +121,7 @@ import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { consumeWildCharge } from './app-core-wild-meter.ts';
 import { decideWildType } from './app-core-wild-type.ts';
-import { animateWildSpawnDropFromMeter } from './wild-spawn-drop.ts';
+import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -835,6 +835,86 @@ function syncSharedState() {
 
 syncSharedState();
 try { (window as any).__ccLogRuntimeStats = logRuntimeStats; } catch {}
+
+const CORE_GAME_TEXTURE_ASSETS = [
+  ASSET_TILE,
+  ASSET_NUMBERS,
+  ASSET_NUMBERS2,
+  ASSET_NUMBERS3,
+  ASSET_NUMBERS4,
+  ASSET_WILD,
+  ASSET_WILD_MAGNET,
+  ASSET_WILD_JUICE,
+  ASSET_WILD_TNT,
+] as const;
+
+function getTextureSource(tex: any): any {
+  return tex?.source ?? tex?.baseTexture ?? null;
+}
+
+function isUsableGameTexture(tex: any): boolean {
+  if (!tex || tex === Texture.EMPTY || tex.destroyed) return false;
+  const src = getTextureSource(tex);
+  if (src?.destroyed || src?.valid === false) return false;
+  const width = tex.width || src?.width || tex.orig?.width || 0;
+  const height = tex.height || src?.height || tex.orig?.height || 0;
+  return width > 1 && height > 1;
+}
+
+function optimizeGameTexture(tex: any): void {
+  try {
+    const src = getTextureSource(tex);
+    if (src) src.scaleMode = 'nearest';
+  } catch {}
+}
+
+function removeStaleGameTexture(assetPath: string): void {
+  try {
+    const cache = (Assets as any)?.cache;
+    if (cache) {
+      try { cache.delete?.(assetPath); } catch {}
+      try { cache.remove?.(assetPath); } catch {}
+    }
+  } catch {}
+  try { (Texture as any).removeFromCache?.(assetPath); } catch {}
+}
+
+async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<void> {
+  const staleAssets: string[] = [];
+
+  for (const assetPath of CORE_GAME_TEXTURE_ASSETS) {
+    let tex: any = null;
+    try { tex = Assets.get(assetPath); } catch {}
+    if (isUsableGameTexture(tex)) {
+      optimizeGameTexture(tex);
+      continue;
+    }
+    staleAssets.push(assetPath);
+    removeStaleGameTexture(assetPath);
+  }
+
+  if (staleAssets.length > 0) {
+    devWarn('⚠️ Reloading stale/missing core game textures', { context, staleAssets });
+    await Assets.load(staleAssets);
+  }
+
+  const failedAssets: string[] = [];
+  for (const assetPath of CORE_GAME_TEXTURE_ASSETS) {
+    let tex: any = null;
+    try { tex = Assets.get(assetPath); } catch {}
+    if (isUsableGameTexture(tex)) {
+      optimizeGameTexture(tex);
+    } else {
+      failedAssets.push(assetPath);
+    }
+  }
+
+  if (failedAssets.length > 0) {
+    throw new Error(`Core game textures failed to load (${context}): ${failedAssets.join(', ')}`);
+  }
+}
+
+try { (window as any).__ccEnsureCoreGameTexturesLoaded = ensureCoreGameTexturesLoaded; } catch {}
 
 function resetGlobalFxLayer(reason: string = 'unknown') {
   try {
@@ -2269,35 +2349,10 @@ export async function boot(){
     // Continue anyway - HUD will try to load icons asynchronously
   }
   
-  // Load ONLY critical game assets for instant start
-  // tile_numbers2/3/4 are deferrable - can load in background
-  // 🔥 CRITICAL: ASSET_WILD_JUICE and ASSET_WILD_TNT MUST be loaded for wild-juice/wild-tnt tiles to display correctly
-  // 🔥 FIX: Only load assets that aren't already in cache to avoid "already has key" warnings
-  const criticalAssets = [ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT];
-  const assetsToLoad = criticalAssets.filter(asset => !Assets.cache.has(asset));
-  if (assetsToLoad.length > 0) {
-    await Assets.load(assetsToLoad);
-  }
-  
-  // Load additional tile number sheets in background (non-blocking)
-  const additionalAssets = [ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4];
-  const additionalToLoad = additionalAssets.filter(asset => !Assets.cache.has(asset));
-  if (additionalToLoad.length > 0) {
-    Assets.load(additionalToLoad).catch(() => {});
-  }
-  
-  // Optimize all loaded textures for pixel-perfect rendering
-  // 🔥 CRITICAL: Include ASSET_WILD_JUICE and ASSET_WILD_TNT in loaded textures list
-  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT];
-  for (const assetPath of loadedTextures) {
-    try {
-      const texture = Assets.get(assetPath);
-      const src = texture && ((texture as { source?: { scaleMode?: string } }).source ?? (texture as { baseTexture?: { scaleMode?: string } }).baseTexture);
-      if (src) src.scaleMode = 'nearest';
-    } catch (error) {
-      // Silently fail texture optimization
-    }
-  }
+  // Core gameplay textures must be valid, not just present in Assets.cache.
+  // iOS/WebKit can keep stale cache entries after app/renderer teardown; starting with
+  // those references renders pips/placeholders without tile faces.
+  await ensureCoreGameTexturesLoaded('boot');
   
   // Fonts are already loaded via CSS @font-face in index.html
   // No need to load fonts dynamically - PIXI will use CSS fonts automatically
@@ -11346,6 +11401,13 @@ export function cleanupGame() {
   } catch (e) {
     devWarn('⚠️ Failed to cleanup SPARKLE text:', e);
   }
+
+  try {
+    cleanupWildSpawnDropAnimations?.();
+    devLog('✅ Wild spawn drop animations cleaned up in cleanupGame()');
+  } catch (e) {
+    devWarn('⚠️ Failed to cleanup wild spawn drop animations:', e);
+  }
   
   // 🔥 NOTE: Global delayed calls/graphics cleanup handled by cleanupFxForBoardReset('cleanupGame')
   
@@ -11501,9 +11563,11 @@ export function cleanupGame() {
     devWarn('⚠️ Failed to cleanup level flow timeouts:', e);
   }
 
-  // 🔥 MEMORY: Perform aggressive texture cleanup on full exit
+  // Keep global PIXI texture cache intact on full exit. The app is destroyed below with
+  // texture:false, so clearing TextureCache here can leave Assets.cache with stale refs
+  // and make the next board boot render without tile/wild textures on iOS WebKit.
   try {
-    cleanupTexturesForBoardTransition('cleanupGame', true);
+    cleanupTexturesForBoardTransition('cleanupGame', true, true);
     memoryManager.performCleanup?.();
   } catch (e) {
     devWarn('⚠️ cleanupGame memory cleanup failed:', e);

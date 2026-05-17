@@ -10,7 +10,7 @@ import { isAssetAliasRegistered, markAssetAliasRegistered } from './asset-regist
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
-const CURRENT_CACHE_VERSION = '2';
+const CURRENT_CACHE_VERSION = '3';
 
 /** Normalize to absolute URL so Cache API keys match fetch/store. */
 function toAbsoluteUrl(url: string): string {
@@ -191,9 +191,8 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
   
-  // All collectibles card images (common 01-20, legendary 21-26)
-  ...Array.from({ length: 20 }, (_, i) => `./assets/colelctibles/common/${String(i + 1).padStart(2, '0')}.png`),
-  ...Array.from({ length: 6 }, (_, i) => `./assets/colelctibles/legendary/${String(i + 21).padStart(2, '0')}.png`),
+  // Collectible card fronts are intentionally excluded from startup preload.
+  // They are large PNGs and are loaded on demand by visible grid cards/modals.
   
   // fx/boom folder does not exist; removed to avoid failed fetches and warnings
   
@@ -208,8 +207,7 @@ const ALL_STARTUP_IMAGES: string[] = [
 
 // Journey board images (preloaded on-demand when boards are opened)
 const JOURNEY_BOARD_IMAGES: string[] = [
-  // Journey cards use collectibles common 01-16
-  ...Array.from({ length: 16 }, (_, i) => `./assets/colelctibles/common/${String(i + 1).padStart(2, '0')}.png`),
+  // Journey board full card images are loaded on-demand when a board is opened.
 ];
 
 let preloadPromise: Promise<void> | null = null;
@@ -501,7 +499,8 @@ export async function preloadAllStartupImages(): Promise<void> {
         './assets/settings-slider@3x.png',
       ];
       
-      // 🔥 CRITICAL: All Journey screen images (bg, UI elements, ALL card images 01-16)
+      // Journey shell images only. Full board cards are multi-megabyte PNGs and
+      // are loaded on demand to avoid iOS WebContent memory pressure.
       const journeyScreenImages = [
         './assets/journey assets/1-17bg.png',
         './assets/journey assets/orange-ribbon.png',
@@ -512,8 +511,6 @@ export async function preloadAllStartupImages(): Promise<void> {
         './assets/journey assets/heart-nav@3x.png',
         './assets/colelctibles/journey-card-empty.png',
         './assets/colelctibles/common back.png',
-        // 🔥 CRITICAL: ALL Journey card images (common 01-16) - MUST be preloaded
-        ...Array.from({ length: 16 }, (_, i) => `./assets/colelctibles/common/${String(i + 1).padStart(2, '0')}.png`),
       ];
       
       // 🔥 CRITICAL: HUD and other essential images
@@ -701,4 +698,3 @@ export async function clearImageCache(): Promise<void> {
     logger.warn('⚠️ Error clearing image cache:', error);
   }
 }
-

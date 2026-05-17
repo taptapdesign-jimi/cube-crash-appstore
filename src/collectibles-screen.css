@@ -33,10 +33,42 @@
   z-index: 999999;
   overflow: hidden;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Reserve vertical space equal to fixed header (safe area + title row + divider + shadow) */
+  --journey-header-offset: calc(
+    max(0px, env(safe-area-inset-top, 0px) + 2vh - 16px) + 40px + 16px + 2px + 49px + 12px
+  );
   /* will-change removed for better performance - only use during active animations */
   /* 🔥 SWIPE FIX: Let horizontal swipes pass through to slider underneath.
      Interactive elements (buttons, cards, scrollable areas) have pointer-events: auto */
   pointer-events: none;
+}
+
+/* iPad: header row uses translateY(10px) vs 4px — keep scroll body aligned under fixed header */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  #journey-screen,
+  .journey-screen {
+    --journey-header-offset: calc(
+      max(0px, env(safe-area-inset-top, 0px) + 2vh - 16px) + 40px + 16px + 2px + 49px + 18px
+    );
+  }
+}
+
+#journey-screen .collectibles-shell {
+  padding-top: var(--journey-header-offset, 120px);
+  box-sizing: border-box;
+}
+
+/* Viewport-fixed header: does not move when inner list rubber-bands or WKWebView overscrolls */
+#journey-screen .collectibles-header {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  z-index: 1000002;
+  flex-shrink: 0;
 }
 
 #journey-screen[hidden],
@@ -280,10 +312,11 @@
   /* 🔥 iOS OPTIMIZATION: Optimize touch-action for better scroll performance */
   /* pan-y: Allow vertical scrolling (primary), pan-x: Allow horizontal (for edge cases), pinch-zoom: Allow zoom */
   touch-action: pan-y; /* Only vertical panning - most performant for vertical scroll */
-  /* 🔥 iOS FIX: Prevent scroll chaining and horizontal momentum, but allow fast vertical scroll */
-  overscroll-behavior: contain; /* Prevent scroll chaining */
-  overscroll-behavior-x: none !important; /* 🔥 iOS FIX: Force no horizontal overscroll */
-  overscroll-behavior-y: auto; /* Allow vertical overscroll for smooth fast scrolling */
+  /* 🔥 iOS FIX: Block vertical scroll chaining to WKWebView — avoids whole-page rubber-band
+     (top header moving down on pull) while keeping normal momentum scroll inside this pane. */
+  overscroll-behavior: contain;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: none;
   /* 🔥 PREMIUM FIX: Prevent horizontal scrolling */
   width: 100%;
   max-width: 100%;
@@ -813,6 +846,8 @@
   background: var(--collectibles-surface);
   z-index: 1000000;
   overflow: visible; /* 🔥 USER REQUEST: Allow card to be visible when swiping (not clipped) */
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   visibility: visible !important;
   pointer-events: auto; /* 🔥 SWIPE FIX: Detail modal receives events (parent journey-screen has pointer-events: none) */
@@ -875,8 +910,10 @@
   padding-bottom: 0;
   background: var(--collectibles-surface);
   flex-shrink: 0;
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 100; /* 🔥 CRITICAL: Header always above scrollable content */
+  align-self: stretch;
   pointer-events: auto !important; /* 🔥 CRITICAL: Header always receives clicks */
   /* 🔥 FIX: Allow content to scroll under header - header stays fixed but content scrolls behind */
 }
@@ -1997,11 +2034,12 @@
     -webkit-transform: translateY(10px);
   }
 
-  /* iPad-only: enable elastic bounce on the whole modal */
+  /* iPad-only: enable vertical scroll on modal without rubber-banding the whole sheet (header stays put) */
   #collectibles-detail-modal {
-    overflow-y: scroll;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: auto;
+    overscroll-behavior: none;
+    overscroll-behavior-y: none;
     touch-action: pan-y;
   }
 
@@ -2107,6 +2145,121 @@
   }
   #collectibles-detail-content {
     padding-bottom: 8px;
+  }
+
+  /* Journey board detail only (iPad): hide flavor text; card + stats centered like other iPad detail (flex column, not grid) */
+  #collectibles-detail-modal[data-journey-board-id] .detail-swipeable-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  #collectibles-detail-modal[data-journey-board-id] #detail-card-description {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+  /* Same pattern as #collectibles-detail-modal .detail-section-stats-card in this @media (column + align center) */
+  #collectibles-detail-modal[data-journey-board-id] .detail-section-stats-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 20px;
+    padding: 0 24px calc(120px + env(safe-area-inset-bottom, 0px)) 24px;
+    transform: none !important;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-section-card {
+    order: 1;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform: scale(1.08);
+    transform-origin: center center;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-image {
+    width: min(448px, 82vw) !important;
+    max-width: min(448px, 82vw) !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: calc(28px + 24px + 24px + 8px);
+    min-height: 0 !important;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-section-stats {
+    order: 2;
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-stats-list {
+    margin-top: 72px;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    column-gap: calc(8px + 4%) !important;
+    row-gap: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    align-self: center !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding: 0 !important;
+  }
+  /* Vertical separators between the three stat blocks (iPad hides dividers globally — restore for Journey) */
+  #collectibles-detail-modal[data-journey-board-id] .detail-stat-divider {
+    display: block !important;
+    width: 2px !important;
+    min-width: 2px !important;
+    height: 56px !important;
+    max-height: 72px !important;
+    align-self: center !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ece2d9 !important;
+    border: none !important;
+    border-radius: 1px;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-stat-item {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  #collectibles-detail-modal[data-journey-board-id] .detail-stat-content {
+    align-items: center !important;
+    text-align: center !important;
   }
 }
 

@@ -4761,6 +4761,9 @@ body:has(:root) .tile.wild-3d-glow {
   flex-direction: column;
   gap: 4px;
   flex: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  margin: 0;
 }
 
 .settings-toggle-status {

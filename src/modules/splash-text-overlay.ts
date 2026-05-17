@@ -929,37 +929,68 @@ export function exitNoMovesText(): Promise<void> {
     });
     noMovesTimelinesRef.length = 0;
 
+    try {
+      const cloudLayer = noMovesOverlay.querySelector('.cc-text-clouds') as HTMLElement | null;
+      if (cloudLayer) {
+        gsap.killTweensOf(cloudLayer);
+        cloudLayer.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+        const cloudTl = trackTimeline();
+        noMovesTimelinesRef.push(cloudTl);
+        cloudTl.to(cloudLayer, {
+          opacity: 0,
+          scale: 1.08,
+          duration: 0.42,
+          ease: 'power2.in'
+        });
+      }
+    } catch {}
+
     letters.forEach((_, index) => {
       const el = container.children[index] as HTMLElement;
       if (!el) return;
-      const delay = index * BOOM_EXIT_STAGGER;
+      const delay = index * 0.045;
       const tl = trackTimeline({ delay });
       noMovesTimelinesRef.push(tl);
       const baseScale = noMovesLetterScales[index] ?? 1;
       const baseRot = noMovesLetterRotations[index] ?? 0;
-      const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+      const centerOffset = index - ((letters.length - 1) / 2);
+      const exitRotation = centerOffset >= 0 ? (20 + Math.random() * 18) : -(20 + Math.random() * 18);
+      const exitX = centerOffset * (10 + Math.random() * 5);
+      const exitY = -34 - Math.random() * 18;
+
+      el.style.willChange = 'transform, opacity';
       tl.to(el, {
-        scale: baseScale * 1.1,
-        z: 30,
-        duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
-        ease: 'power2.out'
+        opacity: 1,
+        scale: baseScale * 1.22,
+        x: exitX * 0.35,
+        y: exitY * 0.35,
+        z: 42,
+        rotation: baseRot + exitRotation * 0.18,
+        rotationX: centerOffset >= 0 ? -8 : 8,
+        rotationY: centerOffset >= 0 ? 8 : -8,
+        duration: 0.16,
+        ease: 'back.out(2.2)'
       });
       tl.to(el, {
         opacity: 0,
         scale: 0,
-        rotation: exitRotation,
-        rotationX: baseRot >= 0 ? 45 : -45,
-        rotationY: baseRot >= 0 ? 30 : -30,
-        z: -100,
-        duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
+        x: exitX,
+        y: exitY,
+        rotation: baseRot + exitRotation,
+        rotationX: centerOffset >= 0 ? 55 : -55,
+        rotationY: centerOffset >= 0 ? 34 : -34,
+        z: -110,
+        duration: 0.36,
         ease: 'power2.in'
       });
     });
     const exitTotal =
-      BOOM_EXIT_STAGGER * (letters.length - 1) +
-      EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
-      EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
-      0.05;
+      0.045 * (letters.length - 1) +
+      0.16 +
+      0.36 +
+      0.08;
 
     // Fallback: even if GSAP delayedCall gets killed by global cleanup, never hang fail flow.
     const fallbackMs = Math.max(250, Math.ceil(exitTotal * 1000) + 120);

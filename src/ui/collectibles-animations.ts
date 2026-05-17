@@ -75,10 +75,12 @@ export function animateCollectiblesScreenEnter(): void {
     // 🔥 CRITICAL MOBILE FIX: Use explicit opacity and visibility instead of autoAlpha
     // autoAlpha can have timing issues on mobile - explicit values are more reliable
     // Set initial state IMMEDIATELY with immediateRender: true
-    gsap.set(journeyScreen, { 
+    // Do NOT use force3D on journeyScreen — it leaves a transform on the overlay, which makes
+    // descendants' position:fixed behave like sticky-to-overlay and the whole header "rubber-bands"
+    // when the webview or inner scroll overscrolls.
+    gsap.set(journeyScreen, {
       opacity: 0,
       visibility: 'hidden',
-      force3D: true,
       immediateRender: true // 🔥 CRITICAL: Render immediately on mobile
     });
     
@@ -118,8 +120,12 @@ export function animateCollectiblesScreenEnter(): void {
     duration: 0.3,
     ease: 'power2.out',
     delay: 0,
-    force3D: true,
-    immediateRender: false
+    immediateRender: false,
+    onComplete: () => {
+      try {
+        gsap.set(journeyScreen, { clearProps: 'transform' });
+      } catch {}
+    }
   });
 
   // STEP 1: Header FIRST (0ms delay) - pop-in with scale
@@ -133,7 +139,14 @@ export function animateCollectiblesScreenEnter(): void {
       ease: 'back.out(1.7)',
       delay: 0,
       force3D: true,
-      immediateRender: false
+      immediateRender: false,
+      onComplete: () => {
+        if (collectiblesHeader) {
+          try {
+            gsap.set(collectiblesHeader, { clearProps: 'transform' });
+          } catch {}
+        }
+      }
     });
   }
 
@@ -162,7 +175,14 @@ export function animateCollectiblesScreenEnter(): void {
       ease: 'back.out(1.7)',
       delay: 0.1,
       force3D: true,
-      immediateRender: false
+      immediateRender: false,
+      onComplete: () => {
+        if (collectiblesScrollable) {
+          try {
+            gsap.set(collectiblesScrollable, { clearProps: 'transform' });
+          } catch {}
+        }
+      }
     });
   }
   

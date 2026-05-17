@@ -70,12 +70,40 @@ export function syncTileZIndex(tile: Partial<Tile> | any, board?: { sortChildren
 }
 
 // random skin: 40% base, 30% alt2, 20% alt3, 10% alt4
+function textureSource(tex: any): any {
+  return tex?.source ?? tex?.baseTexture ?? null;
+}
+
+function isUsableTexture(tex: any): boolean {
+  if (!tex || tex === Texture.EMPTY || tex.destroyed) return false;
+  const src = textureSource(tex);
+  if (src?.destroyed || src?.valid === false) return false;
+  const width = tex.width || src?.width || tex.orig?.width || 0;
+  const height = tex.height || src?.height || tex.orig?.height || 0;
+  return width > 1 && height > 1;
+}
+
+function getBoardTexture(assetPath: string): Texture {
+  const cached = Assets.get(assetPath);
+  if (isUsableTexture(cached)) return cached;
+  const fallback = Texture.from(assetPath);
+  return isUsableTexture(fallback) ? fallback : Texture.EMPTY;
+}
+
 function pickNumbersSkin() {
   const p = Math.random();
-  if (p < 0.40) return Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
-  if (p < 0.70) return Assets.get(ASSET_NUMBERS2) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
-  if (p < 0.90) return Assets.get(ASSET_NUMBERS3) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
-  return Assets.get(ASSET_NUMBERS4) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
+  const base = getBoardTexture(ASSET_NUMBERS);
+  if (p < 0.40) return base;
+  if (p < 0.70) {
+    const tex = getBoardTexture(ASSET_NUMBERS2);
+    return tex !== Texture.EMPTY ? tex : base;
+  }
+  if (p < 0.90) {
+    const tex = getBoardTexture(ASSET_NUMBERS3);
+    return tex !== Texture.EMPTY ? tex : base;
+  }
+  const tex = getBoardTexture(ASSET_NUMBERS4);
+  return tex !== Texture.EMPTY ? tex : base;
 }
 
 export function drawStack(tile: Tile): void {
@@ -316,7 +344,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
             ? ASSET_WILD_TNT
             : ASSET_WILD;
       
-      const tex = Assets.get(assetPath) || Texture.from(assetPath);
+      const tex = getBoardTexture(assetPath);
       if (t.base && tex && tex !== Texture.EMPTY) {
         t.base.texture = tex;
         const wildFaceSize = t.special === 'wild-magnet' ? TILE * 0.96 : TILE;
@@ -356,7 +384,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   } else {
     // prazno/locked
     if (t.base) {
-      t.base.texture = Assets.get(ASSET_TILE);
+      t.base.texture = getBoardTexture(ASSET_TILE);
       t.base.width = TILE;
       t.base.height = TILE;
       const bt3 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
@@ -681,7 +709,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.rotG.rotation = (Math.random() * 0.12) - 0.06;
 
   // drvena pločica (base)
-  const face = new Sprite(Assets.get(ASSET_TILE));
+  const face = new Sprite(getBoardTexture(ASSET_TILE));
   face.anchor.set(0.5);
   face.width = TILE;
   face.height = TILE;
@@ -691,7 +719,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.base = face;
 
   // poluprozirni "numbers" overlay – (PATCH) gasimo ga defaultno; ne koristimo kao ghost
-  const ov = new Sprite(Assets.get(ASSET_NUMBERS));
+  const ov = new Sprite(getBoardTexture(ASSET_NUMBERS));
   ov.anchor.set(0.5);
   ov.width = TILE;
   ov.height = TILE;

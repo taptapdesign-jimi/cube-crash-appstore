@@ -62,7 +62,15 @@ function getSettingsToggleTarget(event: Event): HTMLElement | null {
   const target = (targetNode && targetNode.nodeType === Node.ELEMENT_NODE
     ? (targetNode as Element)
     : targetNode?.parentElement) as Element | null;
-  return (target?.closest('.settings-toggle-switch') as HTMLElement | null) || null;
+  const switchEl = target?.closest('.settings-toggle-switch') as HTMLElement | null;
+  if (switchEl) return switchEl;
+  // Tap on status / description (label.settings-toggle-left) — bounce the visible switch
+  const left = target?.closest('.settings-toggle-left') as HTMLElement | null;
+  if (left) {
+    const header = left.closest('.settings-toggle-header');
+    return (header?.querySelector('.settings-toggle-switch') as HTMLElement | null) || null;
+  }
+  return null;
 }
 
 function openJourneyDevPicker(action: 'show' | 'hide' | 'reset'): void {
@@ -144,8 +152,12 @@ function createSettingsToggle(toggle: SettingToggle): HTMLElementConfig {
         className: 'settings-toggle-header',
         children: [
           {
-            tag: 'div',
+            tag: 'label',
             className: 'settings-toggle-left',
+            attributes: {
+              for: toggleId,
+              'aria-label': `Toggle ${toggle.label}`,
+            },
             children: [
               {
                 tag: 'div',
@@ -526,17 +538,7 @@ function triggerSettingsForceHapticImpact(style: 'light' | 'medium' | 'heavy'): 
   try {
     // Bypass _settings.hapticsEnabled guard intentionally for Settings interactions
     // so user always gets tactile feedback while configuring haptics.
-    if (
-      (window as any).webkit &&
-      (window as any).webkit.messageHandlers &&
-      (window as any).webkit.messageHandlers.hapticImpact
-    ) {
-      try {
-        (window as any).webkit.messageHandlers.hapticImpact.postMessage({ style });
-        triggered = true;
-      } catch {}
-    }
-    if (!triggered && typeof (window as any).triggerHapticImpact === 'function') {
+    if (typeof (window as any).triggerHapticImpact === 'function') {
       (window as any).triggerHapticImpact(style);
       triggered = true;
     }

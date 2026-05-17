@@ -45,6 +45,38 @@ function shouldSkipDetailModalGameAssetPreload(): boolean {
   }
 }
 
+/** True for iPad / iPadOS (any logical width) or desktop window sizes that use the iPad detail CSS column. */
+export function isTabletDetailModalViewport(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const mtp = typeof navigator !== 'undefined' ? Number((navigator as any).maxTouchPoints || 0) : 0;
+  const isIPadOs =
+    /iPad/.test(ua) ||
+    (/Macintosh/.test(ua) && mtp > 1) ||
+    (typeof navigator !== 'undefined' && (navigator as any).platform === 'MacIntel' && mtp > 1);
+  if (isIPadOs) return true;
+  const vw = window.innerWidth;
+  return vw >= 769 && vw <= 1366;
+}
+
+/** Strip horizontal-swipe inline widths / GSAP x so Journey iPad column layout can center (CSS @media). */
+export function resetDetailModalHorizontalSwipeLayout(swipeable: HTMLElement | null | undefined): void {
+  if (!swipeable || !isTabletDetailModalViewport()) return;
+  try {
+    gsap.killTweensOf(swipeable);
+    gsap.set(swipeable, { x: 0 });
+  } catch {}
+  swipeable.style.removeProperty('width');
+  swipeable.style.removeProperty('max-width');
+  swipeable.style.removeProperty('min-width');
+  const sections = swipeable.querySelectorAll('.detail-section') as NodeListOf<HTMLElement>;
+  sections.forEach((section) => {
+    section.style.removeProperty('width');
+    section.style.removeProperty('min-width');
+    section.style.removeProperty('max-width');
+  });
+}
+
 function wasRecentGameExitForDetailMotion(): boolean {
   try {
     const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
@@ -242,6 +274,7 @@ const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for con
 const JOURNEY_CONTENT_TOP_BASE_PX = 50;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
+const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -326,6 +359,7 @@ class JourneyBoardsManager {
   
   // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame calls for proper cleanup
   private _activeRAFs: Set<number> = new Set();
+  private _activeTimeouts: Set<number> = new Set();
   
   /**
    * 🔥 MEMORY LEAK FIX: Track requestAnimationFrame calls for cleanup
@@ -338,6 +372,17 @@ class JourneyBoardsManager {
     });
     this._activeRAFs.add(rafId);
     return rafId;
+  }
+
+  private trackTimeout(callback: () => void, delayMs: number): number {
+    if (this.renderDisposed) return 0;
+    const timeoutId = window.setTimeout(() => {
+      this._activeTimeouts.delete(timeoutId);
+      if (this.renderDisposed) return;
+      callback();
+    }, delayMs);
+    this._activeTimeouts.add(timeoutId);
+    return timeoutId;
   }
   
   /**
@@ -353,6 +398,65 @@ class JourneyBoardsManager {
     });
     this._activeRAFs.clear();
     logger.info(`✅ Cancelled all tracked RAF calls`);
+  }
+
+  private cancelAllTimeouts(): void {
+    this._activeTimeouts.forEach(timeoutId => {
+      try {
+        window.clearTimeout(timeoutId);
+      } catch {}
+    });
+    this._activeTimeouts.clear();
+    logger.info('✅ Cancelled all tracked Journey timeouts');
+  }
+
+  private cleanupDetailModalRuntimeState(): void {
+    try {
+      const floatingPlay = document.getElementById('board-detail-play-button') as HTMLElement | null;
+      if (floatingPlay) {
+        try { gsap.killTweensOf(floatingPlay); } catch {}
+        floatingPlay.remove();
+      }
+    } catch {}
+
+    try {
+      const modal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+      if (!modal) return;
+
+      cleanupDetailStatsEnterAnimation(modal);
+
+      const swipeableContainer = modal.querySelector('.detail-swipeable-container') as HTMLElement | null;
+      const handlers = (swipeableContainer as any)?.__detailSwipeHandlers;
+      if (swipeableContainer && handlers) {
+        try { swipeableContainer.removeEventListener('touchstart', handlers.touchStart); } catch {}
+        try { swipeableContainer.removeEventListener('touchmove', handlers.touchMove); } catch {}
+        try { swipeableContainer.removeEventListener('touchend', handlers.touchEnd); } catch {}
+        try { swipeableContainer.removeEventListener('mousedown', handlers.mouseDown); } catch {}
+        try { swipeableContainer.removeEventListener('mousemove', handlers.mouseMove); } catch {}
+        try { swipeableContainer.removeEventListener('mouseup', handlers.mouseUp); } catch {}
+        try { swipeableContainer.removeEventListener('mouseleave', handlers.mouseUp); } catch {}
+        try {
+          if (handlers.cardTapTouchStart) swipeableContainer.removeEventListener('touchstart', handlers.cardTapTouchStart, { capture: true } as any);
+          if (handlers.cardTapTouchEnd) swipeableContainer.removeEventListener('touchend', handlers.cardTapTouchEnd, { capture: true } as any);
+          if (handlers.cardTapMouseDown) swipeableContainer.removeEventListener('mousedown', handlers.cardTapMouseDown, { capture: true } as any);
+          if (handlers.cardTapMouseUp) swipeableContainer.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+        } catch {}
+        delete (swipeableContainer as any).__detailSwipeHandlers;
+      }
+
+      const modalElements = modal.querySelectorAll('*');
+      modalElements.forEach((el) => {
+        try { gsap.killTweensOf(el); } catch {}
+      });
+      try { gsap.killTweensOf(modal); } catch {}
+      modal.hidden = true;
+      modal.style.display = 'none';
+      modal.style.pointerEvents = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      delete (modal as any).__detailModalExiting;
+    } catch (error) {
+      logger.warn('⚠️ Failed to cleanup detail modal runtime state:', error);
+    }
   }
 
   private hideHomeAndJourneyScreens(
@@ -538,6 +642,12 @@ class JourneyBoardsManager {
    * This is a continuous animation that runs independently from other cards
    */
   private startInterimBounce(card: HTMLElement): void {
+    if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS) {
+      this.stopInterimBounce(card);
+      try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+      return;
+    }
+
     // Get card wrapper (has the transform/rotation)
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
@@ -746,6 +856,12 @@ class JourneyBoardsManager {
    * With proper cleanup to prevent memory leaks
    */
   private startGlowPulse(): void {
+    if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS) {
+      this.stopGlowPulse();
+      try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
+      return;
+    }
+
     // 🔥 CRITICAL FIX: Stop any existing intervals first to prevent duplicates
     if (this.glowPulseInterval !== null) {
       this.stopGlowPulse();
@@ -928,6 +1044,8 @@ class JourneyBoardsManager {
     
     // 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
     this.cancelAllRAFs();
+    this.cancelAllTimeouts();
+    this.cleanupDetailModalRuntimeState();
     
     // 🔥 MEMORY LEAK FIX: Stop glow pulse interval (this also stops interim bounce animations)
     this.stopGlowPulse();
@@ -1497,7 +1615,7 @@ class JourneyBoardsManager {
     
     // 🔥 USER REQUEST: Ensure all locked cards have 100% opacity after rendering
     // This fixes any locked cards that might have opacity < 100%
-    setTimeout(() => {
+    this.trackTimeout(() => {
       const lockedCards = container?.querySelectorAll('.journey-board-card.locked') as NodeListOf<HTMLElement>;
       if (lockedCards) {
         lockedCards.forEach((card) => {
@@ -2053,9 +2171,12 @@ class JourneyBoardsManager {
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
-      // Eager-load card images once in DOM to ensure they appear reliably
+      // WKWebView can skip lazy images inside Journey's animated/fixed layout on
+      // the first open. Load DOM-visible Journey cards immediately, while keeping
+      // global startup preloads disabled so these large PNGs are not decoded early.
       image.loading = 'eager';
-      (image as any).fetchPriority = 'high';
+      (image as any).decoding = 'async';
+      (image as any).fetchPriority = isViewed ? 'low' : 'auto';
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false; // Prevent HTML5 drag
       image.setAttribute('draggable', 'false'); // Ensure draggable is false
@@ -2852,11 +2973,8 @@ class JourneyBoardsManager {
       const detailStatIcons = modal.querySelectorAll('.detail-stat-icon') as NodeListOf<HTMLElement>;
       const detailStatIconsArray = Array.from(detailStatIcons);
 
-      // 🔥 USER REQUEST: Content elements array (EXCLUDE PLAY button - it's handled separately)
-      // 🔥 CRITICAL: EXCLUDE detailStatsSection - it contains stat items that animate individually
-      // 🔥 CRITICAL: EXCLUDE detailImage - it's animated separately to preserve frozen transform position
       const otherContentElements = [
-        detailDescription,
+        ...(isTabletDetailModalViewport() ? [] : detailDescription ? [detailDescription] : []),
         ...detailStatIconsArray,
         // detailStatsSection, // 🔥 REMOVED: Stats section is NOT animated here - stat items animate individually
         detailRarityBadgeContainer
@@ -2896,7 +3014,7 @@ class JourneyBoardsManager {
         playButton.classList.add('animate-exit');
         
         // Remove button after animation completes (0.65s)
-        setTimeout(() => {
+        window.setTimeout(() => {
           if (playButton && playButton.parentNode) {
             playButton.remove();
             logger.info('🎮 PLAY button removed after CSS exit animation');
@@ -3125,7 +3243,7 @@ class JourneyBoardsManager {
       logger.info(`⏱️ Exit animation durations - Stats: ${(statsExitEndTime * 1000).toFixed(0)}ms, PLAY: ${(playButtonEndTime * 1000).toFixed(0)}ms, Header: ${(headerEndTime * 1000).toFixed(0)}ms, Total: ${totalDuration.toFixed(0)}ms`);
 
       // Wait for exit animation to complete
-      setTimeout(() => {
+      window.setTimeout(() => {
         // 🔥 MEMORY LEAK FIX: Full cleanup of detail image element
         const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
         if (detailImageEl) {
@@ -3140,6 +3258,13 @@ class JourneyBoardsManager {
           detailImageEl.style.removeProperty('transform');
           // Kill any GSAP animations on this element
           gsap.killTweensOf(detailImageEl);
+          detailImageEl.querySelectorAll('img').forEach((img) => {
+            try {
+              (img as HTMLImageElement).removeAttribute('src');
+              (img as HTMLImageElement).src = '';
+            } catch {}
+          });
+          detailImageEl.innerHTML = '';
           logger.info('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
         }
 
@@ -3478,6 +3603,13 @@ class JourneyBoardsManager {
       try { handlers.quickSetX && gsap.killTweensOf(container); } catch {}
       delete (container as any).__detailSwipeHandlers;
       logger.info('🧹 Cleaned stale detail swipe/tap handlers before re-init');
+    }
+
+    /* iPad / iPadOS: never apply horizontal-swipe pixel widths — they pin the column left of center */
+    if (isTabletDetailModalViewport()) {
+      resetDetailModalHorizontalSwipeLayout(container);
+      logger.info('📐 Detail modal tablet layout: skipped swipe metrics — cleared inline widths / GSAP x');
+      return;
     }
     
     // 🔥 CRITICAL: Calculate actual content width (not viewport width)
@@ -3949,13 +4081,20 @@ class JourneyBoardsManager {
           existingMotion.style.animation = 'none';
           existingMotion.style.animationPlayState = 'paused';
         }
+        existingImage.querySelectorAll('img').forEach((img) => {
+          try {
+            (img as HTMLImageElement).removeAttribute('src');
+            (img as HTMLImageElement).src = '';
+          } catch {}
+        });
+        existingImage.innerHTML = '';
         logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
       }
     }
     // 🔥 PERFORMANCE FIX: Defer preloads so first detail enter animation stays smooth.
     // We still warm assets before PLAY in most cases, but we never block UI opening.
     const preloadAfterEnterDelayMs = 550;
-    window.setTimeout(() => {
+    this.trackTimeout(() => {
       const activeDetailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       const modalStillShowingBoard =
         !!activeDetailModal &&
@@ -4256,6 +4395,9 @@ class JourneyBoardsManager {
         const img = document.createElement('img');
         img.src = board.interim ? './assets/colelctibles/common back.png' : (board.imagePath || '');
         img.alt = board.name || `Board ${board.id}`;
+        img.loading = 'eager';
+        (img as any).decoding = 'async';
+        (img as any).fetchPriority = 'high';
         motionEl.appendChild(img);
         imageEl.appendChild(motionEl);
         
@@ -4304,7 +4446,7 @@ class JourneyBoardsManager {
       // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
       const descEl = detailModal.querySelector('#detail-card-description') as HTMLElement;
       const statsCardSection = detailModal.querySelector('#detail-section-stats-card') as HTMLElement;
-      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      const isIPad = isTabletDetailModalViewport();
       
       // 🔥 CRITICAL: Ensure consistent padding on stats-card section (no right padding, container reduced by 200px)
       if (statsCardSection && !isIPad) {
@@ -4316,26 +4458,25 @@ class JourneyBoardsManager {
       }
       
       if (descEl) {
-        descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
         if (isIPad) {
+          /* iPad Journey: flavor copy removed — CSS [data-journey-board-id] hides; keep empty & no inline show */
+          descEl.textContent = '';
+          descEl.setAttribute('aria-hidden', 'true');
           descEl.style.cssText = `
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            color: #AD8775 !important;
-            font-size: 20px !important;
-            text-align: center !important;
-            white-space: normal !important;
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
             margin: 0 !important;
-            width: 100% !important;
-            max-width: 520px !important;
-            padding: 0 24px !important;
-            line-height: 1.4 !important;
-            flex-shrink: 0 !important;
-            align-self: center !important;
-            margin-top: 8% !important;
+            padding: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            position: absolute !important;
           `;
         } else {
+          descEl.removeAttribute('aria-hidden');
+          descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
           descEl.style.cssText = `
             display: block !important;
             visibility: visible !important;
@@ -4392,21 +4533,13 @@ class JourneyBoardsManager {
       // 🔥 CLEAN START: Initialize simple swipe
       const swipeableContainer = detailModal.querySelector('.detail-swipeable-container') as HTMLElement;
       if (swipeableContainer) {
-        const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
+        resetDetailModalHorizontalSwipeLayout(swipeableContainer);
+        const isIPad = isTabletDetailModalViewport();
         gsap.set(swipeableContainer, { x: 0 });
         setTimeout(() => {
           if (isIPad) {
-            // iPad: no horizontal swipe. Reset any inline widths and remove handlers.
-            swipeableContainer.style.width = '100%';
-            swipeableContainer.style.transform = 'none';
+            resetDetailModalHorizontalSwipeLayout(swipeableContainer);
             swipeableContainer.style.willChange = 'auto';
-            const sections = swipeableContainer.querySelectorAll('.detail-section') as NodeListOf<HTMLElement>;
-            sections.forEach((section) => {
-              section.style.width = '100%';
-              section.style.minWidth = '0';
-              section.style.maxWidth = 'none';
-              section.style.flexShrink = '0';
-            });
             if ((swipeableContainer as any).__detailSwipeHandlers) {
               const handlers = (swipeableContainer as any).__detailSwipeHandlers;
               swipeableContainer.removeEventListener('touchstart', handlers.touchStart);
@@ -4501,25 +4634,37 @@ class JourneyBoardsManager {
           const descElAfterInit = detailModal.querySelector('#detail-card-description') as HTMLElement;
           
           if (descElAfterInit) {
-            const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
-            if (!descElAfterInit.textContent || descElAfterInit.textContent.trim() === '') {
-              descElAfterInit.textContent = "The board waits.\nA single move appears.\nEverything begins.";
-            }
-            if (!isIPad) {
+            const isIPad = isTabletDetailModalViewport();
+            if (isIPad) {
+              descElAfterInit.textContent = '';
+              descElAfterInit.setAttribute('aria-hidden', 'true');
+              descElAfterInit.style.cssText = `
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                pointer-events: none !important;
+                position: absolute !important;
+              `;
+            } else {
+              if (!descElAfterInit.textContent || descElAfterInit.textContent.trim() === '') {
+                descElAfterInit.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+              }
+              descElAfterInit.removeAttribute('aria-hidden');
               descElAfterInit.style.marginLeft = '80px';
               descElAfterInit.style.width = '220px';
               descElAfterInit.style.maxWidth = '220px';
-            } else {
-              descElAfterInit.style.marginLeft = '0';
-              descElAfterInit.style.width = '100%';
-              descElAfterInit.style.maxWidth = '520px';
+              descElAfterInit.style.textAlign = 'center'; /* 🔥 USER REQUEST: Center text */
+              descElAfterInit.style.whiteSpace = 'pre-line'; /* Each sentence on its own line */
+              descElAfterInit.style.display = 'block';
+              descElAfterInit.style.visibility = 'visible';
+              descElAfterInit.style.opacity = '1';
+              descElAfterInit.style.flexShrink = '0';
             }
-            descElAfterInit.style.textAlign = 'center'; /* 🔥 USER REQUEST: Center text */
-            descElAfterInit.style.whiteSpace = 'pre-line'; /* Each sentence on its own line */
-            descElAfterInit.style.display = 'block';
-            descElAfterInit.style.visibility = 'visible';
-            descElAfterInit.style.opacity = '1';
-            descElAfterInit.style.flexShrink = '0';
           }
         }, 100);
       }
@@ -4663,6 +4808,14 @@ class JourneyBoardsManager {
           e.preventDefault();
           e.stopPropagation();
 
+          if ((floatingPlayButton as any).__ccPlayStartInFlight === true) {
+            logger.warn(`⚠️ Ignoring duplicate Play tap for board ${boardIdForPlay} - start already in flight`);
+            return;
+          }
+          (floatingPlayButton as any).__ccPlayStartInFlight = true;
+          floatingPlayButton.setAttribute('aria-busy', 'true');
+          floatingPlayButton.style.pointerEvents = 'none';
+
           console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardIdForPlay}, Board Name: ${boardNameForPlay}`);
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`);
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
@@ -4679,6 +4832,9 @@ class JourneyBoardsManager {
               logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
               const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
               showHeartsModal();
+              (floatingPlayButton as any).__ccPlayStartInFlight = false;
+              floatingPlayButton.removeAttribute('aria-busy');
+              floatingPlayButton.style.pointerEvents = 'auto';
               return; // Don't start game - show hearts modal instead
             }
           } catch (error) {
@@ -5013,13 +5169,13 @@ class JourneyBoardsManager {
       // 🔥 OPTIMIZATION: Exclude stat icons/items here; they get their own staggered GSAP later
       const contentElements = [
         detailRarityBadgeContainer,
-        detailDescription,
+        ...(isIPadDevice ? [] : detailDescription ? [detailDescription] : []),
         boardStatsContainer,
         playButton
       ].filter(el => el !== null) as HTMLElement[];
       
-      // 🔥 CRITICAL: Set initial state for description (will be animated, not always visible)
-      if (detailDescription) {
+      // 🔥 CRITICAL: Set initial state for description (will be animated, not always visible) — non-iPad only
+      if (detailDescription && !isIPadDevice) {
         gsap.set(detailDescription, {
           scale: 0,
           opacity: 0,
@@ -5396,11 +5552,13 @@ class JourneyBoardsManager {
           const isIPad = isIPadDevice;
           if (isIPad && detailStatsListResolved) {
             detailStatsListResolved.style.flexDirection = 'row';
-            detailStatsListResolved.style.gap = '2px';
-            detailStatsListResolved.style.width = '100%';
+            detailStatsListResolved.style.gap = 'calc(8px + 4%)';
+            detailStatsListResolved.style.width = 'fit-content';
             detailStatsListResolved.style.maxWidth = '100%';
             detailStatsListResolved.style.minWidth = '0';
             detailStatsListResolved.style.justifyContent = 'center';
+            detailStatsListResolved.style.marginLeft = 'auto';
+            detailStatsListResolved.style.marginRight = 'auto';
             detailStatsListResolved.style.overflow = 'visible';
             detailStatsListResolved.style.padding = '0';
             detailStatsListResolved.style.alignSelf = 'center';
@@ -5550,26 +5708,36 @@ class JourneyBoardsManager {
           if (statElements.length > 0) {
             cleanupDetailStatsEnterAnimation(detailModal as HTMLElement);
             if (isIPad) {
-              // iPad: keep layout rules but animate like mobile for smoothness
+              // iPad: single centered row (aligned with card). Avoid 5-col grid — it reads left-heavy.
               if (detailStatsSection) {
                 detailStatsSection.style.width = '100%';
                 detailStatsSection.style.maxWidth = '100%';
+                detailStatsSection.style.display = 'flex';
+                detailStatsSection.style.flexDirection = 'column';
                 detailStatsSection.style.alignItems = 'center';
                 detailStatsSection.style.justifyContent = 'center';
               }
               if (detailStatsListResolved) {
-                detailStatsListResolved.style.display = 'grid';
-                detailStatsListResolved.style.gridTemplateColumns = 'minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr)';
-                detailStatsListResolved.style.columnGap = '0';
-                detailStatsListResolved.style.rowGap = '0';
-                detailStatsListResolved.style.width = '100%';
-                detailStatsListResolved.style.maxWidth = '100%';
-                detailStatsListResolved.style.justifyItems = 'center';
+                detailStatsListResolved.style.display = 'flex';
+                detailStatsListResolved.style.flexDirection = 'row';
+                detailStatsListResolved.style.flexWrap = 'nowrap';
+                detailStatsListResolved.style.gap = 'calc(8px + 4%)';
+                detailStatsListResolved.style.justifyContent = 'center';
                 detailStatsListResolved.style.alignItems = 'center';
-                detailStatsListResolved.style.padding = '0 24px';
+                detailStatsListResolved.style.alignSelf = 'center';
+                detailStatsListResolved.style.width = 'fit-content';
+                detailStatsListResolved.style.maxWidth = '100%';
+                detailStatsListResolved.style.minWidth = '0';
+                detailStatsListResolved.style.marginLeft = 'auto';
+                detailStatsListResolved.style.marginRight = 'auto';
+                detailStatsListResolved.style.padding = '0';
+                detailStatsListResolved.style.gridTemplateColumns = '';
+                detailStatsListResolved.style.columnGap = '';
+                detailStatsListResolved.style.rowGap = '';
+                detailStatsListResolved.style.justifyItems = '';
               }
               const children = detailStatsListResolved ? Array.from(detailStatsListResolved.children) as HTMLElement[] : statElements;
-              children.forEach((element, idx) => {
+              children.forEach((element) => {
                 if (!element) return;
                 const isDivider = element.classList.contains('detail-stat-divider');
                 const elementDefaultDisplay = isDivider ? 'block' : 'flex';
@@ -5578,24 +5746,17 @@ class JourneyBoardsManager {
                 if (isDivider) {
                   element.style.width = '2px';
                   element.style.height = '64px';
-                  element.style.marginLeft = '3%';
-                  element.style.marginRight = '3%';
+                  element.style.marginLeft = '0';
+                  element.style.marginRight = '0';
                   element.style.background = '#ECE2D9';
-                }
-                if (!isDivider) {
-                  element.style.width = '100%';
-                  element.style.maxWidth = '100%';
+                } else {
+                  element.style.width = 'auto';
+                  element.style.maxWidth = '170px';
                   element.style.justifyContent = 'center';
-                  if (idx === 0) {
-                    element.style.paddingRight = '3%';
-                    element.style.paddingLeft = '0';
-                  } else if (idx === children.length - 1) {
-                    element.style.paddingLeft = '3%';
-                    element.style.paddingRight = '0';
-                  } else {
-                    element.style.paddingLeft = '3%';
-                    element.style.paddingRight = '3%';
-                  }
+                  element.style.alignItems = 'center';
+                  element.style.paddingLeft = '0';
+                  element.style.paddingRight = '0';
+                  element.style.margin = '0';
                 }
               });
             }

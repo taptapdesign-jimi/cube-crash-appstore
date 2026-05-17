@@ -35,7 +35,16 @@ const CRATE_TEXTURE_WIDTH = 290;
 const BACKPACK_BODY_CLASS = 'cc-wild-backpack-active';
 const BACKPACK_DIVIDER_STYLE_ID = 'cc-wild-backpack-divider-mask-style';
 
-void Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES]).catch(() => {});
+let assetsPreloadPromise: Promise<void> | null = null;
+const activeDropCleanups = new Set<() => void>();
+
+function preloadWildSpawnDropAssets(): Promise<void> {
+  if (assetsPreloadPromise) return assetsPreloadPromise;
+  assetsPreloadPromise = Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES])
+    .then(() => undefined)
+    .catch(() => undefined);
+  return assetsPreloadPromise;
+}
 
 function maskBoardIndicatorDividersForBackpack(): () => void {
   try {
@@ -161,6 +170,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
+    activeDropCleanups.delete(cleanup);
     try { frameTimeline?.kill(); } catch {}
     try { bounceTimeline?.kill(); } catch {}
     try { gsap.killTweensOf(backpack); } catch {}
@@ -172,6 +182,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
     } catch {}
     backpack = null;
   };
+  activeDropCleanups.add(cleanup);
   trackTimeline({ onComplete: cleanup }).to({}, { duration: BACKPACK_SEQUENCE_END_TIME + 0.32 });
   return cleanup;
 }
@@ -261,13 +272,15 @@ function repairWildIdentity(tile: any, assetPath?: string): void {
   } catch {}
 }
 
-export function animateWildSpawnDropFromMeter({
+export async function animateWildSpawnDropFromMeter({
   app,
   tile,
   assetPath,
   tileSize,
   onImpact,
 }: WildSpawnDropOptions): Promise<void> {
+  await preloadWildSpawnDropAssets();
+
   return new Promise((resolve) => {
     const stage = app?.stage;
     setWildSpawnDropActive(true);
@@ -358,10 +371,16 @@ export function animateWildSpawnDropFromMeter({
 
     let completed = false;
     let spawnRevealTimeline: gsap.core.Timeline | null = null;
+    let travelTimeline: gsap.core.Timeline | null = null;
+    let impactTimeline: gsap.core.Timeline | null = null;
     const restoreTile = () => {
       try {
         try { spawnRevealTimeline?.kill(); } catch {}
         spawnRevealTimeline = null;
+        try { travelTimeline?.kill(); } catch {}
+        travelTimeline = null;
+        try { impactTimeline?.kill(); } catch {}
+        impactTimeline = null;
         gsap.killTweensOf(tile);
         gsap.killTweensOf(tile.scale);
         if (tile.parent !== parent) {
@@ -383,15 +402,18 @@ export function animateWildSpawnDropFromMeter({
     const finish = () => {
       if (completed) return;
       completed = true;
+      activeDropCleanups.delete(finish);
       restoreTile();
       resolve();
     };
     const completeTravel = () => {
       if (completed) return;
       completed = true;
+      activeDropCleanups.delete(finish);
       setWildSpawnDropActive(false);
       resolve();
     };
+    activeDropCleanups.add(finish);
 
     try {
       const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
@@ -473,6 +495,7 @@ export function animateWildSpawnDropFromMeter({
         finish();
       },
     });
+    travelTimeline = tl;
 
     tl.to({}, {
       duration: BACKPACK_WILD_TRAVEL_START,
@@ -558,7 +581,7 @@ export function animateWildSpawnDropFromMeter({
           }
         } catch {}
         try { onImpact?.(); } catch {}
-        trackTimeline({
+        impactTimeline = trackTimeline({
           onComplete: () => {
             repairWildIdentity(tile, assetPath);
             revealTile(tile);
@@ -567,7 +590,8 @@ export function animateWildSpawnDropFromMeter({
           onInterrupt: () => {
             finish();
           },
-        })
+        });
+        impactTimeline
           .to(tile.scale, { x: 1.18, y: 1.18, duration: 0.12, ease: 'back.out(3)' })
           .to(tile.scale, { x: 0.9, y: 0.9, duration: 0.07, ease: 'power2.inOut' })
           .to(tile.scale, { x: 1.06, y: 1.06, duration: 0.08, ease: 'power2.out' })
@@ -575,4 +599,18 @@ export function animateWildSpawnDropFromMeter({
       },
     });
   });
+}
+
+export function cleanupWildSpawnDropAnimations(): void {
+  const cleanups = Array.from(activeDropCleanups);
+  activeDropCleanups.clear();
+  cleanups.forEach((cleanup) => {
+    try { cleanup(); } catch {}
+  });
+  try {
+    (window as any).__ccWildSpawnDropActiveCount = 0;
+    (window as any).__ccWildSpawnDropInProgress = false;
+    (window as any).__ccWildBackpackDividerMaskCount = 0;
+    document.body.classList.remove(BACKPACK_BODY_CLASS);
+  } catch {}
 }

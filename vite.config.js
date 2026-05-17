@@ -1,7 +1,27 @@
-import { defineConfig } from 'vite';
+import { createLogger, defineConfig } from 'vite';
+
+const defaultLogger = createLogger();
+const MIXED_STATIC_DYNAMIC_IMPORT_MESSAGE = 'dynamic import will not move module into another chunk';
+
+function shouldSuppressBuildWarning(message) {
+  return typeof message === 'string' && message.includes(MIXED_STATIC_DYNAMIC_IMPORT_MESSAGE);
+}
 
 export default defineConfig({
+  base: './',
+  customLogger: {
+    ...defaultLogger,
+    warn(message, options) {
+      if (shouldSuppressBuildWarning(message)) return;
+      defaultLogger.warn(message, options);
+    },
+    warnOnce(message, options) {
+      if (shouldSuppressBuildWarning(message)) return;
+      defaultLogger.warnOnce(message, options);
+    }
+  },
   build: {
+    assetsDir: '',
     target: 'es2020',
     minify: 'terser',
     terserOptions: {
@@ -15,6 +35,10 @@ export default defineConfig({
       }
     },
     rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'DYNAMIC_IMPORT_WILL_NOT_MOVE_MODULE') return;
+        warn(warning);
+      },
       output: {
         manualChunks: {
           vendor: ['pixi.js'],

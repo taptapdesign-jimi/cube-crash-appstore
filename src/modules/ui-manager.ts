@@ -2553,13 +2553,9 @@ class UIManager {
         if (now - lastFooterHapticAt < 120) return;
         lastFooterHapticAt = now;
         try {
-          if (
-            (window as any).webkit &&
-            (window as any).webkit.messageHandlers &&
-            (window as any).webkit.messageHandlers.hapticImpact
-          ) {
-            (window as any).webkit.messageHandlers.hapticImpact.postMessage({ style: 'light' });
-          } else if (typeof (window as any).triggerHapticImpact === 'function') {
+        if (
+          typeof (window as any).triggerHapticImpact === 'function'
+        ) {
             (window as any).triggerHapticImpact('light');
           } else if (navigator.vibrate) {
             navigator.vibrate(30);

@@ -28,8 +28,8 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
-const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
-// 🔒 Toggle for smoke on Journey cards (keep enabled with guards to avoid ghost puff)
+const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = false;
+// Smoke is allowed only for interim cards; smokeBubblesAtCard guards non-interim cards.
 const ENABLE_JOURNEY_CARD_SMOKE = true;
 const ENABLE_UNLOCKED_CARD_IDLE_BOUNCE = false;
 
@@ -158,7 +158,12 @@ function cleanupNonInterimCardMotion(container: HTMLElement | Document = documen
 }
 
 export function startJourneyCardIdleBounce(container: HTMLElement | null): void {
-  if (!ENABLE_JOURNEY_CARD_IDLE_BOUNCE) return;
+  if (!ENABLE_JOURNEY_CARD_IDLE_BOUNCE) {
+    stopJourneyCardIdleBounce();
+    cleanupJourneySmokeEffects();
+    cleanupNonInterimCardMotion(container || document);
+    return;
+  }
   if (!container) return;
   stopJourneyCardIdleBounce();
   cleanupJourneySmokeEffects();

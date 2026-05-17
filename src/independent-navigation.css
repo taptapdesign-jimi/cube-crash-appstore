@@ -38,6 +38,7 @@
   overflow: visible !important;
   border: none;
   box-shadow: none;
+  overscroll-behavior: none;
 }
 
 

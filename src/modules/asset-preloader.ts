@@ -264,20 +264,13 @@ const CRITICAL_ASSETS: string[] = [
   // Collectibles placeholder images (needed for collectibles screen)
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
-  // NOTE: Collectibles card images are loaded in background via preloadCollectiblesImages()
-  // They are NOT in CRITICAL_ASSETS to keep preload fast
+  // NOTE: Collectibles card fronts are not globally preloaded; visible cards
+  // and detail modals load them on demand to avoid iOS WebContent pressure.
 ];
 
-// Add collectibles assets to ALL_ASSETS
-for (let i = 1; i <= 20; i++) {
-  const id = String(i).padStart(2, '0');
-  ALL_ASSETS.push(`./assets/colelctibles/common/${id}.png`);
-}
-
-for (let i = 21; i <= 26; i++) {
-  const id = String(i).padStart(2, '0');
-  ALL_ASSETS.push(`./assets/colelctibles/legendary/${id}.png`);
-}
+// Collectible card fronts are intentionally not part of global/deferred preload.
+// They are multi-megabyte PNGs and must be loaded only when a visible card or
+// detail modal needs them, otherwise iOS WebContent hits memory pressure.
 
 // DEFERRED ASSETS: Load these in background after critical
 const DEFERRED_ASSETS: string[] = ALL_ASSETS.filter(asset => !CRITICAL_ASSETS.includes(asset));
@@ -458,50 +451,34 @@ export class AssetPreloader {
     logger.debug('✅ All HTML images preloaded');
   }
 
-  // 🔥 CRITICAL: Preload collectibles card images through native Image objects for browser cache
-  // This ensures collectibles screen loads instantly when opened (no delay)
-  // Uses browser cache - if images are already cached, they load instantly
+  // Preload only shared collectibles placeholders. Full card fronts are loaded
+  // lazily by the grid/detail modal to keep iOS WebContent memory stable.
   async preloadCollectiblesImages(): Promise<void> {
-    // Check if already preloaded (browser cache will handle subsequent loads)
     const cacheKey = 'collectibles_images_preloaded';
     const wasPreloaded = localStorage.getItem(cacheKey) === 'true';
     
     if (wasPreloaded) {
-      logger.info('🎁 Collectibles images already preloaded (using browser cache)');
-      // Still verify critical images are in cache (fast check)
+      logger.info('🎁 Collectibles placeholders already preloaded (using browser cache)');
       const criticalImages = [
-        './assets/colelctibles/common/01.png',
-        './assets/colelctibles/common back.png'
+        './assets/colelctibles/common back.png',
+        './assets/colelctibles/legendary back.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
       return;
     }
     
-    const collectiblesImages: string[] = [];
+    const collectiblesImages: string[] = [
+      './assets/colelctibles/common back.png',
+      './assets/colelctibles/legendary back.png'
+    ];
     
-    // Add all common card images (1-20)
-    for (let i = 1; i <= 20; i++) {
-      const id = String(i).padStart(2, '0');
-      collectiblesImages.push(`./assets/colelctibles/common/${id}.png`);
-    }
-    
-    // Add all legendary card images (21-26)
-    for (let i = 21; i <= 26; i++) {
-      const id = String(i).padStart(2, '0');
-      collectiblesImages.push(`./assets/colelctibles/legendary/${id}.png`);
-    }
-    
-    // Add placeholder images
-    collectiblesImages.push('./assets/colelctibles/common back.png');
-    collectiblesImages.push('./assets/colelctibles/legendary back.png');
-    
-    logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles images for instant screen load...`);
+    logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles placeholder images...`);
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const batchSize = isMobile ? 4 : 6;
     await this.loadImagesInBatches(collectiblesImages, batchSize);
     localStorage.setItem(cacheKey, 'true');
-    logger.info(`✅ All ${collectiblesImages.length} collectibles images preloaded (browser cache ready)`);
+    logger.info(`✅ Collectibles placeholders preloaded (browser cache ready)`);
   }
   
   // Helper: Verify image is in browser cache (fast check)
@@ -531,7 +508,6 @@ export class AssetPreloader {
       // Still verify critical images are in cache (fast check)
       const criticalImages = [
         './assets/journey assets/1-17bg.png',
-        './assets/colelctibles/common/01.png',
         './assets/colelctibles/journey-card-empty.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
@@ -657,11 +633,9 @@ export class AssetPreloader {
         await this.preloadJourneyAssets();
         logger.info('✅ Journey screen assets preloaded');
         
-        // 🔥 CRITICAL: Preload collectibles images (BLOCKING - must complete before preload screen closes)
-        // This ensures collectibles screen loads instantly when opened, but doesn't delay initial load
-        logger.info('🎁 Preloading collectibles images (blocking)...');
+        logger.info('🎁 Preloading collectibles placeholders (blocking, lightweight)...');
         await this.preloadCollectiblesImages();
-        logger.info('✅ Collectibles images preloaded');
+        logger.info('✅ Collectibles placeholders preloaded');
         
         // 🔥 CRITICAL: Prepare Journey screen boards (BLOCKING - must complete before preload screen closes)
         // This ensures Journey boards are rendered and ready before user clicks Journey CTA

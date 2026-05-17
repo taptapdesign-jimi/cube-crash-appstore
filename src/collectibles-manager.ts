@@ -106,6 +106,7 @@ class CollectiblesManager {
   private collectiblesData: CollectiblesData;
   private defaultUnlockedIds: Set<string>;
   private preloadPromise: Promise<PreloadResult[]> | null;
+  private cardBackgroundObserver: IntersectionObserver | null = null;
   private detailFocusTrap: FocusTrap | null = null;
   private detailTrigger: HTMLElement | null = null;
   private currentDetailCardId: string | null = null;
@@ -162,7 +163,6 @@ class CollectiblesManager {
     this.ensureDefaultUnlocked();
     this.lockInitialCommons();
     this.saveCollectiblesState();
-    this.preloadImages();
     this.initEventListeners();
     this.handleDailyVisit();
     
@@ -418,7 +418,7 @@ class CollectiblesManager {
 
   // 🔥 CRITICAL FIX: Master cleanup method - calls ALL cleanup functions
   // This is the MAIN cleanup entry point called from main.ts exitToMenu()
-  public cleanup(): void {
+  public async cleanup(): Promise<void> {
     console.log('🧹🧹🧹 collectiblesManager.cleanup() - FULL CLEANUP STARTING...');
     
     // 1. Cleanup event listeners (document-level, element-level)
@@ -428,22 +428,70 @@ class CollectiblesManager {
     } catch (error) {
       console.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
     }
+
+    try {
+      this.cardBackgroundObserver?.disconnect();
+      this.cardBackgroundObserver = null;
+      console.log('✅ collectibles lazy image observer cleaned up');
+    } catch (error) {
+      console.warn('⚠️ Failed to cleanup collectibles lazy image observer:', error);
+    }
     
     // 2. Cleanup journey boards manager (cards, animations, scroll listeners)
     try {
-      import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-        if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
-          journeyBoardsManager.cleanup();
-          console.log('✅ journeyBoardsManager.cleanup() completed');
-        }
-      }).catch((error) => {
-        console.warn('⚠️ Failed to import/cleanup journeyBoardsManager:', error);
-      });
+      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
+        journeyBoardsManager.cleanup();
+        console.log('✅ journeyBoardsManager.cleanup() completed');
+      }
     } catch (error) {
       console.warn('⚠️ Failed to cleanup journey boards manager:', error);
     }
     
     console.log('✅✅✅ collectiblesManager.cleanup() - FULL CLEANUP COMPLETED');
+  }
+
+  private getCardBackgroundObserver(): IntersectionObserver | null {
+    if (typeof IntersectionObserver === 'undefined') return null;
+    if (this.cardBackgroundObserver) return this.cardBackgroundObserver;
+
+    this.cardBackgroundObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const element = entry.target as HTMLElement;
+        const src = element.dataset.lazyBackground;
+        if (src) {
+          element.style.backgroundImage = `url('${src}')`;
+          delete element.dataset.lazyBackground;
+        }
+        this.cardBackgroundObserver?.unobserve(element);
+      });
+    }, {
+      root: null,
+      rootMargin: '360px 0px',
+      threshold: 0.01,
+    });
+
+    return this.cardBackgroundObserver;
+  }
+
+  private applyCardBackgroundWhenVisible(element: HTMLElement, src: string, eager = false): void {
+    element.dataset.lazyBackground = src;
+
+    if (eager) {
+      element.style.backgroundImage = `url('${src}')`;
+      delete element.dataset.lazyBackground;
+      return;
+    }
+
+    const observer = this.getCardBackgroundObserver();
+    if (!observer) {
+      element.style.backgroundImage = `url('${src}')`;
+      delete element.dataset.lazyBackground;
+      return;
+    }
+
+    observer.observe(element);
   }
 
   // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
@@ -1392,7 +1440,7 @@ class CollectiblesManager {
     if (card.unlocked) {
       // Always show unlocked cards as unlocked (no flip animation)
       cardDiv.classList.add('unlocked');
-      cardDiv.style.backgroundImage = `url('${imagePath}')`;
+      this.applyCardBackgroundWhenVisible(cardDiv, imagePath, number <= 4);
       cardDiv.setAttribute(
         'aria-label',
         `Collectible ${numberStr} (${rarityLabel}): ${card.name} unlocked`
@@ -1405,7 +1453,7 @@ class CollectiblesManager {
       }
     } else {
       cardDiv.classList.add('locked');
-      cardDiv.style.backgroundImage = `url('${placeholderPath}')`;
+      this.applyCardBackgroundWhenVisible(cardDiv, placeholderPath, number <= 4);
       cardDiv.setAttribute(
         'aria-label',
         `Collectible ${numberStr} (${rarityLabel}) locked`
@@ -1471,13 +1519,6 @@ class CollectiblesManager {
       this.getPlaceholderPath('common'),
       this.getPlaceholderPath('legendary')
     ]);
-
-    this.collectiblesData.common.forEach((card, index) => {
-      sources.add(this.getCardImagePath('common', index + 1));
-    });
-    this.collectiblesData.legendary.forEach((card, index) => {
-      sources.add(this.getCardImagePath('legendary', index + 1));
-    });
 
     const loadImage = (src: string): Promise<PreloadResult> => new Promise(resolve => {
       const img = new Image();
@@ -1660,11 +1701,15 @@ class CollectiblesManager {
         // Reset to first section (stats) - using pixels for peek effect
         (swipeableContainer as HTMLElement).style.transform = 'translateX(0px)';
         // Import journey boards manager to use swipe initialization
-        import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-          if (typeof (journeyBoardsManager as any).initDetailModalSwipe === 'function') {
-            (journeyBoardsManager as any).initDetailModalSwipe(swipeableContainer as HTMLElement);
-            console.log('✅ Swipeable container initialized for regular collectibles - starting at stats section (card visible on right)');
+        import('./modules/journey-boards-manager.js').then((mod) => {
+          const { journeyBoardsManager, isTabletDetailModalViewport, resetDetailModalHorizontalSwipeLayout } = mod as any;
+          if (typeof journeyBoardsManager?.initDetailModalSwipe !== 'function') return;
+          if (isTabletDetailModalViewport?.()) {
+            resetDetailModalHorizontalSwipeLayout?.(swipeableContainer as HTMLElement);
+            return;
           }
+          journeyBoardsManager.initDetailModalSwipe(swipeableContainer as HTMLElement);
+          console.log('✅ Swipeable container initialized for regular collectibles - starting at stats section (card visible on right)');
         }).catch((error) => {
           console.warn('⚠️ Failed to initialize swipeable container:', error);
         });
@@ -2072,6 +2117,8 @@ class CollectiblesManager {
         if (gsap) {
           gsap.killTweensOf(detailImageEl);
         }
+        detailImageEl.style.removeProperty('background-image');
+        detailImageEl.innerHTML = '';
         console.log('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
       }
       

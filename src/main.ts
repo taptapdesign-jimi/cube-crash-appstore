@@ -1691,7 +1691,7 @@ async function startNewRun(boardId: number): Promise<void> {
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.cleanup === 'function') {
         console.log('🧹 Calling collectiblesManager.cleanup() to clean up Journey screen...');
-        collectiblesManager.cleanup();
+        await collectiblesManager.cleanup();
         console.log('✅ collectiblesManager.cleanup() completed - Journey screen cleaned up');
       }
     } catch (error) {
