@@ -274,6 +274,8 @@ const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for con
 const JOURNEY_CONTENT_TOP_BASE_PX = 50;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
+/** Move bg image + card stack down together (px), all breakpoints */
+const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 40;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 
 // Helper to convert pixels to viewport width units (vw)
@@ -289,7 +291,13 @@ function pxToVH(px: number, baseHeight: number = BASE_VIEWPORT_HEIGHT): number {
 }
 
 function getJourneyContentTopPx(): number {
-  return (pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight;
+  const vw = window.innerWidth || 0;
+  // iPad / wide tablet: legacy "Boards x/25" anchor removed (was 0); nudge still applies via JOURNEY_BOARDSTACK_NUDGE_DOWN_PX.
+  const layoutAnchor =
+    vw >= 769 && vw <= 1366
+      ? 0
+      : (pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight;
+  return layoutAnchor + JOURNEY_BOARDSTACK_NUDGE_DOWN_PX;
 }
 
 // Legacy helpers for backward compatibility - now convert to viewport units

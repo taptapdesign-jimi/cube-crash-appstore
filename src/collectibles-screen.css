@@ -43,22 +43,12 @@
   pointer-events: none;
 }
 
-/* iPad: header row uses translateY(10px) vs 4px — keep scroll body aligned under fixed header */
-@media screen and (min-width: 769px) and (max-width: 1366px) {
-  #journey-screen,
-  .journey-screen {
-    --journey-header-offset: calc(
-      max(0px, env(safe-area-inset-top, 0px) + 2vh - 16px) + 40px + 16px + 2px + 49px + 18px
-    );
-  }
-}
-
 #journey-screen .collectibles-shell {
   padding-top: var(--journey-header-offset, 120px);
   box-sizing: border-box;
 }
 
-/* Viewport-fixed header: does not move when inner list rubber-bands or WKWebView overscrolls */
+/* Viewport-fixed header: iPhone — avoids rubber-band shifting the title bar */
 #journey-screen .collectibles-header {
   position: fixed !important;
   top: 0;
@@ -69,6 +59,30 @@
   box-sizing: border-box;
   z-index: 1000002;
   flex-shrink: 0;
+}
+
+/*
+ * iPad (769–1366): do NOT use fixed header + shell padding-top.
+ * Real header height (safe area + row + divider + shadow + translateY(10px)) exceeds
+ * --journey-header-offset, so the header’s painted box overlaps and clips the first card.
+ * In-flow header: correct height, no ghost band, cards start immediately below.
+ */
+@media screen and (min-width: 769px) and (max-width: 1366px) {
+  #journey-screen .collectibles-shell,
+  .journey-screen .collectibles-shell {
+    padding-top: 0 !important;
+  }
+
+  #journey-screen .collectibles-header,
+  .journey-screen .collectibles-header {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100%;
+    max-width: 100%;
+    z-index: 200;
+  }
 }
 
 #journey-screen[hidden],
@@ -1518,19 +1532,13 @@
     width: 100%;
   }
   
-  /* 🔥 iPad FIX: Dodaj padding od 24px lijevo i desno za journey boards sekciju */
+  /* iPad: section uses horizontal padding only (no legacy Boards x/25 sub-header in DOM). */
   .collectibles-section:has(#journey-boards-container) {
     margin-left: 0 !important; /* Ukloni negativni margin */
     margin-right: 0 !important; /* Ukloni negativni margin */
     width: 100% !important; /* Vrati normalnu širinu */
     padding-left: 24px !important; /* Dodaj padding lijevo */
     padding-right: 24px !important; /* Dodaj padding desno */
-  }
-  
-  /* 🔥 iPad FIX: Dodaj padding i za header (Boards 0/25) */
-  .collectibles-section:has(#journey-boards-container) .collectibles-section-header {
-    padding-left: 0; /* Header je unutar sekcije koja već ima padding */
-    padding-right: 0;
   }
   
   .collectibles-grid {
