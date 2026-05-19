@@ -275,7 +275,9 @@ const JOURNEY_CONTENT_TOP_BASE_PX = 50;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 /** Move bg image + card stack down together (px), all breakpoints */
-const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 40;
+const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
+/** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
+const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 96;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 
 // Helper to convert pixels to viewport width units (vw)
@@ -464,6 +466,111 @@ class JourneyBoardsManager {
       delete (modal as any).__detailModalExiting;
     } catch (error) {
       logger.warn('⚠️ Failed to cleanup detail modal runtime state:', error);
+    }
+  }
+
+  private cleanupJourneyScreenElasticOverscroll(): void {
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      const handlers = (scrollable as any)?.__journeyScreenElasticHandlers;
+      if (scrollable && handlers) {
+        try { scrollable.removeEventListener('touchstart', handlers.start); } catch {}
+        try { scrollable.removeEventListener('touchmove', handlers.move); } catch {}
+        try { scrollable.removeEventListener('touchend', handlers.end); } catch {}
+        try { scrollable.removeEventListener('touchcancel', handlers.end); } catch {}
+        delete (scrollable as any).__journeyScreenElasticHandlers;
+      }
+      const target = document.getElementById('journey-boards-container') as HTMLElement | null;
+      if (target) {
+        try { gsap.killTweensOf(target); } catch {}
+        target.style.transition = '';
+        target.style.transform = '';
+        target.style.willChange = '';
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to cleanup Journey screen elastic overscroll:', error);
+    }
+  }
+
+  private installJourneyScreenElasticOverscroll(container: HTMLElement): void {
+    try {
+      const ua = navigator.userAgent || '';
+      const isIOSLike = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
+      const isMobileJourney = (window.innerWidth || 0) <= 768;
+      if (!isIOSLike || !isMobileJourney) {
+        this.cleanupJourneyScreenElasticOverscroll();
+        return;
+      }
+
+      const scrollable = container.closest('.collectibles-scrollable') as HTMLElement | null;
+      if (!scrollable) return;
+
+      this.cleanupJourneyScreenElasticOverscroll();
+
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+      const damping = 0.35;
+      const maxPull = 80;
+
+      const isAtTop = () => scrollable.scrollTop <= 1;
+      const isAtBottom = () => {
+        const maxScroll = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
+        return scrollable.scrollTop >= maxScroll - 1;
+      };
+
+      const applyPull = (pull: number) => {
+        currentY = pull;
+        container.style.willChange = 'transform';
+        container.style.transition = 'none';
+        container.style.transform = `translateY(${pull}px)`;
+      };
+
+      const onStart = (e: TouchEvent) => {
+        if (e.touches.length !== 1) return;
+        startY = e.touches[0].clientY;
+        currentY = 0;
+        isDragging = true;
+        try { gsap.killTweensOf(container); } catch {}
+        container.style.transition = 'none';
+      };
+
+      const onMove = (e: TouchEvent) => {
+        if (!isDragging || e.touches.length !== 1) return;
+        const dy = e.touches[0].clientY - startY;
+        const pullingTop = dy > 0 && isAtTop();
+        const pullingBottom = dy < 0 && isAtBottom();
+        if (!pullingTop && !pullingBottom) {
+          if (currentY !== 0) applyPull(0);
+          return;
+        }
+        const pull = Math.max(-maxPull, Math.min(maxPull, dy * damping));
+        applyPull(pull);
+      };
+
+      const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (currentY === 0) {
+          container.style.willChange = '';
+          return;
+        }
+        container.style.transition = 'transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+        container.style.transform = 'translateY(0px)';
+        window.setTimeout(() => {
+          if (this.renderDisposed) return;
+          container.style.transition = '';
+          container.style.willChange = '';
+        }, 240);
+      };
+
+      scrollable.addEventListener('touchstart', onStart, { passive: true });
+      scrollable.addEventListener('touchmove', onMove, { passive: true });
+      scrollable.addEventListener('touchend', onEnd, { passive: true });
+      scrollable.addEventListener('touchcancel', onEnd, { passive: true });
+      (scrollable as any).__journeyScreenElasticHandlers = { start: onStart, move: onMove, end: onEnd };
+    } catch (error) {
+      logger.warn('⚠️ Failed to install Journey screen elastic overscroll:', error);
     }
   }
 
@@ -1054,6 +1161,7 @@ class JourneyBoardsManager {
     this.cancelAllRAFs();
     this.cancelAllTimeouts();
     this.cleanupDetailModalRuntimeState();
+    this.cleanupJourneyScreenElasticOverscroll();
     
     // 🔥 MEMORY LEAK FIX: Stop glow pulse interval (this also stops interim bounce animations)
     this.stopGlowPulse();
@@ -1681,6 +1789,7 @@ class JourneyBoardsManager {
     // Background and cards use position: fixed with viewport units (vw/vh)
     // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
     this.renderBoardsFixed(container);
+    this.installJourneyScreenElasticOverscroll(container);
   }
 
   private renderBoardsFixed(container: HTMLElement): void {
@@ -1718,7 +1827,7 @@ class JourneyBoardsManager {
       const FIXED_BG_TOP_PX = getJourneyContentTopPx();
       
       // Set container height to accommodate FULL background image height + top offset
-      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
+      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
       container.style.height = `${containerHeightPx}px`;
       container.style.position = 'relative';
       container.style.width = '100%';
@@ -1745,7 +1854,7 @@ class JourneyBoardsManager {
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
       const bgHeightPx = viewportWidth * imageAspectRatio;
       const FIXED_BG_TOP_PX = getJourneyContentTopPx();
-      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
+      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
       container.style.height = `${containerHeightPx}px`;
       container.style.minHeight = `${containerHeightPx}px`;
       container.style.overflow = 'visible';
@@ -1755,7 +1864,7 @@ class JourneyBoardsManager {
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const initialBgHeightPx = viewportWidth * KNOWN_ASPECT_RATIO;
     const FIXED_BG_TOP_PX = getJourneyContentTopPx();
-    const initialContainerHeightPx = initialBgHeightPx + FIXED_BG_TOP_PX;
+    const initialContainerHeightPx = initialBgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
     
     // Set initial container height
     container.style.height = `${initialContainerHeightPx}px`;

@@ -48,7 +48,7 @@
   box-sizing: border-box;
 }
 
-/* Viewport-fixed header: iPhone — avoids rubber-band shifting the title bar */
+/* Viewport-fixed fallback for non-mobile/non-iPad widths */
 #journey-screen .collectibles-header {
   position: fixed !important;
   top: 0;
@@ -59,6 +59,34 @@
   box-sizing: border-box;
   z-index: 1000002;
   flex-shrink: 0;
+}
+
+/* Journey header stays in normal layout flow on mobile.
+   The native WKWebView/root overscroll is disabled, so we do not need a fixed
+   header plus artificial shell offset. Keeping it in-flow removes the clipped
+   empty band below nav and makes Journey content start from one clear gap. */
+@media screen and (max-width: 768px) {
+  #journey-screen .collectibles-shell,
+  .journey-screen .collectibles-shell {
+    padding-top: 0 !important;
+  }
+
+  #journey-screen .collectibles-header,
+  .journey-screen .collectibles-header {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100%;
+    max-width: 100%;
+    z-index: 200;
+  }
+
+  #journey-screen .collectibles-scrollable,
+  .journey-screen .collectibles-scrollable {
+    padding-top: 24px;
+    margin-top: -56px;
+  }
 }
 
 /*

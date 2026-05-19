@@ -132,7 +132,7 @@ class ViewController: CAPBridgeViewController {
                     }
                 }
             }
-            
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
                 self?.configureTransparentWebView()
             }
@@ -184,7 +184,7 @@ class ViewController: CAPBridgeViewController {
                     }
                 }
             }
-            
+
             // Capacitor can reset scrollView bounce after bridge init — re-apply once layout settles.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
                 self?.configureTransparentWebView()

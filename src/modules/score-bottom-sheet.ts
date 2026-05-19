@@ -120,7 +120,7 @@ function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMo
       primaryValue: longestCombo,
       primaryLabel: 'Longest combo',
       primaryIcon: './assets/combo-icon.png',
-      subtitle: 'Build your multiplier with quick moves.<br>Don’t stop to keep your score climbing.'
+      subtitle: 'Stack and merge quickly<br>to boost your score.'
     };
   }
 
@@ -131,18 +131,18 @@ function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMo
       primaryValue: arcadeStats.highScore,
       primaryLabel: 'High score',
       primaryIcon: './assets/highscore-icon.png',
-      subtitle: 'Your best Arcade run lives here.<br>Beat it to set a new record.'
+      subtitle: 'Your best score so far.'
     };
   }
 
   const boardStats = boardStatsService.getBoardStats(boardNumber);
   const boardNumberStr = boardNumber.toString().padStart(2, '0');
   return {
-    title: 'Score Stats',
+    title: 'High Score',
     primaryValue: boardStats.highScore,
     primaryLabel: 'High score',
     primaryIcon: './assets/highscore-icon.png',
-    subtitle: `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`
+    subtitle: 'Your best score so far.'
   };
 }
 

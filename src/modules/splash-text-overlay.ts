@@ -27,9 +27,12 @@ let sparkleTextActive = false;
 let noMovesOverlay: HTMLElement | null = null;
 let noMovesTimelinesRef: gsap.core.Timeline[] = [];
 let noMovesBounceTimelinesRef: gsap.core.Timeline[] = [];
+let noMovesDelayedCallsRef: gsap.core.Tween[] = [];
 let noMovesLetterScales: number[] = [];
 let noMovesLetterRotations: number[] = [];
 let noMovesCloudCleanup: (() => void) | null = null;
+let noMovesExitPromise: Promise<void> | null = null;
+let noMovesExiting = false;
 
 function resolveMagneticTextWaiters(): void {
   if (!magneticTextWaiters.length) return;
@@ -677,6 +680,10 @@ function cleanupNoMovesOverlay(): void {
       try { tl.kill(); } catch {}
     });
     noMovesBounceTimelinesRef.length = 0;
+    noMovesDelayedCallsRef.forEach((dc) => {
+      try { dc.kill(); } catch {}
+    });
+    noMovesDelayedCallsRef.length = 0;
     noMovesTimelinesRef.forEach((tl) => {
       try { tl.kill(); } catch {}
     });
@@ -698,7 +705,18 @@ function cleanupNoMovesOverlay(): void {
     if (noMovesOverlay?.parentNode) {
       noMovesOverlay.parentNode.removeChild(noMovesOverlay);
     }
+    document.querySelectorAll('.cc-no-moves-overlay').forEach((overlay) => {
+      try {
+        gsap.killTweensOf(overlay);
+        overlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+        overlay.remove();
+      } catch {}
+    });
     noMovesOverlay = null;
+    noMovesExitPromise = null;
+    noMovesExiting = false;
   } catch {}
 }
 
@@ -708,7 +726,12 @@ function cleanupNoMovesOverlay(): void {
  */
 export function showNoMovesText(): void {
   try {
+    if (noMovesOverlay?.isConnected || noMovesExiting) {
+      return;
+    }
     cleanupNoMovesOverlay();
+    noMovesExitPromise = null;
+    noMovesExiting = false;
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -723,10 +746,11 @@ export function showNoMovesText(): void {
       'align-items: center',
       'justify-content: center',
     ].join(';');
+    overlay.className = 'cc-no-moves-overlay';
     noMovesOverlay = overlay;
-    noMovesCloudCleanup = attachPuffyClouds(overlay, { count: 5, zIndex: 1 });
 
     const container = document.createElement('div');
+    container.className = 'cc-no-moves-text';
     container.style.cssText = [
       'position: absolute',
       'left: 50%',
@@ -816,76 +840,91 @@ export function showNoMovesText(): void {
     document.body.appendChild(overlay);
 
     let enterComplete = 0;
-    letters.forEach((_, index) => {
-      const el = container.children[index] as HTMLElement;
-      if (!el) return;
-      const delay = BOOM_ENTER_DELAY + index * BOOM_ENTER_STAGGER;
-      const baseRotation = noMovesLetterRotations[index] ?? 0;
-      const baseScale = noMovesLetterScales[index] ?? 1;
+    let textEnterStarted = false;
+    const startTextEnter = () => {
+      if (textEnterStarted || !noMovesOverlay || !noMovesOverlay.isConnected) return;
+      textEnterStarted = true;
+      letters.forEach((_, index) => {
+        const el = container.children[index] as HTMLElement;
+        if (!el) return;
+        const delay = index * BOOM_ENTER_STAGGER;
+        const baseRotation = noMovesLetterRotations[index] ?? 0;
+        const baseScale = noMovesLetterScales[index] ?? 1;
 
-      el.style.willChange = 'transform, opacity';
-      el.style.transform = 'translateZ(0)';
-      el.style.backfaceVisibility = 'hidden';
-      el.style.webkitBackfaceVisibility = 'hidden';
-      el.style.contain = 'layout style paint';
+        el.style.willChange = 'transform, opacity';
+        el.style.transform = 'translateZ(0)';
+        el.style.backfaceVisibility = 'hidden';
+        el.style.webkitBackfaceVisibility = 'hidden';
+        el.style.contain = 'layout style paint';
 
-      gsap.set(el, {
-        opacity: 0,
-        scale: 0,
-        x: 0,
-        y: 0,
-        rotation: baseRotation,
-        rotationX: 0,
-        rotationY: 0,
-        z: 0,
-        force3D: true
-      });
+        gsap.set(el, {
+          opacity: 0,
+          scale: 0,
+          x: 0,
+          y: 0,
+          rotation: baseRotation,
+          rotationX: 0,
+          rotationY: 0,
+          z: 0,
+          force3D: true
+        });
 
-      const tl = trackTimeline({ delay });
-      noMovesTimelinesRef.push(tl);
-      tl.to(el, {
-        opacity: 1,
-        scale: baseScale * ENTER_BOUNCE_SCALE,
-        rotation: baseRotation,
-        rotationX: -5,
-        rotationY: 0,
-        z: 20,
-        x: 0,
-        y: 0,
-        transformOrigin: 'center center',
-        duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
-        ease: 'back.out(2.0)'
+        const tl = trackTimeline({ delay });
+        noMovesTimelinesRef.push(tl);
+        tl.to(el, {
+          opacity: 1,
+          scale: baseScale * ENTER_BOUNCE_SCALE,
+          rotation: baseRotation,
+          rotationX: -5,
+          rotationY: 0,
+          z: 20,
+          x: 0,
+          y: 0,
+          transformOrigin: 'center center',
+          duration: ENTER_DURATION + BOOM_ENTER_EXTRA * 0.6,
+          ease: 'back.out(2.0)'
+        });
+        tl.to(el, {
+          scale: baseScale * 0.95,
+          rotation: baseRotation,
+          rotationX: 0,
+          rotationY: 0,
+          z: 0,
+          x: 0,
+          y: 0,
+          transformOrigin: 'center center',
+          duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+          ease: 'power2.out'
+        });
+        tl.to(el, {
+          opacity: 1,
+          scale: baseScale,
+          rotation: baseRotation,
+          rotationX: 0,
+          rotationY: 0,
+          z: 0,
+          x: 0,
+          y: 0,
+          transformOrigin: 'center center',
+          duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
+          ease: 'back.out(1.5)',
+          onComplete: () => {
+            try { bounceTimelines[index]?.play(0); } catch {}
+            enterComplete += 1;
+          }
+        });
       });
-      tl.to(el, {
-        scale: baseScale * 0.95,
-        rotation: baseRotation,
-        rotationX: 0,
-        rotationY: 0,
-        z: 0,
-        x: 0,
-        y: 0,
-        transformOrigin: 'center center',
-        duration: SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
-        ease: 'power2.out'
-      });
-      tl.to(el, {
-        opacity: 1,
-        scale: baseScale,
-        rotation: baseRotation,
-        rotationX: 0,
-        rotationY: 0,
-        z: 0,
-        x: 0,
-        y: 0,
-        transformOrigin: 'center center',
-        duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
-        ease: 'back.out(1.5)',
-        onComplete: () => {
-          try { bounceTimelines[index]?.play(0); } catch {}
-          enterComplete += 1;
-        }
-      });
-    });
+    };
+
+    noMovesCloudCleanup = attachPuffyClouds(overlay, {
+      count: 5,
+      zIndex: 1,
+      autoExit: true,
+      floatBounce: false,
+      timingScale: 0.38,
+    } as any);
+    const textEnterCall = trackDelayedCall(0.2, startTextEnter);
+    noMovesDelayedCallsRef.push(textEnterCall);
   } catch (e) {
     console.warn('⚠️ showNoMovesText failed:', e);
     cleanupNoMovesOverlay();
@@ -901,7 +940,11 @@ export function clearNoMovesText(): void {
  * Call after 1.5s wait, before showFinalScreen().
  */
 export function exitNoMovesText(): Promise<void> {
-  return new Promise((resolve) => {
+  if (noMovesExitPromise) {
+    return noMovesExitPromise;
+  }
+  noMovesExiting = true;
+  noMovesExitPromise = new Promise((resolve) => {
     let resolved = false;
     const safeResolve = () => {
       if (resolved) return;
@@ -914,7 +957,7 @@ export function exitNoMovesText(): Promise<void> {
       safeResolve();
       return;
     }
-    const container = noMovesOverlay.querySelector('div');
+    const container = noMovesOverlay.querySelector('.cc-no-moves-text') as HTMLElement | null;
     if (!container || container.children.length === 0) {
       safeResolve();
       return;
@@ -924,73 +967,48 @@ export function exitNoMovesText(): Promise<void> {
       try { tl.kill(); } catch {}
     });
     noMovesBounceTimelinesRef.length = 0;
+    noMovesDelayedCallsRef.forEach((dc) => {
+      try { dc.kill(); } catch {}
+    });
+    noMovesDelayedCallsRef.length = 0;
     noMovesTimelinesRef.forEach((tl) => {
       try { tl.kill(); } catch {}
     });
     noMovesTimelinesRef.length = 0;
 
-    try {
-      const cloudLayer = noMovesOverlay.querySelector('.cc-text-clouds') as HTMLElement | null;
-      if (cloudLayer) {
-        gsap.killTweensOf(cloudLayer);
-        cloudLayer.querySelectorAll('*').forEach((el) => {
-          try { gsap.killTweensOf(el); } catch {}
-        });
-        const cloudTl = trackTimeline();
-        noMovesTimelinesRef.push(cloudTl);
-        cloudTl.to(cloudLayer, {
-          opacity: 0,
-          scale: 1.08,
-          duration: 0.42,
-          ease: 'power2.in'
-        });
-      }
-    } catch {}
-
     letters.forEach((_, index) => {
       const el = container.children[index] as HTMLElement;
       if (!el) return;
-      const delay = index * 0.045;
+      const delay = index * BOOM_EXIT_STAGGER;
       const tl = trackTimeline({ delay });
       noMovesTimelinesRef.push(tl);
       const baseScale = noMovesLetterScales[index] ?? 1;
       const baseRot = noMovesLetterRotations[index] ?? 0;
-      const centerOffset = index - ((letters.length - 1) / 2);
-      const exitRotation = centerOffset >= 0 ? (20 + Math.random() * 18) : -(20 + Math.random() * 18);
-      const exitX = centerOffset * (10 + Math.random() * 5);
-      const exitY = -34 - Math.random() * 18;
+      const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
 
       el.style.willChange = 'transform, opacity';
       tl.to(el, {
-        opacity: 1,
-        scale: baseScale * 1.22,
-        x: exitX * 0.35,
-        y: exitY * 0.35,
-        z: 42,
-        rotation: baseRot + exitRotation * 0.18,
-        rotationX: centerOffset >= 0 ? -8 : 8,
-        rotationY: centerOffset >= 0 ? 8 : -8,
-        duration: 0.16,
-        ease: 'back.out(2.2)'
+        scale: baseScale * 1.1,
+        z: 30,
+        duration: EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2,
+        ease: 'power2.out'
       });
       tl.to(el, {
         opacity: 0,
         scale: 0,
-        x: exitX,
-        y: exitY,
-        rotation: baseRot + exitRotation,
-        rotationX: centerOffset >= 0 ? 55 : -55,
-        rotationY: centerOffset >= 0 ? 34 : -34,
-        z: -110,
-        duration: 0.36,
+        rotation: exitRotation,
+        rotationX: baseRot >= 0 ? 45 : -45,
+        rotationY: baseRot >= 0 ? 30 : -30,
+        z: -100,
+        duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
         ease: 'power2.in'
       });
     });
     const exitTotal =
-      0.045 * (letters.length - 1) +
-      0.16 +
-      0.36 +
-      0.08;
+      BOOM_EXIT_STAGGER * (letters.length - 1) +
+      EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
+      EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
+      0.05;
 
     // Fallback: even if GSAP delayedCall gets killed by global cleanup, never hang fail flow.
     const fallbackMs = Math.max(250, Math.ceil(exitTotal * 1000) + 120);
@@ -1003,4 +1021,5 @@ export function exitNoMovesText(): Promise<void> {
       safeResolve();
     });
   });
+  return noMovesExitPromise;
 }

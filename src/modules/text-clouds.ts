@@ -24,12 +24,19 @@ const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween
 interface PuffyCloudOptions {
   count?: number;
   zIndex?: number;
+  autoExit?: boolean;
+  timingScale?: number;
+  floatBounce?: boolean;
+  onAutoExitComplete?: () => void;
 }
 
 export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions = {}): () => void {
   if (!overlay) return () => {};
   const count = Math.max(1, Math.min(8, opts.count ?? 5));
   const zIndex = opts.zIndex ?? 1;
+  const autoExit = opts.autoExit ?? true;
+  const timingScale = Math.max(0.35, Math.min(1.5, opts.timingScale ?? 1));
+  const floatBounce = opts.floatBounce ?? true;
 
   const cloudContainer = document.createElement('div');
   cloudContainer.className = 'cc-text-clouds';
@@ -48,6 +55,9 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
   const activeCloudImages: HTMLImageElement[] = [];
   const cloudTimelines: gsap.core.Timeline[] = [];
   const cloudDelayedCalls: gsap.core.Tween[] = [];
+  let exitStarted = false;
+  let autoExitCompleteCount = 0;
+  let autoExitCallbackFired = false;
 
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
@@ -64,6 +74,11 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
   const driftDistanceMinPx = viewportW * 0.32;
   const driftDistanceMaxPx = viewportW * 0.62;
   const BOUNCE_REPEAT = 2;
+  const notifyAutoExitComplete = () => {
+    if (!autoExit || autoExitCallbackFired || autoExitCompleteCount < count) return;
+    autoExitCallbackFired = true;
+    try { opts.onAutoExitComplete?.(); } catch {}
+  };
 
   for (let i = 0; i < count; i++) {
     const sizeBoost = 0.95 + Math.random() * 0.4;
@@ -73,12 +88,12 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     const rotation = (i % 5 - 2) * 5;
     const bounceAmount = 5 + (i % 3) * 2;
     const bounceSpeed = 0.4 + (i % 4) * 0.08;
-    const enterDelay = i * CLOUD_STAGGER;
+    const enterDelay = i * CLOUD_STAGGER * timingScale;
     const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength);
     const windYOffset = (Math.random() * 2 - 1) * 10;
-    const windDuration = (moveDuration * 0.52 + 0.2) * windFactor;
+    const windDuration = (moveDuration * 0.52 + 0.2) * windFactor * timingScale;
     const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx));
-    const driftStartDelay = 0.06;
+    const driftStartDelay = 0.06 * timingScale;
 
     const fromLeft = i % 2 === 0;
     const spawnX = centerX + (Math.random() * 2 - 1) * Math.min(26, viewportW * 0.04);
@@ -104,21 +119,23 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     activeCloudImages.push(cloudImg);
     gsap.set(cloudImg, { xPercent: -50, yPercent: -50, x: 0, y: 0, scale: 0.12, opacity: 0, rotation });
 
-    const bounceTimeline = trackTimeline({ repeat: BOUNCE_REPEAT - 1, delay: enterDelay + 0.5 });
-    bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.out' });
-    bounceTimeline.to(cloudImg, { y: `-=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.in' });
-    cloudTimelines.push(bounceTimeline);
+    const bounceTimeline = floatBounce ? trackTimeline({ repeat: BOUNCE_REPEAT - 1, delay: enterDelay + 0.5 * timingScale }) : null;
+    if (bounceTimeline) {
+      bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed * timingScale / 2, ease: 'sine.out' });
+      bounceTimeline.to(cloudImg, { y: `-=${bounceAmount}px`, duration: bounceSpeed * timingScale / 2, ease: 'sine.in' });
+      cloudTimelines.push(bounceTimeline);
+    }
 
     const enterTl = trackTimeline({ delay: enterDelay });
     enterTl.to(cloudImg, {
       opacity: 0.8,
       scale: baseSize * 1.22,
-      duration: CLOUD_ENTER_DURATION,
+      duration: CLOUD_ENTER_DURATION * timingScale,
       ease: 'back.out(2.2)'
     });
     enterTl.to(cloudImg, {
       scale: baseSize,
-      duration: CLOUD_SETTLE_DURATION,
+      duration: CLOUD_SETTLE_DURATION * timingScale,
       ease: 'power2.out'
     }, '>0');
     const pushX = fromLeft ? -driftDistancePx : driftDistancePx;
@@ -130,20 +147,39 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
     cloudTimelines.push(enterTl);
 
-    const exitStartTime = enterDelay + 0.5 + windDuration * 0.5;
-    const delayedCall = trackDelayedCall(exitStartTime, () => {
+    const startCloudExit = () => {
       if (!activeCloudImages.includes(cloudImg)) return;
-      bounceTimeline.kill();
-    const exitTl = trackTimeline();
-    exitTl.to(cloudImg, { opacity: 0, scale: 0, duration: 0.25, ease: 'power2.in' });
+      try { bounceTimeline?.kill(); } catch {}
+      const exitTl = trackTimeline();
+      exitTl.to(cloudImg, {
+        opacity: Math.min(0.88, gsap.getProperty(cloudImg, 'opacity') as number || 0.8),
+        scale: baseSize * 1.14,
+        duration: 0.14 * timingScale,
+        ease: 'back.out(2.0)'
+      });
+      exitTl.to(cloudImg, {
+        opacity: 0,
+        scale: 0,
+        duration: 0.34 * timingScale,
+        ease: 'back.in(1.55)',
+        onComplete: () => {
+          autoExitCompleteCount += 1;
+          notifyAutoExitComplete();
+        }
+      });
       cloudTimelines.push(exitTl);
-    });
-    cloudDelayedCalls.push(delayedCall);
+    };
+
+    const exitStartTime = enterDelay + driftStartDelay + windDuration + 0.05 * timingScale;
+    if (autoExit) {
+      const delayedCall = trackDelayedCall(exitStartTime, startCloudExit);
+      cloudDelayedCalls.push(delayedCall);
+    }
 
     cloudContainer.appendChild(cloudImg);
   }
 
-  return () => {
+  const cleanup = () => {
     cloudDelayedCalls.forEach((dc) => {
       try { dc.kill(); } catch {}
     });
@@ -158,4 +194,34 @@ export function attachPuffyClouds(overlay: HTMLElement, opts: PuffyCloudOptions 
     });
     try { cloudContainer.remove(); } catch {}
   };
+
+  (cleanup as any).startExit = () => {
+    if (exitStarted) return;
+    exitStarted = true;
+    cloudDelayedCalls.forEach((dc) => {
+      try { dc.kill(); } catch {}
+    });
+    activeCloudImages.forEach((img, index) => {
+      try {
+        gsap.killTweensOf(img);
+        const currentScale = Number(gsap.getProperty(img, 'scale')) || 1;
+        const exitTl = trackTimeline({ delay: index * 0.045 });
+        cloudTimelines.push(exitTl);
+        exitTl.to(img, {
+          opacity: Math.max(0.55, Number(gsap.getProperty(img, 'opacity')) || 0.8),
+          scale: currentScale * 1.16,
+          duration: 0.15 * timingScale,
+          ease: 'back.out(2.1)'
+        });
+        exitTl.to(img, {
+          opacity: 0,
+          scale: 0,
+          duration: 0.38 * timingScale,
+          ease: 'back.in(1.55)'
+        });
+      } catch {}
+    });
+  };
+
+  return cleanup;
 }
