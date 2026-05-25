@@ -426,8 +426,11 @@ export async function showCleanBoardModal({
       
       // Empty star (always visible, background layer)
       const emptyStar = document.createElement('img');
-      emptyStar.src = '/assets/modals/star-empty.png';
+      emptyStar.src = './assets/modals/star-empty.png';
       emptyStar.alt = 'Empty star';
+      emptyStar.loading = 'eager';
+      emptyStar.decoding = 'sync';
+      emptyStar.fetchPriority = 'high';
       emptyStar.style.cssText = [
         'position:absolute',
         'inset:0',
@@ -439,8 +442,11 @@ export async function showCleanBoardModal({
       
       // Filled star (on top, hidden initially, will bounce in)
       const filledStar = document.createElement('img');
-      filledStar.src = '/assets/modals/star.png';
+      filledStar.src = './assets/modals/star.png';
       filledStar.alt = 'Filled star';
+      filledStar.loading = 'eager';
+      filledStar.decoding = 'sync';
+      filledStar.fetchPriority = 'high';
       filledStar.style.cssText = [
         'position:absolute',
         'inset:0',

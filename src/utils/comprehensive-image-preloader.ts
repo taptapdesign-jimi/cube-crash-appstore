@@ -10,7 +10,7 @@ import { isAssetAliasRegistered, markAssetAliasRegistered } from './asset-regist
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
-const CURRENT_CACHE_VERSION = '3';
+const CURRENT_CACHE_VERSION = '4';
 
 /** Normalize to absolute URL so Cache API keys match fetch/store. */
 function toAbsoluteUrl(url: string): string {
@@ -110,6 +110,12 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/modals/heart-life-empty.png',
   './assets/modals/heart-life-empty@2x.png',
   './assets/modals/heart-life-empty@3x.png',
+  './assets/modals/star.png',
+  './assets/modals/star@2x.png',
+  './assets/modals/star@3x.png',
+  './assets/modals/star-empty.png',
+  './assets/modals/star-empty@2x.png',
+  './assets/modals/star-empty@3x.png',
   
   // Navigation icons
   './assets/nav/cube-nav.png',
@@ -122,12 +128,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/close-button.png',
   './assets/close-icon.png',
   './assets/collectible-stats.png',
-  './assets/restart-icon.png',
-  './assets/resume-game.png',
-  './assets/settings-icon.png',
-  './assets/stop.png',
-  './assets/time-icon.png',
-  './assets/unpause-icon.png',
   
   // Core game assets
   './assets/tile.png',
@@ -172,12 +172,9 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/small-star.png',
   './assets/small-star@2x.png',
   './assets/small-star@3x.png',
-  './assets/potion.png',
   './assets/melted-dice.png',
   './assets/star-slider.png',
-  './assets/leaf light.png',
   './assets/clean-board.png',
-  './assets/wild-stats.png',
   
   // Journey base assets (background, UI elements)
   './assets/journey assets/1-17bg.png',

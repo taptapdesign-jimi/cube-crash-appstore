@@ -408,6 +408,11 @@ function playOrbitIntro(container: Container): void {
 export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: any = {}): void {
   if (!tileIsPureWild(tile)) return;
 
+  const existingSystem = systems.get(tile) || (tile as any)._wildStarSystem;
+  if (existingSystem && !existingSystem.disposed && opts?.force !== true) {
+    return;
+  }
+
   detachWildStarHalo(tile);
 
   const host = (tile.rotG as Container) || tile;

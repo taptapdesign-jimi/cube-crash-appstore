@@ -1352,14 +1352,15 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 NOTE: FX cleanup happens after exit animations (see Step 3 below)
   
-  // Stop PIXI ticker immediately to prevent render errors
+  // Keep PIXI rendering alive until board exit animations finish.
+  // The ticker is stopped again right before cleanupGame(), after the animation path.
   try {
     if (STATE && STATE.app && STATE.app.ticker) {
-      STATE.app.ticker.stop();
-      console.log('✅ exitToMenu: PIXI ticker stopped');
+      STATE.app.ticker.start();
+      console.log('✅ exitToMenu: PIXI ticker kept running for exit animation');
     }
   } catch (tickerError) {
-    console.warn('⚠️ exitToMenu: Error stopping ticker:', tickerError);
+    console.warn('⚠️ exitToMenu: Error ensuring ticker for exit animation:', tickerError);
   }
   
   // ⚡ SPEED OPTIMIZATION: Preload journey-boards-manager module IMMEDIATELY

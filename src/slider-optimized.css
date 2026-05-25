@@ -97,6 +97,7 @@
   height: 105%;
   object-fit: contain;
   position: relative;
+  top: 5%;
   z-index: 2;
   /* NO TRANSITION - JavaScript controls animations */
   /* Individual animations per slide below */

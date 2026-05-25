@@ -45,6 +45,37 @@ function shouldSkipDetailModalGameAssetPreload(): boolean {
   }
 }
 
+function waitForImageReady(img: HTMLImageElement, timeoutMs = 1200): Promise<void> {
+  if (!img || !img.src) return Promise.resolve();
+  if (img.complete && img.naturalWidth > 0) {
+    const decode = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
+    return decode.catch(() => {});
+  }
+
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      img.removeEventListener('load', onLoad);
+      img.removeEventListener('error', onError);
+      resolve();
+    };
+    const onLoad = () => {
+      if (typeof img.decode === 'function') {
+        img.decode().then(finish).catch(finish);
+      } else {
+        finish();
+      }
+    };
+    const onError = finish;
+    const timer = window.setTimeout(finish, timeoutMs);
+    img.addEventListener('load', onLoad, { once: true });
+    img.addEventListener('error', onError, { once: true });
+  });
+}
+
 /** True for iPad / iPadOS (any logical width) or desktop window sizes that use the iPad detail CSS column. */
 export function isTabletDetailModalViewport(): boolean {
   if (typeof window === 'undefined') return false;
@@ -4515,6 +4546,7 @@ class JourneyBoardsManager {
         img.loading = 'eager';
         (img as any).decoding = 'async';
         (img as any).fetchPriority = 'high';
+        (imageEl as any).__detailImageReady = waitForImageReady(img);
         motionEl.appendChild(img);
         imageEl.appendChild(motionEl);
         
@@ -5541,69 +5573,80 @@ class JourneyBoardsManager {
               detailImgEl.style.willChange = 'transform, opacity';
             }
             
-            // Hard-set start state then pop to visible (avoids fade-only on first frame)
-            gsap.fromTo(
-              detailImage,
-              {
-                scale: 0.65,
-                opacity: 0,
-                visibility: 'hidden',
-                force3D: true,
-                transformOrigin: 'center center'
-              },
-              {
-                scale: 1,
-                opacity: 1,
-                visibility: 'visible',
-                duration: 0.5,
-                ease: 'back.out(1.8)',
-                delay: 0.05,
-                force3D: true,
-                overwrite: true,
-                onStart: () => {
-                  detailImage.style.visibility = 'visible';
-                  if (detailImgEl) {
-                    detailImgEl.style.visibility = 'visible';
-                    detailImgEl.style.opacity = '0';
-                  }
+            const playDetailImageEnter = () => {
+              if (!detailModal || detailModal.hidden || detailModal.style.display === 'none') return;
+
+              // Hard-set start state then pop to visible (avoids fade-only on first frame)
+              gsap.fromTo(
+                detailImage,
+                {
+                  scale: 0.65,
+                  opacity: 0,
+                  visibility: 'hidden',
+                  force3D: true,
+                  transformOrigin: 'center center'
                 },
-                onUpdate: () => {
-                  if (detailImgEl) {
-                    // Keep img in sync with wrapper opacity to avoid flicker
-                    const currentOpacity = gsap.getProperty(detailImage, 'opacity') as number;
-                    detailImgEl.style.opacity = currentOpacity.toString();
-                  }
-                },
-                onComplete: () => {
-                  // 🔥 MEMORY LEAK FIX: Only start idle animation if modal is still active and visible
-                  if (!detailModal || detailModal.hidden || detailModal.style.display === 'none') {
-                    logger.warn('⚠️ Modal is closed - skipping idle animation start');
-                    return;
-                  }
-                  
-                  // 🔥 CRITICAL: Ensure card remains visible after animation
-                  detailImage.style.visibility = 'visible';
-                  detailImage.style.opacity = '1';
-                  if (detailImgEl) {
-                    detailImgEl.style.visibility = 'visible';
-                    detailImgEl.style.opacity = '1';
-                  }
-                  
-                  // 🔥 USER REQUEST: Restore idle animation on detail card image
-                  // Only if modal is still active (prevents memory leak if modal closed during animation)
-                  if (detailModal && !detailModal.hidden && detailModal.style.display !== 'none') {
-                    if (detailMotionEl) {
-                      detailMotionEl.style.animation = 'detailImageIdle 3s ease-in-out infinite';
-                      detailMotionEl.style.animationPlayState = 'running';
+                {
+                  scale: 1,
+                  opacity: 1,
+                  visibility: 'visible',
+                  duration: 0.5,
+                  ease: 'back.out(1.8)',
+                  delay: 0.05,
+                  force3D: true,
+                  overwrite: true,
+                  onStart: () => {
+                    detailImage.style.visibility = 'visible';
+                    if (detailImgEl) {
+                      detailImgEl.style.visibility = 'visible';
+                      detailImgEl.style.opacity = '0';
                     }
-                    logger.info('🃏 Card image idle animation started - modal is active');
-                  } else {
-                    logger.warn('⚠️ Modal is not active - idle animation not started');
+                  },
+                  onUpdate: () => {
+                    if (detailImgEl) {
+                      // Keep img in sync with wrapper opacity to avoid flicker
+                      const currentOpacity = gsap.getProperty(detailImage, 'opacity') as number;
+                      detailImgEl.style.opacity = currentOpacity.toString();
+                    }
+                  },
+                  onComplete: () => {
+                    // 🔥 MEMORY LEAK FIX: Only start idle animation if modal is still active and visible
+                    if (!detailModal || detailModal.hidden || detailModal.style.display === 'none') {
+                      logger.warn('⚠️ Modal is closed - skipping idle animation start');
+                      return;
+                    }
+                    
+                    // 🔥 CRITICAL: Ensure card remains visible after animation
+                    detailImage.style.visibility = 'visible';
+                    detailImage.style.opacity = '1';
+                    if (detailImgEl) {
+                      detailImgEl.style.visibility = 'visible';
+                      detailImgEl.style.opacity = '1';
+                    }
+                    
+                    // 🔥 USER REQUEST: Restore idle animation on detail card image
+                    // Only if modal is still active (prevents memory leak if modal closed during animation)
+                    if (detailModal && !detailModal.hidden && detailModal.style.display !== 'none') {
+                      if (detailMotionEl) {
+                        detailMotionEl.style.animation = 'detailImageIdle 3s ease-in-out infinite';
+                        detailMotionEl.style.animationPlayState = 'running';
+                      }
+                      logger.info('🃏 Card image idle animation started - modal is active');
+                    } else {
+                      logger.warn('⚠️ Modal is not active - idle animation not started');
+                    }
                   }
                 }
-              }
-            );
-            logger.info('🃏 Step 3: Card image pop-in');
+              );
+              logger.info('🃏 Step 3: Card image pop-in');
+            };
+
+            const detailImageReady = (detailImage as any).__detailImageReady;
+            if (detailImageReady && typeof detailImageReady.finally === 'function') {
+              detailImageReady.finally(playDetailImageEnter);
+            } else {
+              playDetailImageEnter();
+            }
           }
 
           // STEP 4: Other content elements sequentially (staggered, after card)

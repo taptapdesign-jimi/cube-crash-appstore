@@ -86,6 +86,16 @@ function isAnyWildTile(tile: any): boolean {
   return !!repairWildTileState(tile);
 }
 
+function getExistingWildSpecial(tile: any): string | null {
+  if (!tile || tile.destroyed) return null;
+  const special = typeof tile.special === 'string' ? tile.special : '';
+  if (WILD_SPECIALS.has(special)) return special;
+  const remembered = typeof tile._ccWildSpecial === 'string' ? tile._ccWildSpecial : '';
+  if (WILD_SPECIALS.has(remembered)) return remembered;
+  if (tile.isWild === true || tile.isWildFace === true) return 'wild';
+  return null;
+}
+
 function isDirectWildTile(tile: any): boolean {
   const special = getTileSpecial(tile);
   return special === 'wild' || special === 'wild-juice' || special === 'wild-tnt';
@@ -752,8 +762,9 @@ export function initDrag(cfg) {
         if (otherTile === t) return; // Skip the magnet itself
         if (otherTile.locked) return;
         if (otherTile._ccWildSpawnDropping === true) return;
-        if ((otherTile.value | 0) <= 0) return;
-        if (isAnyWildTile(otherTile)) return; // Skip wild tiles
+        const otherSpecial = getExistingWildSpecial(otherTile);
+        const otherIsWild = !!otherSpecial;
+        if ((otherTile.value | 0) <= 0 && !otherIsWild) return;
         if (otherTile._wildMagnetAffected) return; // Skip tiles that are already being pulled by magnet merge
         
         // Calculate distance from magnet to tile
@@ -889,7 +900,7 @@ export function initDrag(cfg) {
         
         // 🔥 CRITICAL: Track best hover target for wild-magnet (closest valid tile)
         // Show hover effect (brown border) on the closest valid tile
-        if (distToMagnet < hoverRange && isHoverValid(t, otherTile)) {
+        if (!otherIsWild && distToMagnet < hoverRange && isHoverValid(t, otherTile)) {
           if (distToMagnet < bestHoverDistance) {
             bestHoverDistance = distToMagnet;
             bestHoverTarget = otherTile;
