@@ -128,6 +128,9 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/close-button.png',
   './assets/close-icon.png',
   './assets/collectible-stats.png',
+  './assets/hand-pointer.png',
+  './assets/hand-pointer@2x.png',
+  './assets/hand-pointer@3x.png',
   
   // Core game assets
   './assets/tile.png',

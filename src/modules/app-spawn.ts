@@ -8,6 +8,7 @@ import * as makeBoard from './board.js';
 import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildJuiceBubbles } from "./fx.ts";
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
+import { randomRegularTileValue } from './app-core-utils.js';
 // drawBoardBG function is now in app.js
 
 // Types
@@ -48,6 +49,10 @@ interface OpenAtCellOptions {
 
 interface OpenEmptiesOptions {
   exclude?: number | number[];
+}
+
+function randomRegularSpawnValue(): number {
+  return randomRegularTileValue();
 }
 
 function bindTileWithFallback(tile: Tile, skipBind: boolean): void {
@@ -287,10 +292,10 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     delete (holder as any)._wildMagnetPulledTilesScoring;
 
     // 🔥 CRITICAL: Spawn guard - NEVER spawn a tile with value <= 0!
-    let v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
+    let v = (value == null) ? randomRegularSpawnValue() : value;
     if (!Number.isFinite(v) || (v|0) <= 0) {
       console.error('🚨 SPAWN GUARD: Invalid spawn value detected!', { value, v, c, r });
-      v = [1,2,3,4,5][(Math.random()*5)|0]; // Fallback to random 1-5
+      v = randomRegularSpawnValue(); // Fallback to random valid value
     }
     
     makeBoard.setValue(holder, v, 0);
@@ -303,7 +308,7 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
         c, 
         r 
       });
-      const fallbackValue = [1,2,3,4,5][(Math.random()*5)|0];
+      const fallbackValue = randomRegularSpawnValue();
       makeBoard.setValue(holder, fallbackValue, 0);
       
       // Final check - if STILL 0, something is very wrong
@@ -460,15 +465,7 @@ export function sweepForUnanimatedSpawns(): void {
 export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promise<void> {
   const exclude = opts?.exclude;
   const getSpawnValue = (): number => {
-    let pool = [1,2,3,4,5];
-    if (Array.isArray(exclude)) {
-      const excludeSet = new Set(exclude.map(v => v|0));
-      pool = pool.filter(v => !excludeSet.has(v));
-    } else if (Number.isFinite(exclude)) {
-      pool = pool.filter(v => v !== (exclude as number|0));
-    }
-    if (pool.length === 0) pool = [1,2,3,4,5];
-    return pool[(Math.random()*pool.length)|0];
+    return randomRegularTileValue(exclude);
   };
   if (count <= 0) return Promise.resolve();
   let locked = STATE.tiles.filter(t => t.locked);
@@ -537,7 +534,7 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
     let spawnValue = getSpawnValue();
     if (!Number.isFinite(spawnValue) || (spawnValue|0) <= 0) {
       console.error('🚨 SPAWN GUARD (openEmpties): Invalid spawn value detected!', { spawnValue, tileId: (t as any)?.uid });
-      spawnValue = [1,2,3,4,5][(Math.random()*5)|0]; // Fallback to random 1-5
+      spawnValue = randomRegularSpawnValue(); // Fallback to random valid value
     }
     
     makeBoard.setValue(t, spawnValue, 0);
@@ -551,7 +548,7 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
         gridX: t.gridX,
         gridY: t.gridY
       });
-      const fallbackValue = [1,2,3,4,5][(Math.random()*5)|0];
+      const fallbackValue = randomRegularSpawnValue();
       makeBoard.setValue(t, fallbackValue, 0);
       
       // Final check - if STILL 0, something is very wrong

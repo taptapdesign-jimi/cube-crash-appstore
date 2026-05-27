@@ -204,7 +204,7 @@ function _drawStackInternal(tile: Tile): void {
 }
 
 // ✅ PATCH: nikad pipsi na praznom/locked, i overlay nikad ne "probija"
-function drawPips(t: Tile): void {
+export function drawPips(t: Tile): void {
   // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during animations
   // This prevents frame drops when pips are drawn during bubbles/wild animations
   if (typeof window !== 'undefined' && window.requestAnimationFrame) {
@@ -224,6 +224,17 @@ function _drawPipsInternal(t: Tile): void {
   if (!t || t.destroyed) return;
   const g = t.pips;
   if (!g || g.destroyed) return;
+  const host = t.rotG || t;
+  if ((g as any).parent !== host) {
+    try { (g as any).parent?.removeChild?.(g); } catch {}
+    try { host.addChild(g); } catch {}
+  }
+  try { (g as any).position?.set?.(0, 0); } catch {}
+  try { (g as any).pivot?.set?.(0, 0); } catch {}
+  try { (g as any).scale?.set?.(1, 1); } catch {}
+  try { (g as any).rotation = 0; } catch {}
+  try { (g as any).visible = true; } catch {}
+  try { (g as any).alpha = 1; } catch {}
   // 🔥 CRITICAL FIX: Double-check pips context before clearing (can become null during async operations)
   try {
     if (g.context) {

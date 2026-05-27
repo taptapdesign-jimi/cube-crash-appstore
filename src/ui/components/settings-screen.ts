@@ -1,6 +1,7 @@
 // Settings Screen Component
 import { gsap } from 'gsap';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -104,6 +105,36 @@ function createDevButton(id: string, text: string, action: 'show' | 'hide' | 're
   };
 }
 
+function createFirstPlayDevButton(): HTMLElementConfig {
+  const isEnabled = isFirstPlayTutorialForced();
+  const applyState = (button: HTMLElement, enabled: boolean) => {
+    button.textContent = enabled ? 'First Time Run ON' : 'First Time Run OFF';
+    button.classList.toggle('is-active', enabled);
+    button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+  };
+
+  return {
+    tag: 'button',
+    id: 'settings-dev-first-play-run-btn',
+    className: `settings-dev-button settings-dev-button-first-play tap-scale${isEnabled ? ' is-active' : ''}`,
+    text: isEnabled ? 'First Time Run ON' : 'First Time Run OFF',
+    attributes: {
+      type: 'button',
+      'aria-label': 'Toggle First Time Run',
+      'aria-pressed': isEnabled ? 'true' : 'false',
+    },
+    eventListeners: {
+      click: (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const button = e.currentTarget as HTMLElement;
+        setFirstPlayTutorialDevEnabled(true);
+        applyState(button, true);
+      },
+    },
+  };
+}
+
 function createSettingsDevArea(): HTMLElementConfig {
   return {
     tag: 'section',
@@ -132,6 +163,7 @@ function createSettingsDevArea(): HTMLElementConfig {
           createDevButton('settings-dev-show-card-btn', 'Show Card', 'show'),
           createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
           createDevButton('settings-dev-reset-board-btn', 'Reset Board', 'reset'),
+          createFirstPlayDevButton(),
         ],
       },
     ],

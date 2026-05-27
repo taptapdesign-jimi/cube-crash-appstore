@@ -4857,6 +4857,17 @@ body:has(:root) .tile.wild-3d-glow {
   box-shadow: 0 7px 0 #5A4639;
 }
 
+.settings-dev-button-first-play {
+  background: #AD8775;
+  box-shadow: 0 7px 0 #8D6E61;
+  grid-column: 1 / -1;
+}
+
+.settings-dev-button-first-play.is-active {
+  background: #F35F37;
+  box-shadow: 0 7px 0 #C64A2A;
+}
+
 .settings-dev-button:active {
   transform: translateY(3px) scale(0.98);
   box-shadow: 0 4px 0 rgba(90, 70, 57, 0.9);

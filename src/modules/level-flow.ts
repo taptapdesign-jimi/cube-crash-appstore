@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
+import { randomRegularTileValue } from './app-core-utils.js';
 // public/src/modules/level-flow.ts
 
 // 🔥 FIX: Track spawn timeouts for cleanup
@@ -259,14 +260,8 @@ async function openLockedBounceParallelImpl({
         resetTileToNormalState(t);
 
         // Smart spawning: if this is after wild merge, avoid the target number
-        let spawnValue: number;
-        if (wildMergeTarget) {
-          const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
-          spawnValue = candidates[(Math.random() * candidates.length) | 0];
-          logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
-        } else {
-          spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
-        }
+        const spawnValue = randomRegularTileValue(wildMergeTarget || undefined);
+        if (wildMergeTarget) logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
 
         // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)
         if (!t || t.destroyed || !t.scale) {

@@ -134,11 +134,47 @@ export function cellXY(c: number, r: number): { x: number; y: number } {
   };
 }
 
+function isFirstPlayTutorialLowValueMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const w = window as any;
+  return w.__ccFirstPlayTutorialActive === true || w.__ccFirstPlayTutorialSlowWildMeter === true;
+}
+
+export function regularValuePool(exclude?: number | number[]): number[] {
+  const base = isFirstPlayTutorialLowValueMode() ? [1, 2, 3] : [1, 2, 3, 4, 5];
+  if (Array.isArray(exclude)) {
+    const excluded = new Set(exclude.map(v => v | 0));
+    const filtered = base.filter(v => !excluded.has(v));
+    return filtered.length ? filtered : base;
+  }
+  if (Number.isFinite(exclude)) {
+    const excludedValue = (exclude as number) | 0;
+    const filtered = base.filter(v => v !== excludedValue);
+    return filtered.length ? filtered : base;
+  }
+  return base;
+}
+
+export function randomRegularTileValue(exclude?: number | number[]): number {
+  if (isFirstPlayTutorialLowValueMode()) {
+    const excluded = new Set(Array.isArray(exclude) ? exclude.map(v => v | 0) : []);
+    if (Number.isFinite(exclude)) excluded.add((exclude as number) | 0);
+    const weighted = [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3].filter(v => !excluded.has(v));
+    const pool = weighted.length ? weighted : [1, 2];
+    return pool[(Math.random() * pool.length) | 0];
+  }
+  const pool = regularValuePool(exclude);
+  return pool[(Math.random() * pool.length) | 0];
+}
+
 /**
- * Get random tile value (weighted distribution)
- * Returns: 1, 1, 1, 2, 2, 3, 3, 4, 5 (weighted towards lower values)
+ * Get random tile value (weighted distribution).
+ * In first-play tutorial, keep the demo board readable with values 1-3 only.
  */
 export function randVal(): number {
+  if (isFirstPlayTutorialLowValueMode()) {
+    return [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3][(Math.random() * 11) | 0];
+  }
   return [1, 1, 1, 2, 2, 3, 3, 4, 5][(Math.random() * 9) | 0];
 }
 

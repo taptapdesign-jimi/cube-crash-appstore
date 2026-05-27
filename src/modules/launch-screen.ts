@@ -367,15 +367,20 @@ class LaunchScreen {
     console.log('🎬 Phase 1: Taptapdesign logo shown');
     logger.info('🎬 Phase 1: Taptapdesign logo shown');
 
-    this.waitForImages([taptapLogo], 1000).catch(() => {
+    const taptapLogoReady = this.waitForImages([taptapLogo], 1500).catch(() => {
       logger.warn('⚠️ Taptap logo image load timeout - continuing anyway');
     });
+    const stackLogosReady = this.waitForImages([stackLogo, smokeShards], 1800).catch(() => {
+      logger.warn('⚠️ Stack logo images load timeout - continuing anyway');
+    });
 
-    // Show taptap for 2 seconds while priority paper texture preloads
+    // Show taptap for 2 seconds while next-phase launch assets warm up.
     logger.info('⏳ Phase 1: Waiting 2 seconds for taptap logo...');
     await Promise.all([
       new Promise(resolve => setTimeout(resolve, 2000)),
-      priorityPaperLoad.catch(() => {})
+      priorityPaperLoad.catch(() => {}),
+      taptapLogoReady,
+      stackLogosReady
     ]);
     logger.info('✅ Phase 1: 2 seconds elapsed');
 
@@ -460,11 +465,6 @@ class LaunchScreen {
       smokeShardsOpacity: window.getComputedStyle(smokeShards).opacity
     });
     
-    // Wait for images in background (non-blocking)
-    this.waitForImages([stackLogo, smokeShards], 1000).catch(() => {
-      logger.warn('⚠️ Stack logo images load timeout - continuing anyway');
-    });
-
     // 🔥 PRODUCTION READY iOS APP STORE: Preload critical homepage slider images DURING Phase 2
     // Launch screen Phase 2 lasts 2.5 seconds - perfect time to preload critical images
     // This ensures homepage slider images are ALWAYS ready when homepage appears
@@ -786,48 +786,72 @@ class LaunchScreen {
       let loadedCount = 0;
       const total = images.length;
       let resolved = false;
+      const cleanups: Array<() => void> = [];
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
       if (total === 0) {
         resolve();
         return;
       }
 
+      const finish = (message?: string) => {
+        if (resolved) return;
+        resolved = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        cleanups.forEach(cleanup => {
+          try { cleanup(); } catch {}
+        });
+        if (message) logger.warn(message);
+        resolve();
+      };
+
       const checkComplete = () => {
         if (resolved) return;
         loadedCount++;
         if (loadedCount === total) {
-          resolved = true;
           logger.info(`✅ All ${total} launch images loaded`);
-          resolve();
+          finish();
         }
       };
 
       // Set timeout if provided
-      let timeoutId: NodeJS.Timeout | null = null;
       if (timeoutMs && timeoutMs > 0) {
         timeoutId = setTimeout(() => {
-          if (!resolved) {
-            resolved = true;
-            logger.warn(`⚠️ Image loading timeout after ${timeoutMs}ms - continuing anyway`);
-            resolve();
-          }
+          finish(`⚠️ Image loading timeout after ${timeoutMs}ms - continuing anyway`);
         }, timeoutMs);
       }
 
       images.forEach((img) => {
-        if (img.complete) {
+        const markLoaded = () => {
+          if (typeof img.decode === 'function' && img.naturalWidth > 0) {
+            img.decode().catch(() => {}).finally(checkComplete);
+            return;
+          }
           checkComplete();
-        } else {
-          img.onload = () => {
-            checkComplete();
-            if (timeoutId) clearTimeout(timeoutId);
-          };
-          img.onerror = () => {
-            logger.warn(`⚠️ Failed to load image: ${img.src}`);
-            checkComplete(); // Continue even if image fails
-            if (timeoutId) clearTimeout(timeoutId);
-          };
+        };
+        const markFailed = () => {
+          logger.warn(`⚠️ Failed to load image: ${img.src}`);
+          checkComplete(); // Continue even if image fails
+        };
+
+        if (img.complete) {
+          if (img.naturalWidth > 0) {
+            markLoaded();
+          } else {
+            markFailed();
+          }
+          return;
         }
+
+        img.addEventListener('load', markLoaded, { once: true });
+        img.addEventListener('error', markFailed, { once: true });
+        cleanups.push(() => {
+          img.removeEventListener('load', markLoaded);
+          img.removeEventListener('error', markFailed);
+        });
       });
     });
   }

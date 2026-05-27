@@ -91,6 +91,7 @@ import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
+import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './modules/first-play-tutorial.js';
 
 // Type definitions (ultra-permissive for quick TypeScript fix)
 interface GameState {
@@ -684,6 +685,7 @@ initializeApp().catch((error: Error) => {
 async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
   setRunMode(RUN_MODE_JOURNEY);
+  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   
   // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
   // This prevents wrong board from opening when exiting
@@ -753,6 +755,9 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // Layout game (this triggers sweetPopIn which triggers HUD drop)
       await layoutGame();
+      if (shouldStartFirstPlayTutorial) {
+        activateFirstPlayTutorialWhenReady();
+      }
       
       // Clear flags after boot
       delete (window as any).__ccStartAtLevel;
@@ -778,6 +783,9 @@ async function startNewRun(boardId: number): Promise<void> {
         // Boot the game
         await bootGame();
         await layoutGame();
+        if (shouldStartFirstPlayTutorial) {
+          activateFirstPlayTutorialWhenReady();
+        }
         
         // Clear flag after boot
         delete (window as any).__ccStartAtLevel;
@@ -796,6 +804,7 @@ async function startNewRun(boardId: number): Promise<void> {
   memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   setRunMode(RUN_MODE_JOURNEY);
+  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
@@ -994,6 +1003,9 @@ async function startNewRun(boardId: number): Promise<void> {
           }
           
           await layoutGame();
+          if (shouldStartFirstPlayTutorial) {
+            activateFirstPlayTutorialWhenReady();
+          }
           
           // 🔥 CRITICAL FIX: Clear ALL flags after layout to prevent pollution for next board
           // This ensures fresh boards don't inherit flags from previous boards
@@ -1086,6 +1098,9 @@ async function startNewRun(boardId: number): Promise<void> {
             }
             
             await layoutGame();
+            if (shouldStartFirstPlayTutorial) {
+              activateFirstPlayTutorialWhenReady();
+            }
             
             // If no tiles/grid, startLevel() will handle rebuildBoard() automatically
             // 🔥 CRITICAL: Don't delete __ccSkipRebuildBoard here - let startLevel() handle it
@@ -1141,6 +1156,7 @@ async function startNewRun(boardId: number): Promise<void> {
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
   setRunMode(RUN_MODE_JOURNEY);
+  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   
   // 🔥 Keep __ccCameFromDetailModal so clean board can show Play Again + Exit (not Continue)
   delete (window as any).__ccDetailModalBoardId;
@@ -1209,6 +1225,9 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
     await layoutGame();
     console.log(`✅ layoutGame() completed`);
+    if (shouldStartFirstPlayTutorial) {
+      activateFirstPlayTutorialWhenReady();
+    }
     
     // Clear flags after boot (incl. __ccBoardJustCompleted so HUD can reuse on next boards)
     delete (window as any).__ccStartAtLevel;

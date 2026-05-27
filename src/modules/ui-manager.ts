@@ -12,6 +12,7 @@ import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 import { RUN_MODE_ARCADE_HOME, setRunMode } from './run-mode.js';
+import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
@@ -655,6 +656,7 @@ class UIManager {
   // Start new game (public method) - ALWAYS starts from Board 1
   async startNewGame(): Promise<void> {
     memoryManager.start();
+    const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('arcade');
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     (window as any).__ccCameFromHomepage = true;
     (window as any).__ccCameFromJourney = false;
@@ -751,6 +753,9 @@ class UIManager {
         console.log('📱 Showing app element...');
         this.showApp();
         console.log('✅ App element shown');
+        if (shouldStartFirstPlayTutorial) {
+          activateFirstPlayTutorialWhenReady();
+        }
         
         console.log('🎮 ====================================');
         console.log('🎮 GAME STARTED SUCCESSFULLY');

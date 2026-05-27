@@ -19,6 +19,10 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const hudLifecycle = createScreenLifecycle('hud');
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
+
+function isWildMeterSmokeFrozen(): boolean {
+  return typeof window !== 'undefined' && (window as any).__ccFirstPlayTutorialFreezeWildMeterSmoke === true;
+}
 const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 0;
 const HUD_TAP_BOUNCE_CLOSE_DELAY_MS = 120;
 
@@ -799,8 +803,13 @@ function makeWildLoader() {
       const isGrowing = width > startWidth + 0.5;
       const reachedFull = progress >= 0.999;
 
-      // Start smoke effect during animation
-      container._smokeInterval = setInterval(() => {
+      // Start smoke effect during animation unless tutorial explicitly freezes HUD FX.
+      if (!isWildMeterSmokeFrozen()) container._smokeInterval = setInterval(() => {
+        if (isWildMeterSmokeFrozen()) {
+          clearInterval(container._smokeInterval);
+          container._smokeInterval = null;
+          return;
+        }
         if (!container?.parent || !container._fill) return;
         const hudStage = container.parent;
         if (!hudStage) return;
@@ -810,6 +819,8 @@ function makeWildLoader() {
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
+        smokeBubble.label = 'wild-meter-smoke';
+        smokeBubble._isWildMeterSmokeBubble = true;
         
         // Only orange smoke bubbles
         const color = 0xF86B3C;
@@ -2709,28 +2720,37 @@ export function cleanupSmokeBubbles() {
       }
     }
     
-    // Kill all smoke bubble GSAP animations on HUD stage
-    if (HUD_ROOT && HUD_ROOT.parent && HUD_ROOT.parent.children) {
-      const hudStage = HUD_ROOT.parent;
+    const removeSmokeFromContainer = (container) => {
+      if (!container || !container.children) return 0;
       let removedCount = 0;
-      hudStage.children.forEach(child => {
-        // Check if it's a smoke bubble (has zIndex 2000 or is Graphics with small size)
-        if (child && child.zIndex === 2000) {
+      [...container.children].forEach(child => {
+        if (!child) return;
+        const isSmokeBubble =
+          child._isWildMeterSmokeBubble === true ||
+          child.label === 'wild-meter-smoke' ||
+          // Backward-compatible cleanup for bubbles created before they were labelled.
+          (child instanceof Graphics && child.zIndex === 2000 && child.parent === HUD_ROOT);
+
+        if (isSmokeBubble) {
           try {
             gsap.killTweensOf(child);
-            if (child.parent) {
-              child.parent.removeChild(child);
-            }
+            if (child.parent) child.parent.removeChild(child);
             child.destroy();
             removedCount++;
-          } catch (e) {
-            // Ignore errors
-          }
+          } catch {}
+          return;
         }
+
+        removedCount += removeSmokeFromContainer(child);
       });
-      if (removedCount > 0) {
-        console.log(`✅ Removed ${removedCount} smoke bubbles`);
-      }
+      return removedCount;
+    };
+
+    const removedFromHudRoot = removeSmokeFromContainer(HUD_ROOT);
+    const removedFromHudStage = HUD_ROOT?.parent ? removeSmokeFromContainer(HUD_ROOT.parent) : 0;
+    const removedCount = removedFromHudRoot + removedFromHudStage;
+    if (removedCount > 0) {
+      console.log(`✅ Removed ${removedCount} wild meter smoke bubbles`);
     }
     console.log('✅ All smoke bubbles cleaned up');
   } catch (e) {

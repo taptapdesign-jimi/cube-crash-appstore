@@ -17,6 +17,46 @@ interface SweetPopOptions {
 }
 const ENTRY_POPIN_HAPTIC_START_DELAY_MS = 200;
 
+function isFirstPlayTutorialDemoBoard(): boolean {
+  return typeof window !== 'undefined' && (window as any).__ccFirstPlayTutorialActive === true;
+}
+
+function firstPlayTutorialDemoCells(): Array<{ c: number; r: number; value: number }> {
+  const centerRow = Math.max(0, Math.min(ROWS - 3, Math.floor(ROWS / 2) - 1));
+  const lowerRow = Math.max(2, Math.min(ROWS - 1, centerRow + 2));
+  const leftCol = Math.max(0, Math.min(COLS - 3, Math.floor(COLS / 2) - 1));
+  const rightCol = Math.max(2, Math.min(COLS - 1, leftCol + 2));
+  const oneCol = Math.max(0, COLS - 2);
+  const oneRow = Math.min(ROWS - 1, 1);
+  const desired = [
+    { c: leftCol, r: centerRow, value: 3 },
+    { c: rightCol, r: lowerRow, value: 2 },
+    { c: oneCol, r: oneRow, value: 1 },
+    { c: 0, r: 0, value: 2 },
+    { c: 1, r: 0, value: 2 },
+    { c: 2, r: 0, value: 2 },
+    { c: 0, r: 2, value: 2 },
+    { c: 1, r: 2, value: 2 },
+    { c: 2, r: 2, value: 1 },
+    { c: 3, r: 2, value: 1 },
+    { c: 0, r: ROWS - 3, value: 2 },
+    { c: 1, r: ROWS - 3, value: 2 },
+    { c: 2, r: ROWS - 3, value: 2 },
+    { c: COLS - 1, r: Math.min(ROWS - 1, 4), value: 2 },
+    { c: 0, r: ROWS - 1, value: 2 },
+    { c: 1, r: ROWS - 1, value: 2 },
+    { c: 2, r: ROWS - 1, value: 1 },
+    { c: 3, r: ROWS - 1, value: 1 },
+  ];
+  const seen = new Set<string>();
+  return desired.filter(({ c, r }) => {
+    const key = `${c}:${r}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return c >= 0 && c < COLS && r >= 0 && r < ROWS;
+  });
+}
+
 // reset container while preserving boardBG and backgroundLayer
 export function resetBoardContainer(): void {
   const { board, boardBG } = STATE;
@@ -72,6 +112,26 @@ export function rebuildBoard(): void {
         }
       } catch {}
     }
+  }
+
+  if (isFirstPlayTutorialDemoBoard()) {
+    const cells = firstPlayTutorialDemoCells();
+    console.log('🔍 Opening first-play tutorial demo board with', cells.length, 'fixed tiles...');
+    cells.forEach(({ c, r, value }) => {
+      const t = STATE.grid[r][c] as any;
+      t.locked = false;
+      t.eventMode = 'static';
+      t.cursor = 'pointer';
+      if ((STATE as any).drag?.bindToTile) (STATE as any).drag.bindToTile(t);
+      makeBoard.setValue(t, value, 0);
+      t.visible = false;
+      t.comboCount = 1;
+    });
+    try {
+      (window as any).__ccFirstPlayTutorialDemoBoardReady = true;
+    } catch {}
+    layout();
+    return;
   }
 
   // open ~40% as active tiles with values and bind drag

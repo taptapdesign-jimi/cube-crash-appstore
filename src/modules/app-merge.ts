@@ -15,7 +15,7 @@ import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
-import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
+import { randomRegularTileValue, trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
@@ -2148,10 +2148,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const wildT = Number.isFinite((dst as any)._wildMergeTarget)
           ? (dst as any)._wildMergeTarget
           : null;
-        const freshVal =
-          wildT != null && Number.isFinite(wildT)
-            ? [1, 2, 3, 4, 5].filter((v) => v !== wildT)[(Math.random() * 4) | 0]
-            : [1, 2, 3, 4, 5][(Math.random() * 5) | 0];
+        const freshVal = randomRegularTileValue(wildT != null && Number.isFinite(wildT) ? wildT : undefined);
 
         delete (dst as any)._wildMagnetAffected;
         delete (dst as any)._wildMagnetOriginalX;

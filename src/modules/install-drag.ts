@@ -69,7 +69,12 @@ export function installDrag({
     tileGap: GAP,
     cellXY, // Pass cellXY to drag manager
     onMerge: merge,
-    canDrop: canDrop ?? ((src: Tile, dst: Tile) => {
+    canDrop: (src: Tile, dst: Tile) => {
+      const tutorialCanDrop = (window as any).__ccFirstPlayTutorialCanDrop;
+      if (typeof tutorialCanDrop === 'function' && tutorialCanDrop(src, dst) === false) {
+        return false;
+      }
+      const baseCanDrop = canDrop ?? ((src: Tile, dst: Tile) => {
       if ((src as any)?._ccWildSpawnDropping === true || (dst as any)?._ccWildSpawnDropping === true) {
         console.log('🔥 canDrop: Incoming wild drop is not mergeable yet');
         return false;
@@ -144,7 +149,9 @@ export function installDrag({
       const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
       console.log('🔥 canDrop result:', canMerge);
       return canMerge;
-    }),
+      });
+      return baseCanDrop(src, dst);
+    },
 
     // ⬇️ STIL HOVER OKVIRA (vrati parametre umjesto hard‑codeda)
     hoverColor,

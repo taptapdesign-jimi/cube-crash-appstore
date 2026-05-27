@@ -41,6 +41,23 @@ interface CleanBoardModalOptions {
   boardNumber: number;
 }
 
+function isFirstPlayTutorialCompletionFlow(): boolean {
+  return typeof window !== 'undefined' && (window as any).__ccFirstPlayTutorialSlowWildMeter === true;
+}
+
+function clearFirstPlayTutorialCompletionFlags(): void {
+  try {
+    delete (window as any).__ccFirstPlayTutorialSlowWildMeter;
+    delete (window as any).__ccFirstPlayTutorialFreezeWildMeterSmoke;
+    delete (window as any).__ccFirstPlayTutorialActive;
+    delete (window as any).__ccFirstPlayTutorialCanDrop;
+    delete (window as any).__ccFirstPlayTutorialWildSpawnCell;
+    delete (window as any).__ccFirstPlayTutorialForceWildStar;
+    delete (window as any).__ccFirstPlayTutorialDisplaceWildSpawnOccupant;
+    delete (window as any).__ccFirstPlayTutorialDemoBoardReady;
+  } catch {}
+}
+
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   try {
     const { resetEndgameHint } = await import('./endgame-hint.js');
@@ -255,6 +272,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
     }
     
+    const firstPlayTutorialCompletion = isFirstPlayTutorialCompletionFlow();
+
     const modalResult = await showCleanBoardModal({ 
       app, stage,
       getScore: ctx.getScore,
@@ -270,12 +289,36 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       scoreCap: 999999,
       boardNumber,
       isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
+      firstPlayTutorialCompletion,
     });
     
     console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);
     logger.info(`🎯 endgame-flow: Clean board modal result: ${modalResult?.action}`);
     
     // 🔥 NEW LOGIC: Handle different actions from clean board modal
+    if (modalResult?.action === 'tutorial-continue-home') {
+      console.log('🏠 endgame-flow: First-play tutorial completed - Continue returns to homepage');
+      logger.info('🏠 endgame-flow: tutorial continue -> homepage');
+      try {
+        clearFirstPlayTutorialCompletionFlags();
+        (window as any).__ccCameFromHomepage = true;
+        (window as any).__ccCameFromJourney = false;
+        localStorage.setItem('__ccCameFromHomepage', 'true');
+        localStorage.removeItem('__ccCameFromJourney');
+        delete (window as any).__ccCameFromDetailModal;
+        delete (window as any).__ccDetailModalBoardId;
+        (window as any).__skipBoardExitAnimation = true;
+        (window as any).__ccFastArcadeCleanExit = true;
+        if (typeof (window as any).exitToMenu === 'function') {
+          await (window as any).exitToMenu();
+        }
+      } catch (error) {
+        console.error('❌ endgame-flow: Failed to return home after tutorial clean board:', error);
+        logger.error('❌ endgame-flow: Failed tutorial continue home:', error);
+      }
+      return;
+    }
+
     if (modalResult?.action === 'back-to-journey') {
       console.log('🧭 endgame-flow: Back to Journey action');
       logger.info('🧭 endgame-flow: Back to Journey action');
@@ -298,6 +341,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     if (modalResult?.action === 'exit') {
+      if (firstPlayTutorialCompletion) {
+        clearFirstPlayTutorialCompletionFlags();
+      }
       if (isArcadeHomeRunMode()) {
         console.log('🚪 endgame-flow: Exit action in arcade_home mode - returning to homepage');
         logger.info('🚪 endgame-flow: arcade_home exit -> homepage');

@@ -1,4 +1,5 @@
 import { preloadTntFrames } from './tnt-animation.ts';
+import { randomRegularTileValue } from './app-core-utils.js';
 
 type OpenCellDeps = {
   c: number;
@@ -192,7 +193,7 @@ export function openAtCellCore({
         resolve(false);
         return;
       }
-      const v = (value == null) ? [1, 2, 3, 4, 5][(Math.random() * 5) | 0] : value;
+      const v = (value == null) ? randomRegularTileValue() : value;
       makeBoard.setValue(holder, v, 0);
       if ((holder as any).destroyed || (holder.value | 0) <= 0) {
         devWarn('⚠️ openAtCell: Holder destroyed or invalid after setValue', { c, r, value: holder?.value });

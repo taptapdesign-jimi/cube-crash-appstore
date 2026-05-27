@@ -5,6 +5,7 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { syncTileZIndex } from './board.js';
+import { randomRegularTileValue } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
@@ -253,7 +254,7 @@ export async function openEmpties({
     (t as any).eventMode = 'static';
     (t as any).cursor = 'pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
-    makeBoard?.setValue(t, [1, 2, 3, 4, 5][(Math.random() * 5) | 0], 0);
+    makeBoard?.setValue(t, randomRegularTileValue(), 0);
     try {
       fixHoverAnchor?.(t);
     } catch {}
