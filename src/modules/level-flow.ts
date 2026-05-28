@@ -203,10 +203,20 @@ async function openLockedBounceParallelImpl({
         clearSpawnFlag();
         resolve();
       };
-      const ensureActiveFullOpacity = (tile: any) => {
+      const ensureActiveFullVisual = (tile: any, repairScale = false) => {
         try { gsap?.killTweensOf?.(tile, 'alpha'); } catch {}
         try { if (tile?.base) gsap?.killTweensOf?.(tile.base, 'alpha'); } catch {}
         try { if (tile?.rotG) gsap?.killTweensOf?.(tile.rotG, 'alpha'); } catch {}
+        if (repairScale) {
+          try { if (tile?.scale) gsap?.killTweensOf?.(tile.scale); } catch {}
+          try {
+            if (tile?.scale?.set) tile.scale.set(1, 1);
+            else if (tile?.scale) {
+              tile.scale.x = 1;
+              tile.scale.y = 1;
+            }
+          } catch {}
+        }
         try {
           tile.alpha = 1;
           if (tile.rotG) tile.rotG.alpha = 1;
@@ -254,7 +264,7 @@ async function openLockedBounceParallelImpl({
         makeBoard?.syncTileZIndex?.(t, (t as any)?.parent);
         t.eventMode = 'static';
         t.cursor = 'pointer';
-        ensureActiveFullOpacity(t);
+        ensureActiveFullVisual(t);
         if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
 
         resetTileToNormalState(t);
@@ -272,7 +282,7 @@ async function openLockedBounceParallelImpl({
 
         makeBoard?.setValue?.(t, spawnValue, 0, { immediate: true });
         makeBoard?.syncTileZIndex?.(t, (t as any)?.parent);
-        ensureActiveFullOpacity(t);
+        ensureActiveFullVisual(t);
         try { fixHoverAnchor?.(t); } catch {}
 
         if (!t || t.destroyed || !t.scale) {
@@ -292,10 +302,10 @@ async function openLockedBounceParallelImpl({
             activeSpawnTimeouts.delete(fallbackTimer);
             fallbackTimer = null;
           }
-          ensureActiveFullOpacity(t);
+          ensureActiveFullVisual(t, true);
           countSuccessOnce();
           const reinforce = setTimeout(() => {
-            ensureActiveFullOpacity(t);
+            ensureActiveFullVisual(t, true);
           }, 160);
           activeSpawnTimeouts.add(reinforce);
           safeResolve();
@@ -315,7 +325,7 @@ async function openLockedBounceParallelImpl({
               activeSpawnTimeouts.delete(fallbackTimer);
               fallbackTimer = null;
             }
-            ensureActiveFullOpacity(t);
+            ensureActiveFullVisual(t, true);
             countSuccessOnce();
             safeResolve();
           }, delay + 1200);

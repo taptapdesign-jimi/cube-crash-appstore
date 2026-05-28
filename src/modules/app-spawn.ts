@@ -401,6 +401,13 @@ export function spawnBounce(t: Tile, done: (() => void) | null, opts: SpawnBounc
   t.scale!.set(startScale, startScale);
   const dir = Math.random() < 0.5 ? 1 : -1;
   const finish = () => {
+    try {
+      if (t.scale?.set) t.scale.set(1, 1);
+      else if (t.scale) {
+        t.scale.x = 1;
+        t.scale.y = 1;
+      }
+    } catch {}
     if (keepFullOpacity) {
       t.alpha = 1;
       if (t.rotG) t.rotG.alpha = 1;

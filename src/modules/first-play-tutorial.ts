@@ -25,6 +25,9 @@ let targetCellTwo: { c: number; r: number } | null = null;
 let introTimers: number[] = [];
 let secondStepTile: any | null = null;
 let pointerAnimationKey = '';
+let stepThreePointerTimeline: gsap.core.Timeline | null = null;
+let stepFourPointerTimeline: gsap.core.Timeline | null = null;
+let stepFourPointerLoopTimer: number | null = null;
 let firstStepUserInteracted = false;
 let secondStepUserInteracted = false;
 let stepTransitioning = false;
@@ -917,6 +920,240 @@ function updateFocus(forceRestart = false): void {
   });
 }
 
+function stopStepThreePointerHint(): void {
+  try { stepThreePointerTimeline?.kill(); } catch {}
+  stepThreePointerTimeline = null;
+}
+
+function stopStepFourPointerHint(): void {
+  try { stepFourPointerTimeline?.kill(); } catch {}
+  stepFourPointerTimeline = null;
+  if (stepFourPointerLoopTimer !== null) {
+    window.clearTimeout(stepFourPointerLoopTimer);
+    scheduledTimeouts = scheduledTimeouts.filter((id) => id !== stepFourPointerLoopTimer);
+    stepFourPointerLoopTimer = null;
+  }
+}
+
+function pointerFingertipOffset(pointer: HTMLElement): { x: number; y: number } {
+  const pointerRect = pointer.getBoundingClientRect();
+  const pointerWidth = pointerRect.width || 180;
+  const pointerHeight = pointerRect.height || 180;
+  return {
+    x: pointerWidth * 0.16,
+    y: pointerHeight * 0.12,
+  };
+}
+
+function shuffleInPlace<T>(items: T[]): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+function buildStepThreePointerMoves(): Array<{ from: DOMRect; to: DOMRect }> {
+  const maxHintRow = Math.min(ROWS - 1, 4);
+  const candidates = getActiveTiles()
+    .filter((tile: any) => (
+      tile &&
+      !tile.destroyed &&
+      !tile.locked &&
+      !tile.special &&
+      Number.isFinite(tile.gridY) &&
+      (tile.gridY | 0) <= maxHintRow &&
+      (tile.value | 0) > 0
+    ))
+    .map((tile: any) => ({ tile, rect: tileRect(tile) }))
+    .filter((entry: any) => !!entry.rect);
+
+  const movesByDirection: Record<string, Array<{ from: DOMRect; to: DOMRect }>> = {
+    right: [],
+    left: [],
+    down: [],
+    up: [],
+  };
+
+  for (const from of candidates) {
+    for (const to of candidates) {
+      if (from.tile === to.tile) continue;
+      const dx = (to.tile.gridX | 0) - (from.tile.gridX | 0);
+      const dy = (to.tile.gridY | 0) - (from.tile.gridY | 0);
+      if (dx === 0 && dy === 0) continue;
+      const direction = Math.abs(dx) >= Math.abs(dy)
+        ? (dx > 0 ? 'right' : 'left')
+        : (dy > 0 ? 'down' : 'up');
+      movesByDirection[direction].push({ from: from.rect as DOMRect, to: to.rect as DOMRect });
+    }
+  }
+
+  const moves: Array<{ from: DOMRect; to: DOMRect }> = [];
+  shuffleInPlace(['right', 'down', 'left', 'up']).forEach((direction) => {
+    const options = shuffleInPlace(movesByDirection[direction] || []);
+    if (options[0]) moves.push(options[0]);
+  });
+
+  if (moves.length >= 2) return shuffleInPlace(moves).slice(0, 4);
+
+  const fallbackCells: Array<{ c: number; r: number }> = [
+    { c: Math.max(0, Math.floor(COLS / 2) - 1), r: 1 },
+    { c: Math.min(COLS - 1, Math.floor(COLS / 2) + 1), r: 1 },
+    { c: Math.min(COLS - 1, Math.floor(COLS / 2) + 1), r: 3 },
+    { c: Math.max(0, Math.floor(COLS / 2) - 1), r: 3 },
+    { c: Math.max(0, Math.floor(COLS / 2)), r: 4 },
+  ];
+  const rects = fallbackCells
+    .map((cell) => cellRect(cell.c, Math.min(maxHintRow, cell.r)))
+    .filter(Boolean) as DOMRect[];
+  return rects.length >= 2
+    ? shuffleInPlace([
+        { from: rects[0], to: rects[1] },
+        { from: rects[1], to: rects[2] || rects[0] },
+        { from: rects[3] || rects[0], to: rects[2] || rects[1] },
+      ])
+    : [];
+}
+
+function startStepThreePointerHint(): void {
+  if (!active || currentStep !== 3) return;
+  const pointer = getPointerShell();
+  const image = getPointerImage();
+  if (!pointer || !image) return;
+  const moves = buildStepThreePointerMoves();
+  if (!moves.length) return;
+
+  stopStepThreePointerHint();
+  pointerAnimationKey = `step3:${Date.now()}:${Math.random()}`;
+  pointer.style.display = 'block';
+  const fingertip = pointerFingertipOffset(pointer);
+  gsap.killTweensOf(pointer);
+  gsap.killTweensOf(image);
+  gsap.set(image, { opacity: 1, scale: 1, rotate: 0 });
+
+  const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.16 });
+  moves.forEach((move, index) => {
+    const startX = move.from.left + move.from.width * 0.5 + 16;
+    const startY = move.from.top + move.from.height * 0.5;
+    const endX = move.to.left + move.to.width * 0.5 + 16;
+    const endY = move.to.top + move.to.height * 0.5;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const base = index * 1.08;
+    tl.set(pointer, {
+      left: startX - fingertip.x,
+      top: startY - fingertip.y,
+      x: 0,
+      y: 0,
+      opacity: 0,
+      scale: 0.9,
+      rotate: -8,
+    }, base)
+      .to(pointer, { opacity: 1, scale: 1, duration: 0.16, ease: 'back.out(1.8)' }, base)
+      .to(pointer, {
+        x: dx,
+        y: dy,
+        scale: 0.94,
+        rotate: dx >= 0 ? -1 : -12,
+        duration: 0.58,
+        ease: 'power1.inOut',
+      }, base + 0.16)
+      .to(pointer, { opacity: 0, scale: 0.86, duration: 0.16, ease: 'sine.in' }, base + 0.84);
+  });
+  stepThreePointerTimeline = tl;
+}
+
+function getFourthStepMaxTargetRow(): number {
+  return Math.min(ROWS - 1, 5);
+}
+
+function getFourthStepCandidateTiles(wildTile = stepFourWildTile): any[] {
+  const maxSafeRow = getFourthStepMaxTargetRow();
+  return getActiveTiles().filter((tile: any) => (
+    tile &&
+    tile !== wildTile &&
+    !tile.destroyed &&
+    !tile.locked &&
+    !tile.special &&
+    (tile.value | 0) > 0 &&
+    Number.isFinite(tile.gridY) &&
+    (tile.gridY | 0) <= maxSafeRow
+  ));
+}
+
+function isFourthStepAllowedTarget(tile: any): boolean {
+  return !!tile &&
+    !tile.destroyed &&
+    !tile.locked &&
+    !tile.special &&
+    (tile.value | 0) > 0 &&
+    Number.isFinite(tile.gridY) &&
+    (tile.gridY | 0) <= getFourthStepMaxTargetRow();
+}
+
+function startStepFourPointerHint(): void {
+  if (!active || currentStep !== 4 || !stepFourPrepared) return;
+  const wildTile = stepFourWildTile || targetTiles[0];
+  if (!wildTile || wildTile.destroyed) return;
+  const pointer = getPointerShell();
+  const image = getPointerImage();
+  if (!pointer || !image) return;
+
+  stopStepFourPointerHint();
+  pointer.style.display = 'block';
+  const fingertip = pointerFingertipOffset(pointer);
+  gsap.killTweensOf(pointer);
+  gsap.killTweensOf(image);
+  gsap.set(image, { opacity: 1, scale: 1, rotate: 0 });
+
+  const playOne = () => {
+    if (!active || currentStep !== 4 || !stepFourPrepared) return;
+    const sourceRect = tileRect(wildTile);
+    const candidates = shuffleInPlace(getFourthStepCandidateTiles(wildTile).slice());
+    const targetRect = candidates[0] ? tileRect(candidates[0]) : null;
+    if (!sourceRect || !targetRect) {
+      stepFourPointerLoopTimer = scheduleTimeout(playOne, 420);
+      return;
+    }
+
+    const startX = sourceRect.left + sourceRect.width * 0.5 + 16;
+    const startY = sourceRect.top + sourceRect.height * 0.5;
+    const endX = targetRect.left + targetRect.width * 0.5 + 16;
+    const endY = targetRect.top + targetRect.height * 0.5;
+    const dx = endX - startX;
+    const dy = endY - startY;
+
+    try { stepFourPointerTimeline?.kill(); } catch {}
+    stepFourPointerTimeline = gsap.timeline({
+      onComplete: () => {
+        stepFourPointerLoopTimer = scheduleTimeout(playOne, 180);
+      },
+    });
+    stepFourPointerTimeline
+      .set(pointer, {
+        left: startX - fingertip.x,
+        top: startY - fingertip.y,
+        x: 0,
+        y: 0,
+        opacity: 0,
+        scale: 0.9,
+        rotate: -8,
+      })
+      .to(pointer, { opacity: 1, scale: 1, duration: 0.16, ease: 'back.out(1.8)' }, 0)
+      .to(pointer, {
+        x: dx,
+        y: dy,
+        scale: 0.94,
+        rotate: dx >= 0 ? -1 : -12,
+        duration: 0.62,
+        ease: 'power1.inOut',
+      }, 0.16)
+      .to(pointer, { opacity: 0, scale: 0.86, duration: 0.16, ease: 'sine.in' }, 0.86);
+  };
+
+  playOne();
+}
+
 function getPointerShell(): HTMLElement | null {
   return document.querySelector('.first-play-tutorial-pointer') as HTMLElement | null;
 }
@@ -929,6 +1166,8 @@ function popInPointer(): void {
   const pointer = getPointerShell();
   const image = getPointerImage();
   if (!pointer || !image) return;
+  stopStepThreePointerHint();
+  stopStepFourPointerHint();
   pointer.style.display = 'block';
   updateFocus(true);
   gsap.killTweensOf(image);
@@ -943,6 +1182,8 @@ function popInPointer(): void {
 function popOutPointer(onComplete?: () => void): void {
   const image = getPointerImage();
   const pointer = getPointerShell();
+  stopStepThreePointerHint();
+  stopStepFourPointerHint();
   if (!image) {
     onComplete?.();
     return;
@@ -1079,15 +1320,11 @@ function isTutorialDropAllowed(src: any, dst: any): boolean {
     return values[0] === 1 && values[1] === 5;
   }
   if (currentStep === 4) {
-    if (!first || !second) return false;
-    const isTutorialPair =
-      (src === first && dst === second) ||
-      (src === second && dst === first);
-    if (!isTutorialPair) return false;
     const srcWild = isWildStarTile(src);
     const dstWild = isWildStarTile(dst);
+    if (srcWild === dstWild) return false;
     const other = srcWild ? dst : dstWild ? src : null;
-    return !!other && !other.locked && !other.special && (other.value | 0) > 0;
+    return isFourthStepAllowedTarget(other);
   }
   return true;
 }
@@ -1230,7 +1467,13 @@ function activateThirdStep(): void {
   restoreBoardAndHudOpacity(false, false);
   stopHudDim(true, true);
   restoreAllTileInteractivityForFreePlay();
-  transitionSheetToStep(currentStep);
+  transitionSheetToStep(currentStep, () => {
+    if (!active || currentStep !== 3) return;
+    scheduleTimeout(() => {
+      if (!active || currentStep !== 3) return;
+      startStepThreePointerHint();
+    }, 260);
+  });
 }
 
 function restoreAllTileInteractivityForFreePlay(): void {
@@ -1426,6 +1669,8 @@ function setOverlayDimVisible(visible: boolean): void {
 
 function dismissThirdStepAndWaitForWild(): void {
   if (!active || currentStep !== 3) return;
+  stopStepThreePointerHint();
+  popOutPointer();
   setWildMeterSmokeFrozen(false);
   restoreBoardAndHudOpacity(true, true);
   restoreNormalGameplayDrag(false);
@@ -1530,16 +1775,7 @@ function makeTileWildStar(tile: any): void {
 
 function pickFourthStepTargetTile(wildTile: any): any | null {
   const preferredWildCell = getFourthStepPreferredWildCell();
-  const maxSafeRow = Math.min(ROWS - 1, 4);
-  const activeRegularTiles = getActiveTiles().filter((tile: any) => (
-    tile &&
-    tile !== wildTile &&
-    !tile.destroyed &&
-    !tile.locked &&
-    !tile.special &&
-    (tile.value | 0) > 0 &&
-    Number.isFinite(tile.gridY) &&
-    (tile.gridY | 0) <= maxSafeRow &&
+  const activeRegularTiles = getFourthStepCandidateTiles(wildTile).filter((tile: any) => (
     !((tile.gridX | 0) === preferredWildCell.c && (tile.gridY | 0) === preferredWildCell.r)
   )).sort((a: any, b: any) => {
     const av = a.value | 0;
@@ -1559,12 +1795,13 @@ function pickFourthStepTargetTile(wildTile: any): any | null {
     !tile.destroyed &&
     !tile.special &&
     Number.isFinite(tile.gridY) &&
-    (tile.gridY | 0) <= maxSafeRow
+    (tile.gridY | 0) <= getFourthStepMaxTargetRow()
   )) || null;
 }
 
 function activateFourthStep(wildTile: any): void {
   if (!active || currentStep !== 3 || !wildTile || wildTile.destroyed) return;
+  stopStepThreePointerHint();
   currentStep = 4;
   fourthStepCompleting = false;
   stepFourPrepared = false;
@@ -1617,7 +1854,7 @@ function prepareFourthStepBoard(wildTile: any): void {
   pointerAnimationKey = '';
 
   (STATE.tiles || []).forEach((tile: any) => {
-    const focused = tile === wildTile || tile === targetTile;
+    const focused = tile === wildTile || isFourthStepAllowedTarget(tile);
     if (focused) {
       tile.visible = true;
       tile.alpha = 1;
@@ -1628,9 +1865,7 @@ function prepareFourthStepBoard(wildTile: any): void {
     }
   });
   if (!active || currentStep !== 4) return;
-  updateFocus(true);
-  popInPointer();
-  scheduleAnimationFrame(() => updateFocus(false));
+  startStepFourPointerHint();
   startFourthStepMonitor();
 }
 
@@ -1646,10 +1881,17 @@ function startFourthStepMonitor(): void {
 function isFourthStepComplete(): boolean {
   if (!stepFourPrepared) return false;
   const wild = stepFourWildTile || targetTiles[0];
-  const target = stepFourTargetTile || targetTiles[1];
-  if (!wild || !target) return false;
+  if (!wild) return false;
   if (wild.destroyed || !isWildStarTile(wild)) return true;
-  if (!target.destroyed && !target.special && (target.value | 0) === 6) return true;
+  if ((STATE.tiles || []).some((tile: any) => (
+    tile &&
+    !tile.destroyed &&
+    !tile.locked &&
+    !tile.special &&
+    (tile.value | 0) === 6 &&
+    Number.isFinite(tile.gridY) &&
+    (tile.gridY | 0) <= getFourthStepMaxTargetRow()
+  ))) return true;
   return false;
 }
 
@@ -1658,6 +1900,7 @@ function completeFourthStep(): void {
   fourthStepCompleting = true;
   setWildMeterSmokeFrozen(true);
   stopPolling();
+  stopStepFourPointerHint();
   popOutPointer(() => {
     exitCurrentSheet(() => {
       restoreBoardAndHudOpacity(true);
@@ -1671,6 +1914,8 @@ function completeFourthStep(): void {
 function removeOverlay(): void {
   const existing = document.querySelector('.first-play-tutorial-overlay') as HTMLElement | null;
   if (!existing) return;
+  stopStepThreePointerHint();
+  stopStepFourPointerHint();
   clearIntroTimers();
   clearScheduledWork();
   gsap.killTweensOf(existing);

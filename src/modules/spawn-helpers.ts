@@ -86,6 +86,13 @@ export function spawnBounce(
 
   const dir = Math.random() < 0.5 ? 1 : -1;
   const finish = () => {
+    try {
+      if (t?.scale?.set) t.scale.set(1, 1);
+      else if (t?.scale) {
+        t.scale.x = 1;
+        t.scale.y = 1;
+      }
+    } catch {}
     if (!keepFullOpacity) (t as any)._spawned = true;
     if (keepFullOpacity) {
       t.alpha = 1;

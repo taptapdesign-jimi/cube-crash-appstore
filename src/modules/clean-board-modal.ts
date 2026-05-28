@@ -61,7 +61,6 @@ interface ShowCleanBoardModalParams {
   forcedStars?: number;
   devMode?: boolean; // 🧪 DEV: Enable dev mode for testing board transition screen
   isFromInterimBoardOverride?: boolean;
-  firstPlayTutorialCompletion?: boolean;
 }
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
@@ -207,8 +206,7 @@ export async function showCleanBoardModal({
   boardNumber = 1,
   forcedStars,
   devMode = false, // 🧪 DEV: Enable dev mode for testing board transition screen
-  isFromInterimBoardOverride,
-  firstPlayTutorialCompletion = false
+  isFromInterimBoardOverride
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
@@ -642,8 +640,7 @@ export async function showCleanBoardModal({
     primaryBtn.type = 'button';
     // Arcade rule: always "Play Again" on clean board.
     // Journey/interim keeps "Continue" behavior (and dev override for testing).
-    const isFirstPlayTutorialCompletion = firstPlayTutorialCompletion === true;
-    const shouldShowContinue = isFirstPlayTutorialCompletion || (!isArcadeHomeRun && (devMode || isFromInterimBoard));
+    const shouldShowContinue = !isArcadeHomeRun && (devMode || isFromInterimBoard);
     primaryBtn.textContent = shouldShowContinue ? 'Continue' : 'Play Again';
     primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     primaryBtn.style.width = '100%';
@@ -1574,11 +1571,7 @@ export async function showCleanBoardModal({
         } catch {}
         
         // 🔥 NEW: Return action based on which button was clicked
-        const action = isFirstPlayTutorialCompletion
-          ? 'tutorial-continue-home'
-          : (!isArcadeHomeRun && isFromInterimBoard)
-            ? 'continue'
-            : 'play-again';
+        const action = (!isArcadeHomeRun && isFromInterimBoard) ? 'continue' : 'play-again';
         console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
         resolve({ action }); 
       }, collapseDuration + 220);

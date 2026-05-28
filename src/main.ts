@@ -1401,9 +1401,12 @@ async function startNewRun(boardId: number): Promise<void> {
     // This ensures game state is saved even if cleanup fails
     // 🎯 CRITICAL FIX: Do NOT save if board was just completed (clean board)
     // Clean board already cleared save state - we don't want to re-save it!
-    const skipSaveAfterCleanBoard = (window as any).__ccBoardJustCompleted === true;
+    const suppressTutorialStatsSave = (window as any).__ccSuppressTutorialStatsSave === true;
+    const skipSaveAfterCleanBoard = (window as any).__ccBoardJustCompleted === true || suppressTutorialStatsSave;
     if (skipSaveAfterCleanBoard) {
-      console.log('🎯 exitToMenu: Skipping saveGameState - board was just completed (clean board)');
+      console.log(suppressTutorialStatsSave
+        ? '🎓 exitToMenu: Skipping saveGameState - tutorial completion should not persist gameplay stats'
+        : '🎯 exitToMenu: Skipping saveGameState - board was just completed (clean board)');
       delete (window as any).__ccBoardJustCompleted; // Clear flag
     }
     
@@ -1459,51 +1462,56 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // CRITICAL: Save high score BEFORE animations
     try {
-      const { STATE } = await import('./modules/app-state.js');
-      let currentScore = 0;
-      
-      if (STATE && typeof STATE.score === 'number') {
-        currentScore = STATE.score;
-      }
-      
-      if (currentScore === 0) {
-        const scoreEl = document.querySelector('#score-text');
-        if (scoreEl) {
-          const text = scoreEl.textContent || '0';
-          currentScore = parseInt(text.replace(/,/g, '')) || 0;
+      if (suppressTutorialStatsSave) {
+        console.log('🎓 exitToMenu: Skipping high score/stat persistence for tutorial completion');
+        delete (window as any).__ccSuppressTutorialStatsSave;
+      } else {
+        const { STATE } = await import('./modules/app-state.js');
+        let currentScore = 0;
+        
+        if (STATE && typeof STATE.score === 'number') {
+          currentScore = STATE.score;
         }
-      }
-      
-      console.log('📊 Current score before exit:', currentScore);
-      const { statsService } = await import('./services/stats-service.js');
-      statsService.updateHighScore(currentScore);
-      console.log('✅ High score updated via statsService:', currentScore);
-      
-      // 🔥 JOURNEY BOARDS: Update board-specific stats (high score, longest combo, cubes cracked)
-      try {
-        const boardNumber = STATE.boardNumber || STATE.level || 1;
-        const { boardStatsService } = await import('./services/board-stats-service.js');
         
-        // 🔥 USER REQUEST: DO NOT update high score on exit!
-        // High score is ONLY updated after successful clean board (in endgame-flow.ts)
-        // Exit usred igre = ne updateamo high score
-        console.log(`📊 Exit from board ${boardNumber} - high score NOT updated (only on clean board success)`);
+        if (currentScore === 0) {
+          const scoreEl = document.querySelector('#score-text');
+          if (scoreEl) {
+            const text = scoreEl.textContent || '0';
+            currentScore = parseInt(text.replace(/,/g, '')) || 0;
+          }
+        }
         
-        // 🔥 USER REQUEST: Longest combo is already tracked during gameplay in app-core.ts merge function
-        // No need to update it here - it's already tracked in real-time during each merge
-        // The boardStatsService.updateBoardLongestCombo() is called in merge function with actual combo value
+        console.log('📊 Current score before exit:', currentScore);
+        const { statsService } = await import('./services/stats-service.js');
+        statsService.updateHighScore(currentScore);
+        console.log('✅ High score updated via statsService:', currentScore);
         
-        // 🔥 USER REQUEST: Cubes cracked is already tracked in real-time during gameplay
-        // via trackCubesCracked() which calls addBoardCubesCracked() for each cube
-        // No need to add it here - it's already accumulated per-board
-        const boardStats = boardStatsService.getBoardStats(boardNumber);
-        console.log(`📊 Board ${boardNumber} current stats:`, {
-          highScore: boardStats.highScore,
-          longestCombo: boardStats.longestCombo,
-          cubesCracked: boardStats.cubesCracked
-        });
-      } catch (error) {
-        console.warn('⚠️ Failed to read board stats:', error);
+        // 🔥 JOURNEY BOARDS: Update board-specific stats (high score, longest combo, cubes cracked)
+        try {
+          const boardNumber = STATE.boardNumber || STATE.level || 1;
+          const { boardStatsService } = await import('./services/board-stats-service.js');
+          
+          // 🔥 USER REQUEST: DO NOT update high score on exit!
+          // High score is ONLY updated after successful clean board (in endgame-flow.ts)
+          // Exit usred igre = ne updateamo high score
+          console.log(`📊 Exit from board ${boardNumber} - high score NOT updated (only on clean board success)`);
+          
+          // 🔥 USER REQUEST: Longest combo is already tracked during gameplay in app-core.ts merge function
+          // No need to update it here - it's already tracked in real-time during each merge
+          // The boardStatsService.updateBoardLongestCombo() is called in merge function with actual combo value
+          
+          // 🔥 USER REQUEST: Cubes cracked is already tracked in real-time during gameplay
+          // via trackCubesCracked() which calls addBoardCubesCracked() for each cube
+          // No need to add it here - it's already accumulated per-board
+          const boardStats = boardStatsService.getBoardStats(boardNumber);
+          console.log(`📊 Board ${boardNumber} current stats:`, {
+            highScore: boardStats.highScore,
+            longestCombo: boardStats.longestCombo,
+            cubesCracked: boardStats.cubesCracked
+          });
+        } catch (error) {
+          console.warn('⚠️ Failed to read board stats:', error);
+        }
       }
     } catch (error) {
       console.warn('⚠️ Failed to save high score during exit:', error);

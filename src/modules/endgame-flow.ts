@@ -58,6 +58,38 @@ function clearFirstPlayTutorialCompletionFlags(): void {
   } catch {}
 }
 
+async function returnFirstPlayTutorialToHomepage(): Promise<void> {
+  clearFirstPlayTutorialCompletionFlags();
+  try {
+    localStorage.removeItem('cc_board_completed');
+    localStorage.removeItem('cc_saved_game');
+    localStorage.removeItem('cubeCrash_gameState');
+    const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+    const boardNumber = (window as any).STATE?.boardNumber || 1;
+    clearBoardSaveState(boardNumber);
+    const { journeyProgressionState } = await import('./journey-progression-state.js');
+    journeyProgressionState.clearCurrentRunState();
+  } catch {}
+  try {
+    (window as any).__ccBoardJustCompleted = true;
+    (window as any).__ccSuppressTutorialStatsSave = true;
+    (window as any).__ccCameFromHomepage = true;
+    (window as any).__ccCameFromJourney = false;
+    localStorage.setItem('__ccCameFromHomepage', 'true');
+    localStorage.removeItem('__ccCameFromJourney');
+    delete (window as any).__ccCameFromDetailModal;
+    delete (window as any).__ccDetailModalBoardId;
+    (window as any).__skipBoardExitAnimation = true;
+    (window as any).__ccFastArcadeCleanExit = true;
+    if (typeof (window as any).exitToMenu === 'function') {
+      await (window as any).exitToMenu();
+    }
+  } catch (error) {
+    console.error('❌ endgame-flow: Failed to return home after tutorial clean board:', error);
+    logger.error('❌ endgame-flow: Failed tutorial continue home:', error);
+  }
+}
+
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   try {
     const { resetEndgameHint } = await import('./endgame-hint.js');
@@ -128,6 +160,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   const boardNumber = (STATE?.boardNumber && Number.isFinite(STATE.boardNumber)) 
     ? STATE.boardNumber 
     : ctxBoardNumber;
+  const firstPlayTutorialCompletion = isFirstPlayTutorialCompletionFlow();
   console.log(`🎯 endgame-flow: Using boardNumber ${boardNumber} (STATE.boardNumber: ${STATE?.boardNumber}, ctx.boardNumber: ${ctxBoardNumber})`);
 
   // 🔥 CRITICAL FIX: Save score BEFORE clearing saved game state
@@ -214,6 +247,23 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
     }
 
+    if (firstPlayTutorialCompletion) {
+      try {
+        const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
+        if (typeof animateBoardIndicatorExit === 'function') {
+          animateBoardIndicatorExit(0.3);
+        }
+      } catch {}
+      try {
+        const { showTutorialCompleteModal } = await import('./tutorial-complete-modal.js');
+        await showTutorialCompleteModal();
+      } catch (modalError) {
+        console.warn('⚠️ endgame-flow: Tutorial complete modal failed, returning home:', modalError);
+      }
+      await returnFirstPlayTutorialToHomepage();
+      return;
+    }
+
     const { showCleanBoardModal } = await import('./clean-board-modal.js');
     
     // 🗺️ JOURNEY PROGRESSION: Unlock journey board when board is completed (won)
@@ -272,8 +322,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
     }
     
-    const firstPlayTutorialCompletion = isFirstPlayTutorialCompletionFlow();
-
     const modalResult = await showCleanBoardModal({ 
       app, stage,
       getScore: ctx.getScore,
@@ -289,36 +337,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       scoreCap: 999999,
       boardNumber,
       isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
-      firstPlayTutorialCompletion,
     });
     
     console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);
     logger.info(`🎯 endgame-flow: Clean board modal result: ${modalResult?.action}`);
     
     // 🔥 NEW LOGIC: Handle different actions from clean board modal
-    if (modalResult?.action === 'tutorial-continue-home') {
-      console.log('🏠 endgame-flow: First-play tutorial completed - Continue returns to homepage');
-      logger.info('🏠 endgame-flow: tutorial continue -> homepage');
-      try {
-        clearFirstPlayTutorialCompletionFlags();
-        (window as any).__ccCameFromHomepage = true;
-        (window as any).__ccCameFromJourney = false;
-        localStorage.setItem('__ccCameFromHomepage', 'true');
-        localStorage.removeItem('__ccCameFromJourney');
-        delete (window as any).__ccCameFromDetailModal;
-        delete (window as any).__ccDetailModalBoardId;
-        (window as any).__skipBoardExitAnimation = true;
-        (window as any).__ccFastArcadeCleanExit = true;
-        if (typeof (window as any).exitToMenu === 'function') {
-          await (window as any).exitToMenu();
-        }
-      } catch (error) {
-        console.error('❌ endgame-flow: Failed to return home after tutorial clean board:', error);
-        logger.error('❌ endgame-flow: Failed tutorial continue home:', error);
-      }
-      return;
-    }
-
     if (modalResult?.action === 'back-to-journey') {
       console.log('🧭 endgame-flow: Back to Journey action');
       logger.info('🧭 endgame-flow: Back to Journey action');
@@ -341,9 +365,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     if (modalResult?.action === 'exit') {
-      if (firstPlayTutorialCompletion) {
-        clearFirstPlayTutorialCompletionFlags();
-      }
       if (isArcadeHomeRunMode()) {
         console.log('🚪 endgame-flow: Exit action in arcade_home mode - returning to homepage');
         logger.info('🚪 endgame-flow: arcade_home exit -> homepage');

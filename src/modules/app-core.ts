@@ -435,6 +435,20 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
     let repaired = 0;
     sourceTiles.forEach((t: any) => {
       if (!t || t.destroyed || t.visible === false) return;
+      const sx = Number.isFinite(t.scale?.x) ? t.scale.x : 1;
+      const sy = Number.isFinite(t.scale?.y) ? t.scale.y : 1;
+      if (Math.min(sx, sy) < 0.86) {
+        try { gsap?.killTweensOf?.(t.scale); } catch {}
+        try {
+          if (t.scale?.set) t.scale.set(1, 1);
+          else if (t.scale) {
+            t.scale.x = 1;
+            t.scale.y = 1;
+          }
+        } catch {}
+        try { t._isBeingSpawned = false; } catch {}
+        repaired++;
+      }
       const value = (t.value | 0);
       const special = t.special;
       const isWildLike = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
@@ -556,7 +570,7 @@ let activeDragEndgameSkipStartedAt: number | null = null; // Track stale drag bl
 let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
 let tutorialFinalChanceSpawnCount = 0;
 const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
-const MAX_TUTORIAL_FINAL_CHANCE_SPAWNS = 8;
+const MAX_TUTORIAL_FINAL_CHANCE_SPAWNS = 99;
 
 function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'): void {
   wildMagnetPullInProgress = active;
@@ -5066,6 +5080,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 SAFETY NET: If exactly 1 active regular tile remains and it cannot self-merge to 6, trigger fail
           const activeTileCount = activeTilesBeforeCheck.length;
           if (activeTileCount === 1) {
+            if (await ensureTutorialSingleTileCanFinish('post_stack_single_regular_tile')) return;
             const onlyTile = activeTilesBeforeCheck[0];
             const onlyValue = onlyTile?.value | 0;
             const onlyDepth = onlyTile?.stackDepth || 1;
@@ -8551,12 +8566,31 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         };
 
         const scheduleSpawnOpacitySafetySweep = () => {
-          trackAppTimeout(() => {
+          const runSpawnVisualSafetySweep = (label: string) => {
             try {
               repairBoardTileVisuals('spawn-opacity-safety');
               let fixed = 0;
               for (const t of tiles) {
                 if (!t || t.destroyed) continue;
+                const sx = Number.isFinite((t as any).scale?.x) ? (t as any).scale.x : 1;
+                const sy = Number.isFinite((t as any).scale?.y) ? (t as any).scale.y : 1;
+                if (t.visible !== false && Math.min(sx, sy) < 0.86) {
+                  try { gsap?.killTweensOf?.((t as any).scale); } catch {}
+                  try {
+                    if ((t as any).scale?.set) (t as any).scale.set(1, 1);
+                    else if ((t as any).scale) {
+                      (t as any).scale.x = 1;
+                      (t as any).scale.y = 1;
+                    }
+                  } catch {}
+                  try { (t as any)._isBeingSpawned = false; } catch {}
+                  try { makeBoard?.syncTileZIndex?.(t, board); } catch {}
+                  try { fixHoverAnchor?.(t); } catch {}
+                  if (!t.locked && (t.value | 0) > 0 && drag && typeof drag.bindToTile === 'function') {
+                    try { drag.bindToTile(t); } catch {}
+                  }
+                  fixed++;
+                }
                 // Nearly invisible locked ice (race with FX) — restore faint locked alpha
                 if (
                   t.locked &&
@@ -8588,9 +8622,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   fixed++;
                 }
               }
-              if (fixed > 0) devLog('[SPAWN-OPACITY] Safety sweep: fixed', fixed, 'tiles');
+              if (fixed > 0) devLog('[SPAWN-VISUAL] Safety sweep:', label, 'fixed', fixed, 'tiles');
             } catch {}
-          }, 600);
+          };
+          trackAppTimeout(() => runSpawnVisualSafetySweep('600ms'), 600);
+          trackAppTimeout(() => runSpawnVisualSafetySweep('1200ms'), 1200);
         };
 
         if (shouldSpawnAtDst) {
@@ -8767,6 +8803,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
               const normalizeSpawnedTileVisual = (tile: any) => {
                 if (!tile) return;
+                try {
+                  if (tile.scale?.set) tile.scale.set(1, 1);
+                  else if (tile.scale) {
+                    tile.scale.x = 1;
+                    tile.scale.y = 1;
+                  }
+                } catch {}
+                try { tile._isBeingSpawned = false; } catch {}
                 tile.alpha = 1;
                 if (tile.rotG) tile.rotG.alpha = 1;
                 if (tile.base) tile.base.alpha = 1;
@@ -9582,6 +9626,10 @@ async function checkMovesDepleted(){
   // After merge completes, tiles array might still be updating
   // Wait a bit to ensure all tile state updates are complete
   await waitTracked(100);
+
+  if (await ensureTutorialSingleTileCanFinish('moves_depleted_single_regular_tile')) {
+    return;
+  }
   
   const movesDepletedCheckContext: EndGameContext = {
     tiles,
@@ -9715,6 +9763,28 @@ async function tryTutorialFinalChanceSpawn(reason: string): Promise<boolean> {
     devWarn('⚠️ Tutorial final chance spawn failed', err);
     return false;
   }
+}
+
+async function ensureTutorialSingleTileCanFinish(reason: string): Promise<boolean> {
+  if (!isTutorialFinalChanceEnabled()) return false;
+  const activeRegularTiles = tiles
+    .filter((tile: any) => tile && !tile.destroyed && !tile.locked && !tile.special && tile.visible !== false)
+    .filter((tile: any) => {
+      const value = tile.value | 0;
+      return value >= 1 && value <= 5;
+    });
+
+  if (activeRegularTiles.length !== 1) return false;
+
+  const targetTile = activeRegularTiles[0];
+  devWarn('🛟 Tutorial final chance: single regular tile remains, forcing complement spawn', {
+    reason,
+    targetValue: targetTile.value | 0,
+    neededValue: 6 - (targetTile.value | 0),
+    targetCell: { c: targetTile.gridX, r: targetTile.gridY },
+    stackDepth: (targetTile as any).stackDepth || 1,
+  });
+  return tryTutorialFinalChanceSpawn(reason);
 }
 
 async function preventTutorialFailWithFinalChance(reason: string): Promise<boolean> {
@@ -10182,6 +10252,10 @@ function checkLevelEnd(){
     // 🔥 v38: Reset retry counter after successful reschedule bypass (tiles no longer locked/spawn done)
     checkLevelEndRetryCount = 0;
     checkLevelEndSkipStartedAt = null;
+
+    if (await ensureTutorialSingleTileCanFinish('check_level_end_single_regular_tile')) {
+      return;
+    }
 
     const buildEndgameBoardSignature = () => {
       const active = tiles
