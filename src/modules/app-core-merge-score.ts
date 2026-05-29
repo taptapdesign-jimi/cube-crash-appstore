@@ -1,5 +1,6 @@
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
+import { isFirstPlayTutorialRunActive } from './app-core-utils.js';
 
 type MergeScoreDeps = {
   effSum: number;
@@ -29,21 +30,23 @@ export function applyMergeScore({
   devLog('🎮 MERGE: statsService exists?', typeof statsService !== 'undefined');
   devLog('🎮 MERGE: statsService.updateHighScore exists?', typeof statsService?.updateHighScore === 'function');
   
-  // STATS TRACKING: Update high score immediately after score update
-  try {
-    statsService.updateHighScore(nextScore);
-    devLog('✅ MERGE: statsService.updateHighScore called successfully');
-  } catch (error) {
-    devError('❌ MERGE: statsService.updateHighScore failed:', error);
-  }
-
-  // Arcade one-off run keeps its own independent high score.
-  if (isArcadeHomeRunMode()) {
+  if (!isFirstPlayTutorialRunActive()) {
+    // STATS TRACKING: Update high score immediately after score update
     try {
-      arcadeStatsService.updateHighScore(nextScore);
-      devLog('✅ MERGE: arcadeStatsService.updateHighScore called successfully');
+      statsService.updateHighScore(nextScore);
+      devLog('✅ MERGE: statsService.updateHighScore called successfully');
     } catch (error) {
-      devError('❌ MERGE: arcadeStatsService.updateHighScore failed:', error);
+      devError('❌ MERGE: statsService.updateHighScore failed:', error);
+    }
+
+    // Arcade one-off run keeps its own independent high score.
+    if (isArcadeHomeRunMode()) {
+      try {
+        arcadeStatsService.updateHighScore(nextScore);
+        devLog('✅ MERGE: arcadeStatsService.updateHighScore called successfully');
+      } catch (error) {
+        devError('❌ MERGE: arcadeStatsService.updateHighScore failed:', error);
+      }
     }
   }
   
@@ -55,7 +58,7 @@ export function applyMergeScore({
     }
   }
   
-  if (wildActive) {
+  if (wildActive && !isFirstPlayTutorialRunActive()) {
     devLog('🎯 MERGE: Wild merge detected');
     try {
       statsService.incrementHelpersUsed(1);

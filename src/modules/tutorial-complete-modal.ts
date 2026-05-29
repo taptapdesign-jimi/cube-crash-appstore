@@ -131,19 +131,33 @@ function ensureTutorialCompleteStyles(): void {
       margin-top: 48px;
     }
     .cc-tutorial-complete-cta.animate-enter-initial {
-      opacity: 0 !important;
+      opacity: 1 !important;
       visibility: hidden !important;
       transform: scale(0) !important;
+      -webkit-transform: scale(0) !important;
       transition: none !important;
+      -webkit-transition: none !important;
     }
     .cc-tutorial-complete-cta.animate-enter {
       opacity: 1 !important;
       visibility: visible !important;
       transform: scale(1) !important;
+      -webkit-transform: scale(1) !important;
       transition:
-        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6),
-        opacity 0.3s ease,
-        visibility 0.3s ease !important;
+        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+      -webkit-transition:
+        -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+      will-change: transform !important;
+    }
+    .cc-tutorial-complete-cta.animate-exit {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: translateY(20px) scale(0) !important;
+      -webkit-transform: translateY(20px) scale(0) !important;
+      transition:
+        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+      -webkit-transition:
+        -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
       will-change: transform, opacity !important;
     }
     @media (max-height: 760px) {
@@ -190,8 +204,12 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
     const thumb = overlay.querySelector('.cc-tutorial-complete-thumb') as HTMLImageElement | null;
     const shadow = overlay.querySelector('.cc-tutorial-complete-shadow') as HTMLElement | null;
     const cta = overlay.querySelector('.cc-tutorial-complete-cta') as HTMLButtonElement | null;
+    const hapticTimeouts: number[] = [];
     cleanupFns.push(() => {
       disposed = true;
+      hapticTimeouts.splice(0).forEach((timeoutId) => {
+        try { window.clearTimeout(timeoutId); } catch {}
+      });
       try { (thumb as any)?.__ccTutorialThumbIdleTween?.kill?.(); } catch {}
       try { gsap.killTweensOf([title, subtitle, hero, thumb, shadow, cta]); } catch {}
     });
@@ -206,8 +224,14 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
         thumb.classList.remove('animate-enter', 'animate-enter-initial');
       }
       if (cta) {
-        cta.classList.remove('animate-enter', 'animate-enter-initial');
-        gsap.set(cta, { opacity: 1, scale: 1, y: 0, clearProps: 'visibility' });
+        cta.classList.remove('animate-enter', 'animate-enter-initial', 'animate-exit');
+        cta.style.removeProperty('transition');
+        cta.style.removeProperty('-webkit-transition');
+        cta.style.removeProperty('transform');
+        cta.style.removeProperty('-webkit-transform');
+        cta.style.removeProperty('opacity');
+        cta.style.removeProperty('visibility');
+        cta.classList.add('animate-exit');
       }
       const tl = gsap.timeline({
         onComplete: () => {
@@ -215,12 +239,11 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
           resolve({ action: 'continue' });
         },
       });
-      tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0)
-        .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.03)
-        .to(cta, { scale: 0, opacity: 0, y: 42, duration: 0.32, ease: 'back.in(1.75)' }, 0.05)
-        .to(thumb, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.08)
-        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.08)
-        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.36);
+      tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0.12)
+        .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.15)
+        .to(thumb, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.18)
+        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.18)
+        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.72);
     };
 
     const onContinue = (event: Event) => {
@@ -249,25 +272,35 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
     }
     gsap.set(shadow, { opacity: 0, scaleX: 0.68, scaleY: 0.72 });
     if (cta) {
-      cta.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
-      cta.style.removeProperty('transition');
+      cta.classList.remove('animate-exit', 'animate-reset', 'animate-enter', 'animate-enter-initial');
       cta.style.removeProperty('opacity');
       cta.style.removeProperty('visibility');
       cta.style.removeProperty('transform');
-      cta.classList.remove('animate-enter-initial');
-      gsap.set(cta, { opacity: 0, scale: 0, y: 42, visibility: 'hidden' });
+      cta.style.removeProperty('-webkit-transform');
+      cta.style.removeProperty('transition');
+      cta.style.removeProperty('-webkit-transition');
+      cta.classList.add('animate-enter-initial');
+      void cta.offsetHeight;
     }
 
     let thumbIdleStarted = false;
-    const triggerElementHaptic = () => {
-      if (resolved) return;
+    const triggerElementHaptic = (style: 'light' | 'medium' = 'medium') => {
+      if (resolved || disposed || !document.body.contains(overlay)) return;
       try {
         if (typeof (window as any).triggerHapticImpact === 'function') {
-          (window as any).triggerHapticImpact('light');
+          (window as any).triggerHapticImpact(style);
         } else {
           (window as any).triggerHapticSelection?.();
         }
       } catch {}
+    };
+    const scheduleElementHaptic = (delayMs: number, style: 'light' | 'medium' = 'medium') => {
+      const timeoutId = window.setTimeout(() => {
+        const index = hapticTimeouts.indexOf(timeoutId);
+        if (index >= 0) hapticTimeouts.splice(index, 1);
+        triggerElementHaptic(style);
+      }, delayMs);
+      hapticTimeouts.push(timeoutId);
     };
     const startThumbIdle = () => {
       if (thumbIdleStarted || !thumb || resolved) return;
@@ -298,8 +331,15 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
       if (resolved || disposed || !document.body.contains(overlay)) return;
       gsap.killTweensOf([title, subtitle, thumb, shadow, cta]);
       if (cta) {
-        cta.classList.remove('animate-enter-initial', 'animate-enter');
-        gsap.set(cta, { opacity: 0, scale: 0, y: 42, visibility: 'hidden' });
+        cta.classList.remove('animate-exit', 'animate-reset', 'animate-enter', 'animate-enter-initial');
+        cta.style.removeProperty('opacity');
+        cta.style.removeProperty('visibility');
+        cta.style.removeProperty('transform');
+        cta.style.removeProperty('-webkit-transform');
+        cta.style.removeProperty('transition');
+        cta.style.removeProperty('-webkit-transition');
+        cta.classList.add('animate-enter-initial');
+        void cta.offsetHeight;
       }
 
       gsap.set(title, { opacity: 0, y: -28, scale: 0, transformOrigin: '50% 50%' });
@@ -319,7 +359,6 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
       const enter = gsap.timeline({
         defaults: { overwrite: 'auto' },
         onComplete: () => {
-          triggerElementHaptic();
           gsap.to(shadow, {
             opacity: 0.72,
             scaleX: 0.86,
@@ -333,26 +372,34 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
       });
 
       enter
-        .add(triggerElementHaptic, 0)
         .to(title, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0)
-        .add(triggerElementHaptic, 0.04)
         .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0.04)
         .add(() => {
           if (!cta) return;
-          triggerElementHaptic();
           gsap.set(cta, { visibility: 'visible' });
+          cta.style.removeProperty('opacity');
+          cta.style.removeProperty('visibility');
+          cta.style.removeProperty('display');
+          cta.style.removeProperty('transform');
+          cta.style.removeProperty('-webkit-transform');
+          cta.style.removeProperty('transition');
+          cta.style.removeProperty('-webkit-transition');
+          cta.classList.add('animate-enter');
+          cta.classList.remove('animate-enter-initial');
         }, 0.12)
-        .to(cta, { opacity: 1, scale: 1, y: 0, duration: 0.32, ease: 'back.out(1.75)' }, 0.12)
         .add(() => {
           if (!thumb) return;
-          triggerElementHaptic();
           thumb.classList.add('animate-enter');
           thumb.classList.remove('animate-enter-initial');
         }, 0.22)
         .to(shadow, { opacity: 1, scaleX: 1, scaleY: 1, duration: 0.32, ease: 'power2.out' }, 0.22)
         .call(startThumbIdle, undefined, 0.9);
 
-      triggerElementHaptic();
+      scheduleElementHaptic(0, 'medium');
+      scheduleElementHaptic(150, 'light');
+      scheduleElementHaptic(300, 'medium');
+      scheduleElementHaptic(450, 'light');
+      scheduleElementHaptic(600, 'medium');
     };
 
     let enterStarted = false;

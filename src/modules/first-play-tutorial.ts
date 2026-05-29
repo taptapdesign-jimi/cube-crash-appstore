@@ -10,7 +10,6 @@ const FORCE_NEXT_KEY = 'cc_first_play_tutorial_force_next';
 const DONE_KEY = 'cc_first_play_tutorial_done';
 const ACTIVE_ATTR = 'data-first-play-tutorial';
 const POINTER_SRC = './assets/hand-pointer.png';
-const ALWAYS_ENABLE_FIRST_PLAY_TUTORIAL_DEV = true;
 
 type TutorialRunSource = 'arcade' | 'journey';
 type TutorialStep = 1 | 2 | 3 | 4;
@@ -53,11 +52,11 @@ let scheduledAnimationFrames: number[] = [];
 const stepCopy: Record<TutorialStep, { title: string; subtitle: string }> = {
   1: {
     title: 'Drag to stack',
-    subtitle: 'Stack dice to get the value 6.',
+    subtitle: 'Drag a dice onto another dice.',
   },
   2: {
     title: 'Merge dice',
-    subtitle: 'Stack the next dice to make 6.',
+    subtitle: 'Drag to stack this dice to make 6.',
   },
   3: {
     title: 'Clear the board',
@@ -162,8 +161,7 @@ function startTutorialBoardAssist(): void {
 
 export function isFirstPlayTutorialForced(): boolean {
   if (!isBrowser()) return false;
-  if (ALWAYS_ENABLE_FIRST_PLAY_TUTORIAL_DEV) return true;
-  return localStorage.getItem(FORCE_NEXT_KEY) === 'true';
+  return localStorage.getItem(FORCE_NEXT_KEY) === 'true' || localStorage.getItem(DONE_KEY) !== 'true';
 }
 
 export function armFirstPlayTutorial(): void {
@@ -290,7 +288,7 @@ function ensureStyles(): void {
       letter-spacing: 0;
     }
     .first-play-tutorial-title strong {
-      color: inherit;
+      color: #E97A55;
       font-weight: inherit;
     }
     .first-play-tutorial-subtitle {
@@ -800,10 +798,10 @@ function combinedRect(rects: Array<DOMRect | null>): DOMRect | null {
 }
 
 function titleHtml(step: TutorialStep): string {
-  if (step === 2) return 'Merge <strong>dice</strong>';
-  if (step === 3) return 'Clear the <strong>board</strong>';
-  if (step === 4) return 'Special <strong>dice</strong>';
-  return 'Drag to <strong>stack</strong>';
+  if (step === 2) return '<strong>Merge</strong> dice';
+  if (step === 3) return '<strong>Clear</strong> the board';
+  if (step === 4) return '<strong>Special</strong> dice';
+  return '<strong>Drag</strong> to stack';
 }
 
 function updateSheet(step: TutorialStep): void {
@@ -1712,8 +1710,49 @@ function getFourthStepPreferredWildCell(): { c: number; r: number } {
   };
 }
 
+function isFourthStepWildCellAvailable(c: number, r: number, wildTile: any = null): boolean {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
+  const occupant = STATE.grid?.[r]?.[c];
+  if (!occupant || occupant === wildTile || occupant.destroyed) return true;
+  return occupant.locked === true || ((occupant.value | 0) <= 0 && !occupant.special);
+}
+
+function findFourthStepWildCell(wildTile: any = null): { c: number; r: number } {
+  if (
+    wildTile &&
+    !wildTile.destroyed &&
+    Number.isFinite(wildTile.gridX) &&
+    Number.isFinite(wildTile.gridY)
+  ) {
+    const currentCell = { c: wildTile.gridX | 0, r: wildTile.gridY | 0 };
+    if (currentCell.r <= Math.min(1, ROWS - 1) && isFourthStepWildCellAvailable(currentCell.c, currentCell.r, wildTile)) {
+      return currentCell;
+    }
+  }
+
+  const preferred = getFourthStepPreferredWildCell();
+  if (isFourthStepWildCellAvailable(preferred.c, preferred.r, wildTile)) return preferred;
+
+  const maxRow = Math.min(1, ROWS - 1);
+  const orderedCells: Array<{ c: number; r: number; distance: number }> = [];
+  for (let r = 0; r <= maxRow; r++) {
+    for (let c = 0; c < COLS; c++) {
+      orderedCells.push({
+        c,
+        r,
+        distance: Math.abs(c - preferred.c) + Math.abs(r - preferred.r),
+      });
+    }
+  }
+  orderedCells.sort((a, b) => a.distance - b.distance || a.r - b.r || a.c - b.c);
+  const topEmptyCell = orderedCells.find(({ c, r }) => isFourthStepWildCellAvailable(c, r, wildTile));
+  if (topEmptyCell) return { c: topEmptyCell.c, r: topEmptyCell.r };
+
+  return findEmptyishCell(preferred);
+}
+
 function reserveFourthStepWildSpawnCell(): void {
-  const preferredWildCell = getFourthStepPreferredWildCell();
+  const preferredWildCell = findFourthStepWildCell();
   try {
     (window as any).__ccFirstPlayTutorialWildSpawnCell = preferredWildCell;
     (window as any).__ccFirstPlayTutorialForceWildStar = true;
@@ -1837,7 +1876,7 @@ function waitForWildDropToFinishThenPrepare(wildTile: any): void {
 
 function prepareFourthStepBoard(wildTile: any): void {
   if (!active || currentStep !== 4 || !wildTile || wildTile.destroyed || stepFourPrepared) return;
-  const preferredWildCell = getFourthStepPreferredWildCell();
+  const preferredWildCell = findFourthStepWildCell(wildTile);
   const targetTile = pickFourthStepTargetTile(wildTile);
   if (!targetTile) return;
   stepFourPrepared = true;
@@ -2178,7 +2217,13 @@ export function completeFirstPlayTutorial(): void {
   setWildMeterSmokeFrozen(false);
   restoreNormalGameplayDrag(true);
   removeOverlay();
+}
+
+export function markFirstPlayTutorialDone(): void {
+  if (!isBrowser()) return;
+  localStorage.removeItem(FORCE_NEXT_KEY);
   localStorage.setItem(DONE_KEY, 'true');
+  delete (window as any).__ccFirstPlayTutorialArmed;
 }
 
 export function openFirstPlayTutorialDevModal(): void {
@@ -2221,6 +2266,7 @@ if (isBrowser()) {
     reset: resetFirstPlayTutorialRequest,
     setEnabled: setFirstPlayTutorialDevEnabled,
     complete: completeFirstPlayTutorial,
+    markDone: markFirstPlayTutorialDone,
     openDevModal: openFirstPlayTutorialDevModal,
     isForced: isFirstPlayTutorialForced,
     isActive: isFirstPlayTutorialActive,

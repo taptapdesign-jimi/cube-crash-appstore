@@ -1,4 +1,5 @@
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
+import { isFirstPlayTutorialRunActive } from './app-core-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 
 type MergeComboDeps = {
@@ -43,7 +44,7 @@ export function handleMergeCombo({
 
   // 🔥 USER REQUEST: Track longest combo AFTER combo is incremented (use the NEW combo value we just set)
   // Only track if combo was actually incremented (not for magnet pull merges)
-  if (!willPullTilesForCombo) {
+  if (!willPullTilesForCombo && !isFirstPlayTutorialRunActive()) {
     // Stats: track longest combo (global and per-board) - use NEW combo value
     statsService.updateLongestCombo(newComboValue);
     if (isArcadeHomeRunMode()) {

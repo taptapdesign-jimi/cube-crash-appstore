@@ -1,5 +1,4 @@
 // Simple End Run Modal
-import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
@@ -10,8 +9,6 @@ import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
-let _starsPickerOverlay: HTMLElement | null = null;
-let _devStarsPickerActive = false;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -117,167 +114,7 @@ function cleanupAllEndRunResources(): void {
   clearAllEndRunAnimationFrames();
   clearAllEndRunEventListeners();
   clearAllEndRunOnEventHandlers();
-  if (_starsPickerOverlay && !_devStarsPickerActive) {
-    try { _starsPickerOverlay.remove(); } catch {}
-    _starsPickerOverlay = null;
-  }
   console.log('✅ end-run-modal: All resources cleaned up!');
-}
-
-function showCleanBoardStarsPicker(): Promise<number | null> {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    _starsPickerOverlay = overlay;
-    _devStarsPickerActive = true;
-    overlay.style.cssText = [
-      'position:fixed',
-      'inset:0',
-      'background:rgba(0,0,0,0.35)',
-      'display:flex',
-      'align-items:center',
-      'justify-content:center',
-      'z-index:1000000'
-    ].join(';');
-
-    const panel = document.createElement('div');
-    panel.style.cssText = [
-      'background:#fff7f1',
-      'border-radius:18px',
-      'padding:18px 16px',
-      'width:min(320px,88vw)',
-      'box-shadow:0 16px 40px rgba(0,0,0,0.25)',
-      'display:flex',
-      'flex-direction:column',
-      'gap:12px',
-      'align-items:center'
-    ].join(';');
-
-    const title = document.createElement('div');
-    title.textContent = 'Clean Board (dev)';
-    title.style.cssText = 'font-size:18px;font-weight:700;color:#9a6f5b;';
-
-    const subtitle = document.createElement('div');
-    subtitle.textContent = 'Choose star count';
-    subtitle.style.cssText = 'font-size:14px;font-weight:600;color:#b69077;';
-
-    const buttonRow = document.createElement('div');
-    buttonRow.style.cssText = 'display:flex;gap:10px;justify-content:center;width:100%;';
-
-    let selectedStars = 3;
-
-    const makeStarButton = (count: number) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.textContent = `${count}`;
-      btn.style.cssText = [
-        'flex:1',
-        'min-width:0',
-        'padding:12px 0',
-        'border-radius:12px',
-        'border:1px solid #e0cfc3',
-        'background:#fff',
-        'font-size:18px',
-        'font-weight:700',
-        'color:#a46f58'
-      ].join(';');
-      // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
-      btn.addEventListener('click', () => {
-        selectedStars = count;
-        updateSelection();
-      });
-      return btn;
-    };
-
-    const buttons = [makeStarButton(1), makeStarButton(2), makeStarButton(3)];
-
-    const updateSelection = () => {
-      buttons.forEach((btn, index) => {
-        const count = index + 1;
-        if (count === selectedStars) {
-          btn.style.background = '#f3e0d4';
-          btn.style.borderColor = '#d8b9a8';
-        } else {
-          btn.style.background = '#fff';
-          btn.style.borderColor = '#e0cfc3';
-        }
-      });
-    };
-
-    const okBtn = document.createElement('button');
-    okBtn.type = 'button';
-    okBtn.textContent = 'OK';
-    okBtn.style.cssText = [
-      'width:100%',
-      'padding:12px 0',
-      'border-radius:12px',
-      'border:none',
-      'background:#e97a55',
-      'font-size:16px',
-      'font-weight:800',
-      'color:#fff'
-    ].join(';');
-    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
-    okBtn.addEventListener('click', () => {
-      if (_starsPickerOverlay) {
-        try { _starsPickerOverlay.remove(); } catch {}
-        _starsPickerOverlay = null;
-      } else {
-        overlay.remove();
-      }
-      _devStarsPickerActive = false;
-      resolve(selectedStars);
-    });
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = [
-      'width:100%',
-      'padding:10px 0',
-      'border-radius:12px',
-      'border:none',
-      'background:#f0e3da',
-      'font-size:14px',
-      'font-weight:700',
-      'color:#9a6f5b'
-    ].join(';');
-    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
-    cancelBtn.addEventListener('click', () => {
-      if (_starsPickerOverlay) {
-        try { _starsPickerOverlay.remove(); } catch {}
-        _starsPickerOverlay = null;
-      } else {
-        overlay.remove();
-      }
-      _devStarsPickerActive = false;
-      resolve(null);
-    });
-
-    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
-    overlay.addEventListener('click', (e: Event) => {
-      if (e.target === overlay) {
-        if (_starsPickerOverlay) {
-          try { _starsPickerOverlay.remove(); } catch {}
-          _starsPickerOverlay = null;
-        } else {
-          overlay.remove();
-        }
-        _devStarsPickerActive = false;
-        resolve(null);
-      }
-    });
-
-    buttons.forEach((btn) => buttonRow.appendChild(btn));
-    updateSelection();
-
-    panel.appendChild(title);
-    panel.appendChild(subtitle);
-    panel.appendChild(buttonRow);
-    panel.appendChild(okBtn);
-    panel.appendChild(cancelBtn);
-    overlay.appendChild(panel);
-    document.body.appendChild(overlay);
-  });
 }
 
 function removeEndRunOverlay(): void {
@@ -399,8 +236,7 @@ function createModal(): HTMLElement {
         <div class="simple-buttons">
           <div class="simple-button-row">
             <button type="button" class="restart-btn">Restart</button>
-            ${isArcadeRun ? '' : '<button type="button" class="complete-board-btn">Clean Board</button>'}
-            ${isArcadeRun ? '' : '<button type="button" class="transition-screen-btn">Transition</button>'}
+            ${isArcadeRun ? '' : '<button type="button" class="new-card-btn">New Card</button>'}
             <button type="button" class="exit-btn">Exit</button>
           </div>
         </div>
@@ -410,9 +246,8 @@ function createModal(): HTMLElement {
   
   // Add event listeners
   const restartBtn = modal.querySelector('.restart-btn') as HTMLButtonElement;
-  const completeBoardBtn = modal.querySelector('.complete-board-btn') as HTMLButtonElement;
+  const newCardBtn = modal.querySelector('.new-card-btn') as HTMLButtonElement;
   const exitBtn = modal.querySelector('.exit-btn') as HTMLButtonElement;
-  const transitionScreenBtn = modal.querySelector('.transition-screen-btn') as HTMLButtonElement;
   
   if (restartBtn) {
     const restartClickHandler = () => {
@@ -455,98 +290,44 @@ function createModal(): HTMLElement {
     trackEndRunEventListener(restartBtn, 'touchend', restartTouchHandler, { passive: false });
   }
   
-  if (completeBoardBtn) {
-    const completeBoardClickHandler = async () => {
-      console.log('🎯 Complete Board button clicked');
-      
-      // Haptic for Complete Board button
+  if (newCardBtn) {
+    const newCardClickHandler = async (e?: Event) => {
+      try {
+        e?.preventDefault();
+        e?.stopPropagation();
+      } catch {}
+      console.log('🎁 New Card dev button clicked');
+
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
       }
-      
-      hideModal();
-      
-      // Call showCleanBoardModal instantly
-      try {
-        const starsOverride = await showCleanBoardStarsPicker();
-        if (!starsOverride) {
-          console.log('🧪 Clean board dev modal cancelled');
-          return;
-        }
 
-        const { showCleanBoardModal } = await import('./clean-board-modal.js');
-        
-        // Get current game context
-        const getScore = () => {
-          const scoreEl = document.querySelector('#score-text');
-          if (scoreEl) {
-            const text = scoreEl.textContent || '0';
-            return parseInt(text.replace(/,/g, '')) || 0;
-          }
-          return 0;
-        };
-        
-        const setScore = (score: number) => {
-          const scoreEl = document.querySelector('#score-text');
-          if (scoreEl) {
-            scoreEl.textContent = score.toLocaleString();
-          }
-        };
-        
-        const animateScore = (newScore: number, duration: number) => {
-          const scoreEl = document.querySelector('#score-text');
-          if (scoreEl) {
-            const currentScore = parseInt(scoreEl.textContent?.replace(/,/g, '') || '0');
-            const diff = newScore - currentScore;
-            const steps = 60;
-            const stepSize = diff / steps;
-            let current = currentScore;
-            let step = 0;
-            
-            // 🔥 MEMORY LEAK FIX: Store interval ID for cleanup
-            trackEndRunInterval(() => {
-              step++;
-              current += stepSize;
-              if (step >= steps) {
-                scoreEl.textContent = newScore.toLocaleString();
-              } else {
-                scoreEl.textContent = Math.round(current).toLocaleString();
-              }
-            }, duration / steps);
-          }
-        };
-        
-        const updateHUD = () => {
-          // Update HUD if needed
-          console.log('✅ HUD updated');
-        };
-        
-        // 🔥 FIX: Use same bonus logic as real clean board (combo from longestCombo, efficiency from moves+stack)
-        const bonus = 500;
-        const { computeEfficiencyBonusFromState } = await import('./clean-board-score-utils.ts');
-        const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber: 1 });
-        
-        await showCleanBoardModal({
-          app: (window as any).app,
-          stage: (window as any).stage,
-          getScore,
-          setScore,
-          animateScore,
-          updateHUD,
-          bonus,
-          efficiencyBonus,
-          scoreCap: 999999,
-          boardNumber: 1,
-          forcedStars: starsOverride,
-          devMode: true // 🧪 DEV: Enable dev mode to test board transition screen
-        });
-        
-        console.log('✅ Clean board modal shown');
-      } catch (error) {
-        console.error('❌ Failed to show clean board modal:', error);
-      }
+      const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+      const safeBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16
+        ? currentBoardNumber
+        : 1;
+
+      hideModal();
+
+      setTimeout(async () => {
+        try {
+          const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+          const board = journeyBoardsManager.getBoardById?.(safeBoardNumber);
+          const paddedBoardNumber = String(safeBoardNumber).padStart(2, '0');
+          const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+          await showJourneyNewCardScreen({
+            boardNumber: safeBoardNumber,
+            cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+            cardName: board?.name || `Board ${safeBoardNumber}`,
+          });
+          console.log(`✅ New Card dev screen completed for board ${safeBoardNumber}`);
+        } catch (error) {
+          console.error('❌ Failed to show New Card dev screen:', error);
+        }
+      }, 420);
     };
-    trackEndRunEventListener(completeBoardBtn, 'click', completeBoardClickHandler);
+    trackEndRunEventListener(newCardBtn, 'click', newCardClickHandler);
+    trackEndRunEventListener(newCardBtn, 'touchend', newCardClickHandler, { passive: false });
   }
   
   if (exitBtn) {
@@ -733,72 +514,7 @@ function createModal(): HTMLElement {
     };
     trackEndRunEventListener(exitBtn, 'touchend', exitTouchHandler, { passive: false });
   }
-  
-  if (transitionScreenBtn) {
-    console.log('✅ Transition Screen button found in DOM:', transitionScreenBtn);
-    const transitionScreenClickHandler = async (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('🎬🎬🎬 Transition Screen button clicked - handler called!');
-      
-      // Haptic for Transition Screen button
-      if (typeof (window as any).triggerHapticSelection === 'function') {
-        (window as any).triggerHapticSelection();
-      }
-      
-      // Get current board number
-      const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-      console.log(`🎬 Showing transition screen for board ${currentBoardNumber}`);
-      
-      // 🔥 CRITICAL: Import and call showBoardTransitionScreen IMMEDIATELY (don't wait for hideModal)
-      try {
-        console.log('🎬 About to import showBoardTransitionScreen...');
-        const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
-        console.log('✅ showBoardTransitionScreen imported successfully');
-        
-        hideModal();
-        console.log(`🎬 Calling showBoardTransitionScreen with boardNumber: ${currentBoardNumber}`);
-        try {
-          await showBoardTransitionScreen({
-            boardNumber: currentBoardNumber,
-            onComplete: () => {
-              console.log('✅ Transition screen completed');
-            }
-          });
-          console.log('✅ showBoardTransitionScreen call completed');
-        } catch (error) {
-          console.error('❌ Failed to call showBoardTransitionScreen:', error);
-          console.error('❌ Error details:', error);
-          console.error('❌ Error stack:', (error as Error)?.stack);
-        }
-      } catch (error) {
-        console.error('❌ Failed to import showBoardTransitionScreen:', error);
-        console.error('❌ Error details:', error);
-        console.error('❌ Error stack:', (error as Error)?.stack);
-        // Still hide modal even if import fails
-        hideModal();
-      }
-    };
-    
-    // Add both click and touchend for better mobile support
-    // Use capture: false to ensure it's not blocked by other handlers
-    trackEndRunEventListener(transitionScreenBtn, 'click', transitionScreenClickHandler, { capture: false });
-    trackEndRunEventListener(transitionScreenBtn, 'touchend', transitionScreenClickHandler, { passive: false, capture: false });
-    console.log('✅ Transition Screen button event listeners attached (click + touchend)');
-    
-    // 🔥 DEBUG: Test if button is clickable
-    transitionScreenBtn.style.pointerEvents = 'auto';
-    transitionScreenBtn.style.cursor = 'pointer';
-    console.log('✅ Transition Screen button styles set (pointer-events: auto, cursor: pointer)');
-  } else if (!isArcadeRun) {
-    console.error('❌ Transition Screen button NOT FOUND in DOM!');
-    console.error('❌ Modal:', modal);
-    console.error('❌ Modal HTML:', modal?.innerHTML);
-    console.error('❌ Query result:', modal?.querySelector('.transition-screen-btn'));
-  } else {
-    console.log('✅ Arcade mode: Transition/Clean Board buttons intentionally hidden');
-  }
-  
+
   // Add drag functionality
   addDragFunctionality(modal);
   
@@ -999,9 +715,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   trackOnEventHandler(modalEl, 'ontouchstart', (e: TouchEvent) => {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.complete-board-btn') ||
         (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
+        (e.target as HTMLElement).closest('.new-card-btn'))) {
       console.log('🎯 CLICK ON BUTTON - NO DRAG');
       return;
     }
@@ -1022,9 +737,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   trackOnEventHandler(modalEl, 'ontouchmove', (e: TouchEvent) => {
     // Handle button touch move for cancel on drag off
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.complete-board-btn') ||
         (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
+        (e.target as HTMLElement).closest('.new-card-btn'))) {
       // Let button handle its own touch move
       return;
     }
@@ -1109,9 +823,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   trackOnEventHandler(modalEl, 'onmousedown', (e: MouseEvent) => {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.complete-board-btn') ||
         (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
+        (e.target as HTMLElement).closest('.new-card-btn'))) {
       console.log('🎯 MOUSE CLICK ON BUTTON - NO DRAG');
       return;
     }

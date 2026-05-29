@@ -107,41 +107,6 @@ export function addEndRunModalStyles(): void {
       transform: translateY(2px) !important;
       box-shadow: 0 6px 0 0 #4A5A7A !important;
     }
-    
-    .clean-btn {
-      background: #4CAF50 !important;
-      color: white !important;
-      border: none !important;
-      border-radius: 40px !important;
-      height: 64px !important;
-      padding: 0 56px !important;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 26px !important;
-      font-weight: bold !important;
-      box-shadow: 0 8px 0 0 #388E3C !important;
-      cursor: pointer !important;
-      transition: all 0.2s ease !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
-      text-align: center !important;
-      text-decoration: none !important;
-      outline: none !important;
-      user-select: none !important;
-      -webkit-tap-highlight-color: transparent !important;
-    }
-    
-    .clean-btn:hover {
-      background: #5CBF60 !important;
-      transform: translateY(-2px) !important;
-      box-shadow: 0 10px 0 0 #388E3C !important;
-    }
-    
-    .clean-btn:active {
-      transform: translateY(2px) !important;
-      box-shadow: 0 6px 0 0 #388E3C !important;
-    }
-    
     .end-run-modal {
       position: fixed !important;
       top: 0 !important;
@@ -224,8 +189,7 @@ export function addEndRunModalStyles(): void {
       }
       
       .restart-btn,
-      .exit-btn,
-      .clean-btn {
+      .exit-btn {
         height: 56px !important;
         font-size: 22px !important;
         padding: 0 40px !important;
@@ -255,9 +219,6 @@ export function createModal(): HTMLElement {
       <div class="end-run-modal-buttons">
         <button class="restart-btn" data-action="restart">
           Restart Game
-        </button>
-        <button class="clean-btn" data-action="clean">
-          Clean Board
         </button>
         <button class="exit-btn" data-action="exit">
           Exit to Menu
@@ -353,7 +314,6 @@ export function addDragFunctionality(modalEl: HTMLElement): void {
 export function attachButtonHandlers(modalEl: HTMLElement): void {
   const restartBtn = modalEl.querySelector('[data-action="restart"]');
   const exitBtn = modalEl.querySelector('[data-action="exit"]');
-  const cleanBtn = modalEl.querySelector('[data-action="clean"]');
   
   const handleAction = (action: string) => {
     const actionEvent = new CustomEvent('end-run-modal-action', {
@@ -370,9 +330,6 @@ export function attachButtonHandlers(modalEl: HTMLElement): void {
     exitBtn.addEventListener('click', () => handleAction('exit'));
   }
   
-  if (cleanBtn) {
-    cleanBtn.addEventListener('click', () => handleAction('clean'));
-  }
 }
 
 /**

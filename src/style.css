@@ -1230,8 +1230,7 @@ body{
 /* Dramatic click effect for all bottom sheet CTA buttons */
 .continue-btn,
 .restart-btn,
-.complete-board-btn,
-.transition-screen-btn {
+.new-card-btn {
   transform-style: flat !important;
   perspective: none !important;
   background: #E97A55 !important;
@@ -1266,8 +1265,7 @@ body{
 
 .continue-btn:hover,
 .restart-btn:hover:not(.animate-exit),
-.complete-board-btn:hover,
-.transition-screen-btn:hover {
+.new-card-btn:hover {
   transform: scale(1) !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
   background: #E97A55 !important;
@@ -1280,12 +1278,9 @@ body{
 .restart-btn:active:not(.animate-exit),
 .restart-btn:focus:not(.animate-exit),
 .restart-btn:focus-visible:not(.animate-exit),
-.complete-board-btn:active,
-.complete-board-btn:focus,
-.complete-board-btn:focus-visible,
-.transition-screen-btn:active,
-.transition-screen-btn:focus,
-.transition-screen-btn:focus-visible {
+.new-card-btn:active,
+.new-card-btn:focus,
+.new-card-btn:focus-visible {
   transform: scale(0.80) !important;
   transition: transform 0.35s ease !important;
   -webkit-tap-highlight-color: transparent !important;
@@ -1306,8 +1301,7 @@ body{
 .continue-btn::after,
 .new-game-btn::after,
 .restart-btn::after,
-.complete-board-btn::after,
-.transition-screen-btn::after,
+.new-card-btn::after,
 .exit-btn::after {
   content: "" !important;
   position: absolute !important;
@@ -3465,7 +3459,7 @@ html.collectible-reward-open body {
   width: 100%;
 }
 
-/* Removed: complete-board-btn and restart-btn now use global primary-button styles */
+/* Restart and New Card buttons use global primary-button styles. */
 
 .exit-btn {
   background: white; /* .white from Figma */

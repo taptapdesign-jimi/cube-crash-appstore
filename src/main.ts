@@ -2608,6 +2608,16 @@ let gameStartTime: number | null = null;
 (window as any).trackCubesCracked = async (count: number = 1) => {
   try {
     const verboseGameplayLogs = (window as any).__ccVerboseGameplayLogs === true;
+    if (
+      (window as any).__ccFirstPlayTutorialActive === true ||
+      (window as any).__ccFirstPlayTutorialSlowWildMeter === true ||
+      (window as any).__ccSuppressTutorialStatsSave === true
+    ) {
+      if (verboseGameplayLogs) {
+        console.log('🎓 trackCubesCracked skipped during first-play tutorial');
+      }
+      return;
+    }
     // Update global stats
     const { statsService } = await import('./services/stats-service.js');
     statsService.incrementCubesCracked(count);

@@ -59,6 +59,7 @@ import {
   randVal, 
   regularValuePool,
   randomRegularTileValue,
+  isFirstPlayTutorialRunActive,
   sleep, 
   pickWildValue,
   trackAppTimeout,
@@ -560,6 +561,7 @@ let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/juice are used rapidly
 let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
+const DEV_SHOW_NEW_CARD_ON_JOURNEY_WILD_STAR_MERGE6 = true;
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -616,6 +618,54 @@ function getEndgameGuardState(): { active: boolean; count: number; until: number
     until: endgameGuardUntil,
     sources: Array.from(endgameGuardSources.keys())
   };
+}
+
+function isJourneyRunForDevNewCardTrigger(): boolean {
+  try {
+    if (isArcadeHomeRunMode()) return false;
+    return (window as any).__ccCameFromJourney === true ||
+      (window as any).__ccFromInterimBoard === true ||
+      (window as any).__ccIsInterimBoard === true ||
+      localStorage.getItem('__ccCameFromJourney') === 'true' ||
+      localStorage.getItem('__ccFromInterimBoard') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function triggerDevJourneyNewCardOnWildStarMerge6(): void {
+  if (!DEV_SHOW_NEW_CARD_ON_JOURNEY_WILD_STAR_MERGE6) return;
+  if (!isJourneyRunForDevNewCardTrigger()) return;
+
+  const currentBoardNumber = STATE?.boardNumber || boardNumber || (window as any).__ccStartAtLevel || 1;
+  const safeBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16
+    ? currentBoardNumber | 0
+    : 1;
+  if ((window as any).__ccDevJourneyWildStarMerge6NewCardShowing === true) return;
+  if ((window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard === safeBoardNumber) return;
+
+  (window as any).__ccDevShowNewCardOnJourneyWildStarMerge6 = true;
+  (window as any).__ccDevJourneyWildStarMerge6NewCardShowing = true;
+  (window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard = safeBoardNumber;
+
+  trackAppTimeout(async () => {
+    try {
+      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+      const boardCard = journeyBoardsManager.getBoardById?.(safeBoardNumber);
+      const paddedBoardNumber = String(safeBoardNumber).padStart(2, '0');
+      const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+      await showJourneyNewCardScreen({
+        boardNumber: safeBoardNumber,
+        cardImagePath: boardCard?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+        cardName: boardCard?.name || `Board ${safeBoardNumber}`,
+      });
+      devLog(`🧪 DEV: New Card screen shown after Journey wild-star merge-6 for board ${safeBoardNumber}`);
+    } catch (error) {
+      devWarn('⚠️ DEV: Failed to show New Card screen after Journey wild-star merge-6:', error);
+    } finally {
+      delete (window as any).__ccDevJourneyWildStarMerge6NewCardShowing;
+    }
+  }, 900);
 }
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
@@ -4075,15 +4125,40 @@ async function spawnWildFromMeter(){
   if (drag && (drag as any).t && typeof (drag as any).startGX === 'number' && typeof (drag as any).startGY === 'number') {
     excludeCells.push({ r: (drag as any).startGY, c: (drag as any).startGX });
   }
+  const isTutorialWildSpawnCellAvailable = (c: number, r: number): boolean => {
+    if (excludeCells.some((excludedCell) => excludedCell.c === c && excludedCell.r === r)) return false;
+    const existing = grid?.[r]?.[c];
+    if (!existing || existing.destroyed) return true;
+    return existing.locked === true || (((existing.value | 0) <= 0) && !existing.special);
+  };
+  const findTutorialFallbackWildSpawnCell = (preferred: { c: number; r: number }): { c: number; r: number } | null => {
+    if (isTutorialWildSpawnCellAvailable(preferred.c, preferred.r)) return preferred;
+    const candidates: Array<{ c: number; r: number; distance: number }> = [];
+    const maxRow = Math.min(1, ROWS - 1);
+    for (let r = 0; r <= maxRow; r++) {
+      for (let c = 0; c < COLS; c++) {
+        candidates.push({
+          c,
+          r,
+          distance: Math.abs(c - preferred.c) + Math.abs(r - preferred.r),
+        });
+      }
+    }
+    candidates.sort((a, b) => a.distance - b.distance || a.r - b.r || a.c - b.c);
+    const fallback = candidates.find(({ c, r }) => isTutorialWildSpawnCellAvailable(c, r));
+    return fallback ? { c: fallback.c, r: fallback.r } : null;
+  };
   const forcedTutorialWildCell = (() => {
     try {
       const cell = (window as any).__ccFirstPlayTutorialWildSpawnCell;
       if (!cell || !Number.isFinite(cell.c) || !Number.isFinite(cell.r)) return null;
       const c = Math.max(0, Math.min(COLS - 1, cell.c | 0));
       const r = Math.max(0, Math.min(ROWS - 1, cell.r | 0));
-      const excluded = excludeCells.some((excludedCell) => excludedCell.c === c && excludedCell.r === r);
-      if (excluded) return null;
-      return { c, r };
+      const resolvedCell = findTutorialFallbackWildSpawnCell({ c, r });
+      if (resolvedCell) {
+        try { (window as any).__ccFirstPlayTutorialWildSpawnCell = resolvedCell; } catch {}
+      }
+      return resolvedCell;
     } catch {
       return null;
     }
@@ -7430,6 +7505,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              triggerDevJourneyNewCardOnWildStarMerge6();
               playShortWildMerge6TileBlast('Wild-star');
               // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
               try {
@@ -7796,23 +7872,25 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         animateScore(score, 0.40);
         }
 
-        // Stats: count merge-6 as "cubes cracked"
-        statsService.incrementCubesCracked(1);
-        if (isArcadeHomeRunMode()) {
-          arcadeStatsService.addCubesCracked(1);
-        }
-        
-        // 🔥 USER REQUEST: Track cubes cracked per-board for merge-6
-        try {
-          if (typeof window.trackCubesCracked === 'function') {
-            window.trackCubesCracked(1);
-            devLog(`🧊 Merge-6: Tracked cubes cracked for board ${boardNumber}`);
+        if (!isFirstPlayTutorialRunActive()) {
+          // Stats: count merge-6 as "cubes cracked"
+          statsService.incrementCubesCracked(1);
+          if (isArcadeHomeRunMode()) {
+            arcadeStatsService.addCubesCracked(1);
           }
-        } catch (error) {
-          devWarn('⚠️ Failed to track board-specific cubes cracked for merge-6:', error);
+          
+          // 🔥 USER REQUEST: Track cubes cracked per-board for merge-6
+          try {
+            if (typeof window.trackCubesCracked === 'function') {
+              window.trackCubesCracked(1);
+              devLog(`🧊 Merge-6: Tracked cubes cracked for board ${boardNumber}`);
+            }
+          } catch (error) {
+            devWarn('⚠️ Failed to track board-specific cubes cracked for merge-6:', error);
+          }
         }
         
-        if (wasWild) {
+        if (wasWild && !isFirstPlayTutorialRunActive()) {
           statsService.incrementHelpersUsed(1);
         }
         
@@ -7821,7 +7899,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const currentComboForMerge6 = typeof (window as any).CC?.getCombo === 'function'
           ? (window as any).CC.getCombo()
           : combo;
-        if (currentComboForMerge6 > 0) {
+        if (currentComboForMerge6 > 0 && !isFirstPlayTutorialRunActive()) {
           statsService.updateLongestCombo(currentComboForMerge6);
           if (isArcadeHomeRunMode()) {
             arcadeStatsService.updateLongestCombo(currentComboForMerge6);
@@ -7838,10 +7916,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           } catch {}
         }
         
-        // Stats: Update high score for every merge
-        statsService.updateHighScore(score);
-        if (isArcadeHomeRunMode()) {
-          arcadeStatsService.updateHighScore(score);
+        if (!isFirstPlayTutorialRunActive()) {
+          // Stats: Update high score for every merge
+          statsService.updateHighScore(score);
+          if (isArcadeHomeRunMode()) {
+            arcadeStatsService.updateHighScore(score);
+          }
         }
         
         // COLLECTIBLES: Dispatch event for first merge 6
@@ -8432,17 +8512,49 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           spawnMult
         });
 
+        const isRegularMerge6 = !isWildMerge6;
+        const isWildMagnetMerge6Spawn =
+          srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
+        const isWildTntMerge6Spawn =
+          srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const isWildJuiceMerge6Spawn =
+          srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
+        const isWildStarMerge6Spawn =
+          srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild';
+
+        const getWildStarOrbitCountForSpawn = (): number => {
+          const savedPositionsCount = Array.isArray(savedStarPositionsEarly)
+            ? savedStarPositionsEarly.filter(Boolean).length
+            : 0;
+          const savedSystemCount = Array.isArray((savedStarSystemEarly as any)?.stars)
+            ? (savedStarSystemEarly as any).stars.filter(Boolean).length
+            : 0;
+          const liveSystemCount = Array.isArray((wildStarTileForAnimation as any)?._wildStarSystem?.stars)
+            ? (wildStarTileForAnimation as any)._wildStarSystem.stars.filter(Boolean).length
+            : 0;
+          const count = savedPositionsCount || savedSystemCount || liveSystemCount || 3;
+          return Math.max(1, Math.min(3, count | 0));
+        };
+        const wildStarOrbitCountForSpawn = isWildStarMerge6Spawn ? getWildStarOrbitCountForSpawn() : 0;
+        const wildStarSpawnConfig = (() => {
+          if (wildStarOrbitCountForSpawn >= 3) return { lockedBonus: 9, extraActive: 3 };
+          if (wildStarOrbitCountForSpawn === 2) return { lockedBonus: 7, extraActive: 2 };
+          return { lockedBonus: 5, extraActive: 1 };
+        })();
+
         // 🔥 Wild-merge bonus:
-        // - wild star / TNT / magnet: spawn 9 locked, open 3 → result: 3 active + 6 locked
-        // - wild juice: spawn 3 locked, open 2 → result: 2 active + 3 locked
-        // isWildMerge6 already declared above (spawn-block check)
+        // - wild star: 3 orbits => +9 locked/open 3, 2 orbits => +7 locked/open 2, 1 orbit => +5 locked/open 1
+        // - TNT / magnet: +9 locked
+        // - wild juice: +3 locked
         let wildMergeLockedBonusCount = 0;
         if (isWildMerge6 && !isLastMergeFlagSet) {
-          const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
-          wildMergeLockedBonusCount = isWildJuiceMerge6 ? 3 : 9;
+          wildMergeLockedBonusCount = isWildJuiceMerge6Spawn
+            ? 3
+            : isWildStarMerge6Spawn
+              ? wildStarSpawnConfig.lockedBonus
+              : 9;
         }
         
-        const isRegularMerge6 = !isWildMerge6;
         // 🔥 BUG FIX (Journey / magnet / locked boards): Do NOT spawn-at-dst just because activeTilesCount ≤ 3.
         // While ANY spawnable locked tiles exist (isEndgameMode === false), merge-6 must STAY on the board and
         // new cubes must come from openLockedBounceParallel / randomEmptyCell. Old logic replaced merge 6 with
@@ -8452,13 +8564,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           !isLastMergeFlagSet &&
           spawnMult > 0 &&
           isEndgameMode;
-
-        const isWildMagnetMerge6Spawn =
-          srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
-        const isWildTntMerge6Spawn =
-          srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
-        const isWildJuiceMerge6Spawn =
-          srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
 
         // Fallback safety: if last-merge flag was missed, but board effectively has only merge-6 left,
         // do not run any spawn/open logic; trigger clean-board flow instead.
@@ -8539,7 +8644,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (await maybeForceCleanBoardFromFinalWildSnapshot('wild_star_extra_locked')) return;
           if (await maybeForceCleanBoardFromSingleMerge6('wild_star_extra_locked')) return;
           if (!isWildMerge6 || isLastMergeFlagSet || isWildMagnetMerge6Spawn || isWildTntMerge6Spawn) return;
-          const wildExtraActiveCount = isWildJuiceMerge6Spawn ? 0 : 3;
+          const wildExtraActiveCount = isWildJuiceMerge6Spawn
+            ? 0
+            : isWildStarMerge6Spawn
+              ? wildStarSpawnConfig.extraActive
+              : 3;
           if (wildExtraActiveCount <= 0) return;
           const wildSpawnExcludeCells = shouldSpawnAtDst
             ? new Set([...pulledCellsSet, `${gx},${gy}`])

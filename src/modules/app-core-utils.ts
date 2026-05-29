@@ -134,10 +134,14 @@ export function cellXY(c: number, r: number): { x: number; y: number } {
   };
 }
 
-function isFirstPlayTutorialLowValueMode(): boolean {
+export function isFirstPlayTutorialRunActive(): boolean {
   if (typeof window === 'undefined') return false;
   const w = window as any;
   return w.__ccFirstPlayTutorialActive === true || w.__ccFirstPlayTutorialSlowWildMeter === true;
+}
+
+function isFirstPlayTutorialLowValueMode(): boolean {
+  return isFirstPlayTutorialRunActive();
 }
 
 export function regularValuePool(exclude?: number | number[]): number[] {

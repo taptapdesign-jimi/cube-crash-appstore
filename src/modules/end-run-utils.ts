@@ -2,9 +2,7 @@
 // end-run-utils.ts
 // Utility functions for end run modal
 
-import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
-import { logger } from '../core/logger.js';
 import { getCurrentScore as getCurrentScoreFromPause } from './pause-utils.js';
 
 // Type definitions
@@ -124,21 +122,6 @@ export function exitToMenu(): void {
   if (window.exitToMenu) {
     window.exitToMenu();
   }
-}
-
-/**
- * Show clean board modal
- */
-export function showCleanBoard(): void {
-  showCleanBoardModal({
-    onClean: () => {
-      logger.info('✅ Board cleaned');
-      hideModal();
-    },
-    onCancel: () => {
-      logger.info('❌ Clean board cancelled');
-    }
-  });
 }
 
 /**

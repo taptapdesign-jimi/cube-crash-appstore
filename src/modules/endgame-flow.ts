@@ -59,16 +59,20 @@ function clearFirstPlayTutorialCompletionFlags(): void {
 }
 
 async function returnFirstPlayTutorialToHomepage(): Promise<void> {
+  const tutorialBoardNumber = (window as any).STATE?.boardNumber || 1;
   clearFirstPlayTutorialCompletionFlags();
   try {
     localStorage.removeItem('cc_board_completed');
     localStorage.removeItem('cc_saved_game');
     localStorage.removeItem('cubeCrash_gameState');
     const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
-    const boardNumber = (window as any).STATE?.boardNumber || 1;
-    clearBoardSaveState(boardNumber);
+    clearBoardSaveState(tutorialBoardNumber);
     const { journeyProgressionState } = await import('./journey-progression-state.js');
     journeyProgressionState.clearCurrentRunState();
+    const { boardStatsService } = await import('../services/board-stats-service.js');
+    boardStatsService.resetBoardStats(tutorialBoardNumber);
+    const { arcadeStatsService } = await import('../services/arcade-stats-service.js');
+    arcadeStatsService.resetStats();
   } catch {}
   try {
     (window as any).__ccBoardJustCompleted = true;
@@ -257,6 +261,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       try {
         const { showTutorialCompleteModal } = await import('./tutorial-complete-modal.js');
         await showTutorialCompleteModal();
+        const { markFirstPlayTutorialDone } = await import('./first-play-tutorial.js');
+        markFirstPlayTutorialDone();
       } catch (modalError) {
         console.warn('⚠️ endgame-flow: Tutorial complete modal failed, returning home:', modalError);
       }
@@ -265,6 +271,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     const { showCleanBoardModal } = await import('./clean-board-modal.js');
+    const cameFromDetailModalForReward = (window as any).__ccCameFromDetailModal === true;
+    const isFromInterimBoardForReward =
+      !cameFromDetailModalForReward &&
+      (
+        (window as any).__ccFromInterimBoard === true ||
+        (window as any).__ccIsInterimBoard === true ||
+        localStorage.getItem('__ccFromInterimBoard') === 'true'
+      );
     
     // 🗺️ JOURNEY PROGRESSION: Unlock journey board when board is completed (won)
     // This is called when clean board modal appears (board is successfully completed)
@@ -272,6 +286,25 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       const { journeyBoardsManager } = await import('./journey-boards-manager.js');
       journeyBoardsManager.unlockBoardOnCompletion(boardNumber);
       logger.info(`🗺️ Journey board ${boardNumber} unlocked on completion`);
+
+      if (
+        isFromInterimBoardForReward &&
+        (window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard !== boardNumber
+      ) {
+        try {
+          const boardCard = journeyBoardsManager.getBoardById?.(boardNumber);
+          const paddedBoardNumber = String(Math.max(1, Math.min(16, boardNumber | 0))).padStart(2, '0');
+          const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
+          await showJourneyNewCardScreen({
+            boardNumber,
+            cardImagePath: boardCard?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+            cardName: boardCard?.name || `Board ${boardNumber}`,
+          });
+          logger.info(`🎁 Journey new card screen completed for board ${boardNumber}`);
+        } catch (newCardError) {
+          logger.warn('⚠️ Journey new card screen failed, continuing to clean board:', newCardError);
+        }
+      }
       
       // 🔥 JOURNEY PROGRESSION: Update highestUnlockedBoardId and lastOpenedBoardId
       const { journeyProgressionState } = await import('./journey-progression-state.js');
