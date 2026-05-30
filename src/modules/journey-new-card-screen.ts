@@ -256,9 +256,9 @@ function ensureJourneyNewCardStyles(): void {
       50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
     }
     @keyframes ccJourneyNewCardGlowPulse {
-      0% { filter: brightness(1) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
-      50% { filter: brightness(1.2) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
-      100% { filter: brightness(1.05) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
+      0% { filter: brightness(1); }
+      50% { filter: brightness(1.22) saturate(1.06); }
+      100% { filter: brightness(1.04); }
     }
     .cc-journey-new-card-frame.glow-pulse,
     .cc-journey-new-card-final.glow-pulse {
@@ -307,11 +307,21 @@ function setLightMask(lightEl: HTMLElement | null, src: string): void {
   } catch {}
 }
 
+function setLightFrameScale(lightEl: HTMLElement | null, scale: number): void {
+  if (!lightEl) return;
+  try {
+    const pct = `${Math.max(0.05, scale) * 100}%`;
+    lightEl.style.webkitMaskSize = pct;
+    lightEl.style.maskSize = pct;
+  } catch {}
+}
+
 function triggerJourneyNewCardShine(
   lightEl: HTMLElement | null,
   target: HTMLElement | null,
   bounceScale = 1.2,
-  scheduleTimeout: (fn: () => void, delayMs: number) => number = (fn, delayMs) => window.setTimeout(fn, delayMs)
+  scheduleTimeout: (fn: () => void, delayMs: number) => number = (fn, delayMs) => window.setTimeout(fn, delayMs),
+  scheduleFrame: (fn: () => void) => number = (fn) => window.requestAnimationFrame(fn)
 ): void {
   if (!lightEl && !target) return;
   try {
@@ -320,7 +330,7 @@ function triggerJourneyNewCardShine(
     // Restart the CSS animations reliably on mobile Safari.
     void lightEl?.offsetHeight;
     void target?.offsetHeight;
-    window.requestAnimationFrame(() => {
+    scheduleFrame(() => {
       lightEl?.classList.add('shine-trigger');
       scheduleTimeout(() => {
         target?.classList.add('glow-pulse');
@@ -362,6 +372,7 @@ type CrumbleFramePlayerOptions = {
   motionStrength?: number;
   /** Timing scale for step/blur (1 = full speed; 0.3 = 70% faster). Intro uses 1 so 1→9 is visible. */
   speedScale?: number;
+  onFrame?: (frame: number, index: number) => void;
 };
 
 // Single visible layer: 1→2→3… with motion blur only (no stacked duplicate frames).
@@ -376,6 +387,7 @@ async function playCrumbleFrames({
   blurMs = 54,
   motionStrength = 1,
   speedScale = SAND_FRAME_SPEED,
+  onFrame,
 }: CrumbleFramePlayerOptions): Promise<void> {
   if (!baseImg || frames.length === 0) return;
 
@@ -396,6 +408,7 @@ async function playCrumbleFrames({
   baseImg.style.opacity = '1';
   baseImg.style.visibility = 'visible';
   baseImg.style.transformOrigin = '50% 50%';
+  try { onFrame?.(frames[0], 0); } catch {}
   try { gsap.killTweensOf(baseImg); } catch {}
   gsap.set(baseImg, { filter: 'blur(0px)', scale: 1, transformOrigin: '50% 50%', force3D: true });
 
@@ -409,6 +422,7 @@ async function playCrumbleFrames({
 
     // One frame at a time + motion blur + random size bounce (TNT-style pop).
     baseImg.src = nextSrc;
+    try { onFrame?.(frames[index], index); } catch {}
     const bouncePeak = 0.94 + Math.random() * 0.12;
     const bounceStart = bouncePeak * (0.86 + Math.random() * 0.06);
     try { gsap.killTweensOf(baseImg); } catch {}
@@ -462,8 +476,10 @@ export async function showJourneyNewCardScreen({
     let disposed = false;
     let framePlaybackId = 0;
     let sprite9ShineIntervalId: number | null = null;
+    let finalCardShineIntervalId: number | null = null;
     const hapticTimeouts: number[] = [];
     const shineTimeouts: number[] = [];
+    const shineAnimationFrames: number[] = [];
 
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
@@ -502,11 +518,18 @@ export async function showJourneyNewCardScreen({
         try { window.clearInterval(sprite9ShineIntervalId); } catch {}
         sprite9ShineIntervalId = null;
       }
+      if (finalCardShineIntervalId !== null) {
+        try { window.clearInterval(finalCardShineIntervalId); } catch {}
+        finalCardShineIntervalId = null;
+      }
       hapticTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
       });
       shineTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
+      });
+      shineAnimationFrames.splice(0).forEach((frameId) => {
+        try { window.cancelAnimationFrame(frameId); } catch {}
       });
       try { gsap.killTweensOf([title, subtitle, hero, motion, frameImg, frameNextImg, finalImg, light, shadow, cta]); } catch {}
     });
@@ -531,6 +554,19 @@ export async function showJourneyNewCardScreen({
       hapticTimeouts.push(timeoutId);
     };
 
+    const playScreenShake = (strength = 8, duration = 0.34) => {
+      if (resolved || disposed || !document.body.contains(overlay)) return;
+      try {
+        gsap.killTweensOf(overlay, 'x,y');
+        gsap.timeline()
+          .to(overlay, { x: strength, y: -strength * 0.45, duration: duration * 0.12, ease: 'power2.out' })
+          .to(overlay, { x: -strength * 0.85, y: strength * 0.35, duration: duration * 0.12, ease: 'power2.inOut' })
+          .to(overlay, { x: strength * 0.55, y: -strength * 0.25, duration: duration * 0.14, ease: 'power2.inOut' })
+          .to(overlay, { x: -strength * 0.25, y: strength * 0.12, duration: duration * 0.16, ease: 'power2.inOut' })
+          .to(overlay, { x: 0, y: 0, duration: duration * 0.46, ease: 'elastic.out(1, 0.55)' });
+      } catch {}
+    };
+
     const scheduleShineTimeout = (fn: () => void, delayMs: number): number => {
       const timeoutId = window.setTimeout(() => {
         const index = shineTimeouts.indexOf(timeoutId);
@@ -541,10 +577,26 @@ export async function showJourneyNewCardScreen({
       return timeoutId;
     };
 
+    const scheduleShineFrame = (fn: () => void): number => {
+      const frameId = window.requestAnimationFrame(() => {
+        const index = shineAnimationFrames.indexOf(frameId);
+        if (index >= 0) shineAnimationFrames.splice(index, 1);
+        if (!disposed && document.body.contains(overlay)) fn();
+      });
+      shineAnimationFrames.push(frameId);
+      return frameId;
+    };
+
     const stopSprite9ShineLoop = () => {
       if (sprite9ShineIntervalId === null) return;
       try { window.clearInterval(sprite9ShineIntervalId); } catch {}
       sprite9ShineIntervalId = null;
+    };
+
+    const stopFinalCardShineLoop = () => {
+      if (finalCardShineIntervalId === null) return;
+      try { window.clearInterval(finalCardShineIntervalId); } catch {}
+      finalCardShineIntervalId = null;
     };
 
     const startSprite9ShineLoop = () => {
@@ -554,16 +606,34 @@ export async function showJourneyNewCardScreen({
           stopSprite9ShineLoop();
           return;
         }
-        triggerJourneyNewCardShine(light, frameImg, 1.2, scheduleShineTimeout);
+        triggerJourneyNewCardShine(light, frameImg, 1.2, scheduleShineTimeout, scheduleShineFrame);
+        scheduleHaptic(150, 'light');
       };
       play();
       sprite9ShineIntervalId = window.setInterval(play, 3000);
+    };
+
+    const startFinalCardShineLoop = () => {
+      stopFinalCardShineLoop();
+      const play = () => {
+        if (!revealed || revealRunning || resolved || disposed || !finalImg || !document.body.contains(overlay)) {
+          stopFinalCardShineLoop();
+          return;
+        }
+        setLightFrameScale(light, 0.95);
+        gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
+        triggerJourneyNewCardShine(light, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
+        scheduleHaptic(150, 'light');
+      };
+      play();
+      finalCardShineIntervalId = window.setInterval(play, 3000);
     };
 
     const finish = () => {
       if (resolved) return;
       resolved = true;
       stopSprite9ShineLoop();
+      stopFinalCardShineLoop();
       ++framePlaybackId;
       try { cta?.removeEventListener('click', onContinue); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
@@ -627,7 +697,8 @@ export async function showJourneyNewCardScreen({
           frameImg.style.visibility = 'visible';
           gsap.set(frameImg, { y: 0, rotate: 0, scale: 1.2, filter: 'blur(0px)', transformOrigin: '50% 50%', force3D: true });
         }
-        gsap.set(light, { scale: 1.2, transformOrigin: '50% 50%', force3D: true });
+        setLightFrameScale(light, 1.2);
+        gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
         if (finalImg) {
           finalImg.style.visibility = 'visible';
           finalImg.style.opacity = '0';
@@ -644,13 +715,18 @@ export async function showJourneyNewCardScreen({
           .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: rd(0.16), ease: 'power2.in' }, rd(0.03))
           .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, rd(0.08))
           .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, rd(0.08))
+          .call(() => triggerHaptic('light'), undefined, rd(0.08))
           .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: rd(0.32), ease: 'back.in(1.65)', force3D: true }, 0)
           .to(shadow, { opacity: 0, y: -4, scaleX: 0.2, scaleY: 0.28, duration: rd(0.32), ease: 'power2.inOut' }, 0)
+          .call(() => triggerHaptic('light'), undefined, rd(0.16))
           .set(frameImg, { visibility: 'hidden' }, rd(0.32))
           .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, rd(0.32))
           .call(() => {
             setLightMask(light, safeCardPath);
+            setLightFrameScale(light, 0.95);
             gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
+            playScreenShake(11, 0.42);
+            triggerHaptic('medium');
           }, undefined, rd(0.32))
           .to(finalImg, {
             opacity: 1,
@@ -662,8 +738,16 @@ export async function showJourneyNewCardScreen({
             force3D: true,
           }, rd(0.32))
           .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.42), ease: 'back.out(1.55)' }, rd(0.32))
+          .call(() => {
+            playScreenShake(15, 0.5);
+            triggerHaptic('medium');
+            startFinalCardShineLoop();
+            triggerJourneyNewCardShine(light, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
+          }, undefined, rd(0.96))
           .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.1))
           .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.15))
+          .call(() => triggerHaptic('light'), undefined, rd(0.42))
+          .call(() => triggerHaptic('light'), undefined, rd(0.48))
           .to(light, { opacity: 0.92, duration: rd(0.16), ease: 'power2.out' }, rd(0.06));
         revealed = true;
       } catch {
@@ -721,6 +805,7 @@ export async function showJourneyNewCardScreen({
     gsap.set(hero, { opacity: 0, y: -30, scale: 0, rotate: -8, transformOrigin: '50% 50%' });
     gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.42, scaleY: 0.54 });
     gsap.set(light, { scale: 1, transformOrigin: '50% 50%' });
+    setLightFrameScale(light, 1);
     gsap.set(cta, { opacity: 0, scale: 0, visibility: 'hidden', transformOrigin: '50% 50%' });
     if (cta) {
       cta.classList.remove('animate-exit', 'animate-enter');
@@ -761,17 +846,26 @@ export async function showJourneyNewCardScreen({
             blurMs: 21,
             motionStrength: 0.38,
             speedScale: 1,
+            onFrame: (frame) => {
+              if (frame <= 1) return;
+              triggerHaptic(frame >= 9 ? 'medium' : 'light');
+            },
             shouldContinue: () => framePlaybackId === introFramePlaybackId && !resolved && !disposed,
           });
           if (framePlaybackId !== introFramePlaybackId || resolved || disposed) return;
           if (frameImg) {
             frameImg.src = getCrumbleFramePath(9);
             gsap.killTweensOf(frameImg);
-            gsap.set(light, { scale: 1.2, transformOrigin: '50% 50%', force3D: true });
+            setLightFrameScale(light, 1.2);
+            gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
             gsap.timeline()
               .set(frameImg, { transformOrigin: '50% 50%', force3D: true })
               .to(frameImg, { scale: 1.28, duration: 0.1, ease: 'back.out(2)' })
               .to(frameImg, { scale: 1.2, duration: 0.16, ease: 'sine.out' })
+              .call(() => {
+                playScreenShake(9, 0.34);
+                triggerHaptic('medium');
+              })
               .call(startSprite9ShineLoop);
           }
         })().catch(() => {});
