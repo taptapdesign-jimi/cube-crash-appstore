@@ -48,6 +48,8 @@ function ensureTutorialCompleteStyles(): void {
       font-weight: 900;
       letter-spacing: 0;
       text-align: center;
+      position: relative;
+      top: -16px;
     }
     .cc-tutorial-complete-subtitle {
       margin: 26px 0 0;
@@ -57,6 +59,8 @@ function ensureTutorialCompleteStyles(): void {
       font-weight: 600;
       letter-spacing: 0.02em;
       text-align: center;
+      position: relative;
+      top: -16px;
     }
     .cc-tutorial-complete-content {
       width: 100%;

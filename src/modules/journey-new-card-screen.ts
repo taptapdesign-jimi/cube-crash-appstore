@@ -41,6 +41,8 @@ function ensureJourneyNewCardStyles(): void {
       box-sizing: border-box;
       padding: clamp(84px, 13.5vh, 132px) 24px max(42px, env(safe-area-inset-bottom));
       background:
+        linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)),
+        url('./assets/paper-bg.png') center / 100% 100% no-repeat,
         radial-gradient(ellipse at center, rgb(255,255,255) 0%, rgb(255,250,244) 48%, rgb(252,238,223) 100%);
       font-family: "LTCrow", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color: #b58a78;
@@ -62,11 +64,11 @@ function ensureJourneyNewCardStyles(): void {
     }
     .cc-journey-new-card-subtitle {
       margin: 26px 0 0;
-      color: #b58a78;
-      font-size: clamp(22px, 4.6vw, 28px);
+      color: #C4A896;
+      font-size: clamp(23px, 5.1vw, 32px);
       line-height: 1.2;
-      font-weight: 700;
-      letter-spacing: 0.01em;
+      font-weight: 600;
+      letter-spacing: 0.02em;
       text-align: center;
       position: relative;
       top: -16px;
@@ -94,14 +96,14 @@ function ensureJourneyNewCardStyles(): void {
     .cc-journey-new-card-shadow {
       position: absolute;
       left: 50%;
-      bottom: calc(-5% - 16px);
+      bottom: calc(-5% - 36px);
       z-index: 0;
-      width: 72%;
-      height: 13%;
+      width: 88%;
+      height: 16%;
       transform: translateX(-50%);
       border-radius: 999px;
       background: radial-gradient(ellipse at center, rgba(185,105,62,0.34) 0%, rgba(185,105,62,0.2) 42%, rgba(185,105,62,0) 76%);
-      filter: blur(12px);
+      filter: blur(14px);
       opacity: 0;
       pointer-events: none;
     }
@@ -134,13 +136,17 @@ function ensureJourneyNewCardStyles(): void {
       filter: drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22));
     }
     .cc-journey-new-card-frame-next {
-      opacity: 0;
-      z-index: 2;
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none;
     }
     .cc-journey-new-card-final {
       opacity: 0;
       visibility: hidden;
       z-index: 3;
+      border-radius: 0;
+      filter: none;
     }
     .cc-journey-new-card-light {
       position: absolute;
@@ -150,6 +156,7 @@ function ensureJourneyNewCardStyles(): void {
       overflow: hidden;
       pointer-events: none;
       opacity: 0.92;
+      transform-origin: 50% 50%;
       -webkit-mask-repeat: no-repeat;
       mask-repeat: no-repeat;
       -webkit-mask-position: center;
@@ -180,14 +187,27 @@ function ensureJourneyNewCardStyles(): void {
       pointer-events: none;
       animation: ccJourneyNewCardShimmer 1.7s linear infinite;
     }
+    .cc-journey-new-card-light.shine-trigger::after {
+      animation: ccJourneyNewCardInterimShimmer 1.7s linear !important;
+      animation-delay: 0s !important;
+    }
     .cc-journey-new-card-cta {
       width: min(68vw, 408px);
       max-width: 408px;
       transform: scale(0);
+      -webkit-transform: scale(0);
       opacity: 0;
       visibility: hidden;
       flex: 0 0 auto;
       margin-top: 8px;
+    }
+    .cc-journey-new-card-cta.animate-enter-initial {
+      opacity: 1 !important;
+      visibility: hidden !important;
+      transform: scale(0) !important;
+      -webkit-transform: scale(0) !important;
+      transition: none !important;
+      -webkit-transition: none !important;
     }
     .cc-journey-new-card-cta.animate-enter {
       opacity: 1 !important;
@@ -200,6 +220,17 @@ function ensureJourneyNewCardStyles(): void {
         -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
       will-change: transform !important;
     }
+    .cc-journey-new-card-cta.animate-exit {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: translateY(20px) scale(0) !important;
+      -webkit-transform: translateY(20px) scale(0) !important;
+      transition:
+        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+      -webkit-transition:
+        -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+      will-change: transform, opacity !important;
+    }
     @keyframes ccJourneyNewCardIdle {
       0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
       50% { transform: translateY(-8px) rotate(1deg) scale(1.02); }
@@ -211,6 +242,27 @@ function ensureJourneyNewCardStyles(): void {
       30% { transform: translateX(0%) skewX(-12deg); opacity: 1; }
       45% { transform: translateX(120%) skewX(-12deg); opacity: 0.5; }
       50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+    }
+    @keyframes ccJourneyNewCardInterimShimmer {
+      0% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
+      1% { transform: translateX(-158%) skewX(-12deg); opacity: 0.125; }
+      2% { transform: translateX(-154%) skewX(-12deg); opacity: 0.25; }
+      5% { transform: translateX(-140%) skewX(-12deg); opacity: 0.375; }
+      12% { transform: translateX(-120%) skewX(-12deg); opacity: 0.45; }
+      20% { transform: translateX(-80%) skewX(-12deg); opacity: 0.5; }
+      30% { transform: translateX(0%) skewX(-12deg); opacity: 0.5; }
+      40% { transform: translateX(80%) skewX(-12deg); opacity: 0.5; }
+      45% { transform: translateX(120%) skewX(-12deg); opacity: 0.25; }
+      50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+    }
+    @keyframes ccJourneyNewCardGlowPulse {
+      0% { filter: brightness(1) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
+      50% { filter: brightness(1.2) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
+      100% { filter: brightness(1.05) drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22)); }
+    }
+    .cc-journey-new-card-frame.glow-pulse,
+    .cc-journey-new-card-final.glow-pulse {
+      animation: ccJourneyNewCardGlowPulse 0.5s ease-out;
     }
     @media (max-height: 760px) {
       #cc-journey-new-card-overlay {
@@ -236,8 +288,14 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+/** Reveal sand sequence base timing (× FAST_20 = 20% faster on top) */
+const SAND_FRAME_SPEED = 0.3;
+/** 20% faster than current timings */
+const FAST_20 = 0.8;
+
+// Sand "zguzvano" (crumple) frame sequence: 1..19.
 function getCrumbleFramePath(frame: number): string {
-  return `./assets/animations/crumble/crumble${frame}.png`;
+  return `./assets/animations/sand/zguzvano${frame}.png`;
 }
 
 function setLightMask(lightEl: HTMLElement | null, src: string): void {
@@ -246,6 +304,39 @@ function setLightMask(lightEl: HTMLElement | null, src: string): void {
     const mask = `url("${src}")`;
     lightEl.style.webkitMaskImage = mask;
     lightEl.style.maskImage = mask;
+  } catch {}
+}
+
+function triggerJourneyNewCardShine(
+  lightEl: HTMLElement | null,
+  target: HTMLElement | null,
+  bounceScale = 1.2,
+  scheduleTimeout: (fn: () => void, delayMs: number) => number = (fn, delayMs) => window.setTimeout(fn, delayMs)
+): void {
+  if (!lightEl && !target) return;
+  try {
+    lightEl?.classList.remove('shine-trigger');
+    target?.classList.remove('glow-pulse');
+    // Restart the CSS animations reliably on mobile Safari.
+    void lightEl?.offsetHeight;
+    void target?.offsetHeight;
+    window.requestAnimationFrame(() => {
+      lightEl?.classList.add('shine-trigger');
+      scheduleTimeout(() => {
+        target?.classList.add('glow-pulse');
+        if (target) {
+          gsap.killTweensOf(target);
+          gsap.timeline()
+            .set(target, { transformOrigin: '50% 50%', force3D: true })
+            .to(target, { scale: bounceScale * 1.055, duration: 0.14, ease: 'back.out(2)' })
+            .to(target, { scale: bounceScale, duration: 0.18, ease: 'sine.out' });
+        }
+      }, 150);
+      scheduleTimeout(() => {
+        lightEl?.classList.remove('shine-trigger');
+        target?.classList.remove('glow-pulse');
+      }, 1700);
+    });
   } catch {}
 }
 
@@ -266,10 +357,14 @@ type CrumbleFramePlayerOptions = {
   frames: number[];
   delays: number[];
   shouldContinue?: () => boolean;
-  crossfadeMs?: number;
+  /** Motion-blur resolve duration per frame swap (ms) */
+  blurMs?: number;
   motionStrength?: number;
+  /** Timing scale for step/blur (1 = full speed; 0.3 = 70% faster). Intro uses 1 so 1→9 is visible. */
+  speedScale?: number;
 };
 
+// Single visible layer: 1→2→3… with motion blur only (no stacked duplicate frames).
 async function playCrumbleFrames({
   baseImg,
   nextImg,
@@ -278,71 +373,69 @@ async function playCrumbleFrames({
   frames,
   delays,
   shouldContinue,
-  crossfadeMs = 54,
+  blurMs = 54,
   motionStrength = 1,
+  speedScale = SAND_FRAME_SPEED,
 }: CrumbleFramePlayerOptions): Promise<void> {
   if (!baseImg || frames.length === 0) return;
+
+  if (nextImg) {
+    nextImg.style.display = 'none';
+    nextImg.style.visibility = 'hidden';
+    nextImg.style.opacity = '0';
+  }
+
+  const scale = Math.max(0.2, Math.min(1, speedScale)) * FAST_20;
+  const stepMs = (ms: number) => Math.max(10, Math.round(ms * scale));
+  const blurSec = Math.max(0.035, (blurMs * scale) / 1000);
+  const blurPx = Math.max(1.2, 2.4 * motionStrength);
+
   const firstSrc = getCrumbleFramePath(frames[0]);
   baseImg.src = firstSrc;
   setLightMask(lightEl || null, firstSrc);
   baseImg.style.opacity = '1';
   baseImg.style.visibility = 'visible';
-  if (nextImg) {
-    nextImg.style.opacity = '0';
-    nextImg.style.visibility = 'hidden';
-  }
+  baseImg.style.transformOrigin = '50% 50%';
+  try { gsap.killTweensOf(baseImg); } catch {}
+  gsap.set(baseImg, { filter: 'blur(0px)', scale: 1, transformOrigin: '50% 50%', force3D: true });
 
   for (let index = 1; index < frames.length; index++) {
     if (shouldContinue && !shouldContinue()) return;
-    await wait(delays[index - 1] ?? 80);
+    await wait(stepMs(delays[index - 1] ?? 80));
     if (shouldContinue && !shouldContinue()) return;
 
     const nextSrc = getCrumbleFramePath(frames[index]);
     setLightMask(lightEl || null, nextSrc);
-    if (!nextImg) {
-      baseImg.src = nextSrc;
-      continue;
-    }
 
-    nextImg.src = nextSrc;
-    nextImg.style.visibility = 'visible';
-    nextImg.style.opacity = '0';
-
-    try { gsap.killTweensOf([baseImg, nextImg, motionEl]); } catch {}
-    const tl = gsap.timeline();
-    const direction = index % 2 === 0 ? 1 : -1;
-    tl.set(nextImg, { opacity: 0, filter: 'blur(0.45px) brightness(1.04)' }, 0)
-      .to(nextImg, { opacity: 1, filter: 'blur(0px) brightness(1)', duration: crossfadeMs / 1000, ease: 'sine.out' }, 0)
-      .to(baseImg, { opacity: 0.18, duration: crossfadeMs / 1000, ease: 'sine.out' }, 0);
-
-    if (motionEl) {
-      tl.to(motionEl, {
-        y: -2.2 * motionStrength,
-        rotate: direction * 0.42 * motionStrength,
-        scale: 1 + 0.008 * motionStrength,
-        duration: Math.max(0.06, crossfadeMs / 1000),
-        ease: 'sine.out',
-      }, 0)
-        .to(motionEl, {
-          y: 0,
-          rotate: 0,
-          scale: 1,
-          duration: 0.1,
-          ease: 'sine.inOut',
-        }, '>');
-    }
+    // One frame at a time + motion blur + random size bounce (TNT-style pop).
+    baseImg.src = nextSrc;
+    const bouncePeak = 0.94 + Math.random() * 0.12;
+    const bounceStart = bouncePeak * (0.86 + Math.random() * 0.06);
+    try { gsap.killTweensOf(baseImg); } catch {}
 
     await new Promise<void>((resolve) => {
-      tl.eventCallback('onComplete', resolve);
+      const tl = gsap.timeline({ onComplete: resolve });
+      tl.set(baseImg, {
+        filter: `blur(${blurPx}px) brightness(1.04)`,
+        scale: bounceStart,
+        transformOrigin: '50% 50%',
+        force3D: true,
+      }, 0)
+        .to(baseImg, {
+          filter: 'blur(0px) brightness(1)',
+          scale: bouncePeak,
+          duration: blurSec * 0.55,
+          ease: 'back.out(1.7)',
+        }, 0)
+        .to(baseImg, {
+          scale: 1,
+          duration: blurSec * 0.45,
+          ease: 'sine.inOut',
+        }, '>');
     });
-
-    baseImg.src = nextSrc;
-    baseImg.style.opacity = '1';
-    baseImg.style.filter = '';
-    nextImg.style.opacity = '0';
-    nextImg.style.visibility = 'hidden';
-    nextImg.style.filter = '';
   }
+
+  gsap.set(baseImg, { filter: 'blur(0px)', scale: 1 });
 }
 
 export async function showJourneyNewCardScreen({
@@ -358,7 +451,7 @@ export async function showJourneyNewCardScreen({
   const safeCardName = cardName || `Board ${safeBoardNumber}`;
 
   await Promise.all([
-    ...Array.from({ length: 10 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
+    ...Array.from({ length: 9 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
     preloadImage(safeCardPath),
   ]);
 
@@ -368,7 +461,9 @@ export async function showJourneyNewCardScreen({
     let revealRunning = false;
     let disposed = false;
     let framePlaybackId = 0;
+    let sprite9ShineIntervalId: number | null = null;
     const hapticTimeouts: number[] = [];
+    const shineTimeouts: number[] = [];
 
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
@@ -403,7 +498,14 @@ export async function showJourneyNewCardScreen({
 
     cleanupFns.push(() => {
       disposed = true;
+      if (sprite9ShineIntervalId !== null) {
+        try { window.clearInterval(sprite9ShineIntervalId); } catch {}
+        sprite9ShineIntervalId = null;
+      }
       hapticTimeouts.splice(0).forEach((timeoutId) => {
+        try { window.clearTimeout(timeoutId); } catch {}
+      });
+      shineTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
       });
       try { gsap.killTweensOf([title, subtitle, hero, motion, frameImg, frameNextImg, finalImg, light, shadow, cta]); } catch {}
@@ -429,16 +531,54 @@ export async function showJourneyNewCardScreen({
       hapticTimeouts.push(timeoutId);
     };
 
+    const scheduleShineTimeout = (fn: () => void, delayMs: number): number => {
+      const timeoutId = window.setTimeout(() => {
+        const index = shineTimeouts.indexOf(timeoutId);
+        if (index >= 0) shineTimeouts.splice(index, 1);
+        if (!disposed && document.body.contains(overlay)) fn();
+      }, delayMs);
+      shineTimeouts.push(timeoutId);
+      return timeoutId;
+    };
+
+    const stopSprite9ShineLoop = () => {
+      if (sprite9ShineIntervalId === null) return;
+      try { window.clearInterval(sprite9ShineIntervalId); } catch {}
+      sprite9ShineIntervalId = null;
+    };
+
+    const startSprite9ShineLoop = () => {
+      stopSprite9ShineLoop();
+      const play = () => {
+        if (revealed || revealRunning || resolved || disposed || !frameImg || !document.body.contains(overlay)) {
+          stopSprite9ShineLoop();
+          return;
+        }
+        triggerJourneyNewCardShine(light, frameImg, 1.2, scheduleShineTimeout);
+      };
+      play();
+      sprite9ShineIntervalId = window.setInterval(play, 3000);
+    };
+
     const finish = () => {
       if (resolved) return;
       resolved = true;
+      stopSprite9ShineLoop();
+      ++framePlaybackId;
       try { cta?.removeEventListener('click', onContinue); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
       try { gsap.killTweensOf([title, subtitle, hero, motion, frameImg, frameNextImg, finalImg, light, shadow, cta]); } catch {}
       if (cta) {
         cta.disabled = true;
-        cta.classList.remove('animate-enter');
+        cta.classList.remove('animate-enter', 'animate-enter-initial', 'animate-exit');
+        cta.style.removeProperty('transition');
+        cta.style.removeProperty('-webkit-transition');
+        cta.style.removeProperty('transform');
+        cta.style.removeProperty('-webkit-transform');
+        cta.style.removeProperty('opacity');
+        cta.style.removeProperty('visibility');
+        cta.classList.add('animate-exit');
       }
       const tl = gsap.timeline({
         onComplete: () => {
@@ -446,77 +586,85 @@ export async function showJourneyNewCardScreen({
           resolve({ action: 'continue' });
         },
       });
-      tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0.08)
-        .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.11)
-        .to(hero, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.16)
-        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.16)
-        .to(cta, { scale: 0, opacity: 0, y: 20, duration: 0.28, ease: 'back.in(1.65)' }, 0.12)
-        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.68);
+      tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0.12)
+        .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.15)
+        .set(title, { visibility: 'hidden' }, 0.43)
+        .set(subtitle, { visibility: 'hidden' }, 0.46)
+        .to(finalImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)', force3D: true }, 0.18)
+        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.18)
+        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.72);
     };
 
     const reveal = async () => {
       if (revealed || revealRunning || resolved || disposed) return;
       revealRunning = true;
+      stopSprite9ShineLoop();
       const revealFramePlaybackId = ++framePlaybackId;
       try { hero?.setAttribute('aria-disabled', 'true'); } catch {}
       triggerHaptic('medium');
 
       try {
-        gsap.killTweensOf(hero);
-        const rotationDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 5);
-        const bounce = gsap.timeline();
-        bounce
-          .to(hero, { scale: 0.7, rotation: 0, duration: 0.09, ease: 'power2.out', force3D: true })
-          .to(hero, { scale: 1.28, rotation: rotationDeg, duration: 0.12, ease: 'power2.out', force3D: true })
-          .to(hero, { scale: 1, rotation: 0, duration: 0.09, ease: 'power2.inOut', force3D: true });
-      } catch {}
-
-      const framePromise = (async () => {
-        await playCrumbleFrames({
-          baseImg: frameImg,
-          nextImg: frameNextImg,
-          motionEl: motion,
-          lightEl: light,
-          frames: [6, 7, 8, 9, 10],
-          delays: [46, 39, 31, 22],
-          crossfadeMs: 20,
-          motionStrength: 1.15,
-          shouldContinue: () => framePlaybackId === revealFramePlaybackId && !resolved && !disposed,
-        });
-        if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
-        if (frameImg) {
-          frameImg.style.opacity = '0';
-          frameImg.style.visibility = 'hidden';
-        }
-        if (finalImg) {
-          finalImg.style.visibility = 'visible';
-          finalImg.style.opacity = '1';
-          finalImg.style.transform = 'scale(1) rotateY(0deg)';
-        }
-        setLightMask(light, safeCardPath);
-      })();
-
-      try {
-        gsap.killTweensOf([title, subtitle, light, cta]);
+        gsap.killTweensOf([title, subtitle, hero, frameImg, finalImg, light, shadow, cta]);
         const revealTl = gsap.timeline({
           onComplete: () => {
             if (!cta) return;
+            cta.style.marginTop = '24px';
+            cta.classList.remove('animate-enter-initial', 'animate-exit');
             cta.style.removeProperty('opacity');
             cta.style.removeProperty('visibility');
             cta.style.removeProperty('transform');
             cta.style.removeProperty('-webkit-transform');
+            cta.style.removeProperty('transition');
+            cta.style.removeProperty('-webkit-transition');
             cta.classList.add('animate-enter');
+            revealRunning = false;
           },
         });
+        const rd = (s: number) => s * FAST_20;
+        if (frameImg) {
+          frameImg.src = getCrumbleFramePath(9);
+          frameImg.style.opacity = '1';
+          frameImg.style.visibility = 'visible';
+          gsap.set(frameImg, { y: 0, rotate: 0, scale: 1.2, filter: 'blur(0px)', transformOrigin: '50% 50%', force3D: true });
+        }
+        gsap.set(light, { scale: 1.2, transformOrigin: '50% 50%', force3D: true });
+        if (finalImg) {
+          finalImg.style.visibility = 'visible';
+          finalImg.style.opacity = '0';
+          gsap.set(finalImg, {
+            y: -30,
+            scale: 0,
+            rotate: -8,
+            transformOrigin: '50% 50%',
+            force3D: true,
+          });
+        }
         revealTl
-          .to(title, { opacity: 0, y: -14, scale: 0.82, duration: 0.16, ease: 'power2.in' }, 0)
-          .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: 0.16, ease: 'power2.in' }, 0.03)
-          .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, 0.08)
-          .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, 0.08)
-          .to(title, { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: 'back.out(1.65)' }, 0.1)
-          .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: 'back.out(1.65)' }, 0.15)
-          .to(light, { opacity: 0.92, duration: 0.16, ease: 'power2.out' }, 0.06);
-        framePromise.catch(() => {});
+          .to(title, { opacity: 0, y: -14, scale: 0.82, duration: rd(0.16), ease: 'power2.in' }, 0)
+          .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: rd(0.16), ease: 'power2.in' }, rd(0.03))
+          .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, rd(0.08))
+          .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, rd(0.08))
+          .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: rd(0.32), ease: 'back.in(1.65)', force3D: true }, 0)
+          .to(shadow, { opacity: 0, y: -4, scaleX: 0.2, scaleY: 0.28, duration: rd(0.32), ease: 'power2.inOut' }, 0)
+          .set(frameImg, { visibility: 'hidden' }, rd(0.32))
+          .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, rd(0.32))
+          .call(() => {
+            setLightMask(light, safeCardPath);
+            gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
+          }, undefined, rd(0.32))
+          .to(finalImg, {
+            opacity: 1,
+            y: -4,
+            scale: 0.95,
+            rotate: 0,
+            duration: rd(0.65),
+            ease: 'back.out(1.85)',
+            force3D: true,
+          }, rd(0.32))
+          .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.42), ease: 'back.out(1.55)' }, rd(0.32))
+          .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.1))
+          .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.15))
+          .to(light, { opacity: 0.92, duration: rd(0.16), ease: 'power2.out' }, rd(0.06));
         revealed = true;
       } catch {
         if (title) title.textContent = 'Card Unlocked!';
@@ -526,18 +674,24 @@ export async function showJourneyNewCardScreen({
           finalImg.style.visibility = 'visible';
           finalImg.style.opacity = '1';
         }
+        cta?.classList.remove('animate-enter-initial', 'animate-exit');
         cta?.classList.add('animate-enter');
+        revealRunning = false;
       }
 
       scheduleHaptic(0, 'medium');
-      scheduleHaptic(130, 'light');
-      scheduleHaptic(260, 'medium');
-      revealRunning = false;
+      scheduleHaptic(Math.round(130 * FAST_20), 'light');
+      scheduleHaptic(Math.round(260 * FAST_20), 'medium');
     };
 
     const onReveal = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (revealed && !revealRunning) {
+        try { (window as any).triggerHapticSelection?.(); } catch {}
+        finish();
+        return;
+      }
       reveal();
     };
     const onHeroKeyDown = (event: KeyboardEvent) => {
@@ -560,11 +714,18 @@ export async function showJourneyNewCardScreen({
       try { cta?.removeEventListener('click', onContinue); } catch {}
     });
 
+    const d = (sec: number) => sec * FAST_20;
+
     gsap.set(title, { opacity: 0, y: -28, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(subtitle, { opacity: 0, y: -22, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(hero, { opacity: 0, y: -30, scale: 0, rotate: -8, transformOrigin: '50% 50%' });
-    gsap.set(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54 });
+    gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.42, scaleY: 0.54 });
+    gsap.set(light, { scale: 1, transformOrigin: '50% 50%' });
     gsap.set(cta, { opacity: 0, scale: 0, visibility: 'hidden', transformOrigin: '50% 50%' });
+    if (cta) {
+      cta.classList.remove('animate-exit', 'animate-enter');
+      cta.classList.add('animate-enter-initial');
+    }
     setLightMask(light, getCrumbleFramePath(1));
 
     const enter = gsap.timeline({
@@ -572,9 +733,10 @@ export async function showJourneyNewCardScreen({
       onComplete: () => {
         gsap.to(shadow, {
           opacity: 0.72,
+          y: 8,
           scaleX: 0.86,
           scaleY: 0.82,
-          duration: 1.42,
+          duration: d(1.42),
           ease: 'sine.inOut',
           repeat: -1,
           yoyo: true,
@@ -582,10 +744,10 @@ export async function showJourneyNewCardScreen({
       },
     });
     enter
-      .to(title, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0)
-      .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.65)' }, 0.04)
-      .to(hero, { opacity: 1, y: 0, scale: 1, rotate: 0, duration: 0.65, ease: 'back.out(1.7)' }, 0.22)
-      .to(shadow, { opacity: 1, scaleX: 1, scaleY: 1, duration: 0.32, ease: 'power2.out' }, 0.22)
+      .to(title, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, 0)
+      .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, d(0.04))
+      .to(hero, { opacity: 1, y: 0, scale: 1, rotate: 0, duration: d(0.65), ease: 'back.out(1.7)' }, d(0.22))
+      .to(shadow, { opacity: 1, y: 8, scaleX: 1, scaleY: 1, duration: d(0.32), ease: 'power2.out' }, 0)
       .add(() => {
         const introFramePlaybackId = ++framePlaybackId;
         (async () => {
@@ -594,20 +756,30 @@ export async function showJourneyNewCardScreen({
             nextImg: frameNextImg,
             motionEl: motion,
             lightEl: light,
-            frames: [1, 2, 3, 4, 5, 6],
-            delays: [54, 50, 46, 50, 58],
-            crossfadeMs: 42,
+            frames: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            delays: [27, 26, 24, 23, 24, 25, 27, 29],
+            blurMs: 21,
             motionStrength: 0.38,
+            speedScale: 1,
             shouldContinue: () => framePlaybackId === introFramePlaybackId && !resolved && !disposed,
           });
           if (framePlaybackId !== introFramePlaybackId || resolved || disposed) return;
-          if (frameImg) frameImg.src = getCrumbleFramePath(6);
+          if (frameImg) {
+            frameImg.src = getCrumbleFramePath(9);
+            gsap.killTweensOf(frameImg);
+            gsap.set(light, { scale: 1.2, transformOrigin: '50% 50%', force3D: true });
+            gsap.timeline()
+              .set(frameImg, { transformOrigin: '50% 50%', force3D: true })
+              .to(frameImg, { scale: 1.28, duration: 0.1, ease: 'back.out(2)' })
+              .to(frameImg, { scale: 1.2, duration: 0.16, ease: 'sine.out' })
+              .call(startSprite9ShineLoop);
+          }
         })().catch(() => {});
-      }, 0.87);
+      }, d(0.87));
 
     scheduleHaptic(0, 'medium');
-    scheduleHaptic(150, 'light');
-    scheduleHaptic(300, 'medium');
+    scheduleHaptic(Math.round(150 * FAST_20), 'light');
+    scheduleHaptic(Math.round(300 * FAST_20), 'medium');
   });
 }
 

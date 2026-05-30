@@ -561,7 +561,6 @@ let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/juice are used rapidly
 let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
-const DEV_SHOW_NEW_CARD_ON_JOURNEY_WILD_STAR_MERGE6 = true;
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -618,54 +617,6 @@ function getEndgameGuardState(): { active: boolean; count: number; until: number
     until: endgameGuardUntil,
     sources: Array.from(endgameGuardSources.keys())
   };
-}
-
-function isJourneyRunForDevNewCardTrigger(): boolean {
-  try {
-    if (isArcadeHomeRunMode()) return false;
-    return (window as any).__ccCameFromJourney === true ||
-      (window as any).__ccFromInterimBoard === true ||
-      (window as any).__ccIsInterimBoard === true ||
-      localStorage.getItem('__ccCameFromJourney') === 'true' ||
-      localStorage.getItem('__ccFromInterimBoard') === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function triggerDevJourneyNewCardOnWildStarMerge6(): void {
-  if (!DEV_SHOW_NEW_CARD_ON_JOURNEY_WILD_STAR_MERGE6) return;
-  if (!isJourneyRunForDevNewCardTrigger()) return;
-
-  const currentBoardNumber = STATE?.boardNumber || boardNumber || (window as any).__ccStartAtLevel || 1;
-  const safeBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16
-    ? currentBoardNumber | 0
-    : 1;
-  if ((window as any).__ccDevJourneyWildStarMerge6NewCardShowing === true) return;
-  if ((window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard === safeBoardNumber) return;
-
-  (window as any).__ccDevShowNewCardOnJourneyWildStarMerge6 = true;
-  (window as any).__ccDevJourneyWildStarMerge6NewCardShowing = true;
-  (window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard = safeBoardNumber;
-
-  trackAppTimeout(async () => {
-    try {
-      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-      const boardCard = journeyBoardsManager.getBoardById?.(safeBoardNumber);
-      const paddedBoardNumber = String(safeBoardNumber).padStart(2, '0');
-      const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
-      await showJourneyNewCardScreen({
-        boardNumber: safeBoardNumber,
-        cardImagePath: boardCard?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
-        cardName: boardCard?.name || `Board ${safeBoardNumber}`,
-      });
-      devLog(`🧪 DEV: New Card screen shown after Journey wild-star merge-6 for board ${safeBoardNumber}`);
-    } catch (error) {
-      devWarn('⚠️ DEV: Failed to show New Card screen after Journey wild-star merge-6:', error);
-    } finally {
-      delete (window as any).__ccDevJourneyWildStarMerge6NewCardShowing;
-    }
-  }, 900);
 }
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
@@ -7505,7 +7456,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
-              triggerDevJourneyNewCardOnWildStarMerge6();
               playShortWildMerge6TileBlast('Wild-star');
               // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
               try {

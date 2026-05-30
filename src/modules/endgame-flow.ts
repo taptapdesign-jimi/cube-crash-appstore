@@ -94,6 +94,31 @@ async function returnFirstPlayTutorialToHomepage(): Promise<void> {
   }
 }
 
+function createNewCardCleanBoardHandoffCover(): () => void {
+  if (typeof document === 'undefined') return () => {};
+  const existing = document.getElementById('cc-new-card-clean-board-handoff');
+  if (existing) {
+    try { existing.remove(); } catch {}
+  }
+  const cover = document.createElement('div');
+  cover.id = 'cc-new-card-clean-board-handoff';
+  cover.setAttribute('aria-hidden', 'true');
+  cover.style.cssText = [
+    'position:fixed',
+    'inset:0',
+    'z-index:1294000',
+    'pointer-events:none',
+    'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, radial-gradient(ellipse at center, rgb(255,255,255) 0%, rgb(255,250,244) 48%, rgb(252,238,223) 100%)',
+    'opacity:1',
+    'transform:translateZ(0)',
+  ].join(';');
+  document.body.appendChild(cover);
+  return () => {
+    try { gsap.killTweensOf(cover); } catch {}
+    try { cover.remove(); } catch {}
+  };
+}
+
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   try {
     const { resetEndgameHint } = await import('./endgame-hint.js');
@@ -196,6 +221,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   // sakrij grid/ghostove dok traje flow
   const prevBG = boardBG?.visible !== false;
   try { hideGrid?.(); } catch {}
+  let cleanupNewCardHandoffCover: (() => void) | null = null;
 
   try {
     // Clean Board modal (bonus starting at 500, +200 per board) → immediately start next level on Continue
@@ -270,7 +296,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       return;
     }
 
-    const { showCleanBoardModal } = await import('./clean-board-modal.js');
     const cameFromDetailModalForReward = (window as any).__ccCameFromDetailModal === true;
     const isFromInterimBoardForReward =
       !cameFromDetailModalForReward &&
@@ -287,13 +312,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       journeyBoardsManager.unlockBoardOnCompletion(boardNumber);
       logger.info(`🗺️ Journey board ${boardNumber} unlocked on completion`);
 
-      if (
-        isFromInterimBoardForReward &&
-        (window as any).__ccDevJourneyWildStarMerge6NewCardShownForBoard !== boardNumber
-      ) {
+      if (isFromInterimBoardForReward) {
         try {
           const boardCard = journeyBoardsManager.getBoardById?.(boardNumber);
           const paddedBoardNumber = String(Math.max(1, Math.min(16, boardNumber | 0))).padStart(2, '0');
+          cleanupNewCardHandoffCover = createNewCardCleanBoardHandoffCover();
           const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
           await showJourneyNewCardScreen({
             boardNumber,
@@ -355,22 +378,31 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
     }
     
-    const modalResult = await showCleanBoardModal({ 
-      app, stage,
-      getScore: ctx.getScore,
-      setScore: ctx.setScore,
-      animateScore: ctx.animateScore ? ((score: number, duration?: number) => {
-        if (ctx.animateScore) {
-          ctx.animateScore(score, duration || 0.45);
-        }
-      }) : undefined,
-      updateHUD: ctx.updateHUD,
-      bonus,
-      efficiencyBonus,
-      scoreCap: 999999,
-      boardNumber,
-      isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
-    });
+    let modalResult: { action: string } | undefined;
+    try {
+      const { showCleanBoardModal } = await import('./clean-board-modal.js');
+      modalResult = await showCleanBoardModal({
+        app, stage,
+        getScore: ctx.getScore,
+        setScore: ctx.setScore,
+        animateScore: ctx.animateScore ? ((score: number, duration?: number) => {
+          if (ctx.animateScore) {
+            ctx.animateScore(score, duration || 0.45);
+          }
+        }) : undefined,
+        updateHUD: ctx.updateHUD,
+        bonus,
+        efficiencyBonus,
+        scoreCap: 999999,
+        boardNumber,
+        isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
+      });
+    } finally {
+      if (cleanupNewCardHandoffCover) {
+        cleanupNewCardHandoffCover();
+        cleanupNewCardHandoffCover = null;
+      }
+    }
     
     console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);
     logger.info(`🎯 endgame-flow: Clean board modal result: ${modalResult?.action}`);
@@ -1233,6 +1265,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     console.error('❌ runEndgameFlow error:', error);
     throw error; // Re-throw to propagate
   } finally {
+    if (cleanupNewCardHandoffCover) {
+      cleanupNewCardHandoffCover();
+      cleanupNewCardHandoffCover = null;
+    }
     // vrati stanje
     try { if (boardBG) boardBG.visible = prevBG; } catch {}
     try { showGrid?.(); } catch {}
