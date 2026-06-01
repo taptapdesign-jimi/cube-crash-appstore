@@ -16,7 +16,7 @@ function cleanupJourneyNewCardScreen(): void {
   cleanupFns = [];
   const existing = document.getElementById('cc-journey-new-card-overlay');
   if (existing) {
-    try { gsap.killTweensOf(existing.querySelectorAll('*')); } catch {}
+    try { gsap.killTweensOf([existing, ...Array.from(existing.querySelectorAll('*'))]); } catch {}
     try { existing.remove(); } catch {}
   }
   const style = document.getElementById('cc-journey-new-card-style');
@@ -120,7 +120,6 @@ function ensureJourneyNewCardStyles(): void {
       pointer-events: none;
     }
     .cc-journey-new-card-frame,
-    .cc-journey-new-card-frame-next,
     .cc-journey-new-card-final {
       grid-area: 1 / 1;
       width: 100%;
@@ -134,12 +133,6 @@ function ensureJourneyNewCardStyles(): void {
       -webkit-user-drag: none;
       pointer-events: none;
       filter: drop-shadow(0 12px 26px rgba(161, 91, 54, 0.22));
-    }
-    .cc-journey-new-card-frame-next {
-      display: none !important;
-      visibility: hidden !important;
-      opacity: 0 !important;
-      pointer-events: none;
     }
     .cc-journey-new-card-final {
       opacity: 0;
@@ -361,8 +354,6 @@ function preloadImage(src: string): Promise<void> {
 
 type CrumbleFramePlayerOptions = {
   baseImg: HTMLImageElement | null;
-  nextImg: HTMLImageElement | null;
-  motionEl: HTMLElement | null;
   lightEl?: HTMLElement | null;
   frames: number[];
   delays: number[];
@@ -378,8 +369,6 @@ type CrumbleFramePlayerOptions = {
 // Single visible layer: 1→2→3… with motion blur only (no stacked duplicate frames).
 async function playCrumbleFrames({
   baseImg,
-  nextImg,
-  motionEl,
   lightEl,
   frames,
   delays,
@@ -390,12 +379,6 @@ async function playCrumbleFrames({
   onFrame,
 }: CrumbleFramePlayerOptions): Promise<void> {
   if (!baseImg || frames.length === 0) return;
-
-  if (nextImg) {
-    nextImg.style.display = 'none';
-    nextImg.style.visibility = 'hidden';
-    nextImg.style.opacity = '0';
-  }
 
   const scale = Math.max(0.2, Math.min(1, speedScale)) * FAST_20;
   const stepMs = (ms: number) => Math.max(10, Math.round(ms * scale));
@@ -491,7 +474,6 @@ export async function showJourneyNewCardScreen({
           <div class="cc-journey-new-card-shadow" style="opacity:0;transform:translateX(-50%) scale(0.68, 0.72);"></div>
           <div class="cc-journey-new-card-motion">
             <img class="cc-journey-new-card-frame" src="${getCrumbleFramePath(1)}" alt="">
-            <img class="cc-journey-new-card-frame-next" src="${getCrumbleFramePath(1)}" alt="">
             <img class="cc-journey-new-card-final" src="${safeCardPath}" alt="${safeCardName}">
             <div class="cc-journey-new-card-light" aria-hidden="true"></div>
           </div>
@@ -506,7 +488,6 @@ export async function showJourneyNewCardScreen({
     const hero = overlay.querySelector('.cc-journey-new-card-hero') as HTMLElement | null;
     const motion = overlay.querySelector('.cc-journey-new-card-motion') as HTMLElement | null;
     const frameImg = overlay.querySelector('.cc-journey-new-card-frame') as HTMLImageElement | null;
-    const frameNextImg = overlay.querySelector('.cc-journey-new-card-frame-next') as HTMLImageElement | null;
     const finalImg = overlay.querySelector('.cc-journey-new-card-final') as HTMLImageElement | null;
     const light = overlay.querySelector('.cc-journey-new-card-light') as HTMLElement | null;
     const shadow = overlay.querySelector('.cc-journey-new-card-shadow') as HTMLElement | null;
@@ -531,7 +512,7 @@ export async function showJourneyNewCardScreen({
       shineAnimationFrames.splice(0).forEach((frameId) => {
         try { window.cancelAnimationFrame(frameId); } catch {}
       });
-      try { gsap.killTweensOf([title, subtitle, hero, motion, frameImg, frameNextImg, finalImg, light, shadow, cta]); } catch {}
+      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, frameImg, finalImg, light, shadow, cta]); } catch {}
     });
 
     const triggerHaptic = (style: 'light' | 'medium' = 'medium') => {
@@ -571,7 +552,7 @@ export async function showJourneyNewCardScreen({
       const timeoutId = window.setTimeout(() => {
         const index = shineTimeouts.indexOf(timeoutId);
         if (index >= 0) shineTimeouts.splice(index, 1);
-        if (!disposed && document.body.contains(overlay)) fn();
+        if (!resolved && !disposed && document.body.contains(overlay)) fn();
       }, delayMs);
       shineTimeouts.push(timeoutId);
       return timeoutId;
@@ -581,7 +562,7 @@ export async function showJourneyNewCardScreen({
       const frameId = window.requestAnimationFrame(() => {
         const index = shineAnimationFrames.indexOf(frameId);
         if (index >= 0) shineAnimationFrames.splice(index, 1);
-        if (!disposed && document.body.contains(overlay)) fn();
+        if (!resolved && !disposed && document.body.contains(overlay)) fn();
       });
       shineAnimationFrames.push(frameId);
       return frameId;
@@ -597,6 +578,19 @@ export async function showJourneyNewCardScreen({
       if (finalCardShineIntervalId === null) return;
       try { window.clearInterval(finalCardShineIntervalId); } catch {}
       finalCardShineIntervalId = null;
+    };
+
+    const clearPendingShineWork = () => {
+      shineTimeouts.splice(0).forEach((timeoutId) => {
+        try { window.clearTimeout(timeoutId); } catch {}
+      });
+      shineAnimationFrames.splice(0).forEach((frameId) => {
+        try { window.cancelAnimationFrame(frameId); } catch {}
+      });
+      try { light?.classList.remove('shine-trigger'); } catch {}
+      try { frameImg?.classList.remove('glow-pulse'); } catch {}
+      try { finalImg?.classList.remove('glow-pulse'); } catch {}
+      try { gsap.killTweensOf([light, frameImg, finalImg]); } catch {}
     };
 
     const startSprite9ShineLoop = () => {
@@ -616,7 +610,7 @@ export async function showJourneyNewCardScreen({
     const startFinalCardShineLoop = () => {
       stopFinalCardShineLoop();
       const play = () => {
-        if (!revealed || revealRunning || resolved || disposed || !finalImg || !document.body.contains(overlay)) {
+        if ((!revealed && !revealRunning) || resolved || disposed || !finalImg || !document.body.contains(overlay)) {
           stopFinalCardShineLoop();
           return;
         }
@@ -634,21 +628,25 @@ export async function showJourneyNewCardScreen({
       resolved = true;
       stopSprite9ShineLoop();
       stopFinalCardShineLoop();
+      clearPendingShineWork();
       ++framePlaybackId;
       try { cta?.removeEventListener('click', onContinue); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
-      try { gsap.killTweensOf([title, subtitle, hero, motion, frameImg, frameNextImg, finalImg, light, shadow, cta]); } catch {}
+      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, frameImg, finalImg, light, shadow, cta]); } catch {}
       if (cta) {
         cta.disabled = true;
         cta.classList.remove('animate-enter', 'animate-enter-initial', 'animate-exit');
         cta.style.removeProperty('transition');
         cta.style.removeProperty('-webkit-transition');
-        cta.style.removeProperty('transform');
-        cta.style.removeProperty('-webkit-transform');
-        cta.style.removeProperty('opacity');
-        cta.style.removeProperty('visibility');
-        cta.classList.add('animate-exit');
+        gsap.set(cta, {
+          opacity: 1,
+          visibility: 'visible',
+          y: 0,
+          scale: 1,
+          transformOrigin: '50% 50%',
+          force3D: true,
+        });
       }
       const tl = gsap.timeline({
         onComplete: () => {
@@ -656,40 +654,61 @@ export async function showJourneyNewCardScreen({
           resolve({ action: 'continue' });
         },
       });
-      tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0.12)
-        .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.15)
-        .set(title, { visibility: 'hidden' }, 0.43)
-        .set(subtitle, { visibility: 'hidden' }, 0.46)
-        .to(finalImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)', force3D: true }, 0.18)
-        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.18)
-        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.72);
+      tl
+        // 1. Continue button exits alone.
+        .to(cta, {
+          scale: 0,
+          opacity: 0,
+          y: 20,
+          duration: 0.22,
+          ease: 'back.in(1.7)',
+          force3D: true,
+        })
+        .set(cta, { visibility: 'hidden' })
+        // 2. Card exits immediately after CTA, with its shine/shadow.
+        .to(hero, {
+          scale: 0,
+          opacity: 0,
+          y: -30,
+          rotate: -8,
+          duration: 0.24,
+          ease: 'back.in(1.65)',
+          force3D: true,
+        })
+        .set(hero, { visibility: 'hidden' })
+        // 3. Text exits one after another, no idle gap.
+        .to(title, {
+          scale: 0,
+          opacity: 0,
+          y: -34,
+          duration: 0.18,
+          ease: 'back.in(1.55)',
+          force3D: true,
+        })
+        .set(title, { visibility: 'hidden' })
+        .to(subtitle, {
+          scale: 0,
+          opacity: 0,
+          y: -28,
+          duration: 0.18,
+          ease: 'back.in(1.55)',
+          force3D: true,
+        })
+        .set(subtitle, { visibility: 'hidden' })
+        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
     };
 
     const reveal = async () => {
       if (revealed || revealRunning || resolved || disposed) return;
       revealRunning = true;
       stopSprite9ShineLoop();
+      clearPendingShineWork();
       const revealFramePlaybackId = ++framePlaybackId;
       try { hero?.setAttribute('aria-disabled', 'true'); } catch {}
       triggerHaptic('medium');
 
       try {
         gsap.killTweensOf([title, subtitle, hero, frameImg, finalImg, light, shadow, cta]);
-        const revealTl = gsap.timeline({
-          onComplete: () => {
-            if (!cta) return;
-            cta.style.marginTop = '24px';
-            cta.classList.remove('animate-enter-initial', 'animate-exit');
-            cta.style.removeProperty('opacity');
-            cta.style.removeProperty('visibility');
-            cta.style.removeProperty('transform');
-            cta.style.removeProperty('-webkit-transform');
-            cta.style.removeProperty('transition');
-            cta.style.removeProperty('-webkit-transition');
-            cta.classList.add('animate-enter');
-            revealRunning = false;
-          },
-        });
         const rd = (s: number) => s * FAST_20;
         if (frameImg) {
           frameImg.src = getCrumbleFramePath(9);
@@ -710,50 +729,77 @@ export async function showJourneyNewCardScreen({
             force3D: true,
           });
         }
-        revealTl
-          .to(title, { opacity: 0, y: -14, scale: 0.82, duration: rd(0.16), ease: 'power2.in' }, 0)
-          .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: rd(0.16), ease: 'power2.in' }, rd(0.03))
-          .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, rd(0.08))
-          .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, rd(0.08))
-          .call(() => triggerHaptic('light'), undefined, rd(0.08))
-          .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: rd(0.32), ease: 'back.in(1.65)', force3D: true }, 0)
-          .to(shadow, { opacity: 0, y: -4, scaleX: 0.2, scaleY: 0.28, duration: rd(0.32), ease: 'power2.inOut' }, 0)
-          .call(() => triggerHaptic('light'), undefined, rd(0.16))
-          .set(frameImg, { visibility: 'hidden' }, rd(0.32))
-          .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, rd(0.32))
-          .call(() => {
-            setLightMask(light, safeCardPath);
-            setLightFrameScale(light, 0.95);
-            gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
-            playScreenShake(11, 0.42);
-            triggerHaptic('medium');
-          }, undefined, rd(0.32))
-          .to(finalImg, {
-            opacity: 1,
-            y: -4,
-            scale: 0.95,
-            rotate: 0,
-            duration: rd(0.65),
-            ease: 'back.out(1.85)',
-            force3D: true,
-          }, rd(0.32))
-          .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.42), ease: 'back.out(1.55)' }, rd(0.32))
-          .call(() => {
-            playScreenShake(15, 0.5);
-            triggerHaptic('medium');
-            startFinalCardShineLoop();
-            triggerJourneyNewCardShine(light, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
-          }, undefined, rd(0.96))
-          .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.1))
-          .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.15))
-          .call(() => triggerHaptic('light'), undefined, rd(0.42))
-          .call(() => triggerHaptic('light'), undefined, rd(0.48))
-          .to(light, { opacity: 0.92, duration: rd(0.16), ease: 'power2.out' }, rd(0.06));
+
+        await new Promise<void>((coverExitDone) => {
+          gsap.timeline({ onComplete: coverExitDone })
+            .to(title, { opacity: 0, y: -14, scale: 0.82, duration: rd(0.16), ease: 'power2.in' }, 0)
+            .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: rd(0.16), ease: 'power2.in' }, rd(0.03))
+            .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, rd(0.08))
+            .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, rd(0.08))
+            .call(() => triggerHaptic('light'), undefined, rd(0.08))
+            .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: rd(0.32), ease: 'back.in(1.65)', force3D: true }, 0)
+            .to(shadow, { opacity: 0, y: -4, scaleX: 0.2, scaleY: 0.28, duration: rd(0.32), ease: 'power2.inOut' }, 0)
+            .to(light, { opacity: 0, duration: rd(0.18), ease: 'power2.inOut' }, 0)
+            .call(() => triggerHaptic('light'), undefined, rd(0.16));
+        });
+
+        if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
+        gsap.set(frameImg, { visibility: 'hidden', opacity: 0, scale: 0, y: -30, rotate: -8 });
+        gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 });
+        setLightMask(light, safeCardPath);
+        setLightFrameScale(light, 0.95);
+        gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+        playScreenShake(11, 0.42);
+        triggerHaptic('medium');
+
+        await new Promise<void>((cardEnterDone) => {
+          gsap.timeline({
+            onComplete: () => {
+              if (cta) {
+                cta.style.marginTop = '24px';
+                cta.classList.remove('animate-enter-initial', 'animate-exit');
+                cta.style.removeProperty('opacity');
+                cta.style.removeProperty('visibility');
+                cta.style.removeProperty('transform');
+                cta.style.removeProperty('-webkit-transform');
+                cta.style.removeProperty('transition');
+                cta.style.removeProperty('-webkit-transition');
+                cta.classList.add('animate-enter');
+              }
+              cardEnterDone();
+            },
+          })
+            .to(finalImg, {
+              opacity: 1,
+              y: -4,
+              scale: 0.95,
+              rotate: 0,
+              duration: rd(0.65),
+              ease: 'back.out(1.85)',
+              force3D: true,
+            }, 0)
+            .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.42), ease: 'back.out(1.55)' }, 0)
+            .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, 0)
+            .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.05))
+            .call(() => triggerHaptic('light'), undefined, rd(0.1))
+            .call(() => triggerHaptic('light'), undefined, rd(0.16))
+            .call(() => {
+              playScreenShake(15, 0.5);
+              triggerHaptic('medium');
+              startFinalCardShineLoop();
+            }, undefined, rd(0.64));
+        });
+
+        if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
         revealed = true;
+        revealRunning = false;
       } catch {
         if (title) title.textContent = 'Card Unlocked!';
         if (subtitle) subtitle.textContent = 'Added to Collection';
-        if (frameImg) frameImg.style.opacity = '0';
+        if (frameImg) {
+          frameImg.style.opacity = '0';
+          frameImg.style.visibility = 'hidden';
+        }
         if (finalImg) {
           finalImg.style.visibility = 'visible';
           finalImg.style.opacity = '1';
@@ -838,8 +884,6 @@ export async function showJourneyNewCardScreen({
         (async () => {
           await playCrumbleFrames({
             baseImg: frameImg,
-            nextImg: frameNextImg,
-            motionEl: motion,
             lightEl: light,
             frames: [1, 2, 3, 4, 5, 6, 7, 8, 9],
             delays: [27, 26, 24, 23, 24, 25, 27, 29],
