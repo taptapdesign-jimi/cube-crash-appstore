@@ -1469,9 +1469,19 @@ class JourneyBoardsManager {
       'ALL STAR',
       'FLYING UP',
       'PLANNER',
+      'STACKMAN',
       'PEACEFUL',
+      'CRUMBLER',
+      'BIG BANG',
+      'CUBERO',
+      'PEAKABOO',
+      'COOL DICE',
+      'BEST PLAY',
+      'HURRICANE',
+      'LEGACY',
+      'RUMBLE',
     ];
-    return names[(boardNumber - 1) % names.length] || `Board ${boardNumber}`;
+    return names[boardNumber - 1] || `Board ${boardNumber}`;
   }
 
   /**

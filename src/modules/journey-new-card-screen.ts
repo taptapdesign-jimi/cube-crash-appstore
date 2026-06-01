@@ -309,6 +309,13 @@ function setLightFrameScale(lightEl: HTMLElement | null, scale: number): void {
   } catch {}
 }
 
+function toDisplayCardName(name: string): string {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+}
+
 function triggerJourneyNewCardShine(
   lightEl: HTMLElement | null,
   target: HTMLElement | null,
@@ -446,6 +453,8 @@ export async function showJourneyNewCardScreen({
   const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
   const safeCardPath = cardImagePath || `./assets/colelctibles/common/${String(safeBoardNumber).padStart(2, '0')}.png`;
   const safeCardName = cardName || `Board ${safeBoardNumber}`;
+  const displayCardName = toDisplayCardName(safeCardName);
+  const revealSubtitle = `"${displayCardName}" added`;
 
   await Promise.all([
     ...Array.from({ length: 9 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
@@ -467,7 +476,7 @@ export async function showJourneyNewCardScreen({
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
     overlay.innerHTML = `
-      <h1 class="cc-journey-new-card-title" style="opacity:0;transform:scale(0) translateY(-28px);">New Card</h1>
+      <h1 class="cc-journey-new-card-title" style="opacity:0;transform:scale(0) translateY(-28px);">New Reward</h1>
       <p class="cc-journey-new-card-subtitle" style="opacity:0;transform:scale(0) translateY(-22px);">Tap the card to reveal</p>
       <div class="cc-journey-new-card-content">
         <div class="cc-journey-new-card-hero" role="button" aria-label="Reveal ${safeCardName}" tabindex="0" style="opacity:0;transform:translateY(-30px) scale(0) rotate(-8deg);">
@@ -617,7 +626,6 @@ export async function showJourneyNewCardScreen({
         setLightFrameScale(light, 0.95);
         gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
         triggerJourneyNewCardShine(light, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
-        scheduleHaptic(150, 'light');
       };
       play();
       finalCardShineIntervalId = window.setInterval(play, 3000);
@@ -772,8 +780,8 @@ export async function showJourneyNewCardScreen({
           })
             .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
-            .set(title, { textContent: 'Card Unlocked!', opacity: 0, y: -16, scale: 0.72 }, titleStart)
-            .set(subtitle, { textContent: 'Added to Collection', opacity: 0, y: -12, scale: 0.78 }, titleStart)
+            .set(title, { textContent: 'Unlocked!', opacity: 0, y: -16, scale: 0.72 }, titleStart)
+            .set(subtitle, { textContent: revealSubtitle, opacity: 0, y: -12, scale: 0.78 }, titleStart)
             .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: coverExitDuration, ease: 'back.in(1.65)', force3D: true }, 0)
             .set(light, { opacity: 0 }, 0)
             .call(() => triggerHaptic('light'), undefined, rd(0.22))
@@ -839,8 +847,8 @@ export async function showJourneyNewCardScreen({
         revealed = true;
         revealRunning = false;
       } catch {
-        if (title) title.textContent = 'Card Unlocked!';
-        if (subtitle) subtitle.textContent = 'Added to Collection';
+        if (title) title.textContent = 'Unlocked!';
+        if (subtitle) subtitle.textContent = revealSubtitle;
         if (frameImg) {
           frameImg.style.opacity = '0';
           frameImg.style.visibility = 'hidden';
