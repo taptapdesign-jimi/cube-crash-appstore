@@ -730,64 +730,109 @@ export async function showJourneyNewCardScreen({
           });
         }
 
-        await new Promise<void>((coverExitDone) => {
-          gsap.timeline({ onComplete: coverExitDone })
-            .to(title, { opacity: 0, y: -14, scale: 0.82, duration: rd(0.16), ease: 'power2.in' }, 0)
-            .to(subtitle, { opacity: 0, y: -10, scale: 0.86, duration: rd(0.16), ease: 'power2.in' }, rd(0.03))
-            .set(title, { textContent: 'Card Unlocked!', y: -16, scale: 0.72 }, rd(0.08))
-            .set(subtitle, { textContent: 'Added to Collection', y: -12, scale: 0.78 }, rd(0.08))
-            .call(() => triggerHaptic('light'), undefined, rd(0.08))
-            .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: rd(0.32), ease: 'back.in(1.65)', force3D: true }, 0)
-            .to(shadow, { opacity: 0, y: -4, scaleX: 0.2, scaleY: 0.28, duration: rd(0.32), ease: 'power2.inOut' }, 0)
-            .to(light, { opacity: 0, duration: rd(0.18), ease: 'power2.inOut' }, 0)
-            .call(() => triggerHaptic('light'), undefined, rd(0.16));
-        });
-
-        if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
-        gsap.set(frameImg, { visibility: 'hidden', opacity: 0, scale: 0, y: -30, rotate: -8 });
-        gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 });
-        setLightMask(light, safeCardPath);
-        setLightFrameScale(light, 0.95);
-        gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
-        playScreenShake(11, 0.42);
-        triggerHaptic('medium');
-
-        await new Promise<void>((cardEnterDone) => {
+        await new Promise<void>((revealDone) => {
+          if (cta) {
+            cta.style.marginTop = '24px';
+            cta.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit');
+            cta.style.removeProperty('transition');
+            cta.style.removeProperty('-webkit-transition');
+            gsap.set(cta, {
+              opacity: 0,
+              visibility: 'visible',
+              y: 18,
+              scale: 0,
+              transformOrigin: '50% 50%',
+              force3D: true,
+            });
+          }
+          const coverExitDuration = rd(0.32);
+          const cardEnterStart = Math.max(0, coverExitDuration - 0.5);
+          const cardEnterDuration = rd(0.52);
+          const cardImpactStart = cardEnterStart + cardEnterDuration;
+          const titleStart = cardEnterStart;
+          const subtitleStart = cardEnterStart;
+          const ctaStart = titleStart + rd(0.2);
           gsap.timeline({
             onComplete: () => {
-              if (cta) {
-                cta.style.marginTop = '24px';
-                cta.classList.remove('animate-enter-initial', 'animate-exit');
-                cta.style.removeProperty('opacity');
-                cta.style.removeProperty('visibility');
-                cta.style.removeProperty('transform');
-                cta.style.removeProperty('-webkit-transform');
-                cta.style.removeProperty('transition');
-                cta.style.removeProperty('-webkit-transition');
-                cta.classList.add('animate-enter');
+              if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) {
+                revealDone();
+                return;
               }
-              cardEnterDone();
+              gsap.set(finalImg, {
+                opacity: 1,
+                visibility: 'visible',
+                y: -4,
+                scale: 0.95,
+                rotate: 0,
+                transformOrigin: '50% 50%',
+                force3D: true,
+              });
+              revealDone();
             },
           })
+            .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
+            .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
+            .set(title, { textContent: 'Card Unlocked!', opacity: 0, y: -16, scale: 0.72 }, titleStart)
+            .set(subtitle, { textContent: 'Added to Collection', opacity: 0, y: -12, scale: 0.78 }, titleStart)
+            .to(frameImg, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: coverExitDuration, ease: 'back.in(1.65)', force3D: true }, 0)
+            .set(light, { opacity: 0 }, 0)
+            .call(() => triggerHaptic('light'), undefined, rd(0.22))
+            .set(frameImg, { visibility: 'hidden', opacity: 0, scale: 0, y: -30, rotate: -8 }, coverExitDuration)
+            .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, cardEnterStart)
+            .set(finalImg, {
+              opacity: 0,
+              visibility: 'visible',
+              y: -18,
+              scale: 0.58,
+              rotate: -5,
+              transformOrigin: '50% 50%',
+              force3D: true,
+            }, cardEnterStart)
+            .call(() => {
+              setLightMask(light, safeCardPath);
+              setLightFrameScale(light, 0.95);
+              gsap.set(light, { opacity: 0, scale: 1, transformOrigin: '50% 50%', force3D: true });
+              playScreenShake(11, 0.42);
+              triggerHaptic('medium');
+            }, undefined, cardEnterStart)
             .to(finalImg, {
               opacity: 1,
               y: -4,
               scale: 0.95,
               rotate: 0,
-              duration: rd(0.65),
+              duration: cardEnterDuration,
               ease: 'back.out(1.85)',
               force3D: true,
-            }, 0)
-            .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.42), ease: 'back.out(1.55)' }, 0)
-            .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, 0)
-            .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.28), ease: 'back.out(1.65)' }, rd(0.05))
-            .call(() => triggerHaptic('light'), undefined, rd(0.1))
-            .call(() => triggerHaptic('light'), undefined, rd(0.16))
+            }, cardEnterStart)
+            .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
+            .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, titleStart)
+            .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, subtitleStart)
+            .to(cta, {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: rd(0.34),
+              ease: 'back.out(1.8)',
+              force3D: true,
+            }, ctaStart)
+            .call(() => triggerHaptic('light'), undefined, titleStart)
+            .call(() => triggerHaptic('light'), undefined, ctaStart)
             .call(() => {
-              playScreenShake(15, 0.5);
+              if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
+              gsap.set(finalImg, {
+                opacity: 1,
+                visibility: 'visible',
+                y: -4,
+                scale: 0.95,
+                rotate: 0,
+                transformOrigin: '50% 50%',
+                force3D: true,
+              });
+              gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+              playScreenShake(22, 0.42);
               triggerHaptic('medium');
               startFinalCardShineLoop();
-            }, undefined, rd(0.64));
+            }, undefined, cardImpactStart);
         });
 
         if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
