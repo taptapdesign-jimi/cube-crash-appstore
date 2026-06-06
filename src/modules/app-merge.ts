@@ -752,6 +752,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         dst.eventMode = 'none';
         (dst as any)._magnetMerge6Hidden = true;
       } catch {}
+      try { (window as any).__ccForceHideGhosts = false; } catch {}
+      try { (window as any).setGhostVisibility?.(dst.gridX | 0, dst.gridY | 0, true); } catch {}
+      try { (window as any).updateGhostVisibility?.(); } catch {}
       try { gsap?.killTweensOf?.(dst, true); } catch {}
       console.log('🧲 IMMEDIATE: Hid magnet merge-6 tile after pull break');
     }

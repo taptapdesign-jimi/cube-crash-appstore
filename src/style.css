@@ -2263,7 +2263,6 @@ body{
   
   /* iOS touch optimizations for smoother animations */
   -webkit-overflow-scrolling: touch;
-  -webkit-transform: translateY(100%);
   -webkit-backface-visibility: hidden;
   -webkit-perspective: 1000;
   will-change: transform;
@@ -2506,7 +2505,6 @@ body{
   
   /* iOS touch optimizations */
   -webkit-overflow-scrolling: touch;
-  -webkit-transform: translateY(100%);
   will-change: transform;
 }
 
@@ -2576,7 +2574,7 @@ body{
 }
 
 .score-bottom-sheet.visible {
-  transform: none;
+  transform: translateY(0);
 }
 
 /* Score bottom sheet specific styles */
@@ -3703,7 +3701,6 @@ html.collectible-reward-open body {
   
   /* iOS touch optimizations */
   -webkit-overflow-scrolling: touch;
-  -webkit-transform: translateY(100%);
   will-change: transform;
 }
 
@@ -3755,6 +3752,28 @@ html.collectible-reward-open body {
     margin: 0;
     padding-left: 8%;
     padding-right: 8%;
+  }
+}
+
+/* iPad: use a simple fixed tint behind bottom sheets.
+   The sheet-level ::before is 100vh tall and moves with the sheet transform,
+   which can look like a faint ghost layer sliding upward before the sheet appears.
+   Avoid a separate "shadow event" here; keep the bounce animation on the sheet itself. */
+@media screen and (min-width: 768px) and (max-width: 1400px) {
+  .simple-bottom-sheet:not(.score-bottom-sheet)::before,
+  .score-bottom-sheet::before,
+  .hearts-bottom-sheet::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  #end-run-overlay,
+  .score-bottom-sheet-backdrop,
+  #hearts-overlay {
+    background: rgba(233, 210, 200, 0.24) !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: auto;
   }
 }
 
@@ -4855,6 +4874,16 @@ body:has(:root) .tile.wild-3d-glow {
 .settings-dev-button-reset {
   background: #735C4C;
   box-shadow: 0 7px 0 #5A4639;
+}
+
+.settings-dev-button-new-card {
+  background: #F35F37;
+  box-shadow: 0 7px 0 #C64A2A;
+}
+
+.settings-dev-button-clean-board {
+  background: #E9A03A;
+  box-shadow: 0 7px 0 #BD7627;
 }
 
 .settings-dev-button-first-play {

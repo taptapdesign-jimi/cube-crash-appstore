@@ -85,6 +85,93 @@ function openJourneyDevPicker(action: 'show' | 'hide' | 'reset'): void {
     });
 }
 
+function getCurrentDevBoardNumber(): number {
+  const rawBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+  const boardNumber = Number(rawBoardNumber);
+  return Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 16 ? boardNumber : 1;
+}
+
+function triggerSettingsDevHaptic(): void {
+  try {
+    if (typeof (window as any).triggerHapticSelection === 'function') {
+      (window as any).triggerHapticSelection();
+    }
+  } catch {}
+}
+
+async function showNewCardDevScreen(): Promise<void> {
+  triggerSettingsDevHaptic();
+  const boardNumber = getCurrentDevBoardNumber();
+  const paddedBoardNumber = String(boardNumber).padStart(2, '0');
+
+  try {
+    const [{ journeyBoardsManager }, { showJourneyNewCardScreen }] = await Promise.all([
+      import('../../modules/journey-boards-manager.js'),
+      import('../../modules/journey-new-card-screen.js'),
+    ]);
+    const board = journeyBoardsManager.getBoardById?.(boardNumber);
+    await showJourneyNewCardScreen({
+      boardNumber,
+      cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+      cardName: board?.name || `Board ${boardNumber}`,
+    });
+  } catch (error) {
+    console.error('❌ Failed to show Settings New Card dev screen:', error);
+    alert('New Card dev screen is not available right now.');
+  }
+}
+
+function hideSettingsForDevGameFlow(): void {
+  const settingsScreen = document.getElementById('settings-screen') as HTMLElement | null;
+  if (settingsScreen) {
+    gsap.killTweensOf([settingsScreen, ...Array.from(settingsScreen.querySelectorAll('*'))]);
+    settingsScreen.setAttribute('aria-hidden', 'true');
+    settingsScreen.setAttribute('hidden', 'true');
+    settingsScreen.style.display = 'none';
+    settingsScreen.style.opacity = '0';
+  }
+
+  try {
+    const uiManager = (window as any).uiManager;
+    if (uiManager && typeof uiManager.showApp === 'function') {
+      uiManager.showApp();
+    }
+  } catch {}
+}
+
+async function showCleanBoardDevFlow(): Promise<void> {
+  triggerSettingsDevHaptic();
+  hideSettingsForDevGameFlow();
+
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+  try {
+    const cc = (window as any).CC;
+    if (cc && typeof cc.showCleanBoardOverlay === 'function') {
+      await cc.showCleanBoardOverlay();
+      return;
+    }
+
+    const { showCleanBoardModal } = await import('../../modules/clean-board-modal.js');
+    const boardNumber = getCurrentDevBoardNumber();
+    await showCleanBoardModal({
+      app: cc?.app,
+      stage: cc?.stage,
+      getScore: typeof cc?.getScore === 'function' ? cc.getScore : undefined,
+      setScore: typeof cc?.setScore === 'function' ? cc.setScore : undefined,
+      animateScore: typeof cc?.animateScoreTo === 'function' ? cc.animateScoreTo : undefined,
+      updateHUD: typeof cc?.updateHUD === 'function' ? cc.updateHUD : undefined,
+      bonus: 500 + (boardNumber - 1) * 200,
+      scoreCap: 999999,
+      boardNumber,
+      devMode: true,
+    });
+  } catch (error) {
+    console.error('❌ Failed to show Settings Clean Board dev flow:', error);
+    alert('Clean Board dev flow is not available right now.');
+  }
+}
+
 function createDevButton(id: string, text: string, action: 'show' | 'hide' | 'reset'): HTMLElementConfig {
   return {
     tag: 'button',
@@ -100,6 +187,26 @@ function createDevButton(id: string, text: string, action: 'show' | 'hide' | 're
         e.preventDefault();
         e.stopPropagation();
         openJourneyDevPicker(action);
+      },
+    },
+  };
+}
+
+function createSettingsDevActionButton(id: string, text: string, classSuffix: string, onClick: () => void | Promise<void>): HTMLElementConfig {
+  return {
+    tag: 'button',
+    id,
+    className: `settings-dev-button settings-dev-button-${classSuffix} tap-scale`,
+    text,
+    attributes: {
+      type: 'button',
+      'aria-label': text,
+    },
+    eventListeners: {
+      click: (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void onClick();
       },
     },
   };
@@ -163,6 +270,8 @@ function createSettingsDevArea(): HTMLElementConfig {
           createDevButton('settings-dev-show-card-btn', 'Show Card', 'show'),
           createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
           createDevButton('settings-dev-reset-board-btn', 'Reset Board', 'reset'),
+          createSettingsDevActionButton('settings-dev-new-card-btn', 'New Card', 'new-card', showNewCardDevScreen),
+          createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Board', 'clean-board', showCleanBoardDevFlow),
           createFirstPlayDevButton(),
         ],
       },

@@ -424,17 +424,17 @@
   
   /* 🔥 REMOVED: All iPad-specific CTA button positioning - let CSS handle it via classes */
   
-  /* Povećati hero-image za 16% scale na iPad-u (20% - 4% = 16%), zatim smanjiti za 10% */
+  /* iPad-only: homepage slider main image scale reduced 7% from 1.037 to 0.964. */
   .hero-image {
-    transform: scale(1.037) translateZ(0) !important; /* 1.152 * 0.9 = 1.0368 ≈ 1.037 (smanjeno za 10%) */
-    -webkit-transform: scale(1.037) translateZ(0) !important;
+    transform: scale(0.964) translateZ(0) !important;
+    -webkit-transform: scale(0.964) translateZ(0) !important;
   }
   
-  /* Povećati hero-container da prati scale, spustiti za 20%, podignuti za 24px, zatim pomaknuti 16px prema logotipu, zatim spustiti za 20px, zatim podignuti za 24px gore, zatim smanjiti za 10% */
+  /* Match hero-container scale to the iPad image scale so animation states do not jump. */
   /* Ne primjenjivati na animacijske klase - omogućiti animacije */
   .hero-container:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial) {
-    transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important; /* Smanjeno za 10% (1.152 * 0.9 = 1.037) */
-    -webkit-transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
+    transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
+    -webkit-transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
     transform-origin: center center !important;
     -webkit-transform-origin: center center !important;
   }
@@ -459,8 +459,8 @@
   
   /* Osigurati da animacije rade na iPad-u - kombinirati iPad-specificke pozicije sa animacijama */
   .hero-container.animate-exit {
-    transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important; /* Smanjeno za 10% (1.152 * 0.9 = 1.037) */
-    -webkit-transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
+    transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
+    -webkit-transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
     transform-origin: center center !important;
     -webkit-transform-origin: center center !important;
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -468,8 +468,8 @@
   }
   
   .hero-container.animate-enter {
-    transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(1) !important; /* Smanjeno za 10% (1.152 * 0.9 = 1.037) */
-    -webkit-transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(1) !important;
+    transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(1) !important;
+    -webkit-transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(1) !important;
     transform-origin: center center !important;
     -webkit-transform-origin: center center !important;
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -477,8 +477,8 @@
   }
   
   .hero-container.animate-enter-initial {
-    transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important; /* Smanjeno za 10% (1.152 * 0.9 = 1.037) */
-    -webkit-transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
+    transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
+    -webkit-transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) scale(0) !important;
     transform-origin: center center !important;
     -webkit-transform-origin: center center !important;
     transition: none !important;
@@ -550,8 +550,8 @@
   
   /* Reset state nakon animacije - osigurati da se elementi vrate na iPad-specificke pozicije */
   .hero-container.animate-reset {
-    transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important; /* Smanjeno za 10% (1.152 * 0.9 = 1.037) */
-    -webkit-transform: scale(1.037) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
+    transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
+    -webkit-transform: scale(0.964) translateY(calc(20% - 24px - 16px + 20px - 24px)) !important;
     transform-origin: center center !important;
     -webkit-transform-origin: center center !important;
   }

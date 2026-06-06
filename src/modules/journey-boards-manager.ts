@@ -30,6 +30,52 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+function playJourneyCardTapSoftBounce(
+  target: HTMLElement,
+  opts: { baseScale?: number; onComplete?: () => void; onInterrupt?: () => void } = {}
+) {
+  const baseScale = Number.isFinite(opts.baseScale) ? opts.baseScale! : 1;
+  const tl = trackTimeline({
+    defaults: { force3D: true },
+    onComplete: () => {
+      try {
+        target.style.transformOrigin = '50% 50%';
+        target.style.willChange = 'auto';
+      } catch {}
+      opts.onComplete?.();
+    },
+    onInterrupt: () => {
+      try {
+        target.style.willChange = 'auto';
+      } catch {}
+      opts.onInterrupt?.();
+    },
+  });
+
+  target.style.transformOrigin = '50% 50%';
+  target.style.willChange = 'transform';
+  tl.to(target, {
+    scale: baseScale * 1.12,
+    rotation: 0,
+    duration: 0.12,
+    ease: 'back.out(2.0)',
+  })
+    .to(target, {
+      scale: baseScale * 0.96,
+      rotation: 0,
+      duration: 0.09,
+      ease: 'power2.out',
+    })
+    .to(target, {
+      scale: baseScale,
+      rotation: 0,
+      duration: 0.17,
+      ease: 'back.out(1.8)',
+    });
+
+  return tl;
+}
+
 function shouldSkipDetailModalGameAssetPreload(): boolean {
   try {
     const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
@@ -2465,48 +2511,14 @@ class JourneyBoardsManager {
 
         const journeyExitPromise = this.startJourneyExitAnimation();
 
-        // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
-        // Total duration: 300ms, immediate on tap
-        const totalMs = 300;
-        const downMs = 90;
-        const upMs = 120;
-        const settleMs = totalMs - downMs - upMs; // 90ms
-        const rotationDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // up to 8deg
-
         try {
           // Haptic feedback
           if (typeof (window as any).triggerHapticImpact === 'function') {
-            (window as any).triggerHapticImpact('medium');
+            (window as any).triggerHapticImpact('light');
           }
 
-          // Screen shake on Journey screen (like explosion feel)
-          const shakeTarget =
-            document.getElementById('journey-screen') ||
-            document.getElementById('home') ||
-            document.body;
-          if (shakeTarget) {
-            try { gsap.killTweensOf(shakeTarget); } catch {}
-            const shakeTl = trackTimeline({
-              onComplete: () => {
-                try { gsap.set(shakeTarget, { x: 0, y: 0 }); } catch {}
-              }
-            });
-            const strength = 10;
-            const steps = 6;
-            const dt = 0.18 / steps;
-            for (let i = 0; i < steps; i++) {
-              const p = 1 - (i / steps);
-              const amp = strength * p;
-              const dx = (Math.random() * 2 - 1) * amp;
-              const dy = (Math.random() * 2 - 1) * amp;
-              shakeTl.to(shakeTarget, { x: dx, y: dy, duration: dt, ease: 'sine.inOut' }, i * dt);
-            }
-          }
-
-          // Card pop animation (scale down, pop up, settle)
-          cardEl.style.transformOrigin = '50% 50%';
           try { gsap.killTweensOf(cardEl); } catch {}
-          const tl = trackTimeline({
+          playJourneyCardTapSoftBounce(cardEl, {
             onComplete: () => {
               restoreJourneyCardTapState();
               (cardEl as any)._openingDetail = false;
@@ -2516,9 +2528,6 @@ class JourneyBoardsManager {
               });
             }
           });
-          tl.to(cardEl, { scale: 0.7, rotation: 0, duration: downMs / 1000, ease: 'power2.out' })
-            .to(cardEl, { scale: 1.69, rotation: rotationDeg, duration: upMs / 1000, ease: 'power2.out' })
-            .to(cardEl, { scale: 1.0, rotation: 0, duration: settleMs / 1000, ease: 'power2.inOut' });
         } catch (error) {
           restoreJourneyCardTapState();
           (cardEl as any)._openingDetail = false;
@@ -2714,48 +2723,20 @@ class JourneyBoardsManager {
 
         const journeyExitPromise = this.startJourneyExitAnimation();
 
-        // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
-        // Total duration: 300ms, immediate on tap
-        const totalMs = 300;
-        const downMs = 90;
-        const upMs = 120;
-        const settleMs = totalMs - downMs - upMs; // 90ms
-        const rotationDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // up to 8deg
-
         try {
           // Haptic feedback
           if (typeof (window as any).triggerHapticImpact === 'function') {
-            (window as any).triggerHapticImpact('medium');
+            (window as any).triggerHapticImpact('light');
           }
 
-          // Screen shake on Journey screen (like explosion feel)
-          const shakeTarget =
-            document.getElementById('journey-screen') ||
-            document.getElementById('home') ||
-            document.body;
-          if (shakeTarget) {
-            try { gsap.killTweensOf(shakeTarget); } catch {}
-            const shakeTl = trackTimeline({
-              onComplete: () => {
-                try { gsap.set(shakeTarget, { x: 0, y: 0 }); } catch {}
-              }
-            });
-            const strength = 10;
-            const steps = 6;
-            const dt = 0.18 / steps;
-            for (let i = 0; i < steps; i++) {
-              const p = 1 - (i / steps);
-              const amp = strength * p;
-              const dx = (Math.random() * 2 - 1) * amp;
-              const dy = (Math.random() * 2 - 1) * amp;
-              shakeTl.to(shakeTarget, { x: dx, y: dy, duration: dt, ease: 'sine.inOut' }, i * dt);
-            }
-          }
-
-          // Card pop animation (scale down, pop up, settle)
-          // 🔥 CRITICAL: Animate the same target as the interim bounce (wrapper), for visible effect
+          // Animate the same target as the interim bounce (wrapper), for visible effect.
           const cardWrapper = cardEl.closest('.journey-board-card-wrapper') as HTMLElement | null;
           const animTarget = cardWrapper || cardEl;
+          const animTargetTransform = animTarget.style.transform || '';
+          const animTargetScaleMatch = animTargetTransform.match(/scale\(([^)]+)\)/);
+          const baseScale = animTarget === cardWrapper
+            ? (animTargetScaleMatch && animTargetScaleMatch[1] ? parseFloat(animTargetScaleMatch[1]) || 1 : 1)
+            : 1;
 
           // Stop interim bounce so it doesn't fight with tap animation
           try { this.stopInterimBounce(cardEl); } catch {}
@@ -2769,42 +2750,17 @@ class JourneyBoardsManager {
           if (animTarget === cardEl) {
             animTarget.style.transform = 'none';
           }
-          animTarget.style.transformOrigin = '50% 50%';
-          animTarget.style.willChange = 'transform';
           try { gsap.killTweensOf(animTarget); } catch {}
           
-          // 🔥 USER REQUEST: Match exact animation from regular cards (0.7 -> 1.69 -> 1.0)
-          const tl = trackTimeline({
+          playJourneyCardTapSoftBounce(animTarget, {
+            baseScale,
             onComplete: () => {
               (cardEl as any)._openingGame = false;
-              // Reset will-change
-              animTarget.style.willChange = 'auto';
               logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
               this.continueFromInterimBoard(board, journeyExitPromise).catch((error) => {
                 logger.error('❌ Failed to continue from interim board:', error);
               });
             }
-          });
-          tl.to(animTarget, { 
-            scale: 0.7, 
-            rotation: 0, 
-            duration: downMs / 1000, 
-            ease: 'power2.out',
-            force3D: true 
-          })
-          .to(animTarget, { 
-            scale: 1.28, 
-            rotation: rotationDeg, 
-            duration: upMs / 1000, 
-            ease: 'power2.out',
-            force3D: true 
-          })
-          .to(animTarget, { 
-            scale: 1.0, 
-            rotation: 0, 
-            duration: settleMs / 1000, 
-            ease: 'power2.inOut',
-            force3D: true 
           });
         } catch (error) {
           (cardEl as any)._openingGame = false;

@@ -21,7 +21,6 @@
   
   /* iOS touch optimizations */
   -webkit-overflow-scrolling: touch;
-  -webkit-transform: translateY(100%);
   -webkit-backface-visibility: hidden;
   -webkit-perspective: 1000;
   will-change: transform;

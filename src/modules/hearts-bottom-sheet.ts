@@ -11,6 +11,7 @@ import { logger } from '../core/logger.js';
 import { heartsSystem } from './hearts-system.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
+import { animateBottomSheetEntrance } from './resume-sheet-animations.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -448,56 +449,15 @@ function createHeartsModal(): HTMLElement {
  * Animate hearts bottom sheet entrance (same as resume game modal)
  */
 function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
-  return new Promise((resolve) => {
-    logger.debug('💚 Starting hearts entrance animation');
-    
-    // Step 1: Set initial state
-    modal.style.display = 'block';
-    modal.style.transition = 'none';
-    if (heartsEntranceTimeline) {
-      try { heartsEntranceTimeline.kill(); } catch {}
-    }
-    gsap.killTweensOf(modal);
-    gsap.set(modal, {
-      yPercent: 100,
-      transformOrigin: '50% 100%',
-      force3D: true,
-    });
-    
-    // Step 2: Force reflow
-    void modal.offsetHeight;
-
-    modal.classList.remove('hearts-shadow-fade-out');
-    modal.classList.add('hearts-shadow-active');
-    
-    // Step 3: Trigger springy Y overshoot immediately
-    heartsEntranceTimeline = gsap.timeline({
-      defaults: { force3D: true },
-      onComplete: () => {
-        heartsEntranceTimeline = null;
-        modal.classList.add('visible');
-        gsap.set(modal, { yPercent: 0, clearProps: 'willChange,force3D' });
-        logger.info('💚 Hearts bottom sheet shown');
-        resolve();
-      },
-    });
-
-    heartsEntranceTimeline
-      .to(modal, {
-        yPercent: -5.5,
-        duration: 0.32,
-        ease: 'power3.out',
-      }, 0)
-      .to(modal, {
-        yPercent: 2,
-        duration: 0.09,
-        ease: 'power2.out',
-      }, 0.32)
-      .to(modal, {
-        yPercent: 0,
-        duration: 0.14,
-        ease: 'back.out(1.55)',
-      }, 0.41);
+  logger.debug('💚 Starting hearts entrance animation');
+  if (heartsEntranceTimeline) {
+    try { heartsEntranceTimeline.kill(); } catch {}
+    heartsEntranceTimeline = null;
+  }
+  modal.classList.remove('hearts-shadow-fade-out');
+  modal.classList.add('hearts-shadow-active');
+  return animateBottomSheetEntrance(modal).then(() => {
+    logger.info('💚 Hearts bottom sheet shown');
   });
 }
 

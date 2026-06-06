@@ -350,6 +350,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     let container: HTMLElement;
     let numberContainer: HTMLElement;
     let cloudContainer: HTMLElement | null = null;
+    let cloudBehindHillContainer: HTMLElement | null = null;
     let cloudMidContainer: HTMLElement | null = null;
     let cloudFrontContainer: HTMLElement | null = null;
     let forestContainer: HTMLElement | null = null;
@@ -363,6 +364,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       container = overlay.querySelector('.cc-board-transition-container') as HTMLElement;
       numberContainer = overlay.querySelector('.cc-board-transition-number') as HTMLElement;
       cloudContainer = overlay.querySelector('.cc-board-transition-clouds') as HTMLElement | null;
+      cloudBehindHillContainer = overlay.querySelector('.cc-board-transition-clouds-behind-hill') as HTMLElement | null;
       cloudMidContainer = overlay.querySelector('.cc-board-transition-clouds-mid') as HTMLElement | null;
       cloudFrontContainer = overlay.querySelector('.cc-board-transition-clouds-front') as HTMLElement | null;
       forestContainer = overlay.querySelector('.cc-board-transition-forest') as HTMLElement | null;
@@ -544,6 +546,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'overflow: visible'
       ].join(';');
     }
+    if (!cloudBehindHillContainer) {
+      cloudBehindHillContainer = document.createElement('div');
+      cloudBehindHillContainer.className = 'cc-board-transition-clouds-behind-hill';
+      cloudBehindHillContainer.style.cssText = [
+        'position: absolute',
+        'inset: 0',
+        'pointer-events: none',
+        'z-index: 2',
+        'overflow: visible'
+      ].join(';');
+    }
     if (!cloudMidContainer) {
       cloudMidContainer = document.createElement('div');
       cloudMidContainer.className = 'cc-board-transition-clouds-mid';
@@ -582,6 +595,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       } catch {}
     });
     cloudContainer.innerHTML = '';
+    cloudBehindHillContainer.innerHTML = '';
     cloudMidContainer.innerHTML = '';
     cloudFrontContainer.innerHTML = '';
     activeCloudImages = [];
@@ -605,6 +619,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     for (let i = 0; i < totalClouds; i++) {
       const spawnTop = cloudSpawnTops[i];
       const isLowerCloud = i >= totalClouds - 2;
+      const isBehindHillCloud = !isLowerCloud && spawnTop < 32;
       let sizeBoost = 1;
       if (isLowerCloud) {
         sizeBoost = 1.15 + Math.random() * 0.14;
@@ -698,11 +713,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       cloudDelayedCalls.push(delayedCall);
 
       const isFrontCloud = i % 3 === 1;
-      (isLowerCloud ? cloudMidContainer : isFrontCloud ? cloudFrontContainer : cloudContainer).appendChild(cloudImg);
+      (isBehindHillCloud ? cloudBehindHillContainer : isLowerCloud ? cloudMidContainer : isFrontCloud ? cloudFrontContainer : cloudContainer).appendChild(cloudImg);
     }
 
     logger.info(`☁️ board-transition-screen: Clouds created (${totalClouds} total, stagger ${CLOUD_STAGGER}s, pop-in enabled)`);
     overlay.appendChild(cloudContainer);
+    overlay.appendChild(cloudBehindHillContainer);
     overlay.appendChild(cloudFrontContainer);
 
     // 🔥 USER REQUEST: Bottom scene at bottom, in front of clouds, behind digits
@@ -728,6 +744,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'width: 100%',
         'height: calc(min(44vh, 380px) + 120px)',
         'pointer-events: none',
+        'z-index: 4',
         'overflow: visible',
         'transform-origin: center bottom',
         'contain: layout style'
@@ -748,6 +765,13 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       TRANSITION_SCENE_LAYERS.forEach((layer) => {
         const sceneImg = domElementPool.acquire('img') as HTMLImageElement;
         resetPooledImage(sceneImg);
+        const sceneLayerStyle = isIPad && layer.key === 'hill'
+          ? layer.style.map((styleRule) => {
+              if (styleRule.startsWith('width:')) return 'width: 122vw';
+              if (styleRule.startsWith('bottom:')) return 'bottom: 16px';
+              return styleRule;
+            })
+          : layer.style;
         sceneImg.src = layer.src;
         sceneImg.alt = layer.alt;
         sceneImg.dataset.sceneLayer = layer.key;
@@ -763,7 +787,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           'pointer-events: none',
           'will-change: transform, opacity',
           'backface-visibility: hidden',
-          ...layer.style
+          ...sceneLayerStyle
         ].join(';');
         activeSceneImages.push(sceneImg);
         forestContainer.appendChild(sceneImg);

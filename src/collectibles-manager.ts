@@ -50,6 +50,103 @@ function playJourneySoftCartoonBounce(target: HTMLElement | null): void {
   }
 }
 
+function setupJourneyContentElasticOverscroll(scrollable: HTMLElement | null): void {
+  if (!scrollable) return;
+
+  const existing = (scrollable as any).__journeyElasticOverscrollHandlers;
+  if (existing) {
+    scrollable.removeEventListener('touchstart', existing.start);
+    scrollable.removeEventListener('touchmove', existing.move);
+    scrollable.removeEventListener('touchend', existing.end);
+    scrollable.removeEventListener('touchcancel', existing.end);
+    if (existing.releaseTimer) window.clearTimeout(existing.releaseTimer);
+  }
+  scrollable.style.removeProperty('transition');
+  scrollable.style.removeProperty('will-change');
+  scrollable.style.removeProperty('transform');
+
+  let startY = 0;
+  let pullY = 0;
+  let dragging = false;
+  let releaseTimer: number | null = null;
+  const maxPull = 72;
+  const damping = 0.34;
+
+  const resetReleaseTimer = () => {
+    if (releaseTimer !== null) {
+      window.clearTimeout(releaseTimer);
+      releaseTimer = null;
+    }
+  };
+
+  const setPull = (value: number) => {
+    pullY = Math.max(-maxPull, Math.min(maxPull, value));
+    scrollable.style.transform = `translate3d(0, ${pullY}px, 0)`;
+  };
+
+  const release = () => {
+    resetReleaseTimer();
+    dragging = false;
+    if (Math.abs(pullY) < 0.5) {
+      scrollable.style.removeProperty('transition');
+      scrollable.style.removeProperty('will-change');
+      scrollable.style.removeProperty('transform');
+      pullY = 0;
+      return;
+    }
+
+    scrollable.style.transition = 'transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+    scrollable.style.transform = 'translate3d(0, 0, 0)';
+    releaseTimer = window.setTimeout(() => {
+      releaseTimer = null;
+      pullY = 0;
+      scrollable.style.removeProperty('transition');
+      scrollable.style.removeProperty('will-change');
+      scrollable.style.removeProperty('transform');
+    }, 280);
+  };
+
+  const onStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1) return;
+    resetReleaseTimer();
+    startY = event.touches[0].clientY;
+    pullY = 0;
+    dragging = true;
+    scrollable.style.transition = 'none';
+    scrollable.style.willChange = 'transform';
+  };
+
+  const onMove = (event: TouchEvent) => {
+    if (!dragging || event.touches.length !== 1) return;
+
+    const dy = event.touches[0].clientY - startY;
+    const atTop = scrollable.scrollTop <= 0;
+    const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1;
+    const pullingPastTop = atTop && dy > 0;
+    const pullingPastBottom = atBottom && dy < 0;
+
+    if (!pullingPastTop && !pullingPastBottom) {
+      if (pullY !== 0) setPull(0);
+      return;
+    }
+
+    if (event.cancelable) event.preventDefault();
+    setPull(dy * damping);
+  };
+
+  scrollable.addEventListener('touchstart', onStart, { passive: true });
+  scrollable.addEventListener('touchmove', onMove, { passive: false });
+  scrollable.addEventListener('touchend', release, { passive: true });
+  scrollable.addEventListener('touchcancel', release, { passive: true });
+
+  (scrollable as any).__journeyElasticOverscrollHandlers = {
+    start: onStart,
+    move: onMove,
+    end: release,
+    get releaseTimer() { return releaseTimer; },
+  };
+}
+
 // Type definitions
 interface CollectibleCard {
   id: string;
@@ -709,6 +806,7 @@ class CollectiblesManager {
           // Force enable scrolling
           scrollable.style.touchAction = 'pan-y';
           scrollable.style.pointerEvents = '';
+          setupJourneyContentElasticOverscroll(scrollable);
           if (scrollable.style.overflow === 'hidden') {
             scrollable.style.overflow = 'auto';
           }

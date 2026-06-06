@@ -19,6 +19,13 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const hudLifecycle = createScreenLifecycle('hud');
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
+const isIPadHudViewport = (vw: number): boolean => {
+  if (typeof navigator === 'undefined') return vw >= 769 && vw <= 1366;
+  const ua = navigator.userAgent || '';
+  return /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1) || (vw >= 769 && vw <= 1366);
+};
+const getHudStatsComboLeftShift = (vw: number): number => Math.round(vw * 0.05);
+const getHudScoreComboSpacing = (vw: number): number => isIPadHudViewport(vw) ? Math.round(92 * 1.2) : 92;
 
 function isWildMeterSmokeFrozen(): boolean {
   return typeof window !== 'undefined' && (window as any).__ccFirstPlayTutorialFreezeWildMeterSmoke === true;
@@ -1152,9 +1159,10 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
-  const comboToCoinSpacing = 92; // 15% wider spacing between score and combo areas
+  const isIPadHud = isIPadHudViewport(vw);
+  const comboToCoinSpacing = getHudScoreComboSpacing(vw); // iPad uses +20% spacing for help/score/combo rhythm.
   const coinToStarSpacing = 64; // 64px spacing from coin icon to star element
-  const hudStatsComboLeftShift = Math.round(vw * 0.05); // Move score + combo group 5% toward the X icon
+  const hudStatsComboLeftShift = getHudStatsComboLeftShift(vw); // Move score + combo group 5% toward the X icon
   // 🔥 USER REQUEST: 24px padding from right edge (calculated as percentage of screen width)
   // For iPhone 13 (390px width): 24px = 6.15% of screen width
   // We'll use fixed 24px but calculate it relative to screen width for consistency
@@ -1306,8 +1314,12 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     const helpButtonSize = 44;
     const xTouchAreaWidth = 56;
     const helpGapFromClose = 16;
+    const coinContainer = HUD_ROOT._hudElements?.coin?.container;
+    const iPadHelpToScoreSpacing = comboToCoinSpacing;
 
-    helpButton.x = hudLeftPadding + xTouchAreaWidth + helpGapFromClose;
+    helpButton.x = isIPadHud && coinContainer
+      ? coinContainer.x - iPadHelpToScoreSpacing - helpButtonSize / 2
+      : hudLeftPadding + xTouchAreaWidth + helpGapFromClose;
     helpButton.y = yValue - helpButtonSize / 2;
   }
   
@@ -2884,7 +2896,7 @@ export function updateHUD({ score, board, moves, combo }) {
         // We'll use the same approach: rightEdge = screenWidth - 24px padding
         const comboRightPadding = 24; // 24px from right edge
         const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
-        const hudStatsComboLeftShift = Math.round(screenWidth * 0.05);
+        const hudStatsComboLeftShift = getHudStatsComboLeftShift(screenWidth);
         
         // Calculate total combo width (icon + spacing + "x" + number)
         const iconWidth = comboEl.iconSprite ? comboEl.iconSprite.width * comboEl.iconSprite.scale.x : 28;
@@ -3231,7 +3243,7 @@ export function setCombo(v){
       // We'll use the same approach: rightEdge = screenWidth - 24px padding
       const comboRightPadding = 24; // 24px from right edge
       const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
-      const hudStatsComboLeftShift = Math.round(screenWidth * 0.05);
+        const hudStatsComboLeftShift = getHudStatsComboLeftShift(screenWidth);
       
       // Calculate total combo width (icon + spacing + "x" + number)
       const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;

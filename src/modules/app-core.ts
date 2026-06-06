@@ -1581,6 +1581,38 @@ function queueWildSpawnIfNeeded(){
     });
 }
 
+function isWildContinuationPendingForFail(): boolean {
+  return wildMeter >= 1 ||
+    wildSpawnInProgress ||
+    wildSpawnRetryTimer !== null ||
+    (window as any).__ccWildSpawnDropInProgress === true;
+}
+
+function deferFailForWildContinuation(reason: string): boolean {
+  if (!isWildContinuationPendingForFail()) return false;
+
+  devWarn('🛡️ Deferring fail screen - wild continuation pending', {
+    reason,
+    wildMeter,
+    wildSpawnInProgress,
+    hasRetryTimer: wildSpawnRetryTimer !== null,
+    dropInProgress: (window as any).__ccWildSpawnDropInProgress === true,
+  });
+
+  try { (window as any).__ccFailScreenPending = false; } catch {}
+  try { queueWildSpawnIfNeeded(); } catch (error) {
+    devWarn('⚠️ Failed to queue wild spawn while deferring fail', error);
+  }
+
+  try { checkLevelEndTimer?.kill?.(); } catch {}
+  checkLevelEndTimer = trackDelayedCall(0.35, () => {
+    checkLevelEndTimer = null;
+    checkLevelEnd();
+  });
+
+  return true;
+}
+
 
 function setWildProgress(ratio, animate=false){
   devLog('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
@@ -3317,7 +3349,12 @@ function updateGhostVisibility() {
       // - hidden locked value<=0 holders (fallback safety)
       const emptyLike = (cell == null) || staleOrDestroyedCell;
       const hiddenLockedPlaceholder = !!cell && cell.locked && (cell.value|0) <= 0 && (cell.visible === false || (cell.alpha ?? 1) <= 0.01);
-      const shouldShow = emptyLike || hiddenLockedPlaceholder;
+      const hiddenMagnetMerge6 =
+        !!cell &&
+        (cell as any)._magnetMerge6Hidden === true &&
+        (cell.value | 0) === 6 &&
+        (cell.visible === false || (cell.alpha ?? 1) <= 0.01);
+      const shouldShow = emptyLike || hiddenLockedPlaceholder || hiddenMagnetMerge6;
       
       // Self-heal missing ghost references for this cell
       if (!window._ghostPlaceholders[r]) window._ghostPlaceholders[r] = [];
@@ -4977,6 +5014,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 isTrulyLastMove: isTrulyLastMoveForTwo
               });
               
+              if (deferFailForWildContinuation('last_two_regular_stack_dead_end')) return;
               if (await preventTutorialFailWithFinalChance('last_two_regular_stack_dead_end')) return;
               if (!busyEnding) {
                 devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -5013,6 +5051,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   explanation: `${finalValue}+${finalValue}=${afterSelfMergeValue} (depth ${finalStackDepth} → ${afterSelfMergeDepth}) = merge 6 with depth 1 = DEAD END`
                 });
                 
+                if (deferFailForWildContinuation('last_two_self_merge_dead_end')) return;
                 if (await preventTutorialFailWithFinalChance('last_two_self_merge_dead_end')) return;
                 if (!busyEnding) {
                   devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -5062,6 +5101,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 isTrulyLastMove
               });
               
+              if (deferFailForWildContinuation('last_three_regular_stack_dead_end')) return;
               if (await preventTutorialFailWithFinalChance('last_three_regular_stack_dead_end')) return;
               if (!busyEnding) {
                 devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -5088,6 +5128,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
                   try { resetEndgameHint(); } catch {}
                 
+                if (deferFailForWildContinuation('last_three_self_merge_dead_end')) return;
                 if (await preventTutorialFailWithFinalChance('last_three_self_merge_dead_end')) return;
                 if (!busyEnding) {
                   devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -5115,6 +5156,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
               devLog('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
               try { resetEndgameHint(); } catch {}
+              if (deferFailForWildContinuation('single_regular_tile_safety_net')) return;
               if (await preventTutorialFailWithFinalChance('single_regular_tile_safety_net')) return;
               await waitTracked(500);
               showFinalScreen();
@@ -5172,6 +5214,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               reason: stuckCheckResult.reason
             });
             
+            if (deferFailForWildContinuation('post_merge_stuck')) return;
             if (await preventTutorialFailWithFinalChance('post_merge_stuck')) return;
             if (!busyEnding) {
               devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -8104,6 +8147,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (movesDepletedResult.type === 'stuck') {
             devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             try { resetEndgameHint(); } catch {}
+            if (deferFailForWildContinuation('merge_moves_depleted_stuck')) return;
             if (await preventTutorialFailWithFinalChance('merge_moves_depleted_stuck')) return;
             if (!busyEnding) {
               devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -9413,6 +9457,25 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           devLog('🧹 Removed lingering locked placeholder artifact from merge cell (magnet flow)');
         };
+
+        const isWildTntMerge6 = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const restoreSpecialMergeGhostAtMergeCell = (reason: string) => {
+          if (!(wasWildMagnet || isWildTntMerge6)) return;
+          if ((dst as any)?._isLastMerge === true || busyEnding) return;
+          try {
+            if (grid && grid[gy]) grid[gy][gx] = null;
+            try { (window as any).__ccForceHideGhosts = false; } catch {}
+            try {
+              if (backgroundLayer) backgroundLayer.visible = true;
+            } catch {}
+            try { setGhostVisibility(gx, gy, true); } catch {}
+            try { updateGhostVisibility(); } catch {}
+            try { drawBoardBG?.(); } catch {}
+            devLog(`👻 Restored ghost placeholder at special merge-6 cell (${gx}, ${gy}) after ${reason}`);
+          } catch (err) {
+            devWarn('⚠️ Failed to restore special merge ghost placeholder:', err);
+          }
+        };
         
         // 🔥 POJEDNOSTAVLJENO: Ako je magnet merge i NEMA pulled tiles merge, obriši merge 6 tile
         // Ovo pokriva SVE scenarije: hasTilesToPull=false, nearestTiles.length=0, validTiles.length=0
@@ -9435,6 +9498,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           removeTile(dst); // Remove from tiles array
           clearMergeCellPlaceholderArtifact();
           devLog('✅ Merge 6 tile removed successfully (magnet merge without pull)');
+          restoreSpecialMergeGhostAtMergeCell('magnet merge without pull');
           
           // Clean up flags
           if (dst && !dst.destroyed) {
@@ -9483,6 +9547,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             dst.eventMode = 'none';
             removeTile(dst);
             devLog('✅ Dst tile removed successfully');
+            restoreSpecialMergeGhostAtMergeCell(isWildTntMerge6 ? 'wild-tnt merge' : 'special merge');
           }
           
           // Clean up flags
@@ -9506,6 +9571,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             removeTile(dst);
             clearMergeCellPlaceholderArtifact();
             devLog('✅ Magnet pull merge dst removed successfully');
+            restoreSpecialMergeGhostAtMergeCell('magnet pull merge');
           }
           
           // Clean up flags
@@ -9528,6 +9594,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           removeTile(dst);
           clearMergeCellPlaceholderArtifact();
           devWarn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
+          restoreSpecialMergeGhostAtMergeCell('magnet merge failsafe');
         }
         
         // Clean up pulled cells flag after spawn
@@ -9713,6 +9780,7 @@ async function checkMovesDepleted(){
   
   if (movesDepletedCheckResult.type === 'stuck') {
     devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+    if (deferFailForWildContinuation('moves_depleted_stuck')) return;
     if (await preventTutorialFailWithFinalChance('moves_depleted_stuck')) return;
     if (!busyEnding) {
       devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -10376,7 +10444,7 @@ function checkLevelEnd(){
     }
 
     if (checkLevelEndResult.type === 'clean') {
-      const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
+      const wildReady = isWildContinuationPendingForFail();
       if (wildReady) {
         devLog('⚠️ checkLevelEnd: Clean board detected but wild meter is ready/spawning – deferring clean board flow until wild cube drops');
         queueWildSpawnIfNeeded();
@@ -10449,10 +10517,10 @@ function checkLevelEnd(){
         reason: checkLevelEndResult.reason,
         busyEnding,
         failPending: (window as any).__ccFailScreenPending === true,
-        wildReady: wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null,
+        wildReady: isWildContinuationPendingForFail(),
       });
       try { resetEndgameHint(); } catch {}
-      const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
+      const wildReady = isWildContinuationPendingForFail();
       if (wildReady) {
         const now = Date.now();
         if (stuckWildDeferralStartedAt === null) {
