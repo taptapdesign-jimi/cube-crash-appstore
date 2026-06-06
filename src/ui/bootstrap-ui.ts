@@ -196,6 +196,26 @@ function renderHome(root: HTMLElement): void {
   shardsGoreDesno.setAttribute('fetchpriority', 'high');
   logoWrapper.appendChild(shardsGoreDesno);
 
+  // Shards dole ljevi - below logo, bottom left
+  const shardsDoleLjevi = document.createElement('img');
+  shardsDoleLjevi.id = 'logo-shards-dole-ljevi';
+  shardsDoleLjevi.className = 'logo-addon logo-shards-dole-ljevi';
+  shardsDoleLjevi.src = './assets/logo addons/dole ljevi shards.png';
+  shardsDoleLjevi.alt = '';
+  shardsDoleLjevi.loading = 'eager';
+  shardsDoleLjevi.setAttribute('fetchpriority', 'high');
+  logoWrapper.appendChild(shardsDoleLjevi);
+
+  // Shards dole desni - below logo, bottom right
+  const shardsDoleDesni = document.createElement('img');
+  shardsDoleDesni.id = 'logo-shards-dole-desni';
+  shardsDoleDesni.className = 'logo-addon logo-shards-dole-desni';
+  shardsDoleDesni.src = './assets/logo addons/dole ljevi shards.png';
+  shardsDoleDesni.alt = '';
+  shardsDoleDesni.loading = 'eager';
+  shardsDoleDesni.setAttribute('fetchpriority', 'high');
+  logoWrapper.appendChild(shardsDoleDesni);
+
   // Main logo
   const logo = document.createElement('img');
   logo.id = 'home-logo';

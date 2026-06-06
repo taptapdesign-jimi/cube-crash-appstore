@@ -449,11 +449,21 @@ async function startAssetPreloading(): Promise<void> {
     const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
     const logoShardsLeft = document.getElementById('logo-shards-gore-ljevo');
     const logoShardsRight = document.getElementById('logo-shards-gore-desno');
+    const logoShardsBottomLeft = document.getElementById('logo-shards-dole-ljevi');
+    const logoShardsBottomRight = document.getElementById('logo-shards-dole-desni');
     const allSlides = document.querySelectorAll('.slider-slide');
     
     // Hide all animated elements using animate-enter-initial class (scale 0)
     // This matches what reverseBounce expects and prevents flash
-    const elementsToHide = [homeLogo, independentNav, fixedShadowBottom, logoShardsLeft, logoShardsRight];
+    const elementsToHide = [
+      homeLogo,
+      independentNav,
+      fixedShadowBottom,
+      logoShardsLeft,
+      logoShardsRight,
+      logoShardsBottomLeft,
+      logoShardsBottomRight,
+    ];
     elementsToHide.forEach(el => {
       if (el) {
         (el as HTMLElement).classList.add('animate-enter-initial');

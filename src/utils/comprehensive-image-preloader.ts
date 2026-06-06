@@ -66,6 +66,8 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/logo-cube-crash@3x.png',
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
+  './assets/logo addons/dole ljevi shards.png',
+  './assets/logo addons/dole desni.png',
   './assets/logo addons/smokeandshards.png',
   './assets/logo addons/smokeandshards@2x.png',
   './assets/logo addons/smokeandshards@3x.png',
@@ -201,8 +203,15 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/board transition/oblak mali desno.png',
   './assets/board transition/oblak mali ljevo.png',
   './assets/board transition/oblak veliki ljevo dole.png',
-  // 🔥 USER REQUEST: Forest at bottom of transition screen
-  './assets/journey assets/forest.png',
+  // Board transition bottom scene layers
+  './assets/journey assets/hill.png',
+  './assets/journey assets/pine1.png',
+  './assets/journey assets/pine2.png',
+  './assets/journey assets/pine3.png',
+  './assets/journey assets/pine4.png',
+  './assets/journey assets/pine5.png',
+  './assets/journey assets/fence.left.png',
+  './assets/journey assets/fence.right.png',
 ];
 
 // Journey board images (preloaded on-demand when boards are opened)

@@ -435,7 +435,9 @@ function startExitAnimationSequence(): void {
     // Animate shards together with logo - ALL at the same time as logo (90ms delay)
     const logoAddons = [
       document.getElementById('logo-shards-gore-ljevo'),
-      document.getElementById('logo-shards-gore-desno')
+      document.getElementById('logo-shards-gore-desno'),
+      document.getElementById('logo-shards-dole-ljevi'),
+      document.getElementById('logo-shards-dole-desni')
     ];
     
     // 🔥 iPad FIX: Detect iPad to preserve transform positions during exit animation
@@ -642,7 +644,9 @@ function startExitAnimationSequenceLegacy(): void {
   // Animate shards together with logo - ALL at the same time as logo (90ms delay)
   const logoAddons = [
     document.getElementById('logo-shards-gore-ljevo'),
-    document.getElementById('logo-shards-gore-desno')
+    document.getElementById('logo-shards-gore-desno'),
+    document.getElementById('logo-shards-dole-ljevi'),
+    document.getElementById('logo-shards-dole-desni')
   ];
   
   logoAddons.forEach((addon, index) => {
@@ -814,7 +818,9 @@ function startEnterAnimationSequence(): void {
     const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
     const logoAddons = [
       document.getElementById('logo-shards-gore-ljevo'),
-      document.getElementById('logo-shards-gore-desno')
+      document.getElementById('logo-shards-gore-desno'),
+      document.getElementById('logo-shards-dole-ljevi'),
+      document.getElementById('logo-shards-dole-desni')
     ];
     
     // 🔥 CRITICAL: Prepare elements for animation - they're already hidden
@@ -1086,6 +1092,8 @@ function startEnterAnimationSequence(): void {
         document.querySelector('#home-logo'),
         document.getElementById('logo-shards-gore-ljevo'),
         document.getElementById('logo-shards-gore-desno'),
+        document.getElementById('logo-shards-dole-ljevi'),
+        document.getElementById('logo-shards-dole-desni'),
         document.getElementById('home-fixed-shadow-bottom')
       ];
       
@@ -1137,7 +1145,9 @@ function startEnterAnimationSequenceLegacy(): void {
   // Animate shards together with logo
   const logoAddons = [
     document.getElementById('logo-shards-gore-ljevo'),
-    document.getElementById('logo-shards-gore-desno')
+    document.getElementById('logo-shards-gore-desno'),
+    document.getElementById('logo-shards-dole-ljevi'),
+    document.getElementById('logo-shards-dole-desni')
   ];
   
   // 🔥 iPad FIX: Detect iPad to preserve transform positions during enter animation

@@ -1056,6 +1056,8 @@ body{
 #home-logo.animate-exit,
 #logo-shards-gore-ljevo.animate-exit,
 #logo-shards-gore-desno.animate-exit,
+#logo-shards-dole-ljevi.animate-exit,
+#logo-shards-dole-desni.animate-exit,
 #independent-nav.animate-exit,
 #home-fixed-shadow-bottom.animate-exit {
   background-color: transparent !important;
@@ -1134,6 +1136,8 @@ body{
 #home-logo.animate-enter,
 #logo-shards-gore-ljevo.animate-enter,
 #logo-shards-gore-desno.animate-enter,
+#logo-shards-dole-ljevi.animate-enter,
+#logo-shards-dole-desni.animate-enter,
 #independent-nav.animate-enter,
 #home-fixed-shadow-bottom.animate-enter {
   background-color: transparent !important;
@@ -1176,6 +1180,8 @@ body{
 #home-logo.animate-enter-initial,
 #logo-shards-gore-ljevo.animate-enter-initial,
 #logo-shards-gore-desno.animate-enter-initial,
+#logo-shards-dole-ljevi.animate-enter-initial,
+#logo-shards-dole-desni.animate-enter-initial,
 #independent-nav.animate-enter-initial,
 #home-fixed-shadow-bottom.animate-enter-initial {
   transition: none !important;

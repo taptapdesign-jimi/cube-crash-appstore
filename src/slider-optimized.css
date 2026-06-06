@@ -589,7 +589,9 @@
   
   /* 🔥 iPad FIX: Povećati shards za 50% */
   .logo-shards-gore-ljevo,
-  .logo-shards-gore-desno {
+  .logo-shards-gore-desno,
+  .logo-shards-dole-ljevi,
+  .logo-shards-dole-desni {
     width: 89px !important; /* 59px * 1.5 = 88.5px ≈ 89px (povećano za 50%) */
     height: 89px !important; /* 59px * 1.5 = 88.5px ≈ 89px (povećano za 50%) */
     max-width: 89px !important;
@@ -607,10 +609,22 @@
     transform: translateY(-24px) !important; /* Podignuto za 24px gore da bi bilo na istom mjestu kao na iPhone-u */
     -webkit-transform: translateY(-24px) !important;
   }
+
+  .logo-shards-dole-ljevi {
+    transform: translateY(-24px) !important;
+    -webkit-transform: translateY(-24px) !important;
+  }
+
+  .logo-shards-dole-desni {
+    transform: translateY(-24px) !important;
+    -webkit-transform: translateY(-24px) !important;
+  }
   
   /* 🔥 FIX: Override transform for shards when animate-exit class is active */
   #logo-shards-gore-ljevo.animate-exit,
-  #logo-shards-gore-desno.animate-exit {
+  #logo-shards-gore-desno.animate-exit,
+  #logo-shards-dole-ljevi.animate-exit,
+  #logo-shards-dole-desni.animate-exit {
     transform: translateY(-24px) scale(0) !important;
     -webkit-transform: translateY(-24px) scale(0) !important;
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -620,7 +634,9 @@
   
   /* 🔥 FIX: Override transform for shards when animate-enter class is active */
   #logo-shards-gore-ljevo.animate-enter,
-  #logo-shards-gore-desno.animate-enter {
+  #logo-shards-gore-desno.animate-enter,
+  #logo-shards-dole-ljevi.animate-enter,
+  #logo-shards-dole-desni.animate-enter {
     transform: translateY(-24px) scale(1) !important;
     -webkit-transform: translateY(-24px) scale(1) !important;
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -630,7 +646,9 @@
   
   /* 🔥 FIX: Override transform for shards when animate-enter-initial class is active */
   #logo-shards-gore-ljevo.animate-enter-initial,
-  #logo-shards-gore-desno.animate-enter-initial {
+  #logo-shards-gore-desno.animate-enter-initial,
+  #logo-shards-dole-ljevi.animate-enter-initial,
+  #logo-shards-dole-desni.animate-enter-initial {
     transform: translateY(-24px) scale(0) !important;
     -webkit-transform: translateY(-24px) scale(0) !important;
     transition: none !important;
@@ -665,6 +683,33 @@
 }
 
 /* Shards dole ljevo - below logo, bottom left corner */
+.logo-shards-dole-ljevi {
+  bottom: 2.3%;
+  left: -3.2%;
+  rotate: 0deg;
+  width: 59px !important;
+  height: 59px !important;
+  max-width: 59px !important;
+  max-height: 59px !important;
+  z-index: 15;
+  object-fit: contain;
+  transform-origin: center center;
+}
+
+/* Shards dole desno - below logo, bottom right corner */
+.logo-shards-dole-desni {
+  bottom: -1.9%;
+  right: -1.8%;
+  rotate: 0deg;
+  scale: -1 1;
+  width: 59px !important;
+  height: 59px !important;
+  max-width: 59px !important;
+  max-height: 59px !important;
+  z-index: 15;
+  object-fit: contain;
+  transform-origin: center center;
+}
 
 /* Main logo (in front) - no scaling, original size */
 #home-logo {
@@ -761,14 +806,16 @@
   }
   
   /* Scale down addons on mobile - but shards have specific sizes */
-  .logo-addon:not(.logo-shards-gore-ljevo):not(.logo-shards-gore-desno) {
+  .logo-addon:not(.logo-shards-gore-ljevo):not(.logo-shards-gore-desno):not(.logo-shards-dole-ljevi):not(.logo-shards-dole-desni) {
     max-width: 80px;
     max-height: 80px;
   }
   
   /* Shards specific sizes on mobile - 20% increased */
   .logo-shards-gore-ljevo,
-  .logo-shards-gore-desno {
+  .logo-shards-gore-desno,
+  .logo-shards-dole-ljevi,
+  .logo-shards-dole-desni {
     width: 59px !important;
     height: 59px !important;
     max-width: 59px !important;
@@ -789,7 +836,9 @@
   
   /* 🔥 USER REQUEST: Povećati shards za 50% */
   .logo-shards-gore-ljevo,
-  .logo-shards-gore-desno {
+  .logo-shards-gore-desno,
+  .logo-shards-dole-ljevi,
+  .logo-shards-dole-desni {
     width: 89px !important; /* 59px * 1.5 = 88.5px ≈ 89px (povećano za 50%) */
     height: 89px !important; /* 59px * 1.5 = 88.5px ≈ 89px (povećano za 50%) */
     max-width: 89px !important;

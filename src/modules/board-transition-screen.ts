@@ -26,8 +26,8 @@ let pauseTimeline: gsap.core.Timeline | null = null;
 let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track cloud image elements for cleanup
 let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
-let activeForestImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track forest image for cleanup
-let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track forest and digit timelines
+let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track scene image elements for cleanup
+let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let isCleaningUp = false;
 
 const TRANSITION_CLOUD_IMAGES = [
@@ -55,8 +55,115 @@ const CLOUD_CSS_STYLES = `
   animation: cc-cloud-exit 0.35s ease-in forwards !important;
 }
 `;
-const TRANSITION_FOREST_IMAGE = './assets/journey assets/forest.png';
-let assetsPreloaded = false;
+const TRANSITION_SCENE_LAYERS = [
+  {
+    key: 'hill',
+    src: './assets/journey assets/hill.png',
+    alt: 'Hill',
+    style: [
+      'left: 50%',
+      'bottom: 26px',
+      'width: min(112vw, 460px)',
+      'z-index: 0',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'pine1',
+    src: './assets/journey assets/pine1.png',
+    alt: 'Pine 1',
+    style: [
+      'left: 10%',
+      'bottom: 66px',
+      'width: min(34vw, 138px)',
+      'z-index: 2',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'pine2',
+    src: './assets/journey assets/pine2.png',
+    alt: 'Pine 2',
+    style: [
+      'left: 31%',
+      'bottom: 46px',
+      'width: min(58vw, 236px)',
+      'z-index: 4',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'pine3',
+    src: './assets/journey assets/pine3.png',
+    alt: 'Pine 3',
+    style: [
+      'left: 61%',
+      'bottom: 64px',
+      'width: min(43vw, 176px)',
+      'z-index: 2',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'pine4',
+    src: './assets/journey assets/pine4.png',
+    alt: 'Pine 4',
+    style: [
+      'left: 78%',
+      'bottom: 40px',
+      'width: min(43vw, 176px)',
+      'z-index: 4',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'pine5',
+    src: './assets/journey assets/pine5.png',
+    alt: 'Pine 5',
+    style: [
+      'left: 86%',
+      'bottom: 110px',
+      'width: min(26vw, 108px)',
+      'z-index: 2',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'fence-left',
+    src: './assets/journey assets/fence.left.png',
+    alt: 'Fence left',
+    style: [
+      'left: calc(17% + 20px)',
+      'bottom: 44px',
+      'width: min(46vw, 180px)',
+      'z-index: 9',
+      'transform-origin: center bottom'
+    ]
+  },
+  {
+    key: 'fence-right',
+    src: './assets/journey assets/fence.right.png',
+    alt: 'Fence right',
+    style: [
+      'left: calc(79% + 20px)',
+      'bottom: 44px',
+      'width: min(46vw, 180px)',
+      'z-index: 9',
+      'transform-origin: center bottom'
+    ]
+  }
+];
+const TRANSITION_SCENE_ENTER_ORDER = [
+  'pine1',
+  'pine4',
+  'pine3',
+  'hill',
+  'pine5',
+  'pine2',
+  'fence-left',
+  'fence-right'
+];
+const preloadedTransitionAssetUrls = new Set<string>();
 let assetsPreloadPromise: Promise<void> | null = null;
 let memSampleInterval: number | null = null;
 let memSamplePeak = 0;
@@ -66,6 +173,17 @@ let memSampleStartTs = 0;
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+function resetPooledImage(img: HTMLImageElement): void {
+  try { gsap.killTweensOf(img); } catch {}
+  try { gsap.set(img, { clearProps: 'all' }); } catch {}
+  img.removeAttribute('style');
+  img.removeAttribute('class');
+  img.removeAttribute('data-scene-layer');
+  img.removeAttribute('fetchpriority');
+  img.style.animation = 'none';
+  img.draggable = false;
+}
 
 const lifecycle = createScreenLifecycle('board-transition-screen');
 const TRANSITION_HAPTIC_FIRST_DELAY = 0.1;
@@ -82,15 +200,19 @@ function ensureCloudStyles(): void {
 }
 
 async function preloadTransitionAssets(includeForest: boolean = true): Promise<void> {
-  if (assetsPreloaded) return;
-  if (assetsPreloadPromise) return assetsPreloadPromise;
+  const urls = includeForest
+    ? [...TRANSITION_CLOUD_IMAGES, ...TRANSITION_SCENE_LAYERS.map((layer) => layer.src)]
+    : [...TRANSITION_CLOUD_IMAGES];
+  const missingUrls = urls.filter((src) => !preloadedTransitionAssetUrls.has(src));
+  if (missingUrls.length === 0) return;
+  if (assetsPreloadPromise) {
+    await assetsPreloadPromise;
+    return preloadTransitionAssets(includeForest);
+  }
   assetsPreloadPromise = (async () => {
     try {
       logger.info('🧩 board-transition-screen: Preloading transition assets...');
-      const urls = includeForest
-        ? [...TRANSITION_CLOUD_IMAGES, TRANSITION_FOREST_IMAGE]
-        : [...TRANSITION_CLOUD_IMAGES];
-      await Promise.all(urls.map((src) => new Promise<void>((resolve) => {
+      await Promise.all(missingUrls.map((src) => new Promise<void>((resolve) => {
         const img = new Image();
         img.src = src;
         if (typeof img.decode === 'function') {
@@ -100,9 +222,10 @@ async function preloadTransitionAssets(includeForest: boolean = true): Promise<v
           img.onerror = () => resolve();
         }
       })));
+      missingUrls.forEach((src) => preloadedTransitionAssetUrls.add(src));
       logger.info('✅ board-transition-screen: Transition assets preloaded');
     } finally {
-      assetsPreloaded = true;
+      assetsPreloadPromise = null;
     }
   })();
   return assetsPreloadPromise;
@@ -184,8 +307,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     fadeOutAndPause(2000);
   } catch (_) { /* ignore */ }
 
-  // Preload transition assets (clouds, forest) - required for transition to display correctly
-  await preloadTransitionAssets(!hideForest);
+  // Preload in the background; do not block the transition overlay on image decode.
+  preloadTransitionAssets(!hideForest).catch((error) => {
+    logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
+  });
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });
@@ -225,6 +350,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     let container: HTMLElement;
     let numberContainer: HTMLElement;
     let cloudContainer: HTMLElement | null = null;
+    let cloudMidContainer: HTMLElement | null = null;
+    let cloudFrontContainer: HTMLElement | null = null;
     let forestContainer: HTMLElement | null = null;
     if (reuseOverlay) {
       logger.info('♻️ board-transition-screen: Reusing existing transition overlay');
@@ -236,6 +363,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       container = overlay.querySelector('.cc-board-transition-container') as HTMLElement;
       numberContainer = overlay.querySelector('.cc-board-transition-number') as HTMLElement;
       cloudContainer = overlay.querySelector('.cc-board-transition-clouds') as HTMLElement | null;
+      cloudMidContainer = overlay.querySelector('.cc-board-transition-clouds-mid') as HTMLElement | null;
+      cloudFrontContainer = overlay.querySelector('.cc-board-transition-clouds-front') as HTMLElement | null;
       forestContainer = overlay.querySelector('.cc-board-transition-forest') as HTMLElement | null;
       try { sampleMemorySpike('3_transition_overlay_shown'); } catch {}
     } else {
@@ -255,6 +384,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'padding: 0', // 🔥 CRITICAL FIX: Remove padding that could affect centering
         'opacity: 0',
         'pointer-events: none',
+        'overflow: visible',
         'visibility: visible' // 🔥 CRITICAL FIX: Ensure overlay is visible even when opacity is 0
       ].join(';');
 
@@ -272,7 +402,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'perspective: 1000px',
         'transform-style: preserve-3d',
         'position: relative',
-        'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (numbers) is above clouds (z-index: -1)
+        'z-index: 10' // Keep board number above scene and clouds.
       ].join(';');
 
       // Create board number container
@@ -410,18 +540,55 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'position: absolute',
         'inset: 0',
         'pointer-events: none',
-        'z-index: -1',
-        'overflow: hidden'
+        'z-index: 1',
+        'overflow: visible'
+      ].join(';');
+    }
+    if (!cloudMidContainer) {
+      cloudMidContainer = document.createElement('div');
+      cloudMidContainer.className = 'cc-board-transition-clouds-mid';
+      cloudMidContainer.style.cssText = [
+        'position: absolute',
+        'inset: 0',
+        'pointer-events: none',
+        'z-index: 3',
+        'overflow: visible'
+      ].join(';');
+    }
+    if (!cloudFrontContainer) {
+      cloudFrontContainer = document.createElement('div');
+      cloudFrontContainer.className = 'cc-board-transition-clouds-front';
+      cloudFrontContainer.style.cssText = [
+        'position: absolute',
+        'inset: 0',
+        'pointer-events: none',
+        'z-index: 5',
+        'overflow: visible'
       ].join(';');
     }
     ensureCloudStyles();
-    cloudContainer.innerHTML = '';
-    activeCloudImages = [];
-    cloudTimelines = [];
+    cloudDelayedCalls.forEach((delayedCall) => {
+      try { delayedCall?.kill?.(); } catch {}
+    });
     cloudDelayedCalls = [];
+    cloudTimelines.forEach((timeline) => {
+      try { timeline?.kill?.(); } catch {}
+    });
+    cloudTimelines = [];
+    activeCloudImages.forEach((cloudImg) => {
+      try {
+        resetPooledImage(cloudImg);
+        domElementPool.release(cloudImg);
+      } catch {}
+    });
+    cloudContainer.innerHTML = '';
+    cloudMidContainer.innerHTML = '';
+    cloudFrontContainer.innerHTML = '';
+    activeCloudImages = [];
 
     const cloudImages = TRANSITION_CLOUD_IMAGES;
-    const totalClouds = 10;
+    const cloudSpawnTops = [15, 46, 24, 55, 21, 52, 43, 49];
+    const totalClouds = cloudSpawnTops.length;
     const moveDuration = 1.8;
     const BOUNCE_REPEAT = 3;
     const CLOUD_STAGGER = 0.06; // faster cadence so drift starts sooner
@@ -436,17 +603,22 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const CLOUD_ASPECT = 1.15; // width:height - stable dimensions prevent layout jump on image load
 
     for (let i = 0; i < totalClouds; i++) {
-      const spawnTop = 15 + (i % 3) * 28 + (i * 3) % 12;
+      const spawnTop = cloudSpawnTops[i];
+      const isLowerCloud = i >= totalClouds - 2;
       let sizeBoost = 1;
-      if (spawnTop < 32 && Math.random() < 0.55) {
+      if (isLowerCloud) {
+        sizeBoost = 1.15 + Math.random() * 0.14;
+      } else if (spawnTop < 32 && Math.random() < 0.55) {
         sizeBoost = 1.25 + Math.random() * 0.22;
       } else if (spawnTop >= 32 && spawnTop < 64 && Math.random() < 0.4) {
         sizeBoost = 1.15 + Math.random() * 0.18;
       }
       const cloudSizePx = Math.round((cloudBasePx + (i % 3) * cloudStepPx) * sizeBoost);
       const cloudHeightPx = Math.round(cloudSizePx / CLOUD_ASPECT);
-      const baseSize = (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
-      const spawnLeft = 8 + (i * 9) % 84;
+      const baseSize = isLowerCloud
+        ? 1.1 + (i % 2) * 0.08
+        : (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
+      const spawnLeft = isLowerCloud ? (i === totalClouds - 2 ? 60 : 73) : 8 + (i * 9) % 84;
       const goesLeft = Math.random() < 0.5; // random side push
       const enterDelay = i * CLOUD_STAGGER;
       const rotation = (i % 5 - 2) * 6;
@@ -454,12 +626,13 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const bounceSpeed = 0.45 + (i % 4) * 0.08;
       const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength); // 0.82..1.18
       const windYOffset = (Math.random() * 2 - 1) * 10;
-      // Slowest clouds are ~2x faster than before.
-      const windDuration = (moveDuration * 0.52 + 0.22) * windFactor;
+      const windDuration = (moveDuration * 0.72 + 0.32) * windFactor;
       const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx)) * (goesLeft ? -1 : 1);
+      const initialYOffset = isLowerCloud ? -40 : 0;
       const driftStartDelay = 0.06;
 
       const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
+      resetPooledImage(cloudImg);
       cloudImg.src = cloudImages[i % cloudImages.length];
       cloudImg.className = 'cc-board-transition-cloud';
       cloudImg.alt = '';
@@ -477,7 +650,18 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       ].join(';');
 
       activeCloudImages.push(cloudImg);
-      gsap.set(cloudImg, { xPercent: -50, yPercent: -50, x: 0, y: 0, scale: 0.12, opacity: 0, rotation });
+      gsap.set(cloudImg, {
+        xPercent: -50,
+        yPercent: -50,
+        x: 0,
+        y: initialYOffset,
+        scale: 0.12,
+        opacity: 0,
+        rotation,
+        rotationX: 0,
+        rotationY: 0,
+        transformOrigin: 'center center'
+      });
 
       const bounceTimeline = trackTimeline({ repeat: BOUNCE_REPEAT - 1, delay: enterDelay + 0.5 });
       bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.out' });
@@ -503,7 +687,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
       cloudTimelines.push(enterTl);
 
-      const exitStartTime = enterDelay + 0.5 + windDuration * 0.5;
+      const exitStartTime = enterDelay + 0.55 + windDuration * (isLowerCloud ? 0.95 : 0.82);
       const delayedCall = trackDelayedCall(exitStartTime, () => {
         if (!activeCloudImages.includes(cloudImg)) return;
         bounceTimeline.kill();
@@ -513,13 +697,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
       cloudDelayedCalls.push(delayedCall);
 
-      cloudContainer.appendChild(cloudImg);
+      const isFrontCloud = i % 3 === 1;
+      (isLowerCloud ? cloudMidContainer : isFrontCloud ? cloudFrontContainer : cloudContainer).appendChild(cloudImg);
     }
 
     logger.info(`☁️ board-transition-screen: Clouds created (${totalClouds} total, stagger ${CLOUD_STAGGER}s, pop-in enabled)`);
     overlay.appendChild(cloudContainer);
+    overlay.appendChild(cloudFrontContainer);
 
-    // 🔥 USER REQUEST: Forest at bottom (-150px below viewport), in front of clouds, behind digits
+    // 🔥 USER REQUEST: Bottom scene at bottom, in front of clouds, behind digits
     const isIPad = (() => {
       const ua = navigator.userAgent || '';
       const isIPadUA = /iPad/.test(ua) || (/Macintosh/.test(ua) && (navigator as any).maxTouchPoints > 1);
@@ -530,58 +716,75 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     if (!hideForest) {
       if (!forestContainer) {
         forestContainer = document.createElement('div');
-        forestContainer.className = 'cc-board-transition-forest';
-        forestContainer.style.cssText = [
-          'position: absolute',
-          'left: 0',
-          'right: 0',
-          'bottom: -190px',
-          'width: 100%',
-          'height: 42vh',
-          'pointer-events: none',
-          'z-index: 0',
-          'overflow: hidden',
-          'transform-origin: center bottom',
-          'transform-style: preserve-3d',
-          'will-change: transform, opacity',
-          'contain: layout paint' // Rasterize forest layer for cheaper transforms
-        ].join(';');
+        forestContainer.className = 'cc-board-transition-forest cc-board-transition-scene';
+      } else {
+        forestContainer.className = 'cc-board-transition-forest cc-board-transition-scene';
       }
-      const existingForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
-      const forestImg = existingForestImg || (domElementPool.acquire('img') as HTMLImageElement);
-      forestImg.src = TRANSITION_FOREST_IMAGE;
-      forestImg.alt = 'Forest';
-      forestImg.style.cssText = [
+      forestContainer.style.cssText = [
         'position: absolute',
         'left: 0',
-        'bottom: 0',
+        'right: 0',
+        'bottom: -52px',
         'width: 100%',
-        'height: 100%',
-        'object-fit: cover',
-        'object-position: bottom center',
-        'display: block',
+        'height: calc(min(44vh, 380px) + 120px)',
         'pointer-events: none',
-        'transform: translateZ(0)',
-        'backface-visibility: hidden'
+        'overflow: visible',
+        'transform-origin: center bottom',
+        'contain: layout style'
       ].join(';');
-      // iPad: move forest down by 40%
-      forestContainer.style.transform = isIPad ? 'translateY(40%)' : 'translateY(0)';
-      activeForestImages = [forestImg];
-      if (!forestImg.parentNode) {
-        forestContainer.appendChild(forestImg);
-      }
+
+      Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')).forEach((img) => {
+        try {
+          resetPooledImage(img as HTMLImageElement);
+          domElementPool.release(img as HTMLImageElement);
+        } catch {}
+      });
+      forestContainer.innerHTML = '';
+      activeSceneImages = [];
+
+      forestContainer.style.removeProperty('transform');
+      forestContainer.style.bottom = isIPad ? '-76px' : '-52px';
+
+      TRANSITION_SCENE_LAYERS.forEach((layer) => {
+        const sceneImg = domElementPool.acquire('img') as HTMLImageElement;
+        resetPooledImage(sceneImg);
+        sceneImg.src = layer.src;
+        sceneImg.alt = layer.alt;
+        sceneImg.dataset.sceneLayer = layer.key;
+        sceneImg.loading = 'eager';
+        sceneImg.setAttribute('fetchpriority', 'high');
+        sceneImg.decoding = 'async';
+        sceneImg.draggable = false;
+        sceneImg.style.cssText = [
+          'position: absolute',
+          'height: auto',
+          'object-fit: contain',
+          'display: block',
+          'pointer-events: none',
+          'will-change: transform, opacity',
+          'backface-visibility: hidden',
+          ...layer.style
+        ].join(';');
+        activeSceneImages.push(sceneImg);
+        forestContainer.appendChild(sceneImg);
+      });
+      forestContainer.appendChild(cloudMidContainer);
       overlay.appendChild(forestContainer);
     } else {
-      // Arcade variant: explicitly remove/disable forest layer if a reused overlay still has it.
+      overlay.appendChild(cloudMidContainer);
+      // Arcade variant: explicitly remove/disable scene layer if a reused overlay still has it.
       if (forestContainer && forestContainer.parentNode) {
-        const staleForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
-        if (staleForestImg) {
-          try { domElementPool.release(staleForestImg); } catch {}
-        }
+        Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')).forEach((img) => {
+          try {
+            resetPooledImage(img as HTMLImageElement);
+            domElementPool.release(img as HTMLImageElement);
+          } catch {}
+        });
+        forestContainer.innerHTML = '';
         try { forestContainer.parentNode.removeChild(forestContainer); } catch {}
       }
       forestContainer = null;
-      activeForestImages = [];
+      activeSceneImages = [];
     }
 
     // Assemble DOM
@@ -681,38 +884,87 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       }
     }, null, 0);
 
-    // 🔥 USER REQUEST: Forest enter animation, transform-origin center bottom
+    // 🔥 USER REQUEST: Scene enter animation, each layer gets the old forest pop-in treatment.
     if (forestContainer) {
       gsap.set(forestContainer, {
-        opacity: 0,
-        scale: 0,
-        rotation: -15,
+        opacity: 1,
         transformOrigin: 'center bottom'
       });
-      const forestEnterTimeline = trackTimeline();
-      contentTimelines.push(forestEnterTimeline); // 🔥 FIX: Track for cleanup
-      forestEnterTimeline.to(forestContainer, {
-        opacity: 1,
-        scale: 1.01, // 🔥 USER REQUEST: Minimal bounce overshoot
-        rotation: 0,
-        z: 10,
-        duration: 0.4,
-        ease: 'back.out(2.0)'
+
+      const sceneImagesByKey = new Map(
+        activeSceneImages.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg])
+      );
+      const orderedSceneImages = TRANSITION_SCENE_ENTER_ORDER
+        .map((key) => sceneImagesByKey.get(key))
+        .filter(Boolean) as HTMLImageElement[];
+
+      orderedSceneImages.forEach((sceneImg, index) => {
+        const direction = index % 2 === 0 ? -1 : 1;
+        const isHill = sceneImg.dataset.sceneLayer === 'hill';
+        gsap.set(sceneImg, {
+          opacity: 0,
+          xPercent: -50,
+          yPercent: 0,
+          x: 0,
+          y: isHill ? 28 : 14,
+          scale: isHill ? 1 : 0,
+          rotation: isHill ? 0 : direction * 8,
+          rotationX: 0,
+          rotationY: 0,
+          transformOrigin: 'center bottom',
+          force3D: false
+        });
+
+        const sceneEnterTimeline = trackTimeline();
+        contentTimelines.push(sceneEnterTimeline);
+        if (isHill) {
+          sceneEnterTimeline.to(sceneImg, {
+            opacity: 1,
+            y: -6,
+            duration: 0.22,
+            ease: 'power2.out'
+          });
+          sceneEnterTimeline.to(sceneImg, {
+            y: 3,
+            duration: 0.12,
+            ease: 'power2.inOut'
+          });
+          sceneEnterTimeline.to(sceneImg, {
+            opacity: 1,
+            y: 0,
+            duration: 0.14,
+            ease: 'back.out(1.8)',
+            onComplete: () => {
+              try { sceneImg.style.willChange = 'auto'; } catch {}
+            }
+          });
+        } else {
+          sceneEnterTimeline.to(sceneImg, {
+            opacity: 1,
+            scale: 1.04,
+            y: 0,
+            rotation: 0,
+            duration: 0.3,
+            ease: 'back.out(2.0)'
+          });
+          sceneEnterTimeline.to(sceneImg, {
+            scale: 0.95,
+            duration: 0.1,
+            ease: 'power2.out'
+          });
+          sceneEnterTimeline.to(sceneImg, {
+            opacity: 1,
+            scale: 1.0,
+            y: 0,
+            duration: 0.12,
+            ease: 'back.out(1.5)',
+            onComplete: () => {
+              try { sceneImg.style.willChange = 'auto'; } catch {}
+            }
+          });
+        }
+        enterTimeline.add(sceneEnterTimeline, 0.05 + index * 0.045);
       });
-      forestEnterTimeline.to(forestContainer, {
-        scale: 0.95,
-        z: 0,
-        duration: 0.15,
-        ease: 'power2.out'
-      });
-      forestEnterTimeline.to(forestContainer, {
-        opacity: 1,
-        scale: 1.0,
-        z: 0,
-        duration: 0.2,
-        ease: 'back.out(1.5)'
-      });
-      enterTimeline.add(forestEnterTimeline, 0.1);
     }
 
     // Step 3: Animate digits with bounce animation (staggered)
@@ -921,14 +1173,17 @@ function startExitAnimation(
     }
   });
 
-  // Replay same two digit haptics on exit (numbers disappearing), after requested base delay.
+  // Start parallax first, then let the digits exit after the scene has already begun separating.
+  const sceneParallaxLead = 1.0;
+
+  // Replay same two digit haptics on exit (numbers disappearing), aligned with delayed digit exit.
   if (typeof (window as any).triggerHapticImpact === 'function') {
     const exitHapticDigits = Math.min(2, digitElements.length);
     for (let i = 0; i < exitHapticDigits; i++) {
       const exitDelay =
         i === 0
-          ? TRANSITION_EXIT_HAPTIC_FIRST_DELAY
-          : TRANSITION_EXIT_HAPTIC_FIRST_DELAY + TRANSITION_EXIT_HAPTIC_SECOND_GAP;
+          ? sceneParallaxLead + TRANSITION_EXIT_HAPTIC_FIRST_DELAY
+          : sceneParallaxLead + TRANSITION_EXIT_HAPTIC_FIRST_DELAY + TRANSITION_EXIT_HAPTIC_SECOND_GAP;
       const hapticCall = trackDelayedCall(exitDelay, () => {
         try { (window as any).triggerHapticImpact?.('light'); } catch {}
       });
@@ -936,11 +1191,15 @@ function startExitAnimation(
     }
   }
 
-  // Reverse order: digits first (last to first), then forest, then overlay
+  const digitExitDuration = 0.45;
+  const digitExitStagger = 0.4;
+  const digitExitEnd = digitElements.length > 0
+    ? sceneParallaxLead + ((digitElements.length - 1) * digitExitStagger) + digitExitDuration
+    : 0;
 
   // Step 1: Animate digits out with bounce (left-to-right, sequential)
     digitElements.forEach((digitEl, index) => {
-      const delay = index * 0.4; // Stagger by 400ms per digit
+      const delay = sceneParallaxLead + (index * digitExitStagger);
       
       const digitExitTimeline = trackTimeline();
       contentTimelines.push(digitExitTimeline); // 🔥 FIX: Track for cleanup
@@ -968,27 +1227,90 @@ function startExitAnimation(
       exitTimeline.add(digitExitTimeline, delay);
     });
 
-  // Step 2: Forest exit animation
+  // Step 2: Scene exit animation
   if (forestContainer) {
-    const forestExitTimeline = trackTimeline();
-    contentTimelines.push(forestExitTimeline); // 🔥 FIX: Track for cleanup
-    forestExitTimeline.to(forestContainer, {
-      scale: 1.01,
-      z: 20,
-      duration: 0.15,
-      ease: 'power2.out'
+    const sceneImages = Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')) as HTMLImageElement[];
+    const sceneExitStart = Math.max(0, digitExitEnd - 0.5);
+    sceneImages.forEach((sceneImg) => {
+      const layerKey = sceneImg.dataset.sceneLayer || '';
+      const isHill = layerKey === 'hill';
+      const isAggressiveDownPine = layerKey === 'pine2' || layerKey === 'pine4';
+      const isPine3 = layerKey === 'pine3';
+      const isLeftPine = layerKey === 'pine1' || layerKey === 'pine2';
+      const isRightPine = layerKey === 'pine3' || layerKey === 'pine4' || layerKey === 'pine5';
+      const isLeftFence = layerKey === 'fence-left';
+      const isRightFence = layerKey === 'fence-right';
+      if (!isHill && !isLeftPine && !isRightPine && !isLeftFence && !isRightFence) return;
+      const pineDurationByLayer: Record<string, number> = {
+        pine1: 1.55,
+        pine2: 1.05,
+        pine3: 1.68,
+        pine4: 1.05,
+        pine5: 1.42
+      };
+      const parallaxDuration = isHill
+        ? Math.max(0.2, sceneExitStart + 0.45)
+        : isLeftFence || isRightFence
+          ? 0.9
+          : pineDurationByLayer[layerKey] || Math.max(0.2, sceneExitStart + 0.25);
+
+      const ambientTimeline = trackTimeline();
+      contentTimelines.push(ambientTimeline);
+      sceneImg.style.willChange = 'transform, opacity';
+      ambientTimeline.to(sceneImg, {
+        scale: isHill ? 1.0525 : isLeftFence || isRightFence ? 0.93 : 0.945,
+        x: isLeftPine ? -59 : isPine3 ? 78 : isRightPine ? 59 : isLeftFence ? -140 : isRightFence ? 140 : 0,
+        y: isHill ? -10 : isAggressiveDownPine ? 55 : isPine3 ? 34 : isLeftPine || isRightPine ? 18 : isLeftFence || isRightFence ? 58 : 0,
+        duration: parallaxDuration,
+        ease: 'sine.inOut'
+      });
+      exitTimeline.add(ambientTimeline, 0);
     });
-    forestExitTimeline.to(forestContainer, {
-      opacity: 0,
-      scale: 0,
-      rotation: 15,
-      rotationX: 45,
-      rotationY: 15,
-      z: -50,
-      duration: 0.3,
-      ease: 'power2.in'
+
+    const pine4ExitImage = sceneImages.find((sceneImg) => sceneImg.dataset.sceneLayer === 'pine4') || null;
+    const pineExitImages = sceneImages
+      .filter((sceneImg) => /^pine[1-5]$/.test(sceneImg.dataset.sceneLayer || '') && sceneImg.dataset.sceneLayer !== 'pine4')
+      .sort(() => Math.random() - 0.5);
+    const firstPineExitImages = [
+      ...(pine4ExitImage ? [pine4ExitImage] : []),
+      ...pineExitImages.slice(0, 1)
+    ];
+    const remainingPineExitImages = pineExitImages.slice(1);
+    const fenceExitImages = sceneImages
+      .filter((sceneImg) => /^fence-(left|right)$/.test(sceneImg.dataset.sceneLayer || ''))
+      .sort(() => Math.random() - 0.5);
+    const otherExitImages = sceneImages.filter((sceneImg) => {
+      const key = sceneImg.dataset.sceneLayer || '';
+      return key === 'hill' || (!/^pine[1-5]$/.test(key) && !/^fence-(left|right)$/.test(key));
     });
-    exitTimeline.add(forestExitTimeline, 0.1);
+    const fenceExitStart = Math.max(0, sceneExitStart - 0.4);
+    const orderedExitEntries = [
+      ...fenceExitImages.map((sceneImg, index) => ({ sceneImg, start: fenceExitStart + index * 0.06, orderIndex: index })),
+      ...firstPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + index * 0.05, orderIndex: fenceExitImages.length + index })),
+      ...remainingPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + index })),
+      ...otherExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + remainingPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + index }))
+    ];
+
+    orderedExitEntries.forEach(({ sceneImg, start, orderIndex }) => {
+      const sceneExitTimeline = trackTimeline();
+      contentTimelines.push(sceneExitTimeline);
+      const layerKey = sceneImg.dataset.sceneLayer || '';
+      const isHill = layerKey === 'hill';
+      const isAggressiveDownPine = layerKey === 'pine2' || layerKey === 'pine4';
+      sceneImg.style.willChange = 'transform, opacity';
+      sceneExitTimeline.to(sceneImg, {
+        opacity: 0,
+        scale: isHill ? 1.07 : 0,
+        y: isHill ? -10 : isAggressiveDownPine ? 112 : 24,
+        rotation: isHill ? 0 : orderIndex % 2 === 0 ? 12 : -12,
+        duration: isHill ? 0.22 : 0.28,
+        ease: 'power2.in',
+        onComplete: () => {
+          try { sceneImg.style.willChange = 'auto'; } catch {}
+        }
+      });
+      exitTimeline.add(sceneExitTimeline, start);
+    });
   }
 
   // Step 3: Fade out overlay
@@ -996,7 +1318,7 @@ function startExitAnimation(
     opacity: 0,
     duration: 0.3, // 🔥 USER REQUEST: Faster (0.4s → 0.3s)
     ease: 'power2.in'
-  }, 0.25);
+  }, digitExitEnd + 0.25);
 
   // Store tweens for cleanup
   exitTimeline.getChildren().forEach(tween => {
@@ -1120,42 +1442,38 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
   });
   contentTimelines = [];
   
-  if (!preserveDom) {
-    // 🔥 IMAGE POOLING: Release all cloud images back to pool (stop CSS animations first)
-    activeCloudImages.forEach(cloudImg => {
-      try {
-        gsap.killTweensOf(cloudImg);
-        cloudImg.style.animation = 'none';
-        cloudImg.classList.remove('cc-cloud-exit');
-        domElementPool.release(cloudImg);
-      } catch (error) {
-        logger.warn('⚠️ Error releasing cloud image to pool:', error);
-      }
-    });
-    activeCloudImages = [];
+  // Keep the overlay DOM reusable, but always return transient image elements to the pool.
+  activeCloudImages.forEach(cloudImg => {
+    try {
+      resetPooledImage(cloudImg);
+      domElementPool.release(cloudImg);
+    } catch (error) {
+      logger.warn('⚠️ Error releasing cloud image to pool:', error);
+    }
+  });
+  activeCloudImages = [];
 
-    // 🔥 IMAGE POOLING: Release forest image back to pool
-    activeForestImages.forEach(forestImg => {
-      try {
-        gsap.killTweensOf(forestImg);
-        domElementPool.release(forestImg);
-      } catch (error) {
-        logger.warn('⚠️ Error releasing forest image to pool:', error);
-      }
-    });
-    activeForestImages = [];
-  }
+  activeSceneImages.forEach(sceneImg => {
+    try {
+      resetPooledImage(sceneImg);
+      domElementPool.release(sceneImg);
+    } catch (error) {
+      logger.warn('⚠️ Error releasing scene image to pool:', error);
+    }
+  });
+  activeSceneImages = [];
 
-  // 🔥 APP STORE: Kill animations on forest container
+  // 🔥 APP STORE: Kill animations on scene container
   try {
-    const forestContainers = document.querySelectorAll('.cc-board-transition-forest');
-    forestContainers.forEach(container => {
+    const sceneContainers = document.querySelectorAll('.cc-board-transition-forest, .cc-board-transition-scene');
+    sceneContainers.forEach(container => {
       try {
         gsap.killTweensOf(container);
+        container.querySelectorAll('img').forEach((img) => gsap.killTweensOf(img));
       } catch {}
     });
   } catch (error) {
-    logger.warn('⚠️ Error cleaning up forest container:', error);
+    logger.warn('⚠️ Error cleaning up scene container:', error);
   }
 
   // 🔥 APP STORE: Clear any digit element references

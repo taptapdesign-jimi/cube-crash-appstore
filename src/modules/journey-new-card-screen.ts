@@ -861,10 +861,6 @@ export async function showJourneyNewCardScreen({
         cta?.classList.add('animate-enter');
         revealRunning = false;
       }
-
-      scheduleHaptic(0, 'medium');
-      scheduleHaptic(Math.round(130 * FAST_20), 'light');
-      scheduleHaptic(Math.round(260 * FAST_20), 'medium');
     };
 
     const onReveal = (event: Event) => {

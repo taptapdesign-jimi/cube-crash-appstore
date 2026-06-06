@@ -11,6 +11,8 @@ const CRITICAL_IMAGES: string[] = [
   './assets/logo-cube-crash@3x.png',
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
+  './assets/logo addons/dole ljevi shards.png',
+  './assets/logo addons/dole desni.png',
   './assets/home-shadow.png',
   './assets/home-shadow@2x.png',
   './assets/home-shadow@3x.png',
