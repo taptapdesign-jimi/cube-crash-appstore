@@ -12,6 +12,7 @@
  */
 
 import { logger } from '../core/logger.js';
+import { isHeartsFeatureEnabled } from './hearts-system.js';
 
 const LIVES_STORAGE_KEY = 'cc_journey_lives';
 const LIVES_LAST_RESET_KEY = 'cc_journey_lives_last_reset';
@@ -32,6 +33,12 @@ class LivesManager {
    * Initialize lives manager
    */
   init(): void {
+    if (!isHeartsFeatureEnabled()) {
+      this.hideUI();
+      logger.info('💚 Lives manager disabled - skipping init');
+      return;
+    }
+
     this.loadLivesState();
     this.checkDailyReset();
     this.updateUI();
@@ -104,6 +111,7 @@ class LivesManager {
    * Get total lives (daily + purchased)
    */
   getTotalLives(): number {
+    if (!isHeartsFeatureEnabled()) return MAX_DAILY_LIVES;
     return this.currentLives + this.purchasedLives;
   }
 
@@ -111,6 +119,7 @@ class LivesManager {
    * Get daily lives (resets daily)
    */
   getDailyLives(): number {
+    if (!isHeartsFeatureEnabled()) return MAX_DAILY_LIVES;
     return this.currentLives;
   }
 
@@ -125,6 +134,7 @@ class LivesManager {
    * Check if player has lives
    */
   hasLives(): boolean {
+    if (!isHeartsFeatureEnabled()) return true;
     return this.getTotalLives() > 0;
   }
 
@@ -133,6 +143,11 @@ class LivesManager {
    * @returns true if life was consumed, false if no lives available
    */
   consumeLife(): boolean {
+    if (!isHeartsFeatureEnabled()) {
+      logger.debug('💚 Lives disabled - consumeLife no-op');
+      return true;
+    }
+
     if (this.purchasedLives > 0) {
       this.purchasedLives--;
       this.saveLivesState();
@@ -168,6 +183,11 @@ class LivesManager {
    * Update UI display
    */
   updateUI(): void {
+    if (!isHeartsFeatureEnabled()) {
+      this.hideUI();
+      return;
+    }
+
     const countElement = document.getElementById('journey-lives-count');
     if (countElement) {
       const totalLives = this.getTotalLives();
@@ -180,8 +200,22 @@ class LivesManager {
    * Public method to refresh UI (called when journey screen is shown)
    */
   refreshUI(): void {
+    if (!isHeartsFeatureEnabled()) {
+      this.hideUI();
+      return;
+    }
+
     this.checkDailyReset();
     this.updateUI();
+  }
+
+  private hideUI(): void {
+    const container = document.getElementById('journey-lives-container');
+    if (container) {
+      container.style.display = 'none';
+      container.setAttribute('aria-hidden', 'true');
+      container.setAttribute('hidden', '');
+    }
   }
 }
 

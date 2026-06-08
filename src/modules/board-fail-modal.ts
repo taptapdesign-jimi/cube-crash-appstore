@@ -3,6 +3,7 @@ import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { isHeartsFeatureEnabled } from './hearts-system.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -175,8 +176,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
       
-      // 💚 Lose one heart only in Journey. Arcade retries are not gated by hearts.
-      if (!isArcadeHomeRunMode()) {
+      // 💚 Lose one heart only in Journey when hearts are enabled.
+      if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
         try {
           const { heartsSystem } = await import('./hearts-system.js');
           const heartLost = heartsSystem.loseHeart();
@@ -188,8 +189,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         } catch (error) {
           logger.warn('⚠️ Failed to lose heart on board failure:', error);
         }
-      } else {
+      } else if (isArcadeHomeRunMode()) {
         logger.info('🎮 Arcade failure - hearts are not consumed');
+      } else {
+        logger.info('💚 Hearts disabled - Journey failure does not consume hearts');
       }
       
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
@@ -417,7 +420,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // Check hearts only in Journey. Arcade Play Again should restart freely.
         (async () => {
           try {
-            if (!isArcadeHomeRunMode()) {
+            if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
               const { heartsSystem } = await import('./hearts-system.js');
               if (!heartsSystem.hasHearts()) {
                 logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');

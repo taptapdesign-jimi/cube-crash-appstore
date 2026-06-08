@@ -258,7 +258,7 @@
 
 /* 🔥 NEW: Lives counter in journey header (heart icon + number) */
 .journey-lives-container {
-  display: flex;
+  display: none !important;
   align-items: center;
   gap: 6px;
   padding: 4px 0; /* 🔥 FIX: Remove horizontal padding to maintain exact 24px spacing from edge */
@@ -276,6 +276,10 @@
   /* Similar to HUD design - icon + number */
   transform-origin: center center;
   will-change: transform;
+}
+
+.journey-lives-container[hidden] {
+  display: none !important;
 }
 
 /* Sweet fast tap bounce (Journey hearts) */

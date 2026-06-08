@@ -16,6 +16,7 @@ import animationManager from './animation-manager.js';
 import { getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
 import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
+import { isHeartsFeatureEnabled } from './hearts-system.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -2673,16 +2674,18 @@ class JourneyBoardsManager {
         const cardEl = card as HTMLElement;
         if (!cardEl) {
           // 🔥 CRITICAL FIX: Check hearts BEFORE calling continueFromInterimBoard (fallback path)
-          try {
-            const { heartsSystem } = await import('./hearts-system.js');
-            if (!heartsSystem.hasHearts()) {
-              logger.info('💔 No hearts available (fallback path) - showing hearts bottom sheet');
-              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-              showHeartsModal();
-              return; // Stay on Journey screen!
+          if (isHeartsFeatureEnabled()) {
+            try {
+              const { heartsSystem } = await import('./hearts-system.js');
+              if (!heartsSystem.hasHearts()) {
+                logger.info('💔 No hearts available (fallback path) - showing hearts bottom sheet');
+                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+                showHeartsModal();
+                return; // Stay on Journey screen!
+              }
+            } catch (error) {
+              logger.warn('⚠️ Failed to check hearts (fallback), continuing anyway:', error);
             }
-          } catch (error) {
-            logger.warn('⚠️ Failed to check hearts (fallback), continuing anyway:', error);
           }
           
           this.continueFromInterimBoard(board).catch((error) => {
@@ -2708,17 +2711,19 @@ class JourneyBoardsManager {
 
         // 🔥 CRITICAL FIX: Check hearts BEFORE starting Journey exit animation!
         // If no hearts, show hearts bottom sheet and DON'T exit Journey screen
-        try {
-          const { heartsSystem } = await import('./hearts-system.js');
-          if (!heartsSystem.hasHearts()) {
-            (cardEl as any)._openingGame = false; // Reset flag
-            logger.info('💔 No hearts available - showing hearts bottom sheet, NOT exiting Journey screen');
-            const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-            showHeartsModal();
-            return; // Stay on Journey screen!
+        if (isHeartsFeatureEnabled()) {
+          try {
+            const { heartsSystem } = await import('./hearts-system.js');
+            if (!heartsSystem.hasHearts()) {
+              (cardEl as any)._openingGame = false; // Reset flag
+              logger.info('💔 No hearts available - showing hearts bottom sheet, NOT exiting Journey screen');
+              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+              showHeartsModal();
+              return; // Stay on Journey screen!
+            }
+          } catch (error) {
+            logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
           }
-        } catch (error) {
-          logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
         }
 
         const journeyExitPromise = this.startJourneyExitAnimation();
@@ -4941,20 +4946,22 @@ class JourneyBoardsManager {
 
           // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
           // If no hearts, show hearts bottom sheet instead of starting game
-          try {
-            const { heartsSystem } = await import('./hearts-system.js');
-            if (!heartsSystem.hasHearts()) {
-              logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
-              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-              showHeartsModal();
-              (floatingPlayButton as any).__ccPlayStartInFlight = false;
-              floatingPlayButton.removeAttribute('aria-busy');
-              floatingPlayButton.style.pointerEvents = 'auto';
-              return; // Don't start game - show hearts modal instead
+          if (isHeartsFeatureEnabled()) {
+            try {
+              const { heartsSystem } = await import('./hearts-system.js');
+              if (!heartsSystem.hasHearts()) {
+                logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
+                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+                showHeartsModal();
+                (floatingPlayButton as any).__ccPlayStartInFlight = false;
+                floatingPlayButton.removeAttribute('aria-busy');
+                floatingPlayButton.style.pointerEvents = 'auto';
+                return; // Don't start game - show hearts modal instead
+              }
+            } catch (error) {
+              logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
+              // Continue if hearts check fails (fallback behavior)
             }
-          } catch (error) {
-            logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
-            // Continue if hearts check fails (fallback behavior)
           }
 
           const shakeTarget = (

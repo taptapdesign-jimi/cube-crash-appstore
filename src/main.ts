@@ -600,15 +600,6 @@ async function initializeGame(): Promise<void> {
   }
 }
 
-// Handle app errors
-window.addEventListener('error', (event: ErrorEvent) => {
-  errorHandler.handleError(event.error, 'Global Error');
-});
-
-window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
-  errorHandler.handleError(event.reason, 'Unhandled Promise Rejection');
-});
-
 // iOS HARD CLOSE: Save high score and time when app goes to background or closes
 // 🍎 iOS CRITICAL FIX: Store reference for proper cleanup (prevents memory leak on iOS!)
 const iosHardCloseHandler = async () => {

@@ -167,12 +167,6 @@ const ALL_ASSETS: string[] = [
   './assets/highscore-icon.png',
   './assets/highscore-icon@2x.png',
   './assets/highscore-icon@3x.png',
-  './assets/modals/heart-life.png',
-  './assets/modals/heart-life@2x.png',
-  './assets/modals/heart-life@3x.png',
-  './assets/modals/heart-life-empty.png',
-  './assets/modals/heart-life-empty@2x.png',
-  './assets/modals/heart-life-empty@3x.png',
   './assets/modals/paper.png',
   './assets/modals/paper@2x.png',
   './assets/modals/paper@3x.png',
@@ -252,12 +246,6 @@ const CRITICAL_ASSETS: string[] = [
   './assets/cubes-cracked.png',
   './assets/cubes-cracked@2x.png',
   './assets/cubes-cracked@3x.png',
-  './assets/modals/heart-life.png',
-  './assets/modals/heart-life@2x.png',
-  './assets/modals/heart-life@3x.png',
-  './assets/modals/heart-life-empty.png',
-  './assets/modals/heart-life-empty@2x.png',
-  './assets/modals/heart-life-empty@3x.png',
   './assets/modals/paper.png',
   './assets/modals/paper@2x.png',
   './assets/modals/paper@3x.png',
@@ -398,9 +386,6 @@ export class AssetPreloader {
       './assets/journey assets/orange-ribbon.png',
       './assets/journey assets/orange-ribbon@2x.png',
       './assets/journey assets/orange-ribbon@3x.png',
-      './assets/journey assets/heart-nav.png',
-      './assets/journey assets/heart-nav@2x.png',
-      './assets/journey assets/heart-nav@3x.png',
       './assets/journey assets/hill.png',
       './assets/journey assets/pine1.png',
       './assets/journey assets/pine2.png',
@@ -532,9 +517,6 @@ export class AssetPreloader {
     journeyImages.push('./assets/journey assets/orange-ribbon.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@3x.png');
-    journeyImages.push('./assets/journey assets/heart-nav.png');
-    journeyImages.push('./assets/journey assets/heart-nav@2x.png');
-    journeyImages.push('./assets/journey assets/heart-nav@3x.png');
     
     // Journey placeholder images (used for lazy loading)
     journeyImages.push('./assets/colelctibles/journey-card-empty.png');

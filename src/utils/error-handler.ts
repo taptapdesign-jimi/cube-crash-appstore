@@ -37,6 +37,16 @@ class ErrorHandler {
   handleError(error: Error | Event, context = 'Unknown'): void {
     // CRITICAL: Skip asset loading errors during preloader phase
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack || '' : '';
+    const isGsapTeardownNullTarget =
+      errorMessage.includes('Cannot set properties of null') &&
+      (errorMessage.includes("setting 'y'") || errorMessage.includes("setting 'x'")) &&
+      (errorStack.includes('gsap') || errorStack.includes('PropTween'));
+    if (isGsapTeardownNullTarget) {
+      logger.warn(`⚠️ Ignoring benign GSAP teardown race in ${context}: ${errorMessage}`);
+      return;
+    }
+
     this.capturePixiTextureCrashFingerprint(errorMessage, context);
     const isAssetError = errorMessage.includes('asset') || errorMessage.includes('loading') || errorMessage.includes('fetch');
     

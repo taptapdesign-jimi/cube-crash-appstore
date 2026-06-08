@@ -1696,9 +1696,12 @@ function addWildProgress(amount){
   const fillRate = getWildMeterFillRate(boardNumber);
   // USER REQUEST: First 2 wild spawns charge at 1x, then slow to 0.6x.
   const progressionMultiplier = wildSpawnCount >= 2 ? 0.6 : 1.0;
+  // Arcade is the quick/fidget mode, but wilds were arriving too often there.
+  // Keep Journey unchanged; slow only Arcade wild meter charge by 40%.
+  const arcadeModeMultiplier = isArcadeHomeRunMode() ? 0.6 : 1.0;
   const tutorialFreePlayMultiplier = (window as any).__ccFirstPlayTutorialSlowWildMeter === true ? 0.05 : 1.0;
-  const adjustedInc = inc * fillRate * progressionMultiplier * tutorialFreePlayMultiplier;
-  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, progression multiplier: ${progressionMultiplier}x, tutorial multiplier: ${tutorialFreePlayMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
+  const adjustedInc = inc * fillRate * progressionMultiplier * arcadeModeMultiplier * tutorialFreePlayMultiplier;
+  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, progression multiplier: ${progressionMultiplier}x, arcade multiplier: ${arcadeModeMultiplier}x, tutorial multiplier: ${tutorialFreePlayMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
 
   const target = wildMeter + adjustedInc;
   devLog('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
@@ -8515,6 +8518,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
         const isWildStarMerge6Spawn =
           srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild';
+        const isArcadeSimpleWildMergeSpawn =
+          isArcadeHomeRunMode() &&
+          isWildMerge6 &&
+          !isWildMagnetMerge6Spawn;
 
         const getWildStarOrbitCountForSpawn = (): number => {
           const savedPositionsCount = Array.isArray(savedStarPositionsEarly)
@@ -8541,7 +8548,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // - TNT / magnet: +9 locked
         // - wild juice: +3 locked
         let wildMergeLockedBonusCount = 0;
-        if (isWildMerge6 && !isLastMergeFlagSet) {
+        if (isWildMerge6 && !isLastMergeFlagSet && !isArcadeSimpleWildMergeSpawn) {
           wildMergeLockedBonusCount = isWildJuiceMerge6Spawn
             ? 3
             : isWildStarMerge6Spawn
@@ -8557,7 +8564,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const shouldSpawnAtDst =
           !isLastMergeFlagSet &&
           spawnMult > 0 &&
-          isEndgameMode;
+          (isEndgameMode || isArcadeSimpleWildMergeSpawn);
 
         // Fallback safety: if last-merge flag was missed, but board effectively has only merge-6 left,
         // do not run any spawn/open logic; trigger clean-board flow instead.
@@ -8637,6 +8644,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const runWildStarExtraLockedOpens = async (): Promise<void> => {
           if (await maybeForceCleanBoardFromFinalWildSnapshot('wild_star_extra_locked')) return;
           if (await maybeForceCleanBoardFromSingleMerge6('wild_star_extra_locked')) return;
+          if (isArcadeSimpleWildMergeSpawn) return;
           if (!isWildMerge6 || isLastMergeFlagSet || isWildMagnetMerge6Spawn || isWildTntMerge6Spawn) return;
           const wildExtraActiveCount = isWildJuiceMerge6Spawn
             ? 0
@@ -8742,8 +8750,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           devLog('🎯🎯🎯 END-GAME/LOW-TILE SPAWN: spawning', endgameSpawnCount, 'tile(s) at merge-6 cell (', gx, ',', gy, ')');
           devLog('🎯 Spawn-at-dst reason:', {
             isEndgameMode,
+            isArcadeSimpleWildMergeSpawn,
             activeTilesCount,
-            note: 'merge-cell spawn only when no locked tiles left to open',
+            note: isArcadeSimpleWildMergeSpawn
+              ? 'arcade wild merge-6 simple spawn: one fresh tile at merge cell'
+              : 'merge-cell spawn only when no locked tiles left to open',
           });
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
@@ -8859,7 +8870,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet' ||
               srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' ||
               srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
-            if (isWildMerge6Local && isWildJuiceMerge6) {
+            if (!isArcadeSimpleWildMergeSpawn && isWildMerge6Local && isWildJuiceMerge6) {
               const extraExclude: { r: number; c: number }[] = [{ r: spawnR, c: spawnC }];
               for (let i = 0; i < 2; i++) {
                 const extraCell = randomEmptyCell(extraExclude);
@@ -8876,7 +8887,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
               }
             }
-            await runWildStarExtraLockedOpens();
+            if (!isArcadeSimpleWildMergeSpawn) {
+              await runWildStarExtraLockedOpens();
+            }
             scheduleSpawnOpacitySafetySweep();
           };
             doEndgameSpawns().catch((err) => devWarn('⚠️ END-GAME SPAWN: Error:', err)).finally(() => {

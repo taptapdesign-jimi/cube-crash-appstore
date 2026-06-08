@@ -13,6 +13,9 @@ import { logger } from '../core/logger.js';
 const HEARTS_STORAGE_KEY = 'cc_journey_hearts';
 const HEARTS_REFILL_TIME_KEY = 'cc_journey_hearts_refill_time';
 const MAX_HEARTS = 3;
+// Hearts are preserved in code but disabled for the current release.
+export const HEARTS_FEATURE_ENABLED = false;
+export const isHeartsFeatureEnabled = (): boolean => HEARTS_FEATURE_ENABLED;
 // NOTE: Temporary prod tweak per request. Revert to 30 * 60 * 1000 when done testing.
 const REFILL_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes per heart (all modes)
 
@@ -32,6 +35,14 @@ class HeartsSystem {
    * Initialize hearts system
    */
   init(): void {
+    if (!HEARTS_FEATURE_ENABLED) {
+      this.currentHearts = MAX_HEARTS;
+      this.cleanup();
+      this.hideUI();
+      logger.info('💚 Hearts system disabled - skipping init');
+      return;
+    }
+
     this.loadHeartsState();
     this.checkRefill();
     this.startRefillTimer();
@@ -149,6 +160,7 @@ class HeartsSystem {
    * Get current hearts count
    */
   getCurrentHearts(): number {
+    if (!HEARTS_FEATURE_ENABLED) return MAX_HEARTS;
     return this.currentHearts;
   }
 
@@ -163,6 +175,7 @@ class HeartsSystem {
    * Check if player has hearts
    */
   hasHearts(): boolean {
+    if (!HEARTS_FEATURE_ENABLED) return true;
     return this.currentHearts > 0;
   }
 
@@ -171,6 +184,11 @@ class HeartsSystem {
    * @returns true if heart was lost, false if no hearts available
    */
   loseHeart(): boolean {
+    if (!HEARTS_FEATURE_ENABLED) {
+      logger.debug('💚 Hearts disabled - loseHeart no-op');
+      return true;
+    }
+
     if (this.currentHearts > 0) {
       this.currentHearts--;
       this.saveHeartsState();
@@ -196,6 +214,7 @@ class HeartsSystem {
    * Get time until next refill in milliseconds
    */
   getTimeUntilNextRefill(): number {
+    if (!HEARTS_FEATURE_ENABLED) return 0;
     const now = Date.now();
     const timeUntilRefill = this.nextRefillTime - now;
     return Math.max(0, timeUntilRefill);
@@ -218,6 +237,11 @@ class HeartsSystem {
    * Update UI display
    */
   updateUI(): void {
+    if (!HEARTS_FEATURE_ENABLED) {
+      this.hideUI();
+      return;
+    }
+
     const countElement = document.getElementById('journey-lives-count');
     if (countElement) {
       countElement.textContent = String(this.currentHearts);
@@ -229,8 +253,23 @@ class HeartsSystem {
    * Public method to refresh UI (called when journey screen is shown)
    */
   refreshUI(): void {
+    if (!HEARTS_FEATURE_ENABLED) {
+      this.cleanup();
+      this.hideUI();
+      return;
+    }
+
     this.checkRefill();
     this.updateUI();
+  }
+
+  private hideUI(): void {
+    const container = document.getElementById('journey-lives-container');
+    if (container) {
+      container.style.display = 'none';
+      container.setAttribute('aria-hidden', 'true');
+      container.setAttribute('hidden', '');
+    }
   }
 
   /**

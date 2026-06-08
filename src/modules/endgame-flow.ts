@@ -297,7 +297,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     const cameFromDetailModalForReward = (window as any).__ccCameFromDetailModal === true;
+    const isArcadeRunForReward = isArcadeHomeRunMode();
     const isFromInterimBoardForReward =
+      !isArcadeRunForReward &&
       !cameFromDetailModalForReward &&
       (
         (window as any).__ccFromInterimBoard === true ||
@@ -395,7 +397,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         efficiencyBonus,
         scoreCap: 999999,
         boardNumber,
-        isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
+        isFromInterimBoardOverride: !isArcadeHomeRunMode() && (
+          (window as any).__ccFromInterimBoard === true ||
+          (window as any).__ccIsInterimBoard === true ||
+          localStorage.getItem('__ccFromInterimBoard') === 'true'
+        ),
       });
     } finally {
       if (cleanupNewCardHandoffCover) {

@@ -8,7 +8,7 @@
  */
 
 import { logger } from '../core/logger.js';
-import { heartsSystem } from './hearts-system.js';
+import { heartsSystem, isHeartsFeatureEnabled } from './hearts-system.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { animateBottomSheetEntrance } from './resume-sheet-animations.js';
@@ -470,6 +470,12 @@ function closeHeartsOnOverlayTap(): void {
  * Show hearts bottom sheet
  */
 export function showHeartsModal(): void {
+  if (!isHeartsFeatureEnabled()) {
+    logger.info('💚 Hearts bottom sheet disabled - show request ignored');
+    hideHeartsModal();
+    return;
+  }
+
   try {
     _heartsOpenedAt = Date.now();
 

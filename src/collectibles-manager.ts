@@ -4,6 +4,7 @@ import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
 import { gsap } from 'gsap';
 import { animateCollectiblesScreenExit, cleanupCollectiblesAnimations } from './ui/collectibles-animations.js';
 import { showHeartsModal } from './modules/hearts-bottom-sheet.js';
+import { isHeartsFeatureEnabled } from './modules/hearts-system.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -840,6 +841,16 @@ class CollectiblesManager {
     
     // 💚 Initialize hearts system and attach click handler
     setTimeout(async () => {
+      if (!isHeartsFeatureEnabled()) {
+        const heartsContainer = document.getElementById('journey-lives-container');
+        if (heartsContainer) {
+          heartsContainer.style.display = 'none';
+          heartsContainer.setAttribute('hidden', '');
+          heartsContainer.setAttribute('aria-hidden', 'true');
+        }
+        return;
+      }
+
       try {
         const { heartsSystem } = await import('./modules/hearts-system.js');
         heartsSystem.init();
@@ -1941,17 +1952,19 @@ class CollectiblesManager {
           
           // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
           // If no hearts, show hearts bottom sheet instead of starting game
-          try {
-            const { heartsSystem } = await import('./modules/hearts-system.js');
-            if (!heartsSystem.hasHearts()) {
-              console.log('💔 No hearts available - showing hearts bottom sheet instead of starting game');
-              const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
-              showHeartsModal();
-              return; // Don't start game - show hearts modal instead
+          if (isHeartsFeatureEnabled()) {
+            try {
+              const { heartsSystem } = await import('./modules/hearts-system.js');
+              if (!heartsSystem.hasHearts()) {
+                console.log('💔 No hearts available - showing hearts bottom sheet instead of starting game');
+                const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
+                showHeartsModal();
+                return; // Don't start game - show hearts modal instead
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to check hearts, continuing anyway:', error);
+              // Continue if hearts check fails (fallback behavior)
             }
-          } catch (error) {
-            console.warn('⚠️ Failed to check hearts, continuing anyway:', error);
-            // Continue if hearts check fails (fallback behavior)
           }
           
           // Close detail modal with exit animation
