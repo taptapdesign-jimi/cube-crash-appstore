@@ -5,6 +5,8 @@ import { attachPuffyClouds } from './text-clouds.js';
 
 const HINT_MESSAGES = ['STACK IT!'];
 const IDLE_DELAY_MS = 3000;
+const VISIBLE_DURATION_MS = 3000;
+const REPEAT_DELAY_MS = 5000;
 const ROTATE_MS = 3000;
 const STYLE_ID = 'endgame-hint-style';
 const ENTER_BOUNCE_SCALE = 1.2;
@@ -36,6 +38,8 @@ function createRandomTextLetterSizes(count: number): number[] {
 let shouldShow = false;
 let hintVisible = false;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
+let visibleTimer: ReturnType<typeof setTimeout> | null = null;
+let repeatTimer: ReturnType<typeof setTimeout> | null = null;
 let rotateTimer: ReturnType<typeof setInterval> | null = null;
 let hintEl: HTMLDivElement | null = null;
 let hintCloudOverlay: HTMLDivElement | null = null;
@@ -46,6 +50,27 @@ let letterEls: HTMLSpanElement[] = [];
 let letterScales: number[] = [];
 let letterRotations: number[] = [];
 let bounceTweens: gsap.core.Tween[] = [];
+
+function clearTimer(timer: ReturnType<typeof setTimeout> | null): null {
+  if (timer) clearTimeout(timer);
+  return null;
+}
+
+function clearScheduledTimers(): void {
+  idleTimer = clearTimer(idleTimer);
+  visibleTimer = clearTimer(visibleTimer);
+  repeatTimer = clearTimer(repeatTimer);
+}
+
+function scheduleRepeatShow(): void {
+  if (!shouldShow || idleTimer || repeatTimer) return;
+  repeatTimer = setTimeout(() => {
+    repeatTimer = null;
+    if (shouldShow && !hintVisible && !idleTimer) {
+      showHint();
+    }
+  }, REPEAT_DELAY_MS);
+}
 
 function ensureStyles(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -129,6 +154,9 @@ function clearLetterAnimations(): void {
 
 function renderMessage(text: string): void {
   if (!hintEl) return;
+  activeTween?.kill?.();
+  activeTween = null;
+  clearLetterAnimations();
   hintEl.innerHTML = '';
   letterEls = [];
   letterScales = [];
@@ -186,6 +214,7 @@ function renderMessage(text: string): void {
 function animateIn(): void {
   if (!hintEl || letterEls.length === 0) return;
   activeTween?.kill?.();
+  activeTween = null;
   clearLetterAnimations();
   const tl = gsap.timeline();
   let enterComplete = 0;
@@ -277,10 +306,21 @@ function animateIn(): void {
 }
 
 function animateOut(onComplete?: () => void): void {
-  if (!hintEl || letterEls.length === 0) return;
+  if (!hintEl) {
+    onComplete?.();
+    return;
+  }
+  if (letterEls.length === 0) {
+    onComplete?.();
+    return;
+  }
   activeTween?.kill?.();
+  activeTween = null;
   clearLetterAnimations();
-  const tl = gsap.timeline({ onComplete: () => onComplete?.() });
+  const tl = gsap.timeline({ onComplete: () => {
+    activeTween = null;
+    onComplete?.();
+  } });
   letterEls.forEach((letterEl, index) => {
     const delay = index * BOOM_EXIT_STAGGER;
     const baseScale = letterScales[index] ?? 1;
@@ -320,26 +360,38 @@ function stopRotate(): void {
 
 function showHint(): void {
   if (!shouldShow) return;
+  visibleTimer = clearTimer(visibleTimer);
+  repeatTimer = clearTimer(repeatTimer);
   ensureElement();
   updateMessage();
   hintVisible = true;
   animateIn();
+  visibleTimer = setTimeout(() => {
+    visibleTimer = null;
+    hideHint(true);
+  }, VISIBLE_DURATION_MS);
 }
 
-function hideHint(): void {
+function hideHint(scheduleRepeat = false): void {
+  visibleTimer = clearTimer(visibleTimer);
   hintVisible = false;
   stopRotate();
+  if (scheduleRepeat) scheduleRepeatShow();
   if (hintEl && hintEl.isConnected) {
     animateOut(() => {
       try { hintEl?.remove(); } catch {}
       hintEl = null;
+      letterEls = [];
+      letterScales = [];
+      letterRotations = [];
       cleanupHintClouds();
     });
   }
 }
 
 function scheduleShow(): void {
-  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = clearTimer(idleTimer);
+  repeatTimer = clearTimer(repeatTimer);
   idleTimer = setTimeout(() => {
     idleTimer = null;
     showHint();
@@ -349,19 +401,17 @@ function scheduleShow(): void {
 export function updateEndgameHint(shouldShowNow: boolean): void {
   shouldShow = shouldShowNow;
   if (!shouldShow) {
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = null;
+    clearScheduledTimers();
     hideHint();
     return;
   }
-  if (!hintVisible) {
+  if (!hintVisible && !idleTimer && !repeatTimer) {
     scheduleShow();
   }
 }
 
 export function notifyEndgameHintInteraction(): void {
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = null;
+  clearScheduledTimers();
   if (hintVisible) {
     hideHint();
   }
@@ -373,8 +423,7 @@ export function notifyEndgameHintInteraction(): void {
 /** On drag start: hide and re-arm idle hint (no immediate show). */
 export function showEndgameHintOnDragStart(): void {
   if (!shouldShow) return;
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = null;
+  clearScheduledTimers();
   if (hintVisible) {
     hideHint();
   }
@@ -384,8 +433,7 @@ export function showEndgameHintOnDragStart(): void {
 
 export function resetEndgameHint(): void {
   shouldShow = false;
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = null;
+  clearScheduledTimers();
   hideHint();
   messageIndex = 0;
   logger.debug('🧹 Endgame hint reset', 'endgame-hint');
@@ -394,15 +442,18 @@ export function resetEndgameHint(): void {
 /** Force-remove hint immediately (no animation). Use when exiting game – GSAP may be killed before hideHint completes. */
 export function forceClearEndgameHint(): void {
   shouldShow = false;
-  if (idleTimer) clearTimeout(idleTimer);
-  idleTimer = null;
+  clearScheduledTimers();
   stopRotate();
   activeTween?.kill?.();
+  activeTween = null;
   clearLetterAnimations();
   if (hintEl && hintEl.isConnected) {
     try { hintEl.remove(); } catch {}
     hintEl = null;
   }
+  letterEls = [];
+  letterScales = [];
+  letterRotations = [];
   cleanupHintClouds();
   hintVisible = false;
   messageIndex = 0;
@@ -413,19 +464,20 @@ export function hideEndgameHintWithAnimation(): Promise<void> {
   return new Promise((resolve) => {
     if (!hintEl || !hintEl.isConnected) {
       shouldShow = false;
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = null;
+      clearScheduledTimers();
       resolve();
       return;
     }
     shouldShow = false;
-    if (idleTimer) clearTimeout(idleTimer);
-    idleTimer = null;
+    clearScheduledTimers();
     hintVisible = false;
     stopRotate();
     animateOut(() => {
       try { hintEl?.remove(); } catch {}
       hintEl = null;
+      letterEls = [];
+      letterScales = [];
+      letterRotations = [];
       cleanupHintClouds();
       resolve();
     });

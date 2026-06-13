@@ -108,8 +108,13 @@ function removeExisting(): void {
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
   // 🔥 BUG FIX: Prevent duplicate calls - if modal is already open, return existing promise
   if (_isModalOpen) {
-    logger.warn('⚠️ board-fail-modal: Modal already open - ignoring duplicate show call');
-    return Promise.resolve({ action: 'menu' }); // Return default action
+    const existingOverlay = document.getElementById(OVERLAY_ID);
+    if (existingOverlay) {
+      logger.warn('⚠️ board-fail-modal: Modal already open - ignoring duplicate show call');
+      return Promise.resolve({ action: 'menu' }); // Return default action
+    }
+    logger.warn('⚠️ board-fail-modal: Stale open flag without overlay - resetting and showing fail modal');
+    _isModalOpen = false;
   }
   
   _isModalOpen = true;

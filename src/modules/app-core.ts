@@ -40,6 +40,7 @@ import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import { updateEndgameHint, resetEndgameHint } from './endgame-hint.ts';
+import { shouldShowStackItHintForTiles } from './endgame-hint-eligibility.ts';
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
@@ -10884,7 +10885,17 @@ function checkLevelEnd(){
         devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...', { extraWait });
         try { showNoMovesText(); } catch {}
         await waitTracked(1500 + extraWait);
-        try { await exitNoMovesText(); } catch {}
+        try {
+          await Promise.race([
+            exitNoMovesText(),
+            waitTracked(700).then(() => {
+              devWarn('⚠️ FAILFLOW: NO MOVES exit timed out - clearing overlay and continuing to fail modal');
+              try { clearNoMovesText(); } catch {}
+            })
+          ]);
+        } catch {
+          try { clearNoMovesText(); } catch {}
+        }
         devWarn('🧪 FAILFLOW DEBUG: invoking showFinalScreen now');
         showFinalScreen({ confirmedFailFlow: true });
       } else {
@@ -10939,13 +10950,7 @@ function updateEndgameHintState(): void {
       return;
     }
     const hintTiles = getActiveTiles(tiles);
-    // 🔥 USER BUG FIX: Use anyMergePossible to detect ALL stackable combos - not just "all regular"
-    // Magnet + regular, wild + regular, 2 regulars - all should show STACK IT! when mergeable
-    const hasTwoOrThree = hintTiles.length >= 2 && hintTiles.length <= 3;
-    const canStack = hasTwoOrThree && makeBoard?.anyMergePossible?.(hintTiles) === true;
-    // 🔥 UX: Don't show STACK IT! when wild (star/juice/TNT) is on board - merge is obvious
-    const hasWild = hintTiles.some((t: any) => t?.special === 'wild' || t?.special === 'wild-juice' || t?.special === 'wild-tnt');
-    const shouldShowHint = canStack && !hasWild;
+    const shouldShowHint = shouldShowStackItHintForTiles(hintTiles, makeBoard?.anyMergePossible);
     updateEndgameHint(shouldShowHint);
   } catch {}
 }
@@ -11236,9 +11241,19 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   // Extra safety: scrub any lingering magnet merge-6 residues before showing fail/clean flows
   forceRemoveMagnetMergeResidues('showFinalScreen');
 
-  // 🔥 ENDGAME ANIMATION-WAIT: Let stars-to-HUD and wild-juice bubbles finish before fail modal
+  // 🔥 ENDGAME ANIMATION-WAIT: Let stars-to-HUD and wild-juice bubbles finish before fail modal.
+  // Confirmed NO MOVES fail has already shown the terminal text, so keep this short and bounded.
   try {
-    await waitForOngoingAnimations(6000);
+    const animationWaitMs = confirmedFailFlow ? 350 : 6000;
+    await Promise.race([
+      waitForOngoingAnimations(animationWaitMs),
+      waitTracked(animationWaitMs + 150).then(() => {
+        devWarn('⚠️ showFinalScreen: animation wait timed out, continuing to fail modal', {
+          confirmedFailFlow,
+          animationWaitMs
+        });
+      })
+    ]);
   } catch (e) {
     devWarn('⚠️ waitForOngoingAnimations failed (non-fatal):', e);
   }
