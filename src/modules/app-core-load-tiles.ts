@@ -1,3 +1,5 @@
+import { getSpecialDiceVariant, applySpecialDiceVariantToTile } from './special-dice-registry.ts';
+
 type TileRestoreDeps = {
   gameState: any;
   tiles: any[];
@@ -145,8 +147,12 @@ export function restoreTilesFromSave({
     tile.scale.set(1);
 
     tile.value = value;
-    const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-juice' || snapshot?.isWild || snapshot?.isWildFace;
+    const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-juice' || savedSpecial === 'wild-tnt' || snapshot?.isWild || snapshot?.isWildFace;
     tile.special = savedSpecial;
+    const savedSpecialDiceVariant = getSpecialDiceVariant(snapshot?.specialDiceVariant || null);
+    if (savedSpecialDiceVariant) {
+      applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant);
+    }
     tile.isWild = !!isWildSnapshot;
     tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
     tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;

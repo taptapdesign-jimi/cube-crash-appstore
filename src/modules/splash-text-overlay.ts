@@ -433,10 +433,12 @@ function cleanupSparkleOverlay(): void {
  * Show SPARKLE text overlay for wild-star merge 6.
  * Uses the same enter/exit style as BUBBLY, but in yellow.
  */
-export function showSparkleText(origin?: { x: number; y: number } | null): void {
+export function showSparkleText(origin?: { x: number; y: number } | null, options: any = {}): void {
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
+    const sparkleText = String(options?.text || 'SPARKLE');
+    const sparkleColor = String(options?.color || '#FFCB81');
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -452,7 +454,13 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
       'justify-content: center',
     ].join(';');
     sparkleOverlay = overlay;
-    const smallStarBurstCleanup = attachSmallStarCenterBurst(overlay, { count: 26, zIndex: 2, origin });
+    const smallStarBurstCleanup = attachSmallStarCenterBurst(overlay, {
+      count: options?.burstMotion?.count ?? 26,
+      zIndex: 2,
+      origin,
+      sources: options?.burstSources,
+      motion: options?.burstMotion,
+    });
     sparkleFxCleanup = () => {
       try { smallStarBurstCleanup(); } catch {}
     };
@@ -483,7 +491,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
     const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
-    const letters = ['S', 'P', 'A', 'R', 'K', 'L', 'E'];
+    const letters = Array.from(sparkleText);
     const letterFontSizes = createRandomTextLetterSizes(letters.length);
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
@@ -500,8 +508,8 @@ export function showSparkleText(origin?: { x: number; y: number } | null): void 
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        'color: #FFCB81',
-        '-webkit-text-fill-color: #FFCB81',
+        `color: ${sparkleColor}`,
+        `-webkit-text-fill-color: ${sparkleColor}`,
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

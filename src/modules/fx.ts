@@ -977,8 +977,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
         colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
         console.warn(`⚠️ Using hardcoded orange-red+yellow fallback for wild-tnt`);
       } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
-        colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
-        console.warn(`⚠️ Using hardcoded yellow fallback for wild`);
+        colors = [0xF3D7B8, 0xF7E8D7, 0xFCC57C, 0xFDA74C];
+        console.warn(`⚠️ Using hardcoded warm fallback for wild`);
       } else if (tileSpecial === 'wild-magnet') {
         colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]; // Red palette for magnet
         console.warn(`⚠️ Using hardcoded red fallback for wild-magnet`);
@@ -995,7 +995,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     } else if (tileSpecial === 'wild-tnt') {
       colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
-      colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
+      colors = [0xF3D7B8, 0xF7E8D7, 0xFCC57C, 0xFDA74C];
     } else if (tileSpecial === 'wild-magnet') {
       colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]; // Red palette for magnet
     } else {
@@ -1011,7 +1011,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     } else if (tileSpecial === 'wild-tnt') {
       colors = [0xE85C3A, 0xFFD966]; // At least orange-red + yellow for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
-      colors = [0xFFCB47]; // At least use yellow for wild star
+      colors = [0xFDA74C];
     } else if (tileSpecial === 'wild-magnet') {
       colors = [0xF26034]; // At least use red for magnet
     } else {
@@ -2357,7 +2357,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
   
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildStar');
-  const yellowColor = getColor('wildStar'); // 🔥 ORIGINAL COLOR: Yellow (#FFCB47)
+  const yellowColor = opts.color ?? getColor('wildStar'); // 🔥 ORIGINAL COLOR: Yellow (#FFCB47), override for special dice
   
   console.log(`⭐ wildStarMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
     yellowColor: `0x${yellowColor.toString(16)}`,
@@ -5423,7 +5423,9 @@ export function screenShake(app, opts = {}){
         tl.to(boardIndicator, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
       }
       if (journeyBottomDecor && !journeyBottomDecor.hasAttribute('hidden')) {
-        tl.to(journeyBottomDecor, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
+        // Bottom decor shakes left/right and only DOWN (never up — avoids empty space above it).
+        const decorDy = Math.max(0, dy * 0.8);
+        tl.to(journeyBottomDecor, { x: dx * 0.8, y: decorDy, duration: dt, ease }, 0 + i * dt);
       }
       // TNT overlay i ostali alsoShake – ista amplituda kao board
       extraTargets.forEach((el: any) => {

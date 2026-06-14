@@ -121,6 +121,18 @@ async function showNewCardDevScreen(): Promise<void> {
   }
 }
 
+async function showNewDiceDevScreen(): Promise<void> {
+  triggerSettingsDevHaptic();
+
+  try {
+    const { showJourneySpecialDiceScreen } = await import('../../modules/journey-special-dice-screen.js');
+    await showJourneySpecialDiceScreen({ diceType: 'juice' });
+  } catch (error) {
+    console.error('❌ Failed to show Settings New Dice dev screen:', error);
+    alert('New Dice dev screen is not available right now.');
+  }
+}
+
 function hideSettingsForDevGameFlow(): void {
   const settingsScreen = document.getElementById('settings-screen') as HTMLElement | null;
   if (settingsScreen) {
@@ -271,6 +283,7 @@ function createSettingsDevArea(): HTMLElementConfig {
           createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
           createDevButton('settings-dev-reset-board-btn', 'Reset Board', 'reset'),
           createSettingsDevActionButton('settings-dev-new-card-btn', 'New Card', 'new-card', showNewCardDevScreen),
+          createSettingsDevActionButton('settings-dev-new-dice-btn', 'New Dice', 'new-dice', showNewDiceDevScreen),
           createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Board', 'clean-board', showCleanBoardDevFlow),
           createFirstPlayDevButton(),
         ],

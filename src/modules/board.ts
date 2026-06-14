@@ -1,5 +1,5 @@
 // src/modules/board.ts
-import { Container, Sprite, Assets, Graphics, SCALE_MODES, Texture } from 'pixi.js';
+import { Container, Sprite, Assets, Graphics, SCALE_MODES, Texture, Rectangle } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import {
   TILE, COLS, ROWS, GAP,
@@ -8,6 +8,7 @@ import {
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
   ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
 } from './constants.js';
+import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -65,6 +66,7 @@ export function getTileAnimatingZIndex(tile: Partial<Tile> | any): number {
 
 export function syncTileZIndex(tile: Partial<Tile> | any, board?: { sortChildren?: () => void } | null, animating = false): void {
   if (!tile || tile.destroyed) return;
+  if ((tile as any)._ccWildSpawnDropping === true) return;
   tile.zIndex = animating ? getTileAnimatingZIndex(tile) : getTileBaseZIndex(tile);
   try { board?.sortChildren?.(); } catch {}
 }
@@ -332,6 +334,10 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   // This ensures wild-juice, wild-magnet, and wild tiles ALWAYS get correct texture
   if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt') {
     try {
+      t.stackDepth = 1;
+      try { t.stackG?.destroy({ children: true }); } catch {}
+      t.stackG = null;
+
       // 🔥 CRITICAL: Ensure base sprite exists
       if (!t.base) {
         const host = t.rotG || t;
@@ -347,20 +353,46 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       }
       
       // 🔥 CRITICAL: Always use correct texture for wild type
-      const assetPath = t.special === 'wild-magnet'
+      let assetPath = t.special === 'wild-magnet'
         ? ASSET_WILD_MAGNET
         : t.special === 'wild-juice'
           ? ASSET_WILD_JUICE
           : t.special === 'wild-tnt'
             ? ASSET_WILD_TNT
             : ASSET_WILD;
+      assetPath = getSpecialDiceTexturePath(t, assetPath);
       
       const tex = getBoardTexture(assetPath);
       if (t.base && tex && tex !== Texture.EMPTY) {
         t.base.texture = tex;
         const wildFaceSize = t.special === 'wild-magnet' ? TILE * 0.96 : TILE;
-        t.base.width = wildFaceSize;
-        t.base.height = wildFaceSize;
+        const specialVisual = getSpecialDiceVisualConfig(t);
+        if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
+          t.base.width = specialVisual.visualWidth;
+          t.base.height = specialVisual.visualHeight;
+        } else if (specialVisual?.visualFit === 'height') {
+          const textureHeight = tex?.orig?.height || tex?.height || wildFaceSize;
+          const uniformScale = wildFaceSize / Math.max(1, textureHeight);
+          t.base.scale.set(uniformScale);
+        } else if (specialVisual?.visualWidth) {
+          const textureWidth = tex?.orig?.width || tex?.width || wildFaceSize;
+          const uniformScale = specialVisual.visualWidth / Math.max(1, textureWidth);
+          t.base.scale.set(uniformScale);
+        } else {
+          t.base.width = wildFaceSize;
+          t.base.height = wildFaceSize;
+        }
+        if (specialVisual?.hitAreaSize === 'tile') {
+          const half = TILE / 2;
+          const hitArea = new Rectangle(-half, -half, TILE, TILE);
+          t.hitArea = hitArea;
+          const host = t.rotG || t;
+          if (host) host.hitArea = hitArea;
+        }
+        try {
+          (t.base as any).eventMode = 'none';
+          (t.base as any).cursor = 'default';
+        } catch {}
         (t.base as any).tint = 0xFFFFFF;
         (t.base as any).alpha = 1;
         t.base.visible = true;

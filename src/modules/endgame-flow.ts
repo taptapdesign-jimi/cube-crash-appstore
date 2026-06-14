@@ -326,6 +326,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
             cardName: boardCard?.name || `Board ${boardNumber}`,
           });
           logger.info(`🎁 Journey new card screen completed for board ${boardNumber}`);
+          if ((boardNumber | 0) === 2) {
+            try {
+              const {
+                showJourneySpecialDiceScreen,
+                isJourneySpecialDiceUnlocked,
+              } = await import('./journey-special-dice-screen.js');
+              if (!isJourneySpecialDiceUnlocked('juice')) {
+                await showJourneySpecialDiceScreen({ diceType: 'juice' });
+                logger.info('🎲 Journey special dice unlock screen completed for juice');
+              }
+            } catch (specialDiceError) {
+              logger.warn('⚠️ Journey special dice screen failed, continuing to clean board:', specialDiceError);
+            }
+          }
         } catch (newCardError) {
           logger.warn('⚠️ Journey new card screen failed, continuing to clean board:', newCardError);
         }

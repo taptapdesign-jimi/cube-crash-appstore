@@ -44,6 +44,7 @@ export function buildGridSnapshot({
     const tileSnapshot = {
       value: Number.isFinite(tileValue) ? tileValue : 0,
       special: tile.special || null,
+      specialDiceVariant: tile._ccSpecialDiceVariant || tile.specialDiceVariant || null,
       locked: !!tile.locked,
       open: !tile.locked,
       isWild: !!tile.isWild,
@@ -83,6 +84,7 @@ export function buildGridSnapshot({
       const tileSnapshot = {
         value: Number.isFinite(tileValue) ? tileValue : 0,
         special: gridTile.special || null,
+        specialDiceVariant: gridTile._ccSpecialDiceVariant || gridTile.specialDiceVariant || null,
         locked: !!gridTile.locked,
         open: !gridTile.locked,
         isWild: !!gridTile.isWild,

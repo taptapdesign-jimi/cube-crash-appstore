@@ -1,3 +1,6 @@
+import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
+
 type WildSkinDeps = {
   Assets: { get: (key: string) => any };
   Texture: any;
@@ -10,7 +13,7 @@ type WildSkinDeps = {
   TILE: number;
   startWildShimmer: (tile: any) => void;
   startWildJuiceBubbles: (tile: any) => void;
-  startWildStars: (tile: any) => void;
+  startWildStars: (tile: any, opts?: any) => void;
   startMagnetIdleParticles: (tile: any) => void;
   startTntIdleParticles: (tile: any) => void;
   startTntIdleShake: (tile: any) => void;
@@ -52,6 +55,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     } else if (tile.special === 'wild-tnt') {
       assetPath = ASSET_WILD_TNT;
     }
+    assetPath = getSpecialDiceTexturePath(tile, assetPath);
     
     const tex = Assets.get(assetPath) || Texture.from(assetPath);
     if (!tex || !tile) return;
@@ -68,8 +72,32 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       // Force set texture even if it's already set (prevents texture loss)
       base.texture = tex; 
       const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
-      base.width = faceSize;
-      base.height = faceSize;
+      const specialVisual = getSpecialDiceVisualConfig(tile);
+      if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
+        base.width = specialVisual.visualWidth;
+        base.height = specialVisual.visualHeight;
+      } else if (specialVisual?.visualFit === 'height') {
+        const textureHeight = tex?.orig?.height || tex?.height || faceSize;
+        const uniformScale = faceSize / Math.max(1, textureHeight);
+        base.scale.set(uniformScale);
+      } else if (specialVisual?.visualWidth) {
+        const textureWidth = tex?.orig?.width || tex?.width || faceSize;
+        const uniformScale = specialVisual.visualWidth / Math.max(1, textureWidth);
+        base.scale.set(uniformScale);
+      } else {
+        base.width = faceSize;
+        base.height = faceSize;
+      }
+      if (specialVisual?.hitAreaSize === 'tile') {
+        const half = TILE / 2;
+        const hitArea = new Rectangle(-half, -half, TILE, TILE);
+        tile.hitArea = hitArea;
+        if (host) host.hitArea = hitArea;
+      }
+      try {
+        base.eventMode = 'none';
+        base.cursor = 'default';
+      } catch {}
       base.tint = 0xFFFFFF; 
       base.alpha = 1;
       base.visible = true;
@@ -144,6 +172,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
           }
         });
       }
+      startSpecialDiceIdleMotion(tile);
     } catch {}
   } catch {}
 }

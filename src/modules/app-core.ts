@@ -125,7 +125,17 @@ import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { consumeWildCharge } from './app-core-wild-meter.ts';
 import { decideWildType } from './app-core-wild-type.ts';
+import {
+  applySpecialDiceVariantToTile,
+  getCoreWildTypeForSpecialDiceVariant,
+  getSpecialDiceSplashOptions,
+  getSpecialDiceTexturePath,
+  getSpecialDiceVisualConfig,
+  getSpecialDiceVariantForTile,
+  pickSpecialDiceVariantForWildSpawn,
+} from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
+import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -437,6 +447,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
     let repaired = 0;
     sourceTiles.forEach((t: any) => {
       if (!t || t.destroyed || t.visible === false) return;
+      if (t._ccWildSpawnDropping === true) return;
       const sx = Number.isFinite(t.scale?.x) ? t.scale.x : 1;
       const sy = Number.isFinite(t.scale?.y) ? t.scale.y : 1;
       if (Math.min(sx, sy) < 0.86) {
@@ -487,7 +498,8 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
           base.texture === Texture.EMPTY ||
           (base.texture as any).destroyed === true ||
           ((base.texture as any).source && (base.texture as any).source.valid === false);
-        if (textureLooksBad) {
+        const variantTexturePath = getSpecialDiceTexturePath(t, '');
+        if (textureLooksBad || variantTexturePath) {
           const assetPath = special === 'wild-magnet'
             ? ASSET_WILD_MAGNET
             : special === 'wild-juice'
@@ -497,13 +509,39 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
                 : special === 'wild'
                   ? ASSET_WILD
                   : ASSET_NUMBERS;
-          base.texture = Assets.get(assetPath) || Texture.from(assetPath);
+          const resolvedAssetPath = getSpecialDiceTexturePath(t, assetPath);
+          base.texture = Assets.get(resolvedAssetPath) || Texture.from(resolvedAssetPath);
           repaired++;
         }
         base.visible = true;
         base.alpha = 1;
-        base.width = special === 'wild-magnet' ? TILE * 0.96 : TILE;
-        base.height = special === 'wild-magnet' ? TILE * 0.96 : TILE;
+        const faceSize = special === 'wild-magnet' ? TILE * 0.96 : TILE;
+        const specialVisual = getSpecialDiceVisualConfig(t);
+        if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
+          base.width = specialVisual.visualWidth;
+          base.height = specialVisual.visualHeight;
+        } else if (specialVisual?.visualFit === 'height') {
+          const tex = base.texture;
+          const textureHeight = tex?.orig?.height || tex?.height || faceSize;
+          base.scale.set(faceSize / Math.max(1, textureHeight));
+        } else if (specialVisual?.visualWidth) {
+          const tex = base.texture;
+          const textureWidth = tex?.orig?.width || tex?.width || faceSize;
+          base.scale.set(specialVisual.visualWidth / Math.max(1, textureWidth));
+        } else {
+          base.width = faceSize;
+          base.height = faceSize;
+        }
+        if (specialVisual?.hitAreaSize === 'tile') {
+          const half = TILE / 2;
+          const hitArea = new Rectangle(-half, -half, TILE, TILE);
+          t.hitArea = hitArea;
+          if (host) host.hitArea = hitArea;
+          try {
+            base.eventMode = 'none';
+            base.cursor = 'default';
+          } catch {}
+        }
         try {
           const src = base.texture && ((base.texture as { source?: { scaleMode?: string } }).source ?? base.texture.baseTexture);
           if (src) src.scaleMode = 'nearest';
@@ -3822,6 +3860,31 @@ async function animateBoardExit(){
 // 🔥 v112: randVal moved to app-core-utils.ts
 // Imported: randVal
 let journeyGameBottomDecorHideTimer: number | null = null;
+const JOURNEY_GAME_BOTTOM_DECOR_COUNT = 12;
+
+function getJourneyGameBottomDecorIndex(board: number): number {
+  const safeBoard = Number.isFinite(board) ? Math.max(1, Math.floor(board)) : 1;
+  return ((safeBoard - 1) % JOURNEY_GAME_BOTTOM_DECOR_COUNT) + 1;
+}
+
+function getJourneyGameBottomDecorUrl(decorIndex: number, scale = 1): string {
+  const scaleSuffix = scale === 2 ? '@2x' : '';
+  return `./assets/journey%20assets/bottom${decorIndex}${scaleSuffix}.png`;
+}
+
+function updateJourneyGameBottomDecorSource(img: HTMLImageElement): void {
+  const currentBoard =
+    STATE?.boardNumber && Number.isFinite(STATE.boardNumber)
+      ? STATE.boardNumber
+      : boardNumber;
+  const decorIndex = getJourneyGameBottomDecorIndex(currentBoard);
+  const decorKey = String(decorIndex);
+  if (img.dataset.decorIndex === decorKey) return;
+
+  img.src = getJourneyGameBottomDecorUrl(decorIndex);
+  img.srcset = `${getJourneyGameBottomDecorUrl(decorIndex)} 1x, ${getJourneyGameBottomDecorUrl(decorIndex, 2)} 2x`;
+  img.dataset.decorIndex = decorKey;
+}
 
 function ensureJourneyGameBottomDecor(): HTMLImageElement | null {
   const host = document.getElementById('app');
@@ -3831,8 +3894,6 @@ function ensureJourneyGameBottomDecor(): HTMLImageElement | null {
     img = document.createElement('img');
     img.id = 'journey-game-bottom-decor';
     img.className = 'journey-game-bottom-decor';
-    img.src = './assets/journey%20assets/bottom.png';
-    img.srcset = './assets/journey%20assets/bottom.png 1x, ./assets/journey%20assets/bottom@2x.png 2x';
     img.alt = '';
     img.setAttribute('aria-hidden', 'true');
     img.decoding = 'async';
@@ -3840,6 +3901,7 @@ function ensureJourneyGameBottomDecor(): HTMLImageElement | null {
     img.hidden = true;
     host.appendChild(img);
   }
+  updateJourneyGameBottomDecorSource(img);
   return img;
 }
 
@@ -3857,6 +3919,7 @@ function setJourneyGameBottomDecorVisible(visible: boolean): void {
   }
   if (visible) {
     host.classList.add('journey-board-game-active');
+    document.body?.classList.add('journey-board-game-active');
     img.hidden = false;
     img.classList.remove('is-visible', 'is-exiting');
     img.getBoundingClientRect();
@@ -3871,7 +3934,10 @@ function setJourneyGameBottomDecorVisible(visible: boolean): void {
     img.hidden = true;
     img.classList.remove('is-exiting');
     host.classList.remove('journey-board-game-active');
+    document.body?.classList.remove('journey-board-game-active');
     journeyGameBottomDecorHideTimer = null;
+    // Reset any lingering GSAP shake transform so next show starts clean.
+    try { (window as any).gsap?.set(img, { x: 0, y: 0, clearProps: 'x,y' }); } catch {}
   }, 520);
 }
 
@@ -4294,13 +4360,27 @@ async function spawnWildFromMeter(){
         spawnTnt = false;
         wildType = 'wild';
       }
-      const wildAssetPath = spawnTnt
+      const specialDiceVariant = pickSpecialDiceVariantForWildSpawn({
+        isArcade: isArcadeHomeRunMode(),
+        wildSpawnCount,
+      });
+      if (specialDiceVariant) {
+        const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);
+        spawnJuice = coreWildType === 'wild-juice';
+        spawnMagnet = coreWildType === 'wild-magnet';
+        spawnTnt = coreWildType === 'wild-tnt';
+        wildType = (coreWildType || 'wild') as any;
+      }
+      let wildAssetPath = spawnTnt
         ? ASSET_WILD_TNT
         : spawnJuice
           ? ASSET_WILD_JUICE
           : spawnMagnet
             ? ASSET_WILD_MAGNET
             : ASSET_WILD;
+      if (specialDiceVariant?.texture) {
+        wildAssetPath = specialDiceVariant.texture;
+      }
       const wildDropOrigin = HUD.getWildMeterDropOrigin?.() || null;
 
       if (forcedTutorialWildCell && cell.c === forcedTutorialWildCell.c && cell.r === forcedTutorialWildCell.r) {
@@ -4329,8 +4409,23 @@ async function spawnWildFromMeter(){
           } catch {}
         }
         const spawnedTile = grid?.[cell.r]?.[cell.c] || null;
+        if (spawnedTile && specialDiceVariant) {
+          try {
+            applySpecialDiceVariantToTile(spawnedTile, specialDiceVariant);
+            applyWildSkinLocal(spawnedTile);
+          } catch {}
+        }
         consumeCharge();
         spawned = true;
+        const wildDropSmokeOrigin = spawnedTile && !spawnedTile.destroyed
+          ? {
+              x: Number.isFinite((spawnedTile as any).targetX) ? (spawnedTile as any).targetX : spawnedTile.x,
+              y: Number.isFinite((spawnedTile as any).targetY) ? (spawnedTile as any).targetY : spawnedTile.y,
+              zIndex: spawnedTile.zIndex,
+              gridX: spawnedTile.gridX,
+              gridY: spawnedTile.gridY,
+            }
+          : null;
         try {
           await animateWildSpawnDropFromMeter({
             app,
@@ -4344,7 +4439,7 @@ async function spawnWildFromMeter(){
               } catch {}
               try {
                 if (spawnedTile && !spawnedTile.destroyed) {
-                  smokeBubblesAtTile(board, spawnedTile, TILE * 1.05, 1.35, {
+                  smokeBubblesAtTile(board, wildDropSmokeOrigin || spawnedTile, TILE * 1.05, 1.35, {
                     behind: true,
                     fxTag: 'wild-spawn-drop-smoke',
                     sizeScale: 1.35,
@@ -4391,6 +4486,7 @@ async function spawnWildFromMeter(){
             } else if (spawnedTile.special === 'wild') {
               startWildStars(spawnedTile, { introBounce: true });
             }
+            startSpecialDiceIdleMotion(spawnedTile);
           }
         } catch {}
 
@@ -4683,10 +4779,43 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         devLog('✅ Will animate stars to HUD after merge animation');
       } else {
-        devLog('⚠️ Wild star tile found but conditions not met:', {
+        devLog('⚠️ Wild star tile found without orbit star system, preparing fallback HUD star:', {
           hasWildStarTile: !!wildStarTileForAnimation,
           hasWildStarSystem
         });
+        if (wildStarTileForAnimation) {
+          try {
+            const starTexture = Texture.from('./assets/small-star.png');
+            let basePos = null;
+            try {
+              if (typeof wildStarTileForAnimation.getGlobalPosition === 'function') {
+                const gp = wildStarTileForAnimation.getGlobalPosition();
+                if (gp && Number.isFinite(gp.x) && Number.isFinite(gp.y)) {
+                  basePos = { x: gp.x, y: gp.y };
+                }
+              }
+            } catch {}
+            if (!basePos) {
+              const fallback = getMerge6ScreenPos(wildStarTileForAnimation || dst);
+              basePos = { x: fallback.x, y: fallback.y };
+            }
+
+            savedWildTileScreenPosEarly = basePos;
+            savedStarPositionsEarly = [{
+              texture: starTexture,
+              globalX: basePos.x,
+              globalY: basePos.y,
+              scale: { x: 0.55, y: 0.55 }
+            }];
+            shouldAnimateStarsToHUD = true;
+            devLog('✅ Wild star fallback HUD star prepared', {
+              basePos,
+              variant: getSpecialDiceVariantForTile(wildStarTileForAnimation)?.id || 'core-wild'
+            });
+          } catch (err) {
+            devWarn('⚠️ Failed to prepare fallback wild-star HUD star:', err);
+          }
+        }
       }
     } else {
       devLog('⭐ Not a wild star merge:', { srcSpecialForStarCheck, dstSpecialForStarCheck });
@@ -4970,7 +5099,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst));
+                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst), getSpecialDiceSplashOptions(getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)));
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -6939,7 +7068,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             starsToHudTriggered = true;
             (async () => {
               try {
-                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst));
+                if (!isWildJuiceMerge) showSparkleText(getMerge6DomOrigin(dst), getSpecialDiceSplashOptions(getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)));
                 devLog('⭐ Calling animateStarsToHudIcon with saved star data (INSTANT):', { 
                   board: !!board, 
                   stage: !!stage,
@@ -7601,15 +7730,21 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               devLog('💥 Wild-TNT merge 6 - TNT anim active, skipping shards');
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
-              devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              const wildStarVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
+              const wildStarShardColor = wildStarVariant?.id === 'cubero' ? 0xFE9130 : undefined;
+              devLog('⭐ Wild star merge 6 - using template-based pooling with shards', {
+                variant: wildStarVariant?.id || 'core-wild',
+                color: wildStarShardColor ? `0x${wildStarShardColor.toString(16)}` : 'default'
+              });
               playShortWildMerge6TileBlast('Wild-star');
               // Sparkle must always appear for pure wild-star merge-6, even when stars-to-HUD path is unavailable.
               try {
-                if (!isSparkleTextActive?.()) showSparkleText(getMerge6DomOrigin(dst));
+                if (!isSparkleTextActive?.()) showSparkleText(getMerge6DomOrigin(dst), getSpecialDiceSplashOptions(wildStarVariant));
               } catch {}
               wildStarMerge6ShardsTemplated(board, dst, { 
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
-                zIndex: 9993
+                zIndex: 9993,
+                color: wildStarShardColor
               });
               // Trigger stars-to-HUD exactly between shards and smoke phase.
               if (shouldAnimateStarsToHUD && !starsToHudTriggered && savedStarPositionsEarly.length > 0) {
@@ -8783,6 +8918,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               let fixed = 0;
               for (const t of tiles) {
                 if (!t || t.destroyed) continue;
+                if ((t as any)._ccWildSpawnDropping === true) continue;
                 const sx = Number.isFinite((t as any).scale?.x) ? (t as any).scale.x : 1;
                 const sy = Number.isFinite((t as any).scale?.y) ? (t as any).scale.y : 1;
                 if (t.visible !== false && Math.min(sx, sy) < 0.86) {

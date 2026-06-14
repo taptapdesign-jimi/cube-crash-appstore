@@ -30,6 +30,14 @@ interface ErrorCallback {
   (error: Error): void;
 }
 
+const JOURNEY_BOTTOM_DECOR_IMAGES = Array.from({ length: 12 }, (_, index) => {
+  const bottomIndex = index + 1;
+  return [
+    `./assets/journey assets/bottom${bottomIndex}.png`,
+    `./assets/journey assets/bottom${bottomIndex}@2x.png`,
+  ];
+}).flat();
+
 // Window interface is now defined in src/types/window.d.ts
 
 // Add audio parser for PixiJS (only if addParser exists)
@@ -109,6 +117,15 @@ const ALL_ASSETS: string[] = [
   './assets/shop/explosion pack/animation/tnt10.png',
   './assets/shop/explosion pack/animation/tnt11.png',
   './assets/shop/explosion pack/animation/tnt12.png',
+  './assets/shop/cubero/cubero.png',
+  './assets/shop/cubero/cubero@2x.png',
+  './assets/shop/cubero/krpa1.png',
+  './assets/shop/cubero/krpa2.png',
+  './assets/shop/cubero/krpa3.png',
+  './assets/shop/cubero/krpa4.png',
+  './assets/shop/cubero/krpa5.png',
+  './assets/shop/cubero/krpa6.png',
+  './assets/shop/cubero/krpa7.png',
   
   // Wild star assets
   './assets/small-star.png',
@@ -225,9 +242,17 @@ const CRITICAL_ASSETS: string[] = [
   './assets/tile.png',
   './assets/tile_numbers.png',
   './assets/wild.png',
+  './assets/shop/cubero/cubero.png',
   
   // Wild star assets (needed immediately when wild cubes spawn)
   './assets/small-star.png',
+  './assets/shop/cubero/krpa1.png',
+  './assets/shop/cubero/krpa2.png',
+  './assets/shop/cubero/krpa3.png',
+  './assets/shop/cubero/krpa4.png',
+  './assets/shop/cubero/krpa5.png',
+  './assets/shop/cubero/krpa6.png',
+  './assets/shop/cubero/krpa7.png',
   './assets/small-star@2x.png',
   './assets/small-star@3x.png',
   
@@ -387,8 +412,7 @@ export class AssetPreloader {
       './assets/modals/paper@3x.png',
       // 🔥 CRITICAL: Journey screen assets (must be preloaded for instant Journey screen load)
       './assets/journey assets/1-17bg.png',
-      './assets/journey assets/bottom.png',
-      './assets/journey assets/bottom@2x.png',
+      ...JOURNEY_BOTTOM_DECOR_IMAGES,
       './assets/journey assets/orange-ribbon.png',
       './assets/journey assets/orange-ribbon@2x.png',
       './assets/journey assets/orange-ribbon@3x.png',
@@ -510,8 +534,7 @@ export class AssetPreloader {
       // Still verify critical images are in cache (fast check)
       const criticalImages = [
         './assets/journey assets/1-17bg.png',
-        './assets/journey assets/bottom.png',
-        './assets/journey assets/bottom@2x.png',
+        ...JOURNEY_BOTTOM_DECOR_IMAGES,
         './assets/colelctibles/journey-card-empty.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
@@ -522,8 +545,7 @@ export class AssetPreloader {
     
     // Journey background and UI elements
     journeyImages.push('./assets/journey assets/1-17bg.png');
-    journeyImages.push('./assets/journey assets/bottom.png');
-    journeyImages.push('./assets/journey assets/bottom@2x.png');
+    journeyImages.push(...JOURNEY_BOTTOM_DECOR_IMAGES);
     journeyImages.push('./assets/journey assets/orange-ribbon.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@3x.png');

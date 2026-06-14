@@ -11,6 +11,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
+import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -203,6 +204,8 @@ export function initDrag(cfg) {
     moved: false,
     hoverTarget: null,
     hoverFrame: null,
+    hoverCandidate: null,
+    hoverCandidateFrames: 0,
     _lastGlobal: null, // world-space pointer
     threshold,
     // inertial tilt state
@@ -443,6 +446,11 @@ export function initDrag(cfg) {
     lastPickDropTime = 0;
     lastPickDropResult = null;
     lastPickDropSrc = null;
+    lastPickDropX = null;
+    lastPickDropY = null;
+    lastPickDropAllowCenterFallback = null;
+    drag.hoverCandidate = null;
+    drag.hoverCandidateFrames = 0;
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -451,6 +459,7 @@ export function initDrag(cfg) {
     drag.vx = 0; drag.vy = 0;
     drag.lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     drag.lagX = 0; drag.lagY = 0;
+    try { stopSpecialDiceIdleMotion(t); } catch {}
     if (t.rotG) gsap.killTweensOf(t.rotG);
     // Remember board baseline and enable wobble only for juice wild
     drag._boardBaseX = board?.x ?? 0;
@@ -738,7 +747,7 @@ export function initDrag(cfg) {
     // ažuriraj _lastGlobal za sljedeći frame
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
 
-    const target = pickDropTarget(t);
+    const target = stabilizeHoverTarget(pickDropTarget(t, { allowCenterFallback: false }));
     
     // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-juice is dropped on regular tile (merge 6)
     // This ensures bubbles start exactly when merge 6 happens, not when drag starts 
@@ -1081,6 +1090,7 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
+        try { startSpecialDiceIdleMotion(tileRef); } catch {}
         if (tileRef.special === 'wild-juice') {
           try {
             import('./fx.js').then(fxModule => {
@@ -1096,6 +1106,7 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
+        try { startSpecialDiceIdleMotion(tileRef); } catch {}
       });
       return;
     }
@@ -1121,6 +1132,7 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
+        try { startSpecialDiceIdleMotion(tileRef); } catch {}
       });
 
       // 🔥 CRITICAL: Check stuck state after failed drop (no valid target)
@@ -1199,15 +1211,47 @@ export function initDrag(cfg) {
   const PICK_DROP_THROTTLE = 16; // ~60fps max (16ms between calls)
   let lastPickDropResult = null;
   let lastPickDropSrc = null;
+  let lastPickDropX = null;
+  let lastPickDropY = null;
+  let lastPickDropAllowCenterFallback = null;
+
+  function stabilizeHoverTarget(target) {
+    if (!target) {
+      drag.hoverCandidate = null;
+      drag.hoverCandidateFrames = 0;
+      return null;
+    }
+    if (drag.hoverCandidate === target) {
+      drag.hoverCandidateFrames += 1;
+    } else {
+      drag.hoverCandidate = target;
+      drag.hoverCandidateFrames = 1;
+    }
+    return drag.hoverCandidateFrames >= 2 ? target : null;
+  }
   
-  function pickDropTarget(src) {
+  function pickDropTarget(src, opts = {}) {
+    const allowCenterFallback = opts.allowCenterFallback !== false;
     // 🔥 PERFORMANCE: Throttle pickDropTarget calls to prevent lag
     const now = performance.now();
-    if (src === lastPickDropSrc && now - lastPickDropTime < PICK_DROP_THROTTLE) {
+    const srcX = src?.x ?? 0;
+    const srcY = src?.y ?? 0;
+    const srcStationary = lastPickDropX !== null &&
+      Math.abs(srcX - lastPickDropX) < 0.01 &&
+      Math.abs(srcY - lastPickDropY) < 0.01;
+    if (
+      src === lastPickDropSrc &&
+      lastPickDropAllowCenterFallback === allowCenterFallback &&
+      srcStationary &&
+      now - lastPickDropTime < PICK_DROP_THROTTLE
+    ) {
       return lastPickDropResult; // Return cached result if called too soon
     }
     lastPickDropTime = now;
     lastPickDropSrc = src;
+    lastPickDropX = srcX;
+    lastPickDropY = srcY;
+    lastPickDropAllowCenterFallback = allowCenterFallback;
     if (!src || src.destroyed) return null;
 
     const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
@@ -1288,7 +1332,7 @@ export function initDrag(cfg) {
     // snap back solely because PIXI overlap/bounds were too strict on pointerup.
     const isWildMagnetTile = (tile) => tile?.special === 'wild-magnet';
     const magnetCenterFallbackAllowed = isWildMagnetTile(src) || candidates.some(isWildMagnetTile);
-    if (magnetCenterFallbackAllowed && (!best || bestRatio < th)) {
+    if (allowCenterFallback && magnetCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
       const maxCenterDist = tileSize * 0.98;
@@ -1315,7 +1359,7 @@ export function initDrag(cfg) {
     // overlap is missing or below threshold.
     const isDirectWild = (tile) => isDirectWildTile(tile);
     const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
-    if (wildCenterFallbackAllowed && (!best || bestRatio < th)) {
+    if (allowCenterFallback && wildCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
       const maxCenterDist = tileSize * 1.08;

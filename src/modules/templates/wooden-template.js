@@ -23,8 +23,8 @@ export const woodenDragParticleColors = {
   regular: [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0],
   
   // Wild star (wild): Yellow palette - ORIGINAL COLOR
-  wild: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC],
-  wildStar: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC], // Alias for wild
+  wild: [0xF3D7B8, 0xF7E8D7, 0xFCC57C, 0xFDA74C],
+  wildStar: [0xF3D7B8, 0xF7E8D7, 0xFCC57C, 0xFDA74C], // Alias for wild
   
   // Wild juice: Orange palette - ORIGINAL COLOR
   wildJuice: [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77],
@@ -1010,4 +1010,3 @@ export const woodenTemplate = {
 };
 
 export default woodenTemplate;
-

@@ -145,6 +145,15 @@ export function openAtCellCore({
       holder.isWild = true;
       holder.isWildFace = true;
       holder.value = 6;
+      holder.stackDepth = 1;
+      try { holder.stackG?.destroy?.({ children: true }); } catch {}
+      holder.stackG = null;
+      try {
+        if (holder.pips) {
+          holder.pips.visible = false;
+          holder.pips.clear?.();
+        }
+      } catch {}
       // 🔥 RACE FIX: Skip if holder was destroyed (e.g. by concurrent magnet pull)
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed before setValue (race with merge?)', { c, r });

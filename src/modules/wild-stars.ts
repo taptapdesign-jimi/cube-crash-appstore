@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
+import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 
 type WildishTile = Container & {
   special?: string;
@@ -44,6 +45,7 @@ interface WildStarSystem {
   lastUpdateTime: number;
   updateIntervalMs: number;
   introBounce?: boolean;
+  textureSources?: string[];
 }
 
 const STAR_TEXTURE_SOURCES = [
@@ -56,7 +58,7 @@ const systems = new WeakMap<WildishTile, WildStarSystem>();
 const activeSystems = new Set<WildStarSystem>();
 let sharedTicker: (() => void) | null = null;
 
-let cachedTexture: Texture | null = null;
+const cachedTextures = new Map<string, Texture>();
 const isDev = !!(import.meta as any)?.env?.DEV;
 const debugLog = (...args: any[]) => {
   if (isDev) {
@@ -146,17 +148,32 @@ function getTextureFromCache(source: string): Texture | null {
 }
 
 // Async verzija - koristi se za pouzdano učitavanje
-async function ensureTextureAsync(): Promise<Texture | null> {
+function normalizeTextureSources(sources?: string[] | null): string[] {
+  return Array.isArray(sources) && sources.length ? sources.filter(Boolean) : STAR_TEXTURE_SOURCES;
+}
+
+function getTextureCacheKey(sources: string[]): string {
+  return sources.join('|');
+}
+
+function resolveTextureSources(tile?: WildishTile | null, opts: any = {}): string[] {
+  const variantSources = getSpecialDiceVariantForTile(tile)?.orbitParticleSources;
+  return normalizeTextureSources(opts?.particleSources || opts?.textureSources || variantSources);
+}
+
+async function ensureTextureAsync(sources = STAR_TEXTURE_SOURCES): Promise<Texture | null> {
   // Provjeri cache prvo
+  const cacheKey = getTextureCacheKey(sources);
+  const cachedTexture = cachedTextures.get(cacheKey) || null;
   if (cachedTexture && isTextureValid(cachedTexture)) {
     return cachedTexture;
   }
   
   // Pokušaj učitati async iz svakog izvora
-  for (const source of STAR_TEXTURE_SOURCES) {
+  for (const source of sources) {
     const texture = await loadTextureAsync(source);
     if (texture) {
-      cachedTexture = texture;
+      cachedTextures.set(cacheKey, texture);
       return texture;
     }
   }
@@ -165,17 +182,19 @@ async function ensureTextureAsync(): Promise<Texture | null> {
 }
 
 // Sinkrona verzija - vraća samo ako je već u cache-u (tiho, bez upozorenja)
-function ensureTextureSync(): Texture | null {
+function ensureTextureSync(sources = STAR_TEXTURE_SOURCES): Texture | null {
   // Provjeri postojeći lokalni cache
+  const cacheKey = getTextureCacheKey(sources);
+  const cachedTexture = cachedTextures.get(cacheKey) || null;
   if (cachedTexture && isTextureValid(cachedTexture)) {
     return cachedTexture;
   }
   
   // Pokušaj sinkrono dohvatiti iz Assets cache-a (tiho)
-  for (const source of STAR_TEXTURE_SOURCES) {
+  for (const source of sources) {
     const texture = getTextureFromCache(source);
     if (texture) {
-      cachedTexture = texture;
+      cachedTextures.set(cacheKey, texture);
       return texture;
     }
   }
@@ -407,6 +426,7 @@ function playOrbitIntro(container: Container): void {
 
 export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: any = {}): void {
   if (!tileIsPureWild(tile)) return;
+  if (getSpecialDiceVariantForTile(tile)?.idleOrbit === false) return;
 
   const existingSystem = systems.get(tile) || (tile as any)._wildStarSystem;
   if (existingSystem && !existingSystem.disposed && opts?.force !== true) {
@@ -418,6 +438,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
   const host = (tile.rotG as Container) || tile;
   if (!host) return;
   const babyStarCount = getRandomBabyStarCount();
+  const textureSources = resolveTextureSources(tile, opts);
 
   const container = new Container();
   container.label = 'wild-baby-star-orbit';
@@ -446,6 +467,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
     lastUpdateTime: performance.now() - 1000 / 30,
     updateIntervalMs: 1000 / 30,
     introBounce: opts?.introBounce === true,
+    textureSources,
   };
 
   systems.set(tile, system);
@@ -506,14 +528,14 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
   };
 
   // Prvo pokušaj sinkrono dohvatiti iz cache-a (brzo, bez grešaka)
-  const cachedTex = ensureTextureSync();
+  const cachedTex = ensureTextureSync(textureSources);
   if (cachedTex) {
     startSystemWithTexture(cachedTex);
     return;
   }
   
   // Ako nije u cache-u, učitaj async (tiho, bez grešaka u konzoli)
-  ensureTextureAsync().then(texture => {
+  ensureTextureAsync(textureSources).then(texture => {
     if (system.disposed) return;
     
     if (texture) {
@@ -572,5 +594,5 @@ function removeSharedTickerIfIdle(): void {
 
 export async function preloadWildStarTexture(): Promise<void> {
   // Async preload - tiho ignorira greške
-  await ensureTextureAsync().catch(() => {});
+  await ensureTextureAsync(STAR_TEXTURE_SOURCES).catch(() => {});
 }

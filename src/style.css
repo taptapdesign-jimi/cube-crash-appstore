@@ -674,7 +674,7 @@ body{
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -74px;
+  bottom: -48px;
   width: 100vw;
   max-width: none;
   height: auto;
@@ -694,16 +694,20 @@ body{
 }
 
 #app.journey-board-game-active .journey-game-bottom-decor.is-visible:not([hidden]) {
-  opacity: 0.7;
-  bottom: -32px;
+  opacity: 1;
+  bottom: -1px;
 }
 
 #app.journey-board-game-active .journey-game-bottom-decor.is-exiting:not([hidden]) {
   opacity: 0;
-  bottom: -88px;
+  bottom: -62px;
   transition:
     bottom 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 220ms ease-in;
+}
+
+body.journey-board-game-active #hud-board-indicator {
+  display: none !important;
 }
 
 /* Home content wrapper */
@@ -5000,6 +5004,11 @@ body:has(:root) .tile.wild-3d-glow {
 .settings-dev-button-new-card {
   background: #F35F37;
   box-shadow: 0 7px 0 #C64A2A;
+}
+
+.settings-dev-button-new-dice {
+  background: #4FAE8A;
+  box-shadow: 0 7px 0 #34785F;
 }
 
 .settings-dev-button-clean-board {

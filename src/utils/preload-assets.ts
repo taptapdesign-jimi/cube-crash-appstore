@@ -56,6 +56,15 @@ const CRITICAL_IMAGES: string[] = [
   './assets/shop/explosion pack/animation/tnt10.png',
   './assets/shop/explosion pack/animation/tnt11.png',
   './assets/shop/explosion pack/animation/tnt12.png',
+  './assets/shop/cubero/cubero.png',
+  './assets/shop/cubero/cubero@2x.png',
+  './assets/shop/cubero/krpa1.png',
+  './assets/shop/cubero/krpa2.png',
+  './assets/shop/cubero/krpa3.png',
+  './assets/shop/cubero/krpa4.png',
+  './assets/shop/cubero/krpa5.png',
+  './assets/shop/cubero/krpa6.png',
+  './assets/shop/cubero/krpa7.png',
   './assets/mystery-box.png',
   './assets/gold-coin.png'
 ];

@@ -3,6 +3,7 @@ import { Assets, Sprite, Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT } from './constants.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { getSpecialDiceVariantForTile, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
 
 type Point = { x: number; y: number };
 
@@ -222,6 +223,83 @@ function getGlobalScale(container: any): number {
   return 1;
 }
 
+function setTileDropScale(tile: any, sx: number, sy: number): void {
+  try {
+    const specialVisual = getSpecialDiceVisualConfig(tile);
+    if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
+      const uniform = (sx + sy) * 0.5;
+      tile.scale?.set?.(uniform, uniform);
+      return;
+    }
+  } catch {}
+  tile.scale?.set?.(sx, sy);
+}
+
+function isCuberoDropTile(tile: any): boolean {
+  try {
+    return getSpecialDiceVariantForTile(tile)?.id === 'cubero';
+  } catch {}
+  return false;
+}
+
+function describeDisplayObject(obj: any): string {
+  try {
+    return String(obj?.label || obj?.constructor?.name || 'unnamed');
+  } catch {}
+  return 'unknown';
+}
+
+function forceDropTileAboveStage(stage: any, tile: any): void {
+  try {
+    if (!stage || !tile || tile.destroyed) return;
+    if (tile.parent !== stage) {
+      try { tile.parent?.removeChild?.(tile); } catch {}
+      stage.addChild(tile);
+    }
+    stage.sortableChildren = true;
+    tile.zIndex = 2_000_000;
+    try { stage.sortChildren?.(); } catch {}
+    try {
+      const lastIndex = Math.max(0, (stage.children?.length || 1) - 1);
+      if (typeof stage.setChildIndex === 'function' && stage.children?.[lastIndex] !== tile) {
+        stage.setChildIndex(tile, lastIndex);
+      }
+    } catch {}
+  } catch {}
+}
+
+function logCuberoDrop(phase: string, stage: any, parent: any, tile: any, extra: Record<string, any> = {}): void {
+  if (!isCuberoDropTile(tile)) return;
+  try {
+    const stageChildren = Array.isArray(stage?.children) ? stage.children : [];
+    const parentChildren = Array.isArray(parent?.children) ? parent.children : [];
+    const stageIndex = stageChildren.indexOf(tile);
+    const parentIndex = parentChildren.indexOf(tile);
+    const topStage = stageChildren.slice(-8).map((child: any, index: number) => ({
+      slot: stageChildren.length - 8 + index,
+      label: describeDisplayObject(child),
+      zIndex: child?.zIndex,
+      isTile: child === tile,
+    }));
+    console.info('[CuberoDrop]', phase, {
+      parentLabel: describeDisplayObject(tile?.parent),
+      intendedParentLabel: describeDisplayObject(parent),
+      tileZ: tile?.zIndex,
+      tileVisible: tile?.visible,
+      tileAlpha: tile?.alpha,
+      tileScale: { x: tile?.scale?.x, y: tile?.scale?.y },
+      tilePos: { x: tile?.x, y: tile?.y },
+      stageIndex,
+      parentIndex,
+      stageChildrenCount: stageChildren.length,
+      topStage,
+      ...extra,
+    });
+  } catch (err) {
+    try { console.info('[CuberoDrop]', phase, 'log failed', err); } catch {}
+  }
+}
+
 function revealTile(tile: any): void {
   try {
     if (!tile || tile.destroyed) return;
@@ -346,7 +424,14 @@ export async function animateWildSpawnDropFromMeter({
         stage.addChild(tile);
       }
       stage.sortableChildren = true;
-      tile.zIndex = 1_000_003;
+      forceDropTileAboveStage(stage, tile);
+      logCuberoDrop('setup-on-stage', stage, parent, tile, {
+        target,
+        stageTarget,
+        start,
+        launch,
+        stageVisualScale,
+      });
       tile.visible = false;
       tile.alpha = 0;
       tile.eventMode = 'none';
@@ -354,7 +439,7 @@ export async function animateWildSpawnDropFromMeter({
       tile.x = start.x;
       tile.y = start.y;
       tile.rotation = originalRotation + (-0.04 + Math.random() * 0.08);
-      tile.scale?.set?.(stageVisualScale * 0.18, stageVisualScale * 0.18);
+      setTileDropScale(tile, stageVisualScale * 0.18, stageVisualScale * 0.18);
       if (tile.rotG) tile.rotG.alpha = 1;
       if (tile.base) tile.base.alpha = 1;
     } catch {}
@@ -433,11 +518,13 @@ export async function animateWildSpawnDropFromMeter({
         .to({}, { duration: BACKPACK_WILD_REVEAL_TIME })
         .call(() => {
           if (completed || !tile || tile.destroyed) return;
+          forceDropTileAboveStage(stage, tile);
+          logCuberoDrop('pop-reveal-before-visible', stage, parent, tile);
           tile.visible = true;
           tile.alpha = 0;
           tile.x = start.x;
           tile.y = popStartY;
-          tile.scale?.set?.(stageVisualScale * 0.5, stageVisualScale * 0.5);
+          setTileDropScale(tile, stageVisualScale * 0.5, stageVisualScale * 0.5);
           if (tile.rotG) tile.rotG.alpha = 1;
           if (tile.base) tile.base.alpha = 1;
           if (tile.overlay) {
@@ -478,14 +565,14 @@ export async function animateWildSpawnDropFromMeter({
             }
 
             tile.y = y;
-            tile.scale?.set?.(sx, sy);
+            setTileDropScale(tile, sx, sy);
           },
           onComplete: () => {
             if (!tile || tile.destroyed) return;
             tile.alpha = 1;
             tile.x = launch.x;
             tile.y = launch.y;
-            tile.scale?.set?.(stageVisualScale * 0.8, stageVisualScale * 0.8);
+            setTileDropScale(tile, stageVisualScale * 0.8, stageVisualScale * 0.8);
           },
         });
     } catch {}
@@ -502,6 +589,8 @@ export async function animateWildSpawnDropFromMeter({
       ease: 'none',
       onStart: () => {
         try {
+          forceDropTileAboveStage(stage, tile);
+          logCuberoDrop('travel-delay-start', stage, parent, tile);
           tile.x = start.x;
           if (!tile.visible) tile.y = launch.y;
         } catch {}
@@ -514,6 +603,8 @@ export async function animateWildSpawnDropFromMeter({
       ease: 'power3.inOut',
       onStart: () => {
         try {
+          forceDropTileAboveStage(stage, tile);
+          logCuberoDrop('travel-start', stage, parent, tile);
           tile.visible = true;
           tile.alpha = 1;
           if (tile.rotG) tile.rotG.alpha = 1;
@@ -524,11 +615,14 @@ export async function animateWildSpawnDropFromMeter({
           }
           if (tile.num) tile.num.alpha = 1;
           if (tile.pips) tile.pips.alpha = 1;
-          tile.scale?.set?.(stageVisualScale * 0.8, stageVisualScale * 0.8);
+          setTileDropScale(tile, stageVisualScale * 0.8, stageVisualScale * 0.8);
         } catch {}
       },
       onUpdate: () => {
         const p = travel.p;
+        if (isCuberoDropTile(tile) && (p < 0.04 || p > 0.96)) {
+          forceDropTileAboveStage(stage, tile);
+        }
         const inv = 1 - p;
         tile.x = inv * inv * launch.x + 2 * inv * p * control.x + p * p * stageTarget.x;
         tile.y = inv * inv * launch.y + 2 * inv * p * control.y + p * p * stageTarget.y;
@@ -541,17 +635,15 @@ export async function animateWildSpawnDropFromMeter({
         const spawnBounce = Math.sin(spawnT * Math.PI * 2.25) * Math.max(0, 1 - spawnT) * 0.05;
         const sx = stageVisualScale * (1 + spawnPop + spawnBounce + arcPulse + cartoonBounce + squash);
         const sy = stageVisualScale * (1 + spawnPop * 0.68 - spawnBounce * 0.5 + arcPulse - cartoonBounce * 0.45 - squash * 0.55);
-        tile.scale?.set?.(sx, sy);
+        setTileDropScale(tile, sx, sy);
       },
       onComplete: () => {
         try {
-          if (tile.parent !== parent) {
-            try { tile.parent?.removeChild?.(tile); } catch {}
-            parent.addChild(tile);
-          }
-          tile.x = target.x;
-          tile.y = target.y;
-          tile.zIndex = originalZIndex;
+          forceDropTileAboveStage(stage, tile);
+          tile.x = stageTarget.x;
+          tile.y = stageTarget.y;
+          forceDropTileAboveStage(stage, tile);
+          logCuberoDrop('travel-complete-impact-start', stage, parent, tile);
           repairWildIdentity(tile, assetPath);
         } catch {}
         try {
@@ -569,7 +661,7 @@ export async function animateWildSpawnDropFromMeter({
           if (tile.pips) tile.pips.alpha = 1;
         } catch {}
         try {
-          tile.scale?.set?.(0.76, 0.76);
+          setTileDropScale(tile, stageVisualScale * 0.76, stageVisualScale * 0.76);
         } catch {}
         try {
           const sortParent = tile.parent || parent;
@@ -581,9 +673,32 @@ export async function animateWildSpawnDropFromMeter({
           }
         } catch {}
         try { onImpact?.(); } catch {}
+        forceDropTileAboveStage(stage, tile);
+        logCuberoDrop('impact-timeline-created', stage, parent, tile);
         impactTimeline = trackTimeline({
+          onUpdate: () => {
+            forceDropTileAboveStage(stage, tile);
+          },
           onComplete: () => {
             repairWildIdentity(tile, assetPath);
+            try {
+              logCuberoDrop('impact-complete-before-parent-restore', stage, parent, tile);
+              if (tile.parent !== parent) {
+                try { tile.parent?.removeChild?.(tile); } catch {}
+                parent.addChild(tile);
+              }
+              tile.x = target.x;
+              tile.y = target.y;
+              tile.rotation = originalRotation;
+              tile.scale?.set?.(1, 1);
+              tile.zIndex = originalZIndex;
+              const sortParent = tile.parent || parent;
+              if (sortParent) {
+                sortParent.sortableChildren = true;
+                sortParent.sortChildren?.();
+              }
+              logCuberoDrop('impact-complete-after-parent-restore', stage, parent, tile);
+            } catch {}
             revealTile(tile);
             completeTravel();
           },
@@ -592,10 +707,10 @@ export async function animateWildSpawnDropFromMeter({
           },
         });
         impactTimeline
-          .to(tile.scale, { x: 1.18, y: 1.18, duration: 0.12, ease: 'back.out(3)' })
-          .to(tile.scale, { x: 0.9, y: 0.9, duration: 0.07, ease: 'power2.inOut' })
-          .to(tile.scale, { x: 1.06, y: 1.06, duration: 0.08, ease: 'power2.out' })
-          .to(tile.scale, { x: 1, y: 1, duration: 0.16, ease: 'elastic.out(1, 0.7)' });
+          .to(tile.scale, { x: stageVisualScale * 1.18, y: stageVisualScale * 1.18, duration: 0.12, ease: 'back.out(3)' })
+          .to(tile.scale, { x: stageVisualScale * 0.9, y: stageVisualScale * 0.9, duration: 0.07, ease: 'power2.inOut' })
+          .to(tile.scale, { x: stageVisualScale * 1.06, y: stageVisualScale * 1.06, duration: 0.08, ease: 'power2.out' })
+          .to(tile.scale, { x: stageVisualScale, y: stageVisualScale, duration: 0.16, ease: 'elastic.out(1, 0.7)' });
       },
     });
   });
