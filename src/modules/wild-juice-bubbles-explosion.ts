@@ -532,12 +532,6 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     }
     
     if (spawned >= totalWithLate || active >= maxActive) {
-      if (spawned >= totalWithLate) {
-        logger.debug('makeBubble: Max bubbles reached', undefined, { spawned, totalWithLate });
-      }
-      if (active >= maxActive) {
-        logger.debug('makeBubble: Max active bubbles reached', undefined, { active, maxActive });
-      }
       return;
     }
 
@@ -710,11 +704,6 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       }
       return;
     }
-    // Debug: first few frames and every 10th (use logger.debug in dev only)
-    if (typeof logger !== 'undefined' && (frameCounter < 5 || frameCounter % 30 === 0)) {
-      logger.debug(`spawnTicker: Frame ${frameCounter}`, undefined, { spawned, active, isExplosionActive });
-    }
-    
     if (!explosionContainer || explosionContainer.destroyed) {
       console.warn('⚠️ spawnTicker: Container missing or destroyed, stopping');
       if (spawnTick === spawnTicker) {
@@ -947,20 +936,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
  * Stop wild-juice bubbles explosion
  */
 export function stopWildJuiceBubblesExplosion(): void {
-  // 🔥 CRITICAL DEBUG: Log cleanup call to track premature cleanup
-  const wasActive = isExplosionActive;
   const wasRecentlyStarted = isWildJuiceBubblesExplosionRecentlyStarted();
   const elapsed = explosionStartTime > 0 ? performance.now() - explosionStartTime : 0;
-  
-  console.log('🛑 stopWildJuiceBubblesExplosion() called', {
-    wasActive,
-    wasRecentlyStarted,
-    elapsed: elapsed > 0 ? `${elapsed.toFixed(0)}ms` : 'N/A',
-    hasContainer: !!explosionContainer,
-    containerInStage: !!(explosionContainer?.parent),
-    containerVisible: explosionContainer?.visible,
-    containerChildren: explosionContainer?.children?.length || 0
-  });
   
   // 🔥 CRITICAL FIX: Don't cleanup if explosion was just started (< 100ms ago)
   // This prevents premature cleanup on new board where animation might be starting

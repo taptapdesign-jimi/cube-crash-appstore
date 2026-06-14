@@ -130,6 +130,7 @@ import {
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceExplosionSpriteSources,
   getSpecialDiceShardColor,
+  getSpecialDiceShardColors,
   getSpecialDiceSplashOptions,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
@@ -7724,6 +7725,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               // 🍺 Wild-juice merge: orange shards using template-based pooling (ORIGINAL COLOR)
               const wildJuiceVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
               const wildJuiceShardColor = getSpecialDiceShardColor(wildJuiceVariant);
+              const wildJuiceShardColors = getSpecialDiceShardColors(wildJuiceVariant);
               devLog('🍺 Wild-juice merge 6 - using template-based pooling with shards', {
                 variant: wildJuiceVariant?.id || 'core-wild-juice',
                 color: wildJuiceShardColor ? `0x${wildJuiceShardColor.toString(16)}` : 'default'
@@ -7731,7 +7733,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               playShortWildMerge6TileBlast('Wild-juice');
               wildJuiceMerge6ShardsTemplated(board, dst, { 
                 zIndex: 9993,
-                color: wildJuiceShardColor
+                color: wildJuiceShardColor,
+                colors: wildJuiceShardColors
               });
             } else if (isWildTntMerge) {
               // 💥 Wild-TNT merge: skip shards when TNT animation starts

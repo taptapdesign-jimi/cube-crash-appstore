@@ -11,6 +11,7 @@ export type SpecialDiceVariantDefinition = {
   splashText: string;
   splashColor: string;
   shardColor?: number;
+  shardColors?: number[];
   trailColors?: number[];
   explosionSpriteSources?: string[];
   visualWidth?: number;
@@ -87,6 +88,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     splashText: 'Boooing!',
     splashColor: '#E09FEF',
     shardColor: 0xE09FEF,
+    shardColors: [0xDD94EB, 0x4BC9FC, 0xFDEB8C, 0xFD979D],
     trailColors: [0x4BC9FC, 0xDD94EB, 0xFDA4A7, 0xFDEB8C],
     explosionSpriteSources: beachBallExplosionSources,
     hitAreaSize: 'tile',
@@ -154,6 +156,15 @@ export function getSpecialDiceShardColor(tileOrVariant: any): number | undefined
     ? tileOrVariant
     : getSpecialDiceVariantForTile(tileOrVariant);
   return variant?.shardColor;
+}
+
+export function getSpecialDiceShardColors(tileOrVariant: any): number[] | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return Array.isArray(variant?.shardColors) && variant.shardColors.length
+    ? variant.shardColors
+    : undefined;
 }
 
 export function getSpecialDiceTrailColors(tileOrVariant: any): number[] | null {

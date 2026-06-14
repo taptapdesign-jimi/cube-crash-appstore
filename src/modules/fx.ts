@@ -2579,8 +2579,6 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
     return;
   }
 
-  console.log('🍺 wildJuiceMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });
-
   // Select pattern from template
   const patternInfo = selectPattern('wildJuice');
   
@@ -2592,7 +2590,6 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
       wildJuicePatterns: getActiveTemplate()?.patternMap?.wildJuice
     });
     // 🔥 FALLBACK: Use woodShardsAtTile for reliability
-    console.log('🔄 Falling back to woodShardsAtTile');
     woodShardsAtTile(board, tile, {
       enhanced: true,
       wild: true,
@@ -2612,19 +2609,10 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildJuice');
   const orangeColor = opts.color ?? getColor('wildJuice'); // 🔥 ORIGINAL COLOR: Orange (#F99D77), override for special dice
-  
-  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
-    orangeColor: `0x${orangeColor.toString(16)}`,
-    poolSize: pool.getStats?.()?.poolSize || 'unknown',
-    boardVisible: board.visible,
-    boardAlpha: board.alpha,
-    params: params,
-    patternDataLength: patternData.length,
-    spread: params.spread,
-    baseTile: params.baseTile || 96,
-    maxDistance: Math.max(...patternData.map(s => s.distance)) * (params.baseTile || 96) * (params.spread || 1.0)
-  });
-  
+  const shardColors = Array.isArray(opts.colors) && opts.colors.length
+    ? opts.colors.filter((color) => Number.isFinite(color))
+    : null;
+
   // Get position
   let x, y;
   if (tile.x !== undefined && tile.y !== undefined) {
@@ -2685,24 +2673,17 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
     }
     
     // Draw filled polygon using PixiJS v8 API - 🔥 ORIGINAL COLOR: Orange
+    const shardColor = shardColors?.length
+      ? shardColors[index % shardColors.length]
+      : orangeColor;
     try {
-      shard.poly(points).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });
-      // 🔥 DEBUG: Log first shard drawing
-      if (index === 0) {
-        console.log(`🍺 wildJuiceMerge6ShardsTemplated: First shard drawn`, {
-          pointsCount: points.length / 2,
-          orangeColor: `0x${orangeColor.toString(16)}`,
-          alpha: params.lineAlpha || 0.9,
-          shardVisible: shard.visible,
-          shardAlpha: shard.alpha
-        });
-      }
+      shard.poly(points).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     } catch (e) {
       // Fallback to rect if poly fails
       console.warn('⚠️ Failed to draw poly, using rect fallback:', e);
       shard.clear();
       const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
-      shard.rect(-size/2, -size/2, size, size).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });
+      shard.rect(-size/2, -size/2, size, size).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     }
     
     // 🔥 CRITICAL: Force bounds update AFTER drawing
@@ -2764,8 +2745,6 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
       ease: 'power2.in'
     });
   });
-  
-  console.log(`🍺 wildJuiceMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.2;
