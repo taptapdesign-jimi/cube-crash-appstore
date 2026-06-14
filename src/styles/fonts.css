@@ -1,10 +1,10 @@
-/* LTCrow Font Family - All Weights */
+/* Baloo2 app font. */
 /* Path: src/styles/ -> ../../ = project root, then assets/fonts/ */
 
 /* Regular (400) */
 @font-face {
-  font-family: 'LTCrow';
-  src: url('../../assets/fonts/LTCrow-Regular.ttf') format('truetype');
+  font-family: 'Baloo2';
+  src: url('../../assets/fonts/Baloo2-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -12,8 +12,8 @@
 
 /* Medium (500) */
 @font-face {
-  font-family: 'LTCrow';
-  src: url('../../assets/fonts/LTCrow-Medium.ttf') format('truetype');
+  font-family: 'Baloo2';
+  src: url('../../assets/fonts/Baloo2-Medium.ttf') format('truetype');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -21,8 +21,8 @@
 
 /* SemiBold (600) */
 @font-face {
-  font-family: 'LTCrow';
-  src: url('../../assets/fonts/LTCrow-SemiBold.ttf') format('truetype');
+  font-family: 'Baloo2';
+  src: url('../../assets/fonts/Baloo2-SemiBold.ttf') format('truetype');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -30,8 +30,8 @@
 
 /* Bold (700) */
 @font-face {
-  font-family: 'LTCrow';
-  src: url('../../assets/fonts/LTCrow-Bold.ttf') format('truetype');
+  font-family: 'Baloo2';
+  src: url('../../assets/fonts/Baloo2-Bold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -39,8 +39,8 @@
 
 /* ExtraBold (800) */
 @font-face {
-  font-family: 'LTCrow';
-  src: url('../../assets/fonts/LTCrow-ExtraBold.ttf') format('truetype');
+  font-family: 'Baloo2';
+  src: url('../../assets/fonts/Baloo2-ExtraBold.ttf') format('truetype');
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -48,7 +48,7 @@
 
 /* System fallback stack */
 :root {
-  --font-primary: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-primary: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* Apply to body */

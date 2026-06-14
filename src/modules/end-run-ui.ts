@@ -27,15 +27,16 @@ export function addEndRunModalStyles(): void {
       transform-style: flat !important;
       perspective: none !important;
       background: #E97A55 !important;
-      color: white !important;
+      color: #FFFBF2 !important;
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
       min-height: 64px !important;
       padding: 0 56px !important;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 26px !important;
-      font-weight: bold !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: 700 !important;
+      text-shadow: 0 2px 0 #C24921 !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
       transition: none !important;
       display: flex !important;
@@ -63,7 +64,7 @@ export function addEndRunModalStyles(): void {
       transform: scale(1) !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
       background: #E97A55 !important;
-      color: white !important;
+      color: #FFFBF2 !important;
     }
     
     .restart-btn:active,
@@ -75,16 +76,16 @@ export function addEndRunModalStyles(): void {
     }
     
     .exit-btn {
-      background: #6C7B95 !important;
-      color: white !important;
+      background: #FFFBF2 !important;
+      color: #AD8675 !important;
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
       padding: 0 56px !important;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 26px !important;
-      font-weight: bold !important;
-      box-shadow: 0 8px 0 0 #4A5A7A !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: 700 !important;
+      box-shadow: 0 8px 0 0 #D8C7BB !important;
       cursor: pointer !important;
       transition: all 0.2s ease !important;
       display: flex !important;
@@ -98,14 +99,14 @@ export function addEndRunModalStyles(): void {
     }
     
     .exit-btn:hover {
-      background: #7C8BA5 !important;
+      background: #FFFBF2 !important;
       transform: translateY(-2px) !important;
-      box-shadow: 0 10px 0 0 #4A5A7A !important;
+      box-shadow: 0 10px 0 0 #D8C7BB !important;
     }
     
     .exit-btn:active {
       transform: translateY(2px) !important;
-      box-shadow: 0 6px 0 0 #4A5A7A !important;
+      box-shadow: 0 6px 0 0 #D8C7BB !important;
     }
     .end-run-modal {
       position: fixed !important;
@@ -145,7 +146,7 @@ export function addEndRunModalStyles(): void {
     }
     
     .end-run-modal-title {
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
       font-size: 32px !important;
       font-weight: bold !important;
       color: #333 !important;
@@ -153,9 +154,10 @@ export function addEndRunModalStyles(): void {
     }
     
     .end-run-modal-subtitle {
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
       font-size: 18px !important;
-      color: #666 !important;
+      font-weight: 500 !important;
+      color: #B48572 !important;
       margin: 0 0 30px 0 !important;
     }
     
@@ -167,7 +169,7 @@ export function addEndRunModalStyles(): void {
     }
     
     .end-run-modal-score {
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       color: #E97A55 !important;
@@ -191,7 +193,7 @@ export function addEndRunModalStyles(): void {
       .restart-btn,
       .exit-btn {
         height: 56px !important;
-        font-size: 22px !important;
+        font-size: 24px !important;
         padding: 0 40px !important;
       }
     }

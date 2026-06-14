@@ -173,7 +173,7 @@ export async function showCleanBoardCelebration({
     const txt = new Text({
       text: ch,
       style: {
-        fontFamily: 'LTCrow',
+        fontFamily: 'Baloo2',
         fontWeight: '800',
         fontSize: Math.round(TILE * fontSizeMul),
         fill: tint,

@@ -36,7 +36,7 @@ function ensureTutorialCompleteStyles(): void {
       padding: clamp(92px, 15vh, 150px) 24px max(42px, env(safe-area-inset-bottom));
       background:
         radial-gradient(ellipse at center, rgba(255,255,255,0.88) 0%, rgba(255,250,244,0.94) 48%, rgba(252,238,223,0.96) 100%);
-      font-family: "LTCrow", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: "Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color: #b58a78;
       overflow: hidden;
     }

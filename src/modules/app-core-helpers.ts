@@ -44,7 +44,7 @@ export function fixHoverAnchor(t: any): void {
 // ============================================================================
 
 /**
- * Ensure LTCrow font is loaded for Canvas/PIXI Text.
+ * Ensure Baloo2 font is loaded for Canvas/PIXI Text.
  * MUST be awaited before creating any HUD Text - otherwise numbers render as black boxes (tofu).
  * Called in boot() (early) and awaited in layoutBoard() before initHUD().
  */
@@ -52,7 +52,7 @@ export async function ensureFonts(): Promise<void> {
   if ((ensureFonts as any)._done) return;
   const weights = [400, 500, 600, 700, 800];
   try {
-    await Promise.all(weights.map(w => document.fonts.load(`${w} 16px "LTCrow"`)));
+    await Promise.all(weights.map(w => document.fonts.load(`${w} 16px "Baloo2"`)));
   } catch {}
   (ensureFonts as any)._done = true;
 }

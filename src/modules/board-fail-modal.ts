@@ -260,7 +260,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       'border-radius:40px',
       'padding:40px 32px',
       'text-align:center',
-      'font-family:"LTCrow", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+      'font-family:"Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
       'transform:scale(0.9)',
       'transition:transform .34s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity .2s ease',
       'opacity:0',

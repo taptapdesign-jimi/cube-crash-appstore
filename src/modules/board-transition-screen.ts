@@ -485,7 +485,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const dropShadow = 'none';
         
         digitEl.style.cssText = [
-          'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+          'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
           'font-weight: 800',
           'font-size: 166px', // 🔥 USER REQUEST: Increased by 15% (144px * 1.15 = 165.6px ≈ 166px)
           'line-height: 1',

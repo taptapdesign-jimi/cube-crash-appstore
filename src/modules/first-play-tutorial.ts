@@ -235,7 +235,7 @@ function ensureStyles(): void {
       inset: 0;
       z-index: 1200000;
       pointer-events: none;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif;
     }
     .first-play-tutorial-dim {
       position: absolute;
@@ -294,9 +294,9 @@ function ensureStyles(): void {
     .first-play-tutorial-subtitle {
       margin: 8px auto 0;
       max-width: 280px;
-      color: #AD8775;
+      color: #B48572;
       font-size: 20px;
-      font-weight: 400;
+      font-weight: 500;
       line-height: 1.4;
       letter-spacing: 0;
       white-space: pre-line;
@@ -313,9 +313,10 @@ function ensureStyles(): void {
       color: #FFFBF2;
       background: #E97A55;
       box-shadow: 0 8px 0 0 #C24921;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif;
       font-size: 26px;
       font-weight: bold;
+      text-shadow: 0 2px 0 #C24921;
       letter-spacing: 0;
       line-height: normal;
       align-items: center;
@@ -373,7 +374,7 @@ function ensureStyles(): void {
       justify-content: center;
       padding: 24px;
       background: rgba(55, 38, 31, 0.35);
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif;
     }
     .first-play-tutorial-dev-modal {
       width: min(100%, 420px);

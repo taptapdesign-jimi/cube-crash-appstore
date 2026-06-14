@@ -176,11 +176,11 @@ const ALL_ASSETS: string[] = [
   './assets/wild.png',
   
   // Fonts
-  './assets/fonts/LTCrow-Bold.ttf',
-  './assets/fonts/LTCrow-ExtraBold.ttf',
-  './assets/fonts/LTCrow-Medium.ttf',
-  './assets/fonts/LTCrow-Regular.ttf',
-  './assets/fonts/LTCrow-SemiBold.ttf',
+  './assets/fonts/Baloo2-Regular.ttf',
+  './assets/fonts/Baloo2-Medium.ttf',
+  './assets/fonts/Baloo2-SemiBold.ttf',
+  './assets/fonts/Baloo2-Bold.ttf',
+  './assets/fonts/Baloo2-ExtraBold.ttf',
   
   // Audio - skip for now to avoid PIXI.js parsing issues
   // './assets/explode.mp3',
@@ -250,8 +250,12 @@ const CRITICAL_ASSETS: string[] = [
   './assets/modals/paper@2x.png',
   './assets/modals/paper@3x.png',
   
-  // One font only
-  './assets/fonts/LTCrow-Regular.ttf',
+  // Fonts
+  './assets/fonts/Baloo2-Regular.ttf',
+  './assets/fonts/Baloo2-Medium.ttf',
+  './assets/fonts/Baloo2-SemiBold.ttf',
+  './assets/fonts/Baloo2-Bold.ttf',
+  './assets/fonts/Baloo2-ExtraBold.ttf',
   
   // Collectibles placeholder images (needed for collectibles screen)
   './assets/colelctibles/common back.png',
@@ -383,6 +387,8 @@ export class AssetPreloader {
       './assets/modals/paper@3x.png',
       // 🔥 CRITICAL: Journey screen assets (must be preloaded for instant Journey screen load)
       './assets/journey assets/1-17bg.png',
+      './assets/journey assets/bottom.png',
+      './assets/journey assets/bottom@2x.png',
       './assets/journey assets/orange-ribbon.png',
       './assets/journey assets/orange-ribbon@2x.png',
       './assets/journey assets/orange-ribbon@3x.png',
@@ -504,6 +510,8 @@ export class AssetPreloader {
       // Still verify critical images are in cache (fast check)
       const criticalImages = [
         './assets/journey assets/1-17bg.png',
+        './assets/journey assets/bottom.png',
+        './assets/journey assets/bottom@2x.png',
         './assets/colelctibles/journey-card-empty.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
@@ -514,6 +522,8 @@ export class AssetPreloader {
     
     // Journey background and UI elements
     journeyImages.push('./assets/journey assets/1-17bg.png');
+    journeyImages.push('./assets/journey assets/bottom.png');
+    journeyImages.push('./assets/journey assets/bottom@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@3x.png');

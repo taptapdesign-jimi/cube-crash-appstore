@@ -1,6 +1,6 @@
 /* Journey Screen Styles - Based on Figma Design */
 
-/* Fonts are loaded from src/styles/fonts.css - LTCrow family */
+/* Fonts are loaded from src/styles/fonts.css - Baloo2 family */
 
 /* Utility */
 .hidden {
@@ -32,7 +32,7 @@
   background: transparent; /* 🔥 FIX: Transparent to show paper bg behind */
   z-index: 999999;
   overflow: hidden;
-  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   /* Reserve vertical space equal to fixed header (safe area + title row + divider + shadow) */
   --journey-header-offset: calc(
     max(0px, env(safe-area-inset-top, 0px) + 2vh - 16px) + 40px + 16px + 2px + 49px + 12px
@@ -233,8 +233,8 @@
 }
 
 .collectibles-title {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 28px;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 32px;
   font-weight: 800;
   color: var(--collectibles-brown);
   margin: 0;
@@ -243,6 +243,8 @@
   /* 🔥 FIX: Grid positioning - title in middle column, perfectly centered */
   grid-column: 2;
   justify-self: center;
+  position: relative;
+  top: 2px;
   pointer-events: none;
   z-index: 1;
   white-space: nowrap;
@@ -303,7 +305,7 @@
 }
 
 .journey-lives-count {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: var(--collectibles-brown); /* #ad8775 - same as title */
@@ -894,7 +896,7 @@
   overflow: visible; /* 🔥 USER REQUEST: Allow card to be visible when swiping (not clipped) */
   overscroll-behavior: none;
   overscroll-behavior-y: none;
-  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   visibility: visible !important;
   pointer-events: auto; /* 🔥 SWIPE FIX: Detail modal receives events (parent journey-screen has pointer-events: none) */
 }
@@ -1048,7 +1050,7 @@
   color: #AD8675;
   padding: 8px 16px;
   border-radius: 16px;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1075,7 +1077,7 @@
 }
 
 #collectibles-detail-modal .detail-title {
-  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 28px;
   font-weight: 800;
   color: #AD8775;
@@ -1083,6 +1085,7 @@
   line-height: 1;
   text-align: center;
   position: relative;
+  top: 2px;
   pointer-events: none;
   z-index: 1;
   flex: 1;
@@ -1233,16 +1236,18 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0;
+  gap: 2px;
   flex: 1;
   min-height: 72px; /* Match icon height for proper vertical centering with icon */
   align-self: center;
-  margin-top: 8px; /* Nudge down – text block was visually shifted up relative to icon center */
+  position: relative;
+  top: 0;
+  margin-top: 0;
 }
 
 #collectibles-detail-modal .detail-stat-value {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
-  font-size: 24px;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
+  font-size: 32px;
   font-weight: 700; /* Bold */
   color: #E77449; /* Orange color from Figma */
   line-height: 1;
@@ -1250,11 +1255,11 @@
 }
 
 #collectibles-detail-modal .detail-stat-label {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
-  font-size: 18px; /* 🔥 USER REQUEST: Reduced from 20px to 18px */
-  font-weight: 400; /* Regular */
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
   color: #AD8675; /* Brown color from Figma */
-  line-height: 1.8;
+  line-height: 1.1;
   margin-top: 0;
 }
 
@@ -1442,7 +1447,7 @@
 }
 
 #collectibles-detail-modal .detail-rarity-badge {
-  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 14px; /* Ista kao #hud-board-indicator-label */
   font-weight: 600; /* Ista kao #hud-board-indicator-label */
   color: white; /* Bijeli tekst */
@@ -1465,7 +1470,7 @@
 }
 
 #collectibles-detail-modal .detail-description {
-  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 20px;
   font-weight: 400;
   color: #AD8775 !important;
@@ -1492,7 +1497,7 @@
   padding: 0 56px;
   font-size: 26px;
   font-weight: bold;
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%;
   max-width: 250px;
@@ -1534,7 +1539,7 @@
   }
 
   .collectibles-title {
-    font-size: 28px;
+    font-size: 32px;
   }
 
   .collectibles-section-title,
@@ -2563,7 +2568,7 @@
   padding: 12px 20px !important;
   font-size: 16px !important;
   font-weight: 600 !important;
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
   cursor: pointer !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
   /* Hug logic - button fits text content */
@@ -2634,12 +2639,19 @@
 .board-stats-container .stat-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex: 1;
+  gap: 1px;
+  width: auto;
+  min-width: 106px;
+  flex: 1 1 auto;
+  align-items: flex-start;
+  padding: 0;
+  text-align: left;
+  position: relative;
+  top: 4px;
 }
 
 .board-stats-container .stat-value {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 32px;
   font-weight: 700;
   color: #E8744A;
@@ -2648,13 +2660,14 @@
 }
 
 .board-stats-container .stat-label {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 18px;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
   font-weight: 500;
-  color: #6B4D3E;
-  line-height: 1.2;
+  color: #AD8775;
+  line-height: 1.1;
   margin: 0;
   text-transform: lowercase;
+  white-space: nowrap;
 }
 
 /* Responsive */
@@ -2675,11 +2688,11 @@
   }
   
   .board-stats-container .stat-value {
-    font-size: 28px;
+    font-size: 32px;
   }
   
   .board-stats-container .stat-label {
-    font-size: 16px;
+    font-size: 20px;
   }
 }
 

@@ -178,8 +178,13 @@ function refreshScoreSheetContent(mode: ScoreSheetMode = activeMode): void {
   const scoreSheetStats = getScoreSheetStats(currentBoardNumber, mode);
   const titleEl = document.getElementById('score-sheet-title');
   const subtitleEl = document.getElementById('score-sheet-subtitle');
+  const sheetEl = document.querySelector('.score-bottom-sheet') as HTMLElement | null;
   const statsContainer = document.querySelector('.score-bottom-sheet .score-stats-container') as HTMLElement | null;
 
+  if (sheetEl) {
+    sheetEl.classList.toggle('score-sheet-combo-mode', mode === 'combo');
+    sheetEl.classList.toggle('score-sheet-score-mode', mode !== 'combo');
+  }
   if (titleEl) titleEl.textContent = scoreSheetStats.title;
   if (subtitleEl) subtitleEl.innerHTML = scoreSheetStats.subtitle;
   if (statsContainer) statsContainer.innerHTML = renderStatsItems(scoreSheetStats);
@@ -422,6 +427,7 @@ function createModal(): HTMLElement {
 
   const modalEl = document.createElement('div');
   modalEl.className = 'simple-bottom-sheet score-bottom-sheet';
+  modalEl.classList.add(activeMode === 'combo' ? 'score-sheet-combo-mode' : 'score-sheet-score-mode');
   modalEl.setAttribute('role', 'dialog');
   modalEl.setAttribute('aria-modal', 'true');
   modalEl.setAttribute('aria-labelledby', 'score-sheet-title');

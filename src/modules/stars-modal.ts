@@ -58,21 +58,21 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
     // Title
     const title = new Text({
       text: 'Level complete',
-      style: { fontFamily:'LTCrow', fontWeight:'800', fill: 0x8a6e57 }
+      style: { fontFamily:'Baloo2', fontWeight:'800', fill: 0x8a6e57 }
     });
     title.anchor.set(0.5,0);
 
     // Subtitle
     const subtitle = new Text({
       text: `Score ${score}`,
-      style: { fontFamily:'LTCrow', fontWeight:'500', fill: 0x725B4C }
+      style: { fontFamily:'Baloo2', fontWeight:'500', fill: 0x725B4C }
     });
     subtitle.anchor.set(0.5,0);
 
     // CTA button
     const btn = (() => {
       const g = new Graphics();
-      const t = new Text('continue', { fontFamily:'LTCrow', fontWeight:'800', fill: 0xFFFFFF });
+      const t = new Text('continue', { fontFamily:'Baloo2', fontWeight:'800', fill: 0xFFFFFF });
       t.anchor.set(0.5);
       const b = new Container(); b.addChild(g, t);
       b.eventMode='static'; b.cursor='pointer';

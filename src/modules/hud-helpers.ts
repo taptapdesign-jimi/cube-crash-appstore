@@ -354,15 +354,15 @@ function ensureBoardIndicator() {
     position: fixed;
     bottom: ${BOARD_INDICATOR_BOTTOM}px;
     left: 50%;
-    margin-left: -160px;
-    width: 320px;
-    height: 32px;
+    margin-left: -190px;
+    width: 380px;
+    height: 52px;
     display: flex;
     align-items: center;
     gap: 24px;
     z-index: ${BOARD_INDICATOR_Z_INDEX};
     pointer-events: none;
-    font-family: 'LTCrow', 'Arial', sans-serif;
+    font-family: 'Baloo2', 'Arial', sans-serif;
     transform: translateY(0);
     opacity: 1;
   `;
@@ -382,18 +382,21 @@ function ensureBoardIndicator() {
   label.id = 'hud-board-indicator-label';
   label.textContent = isArcadeHomeRunMode() ? 'Arcade' : 'Board 01';
   label.style.cssText = `
-    min-width: 135px;
-    padding: 4px 12px;
-    border-radius: 24px;
-    background: #f3eee8;
+    width: fit-content;
+    min-width: 0;
+    min-height: 0;
+    padding: 4px 64px;
+    border-radius: 32px;
+    background: rgba(243, 230, 220, 0.52);
     border: 1px solid #E8D3C8;
     color: #AD8775;
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 600;
-    letter-spacing: 0.04em;
+    letter-spacing: 0;
     text-align: center;
     text-transform: none;
     pointer-events: none;
+    transform: translateY(2px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1115,7 +1118,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   // labeli
   // (renderamo ih jednom; pozicioniranje brojeva ispod)
   if (!HUD_ROOT._labels) {
-    const lblStyle = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 16, fill: 0x735C4C, fontWeight: '700', fontStyle: 'normal' };
+    const lblStyle = { fontFamily: 'Baloo2, system-ui, -apple-system, sans-serif', fontSize: 16, fill: 0x735C4C, fontWeight: '700', fontStyle: 'normal' };
     const m = new Text({ text: 'Board', style: lblStyle });
     const s = new Text({ text: 'Score', style: lblStyle });
     const c = new Text({ text: 'Combo', style: lblStyle });
@@ -1473,8 +1476,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   try { syncBoardIndicatorForHudInit(initialHide); } catch {}
 
   // vrijednosti - Use system font stack for better App Store compatibility
-  const valMain  = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
-  const valCombo = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xE77449, fontWeight: '700', fontStyle: 'normal' }; // Same color as preloader
+  const valMain  = { fontFamily: 'Baloo2, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
+  const valCombo = { fontFamily: 'Baloo2, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xE77449, fontWeight: '700', fontStyle: 'normal' }; // Same color as preloader
 
   // Create close icon sprite instead of board text
   try {
@@ -1890,8 +1893,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   };
   
   // Create HUD elements
-  // 🔥 HUD font stack: LTCrow first (loaded via ensureFonts before initHUD), Arial fallback to prevent black boxes
-  const HUD_FONT = 'LTCrow, Arial, system-ui, -apple-system, sans-serif';
+  // 🔥 HUD font stack: Baloo2 first (loaded via ensureFonts before initHUD), Arial fallback to prevent black boxes
+  const HUD_FONT = 'Baloo2, Arial, system-ui, -apple-system, sans-serif';
   
   // 🔥 NEW ORDER: Close → Star → Coin → Combo
   // 1. Star (currency) - second (after close)

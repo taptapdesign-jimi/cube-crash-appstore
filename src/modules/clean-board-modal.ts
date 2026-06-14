@@ -358,7 +358,7 @@ export async function showCleanBoardModal({
       'border-radius:40px',
       'padding:40px 32px',
       'text-align:center',
-      'font-family:"LTCrow", system-ui, -apple-system, sans-serif',
+      'font-family:"Baloo2", system-ui, -apple-system, sans-serif',
       'transform:scale(0.9)',
       'transition:transform .34s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity .2s ease',
       'opacity:0',
@@ -522,7 +522,7 @@ export async function showCleanBoardModal({
     // Main score display (simple text, no flip animation)
     const mainScore = document.createElement('div');
     mainScore.textContent = '0';
-    mainScore.style.cssText = 'color:#E77449;font-weight:800;font-size:64px;line-height:1;margin:0;';
+    mainScore.style.cssText = 'color:#E77449;font-weight:800;font-size:80px;line-height:1;margin:0;';
 
     // Bonus + cleared status share the same visual slot
     // iOS FIX: Use absolute positioning instead of grid to prevent rotation bug

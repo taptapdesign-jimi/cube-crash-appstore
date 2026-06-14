@@ -244,7 +244,7 @@
 
 /* Slide tagline text styling based on SwiftUI */
 .slide-tagline {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 600; /* Semi-bold text */
   line-height: 28px; /* lineSpacing(28) from SwiftUI */
@@ -387,7 +387,9 @@
 /* Logo wrapper */
 .home-logo-wrapper {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 20px;
   margin-top: -30px; /* 🔥 USER REQUEST: Podignuto za 16px gore (-14px - 16px = -30px) */
   margin-left: auto;
@@ -395,6 +397,8 @@
   text-align: center;
   z-index: 30; /* Higher z-index to ensure logo wrapper is above particles overlay */
   isolation: isolate; /* Create new stacking context to ensure logo is above overlay */
+  min-width: 208px;
+  min-height: 127px;
 }
 
 /* Logo addons base styling */
@@ -579,6 +583,8 @@
     margin-top: -10px !important; /* Spušteno za 24px dole (-10px + 24px = 14px, ali koristimo -10px jer je to već spušteno) */
     transform: translateY(24px) !important; /* Dodatno spušteno za 24px dole */
     -webkit-transform: translateY(24px) !important;
+    min-width: 312px !important;
+    min-height: 191px !important;
   }
   
   /* 🔥 iPad FIX: Povećati logo za 50% */
@@ -586,7 +592,7 @@
     width: 312px !important; /* 208px * 1.5 = 312px (povećano za 50%) */
     height: auto !important;
   }
-  
+
   /* 🔥 iPad FIX: Povećati shards za 50% */
   .logo-shards-gore-ljevo,
   .logo-shards-gore-desno,
@@ -719,11 +725,12 @@
   z-index: 20; /* Higher z-index to ensure logo is above particles overlay */
   display: block;
   margin: 0 auto; /* Center logo within wrapper */
+  object-fit: contain;
 }
 
 
 /* iPhone 13 Optimizations */
-@media screen and (max-width: 428px) {
+@media screen and (max-width: 767px) {
   .slider-slide {
     min-height: 380px;
   }
@@ -742,7 +749,8 @@
   .slide-button,
   .slider-slide .slide-button,
   .slider-slide .slide-content .slide-button {
-    width: 220px;
+    width: 226px;
+    max-width: 226px;
     height: 50px;
     font-size: 24px;
     margin-top: 16px !important; /* CTA lifted 24px; transforms/animations unchanged */
@@ -823,17 +831,38 @@
   }
 }
 
+/* iOS mobile-only CTA hard override (prevents width conflicts with global .menu-btn-primary rules) */
+@media screen and (max-width: 767px) and (-webkit-touch-callout: none) {
+  #home .slider-slide .slide-button.tap-scale.menu-btn-primary,
+  #home .slider-slide .slide-content .slide-button.tap-scale.menu-btn-primary,
+  #home .slider-slide .slide-button.menu-btn-primary,
+  #home .slider-slide .slide-content .slide-button.menu-btn-primary,
+  #home .slider-slide #btn-home,
+  #home .slider-slide #btn-stats,
+  #home .slider-slide #btn-journey,
+  #home .slider-slide #btn-settings,
+  #home .slider-slide #btn-collectibles {
+    width: 226px !important;
+    max-width: 226px !important;
+  }
+}
+
 /* iPad Optimizations */
 @media screen and (min-width: 768px) and (max-width: 1400px) {
   .hero-container {
     width: 484px;  /* 461px * 1.05 = 484px */
     height: 484px; /* 461px * 1.05 = 484px */
   }
+
+  .home-logo-wrapper {
+    min-width: 312px !important;
+    min-height: 191px !important;
+  }
   
   #home-logo {
     width: 312px !important; /* 🔥 USER REQUEST: Povećano za 50% (208px * 1.5 = 312px) */
   }
-  
+
   /* 🔥 USER REQUEST: Povećati shards za 50% */
   .logo-shards-gore-ljevo,
   .logo-shards-gore-desno,
@@ -871,4 +900,22 @@
   bottom: max(-2.85vh, env(safe-area-inset-bottom) - 2.85vh);
   width: 100vw;
   z-index: 10001; /* Above everything */
+}
+
+/* Baloo CTA typography test */
+.slide-button,
+.slider-slide .slide-button,
+.slider-slide .slide-content .slide-button {
+  font-size: 28px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+@media screen and (max-width: 767px) {
+  #home .slide-button,
+  #home .slider-slide .slide-button,
+  #home .slider-slide .slide-content .slide-button {
+    font-size: 26px !important;
+    text-shadow: 0 2px 0 #C24921 !important;
+  }
 }

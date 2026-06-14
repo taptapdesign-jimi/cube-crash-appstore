@@ -1039,7 +1039,7 @@ function createAndShowBubblyText(): void {
       const letterEl = document.createElement('span');
       letterEl.textContent = letter;
       letterEl.style.cssText = [
-        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+        'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',

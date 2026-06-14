@@ -600,9 +600,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           await uiManagerModule.default.startNewGame();
           console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');
         } else if (typeof (window as any).startNewRunFromJourney === 'function') {
-          // Stabilize runtime before fresh Journey restart (prevents half-loaded board/HUD race).
-          try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+          // Stabilize runtime before fresh Journey restart without dispatching cc-navigation:
+          // its delayed app-core cleanup can erase the freshly created board after Play Again.
           try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
+          try { (window as any).CC?.resetTransientRunGuards?.('endgame-play-again'); } catch {}
           try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
           await (window as any).startNewRunFromJourney(boardNumber);
           console.log(`✅ endgame-flow: Restarted board ${boardNumber} via startNewRunFromJourney`);

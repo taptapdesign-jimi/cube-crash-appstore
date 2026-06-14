@@ -56,7 +56,7 @@ export function addBottomSheetStyles(): void {
     }
     
     .resume-bottom-sheet-title {
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
       font-size: 40px !important;
       font-weight: 800 !important;
       color: #AD8675 !important;
@@ -64,9 +64,10 @@ export function addBottomSheetStyles(): void {
     }
     
     .resume-bottom-sheet-subtitle {
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
       font-size: 18px !important;
-      color: #AD8675 !important;
+      font-weight: 500 !important;
+      color: #B48572 !important;
       margin: 0 0 30px 0 !important;
     }
     

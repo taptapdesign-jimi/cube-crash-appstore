@@ -3,8 +3,29 @@ import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import { attachPuffyClouds } from './text-clouds.js';
 
-const HINT_MESSAGES = ['STACK IT!'];
-const IDLE_DELAY_MS = 3000;
+const HINT_MESSAGES = [
+  'Stack it!',
+  'Drag it!',
+  'Move it!',
+  'Knock knock',
+  'Helloo?',
+  'You home?',
+  'Anybody?',
+  'Wazzup?',
+  'Tap tap',
+  'Do it!',
+  'Go go!',
+  'Your move',
+  'Come on',
+  'Psst!',
+  'Still there?',
+  'Wake up!',
+  'Nudge it',
+  'Send it',
+  'Boop!',
+  'One more'
+];
+const IDLE_DELAY_MS = 20000;
 const VISIBLE_DURATION_MS = 3000;
 const REPEAT_DELAY_MS = 5000;
 const ROTATE_MS = 3000;
@@ -22,16 +43,11 @@ const BOOM_ENTER_EXTRA = 0.1;
 const BOOM_EXIT_EXTRA = 0.06; // 80% faster (was 0.3)
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 function createRandomTextLetterSizes(count: number): number[] {
-  const large = [92, 98, 104];
-  const medium = [66, 72, 80];
-  const small = [30, 36, 44, 50];
-  const buckets = [large, medium, small, medium, large, small, medium, small, large];
-  const offset = Math.floor(Math.random() * buckets.length);
+  const base = count >= 11 ? 58 : count >= 9 ? 64 : count >= 7 ? 72 : 80;
   return Array.from({ length: count }, (_, index) => {
-    const bucket = buckets[(index + offset) % buckets.length];
-    const base = bucket[Math.floor(Math.random() * bucket.length)];
-    const size = Math.max(28, base + (Math.random() * 10 - 5));
-    return index === 0 ? Math.max(75, size) : size;
+    const wave = index % 2 === 0 ? 1.04 : 0.96;
+    const randomVariation = 0.94 + Math.random() * 0.12;
+    return base * wave * randomVariation;
   });
 }
 
@@ -50,6 +66,36 @@ let letterEls: HTMLSpanElement[] = [];
 let letterScales: number[] = [];
 let letterRotations: number[] = [];
 let bounceTweens: gsap.core.Tween[] = [];
+let bottomSheetObserver: MutationObserver | null = null;
+let lastMessageIndex = -1;
+
+function chooseNextMessageIndex(): number {
+  if (HINT_MESSAGES.length <= 1) return 0;
+  let next = Math.floor(Math.random() * HINT_MESSAGES.length);
+  if (next === lastMessageIndex) {
+    next = (next + 1) % HINT_MESSAGES.length;
+  }
+  lastMessageIndex = next;
+  return next;
+}
+
+function isBottomSheetActive(): boolean {
+  if (typeof document === 'undefined') return false;
+  return !!document.querySelector([
+    '.score-bottom-sheet',
+    '.score-bottom-sheet.visible',
+    '.simple-bottom-sheet',
+    '.simple-bottom-sheet.visible',
+    '.resume-bottom-sheet',
+    '.resume-bottom-sheet.visible',
+    '.hearts-bottom-sheet',
+    '.hearts-bottom-sheet.visible',
+    '.collectible-reward-bottom-sheet',
+    '.collectible-reward-bottom-sheet.visible',
+    '.collectible-reward-sheet',
+    '.collectible-reward-sheet.show'
+  ].join(','));
+}
 
 function clearTimer(timer: ReturnType<typeof setTimeout> | null): null {
   if (timer) clearTimeout(timer);
@@ -63,13 +109,48 @@ function clearScheduledTimers(): void {
 }
 
 function scheduleRepeatShow(): void {
-  if (!shouldShow || idleTimer || repeatTimer) return;
+  if (!shouldShow || isBottomSheetActive() || idleTimer || repeatTimer) return;
   repeatTimer = setTimeout(() => {
     repeatTimer = null;
-    if (shouldShow && !hintVisible && !idleTimer) {
+    if (shouldShow && !isBottomSheetActive() && !hintVisible && !idleTimer) {
       showHint();
+    } else if (shouldShow && isBottomSheetActive()) {
+      scheduleRepeatShow();
     }
   }, REPEAT_DELAY_MS);
+}
+
+function stopBottomSheetObserver(): void {
+  if (!bottomSheetObserver) return;
+  try { bottomSheetObserver.disconnect(); } catch {}
+  bottomSheetObserver = null;
+}
+
+function ensureBottomSheetObserver(): void {
+  if (bottomSheetObserver || typeof MutationObserver === 'undefined' || typeof document === 'undefined') return;
+  bottomSheetObserver = new MutationObserver(() => {
+    if (!shouldShow) return;
+    if (isBottomSheetActive()) {
+      clearScheduledTimers();
+      if (hintVisible || hintEl) {
+        hideHint();
+      }
+      return;
+    }
+    if (!hintVisible && !idleTimer && !repeatTimer) {
+      scheduleShow();
+    }
+  });
+  try {
+    bottomSheetObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  } catch {
+    stopBottomSheetObserver();
+  }
 }
 
 function ensureStyles(): void {
@@ -170,12 +251,12 @@ function renderMessage(text: string): void {
     const letterEl = document.createElement('span');
     if (ch === ' ') {
       letterEl.textContent = '\u00A0';
-      letterEl.style.minWidth = '18px';
+      letterEl.style.minWidth = '42px';
     } else {
       letterEl.textContent = ch;
     }
     letterEl.style.cssText = [
-      'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+      'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
       `font-size: ${letterFontSize.toFixed(1)}px`,
       'line-height: 1',
@@ -360,8 +441,13 @@ function stopRotate(): void {
 
 function showHint(): void {
   if (!shouldShow) return;
+  if (isBottomSheetActive()) {
+    scheduleRepeatShow();
+    return;
+  }
   visibleTimer = clearTimer(visibleTimer);
   repeatTimer = clearTimer(repeatTimer);
+  messageIndex = chooseNextMessageIndex();
   ensureElement();
   updateMessage();
   hintVisible = true;
@@ -392,8 +478,16 @@ function hideHint(scheduleRepeat = false): void {
 function scheduleShow(): void {
   idleTimer = clearTimer(idleTimer);
   repeatTimer = clearTimer(repeatTimer);
+  if (isBottomSheetActive()) {
+    scheduleRepeatShow();
+    return;
+  }
   idleTimer = setTimeout(() => {
     idleTimer = null;
+    if (isBottomSheetActive()) {
+      scheduleRepeatShow();
+      return;
+    }
     showHint();
   }, IDLE_DELAY_MS);
 }
@@ -401,6 +495,13 @@ function scheduleShow(): void {
 export function updateEndgameHint(shouldShowNow: boolean): void {
   shouldShow = shouldShowNow;
   if (!shouldShow) {
+    clearScheduledTimers();
+    hideHint();
+    stopBottomSheetObserver();
+    return;
+  }
+  ensureBottomSheetObserver();
+  if (isBottomSheetActive()) {
     clearScheduledTimers();
     hideHint();
     return;
@@ -435,7 +536,9 @@ export function resetEndgameHint(): void {
   shouldShow = false;
   clearScheduledTimers();
   hideHint();
+  stopBottomSheetObserver();
   messageIndex = 0;
+  lastMessageIndex = -1;
   logger.debug('🧹 Endgame hint reset', 'endgame-hint');
 }
 
@@ -443,6 +546,7 @@ export function resetEndgameHint(): void {
 export function forceClearEndgameHint(): void {
   shouldShow = false;
   clearScheduledTimers();
+  stopBottomSheetObserver();
   stopRotate();
   activeTween?.kill?.();
   activeTween = null;
@@ -457,6 +561,7 @@ export function forceClearEndgameHint(): void {
   cleanupHintClouds();
   hintVisible = false;
   messageIndex = 0;
+  lastMessageIndex = -1;
 }
 
 /** Play exit animation on NO MOVES! hint, then remove. Returns Promise that resolves when done. Call BEFORE killing GSAP in exitToMenu. */
@@ -465,11 +570,13 @@ export function hideEndgameHintWithAnimation(): Promise<void> {
     if (!hintEl || !hintEl.isConnected) {
       shouldShow = false;
       clearScheduledTimers();
+      stopBottomSheetObserver();
       resolve();
       return;
     }
     shouldShow = false;
     clearScheduledTimers();
+    stopBottomSheetObserver();
     hintVisible = false;
     stopRotate();
     animateOut(() => {

@@ -57,7 +57,7 @@ export function createPauseModalContent(): HTMLElement {
   
   modal.innerHTML = `
     <h2 style="
-      font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+      font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
       font-size: 32px !important;
       font-weight: bold !important;
       color: #333 !important;
@@ -65,14 +65,14 @@ export function createPauseModalContent(): HTMLElement {
     ">Game Paused</h2>
     
     <p style="
-      font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+      font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
       font-size: 18px !important;
       color: #666 !important;
       margin: 0 0 30px 0 !important;
     ">What would you like to do?</p>
     
     <div style="
-      font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+      font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       color: #E97A55 !important;
@@ -93,7 +93,7 @@ export function createPauseModalContent(): HTMLElement {
         height: 64px !important;
         min-height: 64px !important;
         padding: 0 56px !important;
-        font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+        font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
         font-size: 26px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #C24921 !important;
@@ -122,7 +122,7 @@ export function createPauseModalContent(): HTMLElement {
         border-radius: 40px !important;
         height: 64px !important;
         padding: 0 56px !important;
-        font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+        font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
         font-size: 22px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #4A5A7A !important;
@@ -145,7 +145,7 @@ export function createPauseModalContent(): HTMLElement {
         border-radius: 40px !important;
         height: 64px !important;
         padding: 0 56px !important;
-        font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+        font-family: 'Baloo2', system-ui, -apple-system, sans-serif !important;
         font-size: 26px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #A71E2A !important;

@@ -575,11 +575,52 @@ const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
 const MAX_TUTORIAL_FINAL_CHANCE_SPAWNS = 99;
 
 function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'): void {
+  const wasActive = wildMagnetPullInProgress;
   wildMagnetPullInProgress = active;
   try {
     (window as any).__ccWildMagnetPullInProgress = active;
   } catch {}
   devLog(`🧲 Wild-magnet pull interaction guard ${active ? 'ON' : 'OFF'} (${reason})`);
+  if (wasActive && !active) {
+    Promise.resolve().then(() => {
+      try { queueWildSpawnIfNeeded(); } catch (error) {
+        devWarn('⚠️ Failed to queue wild spawn after magnet guard reset:', error);
+      }
+    });
+  }
+}
+
+function resetTransientRunGuards(reason: string = 'unknown'): void {
+  devLog('🧹 Resetting transient run guards:', reason);
+  try {
+    if (wildSpawnRetryTimer) {
+      clearTimeout(wildSpawnRetryTimer);
+      wildSpawnRetryTimer = null;
+    }
+  } catch {}
+  try {
+    if (__ccNavCleanupTimer) {
+      clearTimeout(__ccNavCleanupTimer);
+      __ccNavCleanupTimer = null;
+    }
+  } catch {}
+  wildSpawnInProgress = false;
+  merge6SpawnInProgress = false;
+  merge6SpawnInProgressIsWild = false;
+  try {
+    if (merge6SpawnResetTimer) {
+      merge6SpawnResetTimer.kill?.();
+      merge6SpawnResetTimer = null;
+    }
+  } catch {}
+  wildMagnetPullInProgress = false;
+  try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
+  try { (window as any).__ccWildSpawnDropInProgress = false; } catch {}
+  try { (window as any).__ccActiveMagnetPullCleanup?.(); } catch {}
+  try { (window as any).__ccActiveMagnetPullCleanup = null; } catch {}
+  checkLevelEndSkipStartedAt = null;
+  activeDragEndgameSkipStartedAt = null;
+  stuckWildDeferralStartedAt = null;
 }
 
 function beginEndgameGuard(source: string, ttlMs: number = 1500): number {
@@ -1774,7 +1815,7 @@ async function showMysteryPrize(){
 // -------------------- boot --------------------
 export async function boot(){
   devLog('🎮 Initializing PIXI app');
-  // 🔥 CRITICAL: Start loading LTCrow font early - HUD text shows black boxes if font isn't ready
+  // 🔥 CRITICAL: Start loading Baloo2 font early - HUD text shows black boxes if font isn't ready
   ensureFonts().catch(() => {});
   // Fade out menu soundtrack when entering board game without board transition (e.g. direct continue)
   try {
@@ -2700,6 +2741,7 @@ export async function boot(){
     addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
     cleanupFxForBoardReset: (reason = 'window') => cleanupFxForBoardReset(reason),
+    resetTransientRunGuards: (reason = 'window') => resetTransientRunGuards(reason),
     softResetBoardView: (reason = 'window') => softResetBoardView(reason),
     destroyOldBoardForTransition: (reason?: string) => destroyOldBoardForTransition(reason ?? 'unknown'),
     cleanupTexturesForBoardTransition: (reason: string, aggressive?: boolean, skipCacheClear?: boolean) =>
@@ -2940,7 +2982,7 @@ export async function layoutBoard(){
       if (!_hudInitDone) {
         devLog('🎯 Initializing HUD...');
         
-        // 🔥 CRITICAL: Ensure LTCrow font is loaded BEFORE creating PIXI Text
+        // 🔥 CRITICAL: Ensure Baloo2 font is loaded BEFORE creating PIXI Text
         // Without this, HUD numbers render as black boxes (tofu) when font isn't ready for Canvas
         try {
           await ensureFonts();
@@ -3694,6 +3736,7 @@ function rebuildBoard(){
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
+  setJourneyGameBottomDecorVisible(false);
   
   // 🔥 NUCLEAR BAILOUT: If app or stage are destroyed/null, skip animation entirely
   // This prevents crashes when exitToMenu is called after cleanup
@@ -3778,8 +3821,63 @@ async function animateBoardExit(){
 // Imported: tintLocked
 // 🔥 v112: randVal moved to app-core-utils.ts
 // Imported: randVal
+let journeyGameBottomDecorHideTimer: number | null = null;
+
+function ensureJourneyGameBottomDecor(): HTMLImageElement | null {
+  const host = document.getElementById('app');
+  if (!host) return null;
+  let img = host.querySelector<HTMLImageElement>('#journey-game-bottom-decor');
+  if (!img) {
+    img = document.createElement('img');
+    img.id = 'journey-game-bottom-decor';
+    img.className = 'journey-game-bottom-decor';
+    img.src = './assets/journey%20assets/bottom.png';
+    img.srcset = './assets/journey%20assets/bottom.png 1x, ./assets/journey%20assets/bottom@2x.png 2x';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.decoding = 'async';
+    img.draggable = false;
+    img.hidden = true;
+    host.appendChild(img);
+  }
+  return img;
+}
+
+function setJourneyGameBottomDecorVisible(visible: boolean): void {
+  const host = document.getElementById('app');
+  if (!host) return;
+  const img = visible ? ensureJourneyGameBottomDecor() : host.querySelector<HTMLImageElement>('#journey-game-bottom-decor');
+  if (journeyGameBottomDecorHideTimer !== null) {
+    window.clearTimeout(journeyGameBottomDecorHideTimer);
+    journeyGameBottomDecorHideTimer = null;
+  }
+  if (!img) {
+    host.classList.toggle('journey-board-game-active', visible);
+    return;
+  }
+  if (visible) {
+    host.classList.add('journey-board-game-active');
+    img.hidden = false;
+    img.classList.remove('is-visible', 'is-exiting');
+    img.getBoundingClientRect();
+    window.requestAnimationFrame(() => {
+      img.classList.add('is-visible');
+    });
+    return;
+  }
+  img.classList.remove('is-visible');
+  img.classList.add('is-exiting');
+  journeyGameBottomDecorHideTimer = window.setTimeout(() => {
+    img.hidden = true;
+    img.classList.remove('is-exiting');
+    host.classList.remove('journey-board-game-active');
+    journeyGameBottomDecorHideTimer = null;
+  }, 520);
+}
+
 function startLevel(n){
   devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
+  resetTransientRunGuards('startLevel');
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
   (window as any).__ccEnterAnimationActive = true;
   try { hideGhostPlaceholders(); } catch {}
@@ -3811,6 +3909,7 @@ function startLevel(n){
   
   // 🔥 JOURNEY PROGRESSION: Update currentRunState when starting a level
   updateJourneyRunState({ n, score, devLog, devWarn });
+  setJourneyGameBottomDecorVisible(!isArcadeHomeRunMode());
   
   // STATS TRACKING: Update highest board reached
   updateStartLevelStats({ n, statsService, devLog, devError });
@@ -12451,6 +12550,7 @@ async function showResumeGameModal(): Promise<void> {
       'border-radius: 40px',
       'font-size: 22px',
       'font-weight: 700',
+      'text-shadow: 0 2px 0 #C24921',
       'cursor: pointer',
       'box-shadow: 0 8px 0 0 #C24921',
       'transition: transform 0.15s ease'

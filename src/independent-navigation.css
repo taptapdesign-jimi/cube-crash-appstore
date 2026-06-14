@@ -421,3 +421,19 @@
   /* 2. Proširiti divider shadow na navigaciji do 40px sa strane ekrana */
   /* Note: Divider shadow se nalazi u slider-optimized.css, ali ako postoji u navigation, dodati ovdje */
 }
+
+/* Baloo navigation typography test */
+.independent-nav,
+.independent-nav *,
+.nav-badge-text {
+  letter-spacing: 0 !important;
+}
+
+.nav-badge-text {
+  font-size: 30px !important;
+}
+
+.independent-nav-button,
+.independent-nav-button *:not(img):not(.nav-icon-motion):not(.nav-icon-visual):not(.nav-badge) {
+  font-size: calc(1em + 10px) !important;
+}

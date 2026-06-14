@@ -5375,6 +5375,10 @@ export function screenShake(app, opts = {}){
         console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
       }
     }
+    const journeyBottomDecor = document.getElementById('journey-game-bottom-decor');
+    if (journeyBottomDecor && !journeyBottomDecor.hasAttribute('hidden')) {
+      try { gsap.killTweensOf(journeyBottomDecor); } catch {}
+    }
 
     const extraTargets = Array.isArray(alsoShake) ? alsoShake.filter(Boolean) : [];
     extraTargets.forEach((el: any) => { try { gsap.killTweensOf(el); } catch {} });
@@ -5384,6 +5388,9 @@ export function screenShake(app, opts = {}){
         try { gsap.set(target, { x: 0, y: 0 }); } catch {}
         if (boardIndicator) {
           try { gsap.set(boardIndicator, { x: 0, y: 0 }); } catch {}
+        }
+        if (journeyBottomDecor) {
+          try { gsap.set(journeyBottomDecor, { x: 0, y: 0 }); } catch {}
         }
         extraTargets.forEach((el: any) => { try { gsap.set(el, { x: 0, y: 0 }); } catch {} });
       }
@@ -5415,6 +5422,9 @@ export function screenShake(app, opts = {}){
         const indicatorAmp = amp * 0.8;
         tl.to(boardIndicator, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
       }
+      if (journeyBottomDecor && !journeyBottomDecor.hasAttribute('hidden')) {
+        tl.to(journeyBottomDecor, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
+      }
       // TNT overlay i ostali alsoShake – ista amplituda kao board
       extraTargets.forEach((el: any) => {
         tl.to(el, { x: dx, y: dy, duration: dt, ease }, 0 + i * dt);
@@ -5424,6 +5434,9 @@ export function screenShake(app, opts = {}){
     tl.to(target, { x: 0, y: 0, scale: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
     if (boardIndicator) {
       tl.to(boardIndicator, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    }
+    if (journeyBottomDecor) {
+      tl.to(journeyBottomDecor, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
     }
     extraTargets.forEach((el: any) => {
       tl.to(el, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');

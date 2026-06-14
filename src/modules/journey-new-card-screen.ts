@@ -44,7 +44,7 @@ function ensureJourneyNewCardStyles(): void {
         linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)),
         url('./assets/paper-bg.png') center / 100% 100% no-repeat,
         radial-gradient(ellipse at center, rgb(255,255,255) 0%, rgb(255,250,244) 48%, rgb(252,238,223) 100%);
-      font-family: "LTCrow", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: "Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color: #b58a78;
       overflow: hidden;
       -webkit-user-select: none;

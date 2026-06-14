@@ -2,9 +2,9 @@
 /* Ensure hidden attribute actually hides high-specificity blocks */
 [hidden]{ display:none !important; }
 
-/* LTCrow font family for entire app */
+/* Baloo2 font family for entire app */
 * {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
 }
 
 :root{
@@ -14,7 +14,7 @@
   --board-perspective: 1200px;
   --tile-3d-depth: 20px;
   --board-tilt: 20deg;
-  --font-primary: 'LTCrow', system-ui, -apple-system, sans-serif;
+  --font-primary: 'Baloo2', system-ui, -apple-system, sans-serif;
 }
 
 body{
@@ -248,7 +248,7 @@ body{
   font-size: 80px;
   font-weight: bold;
   color: #DB9C77;
-  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "Baloo2", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
   background: transparent;
   position: relative;
   z-index: 2;
@@ -259,7 +259,7 @@ body{
   font-weight: bold;
   color: #DB9C77;
   margin-bottom: 0;
-  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "Baloo2", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
   /* Static - no fade in */
   opacity: 1;
 }
@@ -269,7 +269,7 @@ body{
   font-size: 42px;
   font-weight: bold;
   color: #DB9C77;
-  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "Baloo2", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 /* Loading bar container */
@@ -426,6 +426,52 @@ body{
     inset 0 -4px 0 rgba(0,0,0,.08),
     0 6px 0 rgba(166,67,21,.6),
     0 10px 20px rgba(0,0,0,.16);
+}
+
+/* CTA typography test. Keep casing from source text; no forced uppercase. */
+.cta-btn,
+.cta-button,
+.slide-button,
+.menu-btn-primary,
+.continue-btn,
+.restart-btn,
+.new-card-btn,
+.new-game-btn,
+.exit-btn,
+.pause-modal-btn,
+.modal-button,
+.collectible-reward-cta,
+.bottom-sheet-cta,
+#board-detail-play-button {
+  font-size: 28px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* Navigation typography test. No negative tracking to avoid clipping. */
+.slider-nav-btn,
+.nav-badge-text,
+.independent-nav-button,
+.independent-nav-button *,
+#home-nav,
+#home-nav *,
+.menu-back-button,
+.menu-back-button * {
+  letter-spacing: 0 !important;
+}
+
+.slider-nav-btn,
+.independent-nav-button,
+.independent-nav-button *,
+#home-nav,
+#home-nav *,
+.menu-back-button,
+.menu-back-button * {
+  font-size: calc(1em + 10px) !important;
+}
+
+.nav-badge-text {
+  font-size: 30px !important;
 }
 
 /* ===== ANIMATION STYLES ===== */
@@ -624,6 +670,42 @@ body{
   z-index: 1 !important;
 }
 
+.journey-game-bottom-decor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -74px;
+  width: 100vw;
+  max-width: none;
+  height: auto;
+  opacity: 0;
+  display: none;
+  transition:
+    bottom 620ms cubic-bezier(0.18, 1.28, 0.32, 1),
+    opacity 260ms ease-out;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+#app.journey-board-game-active .journey-game-bottom-decor:not([hidden]) {
+  display: block;
+}
+
+#app.journey-board-game-active .journey-game-bottom-decor.is-visible:not([hidden]) {
+  opacity: 0.7;
+  bottom: -32px;
+}
+
+#app.journey-board-game-active .journey-game-bottom-decor.is-exiting:not([hidden]) {
+  opacity: 0;
+  bottom: -88px;
+  transition:
+    bottom 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 220ms ease-in;
+}
+
 /* Home content wrapper */
 #home > .content{
   display:flex;
@@ -666,7 +748,7 @@ body{
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 16px 56px;
+  padding: 16px 40px;
   border-radius: 40px;
   border: none;
   cursor: pointer;
@@ -794,7 +876,7 @@ body{
 #home-nav .dot.active{ background: #AD8775; opacity: 1; }
 
 /* Tagline */
-.tagline{ font-family: "LTCrow", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; font-size: 20px; line-height: 1.3; text-align: center; color: #C4A896; margin: 0 0 24px 0; }
+.tagline{ font-family: "Baloo2", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; font-size: 20px; line-height: 1.3; text-align: center; color: #C4A896; margin: 0 0 24px 0; }
 
 /* Slide tagline - moved to slider-optimized.css for single source of truth */
 
@@ -820,7 +902,7 @@ body{
   }
 }
 
-/* Fonts are loaded from src/styles/fonts.css - All LTCrow weights (Regular, Medium, SemiBold, Bold, ExtraBold) */
+/* Fonts are loaded from src/styles/fonts.css - All Baloo2 weights (Regular, Medium, SemiBold, Bold, ExtraBold) */
 
 /* Pause Modal - Mobile First */
 #pause-overlay{
@@ -872,7 +954,7 @@ body{
   border-radius: 40px;
   border: none;
   cursor: pointer;
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
   font-size: 24px;
   font-weight: 800;
   letter-spacing: 0.2px;
@@ -1246,7 +1328,7 @@ body{
   height: 64px !important;
   min-height: 64px !important;
   padding: 0 56px !important;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
   font-size: 24px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
@@ -1446,7 +1528,7 @@ body{
 
 /* Modal Title */
 .menu-content h2 {
-  font-family: 'LTCrow-Bold', sans-serif;
+  font-family: 'Baloo2', sans-serif;
   font-size: 24px;
   font-weight: bold;
   color: #7A6A62;
@@ -1456,7 +1538,7 @@ body{
 
 /* Modal Warning Message */
 .menu-content .warning-message {
-  font-family: 'LTCrow-Regular', sans-serif;
+  font-family: 'Baloo2', sans-serif;
   font-size: 16px;
   color: #9E8B82;
   margin: 0 0 32px 0;
@@ -1478,7 +1560,7 @@ body{
   height: 56px;
   border: none;
   border-radius: 28px;
-  font-family: 'LTCrow-Bold', sans-serif;
+  font-family: 'Baloo2', sans-serif;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
@@ -1614,7 +1696,7 @@ body{
 
 
 .menu-title {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 28px;
   font-weight: 800;
   color: #AD8775;
@@ -1699,7 +1781,7 @@ body{
 }
 
 .menu-stat-value {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 80px;
   font-weight: 800;
   color: #E8744A;
@@ -1713,7 +1795,7 @@ body{
 }
 
 .menu-stat-label {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   color: #AD8770;
   line-height: 1.4;
@@ -1732,7 +1814,7 @@ body{
 }
 
 .menu-game-value {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 40px;
   font-weight: 800;
   color: #AD8675;
@@ -1740,7 +1822,7 @@ body{
 }
 
 .menu-game-label {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   color: #AD8770;
   line-height: 1.4;
@@ -1897,7 +1979,7 @@ body{
 }
 
 .menu-action-label {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   color: #B09184;
   line-height: 1.4;
@@ -1913,7 +1995,7 @@ body{
 }
 
 .menu-btn {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 24px;
   font-weight: bold;
   color: white;
@@ -1986,7 +2068,7 @@ body{
 .tap-scale.menu-btn-primary {
   width: 250px;
   height: auto;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   letter-spacing: 0.3px;
   font-size: 28px;
   font-weight: 700;
@@ -2285,7 +2367,7 @@ body{
   padding: 0 56px; /* Same as slider CTA */
   font-size: 24px;
   font-weight: bold;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 250px; /* Same max width as slider CTA */
@@ -2331,7 +2413,7 @@ body{
   padding: 8px 16px; /* Smaller padding */
   font-size: 14px; /* Smaller font */
   font-weight: normal; /* Normal weight */
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: auto; /* Auto width */
   height: auto; /* Auto height */
@@ -2587,7 +2669,7 @@ body{
 }
 
 .score-bottom-sheet .simple-title-section h2 {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 40px;
   font-weight: 900; /* heavy weight - same as End This Run */
   color: #AD8775; /* Same color as End This Run */
@@ -2597,9 +2679,10 @@ body{
 
 /* Score bottom sheet subtitle - same styling as End This Run subtitle */
 .score-bottom-sheet .simple-title-section p {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  color: #C4A896; /* Same color as End This Run subtitle (slider subtitle color) */
+  font-weight: 500 !important;
+  color: #CBA89A !important;
   margin: 0; /* No margin - uses gap from parent (.simple-title-section has gap: 8px) */
   line-height: 1.3; /* Same line-height as End This Run subtitle */
   text-align: center;
@@ -2618,6 +2701,7 @@ body{
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   padding: 16px 0;
   text-align: left;
@@ -2644,11 +2728,17 @@ body{
 .score-bottom-sheet .score-stats-container .stat-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  flex: 1;
+  gap: 2px;
+  width: 106px;
+  flex: 0 0 106px;
+  align-items: flex-start;
+  padding: 0;
+  text-align: left;
+  position: relative;
+  top: 4px;
 }
 .score-bottom-sheet .score-stats-container .stat-value {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 32px;
   font-weight: 700;
   color: #E8744A;
@@ -2657,12 +2747,21 @@ body{
   transition: all 0.3s ease;
 }
 .score-bottom-sheet .score-stats-container .stat-label {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 500;
   color: #AD8775;
-  line-height: 1.8;
+  line-height: 1.1;
   margin: 0;
+}
+
+.score-bottom-sheet.score-sheet-combo-mode .score-stats-container .stat-content {
+  width: 150px;
+  flex: 0 0 150px;
+}
+
+.score-bottom-sheet.score-sheet-combo-mode .score-stats-container .stat-label {
+  white-space: nowrap;
 }
 
 /* iPad-only: center all score stats content (icons + text) */
@@ -2811,7 +2910,7 @@ body{
   display: flex;
   gap: 8px;
   margin: 0 0 8px;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 40px;
   line-height: 1.2;
   letter-spacing: 0;
@@ -2894,10 +2993,11 @@ body{
 }
 
 .collectible-reward-subtitle {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
+  font-weight: 500;
   line-height: 1.4;
-  color: #C4A896;
+  color: #CBA89A;
   margin: 0 0 32px;
   display: flex;
   flex-direction: column;
@@ -3431,8 +3531,8 @@ html.collectible-reward-open body {
 }
 
 .simple-content h2 {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px; /* Font.custom("LT Crow", size: 40) from Figma */
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 40px; /* Font.custom("Baloo2", size: 40) from Figma */
   font-weight: 900; /* .weight(.heavy) from Figma */
   color: #AD8675; /* Original color for h2 titles */
   margin: 0;
@@ -3441,12 +3541,17 @@ html.collectible-reward-open body {
 }
 
 .simple-content p {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 20px; /* Font.custom("LT Crow", size: 20) from Figma */
-  color: #C4A896; /* Match slider subtitle color */
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 20px; /* Font.custom("Baloo2", size: 20) from Figma */
+  font-weight: 500 !important;
+  color: #CBA89A !important;
   text-align: center;
   margin: 0;
   line-height: 1.3; /* Match slider subtitle line-height */
+}
+
+.simple-bottom-sheet .simple-title-section p {
+  font-weight: 500 !important;
 }
 
 .simple-buttons {
@@ -3471,9 +3576,9 @@ html.collectible-reward-open body {
   border: 1px solid #E9DCD6; /* Updated stroke color */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
   padding: 0 56px; /* Same as slider CTA */
-  font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
+  font-size: 24px; /* Font.custom("Baloo2", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 250px; /* Same max width as slider CTA */
@@ -3557,7 +3662,7 @@ html.collectible-reward-open body {
   
   .simple-content p {
     font-size: 20px; /* Match slider subtitle font size */
-    color: #C4A896; /* Match slider subtitle color on mobile too */
+    color: #CBA89A !important;
     line-height: 1.3; /* Match slider subtitle line-height */
   }
   
@@ -3608,7 +3713,7 @@ html.collectible-reward-open body {
 }
 
 .end-run-header h2 {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 40px;
   font-weight: 900; /* heavy weight */
   color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) */
@@ -3617,7 +3722,7 @@ html.collectible-reward-open body {
 }
 
 .end-run-warning {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) */
   margin: 0;
@@ -3789,7 +3894,7 @@ html.collectible-reward-open body {
 }
 
 .hearts-title {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 40px;
   font-weight: 800;
   line-height: 1.2;
@@ -3819,7 +3924,7 @@ html.collectible-reward-open body {
 }
 
 .hearts-timer {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 700;
   line-height: 1.4;
@@ -3837,11 +3942,11 @@ html.collectible-reward-open body {
 }
 
 .hearts-description {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.4;
-  color: #AD8675;
+  color: #CBA89A;
   text-align: center;
   margin: 0;
 }
@@ -3895,7 +4000,7 @@ html.collectible-reward-open body {
   }
   
   .hearts-title {
-    font-size: 36px;
+    font-size: 32px;
   }
   
   .heart-icon {
@@ -4412,7 +4517,7 @@ body:has(:root) .tile.wild-3d-glow {
   height: 64px !important;
   min-height: 64px !important;
   padding: 0 56px !important;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
   font-size: 26px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
@@ -4495,7 +4600,7 @@ body:has(:root) .tile.wild-3d-glow {
   height: 64px !important;
   min-height: 64px !important;
   padding: 0 56px !important;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
   font-size: 26px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #E9DCD6 !important;
@@ -4516,6 +4621,21 @@ body:has(:root) .tile.wild-3d-glow {
   line-height: normal !important;
   touch-action: manipulation !important;
   cursor: pointer !important;
+}
+
+/* Sharp orange text shadow for orange CTA buttons only. */
+.primary-button,
+.menu-btn-primary,
+.tap-scale.menu-btn-primary,
+.slide-button.menu-btn-primary,
+.continue-btn,
+.restart-btn,
+.new-card-btn,
+.collectible-reward-cta,
+.bottom-sheet-cta:not(.exit-btn):not(.secondary-button),
+#board-detail-play-button,
+.first-play-tutorial-cta {
+  text-shadow: 0 2px 0 #C24921 !important;
 }
 
 .secondary-button:hover:not(:disabled),
@@ -4675,14 +4795,15 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-title {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 28px; /* 🔥 FIX: Match Journey title size (was 40px) */
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 32px;
   font-weight: 800;
   color: #AD8775;
   margin: 0;
   line-height: 1;
   text-align: center;
   position: relative;
+  top: 2px;
   pointer-events: none;
   z-index: 1;
   flex: 1;
@@ -4749,7 +4870,7 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-footer-text {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 400;
   line-height: 22px;
@@ -4778,7 +4899,7 @@ body:has(:root) .tile.wild-3d-glow {
 .settings-toggle-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -4786,7 +4907,7 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-toggle-status {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 32px;
   font-weight: 800;
   color: #E8744A;
@@ -4794,11 +4915,11 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-toggle-description {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 500;
   color: #AD8775;
-  line-height: 1.8;
+  line-height: 1.1;
   margin: 0;
 }
 
@@ -4824,7 +4945,7 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-dev-kicker {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 28px;
   font-weight: 900;
   line-height: 1;
@@ -4833,7 +4954,7 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-dev-description {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 18px;
   font-weight: 400;
   line-height: 1.35;
@@ -4854,7 +4975,7 @@ body:has(:root) .tile.wild-3d-glow {
   border-radius: 18px;
   min-height: 48px;
   padding: 10px 8px;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 800;
   line-height: 1.05;
@@ -5106,4 +5227,22 @@ button[data-clean-board-exiting="true"]:hover,
   -webkit-transform: translateY(20px) scale(0) !important;
   -webkit-transition: transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
                       opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+}
+
+/* ===== HOMEPAGE SLIDER CTA — MOBILE WIDTH OVERRIDE =====
+   Overrides .primary-button/.menu-btn-primary global max-width: 250px !important
+   Scoped to #home so only homepage sliders are affected, not bottom sheets.
+   iPad (768px+) keeps 349px from its own block and is NOT touched here.
+===== */
+@media screen and (max-width: 767px) {
+  #home #btn-home,
+  #home #btn-stats,
+  #home #btn-journey,
+  #home #btn-collectibles,
+  #home #btn-settings,
+  #home .slider-slide .slide-button.menu-btn-primary,
+  #home .slider-slide .slide-content .slide-button.menu-btn-primary {
+    width: 226px !important;
+    max-width: 226px !important;
+  }
 }

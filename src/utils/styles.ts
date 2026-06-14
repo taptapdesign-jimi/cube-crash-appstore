@@ -25,7 +25,7 @@ export const MODAL_STYLES: ModalStyles = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: '1000000',
-    fontFamily: '"LTCrow", Arial, sans-serif',
+    fontFamily: '"Baloo2", Arial, sans-serif',
     transition: 'opacity 0.5s ease-out, backdrop-filter 0.5s ease-out'
   },
   MODAL: {

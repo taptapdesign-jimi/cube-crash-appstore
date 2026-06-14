@@ -1202,6 +1202,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // 🔥 CRITICAL FIX: Clear ALL flags before starting fresh board
     // This prevents leftover flags from previous boards (e.g., __ccSkipRebuildBoard)
+    try { (window as any).CC?.resetTransientRunGuards?.('startNewRunFromJourney'); } catch {}
     delete (window as any).__ccSkipRebuildBoard;
     delete (window as any).__ccPreserveScore;
     // 🔥 CRITICAL FIX: Clear skip board exit animation flag - new board should always animate exit
