@@ -729,7 +729,7 @@ function cleanupNoMovesOverlay(): void {
 }
 
 /**
- * Show "NO MOVES" text overlay during end-game wait (1.5s before fail screen).
+ * Show "No Moves" text overlay during end-game wait (1.5s before fail screen).
  * Same enter animation as STACK IT! / SWOOP. Stays visible until clearNoMovesText().
  */
 export function showNoMovesText(): void {
@@ -783,7 +783,7 @@ export function showNoMovesText(): void {
     const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
-    const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
+    const letters = ['N', 'o', ' ', 'M', 'o', 'v', 'e', 's'];
     const letterFontSizes = createRandomTextLetterSizes(letters.length);
     noMovesLetterScales = [];
     noMovesLetterRotations = [];
@@ -802,12 +802,14 @@ export function showNoMovesText(): void {
       }
       noMovesLetterScales.push(letterScale);
       noMovesLetterRotations.push(rotation);
+      const textAlpha = 0.8 + Math.random() * 0.2;
+      const textColor = `rgba(231,116,73,${textAlpha.toFixed(2)})`;
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        'color: #CC9882',
+        `color: ${textColor}`,
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

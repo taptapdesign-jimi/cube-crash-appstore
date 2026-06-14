@@ -247,24 +247,33 @@ function updateFpsCounter(): void {
  * Show wild-juice bubbles explosion (full-screen burst)
  * Works independently of board/tile hierarchy
  */
-export function showWildJuiceBubblesExplosion(): void {
+type WildJuiceBubblesExplosionOptions = {
+  showText?: boolean;
+  text?: string;
+  textColor?: string;
+  textColors?: string[];
+  direction?: 'up' | 'down';
+  spritePaths?: string[] | null;
+};
+
+export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosionOptions = {}): void {
   if (isExplosionActive || explosionContainer) {
     cleanup();
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
     // This prevents race conditions where cleanup and new explosion conflict
     lifecycle.trackRaf(() => {
-      showWildJuiceBubblesExplosionInternal();
+      showWildJuiceBubblesExplosionInternal(options);
     });
     return;
   }
 
-  showWildJuiceBubblesExplosionInternal();
+  showWildJuiceBubblesExplosionInternal(options);
 }
 
 /**
  * Internal function to start bubbles explosion (called after cleanup if needed)
  */
-async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
+async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesExplosionOptions = {}): Promise<void> {
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const app = (windowState && windowState.app) || null;
   const stateStage = (windowState && windowState.stage) || null;
@@ -289,7 +298,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
       const delay = isBoardTransitionActive ? 100 : 80;
       logger.debug('Stage unavailable, retrying', undefined, { retry: stageRetryCount, maxRetries });
       lifecycle.trackTimeout(() => {
-        showWildJuiceBubblesExplosionInternal();
+        showWildJuiceBubblesExplosionInternal(options);
       }, delay);
       return;
     }
@@ -301,8 +310,15 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
 
   // Load bubble sprites (bubble 1-8) and keep direct references.
   // Avoid Assets.get(path) cache-id mismatch (caused Pixi warnings + invalid textures).
+  const spritePaths = Array.isArray(options.spritePaths) && options.spritePaths.length
+    ? options.spritePaths.filter(Boolean)
+    : BUBBLE_SPRITE_PATHS;
+  const usesDefaultBubbleSprites = spritePaths === BUBBLE_SPRITE_PATHS;
+  const bubblePoolKey = usesDefaultBubbleSprites
+    ? 'wild-juice-bubbles'
+    : `wild-juice-special:${spritePaths.join('|')}`;
   const bubbleTextures: Texture[] = [];
-  for (const path of BUBBLE_SPRITE_PATHS) {
+  for (const path of spritePaths) {
     try {
       const loaded = await Assets.load(path);
       const texture = loaded as Texture;
@@ -321,7 +337,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     return;
   }
 
-  const bubblePool = getBubbleSpritePool(() => bubbleTextures[0]);
+  const bubblePool = getBubbleSpritePool(() => bubbleTextures[0], bubblePoolKey);
 
   // 🔥 CRITICAL: Double-check that cleanup completed (defensive check)
   if (isExplosionActive || explosionContainer) {
@@ -329,7 +345,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     cleanup();
     // Wait another frame
     lifecycle.trackRaf(() => {
-      showWildJuiceBubblesExplosionInternal();
+      showWildJuiceBubblesExplosionInternal(options);
     });
     return;
   }
@@ -341,6 +357,7 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   // Create container on stage (full-screen)
   explosionContainer = new Container();
   explosionContainer.label = 'wild-juice-explosion-bubbles';
+  (explosionContainer as any)._bubblePoolKey = bubblePoolKey;
   // 🔥 CRITICAL FIX: Use maximum zIndex to ensure bubbles are above everything
   explosionContainer.zIndex = 999999; // Above everything (maximum)
   explosionContainer.eventMode = 'none';
@@ -449,12 +466,15 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;
 
+  const direction = options.direction === 'down' ? 'down' : 'up';
+  const isCustomDownDrop = direction === 'down' && !usesDefaultBubbleSprites;
+
   // iOS stability: keep the premium feel, but avoid saturating the renderer during repeated wild merges.
-  const totalBubbles = 48;
-  const lateBurstCount = 18;
-  const spawnDuration = 1500;
-  const spawnBatchSize = 3;
-  const maxActive = 34;
+  const totalBubbles = isCustomDownDrop ? 29 : 48;
+  const lateBurstCount = isCustomDownDrop ? 0 : 18;
+  const spawnDuration = isCustomDownDrop ? 1300 : 1500;
+  const spawnBatchSize = isCustomDownDrop ? 2 : 3;
+  const maxActive = isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
@@ -524,20 +544,22 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     spawned += 1;
     active += 1;
     
-    // Prefer larger-looking variants (4-8), but keep 1-3 in rotation.
-    // Distribution:
-    // - 70% bubbles 4-8 (with slight bias to 4/5)
-    // - 30% bubbles 1-3
-    const r = Math.random();
     let idx = 0;
-    if (r < 0.2) idx = 3;         // bubble 4
-    else if (r < 0.4) idx = 4;    // bubble 5
-    else if (r < 0.5) idx = 5;    // bubble 6
-    else if (r < 0.6) idx = 6;    // bubble 7
-    else if (r < 0.7) idx = 7;    // bubble 8
-    else idx = Math.floor(Math.random() * 3); // bubble 1/2/3
+    if (usesDefaultBubbleSprites) {
+      // Prefer larger-looking variants (4-8), but keep 1-3 in rotation.
+      const r = Math.random();
+      if (r < 0.2) idx = 3;         // bubble 4
+      else if (r < 0.4) idx = 4;    // bubble 5
+      else if (r < 0.5) idx = 5;    // bubble 6
+      else if (r < 0.6) idx = 6;    // bubble 7
+      else if (r < 0.7) idx = 7;    // bubble 8
+      else idx = Math.floor(Math.random() * 3); // bubble 1/2/3
+    } else {
+      idx = Math.floor(Math.random() * bubbleTextures.length);
+    }
     const tex = bubbleTextures[idx] || bubbleTextures[0];
     const bubble = bubblePool.acquire(tex);
+    (bubble as any)._bubblePoolKey = bubblePoolKey;
 
     // 50% veliki, 50% mali – bimodalna distribucija
     const isBig = Math.random() < 0.5;
@@ -552,7 +574,9 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     // - Mobile: keep legacy behavior (95–115% of screen height)
     // - Desktop/tablet: start further below (108–128% of screen height)
     const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
-    const startYPercent = 0.95 + Math.random() * 0.20; // 95–115% screen height
+    const startYPercent = direction === 'down'
+      ? -0.15 - Math.random() * 0.20
+      : 0.95 + Math.random() * 0.20; // 95–115% screen height
     const startY = screenH * startYPercent;
 
     bubble.x = startX;
@@ -571,8 +595,12 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
     bubble.renderable = true;
     explosionContainer.addChild(bubble);
 
-    const endY = -screenH * (0.1 + Math.random() * 0.15); // End 10-25% above top
-    const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
+    const endY = direction === 'down'
+      ? screenH * (1.1 + Math.random() * 0.18)
+      : -screenH * (0.1 + Math.random() * 0.15); // End 10-25% above top
+    const duration = isCustomDownDrop
+      ? 1.05 + Math.random() * 0.24
+      : Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
     const driftX = (Math.random() - 0.5) * 100; // ±50px horizontal drift
 
     const bubbleTweens: gsap.core.Tween[] = [];
@@ -587,25 +615,86 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
       maybeCompleteExplosion();
     };
 
-    // Vertical rise + drift (onComplete = remove, alpha uvijek 100%)
-    bubbleTweens.push(trackTween(bubble, {
-      x: startX + driftX,
-      y: endY,
-      duration,
-      ease: 'power2.inOut',
-      immediateRender: true,
-      onComplete: onBubbleComplete
-    }));
+    if (isCustomDownDrop) {
+      const floorY = screenH * (0.93 + Math.random() * 0.07);
+      const bounceY = Math.max(screenH * 0.38, floorY - screenH * (0.18 + Math.random() * 0.20));
+      const exitY = screenH * (1.18 + Math.random() * 0.18);
+      const bounceDir = Math.random() < 0.5 ? -1 : 1;
+      const sideBounce = screenW * (0.10 + Math.random() * 0.22);
+      const x1 = startX + driftX * 0.28;
+      const x2 = x1 + bounceDir * sideBounce + (Math.random() - 0.5) * 42;
+      const x3 = x2 + bounceDir * screenW * (0.05 + Math.random() * 0.12) + (Math.random() - 0.5) * 56;
+      const impactRotation = (Math.random() < 0.5 ? -1 : 1) * (0.12 + Math.random() * 0.16);
+      const tl = trackTimeline();
+      tl.to(bubble, {
+        x: x1,
+        y: floorY,
+        duration: duration * 0.52,
+        ease: 'power2.in',
+        immediateRender: true,
+      });
+      tl.to(bubble.scale, {
+        x: bubbleScale * 1.26,
+        y: bubbleScale * 0.70,
+        duration: 0.035,
+        ease: 'power2.out',
+      }, '<+=0.01');
+      tl.to(bubble, {
+        rotation: impactRotation,
+        duration: 0.045,
+        ease: 'power2.out',
+      }, '<');
+      tl.to(bubble.scale, {
+        x: bubbleScale * 0.84,
+        y: bubbleScale * 1.18,
+        duration: 0.055,
+        ease: 'back.out(2.1)',
+      });
+      tl.to(bubble, {
+        x: x2,
+        y: bounceY,
+        duration: duration * 0.26,
+        ease: 'power2.out',
+        rotation: impactRotation * -0.55,
+      }, '<+=0.015');
+      tl.to(bubble.scale, {
+        x: bubbleScale,
+        y: bubbleScale,
+        duration: 0.09,
+        ease: 'back.out(1.7)',
+      }, '<+=0.02');
+      tl.to(bubble, {
+        x: x3,
+        y: exitY,
+        duration: duration * 0.42,
+        ease: 'power2.in',
+        rotation: impactRotation * -1.25,
+        onComplete: onBubbleComplete,
+      });
+      bubbleTweens.push(tl as any);
+    } else {
+      // Vertical rise + drift (onComplete = remove, alpha uvijek 100%)
+      bubbleTweens.push(trackTween(bubble, {
+        x: startX + driftX,
+        y: endY,
+        duration,
+        ease: 'power2.inOut',
+        immediateRender: true,
+        onComplete: onBubbleComplete
+      }));
+    }
 
     // Scale animation
-    const finalScale = (0.65 + Math.random() * 0.35) * sizeRatio;
-    bubbleTweens.push(trackTween(bubble.scale, {
-      x: finalScale,
-      y: finalScale,
-      duration: duration * 0.45,
-      ease: 'power1.out',
-      immediateRender: true
-    }));
+    if (!isCustomDownDrop) {
+      const finalScale = (0.65 + Math.random() * 0.35) * sizeRatio;
+      bubbleTweens.push(trackTween(bubble.scale, {
+        x: finalScale,
+        y: finalScale,
+        duration: duration * 0.45,
+        ease: 'power1.out',
+        immediateRender: true
+      }));
+    }
 
 
     (bubble as any)._bubbleTweens = bubbleTweens;
@@ -822,7 +911,9 @@ async function showWildJuiceBubblesExplosionInternal(): Promise<void> {
   }
 
   // BUBBLY text overlay – centar viewporta (kao BOOM za TNT)
-  createAndShowBubblyText();
+  if (options.showText !== false) {
+    createAndShowBubblyText({ text: options.text, color: options.textColor, colors: options.textColors });
+  }
   
   // 🔥 CRITICAL FIX: Force render again after initial burst to ensure bubbles are visible
   // This ensures bubbles are rendered immediately after creation (same pattern as fx.ts for wild stars)
@@ -978,10 +1069,20 @@ const BUBBLY_EXIT_BOUNCE_DURATION = 0.13;
 const BUBBLY_EXIT_FADE_DURATION = 0.17;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
+function colorWithAlpha(color: string, alpha: number): string {
+  const normalized = String(color || '').trim();
+  const match = normalized.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+  if (!match) return normalized;
+  const r = parseInt(match[1], 16);
+  const g = parseInt(match[2], 16);
+  const b = parseInt(match[3], 16);
+  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, alpha)).toFixed(2)})`;
+}
+
 /**
  * BUBBLY text overlay – isti dizajn, font, boja, enter/exit animacije kao TNT BOOM
  */
-function createAndShowBubblyText(): void {
+function createAndShowBubblyText(options: { text?: string; color?: string; colors?: string[] } = {}): void {
   try {
     cleanupBubblyOverlay();
     const overlay = document.createElement('div');
@@ -998,8 +1099,11 @@ function createAndShowBubblyText(): void {
       'justify-content: center',
     ].join(';');
     bubblyOverlay = overlay;
-    // Replace clouds with pooled bubble sprites (rise + pop).
-    bubblyFxCleanup = attachBubblySprites(overlay, { count: 14, zIndex: 1 });
+    // Replace clouds with pooled bubble sprites for default BUBBLY only.
+    // Special dice such as Beach Ball provide their own full-screen sprite field.
+    if (!options.text) {
+      bubblyFxCleanup = attachBubblySprites(overlay, { count: 14, zIndex: 1 });
+    }
 
     const bubblyContainer = document.createElement('div');
     bubblyContainer.style.cssText = [
@@ -1029,7 +1133,9 @@ function createAndShowBubblyText(): void {
     const bubblyLetters: HTMLElement[] = [];
     const bubblyScales: number[] = [];
     const bubblyRotations: number[] = [];
-    const bubblyText = ['B', 'U', 'B', 'B', 'L', 'Y'];
+    const bubblyText = Array.from(String(options.text || 'BUBBLY'));
+    const bubblyColor = String(options.color || '#FFA6AF');
+    const bubblyColors = Array.isArray(options.colors) ? options.colors : null;
     const bubblyFontSizes = createRandomTextLetterSizes(bubblyText.length);
 
     bubblyText.forEach((letter, index) => {
@@ -1038,13 +1144,16 @@ function createAndShowBubblyText(): void {
       const rotation = 0;
       const letterEl = document.createElement('span');
       letterEl.textContent = letter;
+      const letterColor = bubblyColors?.[index] || bubblyColor;
+      const letterAlpha = options.text ? 0.8 + Math.random() * 0.2 : 1;
+      const visibleLetterColor = colorWithAlpha(letterColor, letterAlpha);
       letterEl.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        'color: #FFA6AF',
-        '-webkit-text-fill-color: #FFA6AF',
+        `color: ${visibleLetterColor}`,
+        `-webkit-text-fill-color: ${visibleLetterColor}`,
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -1295,7 +1404,8 @@ function cleanup(): void {
 
       // Cleanup bubbles (release to pool)
       try {
-        const pool = getBubbleSpritePool(() => Texture.WHITE);
+        const poolKey = (container as any)._bubblePoolKey || 'wild-juice-bubbles';
+        const pool = getBubbleSpritePool(() => Texture.WHITE, poolKey);
         const children = [...(container.children || [])];
         children.forEach((bubble) => {
           try {

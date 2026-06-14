@@ -383,20 +383,36 @@ class BubbleSpritePool {
   }
 }
 
-// Lazy-initialized bubble sprite pool (needs Assets - init after load)
-let _bubbleSpritePool: BubbleSpritePool | null = null;
+// Lazy-initialized bubble sprite pools (needs Assets - init after load).
+// Keep pools split by effect/texture set so special dice do not share sprite instances with default bubbles.
+const _bubbleSpritePools = new Map<string, BubbleSpritePool>();
 
-export function getBubbleSpritePool(getDefaultTexture: () => Texture): BubbleSpritePool {
-  if (!_bubbleSpritePool) {
-    _bubbleSpritePool = new BubbleSpritePool(getDefaultTexture);
+export function getBubbleSpritePool(getDefaultTexture: () => Texture, key = 'wild-juice-bubbles'): BubbleSpritePool {
+  const poolKey = key || 'wild-juice-bubbles';
+  let pool = _bubbleSpritePools.get(poolKey);
+  if (!pool) {
+    pool = new BubbleSpritePool(getDefaultTexture);
+    _bubbleSpritePools.set(poolKey, pool);
   }
-  return _bubbleSpritePool;
+  return pool;
 }
 
-export function clearBubbleSpritePool(): void {
-  if (_bubbleSpritePool) {
-    _bubbleSpritePool.clear();
+export function clearBubbleSpritePool(key?: string): void {
+  if (key) {
+    const pool = _bubbleSpritePools.get(key);
+    if (pool) {
+      pool.clear();
+      _bubbleSpritePools.delete(key);
+    }
+    return;
   }
+
+  for (const pool of _bubbleSpritePools.values()) {
+    try {
+      pool.clear();
+    } catch {}
+  }
+  _bubbleSpritePools.clear();
 }
 
 export { BubbleSpritePool };

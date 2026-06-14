@@ -8,6 +8,7 @@ import animationManager from './animation-manager.js';
 import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
+import { getSpecialDiceTrailColors } from './special-dice-registry.ts';
 import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
@@ -966,7 +967,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   // }
   
   try {
-    colors = getDragParticleColors(tileSpecial);
+    colors = getSpecialDiceTrailColors(tile) || getDragParticleColors(tileSpecial);
     if (!colors || !Array.isArray(colors) || colors.length === 0) {
       console.error(`❌ getDragParticleColors returned empty/invalid array for ${tileSpecial}`);
       // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
@@ -2610,7 +2611,7 @@ export function wildJuiceMerge6ShardsTemplated(board, tile, opts = {}) {
   
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildJuice');
-  const orangeColor = getColor('wildJuice'); // 🔥 ORIGINAL COLOR: Orange (#F99D77)
+  const orangeColor = opts.color ?? getColor('wildJuice'); // 🔥 ORIGINAL COLOR: Orange (#F99D77), override for special dice
   
   console.log(`🍺 wildJuiceMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
     orangeColor: `0x${orangeColor.toString(16)}`,

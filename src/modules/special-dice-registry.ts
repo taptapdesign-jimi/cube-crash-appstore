@@ -10,11 +10,15 @@ export type SpecialDiceVariantDefinition = {
   texture: string;
   splashText: string;
   splashColor: string;
+  shardColor?: number;
+  trailColors?: number[];
+  explosionSpriteSources?: string[];
   visualWidth?: number;
   visualHeight?: number;
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'cubero-hop';
   orbitParticleSources?: string[];
   burstParticleSources?: string[];
   burstMotion?: {
@@ -27,7 +31,7 @@ export type SpecialDiceVariantDefinition = {
     waveDurationScale?: number;
     mixBlendMode?: string;
   };
-  arcadeTestFirst?: boolean;
+  arcadeTestOrder?: number;
 };
 
 const cuberoKrpaSources = [
@@ -40,6 +44,15 @@ const cuberoKrpaSources = [
   './assets/shop/cubero/krpa7.png',
 ];
 
+const beachBallExplosionSources = [
+  './assets/shop/ball/ball1.png',
+  './assets/shop/ball/ball2.png',
+  './assets/shop/ball/ball3.png',
+  './assets/shop/ball/ball4.png',
+  './assets/shop/ball/ball5.png',
+  './assets/shop/ball/ball6.png',
+];
+
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
   cubero: {
     id: 'cubero',
@@ -47,10 +60,12 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     texture: './assets/shop/cubero/cubero.png',
     splashText: 'Hiyaa!',
     splashColor: '#FE9130',
+    shardColor: 0xFE9130,
     visualWidth: 170,
     visualHeight: 128,
     hitAreaSize: 'tile',
     idleOrbit: false,
+    idleMotion: 'cubero-hop',
     orbitParticleSources: cuberoKrpaSources,
     burstParticleSources: cuberoKrpaSources,
     burstMotion: {
@@ -63,7 +78,21 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       waveDurationScale: 1.05,
       mixBlendMode: 'normal',
     },
-    arcadeTestFirst: true,
+    arcadeTestOrder: 2,
+  },
+  'beach-ball': {
+    id: 'beach-ball',
+    archetype: 'wild-juice',
+    texture: './assets/shop/ball/ball.png',
+    splashText: 'Boooing!',
+    splashColor: '#E09FEF',
+    shardColor: 0xE09FEF,
+    trailColors: [0x4BC9FC, 0xDD94EB, 0xFDA4A7, 0xFDEB8C],
+    explosionSpriteSources: beachBallExplosionSources,
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'beach-ball-bounce',
+    arcadeTestOrder: 1,
   },
 };
 
@@ -120,6 +149,31 @@ export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
   };
 }
 
+export function getSpecialDiceShardColor(tileOrVariant: any): number | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return variant?.shardColor;
+}
+
+export function getSpecialDiceTrailColors(tileOrVariant: any): number[] | null {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return Array.isArray(variant?.trailColors) && variant.trailColors.length
+    ? variant.trailColors
+    : null;
+}
+
+export function getSpecialDiceExplosionSpriteSources(tileOrVariant: any): string[] | null {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return Array.isArray(variant?.explosionSpriteSources) && variant.explosionSpriteSources.length
+    ? variant.explosionSpriteSources
+    : null;
+}
+
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
@@ -127,6 +181,9 @@ export function pickSpecialDiceVariantForWildSpawn({
   isArcade: boolean;
   wildSpawnCount: number;
 }): SpecialDiceVariantDefinition | null {
-  if (!isArcade || wildSpawnCount !== 0) return null;
-  return Object.values(SPECIAL_DICE_VARIANTS).find((variant) => variant.arcadeTestFirst) || null;
+  if (!isArcade) return null;
+  const testVariants = Object.values(SPECIAL_DICE_VARIANTS)
+    .filter((variant) => Number.isFinite(variant.arcadeTestOrder))
+    .sort((a, b) => (a.arcadeTestOrder ?? 9999) - (b.arcadeTestOrder ?? 9999));
+  return testVariants[wildSpawnCount] || null;
 }

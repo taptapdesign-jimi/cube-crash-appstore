@@ -128,6 +128,8 @@ import { decideWildType } from './app-core-wild-type.ts';
 import {
   applySpecialDiceVariantToTile,
   getCoreWildTypeForSpecialDiceVariant,
+  getSpecialDiceExplosionSpriteSources,
+  getSpecialDiceShardColor,
   getSpecialDiceSplashOptions,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
@@ -7720,10 +7722,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // 🎨 TEMPLATE-BASED: Use new template system with ORIGINAL COLORS
             if (isWildJuiceMerge) {
               // 🍺 Wild-juice merge: orange shards using template-based pooling (ORIGINAL COLOR)
-              devLog('🍺 Wild-juice merge 6 - using template-based pooling with orange shards (ORIGINAL COLOR)');
+              const wildJuiceVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
+              const wildJuiceShardColor = getSpecialDiceShardColor(wildJuiceVariant);
+              devLog('🍺 Wild-juice merge 6 - using template-based pooling with shards', {
+                variant: wildJuiceVariant?.id || 'core-wild-juice',
+                color: wildJuiceShardColor ? `0x${wildJuiceShardColor.toString(16)}` : 'default'
+              });
               playShortWildMerge6TileBlast('Wild-juice');
               wildJuiceMerge6ShardsTemplated(board, dst, { 
-                zIndex: 9993
+                zIndex: 9993,
+                color: wildJuiceShardColor
               });
             } else if (isWildTntMerge) {
               // 💥 Wild-TNT merge: skip shards when TNT animation starts
@@ -7791,6 +7799,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (isWildTntMerge) {
               devLog('💥 Wild-TNT merge 6 – TNT animacija već pokrenuta (anchor na kockici, prati shake)');
             } else if (isWildJuiceMerge) {
+              const wildJuiceVariantForExplosion = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
               devLog('💧 Wild-juice merge 6 – pokrećem bubbles explosion');
               try {
                 const wasActive = isWildJuiceBubblesExplosionActive();
@@ -7800,7 +7809,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 if (isWildJuiceBubblesExplosionActive()) {
                   stopWildJuiceBubblesExplosion();
                 }
-                showWildJuiceBubblesExplosion();
+                showWildJuiceBubblesExplosion({
+                  showText: true,
+                  text: wildJuiceVariantForExplosion?.splashText,
+                  textColor: wildJuiceVariantForExplosion?.splashColor,
+                  textColors: wildJuiceVariantForExplosion?.id === 'beach-ball'
+                    ? ['#DD94EB', '#DD94EB', '#FDEB8C', '#FDEB8C', '#4BC9FC', '#4BC9FC', '#FD979D', '#FD979D']
+                    : undefined,
+                  direction: wildJuiceVariantForExplosion?.id === 'beach-ball' ? 'down' : 'up',
+                  spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
+                });
               } catch (error) {
                 devError('❌ Failed to trigger bubbles explosion:', error);
               }

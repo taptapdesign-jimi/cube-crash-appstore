@@ -32,7 +32,7 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 export function startSpecialDiceIdleMotion(tile: any): void {
   try {
     const variant = getSpecialDiceVariantForTile(tile);
-    if (!tile || tile.destroyed || variant?.id !== 'cubero') return;
+    if (!tile || tile.destroyed || !variant?.idleMotion) return;
     if (tile._ccWildSpawnDropping === true) return;
 
     stopSpecialDiceIdleMotion(tile);
@@ -49,25 +49,82 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     tile._ccSpecialDiceIdleHost = host;
     tile._ccSpecialDiceIdleBase = base;
 
-    const tl = trackTimeline({ repeat: -1, repeatDelay: 0.12 });
-    tl.to(host, {
-      y: base.y - 4,
-      rotation: base.rotation + 0.006,
-      duration: 0.72,
-      ease: 'sine.inOut',
-    });
-    tl.to(host, {
-      y: base.y + 1,
-      rotation: base.rotation - 0.004,
-      duration: 0.72,
-      ease: 'sine.inOut',
-    });
-    tl.to(host, {
-      y: base.y,
-      rotation: base.rotation,
-      duration: 0.56,
-      ease: 'sine.inOut',
-    });
+    const tl = trackTimeline({ repeat: -1, repeatDelay: variant.idleMotion === 'beach-ball-bounce' ? 0 : 0.12 });
+    if (variant.idleMotion === 'beach-ball-bounce') {
+      tl.to(host, {
+        y: base.y - 8,
+        rotation: base.rotation,
+        duration: 0.46,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: base.y + 2,
+        rotation: base.rotation,
+        duration: 0.52,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: base.y,
+        rotation: base.rotation,
+        duration: 0.34,
+        ease: 'sine.inOut',
+      });
+    } else if (variant.idleMotion === 'cubero-hop') {
+      tl.to(host, {
+        x: base.x - 2,
+        y: base.y - 1,
+        rotation: base.rotation - 0.045,
+        duration: 0.28,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        x: base.x - 1,
+        y: base.y,
+        rotation: base.rotation - 0.030,
+        duration: 0.08,
+        ease: 'power2.out',
+      });
+      tl.to(host, {
+        x: base.x + 2,
+        y: base.y - 1,
+        rotation: base.rotation + 0.045,
+        duration: 0.28,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        x: base.x + 1,
+        y: base.y,
+        rotation: base.rotation + 0.030,
+        duration: 0.08,
+        ease: 'power2.out',
+      });
+      tl.to(host, {
+        x: base.x,
+        y: base.y,
+        rotation: base.rotation,
+        duration: 0.16,
+        ease: 'sine.out',
+      });
+    } else {
+      tl.to(host, {
+        y: base.y - 4,
+        rotation: base.rotation + 0.006,
+        duration: 0.72,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: base.y + 1,
+        rotation: base.rotation - 0.004,
+        duration: 0.72,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: base.y,
+        rotation: base.rotation,
+        duration: 0.56,
+        ease: 'sine.inOut',
+      });
+    }
     tile._ccSpecialDiceIdleTl = tl;
   } catch {}
 }
