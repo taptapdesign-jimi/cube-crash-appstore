@@ -669,33 +669,6 @@
   z-index: 1;
 }
 
-/* New card star indicator */
-.collectible-new-star {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  width: 32px;
-  height: 32px;
-  background-image: url('./assets/star-slider.png');
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
-  z-index: 100;
-  pointer-events: none;
-  animation: newStarPulse 2s ease-in-out infinite;
-}
-
-@keyframes newStarPulse {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.2);
-    opacity: 0.8;
-  }
-}
-
 /* Bounce up cartoony idle animation for newly unlocked cards */
 @keyframes bounceIdle {
   0%, 100% {

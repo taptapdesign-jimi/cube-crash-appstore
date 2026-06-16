@@ -14,6 +14,7 @@ import { gsap } from 'gsap';
 import { RUN_MODE_ARCADE_HOME, setRunMode } from './run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
+import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -473,22 +474,26 @@ class UIManager {
       (window as any).triggerHapticImpact('light');
     }
 
-    // Separate homepage run from Journey: one-time arcade run with no resume/continue flow.
     // IMPORTANT: Do not clear board-specific Journey saves here.
     setRunMode(RUN_MODE_ARCADE_HOME);
     try {
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
       localStorage.removeItem('cubeCrash_gameState');
-      logger.info('🧹 Home Play: cleared transient global save keys (Journey board saves preserved)');
+      logger.info('🧹 Home Play: cleared transient global save keys (Journey and Arcade saves preserved)');
     } catch (error) {
       logger.warn('⚠️ Home Play: failed to clear saves before one-time run:', error);
     }
 
+    const shouldResumeArcade = hasArcadeSavedState();
     if ((window as any).triggerGameStartSequence) {
-      (window as any).triggerGameStartSequence();
+      (window as any).triggerGameStartSequence({ resumeArcade: shouldResumeArcade });
     } else {
-      this.startNewGame();
+      if (shouldResumeArcade) {
+        this.startNewGameWithSavedState();
+      } else {
+        this.startNewGame();
+      }
     }
   }
   
@@ -691,12 +696,13 @@ class UIManager {
       
       console.log('✅ Game state set (gamePaused reset)');
       
-      // Clear old saved game state for new game
-      console.log('🧹 Clearing old saved game state...');
+      // Clear old global/transient saved game state for new game. Arcade run state is kept for resume.
+      console.log('🧹 Clearing old transient saved game state...');
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
       localStorage.removeItem('cubeCrash_gameState');
-      console.log('✅ Old saved game cleared');
+      clearArcadeSaveState();
+      console.log('✅ Old transient saved game cleared');
       
       // Start game
       console.log('🎯 Starting game boot...');
@@ -781,6 +787,10 @@ class UIManager {
       console.log('🔄 START NEW GAME WITH SAVED STATE');
       console.log('🔄 ====================================');
       logger.info('🔄 Starting new game WITH saved state...');
+      setRunMode(RUN_MODE_ARCADE_HOME);
+      (window as any).__ccCameFromHomepage = true;
+      (window as any).__ccCameFromJourney = false;
+      (window as any).__ccTriggerHudDrop = true;
       
       // Check if a clean-board completion was pending (hard-exit case)
       const completedState = localStorage.getItem('cc_board_completed');
@@ -827,6 +837,7 @@ class UIManager {
           // Flags consumed by startLevel; clear them after boot
           delete (window as any).__ccStartAtLevel;
           delete (window as any).__ccResumeScore;
+          delete (window as any).__ccTriggerHudDrop;
           
           // Show app element
           this.showApp();
@@ -893,6 +904,7 @@ class UIManager {
         // Show app element AFTER loading saved state
         console.log('📱 Showing app element...');
         this.showApp();
+        delete (window as any).__ccTriggerHudDrop;
         console.log('✅ App element shown');
         
         console.log('🔄 ====================================');
@@ -906,6 +918,7 @@ class UIManager {
       }
       
     } catch (error) {
+      delete (window as any).__ccTriggerHudDrop;
       logger.error('❌ Failed to start new game with saved state:', error);
     }
   }

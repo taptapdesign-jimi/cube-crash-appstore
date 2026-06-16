@@ -61,6 +61,7 @@ interface ShowCleanBoardModalParams {
   forcedStars?: number;
   devMode?: boolean; // 🧪 DEV: Enable dev mode for testing board transition screen
   isFromInterimBoardOverride?: boolean;
+  arcadeRunReached?: boolean;
 }
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
@@ -206,7 +207,8 @@ export async function showCleanBoardModal({
   boardNumber = 1,
   forcedStars,
   devMode = false, // 🧪 DEV: Enable dev mode for testing board transition screen
-  isFromInterimBoardOverride
+  isFromInterimBoardOverride,
+  arcadeRunReached = false
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
@@ -590,8 +592,10 @@ export async function showCleanBoardModal({
     // Board cleared text (initially hidden)
     const boardCleared = document.createElement('div');
     const boardNumberLabel = boardNumber.toString().padStart(2, '0');
-    boardCleared.textContent = isArcadeHomeRun
-      ? 'Arcade Board Cleared'
+    boardCleared.textContent = arcadeRunReached
+      ? `Stage ${boardNumberLabel} reached`
+      : isArcadeHomeRun
+      ? `Stage ${boardNumberLabel} cleared`
       : `Board ${boardNumberLabel} cleared`;
     // SIMPLE: Just text, no transforms, no animations
     boardCleared.style.position = 'absolute';
@@ -1046,6 +1050,28 @@ export async function showCleanBoardModal({
         }, 420);
 
         // SEQUENCE 2: Score already displayed (no animation needed)
+
+        if (arcadeRunReached) {
+          comboWrapper.style.display = 'none';
+          comboWrapper.style.visibility = 'hidden';
+          efficiencyWrapper.style.display = 'none';
+          efficiencyWrapper.style.visibility = 'hidden';
+
+          setTimeout(() => {
+            boardCleared.style.transition = 'opacity 0.4s ease';
+            boardCleared.style.opacity = '1';
+          }, 1450);
+
+          setTimeout(() => {
+            animateButtonIn(primaryBtn);
+            if (secondaryBtn) {
+              setTimeout(() => {
+                animateButtonIn(secondaryBtn);
+              }, buttonStaggerMs);
+            }
+          }, 2050);
+          return;
+        }
 
         // 🎯 SEQUENCE 3: Combo Bonus pop-in
         setTimeout(() => {

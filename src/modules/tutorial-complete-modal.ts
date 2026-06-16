@@ -180,7 +180,10 @@ function ensureTutorialCompleteStyles(): void {
   document.head.appendChild(style);
 }
 
-export async function showTutorialCompleteModal(): Promise<{ action: 'continue' }> {
+export async function showTutorialCompleteModal(options: {
+  title?: string;
+  subtitle?: string;
+} = {}): Promise<{ action: 'continue' }> {
   cleanupTutorialCompleteModal();
   ensureTutorialCompleteStyles();
 
@@ -189,9 +192,11 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
     let disposed = false;
     const overlay = document.createElement('div');
     overlay.id = 'cc-tutorial-complete-overlay';
+    const titleText = options.title || 'Congrats!';
+    const subtitleText = options.subtitle || 'You cleared the board.';
     overlay.innerHTML = `
-      <h1 class="cc-tutorial-complete-title" style="opacity:0;transform:scale(0) translateY(-28px);">Congrats!</h1>
-      <p class="cc-tutorial-complete-subtitle" style="opacity:0;transform:scale(0) translateY(-22px);">You cleared the board.</p>
+      <h1 class="cc-tutorial-complete-title" style="opacity:0;transform:scale(0) translateY(-28px);"></h1>
+      <p class="cc-tutorial-complete-subtitle" style="opacity:0;transform:scale(0) translateY(-22px);"></p>
       <div class="cc-tutorial-complete-content">
         <div class="cc-tutorial-complete-hero" aria-hidden="true">
           <div class="cc-tutorial-complete-shadow" style="opacity:0;transform:translateX(-50%) scale(0.68, 0.72);"></div>
@@ -208,6 +213,8 @@ export async function showTutorialCompleteModal(): Promise<{ action: 'continue' 
     const thumb = overlay.querySelector('.cc-tutorial-complete-thumb') as HTMLImageElement | null;
     const shadow = overlay.querySelector('.cc-tutorial-complete-shadow') as HTMLElement | null;
     const cta = overlay.querySelector('.cc-tutorial-complete-cta') as HTMLButtonElement | null;
+    if (title) title.textContent = titleText;
+    if (subtitle) subtitle.textContent = subtitleText;
     const hapticTimeouts: number[] = [];
     cleanupFns.push(() => {
       disposed = true;

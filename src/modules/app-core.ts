@@ -47,7 +47,7 @@ import { logger } from '../core/logger.js';
 import { devLog, devWarn, devError } from './app-core-logger.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag, MakeBoard } from '../types/game-types.js';
-import { getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
+import { getArcadeSaveKey, getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
 import { 
   setPendingCleanBoard, 
   clearPendingCleanBoard, 
@@ -1583,6 +1583,7 @@ let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
 let __hudMetrics: HudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
+const WILD_SPAWN_BOARD_SETTLE_MS = 520;
 function getWildSpawnAnimationBlockReason(): string | null {
   try {
     if (busyEnding) return 'busyEnding';
@@ -1590,10 +1591,21 @@ function getWildSpawnAnimationBlockReason(): string | null {
     if ((window as any).__ccFailScreenPending === true) return 'fail-screen-pending';
     const guard = getEndgameGuardState();
     if (guard.active) return `endgame-guard:${guard.sources.join(',') || 'ttl'}`;
+    if (merge6SpawnInProgress) return 'merge6-spawn-in-progress';
     if (wildMagnetPullInProgress) return 'wild-magnet-pull';
+    const sinceBoardMutation = lastEndgameBoardMutationAt ? Date.now() - lastEndgameBoardMutationAt : Infinity;
+    if (sinceBoardMutation < WILD_SPAWN_BOARD_SETTLE_MS) return 'board-settling';
     const hasMagnetAffectedTiles = Array.isArray(STATE?.tiles)
       && STATE.tiles.some((tile: any) => tile && !tile.destroyed && tile._wildMagnetAffected === true);
     if (hasMagnetAffectedTiles) return 'wild-magnet-affected-tiles';
+    const hasTransientTiles = Array.isArray(STATE?.tiles)
+      && STATE.tiles.some((tile: any) => tile && !tile.destroyed && (
+        tile._ccWildSpawnDropping === true ||
+        tile._ccSpawnAnimating === true ||
+        tile._spawnAnimating === true ||
+        tile._isSpawning === true
+      ));
+    if (hasTransientTiles) return 'tile-transient-animation';
     if ((window as any).__ccWildSpawnDropInProgress === true) return 'wild-spawn-drop';
   } catch {}
   return null;
@@ -1613,7 +1625,10 @@ function queueWildSpawnIfNeeded(){
   if (wildMeter < 1) return;
   const activeAnimationBlockReason = getWildSpawnAnimationBlockReason();
   if (activeAnimationBlockReason) {
-    scheduleWildSpawnRetry(activeAnimationBlockReason);
+    const retryDelay = activeAnimationBlockReason === 'merge6-spawn-in-progress' || activeAnimationBlockReason === 'board-settling'
+      ? WILD_SPAWN_BOARD_SETTLE_MS
+      : 220;
+    scheduleWildSpawnRetry(activeAnimationBlockReason, retryDelay);
     return;
   }
   
@@ -1775,13 +1790,21 @@ function addWildProgress(amount){
     return;
   }
 
+  const getArcadeWildMeterMultiplier = (stageNumber: number): number => {
+    const stage = Math.max(1, stageNumber | 0);
+    if (stage <= 1) return 1.15;
+    if (stage === 2) return 1.0;
+    if (stage === 3) return 0.9;
+    if (stage === 4) return 0.8;
+    if (stage < 8) return 0.7;
+    return 0.6;
+  };
+
   // 🎯 BOARD-SPECIFIC RULES: Apply board fill multiplier first.
   const fillRate = getWildMeterFillRate(boardNumber);
   // USER REQUEST: First 2 wild spawns charge at 1x, then slow to 0.6x.
   const progressionMultiplier = wildSpawnCount >= 2 ? 0.6 : 1.0;
-  // Arcade is the quick/fidget mode, but wilds were arriving too often there.
-  // Keep Journey unchanged; slow only Arcade wild meter charge by 40%.
-  const arcadeModeMultiplier = isArcadeHomeRunMode() ? 0.6 : 1.0;
+  const arcadeModeMultiplier = isArcadeHomeRunMode() ? getArcadeWildMeterMultiplier(boardNumber) : 1.0;
   const tutorialFreePlayMultiplier = (window as any).__ccFirstPlayTutorialSlowWildMeter === true ? 0.05 : 1.0;
   const adjustedInc = inc * fillRate * progressionMultiplier * arcadeModeMultiplier * tutorialFreePlayMultiplier;
   devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, progression multiplier: ${progressionMultiplier}x, arcade multiplier: ${arcadeModeMultiplier}x, tutorial multiplier: ${tutorialFreePlayMultiplier}x, wildSpawnCount: ${wildSpawnCount}, adjusted increment: ${adjustedInc} (from ${inc})`);
@@ -3982,6 +4005,13 @@ function startLevel(n){
   
   // STATS TRACKING: Update highest board reached
   updateStartLevelStats({ n, statsService, devLog, devError });
+  if (isArcadeHomeRunMode()) {
+    try {
+      arcadeStatsService.updateHighestStageOpened(n);
+    } catch (error) {
+      devWarn('⚠️ Failed to update Arcade highest stage opened:', error);
+    }
+  }
   
   incrementBoardTimesPlayed({ n, devLog });
   syncJourneyBoards({ n, devLog, devWarn });
@@ -3994,6 +4024,12 @@ function startLevel(n){
   hudResetCombo();
   devLog('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   clearComboIdleTimer({ comboIdleTimer });
+  const preserveArcadeWildRunProgress =
+    isArcadeHomeRunMode() &&
+    (window as any).__ccArcadeStageContinuePreserveWild === true;
+  const arcadeWildMeterCarryover = preserveArcadeWildRunProgress
+    ? Math.max(0.25, Math.min(0.4, Number((window as any).__ccArcadeStageWildMeterCarryover) || 0.25))
+    : 0;
   
   resetWildAndEndgameState({
     setWildMeter: (v) => { wildMeter = v; },
@@ -4005,8 +4041,12 @@ function startLevel(n){
     setWildMergeLockedSpawnCount: (v) => { wildMergeLockedSpawnCount = v; },
     setLastWildDropType: (v) => { lastWildDropType = v as any; },
     setWildDropTypeStreak: (v) => { wildDropTypeStreak = v; },
+    preserveWildDropProgress: preserveArcadeWildRunProgress,
+    carryoverWildMeter: arcadeWildMeterCarryover,
     clearEndGameCache,
   });
+  delete (window as any).__ccArcadeStageContinuePreserveWild;
+  delete (window as any).__ccArcadeStageWildMeterCarryover;
   
   // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
   // This prevents creating an empty board before loadGameState restores tiles
@@ -4366,6 +4406,7 @@ async function spawnWildFromMeter(){
       const specialDiceVariant = pickSpecialDiceVariantForWildSpawn({
         isArcade: isArcadeHomeRunMode(),
         wildSpawnCount,
+        arcadeStage: boardNumber,
       });
       if (specialDiceVariant) {
         const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);
@@ -4467,6 +4508,10 @@ async function spawnWildFromMeter(){
         } finally {
           try {
             if (spawnedTile && !spawnedTile.destroyed) {
+              try {
+                (window as any).__ccWildSpawnDropActiveCount = 0;
+                (window as any).__ccWildSpawnDropInProgress = false;
+              } catch {}
               delete (spawnedTile as any)._ccWildSpawnDropping;
               spawnedTile.visible = true;
               spawnedTile.alpha = 1;
@@ -8660,6 +8705,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         } else {
           merge6SpawnInProgress = true;
           merge6SpawnInProgressIsWild = isWildMerge6;
+          lastEndgameBoardMutationAt = Date.now();
           devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
           if (merge6SpawnResetTimer) {
             try { merge6SpawnResetTimer.kill(); } catch {}
@@ -10783,12 +10829,6 @@ function checkLevelEnd(){
     }
     
     if (checkLevelEndResult.type === 'stuck') {
-      devWarn('🧪 FAILFLOW DEBUG: entered stuck branch', {
-        reason: checkLevelEndResult.reason,
-        busyEnding,
-        failPending: (window as any).__ccFailScreenPending === true,
-        wildReady: isWildContinuationPendingForFail(),
-      });
       try { resetEndgameHint(); } catch {}
       const wildReady = isWildContinuationPendingForFail();
       if (wildReady) {
@@ -10797,13 +10837,6 @@ function checkLevelEnd(){
           stuckWildDeferralStartedAt = now;
         }
         const deferMs = now - stuckWildDeferralStartedAt;
-        devWarn('🧪 FAILFLOW DEBUG: defer because wildReady', {
-          wildMeter,
-          wildSpawnInProgress,
-          hasRetryTimer: wildSpawnRetryTimer !== null,
-          deferMs,
-          maxDeferMs: MAX_STUCK_WILD_DEFERRAL_MS,
-        });
         if (deferMs < MAX_STUCK_WILD_DEFERRAL_MS) {
           devLog('⚠️ checkLevelEnd: Stuck detected but wild meter is ready/spawning – deferring fail screen until wild cube drops');
           queueWildSpawnIfNeeded();
@@ -10952,10 +10985,6 @@ function checkLevelEnd(){
 
       const sinceMutation = lastEndgameBoardMutationAt ? (Date.now() - lastEndgameBoardMutationAt) : Infinity;
       if (sinceMutation < ENDGAME_FAIL_MUTATION_COOLDOWN_MS) {
-        devWarn('🧪 FAILFLOW DEBUG: defer because mutation cooldown', {
-          sinceMutation,
-          cooldown: ENDGAME_FAIL_MUTATION_COOLDOWN_MS,
-        });
         devLog('🛡️ checkLevelEnd: Deferring fail due to recent board mutation cooldown', {
           sinceMutation,
           cooldown: ENDGAME_FAIL_MUTATION_COOLDOWN_MS
@@ -11004,12 +11033,6 @@ function checkLevelEnd(){
         await waitTracked(delayMs);
         const dragTileNow = ((STATE as any)?.drag?.t) || ((drag as any)?.t);
         if (dragTileNow && !dragTileNow.destroyed) {
-          devWarn('🧪 FAILFLOW DEBUG: abort during confirmation because drag active', {
-            value: dragTileNow.value,
-            special: dragTileNow.special,
-            gridX: dragTileNow.gridX,
-            gridY: dragTileNow.gridY,
-          });
           devLog('🛡️ checkLevelEnd: Abort fail - drag became active during stuck confirmation');
           stableStuckConfirmed = false;
           break;
@@ -11017,12 +11040,11 @@ function checkLevelEnd(){
         if (hasNotReadyTilesNow()) {
           const sinceMutationDuringConfirm = lastEndgameBoardMutationAt ? (Date.now() - lastEndgameBoardMutationAt) : Infinity;
           if (sinceMutationDuringConfirm <= MAX_CHECK_LEVEL_END_SKIP_MS) {
-            devWarn('🧪 FAILFLOW DEBUG: abort during confirmation because tiles not ready');
             devLog('🛡️ checkLevelEnd: Abort fail - tiles are still spawning/animating during stuck confirmation');
             stableStuckConfirmed = false;
             break;
           }
-          devWarn('🧪 FAILFLOW DEBUG: forcing stuck confirmation despite stale not-ready flags (board stable too long)', {
+          devWarn('⚠️ checkLevelEnd: Forcing stuck confirmation despite stale not-ready flags', {
             sinceMutationDuringConfirm,
             maxSkipMs: MAX_CHECK_LEVEL_END_SKIP_MS,
           });
@@ -11031,11 +11053,6 @@ function checkLevelEnd(){
         const recheckResult = checkEndGame(recheckContext, true);
         lastReason = recheckResult.reason;
         if (recheckResult.type !== 'stuck') {
-          devWarn('🧪 FAILFLOW DEBUG: abort because recheck is no longer stuck', {
-            first: checkLevelEndResult.reason,
-            secondType: recheckResult.type,
-            secondReason: recheckResult.reason,
-          });
           devLog('🛡️ checkLevelEnd: Transient stuck resolved on recheck, continuing game', {
             first: checkLevelEndResult.reason,
             second: recheckResult.reason
@@ -11045,7 +11062,6 @@ function checkLevelEnd(){
         }
         const currentSignature = buildBoardStabilitySignature();
         if (currentSignature !== initialStuckSignature) {
-          devWarn('🧪 FAILFLOW DEBUG: abort because board signature changed during confirmation');
           devLog('🛡️ checkLevelEnd: Board changed during stuck confirmation, skipping fail this tick');
           stableStuckConfirmed = false;
           break;
@@ -11053,7 +11069,6 @@ function checkLevelEnd(){
       }
 
       if (!stableStuckConfirmed) {
-        devWarn('🧪 FAILFLOW DEBUG: stableStuckConfirmed=false, exiting stuck branch without fail modal');
         checkLevelEndTimer = trackDelayedCall(0.25, () => {
           checkLevelEndTimer = null;
           checkLevelEnd();
@@ -11074,54 +11089,8 @@ function checkLevelEnd(){
       // 🔥 REFACTORED: Uklonjena redundancija - checkEndGame() već poziva anyMergePossible() kroz isGameStuck()
       // Ako checkEndGame() vraća 'stuck', znači da anyMergePossible() već vratio false
       // Nema potrebe za dodatnom provjerom
-      
-      const dumpEndgameSnapshot = (label: string) => {
-        try {
-          const tileSummary = (tiles || []).filter((t: any) => t && !t.destroyed).map((t: any) => ({
-            v: t.value,
-            s: t.special || null,
-            l: !!t.locked,
-            e: t.eventMode || null,
-            x: t.gridX,
-            y: t.gridY,
-            d: (t as any).stackDepth || 1,
-            wild: !!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true)
-          }));
-          const gridSummary: any[] = [];
-          if (Array.isArray(grid)) {
-            for (let r = 0; r < grid.length; r++) {
-              const row = grid[r] || [];
-              for (let c = 0; c < row.length; c++) {
-                const t = row[c];
-                if (!t) continue;
-                gridSummary.push({
-                  r, c,
-                  v: t.value,
-                  s: t.special || null,
-                  l: !!t.locked,
-                  e: t.eventMode || null,
-                  id: (t as any).uid || null
-                });
-              }
-            }
-          }
-          devWarn('📸 ENDGAME SNAPSHOT', {
-            label,
-            moves,
-            tilesCount: tiles?.length || 0,
-            activeCount: tiles.filter(tileIsActive).length,
-            lockedCount: tiles.filter((t: any) => t && !t.destroyed && t.locked).length,
-            wildsCount: tiles.filter((t: any) => t && !t.destroyed && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt')).length,
-            tileSummary,
-            gridSummary
-          });
-        } catch (e) {
-          devWarn('⚠️ ENDGAME SNAPSHOT failed:', e);
-        }
-      };
+
       if (!busyEnding) {
-        devWarn('🧪 FAILFLOW DEBUG: final fail path starting (will show NO MOVES then fail modal)');
-        dumpEndgameSnapshot('checkLevelEnd_stuck_before_fail');
         // Lock the fail flow immediately. The NO MOVES delay is visual only; no other
         // endgame check should re-enter stuck handling while it is waiting.
         failScreenFlowInProgress = true;
@@ -11152,10 +11121,8 @@ function checkLevelEnd(){
         } catch {
           try { clearNoMovesText(); } catch {}
         }
-        devWarn('🧪 FAILFLOW DEBUG: invoking showFinalScreen now');
         showFinalScreen({ confirmedFailFlow: true });
       } else {
-        devWarn('🧪 FAILFLOW DEBUG: blocked because busyEnding=true');
         devWarn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
         checkLevelEndTimer = trackDelayedCall(0.35, () => {
           checkLevelEndTimer = null;
@@ -11488,6 +11455,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   failScreenFlowInProgress = true;
   // Clear fail-screen-pending flag (busyEnding now covers this)
   (window as any).__ccFailScreenPending = false;
+  const isArcadeRunReachedSummary = isArcadeHomeRunMode() && Math.max(1, boardNumber | 0) > 1;
 
   // 🔥 FIX: Wrap in try/finally to ensure busyEnding is always reset
   try {
@@ -11523,8 +11491,12 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     devWarn('⚠️ Memory cleanup failed:', error);
   }
   
-  // Haptic feedback for game over
-  if (typeof (window as any).triggerHapticNotification === 'function') {
+  // Arcade Stage 02+ run end is a progress summary; Stage 01 fail remains a real fail.
+  if (isArcadeRunReachedSummary) {
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('medium');
+    }
+  } else if (typeof (window as any).triggerHapticNotification === 'function') {
     (window as any).triggerHapticNotification('error');
   }
   
@@ -11540,26 +11512,65 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   
   let result = null;
   try {
-    const { showBoardFailModal } = await import('./board-fail-modal.js');
-    result = await showBoardFailModal({
-      score: Math.max(0, score | 0),
-      boardNumber: Math.max(1, boardNumber | 0)
-    });
+    if (isArcadeRunReachedSummary) {
+      const { showCleanBoardModal } = await import('./clean-board-modal.js');
+      result = await showCleanBoardModal({
+        app,
+        stage,
+        getScore: () => Math.max(0, score | 0),
+        setScore: (nextScore) => { score = Math.max(0, nextScore | 0); updateHUD(); },
+        animateScore,
+        updateHUD,
+        comboBonus: 0,
+        efficiencyBonus: 0,
+        bonus: 0,
+        boardNumber: Math.max(1, boardNumber | 0),
+        arcadeRunReached: true,
+      });
+    } else {
+      const { showBoardFailModal } = await import('./board-fail-modal.js');
+      result = await showBoardFailModal({
+        score: Math.max(0, score | 0),
+        boardNumber: Math.max(1, boardNumber | 0)
+      });
+    }
   } catch (error) {
     // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
     // If board-fail-modal fails, log error but don't show the old overlay
-    devError('❌ CRITICAL: Board fail modal failed - cannot show fail screen:', error);
-    devError('❌ This should never happen. Check board-fail-modal.js for errors.');
+    devError('❌ CRITICAL: End-run modal failed - cannot show end screen:', error);
+    devError('❌ This should never happen. Check board-fail-modal.js / clean-board-modal.js for errors.');
     // Don't show old stars modal - it's deprecated and shows wrong UI
   }
 
   // 🔥 USER REQUEST: DO NOT update high score on fail!
   // High score is ONLY updated after successful clean board (in endgame-flow.ts)
   // Fail = ne updateamo high score
-  devLog(`📊 Board ${boardNumber} failed - high score NOT updated (only on clean board success)`);
+  devLog(isArcadeRunReachedSummary
+    ? `📊 Arcade run ended at stage ${boardNumber}`
+    : `📊 Board ${boardNumber} failed - high score NOT updated (only on clean board success)`);
   updateHUD();
 
-  if (result?.action === 'menu') {
+  if (isArcadeHomeRunMode()) {
+    try {
+      const { clearArcadeSaveState } = await import('../utils/board-save-utils.js');
+      clearArcadeSaveState();
+    } catch {}
+
+    if (result?.action === 'play-again' || result?.action === 'retry' || result?.action === 'continue') {
+      try { (window as any).__ccForceArcadeRestartStage01 = true; } catch {}
+      devLog('🎮 Arcade run reached Play Again - restarting fresh Stage 01');
+      restartGame();
+    } else if (result?.action === 'exit' || result?.action === 'menu') {
+      devLog('🚪 Arcade run reached Exit - returning to menu');
+      try {
+        if (typeof (window as any).exitToMenu === 'function') {
+          await (window as any).exitToMenu();
+        }
+      } catch (error) {
+        devWarn('⚠️ Arcade run reached exitToMenu failed:', error);
+      }
+    }
+  } else if (result?.action === 'menu') {
     // 🔥 BUG FIX: exitToMenu is already called in board-fail-modal.ts when Exit button is clicked
     // Don't call it again here - it causes duplicate calls and blank screen
     // The modal already handles exitToMenu and waits for it to complete before resolving
@@ -11730,10 +11741,13 @@ function restartGame(){
     });
   } catch {}
   
-  // 🔥 USER REQUEST: Keep current boardNumber (don't reset to 1)
-  // This ensures Play Again restarts the same board, not board 1
-  const currentBoard = boardNumber || 1;
-  devLog(`🔄 RESTART: Keeping current board ${currentBoard} (not resetting to 1)`);
+  const forceArcadeStage01 = isArcadeHomeRunMode() && (window as any).__ccForceArcadeRestartStage01 === true;
+  if (forceArcadeStage01) {
+    delete (window as any).__ccForceArcadeRestartStage01;
+  }
+  // Keep current board by default; Arcade fail Play Again can explicitly start a fresh Stage 01 run.
+  const currentBoard = forceArcadeStage01 ? 1 : (boardNumber || 1);
+  devLog(`🔄 RESTART: Restart target board ${currentBoard}`, { forceArcadeStage01 });
   
   // Reset game state WITHOUT touching HUD positioning or boardNumber
   score = 0;
@@ -12409,12 +12423,12 @@ function saveGameState() {
     if (serialized !== lastSavedState) {
       // 🔥 USER REQUEST: Board-specific save state - each board has its own save
       // This prevents conflicts when switching between boards (e.g., Board 07 → Board 03)
-      const saveKey = getBoardSaveKey(boardNumber);
+      const saveKey = isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardNumber);
       localStorage.setItem(saveKey, serialized);
       lastSavedState = serialized;
-      devLog(`💾 Game state saved successfully for board ${boardNumber} (${saveKey}) - state changed.`);
+      devLog(`💾 Game state saved successfully for ${isArcadeHomeRunMode() ? 'Arcade' : `board ${boardNumber}`} (${saveKey}) - state changed.`);
     } else {
-      devLog(`💾 Game state unchanged for board ${boardNumber}, skipping save.`);
+      devLog(`💾 Game state unchanged for ${isArcadeHomeRunMode() ? 'Arcade' : `board ${boardNumber}`}, skipping save.`);
     }
   } catch (error) {
     devWarn('⚠️ Failed to save game state:', error);
@@ -12426,10 +12440,16 @@ async function loadGameState(overrideBoardNumber?: number) {
   devLog('🔄 loadGameState called...', overrideBoardNumber != null ? `(override: board ${boardToLoad})` : '');
   
   try {
-    const saved = loadSavedBoardState({ boardNumber: boardToLoad, getBoardSaveKey, devLog, devWarn });
+    const saved = loadSavedBoardState({
+      boardNumber: boardToLoad,
+      getBoardSaveKey: isArcadeHomeRunMode() ? getArcadeSaveKey : getBoardSaveKey,
+      devLog,
+      devWarn
+    });
     if (!saved) {
-      logger.warn(`⚠️ loadGameState: no saved state for board ${boardToLoad} (${getBoardSaveKey(boardToLoad)}) - will rebuild`);
-      devLog('🔄 loadGameState: no saved state for board', boardToLoad, '- returning false');
+      const missingSaveKey = isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardToLoad);
+      logger.warn(`⚠️ loadGameState: no saved state for ${isArcadeHomeRunMode() ? 'Arcade' : `board ${boardToLoad}`} (${missingSaveKey}) - will rebuild`);
+      devLog('🔄 loadGameState: no saved state for', isArcadeHomeRunMode() ? 'Arcade' : `board ${boardToLoad}`, '- returning false');
       (window as any).__ccEnterAnimationActive = false;
       return false;
     }
@@ -12545,14 +12565,14 @@ async function loadGameState(overrideBoardNumber?: number) {
     
     // 🔥 CRITICAL: Check if tiles were actually loaded BEFORE starting pop-in animation
     // Fail fast so we don't animate then rebuild; also ensures we don't treat valid restore as empty
-    lastSavedState = localStorage.getItem(getBoardSaveKey(boardNumber));
+    lastSavedState = localStorage.getItem(isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardNumber));
     const activeCount = tiles.filter(t => t && !t.locked && (t.value | 0) > 0).length;
     const emptyLoadResult = handleEmptyLoadState({
       tiles,
       boardNumber,
       getPendingCleanBoard,
       clearPendingCleanBoard,
-      getBoardSaveKey,
+      getBoardSaveKey: isArcadeHomeRunMode() ? getArcadeSaveKey : getBoardSaveKey,
       triggerCleanBoardFlow,
       trackAppTimeout,
       devLog,
@@ -12607,6 +12627,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       boardNumber,
       checkAndRecoverBoard,
       triggerCleanBoardFlow,
+      checkLevelEnd,
       trackAppTimeout,
       devLog,
       devWarn,

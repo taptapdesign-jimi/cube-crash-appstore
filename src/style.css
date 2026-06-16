@@ -2695,9 +2695,10 @@ body.journey-board-game-active #hud-board-indicator {
 .score-bottom-sheet .score-stats-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
   width: 100%;
   margin-top: -16px; /* Približiti stats prema subtitle za 16px (gap iz simple-header je 40px, sada je efektivno 24px) */
+  align-items: flex-start;
 }
 
 /* Score bottom sheet stats: High score + Cubes cracked (v130 design) */
@@ -2705,9 +2706,10 @@ body.journey-board-game-active #hud-board-indicator {
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16px;
   padding: 16px 0;
+  width: 100%;
   text-align: left;
 }
 .score-bottom-sheet .score-stats-container .score-stat-divider {
@@ -2715,6 +2717,7 @@ body.journey-board-game-active #hud-board-indicator {
   height: 2px;
   background: #F9F2E9;
   flex-shrink: 0;
+  margin: 8px 0;
 }
 .score-bottom-sheet .score-stats-container .stat-icon {
   width: 80px;
@@ -2733,8 +2736,8 @@ body.journey-board-game-active #hud-board-indicator {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  width: 106px;
-  flex: 0 0 106px;
+  width: 150px;
+  flex: 0 0 150px;
   align-items: flex-start;
   padding: 0;
   text-align: left;
@@ -2757,6 +2760,7 @@ body.journey-board-game-active #hud-board-indicator {
   color: #AD8775;
   line-height: 1.1;
   margin: 0;
+  white-space: nowrap;
 }
 
 .score-bottom-sheet.score-sheet-combo-mode .score-stats-container .stat-content {
@@ -2771,28 +2775,29 @@ body.journey-board-game-active #hud-board-indicator {
 /* iPad-only: center all score stats content (icons + text) */
 @media (min-width: 769px) and (max-width: 1024px) {
   .score-bottom-sheet .score-stats-container {
-    align-items: center;
-    flex-direction: row;
-    gap: 12px;
-    justify-content: center;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+    justify-content: flex-start;
   }
   .score-bottom-sheet .score-stats-container .stat-item {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: 12px;
-    justify-content: center;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    justify-content: flex-start;
     align-items: center;
     text-align: left;
-    width: auto;
-    padding: 12px 20px;
+    width: 100%;
+    padding: 16px 0;
     border-radius: 18px;
     background: none;
     box-shadow: none;
   }
   .score-bottom-sheet .score-stats-container .score-stat-divider {
-    width: 2px;
-    height: 64px;
+    width: 100%;
+    height: 2px;
     background: #F9F2E9;
+    margin: 8px 0;
   }
   .score-bottom-sheet .score-stats-container .stat-content {
     align-items: flex-start;

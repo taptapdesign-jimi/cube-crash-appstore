@@ -240,17 +240,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // When we expect stars/bubbles (!skipStarsWait), wait 350ms first so they have time to start, then poll.
     try {
       const fxModule = await import('./fx.js');
-      const maxWaitMs = 4000;
+      const isArcadeStageClear = isArcadeHomeRunMode();
+      const maxWaitMs = isArcadeStageClear ? 1400 : 4000;
+      const animationStartBufferMs = isArcadeStageClear ? 140 : 350;
       const waitForAnimations = async () => {
         if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
           await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
         } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
-          await new Promise((r) => setTimeout(r, 350)); // let bubbles/stars start (200ms) + buffer
+          await new Promise((r) => setTimeout(r, animationStartBufferMs)); // let bubbles/stars register before polling
           await fxModule.waitForOngoingAnimations(maxWaitMs);
         }
       };
       const hardTimeout = new Promise<'timeout'>((resolve) => {
-        setTimeout(() => resolve('timeout'), maxWaitMs + 800);
+        setTimeout(() => resolve('timeout'), maxWaitMs + (isArcadeStageClear ? 300 : 800));
       });
       const result = await Promise.race([waitForAnimations().then(() => 'done' as const), hardTimeout]);
       if (result === 'timeout') {
@@ -293,6 +295,70 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         console.warn('⚠️ endgame-flow: Tutorial complete modal failed, returning home:', modalError);
       }
       await returnFirstPlayTutorialToHomepage();
+      return;
+    }
+
+    if (isArcadeHomeRunMode()) {
+      const clearedStage = Math.max(1, boardNumber | 0);
+      const nextStage = clearedStage + 1;
+      const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
+
+      try {
+        const { arcadeStatsService } = await import('../services/arcade-stats-service.js');
+        arcadeStatsService.updateHighScore(currentScore);
+      } catch (error) {
+        logger.warn('⚠️ endgame-flow: Failed to update Arcade high score on stage clear:', error);
+      }
+
+      try {
+        const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
+        if (typeof animateBoardIndicatorExit === 'function') {
+          animateBoardIndicatorExit(0.25);
+        }
+      } catch {}
+
+      try {
+        const { showArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
+        await showArcadeStageClearModal(clearedStage, nextStage);
+      } catch (modalError) {
+        logger.warn('⚠️ endgame-flow: Arcade stage clear modal failed, continuing to next stage:', modalError);
+      }
+
+      try {
+        localStorage.removeItem('cc_board_completed');
+        localStorage.removeItem('cc_saved_game');
+        localStorage.removeItem('cubeCrash_gameState');
+      } catch {}
+
+      try {
+        (window as any).__ccPreserveScore = currentScore;
+        (window as any).__ccArcadeStageContinuePreserveWild = true;
+        (window as any).__ccArcadeStageWildMeterCarryover = 0.25;
+        delete (window as any).__ccSkipRebuildBoard;
+        delete (window as any).__skipBoardExitAnimation;
+        try { (window as any).CC?.cleanupFxForBoardReset?.('arcade-stage-clear'); } catch {}
+        try { (window as any).CC?.softResetBoardView?.('arcade-stage-clear'); } catch {}
+        try {
+          const uiManagerModule = await import('./ui-manager.js');
+          uiManagerModule.default?.showApp?.();
+        } catch {}
+
+        startLevel(nextStage);
+        try {
+          const layoutBoardFn = (window as any).CC?.layoutBoard;
+          if (typeof layoutBoardFn === 'function') {
+            await layoutBoardFn();
+          }
+        } catch (layoutError) {
+          logger.warn('⚠️ endgame-flow: Arcade stage layout failed after continue:', layoutError);
+        }
+        try { ctx.updateHUD?.(); } catch {}
+        logger.info(`🎮 endgame-flow: Arcade continued from stage ${clearedStage} to stage ${nextStage} with score ${currentScore}`);
+      } finally {
+        delete (window as any).__ccPreserveScore;
+        delete (window as any).__ccArcadeStageContinuePreserveWild;
+        delete (window as any).__ccArcadeStageWildMeterCarryover;
+      }
       return;
     }
 

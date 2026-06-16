@@ -6,7 +6,7 @@
 // - NEMA nearest auto-aimanja; u suprotnom ide snapBack.
 // - GSAP guardovi ostaju za sigurnost.
 
-import { Graphics, Container, Sprite, Texture } from 'pixi.js';
+import { Graphics, Container, Sprite, Texture, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
@@ -233,6 +233,7 @@ export function initDrag(cfg) {
     _boardCenterX: board ? board.x : 0,
     _boardCenterY: board ? board.y : 0,
     _boardPivotApplied: false,
+    _watchdogTimeout: null as any,
   };
 
   function eventPointerId(e: any): number | null {
@@ -250,6 +251,53 @@ export function initDrag(cfg) {
   }
 
   const helpers = { snapBack, clearHover };
+
+  function clearDragRuntime() {
+    try {
+      app?.stage?.off('pointermove', onMove);
+      app?.stage?.off('pointerup', onUp);
+      app?.stage?.off('pointerupoutside', onUp);
+      app?.stage?.off('pointercancel', onCancel);
+    } catch {}
+    if (drag._sparkleInterval) {
+      clearInterval(drag._sparkleInterval);
+      drag._sparkleInterval = null;
+    }
+    if (drag._watchdogTimeout) {
+      clearTimeout(drag._watchdogTimeout);
+      drag._watchdogTimeout = null;
+    }
+    drag._lastSparkleTime = null;
+    drag._lastSmokeTime = null;
+    drag.pointerId = null;
+    drag.pointerType = null;
+  }
+
+  function restartDragWatchdog() {
+    if (drag._watchdogTimeout) {
+      clearTimeout(drag._watchdogTimeout);
+      drag._watchdogTimeout = null;
+    }
+    drag._watchdogTimeout = setTimeout(() => {
+      const t = drag.t;
+      if (!t) {
+        clearDragRuntime();
+        return;
+      }
+      clearHover({ immediateMagnet: true });
+      clearDragRuntime();
+      drag.t = null;
+      try {
+        if (t && !t.destroyed) {
+          snapBack(t, () => {
+            try { startSpecialDiceIdleMotion(t); } catch {}
+          });
+        }
+      } catch {
+        try { restoreZ(t); } catch {}
+      }
+    }, 9000);
+  }
 
   // ⚙️ Z-INDEX SAFETY HELPERS
   function rememberZ(t){ t._zBeforeDrag = (t?._zBeforeDrag ?? t?.zIndex ?? 0); }
@@ -271,9 +319,41 @@ export function initDrag(cfg) {
     }
 
     t.removeAllListeners?.('pointerdown');
+    if (t.rotG && t.rotG !== t) {
+      try { t.rotG.removeAllListeners?.('pointerdown'); } catch {}
+    }
     t.eventMode = 'static';
+    t.interactive = true;
+    t.interactiveChildren = true;
     t.cursor = 'pointer';
-    t.on('pointerdown', (e) => onDown(e, t));
+    const special = getTileSpecial(t);
+    if (special) {
+      const hitSize = tileSize * 1.16;
+      const half = hitSize / 2;
+      const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
+      t.hitArea = hitArea;
+      if (t.rotG && t.rotG !== t) {
+        t.rotG.eventMode = 'static';
+        t.rotG.interactive = true;
+        t.rotG.interactiveChildren = false;
+        t.rotG.cursor = 'pointer';
+        t.rotG.hitArea = hitArea;
+      }
+      try {
+        t.children?.forEach?.((child: any) => {
+          if (child && child !== t.rotG) {
+            child.eventMode = 'none';
+            child.interactive = false;
+            child.interactiveChildren = false;
+          }
+        });
+      } catch {}
+    }
+    const start = (e: any) => onDown(e, t);
+    t.on('pointerdown', start);
+    if (special && t.rotG && t.rotG !== t) {
+      t.rotG.on('pointerdown', start);
+    }
   }
 
   function onDown(e, t) {
@@ -336,17 +416,15 @@ export function initDrag(cfg) {
 
     // 🛡️ Block drag only until BOOM exit completes
     if ((window as any).__ccTntDragBlocked === true) {
+      if ((window as any).__ccTntAnimationActive !== true) {
+        try { (window as any).__ccTntDragBlocked = false; } catch {}
+      } else {
       console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');
       return;
+      }
     }
 
-    const repairedSpecialAtDragStart = repairWildTileState(t);
-    if ((window as any).__ccWildSpawnDropInProgress === true && repairedSpecialAtDragStart) {
-      console.log('🛡️ DRAG BLOCKED: Wild spawn/drop animation active - wild tiles are protected', repairedSpecialAtDragStart);
-      try { e?.stopPropagation?.(); } catch {}
-      try { e?.preventDefault?.(); } catch {}
-      return;
-    }
+    repairWildTileState(t);
 
     if ((t as any)?._ccWildSpawnDropping === true) {
       console.log('🛡️ DRAG BLOCKED: Incoming wild is still landing');
@@ -589,11 +667,14 @@ export function initDrag(cfg) {
     app.stage.on('pointermove', onMove);
     app.stage.on('pointerup', onUp);
     app.stage.on('pointerupoutside', onUp);
+    app.stage.on('pointercancel', onCancel);
+    restartDragWatchdog();
   }
 
   function onMove(e) {
     if (!drag.t) return;
     if (!isActivePointerEvent(e)) return;
+    restartDragWatchdog();
     const t = drag.t;
     if (!t || t.destroyed || !t.position) {
       // 🔥 FIX: Clean up listeners and interval if tile was destroyed mid-drag
@@ -602,19 +683,7 @@ export function initDrag(cfg) {
       drag.pointerType = null;
       clearHover();
       
-      // Clean up event listeners
-      app.stage.off('pointermove', onMove);
-      app.stage.off('pointerup', onUp);
-      app.stage.off('pointerupoutside', onUp);
-      
-      // Clean up sparkle interval
-      if (drag._sparkleInterval) {
-        clearInterval(drag._sparkleInterval);
-        drag._sparkleInterval = null;
-      }
-      if (drag._lastSparkleTime) {
-        drag._lastSparkleTime = null;
-      }
+      clearDragRuntime();
       
       return;
     }
@@ -954,14 +1023,9 @@ export function initDrag(cfg) {
   function onUp(e) {
     if (!isActivePointerEvent(e)) return;
 
-    app.stage.off('pointermove', onMove);
-    app.stage.off('pointerup', onUp);
-    app.stage.off('pointerupoutside', onUp);
-
     const t = drag.t;
     drag.t = null;
-    drag.pointerId = null;
-    drag.pointerType = null;
+    clearDragRuntime();
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
     try {
@@ -970,19 +1034,6 @@ export function initDrag(cfg) {
       console.warn('⚠️ Failed to notify board interaction on drag end:', error);
     }
     
-    // Clear sparkle timer and interval when drag ends
-    if (drag._lastSparkleTime) {
-      drag._lastSparkleTime = null;
-    }
-    if (drag._sparkleInterval) {
-      clearInterval(drag._sparkleInterval);
-      drag._sparkleInterval = null;
-    }
-    
-    // Clear smoke trail timer when drag ends
-    if (drag._lastSmokeTime) {
-      drag._lastSmokeTime = null;
-    }
     // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
     // Stop board wobble and reset when drag ends
     /*
@@ -1090,7 +1141,6 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
-        try { startSpecialDiceIdleMotion(tileRef); } catch {}
         if (tileRef.special === 'wild-juice') {
           try {
             import('./fx.js').then(fxModule => {
@@ -1111,7 +1161,7 @@ export function initDrag(cfg) {
       return;
     }
 
-    const target = pickDropTarget(t);
+    const target = pickDropTarget(t, { pointerGlobal: e?.global });
     
     if (!target) {
       clearHover();
@@ -1205,6 +1255,22 @@ export function initDrag(cfg) {
     onMerge?.(t, target, helpers);
   }
 
+  function onCancel(e) {
+    if (!isActivePointerEvent(e)) return;
+    const t = drag.t;
+    drag.t = null;
+    clearHover({ immediateMagnet: true });
+    clearDragRuntime();
+    if (!t || t.destroyed) return;
+    try {
+      snapBack(t, () => {
+        try { startSpecialDiceIdleMotion(t); } catch {}
+      });
+    } catch {
+      try { restoreZ(t); } catch {}
+    }
+  }
+
   // === STABLE HIT-TEST: preklapanje pravokutnika, bez auto-aimanja ===
   // 🔥 PERFORMANCE: Throttle pickDropTarget to prevent lag
   let lastPickDropTime = 0;
@@ -1232,6 +1298,7 @@ export function initDrag(cfg) {
   
   function pickDropTarget(src, opts = {}) {
     const allowCenterFallback = opts.allowCenterFallback !== false;
+    const pointerGlobal = opts.pointerGlobal || null;
     // 🔥 PERFORMANCE: Throttle pickDropTarget calls to prevent lag
     const now = performance.now();
     const srcX = src?.x ?? 0;
@@ -1276,6 +1343,41 @@ export function initDrag(cfg) {
 
     const srcR = getRect(src);
     if (!srcR || srcR.w === 0 || srcR.h === 0) return null;
+
+    const isDirectWild = (tile) => isDirectWildTile(tile);
+    const pointerDropAllowed = pointerGlobal && src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
+    if (pointerDropAllowed) {
+      let pointerBest = null;
+      let pointerBestDist = Infinity;
+      const px = Number(pointerGlobal.x);
+      const py = Number(pointerGlobal.y);
+      const pad = tileSize * 0.10;
+      for (const t of candidates) {
+        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if ((t as any)._ccWildSpawnDropping === true) continue;
+        if (!isDirectWild(src) && !isDirectWild(t)) continue;
+        if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
+        const r = getRect(t);
+        if (!r || r.w === 0 || r.h === 0) continue;
+        const inside =
+          px >= r.x - pad &&
+          px <= r.x + r.w + pad &&
+          py >= r.y - pad &&
+          py <= r.y + r.h + pad;
+        if (!inside) continue;
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        const dist = Math.hypot(px - cx, py - cy);
+        if (dist < pointerBestDist) {
+          pointerBestDist = dist;
+          pointerBest = t;
+        }
+      }
+      if (pointerBest) {
+        lastPickDropResult = pointerBest;
+        return pointerBest;
+      }
+    }
     
     let best = null;
     let bestRatio = 0;
@@ -1357,12 +1459,11 @@ export function initDrag(cfg) {
     // wild -> regular and regular -> wild. PIXI bounds can be stale after reparent/drop
     // or during scale tweens, so use board-space centers as a stable fallback whenever
     // overlap is missing or below threshold.
-    const isDirectWild = (tile) => isDirectWildTile(tile);
     const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
     if (allowCenterFallback && wildCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
-      const maxCenterDist = tileSize * 1.08;
+      const maxCenterDist = tileSize * 0.72;
       for (const t of candidates) {
         if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
@@ -1768,25 +1869,10 @@ export function initDrag(cfg) {
   // 🔥 FIX: Add cleanup function to remove all listeners and clear intervals
   // This should be called when app is destroyed to prevent memory leaks
   function cleanup() {
-    // Clear sparkle interval if running
-    if (drag._sparkleInterval) {
-      clearInterval(drag._sparkleInterval);
-      drag._sparkleInterval = null;
-    }
-    
-    // Remove stage listeners if app still exists
-    try {
-      if (app && app.stage) {
-        app.stage.off('pointermove', onMove);
-        app.stage.off('pointerup', onUp);
-        app.stage.off('pointerupoutside', onUp);
-      }
-    } catch {}
+    clearDragRuntime();
     
     // Clear drag state
     drag.t = null;
-    drag.pointerId = null;
-    drag.pointerType = null;
     drag.hover = null;
     
     console.log('✅ Drag system cleaned up');

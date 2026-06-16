@@ -188,11 +188,14 @@ export function getSpecialDiceExplosionSpriteSources(tileOrVariant: any): string
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
+  arcadeStage,
 }: {
   isArcade: boolean;
   wildSpawnCount: number;
+  arcadeStage?: number;
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) return null;
+  if (Number.isFinite(arcadeStage) && (arcadeStage as number) > 1) return null;
   const testVariants = Object.values(SPECIAL_DICE_VARIANTS)
     .filter((variant) => Number.isFinite(variant.arcadeTestOrder))
     .sort((a, b) => (a.arcadeTestOrder ?? 9999) - (b.arcadeTestOrder ?? 9999));

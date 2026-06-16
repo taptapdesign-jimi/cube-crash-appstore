@@ -201,21 +201,8 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
     }
   }
   
-  // STUCK CASE 4: Multiple tiles but no valid merges possible and no locked tiles
-  // This is a more complex check - all tiles exist but none can merge
-  if (activeTiles.length > 0 && lockedTiles.length === 0) {
-    const canAnyMerge = checkIfAnyMergePossible(activeTiles);
-    if (!canAnyMerge) {
-      return {
-        isStuck: true,
-        reason: 'no_merges_possible_no_locked',
-        details: {
-          ...details,
-          description: 'No valid merges possible and no locked tiles for spawn - stuck state'
-        }
-      };
-    }
-  }
+  // Multiple live tiles with no valid moves are not a clean-board recovery case.
+  // The gameplay endgame checker must handle that path so the player sees No Moves + fail screen.
   
   // Not stuck
   return {
@@ -223,40 +210,6 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
     reason: 'board_ok',
     details
   };
-}
-
-/**
- * Check if any merge is possible between tiles.
- * Two tiles can merge if their values sum to <= 6 (for regular tiles)
- * or if one is wild and values are different.
- */
-function checkIfAnyMergePossible(tiles: TileInfo[]): boolean {
-  for (let i = 0; i < tiles.length; i++) {
-    for (let j = i + 1; j < tiles.length; j++) {
-      const t1 = tiles[i];
-      const t2 = tiles[j];
-      
-      const t1IsWild = t1.special === 'wild' || t1.special === 'wild-juice' || t1.special === 'wild-tnt' || t1.special === 'wild-magnet';
-    const t2IsWild = t2.special === 'wild' || t2.special === 'wild-juice' || t2.special === 'wild-tnt' || t2.special === 'wild-magnet';
-      
-      // Wild + Wild same value can't merge
-      if (t1IsWild && t2IsWild && t1.value === t2.value) {
-        continue;
-      }
-      
-      // Wild + Regular: can merge if different values
-      if ((t1IsWild || t2IsWild) && t1.value !== t2.value) {
-        return true;
-      }
-      
-      // Regular + Regular: can merge if sum <= 6
-      if (!t1IsWild && !t2IsWild && (t1.value + t2.value) <= MAX_MERGE_VALUE) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
 }
 
 // ============================================================================

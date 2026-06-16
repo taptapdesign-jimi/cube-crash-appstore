@@ -181,7 +181,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/small-star@2x.png',
   './assets/small-star@3x.png',
   './assets/melted-dice.png',
-  './assets/star-slider.png',
   './assets/clean-board.png',
   
   // Journey base assets (background, UI elements)

@@ -16,15 +16,17 @@ export function applyStartLevelState({
   boardSpecificRules.setCurrentBoard(boardNumber);
   devLog(`🎯 Board-specific rules: Set to board ${boardNumber}`);
   
-  // 🔥 JOURNEY BOARDS: Always reset score to 0 for each board (no accumulation)
-  // Each board is independent with its own score tracking
-  let score = 0;
-  STATE.score = 0;
-  devLog(`🎯 startLevel: Reset score to 0 for board ${n} (no accumulation between boards)`);
-  
-  // Clear any preserved score flags
+  const preservedScore = Number((window as any).__ccPreserveScore);
+  const shouldPreserveScore = Number.isFinite(preservedScore) && preservedScore >= 0;
+  const score = shouldPreserveScore ? (preservedScore | 0) : 0;
+  STATE.score = score;
+  if (shouldPreserveScore) {
+    devLog(`🎯 startLevel: Preserved score ${score} for board ${n}`);
+  } else {
+    devLog(`🎯 startLevel: Reset score to 0 for board ${n} (no accumulation between boards)`);
+  }
+
   delete (window as any).__ccResumeScore;
-  delete (window as any).__ccPreserveScore;
   
   let level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number

@@ -37,7 +37,7 @@ export function startSpecialDiceIdleMotion(tile: any): void {
 
     stopSpecialDiceIdleMotion(tile);
 
-    const host = tile.rotG || tile;
+    const host = tile.rotG;
     if (!host || host.destroyed) return;
     const base = {
       x: host.x || 0,

@@ -1575,14 +1575,6 @@ class CollectiblesManager {
     badge.setAttribute('aria-hidden', 'true');
     cardDiv.appendChild(badge);
     
-    // Add star indicator for new cards
-    if (isNewCard) {
-      const star = document.createElement('div');
-      star.className = 'collectible-new-star';
-      star.setAttribute('aria-hidden', 'true');
-      cardDiv.appendChild(star);
-    }
-
     cardDiv.addEventListener('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();

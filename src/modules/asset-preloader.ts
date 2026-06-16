@@ -167,7 +167,6 @@ const ALL_ASSETS: string[] = [
   // './assets/gold-coin.png' - removed: file not in repo
   // './assets/potion.png' - removed: decode fails in preload
   './assets/melted-dice.png',
-  './assets/star-slider.png',
   // './assets/ripple.png' - removed: file not in repo
   // './assets/leaf light.png' - removed: decode fails (space in path or invalid file)
   

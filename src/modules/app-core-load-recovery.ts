@@ -3,6 +3,7 @@ type LoadRecoveryDeps = {
   boardNumber: number;
   checkAndRecoverBoard: (tileInfos: any[], boardNumber: number, triggerCleanBoardFlow: any) => Promise<{ wasStuck: boolean }>;
   triggerCleanBoardFlow: any;
+  checkLevelEnd?: () => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
@@ -13,6 +14,7 @@ export function schedulePostLoadRecoveryCheck({
   boardNumber,
   checkAndRecoverBoard,
   triggerCleanBoardFlow,
+  checkLevelEnd,
   trackAppTimeout,
   devLog,
   devWarn,
@@ -40,9 +42,23 @@ export function schedulePostLoadRecoveryCheck({
 
       if (recoveryResult.wasStuck) {
         devLog('🚨 BOARD RECOVERY EXECUTED:', recoveryResult);
+        return;
+      }
+
+      if (typeof checkLevelEnd === 'function') {
+        devLog('🔍 Post-load endgame check scheduled - validating restored board for no-moves state');
+        checkLevelEnd();
       }
     } catch (e) {
       devWarn('⚠️ Board recovery check failed (non-fatal):', e);
+      if (typeof checkLevelEnd === 'function') {
+        try {
+          devLog('🔍 Post-load endgame fallback check scheduled after recovery error');
+          checkLevelEnd();
+        } catch (checkError) {
+          devWarn('⚠️ Post-load endgame fallback check failed:', checkError);
+        }
+      }
     }
-  }, 1000);
+  }, 1300);
 }

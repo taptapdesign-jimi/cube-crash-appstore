@@ -202,20 +202,21 @@
   }
 }
 
-/* Hero shadow: .hero-shadow disabled; .hero-shadow-new used instead (see below) */
-
-/* NEW SHADOW CLASS - FORCE OVERRIDE */
-.hero-shadow-new {
+/* Homepage hero shadow */
+.slider-slide[data-slide="0"] .hero-shadow {
   position: absolute !important;
-  bottom: 2px !important; /* Moved up 8px from -6px */
+  bottom: -28px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  width: 65vw !important; /* iOS friendly - responsive width */
-  height: 7.68vh !important; /* Reduced by 20% (9.6vh * 0.8 = 7.68vh) */
-  background: #F4E5D6 !important;
+  width: min(70vw, 260px) !important;
+  height: 46px !important;
+  background: rgba(191, 139, 103, 0.28) !important;
   border-radius: 50% !important;
   z-index: 1 !important;
+  display: none !important;
+  pointer-events: none !important;
   animation: shadowPulse 3s ease-in-out infinite !important;
+  filter: blur(4px) !important;
 }
 
 @keyframes shadowPulse {

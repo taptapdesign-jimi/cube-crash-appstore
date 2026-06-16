@@ -904,7 +904,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   // 🚨 CRITICAL: If we have ONLY wild stars (no regular tiles), game is stuck!
   // Wild + wild merges are BLOCKED, so 2+ wilds alone cannot merge
   if (wildStars.length >= 2 && mergeableNonWildTiles.length === 0 && magnets.length === 0) {
-    console.log('❌ anyMergePossible: Only wilds (wild+wild blocked) = FALSE');
+    logger.debug('❌ anyMergePossible: Only wilds (wild+wild blocked) = FALSE', 'board');
     return false;
   }
   
@@ -930,7 +930,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   
   // If less than 2 TOTAL tiles, no merges possible
   if (totalTiles < 2) {
-    console.log('❌ anyMergePossible: < 2 total tiles = FALSE');
+    logger.debug('❌ anyMergePossible: < 2 total tiles = FALSE', 'board');
     return false;
   }
   
@@ -971,16 +971,13 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       const s = val1 + val2;
       // Keep merge-possibility rules aligned with app-core canDrop():
       // - regular sums in [2..6] are valid
+      // - matching regular values only matter here while they are still productive toward 6
       // - merge 6 can merge with any regular 1..5 to continue the run
       const isMerge6Continuation =
         (val1 === 6 && val2 >= 1 && val2 <= 5) ||
         (val2 === 6 && val1 >= 1 && val1 <= 5);
-      const isValid = isMerge6Continuation || (s >= 2 && s <= 6);
-      
-      // 🔥 CRITICAL: Log each pair being checked for debugging
-      if (open.length <= 6) { // Only log for small boards to avoid spam
-        console.log(`🔍 anyMergePossible: Checking pair ${val1}+${val2}=${s} (valid: ${isValid})`);
-      }
+      const isSameValueStack = val1 > 0 && val1 === val2 && val1 <= 3;
+      const isValid = isSameValueStack || isMerge6Continuation || (s >= 2 && s <= 6);
       
       if (isValid) {
         logger.debug(`✅ anyMergePossible: ${val1}+${val2}=${s} = TRUE`, 'board');
@@ -989,16 +986,16 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     }
   }
 
-  // 🔥 CRITICAL: Log detailed info when no valid pairs found
-  console.log('❌ anyMergePossible: No valid pairs = FALSE');
-  console.log('❌ anyMergePossible: Tile details:', open.map(t => ({
-    value: t.value,
-    special: t.special,
-    locked: t.locked,
-    destroyed: t.destroyed,
-    visible: t.visible,
-    gridX: (t as any).gridX,
-    gridY: (t as any).gridY
-  })));
+  logger.debug('❌ anyMergePossible: No valid pairs = FALSE', 'board', {
+    tiles: open.map(t => ({
+      value: t.value,
+      special: t.special,
+      locked: t.locked,
+      destroyed: t.destroyed,
+      visible: t.visible,
+      gridX: (t as any).gridX,
+      gridY: (t as any).gridY
+    }))
+  });
   return false;
 }

@@ -19,6 +19,21 @@ export function getBoardSaveKey(boardNumber: number): string {
   return `cc_saved_game_board_${paddedNumber}`;
 }
 
+export const ARCADE_SAVE_KEY = 'cc_arcade_run_state_v1';
+
+export function getArcadeSaveKey(): string {
+  return ARCADE_SAVE_KEY;
+}
+
+export function hasArcadeSavedState(): boolean {
+  return localStorage.getItem(ARCADE_SAVE_KEY) !== null;
+}
+
+export function clearArcadeSaveState(): void {
+  localStorage.removeItem(ARCADE_SAVE_KEY);
+  console.log(`🗑️ Cleared Arcade save state (${ARCADE_SAVE_KEY})`);
+}
+
 /**
  * Get all board-specific save keys from localStorage
  * Useful for cleanup, migration, or debugging
@@ -152,4 +167,3 @@ export function debugLogAllSavedBoards(): void {
   console.log('📊 All Saved Boards:');
   console.table(savedBoards);
 }
-

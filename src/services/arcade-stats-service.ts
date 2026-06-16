@@ -5,6 +5,7 @@ interface ArcadeStats {
   highScore: number;
   cubesCracked: number;
   longestCombo: number;
+  highestStageOpened: number;
   lastPlayed: number;
 }
 
@@ -15,6 +16,7 @@ class ArcadeStatsService {
     highScore: 0,
     cubesCracked: 0,
     longestCombo: 0,
+    highestStageOpened: 1,
     lastPlayed: 0,
   };
 
@@ -32,12 +34,13 @@ class ArcadeStatsService {
           highScore: Number.isFinite(parsed.highScore) ? (parsed.highScore | 0) : 0,
           cubesCracked: Number.isFinite(parsed.cubesCracked) ? (parsed.cubesCracked | 0) : 0,
           longestCombo: Number.isFinite(parsed.longestCombo) ? (parsed.longestCombo | 0) : 0,
+          highestStageOpened: Number.isFinite(parsed.highestStageOpened) ? Math.max(1, parsed.highestStageOpened | 0) : 1,
           lastPlayed: Number.isFinite(parsed.lastPlayed) ? parsed.lastPlayed : 0,
         };
       }
     } catch (error) {
       console.warn('⚠️ Failed to load arcade stats:', error);
-      this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, lastPlayed: 0 };
+      this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, highestStageOpened: 1, lastPlayed: 0 };
     }
   }
 
@@ -84,8 +87,18 @@ class ArcadeStatsService {
     return true;
   }
 
+  public updateHighestStageOpened(stage: number): boolean {
+    if (!Number.isFinite(stage) || stage < 1) return false;
+    const safeStage = stage | 0;
+    if (safeStage <= this.stats.highestStageOpened) return false;
+    this.stats.highestStageOpened = safeStage;
+    this.stats.lastPlayed = Date.now();
+    this.saveStats();
+    return true;
+  }
+
   public resetStats(): void {
-    this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, lastPlayed: 0 };
+    this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, highestStageOpened: 1, lastPlayed: 0 };
     this.saveStats();
   }
 }

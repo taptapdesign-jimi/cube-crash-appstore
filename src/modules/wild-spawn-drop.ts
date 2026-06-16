@@ -242,13 +242,6 @@ function isCuberoDropTile(tile: any): boolean {
   return false;
 }
 
-function describeDisplayObject(obj: any): string {
-  try {
-    return String(obj?.label || obj?.constructor?.name || 'unnamed');
-  } catch {}
-  return 'unknown';
-}
-
 function forceDropTileAboveStage(stage: any, tile: any): void {
   try {
     if (!stage || !tile || tile.destroyed) return;
@@ -266,38 +259,6 @@ function forceDropTileAboveStage(stage: any, tile: any): void {
       }
     } catch {}
   } catch {}
-}
-
-function logCuberoDrop(phase: string, stage: any, parent: any, tile: any, extra: Record<string, any> = {}): void {
-  if (!isCuberoDropTile(tile)) return;
-  try {
-    const stageChildren = Array.isArray(stage?.children) ? stage.children : [];
-    const parentChildren = Array.isArray(parent?.children) ? parent.children : [];
-    const stageIndex = stageChildren.indexOf(tile);
-    const parentIndex = parentChildren.indexOf(tile);
-    const topStage = stageChildren.slice(-8).map((child: any, index: number) => ({
-      slot: stageChildren.length - 8 + index,
-      label: describeDisplayObject(child),
-      zIndex: child?.zIndex,
-      isTile: child === tile,
-    }));
-    console.info('[CuberoDrop]', phase, {
-      parentLabel: describeDisplayObject(tile?.parent),
-      intendedParentLabel: describeDisplayObject(parent),
-      tileZ: tile?.zIndex,
-      tileVisible: tile?.visible,
-      tileAlpha: tile?.alpha,
-      tileScale: { x: tile?.scale?.x, y: tile?.scale?.y },
-      tilePos: { x: tile?.x, y: tile?.y },
-      stageIndex,
-      parentIndex,
-      stageChildrenCount: stageChildren.length,
-      topStage,
-      ...extra,
-    });
-  } catch (err) {
-    try { console.info('[CuberoDrop]', phase, 'log failed', err); } catch {}
-  }
 }
 
 function revealTile(tile: any): void {
@@ -425,13 +386,6 @@ export async function animateWildSpawnDropFromMeter({
       }
       stage.sortableChildren = true;
       forceDropTileAboveStage(stage, tile);
-      logCuberoDrop('setup-on-stage', stage, parent, tile, {
-        target,
-        stageTarget,
-        start,
-        launch,
-        stageVisualScale,
-      });
       tile.visible = false;
       tile.alpha = 0;
       tile.eventMode = 'none';
@@ -519,7 +473,6 @@ export async function animateWildSpawnDropFromMeter({
         .call(() => {
           if (completed || !tile || tile.destroyed) return;
           forceDropTileAboveStage(stage, tile);
-          logCuberoDrop('pop-reveal-before-visible', stage, parent, tile);
           tile.visible = true;
           tile.alpha = 0;
           tile.x = start.x;
@@ -590,7 +543,6 @@ export async function animateWildSpawnDropFromMeter({
       onStart: () => {
         try {
           forceDropTileAboveStage(stage, tile);
-          logCuberoDrop('travel-delay-start', stage, parent, tile);
           tile.x = start.x;
           if (!tile.visible) tile.y = launch.y;
         } catch {}
@@ -604,7 +556,6 @@ export async function animateWildSpawnDropFromMeter({
       onStart: () => {
         try {
           forceDropTileAboveStage(stage, tile);
-          logCuberoDrop('travel-start', stage, parent, tile);
           tile.visible = true;
           tile.alpha = 1;
           if (tile.rotG) tile.rotG.alpha = 1;
@@ -643,7 +594,6 @@ export async function animateWildSpawnDropFromMeter({
           tile.x = stageTarget.x;
           tile.y = stageTarget.y;
           forceDropTileAboveStage(stage, tile);
-          logCuberoDrop('travel-complete-impact-start', stage, parent, tile);
           repairWildIdentity(tile, assetPath);
         } catch {}
         try {
@@ -674,7 +624,6 @@ export async function animateWildSpawnDropFromMeter({
         } catch {}
         try { onImpact?.(); } catch {}
         forceDropTileAboveStage(stage, tile);
-        logCuberoDrop('impact-timeline-created', stage, parent, tile);
         impactTimeline = trackTimeline({
           onUpdate: () => {
             forceDropTileAboveStage(stage, tile);
@@ -682,7 +631,6 @@ export async function animateWildSpawnDropFromMeter({
           onComplete: () => {
             repairWildIdentity(tile, assetPath);
             try {
-              logCuberoDrop('impact-complete-before-parent-restore', stage, parent, tile);
               if (tile.parent !== parent) {
                 try { tile.parent?.removeChild?.(tile); } catch {}
                 parent.addChild(tile);
@@ -697,7 +645,6 @@ export async function animateWildSpawnDropFromMeter({
                 sortParent.sortableChildren = true;
                 sortParent.sortChildren?.();
               }
-              logCuberoDrop('impact-complete-after-parent-restore', stage, parent, tile);
             } catch {}
             revealTile(tile);
             completeTravel();

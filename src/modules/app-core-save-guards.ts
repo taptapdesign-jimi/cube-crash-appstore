@@ -19,14 +19,13 @@ export function canSaveGameState({
   cameFromInterimBoard,
   devLog,
 }: SaveGuardDeps){
-  // Homepage one-time run must not persist state (no resume/continue flow).
+  // Arcade now has its own isolated save key, so it can resume without touching Journey board saves.
   if (runMode === 'arcade_home') {
     // Journey context has priority: stale runMode must not disable journey resume.
     if (cameFromJourney || cameFromInterimBoard) {
       devLog('💾 Arcade runMode ignored because Journey context is active');
     } else {
-    devLog('💾 Arcade home one-time run, skipping save');
-    return false;
+      devLog('💾 Arcade home run - saving to Arcade run state');
     }
   }
 

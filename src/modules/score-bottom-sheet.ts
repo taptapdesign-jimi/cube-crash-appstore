@@ -104,10 +104,10 @@ function getCurrentBoardNumber(): number {
 
 function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMode): {
   title: string;
-  primaryValue: number;
+  primaryValue: number | string;
   primaryLabel: string;
   primaryIcon: string;
-  secondaryValue?: number;
+  secondaryValue?: number | string;
   secondaryLabel?: string;
   secondaryIcon?: string;
   subtitle: string;
@@ -127,17 +127,20 @@ function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMo
 
   if (isArcadeHomeRunMode()) {
     const arcadeStats = arcadeStatsService.getStats();
+    const highestStageOpened = Math.max(1, arcadeStats.highestStageOpened || 1);
     return {
       title: 'High Score',
       primaryValue: arcadeStats.highScore,
       primaryLabel: 'High score',
       primaryIcon: './assets/highscore-icon.png',
+      secondaryValue: highestStageOpened.toString().padStart(2, '0'),
+      secondaryLabel: 'Stages opened',
+      secondaryIcon: './assets/clean-board.png',
       subtitle: 'Your best score so far.'
     };
   }
 
   const boardStats = boardStatsService.getBoardStats(boardNumber);
-  const boardNumberStr = boardNumber.toString().padStart(2, '0');
   return {
     title: 'High Score',
     primaryValue: boardStats.highScore,
@@ -147,15 +150,19 @@ function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMo
   };
 }
 
+function formatScoreSheetStatValue(value: number | string): string {
+  return typeof value === 'number' ? value.toLocaleString() : value;
+}
+
 function renderStatsItems(scoreSheetStats: ReturnType<typeof getScoreSheetStats>): string {
-  const hasSecondary = typeof scoreSheetStats.secondaryValue === 'number';
+  const hasSecondary = scoreSheetStats.secondaryValue !== undefined && scoreSheetStats.secondaryValue !== null;
   return `
           <div class="stat-item">
             <div class="stat-icon">
               <img id="score-sheet-primary-icon" src="${scoreSheetStats.primaryIcon}" alt="" aria-hidden="true">
             </div>
             <div class="stat-content">
-              <div id="score-sheet-high-score" class="stat-value">${scoreSheetStats.primaryValue.toLocaleString()}</div>
+              <div id="score-sheet-high-score" class="stat-value">${formatScoreSheetStatValue(scoreSheetStats.primaryValue)}</div>
               <div id="score-sheet-primary-label" class="stat-label">${scoreSheetStats.primaryLabel}</div>
             </div>
           </div>
@@ -166,7 +173,7 @@ function renderStatsItems(scoreSheetStats: ReturnType<typeof getScoreSheetStats>
               <img id="score-sheet-secondary-icon" src="${scoreSheetStats.secondaryIcon}" alt="" aria-hidden="true">
             </div>
             <div class="stat-content">
-              <div id="score-sheet-secondary-value" class="stat-value">${scoreSheetStats.secondaryValue!.toLocaleString()}</div>
+              <div id="score-sheet-secondary-value" class="stat-value">${formatScoreSheetStatValue(scoreSheetStats.secondaryValue!)}</div>
               <div id="score-sheet-secondary-label" class="stat-label">${scoreSheetStats.secondaryLabel}</div>
             </div>
           </div>` : ''}

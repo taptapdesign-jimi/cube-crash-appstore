@@ -1246,7 +1246,7 @@ async function startNewRun(boardId: number): Promise<void> {
 };
 
 // New sequence handler: bottom sheet close → exit anim → game start
-(window as any).triggerGameStartSequence = async () => {
+(window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
   logger.info('🎬 Starting game start sequence...');
   setRunMode(RUN_MODE_ARCADE_HOME);
   
@@ -1264,7 +1264,11 @@ async function startNewRun(boardId: number): Promise<void> {
   setTimeout(() => {
     console.log('🎮 Step 2: Starting game after exit animation');
     uiManager.hideHomepage(); // Hide homepage AFTER animation
-    uiManager.startNewGame(); // Start game boot (always Board 1 for New Game)
+    if (options?.resumeArcade) {
+      uiManager.startNewGameWithSavedState();
+    } else {
+      uiManager.startNewGame(); // Start game boot (fresh Arcade run)
+    }
   }, 770); // 120ms delay + 650ms animation = 770ms total
 };
 

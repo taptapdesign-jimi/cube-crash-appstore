@@ -4109,6 +4109,11 @@ class JourneyBoardsManager {
       }
       lastCardTapBounceAt = now;
       playDetailCardTapCartoonBounce(detailImageForTap);
+      detailImageForTap.dispatchEvent(new CustomEvent('cc:journey-detail-card-play', {
+        bubbles: true,
+        cancelable: true,
+        detail: { source },
+      }));
     };
 
     const handleCardTapTouchStart = (e: TouchEvent) => {
@@ -5045,6 +5050,7 @@ class JourneyBoardsManager {
         // Add both click and touchend for better mobile support
         floatingPlayButton.addEventListener('click', handlePlayClick, { capture: false });
         floatingPlayButton.addEventListener('touchend', handlePlayClick, { capture: false, passive: false });
+        detailModal.addEventListener('cc:journey-detail-card-play', handlePlayClick as EventListener, { capture: false });
         
         console.log(`✅ Play button event listener attached for board ${boardIdForPlay}`);
         logger.info(`✅ Play button event listener attached for board ${boardIdForPlay}`);

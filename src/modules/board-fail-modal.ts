@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
-import { getBoardSaveKey } from '../utils/board-save-utils.js';
+import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
 // public/src/modules/board-fail-modal.ts
@@ -67,6 +67,28 @@ const _failModalAnimationFrames = new Set<number>();
 
 // 🔥 BUG FIX: Track if modal is currently open to prevent duplicate calls
 let _isModalOpen = false;
+
+function resetArcadeFailedRunForFreshStart(): void {
+  if (!isArcadeHomeRunMode()) return;
+  try {
+    clearArcadeSaveState();
+    localStorage.removeItem('__ccCameFromJourney');
+    localStorage.removeItem('__ccFromInterimBoard');
+  } catch (error) {
+    logger.warn('⚠️ board-fail-modal: Failed to clear Arcade failed run save:', error);
+  }
+  try {
+    delete (window as any).__ccSkipRebuildBoard;
+    delete (window as any).__ccStartAtLevel;
+    delete (window as any).__ccArcadeStageContinuePreserveWild;
+    delete (window as any).__ccArcadeStageWildMeterCarryover;
+    delete (window as any).__ccFailScreenPending;
+    (window as any)._gameHasEnded = true;
+  } catch {
+    /* non-fatal */
+  }
+  logger.info('🎮 Arcade failed run reset on Exit - next Arcade start will be fresh Stage 01');
+}
 
 function trackFailTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
@@ -329,12 +351,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     const title = document.createElement('div');
     title.textContent = pickRandom(HEADLINES);
-    title.style.cssText = 'color:#D78157;font-weight:800;font-size:40px;line-height:1;margin:0;';
+    title.style.cssText = 'color:#e77449;font-weight:800;font-size:56px;line-height:56px;margin:0;';
 
     const boardStatus = document.createElement('div');
     const boardLabel = String(Math.max(1, boardNumber | 0)).padStart(2, '0');
     boardStatus.textContent = isArcadeHomeRunMode()
-      ? 'Board not cleared'
+      ? `Stage ${boardLabel} not cleared`
       : `Board ${boardLabel} not cleared`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
@@ -448,6 +470,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             // Has hearts - proceed with restart
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
+            if (isArcadeHomeRunMode()) {
+              resetArcadeFailedRunForFreshStart();
+              (window as any).__ccForceArcadeRestartStage01 = true;
+              logger.info('🎮 Arcade Play Again after fail - forcing fresh Stage 01 restart');
+            }
             
             // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
             // This prevents visual glitches - modal fades out while restart runs in background
@@ -479,6 +506,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
             cleanupFailModalLifecycle();
+            if (isArcadeHomeRunMode()) {
+              resetArcadeFailedRunForFreshStart();
+              (window as any).__ccForceArcadeRestartStage01 = true;
+              logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Stage 01 restart');
+            }
             
             // Fallback: proceed with restart if hearts check fails
             // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
@@ -510,6 +542,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         cleanupFailModalLifecycle();
         
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
+        resetArcadeFailedRunForFreshStart();
         // 🔥 BUG FIX: Check guard to prevent duplicate calls
         if ((window as any).exitingToMenu) {
           logger.warn('⚠️ exitToMenu already in progress, skipping duplicate call');
@@ -533,11 +566,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           ? boardNumber 
           : null;
         
-        if (validBoardNumber) {
+        if (validBoardNumber && !isArcadeHomeRunMode()) {
           (window as any).__ccCameFromDetailModal = true;
           (window as any).__ccDetailModalBoardId = validBoardNumber;
           logger.info(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
           console.log(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
+        } else if (isArcadeHomeRunMode()) {
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+          logger.info('🎮 board-fail-modal: Arcade Exit - returning to homepage with no detail modal flags');
         } else {
           logger.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
           console.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);

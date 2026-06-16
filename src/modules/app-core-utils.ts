@@ -7,6 +7,7 @@
 
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import { logger } from '../core/logger.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
 const _appTimeouts: Set<NodeJS.Timeout> = new Set();
@@ -144,6 +145,12 @@ function isFirstPlayTutorialLowValueMode(): boolean {
   return isFirstPlayTutorialRunActive();
 }
 
+function getArcadeStageSmallValueBias(): number {
+  if (typeof window === 'undefined' || !isArcadeHomeRunMode()) return 0;
+  const stage = Math.max(1, (((window as any).STATE?.boardNumber ?? (window as any).__ccStartAtLevel ?? 1) | 0));
+  return Math.max(0, 0.5 - (stage - 1) * 0.05);
+}
+
 export function regularValuePool(exclude?: number | number[]): number[] {
   const base = isFirstPlayTutorialLowValueMode() ? [1, 2, 3] : [1, 2, 3, 4, 5];
   if (Array.isArray(exclude)) {
@@ -168,6 +175,13 @@ export function randomRegularTileValue(exclude?: number | number[]): number {
     return pool[(Math.random() * pool.length) | 0];
   }
   const pool = regularValuePool(exclude);
+  const smallValueBias = getArcadeStageSmallValueBias();
+  if (smallValueBias > 0 && Math.random() < smallValueBias) {
+    const smallPool = pool.filter(v => v <= 3);
+    if (smallPool.length > 0) {
+      return smallPool[(Math.random() * smallPool.length) | 0];
+    }
+  }
   return pool[(Math.random() * pool.length) | 0];
 }
 

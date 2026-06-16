@@ -8,6 +8,8 @@ type StartLevelWildDeps = {
   setWildMergeLockedSpawnCount?: (v: number) => void;
   setLastWildDropType?: (v: string | null) => void;
   setWildDropTypeStreak?: (v: number) => void;
+  preserveWildDropProgress?: boolean;
+  carryoverWildMeter?: number;
   clearEndGameCache: () => void;
 };
 
@@ -21,18 +23,23 @@ export function resetWildAndEndgameState({
   setWildMergeLockedSpawnCount,
   setLastWildDropType,
   setWildDropTypeStreak,
+  preserveWildDropProgress = false,
+  carryoverWildMeter = 0,
   clearEndGameCache,
 }: StartLevelWildDeps){
   // Reset wild-related state
-  setWildMeter(0);
-  resetWildProgress(0, false);
+  const nextWildMeter = Math.max(0, Number.isFinite(carryoverWildMeter) ? carryoverWildMeter : 0);
+  setWildMeter(nextWildMeter);
+  resetWildProgress(nextWildMeter, false);
   setWildJuiceSpawned(false);
   setWildMagnetSpawned(false);
   setFirstWildSpawned(false);
-  setWildSpawnCount?.(0);
+  if (!preserveWildDropProgress) {
+    setWildSpawnCount?.(0);
+    setLastWildDropType?.(null);
+    setWildDropTypeStreak?.(0);
+  }
   setWildMergeLockedSpawnCount?.(0);
-  setLastWildDropType?.(null);
-  setWildDropTypeStreak?.(0);
   
   // Clear end game cache when starting new level
   clearEndGameCache();

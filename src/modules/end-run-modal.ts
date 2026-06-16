@@ -3,7 +3,7 @@ import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animat
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
-import { getBoardSaveKey } from '../utils/board-save-utils.js';
+import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
@@ -218,6 +218,13 @@ function createModal(): HTMLElement {
   }
 
   const isArcadeRun = isArcadeHomeRunMode();
+  const currentBoardNum = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+  const boardNumStr = String(currentBoardNum).padStart(2, '0');
+  const titleText = isArcadeRun ? 'Exit Game?' : 'Exit Board?';
+  const subtitleText = isArcadeRun
+    ? `Come back anytime.<br>Stage ${boardNumStr} is safe.`
+    : `Come back anytime.<br>Board ${boardNumStr} is safe.`;
+  const exitBtnLabel = isArcadeRun ? 'Exit Game' : 'Exit Board';
 
   modal = document.createElement('div');
   modal.className = 'simple-bottom-sheet';
@@ -230,14 +237,14 @@ function createModal(): HTMLElement {
     <div class="simple-content">
       <div class="simple-header">
         <div class="simple-title-section">
-          <h2>End This Run?</h2>
-          <p>Think twice, your progress <br>disappears once you leave.</p>
+          <h2>${titleText}</h2>
+          <p>${subtitleText}</p>
         </div>
         <div class="simple-buttons">
           <div class="simple-button-row">
-            <button type="button" class="restart-btn">Restart</button>
+            <button type="button" class="restart-btn">${isArcadeRun ? 'New Game' : 'Restart'}</button>
             ${isArcadeRun ? '' : '<button type="button" class="new-card-btn">New Card</button>'}
-            <button type="button" class="exit-btn">Exit</button>
+            <button type="button" class="exit-btn">${exitBtnLabel}</button>
           </div>
         </div>
       </div>
@@ -266,13 +273,22 @@ function createModal(): HTMLElement {
       // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
       setTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
-        // 🔥 USER REQUEST: Clear saved game state for current board (board-specific)
         try {
           const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-          const saveKey = getBoardSaveKey(currentBoardNumber);
-          localStorage.removeItem(saveKey);
+          if (isArcadeRun) {
+            clearArcadeSaveState();
+            delete (window as any).__ccStartAtLevel;
+            delete (window as any).__ccArcadeStageContinuePreserveWild;
+            delete (window as any).__ccArcadeStageWildMeterCarryover;
+            delete (window as any).__ccFailScreenPending;
+            (window as any).__ccForceArcadeRestartStage01 = true;
+            console.log('✅ end-run-modal: Arcade New Run will restart from Stage 01');
+          } else {
+            const saveKey = getBoardSaveKey(currentBoardNumber);
+            localStorage.removeItem(saveKey);
+            console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on restart`);
+          }
           localStorage.removeItem('cubeCrash_gameState');
-          console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on restart`);
         } catch (error) {
           console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
         }

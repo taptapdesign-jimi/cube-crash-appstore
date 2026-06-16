@@ -234,6 +234,11 @@ let boardIndicator: HTMLElement | null = null;
 let boardIndicatorLabel: HTMLElement | null = null;
 let comboWobbleTween: gsap.core.Tween | null = null; // GSAP tween for combo icon wobble animation
 
+function formatHudBoardIndicatorLabel(boardNumber: number): string {
+  const padded = String(Math.max(0, boardNumber | 0)).padStart(2, '0');
+  return isArcadeHomeRunMode() ? `Stage ${padded}` : `Board ${padded}`;
+}
+
 // 🔥 CLEANUP: Function to kill all combo animations and prevent memory leaks
 export function cleanupComboAnimations() {
   try {
@@ -380,7 +385,7 @@ function ensureBoardIndicator() {
   
   const label = document.createElement('div');
   label.id = 'hud-board-indicator-label';
-  label.textContent = isArcadeHomeRunMode() ? 'Arcade' : 'Board 01';
+  label.textContent = formatHudBoardIndicatorLabel(1);
   label.style.cssText = `
     width: fit-content;
     min-width: 0;
@@ -503,12 +508,7 @@ function updateBoardIndicatorValue(boardNumber) {
     ensureBoardIndicator();
   }
   if (boardIndicatorLabel) {
-    if (isArcadeHomeRunMode()) {
-      boardIndicatorLabel.textContent = 'Arcade';
-      return;
-    }
-    const padded = String(Math.max(0, boardNumber | 0)).padStart(2, '0');
-    boardIndicatorLabel.textContent = `Board ${padded}`;
+    boardIndicatorLabel.textContent = formatHudBoardIndicatorLabel(boardNumber);
   }
 }
 
@@ -2392,12 +2392,43 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       .catch((loadErr) => console.warn('⚠️ Failed to load HUD help icon:', loadErr || err));
   }
 
-  helpHitBg.on('pointerdown', (e) => {
+  const isHudStageClearDevTriggerEnabled = (): boolean => {
+    const host = String(window.location?.hostname || '');
+    return !!(
+      (import.meta as any)?.env?.DEV ||
+      (window as any)?.DEV ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.endsWith('.local')
+    );
+  };
+
+  const handleHelpPointerDown = async (e) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
+    if (isHudStageClearDevTriggerEnabled()) {
+      if ((helpButton as any)._stageClearDevTriggerActive) return;
+      (helpButton as any)._stageClearDevTriggerActive = true;
+      try {
+        playHudCloseSoftCartoonBounce(helpButton);
+        const stateStage = Number((window as any)?.STATE?.boardNumber);
+        const clearedStage = Number.isFinite(stateStage) && stateStage > 0 ? stateStage : 1;
+        const { showArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
+        await showArcadeStageClearModal(clearedStage, clearedStage + 1);
+      } catch (error) {
+        console.warn('⚠️ DEV stage clear sequence trigger failed:', error);
+      } finally {
+        (helpButton as any)._stageClearDevTriggerActive = false;
+      }
+      return;
+    }
     console.log('📊 HELP HUD ICON CLICKED - Opening score stats bottom sheet');
     openScoreStatsBottomSheetFromHud(helpButton, 'Help HUD icon');
-  });
+  };
+
+  helpHitBg.on('pointerdown', handleHelpPointerDown);
+  helpButton.on('pointerdown', handleHelpPointerDown);
 
   helpButton._isHelpButton = true;
   HUD_ROOT.addChild(helpButton);
