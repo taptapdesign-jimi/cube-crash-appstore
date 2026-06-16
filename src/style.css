@@ -1333,7 +1333,7 @@ body.journey-board-game-active #hud-board-indicator {
   min-height: 64px !important;
   padding: 0 56px !important;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
-  font-size: 24px !important;
+  font-size: 28px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
   transition: none !important;
@@ -2546,7 +2546,7 @@ body.journey-board-game-active #hud-board-indicator {
   }
   
   .continue-btn, .new-game-btn {
-    font-size: 22px;
+    font-size: 28px;
     padding: 0 56px;
     max-width: 249px;
   }
@@ -3585,7 +3585,7 @@ html.collectible-reward-open body {
   border: 1px solid #E9DCD6; /* Updated stroke color */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
   padding: 0 56px; /* Same as slider CTA */
-  font-size: 24px; /* Font.custom("Baloo2", size: 24) from Figma */
+  font-size: 28px;
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   cursor: pointer;
@@ -3676,7 +3676,7 @@ html.collectible-reward-open body {
   }
   
   .restart-btn, .exit-btn {
-    font-size: 22px;
+    font-size: 28px;
     padding: 0 56px;
     max-width: 249px;
   }
@@ -3775,7 +3775,7 @@ html.collectible-reward-open body {
   }
   
   .end-run-actions .pause-modal-btn {
-    font-size: 22px;
+    font-size: 28px;
     padding: 14px 48px;
     width: 240px; /* Slightly smaller on mobile */
   }
@@ -4527,7 +4527,7 @@ body:has(:root) .tile.wild-3d-glow {
   min-height: 64px !important;
   padding: 0 56px !important;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
-  font-size: 26px !important;
+  font-size: 28px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
   /* transition: none !important; REMOVED - conflicts with animation classes */
@@ -4610,7 +4610,7 @@ body:has(:root) .tile.wild-3d-glow {
   min-height: 64px !important;
   padding: 0 56px !important;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
-  font-size: 26px !important;
+  font-size: 28px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #E9DCD6 !important;
   transition: none !important;

@@ -907,7 +907,7 @@
 .slide-button,
 .slider-slide .slide-button,
 .slider-slide .slide-content .slide-button {
-  font-size: 28px !important;
+  font-size: 32px !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
 }
@@ -916,7 +916,7 @@
   #home .slide-button,
   #home .slider-slide .slide-button,
   #home .slider-slide .slide-content .slide-button {
-    font-size: 26px !important;
+    font-size: 28px !important;
     text-shadow: 0 2px 0 #C24921 !important;
   }
 }

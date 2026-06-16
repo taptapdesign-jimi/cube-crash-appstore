@@ -34,7 +34,7 @@ export function addEndRunModalStyles(): void {
       min-height: 64px !important;
       padding: 0 56px !important;
       font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 28px !important;
       font-weight: 700 !important;
       text-shadow: 0 2px 0 #C24921 !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
@@ -83,7 +83,7 @@ export function addEndRunModalStyles(): void {
       height: 64px !important;
       padding: 0 56px !important;
       font-family: "Baloo2", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 28px !important;
       font-weight: 700 !important;
       box-shadow: 0 8px 0 0 #D8C7BB !important;
       cursor: pointer !important;
@@ -193,7 +193,7 @@ export function addEndRunModalStyles(): void {
       .restart-btn,
       .exit-btn {
         height: 56px !important;
-        font-size: 24px !important;
+        font-size: 28px !important;
         padding: 0 40px !important;
       }
     }

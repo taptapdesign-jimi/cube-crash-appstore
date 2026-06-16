@@ -445,6 +445,8 @@ function playBubblyLetterExit(letters: HTMLElement[]): Promise<void> {
 }
 
 function playThumbArrivalShake(clearCard: HTMLElement, thumb: HTMLElement): void {
+  triggerHeavyHaptic();
+
   const shakeTimeline = gsap.timeline();
   activeTimelines.push(shakeTimeline);
   shakeTimeline
@@ -458,6 +460,32 @@ function playThumbArrivalShake(clearCard: HTMLElement, thumb: HTMLElement): void
   thumbPunch
     .to(thumb, { scale: 1.08, duration: 0.07, ease: 'power2.out' }, 0)
     .to(thumb, { scale: 1, duration: 0.12, ease: 'back.out(2.2)' }, '>');
+}
+
+function triggerStageNumberHaptic(strength: 'light' | 'medium' = 'medium'): void {
+  try {
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact(strength);
+    }
+  } catch {}
+}
+
+function triggerHeavyHaptic(): void {
+  try {
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('heavy');
+    }
+  } catch {}
+}
+
+function playStageNumberScreenShake(overlay: HTMLElement): void {
+  const shakeTimeline = gsap.timeline();
+  activeTimelines.push(shakeTimeline);
+  shakeTimeline
+    .to(overlay, { x: -7, y: 3, rotation: -0.25, duration: 0.035, ease: 'power2.out' })
+    .to(overlay, { x: 7, y: -2, rotation: 0.25, duration: 0.04, ease: 'power2.inOut' })
+    .to(overlay, { x: -4, y: 2, rotation: -0.15, duration: 0.035, ease: 'power2.inOut' })
+    .to(overlay, { x: 0, y: 0, rotation: 0, duration: 0.08, ease: 'back.out(2.2)' });
 }
 
 async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<void> {
@@ -483,6 +511,7 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
       onComplete: () => playThumbArrivalShake(clearCard, thumb),
     }, 0.06);
 
+  triggerHeavyHaptic();
   await playBubblyLetterEnter(titleLetters, 0);
   await Promise.all([
     playBubblyLetterEnter(subtitleLetters, 0),
@@ -514,7 +543,7 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
 }
 
 async function playNextStagePhase(parts: ReturnType<typeof createOverlay>): Promise<void> {
-  const { nextCard, letters, digits } = parts;
+  const { overlay, nextCard, letters, digits } = parts;
   gsap.set(nextCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
   prepareBubblyLetters(letters);
   digits.forEach((digit, index) => {
@@ -539,6 +568,10 @@ async function playNextStagePhase(parts: ReturnType<typeof createOverlay>): Prom
     digits.forEach((digit, index) => {
       const timeline = gsap.timeline({
         delay: index * 0.3,
+        onStart: () => {
+          triggerStageNumberHaptic(index === 0 ? 'medium' : 'light');
+          playStageNumberScreenShake(overlay);
+        },
         onComplete: () => {
           completedDigits += 1;
           if (completedDigits === digits.length) resolveEnter();

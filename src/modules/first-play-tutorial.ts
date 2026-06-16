@@ -314,7 +314,7 @@ function ensureStyles(): void {
       background: #E97A55;
       box-shadow: 0 8px 0 0 #C24921;
       font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-      font-size: 26px;
+      font-size: 28px;
       font-weight: bold;
       text-shadow: 0 2px 0 #C24921;
       letter-spacing: 0;
@@ -361,7 +361,7 @@ function ensureStyles(): void {
       }
       .first-play-tutorial-cta {
         max-width: 249px;
-        font-size: 22px;
+        font-size: 28px;
         padding: 0 56px;
       }
     }
