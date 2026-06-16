@@ -739,6 +739,13 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   busyEnding = true;
 
   const waitForWildEndgameAnimationsToSettle = async (): Promise<void> => {
+    if (isArcadeHomeRunMode()) {
+      // Arcade stage-clear has its own reward transition. Do not let long wild
+      // finale tails delay the first "Stage complete" beat.
+      await waitTracked(120);
+      return;
+    }
+
     const maxWaitMs = 3600;
     const pollMs = 80;
     const startedAt = Date.now();
@@ -11481,6 +11488,15 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   } catch (e) {
     devWarn('⚠️ waitForOngoingAnimations failed (non-fatal):', e);
   }
+
+  if (confirmedFailFlow) {
+    try {
+      const { playGameOverBoardExitAnimation } = await import('./game-over-board-exit-animation.js');
+      await playGameOverBoardExitAnimation();
+    } catch (error) {
+      devWarn('⚠️ Game-over board exit animation failed (continuing to end screen):', error);
+    }
+  }
   
   // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
   devLog('🧹 Performing memory cleanup on game over...');
@@ -11873,6 +11889,14 @@ function restartGame(){
   
   // 🔥 OPTIMIZATION: Clear tracked app timeouts BEFORE starting the new level
   clearAllAppTimeouts();
+
+  // If restart follows a game-over board exit, old tile display objects can remain
+  // mid-scale for one frame. Clear the view before the new board pop-in starts.
+  try {
+    softResetBoardView('restartGame-before-startLevel');
+  } catch (error) {
+    devWarn('⚠️ RESTART: Failed to soft reset board view before startLevel:', error);
+  }
 
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted

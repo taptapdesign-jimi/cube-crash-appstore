@@ -241,8 +241,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     try {
       const fxModule = await import('./fx.js');
       const isArcadeStageClear = isArcadeHomeRunMode();
-      const maxWaitMs = isArcadeStageClear ? 1400 : 4000;
-      const animationStartBufferMs = isArcadeStageClear ? 140 : 350;
+      const maxWaitMs = isArcadeStageClear ? 360 : 4000;
+      const animationStartBufferMs = isArcadeStageClear ? 40 : 350;
       const waitForAnimations = async () => {
         if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
           await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);

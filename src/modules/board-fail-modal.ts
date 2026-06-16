@@ -270,7 +270,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       'align-items:center',
       'justify-content:center',
       'padding:48px 24px',
-      'background:#f3eee8',
+      'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, #f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity 0.25s ease'

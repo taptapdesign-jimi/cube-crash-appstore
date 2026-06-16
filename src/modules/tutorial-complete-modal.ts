@@ -35,6 +35,8 @@ function ensureTutorialCompleteStyles(): void {
       box-sizing: border-box;
       padding: clamp(92px, 15vh, 150px) 24px max(42px, env(safe-area-inset-bottom));
       background:
+        linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)),
+        url("./assets/paper-bg.png") center / 100% 100% no-repeat,
         radial-gradient(ellipse at center, rgba(255,255,255,0.88) 0%, rgba(255,250,244,0.94) 48%, rgba(252,238,223,0.96) 100%);
       font-family: "Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color: #b58a78;

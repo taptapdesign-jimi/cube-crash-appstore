@@ -346,7 +346,7 @@ export async function showCleanBoardModal({
       'display:flex',
       'align-items:center',
       'justify-content:center',
-      'background:#f3eee8',
+      'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, #f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity .2s ease',
