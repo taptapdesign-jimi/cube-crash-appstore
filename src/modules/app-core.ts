@@ -807,6 +807,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
   busyEnding = true;
   cancelPendingWildContinuation(`clean-board-flow:${reason}`);
+  try { hideTerminalLockedArtifacts(`triggerCleanBoardFlow:${reason}`); } catch {}
 
   await waitForFinalMergeHandoff({
     reason,
@@ -8257,6 +8258,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (beforeDstRemovalResult.type === 'clean' && beforeDstRemovalResult.reason === 'last_merge') {
             devLog('🚨🚨🚨 LAST MERGE DETECTED (before dst removal, centralized checker) - Only merge 6 remains, triggering clean board flow');
             setFinalMergeVisualSuppression(true);
+            try { hideTerminalLockedArtifacts('last_merge_before_dst_removal'); } catch {}
             
             // Set busyEnding flag IMMEDIATELY to prevent any other code from running
             busyEnding = true;
@@ -11980,24 +11982,30 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
         devLog('🎮 Arcade fail Play Again already handled by board-fail-modal - skipping duplicate restart');
       }
     } else if (result?.action === 'exit' || result?.action === 'menu') {
-      devLog('🚪 Arcade run reached Exit - returning to menu');
-      try {
-        (window as any).__ccCameFromHomepage = true;
-        (window as any).__ccCameFromJourney = false;
-        (window as any).__skipBoardExitAnimation = true;
-        (window as any).__ccFastArcadeCleanExit = true;
-        try { localStorage.setItem('__ccCameFromHomepage', 'true'); } catch {}
-        try { localStorage.removeItem('__ccCameFromJourney'); } catch {}
-        const { requestExitToMenu } = await import('./menu-exit-handoff.js');
-        await requestExitToMenu({
-          reason: 'arcade-summary-exit',
-          target: 'homepage',
-          skipBoardExit: true,
-          fastArcadeCleanExit: true,
-        });
-      } catch (error) {
-        devWarn('⚠️ Arcade run reached exitToMenu failed:', error);
-        await ensureArcadeSummaryExitShowsHomepage('exitToMenu-failed');
+      if (isArcadeRunReachedSummary) {
+        devLog('🚪 Arcade run reached Exit - returning to menu');
+        try {
+          (window as any).__ccCameFromHomepage = true;
+          (window as any).__ccCameFromJourney = false;
+          (window as any).__skipBoardExitAnimation = true;
+          (window as any).__ccFastArcadeCleanExit = true;
+          try { localStorage.setItem('__ccCameFromHomepage', 'true'); } catch {}
+          try { localStorage.removeItem('__ccCameFromJourney'); } catch {}
+          const { requestExitToMenu } = await import('./menu-exit-handoff.js');
+          await requestExitToMenu({
+            reason: 'arcade-summary-exit',
+            target: 'homepage',
+            skipBoardExit: true,
+            fastArcadeCleanExit: true,
+          });
+        } catch (error) {
+          devWarn('⚠️ Arcade run reached exitToMenu failed:', error);
+          await ensureArcadeSummaryExitShowsHomepage('exitToMenu-failed');
+        }
+      } else {
+        // Board fail modal already starts the menu handoff immediately on Exit.
+        // Running it again here can wait on the in-flight exit and leave a paper-only gap.
+        devLog('🚪 Arcade fail Exit already handled by board-fail-modal - skipping duplicate menu exit');
       }
     }
   } else if (result?.action === 'menu') {

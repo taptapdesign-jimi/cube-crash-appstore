@@ -555,6 +555,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         if (validBoardNumber && !isArcadeHomeRunMode()) {
           (window as any).__ccCameFromDetailModal = true;
           (window as any).__ccDetailModalBoardId = validBoardNumber;
+          (window as any).__ccCameFromJourney = true;
+          (window as any).__ccCameFromHomepage = false;
+          try {
+            localStorage.setItem('__ccCameFromJourney', 'true');
+            localStorage.removeItem('__ccCameFromHomepage');
+          } catch {}
           logger.info(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
           console.log(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
         } else if (isArcadeHomeRunMode()) {
@@ -595,6 +601,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             await requestExitToMenu({
               reason: 'board-fail-modal-exit',
               target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
+              skipBoardExit: true,
+              fastArcadeCleanExit: isArcadeHomeRunMode(),
             });
             logger.info('✅ menu exit handoff completed from board-fail-modal');
           } catch (error) {
