@@ -2,6 +2,7 @@
 import { gsap } from 'gsap';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
+import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -19,6 +20,35 @@ export interface SettingToggle {
 }
 
 const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
+
+type LastMergeWildChoice = {
+  id: string;
+  label: string;
+  kind: 'core' | 'variant';
+  coreWildType?: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
+  variantId?: string;
+};
+
+const CORE_LAST_MERGE_WILD_CHOICES: LastMergeWildChoice[] = [
+  { id: 'core-wild', label: 'Wild Star', kind: 'core', coreWildType: 'wild' },
+  { id: 'core-juice', label: 'Juice', kind: 'core', coreWildType: 'wild-juice' },
+  { id: 'core-magnet', label: 'Magnet', kind: 'core', coreWildType: 'wild-magnet' },
+  { id: 'core-tnt', label: 'TNT', kind: 'core', coreWildType: 'wild-tnt' },
+];
+
+function getLastMergeWildChoices(): LastMergeWildChoice[] {
+  const variantChoices = Object.values(SPECIAL_DICE_VARIANTS).map((variant) => ({
+    id: `variant-${variant.id}`,
+    label: variant.id
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' '),
+    kind: 'variant' as const,
+    variantId: variant.id,
+    coreWildType: getCoreWildTypeForSpecialDiceVariant(variant) || undefined,
+  }));
+  return [...CORE_LAST_MERGE_WILD_CHOICES, ...variantChoices];
+}
 
 function playSoftCartoonBounce(target: HTMLElement | null): void {
   if (!target) return;
@@ -151,6 +181,48 @@ function hideSettingsForDevGameFlow(): void {
   } catch {}
 }
 
+async function ensureLastMergeDevGameReady(): Promise<any> {
+  let cc = (window as any).CC;
+  if (cc && typeof cc.devLastMergeTntScene === 'function') {
+    return cc;
+  }
+
+  try {
+    (window as any).__ccStartAtLevel = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+    (window as any).__ccTriggerHudDrop = true;
+    (window as any).__ccCameFromJourney = true;
+    (window as any).__ccCameFromHomepage = false;
+
+    const [{ boot, layoutBoard }] = await Promise.all([
+      import('../../modules/app-core.js'),
+    ]);
+
+    await boot();
+    try {
+      const uiManager = (window as any).uiManager;
+      if (uiManager && typeof uiManager.showApp === 'function') {
+        uiManager.showApp();
+      }
+    } catch {}
+    await layoutBoard();
+
+    delete (window as any).__ccStartAtLevel;
+    delete (window as any).__ccTriggerHudDrop;
+
+    cc = (window as any).CC;
+  } catch (error) {
+    delete (window as any).__ccStartAtLevel;
+    delete (window as any).__ccTriggerHudDrop;
+    throw error;
+  }
+
+  if (!cc || typeof cc.devLastMergeTntScene !== 'function') {
+    throw new Error('CC.devLastMergeTntScene is not available after boot');
+  }
+
+  return cc;
+}
+
 async function showCleanBoardDevFlow(): Promise<void> {
   triggerSettingsDevHaptic();
   hideSettingsForDevGameFlow();
@@ -182,6 +254,194 @@ async function showCleanBoardDevFlow(): Promise<void> {
     console.error('❌ Failed to show Settings Clean Board dev flow:', error);
     alert('Clean Board dev flow is not available right now.');
   }
+}
+
+async function runLastMergeDevScene(choice: LastMergeWildChoice): Promise<void> {
+  triggerSettingsDevHaptic();
+  hideSettingsForDevGameFlow();
+
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+  try {
+    const cc = await ensureLastMergeDevGameReady();
+    await cc.devLastMergeTntScene({
+      coreWildType: choice.coreWildType,
+      variantId: choice.variantId,
+      label: choice.label,
+    });
+  } catch (error) {
+    console.error('❌ Failed to open Settings LAST MERGE dev scene:', error);
+    alert('LAST MERGE dev scene is not available right now.');
+  }
+}
+
+function showLastMergeDevPicker(): void {
+  triggerSettingsDevHaptic();
+
+  const choices = getLastMergeWildChoices();
+  let selectedChoice: LastMergeWildChoice = choices.find((choice) => choice.coreWildType === 'wild-tnt') || choices[0];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'card-picker-overlay last-merge-picker-overlay';
+  overlay.style.cssText = `
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 9999999999 !important;
+    backdrop-filter: blur(4px) !important;
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  `;
+
+  const modal = document.createElement('div');
+  modal.className = 'card-picker-modal last-merge-picker-modal';
+  modal.style.cssText = `
+    background: url('../../assets/modals/paper.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 24px;
+    padding: 24px;
+    max-width: 90vw;
+    width: 400px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  `;
+
+  const title = document.createElement('h3');
+  title.textContent = 'Last Merge';
+  title.style.cssText = `
+    font-size: 24px;
+    font-weight: 800;
+    color: #ad8775;
+    margin: 0 0 20px 0;
+    text-align: center;
+  `;
+
+  const grid = document.createElement('div');
+  grid.style.cssText = `
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  `;
+
+  const buttons: HTMLButtonElement[] = [];
+  const applySelectedState = () => {
+    buttons.forEach((button) => {
+      const selected = button.dataset.choiceId === selectedChoice.id;
+      button.style.background = selected ? '#e8734a' : '#f3eee8';
+      button.style.borderColor = selected ? '#e8734a' : '#e0e0e0';
+      button.style.color = selected ? 'white' : '#333';
+    });
+  };
+
+  choices.forEach((choice) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = choice.label;
+    btn.dataset.choiceId = choice.id;
+    btn.style.cssText = `
+      background: #f3eee8;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 14px 10px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 52px;
+    `;
+    btn.addEventListener('click', () => {
+      selectedChoice = choice;
+      applySelectedState();
+    });
+    buttons.push(btn);
+    grid.appendChild(btn);
+  });
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    gap: 12px;
+  `;
+
+  const okBtn = document.createElement('button');
+  okBtn.type = 'button';
+  okBtn.textContent = 'OK';
+  okBtn.style.cssText = `
+    flex: 1;
+    background: #e8734a;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  `;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.textContent = 'Cancel';
+  closeBtn.style.cssText = `
+    flex: 1;
+    background: #e0e0e0;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  `;
+
+  let closed = false;
+  const handleClose = () => {
+    if (closed) return;
+    closed = true;
+    overlay.removeEventListener('click', handleOverlayClick);
+    overlay.removeEventListener('touchend', handleOverlayTouchend);
+    buttons.forEach((button) => button.replaceWith(button.cloneNode(true)));
+    try {
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    } catch {}
+  };
+
+  const handleOverlayClick = (event: Event) => {
+    if (event.target === overlay) handleClose();
+  };
+
+  const handleOverlayTouchend = (event: TouchEvent) => {
+    if (event.target === overlay) {
+      event.preventDefault();
+      handleClose();
+    }
+  };
+
+  okBtn.addEventListener('click', () => {
+    const choice = selectedChoice;
+    handleClose();
+    void runLastMergeDevScene(choice);
+  });
+  closeBtn.addEventListener('click', handleClose);
+
+  modal.appendChild(title);
+  modal.appendChild(grid);
+  buttonContainer.appendChild(okBtn);
+  buttonContainer.appendChild(closeBtn);
+  modal.appendChild(buttonContainer);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  void overlay.offsetHeight;
+
+  overlay.addEventListener('click', handleOverlayClick);
+  overlay.addEventListener('touchend', handleOverlayTouchend);
+  applySelectedState();
 }
 
 function createDevButton(id: string, text: string, action: 'show' | 'hide' | 'reset'): HTMLElementConfig {
@@ -285,6 +545,7 @@ function createSettingsDevArea(): HTMLElementConfig {
           createSettingsDevActionButton('settings-dev-new-card-btn', 'New Card', 'new-card', showNewCardDevScreen),
           createSettingsDevActionButton('settings-dev-new-dice-btn', 'New Dice', 'new-dice', showNewDiceDevScreen),
           createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Board', 'clean-board', showCleanBoardDevFlow),
+          createSettingsDevActionButton('settings-dev-last-merge-btn', 'LAST MERGE', 'last-merge', showLastMergeDevPicker),
           createFirstPlayDevButton(),
         ],
       },

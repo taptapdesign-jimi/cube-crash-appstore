@@ -10,6 +10,7 @@ import animationManager from './animation-manager.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { logger } from '../core/logger.js';
 import { attachBubblySprites } from './text-bubbly-sprites.js';
+import { setWildFxDragLock } from './wild-fx-drag-lock.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -195,10 +196,12 @@ export function setExplosionContainer(container: Container | null): void {
   if (container && !container.destroyed) {
     explosionContainer = container;
     isExplosionActive = true;
+    setWildFxDragLock('juice-bubbles', true, 6200);
     logger.debug('Container restored', undefined, { visible: container.visible, children: container.children?.length });
   } else {
     explosionContainer = null;
     isExplosionActive = false;
+    setWildFxDragLock('juice-bubbles', false);
   }
 }
 
@@ -462,6 +465,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   isExplosionActive = true;
+  setWildFxDragLock('juice-bubbles', true, 6200);
   explosionStartTime = performance.now(); // Track when explosion started
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;
@@ -1328,6 +1332,7 @@ function cleanup(): void {
     cleanupBubblyOverlay();
     lifecycle.cleanup();
     isExplosionActive = false;
+    setWildFxDragLock('juice-bubbles', false);
     explosionStartTime = 0; // Reset start time on cleanup
     // 🔥 CRITICAL: Clear global start time on cleanup
     delete (window as any).__ccBubblesExplosionStartTime;

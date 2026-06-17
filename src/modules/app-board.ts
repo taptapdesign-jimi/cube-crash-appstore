@@ -391,6 +391,29 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0;
       const exitDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
 
+      // Keep v401 popout behavior for normal tiles.
+      // For ghost placeholders / locked tiles only, stop stale position tweens
+      // but DO NOT reset x/y to 0 (that causes tiles to jump to corner).
+      const isGhostOrLocked = tile.locked === true || (tile.value | 0) <= 0;
+      const isBackgroundGhost = typeof tile.label === 'string' && tile.label.startsWith('Ghost_');
+      if (isGhostOrLocked) {
+        try { (window as any).gsap?.killTweensOf(tile, 'x,y'); } catch {}
+      }
+      // Background ghosts are Graphics drawn at absolute local coords, so plain
+      // scale animates toward board origin. Re-anchor transform to their own center
+      // before popout so they collapse in place like regular tiles.
+      if (isBackgroundGhost) {
+        try {
+          const b = tile.getLocalBounds?.();
+          if (b && Number.isFinite(b.width) && Number.isFinite(b.height) && b.width > 0 && b.height > 0) {
+            const cx = b.x + b.width * 0.5;
+            const cy = b.y + b.height * 0.5;
+            tile.pivot?.set?.(cx, cy);
+            tile.position?.set?.(cx, cy);
+          }
+        } catch {}
+      }
+
       // Duration variations (same as entry)
       const durMul = 0.55 + Math.random() * 0.20;
       const amp = 1.08 + Math.random() * 0.07;

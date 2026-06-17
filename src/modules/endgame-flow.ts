@@ -3,6 +3,8 @@ import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { wasFinalMergeHandoffRecentlySettled } from './final-merge-handoff.ts';
+import { waitForEndgameAnimationHandoff } from './endgame-animation-handoff.ts';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -233,48 +235,15 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // - Efficiency bonus: moves + stack depth (computed here)
     const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber });
 
-    // 🔥 ENDGAME ANIMATION-WAIT: Wait for stars + bubbles before clean board; skip stars when regular/magnet (none run)
-    // 🔥 CLEAN BOARD DELAY FIX: 4s max (was 5.5s/6s). Bubbles safety timeout 4.4s + early resolve when done.
-    // 🔥 CLEAN BOARD TOO EARLY FIX: Bubbles/stars start via setTimeout(200ms). runEndgameFlow can be triggered
-    // immediately from merge-6; if we poll before 200ms, we see "not running" → resolve → modal blocks animations.
-    // When we expect stars/bubbles (!skipStarsWait), wait 350ms first so they have time to start, then poll.
+    // Targeted handoff only. Avoid broad waitForOngoingAnimations(4000):
+    // final-merge-handoff already waits exact TNT/juice/magnet/sparkle finales.
+    // Here we only give active stars/bubbles a short, specific chance to complete.
     try {
-      const fxModule = await import('./fx.js');
-      const isArcadeStageClear = isArcadeHomeRunMode();
-      const maxWaitMs = isArcadeStageClear ? 360 : 4000;
-      const animationStartBufferMs = isArcadeStageClear ? 40 : 350;
-      const waitForAnimations = async () => {
-        if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
-          await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
-        } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
-          await new Promise((r) => setTimeout(r, animationStartBufferMs)); // let bubbles/stars register before polling
-          await fxModule.waitForOngoingAnimations(maxWaitMs);
-        }
-      };
-      const hardTimeout = new Promise<'timeout'>((resolve) => {
-        setTimeout(() => resolve('timeout'), maxWaitMs + (isArcadeStageClear ? 300 : 800));
+      await waitForEndgameAnimationHandoff({
+        isArcade: isArcadeHomeRunMode(),
+        skipStarsWait,
+        handoffAlreadySettled: wasFinalMergeHandoffRecentlySettled(),
       });
-      const result = await Promise.race([waitForAnimations().then(() => 'done' as const), hardTimeout]);
-      if (result === 'timeout') {
-        console.warn('⚠️ endgame-flow: Animation wait timed out - forcing cleanup to proceed');
-        try {
-          const bubblesModule = await import('./wild-juice-bubbles-explosion.js');
-          if (bubblesModule && typeof bubblesModule.stopWildJuiceBubblesExplosion === 'function') {
-            bubblesModule.stopWildJuiceBubblesExplosion();
-          }
-        } catch {}
-        try {
-          if (fxModule && typeof fxModule.forceCleanupAllStarAnimations === 'function') {
-            fxModule.forceCleanupAllStarAnimations();
-          } else if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
-            fxModule.cleanupExistingStarAnimations();
-          }
-        } catch {}
-        try {
-          const starsCollector = await import('./stars-collector.js');
-          starsCollector.cleanupStarsCollector?.();
-        } catch {}
-      }
     } catch (e) {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
     }

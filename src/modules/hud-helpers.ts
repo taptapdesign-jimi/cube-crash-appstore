@@ -10,6 +10,7 @@ import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.ts';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -1391,6 +1392,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       }
       // 🔥 CRITICAL FIX: Kill GSAP animations BEFORE destroying to prevent null property errors
       try { 
+        killPixiGsapSubtree(gsap, HUD_ROOT);
         gsap.killTweensOf(HUD_ROOT);
         // Also kill animations on all children
         if (HUD_ROOT.children) {
@@ -1406,6 +1408,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             } catch {}
           });
         }
+        killInvalidPixiGsapTweens(gsap);
       } catch {}
       // Destroy HUD_ROOT and all its children (Graphics, Sprites, etc.)
       try { HUD_ROOT.destroy({ children: true, texture: false, textureSource: false }); } catch {}

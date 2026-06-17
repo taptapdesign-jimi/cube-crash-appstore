@@ -450,16 +450,19 @@ function playThumbArrivalShake(clearCard: HTMLElement, thumb: HTMLElement): void
   const shakeTimeline = gsap.timeline();
   activeTimelines.push(shakeTimeline);
   shakeTimeline
-    .to(clearCard, { xPercent: -50, yPercent: -50, x: -5, rotation: -1.2, duration: 0.045, ease: 'power2.out' })
-    .to(clearCard, { xPercent: -50, yPercent: -50, x: 5, rotation: 1.2, duration: 0.045, ease: 'power2.inOut' })
-    .to(clearCard, { xPercent: -50, yPercent: -50, x: -3, rotation: -0.7, duration: 0.04, ease: 'power2.inOut' })
-    .to(clearCard, { xPercent: -50, yPercent: -50, x: 0, rotation: 0, duration: 0.06, ease: 'back.out(2.4)' }, '>');
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: -14, y: 5, rotation: -2.8, duration: 0.055, ease: 'power2.out' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: 13, y: -4, rotation: 2.6, duration: 0.055, ease: 'power2.inOut' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: -10, y: 3, rotation: -2.0, duration: 0.05, ease: 'power2.inOut' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: 8, y: -2, rotation: 1.6, duration: 0.05, ease: 'power2.inOut' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: -5, y: 1.5, rotation: -1.0, duration: 0.045, ease: 'power2.inOut' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: 3, y: -1, rotation: 0.6, duration: 0.045, ease: 'power2.inOut' })
+    .to(clearCard, { xPercent: -50, yPercent: -50, x: 0, y: 0, rotation: 0, duration: 0.12, ease: 'back.out(2.4)' }, '>');
 
   const thumbPunch = gsap.timeline();
   activeTimelines.push(thumbPunch);
   thumbPunch
-    .to(thumb, { scale: 1.08, duration: 0.07, ease: 'power2.out' }, 0)
-    .to(thumb, { scale: 1, duration: 0.12, ease: 'back.out(2.2)' }, '>');
+    .to(thumb, { scale: 1.14, duration: 0.08, ease: 'power2.out' }, 0)
+    .to(thumb, { scale: 1, duration: 0.18, ease: 'back.out(2.2)' }, '>');
 }
 
 function triggerStageNumberHaptic(strength: 'light' | 'medium' = 'medium'): void {
@@ -482,10 +485,14 @@ function playStageNumberScreenShake(overlay: HTMLElement): void {
   const shakeTimeline = gsap.timeline();
   activeTimelines.push(shakeTimeline);
   shakeTimeline
-    .to(overlay, { x: -7, y: 3, rotation: -0.25, duration: 0.035, ease: 'power2.out' })
-    .to(overlay, { x: 7, y: -2, rotation: 0.25, duration: 0.04, ease: 'power2.inOut' })
-    .to(overlay, { x: -4, y: 2, rotation: -0.15, duration: 0.035, ease: 'power2.inOut' })
-    .to(overlay, { x: 0, y: 0, rotation: 0, duration: 0.08, ease: 'back.out(2.2)' });
+    .to(overlay, { x: -18, y: 7, rotation: -0.6, duration: 0.05, ease: 'power2.out' })
+    .to(overlay, { x: 16, y: -6, rotation: 0.6, duration: 0.055, ease: 'power2.inOut' })
+    .to(overlay, { x: -13, y: 5, rotation: -0.45, duration: 0.05, ease: 'power2.inOut' })
+    .to(overlay, { x: 10, y: -4, rotation: 0.35, duration: 0.05, ease: 'power2.inOut' })
+    .to(overlay, { x: -7, y: 3, rotation: -0.25, duration: 0.045, ease: 'power2.inOut' })
+    .to(overlay, { x: 5, y: -2, rotation: 0.18, duration: 0.045, ease: 'power2.inOut' })
+    .to(overlay, { x: -3, y: 1, rotation: -0.1, duration: 0.04, ease: 'power2.inOut' })
+    .to(overlay, { x: 0, y: 0, rotation: 0, duration: 0.14, ease: 'back.out(2.2)' });
 }
 
 async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<void> {

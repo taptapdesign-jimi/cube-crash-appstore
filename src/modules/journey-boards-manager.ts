@@ -13,7 +13,8 @@ import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { clearArcadeSaveState, getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
@@ -6815,6 +6816,38 @@ class JourneyBoardsManager {
     return true;
   }
 
+  private resetArcadeProgressForDev(): void {
+    try {
+      arcadeStatsService.resetStats();
+      clearArcadeSaveState();
+
+      try {
+        localStorage.removeItem('cc_saved_game');
+        localStorage.removeItem('cubeCrash_gameState');
+        localStorage.removeItem('cc_board_completed');
+      } catch {}
+
+      try {
+        delete (window as any).__ccForceArcadeRestartStage01;
+        delete (window as any).__ccArcadeStageContinuePreserveWild;
+        delete (window as any).__ccArcadeStageWildMeterCarryover;
+        delete (window as any).__ccArcadePlayAgainStarting;
+      } catch {}
+
+      try {
+        import('../modules/score-bottom-sheet.js').then((scoreBottomSheetModule) => {
+          if (scoreBottomSheetModule?.isScoreBottomSheetVisible?.()) {
+            scoreBottomSheetModule.showScoreBottomSheet?.();
+          }
+        }).catch(() => {});
+      } catch {}
+
+      logger.info('🧹 Arcade stats and run save reset from Reset Board modal');
+    } catch (error) {
+      logger.warn('⚠️ Failed to reset Arcade progress from Reset Board modal:', error);
+    }
+  }
+
   public showBoardPickerModal(action: 'show' | 'hide' | 'reset'): void {
     console.log('🗺️ showBoardPickerModal called with action:', action);
     
@@ -6878,6 +6911,36 @@ class JourneyBoardsManager {
 
     // Store selected boards
     const selectedBoards: Set<number> = new Set();
+    let arcadeSelected = false;
+
+    const setPickerButtonSelected = (btn: HTMLButtonElement, selected: boolean) => {
+      btn.style.background = selected ? '#e8734a' : '#f3eee8';
+      btn.style.borderColor = selected ? '#e8734a' : '#e0e0e0';
+      btn.style.color = selected ? 'white' : '#333';
+    };
+
+    if (action === 'reset') {
+      const arcadeBtn = document.createElement('button');
+      arcadeBtn.textContent = 'Arcade';
+      arcadeBtn.style.cssText = `
+        background: #f3eee8;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px 8px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #333;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+
+      arcadeBtn.addEventListener('click', () => {
+        arcadeSelected = !arcadeSelected;
+        setPickerButtonSelected(arcadeBtn, arcadeSelected);
+      });
+
+      grid.appendChild(arcadeBtn);
+    }
 
     // Create 16 buttons (01-16)
     for (let i = 1; i <= 16; i++) {
@@ -6911,15 +6974,11 @@ class JourneyBoardsManager {
           if (selectedBoards.has(i)) {
             // Deselect
             selectedBoards.delete(i);
-            btn.style.background = '#f3eee8';
-            btn.style.borderColor = '#e0e0e0';
-            btn.style.color = '#333';
+            setPickerButtonSelected(btn, false);
           } else {
             // Select
             selectedBoards.add(i);
-            btn.style.background = '#e8734a';
-            btn.style.borderColor = '#e8734a';
-            btn.style.color = 'white';
+            setPickerButtonSelected(btn, true);
           }
         });
       }
@@ -6982,6 +7041,13 @@ class JourneyBoardsManager {
     };
 
     okBtn.addEventListener('click', async () => {
+      const resetLabels: string[] = [];
+
+      if (action === 'reset' && arcadeSelected) {
+        this.resetArcadeProgressForDev();
+        resetLabels.push('Arcade');
+      }
+
       for (const boardNum of selectedBoards) {
         if (action === 'show') {
           this.unlockBoardByNumber(boardNum);
@@ -6989,10 +7055,11 @@ class JourneyBoardsManager {
           this.lockBoardByNumber(boardNum);
         } else {
           await this.resetBoardByNumber(boardNum);
+          resetLabels.push(boardNum.toString().padStart(2, '0'));
         }
       }
-      if (action === 'reset' && selectedBoards.size > 0) {
-        alert(`Reset board${selectedBoards.size > 1 ? 's' : ''}: ${Array.from(selectedBoards).map(n => n.toString().padStart(2, '0')).join(', ')}`);
+      if (action === 'reset' && resetLabels.length > 0) {
+        alert(`Reset: ${resetLabels.join(', ')}`);
       }
       handleClose();
     });

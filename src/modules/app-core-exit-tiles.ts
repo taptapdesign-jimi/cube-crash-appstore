@@ -30,10 +30,25 @@ export async function selectTilesForExit({
   
   const effectiveTiles = tilesToAnimate.length > 0 ? tilesToAnimate :
     (moduleTiles.length > 0 ? moduleTiles : winTiles);
+  const ghostPlaceholders: any[] = [];
+  try {
+    const rows = (window as any)._ghostPlaceholders;
+    if (Array.isArray(rows)) {
+      rows.forEach((row: any[]) => {
+        if (!Array.isArray(row)) return;
+        row.forEach((ghost: any) => {
+          if (!ghost || ghost.destroyed || ghost.visible === false) return;
+          if (!ghost.scale || typeof ghost.alpha === 'undefined') return;
+          ghostPlaceholders.push(ghost);
+        });
+      });
+    }
+  } catch {}
+  const effectiveWithGhosts = [...effectiveTiles, ...ghostPlaceholders];
   
-  devLog('🎯 Board exit: Using', effectiveTiles.length, 'tiles for animation');
+  devLog('🎯 Board exit: Using', effectiveTiles.length, 'tiles and', ghostPlaceholders.length, 'ghost placeholders for animation');
   
-  if (effectiveTiles.length === 0) {
+  if (effectiveWithGhosts.length === 0) {
     devWarn('⚠️ No tiles to animate - skipping tile exit animation');
     devWarn('⚠️ DEBUG: STATE =', STATE);
     devWarn('⚠️ DEBUG: tiles module var =', tiles);
@@ -49,5 +64,5 @@ export async function selectTilesForExit({
     return { effectiveTiles: [], skip: true };
   }
   
-  return { effectiveTiles, skip: false };
+  return { effectiveTiles: effectiveWithGhosts, skip: false };
 }

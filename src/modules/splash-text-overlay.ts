@@ -7,6 +7,7 @@ import animationManager from './animation-manager.js';
 import { attachPuffyClouds } from './text-clouds.js';
 import { attachSmallStarCenterBurst } from './text-sparkles.js';
 import { attachBoltSprites } from './text-bolts.js';
+import { setWildFxDragLock } from './wild-fx-drag-lock.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -124,6 +125,7 @@ function cleanupBuzzzOverlay(): void {
     }
     swoopOverlay = null;
     magneticTextActive = false;
+    setWildFxDragLock('magnetic-text', false);
     resolveMagneticTextWaiters();
   } catch {}
 }
@@ -136,6 +138,7 @@ export function showMagneticText(): void {
   try {
     cleanupBuzzzOverlay();
     magneticTextActive = true;
+    setWildFxDragLock('magnetic-text', true, 3600);
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -426,6 +429,7 @@ function cleanupSparkleOverlay(): void {
     }
     sparkleOverlay = null;
     sparkleTextActive = false;
+    setWildFxDragLock('sparkle-text', false);
   } catch {}
 }
 
@@ -437,6 +441,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
+    setWildFxDragLock('sparkle-text', true, 3600);
     const sparkleText = String(options?.text || 'SPARKLE');
     const sparkleColor = String(options?.color || '#FFCB81');
 

@@ -318,9 +318,11 @@ export async function showCleanBoardModal({
       return 0;
     };
     const previousBestScore = getBestScore();
-    const highScoreJustUpdated = !isArcadeHomeRun && typeof statsService?.wasHighScoreJustUpdated === 'function'
-      ? statsService.wasHighScoreJustUpdated(finalScore)
-      : false;
+    const highScoreJustUpdated = isArcadeHomeRun
+      ? arcadeStatsService.wasHighScoreJustUpdated(finalScore)
+      : typeof statsService?.wasHighScoreJustUpdated === 'function'
+        ? statsService.wasHighScoreJustUpdated(finalScore)
+        : false;
     // Use final score (includes bonus) against board-specific high score
     const isNewHighScore = finalScore > previousBestScore || highScoreJustUpdated;
     

@@ -3,6 +3,7 @@
 
 export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
+export type SpecialDiceFinaleFx = 'star' | 'juice' | 'magnet' | 'tnt';
 
 export type SpecialDiceVariantDefinition = {
   id: string;
@@ -113,6 +114,53 @@ export function getCoreWildTypeForSpecialDiceVariant(variant?: SpecialDiceVarian
   if (variant.archetype === 'wild-juice') return 'wild-juice';
   if (variant.archetype === 'wild-magnet') return 'wild-magnet';
   if (variant.archetype === 'wild-tnt') return 'wild-tnt';
+  return null;
+}
+
+export function getSpecialDiceFinaleFxForCoreWildType(coreWildType?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
+  if (coreWildType === 'wild-tnt') return 'tnt';
+  if (coreWildType === 'wild-magnet') return 'magnet';
+  if (coreWildType === 'wild-juice') return 'juice';
+  if (coreWildType === 'wild') return 'star';
+  return null;
+}
+
+export function getSpecialDiceFinaleFxForArchetype(archetype?: SpecialDiceArchetype | string | null): SpecialDiceFinaleFx | null {
+  if (archetype === 'wild-tnt') return 'tnt';
+  if (archetype === 'wild-magnet') return 'magnet';
+  if (archetype === 'wild-juice') return 'juice';
+  if (archetype === 'wild-star') return 'star';
+  return null;
+}
+
+export function getSpecialDiceFinaleFxForTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
+  const variant = getSpecialDiceVariantForTile(tile);
+  const variantFx = getSpecialDiceFinaleFxForArchetype(variant?.archetype || tile?._ccSpecialDiceArchetype);
+  if (variantFx) return variantFx;
+  return getSpecialDiceFinaleFxForCoreWildType(coreWildTypeOverride || tile?.special || tile?._ccWildSpecial || null);
+}
+
+export function getSpecialDiceFinaleFxForMerge({
+  src,
+  dst,
+  srcSpecial,
+  dstSpecial,
+}: {
+  src?: any;
+  dst?: any;
+  srcSpecial?: CoreWildType | string | null;
+  dstSpecial?: CoreWildType | string | null;
+}): SpecialDiceFinaleFx | null {
+  const srcFx = getSpecialDiceFinaleFxForTile(src, srcSpecial);
+  const dstFx = getSpecialDiceFinaleFxForTile(dst, dstSpecial);
+  const candidates = [srcFx, dstFx];
+
+  // If a future special-vs-special edge case reaches this path, use the most
+  // cinematic/mechanically constrained finale first.
+  if (candidates.includes('tnt')) return 'tnt';
+  if (candidates.includes('magnet')) return 'magnet';
+  if (candidates.includes('juice')) return 'juice';
+  if (candidates.includes('star')) return 'star';
   return null;
 }
 

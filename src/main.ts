@@ -87,7 +87,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './utils/animations.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
@@ -2502,6 +2502,10 @@ async function startNewRun(boardId: number): Promise<void> {
     } else {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
+      // 🔥 iOS FIX: Force-reset animation flags before entering so stuck 'isAnimatingEnter'
+      // from a previous session (common on iOS when the flag timeout was never reached)
+      // does not silently skip the animation and leave a blank paper background.
+      resetAnimationFlags();
       animateSliderEnter();
       // Resume menu soundtrack with fade in when homepage is shown
       try {

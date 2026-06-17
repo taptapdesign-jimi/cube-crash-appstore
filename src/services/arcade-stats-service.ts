@@ -19,6 +19,8 @@ class ArcadeStatsService {
     highestStageOpened: 1,
     lastPlayed: 0,
   };
+  private lastHighScoreUpdateScore: number | null = null;
+  private lastHighScoreUpdateAt: number | null = null;
 
   constructor() {
     this.loadStats();
@@ -62,9 +64,27 @@ class ArcadeStatsService {
     if (safeScore <= this.stats.highScore) return false;
     this.stats.highScore = safeScore;
     this.stats.lastPlayed = Date.now();
+    this.lastHighScoreUpdateScore = safeScore;
+    this.lastHighScoreUpdateAt = Date.now();
     this.saveStats();
     console.log(`🏆 New ARCADE high score: ${safeScore}`);
     return true;
+  }
+
+  public wasHighScoreJustUpdated(expectedScore?: number, windowMs = 120000): boolean {
+    if (!this.lastHighScoreUpdateAt) return false;
+    if (typeof expectedScore === 'number' && expectedScore !== this.lastHighScoreUpdateScore) {
+      return false;
+    }
+    return (Date.now() - this.lastHighScoreUpdateAt) <= windowMs;
+  }
+
+  public resetHighScore(): void {
+    this.stats.highScore = 0;
+    this.stats.lastPlayed = Date.now();
+    this.lastHighScoreUpdateScore = null;
+    this.lastHighScoreUpdateAt = null;
+    this.saveStats();
   }
 
   public addCubesCracked(count: number): number {
@@ -99,6 +119,8 @@ class ArcadeStatsService {
 
   public resetStats(): void {
     this.stats = { highScore: 0, cubesCracked: 0, longestCombo: 0, highestStageOpened: 1, lastPlayed: 0 };
+    this.lastHighScoreUpdateScore = null;
+    this.lastHighScoreUpdateAt = null;
     this.saveStats();
   }
 }

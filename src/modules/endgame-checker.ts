@@ -118,6 +118,8 @@ function isMagnetContinuationCandidate(tile: any): boolean {
 export function tileIsActive(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
+  if (isTileTransientlySpawning(tile)) return false;
+  if ((tile as any)._ccWildSpawnDropping === true) return false;
   
   // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"

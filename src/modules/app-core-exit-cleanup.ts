@@ -20,18 +20,17 @@ export function cleanupBeforeBoardExit({
   } catch (e) {
     devWarn('⚠️ Board exit: Error cleaning up smoke bubbles:', e);
   }
-  
-  // CRITICAL: Hide ghost placeholders before exit animation
+  // Keep ghost placeholders visible for the board exit animation. They used to be hidden
+  // here, which made no-moves boards visually collapse before the exit could play.
   try {
     if (backgroundLayer) {
-      backgroundLayer.visible = false;
+      backgroundLayer.visible = true;
     }
-    // Also hide if stored in window._ghostPlaceholders
     if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
       window._ghostPlaceholders.forEach((row: any[]) => {
         row.forEach((ghost: any) => {
           if (ghost && typeof ghost.visible !== 'undefined') {
-            ghost.visible = false;
+            ghost.visible = true;
           }
         });
       });

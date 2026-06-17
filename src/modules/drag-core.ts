@@ -12,6 +12,7 @@ import animationManager from './animation-manager.js';
 import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import { getWildFxDragLockReasons, isWildFxDragLocked } from './wild-fx-drag-lock.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -425,6 +426,13 @@ export function initDrag(cfg) {
     }
 
     repairWildTileState(t);
+
+    if (isAnyWildTile(t) && isWildFxDragLocked()) {
+      console.log('🛡️ DRAG BLOCKED: Wild FX animation in progress', getWildFxDragLockReasons());
+      try { e?.stopPropagation?.(); } catch {}
+      try { e?.preventDefault?.(); } catch {}
+      return;
+    }
 
     if ((t as any)?._ccWildSpawnDropping === true) {
       console.log('🛡️ DRAG BLOCKED: Incoming wild is still landing');

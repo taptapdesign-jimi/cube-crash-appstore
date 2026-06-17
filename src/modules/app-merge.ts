@@ -111,6 +111,12 @@ function tileIsActive(tile: any): boolean {
   // Wild tiles are active even if locked temporarily
   return tileIsWild(tile);
 }
+
+function tileIsTransientForMagnetPull(tile: any): boolean {
+  if (!tile || tile.destroyed) return true;
+  return tile._ccWildSpawnDropping === true;
+}
+
 function removeTile(t){
   if(!t) return;
   try { stopWildIdle?.(t); } catch {}
@@ -483,7 +489,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   try {
     // Filter valid tiles
-    const validTiles = tiles.filter((t: any) => t && !t.destroyed);
+    const validTiles = tiles.filter((t: any) => t && !tileIsTransientForMagnetPull(t));
     const pulledTileCount = validTiles.length;
     const pulledCells: { c: number; r: number }[] = [];
   
@@ -1435,10 +1441,18 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     return empties.slice(0, Math.min(count, empties.length));
   };
   
-  const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+  const isLastMergeFlagSetRaw = (dst as any)?._isLastMerge === true;
   const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
   const onlyDstRemains = activeAfterRemoval.length === 1 && activeAfterRemoval[0] === dst;
   const hasTilesToRespawn = pulledCells.length > 0;
+  if (isLastMergeFlagSetRaw && hasTilesToRespawn) {
+    console.log('🧲 _isLastMerge flag ignored: magnet pulled tiles that must respawn', {
+      pulledCells: pulledCells.length,
+      pulledCellsList: pulledCells
+    });
+    try { (dst as any)._isLastMerge = false; } catch {}
+  }
+  const isLastMergeFlagSet = isLastMergeFlagSetRaw && !hasTilesToRespawn;
   const merge6Coords = dst && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)
     ? { c: dst.gridX | 0, r: dst.gridY | 0 }
     : null;
@@ -1498,7 +1512,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), NO spawns at all (trigger CLEAN BOARD)
   // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
   // 🔥 CRITICAL: Check _isLastMerge flag FIRST - if set, skip ALL spawn logic and trigger clean board
-  if (isLastMergeFlagSet) {
+  if (isLastMergeFlagSet && !hasTilesToRespawn) {
     console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - NO spawns, triggering CLEAN BOARD');
     console.log('🎯 This is the final merge (magnet + 1 tile = 2 tiles total) - should trigger clean board, NOT spawn tiles');
     
@@ -2565,8 +2579,19 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
 export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<boolean> {
   console.log('🧲 handleWildMagnetMergedPulledTiles called with', pulledTiles?.length || 0, 'tiles');
   
-  // Filter valid tiles
-  const validTiles = (pulledTiles || []).filter((t: any) => t && !t.destroyed);
+  // Filter valid tiles. A wild that is still dropping from the meter/crate is in STATE.tiles
+  // for rendering, but it is not a legal magnet target until the drop settles.
+  const transientPulledTiles = (pulledTiles || []).filter((t: any) => t && tileIsTransientForMagnetPull(t));
+  if (transientPulledTiles.length > 0) {
+    console.warn('🧲 Ignoring transient/spawning tiles in magnet pull target list', transientPulledTiles.map((t: any) => ({
+      value: t?.value,
+      special: t?.special,
+      gridX: t?.gridX,
+      gridY: t?.gridY,
+      dropping: t?._ccWildSpawnDropping === true,
+    })));
+  }
+  const validTiles = (pulledTiles || []).filter((t: any) => t && !tileIsTransientForMagnetPull(t));
   
   // 🔥 CRITICAL FIX: Allow empty array if _isLastMerge flag is set (final merge-6 scenario)
   // This allows clean board flow to be triggered when magnet + 1 tile = final merge-6
