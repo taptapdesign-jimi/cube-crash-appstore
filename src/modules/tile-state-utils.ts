@@ -119,11 +119,13 @@ export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOpti
 
   if (tile._isBeingSpawned === true) {
     const value = (tile.value | 0);
+    const mode = tile.eventMode;
+    const inputEnabled = mode !== 'none' && mode !== 'passive';
     const looksInteractive =
       !tile.locked &&
       (value > 0 || tileIsWild(tile)) &&
       tile.visible !== false &&
-      tile.eventMode === 'static';
+      inputEnabled;
 
     // Defensive cleanup: stale spawn-flag should not indefinitely block fail/no-moves flow.
     if (looksInteractive) {

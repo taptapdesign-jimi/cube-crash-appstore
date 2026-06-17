@@ -216,6 +216,34 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
 // RECOVERY EXECUTION
 // ============================================================================
 
+function getRecoveryTileGroups(tiles: TileInfo[]): { activeTiles: TileInfo[]; lockedTiles: TileInfo[] } {
+  const activeTiles = (tiles || []).filter(t =>
+    t &&
+    !t.destroyed &&
+    !t.locked &&
+    typeof t.value === 'number' &&
+    t.value > 0
+  );
+  const lockedTiles = (tiles || []).filter(t =>
+    t &&
+    !t.destroyed &&
+    t.locked === true
+  );
+  return { activeTiles, lockedTiles };
+}
+
+function isCleanBoardRecoveryCompatible(tiles: TileInfo[]): boolean {
+  const { activeTiles, lockedTiles } = getRecoveryTileGroups(tiles);
+  if (activeTiles.length === 0 && lockedTiles.length === 0) return true;
+  return activeTiles.length === 1 &&
+    activeTiles[0]?.value === MAX_MERGE_VALUE &&
+    lockedTiles.length === 0;
+}
+
+function shouldTriggerCleanBoardForStuckReason(reason: string): boolean {
+  return reason === 'single_merge6_no_locked' || reason === 'empty_board_no_locked';
+}
+
 /**
  * Main recovery function - call this after loading board state.
  * Checks for pending clean board flag AND stuck state detection.
@@ -236,6 +264,18 @@ export async function checkAndRecoverBoard(
   // Check 1: Pending clean board flag (explicit intent)
   const pendingCheck = getPendingCleanBoard(boardNumber);
   if (pendingCheck.pending) {
+    if (!isCleanBoardRecoveryCompatible(tiles)) {
+      logger.warn('⚠️ RECOVERY: Ignoring stale pending clean-board flag because saved board is playable/non-clean', 'board-recovery', {
+        pending: pendingCheck.data,
+        activeTiles: getRecoveryTileGroups(tiles).activeTiles.map(t => ({
+          value: t.value,
+          special: t.special || null,
+          gridX: t.gridX,
+          gridY: t.gridY
+        })),
+      });
+      clearPendingCleanBoard();
+    } else {
     logger.warn('🚨 RECOVERY: Pending clean board flag detected!', 'board-recovery', pendingCheck.data);
     
     try {
@@ -259,11 +299,21 @@ export async function checkAndRecoverBoard(
         recovered: false
       };
     }
+    }
   }
   
   // Check 2: Stuck state detection (heuristic)
   const stuckCheck = detectStuckState(tiles);
   if (stuckCheck.isStuck) {
+    if (!shouldTriggerCleanBoardForStuckReason(stuckCheck.reason)) {
+      logger.warn('⚠️ RECOVERY: Stuck state is not a clean-board recovery; leaving it to endgame checker', 'board-recovery', stuckCheck);
+      return {
+        wasStuck: false,
+        reason: stuckCheck.reason,
+        recovered: false
+      };
+    }
+
     logger.warn('🚨 RECOVERY: Stuck state detected!', 'board-recovery', stuckCheck);
     
     try {

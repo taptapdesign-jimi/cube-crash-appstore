@@ -1626,6 +1626,9 @@ export async function showCleanBoardModal({
         
         // Stop only modal-specific animations, but NOT board animations (let exit animation play)
         stopAllStarAnimations({ exit: true, numStars });
+        // Ensure confetti is fully removed right when Exit is tapped.
+        // Keeping existing confetti alive causes visible "waiting on confetti" before homepage.
+        stopConfettiSpawnsSafe();
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         

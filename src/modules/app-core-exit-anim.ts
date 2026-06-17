@@ -1,3 +1,5 @@
+import { resolveExitWaits } from './exit-transition-waits.js';
+
 type ExitAnimDeps = {
   tiles: any[];
   sweetPopOut: (tiles: any[], opts?: any) => Promise<any>;
@@ -13,6 +15,7 @@ export async function runExitAnimation({
   devLog,
   devWarn,
 }: ExitAnimDeps){
+  const waits = resolveExitWaits();
   // 🔥 CRITICAL FIX: Filter out destroyed/invalid tiles before animation
   const validTiles = tiles.filter((t: any) => t && !t.destroyed && t.scale && typeof t.alpha !== 'undefined');
   devLog('🎯 Board exit: Valid tiles for animation:', validTiles.length, 'of', tiles.length);
@@ -20,7 +23,7 @@ export async function runExitAnimation({
   if (validTiles.length === 0) {
     devWarn('⚠️ All tiles are destroyed/invalid - skipping sweetPopOut');
     // Wait for HUD animation to complete
-    await waitTracked(400);
+    await waitTracked(waits.noTilesFallbackMs);
     return;
   }
   
@@ -29,13 +32,7 @@ export async function runExitAnimation({
   await sweetPopOut(validTiles, {
     // No onHalf callback needed - HUD already started above
   });
-  
-  // CRITICAL: Wait for the longest animation to complete
-  // HUD rise duration: 0.3s (300ms)
-  // sweetPopOut max duration: ~0.38-0.55s
-  // Wait for the longer of the two (sweetPopOut is usually longer)
-  // Add small buffer to ensure both complete
-  const maxAnimationTime = Math.max(550, 300); // sweetPopOut max ~550ms, HUD 300ms
-  devLog(`⏳ Waiting for exit animations to complete (${maxAnimationTime}ms)...`);
-  await waitTracked(maxAnimationTime);
+
+  // sweetPopOut resolves on completion; keep only a tiny settle window for render flush.
+  await waitTracked(waits.postPopOutSettleMs);
 }

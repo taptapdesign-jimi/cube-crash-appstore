@@ -5,6 +5,7 @@ import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { wasFinalMergeHandoffRecentlySettled } from './final-merge-handoff.ts';
 import { waitForEndgameAnimationHandoff } from './endgame-animation-handoff.ts';
+import { requestExitToMenu } from './menu-exit-handoff.ts';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -87,9 +88,12 @@ async function returnFirstPlayTutorialToHomepage(): Promise<void> {
     delete (window as any).__ccDetailModalBoardId;
     (window as any).__skipBoardExitAnimation = true;
     (window as any).__ccFastArcadeCleanExit = true;
-    if (typeof (window as any).exitToMenu === 'function') {
-      await (window as any).exitToMenu();
-    }
+    await requestExitToMenu({
+      reason: 'first-play-tutorial-complete-home',
+      target: 'homepage',
+      skipBoardExit: true,
+      fastArcadeCleanExit: true,
+    });
   } catch (error) {
     console.error('❌ endgame-flow: Failed to return home after tutorial clean board:', error);
     logger.error('❌ endgame-flow: Failed tutorial continue home:', error);
@@ -122,6 +126,24 @@ function createNewCardCleanBoardHandoffCover(): () => void {
 }
 
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
+  const abortTokenAtStart = Number((window as any).__ccEndgameFlowAbortToken || 0);
+  const shouldAbortEndgameFlow = (): boolean => {
+    try {
+      if ((window as any).exitingToMenu === true) return true;
+      if (Number((window as any).__ccEndgameFlowAbortToken || 0) !== abortTokenAtStart) return true;
+      const home = document.getElementById('home');
+      const journey = document.getElementById('journey-screen');
+      const homeVisible = !!home && !home.hasAttribute('hidden') && window.getComputedStyle(home).display !== 'none';
+      const journeyVisible = !!journey && !journey.hasAttribute('hidden') && window.getComputedStyle(journey).display !== 'none';
+      return homeVisible || journeyVisible;
+    } catch {
+      return false;
+    }
+  };
+  if (shouldAbortEndgameFlow()) {
+    console.warn('⚠️ runEndgameFlow: aborted before start (exit/home/journey active)');
+    return;
+  }
   try {
     const { resetEndgameHint } = await import('./endgame-hint.js');
     resetEndgameHint();
@@ -246,6 +268,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       });
     } catch (e) {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
+    }
+    if (shouldAbortEndgameFlow()) {
+      console.warn('⚠️ endgame-flow: aborted after handoff wait');
+      return;
     }
 
     if (firstPlayTutorialCompletion) {
@@ -472,11 +498,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         delete (window as any).__ccCameFromDetailModal;
         delete (window as any).__ccDetailModalBoardId;
         delete (window as any).__skipBoardExitAnimation;
-        if (typeof (window as any).exitToMenu === 'function') {
-          // Board exit animation already played in clean-board-modal
-          (window as any).__skipBoardExitAnimation = true;
-          await (window as any).exitToMenu();
-        }
+        // Board exit animation already played in clean-board-modal.
+        await requestExitToMenu({
+          reason: 'clean-board-back-to-journey',
+          target: 'auto',
+          skipBoardExit: true,
+        });
       } catch (error) {
         console.error('❌ endgame-flow: Failed to return to Journey:', error);
         logger.error('❌ endgame-flow: Failed to return to Journey:', error);
@@ -500,9 +527,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           // Tell exitToMenu to skip duplicate board/HUD exit for faster return to homepage.
           (window as any).__skipBoardExitAnimation = true;
           (window as any).__ccFastArcadeCleanExit = true;
-          if (typeof (window as any).exitToMenu === 'function') {
-            await (window as any).exitToMenu();
-          }
+          await requestExitToMenu({
+            reason: 'clean-board-arcade-exit',
+            target: 'homepage',
+            skipBoardExit: true,
+            fastArcadeCleanExit: true,
+          });
         } catch (error) {
           console.error('❌ endgame-flow: Failed to exit arcade_home run:', error);
           logger.error('❌ endgame-flow: Failed to exit arcade_home run:', error);
@@ -587,12 +617,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         // Call exitToMenu which will detect these flags and open detail modal directly
         // Note: Board exit animation was already played in clean-board-modal, so exitToMenu will skip it
         // But we still need to call exitToMenu to handle the transition to detail modal
-        if (typeof (window as any).exitToMenu === 'function') {
-          // Set flag to skip board exit animation since it was already played in clean-board-modal
-          (window as any).__skipBoardExitAnimation = true;
-          console.log('🎯 endgame-flow: Set skip flag for exitToMenu (animation already played in clean-board-modal)');
-          await (window as any).exitToMenu();
-        }
+        console.log('🎯 endgame-flow: requesting menu handoff (animation already played in clean-board-modal)');
+        await requestExitToMenu({
+          reason: 'clean-board-detail-exit',
+          target: 'auto',
+          skipBoardExit: true,
+        });
       } catch (error) {
         console.error('❌ endgame-flow: Failed to exit to detail modal:', error);
         logger.error('❌ endgame-flow: Failed to exit to detail modal:', error);
@@ -981,6 +1011,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
+          if (shouldAbortEndgameFlow()) {
+            try { cleanupBoardTransitionScreen?.(); } catch {}
+            console.warn('⚠️ endgame-flow: transition onComplete aborted (exit/home/journey active)');
+            return;
+          }
           // 🔥 CRITICAL: Stop PIXI ticker FIRST (sync, before any await) to prevent "addressModeU" errors.
           // A frame can fire between awaits; renderer must not touch textures while we destroy them.
           try {
@@ -1175,6 +1210,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
 
             // 🔥 RECOVERY: If board failed to appear after transition, retry once
             setTimeout(async () => {
+              if (shouldAbortEndgameFlow()) return;
               try {
                 const appEl = document.getElementById('app');
                 const appVisible = !!appEl && !appEl.hasAttribute('hidden') &&

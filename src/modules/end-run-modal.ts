@@ -5,6 +5,7 @@ import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
@@ -485,12 +486,6 @@ function createModal(): HTMLElement {
         (window as any)._gamePaused = false;
         console.log('🔓 gamePaused flag reset before exitToMenu');
         
-        // Guard: Prevent multiple calls
-        if ((window as any).exitingToMenu) {
-          console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
-          return;
-        }
-        
         // 🔥 CRITICAL FIX: Clear any skip flags to ensure exit animation always plays
         // This ensures board exit animation (HUD + tiles) always plays before returning to Journey screen
         delete (window as any).__skipBoardExitAnimation;
@@ -514,12 +509,13 @@ function createModal(): HTMLElement {
           console.warn('⚠️ end-run-modal: Failed to check/clear saved game state on exit:', error);
         }
         
-        if ((window as any).exitToMenu) {
-          console.log('🎯 Calling exitToMenu (will play board exit animation first)...');
-          (window as any).exitToMenu();
-        } else {
-          console.error('❌ exitToMenu function not found!');
-        }
+        console.log('🎯 Requesting menu exit handoff (will play board exit animation first if available)...');
+        requestExitToMenu({
+          reason: 'end-run-modal-exit',
+          target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
+        }).catch((error) => {
+          console.warn('⚠️ end-run-modal: menu exit handoff failed:', error);
+        });
       }, 400); // Wait for modal close animation to complete
     };
     trackEndRunEventListener(exitBtn, 'click', exitClickHandler);

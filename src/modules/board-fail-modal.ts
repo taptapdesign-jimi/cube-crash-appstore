@@ -4,6 +4,7 @@ import { pickRandom } from './clean-board-utils.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
+import { requestExitToMenu } from './menu-exit-handoff.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -543,21 +544,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         resetArcadeFailedRunForFreshStart();
-        // 🔥 BUG FIX: Check guard to prevent duplicate calls
-        if ((window as any).exitingToMenu) {
-          logger.warn('⚠️ exitToMenu already in progress, skipping duplicate call');
-          // 🔥 CRITICAL FIX: Still close modal even if exitToMenu is already running
-          // This prevents modal from staying open if user clicks Exit multiple times
-          overlay.style.opacity = '0';
-          card.style.transform = 'scale(0.88)';
-          card.style.opacity = '0';
-          trackFailTimeout(() => { 
-            try { overlay.remove(); } catch {} 
-            _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-            resolve({ action }); 
-          }, 220);
-          return; // Don't proceed with exitToMenu call
-        }
         
         // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
         // This ensures exitToMenu knows to open detail modal instead of homepage/journey
@@ -606,17 +592,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // This allows exitToMenu to start showing homepage/journey while modal fades out
         (async () => {
           try {
-            if ((window as WindowWithCC).exitToMenu) {
-              // Don't await - let it run in parallel with modal fade
-              (window as WindowWithCC).exitToMenu!().catch((error) => {
-                logger.warn('⚠️ window.exitToMenu failed:', error);
-              });
-              logger.info('✅ window.exitToMenu started from board-fail-modal (running in parallel with modal fade)');
-            } else {
-              logger.warn('⚠️ window.exitToMenu not found');
-            }
+            await requestExitToMenu({
+              reason: 'board-fail-modal-exit',
+              target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
+            });
+            logger.info('✅ menu exit handoff completed from board-fail-modal');
           } catch (error) {
-            logger.warn('⚠️ window.exitToMenu failed:', error);
+            logger.warn('⚠️ menu exit handoff failed:', error);
           }
         })();
         

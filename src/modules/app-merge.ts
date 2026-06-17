@@ -20,6 +20,7 @@ import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
+import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -100,6 +101,7 @@ function tileIsWild(tile: any): boolean {
 function tileIsActive(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
   
   // 🔥 CRITICAL: Locked tiles with value > 0 are still active (e.g. during magnet pull)
   // Only exclude locked tiles with value 0 (ghost placeholders)
@@ -509,9 +511,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     
     // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
     // Without this, clean board appears immediately and SWOOP gets cut off
-    if (!isMagneticTextActive()) {
+    if (!isMagneticTextActive() && shouldStartFinalSpecialFx('magnet')) {
       console.log('🧲 Magnet merge with no pulled tiles: SWOOP was not active, starting fallback text animation');
       showMagneticText();
+    } else {
+      markFinalSpecialFxTriggered('magnet');
     }
     console.log('🧲 Magnet merge with no pulled tiles: waiting for SWOOP text animation before clean board');
     await waitForMagneticTextComplete();
@@ -1523,9 +1527,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     
     // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
     // Without this, clean board appears immediately and SWOOP gets cut off
-    if (!isMagneticTextActive()) {
+    if (!isMagneticTextActive() && shouldStartFinalSpecialFx('magnet')) {
       console.log('🧲 Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
       showMagneticText();
+    } else {
+      markFinalSpecialFxTriggered('magnet');
     }
     console.log('🧲 Final wild-magnet merge-6: waiting for SWOOP text animation before clean board');
     await waitForMagneticTextComplete();
@@ -2405,11 +2411,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // We need to wait until ALL tiles are unlocked before checking anyMergePossible
   // Maximum wait: 500ms (spawn animation + unlock delay)
   // This ensures endgame check sees all spawned tiles and correctly determines if game can continue
+  const isPlayableForPostMagnetCheck = (tile: any): boolean => {
+    if (!tile || tile.destroyed) return false;
+    if (tile.visible === false) return false;
+    if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+    const value = (tile.value | 0);
+    const isWild =
+      tile.special === 'wild' ||
+      tile.special === 'wild-magnet' ||
+      tile.special === 'wild-juice' ||
+      tile.special === 'wild-tnt' ||
+      tile.isWild === true ||
+      tile.isWildFace === true;
+    if (!isWild && tile.locked) return false;
+    return value > 0 || isWild;
+  };
+
   let allTilesUnlocked = false;
   let retryCount = 0;
   const maxRetries = 10; // 10 retries * 50ms = 500ms max wait
   while (!allTilesUnlocked && retryCount < maxRetries) {
-    const activeTilesCheck = STATE.tiles.filter(tileIsActive);
+    const activeTilesCheck = STATE.tiles.filter(isPlayableForPostMagnetCheck);
     const lockedActiveTilesCheck = activeTilesCheck.filter((t: any) => t.locked && (t.value|0) > 0);
     
     if (lockedActiveTilesCheck.length === 0) {
@@ -2426,7 +2448,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Some tiles are still locked after max wait time, proceeding with check anyway');
   }
   
-  const activeTilesFinal = STATE.tiles.filter(tileIsActive);
+  const activeTilesFinal = STATE.tiles.filter(isPlayableForPostMagnetCheck);
   const hasMergeableTiles = activeTilesFinal.length > 1; // More than just merge 6 = can merge
   
   // Check if board is clean (only merge 6 remains, no other active tiles)

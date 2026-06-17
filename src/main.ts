@@ -88,6 +88,7 @@ import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './utils/animations.js';
+import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
@@ -682,11 +683,29 @@ initializeApp().catch((error: Error) => {
   uiManager.startNewGame(); // Same as startNewGame for now
 };
 
+function resetEndgameRuntimeFlags(reason: string): void {
+  // Hard reset cross-run flags so stale async endgame callbacks cannot mutate a new run.
+  (window as any).__ccEndgameFlowAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0) + 1;
+  delete (window as any).__ccRecoverStartNewRunInProgress;
+  delete (window as any).__ccBoardTransitionActive;
+  delete (window as any).__ccSkipRebuildBoard;
+  delete (window as any).__skipBoardExitAnimation;
+  delete (window as any).__ccFastArcadeCleanExit;
+  delete (window as any).__ccPlayAgainRestartInProgress;
+  delete (window as any).__ccPreserveScore;
+  delete (window as any).__ccArcadeStageContinuePreserveWild;
+  delete (window as any).__ccArcadeStageWildMeterCarryover;
+  delete (window as any).__ccBoardJustCompleted;
+  delete (window as any).__ccFinalSpecialFxGuards;
+  console.log(`🧹 Reset endgame runtime flags (${reason})`);
+}
+
 // 🔥 JOURNEY PROGRESSION: Helper function to start a new run for a specific board
 async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
   setRunMode(RUN_MODE_JOURNEY);
   const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
+  resetEndgameRuntimeFlags(`startNewRun:${boardId}`);
   
   // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
   // This prevents wrong board from opening when exiting
@@ -1249,6 +1268,7 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
   logger.info('🎬 Starting game start sequence...');
   setRunMode(RUN_MODE_ARCADE_HOME);
+  resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
   
   // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
   // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -1282,6 +1302,8 @@ async function startNewRun(boardId: number): Promise<void> {
     return;
   }
   (window as any).exitingToMenu = true;
+  // Abort any in-flight endgame transition callbacks/timeouts from previous run.
+  (window as any).__ccEndgameFlowAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0) + 1;
   
   // 🔥 CRITICAL FIX: Reset gamePaused flag immediately
   // This ensures new game starts with clean state
@@ -1549,6 +1571,11 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 CRITICAL FIX: Double-check flag value and log it for debugging
     const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
     const isFastArcadeCleanExit = (window as any).__ccFastArcadeCleanExit === true;
+    const exitWaits = resolveExitWaits({
+      skipBoardExit: shouldSkipBoardExit,
+      fastArcadeCleanExit: isFastArcadeCleanExit,
+    });
+    let earlyHomepageHandoffDone = false;
     console.log(`🔍 exitToMenu: shouldSkipBoardExit = ${shouldSkipBoardExit}, flag value = ${(window as any).__skipBoardExitAnimation}`);
     if (shouldSkipBoardExit) {
       console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
@@ -1561,8 +1588,8 @@ async function startNewRun(boardId: number): Promise<void> {
           if (STATE && STATE.hud && typeof STATE.hud.playHudRise === 'function') {
             console.log('🎯 Playing HUD exit animation (board exit skipped)');
             STATE.hud.playHudRise({});
-            // Wait for HUD exit animation to complete (~300ms)
-            await new Promise(resolve => setTimeout(resolve, 350));
+            // Wait for HUD exit animation to complete (centralized timing policy)
+            await new Promise(resolve => setTimeout(resolve, exitWaits.hudExitMs));
             console.log('✅ HUD exit animation completed');
           }
         } catch (error) {
@@ -1650,15 +1677,15 @@ async function startNewRun(boardId: number): Promise<void> {
         console.error('❌ Board exit animation failed:', error);
         console.error('❌ Error stack:', (error as Error).stack);
         // 🔥 CRITICAL FIX: Even if animation fails, wait a bit before cleanup to prevent blank screen
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, exitWaits.errorFallbackMs));
       }
     }
     
     // 🔥 CRITICAL FIX: Wait for exit animation to fully complete before cleanup
     // Add small delay to ensure animations are fully rendered
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, exitWaits.postExitSettleMs));
     console.log('✅ Exit animation fully completed - starting cleanup');
-    
+
     // Step 2: Kill ALL GSAP tweens immediately after animations complete
     killAllGsapTweensForExit('post-exit');
     
@@ -1684,6 +1711,36 @@ async function startNewRun(boardId: number): Promise<void> {
       }
     } catch (error) {
       console.warn('⚠️ Failed to run cleanupConfetti:', error);
+    }
+
+    // ⚡ FAST ARCADE PATH: show homepage as soon as destructive animation cleanup is done.
+    // Keep this after post-exit GSAP/FX cleanup so animateSliderEnter() is not killed,
+    // but before PIXI/game cleanup so Stage reached Exit does not feel stuck.
+    if (isFastArcadeCleanExit) {
+      try {
+        resetAnimationFlags();
+        try {
+          if (sliderManager && typeof (sliderManager as any).forceReady === 'function') {
+            (sliderManager as any).forceReady();
+          }
+        } catch {}
+        try {
+          if (gameState && typeof (gameState as any).set === 'function') {
+            (gameState as any).set('sliderLocked', false);
+          }
+        } catch {}
+
+        uiManager.showNavigation();
+        uiManager.showHomepageQuietly();
+        animateSliderEnter();
+        await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
+        uiManager.hideApp();
+        earlyHomepageHandoffDone = true;
+        (window as any).__ccEarlyHomepageHandoff = true;
+        console.log('⚡ Fast arcade clean exit: early homepage handoff completed');
+      } catch (earlyHandoffError) {
+        console.warn('⚠️ Fast arcade clean exit: early homepage handoff failed, continuing normal flow', earlyHandoffError);
+      }
     }
     
     // Step 3c: Stop PIXI ticker BEFORE cleanupGame to prevent _x null errors
@@ -1725,60 +1782,68 @@ async function startNewRun(boardId: number): Promise<void> {
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.cleanup === 'function') {
         console.log('🧹 Calling collectiblesManager.cleanup() to clean up Journey screen...');
-        await collectiblesManager.cleanup();
-        console.log('✅ collectiblesManager.cleanup() completed - Journey screen cleaned up');
+        await runWithBudget(
+          () => collectiblesManager.cleanup(),
+          exitWaits.collectiblesCleanupBudgetMs,
+          'collectibles cleanup',
+        );
+        console.log('✅ collectiblesManager.cleanup() attempted (budgeted) - continuing transition');
       }
     } catch (error) {
       console.warn('⚠️ Failed to run collectiblesManager.cleanup:', error);
     }
     
-    // Step 6: Clean up Homepage/Slider event listeners and animations (CRITICAL!)
-    // This is the MAIN MEMORY LEAK - slider/homepage event listeners are never removed when returning from game!
-    try {
-      console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
-      
-      // 6a. Destroy slider manager (removes touch/mouse event listeners)
-      // 🔥 CRITICAL FIX: We'll reinitialize it later when returning to homepage
-      const { default: sliderManager } = await import('./modules/slider-manager.js');
-      if (sliderManager && typeof sliderManager.destroy === 'function') {
-        sliderManager.destroy();
-        console.log('✅ Slider manager destroyed - event listeners removed (will reinit when returning to homepage)');
-      }
-      
-      // 6b. Kill all GSAP animations on homepage elements
-      const homeElement = document.getElementById('home');
-      if (homeElement && gsap) {
-        const homepageElements = homeElement.querySelectorAll('*');
-        homepageElements.forEach((el: Element) => {
-          try { gsap.killTweensOf(el); } catch {}
-        });
+    // Step 6: Homepage/Slider cleanup
+    // Fast arcade handoff keeps homepage visible early; destroying slider here causes visible stutter.
+    if (!earlyHomepageHandoffDone) {
+      try {
+        console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
         
-        const sliderWrapper = document.getElementById('slider-wrapper');
-        const sliderContainer = document.getElementById('slider-container');
-        if (sliderWrapper) gsap.killTweensOf(sliderWrapper);
-        if (sliderContainer) gsap.killTweensOf(sliderContainer);
-        console.log('✅ Homepage GSAP animations killed');
-      }
-      
-      // 6c. Remove UI Manager event listeners (buttons, etc.)
-      if (uiManager && (uiManager as any).boundEventHandlers) {
-        const boundHandlers = (uiManager as any).boundEventHandlers;
-        if (boundHandlers && boundHandlers.forEach) {
-          boundHandlers.forEach((handlers: any[], element: HTMLElement) => {
-            handlers.forEach(({ event, handler }: { event: string, handler: EventListener }) => {
-              try {
-                element.removeEventListener(event, handler);
-              } catch (e) {}
-            });
-          });
-          boundHandlers.clear();
-          console.log('✅ UI Manager event listeners removed');
+        // 6a. Destroy slider manager (removes touch/mouse event listeners)
+        // 🔥 CRITICAL FIX: We'll reinitialize it later when returning to homepage
+        const { default: sliderManager } = await import('./modules/slider-manager.js');
+        if (sliderManager && typeof sliderManager.destroy === 'function') {
+          sliderManager.destroy();
+          console.log('✅ Slider manager destroyed - event listeners removed (will reinit when returning to homepage)');
         }
+        
+        // 6b. Kill all GSAP animations on homepage elements
+        const homeElement = document.getElementById('home');
+        if (homeElement && gsap) {
+          const homepageElements = homeElement.querySelectorAll('*');
+          homepageElements.forEach((el: Element) => {
+            try { gsap.killTweensOf(el); } catch {}
+          });
+          
+          const sliderWrapper = document.getElementById('slider-wrapper');
+          const sliderContainer = document.getElementById('slider-container');
+          if (sliderWrapper) gsap.killTweensOf(sliderWrapper);
+          if (sliderContainer) gsap.killTweensOf(sliderContainer);
+          console.log('✅ Homepage GSAP animations killed');
+        }
+        
+        // 6c. Remove UI Manager event listeners (buttons, etc.)
+        if (uiManager && (uiManager as any).boundEventHandlers) {
+          const boundHandlers = (uiManager as any).boundEventHandlers;
+          if (boundHandlers && boundHandlers.forEach) {
+            boundHandlers.forEach((handlers: any[], element: HTMLElement) => {
+              handlers.forEach(({ event, handler }: { event: string, handler: EventListener }) => {
+                try {
+                  element.removeEventListener(event, handler);
+                } catch (e) {}
+              });
+            });
+            boundHandlers.clear();
+            console.log('✅ UI Manager event listeners removed');
+          }
+        }
+        
+        console.log('✅ Homepage/slider cleanup completed');
+      } catch (error) {
+        console.warn('⚠️ Failed to cleanup homepage/slider:', error);
       }
-      
-      console.log('✅ Homepage/slider cleanup completed');
-    } catch (error) {
-      console.warn('⚠️ Failed to cleanup homepage/slider:', error);
+    } else {
+      console.log('⚡ Fast arcade clean exit: skipped destructive homepage cleanup for seamless handoff');
     }
     
     // Step 7: Remove iOS hard close lifecycle listener (main.ts)
@@ -1897,7 +1962,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // 3. If came from Journey Continue button → return to Journey (slide 1)
       let targetSlide = 0; // Default to homepage
       // returnToDetailModal and detailModalBoardId already declared at top of function
-      const isArcadeHomeRun = (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
+      const isArcadeHomeRun = isFastArcadeCleanExit || (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
       
       try {
         // HARD OVERRIDE: Homepage arcade run must ALWAYS exit to homepage slide 0.
@@ -2416,7 +2481,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // 🔥 CRITICAL FIX: Hide app element AFTER detail modal is shown
       // This ensures the #app element doesn't block clicks on the slider/homepage below
       // Without this, #app remains with pointer-events: auto and z-index: 999, blocking all clicks
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER detail modal shown (prevents click blocking)');
       
@@ -2494,7 +2559,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // 🔥 CRITICAL FIX: Hide app element AFTER Journey screen is shown
       // This ensures exit animation was fully visible before hiding app
       // Wait a bit to ensure Journey screen enter animation has started
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER Journey screen shown (exit animation was visible)');
       
@@ -2502,21 +2567,25 @@ async function startNewRun(boardId: number): Promise<void> {
     } else {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
-      // 🔥 iOS FIX: Force-reset animation flags before entering so stuck 'isAnimatingEnter'
-      // from a previous session (common on iOS when the flag timeout was never reached)
-      // does not silently skip the animation and leave a blank paper background.
-      resetAnimationFlags();
-      animateSliderEnter();
-      // Resume menu soundtrack with fade in when homepage is shown
-      try {
-        const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
-        fadeInAndResume();
-      } catch (_) { /* ignore */ }
-      (window as any).__ccSoundtrackResumedThisExit = true;
-      // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
-      await new Promise(resolve => setTimeout(resolve, 200));
-      uiManager.hideApp();
-      console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
+      if (!earlyHomepageHandoffDone) {
+        // 🔥 iOS FIX: Force-reset animation flags before entering so stuck 'isAnimatingEnter'
+        // from a previous session (common on iOS when the flag timeout was never reached)
+        // does not silently skip the animation and leave a blank paper background.
+        resetAnimationFlags();
+        animateSliderEnter();
+        // Resume menu soundtrack with fade in when homepage is shown
+        try {
+          const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
+          fadeInAndResume();
+        } catch (_) { /* ignore */ }
+        (window as any).__ccSoundtrackResumedThisExit = true;
+        // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
+        await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
+        uiManager.hideApp();
+        console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
+      } else {
+        console.log('⚡ Homepage already handed off in fast arcade path - skipping duplicate enter/hide');
+      }
     }
     console.log('✅ Exit complete - pathways separated');
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
@@ -2525,6 +2594,7 @@ async function startNewRun(boardId: number): Promise<void> {
   } finally {
     (window as any).__ccLastGameExitAt = Date.now();
     (window as any).__ccLastGameExitWasArcade = (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
+    delete (window as any).__ccEarlyHomepageHandoff;
     // Resume soundtrack if not already triggered in pathway (e.g. error path)
     try {
       const { soundtrackManager } = await import('./modules/soundtrack-manager.js');

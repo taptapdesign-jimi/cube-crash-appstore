@@ -125,6 +125,16 @@ test('single non-6 tile returns single_non_6_tile stuck reason', () => {
   expect(result.reason).toBe('single_non_6_tile');
 });
 
+test('single non-6 tile with transient low alpha is still stuck (never clean/stage-end)', () => {
+  // Regression: after stacking 3+1 -> 4, settle animation can briefly reduce alpha.
+  // This must NEVER be interpreted as clean board.
+  const tiles = [makeTile({ value: 4, stackDepth: 1, alpha: 0.01, visible: true })];
+  const context = makeContext(tiles, 4, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('single_non_6_tile');
+});
+
 test('single stack 3x2 is stuck (self-merge dead end into 6x1)', () => {
   const tiles = [makeTile({ value: 3, stackDepth: 2 })];
   const context = makeContext(tiles, 3, false);
@@ -147,6 +157,19 @@ test('stale _isBeingSpawned on interactive regular tiles does not block stuck de
     makeTile({ value: 4, _isBeingSpawned: false, eventMode: 'static', locked: false }),
     makeTile({ value: 5, _isBeingSpawned: false, eventMode: 'static', locked: false }),
     makeTile({ value: 3, _isBeingSpawned: true, eventMode: 'static', locked: false }),
+  ];
+  const context = makeContext(tiles, 8, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('no_merges_possible');
+});
+
+test('stale _isBeingSpawned with non-none interactive eventMode still resolves to stuck', () => {
+  const tiles = [
+    makeTile({ value: 5, _isBeingSpawned: true, eventMode: 'auto', locked: false }),
+    makeTile({ value: 4, _isBeingSpawned: false, eventMode: 'auto', locked: false }),
+    makeTile({ value: 5, _isBeingSpawned: false, eventMode: 'auto', locked: false }),
+    makeTile({ value: 3, _isBeingSpawned: true, eventMode: 'auto', locked: false }),
   ];
   const context = makeContext(tiles, 8, false);
   const result = checkEndGame(context, true);
@@ -224,4 +247,21 @@ test('magnet respawn no-moves state with locked placeholders returns stuck', () 
   };
 
   expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+});
+
+test('reported no-moves board (4,5,4,3,4,4,4,4 with stacks) returns stuck', () => {
+  const tiles = [
+    makeTile({ value: 4, stackDepth: 2, gridX: 0, gridY: 0 }),
+    makeTile({ value: 5, stackDepth: 1, gridX: 1, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 3, gridX: 2, gridY: 0 }),
+    makeTile({ value: 3, stackDepth: 1, gridX: 3, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 2, gridX: 4, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 0, gridY: 1 }),
+    makeTile({ value: 4, stackDepth: 2, gridX: 1, gridY: 1 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 2, gridY: 1 }),
+  ];
+  const context = makeContext(tiles, 14, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('no_merges_possible');
 });

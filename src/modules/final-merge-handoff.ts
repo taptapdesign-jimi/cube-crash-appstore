@@ -1,3 +1,5 @@
+import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
+
 type Logger = {
   info?: (...args: any[]) => void;
   warn?: (...args: any[]) => void;
@@ -137,14 +139,22 @@ export async function waitForFinalMergeHandoff(options: FinalMergeHandoffOptions
   }
 
   if (reasonExpectsMagnetFinale(options.reason) && !options.isMagneticTextActive?.()) {
-    try {
-      options.logger?.info?.('🧲 final-merge-handoff: starting missing SWOOP for final magnet merge', {
+    if (shouldStartFinalSpecialFx('magnet')) {
+      try {
+        options.logger?.info?.('🧲 final-merge-handoff: starting missing SWOOP for final magnet merge', {
+          reason: options.reason,
+        });
+        options.showMagneticText?.();
+      } catch (error) {
+        options.logger?.warn?.('⚠️ final-merge-handoff: failed to start missing SWOOP', error);
+      }
+    } else {
+      options.logger?.info?.('⏭️ final-merge-handoff: SWOOP already triggered recently, skipping duplicate start', {
         reason: options.reason,
       });
-      options.showMagneticText?.();
-    } catch (error) {
-      options.logger?.warn?.('⚠️ final-merge-handoff: failed to start missing SWOOP', error);
     }
+  } else if (reasonExpectsMagnetFinale(options.reason)) {
+    markFinalSpecialFxTriggered('magnet');
   }
 
   const activeAtStart = {
