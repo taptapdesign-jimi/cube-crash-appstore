@@ -6115,6 +6115,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       finalMergeBlockersBefore.length === 0 &&
       (srcIsWild !== dstIsWild) &&
       !(isWildMagnetMerge && hasTilesToPull);
+    const isFinalRegularMerge6Snapshot =
+      visibleTilesCount === 2 &&
+      activeTilesBeforeMerge.includes(src) &&
+      activeTilesBeforeMerge.includes(dst) &&
+      finalMergeBlockersBefore.length === 0 &&
+      !srcIsWild &&
+      !dstIsWild &&
+      (src.value | 0) > 0 &&
+      (dst.value | 0) > 0 &&
+      ((src.value | 0) + (dst.value | 0) === 6 || (effSum | 0) === 6);
     
     devLog('🔍 isAnyWildLastTwo CHECK:', {
       srcIsWild,
@@ -6129,6 +6139,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       hasTilesToPull,
       isAnyWildLastTwo,
       isFinalWildLastTwo,
+      isFinalRegularMerge6Snapshot,
       finalMergeBlockersBefore: finalMergeBlockersBefore.map((t: any) => ({
         value: t?.value,
         special: t?.special || null,
@@ -6147,7 +6158,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 SIMPLIFIED: Use isAnyWildLastTwo as PRIMARY check for wild + regular (covers all wild types)
     // 🔥 CRITICAL FIX: Also check if wild magnet was marked as last two (stored on dst tile)
     const isWildMagnetLastTwo = (dst as any)?._isWildMagnetLastTwo === true;
-    let isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
+    let isLastMerge = isFinalRegularMerge6Snapshot || isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
     if (isFinalWildLastTwo) {
       isLastMerge = true;
     }
@@ -7392,9 +7403,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                                         onlyMerge6Remains;
         
         // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular OR magnet + regular), set flag NOW
-        if ((wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
+        if ((isFinalRegularMerge6Snapshot || wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
           (dst as any)._isLastMerge = true;
           devLog('🚨🚨🚨 LAST MERGE DETECTED (AFTER src removal) - Only merge-6 remains:', {
+            isFinalRegularMerge6Snapshot,
             wasWildRegularLastTwo,
             wasRegularRegularLastTwo,
             wasMagnetRegularLastTwo,
@@ -8260,8 +8272,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             setFinalMergeVisualSuppression(true);
             try { hideTerminalLockedArtifacts('last_merge_before_dst_removal'); } catch {}
             
-            // Set busyEnding flag IMMEDIATELY to prevent any other code from running
-            busyEnding = true;
             // 🔥 BUG FIX: Clear STACK IT! hint immediately - board will be clean
             try { resetEndgameHint(); } catch {}
             
@@ -8546,13 +8556,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           
           isActuallyLastMerge =
-            currentFinalMergeBlockers.length === 0 &&
-            (onlyTwoActiveBeforeMerge ||
+            isFinalRegularMerge6Snapshot ||
+            (currentFinalMergeBlockers.length === 0 &&
+              (onlyTwoActiveBeforeMerge ||
               currentOnlyMergePairBefore ||
               hasLastMergeFlag ||
               onlyMerge6RemainsInOnComplete ||
-              isFinalWildLastTwo);
-          if (currentFinalMergeBlockers.length > 0) {
+              isFinalWildLastTwo));
+          if (currentFinalMergeBlockers.length > 0 && !isFinalRegularMerge6Snapshot) {
             try { (dst as any)._isLastMerge = false; } catch {}
             try { (src as any)._isLastMerge = false; } catch {}
           }
@@ -8563,6 +8574,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             currentOnlyMergePairBefore,
             isActuallyLastMerge,
             isFinalWildLastTwo,
+            isFinalRegularMerge6Snapshot,
             finalMergeBlockersBefore: finalMergeBlockersBefore.map((t: any) => ({
               value: t ? (t.value | 0) : null,
               special: t?.special ?? null,
@@ -8694,7 +8706,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           (dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild'));
         const isWildMagnetMergeForMovesCheck =
           srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
-        if (moves === 0 && !isWildMergeForMovesCheck) {
+        if (moves === 0 && !isWildMergeForMovesCheck && !isActuallyLastMerge) {
           // Use centralized checker for moves depleted scenario (NON-wild merges only)
           const movesDepletedContext: EndGameContext = {
             tiles,
@@ -8719,6 +8731,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             return;
           }
+        } else if (moves === 0 && isActuallyLastMerge) {
+          devLog('🏁 Moves depleted, but final merge-6 already won the board - skipping fail check');
         } else if (moves === 0 && isWildMergeForMovesCheck) {
           if (isWildMagnetMergeForMovesCheck) {
             devLog('🧲 Wild-magnet merge with moves depleted - no extra 3 active spawn');
@@ -8747,12 +8761,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
         // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
+        const currentFinalBlockersForSourceOfTruth = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
         const isLastMergeFlagSet =
-          collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst)).length === 0 &&
+          (isFinalRegularMerge6Snapshot || currentFinalBlockersForSourceOfTruth.length === 0) &&
           (
             (dst as any)?._isLastMerge === true ||
             (src as any)?._isLastMerge === true ||
-            isFinalWildLastTwo
+            isFinalWildLastTwo ||
+            isFinalRegularMerge6Snapshot
           );
         
         // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), trigger CLEAN BOARD, do NOT spawn
@@ -9083,6 +9099,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           willSpawn: spawnMult > 0,
           activeTilesCount,
           isLastMergeFlagSet,
+          isFinalRegularMerge6Snapshot,
           _wasWildMerge: (dst as any)?._wasWildMerge
         });
         
@@ -9206,6 +9223,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Spawn-at-merge-cell is ONLY for true endgame: no available locked placeholders left to open.
         const shouldSpawnAtDst =
           !isLastMergeFlagSet &&
+          !isFinalRegularMerge6Snapshot &&
           spawnMult > 0 &&
           (isEndgameMode || isArcadeSimpleWildMergeSpawn);
 
