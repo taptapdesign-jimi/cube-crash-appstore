@@ -16,7 +16,7 @@ import { STATE } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
-import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
+import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
@@ -146,6 +146,22 @@ import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
+import {
+  getFinalMergeTileSets,
+  isWildLikeSpecial,
+  isWildLikeTile,
+} from './final-merge-rules.ts';
+import { createGameplaySnapshot, type GameplayRuntimeFlags } from './gameplay-snapshot.ts';
+import {
+  getLegacyComparableDecisionType,
+  getResolverComparableDecisionType,
+  normalizeLevelEndDecision,
+  resolveGameplayState,
+  resolveLevelEndDecision,
+  resolveMergeFinality,
+  summarizeGameplayDecision,
+  type GameplayResolutionDecision,
+} from './gameplay-resolution-engine.ts';
 import { applyMergeScore } from './app-core-merge-score.ts';
 import { canSaveGameState } from './app-core-save-guards.ts';
 import { buildGridSnapshot } from './app-core-save-tiles.ts';
@@ -563,23 +579,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
 }
 
 function isWildLikeGameplayTile(tile: any): boolean {
-  if (!tile) return false;
-  const special = tile.special;
-  return special === 'wild' ||
-    special === 'wild-magnet' ||
-    special === 'wild-juice' ||
-    special === 'wild-tnt' ||
-    tile.isWild === true ||
-    tile.isWildFace === true;
-}
-
-function isTilePendingGameplayRemoval(tile: any): boolean {
-  if (!tile) return true;
-  return tile.destroyed === true ||
-    tile._ccWildSpawnDropping === true ||
-    tile._pendingRemoval === true ||
-    tile._beingRemoved === true ||
-    tile._cleanupQueued === true;
+  return isWildLikeTile(tile);
 }
 
 function collectBoardGameplayTiles(): Tile[] {
@@ -600,30 +600,6 @@ function collectBoardGameplayTiles(): Tile[] {
   } catch {}
 
   return result;
-}
-
-function tileCountsAsFinalMergeActive(tile: any): boolean {
-  if (isTilePendingGameplayRemoval(tile)) return false;
-  if (tile.visible === false) return false;
-  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
-  if (isWildLikeGameplayTile(tile)) return true;
-  if (tile.locked) return false;
-  return (tile.value | 0) > 0;
-}
-
-function tileBlocksFinalMerge(tile: any, srcTile: any, dstTile: any): boolean {
-  if (!tile || tile === srcTile || tile === dstTile) return false;
-  if (isTilePendingGameplayRemoval(tile)) return false;
-  if (tile._wildMagnetAffected === true) return false;
-
-  // Wild/special dice are gameplay-continuation pieces even when temporarily
-  // locked by drag/spawn animation plumbing. They must block clean/stage-complete.
-  if (isWildLikeGameplayTile(tile)) return true;
-
-  if (tile.locked) return false;
-  if (tile.visible === false) return false;
-  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
-  return (tile.value | 0) > 0;
 }
 
 function scheduleBoardTileVisualRepair(reason = 'unknown'): void {
@@ -771,6 +747,69 @@ function getEndgameGuardState(): { active: boolean; count: number; until: number
   };
 }
 
+function isSpecialGameplayAnimationActive(): boolean {
+  return !!isTntAnimationActive?.() ||
+    !!isWildJuiceBubblesExplosionActive?.() ||
+    !!isMagneticTextActive?.() ||
+    !!isSparkleTextActive?.();
+}
+
+function buildGameplayRuntimeFlags(options: {
+  ignoreSkipWindow?: boolean;
+  skipWindowExceeded?: boolean;
+  includeSpecialAnimation?: boolean;
+  force?: Partial<GameplayRuntimeFlags>;
+  overrides?: Partial<GameplayRuntimeFlags>;
+} = {}): GameplayRuntimeFlags {
+  const ignoreSkipWindow = options.ignoreSkipWindow === true;
+  const skipActive = !ignoreSkipWindow && options.skipWindowExceeded === true;
+  const flags: GameplayRuntimeFlags = {
+    busyEnding,
+    wildSpawnInProgress: wildSpawnInProgress && !skipActive,
+    merge6SpawnInProgress: merge6SpawnInProgress && !skipActive,
+    wildMagnetPullInProgress: wildMagnetPullInProgress && !skipActive,
+    pendingSpecialAnimation: options.includeSpecialAnimation === true && isSpecialGameplayAnimationActive(),
+  };
+
+  return {
+    ...flags,
+    ...(options.force ?? {}),
+    ...(options.overrides ?? {}),
+  };
+}
+
+function debugResolveGameplayState(reason = 'manual-check', overrides: any = {}) {
+  const snapshot = createGameplaySnapshot({
+    tiles: collectBoardGameplayTiles(),
+    moves,
+    makeBoard,
+    mode: overrides.mode ?? (isArcadeHomeRunMode() ? 'arcade' : 'journey'),
+    phase: overrides.phase ?? 'manual-check',
+    boardNumber,
+    stageNumber: (window as any).__ccArcadeStageNumber,
+    src: overrides.src,
+    dst: overrides.dst,
+    effSum: overrides.effSum ?? 0,
+    finalMergeBlockersBefore: overrides.finalMergeBlockersBefore,
+    flags: buildGameplayRuntimeFlags({
+      ignoreSkipWindow: true,
+      includeSpecialAnimation: true,
+      overrides: {
+        willPulledTilesMerge: overrides.willPulledTilesMerge === true,
+        hasTilesToPull: overrides.hasTilesToPull === true,
+      },
+    }),
+  });
+  const decision = resolveGameplayState(snapshot);
+  const summary = summarizeGameplayDecision(snapshot, decision);
+  devLog('🧭 Gameplay resolver shadow decision', {
+    reason,
+    summary,
+    endGameResult: snapshot.endGameResult,
+  });
+  return { snapshot, decision, summary };
+}
+
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
 
@@ -817,6 +856,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     isTntAnimationActive,
     onTntAnimationComplete,
     isWildJuiceBubblesExplosionActive,
+    waitForWildJuiceBubblesExplosionComplete: waitForBubblesExplosionToComplete,
     isMagneticTextActive,
     showMagneticText,
     waitForMagneticTextComplete,
@@ -2968,6 +3008,7 @@ export async function boot(){
     beginEndgameGuard: (source: string, ttlMs?: number) => beginEndgameGuard(source, ttlMs),
     endEndgameGuard: (source: string) => endEndgameGuard(source),
     getEndgameGuardState: () => getEndgameGuardState(),
+    debugResolveGameplayState: (reason?: string, overrides?: any) => debugResolveGameplayState(reason, overrides),
     isWildMagnetPullInProgress: () => wildMagnetPullInProgress === true,
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
@@ -5255,6 +5296,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       devLog,
       devWarn,
       isWildMagnetMerge,
+      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
     });
     const {
       visibleTilesCountBeforeWildProgress,
@@ -5827,8 +5869,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Wild tiles should be counted as active tiles for last merge detection
     // 🔥 CRITICAL FIX: Include wild-juice in wild tile check (same as wild star)
     const boardGameplaySnapshotBeforeMerge = collectBoardGameplayTiles();
-    const activeTilesBeforeMerge = boardGameplaySnapshotBeforeMerge.filter(tileCountsAsFinalMergeActive);
-    const finalMergeBlockersBefore = boardGameplaySnapshotBeforeMerge.filter((t: any) => tileBlocksFinalMerge(t, src, dst));
+    const finalMergeTileSetsBeforeMerge = getFinalMergeTileSets({
+      tiles: boardGameplaySnapshotBeforeMerge,
+      src,
+      dst,
+    });
+    const activeTilesBeforeMerge = finalMergeTileSetsBeforeMerge.activeTilesBeforeMerge;
+    const finalMergeBlockersBefore = finalMergeTileSetsBeforeMerge.finalMergeBlockersBefore;
     
     // 🔥 CRITICAL FIX v36: Count TOTAL tiles including stacked tiles (stackDepth)
     // This is essential for correct "last merge" detection with stacked tiles
@@ -6108,23 +6155,24 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 HARD RULE (catastrophic bug fix):
     // Any wild + regular as the last two ACTIVE tiles must ALWAYS resolve to clean-board.
     // Locked/ghost placeholders are irrelevant. Magnet is excluded only when it will pull more tiles.
-    const isFinalWildLastTwo =
-      visibleTilesCount === 2 &&
-      activeTilesBeforeMerge.includes(src) &&
-      activeTilesBeforeMerge.includes(dst) &&
-      finalMergeBlockersBefore.length === 0 &&
-      (srcIsWild !== dstIsWild) &&
-      !(isWildMagnetMerge && hasTilesToPull);
-    const isFinalRegularMerge6Snapshot =
-      visibleTilesCount === 2 &&
-      activeTilesBeforeMerge.includes(src) &&
-      activeTilesBeforeMerge.includes(dst) &&
-      finalMergeBlockersBefore.length === 0 &&
-      !srcIsWild &&
-      !dstIsWild &&
-      (src.value | 0) > 0 &&
-      (dst.value | 0) > 0 &&
-      ((src.value | 0) + (dst.value | 0) === 6 || (effSum | 0) === 6);
+    const finalMergeResult = resolveMergeFinality({
+      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+      finalMergeInput: {
+        activeTilesBeforeMerge,
+        src,
+        dst,
+        effSum,
+        finalMergeBlockersBefore,
+        isWildMagnetMerge,
+        hasTilesToPull,
+      },
+      willPulledTilesMerge: false,
+    });
+    const finalMergeSnapshot = finalMergeResult.finalMerge;
+    const isFinalWildLastTwo = finalMergeSnapshot.isFinalWildLastTwo;
+    const isFinalRegularMerge6Snapshot = finalMergeSnapshot.isFinalRegularMerge6;
+    const finalMergeDecision = finalMergeResult.decision;
+    const isFinalMergeByResolver = finalMergeDecision.type === 'complete';
     
     devLog('🔍 isAnyWildLastTwo CHECK:', {
       srcIsWild,
@@ -6140,6 +6188,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       isAnyWildLastTwo,
       isFinalWildLastTwo,
       isFinalRegularMerge6Snapshot,
+      finalMergeDecision,
       finalMergeBlockersBefore: finalMergeBlockersBefore.map((t: any) => ({
         value: t?.value,
         special: t?.special || null,
@@ -6158,7 +6207,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 SIMPLIFIED: Use isAnyWildLastTwo as PRIMARY check for wild + regular (covers all wild types)
     // 🔥 CRITICAL FIX: Also check if wild magnet was marked as last two (stored on dst tile)
     const isWildMagnetLastTwo = (dst as any)?._isWildMagnetLastTwo === true;
-    let isLastMerge = isFinalRegularMerge6Snapshot || isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
+    let isLastMerge = isFinalMergeByResolver || isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
     if (isFinalWildLastTwo) {
       isLastMerge = true;
     }
@@ -6172,7 +6221,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isLastMergeableTiles,
         isWildLastTileMerge,
         isWildMagnetLastTwo,
-        isFinalWildLastTwo
+        isFinalWildLastTwo,
+        finalMergeDecision,
       });
       isLastMerge = false;
     }
@@ -6196,6 +6246,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isWildLastTileMerge,
         isWildMagnetLastTwo,
         isFinalWildLastTwo,
+        finalMergeDecision,
       });
       isLastMerge = false;
     }
@@ -6215,6 +6266,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         isWildLastTileMerge,
         isWildMagnetLastTwo,
         isFinalWildLastTwo,
+        finalMergeDecision,
         srcIsWild,
         dstIsWild,
         srcSpecial,
@@ -6407,11 +6459,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 END GAME FIX: Check if this is the LAST MOVE (only 2 tiles: magnet + 1 tile)
     // If so, this is merge-6 WITHOUT spawn, WITHOUT pull - automatic clean board!
     // 🎯 CRITICAL: Must count TOTAL tiles including stackDepth (not just physical tiles!)
-    const activeTilesBeforeMergeMagnet = collectBoardGameplayTiles().filter((t: any) => {
-      if (!tileCountsAsFinalMergeActive(t)) return false;
-      if (isWildLikeGameplayTile(t)) return true;
-      return !t.locked;
-    });
+    const activeTilesBeforeMergeMagnet = getFinalMergeTileSets({
+      tiles: collectBoardGameplayTiles(),
+      src,
+      dst,
+    }).activeTilesBeforeMerge;
     
     // 🎯 CRITICAL FIX: Count TOTAL tiles including stackDepth!
     // Example: magnet (depth 1) + stack(value 3, depth 2) = 2 physical tiles BUT 3 total tiles!
@@ -7403,10 +7455,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                                         onlyMerge6Remains;
         
         // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular OR magnet + regular), set flag NOW
-        if ((isFinalRegularMerge6Snapshot || wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
+        if ((isFinalMergeByResolver || wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
           (dst as any)._isLastMerge = true;
           devLog('🚨🚨🚨 LAST MERGE DETECTED (AFTER src removal) - Only merge-6 remains:', {
             isFinalRegularMerge6Snapshot,
+            isFinalMergeByResolver,
             wasWildRegularLastTwo,
             wasRegularRegularLastTwo,
             wasMagnetRegularLastTwo,
@@ -8529,8 +8582,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         } else {
           // 🔥 CRITICAL: Double-check last merge scenario using end game checker
           // This ensures we catch last merge even if flag wasn't set properly
-          const currentFinalMergeBlockers = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
-          const activeTilesAfterMerge = collectBoardGameplayTiles().filter(tileCountsAsFinalMergeActive);
+          const currentFinalMergeTileSets = getFinalMergeTileSets({
+            tiles: collectBoardGameplayTiles(),
+            src,
+            dst,
+          });
+          const currentFinalMergeBlockers = currentFinalMergeTileSets.finalMergeBlockersBefore;
+          const activeTilesAfterMerge = currentFinalMergeTileSets.activeTilesBeforeMerge;
           
           // If only merge 6 remains (or merge 6 + locked tiles), this is last merge
           const onlyMerge6RemainsInOnComplete = activeTilesAfterMerge.length === 1 && 
@@ -8556,14 +8614,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           
           isActuallyLastMerge =
-            isFinalRegularMerge6Snapshot ||
+            isFinalMergeByResolver ||
             (currentFinalMergeBlockers.length === 0 &&
               (onlyTwoActiveBeforeMerge ||
               currentOnlyMergePairBefore ||
               hasLastMergeFlag ||
               onlyMerge6RemainsInOnComplete ||
               isFinalWildLastTwo));
-          if (currentFinalMergeBlockers.length > 0 && !isFinalRegularMerge6Snapshot) {
+          if (currentFinalMergeBlockers.length > 0 && !isFinalMergeByResolver) {
             try { (dst as any)._isLastMerge = false; } catch {}
             try { (src as any)._isLastMerge = false; } catch {}
           }
@@ -8575,6 +8633,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             isActuallyLastMerge,
             isFinalWildLastTwo,
             isFinalRegularMerge6Snapshot,
+            isFinalMergeByResolver,
             finalMergeBlockersBefore: finalMergeBlockersBefore.map((t: any) => ({
               value: t ? (t.value | 0) : null,
               special: t?.special ?? null,
@@ -8761,14 +8820,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
         // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
-        const currentFinalBlockersForSourceOfTruth = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
+        const currentFinalBlockersForSourceOfTruth = getFinalMergeTileSets({
+          tiles: collectBoardGameplayTiles(),
+          src,
+          dst,
+        }).finalMergeBlockersBefore;
         const isLastMergeFlagSet =
-          (isFinalRegularMerge6Snapshot || currentFinalBlockersForSourceOfTruth.length === 0) &&
+          (isFinalMergeByResolver || currentFinalBlockersForSourceOfTruth.length === 0) &&
           (
             (dst as any)?._isLastMerge === true ||
             (src as any)?._isLastMerge === true ||
             isFinalWildLastTwo ||
-            isFinalRegularMerge6Snapshot
+            isFinalMergeByResolver
           );
         
         // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), trigger CLEAN BOARD, do NOT spawn
@@ -8927,7 +8990,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               while (!isWildJuiceBubblesExplosionActive?.() && Date.now() < startDeadline) {
                 await waitTracked(60);
               }
-              await waitWhile(() => !!isWildJuiceBubblesExplosionActive?.(), 'wild-juice bubbles');
+              if (isWildJuiceBubblesExplosionActive?.()) {
+                const maxWaitMs = isArcadeHomeRunMode() ? 5200 : 6500;
+                devLog(`⏳ Waiting for wild-juice bubbles completion before clean board`, { maxWaitMs });
+                await waitForBubblesExplosionToComplete(maxWaitMs);
+              } else {
+                await waitWhile(() => !!isWildJuiceBubblesExplosionActive?.(), 'wild-juice bubbles');
+              }
             };
             if (isFinalTntMerge && isTntAnimationActive?.()) {
               await new Promise<void>((resolve) => {
@@ -9100,6 +9169,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           activeTilesCount,
           isLastMergeFlagSet,
           isFinalRegularMerge6Snapshot,
+          isFinalMergeByResolver,
           _wasWildMerge: (dst as any)?._wasWildMerge
         });
         
@@ -9223,7 +9293,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Spawn-at-merge-cell is ONLY for true endgame: no available locked placeholders left to open.
         const shouldSpawnAtDst =
           !isLastMergeFlagSet &&
-          !isFinalRegularMerge6Snapshot &&
+          !isFinalMergeByResolver &&
           spawnMult > 0 &&
           (isEndgameMode || isArcadeSimpleWildMergeSpawn);
 
@@ -9231,7 +9301,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // do not run any spawn/open logic; trigger clean-board flow instead.
         const maybeForceCleanBoardFromSingleMerge6 = async (reason: string): Promise<boolean> => {
           if (busyEnding) return true;
-          const currentBlockers = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
+          const currentBlockers = getFinalMergeTileSets({
+            tiles: collectBoardGameplayTiles(),
+            src,
+            dst,
+          }).finalMergeBlockersBefore;
           if (currentBlockers.length > 0) return false;
           const activeNow = collectBoardGameplayTiles().filter(tileIsActive);
           const onlyDstMerge6Remains =
@@ -9269,7 +9343,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             activeTilesBeforeMerge.includes(dst);
           if (!activeSnapshotWasOnlyMergePair && !isFinalWildLastTwo) return false;
 
-          const otherPlayableNow = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
+          const otherPlayableNow = getFinalMergeTileSets({
+            tiles: collectBoardGameplayTiles(),
+            src,
+            dst,
+          }).finalMergeBlockersBefore;
           if (otherPlayableNow.length > 0) return false;
 
           devWarn('🚨 FINAL WILD MERGE GUARD: final wild merge detected before spawn, forcing clean-board flow', {
@@ -9308,7 +9386,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (!activeSnapshotWasOnlyMergePair) return false;
           if (finalMergeBlockersBefore.length > 0) return false;
 
-          const otherPlayableNow = collectBoardGameplayTiles().filter((t: any) => tileBlocksFinalMerge(t, src, dst));
+          const otherPlayableNow = getFinalMergeTileSets({
+            tiles: collectBoardGameplayTiles(),
+            src,
+            dst,
+          }).finalMergeBlockersBefore;
           if (otherPlayableNow.length > 0) return false;
 
           devWarn('🚨 FINAL REGULAR MERGE GUARD: final 2 regular tiles merged to 6, forcing clean-board flow before spawn', {
@@ -11148,7 +11230,78 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL: Use forceRefresh because delay might have caused cache staleness
     const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
-    if (checkLevelEndResult.type !== 'continue') {
+    let resolverDecisionForLevelEnd: GameplayResolutionDecision | null = null;
+    let levelEndDecision = normalizeLevelEndDecision({
+      legacyResult: checkLevelEndResult,
+      resolverDecision: null,
+    });
+    try {
+      const resolvedLevelEnd = resolveLevelEndDecision({
+        legacyResult: checkLevelEndResult,
+        snapshotInput: {
+          tiles: collectBoardGameplayTiles(),
+          moves,
+          makeBoard,
+          mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+          phase: 'level-check',
+          boardNumber,
+          stageNumber: (window as any).__ccArcadeStageNumber,
+          forceEndgameRefresh: false,
+          flags: buildGameplayRuntimeFlags({ skipWindowExceeded }),
+        },
+      });
+      const resolverSnapshot = resolvedLevelEnd.snapshot;
+      const resolverDecision = resolvedLevelEnd.resolverDecision;
+      resolverDecisionForLevelEnd = resolvedLevelEnd.resolverDecision;
+      levelEndDecision = resolvedLevelEnd.levelEndDecision;
+      const legacyDecisionType = getLegacyComparableDecisionType(checkLevelEndResult);
+      const resolverComparableType = getResolverComparableDecisionType(resolverDecision);
+      if (resolverComparableType !== legacyDecisionType) {
+        devWarn('🧭 Gameplay resolver shadow mismatch at checkLevelEnd', {
+          legacy: checkLevelEndResult,
+          legacyDecisionType,
+          resolverDecision,
+          resolverComparableType,
+          summary: summarizeGameplayDecision(resolverSnapshot, resolverDecision),
+          activeTiles: resolverSnapshot.activeTiles.map((t: any) => ({
+            value: t?.value | 0,
+            special: t?.special ?? null,
+            locked: t?.locked === true,
+            stackDepth: (t as any)?.stackDepth || 1,
+            gridX: t?.gridX,
+            gridY: t?.gridY,
+          })),
+          flags: resolverSnapshot.flags,
+        });
+      }
+    } catch (resolverError) {
+      devWarn('⚠️ Gameplay resolver shadow compare failed at checkLevelEnd', resolverError);
+    }
+    if (levelEndDecision.type === 'wait') {
+      devLog('⏳ checkLevelEnd deferred by gameplay resolver', {
+        resolverDecision: resolverDecisionForLevelEnd,
+        levelEndDecision,
+        legacy: checkLevelEndResult,
+      });
+      checkLevelEndTimer = trackDelayedCall(0.25, () => {
+        checkLevelEndTimer = null;
+        checkLevelEnd();
+      });
+      return;
+    }
+    if (checkLevelEndResult.type === 'stuck' && levelEndDecision.type === 'continue' && levelEndDecision.source === 'resolver') {
+      devWarn('🛡️ checkLevelEnd: Resolver blocked legacy stuck/fail decision', {
+        resolverDecision: resolverDecisionForLevelEnd,
+        levelEndDecision,
+        legacy: checkLevelEndResult,
+      });
+      checkLevelEndTimer = trackDelayedCall(0.25, () => {
+        checkLevelEndTimer = null;
+        checkLevelEnd();
+      });
+      return;
+    }
+    if (levelEndDecision.type !== 'continue') {
       resetEndgameHint();
     }
     
@@ -11164,12 +11317,15 @@ function checkLevelEnd(){
       });
       return;
     }
-    
-    if (checkLevelEndResult.type !== 'stuck') {
+
+    const shouldHandleStuck = levelEndDecision.type === 'stuck';
+    const resolvedStuckReason = levelEndDecision.reason;
+
+    if (!shouldHandleStuck) {
       stuckWildDeferralStartedAt = null;
     }
 
-    if (checkLevelEndResult.type === 'clean') {
+    if (levelEndDecision.type === 'clean') {
       const wildDropActuallyInProgress =
         wildSpawnInProgress ||
         (window as any).__ccWildSpawnDropInProgress === true;
@@ -11247,7 +11403,7 @@ function checkLevelEnd(){
       return;
     }
     
-    if (checkLevelEndResult.type === 'stuck') {
+    if (shouldHandleStuck) {
       try { resetEndgameHint(); } catch {}
       const wildReady = isWildContinuationPendingForFail();
       if (wildReady) {
@@ -11334,7 +11490,7 @@ function checkLevelEnd(){
             gridX: rescueGX,
             gridY: rescueGY,
             otherActiveTiles: activeExcludingMerge6.length,
-            reason: checkLevelEndResult.reason
+            reason: resolvedStuckReason
           });
 
           if (clearTileFromGridSafe(lingeringRegularMerge6)) {
@@ -11445,7 +11601,7 @@ function checkLevelEnd(){
       const initialStuckSignature = buildBoardStabilitySignature();
       const stuckConfirmationDelaysMs = [250, 250];
       let stableStuckConfirmed = true;
-      let lastReason = checkLevelEndResult.reason;
+      let lastReason = resolvedStuckReason;
 
       // Production-safe guard: require multiple consistent stuck checks on unchanged board state.
       for (const delayMs of stuckConfirmationDelaysMs) {
@@ -11470,11 +11626,37 @@ function checkLevelEnd(){
         }
         const recheckContext: EndGameContext = { tiles, moves, makeBoard };
         const recheckResult = checkEndGame(recheckContext, true);
-        lastReason = recheckResult.reason;
-        if (recheckResult.type !== 'stuck') {
+        const recheckResolvedLevelEnd = resolveLevelEndDecision({
+          legacyResult: recheckResult,
+          snapshotInput: {
+            tiles: collectBoardGameplayTiles(),
+            moves,
+            makeBoard,
+            mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+            phase: 'level-check',
+            boardNumber,
+            stageNumber: (window as any).__ccArcadeStageNumber,
+            forceEndgameRefresh: false,
+            flags: buildGameplayRuntimeFlags({
+              skipWindowExceeded,
+              force: {
+                wildSpawnInProgress: false,
+                merge6SpawnInProgress: false,
+                wildMagnetPullInProgress: false,
+                pendingSpecialAnimation: false,
+              },
+            }),
+          },
+        });
+        const recheckResolverDecision = recheckResolvedLevelEnd.resolverDecision;
+        const recheckLevelEndDecision = recheckResolvedLevelEnd.levelEndDecision;
+        lastReason = recheckLevelEndDecision.type === 'stuck' ? recheckLevelEndDecision.reason : recheckResult.reason;
+        if (recheckLevelEndDecision.type !== 'stuck') {
           devLog('🛡️ checkLevelEnd: Transient stuck resolved on recheck, continuing game', {
-            first: checkLevelEndResult.reason,
-            second: recheckResult.reason
+            first: resolvedStuckReason,
+            second: recheckResult.reason,
+            resolverSecond: recheckResolverDecision,
+            recheckLevelEndDecision,
           });
           stableStuckConfirmed = false;
           break;
@@ -13047,7 +13229,11 @@ async function loadGameState(overrideBoardNumber?: number) {
     // 🔥 CRITICAL: Check if tiles were actually loaded BEFORE starting pop-in animation
     // Fail fast so we don't animate then rebuild; also ensures we don't treat valid restore as empty
     lastSavedState = localStorage.getItem(isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardNumber));
-    const activeCount = tiles.filter(t => t && !t.locked && (t.value | 0) > 0).length;
+    const activeCount = tiles.filter(t => {
+      if (!t || t.destroyed) return false;
+      if (isWildLikeSpecial(t.special)) return true;
+      return !t.locked && (t.value | 0) > 0;
+    }).length;
     const emptyLoadResult = handleEmptyLoadState({
       tiles,
       boardNumber,

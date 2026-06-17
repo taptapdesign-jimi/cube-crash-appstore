@@ -49,3 +49,38 @@ test('pending clean-board flag still recovers true clean-board state', async () 
   expect(result.wasStuck).toBe(true);
   expect(result.recovered).toBe(true);
 });
+
+test('pending clean-board flag is ignored when restored board has active value-zero special dice', async () => {
+  localStorage.setItem('cc_pending_clean_board', JSON.stringify({
+    boardNumber: 2,
+    timestamp: Date.now(),
+    reason: 'last_merge_detected',
+  }));
+
+  const triggerCleanBoard = jest.fn();
+  const result = await checkAndRecoverBoard(
+    [makeTile(0, { special: 'wild-cubero' })],
+    2,
+    triggerCleanBoard,
+  );
+
+  expect(triggerCleanBoard).not.toHaveBeenCalled();
+  expect(result.wasStuck).toBe(false);
+  expect(localStorage.getItem('cc_pending_clean_board')).toBeNull();
+});
+
+test('value-zero special dice is not treated as empty board recovery', async () => {
+  const triggerCleanBoard = jest.fn();
+  const result = await checkAndRecoverBoard(
+    [makeTile(0, { special: 'wild-beach-ball' })],
+    2,
+    triggerCleanBoard,
+  );
+
+  expect(triggerCleanBoard).not.toHaveBeenCalled();
+  expect(result).toMatchObject({
+    wasStuck: false,
+    reason: 'board_ok',
+    recovered: false,
+  });
+});

@@ -29,6 +29,24 @@ describe('handleEmptyLoadState', () => {
     expect(result.handled).toBe(false);
   });
 
+  it('returns handled=false when value-zero special dice exists', () => {
+    const tiles = [{ locked: false, value: 0, special: 'wild-cubero' }];
+
+    const result = handleEmptyLoadState({
+      tiles,
+      boardNumber: 1,
+      getPendingCleanBoard: () => ({ pending: false }),
+      clearPendingCleanBoard: noop,
+      getBoardSaveKey: () => 'cc_saved_game_board_01',
+      triggerCleanBoardFlow: noop,
+      trackAppTimeout: noop,
+      devLog: noop,
+      devWarn: noop,
+    });
+
+    expect(result.handled).toBe(false);
+  });
+
   it('returns handled=true when no tiles and no recovery needed', () => {
     const tiles: any[] = [];
 

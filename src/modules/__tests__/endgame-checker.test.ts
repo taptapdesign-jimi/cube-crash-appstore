@@ -89,6 +89,28 @@ test('last merge scenario returns clean', () => {
   expect(result.reason).toBe('last_merge');
 });
 
+test('final regular 4+2 merge stays clean even when moves are depleted', () => {
+  const dstTile = makeTile({ value: 6 });
+  const srcTile = makeTile({ value: 4 });
+  const context: EndGameContext = {
+    tiles: [dstTile],
+    moves: 0,
+    makeBoard: { anyMergePossible: () => false },
+    dstTile,
+    srcTile,
+    justRemovedSrc: true,
+  };
+  const result = checkEndGame(context, true);
+  expect(result).toEqual({ type: 'clean', reason: 'last_merge' });
+});
+
+test('single spawned value after a missed final merge is stuck, not clean', () => {
+  const tiles = [makeTile({ value: 5, stackDepth: 1 })];
+  const context = makeContext(tiles, 0, false);
+  const result = checkEndGame(context, true);
+  expect(result).toEqual({ type: 'stuck', reason: 'single_non_6_tile' });
+});
+
 test('tileIsActive allows locked wild tiles', () => {
   const wildLocked = makeTile({ value: 0, locked: true, special: 'wild' });
   expect(tileIsActive(wildLocked)).toBe(true);

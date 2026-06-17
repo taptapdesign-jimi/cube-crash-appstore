@@ -1,3 +1,5 @@
+import { isWildLikeSpecial } from './final-merge-rules.ts';
+
 type EmptyLoadDeps = {
   tiles: any[];
   boardNumber: number;
@@ -22,7 +24,11 @@ export function handleEmptyLoadState({
   devWarn,
 }: EmptyLoadDeps): { handled: boolean; nextBoardNumber?: number }{
   const tilesLoaded = tiles.length > 0;
-  const hasActiveTiles = tiles.some(t => t && !t.locked && t.value > 0);
+  const hasActiveTiles = tiles.some(t => {
+    if (!t || t.destroyed) return false;
+    if (isWildLikeSpecial(t.special)) return true;
+    return !t.locked && t.value > 0;
+  });
 
   if (tilesLoaded && hasActiveTiles) {
     return { handled: false };

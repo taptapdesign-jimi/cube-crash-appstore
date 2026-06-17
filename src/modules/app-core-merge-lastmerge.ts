@@ -1,3 +1,6 @@
+import { getFinalMergeTileSets } from './final-merge-rules.ts';
+import { resolveMergeFinality } from './gameplay-resolution-engine.ts';
+
 type LastMergeDeps = {
   tiles: any[];
   src: any;
@@ -12,6 +15,7 @@ type LastMergeDeps = {
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   isWildMagnetMerge: boolean;
+  mode?: 'arcade' | 'journey' | 'unknown';
 };
 
 export function handleLastMergeEarly({
@@ -28,13 +32,9 @@ export function handleLastMergeEarly({
   devLog,
   devWarn,
   isWildMagnetMerge,
+  mode = 'unknown',
 }: LastMergeDeps){
-  const activeTilesBeforeWildProgress = tiles.filter(t => {
-    if (!t || t.locked) return false;
-    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
-    const hasValue = (t.value|0) > 0;
-    return isWild || hasValue;
-  });
+  const activeTilesBeforeWildProgress = getFinalMergeTileSets({ tiles, src, dst }).activeTilesBeforeMerge;
   // 🔥 CRITICAL: Use visible tiles count (not stackDepth sum) for "last 2 tiles" detection
   const visibleTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.length;
   const activeTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.reduce((sum, t) => {
@@ -53,10 +53,6 @@ export function handleLastMergeEarly({
   // 🔥 USER REQUEST: Check for last merge scenarios
   const srcSpecialForCheck = src?.special;
   const dstSpecialForCheck = dst?.special;
-  const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
-                            srcSpecialForCheck === 'wild-juice' || dstSpecialForCheck === 'wild-juice' ||
-                            srcSpecialForCheck === 'wild-tnt' || dstSpecialForCheck === 'wild-tnt' ||
-                            srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet');
   const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 
                         (src.value|0) > 0 && (dst.value|0) > 0;
   
@@ -65,21 +61,25 @@ export function handleLastMergeEarly({
                                           activeTilesCountBeforeWildProgress >= 3 &&
                                           allTilesInvolvedForCheck;
   
-  const isWildLastTwoForCheck = oneIsWildForCheck && 
-                               visibleTilesCountBeforeWildProgress === 2 && 
-                               activeTilesBeforeWildProgress.includes(src) && 
-                               activeTilesBeforeWildProgress.includes(dst);
-  
-  const isRegularLastTwoMerge6 = bothAreRegular && 
-                                 visibleTilesCountBeforeWildProgress === 2 && 
-                                 activeTilesBeforeWildProgress.includes(src) && 
-                                 activeTilesBeforeWildProgress.includes(dst) &&
-                                 effSum === 6;
-  
   const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2;
   const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
   const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false);
-  const isActuallyLastMerge = (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles;
+  const finalMergeResult = resolveMergeFinality({
+    mode,
+    finalMergeInput: {
+      activeTilesBeforeMerge: activeTilesBeforeWildProgress,
+      src,
+      dst,
+      effSum,
+      isWildMagnetMerge,
+      hasTilesToPull: willPullTiles,
+    },
+    willPulledTilesMerge: false,
+  });
+  const finalMergeSnapshot = finalMergeResult.finalMerge;
+  const isWildLastTwoForCheck = finalMergeSnapshot.isFinalWildLastTwo;
+  const isRegularLastTwoMerge6 = finalMergeSnapshot.isFinalRegularMerge6;
+  const isActuallyLastMerge = finalMergeResult.isFinalMerge;
   
   if (isActuallyLastMerge) {
     const mergeType = isWildLastTwoForCheck ? (isWildMagnetMerge ? 'Wild-magnet + regular' : 'Wild + regular') : 'Regular + regular';

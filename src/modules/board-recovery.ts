@@ -4,6 +4,7 @@
 // (e.g., wild juice bubbles, wild star particles) leaving board in stuck state
 
 import { logger } from '../core/logger.js';
+import { isWildLikeSpecial } from './final-merge-rules.ts';
 
 // ============================================================================
 // TYPES
@@ -112,6 +113,14 @@ export function getPendingCleanBoard(boardNumber: number): { pending: boolean; d
 // STUCK STATE DETECTION (Recovery)
 // ============================================================================
 
+function isRecoveryActiveTile(tile: TileInfo): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (isWildLikeSpecial(tile.special)) return true;
+  return !tile.locked &&
+    typeof tile.value === 'number' &&
+    tile.value > 0;
+}
+
 /**
  * Analyze tiles to detect if board is in a stuck state.
  * Stuck state occurs when:
@@ -128,13 +137,7 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
   }
   
   // Filter active tiles (not locked, not destroyed, has value)
-  const activeTiles = tiles.filter(t => 
-    t && 
-    !t.destroyed && 
-    !t.locked && 
-    typeof t.value === 'number' && 
-    t.value > 0
-  );
+  const activeTiles = tiles.filter(isRecoveryActiveTile);
   
   // Filter locked tiles (available for spawn)
   const lockedTiles = tiles.filter(t => 
@@ -184,9 +187,7 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
   // STUCK CASE 3: Only wild tiles remain that can't merge
   // Wild + Wild same value can't merge, leading to stuck state
   if (activeTiles.length === 2 && lockedTiles.length === 0) {
-    const bothWild = activeTiles.every(t => 
-      t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.special === 'wild-magnet'
-    );
+    const bothWild = activeTiles.every(t => isWildLikeSpecial(t.special));
     const sameValue = activeTiles[0].value === activeTiles[1].value;
     
     if (bothWild && sameValue) {
@@ -217,13 +218,7 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
 // ============================================================================
 
 function getRecoveryTileGroups(tiles: TileInfo[]): { activeTiles: TileInfo[]; lockedTiles: TileInfo[] } {
-  const activeTiles = (tiles || []).filter(t =>
-    t &&
-    !t.destroyed &&
-    !t.locked &&
-    typeof t.value === 'number' &&
-    t.value > 0
-  );
+  const activeTiles = (tiles || []).filter(isRecoveryActiveTile);
   const lockedTiles = (tiles || []).filter(t =>
     t &&
     !t.destroyed &&

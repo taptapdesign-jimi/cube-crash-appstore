@@ -14,6 +14,7 @@ type FinalMergeHandoffOptions = {
   isTntAnimationActive?: () => boolean;
   onTntAnimationComplete?: (cb: () => void) => void;
   isWildJuiceBubblesExplosionActive?: () => boolean;
+  waitForWildJuiceBubblesExplosionComplete?: (timeoutMs?: number) => Promise<void>;
   isMagneticTextActive?: () => boolean;
   showMagneticText?: () => void;
   waitForMagneticTextComplete?: (timeoutMs?: number) => Promise<void>;
@@ -23,6 +24,7 @@ type FinalMergeHandoffOptions = {
 const RECENT_HANDOFF_WINDOW_MS = 3000;
 const ARCADE_HANDOFF_BUFFER_MS = 180;
 const POLL_MS = 80;
+const JUICE_START_WAIT_MS = 700;
 
 function reasonAlreadyPassedTntCompletion(reason: string): boolean {
   return reason === 'final_tnt_merge_after_tnt'
@@ -126,7 +128,7 @@ export async function waitForFinalMergeHandoff(options: FinalMergeHandoffOptions
   const tntCompletionAlreadyPassed = reasonAlreadyPassedTntCompletion(options.reason);
   if (reasonExpectsJuiceFinale(options.reason) && !options.isWildJuiceBubblesExplosionActive?.()) {
     const startedAt = Date.now();
-    while (!options.isWildJuiceBubblesExplosionActive?.() && Date.now() - startedAt < 360) {
+    while (!options.isWildJuiceBubblesExplosionActive?.() && Date.now() - startedAt < JUICE_START_WAIT_MS) {
       await options.wait(POLL_MS);
     }
   }
@@ -176,7 +178,7 @@ export async function waitForFinalMergeHandoff(options: FinalMergeHandoffOptions
 
   const tntMaxWaitMs = options.isArcade ? 2200 : 3200;
   const magnetMaxWaitMs = options.isArcade ? 1600 : 2400;
-  const juiceMaxWaitMs = options.isArcade ? 1600 : 2800;
+  const juiceMaxWaitMs = options.isArcade ? 5200 : 6500;
   const sparkleMaxWaitMs = options.isArcade ? 1400 : 2200;
 
   if (activeAtStart.tnt) {
@@ -189,13 +191,26 @@ export async function waitForFinalMergeHandoff(options: FinalMergeHandoffOptions
     } catch {}
   }
 
-  await waitUntilInactive(
-    'wild-juice bubbles',
-    options.isWildJuiceBubblesExplosionActive,
-    options.wait,
-    juiceMaxWaitMs,
-    options.logger,
-  );
+  if (activeAtStart.juice) {
+    if (options.waitForWildJuiceBubblesExplosionComplete) {
+      options.logger?.info?.('⏳ final-merge-handoff: waiting for wild-juice bubbles completion signal', {
+        maxWaitMs: juiceMaxWaitMs,
+      });
+      try {
+        await options.waitForWildJuiceBubblesExplosionComplete(juiceMaxWaitMs);
+      } catch (error) {
+        options.logger?.warn?.('⚠️ final-merge-handoff: wild-juice completion waiter failed', error);
+      }
+    } else {
+      await waitUntilInactive(
+        'wild-juice bubbles',
+        options.isWildJuiceBubblesExplosionActive,
+        options.wait,
+        juiceMaxWaitMs,
+        options.logger,
+      );
+    }
+  }
 
   await waitUntilInactive(
     'sparkle text',
