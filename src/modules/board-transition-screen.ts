@@ -925,13 +925,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       orderedSceneImages.forEach((sceneImg, index) => {
         const direction = index % 2 === 0 ? -1 : 1;
         const isHill = sceneImg.dataset.sceneLayer === 'hill';
+        const hillStartYOffset = Math.round(Math.min(window.innerHeight || 760, 760) * 0.4);
         gsap.set(sceneImg, {
           opacity: 0,
           xPercent: -50,
           yPercent: 0,
           x: 0,
-          y: isHill ? 28 : 14,
-          scale: isHill ? 1 : 0,
+          y: isHill ? hillStartYOffset : 14,
+          scale: isHill ? 0.68 : 0,
           rotation: isHill ? 0 : direction * 8,
           rotationX: 0,
           rotationY: 0,
@@ -945,18 +946,21 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           sceneEnterTimeline.to(sceneImg, {
             opacity: 1,
             y: -6,
-            duration: 0.22,
+            scale: 1.12,
+            duration: 0.34,
             ease: 'power2.out'
           });
           sceneEnterTimeline.to(sceneImg, {
             y: 3,
-            duration: 0.12,
+            scale: 0.98,
+            duration: 0.14,
             ease: 'power2.inOut'
           });
           sceneEnterTimeline.to(sceneImg, {
             opacity: 1,
             y: 0,
-            duration: 0.14,
+            scale: 1,
+            duration: 0.16,
             ease: 'back.out(1.8)',
             onComplete: () => {
               try { sceneImg.style.willChange = 'auto'; } catch {}

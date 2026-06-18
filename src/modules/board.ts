@@ -15,6 +15,7 @@ import {
   isSpecialDiceMagnetLikeTile,
 } from './special-dice-registry.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
+import { isTileTransientlySpawning } from './tile-state-utils.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -856,7 +857,13 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
   // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
-  if (tileIsWild(tile)) return true;
+  if (tileIsWild(tile)) {
+    if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
+      return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
+    }
+    if (typeof (tile as any).alpha === 'number' && (tile as any).alpha <= 0.01) return false;
+    return true;
+  }
   
   // Exclude locked tiles from active tiles (non-wild)
   // Exception: Wild-magnet affected tiles are locked during pull animation but will unlock after merge

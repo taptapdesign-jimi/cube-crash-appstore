@@ -79,16 +79,34 @@ function normalizeFlags(flags: GameplayRuntimeFlags = {}): Required<GameplayRunt
   };
 }
 
+function isGameplayEffectiveWildTile(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (!isWildLikeTile(tile)) return false;
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
+  if (tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
+    return isTileTransientlySpawning(tile, {
+      autoClearStaleFlag: false,
+      ignoreWildJuice: true,
+    });
+  }
+  return true;
+}
+
 export function createGameplaySnapshot(input: GameplaySnapshotInput): GameplaySnapshot {
   const tiles = Array.isArray(input.tiles) ? input.tiles.filter(Boolean) : [];
   const flags = normalizeFlags(input.flags);
   const activeTiles = getActiveTiles(tiles);
   const lockedTiles = tiles.filter((tile: any) => tile && !tile.destroyed && tile.locked === true);
-  const wildTiles = tiles.filter((tile: any) => tile && !tile.destroyed && isWildLikeTile(tile));
   const transientTiles = tiles.filter((tile: any) => isTileTransientlySpawning(tile, {
     autoClearStaleFlag: false,
     ignoreWildJuice: true,
   }));
+  const wildTiles = tiles.filter(isGameplayEffectiveWildTile);
   const finalMergeTileSets = getFinalMergeTileSets({
     tiles,
     src: input.src,

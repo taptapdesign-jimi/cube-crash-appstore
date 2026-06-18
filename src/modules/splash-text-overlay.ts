@@ -134,11 +134,11 @@ function cleanupBuzzzOverlay(): void {
  * Show SWOOP text overlay (magnet merge 6)
  * Same enter/exit as TNT BOOM, white color
  */
-export function showMagneticText(): void {
+export function showMagneticText(options: any = {}): void {
   try {
     cleanupBuzzzOverlay();
     magneticTextActive = true;
-    startWildFxDragLockForAnimation('magnetic-text', 3600, 0.7);
+    startWildFxDragLockForAnimation('magnetic-text', 3600, options?.inputReleaseAtRatio ?? 0.86);
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -441,7 +441,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
-    startWildFxDragLockForAnimation('sparkle-text', 3600, 0.7);
+    startWildFxDragLockForAnimation('sparkle-text', 3600, options?.inputReleaseAtRatio ?? 0.7);
     const sparkleText = String(options?.text || 'SPARKLE');
     const sparkleColor = String(options?.color || '#FFCB81');
 

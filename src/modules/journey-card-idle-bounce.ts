@@ -116,6 +116,9 @@ function cleanupSmokeContainer(smokeContainer: HTMLElement | null): void {
     if (sourceCard && (sourceCard as any)._smokeActive) {
       (sourceCard as any)._smokeActive = false;
     }
+    if (sourceCard && Array.isArray((sourceCard as any)._overlapSmokeContainers)) {
+      (sourceCard as any)._overlapSmokeContainers = (sourceCard as any)._overlapSmokeContainers.filter((container: HTMLElement) => container !== smokeContainer);
+    }
   } catch (e) {
     console.warn('⚠️ Error cleaning up journey smoke container:', e);
   } finally {
@@ -895,6 +898,16 @@ export function smokeBubblesAtCard(
     strength?: number;
     trailAlpha?: number;
     baseAlpha?: number;
+    allowOverlap?: boolean;
+    activeLockMs?: number;
+    fadeOutTime?: number;
+    cleanupTime?: number;
+    allowNonInterim?: boolean;
+    containerElement?: HTMLElement | null;
+    wrapperElement?: HTMLElement | null;
+    zIndex?: string | number;
+    organicFadeBySize?: boolean;
+    mixedCardRevealSmoke?: boolean;
   } = {}
 ): void {
   // 🔥 CRITICAL FIX: Prevent duplicate smoke animations on the same card
@@ -904,11 +917,13 @@ export function smokeBubblesAtCard(
   const isBoardTransitionDigit = (card as any).__ccSmokeTimestamp !== undefined || 
                                   (card as any).__ccSmokePosition !== undefined;
 
-  if (!card.classList.contains('interim') && !isBoardTransitionDigit) {
+  const allowNonInterim = options.allowNonInterim === true;
+  if (!allowNonInterim && !card.classList.contains('interim') && !isBoardTransitionDigit) {
     return;
   }
   
-  if ((card as any)._smokeActive && !isBoardTransitionDigit) {
+  const allowOverlap = options.allowOverlap === true;
+  if ((card as any)._smokeActive && !isBoardTransitionDigit && !allowOverlap) {
     // Smoke already active, skipping duplicate (but allow board transition digits)
     return;
   }
@@ -925,9 +940,14 @@ export function smokeBubblesAtCard(
   const strength = options.strength ?? 1;
   const trailAlpha = options.trailAlpha ?? 0.95;
   const baseAlpha = options.baseAlpha ?? 1.0;
+  const activeLockMs = Math.max(0, options.activeLockMs ?? 4500);
+  const requestedFadeOutTime = Number.isFinite(options.fadeOutTime) ? Math.max(0.1, options.fadeOutTime as number) : null;
+  const requestedCleanupTime = Number.isFinite(options.cleanupTime) ? Math.max(0.35, options.cleanupTime as number) : null;
+  const organicFadeBySize = options.organicFadeBySize === true;
+  const mixedCardRevealSmoke = options.mixedCardRevealSmoke === true;
   
   // Get card wrapper (has the transform/rotation)
-  const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+  const cardWrapper = (options.wrapperElement || card.closest('.journey-board-card-wrapper')) as HTMLElement | null;
   if (!cardWrapper) return;
   
   // Get wrapper dimensions and position (wrapper has the transform)
@@ -952,7 +972,9 @@ export function smokeBubblesAtCard(
   
   // 🔥 FIX: Smoke goes around entire card - all sides allowed
   // No restrictions based on screen edges - smoke should appear around the whole card
-  const allowedSides: number[] = [0, 1, 2, 3]; // All sides: top, right, bottom, left
+  const allowedSides: number[] = mixedCardRevealSmoke
+    ? [0, 1, 2, 3, 4, 4, 4]
+    : [0, 1, 2, 3]; // All sides: top, right, bottom, left. 4 = center reveal puff.
   
   // Extract rotation from wrapper's transform style (format: "rotate(Xdeg)" or "translateX(-50%) rotate(Xdeg)")
   let cardRotationDeg = 0;
@@ -988,7 +1010,7 @@ export function smokeBubblesAtCard(
   
   // Create smoke container - iOS Safari optimized
   // Must be in same stacking context as cards (cards container) for z-index to work
-  const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
+  const cardsContainer = (options.containerElement || document.querySelector('.journey-cards-container')) as HTMLElement;
   if (!cardsContainer) {
     console.warn('⚠️ Cards container not found for smoke effect');
     return;
@@ -997,6 +1019,13 @@ export function smokeBubblesAtCard(
   const smokeContainer = domElementPool.acquire('div') as HTMLElement;
   smokeContainer.className = 'journey-card-smoke-container';
   (smokeContainer as any)._sourceCard = card;
+  if (allowOverlap) {
+    const activeContainers = Array.isArray((card as any)._overlapSmokeContainers)
+      ? (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container && !(container as any)._cleanedUp && container.parentNode)
+      : [];
+    activeContainers.push(smokeContainer);
+    (card as any)._overlapSmokeContainers = activeContainers;
+  }
   const sourceBoardId = card.getAttribute('data-board-id');
   if (sourceBoardId) {
     smokeContainer.setAttribute('data-source-board-id', sourceBoardId);
@@ -1055,7 +1084,7 @@ export function smokeBubblesAtCard(
   smokeContainer.style.webkitBackfaceVisibility = 'hidden';
   
   // In same stacking context as cards, z-index: 1 will be below cards (z-index: 10)
-  smokeContainer.style.zIndex = '1';
+  smokeContainer.style.zIndex = String(options.zIndex ?? '1');
   
   // Append to cards container (same stacking context = z-index works on iOS)
   cardsContainer.appendChild(smokeContainer);
@@ -1092,6 +1121,12 @@ export function smokeBubblesAtCard(
     if (side === 1) return { sx: halfWidth * 0.6 - INSET, sy: alongHeight }; // right (40% closer)
     // 🔥 USER REQUEST: Move bottom spawn up by 40% (applies to all cards)
     if (side === 2) return { sx: alongWidth, sy: halfHeight * 0.6 - INSET }; // bottom (40% higher)
+    if (side === 4) {
+      return {
+        sx: (Math.random() - 0.5) * cardWidth * 0.54,
+        sy: (Math.random() - 0.5) * cardHeight * 0.48
+      };
+    }
     return { sx: -halfWidth + INSET, sy: alongHeight }; // left
   };
   
@@ -1114,7 +1149,21 @@ export function smokeBubblesAtCard(
       
       // Random size
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
-      if (Math.random() < 0.22) r0 *= (1.35 + Math.random() * 0.9);
+      const isCenterRevealParticle = mixedCardRevealSmoke && side === 4;
+      if (mixedCardRevealSmoke) {
+        const roll = Math.random();
+        if (isCenterRevealParticle) {
+          r0 *= roll < 0.46 ? 0.86 + Math.random() * 0.34 : 0.52 + Math.random() * 0.28;
+        } else if (roll < 0.68) {
+          r0 *= 0.34 + Math.random() * 0.28;
+        } else if (roll < 0.92) {
+          r0 *= 0.58 + Math.random() * 0.34;
+        } else {
+          r0 *= 0.98 + Math.random() * 0.28;
+        }
+      } else if (Math.random() < 0.22) {
+        r0 *= (1.35 + Math.random() * 0.9);
+      }
       const maxRadius = Math.min(MAX_R * 1.5, cardSize * 0.18);
       r0 = Math.min(r0, maxRadius);
       
@@ -1127,7 +1176,9 @@ export function smokeBubblesAtCard(
       // 🔥 USER REQUEST: Use baseAlpha from options (0.8-1.0 range)
       // Each particle gets the baseAlpha value, with slight random variation for natural look
       // Similar to tiles: 70-130% variation for more natural look
-      const particleAlpha = baseAlpha * (0.7 + Math.random() * 0.3); // Variation: 70-100% of baseAlpha (0.8-1.0 range)
+      const particleAlpha = mixedCardRevealSmoke
+        ? baseAlpha * (isCenterRevealParticle ? 0.34 + Math.random() * 0.36 : 0.46 + Math.random() * 0.42)
+        : baseAlpha * (0.7 + Math.random() * 0.3); // Variation: 70-100% of baseAlpha (0.8-1.0 range)
       
       // 🔥 PERFORMANCE: Use will-change for better rendering performance
       smoke.style.willChange = 'transform, opacity';
@@ -1168,13 +1219,16 @@ export function smokeBubblesAtCard(
         { nx: 1, ny: 0 },
         { nx: 0, ny: 1 },
         { nx: -1, ny: 0 },
+        { nx: Math.cos(Math.random() * Math.PI * 2), ny: Math.sin(Math.random() * Math.PI * 2) },
       ];
       const { nx, ny } = normals[side];
       const baseAngle = Math.atan2(ny, nx);
       const spread = 0.9;
       const theta = baseAngle + (Math.random() - 0.5) * spread;
       
-      const distance = OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
+      const distance = isCenterRevealParticle
+        ? (cardSize * (0.025 + Math.random() * 0.12) * distanceScale)
+        : OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
       const dx = sx + Math.cos(theta) * distance;
       const dy = sy + Math.sin(theta) * distance;
       
@@ -1195,6 +1249,14 @@ export function smokeBubblesAtCard(
         tRun *= 1.8; // Much longer movement phase
         tHold *= 2.0; // Longer hold phase
         tOut *= 1.5; // Longer fade-out phase
+      }
+
+      if (organicFadeBySize) {
+        const sizeRatio = Math.max(0.2, Math.min(1.25, r0 / Math.max(1, maxRadius)));
+        const lifeJitter = 0.65 + Math.random() * 0.85;
+        tRun *= 1 + sizeRatio * 0.75 * lifeJitter;
+        tHold += sizeRatio * Math.random() * 0.12;
+        tOut *= 1.05 + sizeRatio * (0.4 + Math.random() * 0.45);
       }
       
       // 🔥 USER REQUEST: Better start scale (similar to tiles for quality)
@@ -1329,7 +1391,7 @@ export function smokeBubblesAtCard(
   // For first smoke, delay fade-out to start 1s AFTER second smoke starts (staggerDelay + 1s)
   // This prevents opaque fade-out while second smoke is active
   const fadeOutDelay = isFirstBoardTransitionSmoke ? staggerDelay + 1.0 : 0; // 1s after second smoke starts
-  const fadeOutTime = isFirstBoardTransitionSmoke ? 3.2 + fadeOutDelay : 3.2;
+  const fadeOutTime = requestedFadeOutTime ?? (isFirstBoardTransitionSmoke ? 3.2 + fadeOutDelay : 3.2);
   const fadeOutTimer = trackDelayedCall(fadeOutTime, () => {
     if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
       // 🔥 USER REQUEST: Slower, less opaque fade-out for first smoke
@@ -1347,7 +1409,7 @@ export function smokeBubblesAtCard(
   });
   
   // 🔥 USER REQUEST: Extended cleanup time for first smoke to overlap with second
-  const cleanupTime = isFirstBoardTransitionSmoke ? 4.0 + extraDuration : 4.0;
+  const cleanupTime = requestedCleanupTime ?? (isFirstBoardTransitionSmoke ? 4.0 + extraDuration : 4.0);
   const cleanupTimer = trackDelayedCall(cleanupTime, () => {
     try {
       // 🔥 CRITICAL FIX: Check if container was already cleaned up
@@ -1383,6 +1445,9 @@ export function smokeBubblesAtCard(
       }
       
       cleanupSmokeContainer(smokeContainer);
+      if (allowOverlap && Array.isArray((card as any)._overlapSmokeContainers)) {
+        (card as any)._overlapSmokeContainers = (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container !== smokeContainer);
+      }
       
       // Smoke container cleaned up (debug only)
     } catch (e) {
@@ -1394,6 +1459,9 @@ export function smokeBubblesAtCard(
       // 🔥 USER REQUEST: Don't clear flag if this is first smoke with extended life
       if (card && (card as any)._smokeActive && !((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup)) {
         (card as any)._smokeActive = false;
+      }
+      if (allowOverlap && Array.isArray((card as any)._overlapSmokeContainers)) {
+        (card as any)._overlapSmokeContainers = (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container !== smokeContainer);
       }
     } finally {
       // Clear cleanup timer reference only if not prevented
@@ -1417,7 +1485,7 @@ export function smokeBubblesAtCard(
   
   // 🔥 CRITICAL FIX: Clear smoke active flag after a delay (in case cleanup fails)
   // This ensures the flag is cleared even if cleanup doesn't run
-  const activeFlagTimer = trackDelayedCall(4.5, () => {
+  const activeFlagTimer = trackDelayedCall(activeLockMs / 1000, () => {
     if (card && (card as any)._smokeActive) {
       (card as any)._smokeActive = false;
     }

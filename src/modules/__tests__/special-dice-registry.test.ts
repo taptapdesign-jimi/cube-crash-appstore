@@ -1,6 +1,10 @@
 import {
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
+  getSpecialDiceInputReleaseAtRatio,
+  getSpecialDiceInputReleaseAtRatioForFx,
+  getSpecialDiceInputReleaseModeForFx,
+  getSpecialDiceSplashOptions,
   getSpecialDiceVariant,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceJuiceLikeTile,
@@ -116,4 +120,21 @@ test('archetype helpers classify star, juice, tnt, and direct wild behavior', ()
   expect(isSpecialDiceDirectWildLikeTile(beachBall)).toBe(true);
   expect(isSpecialDiceDirectWildLikeTile(tnt)).toBe(true);
   expect(isSpecialDiceDirectWildLikeTile(magnet)).toBe(false);
+});
+
+test('special dice input release policy is archetype-driven', () => {
+  const cubero = getSpecialDiceVariant('cubero');
+  const beachBall = getSpecialDiceVariant('beach-ball');
+
+  expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.62);
+  expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.55);
+  expect(getSpecialDiceInputReleaseAtRatioForFx('magnet')).toBe(0.86);
+  expect(getSpecialDiceInputReleaseAtRatioForFx('tnt')).toBe(0.7);
+  expect(getSpecialDiceInputReleaseModeForFx('magnet')).toBe('after-gameplay-resolve');
+  expect(getSpecialDiceInputReleaseModeForFx('tnt')).toBe('after-gameplay-resolve');
+  expect(getSpecialDiceInputReleaseModeForFx('juice')).toBe('timeline-ratio');
+
+  expect(getSpecialDiceSplashOptions(cubero)).toMatchObject({
+    inputReleaseAtRatio: 0.62,
+  });
 });

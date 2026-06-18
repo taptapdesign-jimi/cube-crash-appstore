@@ -134,6 +134,7 @@ import {
   getSpecialDiceExplosionSpriteSources,
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
+  getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceShardColor,
   getSpecialDiceShardColors,
   getSpecialDiceSplashOptions,
@@ -150,6 +151,7 @@ import {
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -680,6 +682,12 @@ function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'
   try {
     (window as any).__ccWildMagnetPullInProgress = active;
   } catch {}
+  try {
+    setInputGateLock('magnet-pull', active, { ttlMs: 4500, scope: 'all' });
+    if (!active) {
+      setInputGateLock('magnetic-text', false);
+    }
+  } catch {}
   devLog(`🧲 Wild-magnet pull interaction guard ${active ? 'ON' : 'OFF'} (${reason})`);
   if (wasActive && !active) {
     Promise.resolve().then(() => {
@@ -716,6 +724,7 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
+  try { clearInputGateLocks(); } catch {}
   try { (window as any).__ccWildSpawnDropInProgress = false; } catch {}
   try { (window as any).__ccActiveMagnetPullCleanup?.(); } catch {}
   try { (window as any).__ccActiveMagnetPullCleanup = null; } catch {}
@@ -8056,7 +8065,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
               zIndex: dstZIndex
             });
-            showMagneticText();
+            showMagneticText({
+              inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)),
+            });
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow shards for wild star, orange for wild juice
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
@@ -8184,6 +8195,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     : undefined,
                   direction: wildJuiceVariantForExplosion?.id === 'beach-ball' ? 'down' : 'up',
                   spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
+                  inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildJuiceVariantForExplosion),
                 });
               } catch (error) {
                 devError('❌ Failed to trigger bubbles explosion:', error);
@@ -9008,7 +9020,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // Fallback: if merge-6 FX path didn't start SWOOP for any reason, start it here.
             if (!isMagneticTextActive() && shouldStartFinalSpecialFx('magnet')) {
               devWarn('⚠️ Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
-              showMagneticText();
+              showMagneticText({
+                inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(finalSpecialDiceVariant),
+              });
             } else {
               markFinalSpecialFxTriggered('magnet');
             }
@@ -9035,6 +9049,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   : undefined,
                 direction: finalSpecialDiceVariant?.id === 'beach-ball' ? 'down' : 'up',
                 spritePaths: getSpecialDiceExplosionSpriteSources(finalSpecialDiceVariant),
+                inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(finalSpecialDiceVariant),
               });
             } catch (error) {
               devWarn('⚠️ Final wild-juice fallback animation failed:', error);

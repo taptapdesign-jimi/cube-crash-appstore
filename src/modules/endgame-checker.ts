@@ -140,7 +140,13 @@ export function tileIsActive(tile: any): boolean {
   // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
-  if (tileIsWild(tile)) return true;
+  if (tileIsWild(tile)) {
+    if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
+      return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
+    }
+    if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+    return true;
+  }
   
   // Exclude locked tiles from active tiles (non-wild)
   // Exception: Wild-magnet affected tiles are locked during pull animation but will unlock after merge
@@ -365,7 +371,7 @@ function isBoardCleanCheck(tiles: any[]): boolean {
  */
 function checkAnyMergePossible(context: EndGameContext): boolean {
   const { makeBoard, tiles } = context;
-  const canMerge = makeBoard.anyMergePossible(tiles);
+  const canMerge = makeBoard.anyMergePossible(getActiveTiles(tiles));
   logger.debug('🔍 isGameStuck: anyMergePossible returned', 'endgame-checker', { canMerge });
   return canMerge;
 }

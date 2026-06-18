@@ -349,6 +349,65 @@ test('no-moves board resolves to fail when no runtime guard is active', () => {
   });
 });
 
+test('journey no-moves board is not blocked by stale hidden wild residue', () => {
+  const tiles = [
+    makeTile({ value: 5 }),
+    makeTile({ value: 5 }),
+    makeTile({ value: 4 }),
+    makeTile({ value: 5 }),
+    makeTile({
+      value: 0,
+      special: 'wild',
+      visible: false,
+      alpha: 0,
+      eventMode: 'none',
+      _pendingRemoval: true,
+    }),
+  ];
+  const snapshot = createGameplaySnapshot({
+    tiles,
+    moves: 0,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'level-check',
+  });
+
+  expect(snapshot.wildTiles).toHaveLength(0);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'fail',
+    reason: 'no_merges_possible',
+  });
+});
+
+test('journey no-moves board is not blocked by visible non-interactive wild residue', () => {
+  const tiles = [
+    makeTile({ value: 5 }),
+    makeTile({ value: 5 }),
+    makeTile({ value: 4 }),
+    makeTile({
+      value: 0,
+      special: 'wild-juice',
+      visible: true,
+      alpha: 1,
+      eventMode: 'none',
+      _isBeingSpawned: false,
+    }),
+  ];
+  const snapshot = createGameplaySnapshot({
+    tiles,
+    moves: 0,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'level-check',
+  });
+
+  expect(snapshot.wildTiles).toHaveLength(0);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'fail',
+    reason: 'no_merges_possible',
+  });
+});
+
 test('level-end normalization lets resolver wait beat legacy stuck', () => {
   expect(normalizeLevelEndDecision({
     legacyResult: { type: 'stuck', reason: 'legacy_stuck' },

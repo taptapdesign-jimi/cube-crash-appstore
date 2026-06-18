@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
+import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -589,6 +590,32 @@ export async function showJourneyNewCardScreen({
       finalCardShineIntervalId = null;
     };
 
+    const playRevealSmoke = () => {
+      if (!hero || resolved || disposed || !document.body.contains(overlay)) return;
+      try {
+        cleanupJourneySmokeEffects(hero);
+        smokeBubblesAtCard(hero, {
+          allowNonInterim: true,
+          wrapperElement: hero,
+          containerElement: hero,
+          zIndex: 0,
+          sizeScale: 0.98,
+          distanceScale: 0.88,
+          countScale: 1.72,
+          haloScale: 1.02,
+          strength: 1.08,
+          trailAlpha: 0.9,
+          baseAlpha: 0.94,
+          allowOverlap: false,
+          activeLockMs: 1400,
+          fadeOutTime: 0.82,
+          cleanupTime: 1.75,
+          organicFadeBySize: true,
+          mixedCardRevealSmoke: true,
+        });
+      } catch {}
+    };
+
     const clearPendingShineWork = () => {
       shineTimeouts.splice(0).forEach((timeoutId) => {
         try { window.clearTimeout(timeoutId); } catch {}
@@ -596,6 +623,7 @@ export async function showJourneyNewCardScreen({
       shineAnimationFrames.splice(0).forEach((frameId) => {
         try { window.cancelAnimationFrame(frameId); } catch {}
       });
+      try { cleanupJourneySmokeEffects(hero); } catch {}
       try { light?.classList.remove('shine-trigger'); } catch {}
       try { frameImg?.classList.remove('glow-pulse'); } catch {}
       try { finalImg?.classList.remove('glow-pulse'); } catch {}
@@ -837,6 +865,7 @@ export async function showJourneyNewCardScreen({
                 force3D: true,
               });
               gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+              playRevealSmoke();
               playScreenShake(22, 0.42);
               triggerHaptic('medium');
               startFinalCardShineLoop();

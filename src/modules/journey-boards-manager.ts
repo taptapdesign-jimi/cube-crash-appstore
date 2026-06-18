@@ -913,16 +913,28 @@ class JourneyBoardsManager {
               return;
             }
             
+            const activeSmokeContainers = Array.isArray((card as any)._overlapSmokeContainers)
+              ? (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container && !(container as any)._cleanedUp && container.parentNode)
+              : [];
+            (card as any)._overlapSmokeContainers = activeSmokeContainers;
+            if (activeSmokeContainers.length > 3) {
+              try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+            }
+
             // logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
             const randomAlpha = 0.8 + Math.random() * 0.2; // Random between 0.8 and 1.0
             smokeBubblesAtCard(card, {
               sizeScale: 0.55, // Better quality (similar to tiles)
               distanceScale: 0.55, // Better quality (similar to tiles)
-              countScale: 0.45, // More particles (better quality)
+              countScale: 0.34, // Controlled overlap: every bounce gets smoke without overloading mobile
               haloScale: 0.55, // Better halo
               strength: 1.8 + Math.random() * 0.7, // ~100% jače
               trailAlpha: randomAlpha, // Random alpha for trail/plume (0.8-1.0)
-              baseAlpha: randomAlpha // Random alpha for base smoke particles (0.8-1.0)
+              baseAlpha: randomAlpha, // Random alpha for base smoke particles (0.8-1.0)
+              allowOverlap: true,
+              activeLockMs: 120,
+              fadeOutTime: 0.62,
+              cleanupTime: 1.15
             });
           }
           
@@ -965,8 +977,8 @@ class JourneyBoardsManager {
                 (cardWrapper as any)._bounceTimeout = null;
               }
               
-              // 🔥 USER REQUEST: Very fast interval between bounces (0.5-0.8 seconds)
-              const nextBounceDelay = 500 + Math.random() * 300; // 0.5-0.8 seconds (was 1.5-2.5s)
+              // Fixed 0.400s gap between bounce cycles.
+              const nextBounceDelay = 400;
               logger.debug(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
               (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, nextBounceDelay);
             }
@@ -981,7 +993,7 @@ class JourneyBoardsManager {
       (cardWrapper as any)._bounceTimeout = null;
     }
     
-    // 🔥 USER REQUEST: Start first bounce after very short delay (0.25s)
+    // Start first bounce after a short delay.
     (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, 250);
     
     // Store reference for cleanup

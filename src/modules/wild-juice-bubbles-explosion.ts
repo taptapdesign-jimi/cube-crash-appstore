@@ -257,6 +257,7 @@ type WildJuiceBubblesExplosionOptions = {
   textColors?: string[];
   direction?: 'up' | 'down';
   spritePaths?: string[] | null;
+  inputReleaseAtRatio?: number;
 };
 
 export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosionOptions = {}): void {
@@ -465,7 +466,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   isExplosionActive = true;
-  startWildFxDragLockForAnimation('juice-bubbles', 6200, 0.7);
+  startWildFxDragLockForAnimation('juice-bubbles', 6200, options.inputReleaseAtRatio ?? 0.7);
   explosionStartTime = performance.now(); // Track when explosion started
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;

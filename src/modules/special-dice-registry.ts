@@ -4,6 +4,7 @@
 export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceFinaleFx = 'star' | 'juice' | 'magnet' | 'tnt';
+export type SpecialDiceInputReleaseMode = 'timeline-ratio' | 'after-gameplay-resolve';
 
 export type SpecialDiceFinaleFlags = {
   fx: SpecialDiceFinaleFx | null;
@@ -43,6 +44,23 @@ export type SpecialDiceVariantDefinition = {
     mixBlendMode?: string;
   };
   arcadeTestOrder?: number;
+  inputReleaseAtRatio?: number;
+};
+
+const SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX: Record<SpecialDiceFinaleFx, number> = {
+  // TNT and magnet have gameplay-critical board movement/pulls, keep these conservative.
+  tnt: 0.7,
+  magnet: 0.86,
+  // Star and juice can release during their visual tail after the impact is established.
+  star: 0.62,
+  juice: 0.55,
+};
+
+const SPECIAL_DICE_INPUT_RELEASE_MODE_BY_FX: Record<SpecialDiceFinaleFx, SpecialDiceInputReleaseMode> = {
+  star: 'timeline-ratio',
+  juice: 'timeline-ratio',
+  magnet: 'after-gameplay-resolve',
+  tnt: 'after-gameplay-resolve',
 };
 
 const cuberoKrpaSources = [
@@ -90,6 +108,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       mixBlendMode: 'normal',
     },
     arcadeTestOrder: 2,
+    inputReleaseAtRatio: 0.62,
   },
   'beach-ball': {
     id: 'beach-ball',
@@ -105,6 +124,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     idleOrbit: false,
     idleMotion: 'beach-ball-bounce',
     arcadeTestOrder: 1,
+    inputReleaseAtRatio: 0.55,
   },
 };
 
@@ -255,7 +275,35 @@ export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
     color: variant.splashColor,
     burstSources: variant.burstParticleSources,
     burstMotion: variant.burstMotion,
+    inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
   };
+}
+
+export function getSpecialDiceInputReleaseAtRatio(tileOrVariant: any): number | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  if (Number.isFinite(variant?.inputReleaseAtRatio)) {
+    return Math.min(0.95, Math.max(0.2, Number(variant.inputReleaseAtRatio)));
+  }
+  const fx = getSpecialDiceFinaleFxForArchetype(variant?.archetype);
+  return fx ? SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX[fx] : undefined;
+}
+
+export function getSpecialDiceInputReleaseAtRatioForFx(fx?: SpecialDiceFinaleFx | null): number {
+  return fx ? SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX[fx] : 0.7;
+}
+
+export function getSpecialDiceInputReleaseModeForFx(fx?: SpecialDiceFinaleFx | null): SpecialDiceInputReleaseMode {
+  return fx ? SPECIAL_DICE_INPUT_RELEASE_MODE_BY_FX[fx] : 'timeline-ratio';
+}
+
+export function getSpecialDiceInputReleaseMode(tileOrVariant: any): SpecialDiceInputReleaseMode {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  const fx = getSpecialDiceFinaleFxForArchetype(variant?.archetype);
+  return getSpecialDiceInputReleaseModeForFx(fx);
 }
 
 export function getSpecialDiceShardColor(tileOrVariant: any): number | undefined {

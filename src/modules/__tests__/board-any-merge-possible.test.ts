@@ -77,3 +77,20 @@ test('stale wild pulled by magnet does not keep a 4+3 board playable', () => {
 
   expect(anyMergePossible(tiles as any)).toBe(false);
 });
+
+test('visible non-interactive wild residue does not keep a no-moves board playable', () => {
+  const tiles = [
+    makeTile(5),
+    makeTile(5),
+    makeTile(4),
+    makeTile(0, {
+      special: 'wild-juice',
+      visible: true,
+      alpha: 1,
+      eventMode: 'none',
+      _isBeingSpawned: false,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(false);
+});

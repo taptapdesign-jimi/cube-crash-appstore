@@ -6,6 +6,7 @@ import { Assets, Container, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
+import { setInputGateLock } from './input-gate.ts';
 
 const BASE = './assets/shop/explosion pack/animation/';
 const TNT_ANIM_FRAMES_1X: string[] = [
@@ -345,6 +346,7 @@ function cleanup(): void {
     try {
       (window as any).__ccTntAnimationActive = false;
       (window as any).__ccTntDragBlocked = false;
+      setInputGateLock('tnt-boom', false);
     } catch {}
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
@@ -423,6 +425,7 @@ export function showTntAnimation(options: {
   try {
     (window as any).__ccTntAnimationActive = true;
     (window as any).__ccTntDragBlocked = true;
+    setInputGateLock('tnt-boom', true, { ttlMs: 5200, scope: 'all' });
   } catch {}
   const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSprite10ExitLeadStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
 
@@ -733,6 +736,7 @@ export function showTntAnimation(options: {
         0.05;
       dragBlockTimeout = trackDelayedCall(exitTotal, () => {
         try { (window as any).__ccTntDragBlocked = false; } catch {}
+        try { setInputGateLock('tnt-boom', false); } catch {}
         try {
           boomExitListeners.forEach((fn) => {
             try { fn(); } catch {}

@@ -7,7 +7,7 @@
 
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import { logger } from '../core/logger.js';
-import { isArcadeHomeRunMode } from './run-mode.js';
+import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
 const _appTimeouts: Set<NodeJS.Timeout> = new Set();
@@ -151,6 +151,27 @@ function getArcadeStageSmallValueBias(): number {
   return Math.max(0, 0.5 - (stage - 1) * 0.05);
 }
 
+function getCurrentJourneyBoardNumber(): number {
+  if (typeof window === 'undefined') return 1;
+  const w = window as any;
+  return Math.max(1, ((w.STATE?.boardNumber ?? w.__ccStartAtLevel ?? 1) | 0));
+}
+
+function getJourneyBoardSmallValueBias(): number {
+  if (typeof window === 'undefined' || getRunMode() !== RUN_MODE_JOURNEY) return 0;
+  const board = getCurrentJourneyBoardNumber();
+  if (board <= 5) return 0.7;
+  if (board <= 10) return 0.5;
+  if (board <= 15) return 0.25;
+  return 0;
+}
+
+function pickSmallValueFromPool(pool: number[]): number | null {
+  const smallPool = pool.filter(v => v >= 1 && v <= 3);
+  if (smallPool.length <= 0) return null;
+  return smallPool[(Math.random() * smallPool.length) | 0];
+}
+
 export function regularValuePool(exclude?: number | number[]): number[] {
   const base = isFirstPlayTutorialLowValueMode() ? [1, 2, 3] : [1, 2, 3, 4, 5];
   if (Array.isArray(exclude)) {
@@ -175,12 +196,15 @@ export function randomRegularTileValue(exclude?: number | number[]): number {
     return pool[(Math.random() * pool.length) | 0];
   }
   const pool = regularValuePool(exclude);
+  const journeySmallValueBias = getJourneyBoardSmallValueBias();
+  if (journeySmallValueBias > 0 && Math.random() < journeySmallValueBias) {
+    const smallValue = pickSmallValueFromPool(pool);
+    if (smallValue !== null) return smallValue;
+  }
   const smallValueBias = getArcadeStageSmallValueBias();
   if (smallValueBias > 0 && Math.random() < smallValueBias) {
-    const smallPool = pool.filter(v => v <= 3);
-    if (smallPool.length > 0) {
-      return smallPool[(Math.random() * smallPool.length) | 0];
-    }
+    const smallValue = pickSmallValueFromPool(pool);
+    if (smallValue !== null) return smallValue;
   }
   return pool[(Math.random() * pool.length) | 0];
 }
@@ -192,6 +216,10 @@ export function randomRegularTileValue(exclude?: number | number[]): number {
 export function randVal(): number {
   if (isFirstPlayTutorialLowValueMode()) {
     return [1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3][(Math.random() * 11) | 0];
+  }
+  const journeySmallValueBias = getJourneyBoardSmallValueBias();
+  if (journeySmallValueBias > 0 && Math.random() < journeySmallValueBias) {
+    return [1, 2, 3][(Math.random() * 3) | 0];
   }
   return [1, 1, 1, 2, 2, 3, 3, 4, 5][(Math.random() * 9) | 0];
 }

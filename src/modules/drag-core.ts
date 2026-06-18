@@ -12,7 +12,7 @@ import animationManager from './animation-manager.js';
 import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
-import { getWildFxDragLockReasons, isWildFxDragLocked } from './wild-fx-drag-lock.ts';
+import { canStartTileDrag } from './input-gate.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
@@ -87,6 +87,69 @@ function repairWildTileState(tile: any): string | null {
 
 function isAnyWildTile(tile: any): boolean {
   return !!repairWildTileState(tile);
+}
+
+function playBlockedSpecialDragFeedback(tile: any, reasons: string[] = []): void {
+  if (!tile || tile.destroyed || !isAnyWildTile(tile)) return;
+  const now = Date.now();
+  const lastAt = Number((tile as any)._ccBlockedDragFeedbackAt || 0);
+  if (now - lastAt < 180) return;
+  (tile as any)._ccBlockedDragFeedbackAt = now;
+
+  const canAnimate =
+    reasons.includes('juice-bubbles') ||
+    reasons.includes('sparkle-text') ||
+    reasons.includes('magnetic-text');
+  if (!canAnimate) return;
+
+  const target = tile.rotG || tile;
+  if (!target || target.destroyed) return;
+  try {
+    (tile as any)._ccBlockedDragFeedbackTween?.kill?.();
+  } catch {}
+  const baseRotation = Number(target.rotation || 0);
+  const baseY = Number(tile.y || 0);
+  try {
+    (tile as any)._ccBlockedDragFeedbackTween = trackTimeline({
+      onComplete: () => {
+        try { target.rotation = baseRotation; } catch {}
+        try { tile.y = baseY; } catch {}
+        try { (tile as any)._ccBlockedDragFeedbackTween = null; } catch {}
+      },
+      onInterrupt: () => {
+        try { target.rotation = baseRotation; } catch {}
+        try { tile.y = baseY; } catch {}
+      },
+    })
+      .to(target, {
+        rotation: baseRotation - 0.055,
+        duration: 0.055,
+        ease: 'power2.out',
+      }, 0)
+      .to(tile, {
+        y: baseY - 3,
+        duration: 0.07,
+        ease: 'power2.out',
+      }, 0)
+      .to(target, {
+        rotation: baseRotation + 0.05,
+        duration: 0.075,
+        ease: 'sine.inOut',
+      })
+      .to(tile, {
+        y: baseY,
+        duration: 0.1,
+        ease: 'back.out(2.4)',
+      }, '<')
+      .to(target, {
+        rotation: baseRotation,
+        duration: 0.075,
+        ease: 'power2.out',
+      });
+  } catch {
+    try { target.rotation = baseRotation; } catch {}
+    try { tile.y = baseY; } catch {}
+  }
 }
 
 function getExistingWildSpecial(tile: any): string | null {
@@ -395,61 +458,22 @@ export function initDrag(cfg) {
       return;
     }
 
-    // 🧲 CRITICAL: During wild-magnet pull/merge cleanup, block all new drags.
-    // Fast tap-drag during this window can desync grid vs visible tiles and leave a stale merge-6 tile.
-    try {
-      const magnetPullActive =
-        (window as any).__ccWildMagnetPullInProgress === true ||
-        (typeof (window as any).CC?.isWildMagnetPullInProgress === 'function' &&
-          (window as any).CC.isWildMagnetPullInProgress() === true) ||
-        typeof (window as any).__ccActiveMagnetPullCleanup === 'function';
-      if (magnetPullActive) {
-        console.log('🛡️ DRAG BLOCKED: Wild-magnet pull/cleanup in progress');
-        try { e?.stopPropagation?.(); } catch {}
-        try { e?.preventDefault?.(); } catch {}
-        return;
-      }
-    } catch {
-      if ((window as any).__ccWildMagnetPullInProgress === true) {
-        console.log('🛡️ DRAG BLOCKED: Wild-magnet pull in progress (fallback)');
-        return;
-      }
-    }
-
-    // 🛡️ Block drag only until BOOM exit completes
-    if ((window as any).__ccTntDragBlocked === true) {
-      if ((window as any).__ccTntAnimationActive !== true) {
-        try { (window as any).__ccTntDragBlocked = false; } catch {}
-      } else {
-      console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');
-      return;
-      }
-    }
-
     repairWildTileState(t);
 
-    if (isAnyWildTile(t) && isWildFxDragLocked()) {
-      console.log('🛡️ DRAG BLOCKED: Wild FX animation in progress', getWildFxDragLockReasons());
+    const inputGateDecision = canStartTileDrag({
+      tile: t,
+      isWildTile: isAnyWildTile(t),
+    });
+    if (!inputGateDecision.allowed) {
+      console.log('🛡️ DRAG BLOCKED: Input gate', inputGateDecision.reasons, {
+        value: t?.value,
+        special: t?.special,
+        gridX: t?.gridX,
+        gridY: t?.gridY,
+      });
+      playBlockedSpecialDragFeedback(t, inputGateDecision.reasons);
       try { e?.stopPropagation?.(); } catch {}
       try { e?.preventDefault?.(); } catch {}
-      return;
-    }
-
-    if ((t as any)?._ccWildSpawnDropping === true) {
-      console.log('🛡️ DRAG BLOCKED: Incoming wild is still landing');
-      return;
-    }
-
-    // 🛡️ CRITICAL: Block drag for tiles that are being pulled by magnet
-    // These tiles are protected and cannot be dragged or merged with other tiles
-    if ((t as any)?._wildMagnetAffected === true) {
-      console.log('🛡️ DRAG BLOCKED: Tile is being pulled by magnet (protected)', t.value, 'special:', t.special);
-      return;
-    }
-    
-    // 🛡️ CRITICAL: Block drag for locked tiles (including pulled tiles that are locked)
-    if (t.locked) {
-      console.log('🛡️ DRAG BLOCKED: Tile is locked', t.value, 'special:', t.special);
       return;
     }
     
