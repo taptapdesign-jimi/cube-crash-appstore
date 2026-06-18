@@ -6,6 +6,7 @@ import {
   type FinalMergeSnapshot,
 } from './final-merge-rules.ts';
 import { isTileTransientlySpawning } from './tile-state-utils.ts';
+import { isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
 export type GameplayMode = 'arcade' | 'journey' | 'unknown';
 
@@ -108,7 +109,7 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): GameplaySn
     dst: input.dst,
     effSum: input.effSum ?? 0,
     finalMergeBlockersBefore: finalMergeBlockers,
-    isWildMagnetMerge: input.src?.special === 'wild-magnet' || input.dst?.special === 'wild-magnet',
+    isWildMagnetMerge: isSpecialDiceMagnetLikeTile(input.src) || isSpecialDiceMagnetLikeTile(input.dst),
     hasTilesToPull: flags.hasTilesToPull || flags.willPulledTilesMerge,
   });
 

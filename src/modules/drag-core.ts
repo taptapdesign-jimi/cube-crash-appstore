@@ -13,6 +13,7 @@ import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, clean
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { getWildFxDragLockReasons, isWildFxDragLocked } from './wild-fx-drag-lock.ts';
+import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -100,7 +101,7 @@ function getExistingWildSpecial(tile: any): string | null {
 
 function isDirectWildTile(tile: any): boolean {
   const special = getTileSpecial(tile);
-  return special === 'wild' || special === 'wild-juice' || special === 'wild-tnt';
+  return isSpecialDiceDirectWildLikeTile(tile, special);
 }
 
 function __dg_alive(target){
@@ -1803,11 +1804,13 @@ export function initDrag(cfg) {
     
     const srcSpecial = getTileSpecial(src);
     const targetSpecial = getTileSpecial(target);
-    // Wild, wild-magnet, and wild-juice can merge with any tile (show hover)
-    if (srcSpecial === 'wild' || targetSpecial === 'wild' || 
-        srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet' ||
-        srcSpecial === 'wild-juice' || targetSpecial === 'wild-juice' ||
-        srcSpecial === 'wild-tnt' || targetSpecial === 'wild-tnt') return true;
+    // Wild and special dice can merge with any valid target (show hover).
+    if (
+      isSpecialDiceDirectWildLikeTile(src, srcSpecial) ||
+      isSpecialDiceDirectWildLikeTile(target, targetSpecial) ||
+      isSpecialDiceMagnetLikeTile(src, srcSpecial) ||
+      isSpecialDiceMagnetLikeTile(target, targetSpecial)
+    ) return true;
 
     const srcVal = Number(src.value) || 0;
     const targetVal = Number(target.value) || 0;

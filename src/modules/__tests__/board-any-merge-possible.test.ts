@@ -40,3 +40,25 @@ test('merge 6 continuation still counts as playable', () => {
 
   expect(anyMergePossible(tiles as any)).toBe(true);
 });
+
+test('future wild-prefixed special dice keep board playable', () => {
+  const tiles = [
+    makeTile(5),
+    makeTile(0, { special: 'wild-feather', locked: true }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(true);
+});
+
+test('future magnet-archetype special dice keep board playable', () => {
+  const tiles = [
+    makeTile(5),
+    makeTile(0, {
+      special: 'wild-magnet',
+      _ccSpecialDiceArchetype: 'wild-magnet',
+      locked: true,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(true);
+});

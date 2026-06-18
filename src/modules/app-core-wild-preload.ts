@@ -1,3 +1,5 @@
+import { isWildLikeTile } from './final-merge-rules.ts';
+
 type WildPreloadDeps = {
   tiles: any[];
   devLog: (...args: any[]) => void;
@@ -9,7 +11,7 @@ type WildPreloadDeps = {
 function getActiveTiles(tiles: any[]): any[] {
   return tiles.filter((t: any) => {
     if (!t || t.destroyed) return false;
-    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+    const isWild = isWildLikeTile(t);
     const hasValue = (t.value | 0) > 0;
     return isWild || hasValue;
   });

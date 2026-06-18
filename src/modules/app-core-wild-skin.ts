@@ -1,5 +1,6 @@
 import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import { isWildLikeSpecial } from './final-merge-rules.ts';
 
 type WildSkinDeps = {
   Assets: { get: (key: string) => any };
@@ -42,7 +43,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     devWarn,
   } = deps;
   try {
-    if (tile.special === 'wild' || tile.special === 'wild-magnet' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {
+    if (isWildLikeSpecial(tile.special)) {
       tile._ccWildSpecial = tile.special;
     }
     // 🔥 CRITICAL: Use appropriate texture based on special type

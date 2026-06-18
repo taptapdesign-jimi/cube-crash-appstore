@@ -1,6 +1,8 @@
 // src/modules/tile-state-utils.ts
 // Helpers for aggressively clearing magnet/wild residue before reusing a tile.
 
+import { isWildLikeTile } from './final-merge-rules';
+
 export interface TileLike {
   special?: string | null;
   isWild?: boolean;
@@ -63,13 +65,7 @@ export function boardHasPersistentLockedTiles(tiles: any[] | null | undefined): 
   return tiles.some((t: any) => {
     if (!t || t.destroyed || !t.locked) return false;
     if (t._wildMagnetAffected === true) return false;
-    const isWild =
-      t.special === 'wild' ||
-      t.special === 'wild-magnet' ||
-      t.special === 'wild-juice' ||
-      t.special === 'wild-tnt' ||
-      t.isWild === true ||
-      t.isWildFace === true;
+    const isWild = isWildLikeTile(t);
     if (isWild) return true;
     if (t._isBeingSpawned === true) return true;
     return (t.value | 0) > 0;
@@ -77,15 +73,7 @@ export function boardHasPersistentLockedTiles(tiles: any[] | null | undefined): 
 }
 
 function tileIsWild(tile: any): boolean {
-  if (!tile) return false;
-  return (
-    tile.special === 'wild' ||
-    tile.special === 'wild-magnet' ||
-    tile.special === 'wild-juice' ||
-    tile.special === 'wild-tnt' ||
-    tile.isWild === true ||
-    tile.isWildFace === true
-  );
+  return isWildLikeTile(tile);
 }
 
 export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOptions = {}): boolean {

@@ -1,4 +1,10 @@
 import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
+import {
+  reasonAlreadyPassedTntCompletion,
+  reasonExpectsJuiceFinale,
+  reasonExpectsMagnetFinale,
+  reasonExpectsSparkleFinale,
+} from './final-merge-reasons.ts';
 
 type Logger = {
   info?: (...args: any[]) => void;
@@ -25,28 +31,6 @@ const RECENT_HANDOFF_WINDOW_MS = 3000;
 const ARCADE_HANDOFF_BUFFER_MS = 180;
 const POLL_MS = 80;
 const JUICE_START_WAIT_MS = 700;
-
-function reasonAlreadyPassedTntCompletion(reason: string): boolean {
-  return reason === 'final_tnt_merge_after_tnt'
-    || reason === 'final_tnt_merge_fallback_timeout'
-    || reason === 'clean_board_from_last_merge_final_tnt';
-}
-
-function reasonExpectsJuiceFinale(reason: string): boolean {
-  return reason === 'clean_board_from_last_merge_final_juice';
-}
-
-function reasonExpectsSparkleFinale(reason: string): boolean {
-  return reason === 'clean_board_from_last_merge_final_star';
-}
-
-function reasonExpectsMagnetFinale(reason: string): boolean {
-  return reason === 'clean_board_from_last_merge_final_magnet'
-    || reason === 'clean_board_from_wild_magnet_final_merge6'
-    || reason === 'clean_board_from_wild_magnet_no_pulled_tiles'
-    || reason === 'clean_board_from_wild_magnet_only_dst_remains'
-    || reason === 'clean_board_from_wild_magnet_few_tiles_remaining';
-}
 
 function markFinalMergeHandoffSettled(): void {
   try {

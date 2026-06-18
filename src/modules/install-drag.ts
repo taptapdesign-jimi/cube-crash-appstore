@@ -5,6 +5,8 @@ import { Rectangle, Application, Container } from 'pixi.js';
 import { initDrag } from './drag-core.ts';
 import { GAP } from './constants.js';
 import type { Tile } from '../types/game-types.js';
+import { isWildLikeTile } from './final-merge-rules.ts';
+import { isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
 interface InstallDragConfig {
   app: Application;
@@ -95,10 +97,10 @@ export function installDrag({
       const dv = (dst && ((dst as any).value | 0)) || 0;
 
       // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
-      const srcIsWildMagnet = (src as any)?.special === 'wild-magnet';
-      const dstIsWildMagnet = (dst as any)?.special === 'wild-magnet';
-      const srcIsWild = (src as any)?.special === 'wild' || (src as any)?.special === 'wild-juice' || (src as any)?.special === 'wild-tnt';
-      const dstIsWild = (dst as any)?.special === 'wild' || (dst as any)?.special === 'wild-juice' || (dst as any)?.special === 'wild-tnt';
+      const srcIsWildMagnet = isSpecialDiceMagnetLikeTile(src);
+      const dstIsWildMagnet = isSpecialDiceMagnetLikeTile(dst);
+      const srcIsWild = isWildLikeTile(src) && !srcIsWildMagnet;
+      const dstIsWild = isWildLikeTile(dst) && !dstIsWildMagnet;
 
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet

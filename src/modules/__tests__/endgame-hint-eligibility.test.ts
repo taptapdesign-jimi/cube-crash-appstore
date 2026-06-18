@@ -40,6 +40,15 @@ test('keeps wild-star boards quiet because special dice already have their own g
   expect(shouldShowStackItHintForTiles(tiles, () => true)).toBe(false);
 });
 
+test('keeps future wild-prefixed special dice boards quiet', () => {
+  const tiles = [
+    makeTile({ value: 4 }),
+    makeTile({ value: 0, special: 'wild-hurricane' }),
+  ];
+
+  expect(shouldShowStackItHintForTiles(tiles, () => true)).toBe(false);
+});
+
 test('treats missing or failing merge detector as not eligible', () => {
   const tiles = [makeTile({ value: 2 }), makeTile({ value: 3 })];
 

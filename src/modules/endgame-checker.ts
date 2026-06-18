@@ -11,6 +11,8 @@
 
 import { logger } from '../core/logger.js';
 import { isTileTransientlySpawning } from './tile-state-utils.ts';
+import { isWildLikeTile } from './final-merge-rules.ts';
+import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
 export type EndGameResult = 
   | { type: 'clean'; reason: string }
@@ -78,14 +80,12 @@ export function clearEndgameCheckerCache(): void {
  * NOTE: We include ALL tiles to avoid stale cache causing false fail screens.
  */
 function tileIsWild(tile: any): boolean {
-  if (!tile) return false;
-  const special = tile.special;
-  return special === 'wild' ||
-    special === 'wild-magnet' ||
-    special === 'wild-juice' ||
-    special === 'wild-tnt' ||
-    tile.isWild === true ||
-    tile.isWildFace === true;
+  return isWildLikeTile(tile);
+}
+
+function tileIsNonMagnetWild(tile: any): boolean {
+  if (!tileIsWild(tile)) return false;
+  return !isSpecialDiceMagnetLikeTile(tile);
 }
 
 function isWildEffectivelyPresent(tile: any): boolean {
@@ -99,7 +99,7 @@ function isWildEffectivelyPresent(tile: any): boolean {
 
 function isMagnetContinuationCandidate(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
-  if (tile.special !== 'wild-magnet') return false;
+  if (!isSpecialDiceMagnetLikeTile(tile)) return false;
   if (!isWildEffectivelyPresent(tile)) return false;
 
   // Ignore transient magnets in pull/cleanup pipeline; they should not block final-merge clean board.
@@ -278,7 +278,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
   // 🔥 CRITICAL FIX: If merge 6 was created from magnet + last tile, check if it will pull tiles
   // If merge 6 was created from magnet and there are no tiles to pull, it IS a last merge
   // Check if merge 6 has _hasTilesToPull flag or _wildMagnetMergeCallback
-  const merge6FromMagnet = (srcTile?.special === 'wild-magnet' || (dstTile as any)?._isWildMagnetMerge) && dstTile.value === MAX_MERGE_VALUE;
+  const merge6FromMagnet = (isSpecialDiceMagnetLikeTile(srcTile) || (dstTile as any)?._isWildMagnetMerge) && dstTile.value === MAX_MERGE_VALUE;
   if (merge6FromMagnet) {
     const hasTilesToPull = (dstTile as any)?._hasTilesToPull === true; // Only true means tiles will be pulled
     const hasMagnetCallback = !!(dstTile as any)?._wildMagnetMergeCallback;
@@ -310,7 +310,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     // Determine merge type for logging
     let mergeType = 'unknown';
     if (srcTile) {
-      const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-juice' || srcTile.special === 'wild-tnt' || srcTile.special === 'wild-magnet';
+      const srcIsWild = tileIsWild(srcTile);
       const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
       const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
       const dstIsMerge6 = dstTile.value === MAX_MERGE_VALUE;
@@ -376,7 +376,7 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   const singleTile = activeTiles[0];
   const value = (singleTile.value | 0);
   const stackDepth = (singleTile as any).stackDepth || 1;
-  const isWild = singleTile.special === 'wild' || singleTile.special === 'wild-juice' || singleTile.special === 'wild-tnt' || singleTile.special === 'wild-magnet';
+  const isWild = tileIsWild(singleTile);
 
   console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount, isWild });
 
@@ -447,12 +447,12 @@ function getTileCategories(activeTiles: any[]) {
   }
 
   console.log('🔄 getTileCategories: Computing tile categories');
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
-  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
-  const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
+  const wildCubes = activeTiles.filter(tileIsWild);
+  const wildStars = activeTiles.filter((t) => isSpecialDiceDirectWildLikeTile(t));
+  const magnets = activeTiles.filter((t) => isSpecialDiceMagnetLikeTile(t));
 
   const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true) return false;
+    if (!t || tileIsWild(t)) return false;
     const value = (t.value|0);
     return value > 0 && value <= MAX_MERGE_VALUE; // Wild can merge with 1-6
   });
@@ -545,10 +545,10 @@ function isGameStuck(context: EndGameContext): boolean {
   // User: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Bypasses cache/filtering - catches wilds that might be locked, animating, or missed
   const rawWilds = tiles.filter((t: any) => isWildEffectivelyPresent(t));
-  const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-juice' && t.special !== 'wild-tnt' && t.isWild !== true && t.isWildFace !== true && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
+  const rawMergeable = tiles.filter((t: any) => t && !t.destroyed && !tileIsWild(t) && (t.value | 0) > 0 && (t.value | 0) <= MAX_MERGE_VALUE);
   if (rawWilds.length > 0) {
-    const hasMagnet = rawWilds.some((t: any) => t.special === 'wild-magnet');
-    const hasWildStar = rawWilds.some((t: any) => t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || t.isWild === true || t.isWildFace === true);
+    const hasMagnet = rawWilds.some((t: any) => isSpecialDiceMagnetLikeTile(t));
+    const hasWildStar = rawWilds.some((t: any) => isSpecialDiceDirectWildLikeTile(t));
     // Wild+regular = merge; Magnet+anything = pull; Wild+wild = blocked
     if ((hasWildStar && rawMergeable.length > 0) || (hasMagnet && (rawMergeable.length > 0 || hasWildStar))) {
       console.log('✅ isGameStuck: SAFETY - raw scan found wild on board, game continues (wild = definitivno nastavak igre)');

@@ -39,6 +39,7 @@ import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { isArcadeHomeRunMode, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
+import { getFinalMergeCleanBoardReason } from './final-merge-reasons.ts';
 import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
 import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import { updateEndgameHint, resetEndgameHint } from './endgame-hint.ts';
@@ -131,6 +132,7 @@ import {
   applySpecialDiceVariantToTile,
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceExplosionSpriteSources,
+  getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
   getSpecialDiceShardColor,
   getSpecialDiceShardColors,
@@ -139,6 +141,11 @@ import {
   getSpecialDiceVisualConfig,
   getSpecialDiceVariant,
   getSpecialDiceVariantForTile,
+  isSpecialDiceDirectWildLikeTile,
+  isSpecialDiceJuiceLikeTile,
+  isSpecialDiceMagnetLikeTile,
+  isSpecialDiceStarLikeTile,
+  isSpecialDiceTntLikeTile,
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
@@ -488,7 +495,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       }
       const value = (t.value | 0);
       const special = t.special;
-      const isWildLike = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
+      const isWildLike = isWildLikeSpecial(special);
       const isActive = value > 0 || isWildLike;
       if (!isActive) return;
 
@@ -580,6 +587,11 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
 
 function isWildLikeGameplayTile(tile: any): boolean {
   return isWildLikeTile(tile);
+}
+
+function tileHasGameplayValueOrWild(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  return (tile.value | 0) > 0 || isWildLikeTile(tile);
 }
 
 function collectBoardGameplayTiles(): Tile[] {
@@ -2603,13 +2615,13 @@ export async function boot(){
       const normalizeWildSpecial = (tile: any) => {
         if (!tile) return null;
         const special = typeof tile.special === 'string' ? tile.special : '';
-        if (special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt') {
+        if (isWildLikeSpecial(special)) {
           tile._ccWildSpecial = special;
           try { if (tile.shadow) tile.shadow.visible = false; } catch {}
           return special;
         }
         const remembered = typeof tile._ccWildSpecial === 'string' ? tile._ccWildSpecial : '';
-        if (remembered === 'wild' || remembered === 'wild-magnet' || remembered === 'wild-juice' || remembered === 'wild-tnt') {
+        if (isWildLikeSpecial(remembered)) {
           tile.special = remembered;
           tile.isWild = true;
           tile.isWildFace = true;
@@ -2651,10 +2663,10 @@ export async function boot(){
       const dstSpecial = normalizeWildSpecial(d);
       
       // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
-      const srcIsWildMagnet = srcSpecial === 'wild-magnet';
-      const dstIsWildMagnet = dstSpecial === 'wild-magnet';
-      const srcIsWild = srcSpecial === 'wild' || srcSpecial === 'wild-juice' || srcSpecial === 'wild-tnt';
-      const dstIsWild = dstSpecial === 'wild' || dstSpecial === 'wild-juice' || dstSpecial === 'wild-tnt';
+      const srcIsWildMagnet = isSpecialDiceMagnetLikeTile(s, srcSpecial);
+      const dstIsWildMagnet = isSpecialDiceMagnetLikeTile(d, dstSpecial);
+      const srcIsWild = isWildLikeSpecial(srcSpecial) && !srcIsWildMagnet;
+      const dstIsWild = isWildLikeSpecial(dstSpecial) && !dstIsWildMagnet;
       
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet
@@ -2713,8 +2725,8 @@ export async function boot(){
       
       // 🔥 NEW: Allow wild star to merge with merge 6 tile (value 6)
       // Wild star (special='wild') can merge with merge 6 tile to create new merge 6
-      const sIsWild = srcSpecial === 'wild' || srcSpecial === 'wild-juice' || srcSpecial === 'wild-tnt';
-      const dIsWild = dstSpecial === 'wild' || dstSpecial === 'wild-juice' || dstSpecial === 'wild-tnt';
+      const sIsWild = isSpecialDiceDirectWildLikeTile(s, srcSpecial);
+      const dIsWild = isSpecialDiceDirectWildLikeTile(d, dstSpecial);
       if ((sIsWild && dv === 6 && !d?.special) || (dIsWild && sv === 6 && !s?.special)) {
         devLog('⭐ canDrop (app-core): Wild star can merge with merge 6 tile');
         return true; // Allow wild star to merge with merge 6
@@ -4899,8 +4911,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   // Block wild/wild, wild/magnet, magnet/magnet, wild-juice/wild-juice, wild-juice/wild, wild-juice/magnet merges
   // BUT: Allow wild star to merge with merge 6 tile (value 6 without special)
   // BUT: If BOTH tiles are wild-magnet affected (pulled tiles), allow merge regardless of wild status
-  const srcIsWild = src?.special === 'wild' || src?.special === 'wild-juice' || src?.special === 'wild-tnt';
-  const dstIsWild = dst?.special === 'wild' || dst?.special === 'wild-juice' || dst?.special === 'wild-tnt';
+  const srcIsMagnetLike = isSpecialDiceMagnetLikeTile(src);
+  const dstIsMagnetLike = isSpecialDiceMagnetLikeTile(dst);
+  const srcIsWild = isWildLikeTile(src) && !srcIsMagnetLike;
+  const dstIsWild = isWildLikeTile(dst) && !dstIsMagnetLike;
   const srcIsMerge6 = (src.value|0) === 6 && !src.special;
   const dstIsMerge6 = (dst.value|0) === 6 && !dst.special;
   
@@ -4909,9 +4923,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     devLog('⭐ MERGE ALLOWED: Wild star merging with merge 6 tile');
     // Allow this merge - it will create a new merge 6
   } else if ((srcIsWild && dstIsWild) || 
-      (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
-      (srcIsWild && dst?.special === 'wild-magnet') ||
-      (src?.special === 'wild-magnet' && dstIsWild)){ 
+      (srcIsMagnetLike && dstIsMagnetLike) ||
+      (srcIsWild && dstIsMagnetLike) ||
+      (srcIsMagnetLike && dstIsWild)){ 
     // CRITICAL: If both tiles are wild-magnet affected (pulled tiles), allow merge even if wild/wild
     if (!isPulledTilesMerge) {
       devWarn('🚨🚨🚨 MERGE BLOCKED: Wild/wild, wild/magnet, or magnet/magnet merge not allowed');
@@ -4929,9 +4943,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   // Wild-magnet works exactly like wild: always merges to 6
   // Also, if BOTH tiles are _wildMagnetAffected (pulled tiles), they act like wild
   // NOTE: srcIsWildMagnetAffected and dstIsWildMagnetAffected are already declared above
-  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet' || src.special === 'wild-juice' || dst.special === 'wild-juice' || src.special === 'wild-tnt' || dst.special === 'wild-tnt') ||
+  const wildActive = isWildLikeTile(src) || isWildLikeTile(dst) ||
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
-  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || src.special === 'wild-juice' || src.special === 'wild-tnt' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
+  const wildTargetValue = wildActive ? ((isWildLikeTile(src) || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
   
   // 🔥 CRITICAL: Check for wild star merge 6 BEFORE any animations or branches (to capture wildStarSystem)
@@ -5261,7 +5275,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
     // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
     // NOTE: hasTilesToPull will be calculated later in merge-6 block, but we need a preliminary check here
-    const isWildMagnetMerge = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
+    const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src) || isSpecialDiceMagnetLikeTile(dst);
     // 🔥 CRITICAL: Store isWildMagnetMerge for later use in last merge check
     (dst as any)._isWildMagnetMerge = isWildMagnetMerge;
     
@@ -5426,7 +5440,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Merge-6 will spawn new tiles, so we should check AFTER spawn completes, not before
         // This prevents false "stuck" detection when board has 2 tiles (e.g., 4 and 2) that can merge
         // 🔥 CRITICAL FIX: SKIP this check if wild-magnet merge (magnet will pull tiles AFTER this merge)
-        const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+        const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial);
         const isRegularMergeOnly = !srcSpecial && !dstSpecial;
         const isMerge6 = effSum === 6;
         
@@ -5663,7 +5677,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const onlyTile = activeTilesBeforeCheck[0];
             const onlyValue = onlyTile?.value | 0;
             const onlyDepth = onlyTile?.stackDepth || 1;
-            const isWild = onlyTile?.special === 'wild' || onlyTile?.special === 'wild-juice' || onlyTile?.special === 'wild-tnt' || onlyTile?.special === 'wild-magnet';
+            const isWild = isWildLikeTile(onlyTile);
             const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
               devLog('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
@@ -5747,7 +5761,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           devLog('🎯 SKIPPING post-merge stuck check - merge-6 will spawn new tiles, check will happen AFTER spawn completes');
         }
         
-        const isWildTntMergeNow = src?.special === 'wild-tnt' || dst?.special === 'wild-tnt';
+        const isWildTntMergeNow = isSpecialDiceTntLikeTile(src) || isSpecialDiceTntLikeTile(dst);
         if (wildActive) {
           try {
             screenShake(app, {
@@ -5899,7 +5913,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL: Check if this is a wild-magnet merge that will pull other tiles
     // If wild-magnet will pull tiles, it's NOT a last merge (unless there are no tiles to pull)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
-    const isWildMagnetMerge = (srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet');
+    const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecialMerge6) || isSpecialDiceMagnetLikeTile(dst, dstSpecialMerge6);
     let hasTilesToPull = false;
     if (isWildMagnetMerge) {
       // 🎯 CRITICAL FIX: Count magnets INCLUDING their stackDepth!
@@ -5907,11 +5921,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       let magnetsOnBoard = 0;
       let regularTilesOnBoard = 0;
       for (const t of activeTilesBeforeMerge) {
-        if (t.special === 'wild-magnet') {
+        if (isSpecialDiceMagnetLikeTile(t)) {
           magnetsOnBoard += 1;
           continue;
         }
-        if (t.special !== 'wild' && (t.value | 0) > 0) {
+        if (!isWildLikeTile(t) && (t.value | 0) > 0) {
           regularTilesOnBoard += 1;
         }
       }
@@ -5966,7 +5980,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
           // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
           // 🔥 CRITICAL FIX: Include wild-juice in wild tile check (same as wild star)
-          const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+          const isWildOrMagnet = isWildLikeTile(t);
           if (!isWildOrMagnet && (t.value | 0) <= 0) return false;
           
           // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
@@ -6041,8 +6055,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 2. No other tiles on board
     // 🔥 CRITICAL FIX: Include wild-juice in wild tile check (same as wild star)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
-    const oneIsRegularWild = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt');
-    const neitherIsWildMagnet = !(srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet');
+    const oneIsRegularWild =
+      (isWildLikeSpecial(srcSpecialMerge6) && !isSpecialDiceMagnetLikeTile(src, srcSpecialMerge6)) ||
+      (isWildLikeSpecial(dstSpecialMerge6) && !isSpecialDiceMagnetLikeTile(dst, dstSpecialMerge6));
+    const neitherIsWildMagnet = !(isSpecialDiceMagnetLikeTile(src, srcSpecialMerge6) || isSpecialDiceMagnetLikeTile(dst, dstSpecialMerge6));
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     const visibleTilesCountForWild = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
     const exactlyTwoActiveTiles = visibleTilesCountForWild === 2; // ONLY if 2 VISIBLE tiles total
@@ -6079,7 +6095,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const visibleTilesCountForWildMagnet = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
-    const isWildRegularLastTwo = (srcSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-magnet' || srcSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-tnt') &&
+    const isWildRegularLastTwo = (isWildLikeSpecial(srcSpecialMerge6) || isWildLikeSpecial(dstSpecialMerge6)) &&
                                  visibleTilesCountForWildMagnet === 2 && // 🔥 FIX: ONLY if exactly 2 VISIBLE tiles total
                                  activeTilesBeforeMerge.includes(src) &&
                                  activeTilesBeforeMerge.includes(dst) &&
@@ -6092,7 +6108,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const visibleTilesCountForWildLast = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
-    const isWildLastTileMerge = (srcSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-magnet' || srcSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-tnt') &&
+    const isWildLastTileMerge = (isWildLikeSpecial(srcSpecialMerge6) || isWildLikeSpecial(dstSpecialMerge6)) &&
                                  visibleTilesCountForWildLast === 2 && // 🔥 FIX: ONLY if exactly 2 VISIBLE tiles total
                                  allTilesInvolved &&
                                  !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
@@ -6117,8 +6133,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     // 🔥 CRITICAL: Check if either tile is wild (any wild type with "wild" prefix)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
-    const srcIsWild = srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild');
-    const dstIsWild = dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild');
+    const srcIsWild = isWildLikeSpecial(srcSpecialMerge6);
+    const dstIsWild = isWildLikeSpecial(dstSpecialMerge6);
     const bothAreRegularForMerge6 = !srcIsWild && !dstIsWild && 
                                     (src.value|0) > 0 && (dst.value|0) > 0;
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
@@ -6335,9 +6351,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       
       // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge OR magnet merge (for spawn skip logic)
       // This includes: wild + regular, regular + wild, magnet + regular, regular + magnet, wild-juice + regular, regular + wild-juice
-      const wasWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
-      const wasWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
-      const wasMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+      const wasWildMerge = isSpecialDiceStarLikeTile(src, srcSpecial) || isSpecialDiceStarLikeTile(dst, dstSpecial);
+      const wasWildJuiceMerge = isSpecialDiceJuiceLikeTile(src, srcSpecial) || isSpecialDiceJuiceLikeTile(dst, dstSpecial);
+      const wasMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial);
       if (wasWildMerge || wasMagnetMerge || wasWildJuiceMerge) {
         (dst as any)._wasWildMerge = true;
         devLog('✅ _wasWildMerge flag set to TRUE (wild/magnet/wild-juice merge detected)', {
@@ -6365,7 +6381,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     
     // Haptic feedback for merge 6
     if (typeof (window as any).triggerHapticImpact === 'function') {
-      const isWildTntMergeHaptic = srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt';
+      const isWildTntMergeHaptic = isSpecialDiceTntLikeTile(src, srcSpecial) || isSpecialDiceTntLikeTile(dst, dstSpecial);
       if (isWildTntMergeHaptic) {
         // Main wild merge impact must fire immediately on merge-6.
         (window as any).triggerHapticImpact('heavy');
@@ -6442,8 +6458,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 BUG FIX: Wild star/juice should ALWAYS be mult=2, regardless of stackDepth
     // Wild-magnet uses mult=2 initially (updated later based on pulled tiles, max 4)
     // Regular merge 6 uses combinedCount (stackDepth sum) for multiplier
-    const isWildStarOrJuice = srcSpecial === 'wild' || dstSpecial === 'wild' || 
-                             srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
+    const isWildStarOrJuice =
+      isSpecialDiceStarLikeTile(src, srcSpecial) ||
+      isSpecialDiceStarLikeTile(dst, dstSpecial) ||
+      isSpecialDiceJuiceLikeTile(src, srcSpecial) ||
+      isSpecialDiceJuiceLikeTile(dst, dstSpecial);
     // Calculate multiplier: wild-magnet or wild star/juice = 2, regular merge 6 = combinedCount (no cap: 2→2x, 3→3x, 4→4x, 5→5x, …)
     let mult = (isWildMagnet || isWildStarOrJuice) ? 2 : combinedCount;
     
@@ -6596,7 +6615,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
         // Wild-magnet and wild tiles have value = 0, but they should STILL be pulled!
-        const isWildOrMagnet = tile.special === 'wild' || tile.special === 'wild-magnet' || tile.special === 'wild-juice' || tile.special === 'wild-tnt';
+        const isWildOrMagnet = isWildLikeTile(tile);
         
         if (!isWildOrMagnet && (tile.value | 0) <= 0) {
           devLog('🔍 FILTER OUT: regular tile with value <= 0', { value: tile.value, special: tile.special });
@@ -6952,7 +6971,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // This prevents wild meter from filling when magnet pull results in clean board
                 const activeTilesBeforePull = tiles.filter(t => {
                   if (!t || t.locked) return false;
-                  const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+                  const isWild = isWildLikeTile(t);
                   const hasValue = (t.value|0) > 0;
                   return isWild || hasValue;
                 });
@@ -7442,7 +7461,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                                   dst.value === 6;
         // 🔥 CRITICAL: Use srcSpecial and dstSpecial from closure (snimljeni PRIJE merge-6 bloka)
         // Note: These are from outer scope (line 3943-3944), not from merge 6 block
-        const srcWasWild = srcSpecial && srcSpecial.startsWith('wild');
+        const srcWasWild = isWildLikeSpecial(srcSpecial);
         const dstWasRegular = !dstSpecial && (dst.value|0) > 0;
         const wasWildRegularLastTwo = srcWasWild && dstWasRegular && onlyMerge6Remains;
         const wasRegularRegularLastTwo = !srcWasWild && !dstSpecial && 
@@ -7451,7 +7470,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 CRITICAL FIX: Also check if src was magnet and dst was regular (magnet + 1 tile = last merge)
         // Note: Use srcSpecial/dstSpecial from outer scope (line 3943-3944), not srcSpecialMerge6/dstSpecialMerge6
-        const wasMagnetRegularLastTwo = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+        const wasMagnetRegularLastTwo = (isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial)) && 
                                         onlyMerge6Remains;
         
         // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular OR magnet + regular), set flag NOW
@@ -7535,10 +7554,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Wild-magnet merges that pull tiles should NOT trigger endgame checks until AFTER the pulled tiles merge
         // Regular wild merges mid-game should NOT trigger endgame checks unless they're truly the last merge
         // Note: Use srcSpecial/dstSpecial from outer scope (line 3943-3944), not srcSpecialMerge6/dstSpecialMerge6
-        const isWildMagnetMergeWithPull = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+        const isWildMagnetMergeWithPull = (isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial)) && 
                                           (dst as any)?._wildMagnetMergeCallback;
-        const isRegularWildMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
-                                   !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+        const isRegularWildMerge = (isWildLikeSpecial(srcSpecial) || isWildLikeSpecial(dstSpecial)) && 
+                                   !(isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial));
         const isNotLastMerge = !(dst as any)?._isLastMerge;
         
         if (isWildMagnetMergeWithPull) {
@@ -7603,14 +7622,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         // Wild merge-6 gets a longer combo window (4s); next merges return to default 2s.
         const isWildMerge6ForComboWindow =
-          srcSpecial === 'wild' ||
-          srcSpecial === 'wild-magnet' ||
-          srcSpecial === 'wild-juice' ||
-          srcSpecial === 'wild-tnt' ||
-          dstSpecial === 'wild' ||
-          dstSpecial === 'wild-magnet' ||
-          dstSpecial === 'wild-juice' ||
-          dstSpecial === 'wild-tnt';
+          isWildLikeSpecial(srcSpecial) ||
+          isWildLikeSpecial(dstSpecial);
         scheduleComboDecay(isWildMerge6ForComboWindow ? 4000 : undefined);
 
         // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se pozovu shardovi!
@@ -7636,11 +7649,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const wasWild = wildActive;
         // 🔥 CRITICAL: Determine if this is wild-magnet or wild-only merge
         // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
-        const isMainWildMagnetMerge = srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
-        const isMainWildTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
-        const isMainWildStarMerge = srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild';
-        const isMainWildJuiceMerge = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
-        const isMainWildOnlyMerge = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' || srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt') && !isMainWildMagnetMerge;
+        const merge6FinaleFx = getSpecialDiceFinaleFxForMerge({
+          src,
+          dst,
+          srcSpecial: srcSpecialMerge6,
+          dstSpecial: dstSpecialMerge6,
+        });
+        const isMainWildMagnetMerge = merge6FinaleFx === 'magnet';
+        const isMainWildTntMerge = merge6FinaleFx === 'tnt';
+        const isMainWildStarMerge = merge6FinaleFx === 'star';
+        const isMainWildJuiceMerge = merge6FinaleFx === 'juice';
+        const isMainWildOnlyMerge = !!merge6FinaleFx && !isMainWildMagnetMerge;
         const playShortWildMerge6TileBlast = (label: string) => {
           try {
             const blastCenter = centerInBoard(board, dst, TILE);
@@ -7669,7 +7688,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               if (isTileBoardBlastDisplacing(tile)) return;
               if (tile.locked) return;
               const tileValue = (tile.value | 0);
-              const isWildLike = typeof tile.special === 'string' && tile.special.startsWith('wild');
+              const isWildLike = isWildLikeSpecial(tile.special);
               if (!isWildLike && tileValue <= 0) return;
 
               const origX = tile.x ?? 0;
@@ -7775,7 +7794,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     // User requested: move only active cubes (no locked/ghost placeholders).
                     if (tile.locked) return;
                     const tileValue = (tile.value | 0);
-                    const isWildLike = typeof tile.special === 'string' && tile.special.startsWith('wild');
+                    const isWildLike = isWildLikeSpecial(tile.special);
                     if (!isWildLike && tileValue <= 0) return;
                     const origX = tile.x ?? 0;
                     const origY = tile.y ?? 0;
@@ -8033,10 +8052,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
             devLog('🔥 Wild-only merge 6 - using template-based pooling (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
             // 🔥 WILD-JUICE / WILD-TNT: Check merge type (use srcSpecialMerge6/dstSpecialMerge6)
-            const isWildJuiceMerge = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
-            const isWildTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+            const isWildJuiceMerge = isMainWildJuiceMerge;
+            const isWildTntMerge = isMainWildTntMerge;
             // 🔥 USER REQUEST: Check if this is pure wild star (not wild-juice, not wild-tnt, not wild-magnet)
-            const isPureWildStarMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isWildJuiceMerge && !isWildTntMerge;
+            const isPureWildStarMerge = isMainWildStarMerge;
             
             // 🔥 CRITICAL DEBUG: Log all relevant values to diagnose why bubbles explosion might not trigger
             devLog('💧 Merge 6 check - isWildJuiceMerge:', isWildJuiceMerge, 'isPureWildStarMerge:', isPureWildStarMerge);
@@ -8197,7 +8216,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 CRITICAL: Check if this is wild merge to pass isWildOnly flag for yellow shards
           const isWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
           const isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
-          const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+          const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial);
           const isWildOnlyMerge = isWildMerge && !isWildJuiceMerge && !isWildMagnetMerge;
           
           // 🎨 TEMPLATE-BASED: Use new template system for reliable pooling
@@ -8279,10 +8298,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: Use centralized end game checker BEFORE removing dst
         // This is a safety check to catch cases where the earlier check might have missed it
         // BUT: Skip if this is a wild-magnet merge that will pull tiles OR a regular wild merge that is NOT the last merge
-        const isWildMagnetMergeWithPullBeforeDst = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+        const isWildMagnetMergeWithPullBeforeDst = (isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial)) && 
                                                     (dst as any)?._wildMagnetMergeCallback;
-        const isRegularWildMergeBeforeDst = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
-                                            !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+        const isRegularWildMergeBeforeDst = (isWildLikeSpecial(srcSpecial) || isWildLikeSpecial(dstSpecial)) && 
+                                            !(isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial));
         const isNotLastMergeBeforeDst = !(dst as any)?._isLastMerge;
         
         if (!busyEnding && !isWildMagnetMergeWithPullBeforeDst && !(isRegularWildMergeBeforeDst && isNotLastMergeBeforeDst)) {
@@ -8293,12 +8312,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             if (!t || t.destroyed || t.locked) return false;
             const value = (t.value | 0);
             const special = t.special;
-            const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
-            return value > 0 || isWild;
+            return tileHasGameplayValueOrWild(t);
           });
           
-          const hasMagnetBeforeCheck = activeTilesBeforeCheck.some((t: any) => t.special === 'wild-magnet');
-          const hasWildBeforeCheck = activeTilesBeforeCheck.some((t: any) => t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt');
+          const hasMagnetBeforeCheck = activeTilesBeforeCheck.some((t: any) => isSpecialDiceMagnetLikeTile(t));
+          const hasWildBeforeCheck = activeTilesBeforeCheck.some((t: any) => isWildLikeTile(t) && !isSpecialDiceMagnetLikeTile(t));
           const hasMerge6BeforeCheck = activeTilesBeforeCheck.some((t: any) => t.value === 6);
           
           // 🔥 CRITICAL: If magnet + merge6 or wild + merge6 exists, skip last merge check
@@ -8664,7 +8682,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // This flag is set for wild + regular OR regular + regular → merge 6 scenarios (only 2 tiles)
         if (isActuallyLastMerge) {
           const mergeType = (!src?.special && !dst?.special) ? 'Regular + regular' : 
-                           (src?.special === 'wild-magnet' || dst?.special === 'wild-magnet') ? 'Wild-magnet + regular' :
+                           (isSpecialDiceMagnetLikeTile(src) || isSpecialDiceMagnetLikeTile(dst)) ? 'Wild-magnet + regular' :
                            'Wild + regular';
           devLog(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
           devLog('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', isActuallyLastMerge, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
@@ -8682,7 +8700,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 CRITICAL: DON'T call addWildProgress - it would fill wild meter and trigger wild spawn!
 
           // 🔥 If final merge is TNT, wait for full TNT animation exit before clean board
-          const isFinalTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+          const isFinalTntMerge = getSpecialDiceFinaleFlagsForMerge({
+            src,
+            dst,
+            srcSpecial: srcSpecialMerge6,
+            dstSpecial: dstSpecialMerge6,
+          }).isTnt;
           if (isFinalTntMerge && typeof onTntAnimationComplete === 'function') {
             devLog('💥 Final TNT merge: deferring clean board until TNT animation completes');
             // 🔥 BUG FIX: Clear STACK IT! hint NOW - don't wait for animation (timer could fire during boom)
@@ -8761,8 +8784,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 BUG FIX: For WILD merges (juice, star, TNT, magnet), ALWAYS spawn first (3 active + 6 locked)
         // Don't return early on moves depleted - spawn will add new tiles; checkLevelEnd will re-check after spawn
         const isWildMergeForMovesCheck =
-          (srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild')) ||
-          (dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild'));
+          isWildLikeSpecial(srcSpecialMerge6) ||
+          isWildLikeSpecial(dstSpecialMerge6);
         const isWildMagnetMergeForMovesCheck =
           srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
         if (moves === 0 && !isWildMergeForMovesCheck && !isActuallyLastMerge) {
@@ -9043,17 +9066,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (isFinalTntMerge) {
             (window as any).__ccSkipEndgameStarsWaitOnce = true;
           }
-          await triggerCleanBoardFlow(
-            isFinalTntMerge
-              ? 'clean_board_from_last_merge_final_tnt'
-              : isFinalJuiceMerge
-                ? 'clean_board_from_last_merge_final_juice'
-                : isFinalMagnetMerge6
-                  ? 'clean_board_from_last_merge_final_magnet'
-                  : isFinalWildStarMerge
-                    ? 'clean_board_from_last_merge_final_star'
-                  : 'clean_board_from_last_merge'
-          );
+          await triggerCleanBoardFlow(getFinalMergeCleanBoardReason(finalMergeFx));
           
           return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
         }
@@ -9075,8 +9088,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: If final merge-6 (_isLastMerge flag), do NOT spawn (handled above by early return)
         // 🔥 CRITICAL: If endgame mode (no locked tiles), spawn ONLY 1 tile (handled by shouldSpawnAtDst logic)
         // This code only handles reducing spawnMult for wild merges in endgame mode (if not final merge-6)
-        const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
-                                      srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
+        const isWildMergeForMultFix =
+          isSpecialDiceDirectWildLikeTile(src, srcSpecial) ||
+          isSpecialDiceDirectWildLikeTile(dst, dstSpecial);
         const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked && (t.value | 0) <= 0).length;
         const isEndgameForMultCheck = lockedTilesForMultCheck === 0;
         
@@ -9099,13 +9113,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           return;
         }
         
+        const merge6SpawnFinale = getSpecialDiceFinaleFlagsForMerge({
+          src,
+          dst,
+          srcSpecial: srcSpecialMerge6,
+          dstSpecial: dstSpecialMerge6,
+        });
         // 🔥 BUG FIX: Block rapid duplicate spawns ONLY for wild merge-6.
         // Regular merge-6 should remain responsive even if a wild merge animation is still running.
-        const isWildMerge6 =
-          srcSpecial === 'wild' || dstSpecial === 'wild' ||
-          srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet' ||
-          srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice' ||
-          srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt';
+        const isWildMerge6 = merge6SpawnFinale.isWild;
         if (merge6SpawnInProgress) {
           if (isWildMerge6) {
             devWarn('🚨🚨🚨 SPAWN BLOCKED: Wild merge-6 spawn already in progress - preventing duplicate spawn');
@@ -9148,10 +9164,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const pulledCellsSet = new Set<string>(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
         
         // 🔥 DEBUG: Detailed spawn check for all merge-6 types
-        const mergeType = !wildActive ? 'regular-regular' : 
-                         (srcSpecial === 'wild' || dstSpecial === 'wild') ? 'wild-regular' :
-                         (srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice') ? 'wild-juice-regular' :
-                         (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') ? 'wild-magnet-regular' : 'unknown';
+        const mergeType = !wildActive ? 'regular-regular' :
+                         merge6SpawnFinale.isStar ? 'wild-regular' :
+                         merge6SpawnFinale.isJuice ? 'wild-juice-regular' :
+                         merge6SpawnFinale.isMagnet ? 'wild-magnet-regular' :
+                         merge6SpawnFinale.isTnt ? 'wild-tnt-regular' : 'unknown';
         
         const activeTilesCount = tiles.filter(tileIsActive).length;
         
@@ -9162,9 +9179,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           spawnMult,
           mult,
           wasWild: wildActive,
-          isWildJuice: srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice',
-          isWildMagnet: srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet',
-          isWild: srcSpecial === 'wild' || dstSpecial === 'wild',
+          isWildJuice: merge6SpawnFinale.isJuice,
+          isWildMagnet: merge6SpawnFinale.isMagnet,
+          isWild: merge6SpawnFinale.isStar,
           willSpawn: spawnMult > 0,
           activeTilesCount,
           isLastMergeFlagSet,
@@ -9180,9 +9197,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           srcSpecial,
           dstSpecial,
           wasWild: wildActive,
-          isWildJuice: srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice',
-          isWildMagnet: srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet',
-          isWild: srcSpecial === 'wild' || dstSpecial === 'wild'
+          isWildJuice: merge6SpawnFinale.isJuice,
+          isWildMagnet: merge6SpawnFinale.isMagnet,
+          isWild: merge6SpawnFinale.isStar
         });
         
         // 🔥 SOURCE OF TRUTH: Endgame Mode Detection
@@ -9224,22 +9241,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           spawnMult
         });
 
-        const isRegularMerge6 = !isWildMerge6;
-        const isWildMagnetMerge6Spawn =
-          srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
-        const isWildTntMerge6Spawn =
-          srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
-        const isWildJuiceMerge6Spawn =
-          srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
-        const isWildStarMerge6Spawn =
-          srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild';
+        const isRegularMerge6 = !merge6SpawnFinale.isWild;
+        const isWildMagnetMerge6Spawn = merge6SpawnFinale.isMagnet;
+        const isWildTntMerge6Spawn = merge6SpawnFinale.isTnt;
+        const isWildJuiceMerge6Spawn = merge6SpawnFinale.isJuice;
+        const isWildStarMerge6Spawn = merge6SpawnFinale.isStar;
         const isArcadeSimpleWildMergeSpawn =
           isArcadeHomeRunMode() &&
           isWildMerge6 &&
           !isWildMagnetMerge6Spawn;
         const isFinalWildSnapshotBeforeSpawn = (() => {
-          const srcWasWild = typeof srcSpecialMerge6 === 'string' && srcSpecialMerge6.startsWith('wild');
-          const dstWasWild = typeof dstSpecialMerge6 === 'string' && dstSpecialMerge6.startsWith('wild');
+          const srcWasWild = isWildLikeSpecial(srcSpecialMerge6);
+          const dstWasWild = isWildLikeSpecial(dstSpecialMerge6);
           const oneWasWild = srcWasWild !== dstWasWild;
           if (!oneWasWild) return false;
           const magnetWillPull =
@@ -9329,8 +9342,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         const maybeForceCleanBoardFromFinalWildSnapshot = async (reason: string): Promise<boolean> => {
           if (busyEnding) return true;
-          const srcWasWild = typeof srcSpecialMerge6 === 'string' && srcSpecialMerge6.startsWith('wild');
-          const dstWasWild = typeof dstSpecialMerge6 === 'string' && dstSpecialMerge6.startsWith('wild');
+          const srcWasWild = isWildLikeSpecial(srcSpecialMerge6);
+          const dstWasWild = isWildLikeSpecial(dstSpecialMerge6);
           const oneWasWild = srcWasWild !== dstWasWild;
           if (!oneWasWild) return false;
           const magnetWillPull = (srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet') &&
@@ -9374,8 +9387,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         const maybeForceCleanBoardFromFinalRegularSnapshot = async (reason: string): Promise<boolean> => {
           if (busyEnding) return true;
-          const srcWasWild = typeof srcSpecialMerge6 === 'string' && srcSpecialMerge6.startsWith('wild');
-          const dstWasWild = typeof dstSpecialMerge6 === 'string' && dstSpecialMerge6.startsWith('wild');
+          const srcWasWild = isWildLikeSpecial(srcSpecialMerge6);
+          const dstWasWild = isWildLikeSpecial(dstSpecialMerge6);
           if (srcWasWild || dstWasWild) return false;
           if ((effSum | 0) !== 6) return false;
 
@@ -9499,7 +9512,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 }
                 if (t.locked || (t.value | 0) <= 0) continue;
                 const spec = (t as any).special;
-                if (spec === 'wild' || spec === 'wild-magnet' || spec === 'wild-juice' || spec === 'wild-tnt') continue;
+                if (isWildLikeSpecial(spec)) continue;
                 if ((t.alpha ?? 1) < 0.99) {
                   t.alpha = 1;
                   if ((t as any).rotG) (t as any).rotG.alpha = 1;
@@ -9633,7 +9646,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 if (!t || t.destroyed) return false;
                 if ((t.gridX | 0) !== (spawnC | 0) || (t.gridY | 0) !== (spawnR | 0)) return false;
                 const value = (t.value | 0);
-                return value > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+                return tileHasGameplayValueOrWild(t);
               });
             };
             if (!hasActiveTileAtMergeCell()) {
@@ -9649,12 +9662,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             if (await maybeForceCleanBoardFromSingleMerge6('endgame_after_spawn')) return;
             // 🔥 WILD-JUICE ENDGAME: ensure total 3 active tiles (1 at dst + 2 extra)
-            const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
-            const isWildMerge6Local =
-              srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' ||
-              srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet' ||
-              srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice' ||
-              srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+            const isWildJuiceMerge6 = merge6SpawnFinale.isJuice;
+            const isWildMerge6Local = merge6SpawnFinale.isWild;
             if (!isArcadeSimpleWildMergeSpawn && isWildMerge6Local && isWildJuiceMerge6) {
               const extraExclude: { r: number; c: number }[] = [{ r: spawnR, c: spawnC }];
               for (let i = 0; i < 2; i++) {
@@ -9940,7 +9949,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const spec = (at as any).special;
                   const isActive = !at.locked && (
                     (at.value | 0) > 0 ||
-                    spec === 'wild' || spec === 'wild-magnet' || spec === 'wild-juice' || spec === 'wild-tnt'
+                    isWildLikeSpecial(spec)
                   );
                   if (isActive) return 1;
                   try {
@@ -10085,7 +10094,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   remainderSpawned += remainderResults.filter(Boolean).length;
                 }
                 // 🔥 WILD-JUICE SAFETY: Ensure 2 active spawns always happen (even if locked/empty cells were unavailable).
-                const isWildJuiceMerge6 = srcSpecialMerge6 === 'wild-juice' || dstSpecialMerge6 === 'wild-juice';
+                const isWildJuiceMerge6 = merge6SpawnFinale.isJuice;
                 if (isWildJuiceMerge6 && spawnMult >= 2) {
                   let missing = Math.max(0, 2 - (opened + remainderSpawned));
                   if (missing > 0) {
@@ -10267,7 +10276,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           devLog('🧹 Removed lingering locked placeholder artifact from merge cell (magnet flow)');
         };
 
-        const isWildTntMerge6 = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const isWildTntMerge6 = merge6SpawnFinale.isTnt;
         const restoreSpecialMergeGhostAtMergeCell = (reason: string) => {
           if (!(wasWildMagnet || isWildTntMerge6)) return;
           if ((dst as any)?._isLastMerge === true || busyEnding) return;
@@ -10453,7 +10462,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // Bubbles animation can run for 4+ seconds, which would delay fail screen detection
         // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
         // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
-        const isTntMergeForDelay = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+        const isTntMergeForDelay = merge6SpawnFinale.isTnt;
         // 🔥 BUG FIX: openLockedBounceParallel spawns at 80ms + 0/100/200ms delays; spawnBounce ~240ms each → last tile ~520ms
         // Must wait long enough for all 3 wild bonus tiles to finish spawning before checkLevelEnd
         const postSpawnEndgameDelayMs = isTntMergeForDelay ? 1700 : 850;
@@ -10486,9 +10495,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const isActiveTile = (t: any) => {
             if (!t || t.destroyed || t.locked) return false;
             const value = (t.value | 0);
-            const special = t.special;
-            const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
-            return value > 0 || isWild;
+            return tileHasGameplayValueOrWild(t);
           };
 
           const activeTilesNow = tiles.filter(isActiveTile);
@@ -11006,8 +11013,7 @@ function checkLevelEnd(){
       const hasSpawnedAtMandatoryCell = tiles.some((t: any) => {
         if (!t || t.destroyed) return false;
         if ((t.gridX | 0) !== (c | 0) || (t.gridY | 0) !== (r | 0)) return false;
-        const value = (t.value | 0);
-        return value > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+        return tileHasGameplayValueOrWild(t);
       });
       if (hasSpawnedAtMandatoryCell) {
         pendingMandatoryMergeCellSpawn = null;
@@ -11028,7 +11034,7 @@ function checkLevelEnd(){
         const ghostAtMandatoryCell = tiles.find((t: any) => {
           if (!t || t.destroyed) return false;
           if ((t.gridX | 0) !== (c | 0) || (t.gridY | 0) !== (r | 0)) return false;
-          const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+          const isWildTile = isWildLikeTile(t);
           return !!t.locked && !isWildTile && ((t.value | 0) <= 0);
         });
 
@@ -11194,7 +11200,7 @@ function checkLevelEnd(){
 
     const buildEndgameBoardSignature = () => {
       const active = tiles
-        .filter((t: any) => t && !t.destroyed && ((t.value | 0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt'))
+        .filter((t: any) => tileHasGameplayValueOrWild(t))
         .map((t: any) => ({
           v: t.value | 0,
           s: t.special || null,
@@ -11347,7 +11353,7 @@ function checkLevelEnd(){
       const unlockedActiveTiles = tiles.filter((t: any) => {
         if (!t || t.destroyed) return false;
         if (t.locked) return false; // Only check unlocked tiles
-        return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+        return tileHasGameplayValueOrWild(t);
       });
       
       // Check if there are more than 1 unlocked tile (merge 6 + other tiles = can merge)
@@ -11375,9 +11381,9 @@ function checkLevelEnd(){
       const activeTiles = tiles.filter((t: any) => {
         if (!t || t.destroyed) return false;
         if (t.locked && (t.value|0) <= 0) return false; // Ghost placeholder
-        return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+        return tileHasGameplayValueOrWild(t);
       });
-      const hasMagnet = activeTiles.some((t: any) => t.special === 'wild-magnet');
+      const hasMagnet = activeTiles.some((t: any) => isSpecialDiceMagnetLikeTile(t));
       
       // 🔥 USER REQUEST: If unlocked tiles have merge/stack potential → game continues
       if (hasMergeOrStackPotential) {
@@ -11477,7 +11483,7 @@ function checkLevelEnd(){
           if (t.locked) return false;
           const value = (t.value | 0);
           const special = t.special;
-          const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt';
+          const isWild = isWildLikeSpecial(special);
           return value > 0 || isWild;
         });
 
@@ -11573,7 +11579,7 @@ function checkLevelEnd(){
 
       const buildBoardStabilitySignature = () => {
         const active = tiles
-          .filter((t: any) => t && !t.destroyed && ((t.value | 0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt'))
+          .filter((t: any) => tileHasGameplayValueOrWild(t))
           .map((t: any) => ({
             v: t.value | 0,
             s: t.special || null,
@@ -11837,7 +11843,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
     const allTiles = STATE?.tiles || [];
     const candidates = allTiles.filter((t: Tile) => {
       if (!t || t.destroyed || t === dst) return false;
-      const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt';
+      const isWild = isWildLikeTile(t);
       if (isWild) return false;
       const v = (t.value | 0);
       return v > 0 && v <= 6;

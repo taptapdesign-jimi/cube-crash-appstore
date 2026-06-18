@@ -1,4 +1,5 @@
 import { getSpecialDiceVariant, applySpecialDiceVariantToTile } from './special-dice-registry.ts';
+import { isWildLikeSpecial } from './final-merge-rules.ts';
 
 type TileRestoreDeps = {
   gameState: any;
@@ -147,7 +148,7 @@ export function restoreTilesFromSave({
     tile.scale.set(1);
 
     tile.value = value;
-    const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-juice' || savedSpecial === 'wild-tnt' || snapshot?.isWild || snapshot?.isWildFace;
+    const isWildSnapshot = isWildLikeSpecial(savedSpecial) || snapshot?.isWild || snapshot?.isWildFace;
     tile.special = savedSpecial;
     const savedSpecialDiceVariant = getSpecialDiceVariant(snapshot?.specialDiceVariant || null);
     if (savedSpecialDiceVariant) {

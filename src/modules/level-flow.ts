@@ -2,6 +2,7 @@
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
+import { isWildLikeTile } from './final-merge-rules.ts';
 // public/src/modules/level-flow.ts
 
 // 🔥 FIX: Track spawn timeouts for cleanup
@@ -235,7 +236,7 @@ async function openLockedBounceParallelImpl({
       const markSuccessfulSpawn = () => {
         if (!t || t.destroyed) return false;
         const tileValue = (t.value | 0);
-        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true;
+        const isWildTile = isWildLikeTile(t);
         if (t.locked) return false;
         return tileValue > 0 || isWildTile;
       };

@@ -8,7 +8,13 @@ import {
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
   ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
 } from './constants.js';
-import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import {
+  getSpecialDiceTexturePath,
+  getSpecialDiceVisualConfig,
+  isSpecialDiceDirectWildLikeTile,
+  isSpecialDiceMagnetLikeTile,
+} from './special-dice-registry.ts';
+import { isWildLikeTile } from './final-merge-rules.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -332,7 +338,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   
   // 🔥 CRITICAL: Check special FIRST before setting any texture
   // This ensures wild-juice, wild-magnet, and wild tiles ALWAYS get correct texture
-  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt') {
+  if (isWildLikeTile(t)) {
     try {
       t.stackDepth = 1;
       try { t.stackG?.destroy({ children: true }); } catch {}
@@ -453,7 +459,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   drawStack(t);
   
   // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
-  if (!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt')) {
+  if (!isWildLikeTile(t)) {
     drawPips(t);
   }
 }
@@ -836,9 +842,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 }
 
 function tileIsWild(tile: Tile | null | undefined): boolean {
-  if (!tile) return false;
-  const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt' || (tile as any).isWild === true || (tile as any).isWildFace === true;
+  return isWildLikeTile(tile);
 }
 
 function tileIsActive(tile: Tile | null | undefined): boolean {
@@ -871,14 +875,14 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
-  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true);
+  const wildCubes = open.filter(tileIsWild);
   
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
-  const wildStars = open.filter((t) => t.special === 'wild' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true);
-  const magnets = open.filter((t) => t.special === 'wild-magnet');
+  const wildStars = open.filter((t) => isSpecialDiceDirectWildLikeTile(t) || (t as any).isWild === true || (t as any).isWildFace === true);
+  const magnets = open.filter((t) => isSpecialDiceMagnetLikeTile(t));
   
   const mergeableNonWildTiles = open.filter((t) => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true) return false;
+    if (!t || tileIsWild(t)) return false;
     const value = (t.value | 0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Changed from < 6 to <= 6
     // This was causing false "stuck" detection when board had merge 6 + wild star
@@ -961,8 +965,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       }
       
       // Skip wild cubes in this check (they're already handled above)
-      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || tile1.special === 'wild-juice' || tile1.special === 'wild-tnt' || 
-          tile2.special === 'wild' || tile2.special === 'wild-magnet' || tile2.special === 'wild-juice' || tile2.special === 'wild-tnt') {
+      if (tileIsWild(tile1) || tileIsWild(tile2)) {
         continue;
       }
       

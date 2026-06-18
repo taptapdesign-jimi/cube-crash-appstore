@@ -1,3 +1,5 @@
+import { isWildLikeTile } from './final-merge-rules.ts';
+
 type RandomEmptyDeps = {
   ROWS: number;
   COLS: number;
@@ -26,7 +28,7 @@ export function getRandomEmptyCell({ ROWS, COLS, grid, excludeCells = [] }: Rand
         empties.push({ c, r });
         continue;
       }
-      const isWildTile = !!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true);
+      const isWildTile = isWildLikeTile(t);
       const hasValue = (t.value | 0) > 0;
       const isLockedPlaceholder = t.locked === true && (t.value | 0) <= 0;
       if (isWildTile || hasValue) continue;

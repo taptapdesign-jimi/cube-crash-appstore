@@ -21,6 +21,8 @@ import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
 import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
+import { isWildLikeTile } from './final-merge-rules.ts';
+import { isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -93,9 +95,7 @@ function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
 function play(name, vol=null){ /* muted */ }
 
 function tileIsWild(tile: any): boolean {
-  if (!tile) return false;
-  const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-juice' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;
+  return isWildLikeTile(tile);
 }
 
 function tileIsActive(tile: any): boolean {
@@ -165,8 +165,8 @@ export function clearWildState(tile, opts = undefined){
   if (!opts?.skipStopWildIdle) {
     try { stopWildIdle(tile); } catch {}
   }
-  // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
-  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') {
+  // Only clear direct wild state (not magnet-like, which keeps its special property for pull cleanup).
+  if (isSpecialDiceDirectWildLikeTile(tile)) {
     tile.special = null;
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -401,7 +401,7 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
     // Simulate merges by creating a copy of tile values
     const tileValues = activeTiles.map((t: any) => ({
       value: t.value|0,
-      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt',
+      isWild: tileIsWild(t),
       original: t
     }));
     
@@ -1398,7 +1398,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const isMissing = !t;
         const isLocked = !!(t && t.locked === true);
         const hasValue = !!(t && (t.value|0) > 0);
-        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));
+        const isWildTile = tileIsWild(t);
         
         // 🔥 CRITICAL FIX: NEVER spawn on a tile with value > 0, even if it's locked!
         // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
@@ -1884,7 +1884,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           const existingTile = STATE.grid?.[r]?.[c];
           if (existingTile) {
             const isActive = (existingTile.value|0) > 0;
-            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-juice' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            const isWildTile = tileIsWild(existingTile);
             
             // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
             // Locked tiles with value > 0 are active tiles (e.g., during animations)
@@ -1977,7 +1977,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       
       const hasAdjacentTile = adjacentCells.some(cell => {
         const t = STATE.grid?.[cell.r]?.[cell.c];
-        return t && !t.destroyed && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-juice' || t.special === 'wild-tnt');
+        return t && !t.destroyed && ((t.value|0) > 0 || tileIsWild(t));
       });
       
       if (!hasAdjacentTile) {
@@ -2416,13 +2416,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (tile.visible === false) return false;
     if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
     const value = (tile.value | 0);
-    const isWild =
-      tile.special === 'wild' ||
-      tile.special === 'wild-magnet' ||
-      tile.special === 'wild-juice' ||
-      tile.special === 'wild-tnt' ||
-      tile.isWild === true ||
-      tile.isWildFace === true;
+    const isWild = tileIsWild(tile);
     if (!isWild && tile.locked) return false;
     return value > 0 || isWild;
   };

@@ -161,6 +161,35 @@ test('final merge helper refuses completion when pulled tiles will merge', () =>
   });
 });
 
+test('future magnet-archetype special does not complete final merge while pull is pending', () => {
+  const src = makeTile({
+    value: 0,
+    special: 'wild-magnet',
+    _ccSpecialDiceArchetype: 'wild-magnet',
+  });
+  const dst = makeTile({ value: 5 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst],
+    moves: 4,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'before-merge',
+    src,
+    dst,
+    effSum: 6,
+    flags: {
+      hasTilesToPull: true,
+      willPulledTilesMerge: true,
+    },
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(false);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'continue',
+    reason: 'wild_continuation_available',
+  });
+});
+
 test('journey final wild merge resolves to journey board complete', () => {
   const src = makeTile({ value: 0, special: 'wild-juice' });
   const dst = makeTile({ value: 5 });

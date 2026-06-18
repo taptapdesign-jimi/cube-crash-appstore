@@ -1,5 +1,6 @@
 import { preloadTntFrames } from './tnt-animation.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
+import { isWildLikeTile } from './final-merge-rules.ts';
 
 type OpenCellDeps = {
   c: number;
@@ -73,7 +74,7 @@ export function openAtCellCore({
     // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
     // Check value and wild first — even locked tiles with value > 0 must be skipped.
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = isWildLikeTile(holder);
       const hasValue = (holder.value | 0) > 0;
 
       if (hasValue || isWildTile) {
@@ -105,7 +106,7 @@ export function openAtCellCore({
     holder = grid?.[r]?.[c] || null;
     if (holder && (holder as any).destroyed) holder = null;
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = isWildLikeTile(holder);
       const hasValue = (holder.value | 0) > 0;
       if (hasValue || isWildTile || !holder.locked) {
         resolve(false);

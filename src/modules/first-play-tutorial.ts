@@ -5,6 +5,7 @@ import { COLS, GAP, ROWS, STATE, TILE } from './app-state.js';
 import { setValue as setBoardValue } from './board.js';
 import { startWildStars } from './fx.ts';
 import { cleanupSmokeBubbles } from './hud-helpers.ts';
+import { isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 
 const FORCE_NEXT_KEY = 'cc_first_play_tutorial_force_next';
 const DONE_KEY = 'cc_first_play_tutorial_done';
@@ -441,11 +442,7 @@ function findWildTile(): any | null {
 }
 
 function isWildStarTile(tile: any): boolean {
-  return !!tile && !tile.destroyed && (
-    tile.special === 'wild' ||
-    tile.isWild === true ||
-    tile.isWildFace === true
-  );
+  return !!tile && !tile.destroyed && isSpecialDiceStarLikeTile(tile);
 }
 
 function setTileValue(tile: any, value: number): void {

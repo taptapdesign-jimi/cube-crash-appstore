@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
-import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
+import { getSpecialDiceVariantForTile, isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
 
 type WildishTile = Container & {
   special?: string;
@@ -80,8 +80,7 @@ function getRandomBabyStarCount(): number {
 
 function tileIsPureWild(tile: WildishTile | null | undefined): tile is WildishTile {
   if (!tile) return false;
-  if (tile.special === 'wild-magnet') return false;
-  if (tile.special === 'wild' || tile.special === 'wild-juice' || tile.special === 'wild-tnt') return true;
+  if (isSpecialDiceDirectWildLikeTile(tile)) return true;
   return tile.isWild === true || tile.isWildFace === true;
 }
 

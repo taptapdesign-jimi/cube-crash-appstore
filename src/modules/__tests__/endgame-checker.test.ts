@@ -116,6 +116,11 @@ test('tileIsActive allows locked wild tiles', () => {
   expect(tileIsActive(wildLocked)).toBe(true);
 });
 
+test('tileIsActive allows future wild-prefixed special dice', () => {
+  const wildLocked = makeTile({ value: 0, locked: true, special: 'wild-hurricane' });
+  expect(tileIsActive(wildLocked)).toBe(true);
+});
+
 test('getActiveTiles ignores destroyed and invisible tiles', () => {
   const tiles = [
     makeTile({ value: 2 }),

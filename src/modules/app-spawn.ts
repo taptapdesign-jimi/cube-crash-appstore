@@ -9,6 +9,7 @@ import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, star
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
+import { isWildLikeTile } from './final-merge-rules.ts';
 // drawBoardBG function is now in app.js
 
 // Types
@@ -257,7 +258,7 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     
     // 🔥 CRITICAL: Check if cell is already occupied by an active tile
     if (holder && !holder.locked) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-juice' || holder.special === 'wild-tnt' || (holder as any).isWild === true || (holder as any).isWildFace === true;
+      const isWildTile = isWildLikeTile(holder);
       const isActive = (holder.value|0) > 0;
       
       // If cell has an active tile or wild tile, don't spawn here

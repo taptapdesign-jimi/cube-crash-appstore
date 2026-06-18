@@ -5,6 +5,15 @@ export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceFinaleFx = 'star' | 'juice' | 'magnet' | 'tnt';
 
+export type SpecialDiceFinaleFlags = {
+  fx: SpecialDiceFinaleFx | null;
+  isWild: boolean;
+  isStar: boolean;
+  isJuice: boolean;
+  isMagnet: boolean;
+  isTnt: boolean;
+};
+
 export type SpecialDiceVariantDefinition = {
   id: string;
   archetype: SpecialDiceArchetype;
@@ -140,6 +149,39 @@ export function getSpecialDiceFinaleFxForTile(tile: any, coreWildTypeOverride?: 
   return getSpecialDiceFinaleFxForCoreWildType(coreWildTypeOverride || tile?.special || tile?._ccWildSpecial || null);
 }
 
+export function specialDiceTileMatchesFinaleFx(
+  tile: any,
+  fx: SpecialDiceFinaleFx,
+  coreWildTypeOverride?: CoreWildType | string | null,
+): boolean {
+  return getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride) === fx;
+}
+
+export function isSpecialDiceMagnetLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  return specialDiceTileMatchesFinaleFx(tile, 'magnet', coreWildTypeOverride);
+}
+
+export function isSpecialDiceStarLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  return specialDiceTileMatchesFinaleFx(tile, 'star', coreWildTypeOverride);
+}
+
+export function isSpecialDiceJuiceLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  return specialDiceTileMatchesFinaleFx(tile, 'juice', coreWildTypeOverride);
+}
+
+export function isSpecialDiceTntLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  return specialDiceTileMatchesFinaleFx(tile, 'tnt', coreWildTypeOverride);
+}
+
+export function isSpecialDiceDirectWildLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  const fx = getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride);
+  if (fx === 'star' || fx === 'juice' || fx === 'tnt') return true;
+  const special = coreWildTypeOverride || tile?.special || tile?._ccWildSpecial || null;
+  if (fx === 'magnet' || special === 'wild-magnet') return false;
+  if (typeof special === 'string' && special.startsWith('wild') && special !== 'wild-magnet') return true;
+  return tile?.isWild === true || tile?.isWildFace === true;
+}
+
 export function getSpecialDiceFinaleFxForMerge({
   src,
   dst,
@@ -162,6 +204,23 @@ export function getSpecialDiceFinaleFxForMerge({
   if (candidates.includes('juice')) return 'juice';
   if (candidates.includes('star')) return 'star';
   return null;
+}
+
+export function getSpecialDiceFinaleFlagsForMerge(input: {
+  src?: any;
+  dst?: any;
+  srcSpecial?: CoreWildType | string | null;
+  dstSpecial?: CoreWildType | string | null;
+}): SpecialDiceFinaleFlags {
+  const fx = getSpecialDiceFinaleFxForMerge(input);
+  return {
+    fx,
+    isWild: fx !== null,
+    isStar: fx === 'star',
+    isJuice: fx === 'juice',
+    isMagnet: fx === 'magnet',
+    isTnt: fx === 'tnt',
+  };
 }
 
 export function applySpecialDiceVariantToTile(tile: any, variant?: SpecialDiceVariantDefinition | null): void {
