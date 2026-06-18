@@ -276,6 +276,44 @@ test('magnet respawn no-moves state with locked placeholders returns stuck', () 
   expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
 });
 
+test('magnet-pulled wild residue does not block no-moves after respawned 4 and 3', () => {
+  const tiles = [
+    makeTile({ value: 4, locked: false, gridX: 1, gridY: 1 }),
+    makeTile({ value: 3, locked: false, gridX: 3, gridY: 2 }),
+    makeTile({
+      value: 0,
+      special: 'wild',
+      locked: true,
+      eventMode: 'none',
+      gridX: 2,
+      gridY: 2,
+      _wildMagnetAffected: true,
+    }),
+  ];
+  const context: EndGameContext = {
+    tiles,
+    moves: 8,
+    makeBoard: {
+      anyMergePossible: (allTiles: any[]) => {
+        const open = allTiles.filter((t) => {
+          if (!t || t.destroyed || t.visible === false) return false;
+          if (t._wildMagnetAffected === true || t.eventMode === 'none') return false;
+          if (t.special && String(t.special).startsWith('wild')) return true;
+          return !t.locked && (t.value | 0) > 0;
+        });
+        return open.some((a, i) => open.some((b, j) => {
+          if (i >= j) return false;
+          const av = a.value | 0;
+          const bv = b.value | 0;
+          return av > 0 && bv > 0 && av + bv <= 6;
+        }));
+      },
+    },
+  };
+
+  expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+});
+
 test('reported no-moves board (4,5,4,3,4,4,4,4 with stacks) returns stuck', () => {
   const tiles = [
     makeTile({ value: 4, stackDepth: 2, gridX: 0, gridY: 0 }),

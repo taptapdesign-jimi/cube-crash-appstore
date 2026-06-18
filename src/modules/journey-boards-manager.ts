@@ -1056,10 +1056,9 @@ class JourneyBoardsManager {
       return;
     }
 
-    // 🔥 CRITICAL FIX: Stop any existing intervals first to prevent duplicates
+    // Keep the existing pulse alive across repeated render/show calls.
     if (this.glowPulseInterval !== null) {
-      this.stopGlowPulse();
-      return; // Already running; avoid restart storm from repeated renderBoards calls
+      return;
     }
     
     // Find interim card
@@ -4876,6 +4875,13 @@ class JourneyBoardsManager {
       // Remove any floating play button remnants
       const floatingPlay = document.getElementById('board-detail-play-button');
       if (floatingPlay) floatingPlay.remove();
+      const previousCardPlayHandler = (detailModal as any).__ccJourneyDetailCardPlayHandler as EventListener | undefined;
+      if (previousCardPlayHandler) {
+        try {
+          detailModal.removeEventListener('cc:journey-detail-card-play', previousCardPlayHandler, { capture: false } as any);
+        } catch {}
+        delete (detailModal as any).__ccJourneyDetailCardPlayHandler;
+      }
 
       let playButtonForAnimation: HTMLElement | null = null;
       
@@ -5052,6 +5058,7 @@ class JourneyBoardsManager {
         floatingPlayButton.addEventListener('click', handlePlayClick, { capture: false });
         floatingPlayButton.addEventListener('touchend', handlePlayClick, { capture: false, passive: false });
         detailModal.addEventListener('cc:journey-detail-card-play', handlePlayClick as EventListener, { capture: false });
+        (detailModal as any).__ccJourneyDetailCardPlayHandler = handlePlayClick as EventListener;
         
         console.log(`✅ Play button event listener attached for board ${boardIdForPlay}`);
         logger.info(`✅ Play button event listener attached for board ${boardIdForPlay}`);

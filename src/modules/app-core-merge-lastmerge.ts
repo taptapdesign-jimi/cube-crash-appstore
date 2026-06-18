@@ -63,7 +63,7 @@ export function handleLastMergeEarly({
   
   const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2;
   const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
-  const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false);
+  const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && hasTilesToPullValue === true;
   const finalMergeResult = resolveMergeFinality({
     mode,
     finalMergeInput: {

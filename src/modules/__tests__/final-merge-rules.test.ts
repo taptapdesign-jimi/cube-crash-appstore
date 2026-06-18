@@ -1,6 +1,7 @@
 import {
   getFinalMergeSnapshot,
   getFinalMergeTileSets,
+  getPlayableMagnetPullCandidates,
   isTilePendingGameplayRemoval,
   isWildLikeTile,
   tileBlocksFinalMerge,
@@ -87,10 +88,48 @@ test('final merge blocker rules ignore src/dst, pending removal, ghosts, and mag
 test('pending gameplay removal helper covers cleanup pipeline flags', () => {
   expect(isTilePendingGameplayRemoval(makeTile({ destroyed: true }))).toBe(true);
   expect(isTilePendingGameplayRemoval(makeTile({ _ccWildSpawnDropping: true }))).toBe(true);
+  expect(isTilePendingGameplayRemoval(makeTile({
+    special: 'wild-tnt',
+    _ccWildSpawnDropping: true,
+    eventMode: 'static',
+    visible: true,
+    alpha: 1,
+  }))).toBe(false);
   expect(isTilePendingGameplayRemoval(makeTile({ _pendingRemoval: true }))).toBe(true);
   expect(isTilePendingGameplayRemoval(makeTile({ _beingRemoved: true }))).toBe(true);
   expect(isTilePendingGameplayRemoval(makeTile({ _cleanupQueued: true }))).toBe(true);
   expect(isTilePendingGameplayRemoval(makeTile({ value: 1 }))).toBe(false);
+});
+
+test('last preload TNT plus regular remains final even with stale drop flag', () => {
+  const src = makeTile({
+    value: 0,
+    special: 'wild-tnt',
+    _ccWildSpawnDropping: true,
+    eventMode: 'static',
+    visible: true,
+    alpha: 1,
+  });
+  const dst = makeTile({ value: 5 });
+
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst],
+    src,
+    dst,
+  });
+
+  expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst]);
+  expect(tileSets.finalMergeBlockersBefore).toEqual([]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
+  })).toMatchObject({
+    isFinalWildLastTwo: true,
+    isFinalMerge: true,
+  });
 });
 
 test('final merge tile-set helper returns active tiles and blockers from one source of truth', () => {
@@ -125,6 +164,25 @@ test('magnet last pair is not final when it has tiles to pull', () => {
     isFinalWildLastTwo: false,
     isFinalMerge: false,
   });
+});
+
+test('magnet pull candidates ignore stale removed star residue', () => {
+  const star = makeTile({
+    value: 0,
+    special: 'wild',
+    _pendingRemoval: true,
+    visible: true,
+    alpha: 1,
+  });
+  const src = makeTile({ value: 0, special: 'wild-magnet' });
+  const dst = makeTile({ value: 5 });
+
+  expect(getPlayableMagnetPullCandidates({
+    tiles: [star, src, dst],
+    src,
+    dst,
+    magnetTile: src,
+  })).toEqual([]);
 });
 
 test('other active gameplay blocker prevents final regular merge', () => {

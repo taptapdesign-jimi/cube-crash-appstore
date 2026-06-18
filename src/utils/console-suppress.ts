@@ -6,6 +6,9 @@
 // DevTools helpers:
 //   window.__ccSetConsoleMode('quiet' | 'smart' | 'verbose')
 //   window.__ccSetConsoleVerbose(true|false)  // backward compatible
+if (import.meta.env.DEV) {
+const STORAGE_KEY = 'cc_console_mode';
+
 const originalConsole = {
   log: console.log.bind(console),
   debug: console.debug.bind(console),
@@ -114,6 +117,7 @@ if (typeof window !== 'undefined') {
         : 'verbose';
     (window as any).__ccConsoleMode = normalized;
     (window as any).__ccVerboseGameplayLogs = normalized === 'verbose';
+    try { window.localStorage?.setItem(STORAGE_KEY, normalized); } catch {}
     applyConsoleMode(normalized);
     originalConsole.log(`✅ Console mode set to: ${normalized}`);
   };
@@ -123,9 +127,13 @@ if (typeof window !== 'undefined') {
     const nextMode: ConsoleMode = verbose ? 'verbose' : 'quiet';
     (window as any).__ccConsoleMode = nextMode;
     (window as any).__ccVerboseGameplayLogs = verbose;
+    try { window.localStorage?.setItem(STORAGE_KEY, nextMode); } catch {}
     applyConsoleMode(nextMode);
     if (verbose) {
       originalConsole.log('✅ Console verbose logging enabled');
     }
   };
 }
+}
+
+export {};

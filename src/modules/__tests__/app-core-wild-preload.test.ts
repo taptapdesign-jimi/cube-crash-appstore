@@ -20,17 +20,17 @@ test('blocks preload when only one merge-6 tile remains', () => {
   })).toBe(true);
 });
 
-test('future wild-prefixed special dice count as active and do not look like last merge alone', () => {
+test('final merge flag blocks preload even while another wild tile is still visible', () => {
   expect(hasLastMergeTile({
     tiles: [
       makeTile({ value: 6, _isLastMerge: true }),
       makeTile({ value: 0, special: 'wild-hurricane' }),
     ],
     devLog,
-  })).toBe(false);
+  })).toBe(true);
 });
 
-test('clears stale last-merge flag when multiple active tiles remain', () => {
+test('does not clear final merge flag when multiple active tiles are still visible during animation', () => {
   const merge6 = makeTile({ value: 6, _isLastMerge: true });
 
   expect(hasLastMergeTile({
@@ -39,6 +39,6 @@ test('clears stale last-merge flag when multiple active tiles remain', () => {
       makeTile({ value: 0, special: 'wild-hurricane' }),
     ],
     devLog,
-  })).toBe(false);
-  expect((merge6 as any)._isLastMerge).toBe(false);
+  })).toBe(true);
+  expect((merge6 as any)._isLastMerge).toBe(true);
 });

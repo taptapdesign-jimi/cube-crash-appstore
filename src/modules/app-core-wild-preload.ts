@@ -28,14 +28,12 @@ export function hasLastMergeTile({ tiles, devLog }: WildPreloadDeps): boolean {
   const active = getActiveTiles(tiles);
   const activeCount = active.length;
 
-  // Clear stale _isLastMerge whenever we have 2+ tiles so merge logic stays consistent
-  if (activeCount > 1) {
-    tiles.forEach((t: any) => {
-      if (t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true) {
-        (t as any)._isLastMerge = false;
-      }
-    });
-    return false;
+  // If a final-merge flag exists, treat it as authoritative for the current tick.
+  // Do not clear it here: during the final merge animation both src and dst can
+  // still be active briefly, and clearing the flag lets spawn logic run.
+  if (tiles.some((t: any) => t && !t.destroyed && (t as any)?._isLastMerge === true)) {
+    devLog('🚨 Preload bar blocked: final merge flag active');
+    return true;
   }
 
   // Block only when exactly 1 tile and it's merge-6 (last merge → clean board)

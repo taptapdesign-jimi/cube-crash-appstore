@@ -190,6 +190,38 @@ test('future magnet-archetype special does not complete final merge while pull i
   });
 });
 
+test('stale magnet hasTilesToPull flag without playable candidates still completes final merge', () => {
+  const staleStarResidue = makeTile({
+    value: 0,
+    special: 'wild',
+    _pendingRemoval: true,
+    visible: true,
+    alpha: 1,
+  });
+  const src = makeTile({ value: 0, special: 'wild-magnet' });
+  const dst = makeTile({ value: 5 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [staleStarResidue, src, dst],
+    moves: 4,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'before-merge',
+    src,
+    dst,
+    effSum: 6,
+    flags: {
+      hasTilesToPull: true,
+    },
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(true);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'complete',
+    target: 'arcade-stage',
+    reason: 'final_wild_merge6',
+  });
+});
+
 test('journey final wild merge resolves to journey board complete', () => {
   const src = makeTile({ value: 0, special: 'wild-juice' });
   const dst = makeTile({ value: 5 });

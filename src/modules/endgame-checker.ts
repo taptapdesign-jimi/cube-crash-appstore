@@ -91,6 +91,10 @@ function tileIsNonMagnetWild(tile: any): boolean {
 function isWildEffectivelyPresent(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (!tileIsWild(tile)) return false;
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
   if (tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
   if (tile.eventMode === 'none') return false;
@@ -119,7 +123,19 @@ export function tileIsActive(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
   if (isTileTransientlySpawning(tile)) return false;
-  if ((tile as any)._ccWildSpawnDropping === true) return false;
+  if ((tile as any)._ccWildSpawnDropping === true) {
+    const stalePlayableDrop =
+      tileIsWild(tile) &&
+      tile.visible !== false &&
+      (typeof tile.alpha !== 'number' || tile.alpha > 0.01) &&
+      tile.eventMode !== 'none' &&
+      tile.eventMode !== 'passive';
+    if (!stalePlayableDrop) return false;
+  }
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
   
   // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"

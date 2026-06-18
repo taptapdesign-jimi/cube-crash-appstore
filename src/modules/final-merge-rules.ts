@@ -28,10 +28,18 @@ export function isWildLikeTile(tile: any): boolean {
   return isWildLikeSpecial(tile?.special) || tile?.isWild === true || tile?.isWildFace === true;
 }
 
+function isStalePlayableWildSpawnDrop(tile: any): boolean {
+  if (!tile || tile._ccWildSpawnDropping !== true) return false;
+  if (!isWildLikeTile(tile)) return false;
+  if (tile.destroyed === true || tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  return tile.eventMode !== 'none' && tile.eventMode !== 'passive';
+}
+
 export function isTilePendingGameplayRemoval(tile: any): boolean {
   if (!tile) return true;
   return tile.destroyed === true ||
-    tile._ccWildSpawnDropping === true ||
+    (tile._ccWildSpawnDropping === true && !isStalePlayableWildSpawnDrop(tile)) ||
     tile._pendingRemoval === true ||
     tile._beingRemoved === true ||
     tile._cleanupQueued === true;
@@ -62,6 +70,27 @@ export function tileBlocksFinalMerge(tile: any, srcTile: any, dstTile: any): boo
   if (tile.locked) return false;
   if (!isVisibleEnoughForGameplay(tile)) return false;
   return (tile.value | 0) > 0;
+}
+
+export function getPlayableMagnetPullCandidates({
+  tiles,
+  src,
+  dst,
+  magnetTile,
+}: {
+  tiles: any[];
+  src: any;
+  dst: any;
+  magnetTile?: any;
+}): any[] {
+  const safeTiles = Array.isArray(tiles) ? tiles.filter(Boolean) : [];
+  return safeTiles.filter((tile: any) => {
+    if (!tile || tile === src || tile === dst || tile === magnetTile) return false;
+    if (!tileCountsAsFinalMergeActive(tile)) return false;
+    if (tile._wildMagnetAffected === true) return false;
+    if (tile._noTilesPulled === true || tile._wildMagnetPulledTilesMerge === true) return false;
+    return isWildLikeTile(tile) || (tile.value | 0) > 0;
+  });
 }
 
 export function getFinalMergeTileSets({

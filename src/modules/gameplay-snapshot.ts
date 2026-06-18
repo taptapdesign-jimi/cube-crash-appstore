@@ -1,5 +1,6 @@
 import { checkEndGame, getActiveTiles, type EndGameResult } from './endgame-checker.ts';
 import {
+  getPlayableMagnetPullCandidates,
   getFinalMergeTileSets,
   getFinalMergeSnapshot,
   isWildLikeTile,
@@ -94,6 +95,17 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): GameplaySn
     dst: input.dst,
   });
   const finalMergeBlockers = input.finalMergeBlockersBefore ?? finalMergeTileSets.finalMergeBlockersBefore;
+  const isMagnetMerge = isSpecialDiceMagnetLikeTile(input.src) || isSpecialDiceMagnetLikeTile(input.dst);
+  const hasConfirmedMagnetPull =
+    flags.willPulledTilesMerge ||
+    (isMagnetMerge &&
+      flags.hasTilesToPull &&
+      getPlayableMagnetPullCandidates({
+        tiles,
+        src: input.src,
+        dst: input.dst,
+        magnetTile: isSpecialDiceMagnetLikeTile(input.src) ? input.src : input.dst,
+      }).length > 0);
   const anyMergePossible = !!input.makeBoard?.anyMergePossible?.(tiles);
   const endGameResult = checkEndGame({
     tiles,
@@ -109,8 +121,8 @@ export function createGameplaySnapshot(input: GameplaySnapshotInput): GameplaySn
     dst: input.dst,
     effSum: input.effSum ?? 0,
     finalMergeBlockersBefore: finalMergeBlockers,
-    isWildMagnetMerge: isSpecialDiceMagnetLikeTile(input.src) || isSpecialDiceMagnetLikeTile(input.dst),
-    hasTilesToPull: flags.hasTilesToPull || flags.willPulledTilesMerge,
+    isWildMagnetMerge: isMagnetMerge,
+    hasTilesToPull: hasConfirmedMagnetPull,
   });
 
   return {

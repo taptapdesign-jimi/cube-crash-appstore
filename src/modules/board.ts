@@ -848,6 +848,10 @@ function tileIsWild(tile: Tile | null | undefined): boolean {
 function tileIsActive(tile: Tile | null | undefined): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
   
   // 🔥 CRITICAL: Wild tiles are ALWAYS active for anyMergePossible - even when locked
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"

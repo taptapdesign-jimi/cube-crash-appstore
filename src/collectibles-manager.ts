@@ -1901,99 +1901,11 @@ class CollectiblesManager {
         console.warn('⚠️ Close button not found when showing modal');
       }
       
-      // 🔥 JOURNEY BOARDS: Create floating Play button for common boards
-      if (category === 'common') {
-        const boardId = Number(number);
-        
-        // Remove existing play button if any
-        const existingPlayBtn = document.getElementById('board-detail-play-button');
-        if (existingPlayBtn) {
-          existingPlayBtn.remove();
-        }
-        
-        // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
-        const playButton = document.createElement('button');
-        playButton.id = 'board-detail-play-button';
-        playButton.className = 'slide-button tap-scale menu-btn-primary';
-        playButton.textContent = 'Play';
-        playButton.setAttribute('type', 'button');
-        playButton.setAttribute('aria-label', 'Play Board');
-        
-        // Prevent dragging/moving the button (but allow clicks to work!)
-        // 🔥 FIX: Do NOT use preventDefault() on touchstart - it blocks click events on mobile
-        playButton.addEventListener('mousedown', (e) => {
-          e.stopPropagation(); // Only stop propagation, not default
-        });
-        playButton.addEventListener('touchstart', (e) => {
-          e.stopPropagation(); // Only stop propagation, not default - allow click to synthesize
-        }, { passive: true }); // Passive to allow default behavior
-        
-        // Add click handler
-        playButton.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardId}`);
-          
-          // Play haptic feedback
-          try {
-            if ((window as any).playHaptic) {
-              (window as any).playHaptic('light');
-            }
-          } catch {}
-          
-          // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
-          // If no hearts, show hearts bottom sheet instead of starting game
-          if (isHeartsFeatureEnabled()) {
-            try {
-              const { heartsSystem } = await import('./modules/hearts-system.js');
-              if (!heartsSystem.hasHearts()) {
-                console.log('💔 No hearts available - showing hearts bottom sheet instead of starting game');
-                const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
-                showHeartsModal();
-                return; // Don't start game - show hearts modal instead
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to check hearts, continuing anyway:', error);
-              // Continue if hearts check fails (fallback behavior)
-            }
-          }
-          
-          // Close detail modal with exit animation
-          await this.hideCardDetail();
-          
-          // Close Journey screen with exit animation
-          const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
-          await animateCollectiblesScreenExit();
-          
-          // Hide Journey screen
-          await this.hideCollectibles();
-          
-          // Mark that we came from detail modal (for return on exit)
-          (window as any).__ccCameFromDetailModal = true;
-          (window as any).__ccDetailModalBoardId = boardId;
-          console.log(`🎯 Marked as coming from detail modal for board ${boardId}`);
-          
-          // Start board from Journey
-          console.log(`🎮 About to call startNewRunFromJourney with board ID: ${boardId}`);
-          if (typeof (window as any).startNewRunFromJourney === 'function') {
-            console.log(`✅ startNewRunFromJourney function exists, calling with board ${boardId}`);
-            await (window as any).startNewRunFromJourney(boardId);
-            console.log(`✅ startNewRunFromJourney call completed for board ${boardId}`);
-          } else {
-            console.error('❌ startNewRunFromJourney function NOT FOUND!');
-          }
-        });
-        
-        // Append to modal
-        modal.appendChild(playButton);
-        console.log(`✅ Floating Play button created for board ${boardId}`);
-      } else {
-        // Remove play button for legendary cards
-        const existingPlayBtn = document.getElementById('board-detail-play-button');
-        if (existingPlayBtn) {
-          existingPlayBtn.remove();
-        }
+      // Common collectible details do not launch Journey boards.
+      // Journey board modals create and own this CTA in journey-boards-manager.ts.
+      const existingPlayBtn = document.getElementById('board-detail-play-button');
+      if (existingPlayBtn) {
+        existingPlayBtn.remove();
       }
       
       // Hide old buttons (not used anymore)

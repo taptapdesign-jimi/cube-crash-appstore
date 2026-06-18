@@ -62,3 +62,18 @@ test('future magnet-archetype special dice keep board playable', () => {
 
   expect(anyMergePossible(tiles as any)).toBe(true);
 });
+
+test('stale wild pulled by magnet does not keep a 4+3 board playable', () => {
+  const tiles = [
+    makeTile(4),
+    makeTile(3),
+    makeTile(0, {
+      special: 'wild',
+      locked: true,
+      eventMode: 'none',
+      _wildMagnetAffected: true,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(false);
+});
