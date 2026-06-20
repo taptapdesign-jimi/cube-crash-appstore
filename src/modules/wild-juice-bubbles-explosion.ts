@@ -985,6 +985,10 @@ export function isWildJuiceBubblesExplosionActive(): boolean {
   return isExplosionActive;
 }
 
+export function isWildJuiceFinaleAnimationActive(): boolean {
+  return isExplosionActive || !!bubblyOverlay;
+}
+
 // Track pending waiters so cleanup can resolve them (prevents hangs)
 const _explosionWaiters = new Set<() => void>();
 
@@ -993,7 +997,7 @@ const _explosionWaiters = new Set<() => void>();
  */
 export function waitForBubblesExplosionToComplete(maxWaitMs = 6500): Promise<void> {
   return new Promise((resolve) => {
-    if (!isExplosionActive) {
+    if (!isWildJuiceFinaleAnimationActive()) {
       resolve();
       return;
     }
@@ -1015,7 +1019,7 @@ export function waitForBubblesExplosionToComplete(maxWaitMs = 6500): Promise<voi
 
     const startTime = performance.now();
     checkInterval = setInterval(() => {
-      if (!isExplosionActive) {
+      if (!isWildJuiceFinaleAnimationActive()) {
         safeResolve();
         return;
       }
@@ -1028,7 +1032,8 @@ export function waitForBubblesExplosionToComplete(maxWaitMs = 6500): Promise<voi
           elapsedMs: Math.round(elapsed),
           boardTransitionActive: w?.__ccBoardTransitionActive === true,
           cleanupInProgress,
-          isExplosionActive
+          isExplosionActive,
+          hasBubblyOverlay: !!bubblyOverlay
         });
         cleanup();
         safeResolve();

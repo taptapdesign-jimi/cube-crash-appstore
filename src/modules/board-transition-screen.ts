@@ -27,6 +27,7 @@ let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track clo
 let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track scene image elements for cleanup
+let activeSceneElements: HTMLElement[] = []; // Animated scene layer elements (hill wrappers + regular images)
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let isCleaningUp = false;
 
@@ -57,15 +58,42 @@ const CLOUD_CSS_STYLES = `
 `;
 const TRANSITION_SCENE_LAYERS = [
   {
-    key: 'hill',
-    src: './assets/journey assets/hill.png',
-    alt: 'Hill',
+    key: 'mountain',
+    src: './assets/journey assets/forest/mountain.png',
+    alt: 'Mountain',
     style: [
       'left: 50%',
-      'bottom: 26px',
-      'width: min(112vw, 460px)',
+      'bottom: 142px',
+      'width: auto',
       'z-index: 0',
-      'transform-origin: center bottom'
+      'transform-origin: center bottom',
+      '--scene-base-scale: 1.18404'
+    ]
+  },
+  {
+    key: 'hill2',
+    src: './assets/journey assets/forest/hill2.png',
+    alt: 'Hill 2',
+    style: [
+      'left: calc(50% - 10px)',
+      'bottom: 3px',
+      'width: auto',
+      'z-index: 20',
+      'transform-origin: center bottom',
+      '--scene-base-scale: 1.45152'
+    ]
+  },
+  {
+    key: 'hill1',
+    src: './assets/journey assets/forest/hill1.png',
+    alt: 'Hill 1',
+    style: [
+      'left: 50%',
+      'bottom: 88px',
+      'width: auto',
+      'z-index: 10',
+      'transform-origin: center bottom',
+      '--scene-base-scale: 1.39104'
     ]
   },
   {
@@ -76,7 +104,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: 10%',
       'bottom: 66px',
       'width: min(34vw, 138px)',
-      'z-index: 2',
+      'z-index: 34',
       'transform-origin: center bottom'
     ]
   },
@@ -88,7 +116,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: 31%',
       'bottom: 46px',
       'width: min(58vw, 236px)',
-      'z-index: 4',
+      'z-index: 36',
       'transform-origin: center bottom'
     ]
   },
@@ -100,7 +128,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: 61%',
       'bottom: 64px',
       'width: min(43vw, 176px)',
-      'z-index: 2',
+      'z-index: 34',
       'transform-origin: center bottom'
     ]
   },
@@ -112,7 +140,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: 78%',
       'bottom: 40px',
       'width: min(43vw, 176px)',
-      'z-index: 4',
+      'z-index: 36',
       'transform-origin: center bottom'
     ]
   },
@@ -124,7 +152,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: 86%',
       'bottom: 110px',
       'width: min(26vw, 108px)',
-      'z-index: 2',
+      'z-index: 34',
       'transform-origin: center bottom'
     ]
   },
@@ -136,7 +164,7 @@ const TRANSITION_SCENE_LAYERS = [
       'left: calc(17% + 20px)',
       'bottom: 44px',
       'width: min(46vw, 180px)',
-      'z-index: 9',
+      'z-index: 38',
       'transform-origin: center bottom'
     ]
   },
@@ -148,16 +176,18 @@ const TRANSITION_SCENE_LAYERS = [
       'left: calc(79% + 20px)',
       'bottom: 44px',
       'width: min(46vw, 180px)',
-      'z-index: 9',
+      'z-index: 38',
       'transform-origin: center bottom'
     ]
   }
 ];
 const TRANSITION_SCENE_ENTER_ORDER = [
+  'hill2',
+  'hill1',
+  'mountain',
   'pine1',
   'pine4',
   'pine3',
-  'hill',
   'pine5',
   'pine2',
   'fence-left',
@@ -173,6 +203,71 @@ let memSampleStartTs = 0;
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+function isTransitionHillLayer(layerKey: string): boolean {
+  return layerKey === 'mountain' || layerKey === 'hill1' || layerKey === 'hill2';
+}
+
+function getTransitionHillParallaxX(layerKey: string): number {
+  if (layerKey === 'hill2') return 84;
+  if (layerKey === 'hill1') return -67;
+  if (layerKey === 'mountain') return 50;
+  return 0;
+}
+
+function getTransitionHillBaseScale(layerKey: string): number {
+  if (layerKey === 'mountain') return 1.42085;
+  if (layerKey === 'hill1') return 1.39104;
+  if (layerKey === 'hill2') return 1.45152;
+  return 1;
+}
+
+function getTransitionHillParallaxDuration(layerKey: string): number {
+  if (layerKey === 'mountain') return 5.8;
+  if (layerKey === 'hill1') return 5.5;
+  if (layerKey === 'hill2') return 5.2;
+  return 5.4;
+}
+
+function getTransitionHillParallaxScale(layerKey: string): number {
+  return getTransitionHillBaseScale(layerKey) * 1.17;
+}
+
+function getTransitionHillDriftTarget(layerKey: string): { x: number; scale: number } {
+  return {
+    x: getTransitionHillBaseX(layerKey) + getTransitionHillParallaxX(layerKey),
+    scale: getTransitionHillParallaxScale(layerKey),
+  };
+}
+
+function getTransitionHillNaturalSize(layerKey: string): { width: number; height: number } {
+  if (layerKey === 'mountain') return { width: 390, height: 328 };
+  if (layerKey === 'hill1') return { width: 390, height: 197 };
+  if (layerKey === 'hill2') return { width: 390, height: 122 };
+  return { width: 390, height: 240 };
+}
+
+function getTransitionHillExitConfig(layerKey: string): {
+  dropY: number;
+  scale: number;
+  duration: number;
+  ease: string;
+} {
+  if (layerKey === 'mountain') {
+    return { dropY: 210, scale: 0.94, duration: 0.44, ease: 'back.in(1.18)' };
+  }
+  if (layerKey === 'hill1') {
+    return { dropY: 210, scale: 0.96, duration: 0.38, ease: 'back.in(1.05)' };
+  }
+  return { dropY: 220, scale: 0.96, duration: 0.38, ease: 'back.in(1.05)' };
+}
+
+function getTransitionHillBaseX(layerKey: string): number {
+  if (layerKey === 'hill2') return -20;
+  if (layerKey === 'hill1') return -32;
+  if (layerKey === 'mountain') return -72;
+  return 0;
+}
 
 function resetPooledImage(img: HTMLImageElement): void {
   try { gsap.killTweensOf(img); } catch {}
@@ -564,7 +659,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'position: absolute',
         'inset: 0',
         'pointer-events: none',
-        'z-index: 3',
+        'z-index: 30',
         'overflow: visible'
       ].join(';');
     }
@@ -633,7 +728,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const baseSize = isLowerCloud
         ? 1.1 + (i % 2) * 0.08
         : (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
-      const spawnLeft = isLowerCloud ? (i === totalClouds - 2 ? 60 : 73) : 8 + (i * 9) % 84;
+      const spawnLeft = isLowerCloud ? (i === totalClouds - 2 ? 26 : 82) : 8 + (i * 9) % 84;
       const goesLeft = Math.random() < 0.5; // random side push
       const enterDelay = i * CLOUD_STAGGER;
       const rotation = (i % 5 - 2) * 6;
@@ -750,7 +845,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'contain: layout style'
       ].join(';');
 
-      Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')).forEach((img) => {
+      Array.from(forestContainer.querySelectorAll('img')).forEach((img) => {
         try {
           resetPooledImage(img as HTMLImageElement);
           domElementPool.release(img as HTMLImageElement);
@@ -758,39 +853,76 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
       forestContainer.innerHTML = '';
       activeSceneImages = [];
+      activeSceneElements = [];
 
       forestContainer.style.removeProperty('transform');
       forestContainer.style.bottom = isIPad ? '-76px' : '-52px';
 
       TRANSITION_SCENE_LAYERS.forEach((layer) => {
+        const isHillLayer = isTransitionHillLayer(layer.key);
         const sceneImg = domElementPool.acquire('img') as HTMLImageElement;
         resetPooledImage(sceneImg);
-        const sceneLayerStyle = isIPad && layer.key === 'hill'
+        const sceneLayerStyle = isIPad && isTransitionHillLayer(layer.key)
           ? layer.style.map((styleRule) => {
-              if (styleRule.startsWith('width:')) return 'width: 122vw';
-              if (styleRule.startsWith('bottom:')) return 'bottom: 16px';
+              if (styleRule.startsWith('width:')) return 'width: auto';
+              if (styleRule.startsWith('left:')) return 'left: 50%';
+              if (styleRule.startsWith('bottom:')) {
+                if (layer.key === 'mountain') return 'bottom: 140px';
+                if (layer.key === 'hill2') return 'bottom: 13px';
+                return 'bottom: 80px';
+              }
               return styleRule;
             })
           : layer.style;
         sceneImg.src = layer.src;
         sceneImg.alt = layer.alt;
-        sceneImg.dataset.sceneLayer = layer.key;
         sceneImg.loading = 'eager';
         sceneImg.setAttribute('fetchpriority', 'high');
         sceneImg.decoding = 'async';
         sceneImg.draggable = false;
-        sceneImg.style.cssText = [
-          'position: absolute',
-          'height: auto',
-          'object-fit: contain',
-          'display: block',
-          'pointer-events: none',
-          'will-change: transform, opacity',
-          'backface-visibility: hidden',
-          ...sceneLayerStyle
-        ].join(';');
         activeSceneImages.push(sceneImg);
-        forestContainer.appendChild(sceneImg);
+
+        if (isHillLayer) {
+          const naturalSize = getTransitionHillNaturalSize(layer.key);
+          const sceneLayer = document.createElement('div');
+          sceneLayer.className = 'cc-board-transition-scene-layer';
+          sceneLayer.dataset.sceneLayer = layer.key;
+          sceneLayer.style.cssText = [
+            'position: absolute',
+            `width: ${naturalSize.width}px`,
+            `height: ${naturalSize.height}px`,
+            'pointer-events: none',
+            'will-change: transform, opacity',
+            'backface-visibility: hidden',
+            'transform-origin: center bottom',
+            ...sceneLayerStyle.filter((rule) => !rule.trim().startsWith('width:'))
+          ].join(';');
+          sceneImg.style.cssText = [
+            'width: 100%',
+            'height: 100%',
+            'object-fit: contain',
+            'display: block',
+            'pointer-events: none',
+            'backface-visibility: hidden',
+          ].join(';');
+          sceneLayer.appendChild(sceneImg);
+          activeSceneElements.push(sceneLayer);
+          forestContainer.appendChild(sceneLayer);
+        } else {
+          sceneImg.dataset.sceneLayer = layer.key;
+          sceneImg.style.cssText = [
+            'position: absolute',
+            'height: auto',
+            'object-fit: contain',
+            'display: block',
+            'pointer-events: none',
+            'will-change: transform, opacity',
+            'backface-visibility: hidden',
+            ...sceneLayerStyle
+          ].join(';');
+          activeSceneElements.push(sceneImg);
+          forestContainer.appendChild(sceneImg);
+        }
       });
       forestContainer.appendChild(cloudMidContainer);
       overlay.appendChild(forestContainer);
@@ -798,7 +930,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       overlay.appendChild(cloudMidContainer);
       // Arcade variant: explicitly remove/disable scene layer if a reused overlay still has it.
       if (forestContainer && forestContainer.parentNode) {
-        Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')).forEach((img) => {
+        Array.from(forestContainer.querySelectorAll('img')).forEach((img) => {
           try {
             resetPooledImage(img as HTMLImageElement);
             domElementPool.release(img as HTMLImageElement);
@@ -916,7 +1048,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
 
       const sceneImagesByKey = new Map(
-        activeSceneImages.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg])
+        activeSceneElements.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg])
       );
       const orderedSceneImages = TRANSITION_SCENE_ENTER_ORDER
         .map((key) => sceneImagesByKey.get(key))
@@ -924,15 +1056,21 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
       orderedSceneImages.forEach((sceneImg, index) => {
         const direction = index % 2 === 0 ? -1 : 1;
-        const isHill = sceneImg.dataset.sceneLayer === 'hill';
+        const layerKey = sceneImg.dataset.sceneLayer || '';
+        const isHill = isTransitionHillLayer(layerKey);
+        const hillParallaxX = getTransitionHillParallaxX(layerKey);
+        const hillBaseScale = getTransitionHillBaseScale(layerKey);
+        const hillBaseX = getTransitionHillBaseX(layerKey);
         const hillStartYOffset = Math.round(Math.min(window.innerHeight || 760, 760) * 0.4);
         gsap.set(sceneImg, {
           opacity: 0,
           xPercent: -50,
           yPercent: 0,
-          x: 0,
+          x: isHill ? hillBaseX - hillParallaxX * 0.18 : 0,
           y: isHill ? hillStartYOffset : 14,
-          scale: isHill ? 0.68 : 0,
+          scale: isHill ? hillBaseScale * 0.68 : 0,
+          scaleX: isHill ? hillBaseScale * 0.68 : 0,
+          scaleY: isHill ? hillBaseScale * 0.68 : 0,
           rotation: isHill ? 0 : direction * 8,
           rotationX: 0,
           rotationY: 0,
@@ -945,25 +1083,34 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         if (isHill) {
           sceneEnterTimeline.to(sceneImg, {
             opacity: 1,
+            x: hillBaseX,
             y: -6,
-            scale: 1.12,
+            scale: hillBaseScale * 1.12,
+            scaleX: hillBaseScale * 1.12,
+            scaleY: hillBaseScale * 1.12,
             duration: 0.34,
             ease: 'power2.out'
           });
           sceneEnterTimeline.to(sceneImg, {
+            x: hillBaseX,
             y: 3,
-            scale: 0.98,
+            scale: hillBaseScale * 0.98,
+            scaleX: hillBaseScale * 0.98,
+            scaleY: hillBaseScale * 0.98,
             duration: 0.14,
             ease: 'power2.inOut'
           });
           sceneEnterTimeline.to(sceneImg, {
             opacity: 1,
+            x: hillBaseX,
             y: 0,
-            scale: 1,
+            scale: hillBaseScale,
+            scaleX: hillBaseScale,
+            scaleY: hillBaseScale,
             duration: 0.16,
             ease: 'back.out(1.8)',
             onComplete: () => {
-              try { sceneImg.style.willChange = 'auto'; } catch {}
+              try { sceneImg.style.willChange = 'transform, opacity'; } catch {}
             }
           });
         } else {
@@ -1140,7 +1287,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               });
               
               pauseTimeline.to({}, {
-                duration: 0.2, // Start text/number exit 500ms earlier
+                duration: 0.8,
                 ease: 'none'
               });
             }
@@ -1256,18 +1403,23 @@ function startExitAnimation(
     });
 
   // Step 2: Scene exit animation
+  let sceneFadeStart = digitExitEnd + 0.25;
   if (forestContainer) {
-    const sceneImages = Array.from(forestContainer.querySelectorAll('img[data-scene-layer]')) as HTMLImageElement[];
+    const sceneImages = Array.from(forestContainer.querySelectorAll('[data-scene-layer]')) as HTMLElement[];
     const sceneExitStart = Math.max(0, digitExitEnd - 0.5);
     sceneImages.forEach((sceneImg) => {
       const layerKey = sceneImg.dataset.sceneLayer || '';
-      const isHill = layerKey === 'hill';
+      const isHill = isTransitionHillLayer(layerKey);
       const isAggressiveDownPine = layerKey === 'pine2' || layerKey === 'pine4';
       const isPine3 = layerKey === 'pine3';
       const isLeftPine = layerKey === 'pine1' || layerKey === 'pine2';
       const isRightPine = layerKey === 'pine3' || layerKey === 'pine4' || layerKey === 'pine5';
       const isLeftFence = layerKey === 'fence-left';
       const isRightFence = layerKey === 'fence-right';
+      if (isHill) {
+        // Hills keep enter parallax until ordered exit — no second x/scale tween here (caused scale jerk).
+        return;
+      }
       if (!isHill && !isLeftPine && !isRightPine && !isLeftFence && !isRightFence) return;
       const pineDurationByLayer: Record<string, number> = {
         pine1: 1.55,
@@ -1276,9 +1428,7 @@ function startExitAnimation(
         pine4: 1.05,
         pine5: 1.42
       };
-      const parallaxDuration = isHill
-        ? Math.max(0.2, sceneExitStart + 0.45)
-        : isLeftFence || isRightFence
+      const parallaxDuration = isLeftFence || isRightFence
           ? 0.9
           : pineDurationByLayer[layerKey] || Math.max(0.2, sceneExitStart + 0.25);
 
@@ -1286,9 +1436,9 @@ function startExitAnimation(
       contentTimelines.push(ambientTimeline);
       sceneImg.style.willChange = 'transform, opacity';
       ambientTimeline.to(sceneImg, {
-        scale: isHill ? 1.0525 : isLeftFence || isRightFence ? 0.93 : 0.945,
+        scale: isLeftFence || isRightFence ? 0.93 : 0.945,
         x: isLeftPine ? -59 : isPine3 ? 78 : isRightPine ? 59 : isLeftFence ? -140 : isRightFence ? 140 : 0,
-        y: isHill ? -10 : isAggressiveDownPine ? 55 : isPine3 ? 34 : isLeftPine || isRightPine ? 18 : isLeftFence || isRightFence ? 58 : 0,
+        y: isAggressiveDownPine ? 55 : isPine3 ? 34 : isLeftPine || isRightPine ? 18 : isLeftFence || isRightFence ? 58 : 0,
         duration: parallaxDuration,
         ease: 'sine.inOut'
       });
@@ -1307,36 +1457,93 @@ function startExitAnimation(
     const fenceExitImages = sceneImages
       .filter((sceneImg) => /^fence-(left|right)$/.test(sceneImg.dataset.sceneLayer || ''))
       .sort(() => Math.random() - 0.5);
+    const hillExitImages = ['mountain', 'hill1', 'hill2']
+      .map((key) => sceneImages.find((sceneImg) => sceneImg.dataset.sceneLayer === key))
+      .filter(Boolean) as HTMLImageElement[];
     const otherExitImages = sceneImages.filter((sceneImg) => {
       const key = sceneImg.dataset.sceneLayer || '';
-      return key === 'hill' || (!/^pine[1-5]$/.test(key) && !/^fence-(left|right)$/.test(key));
+      return !isTransitionHillLayer(key) && !/^pine[1-5]$/.test(key) && !/^fence-(left|right)$/.test(key);
     });
     const fenceExitStart = Math.max(0, sceneExitStart - 0.4);
+    const hillDriftStart = -0.3;
+    const hillExitBaseStart = sceneExitStart + 1.05;
     const orderedExitEntries = [
       ...fenceExitImages.map((sceneImg, index) => ({ sceneImg, start: fenceExitStart + index * 0.06, orderIndex: index })),
       ...firstPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + index * 0.05, orderIndex: fenceExitImages.length + index })),
       ...remainingPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + index })),
-      ...otherExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + remainingPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + index }))
+      ...otherExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + remainingPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + index })),
+      ...hillExitImages.map((sceneImg, index) => ({ sceneImg, start: hillExitBaseStart + index * 0.2, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + otherExitImages.length + index }))
     ];
+    sceneFadeStart = Math.max(sceneFadeStart, hillExitBaseStart + (hillExitImages.length * 0.2) + 0.35);
+
+    hillExitImages.forEach((sceneImg, index) => {
+      const layerKey = sceneImg.dataset.sceneLayer || '';
+      const hillExitStart = hillExitBaseStart + index * 0.2;
+      const hillDriftTarget = getTransitionHillDriftTarget(layerKey);
+      const hillDriftDuration = Math.max(0.9, hillExitStart - hillDriftStart - 0.04);
+      const hillDriftTimeline = trackTimeline();
+      contentTimelines.push(hillDriftTimeline);
+      sceneImg.style.willChange = 'transform, opacity';
+      gsap.set(sceneImg, {
+        transformOrigin: 'center bottom',
+        force3D: false,
+      });
+      hillDriftTimeline.to(sceneImg, {
+        x: hillDriftTarget.x,
+        scale: hillDriftTarget.scale,
+        scaleX: hillDriftTarget.scale,
+        scaleY: hillDriftTarget.scale,
+        duration: hillDriftDuration,
+        ease: 'power1.inOut',
+        overwrite: 'auto',
+        immediateRender: false,
+      });
+      exitTimeline.add(hillDriftTimeline, hillDriftStart);
+    });
 
     orderedExitEntries.forEach(({ sceneImg, start, orderIndex }) => {
       const sceneExitTimeline = trackTimeline();
       contentTimelines.push(sceneExitTimeline);
       const layerKey = sceneImg.dataset.sceneLayer || '';
-      const isHill = layerKey === 'hill';
+      const isHill = isTransitionHillLayer(layerKey);
       const isAggressiveDownPine = layerKey === 'pine2' || layerKey === 'pine4';
       sceneImg.style.willChange = 'transform, opacity';
-      sceneExitTimeline.to(sceneImg, {
-        opacity: 0,
-        scale: isHill ? 1.07 : 0,
-        y: isHill ? -10 : isAggressiveDownPine ? 112 : 24,
-        rotation: isHill ? 0 : orderIndex % 2 === 0 ? 12 : -12,
-        duration: isHill ? 0.22 : 0.28,
-        ease: 'power2.in',
-        onComplete: () => {
-          try { sceneImg.style.willChange = 'auto'; } catch {}
-        }
-      });
+      if (isHill) {
+        const exitConfig = getTransitionHillExitConfig(layerKey);
+        sceneExitTimeline.to(sceneImg, {
+          opacity: 0,
+          y: `+=${exitConfig.dropY}`,
+          scale: `*=${exitConfig.scale}`,
+          scaleX: `*=${exitConfig.scale}`,
+          scaleY: `*=${exitConfig.scale}`,
+          rotation: 0,
+          duration: exitConfig.duration,
+          ease: exitConfig.ease,
+          overwrite: 'auto',
+          immediateRender: false,
+          onStart: () => {
+            try {
+              sceneImg.style.transformOrigin = 'center bottom';
+              sceneImg.style.willChange = 'transform, opacity';
+            } catch {}
+          },
+          onComplete: () => {
+            try { sceneImg.style.willChange = 'auto'; } catch {}
+          }
+        });
+      } else {
+        sceneExitTimeline.to(sceneImg, {
+          opacity: 0,
+          scale: 0,
+          y: isAggressiveDownPine ? 112 : 24,
+          rotation: orderIndex % 2 === 0 ? 12 : -12,
+          duration: 0.28,
+          ease: 'power2.in',
+          onComplete: () => {
+            try { sceneImg.style.willChange = 'auto'; } catch {}
+          }
+        });
+      }
       exitTimeline.add(sceneExitTimeline, start);
     });
   }
@@ -1346,7 +1553,7 @@ function startExitAnimation(
     opacity: 0,
     duration: 0.3, // 🔥 USER REQUEST: Faster (0.4s → 0.3s)
     ease: 'power2.in'
-  }, digitExitEnd + 0.25);
+  }, sceneFadeStart);
 
   // Store tweens for cleanup
   exitTimeline.getChildren().forEach(tween => {
@@ -1490,6 +1697,13 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
     }
   });
   activeSceneImages = [];
+
+  activeSceneElements.forEach((sceneEl) => {
+    try {
+      if (!(sceneEl instanceof HTMLImageElement)) sceneEl.remove();
+    } catch {}
+  });
+  activeSceneElements = [];
 
   // 🔥 APP STORE: Kill animations on scene container
   try {

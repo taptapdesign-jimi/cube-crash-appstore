@@ -28,3 +28,10 @@ test('classifies final merge handoff reasons by required animation', () => {
   expect(reasonExpectsSparkleFinale(FINAL_MERGE_REASONS.juice)).toBe(false);
   expect(reasonExpectsMagnetFinale(FINAL_MERGE_REASONS.default)).toBe(false);
 });
+
+test('legacy wild-magnet clean-board reasons still require magnet finale handoff', () => {
+  expect(reasonExpectsMagnetFinale(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6)).toBe(true);
+  expect(reasonExpectsMagnetFinale(FINAL_MERGE_REASONS.legacyMagnetNoPulledTiles)).toBe(true);
+  expect(reasonExpectsMagnetFinale(FINAL_MERGE_REASONS.legacyMagnetOnlyDstRemains)).toBe(true);
+  expect(reasonExpectsMagnetFinale(FINAL_MERGE_REASONS.legacyMagnetFewTilesRemaining)).toBe(true);
+});

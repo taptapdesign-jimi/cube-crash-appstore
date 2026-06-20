@@ -6,10 +6,10 @@ import animationManager from './animation-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 
 const CLOUD_IMAGES = [
-  { base: './assets/board transition/cloud1.png', retina: './assets/board transition/cloud1@2x.png' },
-  { base: './assets/board transition/cloud2.png', retina: './assets/board transition/cloud2@2x.png' },
-  { base: './assets/board transition/cloud3.png', retina: './assets/board transition/cloud3@2x.png' },
-  { base: './assets/board transition/cloud4.png', retina: './assets/board transition/cloud4@2x.png' }
+  { base: './assets/board transition/oblak+srednji.png', retina: './assets/board transition/oblak+srednji.png' },
+  { base: './assets/board transition/oblak mali desno.png', retina: './assets/board transition/oblak mali desno.png' },
+  { base: './assets/board transition/oblak mali ljevo.png', retina: './assets/board transition/oblak mali ljevo.png' },
+  { base: './assets/board transition/oblak veliki ljevo dole.png', retina: './assets/board transition/oblak veliki ljevo dole.png' }
 ];
 
 function pickCloudSrc(index: number): string {

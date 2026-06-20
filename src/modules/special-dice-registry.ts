@@ -114,7 +114,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     id: 'beach-ball',
     archetype: 'wild-juice',
     texture: './assets/shop/ball/ball.png',
-    splashText: 'Boooing!',
+    splashText: 'Boooing',
     splashColor: '#E09FEF',
     shardColor: 0xE09FEF,
     shardColors: [0xDD94EB, 0x4BC9FC, 0xFDEB8C, 0xFD979D],

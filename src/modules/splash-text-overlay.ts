@@ -25,6 +25,7 @@ let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleDelayedCallsRef: gsap.core.Tween[] = [];
 let sparkleFxCleanup: (() => void) | null = null;
 let sparkleTextActive = false;
+let sparkleTextWaiters: Array<() => void> = [];
 let noMovesOverlay: HTMLElement | null = null;
 let noMovesTimelinesRef: gsap.core.Timeline[] = [];
 let noMovesBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -39,6 +40,15 @@ function resolveMagneticTextWaiters(): void {
   if (!magneticTextWaiters.length) return;
   const waiters = magneticTextWaiters;
   magneticTextWaiters = [];
+  waiters.forEach((resolve) => {
+    try { resolve(); } catch {}
+  });
+}
+
+function resolveSparkleTextWaiters(): void {
+  if (!sparkleTextWaiters.length) return;
+  const waiters = sparkleTextWaiters;
+  sparkleTextWaiters = [];
   waiters.forEach((resolve) => {
     try { resolve(); } catch {}
   });
@@ -430,6 +440,7 @@ function cleanupSparkleOverlay(): void {
     sparkleOverlay = null;
     sparkleTextActive = false;
     setWildFxDragLock('sparkle-text', false);
+    resolveSparkleTextWaiters();
   } catch {}
 }
 
@@ -685,6 +696,25 @@ export function stopSparkleText(): void {
 
 export function isSparkleTextActive(): boolean {
   return sparkleTextActive;
+}
+
+export function waitForSparkleTextComplete(timeoutMs = 2200): Promise<void> {
+  if (!sparkleTextActive) return Promise.resolve();
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      sparkleTextWaiters = sparkleTextWaiters.filter((fn) => fn !== finish);
+      resolve();
+    };
+    sparkleTextWaiters.push(finish);
+    try {
+      window.setTimeout(finish, timeoutMs);
+    } catch {
+      finish();
+    }
+  });
 }
 
 function cleanupNoMovesOverlay(): void {

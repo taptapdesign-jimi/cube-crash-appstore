@@ -3,15 +3,12 @@
 import { gsap } from 'gsap';
 import { Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
-import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
+import { STATE } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildJuiceBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
-import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete } from './splash-text-overlay.ts';
+import { screenShake, wildImpactEffect, stopWildIdle, stopWildJuiceBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
-import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
-import { showBoardFailModal } from './board-fail-modal.js';
-import { rebuildBoard } from './app-board.ts';
+import { openAtCell } from './app-spawn.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
@@ -20,9 +17,11 @@ import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
-import { markFinalSpecialFxTriggered, shouldStartFinalSpecialFx } from './final-special-fx-guard.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
+import { removeTileFully } from './tile-lifecycle-service.ts';
+import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
+import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction } from './magnet-post-spawn-resolution.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -92,6 +91,17 @@ function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
   }
 }
 
+async function triggerCentralCleanBoardFlow(reason: string): Promise<boolean> {
+  const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+  if (typeof triggerCleanBoardFlow !== 'function') {
+    console.error('❌ triggerCleanBoardFlow unavailable - refusing legacy direct endgame fallback', { reason });
+    return false;
+  }
+
+  await triggerCleanBoardFlow(reason);
+  return true;
+}
+
 function play(name, vol=null){ /* muted */ }
 
 function tileIsWild(tile: any): boolean {
@@ -120,43 +130,18 @@ function tileIsTransientForMagnetPull(tile: any): boolean {
 }
 
 function removeTile(t){
-  if(!t) return;
-  try { stopWildIdle?.(t); } catch {}
-  try { if ((t as any).hover?.clear) (t as any).hover.clear(); } catch {}
-  t.eventMode='none'; t.removeAllListeners?.();
-  
-  // 🔥 MEMORY LEAK FIX: Kill ALL animations and timelines on tile
-  try{ 
-    gsap.killTweensOf(t); 
-    gsap.killTweensOf(t.scale); 
-    gsap.killTweensOf((t as any).rotG);
-    
-    // Kill all stored timelines
-    if ((t as any)._wobbleTl) { (t as any)._wobbleTl.kill(); (t as any)._wobbleTl = null; }
-    if ((t as any)._bounceTl) { (t as any)._bounceTl.kill(); (t as any)._bounceTl = null; }
-    if ((t as any)._bounceRotTl) { (t as any)._bounceRotTl.kill(); (t as any)._bounceRotTl = null; }
-    if ((t as any)._preBounceTl) { (t as any)._preBounceTl.kill(); (t as any)._preBounceTl = null; }
-    if ((t as any)._preBounceRotTl) { (t as any)._preBounceRotTl.kill(); (t as any)._preBounceRotTl = null; }
-    if ((t as any)._mergeTween) { (t as any)._mergeTween.kill(); (t as any)._mergeTween = null; }
-    if ((t as any)._wildMergeTween) { (t as any)._wildMergeTween.kill(); (t as any)._wildMergeTween = null; }
-    if ((t as any)._pulseTween) { (t as any)._pulseTween.kill(); (t as any)._pulseTween = null; }
-    if ((t as any)._wildPulseTween) { (t as any)._wildPulseTween.kill(); (t as any)._wildPulseTween = null; }
-    if ((t as any)._spawnTween) { (t as any)._spawnTween.kill(); (t as any)._spawnTween = null; }
-    if ((t as any)._destroyTween) { (t as any)._destroyTween.kill(); (t as any)._destroyTween = null; }
-  }catch{}
-  
-  // 🔥 CRITICAL FIX: Clear grid position BEFORE removing from board
-  // This ensures grid is clean and openAtCell can spawn new tiles properly
-  if (t.gridX !== undefined && t.gridY !== undefined && STATE.grid && STATE.grid[t.gridY]) {
-    if (STATE.grid[t.gridY][t.gridX] === t) {
-      STATE.grid[t.gridY][t.gridX] = null;
-      console.log(`🧹 removeTile: Cleared grid[${t.gridY}][${t.gridX}]`);
-    }
-  }
-  
-  if (STATE.board) STATE.board.removeChild(t);
-  STATE.tiles = STATE.tiles.filter(x=>x!==t);
-  t.destroy?.({children:true, texture:false, textureSource:false});
+  removeTileFully(t, {
+    board: STATE.board,
+    grid: STATE.grid,
+    tiles: STATE.tiles,
+    setTiles: (nextTiles) => { STATE.tiles = nextTiles; },
+    stopWildIdle,
+    stopWildShimmer,
+    stopWildStars,
+    stopWildJuiceBubbles,
+    stopMagnetIdleParticles,
+    log: console.log,
+  });
 }
 
 export function clearWildState(tile, opts = undefined){
@@ -509,47 +494,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Remove merge 6 tile
     removeTile(dst);
     
-    // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
-    // Without this, clean board appears immediately and SWOOP gets cut off
-    if (!isMagneticTextActive() && shouldStartFinalSpecialFx('magnet')) {
-      console.log('🧲 Magnet merge with no pulled tiles: SWOOP was not active, starting fallback text animation');
-      showMagneticText();
-    } else {
-      markFinalSpecialFxTriggered('magnet');
-    }
-    console.log('🧲 Magnet merge with no pulled tiles: waiting for SWOOP text animation before clean board');
-    await waitForMagneticTextComplete();
-    
-    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-    // This ensures all wild magnet/juice/star endgame scenarios use the same flow with proper guards
-    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
-    if (typeof triggerCleanBoardFlow === 'function') {
-      await triggerCleanBoardFlow('clean_board_from_wild_magnet_no_pulled_tiles');
+    // Delegate timing to triggerCleanBoardFlow/final-merge-handoff so magnet finale
+    // start/wait behavior has one source of truth.
+    if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetNoPulledTiles)) {
       console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
-    } else {
-      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
-      // Fallback to old method if triggerCleanBoardFlow is not available
-      const { runEndgameFlow } = await import('./endgame-flow.js');
-      const app = STATE.app;
-      const stage = STATE.stage;
-      const board = STATE.board;
-      const boardBG = STATE.boardBG;
-      const level = STATE.level || 1;
-      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-      const boardNumber = STATE.boardNumber || 1;
-      
-      if (app && stage && board && startLevel) {
-        await runEndgameFlow({
-          app,
-          stage,
-          board,
-          boardBG,
-          level,
-          startLevel,
-          boardNumber,
-          skipStarsWait: true
-        });
-      }
     }
     return;
   }
@@ -1193,54 +1141,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       removeTile(dst);
     }
     
-    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
-    if (typeof triggerCleanBoardFlow === 'function') {
-      await triggerCleanBoardFlow('clean_board_from_wild_magnet_only_dst_remains');
-    } else {
-      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
-      // Fallback to old method if triggerCleanBoardFlow is not available
-      const { runEndgameFlow } = await import('./endgame-flow.js');
-      const app = STATE.app;
-      const stage = STATE.stage;
-      const board = STATE.board;
-      const boardBG = STATE.boardBG;
-      const level = STATE.level || 1;
-      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-      const boardNumber = STATE.boardNumber || 1;
-      
-      if (app && stage && board && startLevel) {
-        STATE.busyEnding = true;
-        try {
-          await runEndgameFlow({
-            app,
-            stage,
-            board,
-            boardBG,
-            level,
-            startLevel,
-            score: newScore,
-            getScore: () => newScore,
-            setScore: (v) => { 
-              if (typeof (window as any).CC?.setScore === 'function') {
-                (window as any).CC.setScore(v);
-              } else {
-                STATE.score = v|0;
-              }
-              updateHUD();
-            },
-            animateScore,
-            updateHUD,
-            boardNumber,
-            hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-            showGrid: () => { try { if (board) board.visible = true; } catch {} },
-            skipStarsWait: true
-          });
-        } finally {
-          STATE.busyEnding = false;
-        }
-      }
-    }
+    await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetOnlyDstRemains);
     return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
   }
   
@@ -1312,54 +1213,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         removeTile(merge6Tile);
       }
       
-      // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-      const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
-      if (typeof triggerCleanBoardFlow === 'function') {
-        await triggerCleanBoardFlow('clean_board_from_wild_magnet_few_tiles_remaining');
-      } else {
-        console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
-        // Fallback to old method if triggerCleanBoardFlow is not available
-        const { runEndgameFlow } = await import('./endgame-flow.js');
-        const app = STATE.app;
-        const stage = STATE.stage;
-        const board = STATE.board;
-        const boardBG = STATE.boardBG;
-        const level = STATE.level || 1;
-        const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-        const boardNumber = STATE.boardNumber || 1;
-        
-        if (app && stage && board && startLevel) {
-          STATE.busyEnding = true;
-          try {
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              score: finalScore,
-              getScore: () => finalScore,
-              setScore: (v) => { 
-                if (typeof (window as any).CC?.setScore === 'function') {
-                  (window as any).CC.setScore(v);
-                } else {
-                  STATE.score = v|0;
-                }
-                updateHUD();
-              },
-              animateScore,
-              updateHUD,
-              boardNumber,
-              hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-              showGrid: () => { try { if (board) board.visible = true; } catch {} },
-              skipStarsWait: true
-            });
-          } finally {
-            STATE.busyEnding = false;
-          }
-        }
-      }
+      await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFewTilesRemaining);
       return; // Don't spawn new tiles
   }
 
@@ -1525,54 +1379,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       removeTile(dst);
     }
     
-    // 🔥 CRITICAL: Wait for SWOOP animation to complete before showing clean board modal
-    // Without this, clean board appears immediately and SWOOP gets cut off
-    if (!isMagneticTextActive() && shouldStartFinalSpecialFx('magnet')) {
-      console.log('🧲 Final wild-magnet merge-6: SWOOP was not active, starting fallback text animation');
-      showMagneticText();
-    } else {
-      markFinalSpecialFxTriggered('magnet');
-    }
-    console.log('🧲 Final wild-magnet merge-6: waiting for SWOOP text animation before clean board');
-    await waitForMagneticTextComplete();
-    
-    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+    // Central final-merge handoff starts/waits SWOOP and residual popout. Keep this
+    // legacy magnet path as a delegate only so timing stays identical to app-core.
     const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
     if (typeof triggerCleanBoardFlow === 'function') {
-      await triggerCleanBoardFlow('clean_board_from_wild_magnet_final_merge6');
+      await triggerCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6);
       console.log('✅ Clean board flow completed for magnet final merge-6');
     } else {
-      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
-      // Fallback to old method if triggerCleanBoardFlow is not available
-      const { runEndgameFlow } = await import('./endgame-flow.js');
-      const app = STATE.app;
-      const stage = STATE.stage;
-      const board = STATE.board;
-      const boardBG = STATE.boardBG;
-      const level = STATE.level || 1;
-      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-      const boardNumber = STATE.boardNumber || 1;
-      
-      if (app && stage && board && startLevel) {
-        await runEndgameFlow({
-          app,
-          stage,
-          board,
-          boardBG,
-          level,
-          startLevel,
-          boardNumber,
-          skipStarsWait: true
-        });
-        console.log('✅ Clean board flow completed for magnet final merge-6');
-      }
+      console.error('❌ triggerCleanBoardFlow not available - final magnet merge cannot complete centrally');
     }
     return; // 🔥 CRITICAL: Exit early - NO spawns for final merge-6!
   }
   
-  const replacementSpawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
-  const obligatorySpawnCount = 1; // Always spawn 1 obligatory tile below merge 6 (unless final merge-6, which is handled above)
-  const spawnCount = replacementSpawnCount + obligatorySpawnCount;
+  const {
+    replacementSpawnCount,
+    obligatorySpawnCount,
+    spawnCount,
+  } = createMagnetRespawnPlan(pulledCells.length, hasTilesToRespawn);
   
   console.log('🧲 Wild-magnet spawn calculation:', {
     pulledTilesCount: pulledCells.length,
@@ -2411,21 +2234,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // We need to wait until ALL tiles are unlocked before checking anyMergePossible
   // Maximum wait: 500ms (spawn animation + unlock delay)
   // This ensures endgame check sees all spawned tiles and correctly determines if game can continue
-  const isPlayableForPostMagnetCheck = (tile: any): boolean => {
-    if (!tile || tile.destroyed) return false;
-    if (tile.visible === false) return false;
-    if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
-    const value = (tile.value | 0);
-    const isWild = tileIsWild(tile);
-    if (!isWild && tile.locked) return false;
-    return value > 0 || isWild;
-  };
-
   let allTilesUnlocked = false;
   let retryCount = 0;
   const maxRetries = 10; // 10 retries * 50ms = 500ms max wait
   while (!allTilesUnlocked && retryCount < maxRetries) {
-    const activeTilesCheck = STATE.tiles.filter(isPlayableForPostMagnetCheck);
+    const activeTilesCheck = STATE.tiles.filter(isPlayablePostMagnetTile);
     const lockedActiveTilesCheck = activeTilesCheck.filter((t: any) => t.locked && (t.value|0) > 0);
     
     if (lockedActiveTilesCheck.length === 0) {
@@ -2442,42 +2255,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Some tiles are still locked after max wait time, proceeding with check anyway');
   }
   
-  const activeTilesFinal = STATE.tiles.filter(isPlayableForPostMagnetCheck);
-  const hasMergeableTiles = activeTilesFinal.length > 1; // More than just merge 6 = can merge
-  
-  // Check if board is clean (only merge 6 remains, no other active tiles)
-  // 🔥 CRITICAL: Must have EXACTLY 1 active tile and it must be merge 6
-  const isBoardClean = activeTilesFinal.length === 1 && activeTilesFinal[0]?.value === 6;
-  
-  // 🔥 ADDITIONAL CHECK: Verify that all spawned tiles are actually unlocked and active
-  // After waiting, all tiles should be unlocked, but double-check anyway
-  const unlockedActiveTiles = activeTilesFinal.filter((t: any) => !t.locked);
-  const hasUnlockedTiles = unlockedActiveTiles.length > 1; // More than just merge 6 = can merge
-  
-  // 🔥 CRITICAL FIX: If we spawned new tiles, this is NOT last merge (even if _isLastMerge flag was set)
-  // The flag was set BEFORE pulled tiles merged, but now we have new tiles, so it's not last merge anymore
-  const hasSpawnedNewTiles = spawnCount > 0 && activeTilesFinal.length > 1;
-  const isActuallyLastMerge = isLastMergeFlagSet && !hasSpawnedNewTiles;
-  
-  // 🔥 USER REQUEST v85: Check if unlocked tiles have potential for merge/stack
-  // If anyMergePossible returns true → game continues (don't call checkLevelEnd)
-  // If anyMergePossible returns false → call checkLevelEnd (will check stuck and show fail screen)
-  // 🔥 CRITICAL: Use ALL active tiles (not just unlocked) for anyMergePossible check
-  // This ensures we check ALL spawned tiles, even if some are still locked (shouldn't happen after wait)
-  // This fixes the bug where clean board was triggered immediately after magnet pull spawns new tiles
   const { makeBoard } = helpers;
-  let hasMergeOrStackPotential = false;
-  if (activeTilesFinal.length > 0 && makeBoard?.anyMergePossible) {
-    // 🔥 CRITICAL: Check with ALL active tiles (including merge 6) to see if there's merge potential
-    // This ensures we see ALL spawned tiles, not just unlocked ones
-    hasMergeOrStackPotential = makeBoard.anyMergePossible(activeTilesFinal);
-    console.log('🧲 anyMergePossible check with ALL active tiles (after unlock wait):', {
-      activeTilesCount: activeTilesFinal.length,
-      unlockedTilesCount: unlockedActiveTiles.length,
-      hasMergeOrStackPotential,
-      tiles: activeTilesFinal.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
-    });
-  }
+  const postMagnetResolution = resolvePostMagnetEndgameAction({
+    tiles: STATE.tiles,
+    anyMergePossible: makeBoard?.anyMergePossible,
+    isLastMergeFlagSet,
+    spawnCount,
+  });
+  const activeTilesFinal = postMagnetResolution.activeTiles;
+  const unlockedActiveTiles = postMagnetResolution.unlockedActiveTiles;
+  const hasMergeableTiles = activeTilesFinal.length > 1; // More than just merge 6 = can merge
+  const isBoardClean = postMagnetResolution.isBoardClean;
+  const hasUnlockedTiles = unlockedActiveTiles.length > 1; // More than just merge 6 = can merge
+  const hasSpawnedNewTiles = postMagnetResolution.hasSpawnedNewTiles;
+  const isActuallyLastMerge = postMagnetResolution.isActuallyLastMerge;
+  const hasMergeOrStackPotential = postMagnetResolution.hasMergeOrStackPotential;
+  console.log('🧲 anyMergePossible check with ALL active tiles (after unlock wait):', {
+    activeTilesCount: activeTilesFinal.length,
+    unlockedTilesCount: unlockedActiveTiles.length,
+    hasMergeOrStackPotential,
+    tiles: activeTilesFinal.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
+  });
   
   console.log('🧲 Pre-checkLevelEnd verification:', {
     isLastMergeFlagSet,
@@ -2497,9 +2295,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 1. If unlocked tiles have merge/stack potential → game continues (don't call checkLevelEnd)
   // 2. If board is clean AND no merge potential → trigger clean board flow (regardless of isActuallyLastMerge)
   // 3. If no merge/stack potential → call checkLevelEnd (will check stuck and show fail screen)
-  if (hasMergeOrStackPotential) {
+  if (postMagnetResolution.action === 'continue' && postMagnetResolution.reason === 'merge-or-stack-potential') {
     // Spawned tiles have potential for merge/stack → game continues
-    if (isLastMergeFlagSet && hasSpawnedNewTiles) {
+    if (postMagnetResolution.shouldClearLastMergeFlag) {
       console.log('🧲 _isLastMerge flag was set, but new tiles with merge potential were spawned - this is NOT last merge anymore, clearing flag');
       // Clear the flag since new tiles with merge potential were spawned
       (dst as any)._isLastMerge = false;
@@ -2518,11 +2316,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // No merge/stack potential - check if board is clean or if we should show fail screen
   // 🔥 BUG FIX 1: Check isBoardClean independently - if board is clean and no merge potential, trigger clean board flow
   // This handles the case where isBoardClean is true but isActuallyLastMerge is false (due to spawnCount > 0)
-  if (isBoardClean && !hasUnlockedTiles) {
+  if (postMagnetResolution.reason === 'clean-merge6-only') {
     console.log('🧲 Board is clean (only merge 6, no other tiles) and no merge potential - calling checkLevelEnd to trigger clean board flow');
-    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-      (window as any).CC.checkLevelEnd();
-    }
+    triggerCentralEndgameCheck('mergePulledTiles_clean_merge6_only');
     return; // Exit early after triggering clean board flow
   }
   
@@ -2531,16 +2327,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // - We have locked tiles but no merge potential (all tiles locked after spawn, stuck state)
   // In both cases, we should call checkLevelEnd to check stuck and show fail screen
   // 🔥 CRITICAL FIX: Also check for single tile that can't merge (e.g., after player merges spawned tiles)
-  if (!hasMergeOrStackPotential) {
+  if (postMagnetResolution.action === 'check-level-end') {
     // No merge/stack potential - check if we have any active tiles (locked or unlocked)
     const hasAnyActiveTiles = activeTilesFinal.length > 0;
     
     if (unlockedActiveTiles.length > 0) {
       // No merge/stack potential but we have unlocked tiles → call checkLevelEnd to check stuck and show fail screen
       console.log('🚨 No merge/stack potential with unlocked tiles - calling checkLevelEnd to check stuck and show fail screen');
-      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-        (window as any).CC.checkLevelEnd();
-      }
+      triggerCentralEndgameCheck('mergePulledTiles_stuck_unlocked_tiles');
       return; // Exit early after triggering fail screen check
     } else if (hasAnyActiveTiles && activeTilesFinal.length >= 1) {
       // 🔥 CRITICAL FIX: Changed from > 1 to >= 1 to catch single tile stuck state
@@ -2548,9 +2342,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       // This handles Bug 2: all tiles remain locked after spawn, no merge potential
       // AND Bug: after player merges spawned tiles (1+1=2), only 1 tile remains that can't merge
       console.log('🚨 No merge/stack potential, tiles are locked OR only 1 tile remains - calling checkLevelEnd to check stuck and show fail screen');
-      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-        (window as any).CC.checkLevelEnd();
-      }
+      triggerCentralEndgameCheck('mergePulledTiles_stuck_active_tiles');
       return; // Exit early after triggering fail screen check
     }
   }

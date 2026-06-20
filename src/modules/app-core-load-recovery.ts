@@ -9,6 +9,30 @@ type LoadRecoveryDeps = {
   devWarn: (...args: any[]) => void;
 };
 
+export type PostLoadRecoveryDecision =
+  | { type: 'recovered_stuck' }
+  | { type: 'run_endgame_check' };
+
+export function createPostLoadRecoveryTileInfos(tiles: any[]) {
+  return tiles
+    .filter(t => t && !t.destroyed)
+    .map(t => ({
+      value: t.value || 0,
+      locked: !!t.locked,
+      destroyed: !!t.destroyed,
+      special: t.special || undefined,
+      gridX: t.gridX,
+      gridY: t.gridY,
+    }));
+}
+
+export function resolvePostLoadRecoveryDecision(recoveryResult: { wasStuck?: boolean } | null | undefined): PostLoadRecoveryDecision {
+  if (recoveryResult?.wasStuck) {
+    return { type: 'recovered_stuck' };
+  }
+  return { type: 'run_endgame_check' };
+}
+
 export function schedulePostLoadRecoveryCheck({
   tiles,
   boardNumber,
@@ -21,16 +45,7 @@ export function schedulePostLoadRecoveryCheck({
 }: LoadRecoveryDeps){
   trackAppTimeout(async () => {
     try {
-      const tileInfos = tiles
-        .filter(t => t && !t.destroyed)
-        .map(t => ({
-          value: t.value || 0,
-          locked: !!t.locked,
-          destroyed: !!t.destroyed,
-          special: t.special || undefined,
-          gridX: t.gridX,
-          gridY: t.gridY,
-        }));
+      const tileInfos = createPostLoadRecoveryTileInfos(tiles);
 
       const currentBoardNum = Number.isFinite(boardNumber) ? boardNumber : 1;
 
@@ -40,7 +55,8 @@ export function schedulePostLoadRecoveryCheck({
         triggerCleanBoardFlow
       );
 
-      if (recoveryResult.wasStuck) {
+      const decision = resolvePostLoadRecoveryDecision(recoveryResult);
+      if (decision.type === 'recovered_stuck') {
         devLog('🚨 BOARD RECOVERY EXECUTED:', recoveryResult);
         return;
       }

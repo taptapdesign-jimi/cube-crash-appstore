@@ -23,6 +23,7 @@ import {
   setComboText
 } from './hud-utils.js';
 import uiManager from './ui-manager.js';
+import { isArcadeHomeRunMode } from './run-mode.js';
 
 // Type definitions
 interface LayoutParams {
@@ -277,6 +278,12 @@ function ensureBoardIndicator(): void {
     `;
     indicator.appendChild(icon);
     document.body.appendChild(indicator);
+  }
+
+  if (indicator) {
+    indicator.style.display = isArcadeHomeRunMode() ? 'flex' : 'none';
+    indicator.style.visibility = isArcadeHomeRunMode() ? 'visible' : 'hidden';
+    indicator.style.opacity = isArcadeHomeRunMode() ? '1' : '0';
   }
 }
 

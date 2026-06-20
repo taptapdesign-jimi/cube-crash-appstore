@@ -519,7 +519,7 @@ function syncBoardIndicatorForHudInit(initialHide = false) {
   const boardNumber = Number.isFinite(stateBoard) && stateBoard > 0 ? stateBoard : 1;
   updateBoardIndicatorValue(boardNumber);
   
-  if (initialHide) {
+  if (initialHide || !isArcadeHomeRunMode()) {
     indicator.style.display = 'none';
     indicator.setAttribute('data-state', 'hidden');
     gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
@@ -547,6 +547,12 @@ function syncBoardIndicatorForHudInit(initialHide = false) {
 function animateBoardIndicatorEnter(duration = 0.8) {
   const indicator = ensureBoardIndicator();
   try { gsap.killTweensOf(indicator); } catch {}
+  if (!isArcadeHomeRunMode()) {
+    indicator.style.display = 'none';
+    indicator.setAttribute('data-state', 'hidden');
+    gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
+    return;
+  }
   // CRITICAL: Make sure element is visible before animating
   if (indicator) {
     indicator.style.display = 'flex'; // Restore display (was set to 'none' on exit)

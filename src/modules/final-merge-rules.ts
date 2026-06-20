@@ -33,7 +33,10 @@ function isStalePlayableWildSpawnDrop(tile: any): boolean {
   if (!isWildLikeTile(tile)) return false;
   if (tile.destroyed === true || tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
-  return tile.eventMode !== 'none' && tile.eventMode !== 'passive';
+  // A visible wild/special die still blocks final-merge completion even while input
+  // is temporarily disabled by an animation gate. Otherwise "regular + one juice"
+  // can falsely complete the board while another visible juice remains.
+  return true;
 }
 
 export function isTilePendingGameplayRemoval(tile: any): boolean {
@@ -55,8 +58,8 @@ function isVisibleEnoughForGameplay(tile: any): boolean {
 export function tileCountsAsFinalMergeActive(tile: any): boolean {
   if (isTilePendingGameplayRemoval(tile)) return false;
   if (!isVisibleEnoughForGameplay(tile)) return false;
-  if (isWildLikeTile(tile)) return true;
   if (tile.locked) return false;
+  if (isWildLikeTile(tile)) return true;
   return (tile.value | 0) > 0;
 }
 
@@ -65,9 +68,8 @@ export function tileBlocksFinalMerge(tile: any, srcTile: any, dstTile: any): boo
   if (isTilePendingGameplayRemoval(tile)) return false;
   if (tile._wildMagnetAffected === true) return false;
 
-  if (isWildLikeTile(tile)) return true;
-
   if (tile.locked) return false;
+  if (isWildLikeTile(tile)) return true;
   if (!isVisibleEnoughForGameplay(tile)) return false;
   return (tile.value | 0) > 0;
 }

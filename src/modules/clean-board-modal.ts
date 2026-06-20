@@ -16,6 +16,7 @@ import { clearPendingCleanBoard } from './board-recovery.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
+import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-origin-state.js';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -613,10 +614,7 @@ export async function showCleanBoardModal({
 
     // 🔥 Continue ONLY when entered via interim card. Detail modal (Play/Continue on already-unlocked board) → Play Again + Exit only.
     const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
-    let isFromInterimBoard =
-      (window as any).__ccFromInterimBoard === true ||
-      (window as any).__ccIsInterimBoard === true ||
-      localStorage.getItem('__ccFromInterimBoard') === 'true';
+    let isFromInterimBoard = isJourneyInterimOriginActive();
     if (typeof isFromInterimBoardOverride === 'boolean') {
       isFromInterimBoard = isFromInterimBoardOverride;
     }
@@ -1546,8 +1544,7 @@ export async function showCleanBoardModal({
                 try { (window as any).CC?.softResetBoardView?.('clean-board-modal'); } catch {}
                 if (typeof (window as any).startNewRunFromJourney === 'function') {
                   // Set Journey flags for proper initialization
-                  (window as any).__ccCameFromJourney = true;
-                  (window as any).__ccIsInterimBoard = true;
+                  markJourneyGameOrigin({ fromInterim: true });
                   await (window as any).startNewRunFromJourney(nextBoardNumber);
                   console.log(`✅ DEV MODE: Started board ${nextBoardNumber} via startNewRunFromJourney`);
                 } else if (typeof (window as any).startLevel === 'function') {

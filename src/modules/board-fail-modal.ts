@@ -5,6 +5,7 @@ import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
+import { clearJourneyDetailReturn, resolveJourneyReturnTarget } from './journey-origin-state.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -425,7 +426,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
     
-    const resolveAndCleanup = (action: string): void => {
+    const resolveAndCleanup = async (action: string): Promise<void> => {
       // 🔥 BUG FIX: Prevent multiple calls (double-click protection)
       if (isResolving) {
         logger.warn('⚠️ resolveAndCleanup already in progress, ignoring duplicate call');
@@ -545,31 +546,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         resetArcadeFailedRunForFreshStart();
         
-        // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
-        // This ensures exitToMenu knows to open detail modal instead of homepage/journey
-        // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
-        const validBoardNumber = Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 16 
-          ? boardNumber 
-          : null;
-        
-        if (validBoardNumber && !isArcadeHomeRunMode()) {
-          (window as any).__ccCameFromDetailModal = true;
-          (window as any).__ccDetailModalBoardId = validBoardNumber;
-          (window as any).__ccCameFromJourney = true;
-          (window as any).__ccCameFromHomepage = false;
-          try {
-            localStorage.setItem('__ccCameFromJourney', 'true');
-            localStorage.removeItem('__ccCameFromHomepage');
-          } catch {}
-          logger.info(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
-          console.log(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
-        } else if (isArcadeHomeRunMode()) {
-          delete (window as any).__ccCameFromDetailModal;
-          delete (window as any).__ccDetailModalBoardId;
+        if (isArcadeHomeRunMode()) {
+          clearJourneyDetailReturn();
           logger.info('🎮 board-fail-modal: Arcade Exit - returning to homepage with no detail modal flags');
         } else {
-          logger.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
-          console.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
+          const returnDecision = await resolveJourneyReturnTarget(boardNumber);
+          logger.info('🎯 board-fail-modal: Journey return target prepared', returnDecision);
+          console.log('🎯 board-fail-modal: Journey return target prepared:', returnDecision);
         }
         
         // 🔥 BUG FIX: Cleanup board/FX immediately to avoid frozen board residue on exit
@@ -638,7 +621,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        resolveAndCleanup('menu');
+        void resolveAndCleanup('menu');
       }
     };
     window.addEventListener('keydown', onKey);
@@ -731,8 +714,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       buttonEventListeners.push({ button: btn, handlers });
     };
 
-    addButtonPressHandling(continueBtn, () => resolveAndCleanup('retry'));
-    addButtonPressHandling(exitBtn, () => resolveAndCleanup('menu'));
+    addButtonPressHandling(continueBtn, () => { void resolveAndCleanup('retry'); });
+    addButtonPressHandling(exitBtn, () => { void resolveAndCleanup('menu'); });
 
     const animatedNodes: HTMLElement[] = [];
     const prep = (el: HTMLElement, dy: number = 0, scale: number = 0.72): void => {

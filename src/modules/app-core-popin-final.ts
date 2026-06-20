@@ -34,6 +34,7 @@ export function handleSweetPopInComplete({
             app.canvas.style.opacity = '1';
             app.canvas.style.transition = 'opacity 0.3s ease';
           }
+          try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
           HUD.playHudDrop({ forceRestart: true });
         }));
         devLog('✅ HUD drop animation triggered after sweetPopIn');
@@ -53,6 +54,7 @@ export function handleSweetPopInComplete({
       hudRoot.alpha = 1;
       hudRoot.visible = true;
       hudRoot._dropped = true;
+      try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
       devLog('✅ HUD final position set after sweetPopIn');
     }
   } catch (e) {

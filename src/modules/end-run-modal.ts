@@ -6,6 +6,7 @@ import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomS
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
+import { resolveJourneyReturnTarget } from './journey-origin-state.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
@@ -357,81 +358,9 @@ function createModal(): HTMLElement {
       }
       
       // 🔥 CRITICAL FIX: Get current board number FIRST (before checking existing flag)
-      // This ensures we always have a valid board number to set flags
       const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-      
-      // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked) BEFORE setting flags
-      // If board is still interim (not unlocked), don't set detail modal flags - will return to Journey screen
-      // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
-      const validBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16 
-        ? currentBoardNumber 
-        : null;
-      
-      if (validBoardNumber) {
-        // 🔥 CRITICAL FIX: Check if board is unlocked (has detail modal) before setting flags
-        // Only set detail modal flags if board is unlocked, otherwise let exitToMenu return to Journey screen
-        try {
-          const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-          const board = journeyBoardsManager.getBoardById(validBoardNumber);
-          
-          if (board && board.unlocked) {
-            // Board has detail modal - set flags to return to detail modal
-            (window as any).__ccCameFromDetailModal = true;
-            (window as any).__ccDetailModalBoardId = validBoardNumber;
-            console.log(`🎯 end-run-modal: Set flags for detail modal return: board ${validBoardNumber} (unlocked, has detail modal)`);
-          } else {
-            // Board is still interim (not unlocked) - ensure Journey flags are set
-            // 🔥 CRITICAL FIX: Explicitly set Journey flags for interim boards to prevent blank screen
-            const cameFromJourney = (window as any).__ccCameFromJourney === true || 
-                                   localStorage.getItem('__ccCameFromJourney') === 'true' ||
-                                   (window as any).__ccFromInterimBoard === true ||
-                                   localStorage.getItem('__ccFromInterimBoard') === 'true';
-            
-            if (!cameFromJourney) {
-              // If Journey flag is not set, set it now (interim boards always come from Journey)
-              (window as any).__ccCameFromJourney = true;
-              localStorage.setItem('__ccCameFromJourney', 'true');
-              console.log(`🗺️ end-run-modal: Set Journey flag for interim board ${validBoardNumber} (no detail modal flags set)`);
-            }
-            
-            // Don't set detail modal flags - exitToMenu will return to Journey screen
-            console.log(`⚠️ end-run-modal: Board ${validBoardNumber} is not unlocked (interim) - will return to Journey screen (no detail modal flags set)`);
-          }
-        } catch (error) {
-          // If check fails, ensure Journey flags are set as fallback
-          const cameFromJourney = (window as any).__ccCameFromJourney === true || 
-                                 localStorage.getItem('__ccCameFromJourney') === 'true' ||
-                                 (window as any).__ccFromInterimBoard === true ||
-                                 localStorage.getItem('__ccFromInterimBoard') === 'true';
-          
-          if (!cameFromJourney) {
-            (window as any).__ccCameFromJourney = true;
-            localStorage.setItem('__ccCameFromJourney', 'true');
-            console.log(`🗺️ end-run-modal: Set Journey flag as fallback (check failed)`);
-          }
-          
-          console.warn(`⚠️ end-run-modal: Failed to check board unlock status for ${validBoardNumber}, not setting detail modal flags:`, error);
-        }
-      } else {
-        // 🔥 CRITICAL FIX: Even if boardNumber is invalid, check if we came from Journey/interim
-        const cameFromJourney = (window as any).__ccCameFromJourney === true || 
-                               localStorage.getItem('__ccCameFromJourney') === 'true' ||
-                               (window as any).__ccFromInterimBoard === true ||
-                               localStorage.getItem('__ccFromInterimBoard') === 'true';
-        
-        if (!cameFromJourney) {
-          (window as any).__ccCameFromJourney = true;
-          localStorage.setItem('__ccCameFromJourney', 'true');
-          console.log(`🗺️ end-run-modal: Set Journey flag as fallback (invalid boardNumber)`);
-        }
-        
-        console.warn(`⚠️ end-run-modal: Invalid boardNumber ${currentBoardNumber} - cannot set detail modal flags!`);
-      }
-      
-      // 🔥 CRITICAL FIX: Let exitToMenu handle detail modal opening (same as board-fail-modal)
-      // Don't open detail modal directly - exitToMenu will handle it based on flags
-      // This ensures consistent behavior and proper flow
-      console.log(`🎯 end-run-modal: Flags checked - exitToMenu will handle opening (detail modal or Journey screen)`);
+      const returnDecision = await resolveJourneyReturnTarget(currentBoardNumber);
+      console.log('🎯 end-run-modal: Journey return target prepared:', returnDecision);
       
       // 🔥 CRITICAL FIX: Kill all GSAP tweens on PIXI objects to prevent _x null errors
       // The issue is that GSAP tweens hold references to PIXI objects that may be destroyed

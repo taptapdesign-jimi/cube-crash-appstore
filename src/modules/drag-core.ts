@@ -14,6 +14,7 @@ import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { canStartTileDrag } from './input-gate.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
+import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -37,6 +38,19 @@ const trackTween = (target: any, vars: any) => animationManager.trackExternalTwe
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 const WILD_SPECIALS = new Set(['wild', 'wild-magnet', 'wild-juice', 'wild-tnt']);
 
+function schedulePostFailedDropEndgameCheck(reason: string): void {
+  const checkLevelEnd = (window as any).CC?.checkLevelEnd;
+  if (typeof checkLevelEnd !== 'function') return;
+  setTimeout(() => {
+    try {
+      checkLevelEnd();
+    } catch (err) {
+      if (isVerboseGameplayLogsEnabled()) {
+        console.warn('⚠️ post failed drop endgame check failed', { reason, err });
+      }
+    }
+  }, 100);
+}
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
 const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
@@ -869,9 +883,8 @@ export function initDrag(cfg) {
       let bestHoverDistance = Infinity;
       
       allTiles.forEach((otherTile: any) => {
-        if (!otherTile || otherTile.destroyed) return;
+        if (!isGameplayTileCandidate(otherTile)) return;
         if (otherTile === t) return; // Skip the magnet itself
-        if (otherTile.locked) return;
         if (otherTile._ccWildSpawnDropping === true) return;
         const otherSpecial = getExistingWildSpecial(otherTile);
         const otherIsWild = !!otherSpecial;
@@ -1220,12 +1233,7 @@ export function initDrag(cfg) {
 
       // 🔥 CRITICAL: Check stuck state after failed drop (no valid target)
       // This catches cases where NO valid merges exist (e.g., 4/3/4/5) and pickDropTarget returns null
-      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-        // Use setTimeout to ensure snapBack animation completes first
-        setTimeout(() => {
-          (window as any).CC.checkLevelEnd();
-        }, 100);
-      }
+      schedulePostFailedDropEndgameCheck('no_target');
       return;
     }
     
@@ -1233,8 +1241,7 @@ export function initDrag(cfg) {
     // Also check if target is actually in tiles list (not a ghost placeholder)
     const isValidTarget = !target.destroyed &&
                           !(target as any)._ccWildSpawnDropping &&
-                          !target.locked && 
-                          (target.value | 0) > 0 &&
+                          isGameplayTileCandidate(target) &&
                           typeof getTiles === 'function' && 
                           getTiles().includes(target); // Make sure target is in actual tiles list
     
@@ -1266,12 +1273,7 @@ export function initDrag(cfg) {
       // 🔥 CRITICAL: Check stuck state after failed merge attempt
       // This catches cases where user tries to merge but can't (e.g., 3+2=5 which is invalid)
       // We need to check if the board is now stuck after this failed attempt
-      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-        // Use setTimeout to ensure snapBack animation completes first
-        setTimeout(() => {
-          (window as any).CC.checkLevelEnd();
-        }, 100);
-      }
+      schedulePostFailedDropEndgameCheck('invalid_merge_target');
       return;
     }
 
@@ -1360,11 +1362,9 @@ export function initDrag(cfg) {
     // CRITICAL: Filter out ghost placeholders and invalid tiles
     // Only include actual tiles with value > 0, not locked, and in tiles list
     const candidates = list.filter(t => {
-      if (!t || t.destroyed) return false;
+      if (!isGameplayTileCandidate(t)) return false;
       if (t === src) return false;
-      if (t.locked) return false;
       if ((t as any)._ccWildSpawnDropping === true) return false;
-      if ((t.value | 0) <= 0) return false;
       // CRITICAL: Make sure tile has gridX and gridY (real tiles have grid positions)
       if (typeof t.gridX !== 'number' || typeof t.gridY !== 'number') return false;
       // CRITICAL: Make sure tile is in tiles list (not a ghost placeholder)
@@ -1386,7 +1386,7 @@ export function initDrag(cfg) {
       const py = Number(pointerGlobal.y);
       const pad = tileSize * 0.10;
       for (const t of candidates) {
-        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (!isDirectWild(src) && !isDirectWild(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
@@ -1416,11 +1416,10 @@ export function initDrag(cfg) {
     let bestRatio = 0;
 
     for (const t of candidates) {
-      if (!t || t.destroyed) continue;
+      if (!isGameplayTileCandidate(t)) continue;
       // CRITICAL: Double-check canDrop before considering this tile
       if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
       // CRITICAL: Make sure tile is still valid before checking intersection
-      if (t.locked || (t.value | 0) <= 0) continue;
       const dstR = getRect(t);
       if (!dstR || dstR.w === 0 || dstR.h === 0) continue;
       
@@ -1472,7 +1471,7 @@ export function initDrag(cfg) {
       let closestDist = Infinity;
       const maxCenterDist = tileSize * 0.98;
       for (const t of candidates) {
-        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (!isWildMagnetTile(src) && !isWildMagnetTile(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
@@ -1498,7 +1497,7 @@ export function initDrag(cfg) {
       let closestDist = Infinity;
       const maxCenterDist = tileSize * 0.72;
       for (const t of candidates) {
-        if (!t || t.destroyed || t.locked || (t.value | 0) <= 0) continue;
+        if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (!isDirectWild(src) && !isDirectWild(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
@@ -1541,8 +1540,8 @@ export function initDrag(cfg) {
     // CRITICAL: Final validation before returning
     if (result) {
       // Make sure result is valid tile
-      if (result.destroyed || result.locked || (result.value | 0) <= 0) {
-        console.warn('⚠️ pickDropTarget: Returning invalid target (destroyed, locked, or value = 0), returning null instead');
+      if (!isGameplayTileCandidate(result)) {
+        console.warn('⚠️ pickDropTarget: Returning non-gameplay target, returning null instead');
         return null;
       }
       if ((result as any)._ccWildSpawnDropping === true) {

@@ -1,5 +1,6 @@
 import { getSpecialDiceVariant, applySpecialDiceVariantToTile } from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
+import { removeTileFully } from './tile-lifecycle-service.ts';
 
 type TileRestoreDeps = {
   gameState: any;
@@ -9,7 +10,7 @@ type TileRestoreDeps = {
   COLS: number;
   board: any;
   makeBoard: { createTile: (args: any) => any; setValue: (tile: any, val: number, p?: number) => void };
-  createEmptyGrid: () => void;
+  createEmptyGrid: () => any[][];
   stopWildIdle?: (tile: any) => void;
   applyWildSkinLocal: (tile: any) => void;
   startWildShimmer: (tile: any) => void;
@@ -21,6 +22,7 @@ type TileRestoreDeps = {
   startTntIdleShake?: (tile: any) => void;
   stopTntIdleShake?: (tile: any) => void;
   startWildJuiceBubbles?: (tile: any) => void;
+  stopWildJuiceBubbles?: (tile: any) => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   STATE: { drag?: any };
   devLog: (...args: any[]) => void;
@@ -53,6 +55,7 @@ export function restoreTilesFromSave({
   startTntIdleShake,
   stopTntIdleShake,
   startWildJuiceBubbles,
+  stopWildJuiceBubbles,
   trackAppTimeout,
   STATE,
   devLog,
@@ -60,9 +63,19 @@ export function restoreTilesFromSave({
   devError,
   setWildJuiceSpawned,
 }: TileRestoreDeps): TileRestoreResult {
-  tiles.forEach(t => {
-    try { stopWildIdle?.(t); } catch {}
-    try { t.destroy?.({ children: true, texture: false, textureSource: false } as any); } catch {}
+  [...tiles].forEach(t => {
+    removeTileFully(t, {
+      board,
+      grid,
+      tiles,
+      stopWildIdle,
+      stopWildShimmer,
+      stopMagnetIdleParticles,
+      stopTntIdleParticles,
+      stopTntIdleShake,
+      stopWildJuiceBubbles,
+      log: devLog,
+    });
   });
   tiles.length = 0;
 
@@ -134,10 +147,18 @@ export function restoreTilesFromSave({
 
     if (gridToUse[savedGridY]?.[savedGridX] && gridToUse[savedGridY][savedGridX] !== tile) {
       const existingTile = gridToUse[savedGridY][savedGridX];
-      const existingIndex = tiles.indexOf(existingTile);
-      if (existingIndex >= 0) tiles.splice(existingIndex, 1);
-      if (existingTile?.parent) existingTile.parent.removeChild(existingTile);
-      existingTile?.destroy?.({ children: true });
+      removeTileFully(existingTile, {
+        board,
+        grid: gridToUse,
+        tiles,
+        stopWildIdle,
+        stopWildShimmer,
+        stopMagnetIdleParticles,
+        stopTntIdleParticles,
+        stopTntIdleShake,
+        stopWildJuiceBubbles,
+        log: devLog,
+      });
     }
     gridToUse[savedGridY] = gridToUse[savedGridY] || [];
     gridToUse[savedGridY][savedGridX] = tile;

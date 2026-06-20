@@ -93,6 +93,7 @@ import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './modules/first-play-tutorial.js';
+import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './modules/journey-origin-state.js';
 
 // Type definitions (ultra-permissive for quick TypeScript fix)
 interface GameState {
@@ -823,13 +824,14 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).continueGameWithSavedState = async () => {
   memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
-  setRunMode(RUN_MODE_JOURNEY);
   const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
-  (window as any).__ccCameFromJourney = true;
-  localStorage.setItem('__ccCameFromJourney', 'true');
+  markJourneyGameOrigin({
+    fromInterim: isJourneyInterimOriginActive(),
+    returningFromInterim: (window as any).__ccReturningFromInterimBoard === true,
+  });
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
@@ -1175,7 +1177,6 @@ async function startNewRun(boardId: number): Promise<void> {
   memoryManager.start();
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
-  setRunMode(RUN_MODE_JOURNEY);
   const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   
   // 🔥 Keep __ccCameFromDetailModal so clean board can show Play Again + Exit (not Continue)
@@ -1184,10 +1185,10 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
-  (window as any).__ccCameFromJourney = true;
-  (window as any).__ccCameFromHomepage = false;
-  localStorage.setItem('__ccCameFromJourney', 'true');
-  localStorage.removeItem('__ccCameFromHomepage');
+  markJourneyGameOrigin({
+    fromInterim: isJourneyInterimOriginActive(),
+    returningFromInterim: (window as any).__ccReturningFromInterimBoard === true,
+  });
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');

@@ -785,6 +785,7 @@ export async function showJourneyNewCardScreen({
           const cardEnterStart = Math.max(0, coverExitDuration - 0.5);
           const cardEnterDuration = rd(0.52);
           const cardImpactStart = cardEnterStart + cardEnterDuration;
+          const cardSecondShineStart = cardImpactStart + rd(0.24);
           const titleStart = cardEnterStart;
           const subtitleStart = cardEnterStart;
           const ctaStart = titleStart + rd(0.2);
@@ -864,12 +865,42 @@ export async function showJourneyNewCardScreen({
                 transformOrigin: '50% 50%',
                 force3D: true,
               });
+              setLightFrameScale(light, 0.95);
               gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+              try {
+                light?.classList.remove('shine-trigger');
+                finalImg?.classList.remove('glow-pulse');
+                void light?.offsetHeight;
+                void finalImg?.offsetHeight;
+                light?.classList.add('shine-trigger');
+                scheduleShineTimeout(() => {
+                  light?.classList.remove('shine-trigger');
+                }, 1700);
+              } catch {}
               playRevealSmoke();
               playScreenShake(22, 0.42);
               triggerHaptic('medium');
-              startFinalCardShineLoop();
-            }, undefined, cardImpactStart);
+            }, undefined, cardImpactStart)
+            .call(() => {
+              if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
+              gsap.set(finalImg, {
+                opacity: 1,
+                visibility: 'visible',
+                y: -4,
+                scale: 0.95,
+                rotate: 0,
+                transformOrigin: '50% 50%',
+                force3D: true,
+              });
+              setLightFrameScale(light, 0.95);
+              gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+              triggerJourneyNewCardShine(light, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
+              triggerHaptic('light');
+              scheduleShineTimeout(() => {
+                if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
+                startFinalCardShineLoop();
+              }, 1850);
+            }, undefined, cardSecondShineStart);
         });
 
         if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
@@ -979,15 +1010,30 @@ export async function showJourneyNewCardScreen({
             frameImg.src = getCrumbleFramePath(9);
             gsap.killTweensOf(frameImg);
             setLightFrameScale(light, 1.2);
-            gsap.set(light, { scale: 1, transformOrigin: '50% 50%', force3D: true });
+            gsap.set(light, { opacity: 0.95, scale: 1, transformOrigin: '50% 50%', force3D: true });
             gsap.timeline()
-              .set(frameImg, { transformOrigin: '50% 50%', force3D: true })
-              .to(frameImg, { scale: 1.28, duration: 0.1, ease: 'back.out(2)' })
-              .to(frameImg, { scale: 1.2, duration: 0.16, ease: 'sine.out' })
+              .set(frameImg, { filter: 'brightness(1)', transformOrigin: '50% 50%', force3D: true })
               .call(() => {
-                playScreenShake(9, 0.34);
+                try {
+                  setLightMask(light, getCrumbleFramePath(9));
+                  light?.classList.remove('shine-trigger');
+                  frameImg.classList.remove('glow-pulse');
+                  void light?.offsetHeight;
+                  void frameImg.offsetHeight;
+                  light?.classList.add('shine-trigger');
+                  frameImg.classList.add('glow-pulse');
+                  scheduleShineTimeout(() => {
+                    light?.classList.remove('shine-trigger');
+                    frameImg.classList.remove('glow-pulse');
+                    gsap.set(light, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
+                  }, 1700);
+                } catch {}
+                playScreenShake(16, 0.38);
                 triggerHaptic('medium');
-              })
+              }, undefined, 0)
+              .to(frameImg, { filter: 'brightness(1.32) saturate(1.08)', scale: 1.34, duration: 0.08, ease: 'power2.out' }, 0)
+              .to(frameImg, { filter: 'brightness(1.04) saturate(1.02)', scale: 1.2, duration: 0.18, ease: 'back.out(2.1)' })
+              .to(frameImg, { filter: 'brightness(1)', duration: 0.16, ease: 'sine.out' }, '<0.04')
               .call(startSprite9ShineLoop);
           }
         })().catch(() => {});

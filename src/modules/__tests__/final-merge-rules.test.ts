@@ -68,8 +68,8 @@ test('visual wild flags are treated as wild-like even without special name', () 
   expect(isWildLikeTile(makeTile({ isWildFace: true }))).toBe(true);
 });
 
-test('final merge active rules include locked wilds but exclude locked ghosts', () => {
-  expect(tileCountsAsFinalMergeActive(makeTile({ special: 'wild-cubero', locked: true }))).toBe(true);
+test('final merge active rules ignore locked wild placeholders and locked ghosts', () => {
+  expect(tileCountsAsFinalMergeActive(makeTile({ special: 'wild-cubero', locked: true }))).toBe(false);
   expect(tileCountsAsFinalMergeActive(makeTile({ value: 0, locked: true }))).toBe(false);
   expect(tileCountsAsFinalMergeActive(makeTile({ value: 4, locked: false }))).toBe(true);
 });
@@ -79,7 +79,7 @@ test('final merge blocker rules ignore src/dst, pending removal, ghosts, and mag
   const dst = makeTile({ value: 2 });
 
   expect(tileBlocksFinalMerge(src, src, dst)).toBe(false);
-  expect(tileBlocksFinalMerge(makeTile({ special: 'wild-cubero', locked: true }), src, dst)).toBe(true);
+  expect(tileBlocksFinalMerge(makeTile({ special: 'wild-cubero', locked: true }), src, dst)).toBe(false);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, locked: true }), src, dst)).toBe(false);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, _wildMagnetAffected: true }), src, dst)).toBe(false);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, _pendingRemoval: true }), src, dst)).toBe(false);
@@ -92,6 +92,13 @@ test('pending gameplay removal helper covers cleanup pipeline flags', () => {
     special: 'wild-tnt',
     _ccWildSpawnDropping: true,
     eventMode: 'static',
+    visible: true,
+    alpha: 1,
+  }))).toBe(false);
+  expect(isTilePendingGameplayRemoval(makeTile({
+    special: 'wild-juice',
+    _ccWildSpawnDropping: true,
+    eventMode: 'none',
     visible: true,
     alpha: 1,
   }))).toBe(false);
@@ -144,8 +151,8 @@ test('final merge tile-set helper returns active tiles and blockers from one sou
     src,
     dst,
   })).toEqual({
-    activeTilesBeforeMerge: [src, dst, lockedWild],
-    finalMergeBlockersBefore: [lockedWild],
+    activeTilesBeforeMerge: [src, dst],
+    finalMergeBlockersBefore: [],
   });
 });
 
@@ -196,5 +203,34 @@ test('other active gameplay blocker prevents final regular merge', () => {
     dst,
     effSum: 6,
     finalMergeBlockersBefore: [blocker],
+  }).isFinalMerge).toBe(false);
+});
+
+test('visible second wild blocks final wild merge even while input is disabled', () => {
+  const src = makeTile({ value: 5 });
+  const dst = makeTile({ value: 0, special: 'wild-juice' });
+  const otherJuice = makeTile({
+    value: 0,
+    special: 'wild-juice',
+    _ccWildSpawnDropping: true,
+    eventMode: 'none',
+    visible: true,
+    alpha: 1,
+  });
+
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst, otherJuice],
+    src,
+    dst,
+  });
+
+  expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst, otherJuice]);
+  expect(tileSets.finalMergeBlockersBefore).toEqual([otherJuice]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
   }).isFinalMerge).toBe(false);
 });

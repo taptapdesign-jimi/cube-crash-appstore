@@ -15,7 +15,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { clearArcadeSaveState, getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
-import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
+import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
 
@@ -698,25 +698,7 @@ class JourneyBoardsManager {
   }
 
   private setJourneyOriginFlags(opts: { fromInterim: boolean; returningFromInterim?: boolean } ): void {
-    setRunMode(RUN_MODE_JOURNEY);
-    (window as any).__ccCameFromJourney = true;
-    (window as any).__ccCameFromHomepage = false;
-    localStorage.setItem('__ccCameFromJourney', 'true');
-    localStorage.removeItem('__ccCameFromHomepage');
-
-    if (opts.fromInterim) {
-      (window as any).__ccFromInterimBoard = true;
-      (window as any).__ccIsInterimBoard = true;
-      try { localStorage.setItem('__ccFromInterimBoard', 'true'); } catch {}
-      if (opts.returningFromInterim) {
-        (window as any).__ccReturningFromInterimBoard = true;
-        try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
-      }
-    } else {
-      (window as any).__ccFromInterimBoard = false;
-      (window as any).__ccIsInterimBoard = false;
-      try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
-    }
+    markJourneyGameOrigin(opts);
   }
 
   private async exitDetailModalAndHideCollectibles(
@@ -4197,9 +4179,7 @@ class JourneyBoardsManager {
     // 🔥 CRITICAL: Clear interim flags when opening REGULAR (non-interim) board
     // Prevents stale state from interim session when switching back to regular cards → crash on exit
     if (!board.interim) {
-      (window as any).__ccFromInterimBoard = false;
-      (window as any).__ccIsInterimBoard = false;
-      try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+      clearJourneyInterimOrigin();
       logger.info('🧹 Cleared interim flags when opening regular board detail modal');
     }
     
@@ -5004,11 +4984,11 @@ class JourneyBoardsManager {
           await this.exitDetailModalAndHideCollectibles(detailModal, 'play button', { hideJourney: true });
 
           // Mark that we came from detail modal (for return on exit)
-          (window as any).__ccCameFromDetailModal = true;
-          (window as any).__ccDetailModalBoardId = boardIdForPlay;
-          // 🔥 CRITICAL FIX: Also mark as coming from Journey so exitToMenu returns to Journey slide (slide 1)
-          // This ensures proper navigation when exiting game - returns to Journey with enter animation
-          this.setJourneyOriginFlags({ fromInterim: false });
+          markJourneyGameOrigin({
+            fromInterim: false,
+            fromDetailModal: true,
+            detailBoardId: boardIdForPlay,
+          });
           console.log(`🎯 Marked as coming from detail modal AND Journey (REGULAR BOARD, not interim) for board ${boardIdForPlay}`);
 
           // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)

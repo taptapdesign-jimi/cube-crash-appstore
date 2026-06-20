@@ -36,6 +36,7 @@ export function handleHudDropOnHalf({
             app.canvas.style.opacity = '1';
             app.canvas.style.transition = 'opacity 0.3s ease';
           }
+          try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
           HUD.playHudDrop({ forceRestart: true });
         }));
         devLog('✅ HUD drop animation triggered in sweetPopIn onHalf');
@@ -59,6 +60,7 @@ export function handleHudDropOnHalf({
           hudRoot.alpha = 1;
           hudRoot.visible = true;
           hudRoot._dropped = true;
+          try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
           devLog('✅ HUD positioned and made visible in sweetPopIn onHalf');
         }
       } catch (e) {

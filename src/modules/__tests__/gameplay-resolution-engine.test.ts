@@ -243,7 +243,36 @@ test('journey final wild merge resolves to journey board complete', () => {
   });
 });
 
-test('locked future wild tile blocks final merge completion as gameplay continuation', () => {
+test('journey wild merge does not complete while another visible wild remains disabled by animation gate', () => {
+  const src = makeTile({ value: 5 });
+  const dst = makeTile({ value: 0, special: 'wild-juice' });
+  const otherJuice = makeTile({
+    value: 0,
+    special: 'wild-juice',
+    _ccWildSpawnDropping: true,
+    eventMode: 'none',
+    visible: true,
+    alpha: 1,
+  });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst, otherJuice],
+    moves: 4,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'before-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(false);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'continue',
+    reason: 'wild_continuation_available',
+  });
+});
+
+test('locked future wild placeholder does not block final merge completion', () => {
   const src = makeTile({ value: 4 });
   const dst = makeTile({ value: 2 });
   const lockedSpecial = makeTile({ value: 0, special: 'wild-cubero', locked: true });
@@ -259,10 +288,11 @@ test('locked future wild tile blocks final merge completion as gameplay continua
   });
 
   expect(resolveGameplayState(snapshot)).toEqual({
-    type: 'continue',
-    reason: 'wild_continuation_available',
+    type: 'complete',
+    target: 'arcade-stage',
+    reason: 'final_regular_merge6',
   });
-  expect(snapshot.finalMerge.isFinalMerge).toBe(false);
+  expect(snapshot.finalMerge.isFinalMerge).toBe(true);
 });
 
 test('locked ghost placeholder does not block final merge completion', () => {

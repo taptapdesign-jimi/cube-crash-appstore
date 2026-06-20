@@ -1,3 +1,5 @@
+import { isArcadeHomeRunMode } from './run-mode.js';
+
 type LoadHudDeps = {
   app?: { canvas?: HTMLCanvasElement | null } | null;
   hud?: any;
@@ -45,6 +47,7 @@ export function ensureHudAfterLoad({
             app.canvas.style.transition = 'opacity 0.3s ease';
             devLog('✅ Canvas shown - HUD drop starting');
           }
+          try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
           HUD.playHudDrop({ forceRestart: true });
           setHudDropPending(false);
           devLog('✅ HUD drop started (next paint, forceRestart)');
@@ -59,6 +62,7 @@ export function ensureHudAfterLoad({
         hudRootHere.alpha = 1;
         hudRootHere.visible = true;
         hudRootHere._dropped = true;
+        try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
         devLog('✅ HUD positioned and made visible');
       }
     }
@@ -78,6 +82,7 @@ export function ensureHudAfterLoad({
               app.canvas.style.opacity = '1';
               app.canvas.style.transition = 'opacity 0.3s ease';
             }
+            try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
             HUD.playHudDrop({ forceRestart: true });
           }));
           devLog('✅ HUD drop animation scheduled after recreation (next paint, forceRestart)');
@@ -104,19 +109,27 @@ export function ensureHudAfterLoad({
       devWarn('⚠️ Failed to access HUD_ROOT:', e);
     }
     
-    // Ensure board indicator is visible
+    // Ensure board indicator is visible only in Arcade. Journey uses the
+    // illustrated bottom decor instead of the rounded Stage/Board label.
     try {
       const boardIndicator =
         document.getElementById('hud-board-indicator') ||
         document.getElementById('hud-board');
       if (boardIndicator) {
-        boardIndicator.style.display = 'flex';
-        boardIndicator.style.visibility = 'visible';
-        boardIndicator.style.opacity = '1';
-        boardIndicator.style.zIndex = '2500';
-        boardIndicator.style.pointerEvents = 'none';
-        boardIndicator.setAttribute('data-state', 'visible');
-        devLog('✅ Board indicator made visible');
+        if (isArcadeHomeRunMode()) {
+          boardIndicator.style.display = 'flex';
+          boardIndicator.style.visibility = 'visible';
+          boardIndicator.style.opacity = '1';
+          boardIndicator.style.zIndex = '2500';
+          boardIndicator.style.pointerEvents = 'none';
+          boardIndicator.setAttribute('data-state', 'visible');
+          devLog('✅ Board indicator made visible');
+        } else {
+          boardIndicator.style.display = 'none';
+          boardIndicator.style.opacity = '0';
+          boardIndicator.setAttribute('data-state', 'hidden');
+          devLog('✅ Board indicator hidden for Journey load');
+        }
       }
     } catch (e) {
       devWarn('⚠️ Failed to show board indicator:', e);

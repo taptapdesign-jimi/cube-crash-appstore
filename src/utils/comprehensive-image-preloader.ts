@@ -203,7 +203,12 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/board transition/oblak mali ljevo.png',
   './assets/board transition/oblak veliki ljevo dole.png',
   // Board transition bottom scene layers
-  './assets/journey assets/hill.png',
+  './assets/journey assets/forest/mountain.png',
+  './assets/journey assets/forest/mountain@2x.png',
+  './assets/journey assets/forest/hill2.png',
+  './assets/journey assets/forest/hill2@2x.png',
+  './assets/journey assets/forest/hill1.png',
+  './assets/journey assets/forest/hill1@2x.png',
   './assets/journey assets/pine1.png',
   './assets/journey assets/pine2.png',
   './assets/journey assets/pine3.png',

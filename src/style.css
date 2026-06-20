@@ -91,8 +91,8 @@ body{
 }
 
 .slider-slide[data-slide="1"] .hero-image {
-  width: 115% !important;
-  height: 115% !important;
+  width: 120% !important;
+  height: 120% !important;
   max-width: none !important;
 }
 
@@ -683,7 +683,7 @@ body{
   transition:
     bottom 620ms cubic-bezier(0.18, 1.28, 0.32, 1),
     opacity 260ms ease-out;
-  z-index: 0;
+  z-index: 2;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
