@@ -449,10 +449,11 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       if (isGhostOrLocked) {
         try { (window as any).gsap?.killTweensOf(tile, 'x,y'); } catch {}
       }
-      // Background ghosts are Graphics drawn at absolute local coords, so plain
-      // scale animates toward board origin. Re-anchor transform to their own center
-      // before popout so they collapse in place like regular tiles.
-      if (isBackgroundGhost) {
+      // Background ghost Graphics fallback is drawn at absolute local coords, so
+      // plain scale animates toward board origin. Re-anchor only that fallback.
+      // Sprite ghosts already use anchor=0.5 and have a correct world position;
+      // re-anchoring them from local bounds would set position to 0,0.
+      if (isBackgroundGhost && !(tile as any).texture) {
         try {
           const b = tile.getLocalBounds?.();
           if (b && Number.isFinite(b.width) && Number.isFinite(b.height) && b.width > 0 && b.height > 0) {

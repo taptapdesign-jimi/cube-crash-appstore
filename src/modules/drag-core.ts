@@ -1379,7 +1379,8 @@ export function initDrag(cfg) {
     if (!srcR || srcR.w === 0 || srcR.h === 0) return null;
 
     const isDirectWild = (tile) => isDirectWildTile(tile);
-    const pointerDropAllowed = pointerGlobal && src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
+    const isSourceDirectWild = isDirectWild(src);
+    const pointerDropAllowed = pointerGlobal && src.special !== 'wild-magnet' && isSourceDirectWild;
     if (pointerDropAllowed) {
       let pointerBest = null;
       let pointerBestDist = Infinity;
@@ -1389,7 +1390,6 @@ export function initDrag(cfg) {
       for (const t of candidates) {
         if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
-        if (!isDirectWild(src) && !isDirectWild(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
         const r = getRect(t);
         if (!r || r.w === 0 || r.h === 0) continue;
@@ -1466,11 +1466,11 @@ export function initDrag(cfg) {
     // drop target aligned with that visual feedback so a highlighted tile cannot
     // snap back solely because PIXI overlap/bounds were too strict on pointerup.
     const isWildMagnetTile = (tile) => tile?.special === 'wild-magnet';
-    const magnetCenterFallbackAllowed = isWildMagnetTile(src) || candidates.some(isWildMagnetTile);
+    const magnetCenterFallbackAllowed = isWildMagnetTile(src);
     if (allowCenterFallback && magnetCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
-      const maxCenterDist = tileSize * 0.98;
+      const maxCenterDist = tileSize * 0.72;
       for (const t of candidates) {
         if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
@@ -1492,15 +1492,14 @@ export function initDrag(cfg) {
     // wild -> regular and regular -> wild. PIXI bounds can be stale after reparent/drop
     // or during scale tweens, so use board-space centers as a stable fallback whenever
     // overlap is missing or below threshold.
-    const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && (isDirectWild(src) || candidates.some(isDirectWild));
+    const wildCenterFallbackAllowed = src.special !== 'wild-magnet' && isSourceDirectWild;
     if (allowCenterFallback && wildCenterFallbackAllowed && (!best || bestRatio < th)) {
       let closest = null;
       let closestDist = Infinity;
-      const maxCenterDist = tileSize * 0.72;
+      const maxCenterDist = tileSize * 0.55;
       for (const t of candidates) {
         if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
-        if (!isDirectWild(src) && !isDirectWild(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
         const dist = Math.hypot((src.x ?? 0) - (t.x ?? 0), (src.y ?? 0) - (t.y ?? 0));
         if (dist < closestDist && dist <= maxCenterDist) {

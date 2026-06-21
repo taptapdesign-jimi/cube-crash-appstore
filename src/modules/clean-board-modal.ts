@@ -703,15 +703,14 @@ export async function showCleanBoardModal({
       triggerHapticImpactSafe('medium');
     };
 
-    const buttonExitDurationMs = 650; // CSS animate-exit duration
+    const buttonExitDurationMs = 650; // Keep downstream timing compatible with the CTA pop-out.
 
     // Animate button out (scale to 0 exit)
     const animateButtonExit = (button: HTMLButtonElement) => {
-      // 🎯 HOMEPAGE SLIDER APPROACH: Pure CSS, 0 inline styles, 0 GSAP
       button.disabled = true;
       button.blur(); // Remove focus to prevent :active/:focus states
+      button.setAttribute('data-clean-board-exiting', 'true');
       
-      // Step 1: Remove ALL animation classes (clean slate)
       button.classList.remove(
         'clean-board-button-hidden',
         'clean-board-button-visible',
@@ -719,18 +718,30 @@ export async function showCleanBoardModal({
         'animate-exit',
         'animate-enter'
       );
-      
-      // Step 2: Clear ALL inline styles (no GSAP, no JavaScript styles)
-      button.style.cssText = '';
-      
-      // Step 3: Force reflow (browser must apply clean state)
-      void button.offsetHeight;
-      
-      // Step 4: Add exit class - CSS does 100% of the work!
-      // This is IDENTICAL to homepage slider CTA button exit
-      button.classList.add('clean-board-button-exit', 'animate-exit');
-      
-      console.log('🚀 Button exit animation started (pure CSS, homepage slider style):', button.textContent);
+
+      button.style.removeProperty('transition');
+      button.style.removeProperty('-webkit-transition');
+      gsap.killTweensOf(button);
+      gsap.set(button, {
+        opacity: 1,
+        visibility: 'visible',
+        y: 0,
+        scale: 1,
+        transformOrigin: '50% 50%',
+        force3D: true,
+      });
+      trackTween(button, {
+        scale: 0,
+        opacity: 0,
+        y: 20,
+        duration: 0.22,
+        ease: 'back.in(1.7)',
+        overwrite: 'auto',
+        force3D: true,
+        onComplete: () => {
+          button.style.visibility = 'hidden';
+        },
+      });
     };
 
 

@@ -132,6 +132,30 @@ function isMagnetContinuationCandidate(tile: any): boolean {
   return true;
 }
 
+function getNonFinalMerge6GuardMsRemaining(now: number = Date.now()): number {
+  try {
+    const guardUntil = Number((window as any).__ccNonFinalMerge6GuardUntil || 0);
+    if (Number.isFinite(guardUntil) && guardUntil > now) {
+      return guardUntil - now;
+    }
+  } catch {}
+  return 0;
+}
+
+function isExplicitFinalMerge6Tile(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  return tile._isLastMerge === true || tile._ccFinalMergeAllowedByResolver === true;
+}
+
+function isExplicitNonFinalMerge6Tile(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (tile._ccNonFinalMerge6 === true || tile._ccFinalMergeAllowedByResolver === false) return true;
+  const blockerCount = Number(tile._ccFinalMergeBlockerCount || 0);
+  if (Number.isFinite(blockerCount) && blockerCount > 0) return true;
+  const activeSnapshotCount = Number(tile._ccFinalMergeActiveSnapshotCount || 0);
+  return Number.isFinite(activeSnapshotCount) && activeSnapshotCount > 2;
+}
+
 /**
  * 🔥 EXPORTED: Check if tile is active (can be merged/moved)
  * Used by app-core.ts and other modules for consistent tile filtering
@@ -706,6 +730,23 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   // When only merge 6 stack remains (1 visible tile, value 6), show clean board modal, not fail screen.
   const activeTilesForClean = getActiveTiles(tiles);
   if (activeTilesForClean.length === 1 && (activeTilesForClean[0].value | 0) === MAX_MERGE_VALUE) {
+    const onlyMerge6 = activeTilesForClean[0] as any;
+    const guardMsRemaining = getNonFinalMerge6GuardMsRemaining(now);
+    if (!isExplicitFinalMerge6Tile(onlyMerge6) && (guardMsRemaining > 0 || isExplicitNonFinalMerge6Tile(onlyMerge6))) {
+      console.log('🛡️ EndGameChecker: only_merge6_remains blocked by non-final merge guard', {
+        guardMsRemaining,
+        nonFinal: onlyMerge6?._ccNonFinalMerge6 === true,
+        finalAllowed: onlyMerge6?._ccFinalMergeAllowedByResolver,
+        blockerCount: onlyMerge6?._ccFinalMergeBlockerCount,
+        activeSnapshotCount: onlyMerge6?._ccFinalMergeActiveSnapshotCount,
+        gridX: onlyMerge6?.gridX,
+        gridY: onlyMerge6?.gridY,
+      });
+      lastCheckResult = { type: 'continue', reason: 'non_final_merge6_guard' };
+      lastCheckTime = now;
+      lastCheckContextHash = contextHash;
+      return lastCheckResult;
+    }
     console.log('🚨🚨🚨 EndGameChecker: Only merge 6 remains - CLEAN BOARD (last merge completed)');
     lastCheckResult = { type: 'clean', reason: 'only_merge6_remains' };
     lastCheckTime = now;

@@ -42,3 +42,29 @@ test('does not clear final merge flag when multiple active tiles are still visib
   })).toBe(true);
   expect((merge6 as any)._isLastMerge).toBe(true);
 });
+
+test('pending-removal residue does not keep preload alive after final merge', () => {
+  expect(hasLastMergeTile({
+    tiles: [
+      makeTile({ value: 6 }),
+      makeTile({ value: 2, _pendingRemoval: true }),
+    ],
+    devLog,
+  })).toBe(true);
+});
+
+test('visible locked special dice prevents false last-merge preload block', () => {
+  expect(hasLastMergeTile({
+    tiles: [
+      makeTile({ value: 6 }),
+      makeTile({
+        value: 0,
+        special: 'wild-tnt',
+        locked: true,
+        eventMode: 'none',
+        alpha: 1,
+      }),
+    ],
+    devLog,
+  })).toBe(false);
+});

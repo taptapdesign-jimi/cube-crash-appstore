@@ -597,15 +597,6 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
   }
 }
 
-function isWildLikeGameplayTile(tile: any): boolean {
-  return isWildLikeTile(tile);
-}
-
-function tileHasGameplayValueOrWild(tile: any): boolean {
-  if (!tile || tile.destroyed) return false;
-  return (tile.value | 0) > 0 || isWildLikeTile(tile);
-}
-
 function collectBoardGameplayTiles(): Tile[] {
   const seen = new Set<any>();
   const result: Tile[] = [];
@@ -4025,13 +4016,18 @@ function setFinalMergeVisualSuppression(active: boolean, opts: { preserveGhosts?
 }
 
 function hideTerminalLockedArtifacts(reason: string = 'unknown') {
-  if (!isArcadeHomeRunMode() && (window as any).__ccFinalResidualPopOutPrepared !== true) {
+  if ((window as any).__ccFinalResidualPopOutPrepared === true) {
+    try { (window as any).__ccForceHideGhosts = true; } catch {}
+    try { setFinalGhostLayerLockedHidden(true, `terminal-after-popout:${reason}`); } catch {}
+    try { hideFinalGhostLayerAfterPopOut(`terminal-after-popout:${reason}`); } catch {}
+  } else if (!isArcadeHomeRunMode()) {
     try { holdFinalResidualArtifactsVisible(`journey-terminal-hold:${reason}`); } catch {}
     return;
+  } else {
+    try {
+      setFinalMergeVisualSuppression(true);
+    } catch {}
   }
-  try {
-    setFinalMergeVisualSuppression(true);
-  } catch {}
   try {
     let hidden = 0;
     for (const t of tiles) {
@@ -4441,6 +4437,12 @@ window.hideGhostPlaceholders = hideGhostPlaceholders;
 function drawBoardBG(mode = 'active+empty'){
   if (!backgroundLayer) {
     initializeBackgroundLayer();
+  }
+
+  if (mode === 'none') {
+    try { hideGhostPlaceholders(); } catch {}
+    try { if (backgroundLayer) backgroundLayer.visible = false; } catch {}
+    return;
   }
   
   // 🔥 v70 STYLE: Update ghost visibility based on grid state
@@ -9162,10 +9164,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // If magnet or wild exists on board, it's NOT a last merge - they can merge with merge6
           // This prevents premature clean board when: wild + tile + magnet → wild merge → magnet + merge6 (before spawn)
           const activeTilesBeforeCheck = tiles.filter((t: any) => {
-            if (!t || t.destroyed || t.locked) return false;
-            const value = (t.value | 0);
-            const special = t.special;
-            return tileHasGameplayValueOrWild(t);
+            return tileIsActive(t as any);
           });
           
           const hasMagnetBeforeCheck = activeTilesBeforeCheck.some((t: any) => isSpecialDiceMagnetLikeTile(t));
@@ -10217,8 +10216,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               return tiles.some((t: any) => {
                 if (!t || t.destroyed) return false;
                 if ((t.gridX | 0) !== (spawnC | 0) || (t.gridY | 0) !== (spawnR | 0)) return false;
-                const value = (t.value | 0);
-                return tileHasGameplayValueOrWild(t);
+                return tileIsActive(t as any);
               });
             };
             if (!hasActiveTileAtMergeCell()) {
@@ -10873,7 +10871,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         // 🔒 SAFETY: If only a plain merge-6 remains, remove it to prevent a stuck board
         try {
-          const activeTiles = tiles.filter((t: any) => t && !t.destroyed && (t.value | 0) > 0);
+          const activeTiles = tiles.filter((t: any) => tileIsActive(t as any));
           if (activeTiles.length === 1) {
             const onlyTile = activeTiles[0];
             const isPlainMerge6 = (onlyTile.value | 0) === 6 && !onlyTile.special;
@@ -11407,7 +11405,7 @@ function checkLevelEnd(){
       const hasSpawnedAtMandatoryCell = tiles.some((t: any) => {
         if (!t || t.destroyed) return false;
         if ((t.gridX | 0) !== (c | 0) || (t.gridY | 0) !== (r | 0)) return false;
-        return tileHasGameplayValueOrWild(t);
+        return tileIsActive(t as any);
       });
       if (hasSpawnedAtMandatoryCell) {
         pendingMandatoryMergeCellSpawn = null;
@@ -11547,7 +11545,7 @@ function checkLevelEnd(){
 
     const buildEndgameBoardSignature = () => {
       const active = tiles
-        .filter((t: any) => tileHasGameplayValueOrWild(t))
+        .filter((t: any) => tileIsActive(t as any))
         .map((t: any) => ({
           v: t.value | 0,
           s: t.special || null,
@@ -11706,9 +11704,9 @@ function checkLevelEnd(){
       // 🔥 CRITICAL FIX: Check if there are unlocked mergeable tiles on board
       // If there are unlocked tiles (other than merge 6), it's NOT a clean board - user can still merge them
       const unlockedActiveTiles = tiles.filter((t: any) => {
-        if (!t || t.destroyed) return false;
+        if (!tileIsActive(t as any)) return false;
         if (t.locked) return false; // Only check unlocked tiles
-        return tileHasGameplayValueOrWild(t);
+        return true;
       });
       
       // Check if there are more than 1 unlocked tile (merge 6 + other tiles = can merge)
@@ -11733,11 +11731,7 @@ function checkLevelEnd(){
       
       // 🔥 CRITICAL FIX: Check if there's a magnet on board that can be used for merge
       // If magnet exists, it's NOT a clean board - user can still merge magnet with merge 6
-      const activeTiles = tiles.filter((t: any) => {
-        if (!t || t.destroyed) return false;
-        if (t.locked && (t.value|0) <= 0) return false; // Ghost placeholder
-        return tileHasGameplayValueOrWild(t);
-      });
+      const activeTiles = tiles.filter((t: any) => tileIsActive(t as any));
       const hasMagnet = activeTiles.some((t: any) => isSpecialDiceMagnetLikeTile(t));
       
       // 🔥 USER REQUEST: If unlocked tiles have merge/stack potential → game continues
@@ -11840,12 +11834,8 @@ function checkLevelEnd(){
       });
       if (lingeringRegularMerge6) {
         const activeExcludingMerge6 = tiles.filter((t: any) => {
-          if (!t || t === lingeringRegularMerge6 || t.destroyed) return false;
-          if (t.locked) return false;
-          const value = (t.value | 0);
-          const special = t.special;
-          const isWild = isWildLikeSpecial(special);
-          return value > 0 || isWild;
+          if (!t || t === lingeringRegularMerge6) return false;
+          return tileIsActive(t as any);
         });
 
         // Only do this in "board continues" shape (other active tiles exist).
@@ -11902,7 +11892,7 @@ function checkLevelEnd(){
 
       const buildBoardStabilitySignature = () => {
         const active = tiles
-          .filter((t: any) => tileHasGameplayValueOrWild(t))
+          .filter((t: any) => tileIsActive(t as any))
           .map((t: any) => ({
             v: t.value | 0,
             s: t.special || null,
@@ -13494,11 +13484,7 @@ async function loadGameState(overrideBoardNumber?: number) {
     // 🔥 CRITICAL: Check if tiles were actually loaded BEFORE starting pop-in animation
     // Fail fast so we don't animate then rebuild; also ensures we don't treat valid restore as empty
     lastSavedState = localStorage.getItem(isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardNumber));
-    const activeCount = tiles.filter(t => {
-      if (!t || t.destroyed) return false;
-      if (isWildLikeSpecial(t.special)) return true;
-      return !t.locked && (t.value | 0) > 0;
-    }).length;
+    const activeCount = tiles.filter((t: any) => tileIsActive(t as any)).length;
 	    const emptyLoadResult = handleEmptyLoadState({
 	      tiles,
 	      boardNumber,

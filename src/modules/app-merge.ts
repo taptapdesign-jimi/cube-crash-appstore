@@ -18,7 +18,7 @@ import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
-import { isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
+import { isSpecialDiceDirectWildLikeTile, isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
 import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
@@ -507,7 +507,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Check if any pulled tile is a wild star
   for (const tile of validTiles) {
     if (!tile || tile.destroyed) continue;
-    if (tile.special === 'wild' && (tile as any)?._wildStarSystem) {
+    if (isSpecialDiceStarLikeTile(tile) && (tile as any)?._wildStarSystem) {
       wildStarTileForAnimation = tile;
       const wildStarSystem = (tile as any)?._wildStarSystem;
       if (wildStarSystem && wildStarSystem.stars && wildStarSystem.stars.length > 0) {
@@ -1303,8 +1303,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
 
     // Keep the merge-6 tile visible. The centralized final handoff owns SWOOP wait,
     // residual tile/ghost pop-out, HUD/bottom exit, and cleanup.
-    if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6)) {
-      console.log('✅ Clean board flow completed for magnet final merge-6');
+    if (triggerCentralEndgameCheck('magnet_final_merge6')) {
+      console.log('✅ Magnet final merge-6 delegated to central endgame check');
+    } else if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6)) {
+      console.log('✅ Clean board flow completed for magnet final merge-6 fallback');
     } else {
       console.error('❌ triggerCleanBoardFlow not available - final magnet merge cannot complete centrally');
     }

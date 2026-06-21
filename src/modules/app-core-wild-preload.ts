@@ -1,4 +1,4 @@
-import { isWildLikeTile } from './final-merge-rules.ts';
+import { tileIsActive } from './endgame-checker.ts';
 
 type WildPreloadDeps = {
   tiles: any[];
@@ -9,12 +9,7 @@ type WildPreloadDeps = {
  * Active = visible, not destroyed, has value > 0 or is wild.
  */
 function getActiveTiles(tiles: any[]): any[] {
-  return tiles.filter((t: any) => {
-    if (!t || t.destroyed) return false;
-    const isWild = isWildLikeTile(t);
-    const hasValue = (t.value | 0) > 0;
-    return isWild || hasValue;
-  });
+  return tiles.filter((t: any) => tileIsActive(t));
 }
 
 /**

@@ -696,8 +696,9 @@ export async function showJourneyNewCardScreen({
           scale: 0,
           opacity: 0,
           y: 20,
-          duration: 0.22,
-          ease: 'back.in(1.7)',
+          duration: 0.24,
+          ease: 'back.in(1.9)',
+          overwrite: 'auto',
           force3D: true,
         })
         .set(cta, { visibility: 'hidden' })

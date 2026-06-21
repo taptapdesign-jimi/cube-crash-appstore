@@ -20,6 +20,15 @@ const makeContext = (tiles: any[], moves: number, anyMergePossible = false): End
 
 beforeEach(() => {
   clearEndgameCheckerCache();
+  try {
+    delete (window as any).__ccNonFinalMerge6GuardUntil;
+  } catch {}
+});
+
+afterEach(() => {
+  try {
+    delete (window as any).__ccNonFinalMerge6GuardUntil;
+  } catch {}
 });
 
 test('clean board returns clean', () => {
@@ -111,6 +120,48 @@ test('single spawned value after a missed final merge is stuck, not clean', () =
   expect(result).toEqual({ type: 'stuck', reason: 'single_non_6_tile' });
 });
 
+test('non-final merge6 guard blocks only-merge6 clean during transient wild animations', () => {
+  const tiles = [
+    makeTile({
+      value: 6,
+      _ccNonFinalMerge6: true,
+      _ccFinalMergeAllowedByResolver: false,
+      _ccFinalMergeBlockerCount: 3,
+      _ccFinalMergeActiveSnapshotCount: 4,
+      gridX: 2,
+      gridY: 5,
+    }),
+  ];
+  (window as any).__ccNonFinalMerge6GuardUntil = Date.now() + 2000;
+
+  const result = checkEndGame(makeContext(tiles, 8, false), true);
+  expect(result).toEqual({ type: 'continue', reason: 'non_final_merge6_guard' });
+});
+
+test('global non-final merge6 guard blocks clean even if transient tile lost local flags', () => {
+  const tiles = [makeTile({ value: 6, gridX: 2, gridY: 5 })];
+  (window as any).__ccNonFinalMerge6GuardUntil = Date.now() + 2000;
+
+  const result = checkEndGame(makeContext(tiles, 8, false), true);
+  expect(result).toEqual({ type: 'continue', reason: 'non_final_merge6_guard' });
+});
+
+test('trusted final merge6 can clean while stale non-final guard exists', () => {
+  const tiles = [
+    makeTile({
+      value: 6,
+      _isLastMerge: true,
+      _ccFinalMergeAllowedByResolver: true,
+      gridX: 2,
+      gridY: 5,
+    }),
+  ];
+  (window as any).__ccNonFinalMerge6GuardUntil = Date.now() + 2000;
+
+  const result = checkEndGame(makeContext(tiles, 8, false), true);
+  expect(result).toEqual({ type: 'clean', reason: 'only_merge6_remains' });
+});
+
 test('tileIsActive allows locked wild tiles', () => {
   const wildLocked = makeTile({ value: 0, locked: true, special: 'wild' });
   expect(tileIsActive(wildLocked)).toBe(true);
@@ -119,6 +170,20 @@ test('tileIsActive allows locked wild tiles', () => {
 test('tileIsActive allows future wild-prefixed special dice', () => {
   const wildLocked = makeTile({ value: 0, locked: true, special: 'wild-hurricane' });
   expect(tileIsActive(wildLocked)).toBe(true);
+});
+
+test('tileIsActive ignores hidden or pending-removal wild residue', () => {
+  expect(tileIsActive(makeTile({
+    value: 0,
+    special: 'wild-juice',
+    visible: false,
+  }))).toBe(false);
+
+  expect(tileIsActive(makeTile({
+    value: 0,
+    special: 'wild-tnt',
+    _pendingRemoval: true,
+  }))).toBe(false);
 });
 
 test('visible locked non-interactive wilds block false clean-board after merge 6', () => {

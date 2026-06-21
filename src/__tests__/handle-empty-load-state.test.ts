@@ -47,6 +47,32 @@ describe('handleEmptyLoadState', () => {
     expect(result.handled).toBe(false);
   });
 
+  it('does not treat pending-removal special residue as active saved gameplay', () => {
+    const tiles = [{ locked: false, value: 0, special: 'wild-juice', _pendingRemoval: true }];
+    const runFailFlow = jest.fn();
+
+    const result = handleEmptyLoadState({
+      tiles,
+      boardNumber: 1,
+      getPendingCleanBoard: () => ({ pending: false }),
+      clearPendingCleanBoard: noop,
+      getBoardSaveKey: () => 'cc_saved_game_board_01',
+      triggerCleanBoardFlow: noop,
+      runFailFlow,
+      trackAppTimeout: (fn: () => void) => fn(),
+      devLog: noop,
+      devWarn: noop,
+    });
+
+    expect(result.handled).toBe(true);
+    expect(runFailFlow).toHaveBeenCalledWith({
+      reason: 'load_empty_stuck_recovery',
+      waitMs: 0,
+      resetHint: false,
+      exitTimeoutMs: 500,
+    });
+  });
+
   it('returns handled=true when no tiles and no recovery needed', () => {
     const tiles: any[] = [];
 
