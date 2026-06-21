@@ -121,6 +121,39 @@ test('tileIsActive allows future wild-prefixed special dice', () => {
   expect(tileIsActive(wildLocked)).toBe(true);
 });
 
+test('visible locked non-interactive wilds block false clean-board after merge 6', () => {
+  const dstTile = makeTile({ value: 6, gridX: 3, gridY: 7 });
+  const tntA = makeTile({
+    value: 6,
+    special: 'wild-tnt',
+    locked: true,
+    eventMode: 'none',
+    alpha: 1,
+    gridX: 2,
+    gridY: 7,
+  });
+  const tntB = makeTile({
+    value: 6,
+    special: 'wild-tnt',
+    locked: true,
+    eventMode: 'none',
+    alpha: 1,
+    gridX: 4,
+    gridY: 7,
+  });
+  const context: EndGameContext = {
+    tiles: [dstTile, tntA, tntB],
+    moves: 8,
+    makeBoard: { anyMergePossible: () => false },
+    srcTile: makeTile({ value: 2, gridX: 2, gridY: 7 }),
+    dstTile,
+    justRemovedSrc: true,
+  };
+
+  expect(tileIsActive(tntA)).toBe(true);
+  expect(checkEndGame(context, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
+});
+
 test('getActiveTiles ignores destroyed and invisible tiles', () => {
   const tiles = [
     makeTile({ value: 2 }),

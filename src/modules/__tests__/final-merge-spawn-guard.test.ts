@@ -65,7 +65,7 @@ describe('final-merge-spawn-guard', () => {
     })).toEqual({ shouldBlockSpawn: true, reason: 'regular-final-pair' });
   });
 
-  it('does not block spawn for stacked regular visible pair that sums to 6', () => {
+  it('blocks spawn for stacked regular visible pair that sums to 6', () => {
     const src = { value: 4, stackDepth: 1 };
     const dst = { value: 2, stackDepth: 2 };
 
@@ -78,7 +78,7 @@ describe('final-merge-spawn-guard', () => {
       srcIsWild: false,
       dstIsWild: false,
       magnetWillPull: false,
-    })).toEqual({ shouldBlockSpawn: false, reason: 'not-final-pair' });
+    })).toEqual({ shouldBlockSpawn: true, reason: 'regular-final-pair' });
   });
 
   it('does not block when a magnet will pull more tiles', () => {

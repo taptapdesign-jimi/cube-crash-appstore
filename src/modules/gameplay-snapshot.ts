@@ -88,6 +88,7 @@ function isGameplayEffectiveWildTile(tile: any): boolean {
   if ((tile as any)._cleanupQueued === true) return false;
   if (tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  if ((tile as any).locked === true && (typeof tile.alpha !== 'number' || tile.alpha > 0.35)) return true;
   if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
     return isTileTransientlySpawning(tile, {
       autoClearStaleFlag: false,

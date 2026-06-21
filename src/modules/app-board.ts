@@ -206,6 +206,57 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   // Return a promise that resolves when all tiles are done
   return new Promise(resolve => {
     let completed = 0;
+    let finished = false;
+    let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const forceTileFinalState = (t: any) => {
+      if (!t || t.destroyed) return;
+      try { gsap.killTweensOf(t); } catch {}
+      try { gsap.killTweensOf(t.scale); } catch {}
+      try { gsap.killTweensOf(t.rotG); } catch {}
+      t.visible = true;
+      t.renderable = true;
+      if (t.scale?.set) t.scale.set(1, 1);
+      else if (t.scale) {
+        t.scale.x = 1;
+        t.scale.y = 1;
+      }
+      if (t.locked) {
+        t.alpha = (t.value > 0) ? 0 : 0.25;
+      } else {
+        t.alpha = 1;
+      }
+      if (t.rotG) t.rotG.alpha = 1;
+      if (t.base) t.base.alpha = 1;
+      if (t.overlay) {
+        t.overlay.alpha = 1;
+        t.overlay.visible = false;
+      }
+      if (t.num) t.num.alpha = 1;
+      if (t.pips) t.pips.alpha = 1;
+      try { makeBoard.syncTileZIndex(t, STATE.board); } catch {}
+    };
+
+    const finishPopIn = (forced = false) => {
+      if (finished) return;
+      finished = true;
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
+        safetyTimeout = null;
+      }
+      activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
+      if (forced) {
+        activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
+        list.forEach(forceTileFinalState);
+      }
+      try { drawBoardBG(); } catch {}
+      resolve();
+    };
+
+    if (list.length === 0) {
+      finishPopIn(false);
+      return;
+    }
 
     list.forEach((t, i) => {
       const tile = t as any;
@@ -264,11 +315,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
 
           if (completed === total) {
             const finalCall = trackDelayedCall(0.03, () => {
-              clearTimeout(safetyTimeout);
-              try {
-                drawBoardBG();
-              } catch {}
-              resolve();
+              finishPopIn(false);
             });
             activeDelayedCalls.push(finalCall);
           }
@@ -324,16 +371,14 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     }
     
     // 🔥 FIX: Add safety timeout to resolve and cleanup if animations hang
-    const safetyTimeout = setTimeout(() => {
-      console.warn('⚠️ sweetPopIn: Safety timeout - killing all timelines and resolving');
-      activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
-      activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
-      resolve();
-    }, 10000); // 10 second safety (was 5s; clear on natural resolve to avoid killing after done)
+    safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ sweetPopIn: Watchdog forced final tile state and resolved');
+      finishPopIn(true);
+    }, Math.max(1200, (maxEndTime + 0.65) * 1000));
     
     // Store cleanup function for external access
     (resolve as any)._cleanup = () => {
-      clearTimeout(safetyTimeout);
+      if (safetyTimeout) clearTimeout(safetyTimeout);
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
     };

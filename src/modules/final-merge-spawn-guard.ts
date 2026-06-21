@@ -37,11 +37,6 @@ function uniqueTileRefs(tileList: any[]): any[] {
   return out;
 }
 
-function stackDepthOf(tile: any): number {
-  const depth = Number(tile?.stackDepth ?? 1);
-  return Number.isFinite(depth) && depth > 0 ? depth : 1;
-}
-
 export function resolveFinalMergeSpawnGuard({
   activeTilesBeforeMerge,
   finalMergeBlockersBefore,
@@ -75,13 +70,7 @@ export function resolveFinalMergeSpawnGuard({
     return { shouldBlockSpawn: true, reason: 'wild-final-pair' };
   }
 
-  const activePhysicalTileCount = active.reduce((sum, tile) => sum + stackDepthOf(tile), 0);
-  const mergePhysicalTileCount = stackDepthOf(src) + stackDepthOf(dst);
-  const regularMergeIsExactlyTwoSingleDice =
-    activePhysicalTileCount === 2 &&
-    mergePhysicalTileCount === 2;
-
-  if (!srcIsWild && !dstIsWild && regularMergeIsExactlyTwoSingleDice && (effSum | 0) === 6) {
+  if (!srcIsWild && !dstIsWild && (effSum | 0) === 6) {
     return { shouldBlockSpawn: true, reason: 'regular-final-pair' };
   }
 

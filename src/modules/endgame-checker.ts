@@ -88,6 +88,22 @@ function tileIsNonMagnetWild(tile: any): boolean {
   return !isSpecialDiceMagnetLikeTile(tile);
 }
 
+function isVisibleLockedWildGameplayPresence(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (!tileIsWild(tile)) return false;
+  if ((tile as any)._wildMagnetAffected === true) return false;
+  if ((tile as any)._pendingRemoval === true) return false;
+  if ((tile as any)._beingRemoved === true) return false;
+  if ((tile as any)._cleanupQueued === true) return false;
+  if (tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+
+  // A visible locked wild/special die is still a future move. During spawn/merge
+  // handoff it can temporarily have eventMode "none", but it must continue to
+  // block clean-board and no-moves decisions until it is explicitly removed.
+  return tile.locked === true && (typeof tile.alpha !== 'number' || tile.alpha > 0.35);
+}
+
 function isWildEffectivelyPresent(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (!tileIsWild(tile)) return false;
@@ -97,6 +113,7 @@ function isWildEffectivelyPresent(tile: any): boolean {
   if ((tile as any)._cleanupQueued === true) return false;
   if (tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  if (isVisibleLockedWildGameplayPresence(tile)) return true;
   if (tile.eventMode === 'none') return false;
   return true;
 }
@@ -141,6 +158,7 @@ export function tileIsActive(tile: any): boolean {
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
   if (tileIsWild(tile)) {
+    if (isVisibleLockedWildGameplayPresence(tile)) return true;
     if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
       return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
     }

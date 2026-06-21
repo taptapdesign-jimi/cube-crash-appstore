@@ -880,6 +880,9 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
   // User request: "kad imamo wild da je to definitivno nastava igre a ne fail screen"
   // Locked wild (e.g. during spawn) will unlock; we must NOT show fail while wild exists
   if (tileIsWild(tile)) {
+    if (tile.locked === true && (typeof (tile as any).alpha !== 'number' || (tile as any).alpha > 0.35)) {
+      return true;
+    }
     if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
       return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
     }

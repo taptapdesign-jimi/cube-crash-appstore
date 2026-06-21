@@ -50,6 +50,20 @@ test('future wild-prefixed special dice keep board playable', () => {
   expect(anyMergePossible(tiles as any)).toBe(true);
 });
 
+test('visible locked non-interactive special dice keep board playable', () => {
+  const tiles = [
+    makeTile(5),
+    makeTile(0, {
+      special: 'wild-tnt',
+      locked: true,
+      eventMode: 'none',
+      alpha: 1,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(true);
+});
+
 test('future magnet-archetype special dice keep board playable', () => {
   const tiles = [
     makeTile(5),

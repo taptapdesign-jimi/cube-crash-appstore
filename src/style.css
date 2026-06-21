@@ -5184,6 +5184,32 @@ body:has(:root) .tile.wild-3d-glow {
   pointer-events: auto !important;
 }
 
+@keyframes cleanBoardCtaExitBounce {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.075);
+    animation-timing-function: cubic-bezier(0.2, 0.9, 0.25, 1);
+  }
+  38% {
+    opacity: 1;
+    transform: translateY(4px) scale(0.86);
+    animation-timing-function: cubic-bezier(0.72, -0.2, 0.36, 1.35);
+  }
+  66% {
+    opacity: 1;
+    transform: translateY(18px) scale(0.16);
+    animation-timing-function: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(24px) scale(0);
+  }
+}
+
 /* Exit state - buttons scale to 0 and move down (homepage slider CTA style) */
 /* HIGHEST PRIORITY - overrides ALL other button states including :active/:focus/:hover */
 .clean-board-button-exit,
@@ -5195,12 +5221,14 @@ body:has(:root) .tile.wild-3d-glow {
 .clean-board-button-exit:focus:not(:disabled),
 .clean-board-button-exit:hover:not(:disabled) {
   opacity: 1 !important;
-  transform: translateY(20px) scale(0) !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: translateY(24px) scale(0) !important;
+  transition: none !important;
+  animation: cleanBoardCtaExitBounce 0.65s both !important;
   pointer-events: none !important;
   will-change: transform !important;
-  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  -webkit-transform: translateY(20px) scale(0) !important;
+  -webkit-transition: none !important;
+  -webkit-animation: cleanBoardCtaExitBounce 0.65s both !important;
+  -webkit-transform: translateY(24px) scale(0) !important;
 }
 
 /* 🔥 CRITICAL: Prevent :active state from interfering with button animations */
@@ -5208,9 +5236,10 @@ body:has(:root) .tile.wild-3d-glow {
 .restart-btn.clean-board-button-visible:active,
 .restart-btn.clean-board-button-exit:active,
 .exit-btn.clean-board-button-visible:active,
-.exit-btn.clean-board-button-exit:active,
 .primary-button.clean-board-button-visible:active,
-.primary-button.clean-board-button-exit:active {
+.restart-btn.clean-board-button-visible:focus,
+.exit-btn.clean-board-button-visible:focus,
+.primary-button.clean-board-button-visible:focus {
   /* Let the animation class handle transform, not :active */
   transform: inherit !important;
 }

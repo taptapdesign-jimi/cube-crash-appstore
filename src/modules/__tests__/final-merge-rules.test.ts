@@ -35,7 +35,7 @@ test('last two regular dice that merge to 6 are final merge', () => {
   });
 });
 
-test('stacked regular dice are not treated as final regular merge even when visible pair sums to 6', () => {
+test('stacked regular visible pair that sums to 6 is still final merge', () => {
   const src = makeTile({ value: 4, stackDepth: 1 });
   const dst = makeTile({ value: 2, stackDepth: 2 });
 
@@ -48,8 +48,8 @@ test('stacked regular dice are not treated as final regular merge even when visi
     activeSnapshotWasOnlyMergePair: true,
     activePhysicalTileCount: 3,
     mergePhysicalTileCount: 3,
-    isFinalRegularMerge6: false,
-    isFinalMerge: false,
+    isFinalRegularMerge6: true,
+    isFinalMerge: true,
   });
 });
 
@@ -127,8 +127,9 @@ test('visual wild flags are treated as wild-like even without special name', () 
   expect(isWildLikeTile(makeTile({ isWildFace: true }))).toBe(true);
 });
 
-test('final merge active rules ignore locked wild placeholders and locked ghosts', () => {
-  expect(tileCountsAsFinalMergeActive(makeTile({ special: 'wild-cubero', locked: true }))).toBe(false);
+test('final merge active rules ignore faint locked placeholders and keep visible locked specials active', () => {
+  expect(tileCountsAsFinalMergeActive(makeTile({ special: 'wild-cubero', locked: true, alpha: 0.2 }))).toBe(false);
+  expect(tileCountsAsFinalMergeActive(makeTile({ special: 'wild-cubero', locked: true, alpha: 1 }))).toBe(true);
   expect(tileCountsAsFinalMergeActive(makeTile({ value: 0, locked: true }))).toBe(false);
   expect(tileCountsAsFinalMergeActive(makeTile({ value: 4, locked: false }))).toBe(true);
 });
@@ -138,7 +139,8 @@ test('final merge blocker rules ignore src/dst, pending removal, ghosts, and mag
   const dst = makeTile({ value: 2 });
 
   expect(tileBlocksFinalMerge(src, src, dst)).toBe(false);
-  expect(tileBlocksFinalMerge(makeTile({ special: 'wild-cubero', locked: true }), src, dst)).toBe(false);
+  expect(tileBlocksFinalMerge(makeTile({ special: 'wild-cubero', locked: true, alpha: 0.2 }), src, dst)).toBe(false);
+  expect(tileBlocksFinalMerge(makeTile({ special: 'wild-cubero', locked: true, alpha: 1 }), src, dst)).toBe(true);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, locked: true }), src, dst)).toBe(false);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, _wildMagnetAffected: true }), src, dst)).toBe(false);
   expect(tileBlocksFinalMerge(makeTile({ value: 5, _pendingRemoval: true }), src, dst)).toBe(false);
@@ -201,7 +203,7 @@ test('last preload TNT plus regular remains final even with stale drop flag', ()
 test('final merge tile-set helper returns active tiles and blockers from one source of truth', () => {
   const src = makeTile({ value: 4 });
   const dst = makeTile({ value: 2 });
-  const lockedWild = makeTile({ value: 0, special: 'wild-cubero', locked: true });
+  const lockedWild = makeTile({ value: 0, special: 'wild-cubero', locked: true, alpha: 0.2 });
   const ghost = makeTile({ value: 0, locked: true });
   const pending = makeTile({ value: 5, _pendingRemoval: true });
 
@@ -285,6 +287,35 @@ test('visible second wild blocks final wild merge even while input is disabled',
 
   expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst, otherJuice]);
   expect(tileSets.finalMergeBlockersBefore).toEqual([otherJuice]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
+  }).isFinalMerge).toBe(false);
+});
+
+test('visible locked juice blocks final regular merge as a real special die', () => {
+  const src = makeTile({ value: 4 });
+  const dst = makeTile({ value: 2 });
+  const juice = makeTile({
+    value: 0,
+    special: 'wild-juice',
+    locked: true,
+    eventMode: 'none',
+    visible: true,
+    alpha: 1,
+  });
+
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst, juice],
+    src,
+    dst,
+  });
+
+  expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst, juice]);
+  expect(tileSets.finalMergeBlockersBefore).toEqual([juice]);
   expect(getFinalMergeSnapshot({
     activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
     finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,

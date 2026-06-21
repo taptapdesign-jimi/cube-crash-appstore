@@ -3786,10 +3786,18 @@ function initializeBackgroundLayer(){
     : dpr >= 2 ? './assets/ghost-placeholder@2x.png'
     : './assets/ghost-placeholder.png';
   let ghostTexture: Texture | null = null;
+  const getCachedGhostTexture = (path: string): Texture | null => {
+    try {
+      if (typeof (Assets as any).cache?.has === 'function' && (Assets as any).cache.has(path)) {
+        return Assets.get(path);
+      }
+    } catch {}
+    return null;
+  };
   try {
-    ghostTexture = Assets.get(ghostAssetPath) || Texture.from(ghostAssetPath);
+    ghostTexture = getCachedGhostTexture(ghostAssetPath) || getCachedGhostTexture('./assets/ghost-placeholder.png');
   } catch {
-    try { ghostTexture = Assets.get('./assets/ghost-placeholder.png') || Texture.from('./assets/ghost-placeholder.png'); } catch {}
+    try { ghostTexture = getCachedGhostTexture('./assets/ghost-placeholder.png'); } catch {}
   }
   
   // 🔥 CRITICAL FIX: Remove existing background layer if it exists
@@ -4146,12 +4154,48 @@ function hideGhostPlaceholders() {
   } catch {}
 }
 
+function showFinalEmptyCellGhostsForPopOut(reason: string = 'final-popout'): number {
+  try {
+    const rows = (window as any)._ghostPlaceholders;
+    if (!Array.isArray(rows) || !grid) return 0;
+    let shown = 0;
+    for (let r = 0; r < ROWS; r++) {
+      const row = rows[r];
+      if (!Array.isArray(row)) continue;
+      for (let c = 0; c < COLS; c++) {
+        const ghost = row[c];
+        if (!ghost || ghost.destroyed) continue;
+        if (hasVisibleLockedTileAtCell(c, r)) continue;
+        const cell = grid?.[r]?.[c];
+        const emptyLike =
+          cell == null ||
+          cell.destroyed === true ||
+          (isLockedEmptyPlaceholder(cell) && (cell.visible === false || (cell.alpha ?? 1) <= 0.01));
+        if (!emptyLike) continue;
+        ghost.visible = true;
+        ghost.renderable = true;
+        ghost.alpha = Math.max(0.22, Number.isFinite(ghost.alpha) ? ghost.alpha : 1);
+        if (ghost.scale?.set) ghost.scale.set(1, 1);
+        shown++;
+      }
+    }
+    if (shown > 0) devLog('👻 Final empty-cell ghosts prepared for pop-out', { reason, shown });
+    return shown;
+  } catch {
+    return 0;
+  }
+}
+
 function holdFinalResidualArtifactsVisible(reason: string = 'final-merge-hold'): void {
   try {
     const ghostLayerLocked = (window as any).__ccFinalGhostLayerLockedHidden === true;
     try { (window as any).__ccForceHideGhosts = false; } catch {}
     try { (window as any).__ccEnterAnimationActive = false; } catch {}
     try { if (backgroundLayer) backgroundLayer.visible = true; } catch {}
+    if (!ghostLayerLocked) {
+      try { updateGhostVisibility(); } catch {}
+    }
+    try { showFinalEmptyCellGhostsForPopOut(reason); } catch {}
 
     const boardTilesToHold = collectFinalBoardTileResidualTargets(tiles);
     let ghostsToHold: any[] = [];
@@ -4347,14 +4391,15 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
         total: popOutTargets.length,
       });
       try {
+        const popOutPromise = sweetPopOut(popOutTargets as any, {});
         await Promise.race([
-          sweetPopOut(popOutTargets as any, {}),
-          waitTracked(1300),
+          popOutPromise,
+          waitTracked(1800),
         ]);
       } catch (animationError) {
         devWarn('⚠️ Final residual artifacts pop-out failed:', animationError);
       }
-      await waitTracked(40);
+      await waitTracked(80);
     }
 
     boardTilesToRemove.forEach((t: any) => {
@@ -10893,13 +10938,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
         // 🛡️ SAFETY: Never allow board to end up with < 2 active tiles unless clean board flow is active.
         try {
-          const isActiveTile = (t: any) => {
-            if (!t || t.destroyed || t.locked) return false;
-            const value = (t.value | 0);
-            return tileHasGameplayValueOrWild(t);
-          };
-
-          const activeTilesNow = tiles.filter(isActiveTile);
+          const activeTilesNow = tiles.filter((t: any) => tileIsActive(t as any));
           if (activeTilesNow.length < 2) {
             const needed = 2 - activeTilesNow.length;
             devWarn('🛟 SAFETY: Active tiles below minimum after spawn, forcing extra spawn', {

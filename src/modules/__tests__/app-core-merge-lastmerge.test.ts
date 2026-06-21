@@ -73,7 +73,7 @@ describe('app-core-merge-lastmerge', () => {
     expect(calls.pendingCleanBoard).toEqual([2]);
   });
 
-  it('does not mark stacked regular visible pair as final merge', () => {
+  it('marks stacked regular visible pair as final merge', () => {
     const src = { value: 4, stackDepth: 1 };
     const dst = { value: 2, stackDepth: 2 };
     const { deps, calls } = createDeps({
@@ -85,10 +85,12 @@ describe('app-core-merge-lastmerge', () => {
 
     const result = handleLastMergeEarly(deps);
 
-    expect(result.isActuallyLastMerge).toBe(false);
-    expect(dst).not.toMatchObject({ _isLastMerge: true });
-    expect(calls.wildMeter).toEqual([]);
-    expect(calls.pendingCleanBoard).toEqual([]);
+    expect(result.isActuallyLastMerge).toBe(true);
+    expect(dst).toMatchObject({ _isLastMerge: true });
+    expect(calls.wildMeter).toEqual([0]);
+    expect(calls.stateWildMeter).toEqual([0]);
+    expect(calls.hudReset).toEqual([true]);
+    expect(calls.pendingCleanBoard).toEqual([2]);
   });
 
   it('marks final wild plus regular merge-6 across future special dice', () => {

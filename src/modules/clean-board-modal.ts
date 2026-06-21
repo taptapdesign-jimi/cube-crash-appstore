@@ -728,7 +728,7 @@ export async function showCleanBoardModal({
       
       // Step 4: Add exit class - CSS does 100% of the work!
       // This is IDENTICAL to homepage slider CTA button exit
-      button.classList.add('animate-exit');
+      button.classList.add('clean-board-button-exit', 'animate-exit');
       
       console.log('🚀 Button exit animation started (pure CSS, homepage slider style):', button.textContent);
     };

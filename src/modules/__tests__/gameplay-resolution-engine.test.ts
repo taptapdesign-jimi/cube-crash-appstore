@@ -72,7 +72,7 @@ test('final regular merge6 resolves to complete instead of spawn even in after-m
   });
 });
 
-test('stacked regular visible pair that sums to 6 does not resolve as final merge complete', () => {
+test('stacked regular visible pair that sums to 6 resolves as final merge complete', () => {
   const src = makeTile({ value: 4, stackDepth: 1 });
   const dst = makeTile({ value: 2, stackDepth: 2 });
   const snapshot = createGameplaySnapshot({
@@ -87,8 +87,9 @@ test('stacked regular visible pair that sums to 6 does not resolve as final merg
   });
 
   expect(resolveGameplayState(snapshot)).toEqual({
-    type: 'spawn',
-    reason: 'merge6_spawn_required',
+    type: 'complete',
+    target: 'arcade-stage',
+    reason: 'final_regular_merge6',
   });
 });
 
@@ -319,7 +320,7 @@ test('journey wild merge does not complete while another visible wild remains di
 test('locked future wild placeholder does not block final merge completion', () => {
   const src = makeTile({ value: 4 });
   const dst = makeTile({ value: 2 });
-  const lockedSpecial = makeTile({ value: 0, special: 'wild-cubero', locked: true });
+  const lockedSpecial = makeTile({ value: 0, special: 'wild-cubero', locked: true, alpha: 0.2 });
   const snapshot = createGameplaySnapshot({
     tiles: [src, dst, lockedSpecial],
     moves: 4,
@@ -337,6 +338,35 @@ test('locked future wild placeholder does not block final merge completion', () 
     reason: 'final_regular_merge6',
   });
   expect(snapshot.finalMerge.isFinalMerge).toBe(true);
+});
+
+test('visible locked special die blocks false final regular merge completion', () => {
+  const src = makeTile({ value: 4 });
+  const dst = makeTile({ value: 2 });
+  const juice = makeTile({
+    value: 0,
+    special: 'wild-juice',
+    locked: true,
+    eventMode: 'none',
+    visible: true,
+    alpha: 1,
+  });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst, juice],
+    moves: 4,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'before-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(false);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'continue',
+    reason: 'wild_continuation_available',
+  });
 });
 
 test('locked ghost placeholder does not block final merge completion', () => {

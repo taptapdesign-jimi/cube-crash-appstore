@@ -33,6 +33,19 @@ export function schedulePopInSafetyNet({
           t.visible = true;
           t.alpha = 1;
           t.renderable = true;
+          try {
+            if (t.scale?.set) t.scale.set(1, 1);
+            else if (t.scale) {
+              t.scale.x = 1;
+              t.scale.y = 1;
+            }
+          } catch {}
+          try {
+            if (t.rotG) t.rotG.alpha = 1;
+            if (t.base) t.base.alpha = 1;
+            if (t.pips) t.pips.alpha = 1;
+            if (t.num) t.num.alpha = 1;
+          } catch {}
         }
         try {
           (window as any).__ccEnterAnimationActive = false;

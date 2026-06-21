@@ -71,11 +71,22 @@ function isVisibleEnoughForGameplay(tile: any): boolean {
   return true;
 }
 
+function isVisibleWildGameplayPresence(tile: any): boolean {
+  if (isTilePendingGameplayRemoval(tile)) return false;
+  if (!isWildLikeTile(tile)) return false;
+  if (tile._wildMagnetAffected === true) return false;
+  if (!isVisibleEnoughForGameplay(tile)) return false;
+  // Locked empty placeholders are faint. A full-opacity locked special is still
+  // a real special die temporarily gated by animation/input and must block endgame.
+  if (tile.locked === true && typeof tile.alpha === 'number' && tile.alpha <= 0.35) return false;
+  return true;
+}
+
 export function tileCountsAsFinalMergeActive(tile: any): boolean {
   if (isTilePendingGameplayRemoval(tile)) return false;
   if (!isVisibleEnoughForGameplay(tile)) return false;
+  if (isWildLikeTile(tile)) return isVisibleWildGameplayPresence(tile);
   if (tile.locked) return false;
-  if (isWildLikeTile(tile)) return true;
   return (tile.value | 0) > 0;
 }
 
@@ -84,8 +95,8 @@ export function tileBlocksFinalMerge(tile: any, srcTile: any, dstTile: any): boo
   if (isTilePendingGameplayRemoval(tile)) return false;
   if (tile._wildMagnetAffected === true) return false;
 
+  if (isWildLikeTile(tile)) return isVisibleWildGameplayPresence(tile);
   if (tile.locked) return false;
-  if (isWildLikeTile(tile)) return true;
   if (!isVisibleEnoughForGameplay(tile)) return false;
   return (tile.value | 0) > 0;
 }
@@ -152,10 +163,6 @@ export function getFinalMergeSnapshot({
   const dstIsWild = isWildLikeTile(dst);
   const srcValue = src ? (src.value | 0) : 0;
   const dstValue = dst ? (dst.value | 0) : 0;
-  const regularMergeIsExactlyTwoSingleDice =
-    activePhysicalTileCount === 2 &&
-    mergePhysicalTileCount === 2;
-
   const isFinalWildLastTwo =
     activeSnapshotWasOnlyMergePair &&
     !hasOtherGameplayBlockers &&
@@ -164,7 +171,6 @@ export function getFinalMergeSnapshot({
 
   const isFinalRegularMerge6 =
     activeSnapshotWasOnlyMergePair &&
-    regularMergeIsExactlyTwoSingleDice &&
     !hasOtherGameplayBlockers &&
     !srcIsWild &&
     !dstIsWild &&

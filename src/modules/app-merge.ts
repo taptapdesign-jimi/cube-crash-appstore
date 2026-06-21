@@ -480,22 +480,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     const pulledTileCount = validTiles.length;
     const pulledCells: { c: number; r: number }[] = [];
   
-  // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode B — No tiles to attract
-  // Magnet must not invent attraction. If the merge is final Merge-6 → trigger CLEAN BOARD
-  // Otherwise board continues only if allowed by other rules (preload etc.)
-  // 🔥 CRITICAL FIX: If NO tiles were pulled (validTiles.length === 0), merge 6 tile is the ONLY tile left
-  // This happens when magnet merges with a tile but there are NO other tiles on board to pull
-  // In this case, merge 6 tile should be removed and clean board flow should be triggered
+  // Wild Magnet Mode B: no tiles were actually attracted. This does not prove
+  // only merge 6 remains, because other playable dice can still be on board but
+  // absent from this local pulled-tile list. The central resolver owns that
+  // decision.
   if (validTiles.length === 0 && dst && !dst.destroyed) {
-    console.log('🚨🚨🚨 SOURCE OF TRUTH: Wild Magnet Mode B — No tiles to attract');
-    console.log('🎯 Source of Truth: If the merge is final Merge-6 → trigger CLEAN BOARD');
-    console.log('🚨🚨🚨 EDGE CASE: Magnet merge but NO tiles to pull - Only merge 6 remains, triggering clean board flow');
-    
-    // Delegate timing to triggerCleanBoardFlow/final-merge-handoff so magnet finale
-    // start/wait behavior has one source of truth.
-    if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetNoPulledTiles)) {
-      console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
-    }
+    console.log('🧲 Wild Magnet Mode B: no pulled tiles - delegating to central endgame resolver');
+    triggerCentralEndgameCheck('magnet_no_pulled_tiles');
     return;
   }
   
@@ -1130,78 +1121,26 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL FIX: Check if dst is the only remaining tile (including dst in count)
   const onlyDstRemainsAfterPull = remainingTilesCount === 1 && (activeTilesAfterPulledMerge[0] === dst || dstIsActive) && pulledCells.length === 0;
   if (onlyDstRemainsAfterPull) {
-    // Only merge 6 remains - this means magnet pulled the last tiles from the board
-    console.log('🚨🚨🚨 EDGE CASE: Only merge 6 remains after magnet pulled last 4 tiles - Triggering clean board flow immediately (no spawn)');
-    
-    // Keep merge 6 visible for the centralized residual pop-out.
-    await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetOnlyDstRemains);
-    return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
+    console.log('🧲 Magnet merge appears to have only dst remaining - delegating to central endgame resolver');
+    triggerCentralEndgameCheck('magnet_only_dst_remains');
+    return;
   }
   
-  // If merge 6 is on board with 2-3 tiles remaining (including merge 6 itself), pull all remaining tiles and trigger clean board
-  // BUT: Only if there are NO pulled cells to respawn! If we have pulled cells, we MUST spawn them first!
-  // This means if there are 2-3 tiles total (including merge 6), pull them and trigger clean board
+  // Legacy used to auto-pull "few remaining" tiles and force clean board here.
+  // That bypassed the global resolver and could end the board while TNT/wild or
+  // regular dice were still playable.
   if (remainingTilesCount >= 2 && remainingTilesCount <= 3 && pulledCells.length === 0) {
-    console.log('🚨🚨🚨 MAGNET MERGE 6 WITH FEW TILES DETECTED - Pulling all remaining tiles and triggering clean board flow');
-    
-    // Find merge 6 tile (dst) and remaining tiles
-    const merge6Tile = activeTilesAfterPulledMerge.find((t: any) => t === dst && t.value === 6);
-    const remainingTiles = activeTilesAfterPulledMerge.filter((t: any) => t !== dst);
-    
-    if (merge6Tile && remainingTiles.length > 0) {
-      console.log('🧲 Pulling', remainingTiles.length, 'remaining tiles to merge 6');
-      
-      // Pull all remaining tiles to merge 6 (similar to normal magnet pull)
-      const pullPromises = remainingTiles.map(async (tile: any, index: number) => {
-        const delay = index * 0.04; // Small stagger delay
-        
-        await new Promise(resolve => trackAppTimeout(resolve, delay * 1000));
-        
-        // Animate tile moving to merge 6
-        const merge6X = merge6Tile.x;
-        const merge6Y = merge6Tile.y;
-        
-        return new Promise<void>((resolve) => {
-          trackTween(tile, {
-            x: merge6X,
-            y: merge6Y,
-            duration: 0.35,
-            ease: 'power2.inOut',
-            onComplete: () => {
-              resolve();
-            }
-          });
-        });
-      });
-      
-      // Wait for all tiles to arrive
-      await Promise.all(pullPromises);
-      
-      // Merge all pulled tiles into merge 6 (create merge 6 with multiplier based on number of pulled tiles)
-      // Multiplier = number of pulled tiles (remainingTiles.length)
-      // If 3 tiles pulled → 3x, if 2 tiles pulled → 2x, if 1 tile pulled → 1x
-      // Dynamic multiplier: exactly matches the number of tiles that were pulled
-      const finalMult = remainingTiles.length; // Dynamic multiplier based on number of pulled tiles
-      const finalScoreDelta = 6 * finalMult;
-      const finalScore = Math.min(999999, newScore + finalScoreDelta);
-      
-      console.log('🧲 Final merge: pulled tiles=', remainingTiles.length, 'mult=', finalMult, 'scoreDelta=', finalScoreDelta, 'finalScore=', finalScore);
-      
-      // Update score
-      if (typeof (window as any).CC?.setScore === 'function') {
-        (window as any).CC.setScore(finalScore);
-      } else {
-        STATE.score = finalScore;
-      }
-      updateHUD();
-      animateScore(finalScore, 0.45);
-      
-      // Keep pulled tiles and merge 6 visible for centralized residual pop-out.
-      await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFewTilesRemaining);
-      return; // Don't spawn new tiles
+    console.log('🧲 Magnet merge left few tiles - delegating to central resolver instead of forcing clean board', {
+      remainingTilesCount,
+      activeTiles: activeTilesAfterPulledMerge.map((t: any) => ({
+        value: t.value,
+        special: t.special,
+        locked: t.locked,
+      })),
+    });
+    triggerCentralEndgameCheck('magnet_few_tiles_remaining');
+    return;
   }
-
-}
 
   // Find random empty cells on the board for spawning new tiles
   const findRandomEmptyCells = (count: number): { c: number; r: number }[] => {
