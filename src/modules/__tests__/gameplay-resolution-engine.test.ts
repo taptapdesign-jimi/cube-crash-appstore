@@ -72,6 +72,26 @@ test('final regular merge6 resolves to complete instead of spawn even in after-m
   });
 });
 
+test('stacked regular visible pair that sums to 6 does not resolve as final merge complete', () => {
+  const src = makeTile({ value: 4, stackDepth: 1 });
+  const dst = makeTile({ value: 2, stackDepth: 2 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst],
+    moves: 0,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'after-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'spawn',
+    reason: 'merge6_spawn_required',
+  });
+});
+
 test('non-final merge6 still resolves to spawn after merge', () => {
   const src = makeTile({ value: 4 });
   const dst = makeTile({ value: 2 });
@@ -128,6 +148,8 @@ test('merge finality helper returns final snapshot and complete decision togethe
   })).toEqual({
     finalMerge: {
       activeSnapshotWasOnlyMergePair: true,
+      activePhysicalTileCount: 2,
+      mergePhysicalTileCount: 2,
       isFinalRegularMerge6: true,
       isFinalWildLastTwo: false,
       isFinalMerge: true,
@@ -236,6 +258,28 @@ test('journey final wild merge resolves to journey board complete', () => {
     effSum: 6,
   });
 
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'complete',
+    target: 'journey-board',
+    reason: 'final_wild_merge6',
+  });
+});
+
+test('journey final juice merge with stacked regular and duplicate refs resolves complete', () => {
+  const src = makeTile({ value: 0, special: 'wild-juice' });
+  const dst = makeTile({ value: 5, stackDepth: 2 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst, dst],
+    moves: 0,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'before-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(true);
   expect(resolveGameplayState(snapshot)).toEqual({
     type: 'complete',
     target: 'journey-board',

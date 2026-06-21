@@ -32,6 +32,7 @@ export async function selectTilesForExit({
     (moduleTiles.length > 0 ? moduleTiles : winTiles);
   const ghostPlaceholders: any[] = [];
   try {
+    try { (window as any).hideGhostsUnderLockedTiles?.('select-exit-tiles'); } catch {}
     const rows = (window as any)._ghostPlaceholders;
     if (Array.isArray(rows)) {
       rows.forEach((row: any[]) => {

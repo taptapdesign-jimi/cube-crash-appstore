@@ -18,22 +18,37 @@ type LastMergeDeps = {
   mode?: 'arcade' | 'journey' | 'unknown';
 };
 
-export function handleLastMergeEarly({
+type LastMergeEarlyInput = {
+  tiles: any[];
+  src: any;
+  dst: any;
+  effSum: number;
+  isWildMagnetMerge: boolean;
+  mode?: 'arcade' | 'journey' | 'unknown';
+};
+
+type LastMergeEarlyState = {
+  isActuallyLastMerge: boolean;
+  wasLastThreeOrMoreStackForCheck: boolean;
+  willPullTiles: boolean;
+  visibleTilesCountBeforeWildProgress: number;
+  activeTilesCountBeforeWildProgress: number;
+  activeTilesBeforeWildProgress: any[];
+  isWildLastTwoForCheck: boolean;
+  isRegularLastTwoMerge6: boolean;
+  cannotPullDueToEndGame: boolean;
+  srcSpecialForCheck: any;
+  dstSpecialForCheck: any;
+};
+
+export function resolveLastMergeEarlyState({
   tiles,
   src,
   dst,
   effSum,
-  boardNumber,
-  wildMeter,
-  setWildMeter,
-  setStateWildMeter,
-  HUD,
-  setPendingCleanBoard,
-  devLog,
-  devWarn,
   isWildMagnetMerge,
   mode = 'unknown',
-}: LastMergeDeps){
+}: LastMergeEarlyInput): LastMergeEarlyState {
   const activeTilesBeforeWildProgress = getFinalMergeTileSets({ tiles, src, dst }).activeTilesBeforeMerge;
   // 🔥 CRITICAL: Use visible tiles count (not stackDepth sum) for "last 2 tiles" detection
   const visibleTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.length;
@@ -80,6 +95,58 @@ export function handleLastMergeEarly({
   const isWildLastTwoForCheck = finalMergeSnapshot.isFinalWildLastTwo;
   const isRegularLastTwoMerge6 = finalMergeSnapshot.isFinalRegularMerge6;
   const isActuallyLastMerge = finalMergeResult.isFinalMerge;
+
+  return {
+    isActuallyLastMerge,
+    wasLastThreeOrMoreStackForCheck,
+    willPullTiles,
+    visibleTilesCountBeforeWildProgress,
+    activeTilesCountBeforeWildProgress,
+    activeTilesBeforeWildProgress,
+    isWildLastTwoForCheck,
+    isRegularLastTwoMerge6,
+    cannotPullDueToEndGame,
+    srcSpecialForCheck,
+    dstSpecialForCheck,
+  };
+}
+
+export function handleLastMergeEarly({
+  tiles,
+  src,
+  dst,
+  effSum,
+  boardNumber,
+  setWildMeter,
+  setStateWildMeter,
+  HUD,
+  setPendingCleanBoard,
+  devLog,
+  devWarn,
+  isWildMagnetMerge,
+  mode = 'unknown',
+}: LastMergeDeps){
+  const state = resolveLastMergeEarlyState({
+    tiles,
+    src,
+    dst,
+    effSum,
+    isWildMagnetMerge,
+    mode,
+  });
+  const {
+    activeTilesBeforeWildProgress,
+    activeTilesCountBeforeWildProgress,
+    cannotPullDueToEndGame,
+    dstSpecialForCheck,
+    isActuallyLastMerge,
+    isRegularLastTwoMerge6,
+    isWildLastTwoForCheck,
+    srcSpecialForCheck,
+    visibleTilesCountBeforeWildProgress,
+    wasLastThreeOrMoreStackForCheck,
+    willPullTiles,
+  } = state;
   
   if (isActuallyLastMerge) {
     const mergeType = isWildLastTwoForCheck ? (isWildMagnetMerge ? 'Wild-magnet + regular' : 'Wild + regular') : 'Regular + regular';

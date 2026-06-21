@@ -541,6 +541,7 @@ export function initDrag(cfg) {
           }
         }
       }
+      try { (window as any).hideGhostsUnderLockedTiles?.('drag-start-show-ghosts'); } catch {}
     }
     
     releaseMagnet({ immediate: true });

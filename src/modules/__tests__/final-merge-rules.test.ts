@@ -35,6 +35,24 @@ test('last two regular dice that merge to 6 are final merge', () => {
   });
 });
 
+test('stacked regular dice are not treated as final regular merge even when visible pair sums to 6', () => {
+  const src = makeTile({ value: 4, stackDepth: 1 });
+  const dst = makeTile({ value: 2, stackDepth: 2 });
+
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: [src, dst],
+    src,
+    dst,
+    effSum: 6,
+  })).toMatchObject({
+    activeSnapshotWasOnlyMergePair: true,
+    activePhysicalTileCount: 3,
+    mergePhysicalTileCount: 3,
+    isFinalRegularMerge6: false,
+    isFinalMerge: false,
+  });
+});
+
 test('last wild plus regular is final unless magnet will pull tiles', () => {
   const src = makeTile({ value: 0, special: 'wild-juice' });
   const dst = makeTile({ value: 5 });
@@ -45,6 +63,47 @@ test('last wild plus regular is final unless magnet will pull tiles', () => {
     dst,
     effSum: 6,
   }).isFinalMerge).toBe(true);
+});
+
+test('last wild plus stacked regular is still final merge', () => {
+  const src = makeTile({ value: 0, special: 'wild-juice' });
+  const dst = makeTile({ value: 5, stackDepth: 2 });
+
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: [src, dst],
+    src,
+    dst,
+    effSum: 6,
+  })).toMatchObject({
+    activeSnapshotWasOnlyMergePair: true,
+    isFinalWildLastTwo: true,
+    isFinalMerge: true,
+  });
+});
+
+test('duplicate runtime tile refs do not block final wild merge', () => {
+  const src = makeTile({ value: 0, special: 'wild-juice' });
+  const dst = makeTile({ value: 5, stackDepth: 2 });
+
+  const tileSets = getFinalMergeTileSets({
+    tiles: [src, dst, dst, src],
+    src,
+    dst,
+  });
+
+  expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst]);
+  expect(tileSets.finalMergeBlockersBefore).toEqual([]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
+  })).toMatchObject({
+    activeSnapshotWasOnlyMergePair: true,
+    isFinalWildLastTwo: true,
+    isFinalMerge: true,
+  });
 });
 
 test('future wild-prefixed special dice are treated as wild-like', () => {

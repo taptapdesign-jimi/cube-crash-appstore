@@ -65,7 +65,36 @@ describe('handleEmptyLoadState', () => {
     expect(result.handled).toBe(true);
   });
 
-  it('uses injected fail screen flow for stuck saved boards', () => {
+  it('uses injected no-moves fail flow for stuck saved boards', () => {
+    const tiles: any[] = [{ locked: true, value: 4 }];
+    const runFailFlow = jest.fn();
+    const showFinalScreen = jest.fn();
+
+    const result = handleEmptyLoadState({
+      tiles,
+      boardNumber: 1,
+      getPendingCleanBoard: () => ({ pending: false }),
+      clearPendingCleanBoard: noop,
+      getBoardSaveKey: () => 'cc_saved_game_board_01',
+      triggerCleanBoardFlow: noop,
+      runFailFlow,
+      showFinalScreen,
+      trackAppTimeout: (fn: () => void) => fn(),
+      devLog: noop,
+      devWarn: noop,
+    });
+
+    expect(result.handled).toBe(true);
+    expect(runFailFlow).toHaveBeenCalledWith({
+      reason: 'load_empty_stuck_recovery',
+      waitMs: 0,
+      resetHint: false,
+      exitTimeoutMs: 500,
+    });
+    expect(showFinalScreen).not.toHaveBeenCalled();
+  });
+
+  it('falls back to injected final screen when no fail flow is available', () => {
     const tiles: any[] = [{ locked: true, value: 4 }];
     const showFinalScreen = jest.fn();
 

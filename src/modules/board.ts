@@ -134,6 +134,11 @@ function _drawStackInternal(tile: Tile): void {
   try { tile.stackG?.destroy({ children: true }); } catch {}
   tile.stackG = null;
 
+  if ((tile as any)?._ccSuppressStackVisual === true) {
+    tile.stackDepth = 1;
+    return;
+  }
+
   const depth = Math.max(1, tile.stackDepth || 0);
   if (depth <= 1) return;
 
@@ -212,6 +217,18 @@ function _drawStackInternal(tile: Tile): void {
   try { host.sortChildren(); } catch {}
 }
 
+function applyFinalMergeResultHiddenVisual(t: Tile): void {
+  if (!t || t.destroyed || !(t as any)._ccHideFinalMergeResultVisual) return;
+  try { t.stackDepth = 1; } catch {}
+  try { t.stackG?.destroy({ children: true }); } catch {}
+  try { t.stackG = null; } catch {}
+  try { if (t.base) t.base.visible = false; } catch {}
+  try { if (t.pips) { t.pips.visible = false; t.pips.clear?.(); } } catch {}
+  try { if (t.num) t.num.visible = false; } catch {}
+  try { if (t.shadow) t.shadow.visible = false; } catch {}
+  try { if (t.overlay) t.overlay.visible = false; } catch {}
+}
+
 // ✅ PATCH: nikad pipsi na praznom/locked, i overlay nikad ne "probija"
 export function drawPips(t: Tile): void {
   // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during animations
@@ -231,6 +248,10 @@ export function drawPips(t: Tile): void {
 function _drawPipsInternal(t: Tile): void {
   // 🔥 CRITICAL FIX: Check if tile is destroyed or pips is null before clearing
   if (!t || t.destroyed) return;
+  if ((t as any)._ccHideFinalMergeResultVisual === true) {
+    applyFinalMergeResultHiddenVisual(t);
+    return;
+  }
   const g = t.pips;
   if (!g || g.destroyed) return;
   const host = t.rotG || t;
@@ -463,6 +484,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   if (!isWildLikeTile(t)) {
     drawPips(t);
   }
+  applyFinalMergeResultHiddenVisual(t);
 }
 
 // --- Merge score chain bookkeeping (ostavljeno ako ti treba kasnije) ---

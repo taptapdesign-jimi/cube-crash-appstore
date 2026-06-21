@@ -2,6 +2,7 @@ import {
   createMagnetRespawnPlan,
   isPlayablePostMagnetTile,
   resolvePostMagnetEndgameAction,
+  resolvePreMagnetRespawnDecision,
 } from '../magnet-post-spawn-resolution';
 
 const tile = (overrides: Partial<any> = {}) => ({
@@ -67,5 +68,56 @@ test('magnet respawn plan replaces pulled cells and adds one obligatory tile', (
     replacementSpawnCount: 0,
     obligatorySpawnCount: 1,
     spawnCount: 1,
+  });
+});
+
+test('pre-magnet respawn delegates final last-merge to central endgame', () => {
+  const dst = tile({ value: 6 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: true,
+    activeTilesAfterRemoval: [dst],
+    dst,
+    pulledCellCount: 0,
+  })).toEqual({
+    isLastMergeFlagSet: true,
+    onlyDstRemains: true,
+    hasTilesToRespawn: false,
+    shouldClearLastMergeFlag: false,
+    shouldDelegateToCentralEndgame: true,
+  });
+});
+
+test('pre-magnet respawn clears stale final flag when pulled tiles must respawn', () => {
+  const dst = tile({ value: 6 });
+  const pulled = tile({ value: 3 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: true,
+    activeTilesAfterRemoval: [dst, pulled],
+    dst,
+    pulledCellCount: 1,
+  })).toEqual({
+    isLastMergeFlagSet: false,
+    onlyDstRemains: false,
+    hasTilesToRespawn: true,
+    shouldClearLastMergeFlag: true,
+    shouldDelegateToCentralEndgame: false,
+  });
+});
+
+test('pre-magnet respawn treats only merge-6 remaining as central endgame even without flag', () => {
+  const dst = tile({ value: 6 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: false,
+    activeTilesAfterRemoval: [dst],
+    dst,
+    pulledCellCount: 0,
+  })).toMatchObject({
+    isLastMergeFlagSet: false,
+    onlyDstRemains: true,
+    hasTilesToRespawn: false,
+    shouldDelegateToCentralEndgame: true,
   });
 });

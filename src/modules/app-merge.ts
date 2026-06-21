@@ -21,7 +21,7 @@ import { isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
-import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction } from './magnet-post-spawn-resolution.ts';
+import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -490,9 +490,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🚨🚨🚨 SOURCE OF TRUTH: Wild Magnet Mode B — No tiles to attract');
     console.log('🎯 Source of Truth: If the merge is final Merge-6 → trigger CLEAN BOARD');
     console.log('🚨🚨🚨 EDGE CASE: Magnet merge but NO tiles to pull - Only merge 6 remains, triggering clean board flow');
-    
-    // Remove merge 6 tile
-    removeTile(dst);
     
     // Delegate timing to triggerCleanBoardFlow/final-merge-handoff so magnet finale
     // start/wait behavior has one source of truth.
@@ -1136,11 +1133,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Only merge 6 remains - this means magnet pulled the last tiles from the board
     console.log('🚨🚨🚨 EDGE CASE: Only merge 6 remains after magnet pulled last 4 tiles - Triggering clean board flow immediately (no spawn)');
     
-    // Remove merge 6
-    if (dst && !dst.destroyed) {
-      removeTile(dst);
-    }
-    
+    // Keep merge 6 visible for the centralized residual pop-out.
     await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetOnlyDstRemains);
     return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
   }
@@ -1203,16 +1196,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       updateHUD();
       animateScore(finalScore, 0.45);
       
-      // Remove all pulled tiles and merge 6
-      remainingTiles.forEach((tile: any) => {
-        if (tile && !tile.destroyed) {
-          removeTile(tile);
-        }
-      });
-      if (merge6Tile && !merge6Tile.destroyed) {
-        removeTile(merge6Tile);
-      }
-      
+      // Keep pulled tiles and merge 6 visible for centralized residual pop-out.
       await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFewTilesRemaining);
       return; // Don't spawn new tiles
   }
@@ -1301,37 +1285,41 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   const isLastMergeFlagSetRaw = (dst as any)?._isLastMerge === true;
   const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
-  const onlyDstRemains = activeAfterRemoval.length === 1 && activeAfterRemoval[0] === dst;
-  const hasTilesToRespawn = pulledCells.length > 0;
-  if (isLastMergeFlagSetRaw && hasTilesToRespawn) {
+  const preRespawnDecision = resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw,
+    activeTilesAfterRemoval: activeAfterRemoval,
+    dst,
+    pulledCellCount: pulledCells.length,
+  });
+  const {
+    isLastMergeFlagSet,
+    onlyDstRemains,
+    hasTilesToRespawn,
+    shouldDelegateToCentralEndgame,
+  } = preRespawnDecision;
+  if (preRespawnDecision.shouldClearLastMergeFlag) {
     console.log('🧲 _isLastMerge flag ignored: magnet pulled tiles that must respawn', {
       pulledCells: pulledCells.length,
       pulledCellsList: pulledCells
     });
     try { (dst as any)._isLastMerge = false; } catch {}
   }
-  const isLastMergeFlagSet = isLastMergeFlagSetRaw && !hasTilesToRespawn;
   const merge6Coords = dst && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)
     ? { c: dst.gridX | 0, r: dst.gridY | 0 }
     : null;
-
-  // 🔥 CRITICAL: Only skip respawn if explicitly marked as last merge
-  // OR if only dst remains AND there are no tiles to respawn
-  // This prevents premature endgame when there are still wild/magnet tiles on board
-  const shouldSkipRespawnAndEndGame = isLastMergeFlagSet || (onlyDstRemains && !hasTilesToRespawn);
 
   console.log('🧲 Pre-respawn check:', {
     isLastMergeFlagSet,
     activeAfterRemoval: activeAfterRemoval.length,
     onlyDstRemains,
     hasTilesToRespawn,
-    shouldSkipRespawnAndEndGame
+    shouldDelegateToCentralEndgame
   });
 
   // 🔥 CRITICAL FIX: NEVER call endgame check if we have tiles to respawn!
   // This was causing instant fail screen when magnet pulled tiles (e.g., magnet + 2 cubes)
   // because endgame check would see only merge 6 tile BEFORE new tiles spawned
-  if (shouldSkipRespawnAndEndGame && !hasTilesToRespawn && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
+  if (shouldDelegateToCentralEndgame && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
     console.log('🧲 mergePulledTilesIntoMerge6: Central endgame handled before respawn, skipping spawns.');
     return;
   }
@@ -1373,17 +1361,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   if (isLastMergeFlagSet && !hasTilesToRespawn) {
     console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - NO spawns, triggering CLEAN BOARD');
     console.log('🎯 This is the final merge (magnet + 1 tile = 2 tiles total) - should trigger clean board, NOT spawn tiles');
-    
-    // Remove merge 6 tile (clean board visually; SWOOP overlay stays on top)
-    if (dst && !dst.destroyed) {
-      removeTile(dst);
-    }
-    
-    // Central final-merge handoff starts/waits SWOOP and residual popout. Keep this
-    // legacy magnet path as a delegate only so timing stays identical to app-core.
-    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
-    if (typeof triggerCleanBoardFlow === 'function') {
-      await triggerCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6);
+
+    // Keep the merge-6 tile visible. The centralized final handoff owns SWOOP wait,
+    // residual tile/ghost pop-out, HUD/bottom exit, and cleanup.
+    if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6)) {
       console.log('✅ Clean board flow completed for magnet final merge-6');
     } else {
       console.error('❌ triggerCleanBoardFlow not available - final magnet merge cannot complete centrally');

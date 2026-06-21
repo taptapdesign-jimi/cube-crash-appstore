@@ -14,8 +14,13 @@ const _appTimeouts: Set<NodeJS.Timeout> = new Set();
 
 export function trackAppTimeout(callback: () => void, delay: number): NodeJS.Timeout {
   const timeout = setTimeout(() => {
-    callback();
-    _appTimeouts.delete(timeout);
+    try {
+      callback();
+    } catch (error) {
+      logger.error('❌ Tracked app timeout callback failed', error);
+    } finally {
+      _appTimeouts.delete(timeout);
+    }
   }, delay);
   _appTimeouts.add(timeout);
   return timeout;

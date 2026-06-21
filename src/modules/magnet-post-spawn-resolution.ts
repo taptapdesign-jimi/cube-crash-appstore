@@ -25,6 +25,14 @@ export type MagnetRespawnPlan = {
   spawnCount: number;
 };
 
+export type PreMagnetRespawnDecision = {
+  isLastMergeFlagSet: boolean;
+  onlyDstRemains: boolean;
+  hasTilesToRespawn: boolean;
+  shouldClearLastMergeFlag: boolean;
+  shouldDelegateToCentralEndgame: boolean;
+};
+
 export function createMagnetRespawnPlan(pulledCellCount: number, hasTilesToRespawn: boolean): MagnetRespawnPlan {
   const replacementSpawnCount = hasTilesToRespawn ? Math.max(0, pulledCellCount | 0) : 0;
   const obligatorySpawnCount = 1;
@@ -32,6 +40,33 @@ export function createMagnetRespawnPlan(pulledCellCount: number, hasTilesToRespa
     replacementSpawnCount,
     obligatorySpawnCount,
     spawnCount: replacementSpawnCount + obligatorySpawnCount,
+  };
+}
+
+export function resolvePreMagnetRespawnDecision({
+  isLastMergeFlagSetRaw = false,
+  activeTilesAfterRemoval = [],
+  dst,
+  pulledCellCount = 0,
+}: {
+  isLastMergeFlagSetRaw?: boolean;
+  activeTilesAfterRemoval?: any[];
+  dst?: any;
+  pulledCellCount?: number;
+}): PreMagnetRespawnDecision {
+  const hasTilesToRespawn = Math.max(0, pulledCellCount | 0) > 0;
+  const isLastMergeFlagSet = !!isLastMergeFlagSetRaw && !hasTilesToRespawn;
+  const onlyDstRemains =
+    Array.isArray(activeTilesAfterRemoval) &&
+    activeTilesAfterRemoval.length === 1 &&
+    activeTilesAfterRemoval[0] === dst;
+
+  return {
+    isLastMergeFlagSet,
+    onlyDstRemains,
+    hasTilesToRespawn,
+    shouldClearLastMergeFlag: !!isLastMergeFlagSetRaw && hasTilesToRespawn,
+    shouldDelegateToCentralEndgame: (isLastMergeFlagSet || onlyDstRemains) && !hasTilesToRespawn,
   };
 }
 

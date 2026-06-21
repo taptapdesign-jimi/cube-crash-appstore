@@ -1,4 +1,4 @@
-import { randomRegularTileValue, randVal } from '../app-core-utils';
+import { randomRegularTileValue, randVal, trackAppTimeout } from '../app-core-utils';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from '../run-mode';
 
 describe('app-core-utils regular value bias', () => {
@@ -62,5 +62,32 @@ describe('app-core-utils regular value bias', () => {
     mockRandomSequence([0.49, 0.99]);
 
     expect(randomRegularTileValue()).toBe(3);
+  });
+});
+
+describe('app-core-utils tracked timeouts', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  test('timeout callback errors are contained so later callbacks still run', () => {
+    const afterError = jest.fn();
+
+    trackAppTimeout(() => {
+      throw new Error('timeout boom');
+    }, 10);
+    trackAppTimeout(afterError, 20);
+
+    expect(() => {
+      jest.advanceTimersByTime(30);
+    }).not.toThrow();
+    expect(afterError).toHaveBeenCalledTimes(1);
   });
 });

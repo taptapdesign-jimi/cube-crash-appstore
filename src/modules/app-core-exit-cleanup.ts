@@ -35,6 +35,7 @@ export function cleanupBeforeBoardExit({
         });
       });
     }
+    try { (window as any).hideGhostsUnderLockedTiles?.('board-exit-cleanup'); } catch {}
   } catch {
     // Silently ignore errors
   }

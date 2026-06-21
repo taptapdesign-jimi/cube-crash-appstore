@@ -7,6 +7,7 @@ type EmptyLoadDeps = {
   clearPendingCleanBoard: () => void;
   getBoardSaveKey: (boardNumber: number) => string;
   triggerCleanBoardFlow: (...args: any[]) => any;
+  runFailFlow?: (options: { reason: string; waitMs?: number; resetHint?: boolean; exitTimeoutMs?: number; persistStuckState?: boolean }) => any;
   showFinalScreen?: (options?: { confirmedFailFlow?: boolean }) => any;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   devLog: (...args: any[]) => void;
@@ -20,6 +21,7 @@ export function handleEmptyLoadState({
   clearPendingCleanBoard,
   getBoardSaveKey,
   triggerCleanBoardFlow,
+  runFailFlow,
   showFinalScreen,
   trackAppTimeout,
   devLog,
@@ -116,7 +118,14 @@ export function handleEmptyLoadState({
     trackAppTimeout(() => {
       try {
         devLog('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
-        if (typeof showFinalScreen === 'function') {
+        if (typeof runFailFlow === 'function') {
+          runFailFlow({
+            reason: 'load_empty_stuck_recovery',
+            waitMs: 0,
+            resetHint: false,
+            exitTimeoutMs: 500,
+          });
+        } else if (typeof showFinalScreen === 'function') {
           showFinalScreen({ confirmedFailFlow: true });
         } else if (typeof (window as any).showFinalScreen === 'function') {
           (window as any).showFinalScreen({ confirmedFailFlow: true });

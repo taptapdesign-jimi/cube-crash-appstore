@@ -10,6 +10,8 @@ export type FinalMergeSnapshotInput = {
 
 export type FinalMergeSnapshot = {
   activeSnapshotWasOnlyMergePair: boolean;
+  activePhysicalTileCount: number;
+  mergePhysicalTileCount: number;
   isFinalRegularMerge6: boolean;
   isFinalWildLastTwo: boolean;
   isFinalMerge: boolean;
@@ -19,6 +21,20 @@ export type FinalMergeTileSets = {
   activeTilesBeforeMerge: any[];
   finalMergeBlockersBefore: any[];
 };
+
+function uniqueTileRefs(tileList: any[]): any[] {
+  const out: any[] = [];
+  (Array.isArray(tileList) ? tileList : []).forEach((tile: any) => {
+    if (!tile || out.includes(tile)) return;
+    out.push(tile);
+  });
+  return out;
+}
+
+function stackDepthOf(tile: any): number {
+  const depth = Number(tile?.stackDepth ?? 1);
+  return Number.isFinite(depth) && depth > 0 ? depth : 1;
+}
 
 export function isWildLikeSpecial(special: unknown): boolean {
   return typeof special === 'string' && special.startsWith('wild');
@@ -104,7 +120,7 @@ export function getFinalMergeTileSets({
   src: any;
   dst: any;
 }): FinalMergeTileSets {
-  const safeTiles = Array.isArray(tiles) ? tiles.filter(Boolean) : [];
+  const safeTiles = uniqueTileRefs(Array.isArray(tiles) ? tiles.filter(Boolean) : []);
   return {
     activeTilesBeforeMerge: safeTiles.filter(tileCountsAsFinalMergeActive),
     finalMergeBlockersBefore: safeTiles.filter((tile: any) => tileBlocksFinalMerge(tile, src, dst)),
@@ -120,11 +136,15 @@ export function getFinalMergeSnapshot({
   isWildMagnetMerge = false,
   hasTilesToPull = false,
 }: FinalMergeSnapshotInput): FinalMergeSnapshot {
+  const activeUnique = uniqueTileRefs(activeTilesBeforeMerge);
+  const activePhysicalTileCount = activeUnique.reduce((sum, tile) => sum + stackDepthOf(tile), 0);
+  const mergePhysicalTileCount = stackDepthOf(src) + stackDepthOf(dst);
   const activeSnapshotWasOnlyMergePair =
-    Array.isArray(activeTilesBeforeMerge) &&
-    activeTilesBeforeMerge.length === 2 &&
-    activeTilesBeforeMerge.includes(src) &&
-    activeTilesBeforeMerge.includes(dst);
+    (() => {
+      return activeUnique.length === 2 &&
+        activeUnique.includes(src) &&
+        activeUnique.includes(dst);
+    })();
 
   const hasOtherGameplayBlockers = finalMergeBlockersBefore.length > 0;
   const magnetWillPull = isWildMagnetMerge && hasTilesToPull;
@@ -132,6 +152,9 @@ export function getFinalMergeSnapshot({
   const dstIsWild = isWildLikeTile(dst);
   const srcValue = src ? (src.value | 0) : 0;
   const dstValue = dst ? (dst.value | 0) : 0;
+  const regularMergeIsExactlyTwoSingleDice =
+    activePhysicalTileCount === 2 &&
+    mergePhysicalTileCount === 2;
 
   const isFinalWildLastTwo =
     activeSnapshotWasOnlyMergePair &&
@@ -141,6 +164,7 @@ export function getFinalMergeSnapshot({
 
   const isFinalRegularMerge6 =
     activeSnapshotWasOnlyMergePair &&
+    regularMergeIsExactlyTwoSingleDice &&
     !hasOtherGameplayBlockers &&
     !srcIsWild &&
     !dstIsWild &&
@@ -150,6 +174,8 @@ export function getFinalMergeSnapshot({
 
   return {
     activeSnapshotWasOnlyMergePair,
+    activePhysicalTileCount,
+    mergePhysicalTileCount,
     isFinalRegularMerge6,
     isFinalWildLastTwo,
     isFinalMerge: isFinalRegularMerge6 || isFinalWildLastTwo,
