@@ -15,7 +15,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
@@ -37,7 +37,7 @@ import { resetTileToNormalState, boardHasPersistentLockedTiles, isTileTransientl
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { isArcadeHomeRunMode, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
+import { isArcadeHomeRunMode, markArcadeHomeRunOrigin, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyOriginActive } from './journey-origin-state.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
 import { FINAL_MERGE_REASONS, getFinalMergeCleanBoardReason } from './final-merge-reasons.ts';
@@ -78,6 +78,7 @@ import {
   getAppCleanupStats
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
+import { warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -133,6 +134,7 @@ import {
   collectFinalGhostResidualTargets,
   collectFinalLockedResidualTargets,
   collectOrphanFinalBoardTileResidualTargets,
+  isFinalBoardTileResidueCandidate,
   prepareFinalResidualTargets,
 } from './final-residual-visual-targets.ts';
 import { bindTileWithFallbackCore } from './app-core-bind.ts';
@@ -1043,14 +1045,40 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   busyEnding = true;
   cancelPendingWildContinuation(`clean-board-flow:${reason}`);
 
-  const visualHandoffReason = shouldRunCleanBoardVisualHandoff(reason);
-  let finalHandoffPrepared = visualHandoffReason && (window as any).__ccFinalResidualPopOutPrepared === true;
+  const terminalFinalMergeReason = shouldRunCleanBoardVisualHandoff(reason);
+  const arcadeStageClearTerminal = terminalFinalMergeReason && isArcadeHomeRunMode();
+  const visualHandoffReason = terminalFinalMergeReason && !arcadeStageClearTerminal;
+  let finalHandoffPrepared = terminalFinalMergeReason && (window as any).__ccFinalResidualPopOutPrepared === true;
   if (visualHandoffReason && (window as any).__ccFinalResidualPopOutPrepared !== true) {
     try {
       await prepareFinalMergeVisualHandoff(reason, `trigger-clean-board:${reason}`);
       finalHandoffPrepared = true;
     } catch (handoffError) {
       devWarn('⚠️ triggerCleanBoardFlow final merge visual handoff failed:', handoffError);
+    }
+  } else if (arcadeStageClearTerminal) {
+    try {
+      await waitForFinalMergeHandoff({
+        reason,
+        isArcade: true,
+        wait: waitTracked,
+        logger,
+        isTntAnimationActive,
+        onTntBoomExitComplete,
+        onTntAnimationComplete,
+        isWildJuiceBubblesExplosionActive: isWildJuiceFinaleAnimationActive,
+        isWildJuiceBubblesExplosionRecentlyStarted,
+        waitForWildJuiceBubblesExplosionComplete: waitForBubblesExplosionToComplete,
+        isMagneticTextActive,
+        showMagneticText,
+        waitForMagneticTextComplete,
+        isSparkleTextActive,
+        waitForSparkleTextComplete,
+      });
+      hardCleanupArcadeFinalMergeTerminalResidue(`trigger-clean-board:${reason}`);
+      finalHandoffPrepared = true;
+    } catch (handoffError) {
+      devWarn('⚠️ triggerCleanBoardFlow arcade final merge handoff failed:', handoffError);
     }
   }
 
@@ -1154,7 +1182,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       updateHUD,
       boardNumber,
       skipStarsWait: shouldSkipStarsWaitForCleanBoard,
-      finalMergeCompleted: visualHandoffReason,
+      finalMergeCompleted: terminalFinalMergeReason,
       hideGrid: () => {
         try {
           setJourneyGameBottomDecorVisible(false);
@@ -1300,6 +1328,21 @@ const CORE_GAME_TEXTURE_ASSETS = [
   ASSET_WILD_TNT,
 ] as const;
 
+const CORE_HUD_TEXTURE_ASSETS = [
+  './assets/close-icon.png',
+  './assets/hud/star-hud.png',
+  './assets/hud/score-hud.png',
+  './assets/hud/combo-hud.png',
+  './assets/hud/extra-combo-hud.png',
+  './assets/hud/mega-combo-hud.png',
+  './assets/hud/help.png',
+] as const;
+
+const CORE_RENDER_TEXTURE_ASSETS = [
+  ...CORE_GAME_TEXTURE_ASSETS,
+  ...CORE_HUD_TEXTURE_ASSETS,
+] as const;
+
 function getTextureSource(tex: any): any {
   return tex?.source ?? tex?.baseTexture ?? null;
 }
@@ -1331,14 +1374,22 @@ function removeStaleGameTexture(assetPath: string): void {
   try { (Texture as any).removeFromCache?.(assetPath); } catch {}
 }
 
-async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<void> {
+function isCoreHudTextureAsset(assetPath: string): boolean {
+  return (CORE_HUD_TEXTURE_ASSETS as readonly string[]).includes(assetPath);
+}
+
+function shouldOptimizeAsGameTexture(assetPath: string): boolean {
+  return (CORE_GAME_TEXTURE_ASSETS as readonly string[]).includes(assetPath);
+}
+
+async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<string[]> {
   const staleAssets: string[] = [];
 
-  for (const assetPath of CORE_GAME_TEXTURE_ASSETS) {
+  for (const assetPath of CORE_RENDER_TEXTURE_ASSETS) {
     let tex: any = null;
     try { tex = Assets.get(assetPath); } catch {}
     if (isUsableGameTexture(tex)) {
-      optimizeGameTexture(tex);
+      if (shouldOptimizeAsGameTexture(assetPath)) optimizeGameTexture(tex);
       continue;
     }
     staleAssets.push(assetPath);
@@ -1347,22 +1398,109 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
 
   if (staleAssets.length > 0) {
     devWarn('⚠️ Reloading stale/missing core game textures', { context, staleAssets });
-    await Assets.load(staleAssets);
-  }
-
-  const failedAssets: string[] = [];
-  for (const assetPath of CORE_GAME_TEXTURE_ASSETS) {
-    let tex: any = null;
-    try { tex = Assets.get(assetPath); } catch {}
-    if (isUsableGameTexture(tex)) {
-      optimizeGameTexture(tex);
-    } else {
-      failedAssets.push(assetPath);
+    try {
+      await Assets.load(staleAssets);
+    } catch (error) {
+      devWarn('⚠️ Batch core texture reload failed, retrying individually', { context, error });
     }
   }
 
-  if (failedAssets.length > 0) {
-    throw new Error(`Core game textures failed to load (${context}): ${failedAssets.join(', ')}`);
+  const waitForRetry = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+  const failedAssets = new Set<string>();
+
+  for (const assetPath of CORE_RENDER_TEXTURE_ASSETS) {
+    let usable = false;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      let tex: any = null;
+      try { tex = Assets.get(assetPath); } catch {}
+
+      if (!isUsableGameTexture(tex)) {
+        removeStaleGameTexture(assetPath);
+        try {
+          tex = await Assets.load(assetPath);
+        } catch (error) {
+          devWarn('⚠️ Core texture reload attempt failed', { context, assetPath, attempt: attempt + 1, error });
+        }
+      }
+
+      if (!isUsableGameTexture(tex)) {
+        try { tex = Texture.from(assetPath); } catch {}
+      }
+
+      if (isUsableGameTexture(tex)) {
+        if (shouldOptimizeAsGameTexture(assetPath)) optimizeGameTexture(tex);
+        usable = true;
+        break;
+      }
+
+      await waitForRetry(80 + attempt * 120);
+    }
+
+    if (!usable) {
+      failedAssets.add(assetPath);
+    }
+  }
+
+  if (failedAssets.size > 0) {
+    devWarn('⚠️ Core render textures still not usable after recovery attempts; continuing with next lifecycle retry', {
+      context,
+      failedAssets: Array.from(failedAssets),
+    });
+  }
+
+  return staleAssets;
+}
+
+function getTileBaseTextureAssetPath(tile: any): string {
+  const special = typeof tile?.special === 'string' ? tile.special : '';
+  const fallback = special === 'wild-magnet'
+    ? ASSET_WILD_MAGNET
+    : special === 'wild-juice'
+      ? ASSET_WILD_JUICE
+      : special === 'wild-tnt'
+        ? ASSET_WILD_TNT
+        : special === 'wild'
+          ? ASSET_WILD
+          : ASSET_TILE;
+  return getSpecialDiceTexturePath(tile, fallback);
+}
+
+function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
+  try {
+    const liveTiles = Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles;
+    let rebound = 0;
+    for (const tile of liveTiles as any[]) {
+      if (!tile || tile.destroyed) continue;
+      const host = tile.rotG && !tile.rotG.destroyed ? tile.rotG : tile;
+      let base = tile.base && !tile.base.destroyed ? tile.base : null;
+      if (!base && host?.children) {
+        base = host.children.find((child: any) => child && !child.destroyed && child instanceof Sprite) || null;
+      }
+      if (!base && host?.addChildAt) {
+        base = new Sprite(Assets.get(getTileBaseTextureAssetPath(tile)) || Texture.from(getTileBaseTextureAssetPath(tile)));
+        base.anchor?.set?.(0.5);
+        host.addChildAt(base, 0);
+        tile.base = base;
+        rebound++;
+      }
+      if (!base || base.destroyed) continue;
+
+      const assetPath = getTileBaseTextureAssetPath(tile);
+      let tex: any = null;
+      try { tex = Assets.get(assetPath); } catch {}
+      if (!isUsableGameTexture(tex)) continue;
+      if (base.texture !== tex || !isUsableGameTexture(base.texture)) {
+        base.texture = tex;
+        base.visible = true;
+        base.alpha = Number.isFinite(base.alpha) && base.alpha > 0 ? base.alpha : 1;
+        rebound++;
+      }
+    }
+    if (rebound > 0) {
+      devWarn('⚠️ Rebound live tile textures after cache refresh', { reason, rebound });
+    }
+  } catch (error) {
+    devWarn('⚠️ Failed to refresh live core game sprite textures', { reason, error });
   }
 }
 
@@ -1425,6 +1563,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
     typeof reason === 'string' &&
     (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
+  try { cleanupAllTntIdleEffects?.(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupAllFxContainers?.(); } catch {}
@@ -2870,6 +3009,17 @@ export async function boot(){
     devError('❌ CRITICAL: Failed to load HUD icons into PIXI Assets cache:', error);
     // Continue anyway - HUD will try to load icons asynchronously
   }
+
+  try {
+    await warmBoardGameAssets({
+      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+      boardNumber,
+      reason: 'app-core-boot',
+      timeoutMs: 1400,
+    });
+  } catch (error) {
+    devWarn('⚠️ Board asset warmup reported an issue during boot; runtime texture guard will continue recovery', error);
+  }
   
   // Core gameplay textures must be valid, not just present in Assets.cache.
   // iOS/WebKit can keep stale cache entries after app/renderer teardown; starting with
@@ -3040,7 +3190,7 @@ export async function boot(){
     boardNumber = forcedStartLevel | 0;
     moves = MOVES_MAX;
     devLog('🎯 boot(): Starting at requested board', boardNumber);
-    startLevel(boardNumber);
+    await startLevel(boardNumber);
   } else {
     boardNumber = 1;
     moves = MOVES_MAX;
@@ -3057,7 +3207,7 @@ export async function boot(){
       hud.renderable = true;
       devLog('✅ HUD made visible in boot() before startLevel');
     }
-    startLevel(1);
+    await startLevel(1);
   }
   
   // 🔥 CRITICAL FIX: Final check - ensure board and hud are visible after startLevel
@@ -3542,6 +3692,19 @@ export async function layoutBoard(){
   if (Math.abs((_lastSAT||0) - SAT) > 0.5) { _hudInitDone = false; _lastSAT = SAT; }
 
   try {
+    const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard');
+    if (refreshedAssets.length > 0) {
+      refreshLiveCoreGameSpriteTextures('layoutBoard');
+      if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
+        _hudInitDone = false;
+        try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
+      }
+    }
+  } catch (error) {
+    devWarn('⚠️ Core render texture recovery reported an issue during layoutBoard; continuing with retry-on-next-layout', error);
+  }
+
+  try {
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
         devLog('🎯 Initializing HUD...');
@@ -3555,42 +3718,14 @@ export async function layoutBoard(){
           devWarn('⚠️ Font preload failed, HUD text may show fallback:', err);
         }
         
-        // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD
-        // This prevents missing icons after hard exit/restart
-        // Icons should already be loaded in boot(), but double-check here as safety
+        // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD.
+        // Assets.get() alone is not enough; stale WebKit/Pixi cache entries can exist but render blank.
         try {
-          const { Assets } = await import('pixi.js');
-          const hudIcons = [
-            './assets/hud/star-hud.png',
-            './assets/hud/score-hud.png',
-            './assets/hud/combo-hud.png',
-            './assets/hud/extra-combo-hud.png',
-            './assets/hud/mega-combo-hud.png',
-            './assets/close-icon.png',
-          ];
-          
-          // Check which icons are missing and load them
-          const missingIcons: string[] = [];
-          for (const iconPath of hudIcons) {
-            if (!Assets.get(iconPath)) {
-              missingIcons.push(iconPath);
-            }
+          const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard-before-hud');
+          if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
+            try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
           }
-          
-          // If any icons are missing, load them BLOCKING
-          if (missingIcons.length > 0) {
-            devWarn(`⚠️ ${missingIcons.length} HUD icons missing, loading now (BLOCKING)...`);
-            for (const iconPath of missingIcons) {
-              try {
-                await Assets.load(iconPath);
-                devLog(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
-              } catch (err) {
-                devError(`❌ CRITICAL: Failed to load ${iconPath} before HUD init:`, err);
-              }
-            }
-          } else {
-            devLog('✅ All HUD icons already loaded in PIXI Assets cache');
-          }
+          devLog('✅ Core HUD textures validated before HUD init');
         } catch (err) {
           devError('❌ CRITICAL: Failed to ensure HUD icons are loaded before HUD init:', err);
           // Try to load via comprehensive preloader as fallback
@@ -4427,6 +4562,76 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
   }
 }
 
+function hardCleanupArcadeFinalMergeTerminalResidue(reason: string = 'arcade-stage-clear'): void {
+  const clearTileFromGridEverywhere = (tile: any) => {
+    if (!tile || !grid) return;
+    try {
+      const gxCandidate = tile.gridX;
+      const gyCandidate = tile.gridY;
+      if (gyCandidate !== undefined && gxCandidate !== undefined && grid?.[gyCandidate]?.[gxCandidate] === tile) {
+        grid[gyCandidate][gxCandidate] = null;
+      }
+    } catch {}
+    try {
+      for (let r = 0; r < grid.length; r++) {
+        for (let c = 0; c < grid[r].length; c++) {
+          if (grid[r][c] === tile) grid[r][c] = null;
+        }
+      }
+    } catch {}
+  };
+
+  try {
+    normalizeFinalMerge6ResidueVisuals(`arcade-terminal:${reason}`);
+    const orphanFinalResidueTargets = collectOrphanFinalBoardTileResidualTargets({
+      root: board,
+      knownTiles: Array.isArray(tiles) ? tiles : [],
+      maxDepth: 2,
+    });
+    const candidates = [
+      ...(Array.isArray(tiles) ? tiles : []),
+      ...orphanFinalResidueTargets,
+    ];
+    const targetsToRemove: any[] = [];
+
+    candidates.forEach((target: any) => {
+      if (!target || target.destroyed || targetsToRemove.includes(target)) return;
+      const placeholder = target._placeholderHolder;
+      if (placeholder && !placeholder.destroyed && !targetsToRemove.includes(placeholder)) {
+        targetsToRemove.push(placeholder);
+      }
+      if (target.locked === true || isFinalBoardTileResidueCandidate(target)) {
+        targetsToRemove.push(target);
+      }
+    });
+
+    targetsToRemove.forEach((target: any) => {
+      if (!target || target.destroyed) return;
+      stopFinalResidualTargetIdleFx(target);
+      if ((target.value | 0) === 6 || target._isLastMerge === true || target._ccFinalMergeAllowedByResolver === true) {
+        hideFinalMergeResultTileVisual(target, `arcade-terminal:${reason}`);
+      }
+      clearTileFromGridEverywhere(target);
+      try {
+        target.visible = false;
+        target.renderable = false;
+        target.alpha = 0;
+        target.eventMode = 'none';
+      } catch {}
+      try { removeTile(target); } catch {}
+    });
+
+    if (targetsToRemove.length > 0) {
+      devLog('🧹 Arcade terminal final merge residue removed', {
+        reason,
+        removed: targetsToRemove.length,
+      });
+    }
+  } catch (err) {
+    devWarn('⚠️ Arcade terminal final merge residue cleanup failed:', err);
+  }
+}
+
 // Export to window for use in board.js
 window.setGhostVisibility = setGhostVisibility;
 window.updateGhostVisibility = updateGhostVisibility;
@@ -4889,12 +5094,25 @@ try {
   (window as any).__ccHideJourneyGameBottomDecor = () => setJourneyGameBottomDecorVisible(false);
 } catch {}
 
-function startLevel(n){
+async function startLevel(n){
   devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   resetTransientRunGuards('startLevel');
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
   (window as any).__ccEnterAnimationActive = true;
   try { hideGhostPlaceholders(); } catch {}
+
+  try {
+    const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
+    if (refreshedAssets.length > 0) {
+      refreshLiveCoreGameSpriteTextures('startLevel');
+      if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
+        _hudInitDone = false;
+        try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
+      }
+    }
+  } catch (error) {
+    devWarn('⚠️ Core render texture recovery reported an issue during startLevel; continuing with retry-on-layout', error);
+  }
   
   runStartLevelFxPrep({
     resetGlobalFxLayer,
@@ -12444,12 +12662,9 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       if (isArcadeRunReachedSummary) {
         devLog('🚪 Arcade run reached Exit - returning to menu');
         try {
-          (window as any).__ccCameFromHomepage = true;
-          (window as any).__ccCameFromJourney = false;
+          markArcadeHomeRunOrigin();
           (window as any).__skipBoardExitAnimation = true;
           (window as any).__ccFastArcadeCleanExit = true;
-          try { localStorage.setItem('__ccCameFromHomepage', 'true'); } catch {}
-          try { localStorage.removeItem('__ccCameFromJourney'); } catch {}
           const { requestExitToMenu } = await import('./menu-exit-handoff.js');
           await requestExitToMenu({
             reason: 'arcade-summary-exit',

@@ -2,7 +2,7 @@
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
-import { isArcadeHomeRunMode } from './run-mode.js';
+import { isArcadeHomeRunMode, markArcadeHomeRunOrigin } from './run-mode.js';
 import { wasFinalMergeHandoffRecentlySettled } from './final-merge-handoff.ts';
 import { waitForEndgameAnimationHandoff } from './endgame-animation-handoff.ts';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
@@ -78,12 +78,7 @@ async function returnFirstPlayTutorialToHomepage(): Promise<void> {
   try {
     (window as any).__ccBoardJustCompleted = true;
     (window as any).__ccSuppressTutorialStatsSave = true;
-    (window as any).__ccCameFromHomepage = true;
-    (window as any).__ccCameFromJourney = false;
-    localStorage.setItem('__ccCameFromHomepage', 'true');
-    localStorage.removeItem('__ccCameFromJourney');
-    delete (window as any).__ccCameFromDetailModal;
-    delete (window as any).__ccDetailModalBoardId;
+    markArcadeHomeRunOrigin();
     (window as any).__skipBoardExitAnimation = true;
     (window as any).__ccFastArcadeCleanExit = true;
     await requestExitToMenu({
@@ -180,11 +175,7 @@ async function handleArcadeCleanBoardExit(): Promise<void> {
   console.log('🚪 endgame-flow: Exit action in arcade_home mode - returning to homepage');
   logger.info('🚪 endgame-flow: arcade_home exit -> homepage');
   try {
-    (window as any).__ccCameFromHomepage = true;
-    (window as any).__ccCameFromJourney = false;
-    localStorage.setItem('__ccCameFromHomepage', 'true');
-    localStorage.removeItem('__ccCameFromJourney');
-    clearJourneyDetailReturn();
+    markArcadeHomeRunOrigin();
     delete (window as any).__skipBoardExitAnimation;
     (window as any).__skipBoardExitAnimation = true;
     (window as any).__ccFastArcadeCleanExit = true;
@@ -910,13 +901,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // - Combo bonus: longestCombo × 50 (computed inside clean-board-modal)
     // - Efficiency bonus: moves + stack depth (computed here)
     const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber });
+    const arcadeStageClearMode = isArcadeHomeRunMode();
 
     // Targeted handoff only. Avoid broad waitForOngoingAnimations(4000):
     // final-merge-handoff already waits exact TNT/juice/magnet/sparkle finales.
     // Here we only give active stars/bubbles a short, specific chance to complete.
     try {
       await waitForEndgameAnimationHandoff({
-        isArcade: isArcadeHomeRunMode(),
+        isArcade: arcadeStageClearMode,
         skipStarsWait: skipStarsWait || finalMergeCompleted,
         handoffAlreadySettled: finalMergeCompleted || wasFinalMergeHandoffRecentlySettled(),
       });
@@ -930,7 +922,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
 
     // sakrij grid/ghostove tek nakon final handoffa i residual pop-outa,
     // neposredno prije modala/new-card flowa.
-    try { hideGrid?.(); } catch {}
+    if (!arcadeStageClearMode) {
+      try { hideGrid?.(); } catch {}
+    }
 
     if (firstPlayTutorialCompletion) {
       await animateBoardIndicatorExitSafe(0.3, 'tutorial-complete');
@@ -946,7 +940,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       return;
     }
 
-    if (isArcadeHomeRunMode()) {
+    if (arcadeStageClearMode) {
       const clearedStage = Math.max(1, boardNumber | 0);
       const nextStage = clearedStage + 1;
       const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
@@ -957,8 +951,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } catch (error) {
         logger.warn('⚠️ endgame-flow: Failed to update Arcade high score on stage clear:', error);
       }
-
-      await animateBoardIndicatorExitSafe(0.25, 'arcade-stage-clear');
 
       try {
         const { showArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
@@ -1060,7 +1052,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         efficiencyBonus,
         scoreCap: 999999,
         boardNumber,
-        isFromInterimBoardOverride: !isArcadeHomeRunMode() && isJourneyInterimOriginActive(),
+        isFromInterimBoardOverride: !arcadeStageClearMode && isJourneyInterimOriginActive(),
       });
     } finally {
       if (cleanupNewCardHandoffCover) {

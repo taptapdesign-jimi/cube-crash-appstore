@@ -9,7 +9,7 @@ describe('journey-bottom-decor-decision', () => {
     expect(shouldShowJourneyBottomDecor({ isArcade: true, isJourneyOrigin: false })).toBe(false);
   });
 
-  it('keeps bottom decor when a journey-origin run is active', () => {
-    expect(shouldShowJourneyBottomDecor({ isArcade: true, isJourneyOrigin: true })).toBe(true);
+  it('hides bottom decor in arcade even when stale journey origin exists', () => {
+    expect(shouldShowJourneyBottomDecor({ isArcade: true, isJourneyOrigin: true })).toBe(false);
   });
 });

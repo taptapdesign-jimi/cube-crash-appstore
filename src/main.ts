@@ -91,7 +91,7 @@ import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './ut
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
-import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from './modules/run-mode.js';
+import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, markArcadeHomeRunOrigin, setRunMode } from './modules/run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './modules/first-play-tutorial.js';
 import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './modules/journey-origin-state.js';
 
@@ -1268,13 +1268,11 @@ async function startNewRun(boardId: number): Promise<void> {
 // New sequence handler: bottom sheet close → exit anim → game start
 (window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
   logger.info('🎬 Starting game start sequence...');
-  setRunMode(RUN_MODE_ARCADE_HOME);
+  markArcadeHomeRunOrigin();
   resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
   
   // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
   // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
-  (window as any).__ccCameFromHomepage = true;
-  (window as any).__ccCameFromJourney = false;
   console.log('🏠 Marked as coming from homepage');
   
   // Step 1: Play exit animation FIRST
@@ -1546,11 +1544,14 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }
     
-    // 🔥 BUG FIX: Stop all magnet idle particles IMMEDIATELY before exit animations
-    // This prevents particles from being visible during exit animation and journey screen enter
+    // Stop special idle particles immediately before exit animations.
+    // This prevents orphan idle FX from staying visible while the board/HUD animate out.
     try {
       const { STATE } = await import('./modules/app-state.js');
-      const { stopMagnetIdleParticles } = await import('./modules/fx.js');
+      const { stopMagnetIdleParticles, cleanupAllTntIdleEffects } = await import('./modules/fx.js');
+      if (typeof cleanupAllTntIdleEffects === 'function') {
+        cleanupAllTntIdleEffects('exitToMenu-before-board-exit');
+      }
       if (STATE && STATE.tiles && STATE.tiles.length > 0 && typeof stopMagnetIdleParticles === 'function') {
         STATE.tiles.forEach((tile: any) => {
           try {
@@ -1561,10 +1562,10 @@ async function startNewRun(boardId: number): Promise<void> {
             // Ignore errors for individual tiles
           }
         });
-        console.log('✅ Exit: All magnet idle particles stopped before exit animation');
+        console.log('✅ Exit: All magnet/TNT idle particles stopped before exit animation');
       }
     } catch (error) {
-      console.warn('⚠️ Exit: Error stopping magnet idle particles:', error);
+      console.warn('⚠️ Exit: Error stopping special idle particles:', error);
     }
     
     // Step 1: Play board exit animations (tiles + HUD)
@@ -1972,12 +1973,7 @@ async function startNewRun(boardId: number): Promise<void> {
           targetSlide = 0;
           returnToDetailModal = false;
           detailModalBoardId = null;
-          (window as any).__ccCameFromHomepage = true;
-          (window as any).__ccCameFromJourney = false;
-          delete (window as any).__ccCameFromDetailModal;
-          delete (window as any).__ccDetailModalBoardId;
-          localStorage.setItem('__ccCameFromHomepage', 'true');
-          localStorage.removeItem('__ccCameFromJourney');
+          markArcadeHomeRunOrigin();
           console.log('🎮 Arcade exit override: forcing homepage slide 0 and clearing detail/journey flags');
         } else {
         // 🔥 USER REQUEST: Check if user came from detail modal FIRST

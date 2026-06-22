@@ -27,3 +27,33 @@ export function isArcadeHomeRunMode(): boolean {
   return getRunMode() === RUN_MODE_ARCADE_HOME;
 }
 
+function setStorageFlag(key: string, enabled: boolean): void {
+  try {
+    if (enabled) {
+      localStorage.setItem(key, 'true');
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+}
+
+export function markArcadeHomeRunOrigin(): void {
+  if (typeof window === 'undefined') return;
+  const w = window as any;
+
+  setRunMode(RUN_MODE_ARCADE_HOME);
+
+  w.__ccCameFromHomepage = true;
+  w.__ccCameFromJourney = false;
+  w.__ccFromInterimBoard = false;
+  w.__ccIsInterimBoard = false;
+
+  delete w.__ccReturningFromInterimBoard;
+  delete w.__ccCameFromDetailModal;
+  delete w.__ccDetailModalBoardId;
+
+  setStorageFlag('__ccCameFromHomepage', true);
+  setStorageFlag('__ccCameFromJourney', false);
+  setStorageFlag('__ccFromInterimBoard', false);
+  setStorageFlag('__ccReturningFromInterimBoard', false);
+}

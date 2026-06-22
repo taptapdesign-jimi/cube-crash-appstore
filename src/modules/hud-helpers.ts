@@ -34,6 +34,45 @@ function isWildMeterSmokeFrozen(): boolean {
 const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 0;
 const HUD_TAP_BOUNCE_CLOSE_DELAY_MS = 120;
 
+function getTextureSource(tex: any): any {
+  return tex?.source ?? tex?.baseTexture ?? null;
+}
+
+function isUsableHudTexture(tex: any): boolean {
+  if (!tex || tex.destroyed) return false;
+  const src = getTextureSource(tex);
+  if (src?.destroyed || src?.valid === false) return false;
+  const width = tex.width || src?.width || tex.orig?.width || 0;
+  const height = tex.height || src?.height || tex.orig?.height || 0;
+  return width > 1 && height > 1;
+}
+
+function removeStaleHudTexture(assetPath: string): void {
+  try {
+    const cache = (Assets as any)?.cache;
+    try { cache?.delete?.(assetPath); } catch {}
+    try { cache?.remove?.(assetPath); } catch {}
+  } catch {}
+}
+
+async function loadUsableHudTexture(assetPath: string): Promise<any | null> {
+  let tex: any = null;
+  try { tex = Assets.get(assetPath); } catch {}
+  if (isUsableHudTexture(tex)) return tex;
+  removeStaleHudTexture(assetPath);
+  try { tex = await Assets.load(assetPath); } catch (error) {
+    console.warn(`⚠️ Failed to load HUD texture ${assetPath}:`, error);
+    return null;
+  }
+  return isUsableHudTexture(tex) ? tex : null;
+}
+
+function getUsableHudTexture(assetPath: string): any | null {
+  let tex: any = null;
+  try { tex = Assets.get(assetPath); } catch {}
+  return isUsableHudTexture(tex) ? tex : null;
+}
+
 function playPixiSoftCartoonBounce(target: any): void {
   const visualTarget = target?._bounceVisual || target;
   if (!visualTarget || visualTarget.destroyed) return;
@@ -1353,12 +1392,13 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
 export function initHUD({ stage, app, top = 8, initialHide = false }) { 
   // Store stage visibility for later restoration
   const stageWasVisible = stage?.visible ?? true;
+  const forceRecreateForTextures = (window as any).__ccForceHudRecreateForTextures === true;
   
   // 🔥 MEMORY SPIKE FIX: Reuse existing HUD_ROOT if it's valid and on the same stage.
   // This prevents unnecessary destroy/recreate cycles that cause memory spikes.
   // Previously we forced fresh HUD on board transition due to addressModeU concerns;
   // with ticker stop + skipCacheClear during transition, reuse is now safe.
-  if (HUD_ROOT && !HUD_ROOT.destroyed && HUD_ROOT.parent === stage) {
+  if (!forceRecreateForTextures && HUD_ROOT && !HUD_ROOT.destroyed && HUD_ROOT.parent === stage) {
     console.log('♻️ Reusing existing HUD_ROOT (same stage) - skipping destroy/recreate');
     // Kill any lingering animations before reusing
     try { gsap.killTweensOf(HUD_ROOT); } catch {}
@@ -1381,6 +1421,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     try { syncBoardIndicatorForHudInit(initialHide); } catch {}
     return; // Early return - HUD already exists and is valid
   }
+  try { delete (window as any).__ccForceHudRecreateForTextures; } catch {}
   
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
@@ -1492,7 +1533,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   try {
     let closeIconTexture = null;
     try {
-      closeIconTexture = Assets.get('./assets/close-icon.png');
+      closeIconTexture = getUsableHudTexture('./assets/close-icon.png');
     } catch (e) {
       // Asset might not be loaded yet, will load asynchronously
     }
@@ -1648,8 +1689,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     } else {
       console.warn('⚠️ Close icon texture not found, trying to load...');
       // Try loading it asynchronously
-      Assets.load('./assets/close-icon.png').then((tex) => {
-        if (tex && HUD_ROOT) {
+      loadUsableHudTexture('./assets/close-icon.png').then((tex) => {
+        if (isUsableHudTexture(tex) && HUD_ROOT) {
           // Create container for icon + circle
           const closeButtonContainer = new Container();
           closeButtonContainer.eventMode = 'static';
@@ -1822,59 +1863,44 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const createHudElement = (iconPath, textValue, textStyle) => {
     const container = new Container();
     container.eventMode = 'none';
+    const applyHudIconScale = (sprite) => {
+      if (!sprite) return;
+      if (iconPath.includes('star-hud.png') || iconPath.includes('hud/star-hud.png')) {
+        const targetHeight = 28;
+        if (sprite.width > 0 && sprite.height > 0) {
+          const scale = targetHeight / sprite.height;
+          sprite.scale.set(scale);
+          console.log('⭐ star-hud.png scaled to height 28px, width:', sprite.width * scale, 'px (aspect ratio preserved)');
+        }
+      } else {
+        const targetSize = 28;
+        if (sprite.width > 0 && sprite.height > 0) {
+          const scale = targetSize / Math.max(sprite.width, sprite.height);
+          sprite.scale.set(scale);
+        }
+      }
+    };
     
     // Load icon sprite (transparent background - no bg rectangle)
     let iconSprite = null;
     try {
-      const iconTexture = Assets.get(iconPath);
+      const iconTexture = getUsableHudTexture(iconPath);
       if (iconTexture) {
         iconSprite = new Sprite(iconTexture);
         iconSprite.anchor.set(0.5, 0.5);
-        
-        // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
-        if (iconPath.includes('star-hud.png') || iconPath.includes('hud/star-hud.png')) {
-          const targetHeight = 28;
-          if (iconSprite.width > 0 && iconSprite.height > 0) {
-            // Scale based on height to maintain aspect ratio
-            const scale = targetHeight / iconSprite.height;
-            iconSprite.scale.set(scale);
-            console.log('⭐ star-hud.png scaled to height 28px, width:', iconSprite.width * scale, 'px (aspect ratio preserved)');
-          }
-        } else {
-          // Other icons: scale to 28x28 (max dimension)
-          const targetSize = 28;
-          if (iconSprite.width > 0 && iconSprite.height > 0) {
-            const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
-            iconSprite.scale.set(scale);
-          }
-        }
+        applyHudIconScale(iconSprite);
         container.addChild(iconSprite);
       }
     } catch (e) {
       console.warn(`⚠️ Failed to load icon ${iconPath}, will try async:`, e);
-      // Try async load
-      Assets.load(iconPath).then((tex) => {
-        if (tex && container && !container.destroyed) {
+    }
+
+    if (!iconSprite) {
+      loadUsableHudTexture(iconPath).then((tex) => {
+        if (isUsableHudTexture(tex) && container && !container.destroyed) {
           iconSprite = new Sprite(tex);
           iconSprite.anchor.set(0.5, 0.5);
-          
-          // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
-          if (iconPath.includes('star-hud.png') || iconPath.includes('hud/star-hud.png')) {
-            const targetHeight = 28;
-            if (iconSprite.width > 0 && iconSprite.height > 0) {
-              // Scale based on height to maintain aspect ratio
-              const scale = targetHeight / iconSprite.height;
-              iconSprite.scale.set(scale);
-              console.log('⭐ star-hud.png scaled to height 28px, width:', iconSprite.width * scale, 'px (aspect ratio preserved)');
-            }
-          } else {
-            // Other icons: scale to 28x28 (max dimension)
-            const targetSize = 28;
-            if (iconSprite.width > 0 && iconSprite.height > 0) {
-              const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
-              iconSprite.scale.set(scale);
-            }
-          }
+          applyHudIconScale(iconSprite);
           container.addChildAt(iconSprite, 0);
         }
       }).catch((err) => {
@@ -1936,7 +1962,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Load combo icon sprite
   let comboIconSprite = null;
   try {
-    const comboIconTexture = Assets.get('./assets/hud/combo-hud.png');
+    const comboIconTexture = getUsableHudTexture('./assets/hud/combo-hud.png');
     if (comboIconTexture) {
       comboIconSprite = new Sprite(comboIconTexture);
       comboIconSprite.anchor.set(0.5, 0.5);
@@ -1949,8 +1975,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
   } catch (e) {
     console.warn('⚠️ Failed to load combo icon, will try async:', e);
-    Assets.load('./assets/hud/combo-hud.png').then((tex) => {
-      if (tex && comboContainer && !comboContainer.destroyed) {
+  }
+  if (!comboIconSprite) {
+    loadUsableHudTexture('./assets/hud/combo-hud.png').then((tex) => {
+      if (isUsableHudTexture(tex) && comboContainer && !comboContainer.destroyed) {
         comboIconSprite = new Sprite(tex);
         comboIconSprite.anchor.set(0.5, 0.5);
         const targetSize = 28;
@@ -2387,16 +2415,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   };
 
   try {
-    const helpTexture = Assets.get('./assets/hud/help.png');
+    const helpTexture = getUsableHudTexture('./assets/hud/help.png');
     if (helpTexture) {
       applyHelpTexture(helpTexture);
     } else {
-      Assets.load('./assets/hud/help.png')
+      loadUsableHudTexture('./assets/hud/help.png')
         .then((tex) => applyHelpTexture(tex))
         .catch((err) => console.warn('⚠️ Failed to load HUD help icon:', err));
     }
   } catch (err) {
-    Assets.load('./assets/hud/help.png')
+    loadUsableHudTexture('./assets/hud/help.png')
       .then((tex) => applyHelpTexture(tex))
       .catch((loadErr) => console.warn('⚠️ Failed to load HUD help icon:', loadErr || err));
   }
@@ -3077,10 +3105,10 @@ function updateComboIcon(comboValue) {
         // Try to get texture (might already be loaded)
         let texture = null;
         try {
-          texture = Assets.get(targetIconPath);
-          if (!texture) {
+          texture = getUsableHudTexture(targetIconPath);
+          if (!isUsableHudTexture(texture)) {
             console.log(`💧 ${targetIconPath} not in cache (Assets.get returned null), loading...`);
-            texture = await Assets.load(targetIconPath);
+            texture = await loadUsableHudTexture(targetIconPath);
           } else {
             console.log(`💧 ${targetIconPath} found in cache`);
           }
@@ -3088,7 +3116,7 @@ function updateComboIcon(comboValue) {
           // Texture not in cache, load it
           console.log(`💧 ${targetIconPath} not in cache (error), loading...`, e);
           try {
-            texture = await Assets.load(targetIconPath);
+            texture = await loadUsableHudTexture(targetIconPath);
           } catch (loadError) {
             console.error(`❌ Failed to load ${targetIconPath}:`, loadError);
             // 🔥 CRITICAL: Fallback to previous icon if loading fails
@@ -3098,7 +3126,7 @@ function updateComboIcon(comboValue) {
         }
         
         // 🔥 CRITICAL: Double-check texture is valid
-        if (!texture) {
+        if (!isUsableHudTexture(texture)) {
           console.error(`❌ Texture ${targetIconPath} is null or undefined after loading attempt!`);
           return; // Exit early if texture is invalid
         }

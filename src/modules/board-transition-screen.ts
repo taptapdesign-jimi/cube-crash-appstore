@@ -406,6 +406,18 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   preloadTransitionAssets(!hideForest).catch((error) => {
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
+  import('../utils/board-asset-warmup.js')
+    .then(({ warmBoardGameAssetsSoon }) => {
+      warmBoardGameAssetsSoon({
+        mode: 'journey',
+        boardNumber,
+        reason: 'board-transition-screen',
+        timeoutMs: 1800,
+      });
+    })
+    .catch((error) => {
+      logger.warn('⚠️ board-transition-screen: Board asset warmup import failed:', error);
+    });
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });

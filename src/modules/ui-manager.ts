@@ -11,7 +11,7 @@ import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
-import { RUN_MODE_ARCADE_HOME, setRunMode } from './run-mode.js';
+import { markArcadeHomeRunOrigin } from './run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
@@ -475,7 +475,7 @@ class UIManager {
     }
 
     // IMPORTANT: Do not clear board-specific Journey saves here.
-    setRunMode(RUN_MODE_ARCADE_HOME);
+    markArcadeHomeRunOrigin();
     try {
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cc_board_completed');
@@ -663,11 +663,9 @@ class UIManager {
     memoryManager.start();
     const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('arcade');
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
-    (window as any).__ccCameFromHomepage = true;
-    (window as any).__ccCameFromJourney = false;
+    markArcadeHomeRunOrigin();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
     (window as any).__ccTriggerHudDrop = true;
-    setRunMode(RUN_MODE_ARCADE_HOME);
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
       console.log('🎮 ====================================');
@@ -787,9 +785,7 @@ class UIManager {
       console.log('🔄 START NEW GAME WITH SAVED STATE');
       console.log('🔄 ====================================');
       logger.info('🔄 Starting new game WITH saved state...');
-      setRunMode(RUN_MODE_ARCADE_HOME);
-      (window as any).__ccCameFromHomepage = true;
-      (window as any).__ccCameFromJourney = false;
+      markArcadeHomeRunOrigin();
       (window as any).__ccTriggerHudDrop = true;
       
       // Check if a clean-board completion was pending (hard-exit case)

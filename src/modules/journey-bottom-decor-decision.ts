@@ -7,5 +7,6 @@ export function shouldShowJourneyBottomDecor({
   isArcade,
   isJourneyOrigin,
 }: JourneyBottomDecorDecisionInput): boolean {
-  return !isArcade || isJourneyOrigin === true;
+  void isJourneyOrigin;
+  return !isArcade;
 }

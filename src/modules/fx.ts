@@ -20,6 +20,8 @@ const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
+const __tntIdleTiles = new Set<any>();
+const __tntIdleParticles = new Set<any>();
 
 try {
   preloadWildStarTexture();
@@ -1149,6 +1151,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
           }
           // 🔥 MEMORY LEAK FIX: Remove from tracker
           __globalGraphicsObjects.delete(shard);
+          if (isIdleParticles && opts?.trackKey === '_tntIdleParticles') {
+            __tntIdleParticles.delete(shard);
+          }
           // 🔥 MEMORY LEAK FIX: Remove from idle particles tracking if tracked
           if (isIdleParticles && particlesToTrack) {
             const idx = particlesToTrack.indexOf(shard);
@@ -1172,6 +1177,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       tile[trackKey] = [];
     }
     tile[trackKey].push(...particlesToTrack);
+    if (trackKey === '_tntIdleParticles') {
+      __tntIdleTiles.add(tile);
+      particlesToTrack.forEach((particle) => {
+        try { particle._ccFxTrackKey = trackKey; } catch {}
+        __tntIdleParticles.add(particle);
+      });
+    }
   }
 }
 
@@ -3724,6 +3736,8 @@ export function cleanupAllEffects() {
   });
   wildJuiceBubbleSystems.clear();
 
+  cleanupAllTntIdleEffects('cleanupAllEffects');
+
   // 🔥 PERFORMANCE FIX: Cleanup active star animations (prevents lag)
   // Use regular cleanup (not force) to allow protected animations to complete
   cleanupExistingStarAnimations();
@@ -5885,9 +5899,10 @@ export function startTntIdleParticles(tile) {
   if (!tile || tile.special !== 'wild-tnt') return;
 
   if (tile._tntIdleParticlesInterval) {
-    clearInterval(tile._tntIdleParticlesInterval);
+    clearAppInterval(tile._tntIdleParticlesInterval);
     tile._tntIdleParticlesInterval = null;
   }
+  __tntIdleTiles.add(tile);
 
   const board = (typeof window !== 'undefined' && window.STATE) ? window.STATE.board : null;
   if (!board) {
@@ -5921,7 +5936,7 @@ export function startTntIdleParticles(tile) {
   tile._tntIdleParticlesInterval = trackAppInterval(() => {
     if (!tile || tile.destroyed) {
       if (tile._tntIdleParticlesInterval) {
-        clearInterval(tile._tntIdleParticlesInterval);
+        clearAppInterval(tile._tntIdleParticlesInterval);
         tile._tntIdleParticlesInterval = null;
       }
       return;
@@ -5940,6 +5955,7 @@ export function stopTntIdleParticles(tile) {
     clearAppInterval(tile._tntIdleParticlesInterval);
     tile._tntIdleParticlesInterval = null;
   }
+  __tntIdleTiles.delete(tile);
 
   if (tile._tntIdleParticles && Array.isArray(tile._tntIdleParticles)) {
     const particles = tile._tntIdleParticles.slice();
@@ -5961,11 +5977,59 @@ export function stopTntIdleParticles(tile) {
           particle.parent.removeChild(particle);
         }
         __globalGraphicsObjects.delete(particle);
+        __tntIdleParticles.delete(particle);
+        try { particle._ccFxTrackKey = null; } catch {}
         graphicsPool.release(particle);
       } catch (err) {
         console.warn('⚠️ Error cleaning up TNT idle particle:', err);
       }
     });
+  }
+}
+
+function releaseTntIdleParticle(particle) {
+  if (!particle || particle.destroyed || graphicsPool.isInPool(particle)) return;
+  try {
+    gsap.killTweensOf(particle);
+    gsap.killTweensOf(particle.scale);
+    gsap.killTweensOf(particle.position);
+    if (particle?.parent) {
+      particle.parent.removeChild(particle);
+    }
+    __globalGraphicsObjects.delete(particle);
+    __tntIdleParticles.delete(particle);
+    try { particle._ccFxTrackKey = null; } catch {}
+    graphicsPool.release(particle);
+  } catch {}
+}
+
+export function cleanupAllTntIdleEffects(reason = 'unknown') {
+  try {
+    const stateTiles = (typeof window !== 'undefined' && window.STATE?.tiles) ? window.STATE.tiles : [];
+    const candidates = new Set([...__tntIdleTiles, ...(Array.isArray(stateTiles) ? stateTiles : [])]);
+    candidates.forEach((tile) => {
+      try {
+        if (tile?.special === 'wild-tnt' || tile?._tntIdleParticles || tile?._tntIdleParticlesInterval || tile?._tntShakeTl || tile?._tntShakeCurrentTl) {
+          stopTntIdleParticles(tile);
+          stopTntIdleShake(tile);
+        }
+      } catch {}
+    });
+    __tntIdleTiles.clear();
+
+    Array.from(__tntIdleParticles).forEach((particle) => releaseTntIdleParticle(particle));
+    __tntIdleParticles.clear();
+
+    const board = (typeof window !== 'undefined' && window.STATE?.board) ? window.STATE.board : null;
+    if (board?.children?.length) {
+      board.children.slice().forEach((child) => {
+        if (child?._ccFxTrackKey === '_tntIdleParticles') {
+          releaseTntIdleParticle(child);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('⚠️ cleanupAllTntIdleEffects failed:', reason, err);
   }
 }
 
