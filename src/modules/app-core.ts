@@ -1008,6 +1008,41 @@ async function prepareFinalMergeVisualHandoff(
   try { (window as any).__ccFinalResidualPopOutPrepared = true; } catch {}
 }
 
+async function prepareArcadeStageClearFinalMergeHandoff(
+  reason: string,
+  residualReason: string = reason,
+  starters: FinalMergeVisualStarters = {},
+): Promise<void> {
+  if ((window as any).__ccFinalResidualPopOutPrepared === true) return;
+
+  normalizeFinalMerge6ResidueVisuals(`arcade-handoff:${residualReason}`);
+  holdFinalResidualArtifactsVisible(`arcade-handoff:${residualReason}`);
+
+  await waitForFinalMergeHandoff({
+    reason,
+    isArcade: true,
+    wait: waitTracked,
+    logger,
+    isTntAnimationActive,
+    onTntBoomExitComplete,
+    onTntAnimationComplete,
+    isWildJuiceBubblesExplosionActive: isWildJuiceFinaleAnimationActive,
+    isWildJuiceBubblesExplosionRecentlyStarted,
+    waitForWildJuiceBubblesExplosionComplete: waitForBubblesExplosionToComplete,
+    showWildJuiceFinale: starters.showWildJuiceFinale,
+    isMagneticTextActive,
+    showMagneticText,
+    waitForMagneticTextComplete,
+    isSparkleTextActive,
+    showSparkleFinale: starters.showSparkleFinale,
+    waitForSparkleTextComplete,
+  });
+
+  await animateFinalResidualArtifactsPopOut(`arcade-handoff:${residualReason}`);
+  hardCleanupArcadeFinalMergeTerminalResidue(`arcade-handoff-after-popout:${residualReason}`);
+  try { (window as any).__ccFinalResidualPopOutPrepared = true; } catch {}
+}
+
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
 
@@ -1058,24 +1093,14 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     }
   } else if (arcadeStageClearTerminal) {
     try {
-      await waitForFinalMergeHandoff({
-        reason,
-        isArcade: true,
-        wait: waitTracked,
-        logger,
-        isTntAnimationActive,
-        onTntBoomExitComplete,
-        onTntAnimationComplete,
-        isWildJuiceBubblesExplosionActive: isWildJuiceFinaleAnimationActive,
-        isWildJuiceBubblesExplosionRecentlyStarted,
-        waitForWildJuiceBubblesExplosionComplete: waitForBubblesExplosionToComplete,
-        isMagneticTextActive,
-        showMagneticText,
-        waitForMagneticTextComplete,
-        isSparkleTextActive,
-        waitForSparkleTextComplete,
-      });
-      hardCleanupArcadeFinalMergeTerminalResidue(`trigger-clean-board:${reason}`);
+      if ((window as any).__ccFinalResidualPopOutPrepared === true) {
+        hardCleanupArcadeFinalMergeTerminalResidue(`trigger-clean-board:already-prepared:${reason}`);
+      } else {
+        await prepareArcadeStageClearFinalMergeHandoff(
+          reason,
+          `trigger-clean-board:${reason}`
+        );
+      }
       finalHandoffPrepared = true;
     } catch (handoffError) {
       devWarn('⚠️ triggerCleanBoardFlow arcade final merge handoff failed:', handoffError);
@@ -4461,6 +4486,10 @@ function isNonFinalMerge6CleanVetoActive(target?: any): boolean {
 }
 
 async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge'): Promise<void> {
+  const isArcadeStageResidualPopOut =
+    isArcadeHomeRunMode() &&
+    typeof reason === 'string' &&
+    reason.includes('arcade-handoff');
   const clearTileFromGridEverywhere = (tile: any) => {
     if (!tile || !grid) return;
     try {
@@ -4500,40 +4529,68 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
       hideFinalMergeResultTileVisual(t, `silent-popout-filter:${reason}`);
     });
     const lockedToRemove = collectFinalLockedResidualTargets(boardTilesToRemove);
+    const gridResidualTargets: any[] = [];
+    if (Array.isArray(grid)) {
+      try {
+        grid.forEach((row: any[]) => {
+          if (!Array.isArray(row)) return;
+          row.forEach((target: any) => {
+            if (!target || target.destroyed || gridResidualTargets.includes(target)) return;
+            if (!target.scale || typeof target.alpha === 'undefined') return;
+            const isResidual = target.locked === true || ((target.value | 0) <= 0 && !target.special);
+            if (isResidual) gridResidualTargets.push(target);
+          });
+        });
+      } catch {}
+    }
     let ghostList: any[] = [];
     try {
       if (backgroundLayer) backgroundLayer.visible = true;
+      showFinalEmptyCellGhostsForPopOut(`popout:${reason}`);
       ghostList = collectFinalGhostResidualTargets((window as any)._ghostPlaceholders);
     } catch {}
 
-    const popOutTargets = prepareFinalResidualTargets([
+    const residualTilesToRemove = [
       ...boardTilesToRemove.filter((t: any) => (t?.value | 0) !== 6),
+      ...gridResidualTargets,
+    ].filter((target: any, index: number, arr: any[]) => target && arr.indexOf(target) === index);
+    const popOutTargets = prepareFinalResidualTargets([
+      ...residualTilesToRemove,
       ...ghostList,
     ]);
 
-    boardTilesToRemove.forEach(stopFinalResidualTargetIdleFx);
+    [...boardTilesToRemove, ...gridResidualTargets].forEach(stopFinalResidualTargetIdleFx);
 
     if (popOutTargets.length > 0) {
       devLog('🎬 Final residual artifacts pop-out started', {
         reason,
         boardTiles: boardTilesToRemove.length,
         locked: lockedToRemove.length,
+        gridResiduals: gridResidualTargets.length,
         ghosts: ghostList.length,
         total: popOutTargets.length,
       });
       try {
-        const popOutPromise = sweetPopOut(popOutTargets as any, {});
+        const popOutPromise = sweetPopOut(popOutTargets as any, isArcadeStageResidualPopOut
+          ? {
+              stepMin: 0.016,
+              stepMax: 0.023,
+              jitterMax: 0.12,
+              rate: 0.72,
+              durationScale: 0.66,
+            }
+          : {});
         await Promise.race([
           popOutPromise,
-          waitTracked(1800),
+          waitTracked(isArcadeStageResidualPopOut ? 1200 : 1800),
         ]);
       } catch (animationError) {
         devWarn('⚠️ Final residual artifacts pop-out failed:', animationError);
       }
-      await waitTracked(80);
+      await waitTracked(isArcadeStageResidualPopOut ? 60 : 120);
     }
 
-    boardTilesToRemove.forEach((t: any) => {
+    residualTilesToRemove.forEach((t: any) => {
       const placeholder = (t as any)?._placeholderHolder;
       if (placeholder && placeholder !== t) {
         clearTileFromGridEverywhere(placeholder);
@@ -9888,11 +9945,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 FINAL WILD ANIMATION WAIT: let wild visuals finish before clean board.
           // final-merge-handoff owns missing-finale fallback start/wait behavior.
           const isFinalTntMerge = finalMergeFx === 'tnt';
-          await prepareFinalMergeVisualHandoff(
-            getFinalMergeCleanBoardReason(finalMergeFx),
-            `final-merge:${finalMergeFx || 'regular'}`,
-            createFinalMergeVisualStarters(dst, finalSpecialDiceVariant)
-          );
+          const finalCleanReason = getFinalMergeCleanBoardReason(finalMergeFx);
+          if (isArcadeHomeRunMode()) {
+            await prepareArcadeStageClearFinalMergeHandoff(
+              finalCleanReason,
+              `final-merge:${finalMergeFx || 'regular'}`,
+              createFinalMergeVisualStarters(dst, finalSpecialDiceVariant)
+            );
+          } else {
+            await prepareFinalMergeVisualHandoff(
+              finalCleanReason,
+              `final-merge:${finalMergeFx || 'regular'}`,
+              createFinalMergeVisualStarters(dst, finalSpecialDiceVariant)
+            );
+          }
           
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
           devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
@@ -9900,7 +9966,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (isFinalTntMerge) {
             (window as any).__ccSkipEndgameStarsWaitOnce = true;
           }
-          await triggerCleanBoardFlow(getFinalMergeCleanBoardReason(finalMergeFx));
+          await triggerCleanBoardFlow(finalCleanReason);
           
           return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
         }
@@ -10158,11 +10224,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           });
           const guardFinalSpecialDiceVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
           const finalReason = getFinalMergeCleanBoardReason(guardFinalMergeFx);
-          await prepareFinalMergeVisualHandoff(
-            finalReason,
-            `final-merge-guard:${guardReason}`,
-            createFinalMergeVisualStarters(dst, guardFinalSpecialDiceVariant)
-          );
+          if (isArcadeHomeRunMode()) {
+            await prepareArcadeStageClearFinalMergeHandoff(
+              finalReason,
+              `final-merge-guard:${guardReason}`,
+              createFinalMergeVisualStarters(dst, guardFinalSpecialDiceVariant)
+            );
+          } else {
+            await prepareFinalMergeVisualHandoff(
+              finalReason,
+              `final-merge-guard:${guardReason}`,
+              createFinalMergeVisualStarters(dst, guardFinalSpecialDiceVariant)
+            );
+          }
           await triggerCleanBoardFlow(finalReason);
         };
 

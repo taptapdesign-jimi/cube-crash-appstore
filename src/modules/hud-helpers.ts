@@ -398,10 +398,10 @@ function ensureBoardIndicator() {
   container.style.cssText = `
     position: fixed;
     bottom: ${BOARD_INDICATOR_BOTTOM}px;
-    left: 50%;
-    margin-left: -190px;
-    width: 380px;
-    height: 52px;
+    left: 23px;
+    right: 23px;
+    width: auto;
+    height: 50px;
     display: flex;
     align-items: center;
     gap: 24px;
@@ -430,7 +430,7 @@ function ensureBoardIndicator() {
     width: fit-content;
     min-width: 0;
     min-height: 0;
-    padding: 4px 64px;
+    padding: 4px 60px;
     border-radius: 32px;
     background: rgba(243, 230, 220, 0.52);
     border: 1px solid #E8D3C8;
@@ -550,6 +550,39 @@ function updateBoardIndicatorValue(boardNumber) {
   if (boardIndicatorLabel) {
     boardIndicatorLabel.textContent = formatHudBoardIndicatorLabel(boardNumber);
   }
+}
+
+export function updateBoardIndicatorValueWithBounce(boardNumber) {
+  const indicator = ensureBoardIndicator();
+  updateBoardIndicatorValue(boardNumber);
+  if (!isArcadeHomeRunMode() || !boardIndicatorLabel) return;
+
+  try {
+    indicator.style.display = 'flex';
+    indicator.style.visibility = 'visible';
+    indicator.style.opacity = '1';
+    indicator.style.zIndex = BOARD_INDICATOR_Z_INDEX;
+    indicator.setAttribute('data-state', 'visible');
+    gsap.killTweensOf(boardIndicatorLabel);
+    gsap.killTweensOf(indicator);
+    gsap.set(indicator, { y: 0, opacity: 1 });
+    gsap.set(boardIndicatorLabel, { scale: 0.88, y: 8, transformOrigin: 'center center' });
+    const timeline = gsap.timeline();
+    animationManager.trackExternalTimeline(timeline);
+    timeline
+      .to(boardIndicatorLabel, {
+        scale: 1.13,
+        y: -2,
+        duration: 0.2,
+        ease: 'back.out(2.2)',
+      })
+      .to(boardIndicatorLabel, {
+        scale: 1,
+        y: 2,
+        duration: 0.16,
+        ease: 'power2.out',
+      });
+  } catch {}
 }
 
 function syncBoardIndicatorForHudInit(initialHide = false) {
@@ -2112,6 +2145,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     window.HUD.getScoreHudPosition = getScoreHudPosition;
     window.HUD.setStarsCount = setStarsCount;
     window.HUD.cleanupComboAnimations = cleanupComboAnimations; // 🔥 Export cleanup function
+    window.HUD.updateBoardIndicatorValueWithBounce = updateBoardIndicatorValueWithBounce;
     // 🔥 CRITICAL FIX: Export HUD_ROOT to window for access from app-core.ts
     // This allows app-core.ts to access HUD_ROOT even though it's a local variable in this module
     window.HUD_ROOT = HUD_ROOT;

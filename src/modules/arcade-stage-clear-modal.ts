@@ -74,28 +74,45 @@ function renderVariedTitleLetterSpans(text: string, className: string): string {
 }
 
 function ensureStyles(): void {
-  if (document.getElementById('cc-arcade-stage-clear-style')) return;
-  const style = document.createElement('style');
-  style.id = 'cc-arcade-stage-clear-style';
+  let style = document.getElementById('cc-arcade-stage-clear-style') as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'cc-arcade-stage-clear-style';
+    document.head.appendChild(style);
+  }
   style.textContent = `
     #cc-arcade-stage-clear-overlay {
       position: fixed;
-      inset: 0;
+      left: 0;
+      right: 0;
+      top: max(118px, calc(env(safe-area-inset-top, 0px) + 96px));
+      bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 92px));
       z-index: 1295000;
       pointer-events: none;
       display: grid;
       place-items: center;
       overflow: hidden;
-      background: transparent;
+      background: transparent !important;
+      background-image: none !important;
+      box-shadow: none !important;
       font-family: "Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+    }
+    #app > #cc-arcade-stage-clear-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: max(118px, calc(env(safe-area-inset-top, 0px) + 96px));
+      bottom: max(112px, calc(env(safe-area-inset-bottom, 0px) + 92px));
+      width: auto;
+      height: auto;
     }
     .cc-arcade-stage-card,
     .cc-arcade-stage-next {
       position: absolute;
       left: 50%;
-      top: 52%;
+      top: 50%;
       width: min(84vw, 440px);
       transform: translate(-50%, -50%);
       display: flex;
@@ -107,7 +124,7 @@ function ensureStyles(): void {
       will-change: transform, opacity;
     }
     .cc-arcade-stage-card {
-      top: calc(52% - 40px);
+      top: calc(50% - 24px);
     }
     .cc-arcade-stage-title {
       margin: 0;
@@ -240,10 +257,10 @@ function ensureStyles(): void {
     @media (max-height: 720px) {
       .cc-arcade-stage-card,
       .cc-arcade-stage-next {
-        top: 52%;
+        top: 50%;
       }
       .cc-arcade-stage-card {
-        top: calc(52% - 40px);
+        top: calc(50% - 18px);
       }
       .cc-arcade-stage-thumb-wrap {
         width: min(46vw, 230px);
@@ -264,7 +281,6 @@ function ensureStyles(): void {
       }
     }
   `;
-  document.head.appendChild(style);
 }
 
 function createOverlay(clearedStage: number, nextStage: number): {
@@ -301,7 +317,12 @@ function createOverlay(clearedStage: number, nextStage: number): {
     </section>
   `;
 
-  document.body.appendChild(overlay);
+  const appHost = document.getElementById('app');
+  if (appHost && appHost.style.display !== 'none' && !appHost.hidden) {
+    appHost.appendChild(overlay);
+  } else {
+    document.body.appendChild(overlay);
+  }
 
   return {
     overlay,
@@ -549,8 +570,18 @@ async function playClearPhase(parts: ReturnType<typeof createOverlay>): Promise<
   gsap.set(clearCard, { opacity: 0 });
 }
 
-async function playNextStagePhase(parts: ReturnType<typeof createOverlay>): Promise<void> {
+function animateBottomHudStageIndicator(nextStage: number): void {
+  try {
+    const hud = (window as any).HUD;
+    if (hud && typeof hud.updateBoardIndicatorValueWithBounce === 'function') {
+      hud.updateBoardIndicatorValueWithBounce(nextStage);
+    }
+  } catch {}
+}
+
+async function playNextStagePhase(parts: ReturnType<typeof createOverlay>, nextStage: number): Promise<void> {
   const { overlay, nextCard, letters, digits } = parts;
+  animateBottomHudStageIndicator(nextStage);
   gsap.set(nextCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
   prepareBubblyLetters(letters);
   digits.forEach((digit, index) => {
@@ -685,7 +716,7 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
       try {
         await decodeThumb(parts.thumb);
         await playClearPhase(parts);
-        await playNextStagePhase(parts);
+        await playNextStagePhase(parts, nextStage);
       } finally {
         cleanupArcadeStageClearModal(false);
         const finish = activeResolve;

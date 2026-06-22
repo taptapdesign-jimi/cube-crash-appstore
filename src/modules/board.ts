@@ -322,6 +322,10 @@ function _drawPipsInternal(t: Tile): void {
 
 // ✅ PATCH: nema "ghost alpha"; prazno briše pips i gasi overlay
 export function setValue(t: Tile, v: number, addStack = 0): void {
+  if (!t || t.destroyed) {
+    return;
+  }
+
   t.value = v;
 
   // Pločica NIKAD nije poluprozirna - osim ako nije locked
@@ -335,7 +339,6 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
     requestAnimationFrame(() => {
       // 🔥 CRITICAL: Check if tile still exists before setting visuals (it might have been destroyed)
       if (!t || t.destroyed) {
-        console.warn('⚠️ setValue skipped: tile is null or destroyed', { tile: t, destroyed: t?.destroyed });
         return;
       }
       _setValueVisuals(t, v, addStack);
@@ -343,7 +346,6 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
   } else {
     // 🔥 CRITICAL: Check if tile still exists before setting visuals
     if (!t || t.destroyed) {
-      console.warn('⚠️ setValue skipped: tile is null or destroyed', { tile: t, destroyed: t?.destroyed });
       return;
     }
     _setValueVisuals(t, v, addStack);

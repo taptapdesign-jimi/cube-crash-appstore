@@ -15,6 +15,11 @@ const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
 
 interface SweetPopOptions {
   onHalf?: () => void;
+  stepMin?: number;
+  stepMax?: number;
+  jitterMax?: number;
+  rate?: number;
+  durationScale?: number;
 }
 const ENTRY_POPIN_HAPTIC_START_DELAY_MS = 200;
 
@@ -396,8 +401,11 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
   }
 
   // Same timing parameters as entry
-  const stepMin = 0.020, stepMax = 0.030;
-  const jitterMax = 0.18;
+  const stepMin = opts.stepMin ?? 0.020;
+  const stepMax = opts.stepMax ?? 0.030;
+  const jitterMax = opts.jitterMax ?? 0.18;
+  const rate = opts.rate ?? 0.55;
+  const durationScale = opts.durationScale ?? 1;
   const total = list.length || 1;
   const halfTotal = Math.ceil(total / 2);
   let halfFired = false;
@@ -437,7 +445,6 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       }
 
       const step = stepMin + Math.random() * (stepMax - stepMin);
-      const rate = 0.55;
       const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0;
       const exitDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
 
@@ -471,9 +478,9 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       const d1b = 0.18 + Math.random() * 0.08;
       const d2b = 0.12 + Math.random() * 0.05;
       const d3b = 0.10 + Math.random() * 0.06;
-      const d3 = Math.max(0.08, d3b * durMul); // settle (reverse becomes first)
-      const d2 = Math.max(0.08, d2b * durMul); // compress
-      const d1 = Math.max(0.10, d1b * durMul); // blow (reverse becomes last)
+      const d3 = Math.max(0.08, d3b * durMul * durationScale); // settle (reverse becomes first)
+      const d2 = Math.max(0.08, d2b * durMul * durationScale); // compress
+      const d1 = Math.max(0.10, d1b * durMul * durationScale); // blow (reverse becomes last)
 
       const timeline = trackTimeline({
         delay: exitDel,
