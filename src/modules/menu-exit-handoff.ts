@@ -26,27 +26,17 @@ export function isAnyMenuScreenVisible(): boolean {
 
 async function forceHomepageVisible(reason: string): Promise<void> {
   try {
-    (window as any).__ccCameFromHomepage = true;
-    (window as any).__ccCameFromJourney = false;
-    delete (window as any).__ccCameFromDetailModal;
-    delete (window as any).__ccDetailModalBoardId;
+    const { appZoneManager } = await import('./app-zone-manager.js');
+    appZoneManager.markHomeMenu(`menu-exit-handoff:${reason}`);
     delete (window as any).__skipBoardExitAnimation;
     delete (window as any).__ccFastArcadeCleanExit;
-    localStorage.setItem('__ccCameFromHomepage', 'true');
-    localStorage.removeItem('__ccCameFromJourney');
   } catch {}
 
   try {
+    const { appZoneManager } = await import('./app-zone-manager.js');
+    await appZoneManager.showHomepageShell(`menu-exit-handoff:${reason}`);
     const uiManagerModule = await import('./ui-manager.js');
     const uiManager = uiManagerModule.default;
-    uiManager?.showNavigation?.();
-    uiManager?.showHomepageQuietly?.();
-    try {
-      const sliderManagerModule = await import('./slider-manager.js');
-      const sliderManager = sliderManagerModule.default;
-      sliderManager?.forceReady?.();
-      sliderManager?.setSlideInstant?.(0);
-    } catch {}
     await wait(80);
     uiManager?.hideApp?.();
   } catch (error) {
@@ -73,10 +63,19 @@ async function forceHomepageVisible(reason: string): Promise<void> {
 
 async function forceAutoMenuVisible(reason: string): Promise<void> {
   const cameFromJourney =
-    (window as any).__ccCameFromJourney === true ||
-    localStorage.getItem('__ccCameFromJourney') === 'true' ||
-    (window as any).__ccFromInterimBoard === true ||
-    localStorage.getItem('__ccFromInterimBoard') === 'true';
+    (() => {
+      try {
+        return (window as any).__ccRunMode !== 'arcade_home'
+          && (
+            (window as any).__ccCameFromJourney === true ||
+            localStorage.getItem('__ccCameFromJourney') === 'true' ||
+            (window as any).__ccFromInterimBoard === true ||
+            localStorage.getItem('__ccFromInterimBoard') === 'true'
+          );
+      } catch {
+        return false;
+      }
+    })();
 
   if (!cameFromJourney) {
     await forceHomepageVisible(reason);
@@ -92,6 +91,10 @@ async function forceAutoMenuVisible(reason: string): Promise<void> {
       home.style.visibility = 'hidden';
       home.style.opacity = '0';
     }
+    try {
+      const { appZoneManager } = await import('./app-zone-manager.js');
+      appZoneManager.markJourneyMenu(`menu-exit-handoff:${reason}`);
+    } catch {}
     const { ensureCollectiblesManager, showCollectiblesScreen } = await import('../collectibles-manager.js');
     await ensureCollectiblesManager?.();
     await showCollectiblesScreen?.();
@@ -120,12 +123,10 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
     if (options.skipBoardExit) (window as any).__skipBoardExitAnimation = true;
     if (options.fastArcadeCleanExit) (window as any).__ccFastArcadeCleanExit = true;
     if (options.target === 'homepage') {
-      (window as any).__ccCameFromHomepage = true;
-      (window as any).__ccCameFromJourney = false;
-      localStorage.setItem('__ccCameFromHomepage', 'true');
-      localStorage.removeItem('__ccCameFromJourney');
-      delete (window as any).__ccCameFromDetailModal;
-      delete (window as any).__ccDetailModalBoardId;
+      try {
+        const { appZoneManager } = await import('./app-zone-manager.js');
+        appZoneManager.markHomeMenu(`requestExitToMenu:${options.reason}`);
+      } catch {}
     }
   } catch {}
 

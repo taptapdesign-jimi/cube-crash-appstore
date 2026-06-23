@@ -203,6 +203,59 @@ function cleanupDetailStatsEnterAnimation(modal: HTMLElement | null | undefined)
   } catch {}
 }
 
+function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void {
+  if (!modal) return;
+
+  try {
+    cleanupDetailStatsEnterAnimation(modal);
+  } catch {}
+
+  const statsContainers = [
+    modal.querySelector('#detail-section-stats-card') as HTMLElement | null,
+    modal.querySelector('.detail-section-stats-card') as HTMLElement | null,
+    modal.querySelector('.detail-section-stats') as HTMLElement | null,
+    modal.querySelector('.detail-stats-list') as HTMLElement | null,
+  ].filter(Boolean) as HTMLElement[];
+
+  statsContainers.forEach((el) => {
+    try { gsap.killTweensOf(el); } catch {}
+    el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+    el.style.removeProperty('transform');
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('will-change');
+    el.style.removeProperty('transition');
+    el.style.setProperty('display', el.classList.contains('detail-stats-list') ? 'flex' : 'flex', 'important');
+  });
+
+  const statNodes = modal.querySelectorAll(
+    '.detail-stat-item, .detail-stat-divider, .detail-stat-icon, .stat-icon, .detail-stat-value, .stat-value, .detail-stat-label, .stat-label, .detail-stat-content, .stat-content'
+  );
+  statNodes.forEach((node) => {
+    const el = node as HTMLElement;
+    try { gsap.killTweensOf(el); } catch {}
+    el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+    el.style.removeProperty('transform');
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('will-change');
+    el.style.removeProperty('transition');
+    const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+    if (
+      el.classList.contains('detail-stat-item') ||
+      el.classList.contains('detail-stat-divider') ||
+      el.classList.contains('detail-stat-icon') ||
+      el.classList.contains('stat-icon') ||
+      el.classList.contains('detail-stat-content') ||
+      el.classList.contains('stat-content')
+    ) {
+      el.style.setProperty('display', defaultDisplay, 'important');
+    } else {
+      el.style.removeProperty('display');
+    }
+  });
+}
+
 function playDetailCloseSoftCartoonBounce(closeBtn: HTMLElement | null): void {
   if (!closeBtn) return;
 
@@ -4336,6 +4389,7 @@ class JourneyBoardsManager {
       // 🔥 SAFETY: Ensure modal is interactive even after previous exit
       (detailModal as any).__detailModalExiting = false;
       (detailModal as HTMLElement).style.pointerEvents = 'auto';
+      resetDetailStatsDomForOpen(detailModal as HTMLElement);
       
       // 🔥 USER BUG FIX: Ensure X button exists and is visible IMMEDIATELY when modal is opened
       // This fixes issue where X button is missing after hard exit
@@ -5180,7 +5234,10 @@ class JourneyBoardsManager {
       const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
       const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
       const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
-      const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
+      const boardStatsContainer = (
+        detailModal.querySelector('.board-stats-container') ||
+        detailModal.querySelector('.detail-section-stats')
+      ) as HTMLElement | null;
       // 🔥 CRITICAL: Use #board-detail-play-button (floating button created above) instead of #detail-play-board-btn
       const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
       

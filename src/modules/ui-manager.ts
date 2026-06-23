@@ -1991,15 +1991,15 @@ class UIManager {
       logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
       // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
-    this.showHomepageQuietly();
-    this.setNavigationVisibility(true);
+      const { appZoneManager } = await import('./app-zone-manager.js');
+      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:homepage');
     } else {
       // Default: show homepage (for backward compatibility)
       logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
       // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
-      this.showHomepageQuietly();
-      this.setNavigationVisibility(true);
+      const { appZoneManager } = await import('./app-zone-manager.js');
+      await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:default-homepage');
     }
     
     // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen

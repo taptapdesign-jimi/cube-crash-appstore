@@ -91,9 +91,10 @@ import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './ut
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
-import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, markArcadeHomeRunOrigin, setRunMode } from './modules/run-mode.js';
+import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './modules/first-play-tutorial.js';
-import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './modules/journey-origin-state.js';
+import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
+import { appZoneManager } from './modules/app-zone-manager.js';
 
 // Type definitions (ultra-permissive for quick TypeScript fix)
 interface GameState {
@@ -704,7 +705,8 @@ function resetEndgameRuntimeFlags(reason: string): void {
 // 🔥 JOURNEY PROGRESSION: Helper function to start a new run for a specific board
 async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
-  setRunMode(RUN_MODE_JOURNEY);
+  const startedFromJourney = (window as any).__ccCameFromJourney === true;
+  appZoneManager.prepareJourneyRunOrigin({ reason: `startNewRun:${boardId}`, boardId });
   const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
   resetEndgameRuntimeFlags(`startNewRun:${boardId}`);
   
@@ -728,7 +730,7 @@ async function startNewRun(boardId: number): Promise<void> {
   localStorage.removeItem('cubeCrash_gameState');
   
   // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
-  const cameFromJourney = (window as any).__ccCameFromJourney === true;
+  const cameFromJourney = startedFromJourney;
   
   // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
   // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -745,7 +747,7 @@ async function startNewRun(boardId: number): Promise<void> {
     // DO NOT play slider exit animation - just hide homepage
     logger.info('🗺️ Skipping slider exit animation - Journey screen exit already completed');
     // Hide homepage immediately (no animation)
-    uiManager.hideHomepage();
+    void appZoneManager.hideHomepageForGame(`startNewRun:${boardId}:journey`);
   }
   
   // 🔥 APP STORE FIX: Event-driven approach for canvas visibility
@@ -828,9 +830,9 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
-  markJourneyGameOrigin({
+  appZoneManager.prepareJourneyRunOrigin({
+    reason: 'continueGameWithSavedState',
     fromInterim: isJourneyInterimOriginActive(),
-    returningFromInterim: (window as any).__ccReturningFromInterimBoard === true,
   });
   
   // Import journey progression state
@@ -1185,7 +1187,9 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
-  markJourneyGameOrigin({
+  appZoneManager.prepareJourneyRunOrigin({
+    reason: `startNewRunFromJourney:${boardId}`,
+    boardId,
     fromInterim: isJourneyInterimOriginActive(),
     returningFromInterim: (window as any).__ccReturningFromInterimBoard === true,
   });
@@ -1208,7 +1212,7 @@ async function startNewRun(boardId: number): Promise<void> {
   console.log(`✅ Cleared saved game state for board ${boardId} (${saveKey})`);
   
   // Hide homepage (no slider exit animation - already done)
-  uiManager.hideHomepage();
+  await appZoneManager.hideHomepageForGame(`startNewRunFromJourney:${boardId}`);
   console.log(`✅ Homepage hidden`);
   
   try {
@@ -1268,7 +1272,7 @@ async function startNewRun(boardId: number): Promise<void> {
 // New sequence handler: bottom sheet close → exit anim → game start
 (window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
   logger.info('🎬 Starting game start sequence...');
-  markArcadeHomeRunOrigin();
+  appZoneManager.prepareArcadeRunOrigin(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
   resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
   
   // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
@@ -1280,9 +1284,9 @@ async function startNewRun(boardId: number): Promise<void> {
   animateSliderExit();
   
   // Step 2: Wait for exit animation to complete, then hide homepage and start game
-  setTimeout(() => {
+  setTimeout(async () => {
     console.log('🎮 Step 2: Starting game after exit animation');
-    uiManager.hideHomepage(); // Hide homepage AFTER animation
+    await appZoneManager.hideHomepageForGame('triggerGameStartSequence:start-game'); // Hide homepage AFTER animation
     if (options?.resumeArcade) {
       uiManager.startNewGameWithSavedState();
     } else {
@@ -1420,6 +1424,10 @@ async function startNewRun(boardId: number): Promise<void> {
   // 🔥 CRITICAL: Declare variables BEFORE use in fast path
   let returnToDetailModal = false;
   let detailModalBoardId: number | null = null;
+  const shouldPreserveJourneyDetailModalDom =
+    (window as any).__ccRunMode !== RUN_MODE_ARCADE_HOME &&
+    (window as any).__ccCameFromDetailModal === true &&
+    Number.isFinite(Number((window as any).__ccDetailModalBoardId));
   
   try {
     console.log('🔥 Starting complete game cleanup...');
@@ -1780,19 +1788,25 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     // Step 5: Clean up Journey Boards Manager (event listeners, animations)
-    try {
-      const collectiblesManager = (window as any).collectiblesManager;
-      if (collectiblesManager && typeof collectiblesManager.cleanup === 'function') {
-        console.log('🧹 Calling collectiblesManager.cleanup() to clean up Journey screen...');
-        await runWithBudget(
-          () => collectiblesManager.cleanup(),
-          exitWaits.collectiblesCleanupBudgetMs,
-          'collectibles cleanup',
-        );
-        console.log('✅ collectiblesManager.cleanup() attempted (budgeted) - continuing transition');
+    // Direct detail-modal returns reuse the Journey detail DOM immediately. Full cleanup here can
+    // remove/reset stats internals before openBoardDetailsById repopulates the modal.
+    if (shouldPreserveJourneyDetailModalDom) {
+      console.log('⏭️ Skipping collectiblesManager.cleanup() for direct Journey detail modal return');
+    } else {
+      try {
+        const collectiblesManager = (window as any).collectiblesManager;
+        if (collectiblesManager && typeof collectiblesManager.cleanup === 'function') {
+          console.log('🧹 Calling collectiblesManager.cleanup() to clean up Journey screen...');
+          await runWithBudget(
+            () => collectiblesManager.cleanup(),
+            exitWaits.collectiblesCleanupBudgetMs,
+            'collectibles cleanup',
+          );
+          console.log('✅ collectiblesManager.cleanup() attempted (budgeted) - continuing transition');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to run collectiblesManager.cleanup:', error);
       }
-    } catch (error) {
-      console.warn('⚠️ Failed to run collectiblesManager.cleanup:', error);
     }
     
     // Step 6: Homepage/Slider cleanup
@@ -1955,236 +1969,34 @@ async function startNewRun(boardId: number): Promise<void> {
     } catch (error) {
       console.warn('⚠️ Failed to hide board indicator:', error);
     }
-    
-    
-    // 🔥 JOURNEY PROGRESSION: Check if user came from Journey screen
-      // 🔥 USER REQUEST: Determine target slide based on where user came from
-      // 1. If came from detail modal Play button → return to detail modal for that board
-      // 2. If came from homepage Play button → return to homepage (slide 0)
-      // 3. If came from Journey Continue button → return to Journey (slide 1)
-      let targetSlide = 0; // Default to homepage
-      // returnToDetailModal and detailModalBoardId already declared at top of function
-      const isArcadeHomeRun = isFastArcadeCleanExit || (window as any).__ccRunMode === RUN_MODE_ARCADE_HOME;
-      
-      try {
-        // HARD OVERRIDE: Homepage arcade run must ALWAYS exit to homepage slide 0.
-        // Ignore stale Journey/detail-modal flags from previous sessions.
-        if (isArcadeHomeRun) {
-          targetSlide = 0;
-          returnToDetailModal = false;
-          detailModalBoardId = null;
-          markArcadeHomeRunOrigin();
-          console.log('🎮 Arcade exit override: forcing homepage slide 0 and clearing detail/journey flags');
-        } else {
-        // 🔥 USER REQUEST: Check if user came from detail modal FIRST
-        const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
-        const detailModalBoardIdWindow = (window as any).__ccDetailModalBoardId;
-        
-        // 🔥 BUG FIX: Validate board ID before using (must be 1-16)
-        const validBoardId = Number.isFinite(detailModalBoardIdWindow) && 
-                             detailModalBoardIdWindow >= 1 && 
-                             detailModalBoardIdWindow <= 16
-          ? Number(detailModalBoardIdWindow)
-          : null;
-        
-        const resolveExitContext = async () => {
-          // 🔥 CRITICAL: Check localStorage FIRST (before clearing) - most reliable for persistence
-          const cameFromJourneyStorage = localStorage.getItem('__ccCameFromJourney') === 'true';
-          const cameFromHomepageStorage = localStorage.getItem('__ccCameFromHomepage') === 'true';
-          const fromInterimBoardStorage = localStorage.getItem('__ccFromInterimBoard') === 'true';
-          
-          // Also check window flags (for current session)
-          const cameFromJourneyWindow = (window as any).__ccCameFromJourney === true;
-          const cameFromHomepageWindow = (window as any).__ccCameFromHomepage === true;
-          const fromInterimBoardWindow = (window as any).__ccFromInterimBoard === true;
-          
-          // 🔥 CRITICAL FIX: Check interim board flag - if set, user definitely came from Journey
-          const fromInterimBoard = fromInterimBoardWindow || fromInterimBoardStorage;
-          
-          // Combine both sources
-          let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage || fromInterimBoard;
-          const cameFromHomepage = cameFromHomepageWindow || cameFromHomepageStorage;
-          
-          // 🔥 USER REQUEST: If flag is not set, check lastOpenedBoardId as primary indicator
-          // If user has lastOpenedBoardId, they came from Journey screen (especially for interim cards)
-          if (!cameFromJourney && !cameFromHomepage) {
-            const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
-            const lastOpenedBoardId = journeyProgressionState.getLastOpenedBoardId();
-            if (lastOpenedBoardId !== null && lastOpenedBoardId >= 1) {
-              cameFromJourney = true;
-              console.log(`🗺️ No flag found, but lastOpenedBoardId is ${lastOpenedBoardId} - user came from Journey`);
-            }
-          }
-          
-          console.log('🔍 Exit context check:', {
-            cameFromJourneyWindow,
-            cameFromJourneyStorage,
-            fromInterimBoardWindow,
-            fromInterimBoardStorage,
-            fromInterimBoard,
-            cameFromJourney,
-            cameFromHomepageWindow,
-            cameFromHomepageStorage,
-            cameFromHomepage
-          });
-          
-          if (cameFromJourney) {
-            // User came from Journey screen → return to Journey slide
-            targetSlide = 1;
-            console.log('🎯 User came from Journey screen - returning to Journey slide');
-            
-            // 🔥 CRITICAL: Hide detail modal if it's open (but NOT Journey screen - we'll show it)
-            const detailModal = document.getElementById('collectibles-detail-modal');
-            if (detailModal) {
-              detailModal.hidden = true;
-              detailModal.style.display = 'none';
-              console.log('✅ Detail modal hidden');
-            }
-          } else if (cameFromHomepage) {
-            // User came from homepage → return to homepage
-            targetSlide = 0;
-            console.log('🏠 User came from homepage - returning to homepage slide');
-          } else {
-            // No flags set → default to homepage
-            targetSlide = 0;
-            console.log('🏠 No Journey context found - defaulting to homepage slide');
-          }
-          
-          // Clear flags AFTER determining target slide
-          delete (window as any).__ccCameFromHomepage;
-          delete (window as any).__ccCameFromJourney;
-          // 🔥 FIX: Also clear from localStorage AFTER use
-          localStorage.removeItem('__ccCameFromJourney');
-          localStorage.removeItem('__ccCameFromHomepage');
-        };
+    const exitRoute = await appZoneManager.resolveGameExitRoute({
+      reason: 'exitToMenu',
+      fastArcadeCleanExit: isFastArcadeCleanExit,
+    });
+    const targetSlide = exitRoute.targetSlide;
+    returnToDetailModal = exitRoute.returnToDetailModal;
+    detailModalBoardId = exitRoute.detailModalBoardId;
 
-        if (cameFromDetailModal && validBoardId) {
-          // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked)
-          // If board is still interim (not unlocked), return to Journey screen instead
-          try {
-            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-            const board = journeyBoardsManager.getBoardById(validBoardId);
-            
-            if (board && board.unlocked) {
-              // Board has detail modal - return to detail modal
-              returnToDetailModal = true;
-              detailModalBoardId = validBoardId;
-              console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
-              logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
-            } else {
-              // Board is still interim (not unlocked) - return to Journey screen instead
-              console.log(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
-              logger.info(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
-              // Clear flags and fall through to Journey screen logic
-              delete (window as any).__ccCameFromDetailModal;
-              delete (window as any).__ccDetailModalBoardId;
-              await resolveExitContext();
-            }
-          } catch (error) {
-            // If check fails, assume board has detail modal (fallback to original behavior)
-            console.warn(`⚠️ Failed to check board unlock status for ${validBoardId}, assuming unlocked:`, error);
-            returnToDetailModal = true;
-            detailModalBoardId = validBoardId;
-            console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
-            logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
-          }
-          
-          // Clear flags only if we're returning to detail modal
-          if (returnToDetailModal) {
-            delete (window as any).__ccCameFromDetailModal;
-            delete (window as any).__ccDetailModalBoardId;
-          }
-        } else if (cameFromDetailModal && !validBoardId) {
-          console.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
-          logger.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
-          // Clear invalid flags
-          delete (window as any).__ccCameFromDetailModal;
-          delete (window as any).__ccDetailModalBoardId;
-          await resolveExitContext();
-        } else {
-          await resolveExitContext();
-        }
-        }
-      } catch (error) {
-        console.warn('⚠️ Failed to determine target slide:', error);
+    if (exitRoute.target === 'journey') {
+      const detailModal = document.getElementById('collectibles-detail-modal');
+      if (detailModal) {
+        detailModal.hidden = true;
+        detailModal.style.display = 'none';
+        console.log('✅ Detail modal hidden');
       }
+    }
     
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     console.log(`🎯🎯🎯 TARGET SLIDE = ${targetSlide} 🎯🎯🎯`);
     if (targetSlide === 0) {
-      console.log('🏠 HOMEPAGE PATH: targetSlide === 0, will call forceReady()');
-      
-      // 🔥 BUG FIX: Ensure slider is unlocked (critical for swipe drag to work)
-      if (gameState && gameState.set) {
-        gameState.set('sliderLocked', false);
-        console.log('✅ sliderLocked set to false');
-      }
-      
-      // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
-      // This resets ALL animation flags, unlocks slider, and reinitializes if needed
-      try {
-        console.log('🔧 About to call sliderManager.forceReady()...');
-        console.log('🔧 sliderManager exists:', !!sliderManager);
-        console.log('🔧 forceReady is function:', typeof sliderManager?.forceReady === 'function');
-        
-        if (sliderManager && typeof sliderManager.forceReady === 'function') {
-          console.log('🔧 Force resetting slider for homepage return...');
-          sliderManager.forceReady();
-          console.log('✅ Slider forceReady() called - navigation should work');
-        } else if (sliderManager && typeof sliderManager.init === 'function') {
-          // Fallback
-          sliderManager.init();
-          console.log('✅ Slider init() called (fallback)');
-        } else {
-          console.error('❌ sliderManager.forceReady NOT AVAILABLE!');
-        }
-      } catch (sliderError) {
-        console.error('❌ Failed to reset slider manager:', sliderError);
-      }
-      
-      // Show navigation and homepage for homepage slider
-      console.log('🔧 About to call uiManager.showNavigation() and showHomepageQuietly()...');
-      uiManager.showNavigation();
-      uiManager.showHomepageQuietly();
-      console.log('✅ Navigation and homepage shown - returning to homepage slider');
+      console.log('🏠 HOMEPAGE PATH: returning through app zone router');
+      await appZoneManager.showHomepageShell('exitToMenu:homepage');
+      console.log('✅ Navigation and homepage shown through app zone router');
     } else {
-      console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, NOT calling forceReady()`);
-    
-      // 🔥 CRITICAL: Hide homepage and slider container when returning to Journey screen
-      const homeElement = document.getElementById('home');
-      if (homeElement) {
-        homeElement.style.display = 'none';
-        homeElement.setAttribute('hidden', 'true');
-        homeElement.style.visibility = 'hidden';
-        homeElement.style.opacity = '0';
-        homeElement.style.zIndex = '-1';
-        console.log('✅ Homepage hidden - returning to Journey screen');
-      }
-      
-      const sliderContainer = document.getElementById('slider-container');
-      if (sliderContainer) {
-        sliderContainer.style.display = 'none';
-        sliderContainer.style.visibility = 'hidden';
-        sliderContainer.style.opacity = '0';
-        sliderContainer.style.zIndex = '-1';
-        console.log('✅ Slider container hidden');
-      }
-      
-      // Hide homepage via uiManager
-      uiManager.hideHomepage();
-      
-      // 🔥 CRITICAL: Hide navigation when returning to Journey screen
-      // Navigation will be hidden by MutationObserver in navigation-control.ts
-      // But we set it here to ensure it's hidden immediately
-      const navElement = document.getElementById('independent-nav');
-      if (navElement) {
-        navElement.style.display = 'none';
-        navElement.style.visibility = 'hidden';
-        navElement.style.opacity = '0';
-        navElement.setAttribute('aria-hidden', 'true');
-        console.log('✅ Navigation hidden - returning to Journey screen');
-      }
+      console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, returning through app zone router`);
+      await appZoneManager.showJourneyShell('exitToMenu:journey');
+      console.log('✅ Homepage shell hidden through app zone router');
     }
     
     // Reset game state
@@ -2194,175 +2006,7 @@ async function startNewRun(boardId: number): Promise<void> {
       isPaused: false
     });
     
-    // 🔥 USER REQUEST: Only reset slider if returning to homepage (slide 0)
-    // Journey screen (slide 1) is NOT part of homepage slider, so don't reset slider
-    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
-    // DO NOT reset slider here as it will interfere with collectibles-manager.ts positioning
-    const journeyExitMode = (window as any).__ccJourneyExitMode;
-    if (journeyExitMode === 'toHome') {
-      console.log('🗺️ Journey exit mode is "toHome" - skipping slider reset (collectibles-manager.ts will handle)');
-    } else if (targetSlide === 0 && sliderManager) {
-      console.log(`🎯 Resetting slider to slide ${targetSlide} (homepage)...`);
-      sliderManager.setCurrentSlide(targetSlide);
-      console.log(`✅ Slider reset to slide ${targetSlide}`);
-    } else if (targetSlide === 1) {
-      // 🔥 CRITICAL: Don't reset slider when returning to Journey screen
-      // Journey screen is separate from homepage slider, so slider should remain hidden
-      console.log('✅ Skipping slider reset - Journey screen is not part of homepage slider');
-    } else {
-      console.warn('⚠️ SliderManager not found, trying gameState...');
-      if (targetSlide === 0) {
-        gameState.setState({ currentSlide: targetSlide });
-      }
-    }
-    
-    // 🔥 USER REQUEST: Only update slider slides if returning to homepage (slide 0)
-    // If returning to Journey (slide 1), don't touch slider - Journey screen is shown directly
-    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
-    // DO NOT update slides here as it will interfere with collectibles-manager.ts positioning
-    // Note: journeyExitMode is already declared above, reuse it
-    if (journeyExitMode === 'toHome') {
-      console.log('🗺️ Journey exit mode is "toHome" - skipping slide update (collectibles-manager.ts will handle)');
-    } else if (targetSlide === 0) {
-      // Also update slide classes and nav buttons to match target slide
-      const slides = document.querySelectorAll('.slider-slide');
-      const navButtons = document.querySelectorAll('.independent-nav-button');
-      
-      // 🔥 CRITICAL FIX: Ensure slider is fully ready before using it
-      // ensureReady() will reinitialize if needed and ensure all elements are interactive
-      if (sliderManager && typeof sliderManager.ensureReady === 'function') {
-        try {
-          console.log('🔧 Calling sliderManager.ensureReady() for homepage return...');
-          sliderManager.ensureReady();
-          console.log('✅ SliderManager.ensureReady() completed');
-        } catch (error) {
-          console.warn('⚠️ Error calling ensureReady:', error);
-        }
-      }
-      
-      // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
-      // This replaces manual GSAP positioning + class manipulation
-      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
-        try {
-          sliderManager.setSlideInstant(targetSlide);
-          console.log(`✅ Slider positioned at slide ${targetSlide} using setSlideInstant (atomic)`);
-        } catch (error) {
-          console.warn('⚠️ Error calling setSlideInstant, using fallback:', error);
-          // Fall through to fallback
-        }
-      } else {
-        // Fallback: Manual positioning (if setSlideInstant not available)
-        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
-        const sliderWrapper = document.getElementById('slider-wrapper');
-        const sliderContainer = document.getElementById('slider-container');
-        if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
-          const slideWidth = sliderContainer.offsetWidth;
-          const targetOffset = -targetSlide * slideWidth;
-          gsap.set(sliderWrapper, { x: targetOffset });
-        }
-        
-        slides.forEach((slide, index) => {
-          if (index === targetSlide) {
-            slide.classList.add('active');
-          } else {
-            slide.classList.remove('active');
-          }
-        });
-      }
-      
-      // 🔥 CRITICAL: Ensure ALL slides are visible for slider to work (slider uses translateX)
-      slides.forEach((slide, index) => {
-        // ALL slides must be visible for slider positioning to work
-        (slide as HTMLElement).style.display = 'block';
-        (slide as HTMLElement).style.visibility = 'visible';
-        (slide as HTMLElement).style.opacity = '1';
-        
-        // 🔥 USER REQUEST: Ensure ALL slide content elements are visible (images, text, CTAs)
-        // This prevents content from being hidden when returning from Journey screen
-        const slideContent = slide.querySelector('.slide-content');
-        const heroImage = slide.querySelector('.hero-image');
-        const slideText = slide.querySelector('.slide-text');
-        const slideTagline = slide.querySelector('.slide-tagline');
-        const slideButton = slide.querySelector('.slide-button');
-        
-        if (slideContent) {
-          (slideContent as HTMLElement).style.display = 'flex';
-          (slideContent as HTMLElement).style.visibility = 'visible';
-          (slideContent as HTMLElement).style.opacity = '1';
-        }
-        if (heroImage) {
-          (heroImage as HTMLElement).style.display = 'block';
-          (heroImage as HTMLElement).style.visibility = 'visible';
-          (heroImage as HTMLElement).style.opacity = '1';
-        }
-        if (slideText) {
-          (slideText as HTMLElement).style.display = 'block';
-          (slideText as HTMLElement).style.visibility = 'visible';
-          (slideText as HTMLElement).style.opacity = '1';
-          
-          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
-          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-          const isActiveSlide = index === targetSlide;
-          
-          if (isIPad) {
-            // Don't override transform - let CSS handle it
-            const currentTransform = (slideText as HTMLElement).style.transform;
-            if (!currentTransform || !currentTransform.includes('translateY(64px)')) {
-              (slideText as HTMLElement).style.transform = 'translateY(64px)';
-              (slideText as HTMLElement).style.webkitTransform = 'translateY(64px)';
-            }
-            
-            // 🔥 FIX: Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial
-            if (!isActiveSlide) {
-              (slideText as HTMLElement).classList.remove('animate-enter-initial');
-            }
-          }
-        }
-        if (slideTagline) {
-          (slideTagline as HTMLElement).style.display = 'block';
-          (slideTagline as HTMLElement).style.visibility = 'visible';
-          (slideTagline as HTMLElement).style.opacity = '1';
-          
-          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
-          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-          if (isIPad) {
-            // Don't override transform - let CSS handle it
-            const currentTransform = (slideTagline as HTMLElement).style.transform;
-            if (!currentTransform || !currentTransform.includes('translateY(-12px)')) {
-              (slideTagline as HTMLElement).style.transform = 'translateY(-12px)';
-              (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px)';
-            }
-          }
-        }
-        if (slideButton) {
-          // 🔥 FIX: Za iPad, osigurati da je CTA button vidljiv na neaktivnim slide-ovima
-          // Animacija će se pokrenuti samo za aktivni slide
-          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-          const isActiveSlide = index === targetSlide;
-          
-          if (isIPad && !isActiveSlide) {
-            // Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial i postaviti display
-            (slideButton as HTMLElement).classList.remove('animate-enter-initial');
-            (slideButton as HTMLElement).style.display = 'flex';
-            (slideButton as HTMLElement).style.visibility = 'visible';
-            (slideButton as HTMLElement).style.opacity = '1';
-            // 🔥 CRITICAL: Postaviti transform: scale(1) jer animate-enter-initial postavlja scale(0)
-            (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(1)';
-            (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(1)';
-          }
-          // Za aktivni slide, animate-enter-initial će biti uklonjen u startEnterAnimationSequence
-        }
-      });
-      navButtons.forEach((button) => {
-        const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
-        if (slideIndex === targetSlide) {
-          button.classList.add('active');
-        } else {
-          button.classList.remove('active');
-        }
-      });
-      console.log('✅ All slides and content elements made visible for homepage return');
-    } else {
+    if (exitRoute.target === 'journey') {
       // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
       // This prevents empty slides when user goes back from Journey screen
       const slides = document.querySelectorAll('.slider-slide');
