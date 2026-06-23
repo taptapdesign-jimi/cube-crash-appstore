@@ -9,8 +9,17 @@ type JourneyNewCardScreenOptions = {
 };
 
 let cleanupFns: Array<() => void> = [];
+let activeTimelines: gsap.core.Timeline[] = [];
+
+function trackNewCardTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
+  activeTimelines.push(timeline);
+  return timeline;
+}
 
 function cleanupJourneyNewCardScreen(): void {
+  activeTimelines.splice(0).forEach((timeline) => {
+    try { timeline.kill(); } catch {}
+  });
   cleanupFns.forEach((fn) => {
     try { fn(); } catch {}
   });
@@ -301,6 +310,16 @@ function setLightMask(lightEl: HTMLElement | null, src: string): void {
   } catch {}
 }
 
+function clearLightMask(lightEl: HTMLElement | null): void {
+  if (!lightEl) return;
+  try {
+    lightEl.style.webkitMaskImage = 'none';
+    lightEl.style.maskImage = 'none';
+    lightEl.style.webkitMaskSize = '100% 100%';
+    lightEl.style.maskSize = '100% 100%';
+  } catch {}
+}
+
 function setLightFrameScale(lightEl: HTMLElement | null, scale: number): void {
   if (!lightEl) return;
   try {
@@ -337,7 +356,7 @@ function triggerJourneyNewCardShine(
         target?.classList.add('glow-pulse');
         if (target) {
           gsap.killTweensOf(target);
-          gsap.timeline()
+          trackNewCardTimeline(gsap.timeline())
             .set(target, { transformOrigin: '50% 50%', force3D: true })
             .to(target, { scale: bounceScale * 1.055, duration: 0.14, ease: 'back.out(2)' })
             .to(target, { scale: bounceScale, duration: 0.18, ease: 'sine.out' });
@@ -354,7 +373,14 @@ function triggerJourneyNewCardShine(
 function preloadImage(src: string): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve();
+    img.onload = async () => {
+      try {
+        if (typeof img.decode === 'function') {
+          await img.decode();
+        }
+      } catch {}
+      resolve();
+    };
     img.onerror = () => resolve();
     img.src = src;
   });
@@ -419,7 +445,7 @@ async function playCrumbleFrames({
     try { gsap.killTweensOf(baseImg); } catch {}
 
     await new Promise<void>((resolve) => {
-      const tl = gsap.timeline({ onComplete: resolve });
+      const tl = trackNewCardTimeline(gsap.timeline({ onComplete: resolve }));
       tl.set(baseImg, {
         filter: `blur(${blurPx}px) brightness(1.04)`,
         scale: bounceStart,
@@ -449,6 +475,7 @@ export async function showJourneyNewCardScreen({
   cardName,
 }: JourneyNewCardScreenOptions): Promise<{ action: 'continue' }> {
   cleanupJourneyNewCardScreen();
+  try { cleanupJourneySmokeEffects(); } catch {}
   ensureJourneyNewCardStyles();
 
   const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
@@ -522,6 +549,10 @@ export async function showJourneyNewCardScreen({
       shineAnimationFrames.splice(0).forEach((frameId) => {
         try { window.cancelAnimationFrame(frameId); } catch {}
       });
+      try { cleanupJourneySmokeEffects(hero); } catch {}
+      try { clearLightMask(light); } catch {}
+      try { if (frameImg) frameImg.removeAttribute('src'); } catch {}
+      try { if (finalImg) finalImg.removeAttribute('src'); } catch {}
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, frameImg, finalImg, light, shadow, cta]); } catch {}
     });
 
@@ -549,7 +580,7 @@ export async function showJourneyNewCardScreen({
       if (resolved || disposed || !document.body.contains(overlay)) return;
       try {
         gsap.killTweensOf(overlay, 'x,y');
-        gsap.timeline()
+        trackNewCardTimeline(gsap.timeline())
           .to(overlay, { x: strength, y: -strength * 0.45, duration: duration * 0.12, ease: 'power2.out' })
           .to(overlay, { x: -strength * 0.85, y: strength * 0.35, duration: duration * 0.12, ease: 'power2.inOut' })
           .to(overlay, { x: strength * 0.55, y: -strength * 0.25, duration: duration * 0.14, ease: 'power2.inOut' })
@@ -627,6 +658,7 @@ export async function showJourneyNewCardScreen({
       try { light?.classList.remove('shine-trigger'); } catch {}
       try { frameImg?.classList.remove('glow-pulse'); } catch {}
       try { finalImg?.classList.remove('glow-pulse'); } catch {}
+      try { clearLightMask(light); } catch {}
       try { gsap.killTweensOf([light, frameImg, finalImg]); } catch {}
     };
 
@@ -684,12 +716,12 @@ export async function showJourneyNewCardScreen({
           force3D: true,
         });
       }
-      const tl = gsap.timeline({
+      const tl = trackNewCardTimeline(gsap.timeline({
         onComplete: () => {
           cleanupJourneyNewCardScreen();
           resolve({ action: 'continue' });
         },
-      });
+      }));
       tl
         // 1. Continue button exits alone.
         .to(cta, {
@@ -790,7 +822,7 @@ export async function showJourneyNewCardScreen({
           const titleStart = cardEnterStart;
           const subtitleStart = cardEnterStart;
           const ctaStart = titleStart + rd(0.2);
-          gsap.timeline({
+          trackNewCardTimeline(gsap.timeline({
             onComplete: () => {
               if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) {
                 revealDone();
@@ -807,7 +839,7 @@ export async function showJourneyNewCardScreen({
               });
               revealDone();
             },
-          })
+          }))
             .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
             .set(title, { textContent: 'Unlocked!', opacity: 0, y: -16, scale: 0.72 }, titleStart)
@@ -827,7 +859,7 @@ export async function showJourneyNewCardScreen({
               force3D: true,
             }, cardEnterStart)
             .call(() => {
-              setLightMask(light, safeCardPath);
+              clearLightMask(light);
               setLightFrameScale(light, 0.95);
               gsap.set(light, { opacity: 0, scale: 1, transformOrigin: '50% 50%', force3D: true });
               playScreenShake(11, 0.42);
@@ -969,7 +1001,7 @@ export async function showJourneyNewCardScreen({
     }
     setLightMask(light, getCrumbleFramePath(1));
 
-    const enter = gsap.timeline({
+    const enter = trackNewCardTimeline(gsap.timeline({
       defaults: { overwrite: 'auto' },
       onComplete: () => {
         gsap.to(shadow, {
@@ -983,7 +1015,7 @@ export async function showJourneyNewCardScreen({
           yoyo: true,
         });
       },
-    });
+    }));
     enter
       .to(title, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, 0)
       .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, d(0.04))
@@ -1012,7 +1044,7 @@ export async function showJourneyNewCardScreen({
             gsap.killTweensOf(frameImg);
             setLightFrameScale(light, 1.2);
             gsap.set(light, { opacity: 0.95, scale: 1, transformOrigin: '50% 50%', force3D: true });
-            gsap.timeline()
+            trackNewCardTimeline(gsap.timeline())
               .set(frameImg, { filter: 'brightness(1)', transformOrigin: '50% 50%', force3D: true })
               .call(() => {
                 try {
