@@ -3,6 +3,7 @@ type SaveGuardDeps = {
   userMadeMove: boolean;
   gameHasEnded: boolean;
   gridReady: boolean;
+  gameplayTransientBusy?: boolean;
   runMode?: string | null;
   cameFromJourney?: boolean;
   cameFromInterimBoard?: boolean;
@@ -14,6 +15,7 @@ export function canSaveGameState({
   userMadeMove,
   gameHasEnded,
   gridReady,
+  gameplayTransientBusy = false,
   runMode,
   cameFromJourney,
   cameFromInterimBoard,
@@ -32,6 +34,11 @@ export function canSaveGameState({
   // CRITICAL FIX: Don't save game state if game has ended
   if (gameHasEnded) {
     devLog('💾 Game has ended, skipping save');
+    return false;
+  }
+
+  if (gameplayTransientBusy) {
+    devLog('💾 Gameplay has transient drop/endgame handoff state, skipping save');
     return false;
   }
 

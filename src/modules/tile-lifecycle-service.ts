@@ -115,6 +115,8 @@ export function clearTileTransientFlags(tile: any): void {
     delete tile._pendingRemoval;
     delete tile._beingRemoved;
     delete tile._cleanupQueued;
+    delete tile._ccWildSpawnDropping;
+    delete tile._ccWildSpawnHandoffLock;
   } catch {}
 }
 
@@ -193,5 +195,30 @@ export function normalizeSpawnedTileVisual(tile: any): void {
   if (tile.pips) {
     tile.pips.alpha = 1;
     tile.pips.visible = true;
+  }
+}
+
+export function normalizePlayableTileAfterMutation(tile: any): void {
+  if (!tile || tile.destroyed) return;
+
+  clearTileTransientFlags(tile);
+  normalizeSpawnedTileVisual(tile);
+
+  try { tile.locked = false; } catch {}
+  try { tile.visible = true; } catch {}
+  try { tile.alpha = 1; } catch {}
+  try { tile.eventMode = 'static'; } catch {}
+  try { tile.interactive = true; } catch {}
+  try { tile.interactiveChildren = true; } catch {}
+  try { tile.cursor = 'pointer'; } catch {}
+
+  const rotG = tile.rotG;
+  if (rotG && !rotG.destroyed) {
+    try { rotG.eventMode = 'static'; } catch {}
+    try { rotG.interactive = true; } catch {}
+    try { rotG.interactiveChildren = true; } catch {}
+    try { rotG.cursor = 'pointer'; } catch {}
+    try { rotG.alpha = 1; } catch {}
+    try { rotG.visible = true; } catch {}
   }
 }

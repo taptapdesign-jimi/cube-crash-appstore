@@ -196,7 +196,7 @@ export function setExplosionContainer(container: Container | null): void {
   if (container && !container.destroyed) {
     explosionContainer = container;
     isExplosionActive = true;
-    startWildFxDragLockForAnimation('juice-bubbles', 6200, 0.7);
+    startWildFxDragLockForAnimation('juice-bubbles', 6200, 0.30);
     logger.debug('Container restored', undefined, { visible: container.visible, children: container.children?.length });
   } else {
     explosionContainer = null;
@@ -466,7 +466,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   isExplosionActive = true;
-  startWildFxDragLockForAnimation('juice-bubbles', 6200, options.inputReleaseAtRatio ?? 0.7);
+  startWildFxDragLockForAnimation('juice-bubbles', 6200, options.inputReleaseAtRatio ?? 0.30);
   explosionStartTime = performance.now(); // Track when explosion started
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;

@@ -148,7 +148,7 @@ export function showMagneticText(options: any = {}): void {
   try {
     cleanupBuzzzOverlay();
     magneticTextActive = true;
-    startWildFxDragLockForAnimation('magnetic-text', 3600, options?.inputReleaseAtRatio ?? 0.86);
+    startWildFxDragLockForAnimation('magnetic-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
 
     const overlay = document.createElement('div');
     overlay.style.cssText = [
@@ -452,7 +452,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
   try {
     cleanupSparkleOverlay();
     sparkleTextActive = true;
-    startWildFxDragLockForAnimation('sparkle-text', 3600, options?.inputReleaseAtRatio ?? 0.7);
+    startWildFxDragLockForAnimation('sparkle-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
     const sparkleText = String(options?.text || 'SPARKLE');
     const sparkleColor = String(options?.color || '#FFCB81');
 

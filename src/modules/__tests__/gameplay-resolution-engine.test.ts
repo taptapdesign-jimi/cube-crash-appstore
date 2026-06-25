@@ -266,6 +266,60 @@ test('journey final wild merge resolves to journey board complete', () => {
   });
 });
 
+test.each([
+  ['wild-star', 'wild'],
+  ['wild-juice', 'wild-juice'],
+  ['wild-tnt', 'wild-tnt'],
+  ['future star variant', 'wild-cubero'],
+])('final %s archetype plus regular resolves complete without spawn', (_label, special) => {
+  const src = makeTile({ value: 0, special });
+  const dst = makeTile({ value: 5 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst],
+    moves: 2,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'after-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(true);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'complete',
+    target: 'arcade-stage',
+    reason: 'final_wild_merge6',
+  });
+});
+
+test('future special dice archetype metadata still resolves as final wild merge', () => {
+  const src = makeTile({
+    value: 0,
+    special: 'wild',
+    _ccSpecialDiceVariant: 'future-feather',
+    _ccSpecialDiceArchetype: 'wild-star',
+  });
+  const dst = makeTile({ value: 5 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst],
+    moves: 2,
+    makeBoard: makeBoard(false),
+    mode: 'journey',
+    phase: 'after-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(snapshot.finalMerge.isFinalMerge).toBe(true);
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'complete',
+    target: 'journey-board',
+    reason: 'final_wild_merge6',
+  });
+});
+
 test('journey final juice merge with stacked regular and duplicate refs resolves complete', () => {
   const src = makeTile({ value: 0, special: 'wild-juice' });
   const dst = makeTile({ value: 5, stackDepth: 2 });

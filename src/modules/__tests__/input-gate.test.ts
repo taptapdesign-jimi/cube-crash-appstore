@@ -2,6 +2,7 @@ import {
   canStartTileDrag,
   clearInputGateLocks,
   setInputGateLock,
+  startInputGateLockForAnimation,
 } from '../input-gate';
 
 describe('input gate', () => {
@@ -58,9 +59,60 @@ describe('input gate', () => {
     expect((window as any).__ccTntDragBlocked).toBe(false);
   });
 
+  test('released tnt input gate allows drag while visual tail is still active', () => {
+    (window as any).__ccTntAnimationActive = true;
+    (window as any).__ccTntDragBlocked = false;
+
+    expect(canStartTileDrag({ tile: { value: 2 }, isWildTile: false })).toMatchObject({
+      allowed: true,
+      reasons: [],
+    });
+  });
+
+  test('animation ratio lock releases before visual tail duration ends', () => {
+    jest.useFakeTimers();
+    try {
+      startInputGateLockForAnimation('juice-bubbles', 1000, { releaseAtRatio: 0.30, scope: 'wild-only' });
+
+      expect(canStartTileDrag({ tile: { special: 'wild-juice' }, isWildTile: true }).allowed).toBe(false);
+      jest.advanceTimersByTime(299);
+      expect(canStartTileDrag({ tile: { special: 'wild-juice' }, isWildTile: true }).allowed).toBe(false);
+      jest.advanceTimersByTime(1);
+      expect(canStartTileDrag({ tile: { special: 'wild-juice' }, isWildTile: true })).toMatchObject({
+        allowed: true,
+        reasons: [],
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('sparkle visual lock releases early enough for chaining another wild drag', () => {
+    jest.useFakeTimers();
+    try {
+      startInputGateLockForAnimation('sparkle-text', 1000, { releaseAtRatio: 0.25, scope: 'wild-only' });
+
+      expect(canStartTileDrag({ tile: { special: 'wild' }, isWildTile: true }).allowed).toBe(false);
+      jest.advanceTimersByTime(249);
+      expect(canStartTileDrag({ tile: { special: 'wild' }, isWildTile: true }).allowed).toBe(false);
+      jest.advanceTimersByTime(1);
+      expect(canStartTileDrag({ tile: { special: 'wild' }, isWildTile: true })).toMatchObject({
+        allowed: true,
+        reasons: [],
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   test('tile-local unsafe states block drag centrally', () => {
     expect(canStartTileDrag({ tile: { locked: true }, isWildTile: false }).reasons).toContain('locked-tile');
+    expect(canStartTileDrag({ tile: { locked: true, special: 'wild-juice' }, isWildTile: true })).toMatchObject({
+      allowed: true,
+      reasons: [],
+    });
     expect(canStartTileDrag({ tile: { _ccWildSpawnDropping: true }, isWildTile: true }).reasons).toContain('wild-spawn-dropping');
+    expect(canStartTileDrag({ tile: { _ccWildSpawnHandoffLock: true }, isWildTile: true }).reasons).toContain('wild-spawn-handoff');
     expect(canStartTileDrag({ tile: { _wildMagnetAffected: true }, isWildTile: false }).reasons).toContain('magnet-affected-tile');
   });
 

@@ -1,6 +1,10 @@
 // Centralized gameplay input gate for drag-start decisions.
 // Keeps transient animation locks in one place so future special dice can share the same rules.
 
+import { STATE } from './app-state.ts';
+import { isWildLikeTile } from './final-merge-rules.ts';
+import { isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
+
 export type InputGateLockReason =
   | 'juice-bubbles'
   | 'sparkle-text'
@@ -31,6 +35,49 @@ const LEGACY_WILD_LOCKS_KEY = '__ccWildFxDragLocks';
 const LEGACY_WILD_BLOCKED_KEY = '__ccWildFxDragBlocked';
 const TIMER_KEY = '__ccInputGateUnlockTimers';
 const DEFAULT_TTL_MS = 5200;
+
+function isWildOrSpecialTile(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (isWildLikeTile(tile)) return true;
+  if (isSpecialDiceMagnetLikeTile(tile)) return true;
+  const special = tile.special || tile._ccWildSpecial || tile._ccSpecialDiceArchetype || tile._ccSpecialDiceVariant;
+  return typeof special === 'string' && special.length > 0;
+}
+
+function canRebindAfterVisualTail(tile: any): boolean {
+  if (!isWildOrSpecialTile(tile)) return false;
+  if (tile._ccWildSpawnDropping === true) return false;
+  if (tile._ccWildSpawnHandoffLock === true) return false;
+  if (tile._wildMagnetAffected === true) return false;
+  if (tile._pendingRemoval === true || tile._beingRemoved === true || tile._cleanupQueued === true) return false;
+  if (tile.visible === false) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
+  return true;
+}
+
+function unlockWildTilesForVisualTail(reason: string): void {
+  try {
+    const drag = STATE?.drag;
+    const tiles = Array.isArray(STATE?.tiles) ? STATE.tiles : [];
+    if (!drag || typeof drag.bindToTile !== 'function' || tiles.length === 0) return;
+
+    tiles.forEach((tile: any) => {
+      if (!canRebindAfterVisualTail(tile)) return;
+      try { tile.locked = false; } catch {}
+      try { tile.eventMode = 'static'; } catch {}
+      try { tile.interactive = true; } catch {}
+      try { tile.interactiveChildren = true; } catch {}
+      try { tile.cursor = 'pointer'; } catch {}
+      if (tile.rotG && !tile.rotG.destroyed) {
+        try { tile.rotG.eventMode = 'static'; } catch {}
+        try { tile.rotG.interactive = true; } catch {}
+        try { tile.rotG.interactiveChildren = false; } catch {}
+        try { tile.rotG.cursor = 'pointer'; } catch {}
+      }
+      try { drag.bindToTile(tile); } catch {}
+    });
+  } catch {}
+}
 
 function getWindow(): any | null {
   return typeof window !== 'undefined' ? (window as any) : null;
@@ -120,9 +167,14 @@ export function startInputGateLockForAnimation(
   setInputGateLock(reason, true, { ttlMs: duration, scope: options.scope ?? 'all' });
   const timers = getUnlockTimers();
   clearUnlockTimer(reason);
-  timers[reason] = setTimeout(() => {
-    try { setInputGateLock(reason, false); } catch {}
-  }, releaseAfterMs);
+	  timers[reason] = setTimeout(() => {
+	    try {
+	      setInputGateLock(reason, false);
+	      if ((options.scope ?? 'all') === 'wild-only') {
+	        unlockWildTilesForVisualTail(String(reason));
+	      }
+	    } catch {}
+	  }, releaseAfterMs);
 }
 
 export function clearInputGateLocks(reasonPrefix?: string): void {
@@ -173,8 +225,9 @@ function getLegacyRuntimeReasons(input: CanStartTileDragInput): string[] {
 
   const tile = input.tile;
   if (tile?._ccWildSpawnDropping === true) reasons.push('wild-spawn-dropping');
+  if (tile?._ccWildSpawnHandoffLock === true) reasons.push('wild-spawn-handoff');
   if (tile?._wildMagnetAffected === true) reasons.push('magnet-affected-tile');
-  if (tile?.locked === true) reasons.push('locked-tile');
+  if (tile?.locked === true && input.isWildTile !== true) reasons.push('locked-tile');
 
   return reasons;
 }

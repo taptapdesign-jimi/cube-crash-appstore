@@ -121,3 +121,53 @@ test('pre-magnet respawn treats only merge-6 remaining as central endgame even w
     shouldDelegateToCentralEndgame: true,
   });
 });
+
+test('pre-magnet respawn completes when pulled tile list exists but only merge-6 remains', () => {
+  const dst = tile({ value: 6 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: false,
+    activeTilesAfterRemoval: [],
+    dst,
+    pulledCellCount: 1,
+  })).toEqual({
+    isLastMergeFlagSet: false,
+    onlyDstRemains: true,
+    hasTilesToRespawn: false,
+    shouldClearLastMergeFlag: false,
+    shouldDelegateToCentralEndgame: true,
+  });
+});
+
+test('pre-magnet respawn completes when active list contains only dst even with pulled cells', () => {
+  const dst = tile({ value: 6 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: false,
+    activeTilesAfterRemoval: [dst],
+    dst,
+    pulledCellCount: 2,
+  })).toEqual({
+    isLastMergeFlagSet: false,
+    onlyDstRemains: true,
+    hasTilesToRespawn: false,
+    shouldClearLastMergeFlag: false,
+    shouldDelegateToCentralEndgame: true,
+  });
+});
+
+test('pre-magnet respawn still respawns when another playable tile remains after pull', () => {
+  const dst = tile({ value: 6 });
+  const other = tile({ value: 3 });
+
+  expect(resolvePreMagnetRespawnDecision({
+    isLastMergeFlagSetRaw: false,
+    activeTilesAfterRemoval: [dst, other],
+    dst,
+    pulledCellCount: 1,
+  })).toMatchObject({
+    onlyDstRemains: false,
+    hasTilesToRespawn: true,
+    shouldDelegateToCentralEndgame: false,
+  });
+});

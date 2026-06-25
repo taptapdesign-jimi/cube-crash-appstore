@@ -154,7 +154,7 @@ import {
 } from './wild-spawn-continuation.ts';
 import { consumeWildCharge } from './app-core-wild-meter.ts';
 import { decideWildType } from './app-core-wild-type.ts';
-import { detachTileFromGrid, isLockedEmptyPlaceholder, normalizeSpawnedTileVisual, removeTileFully } from './tile-lifecycle-service.ts';
+import { detachTileFromGrid, isLockedEmptyPlaceholder, normalizePlayableTileAfterMutation, normalizeSpawnedTileVisual, removeTileFully } from './tile-lifecycle-service.ts';
 import {
   applySpecialDiceVariantToTile,
   getCoreWildTypeForSpecialDiceVariant,
@@ -683,6 +683,9 @@ function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'
   wildMagnetPullInProgress = active;
   try {
     (window as any).__ccWildMagnetPullInProgress = active;
+    if (!active) {
+      (window as any).__ccActiveMagnetPullCleanup = null;
+    }
   } catch {}
   try {
     setInputGateLock('magnet-pull', active, { ttlMs: 4500, scope: 'all' });
@@ -2080,6 +2083,7 @@ function getWildSpawnAnimationBlockReason(): string | null {
     const hasTransientTiles = Array.isArray(STATE?.tiles)
       && STATE.tiles.some((tile: any) => tile && !tile.destroyed && (
         tile._ccWildSpawnDropping === true ||
+        tile._ccWildSpawnHandoffLock === true ||
         tile._ccSpawnAnimating === true ||
         tile._spawnAnimating === true ||
         tile._isSpawning === true
@@ -6299,6 +6303,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     devLog('🔧 MERGE: Setting dst.value to', effSum, 'from src.value', src.value, '+ dst.value', dst.value, 'srcDepth:', srcDepth, 'dstDepth:', dstDepth);
     dst.value = effSum;
     makeBoard.setValue(dst, effSum, srcDepth);
+    normalizePlayableTileAfterMutation(dst);
+    bindTileWithFallback(dst, false);
+    try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
     if (wildActive) clearWildState(dst);
 
     // 🔥 USER REQUEST: Show smoke effect below stacked tiles (2 tiles that don't result in merge 6)
@@ -6565,14 +6572,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         // Re-enable drag on the merged tile and ensure drag points to the new stack
         // 🔥 CRITICAL FIX: Ensure dst is NOT locked and is interactive after merge
-        dst.locked = false; // Ensure tile is not locked after merge
+        normalizePlayableTileAfterMutation(dst);
         try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
-        dst.eventMode = 'static';
-        dst.interactiveChildren = true;
-        dst.cursor = 'pointer';
-        // Ensure tile is visible and active
-        if (dst.alpha !== undefined) dst.alpha = 1;
-        if (dst.visible !== undefined) dst.visible = true;
+        bindTileWithFallback(dst, false);
         if (STATE.drag && typeof (STATE.drag as any).bindToTile === 'function') {
           try {
             (STATE.drag as any).bindToTile(dst);
@@ -13569,6 +13571,22 @@ function debouncedSaveGameState(delayMs = 800) {
   devLog(`💾 Debounced save scheduled in ${delayMs}ms`);
 }
 
+function hasUnsavableTransientGameplayState(): boolean {
+  try {
+    if (busyEnding) return true;
+    if ((window as any).__ccWildSpawnDropInProgress === true) return true;
+    const sourceTiles = Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles;
+    return sourceTiles.some((tile: any) => tile && !tile.destroyed && (
+      tile._ccWildSpawnDropping === true ||
+      tile._ccWildSpawnHandoffLock === true ||
+      tile._ccSpawnAnimating === true ||
+      tile._spawnAnimating === true ||
+      tile._isSpawning === true
+    ));
+  } catch {}
+  return false;
+}
+
 function saveGameState() {
   try {
     syncSharedState();
@@ -13588,6 +13606,7 @@ function saveGameState() {
       userMadeMove: !!(window as any)._userMadeMove,
       gameHasEnded: !!(window as any)._gameHasEnded,
       gridReady: Array.isArray(grid) && grid.length > 0,
+      gameplayTransientBusy: hasUnsavableTransientGameplayState(),
       runMode: (window as any).__ccRunMode ?? null,
       cameFromJourney: (window as any).__ccCameFromJourney === true
         || localStorage.getItem('__ccCameFromJourney') === 'true',
@@ -13774,19 +13793,29 @@ async function loadGameState(overrideBoardNumber?: number) {
     // Fail fast so we don't animate then rebuild; also ensures we don't treat valid restore as empty
     lastSavedState = localStorage.getItem(isArcadeHomeRunMode() ? getArcadeSaveKey() : getBoardSaveKey(boardNumber));
     const activeCount = tiles.filter((t: any) => tileIsActive(t as any)).length;
-	    const emptyLoadResult = handleEmptyLoadState({
-	      tiles,
-	      boardNumber,
-	      getPendingCleanBoard,
-	      clearPendingCleanBoard,
-	      getBoardSaveKey: isArcadeHomeRunMode() ? getArcadeSaveKey : getBoardSaveKey,
-	      triggerCleanBoardFlow,
-	      runFailFlow: runNoMovesFailFlow,
-	      showFinalScreen,
-	      trackAppTimeout,
-	      devLog,
-	      devWarn,
-	    });
+    const emptyLoadResult = handleEmptyLoadState({
+      tiles,
+      boardNumber,
+      getPendingCleanBoard,
+      clearPendingCleanBoard,
+      getBoardSaveKey: isArcadeHomeRunMode() ? getArcadeSaveKey : getBoardSaveKey,
+      triggerCleanBoardFlow,
+      runFailFlow: runNoMovesFailFlow,
+      showFinalScreen,
+      clearLoadedTiles: () => {
+        try {
+          [...tiles].forEach((tile: any) => removeTile(tile));
+          for (let r = 0; r < grid.length; r++) {
+            if (Array.isArray(grid[r])) grid[r].fill(null);
+          }
+        } catch (error) {
+          devWarn('⚠️ loadGameState: failed to clear invalid loaded tiles:', error);
+        }
+      },
+      trackAppTimeout,
+      devLog,
+      devWarn,
+    });
 
     if (emptyLoadResult.handled) {
       logger.warn(`⚠️ loadGameState: empty/invalid load for board ${boardNumber} (tiles: ${tiles.length}, active: ${activeCount}) - will rebuild`);

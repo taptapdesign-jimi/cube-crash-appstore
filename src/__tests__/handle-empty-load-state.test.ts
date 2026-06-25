@@ -95,6 +95,7 @@ describe('handleEmptyLoadState', () => {
     const tiles: any[] = [{ locked: true, value: 4 }];
     const runFailFlow = jest.fn();
     const showFinalScreen = jest.fn();
+    const clearLoadedTiles = jest.fn();
 
     const result = handleEmptyLoadState({
       tiles,
@@ -105,12 +106,15 @@ describe('handleEmptyLoadState', () => {
       triggerCleanBoardFlow: noop,
       runFailFlow,
       showFinalScreen,
+      clearLoadedTiles,
       trackAppTimeout: (fn: () => void) => fn(),
       devLog: noop,
       devWarn: noop,
     });
 
     expect(result.handled).toBe(true);
+    expect(clearLoadedTiles).toHaveBeenCalledTimes(1);
+    expect(tiles).toHaveLength(0);
     expect(runFailFlow).toHaveBeenCalledWith({
       reason: 'load_empty_stuck_recovery',
       waitMs: 0,

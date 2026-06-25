@@ -2,6 +2,7 @@ import {
   detachTileFromGrid,
   isGameplayTileCandidate,
   isLockedEmptyPlaceholder,
+  normalizePlayableTileAfterMutation,
   normalizeSpawnedTileVisual,
   removeTileFully,
 } from '../tile-lifecycle-service';
@@ -111,4 +112,59 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
   expect(tile.num.alpha).toBe(1);
   expect(tile.pips.alpha).toBe(1);
   expect(tile.pips.visible).toBe(true);
+});
+
+test('normalizePlayableTileAfterMutation clears transient locks and restores hit targets', () => {
+  const tile: any = {
+    destroyed: false,
+    locked: true,
+    visible: false,
+    alpha: 0.2,
+    eventMode: 'none',
+    interactive: false,
+    interactiveChildren: false,
+    cursor: 'default',
+    _isBeingSpawned: true,
+    _pendingRemoval: true,
+    _ccWildSpawnDropping: true,
+    _ccWildSpawnHandoffLock: true,
+    _wildMagnetAffected: true,
+    scale: { x: 0.4, y: 0.8, set: jest.fn(function set(x: number, y: number) {
+      tile.scale.x = x;
+      tile.scale.y = y;
+    }) },
+    rotG: {
+      destroyed: false,
+      visible: false,
+      alpha: 0.1,
+      eventMode: 'none',
+      interactive: false,
+      interactiveChildren: false,
+      cursor: 'default',
+    },
+    pips: { alpha: 0.1, visible: false },
+  };
+
+  normalizePlayableTileAfterMutation(tile);
+
+  expect(tile.locked).toBe(false);
+  expect(tile.visible).toBe(true);
+  expect(tile.alpha).toBe(1);
+  expect(tile.eventMode).toBe('static');
+  expect(tile.interactive).toBe(true);
+  expect(tile.interactiveChildren).toBe(true);
+  expect(tile.cursor).toBe('pointer');
+  expect(tile._pendingRemoval).toBeUndefined();
+  expect(tile._ccWildSpawnDropping).toBeUndefined();
+  expect(tile._ccWildSpawnHandoffLock).toBeUndefined();
+  expect(tile._wildMagnetAffected).toBeUndefined();
+  expect(tile.scale.set).toHaveBeenCalledWith(1, 1);
+  expect(tile.rotG.visible).toBe(true);
+  expect(tile.rotG.alpha).toBe(1);
+  expect(tile.rotG.eventMode).toBe('static');
+  expect(tile.rotG.interactive).toBe(true);
+  expect(tile.rotG.interactiveChildren).toBe(true);
+  expect(tile.rotG.cursor).toBe('pointer');
+  expect(tile.pips.visible).toBe(true);
+  expect(tile.pips.alpha).toBe(1);
 });

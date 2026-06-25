@@ -103,6 +103,31 @@ function isAnyWildTile(tile: any): boolean {
   return !!repairWildTileState(tile);
 }
 
+function normalizeWildTileForVisualTailDrag(tile: any): void {
+  if (!tile || tile.destroyed || !isAnyWildTile(tile)) return;
+  if (
+    tile._ccWildSpawnDropping === true ||
+    tile._ccWildSpawnHandoffLock === true ||
+    tile._wildMagnetAffected === true
+  ) {
+    return;
+  }
+
+  try { tile.locked = false; } catch {}
+  try { tile.eventMode = 'static'; } catch {}
+  try { tile.interactive = true; } catch {}
+  try { tile.interactiveChildren = true; } catch {}
+  try { tile.cursor = 'pointer'; } catch {}
+
+  const rotG = tile.rotG;
+  if (rotG && !rotG.destroyed) {
+    try { rotG.eventMode = 'static'; } catch {}
+    try { rotG.interactive = true; } catch {}
+    try { rotG.interactiveChildren = true; } catch {}
+    try { rotG.cursor = 'pointer'; } catch {}
+  }
+}
+
 function playBlockedSpecialDragFeedback(tile: any, reasons: string[] = []): void {
   if (!tile || tile.destroyed || !isAnyWildTile(tile)) return;
   const now = Date.now();
@@ -473,6 +498,7 @@ export function initDrag(cfg) {
     }
 
     repairWildTileState(t);
+    normalizeWildTileForVisualTailDrag(t);
 
     const inputGateDecision = canStartTileDrag({
       tile: t,

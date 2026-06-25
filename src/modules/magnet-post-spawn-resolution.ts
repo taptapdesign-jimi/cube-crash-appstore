@@ -54,19 +54,30 @@ export function resolvePreMagnetRespawnDecision({
   dst?: any;
   pulledCellCount?: number;
 }): PreMagnetRespawnDecision {
-  const hasTilesToRespawn = Math.max(0, pulledCellCount | 0) > 0;
-  const isLastMergeFlagSet = !!isLastMergeFlagSetRaw && !hasTilesToRespawn;
+  const active = Array.isArray(activeTilesAfterRemoval)
+    ? activeTilesAfterRemoval.filter(Boolean)
+    : [];
+  const dstIsPlayableMerge6 =
+    !!dst &&
+    dst.destroyed !== true &&
+    dst.visible !== false &&
+    (typeof dst.alpha !== 'number' || dst.alpha > 0.01) &&
+    (dst.value | 0) === 6;
   const onlyDstRemains =
-    Array.isArray(activeTilesAfterRemoval) &&
-    activeTilesAfterRemoval.length === 1 &&
-    activeTilesAfterRemoval[0] === dst;
+    dstIsPlayableMerge6 &&
+    (
+      active.length === 0 ||
+      (active.length === 1 && active[0] === dst)
+    );
+  const hasTilesToRespawn = Math.max(0, pulledCellCount | 0) > 0 && !onlyDstRemains;
+  const isLastMergeFlagSet = !!isLastMergeFlagSetRaw && !hasTilesToRespawn;
 
   return {
     isLastMergeFlagSet,
     onlyDstRemains,
     hasTilesToRespawn,
     shouldClearLastMergeFlag: !!isLastMergeFlagSetRaw && hasTilesToRespawn,
-    shouldDelegateToCentralEndgame: (isLastMergeFlagSet || onlyDstRemains) && !hasTilesToRespawn,
+    shouldDelegateToCentralEndgame: isLastMergeFlagSet || onlyDstRemains,
   };
 }
 

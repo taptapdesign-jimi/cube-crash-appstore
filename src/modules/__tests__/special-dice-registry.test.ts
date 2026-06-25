@@ -126,15 +126,15 @@ test('special dice input release policy is archetype-driven', () => {
   const cubero = getSpecialDiceVariant('cubero');
   const beachBall = getSpecialDiceVariant('beach-ball');
 
-  expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.62);
-  expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.55);
-  expect(getSpecialDiceInputReleaseAtRatioForFx('magnet')).toBe(0.86);
+  expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.25);
+  expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.30);
+  expect(getSpecialDiceInputReleaseAtRatioForFx('magnet')).toBe(0.25);
   expect(getSpecialDiceInputReleaseAtRatioForFx('tnt')).toBe(0.7);
   expect(getSpecialDiceInputReleaseModeForFx('magnet')).toBe('after-gameplay-resolve');
   expect(getSpecialDiceInputReleaseModeForFx('tnt')).toBe('after-gameplay-resolve');
   expect(getSpecialDiceInputReleaseModeForFx('juice')).toBe('timeline-ratio');
 
   expect(getSpecialDiceSplashOptions(cubero)).toMatchObject({
-    inputReleaseAtRatio: 0.62,
+    inputReleaseAtRatio: 0.25,
   });
 });

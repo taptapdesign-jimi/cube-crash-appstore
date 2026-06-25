@@ -35,6 +35,7 @@ const BACKPACK_TEXTURE_WIDTH = 379;
 const CRATE_TEXTURE_WIDTH = 290;
 const BACKPACK_BODY_CLASS = 'cc-wild-backpack-active';
 const BACKPACK_DIVIDER_STYLE_ID = 'cc-wild-backpack-divider-mask-style';
+const WILD_DROP_HANDOFF_LOCK_MS = 140;
 
 let assetsPreloadPromise: Promise<void> | null = null;
 const activeDropCleanups = new Set<() => void>();
@@ -200,6 +201,23 @@ function toParentPoint(parent: any, point: Point): Point {
   return point;
 }
 
+function setTileDropInputEnabled(tile: any, enabled: boolean): void {
+  try {
+    if (!tile || tile.destroyed) return;
+    const mode = enabled ? 'static' : 'none';
+    tile.eventMode = mode;
+    tile.interactive = enabled;
+    tile.interactiveChildren = enabled;
+    tile.cursor = enabled ? 'pointer' : 'default';
+    if (tile.rotG && tile.rotG !== tile) {
+      tile.rotG.eventMode = mode;
+      tile.rotG.interactive = enabled;
+      tile.rotG.interactiveChildren = false;
+      tile.rotG.cursor = enabled ? 'pointer' : 'default';
+    }
+  } catch {}
+}
+
 function toGlobalPoint(container: any, point: Point): Point {
   try {
     if (container && typeof container.toGlobal === 'function') {
@@ -267,8 +285,7 @@ function revealTile(tile: any): void {
     delete tile._ccWildSpawnDropping;
     tile.visible = true;
     tile.alpha = 1;
-    tile.eventMode = 'static';
-    tile.cursor = 'pointer';
+    setTileDropInputEnabled(tile, true);
     if (tile.rotG) tile.rotG.alpha = 1;
     if (tile.base) tile.base.alpha = 1;
     if (tile.overlay) {
@@ -385,11 +402,10 @@ export async function animateWildSpawnDropFromMeter({
         stage.addChild(tile);
       }
       stage.sortableChildren = true;
-      forceDropTileAboveStage(stage, tile);
-      tile.visible = false;
-      tile.alpha = 0;
-      tile.eventMode = 'none';
-      tile.cursor = 'default';
+	      forceDropTileAboveStage(stage, tile);
+	      tile.visible = false;
+	      tile.alpha = 0;
+	      setTileDropInputEnabled(tile, false);
       tile.x = start.x;
       tile.y = start.y;
       tile.rotation = originalRotation + (-0.04 + Math.random() * 0.08);
@@ -430,14 +446,23 @@ export async function animateWildSpawnDropFromMeter({
         tile.y = target.y;
         tile.rotation = originalRotation;
         tile.zIndex = originalZIndex;
-        tile.scale?.set?.(1, 1);
-        repairWildIdentity(tile, assetPath);
-        delete tile._ccWildSpawnDropping;
-        cleanupBackpackSpawn();
-        revealTile(tile);
-        setWildSpawnDropActive(false);
-      } catch {}
-    };
+	        tile.scale?.set?.(1, 1);
+	        repairWildIdentity(tile, assetPath);
+	        tile._ccWildSpawnHandoffLock = true;
+	        delete tile._ccWildSpawnDropping;
+	        cleanupBackpackSpawn();
+	        revealTile(tile);
+	        setTileDropInputEnabled(tile, false);
+	        setTimeout(() => {
+	          try {
+	            if (!tile || tile.destroyed) return;
+	            delete tile._ccWildSpawnHandoffLock;
+	            setTileDropInputEnabled(tile, true);
+	          } catch {}
+	        }, WILD_DROP_HANDOFF_LOCK_MS);
+	        setWildSpawnDropActive(false);
+	      } catch {}
+	    };
     const finish = () => {
       if (completed) return;
       completed = true;
@@ -597,10 +622,9 @@ export async function animateWildSpawnDropFromMeter({
           repairWildIdentity(tile, assetPath);
         } catch {}
         try {
-          tile.visible = true;
-          tile.alpha = 1;
-          tile.eventMode = 'none';
-          tile.cursor = 'default';
+	          tile.visible = true;
+	          tile.alpha = 1;
+	          setTileDropInputEnabled(tile, false);
           if (tile.rotG) tile.rotG.alpha = 1;
           if (tile.base) tile.base.alpha = 1;
           if (tile.overlay) {
@@ -646,8 +670,17 @@ export async function animateWildSpawnDropFromMeter({
                 sortParent.sortChildren?.();
               }
             } catch {}
-            revealTile(tile);
-            completeTravel();
+	            tile._ccWildSpawnHandoffLock = true;
+	            revealTile(tile);
+	            setTileDropInputEnabled(tile, false);
+	            setTimeout(() => {
+	              try {
+	                if (!tile || tile.destroyed) return;
+	                delete tile._ccWildSpawnHandoffLock;
+	                setTileDropInputEnabled(tile, true);
+	              } catch {}
+	            }, WILD_DROP_HANDOFF_LOCK_MS);
+	            completeTravel();
           },
           onInterrupt: () => {
             finish();

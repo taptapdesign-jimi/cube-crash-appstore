@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { gsap } from 'gsap';
 import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
@@ -127,6 +128,92 @@ function removeExisting(): void {
     const prev = document.getElementById(OVERLAY_ID);
     prev?.remove?.();
   } catch {}
+}
+
+function playFailModalExitAnimation(params: {
+  overlay: HTMLElement;
+  card: HTMLElement;
+  emptyStars: HTMLElement[];
+  title: HTMLElement;
+  boardStatus: HTMLElement;
+  continueBtn: HTMLButtonElement;
+  exitBtn: HTMLButtonElement;
+}): Promise<void> {
+  const { overlay, card, emptyStars, title, boardStatus, continueBtn, exitBtn } = params;
+  const textTargets = [title, boardStatus];
+  const buttonTargets = [continueBtn, exitBtn];
+  const animatedTargets = [...emptyStars, ...textTargets, ...buttonTargets, card, overlay].filter(Boolean);
+
+  return new Promise(resolve => {
+    try {
+      continueBtn.disabled = true;
+      exitBtn.disabled = true;
+
+      animatedTargets.forEach(target => {
+        target.style.pointerEvents = 'none';
+        target.style.willChange = 'transform, opacity';
+        target.style.transition = 'none';
+        target.style.transformOrigin = '50% 50%';
+      });
+
+      gsap.killTweensOf(animatedTargets);
+
+      const tl = gsap.timeline({
+        defaults: { overwrite: true },
+        onComplete: () => {
+          animatedTargets.forEach(target => {
+            target.style.willChange = '';
+          });
+          resolve();
+        },
+      });
+
+      tl.to(emptyStars, {
+        opacity: 0,
+        scale: 0.58,
+        y: -20,
+        rotation: index => (index === 0 ? -9 : index === 2 ? 9 : 0),
+        duration: 0.22,
+        stagger: 0.035,
+        ease: 'back.in(1.75)',
+      }, 0)
+        .to(textTargets, {
+          opacity: 0,
+          scale: 0.78,
+          y: -16,
+          duration: 0.22,
+          stagger: 0.035,
+          ease: 'back.in(1.65)',
+        }, 0.04)
+        .to(buttonTargets, {
+          opacity: 0,
+          scale: 0.68,
+          y: 22,
+          duration: 0.24,
+          stagger: 0.045,
+          ease: 'back.in(1.8)',
+        }, 0.08)
+        .to(card, {
+          opacity: 0,
+          scale: 0.88,
+          duration: 0.18,
+          ease: 'power2.in',
+        }, 0.18)
+        .to(overlay, {
+          opacity: 0,
+          duration: 0.18,
+          ease: 'power1.out',
+        }, 0.14);
+    } catch (error) {
+      logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
+      try {
+        overlay.style.opacity = '0';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.88)';
+      } catch {}
+      setTimeout(resolve, 220);
+    }
+  });
 }
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
@@ -424,6 +511,16 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       try { window.removeEventListener('keydown', onKey); } catch {}
     };
 
+    const runExitAnimation = (): Promise<void> => playFailModalExitAnimation({
+      overlay,
+      card,
+      emptyStars: emptyStars as unknown as HTMLElement[],
+      title,
+      boardStatus,
+      continueBtn,
+      exitBtn,
+    });
+
     // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
     
     const resolveAndCleanup = async (action: string): Promise<void> => {
@@ -478,14 +575,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again after fail - forcing fresh Stage 01 restart');
             }
             
-            // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
-            // This prevents visual glitches - modal fades out while restart runs in background
-            overlay.style.opacity = '0';
-            card.style.transform = 'scale(0.88)';
-            card.style.opacity = '0';
+            await runExitAnimation();
             
-            // Start restart immediately (don't wait for modal fade to complete)
-            // This allows restart to start while modal fades out
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
                 (window as WindowWithCC).CC!.restart!();
@@ -497,12 +588,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.error('❌ window.CC.restart not available!');
             }
             
-            // Remove modal and resolve after fade animation completes
-            trackFailTimeout(() => { 
-              try { overlay.remove(); } catch {} 
-              _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-              resolve({ action }); 
-            }, 220);
+            try { overlay.remove(); } catch {} 
+            _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+            resolve({ action }); 
           } catch (error) {
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
             
@@ -514,11 +602,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Stage 01 restart');
             }
             
-            // Fallback: proceed with restart if hearts check fails
-            // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
-            overlay.style.opacity = '0';
-            card.style.transform = 'scale(0.88)';
-            card.style.opacity = '0';
+            await runExitAnimation();
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -531,11 +615,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.error('❌ window.CC.restart not available (fallback)!');
             }
             
-            trackFailTimeout(() => { 
-              try { overlay.remove(); } catch {} 
-              _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-              resolve({ action }); 
-            }, 220);
+            try { overlay.remove(); } catch {} 
+            _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+            resolve({ action }); 
           }
         })();
         return; // Exit early - modal closing is handled above
@@ -546,16 +628,23 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         resetArcadeFailedRunForFreshStart();
         
+        let returnDecisionPromise: Promise<any> | null = null;
         if (isArcadeHomeRunMode()) {
           clearJourneyDetailReturn();
           logger.info('🎮 board-fail-modal: Arcade Exit - returning to homepage with no detail modal flags');
         } else {
-          const returnDecision = await resolveJourneyReturnTarget(boardNumber);
+          returnDecisionPromise = resolveJourneyReturnTarget(boardNumber);
+        }
+        
+        await runExitAnimation();
+
+        if (returnDecisionPromise) {
+          const returnDecision = await returnDecisionPromise;
           logger.info('🎯 board-fail-modal: Journey return target prepared', returnDecision);
           console.log('🎯 board-fail-modal: Journey return target prepared:', returnDecision);
         }
-        
-        // 🔥 BUG FIX: Cleanup board/FX immediately to avoid frozen board residue on exit
+
+        // 🔥 BUG FIX: Cleanup board/FX after fail-modal exit to avoid cutting off the pop-out
         try { (window as any).CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
         try {
           const appEl = document.getElementById('app');
@@ -571,14 +660,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           }
         } catch {}
 
-        // 🔥 BUG FIX: Close modal FIRST (fade out), then call exitToMenu
-        // This prevents blank screen - modal fades out while exitToMenu runs in background
-        overlay.style.opacity = '0';
-        card.style.transform = 'scale(0.88)';
-        card.style.opacity = '0';
-        
-        // Start exitToMenu immediately (don't wait for modal fade to complete)
-        // This allows exitToMenu to start showing homepage/journey while modal fades out
         (async () => {
           try {
             await requestExitToMenu({
@@ -593,12 +674,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           }
         })();
         
-        // Remove modal and resolve after fade animation completes
-        trackFailTimeout(() => { 
-          try { overlay.remove(); } catch {} 
-          _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-          resolve({ action }); 
-        }, 220);
+        try { overlay.remove(); } catch {} 
+        _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+        resolve({ action }); 
         return; // Exit early - modal closing is handled above
       }
       
@@ -607,14 +685,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // 🔥 MEMORY LEAK FIX: Cleanup event listeners for fallback actions
         cleanupFailModalLifecycle();
         
-        overlay.style.opacity = '0';
-        card.style.transform = 'scale(0.88)';
-        card.style.opacity = '0';
-        trackFailTimeout(() => { 
-          try { overlay.remove(); } catch {} 
-          _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-          resolve({ action }); 
-        }, 220);
+        await runExitAnimation();
+        try { overlay.remove(); } catch {} 
+        _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+        resolve({ action }); 
       }
     };
 

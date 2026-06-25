@@ -53,6 +53,8 @@ export function resetTileToNormalState(tile: TileLike | null | undefined): void 
   delete tile._wildMagnetPulledCells;
   delete tile._wildMagnetSpeedUp;
   delete tile._skipIdleScaleReset;
+  delete tile._ccWildSpawnDropping;
+  delete tile._ccWildSpawnHandoffLock;
 }
 
 /**
@@ -80,6 +82,7 @@ export function isTileTransientlySpawning(tile: any, options: SpawnReadinessOpti
   if (!tile || tile.destroyed) return false;
   const { autoClearStaleFlag = false, ignoreWildJuice = true } = options;
 
+  if (tile._ccWildSpawnHandoffLock === true) return true;
   if (ignoreWildJuice && tile.special === 'wild-juice') return false;
 
   // A plain locked value tile is not automatically "still spawning".

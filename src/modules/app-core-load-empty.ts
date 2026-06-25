@@ -9,6 +9,7 @@ type EmptyLoadDeps = {
   triggerCleanBoardFlow: (...args: any[]) => any;
   runFailFlow?: (options: { reason: string; waitMs?: number; resetHint?: boolean; exitTimeoutMs?: number; persistStuckState?: boolean }) => any;
   showFinalScreen?: (options?: { confirmedFailFlow?: boolean }) => any;
+  clearLoadedTiles?: () => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
@@ -23,6 +24,7 @@ export function handleEmptyLoadState({
   triggerCleanBoardFlow,
   runFailFlow,
   showFinalScreen,
+  clearLoadedTiles,
   trackAppTimeout,
   devLog,
   devWarn,
@@ -71,6 +73,7 @@ export function handleEmptyLoadState({
   try { localStorage.removeItem('cc_saved_game'); } catch {}
 
   clearPendingCleanBoard();
+  try { clearLoadedTiles?.(); } catch {}
   tiles.length = 0;
 
   if (isWinRecovery) {

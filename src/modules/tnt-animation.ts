@@ -103,6 +103,11 @@ const MAX_TNT_SPRITE_POOL = 24;
 let pooledFrameSprites: Sprite[] = [];
 let pooledFrameContainer: Container | null = null;
 
+function releaseTntInputGate(): void {
+  try { (window as any).__ccTntDragBlocked = false; } catch {}
+  try { setInputGateLock('tnt-boom', false); } catch {}
+}
+
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -345,8 +350,7 @@ function cleanup(): void {
     isActive = false;
     try {
       (window as any).__ccTntAnimationActive = false;
-      (window as any).__ccTntDragBlocked = false;
-      setInputGateLock('tnt-boom', false);
+      releaseTntInputGate();
     } catch {}
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
@@ -710,6 +714,7 @@ export function showTntAnimation(options: {
     if (sprite10ExitLeadTriggered) return;
     sprite10ExitLeadTriggered = true;
     try { onSprite10ExitLeadStart?.(); } catch {}
+    releaseTntInputGate();
   }, [], sprite10ExitLeadTime);
   tntMemSample('tnt_2_timelines_created');
   const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
@@ -735,8 +740,7 @@ export function showTntAnimation(options: {
         (EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8) +
         0.05;
       dragBlockTimeout = trackDelayedCall(exitTotal, () => {
-        try { (window as any).__ccTntDragBlocked = false; } catch {}
-        try { setInputGateLock('tnt-boom', false); } catch {}
+        releaseTntInputGate();
         try {
           boomExitListeners.forEach((fn) => {
             try { fn(); } catch {}

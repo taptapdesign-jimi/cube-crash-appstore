@@ -50,10 +50,10 @@ export type SpecialDiceVariantDefinition = {
 const SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX: Record<SpecialDiceFinaleFx, number> = {
   // TNT and magnet have gameplay-critical board movement/pulls, keep these conservative.
   tnt: 0.7,
-  magnet: 0.86,
-  // Star and juice can release during their visual tail after the impact is established.
-  star: 0.62,
-  juice: 0.55,
+  magnet: 0.25,
+  // Star/juice text and particles are visual-tail once the initial impact is established.
+  star: 0.25,
+  juice: 0.30,
 };
 
 const SPECIAL_DICE_INPUT_RELEASE_MODE_BY_FX: Record<SpecialDiceFinaleFx, SpecialDiceInputReleaseMode> = {
@@ -108,7 +108,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       mixBlendMode: 'normal',
     },
     arcadeTestOrder: 2,
-    inputReleaseAtRatio: 0.62,
+    inputReleaseAtRatio: 0.25,
   },
   'beach-ball': {
     id: 'beach-ball',
@@ -124,7 +124,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     idleOrbit: false,
     idleMotion: 'beach-ball-bounce',
     arcadeTestOrder: 1,
-    inputReleaseAtRatio: 0.55,
+    inputReleaseAtRatio: 0.30,
   },
 };
 
