@@ -133,86 +133,167 @@ function removeExisting(): void {
 function playFailModalExitAnimation(params: {
   overlay: HTMLElement;
   card: HTMLElement;
+  starsHero: HTMLElement;
   emptyStars: HTMLElement[];
   title: HTMLElement;
   boardStatus: HTMLElement;
   continueBtn: HTMLButtonElement;
   exitBtn: HTMLButtonElement;
+  clickedAction?: string;
 }): Promise<void> {
-  const { overlay, card, emptyStars, title, boardStatus, continueBtn, exitBtn } = params;
-  const textTargets = [title, boardStatus];
-  const buttonTargets = [continueBtn, exitBtn];
-  const animatedTargets = [...emptyStars, ...textTargets, ...buttonTargets, card, overlay].filter(Boolean);
+  const { overlay, card, starsHero, emptyStars, title, boardStatus, continueBtn, exitBtn, clickedAction } = params;
+  const nodes = [title, boardStatus];
+  const primaryButton = clickedAction === 'menu' ? exitBtn : continueBtn;
+  const secondaryButton = clickedAction === 'menu' ? continueBtn : exitBtn;
+  const animatedTargets = [starsHero, ...emptyStars, ...nodes, continueBtn, exitBtn, card, overlay].filter(Boolean);
 
   return new Promise(resolve => {
-    try {
-      continueBtn.disabled = true;
-      exitBtn.disabled = true;
+    requestAnimationFrame(() => {
+      try {
+        continueBtn.disabled = true;
+        exitBtn.disabled = true;
 
-      animatedTargets.forEach(target => {
-        target.style.pointerEvents = 'none';
-        target.style.willChange = 'transform, opacity';
-        target.style.transition = 'none';
-        target.style.transformOrigin = '50% 50%';
-      });
+        animatedTargets.forEach(target => {
+          target.style.pointerEvents = 'none';
+          target.style.willChange = 'transform, opacity';
+          target.style.transformOrigin = '50% 50%';
+        });
 
-      gsap.killTweensOf(animatedTargets);
+        gsap.killTweensOf(animatedTargets);
 
-      const tl = gsap.timeline({
-        defaults: { overwrite: true },
-        onComplete: () => {
+        const exitEase = 'back.in(1.7)';
+
+        const animateButtonExit = (button: HTMLButtonElement) => {
+          button.disabled = true;
+          button.blur();
+          button.setAttribute('data-clean-board-exiting', 'true');
+          button.classList.remove(
+            'clean-board-button-hidden',
+            'clean-board-button-visible',
+            'clean-board-button-exit',
+            'animate-exit',
+            'animate-enter'
+          );
+          button.style.removeProperty('transition');
+          button.style.removeProperty('-webkit-transition');
+          gsap.killTweensOf(button);
+          gsap.set(button, {
+            opacity: 1,
+            visibility: 'visible',
+            y: 0,
+            scale: 1,
+            transformOrigin: '50% 50%',
+            force3D: true,
+          });
+          gsap.to(button, {
+            scale: 0,
+            opacity: 0,
+            y: 20,
+            duration: 0.22,
+            ease: 'back.in(1.7)',
+            overwrite: 'auto',
+            force3D: true,
+            onComplete: () => {
+              button.style.visibility = 'hidden';
+            },
+          });
+        };
+
+        const popOut = (
+          target: HTMLElement,
+          vars: { y?: number; delay?: number; duration?: number } = {}
+        ) => {
+          target.style.removeProperty('transition');
+          target.style.removeProperty('-webkit-transition');
+          gsap.killTweensOf(target);
+          gsap.set(target, {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            transformOrigin: '50% 50%',
+            force3D: true,
+          });
+          gsap.to(target, {
+            scale: 0,
+            opacity: 0,
+            y: vars.y ?? 0,
+            duration: vars.duration ?? 0.28,
+            delay: vars.delay ?? 0,
+            ease: exitEase,
+            overwrite: 'auto',
+            force3D: true,
+            onComplete: () => {
+              target.style.visibility = 'hidden';
+            },
+          });
+        };
+
+        popOut(starsHero, { y: -8, duration: 0.28 });
+        emptyStars.forEach((star, index) => {
+          popOut(star, { y: -4, delay: index * 0.035, duration: 0.24 });
+        });
+
+        animateButtonExit(primaryButton);
+        setTimeout(() => {
+          animateButtonExit(secondaryButton);
+        }, 200);
+
+        nodes.forEach((node, index) => {
+          popOut(node, {
+            y: index === 0 ? -18 : -10,
+            delay: 0.06 + index * 0.06,
+            duration: 0.28,
+          });
+        });
+
+        setTimeout(() => {
+          card.style.removeProperty('transition');
+          card.style.removeProperty('-webkit-transition');
+          gsap.killTweensOf(card);
+          gsap.to(card, {
+            scale: 0.86,
+            duration: 0.32,
+            ease: exitEase,
+            overwrite: 'auto',
+            force3D: true,
+          });
+        }, 400);
+
+        const collapseDuration = nodes.length * 60 + 200 + 650 + 200;
+        setTimeout(() => {
+          gsap.killTweensOf(card);
+          gsap.to(card, {
+            scale: 0,
+            opacity: 0,
+            duration: 0.22,
+            ease: exitEase,
+            overwrite: 'auto',
+            force3D: true,
+          });
+          gsap.to(overlay, {
+            opacity: 0,
+            duration: 0.20,
+            ease: 'power1.out',
+            overwrite: 'auto',
+          });
+        }, collapseDuration);
+
+        setTimeout(() => {
           animatedTargets.forEach(target => {
             target.style.willChange = '';
           });
           resolve();
-        },
-      });
-
-      tl.to(emptyStars, {
-        opacity: 0,
-        scale: 0.58,
-        y: -20,
-        rotation: index => (index === 0 ? -9 : index === 2 ? 9 : 0),
-        duration: 0.22,
-        stagger: 0.035,
-        ease: 'back.in(1.75)',
-      }, 0)
-        .to(textTargets, {
-          opacity: 0,
-          scale: 0.78,
-          y: -16,
-          duration: 0.22,
-          stagger: 0.035,
-          ease: 'back.in(1.65)',
-        }, 0.04)
-        .to(buttonTargets, {
-          opacity: 0,
-          scale: 0.68,
-          y: 22,
-          duration: 0.24,
-          stagger: 0.045,
-          ease: 'back.in(1.8)',
-        }, 0.08)
-        .to(card, {
-          opacity: 0,
-          scale: 0.88,
-          duration: 0.18,
-          ease: 'power2.in',
-        }, 0.18)
-        .to(overlay, {
-          opacity: 0,
-          duration: 0.18,
-          ease: 'power1.out',
-        }, 0.14);
-    } catch (error) {
-      logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
-      try {
-        overlay.style.opacity = '0';
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.88)';
-      } catch {}
-      setTimeout(resolve, 220);
-    }
+        }, collapseDuration + 320);
+      } catch (error) {
+        logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
+        try {
+          overlay.style.opacity = '0';
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.88)';
+        } catch {}
+        setTimeout(resolve, 220);
+      }
+    });
   });
 }
 
@@ -484,9 +565,20 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     buttons.appendChild(exitBtn);
 
     card.appendChild(infoStack);
-    card.appendChild(buttons);
 
-    overlay.appendChild(card);
+    const outerStack = document.createElement('div');
+    outerStack.style.cssText = [
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'justify-content:center',
+      'gap:18px',
+      'position:relative'
+    ].join(';');
+    outerStack.appendChild(card);
+    outerStack.appendChild(buttons);
+
+    overlay.appendChild(outerStack);
     document.body.appendChild(overlay);
 
     // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
@@ -511,14 +603,16 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       try { window.removeEventListener('keydown', onKey); } catch {}
     };
 
-    const runExitAnimation = (): Promise<void> => playFailModalExitAnimation({
+    const runExitAnimation = (clickedAction: string): Promise<void> => playFailModalExitAnimation({
       overlay,
       card,
+      starsHero,
       emptyStars: emptyStars as unknown as HTMLElement[],
       title,
       boardStatus,
       continueBtn,
       exitBtn,
+      clickedAction,
     });
 
     // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
@@ -575,7 +669,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again after fail - forcing fresh Stage 01 restart');
             }
             
-            await runExitAnimation();
+            await runExitAnimation(action);
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -602,7 +696,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Stage 01 restart');
             }
             
-            await runExitAnimation();
+            await runExitAnimation(action);
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -636,7 +730,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           returnDecisionPromise = resolveJourneyReturnTarget(boardNumber);
         }
         
-        await runExitAnimation();
+        await runExitAnimation(action);
 
         if (returnDecisionPromise) {
           const returnDecision = await returnDecisionPromise;
@@ -685,7 +779,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // 🔥 MEMORY LEAK FIX: Cleanup event listeners for fallback actions
         cleanupFailModalLifecycle();
         
-        await runExitAnimation();
+        await runExitAnimation(action);
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
         resolve({ action }); 
@@ -745,8 +839,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }
         
         // Reset button
-        btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.35s ease';
+        if (!isResolving && !btn.hasAttribute('data-clean-board-exiting')) {
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
         touchStarted = false;
         touchStartedOnButton = false;
       };
@@ -759,13 +855,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       };
       
       const handleMouseUp = (e: MouseEventWithTarget): void => {
-        if (btn.contains(e.target as Node)) {
+        if (btn.contains(e.target as Node) && !isResolving && !btn.hasAttribute('data-clean-board-exiting')) {
           btn.style.transform = 'scale(1)';
           btn.style.transition = 'transform 0.35s ease';
         }
       };
       
       const handleMouseLeave = (): void => {
+        if (isResolving || btn.hasAttribute('data-clean-board-exiting')) return;
         btn.style.transform = 'scale(1)';
         btn.style.transition = 'transform 0.35s ease';
       };
