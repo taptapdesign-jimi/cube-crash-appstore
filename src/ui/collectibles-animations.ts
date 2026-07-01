@@ -98,10 +98,8 @@ export function animateCollectiblesScreenEnter(): void {
     // Scrollable: scale from 0 (full scale range)
     if (collectiblesScrollable) {
       gsap.set(collectiblesScrollable, { 
-        scale: 0, 
         opacity: 0,
         visibility: 'hidden',
-        force3D: true,
         immediateRender: true
       });
     }
@@ -162,19 +160,17 @@ export function animateCollectiblesScreenEnter(): void {
       // Use inline styles to ensure it's visible even when parent animates
       bgContainer.style.opacity = '1';
       bgContainer.style.visibility = 'visible';
-      bgContainer.style.transform = 'scale(1)';
+      bgContainer.style.removeProperty('transform');
       bgContainer.style.display = 'block';
     }
     
     // Set visibility first, then animate scrollable container
     gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
     trackTween(collectiblesScrollable, {
-      scale: 1,
       opacity: 1,
-      duration: 0.5,
-      ease: 'back.out(1.7)',
+      duration: 0.24,
+      ease: 'power2.out',
       delay: 0.1,
-      force3D: true,
       immediateRender: false,
       onComplete: () => {
         if (collectiblesScrollable) {

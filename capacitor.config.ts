@@ -26,7 +26,7 @@ const config: CapacitorConfig = {
     // iOS specific config
   },
   // 🔥 DEVELOPMENT: Use dev server (5173) for live reload and console comparison
-  // App će učitati sa http://192.168.1.189:5173 (kao u v140)
+  // App će učitati sa http://192.168.1.189:5173
   // Set CAPACITOR_USE_DEV_SERVER=false to use production bundle instead
   ...(USE_DEV_SERVER ? {
     server: {

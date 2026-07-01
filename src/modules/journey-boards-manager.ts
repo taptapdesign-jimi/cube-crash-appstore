@@ -406,6 +406,13 @@ const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for con
 const JOURNEY_CONTENT_TOP_BASE_PX = 50;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
+const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
+const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
+const FOREST_MAP_DESIGN_WIDTH = 390;
+const FOREST_MAP_DESIGN_HEIGHT = 760;
+const JOURNEY_MAX_BOARDS = 10;
+const JOURNEY_RENDERED_BOARDS = 3;
+const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
 /** Move bg image + card stack down together (px), all breakpoints */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
@@ -447,6 +454,10 @@ function pxToPercentTop(px: number, baseHeight: number = FRAME_HEIGHT): number {
   return pxToVH(px * viewportRatio, BASE_VIEWPORT_HEIGHT);
 }
 
+function forestTopPercent(px: number): number {
+  return (px / FOREST_MAP_DESIGN_HEIGHT) * 100;
+}
+
 // Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
 // Format: { x: pxToPercent(pixels_from_left) or vw value, top: pxToPercentTop(pixels_from_top) or vh value, width, height, rotation }
 // IMPORTANT: When adding new cards, DO NOT change existing card positions!
@@ -454,38 +465,9 @@ function pxToPercentTop(px: number, baseHeight: number = FRAME_HEIGHT): number {
 const STANDARD_CARD_WIDTH = 109.82; // Use consistent width for all cards
 
 const CARD_POSITIONS = [
-  // Card 01 - FIRST DAY (moved 8px left from left edge, moved up additional 48px from current position) - total moved up 72px from original, lowered by 8px
-  { x: pxToPercent(-8), top: pxToPercentTop(24 - 24 - 24 - 48 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 4 },
-  // Card 02 - SO SPECIAL (centered horizontally 50%, 89px - 24px = 65px from top, rotated -3° counter-clockwise - reversed) - moved up 24px, moved right 40px (applied in code)
-  { x: 50, top: pxToPercentTop(89 - 24 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 03 - ALL STAR (moved left 40px from right edge - 24px + 16px, 154px + 8px - 120px + 80px - 8px = 114px from top, rotated +6° clockwise - reversed) - moved up 24px, lowered by 32px total
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 24 + 16), top: pxToPercentTop(154 + 8 - 120 + 80 - 8 - 24 + 16 + 8 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
-  // Card 04 - FLYING UP (centered horizontally 50%, 277px + 40px - 16px - 150px + 80px - 24px - 16px = 191px from top, rotated 2° clockwise) - moved up 24px, lowered by 144px total
-  { x: 50, top: pxToPercentTop(277 + 40 - 16 - 150 + 80 - 24 - 16 - 24 + 40 + 40 + 40 + 8 + 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
-  // Card 05 - PLANNER (-8px from left edge - intentionally pushed left, 277px + 86px + 24px - 250px + 80px + 32px = 249px from top, rotated -3° counter-clockwise) - moved up 24px, lowered by 208px total
-  { x: pxToPercent(-8), top: pxToPercentTop(277 + 86 + 24 - 250 + 80 + 32 - 24 + 40 + 120 + 24 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 06 - (42px from right edge, 80px below card 5 = 363px + 80px - 150px - 16px = 277px, rotated -3° counter-clockwise) - moved up 24px, lowered by 242px total (raised by 148px total, moved left by 42px)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 42), top: pxToPercentTop(363 + 80 - 150 - 16 - 24 + 150 + 240 + 300 - 300 - 80 - 40 - 4 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 07 - (64px from left edge, 80px below card 6 = 443px + 80px - 300px + 100px + 10px = 333px from top, rotated +3° clockwise) - moved up 24px, lowered by 298px total (raised by 352px total)
-  { x: pxToPercent(64), top: pxToPercentTop(443 + 80 - 300 + 100 + 10 - 24 + 400 + 250 - 200 - 120 - 16 - 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
-  // Card 08 - (60px from right edge - moved left 24px, 80px below card 7 = 523px + 80px = 603px from top, rotated -3° counter-clockwise) - moved up 24px, lowered by 170px total (raised by 96px total, moved left 24px) - raised by additional 24px, lowered by 8px, moved left by 8px
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 36 + 24 + 8), top: pxToPercentTop(523 + 80 - 24 + 250 - 80 - 16 - 24 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 09 - (50px - 4px = 46px from left edge, 80px below card 8 = 603px + 80px = 683px from top, rotated -9° counter-clockwise) - moved up 24px, lowered by 250px - raised by additional 80px, lowered by 8px, raised by 50px, moved left by 16px, lowered by 8px
-  { x: pxToPercent(46 - 16), top: pxToPercentTop(603 + 80 - 24 + 250 - 80 + 8 - 50 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -9 },
-  // Card 10 - (84px + 8px = 92px from left edge, 811px from top, rotated +2° clockwise) - moved up 24px, lowered by 250px, raised by 16px, moved right by 8px, raised by 24px, raised by additional 24px, moved left by 16px
-  { x: pxToPercent(76 + 16 - 4 - 4 + 8 - 8 - 16), top: pxToPercentTop(683 + 80 + 80 - 24 - 8 - 24 + 250 - 16 - 24 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
-  // Card 11 - (16px + 16px = 32px from right edge, 875px from top, rotated -2° counter-clockwise) - moved up 24px, lowered by 250px, raised by 24px, moved left by 32px, moved left by additional 8px, rotated 2 degrees more to the left
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 32 + 32 + 8), top: pxToPercentTop(811 + 80 - 16 - 24 + 250 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
-  // Card 12 - (18px - 8px = 10px from left edge, 80px below card 11 + 16px = 875px + 80px + 16px = 971px from top, rotated +3° clockwise) - moved up 24px, lowered by 250px, lowered by 8px
-  { x: pxToPercent(24 - 6 - 8), top: pxToPercentTop(875 + 80 + 16 - 24 + 250 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
-  // Card 13 - (152px from left edge, 1007px + 2px = 1009px from top, rotated -4° counter-clockwise) - moved up 24px, lowered by 250px, lowered by 24px
-  { x: pxToPercent(120 + 32), top: pxToPercentTop(971 + 80 - 36 - 8 + 2 - 24 + 250 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
-  // Card 14 - (0px from left edge, 1105px + 6px = 1111px from top, rotated -6° counter-clockwise) - moved up 24px, lowered by 250px, lowered by 80px, raised by 10px, moved left by 6px, raised by additional 8px
-  { x: pxToPercent(0 - 6), top: pxToPercentTop(1009 + 80 + 16 + 6 - 24 + 250 + 80 - 10 - 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -6 },
-  // Card 15 - (4px from right edge, 1159px from top, rotated +6° clockwise) - moved up 24px, lowered by 250px, lowered by 100px, moved left by 24px, raised by 10px, moved left by additional 20px, raised by 4px, moved right by 2px
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 4 + 24 + 20 - 2), top: pxToPercentTop(1111 + 80 - 40 + 8 - 24 + 250 + 100 - 10 - 4), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
-  // Card 16 - (102px - 6px = 96px from left edge, 1269px from top, rotated +3° clockwise) - moved up 24px, lowered by 250px, lowered by 84px, lowered by additional 24px, moved left by 10px
-  { x: pxToPercent(106 - 4 - 6 - 10), top: pxToPercentTop(1159 + 80 + 34 - 4 - 24 + 250 + 84 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
+  { x: pxToPercent(32), top: forestTopPercent(205), width: 90, height: 133, rotation: -4 },
+  { x: pxToPercent(292), top: forestTopPercent(205), width: STANDARD_CARD_WIDTH, height: 150, rotation: 4 },
+  { x: pxToPercent(52), top: forestTopPercent(505), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
 ];
 
 
@@ -550,6 +532,47 @@ class JourneyBoardsManager {
     });
     this._activeTimeouts.clear();
     logger.info('✅ Cancelled all tracked Journey timeouts');
+  }
+
+  private renderForestMapAssets(bgContainer: HTMLElement): void {
+    const addImage = (
+      src: string,
+      x: number,
+      y: number,
+      width: number,
+      className: string,
+      zIndex: number,
+      rotation = 0
+    ) => {
+      const img = document.createElement('img');
+      img.className = className;
+      img.src = src;
+      img.alt = '';
+      img.draggable = false;
+      img.setAttribute('aria-hidden', 'true');
+      img.style.position = 'absolute';
+      img.style.left = `${(x / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+      img.style.top = `${(y / FOREST_MAP_DESIGN_HEIGHT) * 100}%`;
+      img.style.width = `${(width / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+      img.style.height = 'auto';
+      img.style.zIndex = `${zIndex}`;
+      img.style.pointerEvents = 'none';
+      img.style.userSelect = 'none';
+      img.style.webkitUserDrag = 'none';
+      img.style.transform = rotation ? `rotate(${rotation}deg)` : 'none';
+      img.style.transformOrigin = '50% 50%';
+      bgContainer.appendChild(img);
+      return img;
+    };
+
+    addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, 0, 390, 'journey-forest-main-art', 3);
+    addImage(`${FOREST_WORLD_ASSET_BASE}/forest1.png`, 4, 340, 200, 'journey-forest-island-art journey-forest-island-1', 2);
+    addImage(`${FOREST_WORLD_ASSET_BASE}/forest2.png`, 190, 400, 200, 'journey-forest-island-art journey-forest-island-2', 2);
+    addImage(`${FOREST_WORLD_ASSET_BASE}/forest3.png`, 18, 620, 200, 'journey-forest-island-art journey-forest-island-3', 2);
+    addImage(`${FOREST_WORLD_ASSET_BASE}/panj1.png`, 62, 392, 77, 'journey-forest-stump-art journey-forest-stump-1', 4, -4);
+    addImage(`${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-left.png`, 58, 422, 23, 'journey-forest-star-art journey-forest-star-left journey-forest-star-board-1', 6);
+    addImage(`${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-center-1.png`, 81, 422, 29, 'journey-forest-star-art journey-forest-star-center journey-forest-star-board-1', 6);
+    addImage(`${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-right.png`, 110, 422, 23, 'journey-forest-star-art journey-forest-star-right journey-forest-star-board-1', 6);
   }
 
   private cleanupDetailModalRuntimeState(): void {
@@ -1445,111 +1468,23 @@ class JourneyBoardsManager {
   }
 
   private initializeBoards(): void {
-    // Initialize boards - only first board is unlocked by default
-    // Other boards will be unlocked based on game progress (boardNumber)
-    this.boards = [
-      {
-        id: 1,
-        unlocked: false, // 🔥 USER REQUEST: Board 1 starts as interim (not unlocked)
-        interim: true, // 🔥 USER REQUEST: Board 1 is interim by default - shows "Continue" CTA
-        imagePath: this.getBoardImagePath(1),
-        name: this.getBoardName(1),
-      },
-      {
-        id: 2,
-        unlocked: false, // Locked until board 2 is completed
-        interim: false, // Will be set to true when board 1 is completed
-        imagePath: this.getBoardImagePath(2),
-        name: this.getBoardName(2),
-      },
-      {
-        id: 3,
+    this.boards = Array.from({ length: JOURNEY_MAX_BOARDS }, (_, index) => {
+      const boardNumber = index + 1;
+      return {
+        id: boardNumber,
         unlocked: false,
-        imagePath: this.getBoardImagePath(3),
-        name: this.getBoardName(3),
-      },
-      {
-        id: 4,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(4),
-        name: this.getBoardName(4),
-      },
-      {
-        id: 5,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(5),
-        name: this.getBoardName(5),
-      },
-      {
-        id: 6,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(6),
-        name: this.getBoardName(6),
-      },
-      {
-        id: 7,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(7),
-        name: this.getBoardName(7),
-      },
-      {
-        id: 8,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(8),
-        name: this.getBoardName(8),
-      },
-      {
-        id: 9,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(9),
-        name: this.getBoardName(9),
-      },
-      {
-        id: 10,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(10),
-        name: this.getBoardName(10),
-      },
-      {
-        id: 11,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(11),
-        name: this.getBoardName(11),
-      },
-      {
-        id: 12,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(12),
-        name: this.getBoardName(12),
-      },
-      {
-        id: 13,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(13),
-        name: this.getBoardName(13),
-      },
-      {
-        id: 14,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(14),
-        name: this.getBoardName(14),
-      },
-      {
-        id: 15,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(15),
-        name: this.getBoardName(15),
-      },
-      {
-        id: 16,
-        unlocked: false,
-        imagePath: this.getBoardImagePath(16),
-        name: this.getBoardName(16),
-      },
-    ];
+        interim: boardNumber === 1,
+        imagePath: this.getBoardImagePath(boardNumber),
+        name: this.getBoardName(boardNumber),
+      };
+    });
   }
 
   private getBoardImagePath(boardNumber: number): string {
+    if (boardNumber === 1) {
+      return `${FOREST_WORLD_ASSET_BASE}/cards/forest-1.png`;
+    }
+
     // Use existing collectible images for unlocked boards
     // Map board numbers to collectible image paths (01.png, 02.png, etc.)
     const paddedNumber = boardNumber.toString().padStart(2, '0');
@@ -1934,13 +1869,11 @@ class JourneyBoardsManager {
     // Convert to viewport height units for consistency
     const FIXED_BG_TOP_VH = pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT); // Shared Journey content top anchor
     
-    // 🔥 PRODUCTION READY: Verify image is in browser cache before rendering
-    // This ensures instant display, no loading delay
     const img = new Image();
-    const KNOWN_ASPECT_RATIO = 1.97; // Fallback aspect ratio
+    const KNOWN_ASPECT_RATIO = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
     
     // 🔥 CRITICAL: Set image src - if already in browser cache, onload fires immediately
-    img.src = './assets/journey assets/1-17bg.png';
+    img.src = `${FOREST_WORLD_ASSET_BASE}/Forest main.png`;
     
     // If image is already in browser cache, trigger onload immediately
     if (img.complete && img.naturalWidth > 0) {
@@ -1953,7 +1886,7 @@ class JourneyBoardsManager {
     // Load image and calculate dimensions
     img.onload = () => {
       if (this.renderDisposed || !document.body.contains(container)) return;
-      const imageAspectRatio = img.height / img.width;
+      const imageAspectRatio = KNOWN_ASPECT_RATIO;
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
       const bgHeightPx = viewportWidth * imageAspectRatio; // Calculate height in pixels based on viewport width
       
@@ -2036,8 +1969,8 @@ class JourneyBoardsManager {
     bgContainer.style.width = `${vw}px`; // Use viewport width directly for true edge-to-edge
     
     // Background image styles
-    bgContainer.style.backgroundImage = "url('./assets/journey assets/1-17bg.png')";
-    bgContainer.style.backgroundSize = '100% auto'; // Maintain aspect ratio, full width
+    bgContainer.style.backgroundImage = 'none';
+    bgContainer.style.backgroundSize = 'auto';
     bgContainer.style.backgroundPosition = 'top center';
     bgContainer.style.backgroundRepeat = 'no-repeat';
     
@@ -2052,6 +1985,7 @@ class JourneyBoardsManager {
     
     // Append to container (journey-boards-container) so it scrolls with content
     container.appendChild(bgContainer);
+    this.renderForestMapAssets(bgContainer);
     
     // Debug: Verify edge-to-edge positioning (with delay to ensure styles are applied)
     setTimeout(() => {
@@ -2087,7 +2021,7 @@ class JourneyBoardsManager {
     container.appendChild(cardsContainer);
 
     // Render cards with FIXED viewport-based positions
-    this.boards.forEach((board, index) => {
+    this.boards.slice(0, JOURNEY_RENDERED_BOARDS).forEach((board, index) => {
       const cardElement = this.createBoardCardFixed(board, index);
       cardsContainer.appendChild(cardElement);
     });
@@ -2206,7 +2140,7 @@ class JourneyBoardsManager {
     
     // Calculate background height in pixels
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
-    const imageAspectRatio = 1.97; // Known aspect ratio
+    const imageAspectRatio = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
     const bgHeightPx = viewportWidth * imageAspectRatio;
     
     // Convert card position to pixels
@@ -2224,8 +2158,7 @@ class JourneyBoardsManager {
       leftPx = (xValue / 100) * viewportWidth;
     }
     
-    // Detect iPad screen size (769px - 1024px width) - must be before any device-specific logic
-    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+    const isIPad = false;
     
     // 🔥 USER REQUEST: Card 02 - iPhone: move left by 80px from center (was -96px, now -80px after +16px)
     // This applies BEFORE iPad-specific adjustments
@@ -2331,11 +2264,7 @@ class JourneyBoardsManager {
       }
     }
     
-    // 🔥 iPad FIX: Unlocked kartice (kliknute i nekliknute) su iste veličine kao interim kartice
-    const baseScaleFactor = isIPad ? 1.76 : 1; // 176% base scale for iPad
-    // Unlocked kartice (kliknute i nekliknute) trebaju biti iste veličine kao interim kartice
-    // Interim kartice su već na 1.76, tako da unlocked kartice također trebaju biti na 1.76
-    const scaleFactor = isIPad ? 1.76 : 1; // 176% scale for all cards on iPad (unlocked, locked, interim)
+    const scaleFactor = 1;
     
     // Set absolute position using pixels
     cardWrapper.style.position = 'absolute';
@@ -2347,10 +2276,11 @@ class JourneyBoardsManager {
     // 🔥 FIX: Reduce wrapper dimensions consistently by 8px on each side to prevent ghost container
     // This maintains aspect ratio and prevents visual issues
     // Shadow is still visible because it extends from the card inside
-    const wrapperWidth = cardWidth - 16; // 8px sa svake strane (lijeva i desna)
-    const wrapperHeight = cardHeight - 16; // 8px sa svake strane (gore i dolje)
-    const wrapperLeftOffset = 8; // 8px offset za lijevu stranu
-    const wrapperTopOffset = 8; // 8px offset za gornju stranu
+    const shouldUseExactCardSize = cardNumber === 1;
+    const wrapperWidth = shouldUseExactCardSize ? cardWidth : cardWidth - 16;
+    const wrapperHeight = shouldUseExactCardSize ? cardHeight : cardHeight - 16;
+    const wrapperLeftOffset = shouldUseExactCardSize ? 0 : 8;
+    const wrapperTopOffset = shouldUseExactCardSize ? 0 : 8;
     
     // 🔥 USER REQUEST: Card 02 - ensure 40px right offset is applied on all devices
     // For card 2, always use pixel positioning (not centered) to ensure 40px offset is applied
@@ -2435,7 +2365,7 @@ class JourneyBoardsManager {
       card.appendChild(image);
       
       // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
-      if (!isInterim && !isViewed) {
+      if (!isInterim && !isViewed && board.id !== 1) {
         const ribbon = document.createElement('img');
         ribbon.src = './assets/journey assets/orange-ribbon.png';
         ribbon.alt = 'New';
@@ -6247,7 +6177,7 @@ class JourneyBoardsManager {
     if (counter) {
       const unlockedCount = this.boards.filter(b => b.unlocked).length;
       // 🔥 USER REQUEST: Show "0/25" instead of "00/25" when count is 0
-      counter.textContent = `${unlockedCount}/25`;
+      counter.textContent = `${unlockedCount}/${JOURNEY_MAX_BOARDS}`;
     }
   }
 
@@ -6260,15 +6190,11 @@ class JourneyBoardsManager {
     const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement;
     if (!bgContainer) return;
     
-    // Find the image element to get dimensions
-    const img = new Image();
-    img.onload = () => {
-      // Use double requestAnimationFrame to ensure DOM is stable
-      requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (!container || !bgContainer) return;
           
-          const imageAspectRatio = img.height / img.width;
+          const imageAspectRatio = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
           const containerWidth = container.offsetWidth || container.clientWidth || 375;
           const calculatedHeight = containerWidth * imageAspectRatio;
           
@@ -6314,14 +6240,6 @@ class JourneyBoardsManager {
           console.log('📐 Journey background position refreshed:', { topOffset, calculatedHeight });
         });
       });
-    };
-    
-    img.src = './assets/journey assets/1-17bg.png';
-    
-    // If image is cached, trigger immediately
-    if (img.complete) {
-      img.onload(null as any);
-    }
   }
 
   /**
@@ -6341,16 +6259,14 @@ class JourneyBoardsManager {
       const nextBoardNumber = highestUnlocked.id + 1;
       
       // Set ONLY the next board after highest unlocked to interim
-      if (nextBoardNumber <= 16) {
+      if (nextBoardNumber <= JOURNEY_MAX_BOARDS) {
         const nextBoard = this.boards.find(b => b.id === nextBoardNumber);
         if (nextBoard && !nextBoard.unlocked) {
           nextBoard.interim = true;
           logger.debug(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
         }
       } else {
-        // All boards unlocked (or highest is last) — keep an interim card on the last board for consistency
-        highestUnlocked.interim = true;
-        logger.info(`🗺️ All boards unlocked; keeping interim on board ${highestUnlocked.id} to ensure presence`);
+        highestUnlocked.interim = false;
       }
     } else {
       // No unlocked boards - set board 1 to interim
@@ -6363,7 +6279,7 @@ class JourneyBoardsManager {
   }
 
   public unlockBoardByNumber(boardNumber: number): boolean {
-    if (boardNumber < 1 || boardNumber > 16) return false;
+    if (boardNumber < 1 || boardNumber > JOURNEY_MAX_BOARDS) return false;
     
     const board = this.boards.find(b => b.id === boardNumber);
     if (!board) return false;
@@ -6385,7 +6301,7 @@ class JourneyBoardsManager {
   }
 
   public lockBoardByNumber(boardNumber: number): boolean {
-    if (boardNumber < 1 || boardNumber > 16) return false;
+    if (boardNumber < 1 || boardNumber > JOURNEY_MAX_BOARDS) return false;
     
     const board = this.boards.find(b => b.id === boardNumber);
     if (!board) return false;
@@ -6521,49 +6437,26 @@ class JourneyBoardsManager {
 
   private loadBoardsState(): void {
     try {
-      const saved = localStorage.getItem('journey_boards_state');
+      const version = localStorage.getItem('journey_forest_layout_state_version');
+      const shouldResetForForestLayout = version !== JOURNEY_FOREST_LAYOUT_STATE_VERSION;
+      const saved = shouldResetForForestLayout ? null : localStorage.getItem('journey_boards_state');
+
       if (saved) {
         const state = JSON.parse(saved);
         state.forEach((savedBoard: { id: number; unlocked: boolean; interim?: boolean }) => {
+          if (savedBoard.id < 1 || savedBoard.id > JOURNEY_MAX_BOARDS) return;
           const board = this.boards.find(b => b.id === savedBoard.id);
           if (board) {
             board.unlocked = savedBoard.unlocked;
             board.interim = savedBoard.interim || false;
           }
         });
-      } else {
-        // 🔥 USER REQUEST: If no saved state, ensure Board 1 is interim (not unlocked)
-        const board1 = this.boards.find(b => b.id === 1);
-        if (board1) {
-          board1.unlocked = false;
-          board1.interim = true;
-          logger.info('🗺️ No saved state - Board 1 set to interim (default state)');
-        }
       }
-      
-      // 🔥 CRITICAL: Also sync with game progress (boardNumber from localStorage or game state)
-      // This ensures journey boards are unlocked based on actual game progress
-      // 🔥 CRITICAL FIX: Only sync if we have a saved game state
-      // If no saved game (hard exit after fail), preserve interim status from localStorage
-      const savedGame = localStorage.getItem('cc_saved_game');
-      if (savedGame) {
-        this.syncWithGameProgress();
-      } else {
-        // No saved game - preserve interim status from localStorage (user failed and exited)
-        // Don't call syncWithGameProgress() as it might overwrite interim status
-        logger.info('🗺️ No saved game state - preserving interim status from localStorage');
-        // 🔥 CRITICAL FIX: Ensure we have EXACTLY ONE interim card (but don't overwrite if already exists)
-        // Check if we have any interim card first
-        const hasInterim = this.boards.some(b => b.interim === true);
-        if (!hasInterim) {
-          // No interim card found - ensure we have one
-          this.ensureSingleInterimCard();
-          logger.info('🗺️ No interim card found after load - ensured single interim card');
-        } else {
-          logger.info('🗺️ Interim card already exists - preserving it');
-        }
-        this.saveBoardsState();
-      }
+
+      this.boards = this.boards.slice(0, JOURNEY_MAX_BOARDS);
+      this.ensureSingleInterimCard();
+      localStorage.setItem('journey_forest_layout_state_version', JOURNEY_FOREST_LAYOUT_STATE_VERSION);
+      this.saveBoardsState();
     } catch (error) {
       logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
     }
@@ -6575,6 +6468,10 @@ class JourneyBoardsManager {
    * Only unlocks boards that have been completed (won)
    */
   public syncWithGameProgress(boardNumber?: number): void {
+    this.ensureSingleInterimCard();
+    this.saveBoardsState();
+    return;
+
     // 🔥 USER REQUEST: Ensure only ONE interim card before syncing
     // This prevents multiple interim cards from existing
     this.ensureSingleInterimCard();
@@ -6663,7 +6560,7 @@ class JourneyBoardsManager {
    */
   public unlockBoardOnCompletion(boardNumber: number): void {
     try {
-      if (boardNumber < 1 || boardNumber > 16) return;
+      if (boardNumber < 1 || boardNumber > JOURNEY_MAX_BOARDS) return;
       
       const board = this.boards.find(b => b.id === boardNumber);
       if (!board) return;
@@ -6842,7 +6739,7 @@ class JourneyBoardsManager {
   }
 
   public async resetBoardByNumber(boardNumber: number): Promise<boolean> {
-    if (boardNumber < 1 || boardNumber > 16) return false;
+    if (boardNumber < 1 || boardNumber > JOURNEY_MAX_BOARDS) return false;
 
     try {
       const { boardStatsService } = await import('../services/board-stats-service.js');
@@ -6998,8 +6895,8 @@ class JourneyBoardsManager {
       grid.appendChild(arcadeBtn);
     }
 
-    // Create 16 buttons (01-16)
-    for (let i = 1; i <= 16; i++) {
+    // Create one debug button per configured Journey board.
+    for (let i = 1; i <= JOURNEY_MAX_BOARDS; i++) {
       const btn = document.createElement('button');
       btn.textContent = i.toString().padStart(2, '0');
       

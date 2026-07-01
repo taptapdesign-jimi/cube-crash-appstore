@@ -44,7 +44,7 @@ export async function runJourneyCompletionFlow({
     if (isFromInterimBoard) {
       try {
         const boardCard = journeyBoardsManager.getBoardById?.(boardNumber);
-        const paddedBoardNumber = String(Math.max(1, Math.min(16, boardNumber | 0))).padStart(2, '0');
+        const paddedBoardNumber = String(Math.max(1, Math.min(10, boardNumber | 0))).padStart(2, '0');
         cleanupNewCardHandoffCover = createNewCardHandoffCover?.() ?? null;
         const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
         await showJourneyNewCardScreen({

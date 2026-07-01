@@ -2410,8 +2410,8 @@
   transition: none;
   will-change: auto;
   /* Background image - goes edge-to-edge width, maintains aspect ratio */
-  background-image: url('./assets/journey assets/1-17bg.png');
-  background-size: 100% auto;
+  background-image: none;
+  background-size: auto;
   background-position: top center;
   background-repeat: no-repeat;
   /* Ensure background is visible */

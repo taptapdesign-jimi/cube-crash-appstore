@@ -1,12 +1,12 @@
 {
   "name": "cube-crash",
   "private": true,
-  "version": "2.0.515",
+  "version": "2.0.600",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "postbuild": "mkdir -p dist/assets/fonts && cp -r assets/fonts/* dist/assets/fonts/ 2>/dev/null || true",
+    "postbuild": "mkdir -p dist/assets && rsync -a --exclude='.DS_Store' assets/ dist/assets/",
     "build:check": "tsc --noEmit",
     "build:strict": "tsc && vite build",
     "preview": "vite preview",

@@ -54,7 +54,8 @@ export default defineConfig({
     strictPort: true, // Fail if port 5173 is already in use
     hmr: {
       protocol: 'ws',
-      host: 'localhost'
+      host: '192.168.1.189',
+      port: 5173
     }
   },
   optimizeDeps: {
