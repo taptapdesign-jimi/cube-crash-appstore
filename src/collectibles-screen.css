@@ -1791,6 +1791,19 @@
   z-index: 1;
 }
 
+.journey-decor-container {
+  position: absolute;
+  left: calc(-1 * var(--pad-left, 24px));
+  right: calc(-1 * var(--pad-right, 24px));
+  width: calc(100% + var(--pad-left, 24px) + var(--pad-right, 24px));
+  min-height: 500px;
+  margin: 0;
+  padding: 0;
+  z-index: 2;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .journey-cards-container {
   position: absolute;
   /* Dynamic values (top, height) set inline in JavaScript - fallback values here */
@@ -1803,7 +1816,7 @@
   display: block;
   flex: none;
   /* No transform - cards positioned directly using percentages */
-  z-index: 2; /* Cards container z-index - lower than floating buttons */
+  z-index: 3; /* Cards container z-index - above decor (stump/stars), below floating buttons */
   pointer-events: none; /* Allow clicks to pass through to cards */
   /* 🔥 iOS FIX: Prevent horizontal scroll from smoke containers extending beyond */
   contain: layout style; /* CSS containment to prevent layout shifts */
@@ -1813,7 +1826,6 @@
 .journey-board-card-wrapper {
   position: absolute;
   /* Width and height are set inline per card - no fixed dimensions */
-  /* 🔥 FIX: Dimensions are reduced by 8px (4px each side) in JavaScript to prevent ghost container */
   overflow: visible; /* Allow shadow to be visible - shadow is part of card design */
   background: transparent !important; /* 🔥 USER REQUEST: Force transparent - no white background */
   /* 🔥 iOS FIX: Allow normal touch behavior when not animating */
