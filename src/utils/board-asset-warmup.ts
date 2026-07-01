@@ -185,7 +185,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
 
     if (missingOrStale.length === 0) return;
 
-    logger.info(`🎮 Board asset warmup (${mode}) loading ${missingOrStale.length} asset(s)`, {
+    logger.info(`🎮 Board asset warmup (${mode}) loading ${missingOrStale.length} asset(s)`, 'board-asset-warmup', {
       reason,
       boardNumber: options.boardNumber,
     });
@@ -198,7 +198,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
           tex = Texture.from(assetPath);
         }
       } catch (error) {
-        logger.warn('⚠️ Board asset warmup skipped asset; runtime guard will retry', { assetPath, error });
+        logger.warn('⚠️ Board asset warmup skipped asset; runtime guard will retry', 'board-asset-warmup', { assetPath, error });
       }
     };
 

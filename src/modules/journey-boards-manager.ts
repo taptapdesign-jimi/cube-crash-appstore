@@ -469,7 +469,7 @@ const STANDARD_CARD_HEIGHT = 133;
 const CARD_POSITIONS = [
   { x: pxToPercent(28), top: forestTopPercent(205), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
   { x: pxToPercent(300), top: forestTopPercent(269), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(44), top: forestTopPercent(409), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(40), top: forestTopPercent(409), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
 ];
 
 
@@ -481,6 +481,7 @@ class JourneyBoardsManager {
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
   private journeyExitPromise: Promise<void> | null = null;
   private journeyAreaIdleTimelines: any[] = [];
+  private journeyAreaIdleTickers: Array<() => void> = [];
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -537,8 +538,13 @@ class JourneyBoardsManager {
     logger.info('✅ Cancelled all tracked Journey timeouts');
   }
 
-  private cleanupJourneyAreaIdleAnimations(): void {
+  private cleanupJourneyAreaIdleAnimations(resetTransforms = true): void {
     try {
+      this.journeyAreaIdleTickers.forEach((ticker) => {
+        try { gsap.ticker.remove(ticker); } catch {}
+      });
+      this.journeyAreaIdleTickers = [];
+
       this.journeyAreaIdleTimelines.forEach((timeline) => {
         try { timeline?.kill?.(); } catch {}
       });
@@ -550,10 +556,12 @@ class JourneyBoardsManager {
       idleTargets.forEach((target) => {
         const el = target as HTMLElement;
         try { gsap.killTweensOf(el); } catch {}
-        try {
-          gsap.set(el, { y: 0 });
-          el.style.willChange = '';
-        } catch {}
+        if (resetTransforms) {
+          try {
+            gsap.set(el, { y: 0 });
+            el.style.willChange = '';
+          } catch {}
+        }
       });
 
       document.querySelectorAll('[data-journey-area-exit-hidden="true"]').forEach((target) => {
@@ -574,13 +582,17 @@ class JourneyBoardsManager {
     forestAreas: { mainTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> },
     cardsContainer: HTMLElement
   ): void {
-    this.cleanupJourneyAreaIdleAnimations();
+    this.cleanupJourneyAreaIdleAnimations(false);
     if (this.renderDisposed) return;
+
+    const randomInRange = (min: number, max: number): number => (
+      min + (Math.random() * (max - min))
+    );
 
     const createIdleTimeline = (
       areaId: string,
       targets: HTMLElement[],
-      options: { amplitude: number; duration: number; delay: number }
+      options: { amplitude: number; cycleDuration: number; delay: number }
     ) => {
       const liveTargets = targets.filter((target) => target && document.body.contains(target));
       if (!liveTargets.length) return;
@@ -591,22 +603,28 @@ class JourneyBoardsManager {
         target.style.willChange = 'transform';
       });
 
-      const timeline = trackTimeline({
-        repeat: -1,
-        delay: options.delay,
-        defaults: { ease: 'sine.inOut', force3D: true },
-      });
+      const setY = gsap.quickSetter(liveTargets, 'y', 'px') as (value: number) => void;
+      const startTime = gsap.ticker.time + options.delay;
+      const speed = (Math.PI * 2) / options.cycleDuration;
+      const ticker = () => {
+        if (this.renderDisposed) {
+          try { gsap.ticker.remove(ticker); } catch {}
+          return;
+        }
 
-      timeline.to(liveTargets, { y: -options.amplitude, duration: options.duration });
-      timeline.to(liveTargets, { y: options.amplitude * 0.38, duration: options.duration * 0.82 });
-      timeline.to(liveTargets, { y: 0, duration: options.duration * 0.72 });
-      this.journeyAreaIdleTimelines.push(timeline);
+        const elapsed = gsap.ticker.time - startTime;
+        if (elapsed < 0) return;
+        setY(Math.sin(elapsed * speed) * options.amplitude);
+      };
+
+      gsap.ticker.add(ticker);
+      this.journeyAreaIdleTickers.push(ticker);
     };
 
     createIdleTimeline('forest-main', forestAreas.mainTargets, {
-      amplitude: 3.5,
-      duration: 2.25,
-      delay: 0.18,
+      amplitude: randomInRange(4.8, 6.4),
+      cycleDuration: randomInRange(3.1, 3.9),
+      delay: randomInRange(0.05, 0.22),
     });
 
     forestAreas.boardTargets.forEach((targets, boardId) => {
@@ -617,11 +635,10 @@ class JourneyBoardsManager {
         targets.push(cardWrapper);
       }
 
-      const seed = (boardId * 37) % 100;
       createIdleTimeline(`board-${boardId}`, targets, {
-        amplitude: 4.5 + (seed % 3),
-        duration: 1.85 + ((seed % 5) * 0.11),
-        delay: 0.28 + ((seed % 7) * 0.13),
+        amplitude: randomInRange(6.5, 10.5),
+        cycleDuration: randomInRange(2.55, 3.45),
+        delay: randomInRange(0.08, 0.72),
       });
     });
   }
@@ -2423,8 +2440,12 @@ class JourneyBoardsManager {
       this.installInterimAreaHitTargets(cardsContainer);
     }, 0);
     this.trackTimeout(() => {
-      this.startJourneyAreaIdleAnimations(forestAreas, cardsContainer);
-    }, 520);
+      this.trackRAF(() => {
+        this.trackRAF(() => {
+          this.startJourneyAreaIdleAnimations(forestAreas, cardsContainer);
+        });
+      });
+    }, 900);
     
     // 🔥 CRITICAL: DO NOT start idle bounce animations here - they will interfere with enter animation
     // Idle bounce animations will be started AFTER enter animation completes

@@ -185,7 +185,7 @@ class AppZoneManager {
           return { target: 'detail-modal', targetSlide: 1, returnToDetailModal: true, detailModalBoardId: detailBoardId };
         }
       } catch (error) {
-        logger.warn('⚠️ app-zone-manager: failed to verify detail-modal board, returning to detail modal fallback', { detailBoardId, error });
+        logger.warn('⚠️ app-zone-manager: failed to verify detail-modal board, returning to detail modal fallback', 'app-zone-manager', { detailBoardId, error });
         delete w.__ccCameFromDetailModal;
         delete w.__ccDetailModalBoardId;
         this.lastMenuTarget = 'detail-modal';
@@ -250,7 +250,7 @@ class AppZoneManager {
       const uiManagerModule = await import('./ui-manager.js');
       uiManagerModule.default?.hideHomepage?.();
     } catch (error) {
-      logger.warn('⚠️ app-zone-manager: hideHomepageForGame failed', { reason, error });
+      logger.warn('⚠️ app-zone-manager: hideHomepageForGame failed', 'app-zone-manager', { reason, error });
     }
   }
 
@@ -290,7 +290,7 @@ class AppZoneManager {
       sliderManagerModule.default?.forceReady?.();
       sliderManagerModule.default?.setSlideInstant?.(0);
     } catch (error) {
-      logger.warn('⚠️ app-zone-manager: showHomepageShell failed', { reason, error });
+      logger.warn('⚠️ app-zone-manager: showHomepageShell failed', 'app-zone-manager', { reason, error });
     }
   }
 
@@ -308,7 +308,7 @@ class AppZoneManager {
       const uiManagerModule = await import('./ui-manager.js');
       uiManagerModule.default?.hideHomepage?.();
     } catch (error) {
-      logger.warn('⚠️ app-zone-manager: showJourneyShell failed', { reason, error });
+      logger.warn('⚠️ app-zone-manager: showJourneyShell failed', 'app-zone-manager', { reason, error });
     }
   }
 
@@ -324,7 +324,7 @@ class AppZoneManager {
       const uiManagerModule = await import('./ui-manager.js');
       uiManagerModule.default?.hideHomepage?.();
     } catch (error) {
-      logger.warn('⚠️ app-zone-manager: hideHomepageShell failed', { reason, error });
+      logger.warn('⚠️ app-zone-manager: hideHomepageShell failed', 'app-zone-manager', { reason, error });
     }
   }
 
