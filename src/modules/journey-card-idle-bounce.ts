@@ -908,6 +908,7 @@ export function smokeBubblesAtCard(
     zIndex?: string | number;
     organicFadeBySize?: boolean;
     mixedCardRevealSmoke?: boolean;
+    bottomFocusedSmoke?: boolean;
   } = {}
 ): void {
   // 🔥 CRITICAL FIX: Prevent duplicate smoke animations on the same card
@@ -945,6 +946,7 @@ export function smokeBubblesAtCard(
   const requestedCleanupTime = Number.isFinite(options.cleanupTime) ? Math.max(0.35, options.cleanupTime as number) : null;
   const organicFadeBySize = options.organicFadeBySize === true;
   const mixedCardRevealSmoke = options.mixedCardRevealSmoke === true;
+  const bottomFocusedSmoke = options.bottomFocusedSmoke === true;
   
   // Get card wrapper (has the transform/rotation)
   const cardWrapper = (options.wrapperElement || card.closest('.journey-board-card-wrapper')) as HTMLElement | null;
@@ -974,7 +976,9 @@ export function smokeBubblesAtCard(
   // No restrictions based on screen edges - smoke should appear around the whole card
   const allowedSides: number[] = mixedCardRevealSmoke
     ? [0, 1, 2, 3, 4, 4, 4]
-    : [0, 1, 2, 3]; // All sides: top, right, bottom, left. 4 = center reveal puff.
+    : bottomFocusedSmoke
+      ? [2, 2, 2, 2]
+      : [0, 1, 2, 3]; // All sides: top, right, bottom, left. 4 = center reveal puff.
   
   // Extract rotation from wrapper's transform style (format: "rotate(Xdeg)" or "translateX(-50%) rotate(Xdeg)")
   let cardRotationDeg = 0;
@@ -1119,6 +1123,12 @@ export function smokeBubblesAtCard(
     if (side === 0) return { sx: alongWidth, sy: -halfHeight + INSET }; // top
     // 🔥 USER REQUEST: Move right side spawn 40% closer to card (applies to all cards)
     if (side === 1) return { sx: halfWidth * 0.6 - INSET, sy: alongHeight }; // right (40% closer)
+    if (bottomFocusedSmoke && side === 2) {
+      return {
+        sx: alongWidth * 0.92,
+        sy: halfHeight * 0.55 - INSET
+      };
+    }
     // 🔥 USER REQUEST: Move bottom spawn up by 40% (applies to all cards)
     if (side === 2) return { sx: alongWidth, sy: halfHeight * 0.6 - INSET }; // bottom (40% higher)
     if (side === 4) {
@@ -1223,17 +1233,21 @@ export function smokeBubblesAtCard(
       ];
       const { nx, ny } = normals[side];
       const baseAngle = Math.atan2(ny, nx);
-      const spread = 0.9;
+      const spread = bottomFocusedSmoke ? 1.15 : 0.9;
       const theta = baseAngle + (Math.random() - 0.5) * spread;
       
       const distance = isCenterRevealParticle
         ? (cardSize * (0.025 + Math.random() * 0.12) * distanceScale)
-        : OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
+        : bottomFocusedSmoke
+          ? (cardSize * (0.06 + Math.random() * 0.10) * distanceScale)
+          : OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
       const dx = sx + Math.cos(theta) * distance;
       const dy = sy + Math.sin(theta) * distance;
       
-      const driftX = (Math.random() - 0.5) * (cardSize * 0.06 * distanceScale);
-      const driftY = (Math.random() - 0.5) * (cardSize * 0.06 * distanceScale);
+      const driftX = (Math.random() - 0.5) * (cardSize * (bottomFocusedSmoke ? 0.11 : 0.06) * distanceScale);
+      const driftY = bottomFocusedSmoke
+        ? Math.random() * (cardSize * 0.05 * distanceScale)
+        : (Math.random() - 0.5) * (cardSize * 0.06 * distanceScale);
       
       // Animation timings
       // 🔥 USER REQUEST: Extended particle lifetime for first board transition smoke
@@ -1327,8 +1341,8 @@ export function smokeBubblesAtCard(
   const halo = domElementPool.acquire('div') as HTMLElement;
   halo.className = 'journey-card-smoke-halo';
   const haloPad = cardSize * (0.22 + 0.05 * baseStrength) * haloScale;
-  const haloWidth = cardWidth + haloPad * 2;
-  const haloHeight = cardHeight + haloPad * 2;
+  const haloWidth = bottomFocusedSmoke ? cardWidth * 0.98 + haloPad * 1.15 : cardWidth + haloPad * 2;
+  const haloHeight = bottomFocusedSmoke ? cardHeight * 0.24 + haloPad * 0.7 : cardHeight + haloPad * 2;
   halo.style.width = `${haloWidth}px`;
   halo.style.height = `${haloHeight}px`;
   // 🔥 USER REQUEST: Better halo alpha (similar to tiles: 0.10-0.22 range)
@@ -1337,7 +1351,9 @@ export function smokeBubblesAtCard(
   halo.style.position = 'absolute';
   // Center halo in container (container is already centered and rotated)
   halo.style.left = `${(containerWidth - haloWidth) / 2}px`;
-  halo.style.top = `${(containerHeight - haloHeight) / 2}px`;
+  halo.style.top = bottomFocusedSmoke
+    ? `${(containerHeight / 2) + (cardHeight * 0.18) - (haloHeight / 2)}px`
+    : `${(containerHeight - haloHeight) / 2}px`;
   halo.style.opacity = '0';
   halo.style.pointerEvents = 'none';
   // 🔥 USER REQUEST: Better blend mode for halo (similar to tiles)

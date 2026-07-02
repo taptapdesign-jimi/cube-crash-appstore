@@ -95,11 +95,15 @@ export function animateCollectiblesScreenEnter(): void {
       });
     }
 
-    // Scrollable: scale from 0 (full scale range)
+    // Scrollable: whole Journey content pop-in.
     if (collectiblesScrollable) {
       gsap.set(collectiblesScrollable, { 
+        scale: 0.78,
+        y: 18,
         opacity: 0,
         visibility: 'hidden',
+        transformOrigin: '50% 50%',
+        force3D: true,
         immediateRender: true
       });
     }
@@ -148,7 +152,7 @@ export function animateCollectiblesScreenEnter(): void {
     });
   }
 
-  // STEP 2: Scrollable area pop-in (full scale range: 0 → 1.0)
+  // STEP 2: Scrollable area pop-in (whole Journey content bounce)
   // 🔥 USER REQUEST: Background image (1-17bg) should be visible immediately without animation
   if (collectiblesScrollable) {
     // Find background container and make it visible immediately (no animation)
@@ -167,10 +171,13 @@ export function animateCollectiblesScreenEnter(): void {
     // Set visibility first, then animate scrollable container
     gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
     trackTween(collectiblesScrollable, {
+      scale: 1,
+      y: 0,
       opacity: 1,
-      duration: 0.24,
-      ease: 'power2.out',
+      duration: 0.54,
+      ease: 'back.out(1.75)',
       delay: 0.1,
+      force3D: true,
       immediateRender: false,
       onComplete: () => {
         if (collectiblesScrollable) {

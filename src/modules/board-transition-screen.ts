@@ -24,6 +24,7 @@ let enterTimeline: gsap.core.Timeline | null = null;
 let exitTimeline: gsap.core.Timeline | null = null;
 let pauseTimeline: gsap.core.Timeline | null = null;
 let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track cloud image elements for cleanup
+let activeCloudWrappers: HTMLElement[] = []; // Track cloud wrappers so x drift never conflicts with image bounce/scale
 let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track scene image elements for cleanup
@@ -671,7 +672,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         'position: absolute',
         'inset: 0',
         'pointer-events: none',
-        'z-index: 30',
+        'z-index: 15',
         'overflow: visible'
       ].join(';');
     }
@@ -706,12 +707,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     cloudMidContainer.innerHTML = '';
     cloudFrontContainer.innerHTML = '';
     activeCloudImages = [];
+    activeCloudWrappers = [];
 
     const cloudImages = TRANSITION_CLOUD_IMAGES;
     const cloudSpawnTops = [15, 46, 24, 55, 21, 52, 43, 49];
     const totalClouds = cloudSpawnTops.length;
-    const moveDuration = 1.8;
-    const BOUNCE_REPEAT = 3;
+    const moveDuration = 9.0;
     const CLOUD_STAGGER = 0.06; // faster cadence so drift starts sooner
     const CLOUD_ENTER_DURATION = 0.34;
     const CLOUD_SETTLE_DURATION = 0.14;
@@ -719,39 +720,56 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const cloudBasePx = Math.min(240, Math.max(104, viewportW * 0.24));
     const cloudStepPx = Math.max(18, cloudBasePx * 0.16);
     const windStrength = 0.18; // stronger variance but still stable
-    const driftDistanceMinPx = viewportW * 0.55;
-    const driftDistanceMaxPx = viewportW * 0.95;
     const CLOUD_ASPECT = 1.15; // width:height - stable dimensions prevent layout jump on image load
 
     for (let i = 0; i < totalClouds; i++) {
-      const spawnTop = cloudSpawnTops[i];
+      const spawnTop = Math.max(9, Math.min(62, cloudSpawnTops[i] + ((Math.random() * 2 - 1) * (i >= totalClouds - 2 ? 7 : 11))));
       const isLowerCloud = i >= totalClouds - 2;
       const isBehindHillCloud = !isLowerCloud && spawnTop < 32;
-      let sizeBoost = 1;
+      let sizeBoost = 0.9 + Math.random() * 0.35;
       if (isLowerCloud) {
-        sizeBoost = 1.15 + Math.random() * 0.14;
+        sizeBoost = 1.02 + Math.random() * 0.42;
       } else if (spawnTop < 32 && Math.random() < 0.55) {
-        sizeBoost = 1.25 + Math.random() * 0.22;
+        sizeBoost = 1.12 + Math.random() * 0.5;
       } else if (spawnTop >= 32 && spawnTop < 64 && Math.random() < 0.4) {
-        sizeBoost = 1.15 + Math.random() * 0.18;
+        sizeBoost = 0.98 + Math.random() * 0.44;
       }
       const cloudSizePx = Math.round((cloudBasePx + (i % 3) * cloudStepPx) * sizeBoost);
       const cloudHeightPx = Math.round(cloudSizePx / CLOUD_ASPECT);
       const baseSize = isLowerCloud
-        ? 1.1 + (i % 2) * 0.08
-        : (0.92 + (i % 3) * 0.1) * Math.min(1.18, 0.98 + sizeBoost * 0.12);
-      const spawnLeft = isLowerCloud ? (i === totalClouds - 2 ? 26 : 82) : 8 + (i * 9) % 84;
+        ? 0.98 + Math.random() * 0.26
+        : (0.82 + Math.random() * 0.36) * Math.min(1.28, 0.94 + sizeBoost * 0.16);
+      const horizontalBand = i / Math.max(1, totalClouds - 1);
+      const bandCenter = 8 + horizontalBand * 84;
+      const bandJitter = (Math.random() * 2 - 1) * (isLowerCloud ? 18 : 24);
+      const spawnLeft = Math.max(4, Math.min(96, bandCenter + bandJitter));
       const goesLeft = Math.random() < 0.5; // random side push
       const enterDelay = i * CLOUD_STAGGER;
       const rotation = (i % 5 - 2) * 6;
       const bounceAmount = 6 + (i % 3) * 3;
       const bounceSpeed = 0.45 + (i % 4) * 0.08;
       const windFactor = 1 + ((Math.random() * 2 - 1) * windStrength); // 0.82..1.18
-      const windYOffset = (Math.random() * 2 - 1) * 10;
-      const windDuration = (moveDuration * 0.72 + 0.32) * windFactor;
-      const driftDistancePx = (driftDistanceMinPx + Math.random() * (driftDistanceMaxPx - driftDistanceMinPx)) * (goesLeft ? -1 : 1);
-      const initialYOffset = isLowerCloud ? -40 : 0;
+      const windDuration = moveDuration * windFactor;
+      const spawnCenterPx = viewportW * (spawnLeft / 100);
+      const distanceToSidePx = goesLeft ? spawnCenterPx : Math.max(0, viewportW - spawnCenterPx);
+      const driftDistancePx = (distanceToSidePx + viewportW + cloudSizePx) * (goesLeft ? -1 : 1);
+      const initialYOffset = (isLowerCloud ? -40 : 0) + ((Math.random() * 2 - 1) * (isLowerCloud ? 18 : 28));
       const driftStartDelay = 0.06;
+
+      const cloudWrapper = document.createElement('div');
+      cloudWrapper.className = 'cc-board-transition-cloud-wrap';
+      cloudWrapper.dataset.driftTargetX = String(driftDistancePx);
+      cloudWrapper.style.cssText = [
+        'position: absolute',
+        'pointer-events: none',
+        'will-change: transform',
+        `width: ${cloudSizePx}px`,
+        `height: ${cloudHeightPx}px`,
+        `max-width: ${Math.round(viewportW * 0.74)}px`,
+        `top: ${spawnTop}%`,
+        `left: ${spawnLeft}%`,
+        'transform-origin: center center'
+      ].join(';');
 
       const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
       resetPooledImage(cloudImg);
@@ -760,21 +778,25 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       cloudImg.alt = '';
       cloudImg.style.cssText = [
         'position: absolute',
+        'inset: 0',
         'pointer-events: none',
         'will-change: transform, opacity',
-        `width: ${cloudSizePx}px`,
-        `height: ${cloudHeightPx}px`,
+        'width: 100%',
+        'height: 100%',
         'object-fit: contain',
-        `max-width: ${Math.round(viewportW * 0.74)}px`,
-        `top: ${spawnTop}%`,
-        `left: ${spawnLeft}%`,
         'transform-origin: center center'
       ].join(';');
 
+      activeCloudWrappers.push(cloudWrapper);
       activeCloudImages.push(cloudImg);
-      gsap.set(cloudImg, {
+      gsap.set(cloudWrapper, {
         xPercent: -50,
         yPercent: -50,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center'
+      });
+      gsap.set(cloudImg, {
         x: 0,
         y: initialYOffset,
         scale: 0.12,
@@ -785,7 +807,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         transformOrigin: 'center center'
       });
 
-      const bounceTimeline = trackTimeline({ repeat: BOUNCE_REPEAT - 1, delay: enterDelay + 0.5 });
+      const bounceTimeline = trackTimeline({ repeat: -1, delay: enterDelay + 0.5 });
       bounceTimeline.to(cloudImg, { y: `+=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.out' });
       bounceTimeline.to(cloudImg, { y: `-=${bounceAmount}px`, duration: bounceSpeed / 2, ease: 'sine.in' });
       cloudTimelines.push(bounceTimeline);
@@ -804,23 +826,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         duration: CLOUD_SETTLE_DURATION,
         ease: 'power2.out'
       }, '>0');
-      // Phase 2: Visible lateral drift in viewport pixels (not element-relative percentages).
-      enterTl.to(cloudImg, { x: driftDistancePx, duration: windDuration, ease: 'sine.inOut' }, driftStartDelay);
-      enterTl.to(cloudImg, { y: `+=${windYOffset}px`, duration: windDuration * 0.55, ease: 'sine.inOut' }, driftStartDelay);
       cloudTimelines.push(enterTl);
 
-      const exitStartTime = enterDelay + 0.55 + windDuration * (isLowerCloud ? 0.95 : 0.82);
-      const delayedCall = trackDelayedCall(exitStartTime, () => {
-        if (!activeCloudImages.includes(cloudImg)) return;
-        bounceTimeline.kill();
-        const exitTl = trackTimeline();
-        exitTl.to(cloudImg, { opacity: 0, scale: 0, duration: 0.25, ease: 'power2.in' });
-        cloudTimelines.push(exitTl);
-      });
-      cloudDelayedCalls.push(delayedCall);
+      const driftTimeline = trackTimeline({ delay: enterDelay + driftStartDelay + 0.18 });
+      driftTimeline.to(cloudWrapper, { x: driftDistancePx, duration: windDuration, ease: 'none' });
+      cloudTimelines.push(driftTimeline);
 
       const isFrontCloud = i % 3 === 1;
-      (isBehindHillCloud ? cloudBehindHillContainer : isLowerCloud ? cloudMidContainer : isFrontCloud ? cloudFrontContainer : cloudContainer).appendChild(cloudImg);
+      cloudWrapper.appendChild(cloudImg);
+      (isBehindHillCloud ? cloudBehindHillContainer : isLowerCloud ? cloudMidContainer : isFrontCloud ? cloudFrontContainer : cloudContainer).appendChild(cloudWrapper);
     }
 
     logger.info(`☁️ board-transition-screen: Clouds created (${totalClouds} total, stagger ${CLOUD_STAGGER}s, pop-in enabled)`);
@@ -936,8 +950,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           forestContainer.appendChild(sceneImg);
         }
       });
-      forestContainer.appendChild(cloudMidContainer);
       overlay.appendChild(forestContainer);
+      forestContainer.appendChild(cloudMidContainer);
     } else {
       overlay.appendChild(cloudMidContainer);
       // Arcade variant: explicitly remove/disable scene layer if a reused overlay still has it.
@@ -1066,6 +1080,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         .map((key) => sceneImagesByKey.get(key))
         .filter(Boolean) as HTMLImageElement[];
 
+      const sceneEnterSpeedFactor = 0.945;
       orderedSceneImages.forEach((sceneImg, index) => {
         const direction = index % 2 === 0 ? -1 : 1;
         const layerKey = sceneImg.dataset.sceneLayer || '';
@@ -1100,7 +1115,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             scale: hillBaseScale * 1.12,
             scaleX: hillBaseScale * 1.12,
             scaleY: hillBaseScale * 1.12,
-            duration: 0.34,
+            duration: 0.34 * sceneEnterSpeedFactor,
             ease: 'power2.out'
           });
           sceneEnterTimeline.to(sceneImg, {
@@ -1109,7 +1124,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             scale: hillBaseScale * 0.98,
             scaleX: hillBaseScale * 0.98,
             scaleY: hillBaseScale * 0.98,
-            duration: 0.14,
+            duration: 0.14 * sceneEnterSpeedFactor,
             ease: 'power2.inOut'
           });
           sceneEnterTimeline.to(sceneImg, {
@@ -1119,7 +1134,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             scale: hillBaseScale,
             scaleX: hillBaseScale,
             scaleY: hillBaseScale,
-            duration: 0.16,
+            duration: 0.16 * sceneEnterSpeedFactor,
             ease: 'back.out(1.8)',
             onComplete: () => {
               try { sceneImg.style.willChange = 'transform, opacity'; } catch {}
@@ -1131,26 +1146,26 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             scale: 1.04,
             y: 0,
             rotation: 0,
-            duration: 0.3,
+            duration: 0.3 * sceneEnterSpeedFactor,
             ease: 'back.out(2.0)'
           });
           sceneEnterTimeline.to(sceneImg, {
             scale: 0.95,
-            duration: 0.1,
+            duration: 0.1 * sceneEnterSpeedFactor,
             ease: 'power2.out'
           });
           sceneEnterTimeline.to(sceneImg, {
             opacity: 1,
             scale: 1.0,
             y: 0,
-            duration: 0.12,
+            duration: 0.12 * sceneEnterSpeedFactor,
             ease: 'back.out(1.5)',
             onComplete: () => {
               try { sceneImg.style.willChange = 'auto'; } catch {}
             }
           });
         }
-        enterTimeline.add(sceneEnterTimeline, 0.05 + index * 0.045);
+        enterTimeline.add(sceneEnterTimeline, 0.05 + index * (0.045 * sceneEnterSpeedFactor));
       });
     }
 
@@ -1360,6 +1375,61 @@ function startExitAnimation(
     }
   });
 
+  const startCloudExit = (): void => {
+    const cloudExitTargets = Array.from(
+      overlay.querySelectorAll('.cc-board-transition-cloud')
+    ) as HTMLElement[];
+    if (!cloudExitTargets.length) return;
+
+    cloudExitTargets.forEach((cloudImg) => {
+      try {
+        gsap.killTweensOf(cloudImg, 'opacity,scale');
+        cloudImg.style.willChange = 'transform, opacity';
+      } catch {}
+    });
+
+    const cloudPopTween = animationManager.trackExternalTween(gsap.to(cloudExitTargets, {
+      scale: 1.12,
+      duration: 0.08,
+      ease: 'back.out(2.0)',
+      stagger: 0.035,
+      overwrite: 'auto',
+      onComplete: () => {
+        const cloudCollapseTween = animationManager.trackExternalTween(gsap.to(cloudExitTargets, {
+          opacity: 0,
+          scale: 0,
+          duration: 0.18,
+          ease: 'back.in(1.85)',
+          stagger: 0.035,
+          overwrite: 'auto',
+          onComplete: () => {
+            cloudTimelines.forEach((timeline) => {
+              try { timeline?.kill?.(); } catch {}
+            });
+            cloudTimelines = [];
+            activeCloudWrappers.forEach((cloudWrap) => {
+              try {
+                gsap.killTweensOf(cloudWrap);
+                cloudWrap.style.willChange = 'auto';
+              } catch {}
+            });
+            cloudExitTargets.forEach((cloudImg) => {
+              try {
+                gsap.killTweensOf(cloudImg);
+                cloudImg.style.willChange = 'auto';
+              } catch {}
+            });
+          },
+        }));
+        activeTweens.push(cloudCollapseTween as any);
+      },
+    }));
+    activeTweens.push(cloudPopTween as any);
+  };
+
+  const cloudExitCall = trackDelayedCall(0.35, startCloudExit);
+  cloudDelayedCalls.push(cloudExitCall);
+
   // Start parallax first, then let the digits exit after the scene has already begun separating.
   const sceneParallaxLead = 1.0;
 
@@ -1487,12 +1557,11 @@ function startExitAnimation(
       ...hillExitImages.map((sceneImg, index) => ({ sceneImg, start: hillExitBaseStart + index * 0.2, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + otherExitImages.length + index }))
     ];
     sceneFadeStart = Math.max(sceneFadeStart, hillExitBaseStart + (hillExitImages.length * 0.2) + 0.35);
-
     hillExitImages.forEach((sceneImg, index) => {
       const layerKey = sceneImg.dataset.sceneLayer || '';
       const hillExitStart = hillExitBaseStart + index * 0.2;
       const hillDriftTarget = getTransitionHillDriftTarget(layerKey);
-      const hillDriftDuration = Math.max(0.9, hillExitStart - hillDriftStart - 0.04);
+      const hillDriftDuration = Math.max(0.63, (hillExitStart - hillDriftStart - 0.04) * 0.7);
       const hillDriftTimeline = trackTimeline();
       contentTimelines.push(hillDriftTimeline);
       sceneImg.style.willChange = 'transform, opacity';
@@ -1699,6 +1768,13 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
     }
   });
   activeCloudImages = [];
+  activeCloudWrappers.forEach((wrapper) => {
+    try {
+      gsap.killTweensOf(wrapper);
+      wrapper.remove();
+    } catch {}
+  });
+  activeCloudWrappers = [];
 
   activeSceneImages.forEach(sceneImg => {
     try {

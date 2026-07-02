@@ -643,6 +643,77 @@ class JourneyBoardsManager {
     });
   }
 
+  private getCurrentJourneyForestAreas(
+    cardsContainer: HTMLElement
+  ): { mainTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
+    const mainTargets = Array.from(
+      document.querySelectorAll('[data-journey-area-id="forest-main"], .journey-forest-main-art')
+    ) as HTMLElement[];
+    const boardTargets = new Map<number, HTMLElement[]>();
+
+    this.boards.slice(0, JOURNEY_RENDERED_BOARDS).forEach((board) => {
+      const targets = this.getJourneyAreaElements(board.id);
+      const card = cardsContainer.querySelector(`.journey-board-card[data-board-id="${board.id}"]`) as HTMLElement | null;
+      const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+      if (cardWrapper && !targets.includes(cardWrapper)) {
+        targets.push(cardWrapper);
+      }
+      if (targets.length) {
+        boardTargets.set(board.id, targets);
+      }
+    });
+
+    return {
+      mainTargets: Array.from(new Set(mainTargets)).filter((target) => target && document.body.contains(target)),
+      boardTargets,
+    };
+  }
+
+  public playJourneyForestSceneEnterAnimation(retryCount = 0): void {
+    try {
+      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
+      if (!cardsContainer || !document.body.contains(cardsContainer)) {
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.playJourneyForestSceneEnterAnimation(retryCount + 1), 80);
+        }
+        return;
+      }
+
+      const forestAreas = this.getCurrentJourneyForestAreas(cardsContainer);
+      const areaGroups: Array<{ areaId: string; targets: HTMLElement[]; isMain?: boolean }> = [];
+      if (forestAreas.mainTargets.length) {
+        areaGroups.push({ areaId: 'forest-main', targets: forestAreas.mainTargets, isMain: true });
+      }
+      forestAreas.boardTargets.forEach((targets, boardId) => {
+        areaGroups.push({ areaId: `board-${boardId}`, targets });
+      });
+
+      if (!areaGroups.length) {
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.playJourneyForestSceneEnterAnimation(retryCount + 1), 80);
+        }
+        return;
+      }
+
+      this.cleanupJourneyAreaIdleAnimations(false);
+
+      const allTargets = Array.from(new Set(areaGroups.flatMap((group) => group.targets)))
+        .filter((target) => target && document.body.contains(target));
+      allTargets.forEach((target) => {
+        try { gsap.killTweensOf(target); } catch {}
+        target.classList.add('journey-area-idle-target');
+        target.style.transformOrigin = '50% 50%';
+        target.style.willChange = 'auto';
+      });
+
+      this.trackTimeout(() => {
+        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+      }, 780);
+    } catch (error) {
+      logger.warn('⚠️ Failed to play Journey forest scene enter animation:', error);
+    }
+  }
+
   private renderForestMapAssets(
     bgContainer: HTMLElement,
     decorContainer: HTMLElement
@@ -1098,13 +1169,19 @@ class JourneyBoardsManager {
         ) as HTMLElement[];
         const island = document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null;
 
+        this.cleanupJourneyAreaIdleAnimations(false);
+
         const cardExitDuration = 0.55;
-        const stumpExitDuration = 0.17;
-        const starsExitDuration = 0.16;
-        const islandExitDuration = 0.17;
-        const stumpExitAt = cardExitDuration;
-        const starsExitAt = stumpExitAt + 0.1;
-        const islandExitAt = starsExitAt + 0.1;
+        const forestExitSpeedFactor = 0.65;
+        const forestExitGap = 0.1 * forestExitSpeedFactor;
+        const stumpExitDuration = 0.17 * forestExitSpeedFactor;
+        const starsExitDuration = 0.16 * forestExitSpeedFactor;
+        const islandExitDuration = (0.17 * forestExitSpeedFactor * 1.5) + 0.2;
+        const previousJourneyExitAt = cardExitDuration + (forestExitGap * 3);
+        const stumpExitAt = 0;
+        const starsExitAt = 0.5;
+        const islandExitAt = Math.max(starsExitAt, previousJourneyExitAt - 0.2);
+        const journeyExitAt = islandExitAt;
 
         const groups: Array<{ targets: HTMLElement[]; at: number; duration: number; ease?: string }> = [
           { targets: cardWrapper ? [cardWrapper] : [], at: 0, duration: cardExitDuration, ease: 'back.in(1.7)' },
@@ -1122,8 +1199,13 @@ class JourneyBoardsManager {
           return;
         }
 
+        const initialState = new WeakMap<HTMLElement, { scale: number; opacity: number }>();
         timelineTargets.forEach((target) => {
           try { gsap.killTweensOf(target); } catch {}
+          initialState.set(target, {
+            scale: Number(gsap.getProperty(target, 'scale')) || 1,
+            opacity: Number(gsap.getProperty(target, 'opacity')) || 1,
+          });
           target.style.transformOrigin = '50% 50%';
           target.style.willChange = 'transform, opacity';
           target.style.pointerEvents = 'none';
@@ -1152,16 +1234,20 @@ class JourneyBoardsManager {
         groups.forEach((group) => {
           const liveTargets = group.targets.filter((target) => target && document.body.contains(target));
           if (!liveTargets.length) return;
-          timeline.to(liveTargets, {
+          timeline.fromTo(liveTargets, {
+            scale: (index: number, target: HTMLElement) => initialState.get(target)?.scale ?? 1,
+            opacity: (index: number, target: HTMLElement) => initialState.get(target)?.opacity ?? 1,
+          }, {
             scale: 0,
             opacity: 0,
             duration: group.duration,
             ease: group.ease || 'back.in(2.5)',
+            immediateRender: group.at === 0,
           }, group.at);
         });
 
         if (onIslandExitLinked && island && document.body.contains(island)) {
-          timeline.call(onIslandExitLinked, undefined, islandExitAt + 0.1);
+          timeline.call(onIslandExitLinked, undefined, journeyExitAt);
         }
       } catch (error) {
         logger.warn('⚠️ Failed to animate interim area exit before Journey exit:', error);
@@ -2396,7 +2482,7 @@ class JourneyBoardsManager {
     decorContainer.style.opacity = '1';
     container.appendChild(decorContainer);
 
-    const forestAreas = this.renderForestMapAssets(bgContainer, decorContainer);
+    this.renderForestMapAssets(bgContainer, decorContainer);
     
     // Debug: Verify edge-to-edge positioning (with delay to ensure styles are applied)
     setTimeout(() => {
@@ -2439,13 +2525,7 @@ class JourneyBoardsManager {
     this.trackTimeout(() => {
       this.installInterimAreaHitTargets(cardsContainer);
     }, 0);
-    this.trackTimeout(() => {
-      this.trackRAF(() => {
-        this.trackRAF(() => {
-          this.startJourneyAreaIdleAnimations(forestAreas, cardsContainer);
-        });
-      });
-    }, 900);
+    // Forest scene idle starts after playJourneyForestSceneEnterAnimation().
     
     // 🔥 CRITICAL: DO NOT start idle bounce animations here - they will interfere with enter animation
     // Idle bounce animations will be started AFTER enter animation completes

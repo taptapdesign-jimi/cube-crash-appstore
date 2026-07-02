@@ -906,7 +906,7 @@ class CollectiblesManager {
         (screen as HTMLElement).style.visibility = 'visible';
         (screen as HTMLElement).style.willChange = 'auto';
         logger.warn('⚠️ Journey enter animation delayed - showing screen immediately to avoid blank state');
-      }, 220);
+      }, 900);
 
       // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
       // Then import and start animation immediately
@@ -923,6 +923,15 @@ class CollectiblesManager {
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
             animateCollectiblesScreenEnter();
+            if (journeyContainer) {
+              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+                requestAnimationFrame(() => {
+                  journeyBoardsManager.playJourneyForestSceneEnterAnimation?.();
+                });
+              }).catch((error) => {
+                logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
+              });
+            }
           });
         }).catch((error) => {
           window.clearTimeout(revealFallbackTimer);
