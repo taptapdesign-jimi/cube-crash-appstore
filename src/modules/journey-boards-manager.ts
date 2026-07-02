@@ -32,53 +32,6 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
-function playJourneyCardTapSoftBounce(
-  target: HTMLElement,
-  opts: { baseScale?: number; preserveRotation?: boolean; onComplete?: () => void; onInterrupt?: () => void } = {}
-) {
-  const baseScale = Number.isFinite(opts.baseScale) ? opts.baseScale! : 1;
-  const tl = trackTimeline({
-    defaults: { force3D: true },
-    onComplete: () => {
-      try {
-        target.style.transformOrigin = '50% 50%';
-        target.style.willChange = 'auto';
-      } catch {}
-      opts.onComplete?.();
-    },
-    onInterrupt: () => {
-      try {
-        target.style.willChange = 'auto';
-      } catch {}
-      opts.onInterrupt?.();
-    },
-  });
-
-  target.style.transformOrigin = '50% 50%';
-  target.style.willChange = 'transform';
-  const withRotation = (vars: Record<string, any>) => (
-    opts.preserveRotation ? vars : { ...vars, rotation: 0 }
-  );
-
-  tl.to(target, withRotation({
-    scale: baseScale * 1.12,
-    duration: 0.12,
-    ease: 'back.out(2.0)',
-  }))
-    .to(target, withRotation({
-      scale: baseScale * 0.96,
-      duration: 0.09,
-      ease: 'power2.out',
-    }))
-    .to(target, withRotation({
-      scale: baseScale,
-      duration: 0.17,
-      ease: 'back.out(1.8)',
-    }));
-
-  return tl;
-}
-
 function shouldSkipDetailModalGameAssetPreload(): boolean {
   try {
     const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
@@ -419,6 +372,10 @@ const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 96;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
+const BOARD_AREA_STUMP_EXIT_AT = 0;
+const BOARD_AREA_STARS_EXIT_AT = BOARD_AREA_STUMP_EXIT_AT + 0.2;
+const BOARD_AREA_ISLAND_EXIT_AT = BOARD_AREA_STARS_EXIT_AT + 0.5;
+const BOARD_AREA_JOURNEY_EXIT_DELAY_MS = Math.round((BOARD_AREA_ISLAND_EXIT_AT + 0.3) * 1000);
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -1158,7 +1115,7 @@ class JourneyBoardsManager {
     });
   }
 
-  private animateInterimAreaExitBeforeJourney(boardId: number, onIslandExitLinked?: () => void): Promise<void> {
+  private animateBoardAreaExit(boardId: number): Promise<void> {
     return new Promise((resolve) => {
       try {
         const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
@@ -1173,21 +1130,14 @@ class JourneyBoardsManager {
 
         const cardExitDuration = 0.55;
         const forestExitSpeedFactor = 0.65;
-        const forestExitGap = 0.1 * forestExitSpeedFactor;
         const stumpExitDuration = 0.17 * forestExitSpeedFactor;
         const starsExitDuration = 0.16 * forestExitSpeedFactor;
         const islandExitDuration = (0.17 * forestExitSpeedFactor * 1.5) + 0.2;
-        const previousJourneyExitAt = cardExitDuration + (forestExitGap * 3);
-        const stumpExitAt = 0;
-        const starsExitAt = 0.5;
-        const islandExitAt = Math.max(starsExitAt, previousJourneyExitAt - 0.2);
-        const journeyExitAt = islandExitAt;
-
         const groups: Array<{ targets: HTMLElement[]; at: number; duration: number; ease?: string }> = [
           { targets: cardWrapper ? [cardWrapper] : [], at: 0, duration: cardExitDuration, ease: 'back.in(1.7)' },
-          { targets: stump ? [stump] : [], at: stumpExitAt, duration: stumpExitDuration, ease: 'back.in(2.5)' },
-          { targets: stars, at: starsExitAt, duration: starsExitDuration, ease: 'back.in(2.7)' },
-          { targets: island ? [island] : [], at: islandExitAt, duration: islandExitDuration, ease: 'back.in(2.9)' },
+          { targets: stump ? [stump] : [], at: BOARD_AREA_STUMP_EXIT_AT, duration: stumpExitDuration, ease: 'back.in(2.5)' },
+          { targets: stars, at: BOARD_AREA_STARS_EXIT_AT, duration: starsExitDuration, ease: 'back.in(2.7)' },
+          { targets: island ? [island] : [], at: BOARD_AREA_ISLAND_EXIT_AT, duration: islandExitDuration, ease: 'back.in(2.9)' },
         ];
 
         const timelineTargets = groups
@@ -1246,37 +1196,32 @@ class JourneyBoardsManager {
           }, group.at);
         });
 
-        if (onIslandExitLinked && island && document.body.contains(island)) {
-          timeline.call(onIslandExitLinked, undefined, journeyExitAt);
-        }
       } catch (error) {
-        logger.warn('⚠️ Failed to animate interim area exit before Journey exit:', error);
-        onIslandExitLinked?.();
+        logger.warn('⚠️ Failed to animate Journey board area exit:', error);
         resolve();
       }
     });
   }
 
-  private startInterimAreaThenJourneyExit(boardId: number): Promise<void> {
+  private startBoardAreaThenJourneyExit(boardId: number): Promise<void> {
     if (this.journeyExitPromise) {
       return this.journeyExitPromise;
     }
 
     this.journeyExitPromise = (async () => {
-      let journeyStarted = false;
-      let linkedJourneyExitPromise: Promise<void> | null = null;
-      const startLinkedJourneyExit = () => {
-        if (journeyStarted) return;
-        journeyStarted = true;
-        this.journeyExitPromise = null;
-        linkedJourneyExitPromise = this.startJourneyExitAnimation();
-      };
-
       try {
-        const areaExitPromise = this.animateInterimAreaExitBeforeJourney(boardId, startLinkedJourneyExit);
-        await areaExitPromise;
-        startLinkedJourneyExit();
-        await linkedJourneyExitPromise;
+        const areaExitPromise = this.animateBoardAreaExit(boardId);
+        const journeyExitPromise = new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            this.journeyExitPromise = null;
+            this.startJourneyExitAnimation().then(resolve).catch((error) => {
+              logger.warn('⚠️ Failed delayed Journey screen exit after board area exit start:', error);
+              resolve();
+            });
+          }, BOARD_AREA_JOURNEY_EXIT_DELAY_MS);
+        });
+
+        await Promise.all([areaExitPromise, journeyExitPromise]);
       } finally {
         this.journeyExitPromise = null;
       }
@@ -2950,9 +2895,10 @@ class JourneyBoardsManager {
 
         const cardEl = card as HTMLElement;
         if (!cardEl) {
-        this.openBoardDetails(board).catch((error) => {
-          logger.error('❌ Failed to open board details:', error);
-        });
+          const fallbackJourneyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
+          this.openBoardDetails(board, true, fallbackJourneyExitPromise).catch((error) => {
+            logger.error('❌ Failed to open board details:', error);
+          });
           return;
         }
 
@@ -2962,50 +2908,33 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingDetail = true;
 
-        const previousTransition = cardEl.style.transition || '';
-        const previousWillChange = cardEl.style.willChange || '';
-        const restoreJourneyCardTapState = () => {
-          try {
-            cardEl.classList.remove('journey-card-tapping');
-            cardEl.style.transition = previousTransition;
-            cardEl.style.willChange = previousWillChange;
-          } catch {}
-        };
-
         try {
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);
           }
-          cardEl.classList.add('journey-card-tapping');
           cardEl.classList.remove('idle-shimmer-trigger');
-          cardEl.style.transition = 'none';
-          cardEl.style.transformOrigin = '50% 50%';
-          cardEl.style.willChange = 'transform';
+          try { gsap.killTweensOf(cardEl); } catch {}
         } catch {}
 
-        const journeyExitPromise = this.startJourneyExitAnimation();
+        const journeyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
 
         try {
           // Haptic feedback
           if (typeof (window as any).triggerHapticImpact === 'function') {
-            (window as any).triggerHapticImpact('light');
+              (window as any).triggerHapticImpact('light');
           }
 
-          try { gsap.killTweensOf(cardEl); } catch {}
-          playJourneyCardTapSoftBounce(cardEl, {
-            onComplete: () => {
-              restoreJourneyCardTapState();
+          logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
+          this.openBoardDetails(board, true, journeyExitPromise)
+            .catch((error) => {
+              logger.error('❌ Failed to open board details:', error);
+            })
+            .finally(() => {
               (cardEl as any)._openingDetail = false;
-              logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
-              this.openBoardDetails(board, true, journeyExitPromise).catch((error) => {
-                logger.error('❌ Failed to open board details:', error);
-              });
-            }
-          });
+            });
         } catch (error) {
-          restoreJourneyCardTapState();
           (cardEl as any)._openingDetail = false;
-          logger.warn('⚠️ Tap animation failed, opening detail modal immediately:', error);
+          logger.warn('⚠️ Board area exit failed, opening detail modal immediately:', error);
           this.openBoardDetails(board, true, journeyExitPromise).catch((err) => {
             logger.error('❌ Failed to open board details:', err);
           });
@@ -3213,7 +3142,7 @@ class JourneyBoardsManager {
             }
           } catch {}
 
-          const journeyExitPromise = this.startInterimAreaThenJourneyExit(board.id);
+          const journeyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
           logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
           this.continueFromInterimBoard(board, journeyExitPromise)
             .catch((error) => {
@@ -3225,7 +3154,7 @@ class JourneyBoardsManager {
         } catch (error) {
           (cardEl as any)._openingGame = false;
           logger.warn('⚠️ Interim card tap animation failed, continuing game immediately:', error);
-          const fallbackExitPromise = this.startJourneyExitAnimation();
+          const fallbackExitPromise = this.startBoardAreaThenJourneyExit(board.id);
           this.continueFromInterimBoard(board, fallbackExitPromise).catch((err) => {
             logger.error('❌ Failed to continue from interim board:', err);
           });
