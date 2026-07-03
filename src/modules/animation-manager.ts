@@ -56,10 +56,17 @@ class AnimationManager {
   private trackTween(tween: gsap.core.Tween): gsap.core.Tween {
     this.activeTweens.add(tween);
     const originalOnComplete = tween.eventCallback('onComplete');
+    const originalOnInterrupt = tween.eventCallback('onInterrupt');
     tween.eventCallback('onComplete', () => {
       this.activeTweens.delete(tween);
       if (typeof originalOnComplete === 'function') {
         originalOnComplete.call(tween);
+      }
+    });
+    tween.eventCallback('onInterrupt', () => {
+      this.activeTweens.delete(tween);
+      if (typeof originalOnInterrupt === 'function') {
+        originalOnInterrupt.call(tween);
       }
     });
     return tween;
@@ -71,11 +78,20 @@ class AnimationManager {
   trackExternalTween(tween: gsap.core.Tween): gsap.core.Tween {
     this.activeTweens.add(tween);
     const originalOnComplete = tween.eventCallback('onComplete');
+    const originalOnInterrupt = tween.eventCallback('onInterrupt');
     tween.eventCallback('onComplete', () => {
       try {
         this.activeTweens.delete(tween);
         if (typeof originalOnComplete === 'function') {
           originalOnComplete.call(tween);
+        }
+      } catch {}
+    });
+    tween.eventCallback('onInterrupt', () => {
+      try {
+        this.activeTweens.delete(tween);
+        if (typeof originalOnInterrupt === 'function') {
+          originalOnInterrupt.call(tween);
         }
       } catch {}
     });
@@ -88,11 +104,20 @@ class AnimationManager {
   trackExternalTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
     this.activeTimelines.add(timeline);
     const originalOnComplete = timeline.eventCallback('onComplete');
+    const originalOnInterrupt = timeline.eventCallback('onInterrupt');
     timeline.eventCallback('onComplete', () => {
       try {
         this.activeTimelines.delete(timeline);
         if (typeof originalOnComplete === 'function') {
           originalOnComplete.call(timeline);
+        }
+      } catch {}
+    });
+    timeline.eventCallback('onInterrupt', () => {
+      try {
+        this.activeTimelines.delete(timeline);
+        if (typeof originalOnInterrupt === 'function') {
+          originalOnInterrupt.call(timeline);
         }
       } catch {}
     });

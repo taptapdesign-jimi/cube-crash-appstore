@@ -1036,8 +1036,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           }
         });
         
-        // 🔥 MEMORY LEAK FIX: Track shake timeline for cleanup
-        activeTweens.push(shakeTimeline);
+        contentTimelines.push(shakeTimeline);
         
         for (let i = 0; i < shakeSteps; i++) {
           const progress = i / shakeSteps;
@@ -1635,11 +1634,6 @@ function startExitAnimation(
     duration: 0.3, // 🔥 USER REQUEST: Faster (0.4s → 0.3s)
     ease: 'power2.in'
   }, sceneFadeStart);
-
-  // Store tweens for cleanup
-  exitTimeline.getChildren().forEach(tween => {
-    activeTweens.push(tween);
-  });
 }
 
 /**
@@ -1710,7 +1704,7 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
   });
   cloudDelayedCalls = [];
   
-  // 🔥 MEMORY SPIKE FIX: Stop CSS cloud animations (no GSAP timelines for clouds anymore)
+  // Stop any CSS-side cloud state before killing GSAP cloud timelines.
   activeCloudImages.forEach(cloudImg => {
     try {
       cloudImg.style.animation = 'none';

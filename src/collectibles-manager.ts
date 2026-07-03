@@ -761,6 +761,7 @@ class CollectiblesManager {
     (screen as HTMLElement).style.willChange = 'opacity, transform';
 
     const journeyContainer = document.getElementById('journey-boards-container');
+    let journeyBoardsReadyPromise: Promise<void> | null = null;
 
     // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board or detail modal
     const returningFromInterimBoardEarly =
@@ -795,11 +796,12 @@ class CollectiblesManager {
       if (!hasBoards) {
         // Boards not yet rendered - prepare in background (deduped)
         logger.info('🗺️ Boards not yet rendered - preparing now (non-blocking)');
-        this.prepareJourneyScreen().catch((error) => {
+        journeyBoardsReadyPromise = this.prepareJourneyScreen().catch((error) => {
           logger.error('❌ Failed to prepare journey boards:', String(error));
         });
       } else {
         logger.info('🗺️ Boards already rendered - skipping render');
+        journeyBoardsReadyPromise = Promise.resolve();
       }
       
       // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
@@ -926,7 +928,16 @@ class CollectiblesManager {
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
             if (journeyContainer) {
-              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+              import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
+                if (journeyBoardsReadyPromise) {
+                  logger.info('🧭 JourneyForestAnim collectibles-waiting-for-boards-ready', {
+                    shouldPlayActiveBoardAreaEnter,
+                  });
+                  await journeyBoardsReadyPromise;
+                  logger.info('🧭 JourneyForestAnim collectibles-boards-ready', {
+                    hasCards: !!journeyContainer.querySelector('.journey-board-card'),
+                  });
+                }
                 if (shouldPlayActiveBoardAreaEnter) {
                   journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
@@ -934,9 +945,15 @@ class CollectiblesManager {
                 requestAnimationFrame(() => {
                   journeyBoardsManager.playJourneyForestSceneEnterAnimation?.();
                   if (shouldPlayActiveBoardAreaEnter) {
+                    logger.info('🧭 JourneyForestAnim collectibles-active-enter-scheduled', {
+                      delayMs: 230,
+                      returningFromInterimBoardEarly,
+                      returningFromDetailModalEarly,
+                    });
                     window.setTimeout(() => {
+                      logger.info('🧭 JourneyForestAnim collectibles-active-enter-fired');
                       journeyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
-                    }, 700);
+                    }, 230);
                   }
                 });
               }).catch((error) => {
