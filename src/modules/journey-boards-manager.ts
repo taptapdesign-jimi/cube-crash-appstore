@@ -372,10 +372,8 @@ const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 96;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
-const BOARD_AREA_STUMP_EXIT_AT = 0;
-const BOARD_AREA_STARS_EXIT_AT = BOARD_AREA_STUMP_EXIT_AT + 0.2;
-const BOARD_AREA_ISLAND_EXIT_AT = BOARD_AREA_STARS_EXIT_AT + 0.5;
-const BOARD_AREA_JOURNEY_EXIT_DELAY_MS = Math.round((BOARD_AREA_ISLAND_EXIT_AT + 0.3) * 1000);
+const BOARD_AREA_TIMELINE_SPEED = 0.5;
+const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -439,6 +437,7 @@ class JourneyBoardsManager {
   private journeyExitPromise: Promise<void> | null = null;
   private journeyAreaIdleTimelines: any[] = [];
   private journeyAreaIdleTickers: Array<() => void> = [];
+  private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -663,11 +662,275 @@ class JourneyBoardsManager {
         target.style.willChange = 'auto';
       });
 
+      const idleStartDelayMs = this.getLastActiveJourneyBoardAreaId()
+        ? 1600
+        : 780;
       this.trackTimeout(() => {
         this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
-      }, 780);
+      }, idleStartDelayMs);
     } catch (error) {
       logger.warn('⚠️ Failed to play Journey forest scene enter animation:', error);
+    }
+  }
+
+  private getLastActiveJourneyBoardAreaId(): number | null {
+    try {
+      const raw =
+        (window as any).__ccLastActiveJourneyBoardAreaId ??
+        localStorage.getItem(ACTIVE_BOARD_AREA_STORAGE_KEY);
+      const boardId = Number(raw || 0);
+      return Number.isFinite(boardId) && boardId > 0 ? boardId : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private setLastActiveJourneyBoardAreaId(boardId: number): void {
+    try {
+      if (!Number.isFinite(boardId) || boardId <= 0) return;
+      (window as any).__ccLastActiveJourneyBoardAreaId = boardId;
+      localStorage.setItem(ACTIVE_BOARD_AREA_STORAGE_KEY, String(boardId));
+    } catch {}
+  }
+
+  private clearLastActiveJourneyBoardAreaId(): void {
+    try {
+      delete (window as any).__ccLastActiveJourneyBoardAreaId;
+      localStorage.removeItem(ACTIVE_BOARD_AREA_STORAGE_KEY);
+      this.activeBoardAreaEnterPreparedTargets = [];
+    } catch {}
+  }
+
+  private getJourneyBoardAreaParts(boardId: number, preparedTargets: HTMLElement[] = []): {
+    cardWrapper: HTMLElement | null;
+    stump: HTMLElement | null;
+    stars: HTMLElement[];
+    island: HTMLElement | null;
+  } {
+    const livePreparedTargets = preparedTargets.filter((target) => target && document.body.contains(target));
+    const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+
+    return {
+      cardWrapper:
+        (card?.closest('.journey-board-card-wrapper') as HTMLElement | null) ||
+        livePreparedTargets.find((target) => target.classList.contains('journey-board-card-wrapper')) ||
+        null,
+      stump:
+        (document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null) ||
+        livePreparedTargets.find((target) => target.classList.contains('journey-forest-stump-art')) ||
+        null,
+      stars: (() => {
+        const queried = Array.from(
+          document.querySelectorAll(`.journey-forest-star-board-${boardId}`)
+        ) as HTMLElement[];
+        return queried.length
+          ? queried
+          : livePreparedTargets.filter((target) => target.classList.contains('journey-forest-star-art'));
+      })(),
+      island:
+        (document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null) ||
+        livePreparedTargets.find((target) => target.classList.contains('journey-forest-island-art')) ||
+        null,
+    };
+  }
+
+  private getBoardAreaTimelineGroups(parts: {
+    cardWrapper: HTMLElement | null;
+    stump: HTMLElement | null;
+    stars: HTMLElement[];
+    island: HTMLElement | null;
+  }): Array<{
+    role: 'card' | 'stump' | 'star' | 'island';
+    targets: HTMLElement[];
+    at: number;
+    duration: number;
+    fromScale: number;
+    fromY: number;
+    exitEase: string;
+    enterEase: string;
+  }> {
+    const s = BOARD_AREA_TIMELINE_SPEED;
+    const starTargets = parts.stars.filter((target) => target && document.body.contains(target));
+    return [
+      {
+        role: 'card',
+        targets: parts.cardWrapper ? [parts.cardWrapper] : [],
+        at: 0,
+        duration: 0.34 * s,
+        fromScale: 0.72,
+        fromY: 14,
+        exitEase: 'back.in(1.65)',
+        enterEase: 'back.out(1.7)',
+      },
+      {
+        role: 'stump',
+        targets: parts.stump ? [parts.stump] : [],
+        at: 0.08 * s,
+        duration: 0.28 * s,
+        fromScale: 0.72,
+        fromY: 12,
+        exitEase: 'back.in(2.1)',
+        enterEase: 'back.out(1.85)',
+      },
+      ...starTargets.map((star, index) => ({
+        role: 'star' as const,
+        targets: [star],
+        at: (0.18 + index * 0.045) * s,
+        duration: 0.24 * s,
+        fromScale: 0.5,
+        fromY: 8,
+        exitEase: 'back.in(2.25)',
+        enterEase: 'back.out(2.15)',
+      })),
+      {
+        role: 'island',
+        targets: parts.island ? [parts.island] : [],
+        at: 0.36 * s,
+        duration: 0.36 * s,
+        fromScale: 0.68,
+        fromY: 18,
+        exitEase: 'back.in(2.4)',
+        enterEase: 'back.out(1.45)',
+      },
+    ];
+  }
+
+  private getBoardAreaExitDurationMs(boardId: number): number {
+    const groups = this.getBoardAreaTimelineGroups(this.getJourneyBoardAreaParts(boardId));
+    const maxEnd = groups.reduce((max, group) => {
+      if (!group.targets.some((target) => target && document.body.contains(target))) return max;
+      return Math.max(max, group.at + group.duration);
+    }, 0);
+    return Math.max(180, Math.round((maxEnd + 0.12) * 1000));
+  }
+
+  public prepareActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    try {
+      const boardId = this.getLastActiveJourneyBoardAreaId();
+      if (!boardId) return;
+
+      const targets = this.getJourneyAreaElements(boardId);
+      if (!targets.length) {
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.prepareActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
+        } else {
+          this.clearLastActiveJourneyBoardAreaId();
+        }
+        return;
+      }
+
+      this.activeBoardAreaEnterPreparedTargets = targets;
+      targets.forEach((target) => {
+        try { gsap.killTweensOf(target); } catch {}
+        target.style.transformOrigin = '50% 50%';
+        target.style.willChange = 'transform, opacity';
+        target.style.pointerEvents = 'none';
+        gsap.set(target, {
+          scale: 0.66,
+          opacity: 0,
+          y: 14,
+          visibility: 'hidden',
+          transformOrigin: '50% 50%',
+          force3D: true,
+          immediateRender: true,
+        });
+      });
+    } catch (error) {
+      this.clearLastActiveJourneyBoardAreaId();
+      logger.warn('⚠️ Failed to prepare active Journey board area enter animation:', error);
+    }
+  }
+
+  public playActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    try {
+      const boardId = this.getLastActiveJourneyBoardAreaId();
+      if (!boardId) return;
+
+      const preparedTargets = this.activeBoardAreaEnterPreparedTargets
+        .filter((target) => target && document.body.contains(target));
+      const groups = this.getBoardAreaTimelineGroups(this.getJourneyBoardAreaParts(boardId, preparedTargets));
+      const maxEnd = groups.reduce((max, group) => (
+        group.targets.some((target) => target && document.body.contains(target))
+          ? Math.max(max, group.at + group.duration)
+          : max
+      ), 0);
+
+      const targets = Array.from(new Set([
+        ...preparedTargets,
+        ...groups.flatMap((group) => group.targets),
+      ]))
+        .filter((target) => target && document.body.contains(target));
+      const groupedTargets = groups
+        .flatMap((group) => group.targets)
+        .filter((target) => target && document.body.contains(target));
+
+      if (!targets.length || !groupedTargets.length) {
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.playActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
+        } else {
+          this.clearLastActiveJourneyBoardAreaId();
+        }
+        return;
+      }
+
+      this.cleanupJourneyAreaIdleAnimations(false);
+      const restoreTargetsVisible = () => {
+        targets.forEach((target) => {
+          try {
+            target.style.willChange = 'auto';
+            target.style.pointerEvents = '';
+            gsap.set(target, {
+              scale: 1,
+              opacity: 1,
+              y: 0,
+              visibility: 'visible',
+              clearProps: 'visibility',
+              overwrite: true,
+            });
+          } catch {}
+        });
+        this.clearLastActiveJourneyBoardAreaId();
+      };
+
+      const tl = trackTimeline({
+        defaults: {
+          force3D: true,
+          overwrite: 'auto',
+          transformOrigin: '50% 50%',
+        },
+        onComplete: () => {
+          restoreTargetsVisible();
+        },
+        onInterrupt: () => {
+          restoreTargetsVisible();
+        },
+      });
+
+      groups.forEach((group) => {
+        const liveTargets = group.targets.filter((target) => target && document.body.contains(target));
+        if (!liveTargets.length) return;
+        const reverseAt = Math.max(0, maxEnd - (group.at + group.duration));
+        tl.fromTo(liveTargets, {
+          scale: group.fromScale,
+          opacity: 0,
+          y: group.fromY,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          immediateRender: true,
+        }, {
+          scale: 1,
+          opacity: 1,
+          y: 0,
+          visibility: 'visible',
+          duration: group.duration,
+          ease: group.enterEase,
+          immediateRender: false,
+        }, reverseAt);
+      });
+
+    } catch (error) {
+      this.clearLastActiveJourneyBoardAreaId();
+      logger.warn('⚠️ Failed to play active Journey board area enter animation:', error);
     }
   }
 
@@ -1118,27 +1381,9 @@ class JourneyBoardsManager {
   private animateBoardAreaExit(boardId: number): Promise<void> {
     return new Promise((resolve) => {
       try {
-        const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
-        const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
-        const stump = document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null;
-        const stars = Array.from(
-          document.querySelectorAll(`.journey-forest-star-board-${boardId}`)
-        ) as HTMLElement[];
-        const island = document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null;
-
         this.cleanupJourneyAreaIdleAnimations(false);
 
-        const cardExitDuration = 0.55;
-        const forestExitSpeedFactor = 0.65;
-        const stumpExitDuration = 0.17 * forestExitSpeedFactor;
-        const starsExitDuration = 0.16 * forestExitSpeedFactor;
-        const islandExitDuration = (0.17 * forestExitSpeedFactor * 1.5) + 0.2;
-        const groups: Array<{ targets: HTMLElement[]; at: number; duration: number; ease?: string }> = [
-          { targets: cardWrapper ? [cardWrapper] : [], at: 0, duration: cardExitDuration, ease: 'back.in(1.7)' },
-          { targets: stump ? [stump] : [], at: BOARD_AREA_STUMP_EXIT_AT, duration: stumpExitDuration, ease: 'back.in(2.5)' },
-          { targets: stars, at: BOARD_AREA_STARS_EXIT_AT, duration: starsExitDuration, ease: 'back.in(2.7)' },
-          { targets: island ? [island] : [], at: BOARD_AREA_ISLAND_EXIT_AT, duration: islandExitDuration, ease: 'back.in(2.9)' },
-        ];
+        const groups = this.getBoardAreaTimelineGroups(this.getJourneyBoardAreaParts(boardId));
 
         const timelineTargets = groups
           .flatMap((group) => group.targets)
@@ -1191,7 +1436,7 @@ class JourneyBoardsManager {
             scale: 0,
             opacity: 0,
             duration: group.duration,
-            ease: group.ease || 'back.in(2.5)',
+            ease: group.exitEase,
             immediateRender: group.at === 0,
           }, group.at);
         });
@@ -1208,9 +1453,12 @@ class JourneyBoardsManager {
       return this.journeyExitPromise;
     }
 
+    this.setLastActiveJourneyBoardAreaId(boardId);
+
     this.journeyExitPromise = (async () => {
       try {
         const areaExitPromise = this.animateBoardAreaExit(boardId);
+        const journeyExitDelayMs = this.getBoardAreaExitDurationMs(boardId);
         const journeyExitPromise = new Promise<void>((resolve) => {
           window.setTimeout(() => {
             this.journeyExitPromise = null;
@@ -1218,7 +1466,7 @@ class JourneyBoardsManager {
               logger.warn('⚠️ Failed delayed Journey screen exit after board area exit start:', error);
               resolve();
             });
-          }, BOARD_AREA_JOURNEY_EXIT_DELAY_MS);
+          }, journeyExitDelayMs);
         });
 
         await Promise.all([areaExitPromise, journeyExitPromise]);

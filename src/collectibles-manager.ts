@@ -760,11 +760,15 @@ class CollectiblesManager {
     // 🔥 CRITICAL: Also set will-change for better mobile performance
     (screen as HTMLElement).style.willChange = 'opacity, transform';
 
+    const journeyContainer = document.getElementById('journey-boards-container');
+
     // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board or detail modal
     const returningFromInterimBoardEarly =
       (window as any).__ccReturningFromInterimBoard ||
       localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
     const returningFromDetailModalEarly = (window as any).__ccReturningFromDetailModal;
+    const shouldPlayActiveBoardAreaEnter =
+      !!journeyContainer && (returningFromInterimBoardEarly || returningFromDetailModalEarly);
     if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
       try {
         const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
@@ -786,7 +790,6 @@ class CollectiblesManager {
     
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
     // If not, render them now (non-blocking - don't await)
-    const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
       const hasBoards = journeyContainer.querySelector('.journey-board-card');
       if (!hasBoards) {
@@ -922,15 +925,26 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
-            animateCollectiblesScreenEnter();
             if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+                if (shouldPlayActiveBoardAreaEnter) {
+                  journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
+                }
+                animateCollectiblesScreenEnter();
                 requestAnimationFrame(() => {
                   journeyBoardsManager.playJourneyForestSceneEnterAnimation?.();
+                  if (shouldPlayActiveBoardAreaEnter) {
+                    window.setTimeout(() => {
+                      journeyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
+                    }, 700);
+                  }
                 });
               }).catch((error) => {
+                animateCollectiblesScreenEnter();
                 logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
               });
+            } else {
+              animateCollectiblesScreenEnter();
             }
           });
         }).catch((error) => {
