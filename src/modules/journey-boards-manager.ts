@@ -9,12 +9,12 @@
 // - Cards can be positioned individually anywhere you want
 
 import { logger } from '../core/logger.js';
-import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { clearArcadeSaveState, getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
+import { boardStatsService } from '../services/board-stats-service.js';
 import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
@@ -362,15 +362,16 @@ const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
 const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
+const BOARD_TRANSITION_ASSET_BASE = './assets/board transition';
 const FOREST_MAP_DESIGN_WIDTH = 390;
 const FOREST_MAP_DESIGN_HEIGHT = 760;
 const JOURNEY_MAX_BOARDS = 10;
-const JOURNEY_RENDERED_BOARDS = 3;
+const JOURNEY_RENDERED_BOARDS = 10;
 const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
 /** Move bg image + card stack down together (px), all breakpoints */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
-const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 96;
+const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 900;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
@@ -423,6 +424,14 @@ function forestTopPercent(px: number): number {
   return (px / FOREST_MAP_DESIGN_HEIGHT) * 100;
 }
 
+function getJourneyEarnedLevelStars(score: number): number {
+  const safeScore = Number.isFinite(score) ? Math.max(0, score) : 0;
+  if (safeScore <= 0) return 0;
+  if (safeScore < 2000) return 1;
+  if (safeScore < 6000) return 2;
+  return 3;
+}
+
 // Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
 // Format: { x: pxToPercent(pixels_from_left) or vw value, top: pxToPercentTop(pixels_from_top) or vh value, width, height, rotation }
 // IMPORTANT: When adding new cards, DO NOT change existing card positions!
@@ -431,9 +440,16 @@ const STANDARD_CARD_WIDTH = 90;
 const STANDARD_CARD_HEIGHT = 133;
 
 const CARD_POSITIONS = [
-  { x: pxToPercent(28), top: forestTopPercent(205), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
-  { x: pxToPercent(300), top: forestTopPercent(269), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(409), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(28), top: forestTopPercent(149), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
+  { x: pxToPercent(300), top: forestTopPercent(213), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(353), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(437), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(94), top: forestTopPercent(571), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(675), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(779), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(903), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(1007), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(1131), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
 ];
 
 
@@ -532,7 +548,8 @@ class JourneyBoardsManager {
         try { gsap.killTweensOf(el); } catch {}
         if (resetTransforms) {
           try {
-            gsap.set(el, { y: 0 });
+            const resetVars = el.classList.contains('journey-forest-cloud-art') ? { x: 0, y: 0 } : { y: 0 };
+            gsap.set(el, resetVars);
             el.style.willChange = '';
           } catch {}
         }
@@ -550,7 +567,7 @@ class JourneyBoardsManager {
   }
 
   private startJourneyAreaIdleAnimations(
-    forestAreas: { mainTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> },
+    forestAreas: { mainTargets: HTMLElement[]; cloudTargets?: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> },
     cardsContainer: HTMLElement
   ): void {
     this.cleanupJourneyAreaIdleAnimations(false);
@@ -560,6 +577,7 @@ class JourneyBoardsManager {
       .map(([boardId, targets]) => ({ boardId, targets: targets.length }));
     logger.info('🧭 JourneyForestAnim idle-start', {
       mainTargets: forestAreas.mainTargets.length,
+      cloudTargets: forestAreas.cloudTargets?.length || 0,
       boardTargetCounts,
       cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
     });
@@ -571,7 +589,7 @@ class JourneyBoardsManager {
     const createIdleTimeline = (
       areaId: string,
       targets: HTMLElement[],
-      options: { amplitude: number; cycleDuration: number; delay: number }
+      options: { amplitude: number; cycleDuration: number; delay: number; xAmplitude?: number; xPhaseOffset?: number }
     ) => {
       const liveTargets = targets.filter((target) => target && document.body.contains(target));
       if (!liveTargets.length) {
@@ -586,11 +604,16 @@ class JourneyBoardsManager {
       });
 
       const setY = gsap.quickSetter(liveTargets, 'y', 'px') as (value: number) => void;
+      const setX = options.xAmplitude
+        ? gsap.quickSetter(liveTargets, 'x', 'px') as (value: number) => void
+        : null;
       const startTime = gsap.ticker.time;
       const speed = (Math.PI * 2) / options.cycleDuration;
       const phaseOffset = options.delay * speed;
       const initialYRaw = Number(gsap.getProperty(liveTargets[0], 'y') || 0);
       const initialY = Number.isFinite(initialYRaw) ? initialYRaw : 0;
+      const initialXRaw = Number(gsap.getProperty(liveTargets[0], 'x') || 0);
+      const initialX = Number.isFinite(initialXRaw) ? initialXRaw : 0;
       const ticker = () => {
         if (this.renderDisposed) {
           try { gsap.ticker.remove(ticker); } catch {}
@@ -602,6 +625,11 @@ class JourneyBoardsManager {
         const rampProgress = Math.min(1, Math.max(0, elapsed / JOURNEY_AREA_IDLE_RAMP_IN_SECONDS));
         const ramp = 1 - Math.pow(1 - rampProgress, 3);
         setY(initialY + ((waveY - initialY) * ramp));
+        if (setX && options.xAmplitude) {
+          const xPhase = options.xPhaseOffset ?? 1.4;
+          const waveX = Math.sin((elapsed * speed * 0.82) + phaseOffset + xPhase) * options.xAmplitude;
+          setX(initialX + ((waveX - initialX) * ramp));
+        }
       };
 
       gsap.ticker.add(ticker);
@@ -610,6 +638,7 @@ class JourneyBoardsManager {
         areaId,
         targetCount: liveTargets.length,
         amplitude: Number(options.amplitude.toFixed(2)),
+        xAmplitude: Number((options.xAmplitude || 0).toFixed(2)),
         cycleDuration: Number(options.cycleDuration.toFixed(2)),
         phaseOffset: Number(options.delay.toFixed(2)),
         initialY: Number(initialY.toFixed(2)),
@@ -622,6 +651,16 @@ class JourneyBoardsManager {
       amplitude: randomInRange(4.8, 6.4),
       cycleDuration: randomInRange(3.1, 3.9),
       delay: randomInRange(0.05, 0.22),
+    });
+
+    (forestAreas.cloudTargets || []).forEach((cloud, index) => {
+      createIdleTimeline(`forest-main-cloud-${index + 1}`, [cloud], {
+        amplitude: randomInRange(9.5, 16),
+        xAmplitude: randomInRange(12, 20),
+        xPhaseOffset: randomInRange(0.7, 2.4),
+        cycleDuration: randomInRange(3.8, 5.6),
+        delay: randomInRange(0.05, 1.2),
+      });
     });
 
     forestAreas.boardTargets.forEach((targets, boardId) => {
@@ -661,9 +700,12 @@ class JourneyBoardsManager {
 
   private getCurrentJourneyForestAreas(
     cardsContainer: HTMLElement
-  ): { mainTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
+  ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
     const mainTargets = Array.from(
       document.querySelectorAll('[data-journey-area-id="forest-main"], .journey-forest-main-art')
+    ) as HTMLElement[];
+    const cloudTargets = Array.from(
+      document.querySelectorAll('.journey-forest-cloud-art')
     ) as HTMLElement[];
     const boardTargets = new Map<number, HTMLElement[]>();
 
@@ -681,6 +723,7 @@ class JourneyBoardsManager {
 
     return {
       mainTargets: Array.from(new Set(mainTargets)).filter((target) => target && document.body.contains(target)),
+      cloudTargets: Array.from(new Set(cloudTargets)).filter((target) => target && document.body.contains(target)),
       boardTargets,
     };
   }
@@ -700,6 +743,9 @@ class JourneyBoardsManager {
       const areaGroups: Array<{ areaId: string; targets: HTMLElement[]; isMain?: boolean }> = [];
       if (forestAreas.mainTargets.length) {
         areaGroups.push({ areaId: 'forest-main', targets: forestAreas.mainTargets, isMain: true });
+      }
+      if (forestAreas.cloudTargets?.length) {
+        areaGroups.push({ areaId: 'forest-main-clouds', targets: forestAreas.cloudTargets, isMain: true });
       }
       forestAreas.boardTargets.forEach((targets, boardId) => {
         areaGroups.push({ areaId: `board-${boardId}`, targets });
@@ -777,6 +823,7 @@ class JourneyBoardsManager {
 
   private getJourneyBoardAreaParts(boardId: number, preparedTargets: HTMLElement[] = []): {
     cardWrapper: HTMLElement | null;
+    clouds: HTMLElement[];
     stump: HTMLElement | null;
     stars: HTMLElement[];
     island: HTMLElement | null;
@@ -789,6 +836,14 @@ class JourneyBoardsManager {
         (card?.closest('.journey-board-card-wrapper') as HTMLElement | null) ||
         livePreparedTargets.find((target) => target.classList.contains('journey-board-card-wrapper')) ||
         null,
+      clouds: (() => {
+        const queried = Array.from(
+          document.querySelectorAll(`.journey-forest-cloud-board-${boardId}`)
+        ) as HTMLElement[];
+        return queried.length
+          ? queried
+          : livePreparedTargets.filter((target) => target.classList.contains('journey-forest-board-cloud'));
+      })(),
       stump:
         (document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null) ||
         livePreparedTargets.find((target) => target.classList.contains('journey-forest-stump-art')) ||
@@ -810,11 +865,12 @@ class JourneyBoardsManager {
 
   private getBoardAreaTransitionItems(parts: {
     cardWrapper: HTMLElement | null;
+    clouds: HTMLElement[];
     stump: HTMLElement | null;
     stars: HTMLElement[];
     island: HTMLElement | null;
   }): Array<{
-    role: 'card' | 'stump' | 'star' | 'island';
+    role: 'card' | 'stump' | 'star' | 'island' | 'cloud';
     target: HTMLElement;
     enterOrder: number;
     exitOrder: number;
@@ -826,7 +882,8 @@ class JourneyBoardsManager {
     exitEase: string;
     enterEase: string;
   }> {
-    const rawItems: Array<{ role: 'card' | 'stump' | 'star' | 'island'; target: HTMLElement | null }> = [
+    const rawItems: Array<{ role: 'card' | 'stump' | 'star' | 'island' | 'cloud'; target: HTMLElement | null }> = [
+      ...parts.clouds.map((cloud) => ({ role: 'cloud' as const, target: cloud })),
       { role: 'island', target: parts.island },
       { role: 'stump', target: parts.stump },
       ...parts.stars.map((star) => ({ role: 'star' as const, target: star })),
@@ -845,6 +902,7 @@ class JourneyBoardsManager {
       ...liveItems.filter((item) => item.role === 'card'),
       ...liveItems.filter((item) => item.role === 'star'),
       ...liveItems.filter((item) => item.role === 'stump'),
+      ...liveItems.filter((item) => item.role === 'cloud'),
       ...liveItems.filter((item) => item.role === 'island'),
     ];
     const exitOrderByTarget = new Map<HTMLElement, number>();
@@ -1102,15 +1160,49 @@ class JourneyBoardsManager {
   private renderForestMapAssets(
     bgContainer: HTMLElement,
     decorContainer: HTMLElement
-  ): { mainTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
+  ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
     const mainTargets: HTMLElement[] = [];
+    const cloudTargets: HTMLElement[] = [];
     const boardTargets = new Map<number, HTMLElement[]>();
+    const cloudAssetPool = [
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak-forest1.png`,
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak-forest2.png`,
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`,
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak mali ljevo.png`,
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak mali desno.png`,
+      `${BOARD_TRANSITION_ASSET_BASE}/oblak veliki ljevo dole.png`,
+    ];
+    const seededUnit = (seed: number): number => {
+      const value = Math.sin(seed * 12.9898) * 43758.5453;
+      return value - Math.floor(value);
+    };
     const boardLayoutOffsets = {
       stump: { x: 58, y: 52, width: 77, rotation: -4 },
       stars: [
-        { x: 76, y: 82, width: 23, src: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-left.png`, role: 'left' },
-        { x: 93, y: 82, width: 29, src: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-center-1.png`, role: 'center' },
-        { x: 116, y: 82, width: 23, src: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-right.png`, role: 'right' },
+        {
+          x: 76,
+          y: 82,
+          width: 23,
+          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-left.png`,
+          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-left.png`,
+          role: 'left'
+        },
+        {
+          x: 93,
+          y: 82,
+          width: 29,
+          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-center-1.png`,
+          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-center.png`,
+          role: 'center'
+        },
+        {
+          x: 116,
+          y: 82,
+          width: 23,
+          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-right.png`,
+          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-right-1.png`,
+          role: 'right'
+        },
       ],
     };
 
@@ -1150,22 +1242,83 @@ class JourneyBoardsManager {
       return img;
     };
 
+    const addForestMainClouds = () => {
+      const cloudSlots = [
+        { x: -14, y: -18, width: 286, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
+        { x: 248, y: -32, width: 184 },
+        { x: 332, y: 30, width: 136 },
+        { x: -74, y: 266, width: 120 },
+        { x: 18, y: 326, width: 84 },
+        { x: 112, y: 284, width: 154 },
+        { x: 220, y: 346, width: 92 },
+        { x: 284, y: 280, width: 132 },
+        { x: 344, y: 370, width: 76 },
+      ];
+
+      cloudSlots.forEach((slot, index) => {
+        const assetIndex = Math.floor(seededUnit(index + 3) * cloudAssetPool.length) % cloudAssetPool.length;
+        const sizeJitter = slot.jitter === false ? 1 : 0.82 + (seededUnit(index + 19) * 0.36);
+        const cloud = addImage(
+          slot.src || cloudAssetPool[assetIndex],
+          slot.x,
+          slot.y,
+          slot.width * sizeJitter,
+          `journey-forest-cloud-art journey-forest-main-cloud journey-forest-main-cloud-${index + 1}`,
+          1,
+          0,
+          undefined,
+          bgContainer
+        );
+        cloud.style.opacity = `${0.74 + (seededUnit(index + 31) * 0.16)}`;
+        cloud.style.willChange = 'transform';
+        cloudTargets.push(cloud);
+      });
+    };
+
     const addForestBoardGroup = (
       boardId: number,
       islandX: number,
       islandY: number,
       islandWidth = 200,
       starsOffsetX = 0,
-      starsOffsetY = 0
+      starsOffsetY = 0,
+      islandVisualOffsetX = 0,
+      islandVisualOffsetY = 0,
+      boardCloudRefs: number[] = []
     ) => {
       const areaId = `board-${boardId}`;
       const targets: HTMLElement[] = [];
       boardTargets.set(boardId, targets);
 
+      const boardCloudSlots = [
+        { ref: 5, x: -44, y: -24, width: 126 },
+        { ref: 7, x: 88, y: 96, width: 112 },
+        { ref: 2, x: 126, y: 8, width: 98 },
+      ];
+      boardCloudSlots
+        .filter((slot) => boardCloudRefs.includes(slot.ref))
+        .forEach((slot) => {
+          const assetIndex = Math.max(0, (slot.ref - 1) % cloudAssetPool.length);
+          const cloud = addImage(
+            cloudAssetPool[assetIndex],
+            islandX + slot.x,
+            islandY + slot.y,
+            slot.width,
+            `journey-forest-cloud-art journey-forest-board-cloud journey-forest-cloud-board-${boardId} journey-forest-cloud-ref-${slot.ref}`,
+            1,
+            0,
+            areaId,
+            bgContainer
+          );
+          cloud.style.opacity = '0.82';
+          cloud.style.willChange = 'transform';
+          targets.push(cloud);
+        });
+
       targets.push(addImage(
         `${FOREST_WORLD_ASSET_BASE}/forest${boardId}.png`,
-        islandX,
-        islandY,
+        islandX + islandVisualOffsetX,
+        islandY + islandVisualOffsetY,
         islandWidth,
         `journey-forest-island-art journey-forest-island-${boardId}`,
         2,
@@ -1183,13 +1336,20 @@ class JourneyBoardsManager {
         areaId,
         decorContainer
       ));
-      boardLayoutOffsets.stars.forEach((star) => {
+      const board = this.boards.find((item) => item.id === boardId);
+      const earnedStars = board?.unlocked === true && board?.interim !== true
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        : 0;
+
+      boardLayoutOffsets.stars.forEach((star, index) => {
+        const shouldShowFilledStar = index < earnedStars;
+        const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
         targets.push(addImage(
-          star.src,
+          shouldShowFilledStar ? star.filledSrc : star.emptySrc,
           islandX + star.x + starsOffsetX,
           islandY + star.y + starsOffsetY,
           star.width,
-          `journey-forest-star-art journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
+          `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
           6,
           0,
           areaId,
@@ -1198,12 +1358,20 @@ class JourneyBoardsManager {
       });
     };
 
-    mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, 0, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
-    addForestBoardGroup(1, 4, 340, 200, -10, -4);
-    addForestBoardGroup(2, 190, 400, 200, -12, -6);
-    addForestBoardGroup(3, 18, 540, 200, -10, -4);
+    addForestMainClouds();
+    mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -16, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
+    addForestBoardGroup(1, 4, 284, 200, -10, -4);
+    addForestBoardGroup(2, 190, 344, 200, -12, -6);
+    addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [5, 7, 2]);
+    addForestBoardGroup(4, 194, 568, 200, -12, -6);
+    addForestBoardGroup(5, 72, 702, 262, -10, -4, -62, -76);
+    addForestBoardGroup(6, 194, 806, 200, -12, -6);
+    addForestBoardGroup(7, 18, 910, 200, -10, -4);
+    addForestBoardGroup(8, 194, 1034, 200, -12, -6);
+    addForestBoardGroup(9, 18, 1138, 200, -10, -4);
+    addForestBoardGroup(10, 194, 1262, 200, -12, -6);
 
-    return { mainTargets, boardTargets };
+    return { mainTargets, cloudTargets, boardTargets };
   }
 
   private cleanupDetailModalRuntimeState(): void {
@@ -1264,6 +1432,7 @@ class JourneyBoardsManager {
         try { scrollable.removeEventListener('touchmove', handlers.move); } catch {}
         try { scrollable.removeEventListener('touchend', handlers.end); } catch {}
         try { scrollable.removeEventListener('touchcancel', handlers.end); } catch {}
+        try { scrollable.removeEventListener('scroll', handlers.lockX); } catch {}
         delete (scrollable as any).__journeyScreenElasticHandlers;
       }
       const target = document.getElementById('journey-boards-container') as HTMLElement | null;
@@ -1298,6 +1467,11 @@ class JourneyBoardsManager {
       let isDragging = false;
       const damping = 0.35;
       const maxPull = 80;
+      const lockHorizontalScroll = () => {
+        if (scrollable.scrollLeft !== 0) {
+          scrollable.scrollLeft = 0;
+        }
+      };
 
       const isAtTop = () => scrollable.scrollTop <= 1;
       const isAtBottom = () => {
@@ -1314,6 +1488,7 @@ class JourneyBoardsManager {
 
       const onStart = (e: TouchEvent) => {
         if (e.touches.length !== 1) return;
+        lockHorizontalScroll();
         startY = e.touches[0].clientY;
         currentY = 0;
         isDragging = true;
@@ -1323,6 +1498,7 @@ class JourneyBoardsManager {
 
       const onMove = (e: TouchEvent) => {
         if (!isDragging || e.touches.length !== 1) return;
+        lockHorizontalScroll();
         const dy = e.touches[0].clientY - startY;
         const pullingTop = dy > 0 && isAtTop();
         const pullingBottom = dy < 0 && isAtBottom();
@@ -1354,7 +1530,9 @@ class JourneyBoardsManager {
       scrollable.addEventListener('touchmove', onMove, { passive: true });
       scrollable.addEventListener('touchend', onEnd, { passive: true });
       scrollable.addEventListener('touchcancel', onEnd, { passive: true });
-      (scrollable as any).__journeyScreenElasticHandlers = { start: onStart, move: onMove, end: onEnd };
+      scrollable.addEventListener('scroll', lockHorizontalScroll, { passive: true });
+      lockHorizontalScroll();
+      (scrollable as any).__journeyScreenElasticHandlers = { start: onStart, move: onMove, end: onEnd, lockX: lockHorizontalScroll };
     } catch (error) {
       logger.warn('⚠️ Failed to install Journey screen elastic overscroll:', error);
     }
@@ -1528,7 +1706,7 @@ class JourneyBoardsManager {
       elements.add(element as HTMLElement);
     });
     document.querySelectorAll(
-      `.journey-forest-island-${boardId}, .journey-forest-stump-${boardId}, .journey-forest-star-board-${boardId}`
+      `.journey-forest-island-${boardId}, .journey-forest-stump-${boardId}, .journey-forest-star-board-${boardId}, .journey-forest-cloud-board-${boardId}`
     ).forEach((element) => {
       elements.add(element as HTMLElement);
     });
@@ -3685,22 +3863,31 @@ class JourneyBoardsManager {
       });
     } else {
       // Locked card - show journey-card-empty.png image with number overlay
+      const showLockedCardImage = false;
       const lockedContainer = document.createElement('div');
       lockedContainer.className = 'journey-board-locked-container';
+      card.classList.add('journey-board-card-number-only');
       
-      // Add empty card image
-      const image = document.createElement('img');
-      // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
-      image.src = './assets/colelctibles/journey-card-empty.png';
-      image.alt = `Board ${board.id} (locked)`;
-      image.className = 'journey-board-empty-image';
-      // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
-      image.loading = 'eager';
-      (image as any).fetchPriority = 'high';
-      // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
-      image.draggable = false;
-      image.setAttribute('draggable', 'false');
-      lockedContainer.appendChild(image);
+      if (showLockedCardImage) {
+        // Add empty card image
+        const image = document.createElement('img');
+        // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
+        image.src = './assets/colelctibles/journey-card-empty.png';
+        image.alt = `Board ${board.id} (locked)`;
+        image.className = 'journey-board-empty-image';
+        // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+        image.loading = 'eager';
+        (image as any).fetchPriority = 'high';
+        // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
+        image.draggable = false;
+        image.setAttribute('draggable', 'false');
+        image.addEventListener('dragstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        });
+        lockedContainer.appendChild(image);
+      }
       
       // Add number overlay on top of image
       const number = document.createElement('div');
@@ -3738,12 +3925,6 @@ class JourneyBoardsManager {
       
       // Prevent drag start
       card.addEventListener('dragstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      });
-      
-      image.addEventListener('dragstart', (e) => {
         e.preventDefault();
         e.stopPropagation();
         return false;
@@ -5115,54 +5296,17 @@ class JourneyBoardsManager {
         return;
       }
 
-      void import('pixi.js')
-        .then(({ Assets }) => {
-          const gameAssets = [
-            './assets/tile.png',
-            './assets/tile_numbers.png',
-            './assets/tile_numbers2.png',
-            './assets/tile_numbers3.png',
-            './assets/tile_numbers4.png',
-            './assets/wild.png',
-            './assets/wild@2x.png',
-            './assets/wild@3x.png',
-            './assets/wild-magnet.png',
-            './assets/wild-juice.png',
-            './assets/wild-juice@2x.png',
-            './assets/wild-juice@3x.png',
-            './assets/shop/explosion pack/tnt.png',
-            './assets/shop/explosion pack/tnt@2x.png',
-            './assets/shop/explosion pack/tnt@3x.png',
-          ];
-
-          logger.info(`🎮 Preloading ${gameAssets.length} game assets for board ${board.id}...`);
-
-          return Promise.allSettled(
-            gameAssets.map(async (assetPath) => {
-              try {
-                const existing = Assets.get(assetPath);
-                if (existing) return;
-                if (!isAssetAliasRegistered(assetPath) && (typeof Assets.cache?.has !== 'function' || !Assets.cache.has(assetPath))) {
-                  try {
-                    Assets.add({ alias: assetPath, src: assetPath });
-                    markAssetAliasRegistered(assetPath);
-                  } catch {
-                    // Already registered.
-                  }
-                }
-                await Assets.load(assetPath);
-                logger.debug(`✅ Loaded ${assetPath} into PIXI Assets cache`);
-              } catch (err) {
-                logger.warn(`⚠️ Failed to preload ${assetPath}:`, err);
-              }
-            })
-          );
-        })
-        .then(() => {
-          logger.info(`✅ All game assets preloaded for board ${board.id}`);
+      void import('../utils/board-asset-warmup.js')
+        .then(({ ensureBoardTexturesResidentSoon }) => {
+          ensureBoardTexturesResidentSoon({
+            mode: 'journey',
+            boardNumber: board.id,
+            reason: 'journey-detail-open',
+            timeoutMs: 1800,
+          });
         })
         .catch((error) => {
-          logger.warn('⚠️ Failed to preload game assets:', error);
+          logger.warn('⚠️ Failed to schedule resident game texture preload:', error);
         });
     }, preloadAfterEnterDelayMs);
     

@@ -78,7 +78,11 @@ import {
   getAppCleanupStats
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
-import { warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
+import {
+  ensureBoardTexturesResident,
+  protectBoardTextureRenderer,
+  warmPinnedBoardTextures,
+} from '../utils/board-asset-warmup.ts';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -1739,6 +1743,7 @@ function destroyOldBoardForTransition(reason: string = 'unknown'): void {
 function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiveUnknown: boolean = false, skipCacheClear: boolean = false) {
   try {
     const renderer = app?.renderer || (STATE as any)?.app?.renderer;
+    protectBoardTextureRenderer(renderer, `cleanup:${reason}`);
     const managed = renderer?.texture?.managedTextures;
     const preCount = managed ? (managed.size || Object.keys(managed).length) : 0;
 
@@ -1848,8 +1853,12 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
       }
     } catch {}
     
-    // Ask PIXI to GC textures where possible
-    try { renderer?.textureGC?.run?.(); } catch {}
+    // Do not run renderer textureGC during board handoff. On iOS/WebKit this can evict
+    // rarely-rendered tile sources while the DOM Journey/transition screens are active,
+    // producing a board with pips/placeholders but no dice faces.
+    if (!skipCacheClear && (window as any).__ccAllowRendererTextureGC === true) {
+      try { renderer?.textureGC?.run?.(); } catch {}
+    }
     
     // Clear texture cache + unused base textures (skip when skipCacheClear - avoids addressModeU crash
     // when stage may still reference textures during board transition)
@@ -1913,6 +1922,7 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     if (preCount || postCount) {
       devLog('🧹 Texture cleanup (board transition):', { reason, preCount, postCount });
     }
+    void warmPinnedBoardTextures(renderer, `cleanup:${reason}`).catch(() => {});
   } catch (e) {
     devWarn('⚠️ cleanupTexturesForBoardTransition failed:', e);
   }
@@ -2649,6 +2659,7 @@ export async function boot(){
       app = new Application();
       try {
         await app.init(initOptions);
+        protectBoardTextureRenderer(app, 'app-core-init');
         initError = null;
         if (attempt > 1) {
           devWarn(`✅ PIXI init recovered on retry ${attempt}/${maxInitAttempts}`);
@@ -2673,6 +2684,7 @@ export async function boot(){
   } else {
     // Ensure renderer is active on reuse
     try { app.ticker.start(); } catch {}
+    protectBoardTextureRenderer(app, 'app-core-reuse');
   }
 
   // Install runtime texture hooks (canvas + generateTexture)
@@ -3040,20 +3052,28 @@ export async function boot(){
   }
 
   try {
-    await warmBoardGameAssets({
+    await ensureBoardTexturesResident({
       mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
       boardNumber,
       reason: 'app-core-boot',
       timeoutMs: 1400,
+      renderer: app?.renderer,
     });
   } catch (error) {
-    devWarn('⚠️ Board asset warmup reported an issue during boot; runtime texture guard will continue recovery', error);
+    devWarn('⚠️ Resident board texture guard reported an issue during boot; runtime texture guard will continue recovery', error);
   }
   
   // Core gameplay textures must be valid, not just present in Assets.cache.
   // iOS/WebKit can keep stale cache entries after app/renderer teardown; starting with
   // those references renders pips/placeholders without tile faces.
   await ensureCoreGameTexturesLoaded('boot');
+  await ensureBoardTexturesResident({
+    mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+    boardNumber,
+    reason: 'app-core-boot-post-core',
+    timeoutMs: 900,
+    renderer: app?.renderer,
+  });
   
   // Fonts are already loaded via CSS @font-face in index.html
   // No need to load fonts dynamically - PIXI will use CSS fonts automatically
@@ -3722,6 +3742,7 @@ export async function layoutBoard(){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard');
+    await warmPinnedBoardTextures(app?.renderer, 'layoutBoard-post-core');
     if (refreshedAssets.length > 0) {
       refreshLiveCoreGameSpriteTextures('layoutBoard');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
@@ -3751,6 +3772,7 @@ export async function layoutBoard(){
         // Assets.get() alone is not enough; stale WebKit/Pixi cache entries can exist but render blank.
         try {
           const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard-before-hud');
+          await warmPinnedBoardTextures(app?.renderer, 'layoutBoard-before-hud-post-core');
           if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
             try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
           }
@@ -5164,6 +5186,13 @@ async function startLevel(n){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
+    await ensureBoardTexturesResident({
+      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+      boardNumber,
+      reason: 'startLevel-post-core',
+      timeoutMs: 900,
+      renderer: app?.renderer,
+    });
     if (refreshedAssets.length > 0) {
       refreshLiveCoreGameSpriteTextures('startLevel');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {

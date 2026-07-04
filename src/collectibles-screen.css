@@ -400,7 +400,7 @@
   min-height: 500px; /* Ensure enough space */
   width: 100%; /* Fixed width */
   max-width: 100%; /* Prevent overflow */
-  overflow-x: visible !important; /* 🔥 PREMIUM FIX: Allow cards to extend beyond edges (visible) */
+  overflow-x: visible !important; /* Scene may paint past section edges; scroll viewport clamps horizontal movement */
   overflow-y: visible; /* Allow vertical overflow for background image height */
   margin-bottom: 0 !important; /* 🔥 PREMIUM FIX: No margin - content goes to shadow */
   padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: No padding - content goes to shadow */
@@ -415,13 +415,14 @@
   margin-bottom: -24px !important; /* 🔥 PREMIUM FIX: Compensate for parent gap */
 }
 
-/* Prevent horizontal scrolling in scrollable container but allow visible overflow */
+/* Prevent horizontal scrolling in scrollable container */
 .collectibles-scrollable:has(#journey-boards-container) {
-  overflow-x: visible !important; /* 🔥 PREMIUM FIX: Allow cards to extend beyond edges (visible) */
+  overflow-x: hidden !important;
+  overscroll-behavior-x: none !important;
+  touch-action: pan-y;
   width: 100%; /* Fixed width */
   max-width: 100%; /* Prevent overflow */
   padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: Remove padding - content goes to shadow */
-  /* Horizontal scrolling prevented by touch-action: pan-y (only vertical panning) */
 }
 
 /* iPad: hard clamp horizontal scrolling while keeping cards visible */
@@ -2369,7 +2370,8 @@
 .journey-board-card.locked .journey-board-number {
   font-size: 32px;
   font-weight: 700;
-  color: #C5A799;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
   letter-spacing: 0;
   margin: 0;
   padding: 0;
@@ -2386,6 +2388,26 @@
   min-width: 0;
   box-sizing: border-box;
   text-align: center;
+  filter: drop-shadow(5px 12px 16.1px rgba(250, 204, 171, 0.5));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.journey-board-card.locked.journey-board-card-number-only .journey-board-number {
+  transform: translate(-50%, calc(-50% + 32px));
+}
+
+.journey-board-card.locked.journey-board-card-number-only[data-board-id="7"] .journey-board-number {
+  transform: translate(calc(-50% - 20px), calc(-50% + 32px)) rotate(-2deg);
+}
+
+.journey-board-card.locked.journey-board-card-number-only[data-board-id="8"] .journey-board-number {
+  transform: translate(calc(-50% + 20px), calc(-50% + 32px));
+}
+
+.journey-board-card.locked.journey-board-card-number-only[data-board-id="9"] .journey-board-number {
+  transform: translate(calc(-50% + 4px), calc(-50% + 32px)) rotate(3deg);
 }
 
 /* Ensure journey boards container doesn't conflict with flex layout */

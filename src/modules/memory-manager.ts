@@ -6,6 +6,7 @@ import gameState from './game-state.js';
 import { container } from '../core/dependency-injection.js';
 import { Application, Container } from 'pixi.js';
 import { logger } from '../core/logger.js';
+import { protectBoardTextureRenderer, warmPinnedBoardTextures } from '../utils/board-asset-warmup.ts';
 
 // Type definitions
 interface TrackedObject {
@@ -155,7 +156,11 @@ class MemoryManager {
       // Stability-first: run renderer-managed GC only, do not destroy cache entries manually.
       // Manual cache/baseTexture destruction can race active render and crash with addressModeU.
       const app = container.get('app') as Application | null;
-      try { app?.renderer?.textureGC?.run?.(); } catch {}
+      try { protectBoardTextureRenderer(app, 'memory-manager'); } catch {}
+      if ((window as any).__ccAllowRendererTextureGC === true) {
+        try { app?.renderer?.textureGC?.run?.(); } catch {}
+      }
+      try { void warmPinnedBoardTextures(app, 'memory-manager').catch(() => {}); } catch {}
       // Keep local tracking set clean from already-destroyed textures.
       const staleTextures: Texture[] = [];
       this.textureCache.forEach((tex) => {
@@ -309,4 +314,3 @@ export default memoryManager;
 
 // Export class for testing
 export { MemoryManager };
-
