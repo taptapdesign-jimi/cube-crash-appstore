@@ -59,6 +59,7 @@
   box-sizing: border-box;
   z-index: 1000002;
   flex-shrink: 0;
+  background: rgba(243, 238, 232, 0.8) !important;
 }
 
 /* Journey header stays in normal layout flow on mobile.
@@ -84,8 +85,8 @@
 
   #journey-screen .collectibles-scrollable,
   .journey-screen .collectibles-scrollable {
-    padding-top: 24px;
-    margin-top: -56px;
+    padding-top: calc(var(--journey-header-offset, 120px) - 24px);
+    margin-top: calc(-1 * var(--journey-header-offset, 120px));
   }
 }
 

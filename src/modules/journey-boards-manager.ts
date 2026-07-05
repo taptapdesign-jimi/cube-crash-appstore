@@ -370,6 +370,7 @@ const JOURNEY_MAX_BOARDS = 20;
 const JOURNEY_RENDERED_BOARDS = 20;
 const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
 const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
+const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Move bg image + card stack down together (px), all breakpoints */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
@@ -1724,12 +1725,26 @@ class JourneyBoardsManager {
       if (!scrollable) return;
 
       this.cleanupJourneyScreenElasticOverscroll();
+      const contentElasticHandlers = (scrollable as any).__journeyElasticOverscrollHandlers;
+      if (contentElasticHandlers) {
+        try { scrollable.removeEventListener('touchstart', contentElasticHandlers.start); } catch {}
+        try { scrollable.removeEventListener('touchmove', contentElasticHandlers.move); } catch {}
+        try { scrollable.removeEventListener('touchend', contentElasticHandlers.end); } catch {}
+        try { scrollable.removeEventListener('touchcancel', contentElasticHandlers.end); } catch {}
+        try {
+          if (contentElasticHandlers.releaseTimer) window.clearTimeout(contentElasticHandlers.releaseTimer);
+        } catch {}
+        delete (scrollable as any).__journeyElasticOverscrollHandlers;
+        scrollable.style.removeProperty('transition');
+        scrollable.style.removeProperty('will-change');
+        scrollable.style.removeProperty('transform');
+      }
 
       let startY = 0;
       let currentY = 0;
       let isDragging = false;
-      const damping = 0.35;
-      const maxPull = 80;
+      const damping = 0.07;
+      const maxPull = 16;
       const lockHorizontalScroll = () => {
         if (scrollable.scrollLeft !== 0) {
           scrollable.scrollLeft = 0;
@@ -5516,6 +5531,9 @@ class JourneyBoardsManager {
         try { localStorage.setItem('__ccJourneyScrollTop', String(scrollable.scrollTop)); } catch {}
         logger.info(`🗺️ Saved Journey scroll position before detail modal: ${scrollable.scrollTop}`);
       }
+      (window as any).__ccJourneyReturnBoardId = board.id;
+      try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(board.id)); } catch {}
+      logger.info(`🗺️ Saved Journey return board id before detail modal: ${board.id}`);
     } catch {}
 
     // 🔥 CRITICAL: Clear interim flags when opening REGULAR (non-interim) board
@@ -7428,6 +7446,11 @@ class JourneyBoardsManager {
             try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
             (window as any).__ccReturningFromDetailModal = true;
+            const returnBoardId = Number(detailModal.getAttribute('data-journey-board-id') || 0);
+            if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
+              (window as any).__ccJourneyReturnBoardId = returnBoardId;
+              try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(returnBoardId)); } catch {}
+            }
             delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
             delete (window as any).__ccDirectDetailModalReturnActive;
 
@@ -7467,6 +7490,11 @@ class JourneyBoardsManager {
             try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
             (window as any).__ccReturningFromDetailModal = true;
+            const returnBoardId = Number(detailModal.getAttribute('data-journey-board-id') || 0);
+            if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
+              (window as any).__ccJourneyReturnBoardId = returnBoardId;
+              try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(returnBoardId)); } catch {}
+            }
             delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
             delete (window as any).__ccDirectDetailModalReturnActive;
 
