@@ -361,17 +361,19 @@ const JOURNEY_CONTENT_TOP_BASE_PX = 50;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
+const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach';
 const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
 const BOARD_TRANSITION_ASSET_BASE = './assets/board transition';
 const FOREST_MAP_DESIGN_WIDTH = 390;
 const FOREST_MAP_DESIGN_HEIGHT = 760;
-const JOURNEY_MAX_BOARDS = 10;
-const JOURNEY_RENDERED_BOARDS = 10;
+const JOURNEY_MAX_BOARDS = 20;
+const JOURNEY_RENDERED_BOARDS = 20;
 const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
+const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
 /** Move bg image + card stack down together (px), all breakpoints */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
-const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 900;
+const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 2700;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
@@ -440,17 +442,49 @@ const STANDARD_CARD_WIDTH = 90;
 const STANDARD_CARD_HEIGHT = 133;
 
 const CARD_POSITIONS = [
-  { x: pxToPercent(28), top: forestTopPercent(149), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
-  { x: pxToPercent(300), top: forestTopPercent(213), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(28), top: forestTopPercent(155), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -4 },
+  { x: pxToPercent(300), top: forestTopPercent(243), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
   { x: pxToPercent(40), top: forestTopPercent(353), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(437), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(94), top: forestTopPercent(571), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(232), top: forestTopPercent(441), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(74), top: forestTopPercent(571), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
   { x: pxToPercent(222), top: forestTopPercent(675), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
   { x: pxToPercent(40), top: forestTopPercent(779), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(903), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(1007), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(206), top: forestTopPercent(903), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(20), top: forestTopPercent(1007), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
   { x: pxToPercent(222), top: forestTopPercent(1131), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(36), top: forestTopPercent(1691), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(230), top: forestTopPercent(1821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(44), top: forestTopPercent(1955), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(2079), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(2193), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(226), top: forestTopPercent(2321), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(2449), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(228), top: forestTopPercent(2569), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(2695), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(226), top: forestTopPercent(2821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
 ];
+
+const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotation?: number }> = {
+  2: { x: -4, y: 32, rotation: -15 },
+  3: { x: 0, y: 36, rotation: 4 },
+  4: { x: 8, y: 32 },
+  5: { x: 48, y: 15, rotation: 20 },
+  6: { x: 10, y: 32 },
+  7: { x: -44, y: 35, rotation: -15 },
+  8: { x: 52, y: 32 },
+  9: { x: 18, y: 40, rotation: 14 },
+  10: { x: 6, y: 32 },
+  11: { x: -42, y: 24, rotation: -8 },
+  12: { x: 0, y: 23, rotation: -4 },
+  13: { x: 12, y: 28, rotation: 8 },
+  14: { x: 50, y: 4, rotation: 10 },
+  15: { x: 0, y: 16, rotation: 13 },
+  16: { x: -16, y: 6, rotation: -16 },
+  17: { x: 3, y: 8, rotation: 3 },
+  18: { x: 30, y: -2, rotation: 6 },
+  19: { x: -8, y: 6, rotation: 4 },
+  20: { x: 24, y: -6, rotation: 6 },
+};
 
 
 class JourneyBoardsManager {
@@ -1241,6 +1275,9 @@ class JourneyBoardsManager {
       parent.appendChild(img);
       return img;
     };
+    const applyBeach2xSrcSet = (img: HTMLImageElement, src: string) => {
+      img.srcset = `${src.replace(/\.png$/, '@2x.png')} 2x`;
+    };
 
     const addForestMainClouds = () => {
       const cloudSlots = [
@@ -1250,9 +1287,14 @@ class JourneyBoardsManager {
         { x: -74, y: 266, width: 120 },
         { x: 18, y: 326, width: 84 },
         { x: 112, y: 284, width: 154 },
-        { x: 220, y: 346, width: 92 },
-        { x: 284, y: 280, width: 132 },
-        { x: 344, y: 370, width: 76 },
+        { x: 220, y: 266, width: 92 },
+        { x: 284, y: 200, width: 132 },
+        { x: 344, y: 290, width: 76 },
+        { x: -18, y: 238, width: 176, jitter: false },
+        { x: 52, y: 278, width: 198, jitter: false },
+        { x: 132, y: 252, width: 214, jitter: false },
+        { x: 218, y: 206, width: 198, jitter: false },
+        { x: 286, y: 166, width: 176, jitter: false },
       ];
 
       cloudSlots.forEach((slot, index) => {
@@ -1275,6 +1317,37 @@ class JourneyBoardsManager {
       });
     };
 
+    const addBeachMainClouds = () => {
+      const beachCloudSlots = [
+        { x: -38, y: 1450, width: 214, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
+        { x: 168, y: 1430, width: 184 },
+        { x: 276, y: 1498, width: 146 },
+        { x: -42, y: 1610, width: 176 },
+        { x: 54, y: 1668, width: 206, jitter: false },
+        { x: 188, y: 1608, width: 170 },
+        { x: 282, y: 1702, width: 118 },
+      ];
+
+      beachCloudSlots.forEach((slot, index) => {
+        const assetIndex = Math.floor(seededUnit(index + 101) * cloudAssetPool.length) % cloudAssetPool.length;
+        const sizeJitter = slot.jitter === false ? 1 : 0.86 + (seededUnit(index + 113) * 0.28);
+        const cloud = addImage(
+          slot.src || cloudAssetPool[assetIndex],
+          slot.x,
+          slot.y,
+          slot.width * sizeJitter,
+          `journey-forest-cloud-art journey-beach-main-cloud journey-beach-main-cloud-${index + 1}`,
+          1,
+          0,
+          'beach-main',
+          bgContainer
+        );
+        cloud.style.opacity = `${0.72 + (seededUnit(index + 127) * 0.14)}`;
+        cloud.style.willChange = 'transform';
+        cloudTargets.push(cloud);
+      });
+    };
+
     const addForestBoardGroup = (
       boardId: number,
       islandX: number,
@@ -1290,15 +1363,73 @@ class JourneyBoardsManager {
       const targets: HTMLElement[] = [];
       boardTargets.set(boardId, targets);
 
-      const boardCloudSlots = [
+      type BoardCloudSlot = { ref: number; x: number; y: number; width: number };
+      const defaultBoardCloudSlots: BoardCloudSlot[] = [
         { ref: 5, x: -44, y: -24, width: 126 },
+        { ref: 4, x: -28, y: 104, width: 92 },
         { ref: 7, x: 88, y: 96, width: 112 },
         { ref: 2, x: 126, y: 8, width: 98 },
       ];
+      const boardCloudSlotsByBoard: Record<number, BoardCloudSlot[]> = {
+        1: [
+          { ref: 6, x: -18, y: 92, width: 164 },
+          { ref: 3, x: 48, y: 6, width: 150 },
+          { ref: 6, x: 104, y: 94, width: 172 },
+          { ref: 4, x: 76, y: -20, width: 118 },
+        ],
+        2: [],
+        3: [
+          { ref: 5, x: -20, y: 36, width: 126 },
+          { ref: 7, x: 48, y: 96, width: 139 },
+          { ref: 2, x: 76, y: 28, width: 98 },
+        ],
+        4: [
+          { ref: 5, x: 6, y: 26, width: 126 },
+          { ref: 6, x: 72, y: 104, width: 168 },
+          { ref: 7, x: -2, y: 6, width: 168 },
+          { ref: 2, x: 86, y: 8, width: 98 },
+        ],
+        5: [
+          { ref: 6, x: -144, y: -42, width: 166 },
+          { ref: 6, x: -48, y: 86, width: 150 },
+          { ref: 3, x: 14, y: 22, width: 190 },
+        ],
+        6: [
+          { ref: 3, x: -46, y: 62, width: 142 },
+          { ref: 6, x: 74, y: 110, width: 178 },
+        ],
+        7: [
+          { ref: 4, x: -46, y: 8, width: 163 },
+          { ref: 3, x: 42, y: 46, width: 108 },
+          { ref: 5, x: -12, y: 104, width: 104 },
+          { ref: 3, x: 58, y: 88, width: 132 },
+        ],
+        8: [
+          { ref: 4, x: 78, y: 112, width: 82 },
+          { ref: 6, x: -58, y: 106, width: 176 },
+          { ref: 3, x: 24, y: 128, width: 190 },
+          { ref: 6, x: 104, y: 108, width: 176 },
+        ],
+        9: [
+          { ref: 6, x: -50, y: 2, width: 138 },
+          { ref: 5, x: 2, y: 22, width: 76 },
+          { ref: 3, x: 94, y: 58, width: 110 },
+          { ref: 4, x: 66, y: 44, width: 82 },
+          { ref: 6, x: -62, y: 106, width: 185 },
+          { ref: 3, x: 68, y: 98, width: 142 },
+        ],
+        10: [
+          { ref: 4, x: -28, y: 20, width: 82 },
+          { ref: 3, x: 74, y: -20, width: 112 },
+          { ref: 5, x: 122, y: 108, width: 76 },
+          { ref: 6, x: -94, y: 16, width: 284 },
+        ],
+      };
+      const boardCloudSlots = boardCloudSlotsByBoard[boardId] || defaultBoardCloudSlots;
       boardCloudSlots
         .filter((slot) => boardCloudRefs.includes(slot.ref))
         .forEach((slot) => {
-          const assetIndex = Math.max(0, (slot.ref - 1) % cloudAssetPool.length);
+          const assetIndex = ((slot.ref - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length;
           const cloud = addImage(
             cloudAssetPool[assetIndex],
             islandX + slot.x,
@@ -1340,36 +1471,168 @@ class JourneyBoardsManager {
       const earnedStars = board?.unlocked === true && board?.interim !== true
         ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
         : 0;
+      const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
 
-      boardLayoutOffsets.stars.forEach((star, index) => {
-        const shouldShowFilledStar = index < earnedStars;
-        const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
-        targets.push(addImage(
-          shouldShowFilledStar ? star.filledSrc : star.emptySrc,
-          islandX + star.x + starsOffsetX,
-          islandY + star.y + starsOffsetY,
-          star.width,
-          `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
-          6,
+      if (shouldRenderLevelStars) {
+        boardLayoutOffsets.stars.forEach((star, index) => {
+          const shouldShowFilledStar = index < earnedStars;
+          const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
+          targets.push(addImage(
+            shouldShowFilledStar ? star.filledSrc : star.emptySrc,
+            islandX + star.x + starsOffsetX,
+            islandY + star.y + starsOffsetY,
+            star.width,
+            `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
+            6,
+            0,
+            areaId,
+            decorContainer
+          ));
+        });
+      }
+    };
+
+    const addBeachBoardGroup = (
+      boardId: number,
+      beachIndex: number,
+      islandX: number,
+      islandY: number,
+      islandWidth = 200,
+      starsOffsetX = 0,
+      starsOffsetY = 0
+    ) => {
+      const areaId = `board-${boardId}`;
+      const targets: HTMLElement[] = [];
+      boardTargets.set(boardId, targets);
+
+      const sandBeachIndexes = new Set([2, 5, 8]);
+      const isSandBeach = sandBeachIndexes.has(beachIndex);
+      const islandSrc = `${BEACH_WORLD_ASSET_BASE}/${isSandBeach ? 'beach-beach' : 'beach-water'}${beachIndex}.png`;
+      const basePropLayout = isSandBeach
+        ? { src: `${BEACH_WORLD_ASSET_BASE}/kanta.png`, x: 72, y: 53, width: 56, rotation: 5 }
+        : { src: `${BEACH_WORLD_ASSET_BASE}/kolut.png`, x: 61, y: 52, width: 74, rotation: -4 };
+      const beachPropOffsets: Record<number, { x: number; y: number }> = {
+        11: { x: -4, y: -12 },
+        12: { x: 0, y: 1 },
+        13: { x: 2, y: -2 },
+        14: { x: -2, y: 0 },
+        15: { x: -2, y: 0 },
+        16: { x: -2, y: -3 },
+        17: { x: 2, y: -2 },
+        18: { x: -1, y: 0 },
+        19: { x: 0, y: -2 },
+        20: { x: -4, y: 0 },
+      };
+      const propOffset = beachPropOffsets[boardId] || { x: 0, y: 0 };
+      const propLayout = {
+        ...basePropLayout,
+        x: basePropLayout.x + propOffset.x,
+        y: basePropLayout.y + propOffset.y,
+      };
+
+      const beachCloudSlots = [
+        { ref: 6, x: -62, y: 86, width: 158 },
+        { ref: 3, x: 54, y: -12, width: 124 },
+        { ref: 5, x: 126, y: 74, width: 104 },
+      ];
+
+      beachCloudSlots.forEach((slot) => {
+        const assetIndex = ((slot.ref - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length;
+        const cloud = addImage(
+          cloudAssetPool[assetIndex],
+          islandX + slot.x,
+          islandY + slot.y,
+          slot.width,
+          `journey-forest-cloud-art journey-forest-board-cloud journey-forest-cloud-board-${boardId} journey-forest-cloud-ref-${slot.ref}`,
+          1,
           0,
           areaId,
-          decorContainer
-        ));
+          bgContainer
+        );
+        cloud.style.opacity = '0.8';
+        cloud.style.willChange = 'transform';
+        targets.push(cloud);
       });
+
+      const beachIsland = addImage(
+        islandSrc,
+        islandX,
+        islandY,
+        islandWidth,
+        `journey-forest-island-art journey-beach-island-art journey-forest-island-${boardId}`,
+        2,
+        0,
+        areaId
+      );
+      applyBeach2xSrcSet(beachIsland, islandSrc);
+      targets.push(beachIsland);
+
+      const beachProp = addImage(
+        propLayout.src,
+        islandX + propLayout.x,
+        islandY + propLayout.y,
+        propLayout.width,
+        `journey-forest-stump-art journey-beach-prop-art journey-forest-stump-${boardId}`,
+        4,
+        propLayout.rotation,
+        areaId,
+        decorContainer
+      );
+      applyBeach2xSrcSet(beachProp, propLayout.src);
+      targets.push(beachProp);
+
+      const board = this.boards.find((item) => item.id === boardId);
+      const earnedStars = board?.unlocked === true && board?.interim !== true
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        : 0;
+      const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
+
+      if (shouldRenderLevelStars) {
+        boardLayoutOffsets.stars.forEach((star, index) => {
+          const shouldShowFilledStar = index < earnedStars;
+          const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
+          targets.push(addImage(
+            shouldShowFilledStar ? star.filledSrc : star.emptySrc,
+            islandX + star.x + starsOffsetX,
+            islandY + star.y + starsOffsetY,
+            star.width,
+            `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
+            6,
+            0,
+            areaId,
+            decorContainer
+          ));
+        });
+      }
     };
 
     addForestMainClouds();
     mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -16, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
-    addForestBoardGroup(1, 4, 284, 200, -10, -4);
-    addForestBoardGroup(2, 190, 344, 200, -12, -6);
+    addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [6, 3, 4]);
+    addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [6]);
     addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [5, 7, 2]);
-    addForestBoardGroup(4, 194, 568, 200, -12, -6);
-    addForestBoardGroup(5, 72, 702, 262, -10, -4, -62, -76);
-    addForestBoardGroup(6, 194, 806, 200, -12, -6);
-    addForestBoardGroup(7, 18, 910, 200, -10, -4);
-    addForestBoardGroup(8, 194, 1034, 200, -12, -6);
-    addForestBoardGroup(9, 18, 1138, 200, -10, -4);
-    addForestBoardGroup(10, 194, 1262, 200, -12, -6);
+    addForestBoardGroup(4, 204, 572, 200, -12, -6, 0, 0, [5, 7, 2, 4, 6]);
+    addForestBoardGroup(5, 52, 702, 262, -10, -4, -62, -76, [6, 3]);
+    addForestBoardGroup(6, 194, 806, 200, -12, -6, 0, 0, [3, 6]);
+    addForestBoardGroup(7, 18, 910, 200, -10, -4, 0, 0, [4, 3, 5]);
+    addForestBoardGroup(8, 178, 1034, 200, -12, -6, 0, 0, [3, 5, 4, 6]);
+    addForestBoardGroup(9, -2, 1138, 200, -10, -4, 0, 0, [6, 5, 3, 4]);
+    addForestBoardGroup(10, 194, 1262, 200, -12, -6, 0, 0, [4, 3, 5, 6]);
+    addBeachMainClouds();
+    const beachMainSrc = `${BEACH_WORLD_ASSET_BASE}/beach-main.png`;
+    const beachMain = addImage(beachMainSrc, 0, 1454, 390, 'journey-forest-main-art journey-beach-main-art', 3, 0, 'beach-main');
+    applyBeach2xSrcSet(beachMain, beachMainSrc);
+    mainTargets.push(beachMain);
+    addBeachBoardGroup(11, 1, 18, 1820, 200, -14, -3);
+    addBeachBoardGroup(12, 2, 194, 1944, 200, -8, 8);
+    addBeachBoardGroup(13, 3, 18, 2068, 200, -10, 8);
+    addBeachBoardGroup(14, 4, 194, 2192, 200, -12, 10);
+    addBeachBoardGroup(15, 5, 18, 2316, 200, -10, 4);
+    addBeachBoardGroup(16, 6, 194, 2440, 200, -12, 6);
+    addBeachBoardGroup(17, 7, 18, 2564, 200, -10, 8);
+    addBeachBoardGroup(18, 8, 194, 2688, 200, -8, 4);
+    addBeachBoardGroup(19, 9, 18, 2812, 200, -10, 8);
+    addBeachBoardGroup(20, 10, 194, 2936, 200, -12, 10);
 
     return { mainTargets, cloudTargets, boardTargets };
   }
@@ -1863,27 +2126,10 @@ class JourneyBoardsManager {
 
     this.journeyExitPromise = (async () => {
       try {
-        const areaExitPromise = this.animateBoardAreaExit(boardId);
-        const journeyExitDelayMs = this.getBoardAreaExitDurationMs(boardId);
-        logger.info('🧭 JourneyForestAnim journey-exit-handoff-scheduled', {
-          boardId,
-          journeyExitDelayMs,
-        });
-        const journeyExitPromise = new Promise<void>((resolve) => {
-          window.setTimeout(() => {
-            logger.info('🧭 JourneyForestAnim journey-exit-handoff-fired', {
-              boardId,
-              journeyExitDelayMs,
-            });
-            this.journeyExitPromise = null;
-            this.startJourneyExitAnimation().then(resolve).catch((error) => {
-              logger.warn('⚠️ Failed delayed Journey screen exit after board area exit start:', error);
-              resolve();
-            });
-          }, journeyExitDelayMs);
-        });
-
-        await Promise.all([areaExitPromise, journeyExitPromise]);
+        await this.animateBoardAreaExit(boardId);
+        logger.info('🧭 JourneyForestAnim journey-exit-handoff-after-area-complete', { boardId });
+        this.journeyExitPromise = null;
+        await this.startJourneyExitAnimation();
         logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
       } finally {
         this.journeyExitPromise = null;
@@ -2592,6 +2838,10 @@ class JourneyBoardsManager {
       'HURRICANE',
       'LEGACY',
       'RUMBLE',
+      'SHORELINE',
+      'SUN SPLASH',
+      'TIDE TURN',
+      'CASTAWAY',
     ];
     return names[boardNumber - 1] || `Board ${boardNumber}`;
   }
@@ -2947,6 +3197,34 @@ class JourneyBoardsManager {
     // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
     this.renderBoardsFixed(container);
     this.installJourneyScreenElasticOverscroll(container);
+  }
+
+  private markJourneyDevBoardRefresh(reason: string): void {
+    try {
+      (window as any).__ccJourneyDevBoardsDirty = true;
+      localStorage.setItem(JOURNEY_DEV_BOARD_REFRESH_KEY, 'true');
+      logger.info(`🗺️ Journey dev board refresh marked dirty: ${reason}`);
+    } catch (error) {
+      logger.warn('⚠️ Failed to mark Journey dev board refresh dirty:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  public consumeJourneyDevBoardRefresh(): boolean {
+    const win = window as any;
+    let isDirty = win.__ccJourneyDevBoardsDirty === true;
+    try {
+      isDirty = isDirty || localStorage.getItem(JOURNEY_DEV_BOARD_REFRESH_KEY) === 'true';
+    } catch {}
+    if (isDirty) {
+      try {
+        delete win.__ccJourneyDevBoardsDirty;
+        localStorage.removeItem(JOURNEY_DEV_BOARD_REFRESH_KEY);
+        logger.info('🗺️ Journey dev board refresh consumed - forcing board rerender');
+      } catch (error) {
+        logger.warn('⚠️ Failed to clear Journey dev board refresh marker:', error instanceof Error ? error.message : String(error));
+      }
+    }
+    return isDirty;
   }
 
   private renderBoardsFixed(container: HTMLElement): void {
@@ -3893,6 +4171,12 @@ class JourneyBoardsManager {
       const number = document.createElement('div');
       number.className = 'journey-board-number';
       number.textContent = board.id.toString().padStart(2, '0');
+      const lockedNumberOffset = LOCKED_BOARD_NUMBER_OFFSETS[board.id] || { x: 0, y: 32, rotation: 0 };
+      number.style.setProperty('--journey-locked-number-x', `${lockedNumberOffset.x}px`);
+      number.style.setProperty('--journey-locked-number-y', `${lockedNumberOffset.y}px`);
+      number.style.setProperty('--journey-locked-number-rotation', `${lockedNumberOffset.rotation || 0}deg`);
+      number.style.setProperty('--journey-locked-number-opacity', '0.8');
+      number.style.setProperty('opacity', '0.8', 'important');
       lockedContainer.appendChild(number);
       
       // 🔥 iOS FIX: Prevent long press and context menu on locked cards
@@ -7250,7 +7534,7 @@ class JourneyBoardsManager {
             bgContainer.style.transition = 'none';
           }
           
-          container.style.height = `${calculatedHeight + topOffset}px`;
+          container.style.height = `${calculatedHeight + topOffset + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX}px`;
           bgContainer.style.height = `${calculatedHeight}px`;
           bgContainer.style.top = `${topOffset}px`;
           bgContainer.style.position = 'absolute';
@@ -7331,6 +7615,7 @@ class JourneyBoardsManager {
     if (!board.unlocked) {
       board.unlocked = true;
       board.interim = false; // Remove interim status when unlocking
+      this.markJourneyDevBoardRefresh(`unlock board ${boardNumber}`);
       
       // 🔥 USER REQUEST: Ensure only ONE interim card exists
       this.ensureSingleInterimCard();
@@ -7353,6 +7638,7 @@ class JourneyBoardsManager {
     if (board.unlocked || board.interim) {
       board.unlocked = false;
       board.interim = false; // Also remove interim status when locking
+      this.markJourneyDevBoardRefresh(`lock board ${boardNumber}`);
       
       // 🔥 USER REQUEST: Reset all stats for this board when hiding card
       try {
@@ -7810,6 +8096,7 @@ class JourneyBoardsManager {
       logger.warn('⚠️ Failed to refresh score bottom sheet after board reset:', error);
     }
 
+    this.markJourneyDevBoardRefresh(`reset board ${boardNumber}`);
     return true;
   }
 
