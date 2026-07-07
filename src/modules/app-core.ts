@@ -221,7 +221,7 @@ import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
 import { restoreTilesFromSave } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
-import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
+import { killGameDomGsapTweens, killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import {
   tintLocked,
   fixHoverAnchor,
@@ -1962,12 +1962,7 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
     devLog(`🧹 GSAP cleanup (${label})...`);
     try { animationManager.killAll(); } catch {}
     
-    // Kill UI element tweens
-    gsap.killTweensOf('[data-wild-loader]');
-    gsap.killTweensOf('.wild-loader');
-    gsap.killTweensOf('p');
-    gsap.killTweensOf('progress');
-    gsap.killTweensOf('ratio');
+    killGameDomGsapTweens(gsap);
     
     const list = tilesList || [];
     if (list.length > 0) {
@@ -2005,7 +2000,6 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
         timelines.forEach(tl => {
           try { tl.kill(); } catch {}
         });
-        gsap.globalTimeline.clear();
       } catch {}
     }
     
@@ -2472,16 +2466,16 @@ export async function boot(){
     }
   }, 2000);
   
-  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app (hard reset only) 🔥🔥🔥
-  // This is the ROOT CAUSE of _x null errors - old GSAP callbacks try to access destroyed objects
+  // Hard reset cleanup before destroying old app.
+  // Old GSAP callbacks can otherwise try to access destroyed Pixi objects.
   if (!reuseApp) {
-    devLog('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
+    devLog('🧹 Hard reset cleanup: clearing game animations and references...');
     
-    // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
+    // Step 1: Kill scoped game/invalid Pixi tweens without interrupting app UI transitions
     try {
-      gsap.killTweensOf('*'); // Kill all tweens on all targets
-      gsap.globalTimeline.clear(); // Clear the global timeline
-      devLog('✅ Killed ALL GSAP tweens globally');
+      killGameDomGsapTweens(gsap);
+      killInvalidPixiGsapTweens(gsap);
+      devLog('✅ Killed scoped game and invalid Pixi GSAP tweens');
     } catch (gsapError) {
       devWarn('⚠️ Error killing GSAP tweens:', gsapError);
     }
@@ -2602,7 +2596,7 @@ export async function boot(){
     }
   }
   
-  devLog('✅ NUCLEAR CLEANUP complete - safe to create new app');
+  devLog('✅ Hard reset cleanup complete - safe to create new app');
   
   // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM (hard reset only)
   // This prevents leftover canvas elements from showing when starting new game

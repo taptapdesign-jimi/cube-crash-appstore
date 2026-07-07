@@ -8,7 +8,7 @@
 }
 
 :root{
-  --app-gradient: #f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat;
+  --app-gradient: #f3eee8 url('/assets/paper-bg.png') center/100% 100% no-repeat;
   --paper-alpha: 1;
   --paper-overlay-alpha: 0; /* Inverse of paper-alpha: 0 = fully visible, 1 = hidden */
   --board-perspective: 1200px;
@@ -33,7 +33,7 @@ body{
   right: -12vw;
   /* 🔥 FIXED: Paper overlay logic - paper-alpha 1 = fully visible, 0.5 = 50% visible */
   background-color: #f3eee8;
-  background-image: url('./assets/paper-bg.png');
+  background-image: url('/assets/paper-bg.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
@@ -572,7 +572,7 @@ body{
   background: transparent !important;
   background-image: none !important;
 }
-html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('/assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('/assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {
@@ -2042,7 +2042,7 @@ body.journey-board-game-active #hud-board-indicator {
   right: -48px; /* 40px * 1.2 = 48px padding sa desne strane */
   width: calc(120% + 96px); /* Prošireno za 20% (100% + 80px) * 1.2 = 120% + 96px */
   height: 49px;
-  background-image: url('./assets/home-shadow.png');
+  background-image: url('/assets/home-shadow.png');
   background-size: cover; /* Rastegnuti da pokrije cijelu širinu */
   background-repeat: no-repeat;
   background-position: center;

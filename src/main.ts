@@ -40,6 +40,7 @@ import { initializeServices, cleanupServices } from './core/service-registry.js'
 import { getGameState, getUIManager, getBoardService, getEventBus } from './core/service-registry.js';
 import { container } from './core/dependency-injection.js';
 import { getBoardSaveKey, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
+import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
 
 // Import refactored modules
 import { 
@@ -204,20 +205,6 @@ async function initializeApp(): Promise<void> {
     logger.error('❌ Failed to initialize app:', String(error));
     errorHandler.handleError(error as Error, 'App Initialization');
     throw error;
-  }
-}
-
-// Setup iOS optimizations
-function setupIOSOptimizations(): void {
-  if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
-    logger.info('📱 iOS device detected, applying optimizations...');
-    
-    // Add iOS class
-    document.body.classList.add('ios-device');
-    
-    // Optimize touch handling
-    document.addEventListener('touchstart', function() {}, { passive: true });
-    document.addEventListener('touchmove', function() {}, { passive: true });
   }
 }
 
@@ -1324,12 +1311,7 @@ async function startNewRun(boardId: number): Promise<void> {
   const killAllGsapTweensForExit = (label: string) => {
     console.log(`🧹 exitToMenu: Killing all GSAP tweens (${label})...`);
     try {
-      // Kill UI element tweens
-      gsap.killTweensOf('[data-wild-loader]');
-      gsap.killTweensOf('.wild-loader');
-      gsap.killTweensOf('p');
-      gsap.killTweensOf('progress');
-      gsap.killTweensOf('ratio');
+      killGameDomGsapTweens(gsap);
       
       // Kill PIXI object tweens with null checks
       if (STATE && STATE.tiles && STATE.tiles.length > 0) {
@@ -1356,21 +1338,7 @@ async function startNewRun(boardId: number): Promise<void> {
         } catch {}
       }
       
-      // Kill all timelines referencing destroyed targets
-      try {
-        const allTweens = gsap.globalTimeline.getChildren();
-        allTweens.forEach((tween: any) => {
-          try {
-            const target = tween.targets?.[0];
-            if (target && (target.destroyed || target === null || target === undefined)) {
-              tween.kill();
-            }
-          } catch {}
-        });
-      } catch {}
-      
-      gsap.killTweensOf('*'); // Kill ALL tweens on all targets
-      gsap.globalTimeline.clear(); // Clear the global timeline
+      killInvalidPixiGsapTweens(gsap);
       console.log(`✅ exitToMenu: GSAP tweens cleared (${label})`);
     } catch (gsapError) {
       console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
@@ -1397,7 +1365,7 @@ async function startNewRun(boardId: number): Promise<void> {
     cleanupFxContainersByTag?.('tile-idle-smoke');
   } catch {}
   
-  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
+  // Clean scoped game tweens before exit so stale Pixi callbacks cannot touch destroyed objects.
   killAllGsapTweensForExit('pre-exit');
   
   // 🔥 NOTE: FX cleanup happens after exit animations (see Step 3 below)
@@ -1696,7 +1664,7 @@ async function startNewRun(boardId: number): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, exitWaits.postExitSettleMs));
     console.log('✅ Exit animation fully completed - starting cleanup');
 
-    // Step 2: Kill ALL GSAP tweens immediately after animations complete
+    // Step 2: Clean scoped game tweens immediately after animations complete
     killAllGsapTweensForExit('post-exit');
     
     // Step 3: Clean up all effects (bubbles, explosions, particles, confetti) FIRST

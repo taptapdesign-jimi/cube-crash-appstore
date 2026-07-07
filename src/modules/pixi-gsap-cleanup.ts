@@ -63,3 +63,17 @@ export function killInvalidPixiGsapTweens(gsap: GsapLike): void {
     });
   } catch {}
 }
+
+const GAME_DOM_TWEEN_SELECTORS = [
+  '[data-wild-loader]',
+  '.wild-loader',
+  '#cc-board-transition-overlay',
+  '#cc-tnt-animation-overlay',
+  '.cc-no-moves-overlay',
+];
+
+export function killGameDomGsapTweens(gsap: GsapLike): void {
+  GAME_DOM_TWEEN_SELECTORS.forEach((selector) => {
+    try { gsap.killTweensOf?.(selector); } catch {}
+  });
+}

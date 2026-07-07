@@ -182,6 +182,7 @@ function addOutsideClickFunctionality(modalEl: HTMLElement, registerCleanup: (fn
   
   // Attach with small delay to avoid capturing the click that opened the modal
   trackResumeTimeout(() => {
+    if (resumeModal !== modalEl || (modalEl as any)._closing || !modalEl.isConnected) return;
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('touchend', handleDocumentTouchEnd);
   }, 100);
@@ -435,5 +436,9 @@ function addDragFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => 
   registerCleanup(() => {
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
+    modalEl.ontouchstart = null;
+    modalEl.ontouchmove = null;
+    modalEl.ontouchend = null;
+    modalEl.onmousedown = null;
   });
 }

@@ -1937,16 +1937,7 @@ class JourneyBoardsManager {
     this.renderDisposed = false;
     this.cleanupInProgress = false;
 
-    logger.info(`🧭 JourneyDetailCloseDiag start (${context})`, {
-      suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
-      directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
-      returningFromDetailModal: (window as any).__ccReturningFromDetailModal === true,
-      journeyReturnBoardId: (window as any).__ccJourneyReturnBoardId,
-      journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
-      detailModal: getElementVisibilitySnapshot(document.getElementById('collectibles-detail-modal') as HTMLElement | null),
-      app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
-      home: getElementVisibilitySnapshot(document.getElementById('home') as HTMLElement | null),
-    });
+    logger.info(`🗺️ Returning to Journey after detail modal close (${context})`);
 
     delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
     delete (window as any).__ccDirectDetailModalReturnActive;
@@ -1954,7 +1945,7 @@ class JourneyBoardsManager {
     const ensureJourneyBoardsRendered = (phase: string): void => {
       const container = document.getElementById('journey-boards-container') as HTMLElement | null;
       if (!container) {
-        logger.warn(`🧭 JourneyDetailCloseDiag missing journey-boards-container (${context}, ${phase})`);
+        logger.warn(`⚠️ Missing journey-boards-container while returning to Journey (${context}, ${phase})`);
         return;
       }
 
@@ -1967,21 +1958,12 @@ class JourneyBoardsManager {
         cardsContainer.getBoundingClientRect().height <= 0 ||
         container.getBoundingClientRect().height <= 0;
 
-      if (!needsRender) {
-        logger.info(`🧭 JourneyDetailCloseDiag Journey boards ready (${context}, ${phase})`, {
-          cardCount,
-          container: getElementVisibilitySnapshot(container),
-          cardsContainer: getElementVisibilitySnapshot(cardsContainer),
-        });
-        return;
-      }
+      if (!needsRender) return;
 
-      logger.warn(`🧭 JourneyDetailCloseDiag Journey board DOM empty/invalid (${context}, ${phase}) - rerendering`, {
+      logger.warn(`⚠️ Journey board DOM empty or invalid while returning (${context}, ${phase}) - rerendering`, {
         cardCount,
         hasCardsContainer: !!cardsContainer,
         hasBgContainer: !!bgContainer,
-        container: getElementVisibilitySnapshot(container),
-        cardsContainer: getElementVisibilitySnapshot(cardsContainer),
       });
 
       try {
@@ -1994,7 +1976,7 @@ class JourneyBoardsManager {
     const prepareJourneyScreenForEnter = (phase: string): void => {
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
       if (!journeyScreen) {
-        console.warn('🧭 JourneyDetailCloseDiag enter prep skipped - journey-screen missing', phase);
+        logger.warn(`⚠️ Journey enter prep skipped - journey-screen missing (${context}, ${phase})`);
         return;
       }
 
@@ -2027,17 +2009,12 @@ class JourneyBoardsManager {
         element.style.removeProperty('transform');
         element.style.willChange = 'opacity, transform';
       });
-
-      console.log('🧭 JourneyDetailCloseDiag prepare Journey enter', phase, {
-        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
-        journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
-      });
     };
 
     const forceJourneyScreenVisible = (phase: string): void => {
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
       if (!journeyScreen) {
-        console.warn('🧭 JourneyDetailCloseDiag force reveal skipped - journey-screen missing', phase);
+        logger.warn(`⚠️ Journey force reveal skipped - journey-screen missing (${context}, ${phase})`);
         return;
       }
 
@@ -2070,11 +2047,6 @@ class JourneyBoardsManager {
         element.style.removeProperty('transform');
         element.style.willChange = 'auto';
       });
-
-      console.log('🧭 JourneyDetailCloseDiag force Journey visible', phase, {
-        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
-        journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
-      });
     };
 
     prepareJourneyScreenForEnter('before-showCollectibles');
@@ -2082,28 +2054,16 @@ class JourneyBoardsManager {
 
     ensureJourneyBoardsRendered('before-showCollectibles');
 
-    logger.info(`🧭 JourneyDetailCloseDiag before showCollectibles (${context})`, {
-      journeyScreen: getElementVisibilitySnapshot(screen),
-      journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
-      suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
-      directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
-    });
-
     const collectiblesManager = (window as any).collectiblesManager;
     if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
       try {
         await collectiblesManager.showCollectibles();
         ensureJourneyBoardsRendered('after-showCollectibles');
-        logger.info(`🧭 JourneyDetailCloseDiag showCollectibles resolved (${context})`, {
-          journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
-          app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
-          journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
-        });
       } catch (error) {
         logger.warn(`⚠️ Failed to show Journey after detail modal close (${context}):`, error);
       }
     } else {
-      logger.warn(`🧭 JourneyDetailCloseDiag missing collectiblesManager.showCollectibles (${context})`, {
+      logger.warn(`⚠️ Missing collectiblesManager.showCollectibles while returning to Journey (${context})`, {
         hasCollectiblesManager: !!collectiblesManager,
       });
     }
@@ -2118,11 +2078,6 @@ class JourneyBoardsManager {
         detailModal.getAttribute('aria-hidden') !== 'true';
 
       if (!journeyScreen || detailModalVisible) {
-        logger.info(`🧭 JourneyDetailCloseDiag fallback skipped (${context})`, {
-          hasJourneyScreen: !!journeyScreen,
-          detailModalVisible,
-          detailModal: getElementVisibilitySnapshot(detailModal),
-        });
         return;
       }
 
@@ -2142,14 +2097,7 @@ class JourneyBoardsManager {
         !containerRect ||
         containerRect.height <= 0;
 
-      if (!stillHidden && !contentBlank) {
-        logger.info(`🧭 JourneyDetailCloseDiag fallback not needed (${context})`, {
-          journeyScreen: getElementVisibilitySnapshot(journeyScreen),
-          app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
-          journeyCards: cardCount,
-        });
-        return;
-      }
+      if (!stillHidden && !contentBlank) return;
 
       forceJourneyScreenVisible('fallback');
       ensureJourneyBoardsRendered('fallback');
@@ -7640,23 +7588,66 @@ class JourneyBoardsManager {
         
         logger.info('✅ X button made visible and clickable after cloning');
 
-        const previousCloseDelegates = (detailModal as any).__ccJourneyDetailCloseDelegatedHandlers as {
-          modalPointerUp?: EventListener;
-          modalClick?: EventListener;
-          modalTouchEnd?: EventListener;
-          documentPointerUp?: EventListener;
-          documentClick?: EventListener;
-          documentTouchEnd?: EventListener;
-        } | undefined;
+        const cleanupDetailCloseHandlers = () => {
+          const previousCloseDelegates = (detailModal as any).__ccJourneyDetailCloseDelegatedHandlers as {
+            closeButton?: HTMLElement;
+            handleClosePointerDown?: EventListener;
+            handleClosePointerUp?: EventListener;
+            handleCloseClick?: EventListener;
+            handleCloseTouchEnd?: EventListener;
+            modalPointerUp?: EventListener;
+            modalClick?: EventListener;
+            modalTouchEnd?: EventListener;
+            documentPointerUp?: EventListener;
+            documentClick?: EventListener;
+            documentTouchEnd?: EventListener;
+          } | undefined;
 
-        if (previousCloseDelegates) {
-          detailModal.removeEventListener('pointerup', previousCloseDelegates.modalPointerUp as EventListener, true);
-          detailModal.removeEventListener('click', previousCloseDelegates.modalClick as EventListener, true);
-          detailModal.removeEventListener('touchend', previousCloseDelegates.modalTouchEnd as EventListener, true);
-          document.removeEventListener('pointerup', previousCloseDelegates.documentPointerUp as EventListener, true);
-          document.removeEventListener('click', previousCloseDelegates.documentClick as EventListener, true);
-          document.removeEventListener('touchend', previousCloseDelegates.documentTouchEnd as EventListener, true);
-        }
+          if (!previousCloseDelegates) return;
+
+          const previousCloseButton = previousCloseDelegates.closeButton;
+          if (previousCloseButton) {
+            if (previousCloseDelegates.handleClosePointerDown) {
+              previousCloseButton.removeEventListener('pointerdown', previousCloseDelegates.handleClosePointerDown);
+            }
+            if (previousCloseDelegates.handleClosePointerUp) {
+              previousCloseButton.removeEventListener('pointerup', previousCloseDelegates.handleClosePointerUp, true);
+            }
+            if (previousCloseDelegates.handleCloseClick) {
+              previousCloseButton.removeEventListener('click', previousCloseDelegates.handleCloseClick, true);
+              previousCloseButton.removeEventListener('click', previousCloseDelegates.handleCloseClick, false);
+              if (previousCloseButton.onclick === previousCloseDelegates.handleCloseClick) {
+                previousCloseButton.onclick = null;
+              }
+            }
+            if (previousCloseDelegates.handleCloseTouchEnd) {
+              previousCloseButton.removeEventListener('touchend', previousCloseDelegates.handleCloseTouchEnd, true);
+            }
+          }
+
+          if (previousCloseDelegates.modalPointerUp) {
+            detailModal.removeEventListener('pointerup', previousCloseDelegates.modalPointerUp, true);
+          }
+          if (previousCloseDelegates.modalClick) {
+            detailModal.removeEventListener('click', previousCloseDelegates.modalClick, true);
+          }
+          if (previousCloseDelegates.modalTouchEnd) {
+            detailModal.removeEventListener('touchend', previousCloseDelegates.modalTouchEnd, true);
+          }
+          if (previousCloseDelegates.documentPointerUp) {
+            document.removeEventListener('pointerup', previousCloseDelegates.documentPointerUp, true);
+          }
+          if (previousCloseDelegates.documentClick) {
+            document.removeEventListener('click', previousCloseDelegates.documentClick, true);
+          }
+          if (previousCloseDelegates.documentTouchEnd) {
+            document.removeEventListener('touchend', previousCloseDelegates.documentTouchEnd, true);
+          }
+
+          delete (detailModal as any).__ccJourneyDetailCloseDelegatedHandlers;
+        };
+
+        cleanupDetailCloseHandlers();
 
         const getCloseButtonFromEvent = (event: Event): HTMLElement | null => {
           const target = event.target as Element | null;
@@ -7672,29 +7663,13 @@ class JourneyBoardsManager {
           event?.stopPropagation();
           (event as any)?.stopImmediatePropagation?.();
 
-          console.log('🧭 JourneyDetailCloseDiag close event received', source, {
-            eventType: event?.type,
-            targetId: (event?.target as HTMLElement | null)?.id || null,
-            targetClass: (event?.target as HTMLElement | null)?.className || null,
-          });
           logger.info('🎁 Journey boards detail modal close requested - using GSAP exit animation', { source });
-          logger.info('🧭 JourneyDetailCloseDiag close event received', {
-            source,
-            eventType: event?.type,
-            pendingButton: closeButton.getAttribute('data-detail-close-exit-pending'),
-            pendingModal: detailModal.getAttribute('data-detail-close-exit-pending'),
-            closeButton: getElementVisibilitySnapshot(closeButton),
-            detailModal: getElementVisibilitySnapshot(detailModal),
-            journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
-            suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
-            directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
-          });
 
           if (
             closeButton.getAttribute('data-detail-close-exit-pending') === 'true' ||
             detailModal.getAttribute('data-detail-close-exit-pending') === 'true'
           ) {
-            logger.info('🧭 JourneyDetailCloseDiag close ignored because exit is pending', { source });
+            logger.info('⏭️ Journey detail modal close ignored because exit is already pending', { source });
             return;
           }
 
@@ -7712,16 +7687,12 @@ class JourneyBoardsManager {
             }
 
             await this.exitDetailModalAndHideCollectibles(detailModal, source, { hideCollectibles: false, hideJourney: false, cleanup: false });
-            logger.info('🧭 JourneyDetailCloseDiag modal exit finished before Journey reveal', {
-              source,
-              detailModal: getElementVisibilitySnapshot(detailModal),
-              journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
-            });
 
             await this.showJourneyAfterDetailModalClose(source);
           } finally {
             closeButton.removeAttribute('data-detail-close-exit-pending');
             detailModal.removeAttribute('data-detail-close-exit-pending');
+            cleanupDetailCloseHandlers();
           }
         };
 
@@ -7756,6 +7727,11 @@ class JourneyBoardsManager {
         newCloseBtn.onclick = handleCloseClick;
 
         const closeDelegates = {
+          closeButton: newCloseBtn,
+          handleClosePointerDown,
+          handleClosePointerUp,
+          handleCloseClick,
+          handleCloseTouchEnd,
           modalPointerUp: createDelegatedCloseHandler('detail close modal delegated pointerup'),
           modalClick: createDelegatedCloseHandler('detail close modal delegated click'),
           modalTouchEnd: createDelegatedCloseHandler('detail close modal delegated touchend'),

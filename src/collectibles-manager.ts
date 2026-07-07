@@ -820,17 +820,6 @@ class CollectiblesManager {
     const suppressDirectDetailReturn =
       (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true ||
       (window as any).__ccDirectDetailModalReturnActive === true;
-    logger.info('🧭 JourneyDetailCloseDiag showCollectibles entry', {
-      suppressDirectDetailReturn,
-      suppressFlag: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
-      directFlag: (window as any).__ccDirectDetailModalReturnActive === true,
-      returningFromDetailModal: (window as any).__ccReturningFromDetailModal === true,
-      screenHidden: (screen as HTMLElement).hidden,
-      screenClassName: (screen as HTMLElement).className,
-      inlineDisplay: (screen as HTMLElement).style.display,
-      inlineVisibility: (screen as HTMLElement).style.visibility,
-      inlineOpacity: (screen as HTMLElement).style.opacity,
-    });
     if (suppressDirectDetailReturn) {
       const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       const detailModalOpeningOrVisible =
@@ -1100,15 +1089,6 @@ class CollectiblesManager {
     (screen as HTMLElement).style.zIndex = '999999';
     screen.classList.add('show');
     screen.removeAttribute('hidden');
-    logger.info('🧭 JourneyDetailCloseDiag showCollectibles reveal prepared', {
-      display: (screen as HTMLElement).style.display,
-      visibility: (screen as HTMLElement).style.visibility,
-      opacity: (screen as HTMLElement).style.opacity,
-      zIndex: (screen as HTMLElement).style.zIndex,
-      className: (screen as HTMLElement).className,
-      returningFromDetailModalEarly,
-      shouldPlayActiveBoardAreaEnter,
-    });
     // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
     
     try {

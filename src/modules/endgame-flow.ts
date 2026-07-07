@@ -14,11 +14,14 @@ import {
   resolveJourneyReturnTarget,
 } from './journey-origin-state.js';
 import { resolveJourneyStartDecision } from './journey-start-decision.ts';
+import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './pixi-gsap-cleanup.ts';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
 
 // Import cleanup function from clean-board-modal (will be imported lazily)
+
+let postTransitionBoardRecoveryTimer: number | null = null;
 
 // Type definitions
 interface EndgameContext {
@@ -300,17 +303,18 @@ async function performPreNextBoardCleanup(nextLevel: number): Promise<void> {
 
     if (gsap) {
       try {
-        gsap.killTweensOf('*');
-        if (gsap.globalTimeline) {
-          gsap.globalTimeline.clear();
-        }
+        killGameDomGsapTweens(gsap);
+        killInvalidPixiGsapTweens(gsap);
         if (isLongGameSession) {
           try {
             if ((gsap as any).getAllTweens) {
               const allTweens = (gsap as any).getAllTweens();
               if (Array.isArray(allTweens)) {
                 allTweens.forEach((tween: any) => {
-                  try { tween.kill(); } catch {}
+                  try {
+                    const targets = typeof tween.targets === 'function' ? tween.targets() : [];
+                    if (targets.some((target: any) => target?.destroyed === true)) tween.kill();
+                  } catch {}
                 });
               }
             }
@@ -629,7 +633,13 @@ function schedulePostTransitionBoardRecovery(options: {
 }): void {
   const { nextLevel, shouldUseJourneyStart, startLevel, shouldAbortEndgameFlow, delayMs = 600 } = options;
 
-  setTimeout(async () => {
+  if (postTransitionBoardRecoveryTimer !== null) {
+    window.clearTimeout(postTransitionBoardRecoveryTimer);
+    postTransitionBoardRecoveryTimer = null;
+  }
+
+  postTransitionBoardRecoveryTimer = window.setTimeout(async () => {
+    postTransitionBoardRecoveryTimer = null;
     if (shouldAbortEndgameFlow()) return;
     try {
       const appEl = document.getElementById('app');
@@ -727,17 +737,11 @@ async function performPreStartLevelCleanup(): Promise<void> {
     console.log('✅ endgame-flow: Old board destroyed, texture GC run');
 
     try {
-      if (typeof (gsap as any).getAllTweens === 'function') {
-        const allTweens = (gsap as any).getAllTweens();
-        if (Array.isArray(allTweens)) {
-          allTweens.forEach((t: any) => { try { t?.kill?.(); } catch {} });
-          console.log('✅ endgame-flow: Killed', allTweens.length, 'GSAP tweens');
-        }
-      }
-      gsap.killTweensOf('*');
-      if (gsap.globalTimeline) gsap.globalTimeline.clear();
+      killGameDomGsapTweens(gsap);
+      killInvalidPixiGsapTweens(gsap);
+      console.log('✅ endgame-flow: Scoped GSAP cleanup completed');
     } catch (gsapErr) {
-      console.warn('⚠️ endgame-flow: GSAP nuclear kill failed (non-fatal):', gsapErr);
+      console.warn('⚠️ endgame-flow: scoped GSAP cleanup failed (non-fatal):', gsapErr);
     }
   } catch (memErr) {
     console.warn('⚠️ endgame-flow: Pre-startLevel memory cleanup failed (non-fatal):', memErr);

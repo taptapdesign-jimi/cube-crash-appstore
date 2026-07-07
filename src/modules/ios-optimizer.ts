@@ -34,6 +34,8 @@ class IOSOptimizer {
   private unsubscribeGameActive: (() => void) | null;
   private disableSelectionStyleEl: HTMLStyleElement | null;
   private animationOptimizationStyleEl: HTMLStyleElement | null;
+  private hardwareAcceleratedElements: HTMLElement[];
+  private hardwareAccelerationOriginalStyles: Map<HTMLElement, { backfaceVisibility: string; webkitBackfaceVisibility: string }>;
 
   constructor() {
     this.isIOS = false;
@@ -42,6 +44,8 @@ class IOSOptimizer {
     this.unsubscribeGameActive = null;
     this.disableSelectionStyleEl = null;
     this.animationOptimizationStyleEl = null;
+    this.hardwareAcceleratedElements = [];
+    this.hardwareAccelerationOriginalStyles = new Map();
     this.optimizations = {
       passiveTouchEvents: false,
       hardwareAcceleration: false,
@@ -118,22 +122,25 @@ class IOSOptimizer {
   
   // Handle passive touch events
   private handlePassiveTouch = (event: TouchEvent): void => {
-    // Prevent default touch behaviors that can cause scrolling issues
-    if (event.target && ((event.target as Element).closest('.slider') || (event.target as Element).closest('.button'))) {
-      event.preventDefault();
-    }
+    // Intentionally passive. Gesture-specific handlers own any preventDefault calls.
+    void event;
   }
   
   // Enable hardware acceleration
   private enableHardwareAcceleration(): void {
     if (this.optimizations.hardwareAcceleration) return;
     
-    // Add hardware acceleration classes
+    // Avoid setting transform/will-change globally; animation owners compose transforms.
     const elements = document.querySelectorAll('.slider, .button, .nav-button');
     elements.forEach(el => {
-      (el as HTMLElement).style.transform = 'translateZ(0)';
-      (el as HTMLElement).style.willChange = 'transform';
-      (el as HTMLElement).style.backfaceVisibility = 'hidden';
+      const element = el as HTMLElement;
+      this.hardwareAccelerationOriginalStyles.set(element, {
+        backfaceVisibility: element.style.backfaceVisibility,
+        webkitBackfaceVisibility: (element.style as any).webkitBackfaceVisibility || '',
+      });
+      element.style.backfaceVisibility = 'hidden';
+      (element.style as any).webkitBackfaceVisibility = 'hidden';
+      this.hardwareAcceleratedElements.push(element);
     });
     
     this.optimizations.hardwareAcceleration = true;
@@ -219,27 +226,20 @@ class IOSOptimizer {
     // Optimize animations for iOS
     this.animationOptimizationStyleEl = document.createElement('style');
     this.animationOptimizationStyleEl.textContent = `
-      .ios-device * {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-        -webkit-perspective: 1000;
-        perspective: 1000;
-      }
-      
-      .ios-device .slider__wrapper {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
+      .ios-device img,
+      .ios-device canvas,
+      .ios-device .slider__wrapper,
+      .ios-device .nav-button,
+      .ios-device .slide-button,
+      .ios-device .simple-bottom-sheet,
+      .ios-device .score-bottom-sheet {
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
       }
-      
-      .ios-device .button {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
+
+      .ios-device .simple-bottom-sheet,
+      .ios-device .score-bottom-sheet {
+        transform-origin: 50% 100%;
       }
     `;
     document.head.appendChild(this.animationOptimizationStyleEl);
@@ -367,8 +367,23 @@ class IOSOptimizer {
     this.disableSelectionStyleEl = null;
     try { this.animationOptimizationStyleEl?.remove(); } catch {}
     this.animationOptimizationStyleEl = null;
+    this.hardwareAcceleratedElements.forEach((element) => {
+      try {
+        const originalStyles = this.hardwareAccelerationOriginalStyles.get(element);
+        if (originalStyles) {
+          element.style.backfaceVisibility = originalStyles.backfaceVisibility;
+          (element.style as any).webkitBackfaceVisibility = originalStyles.webkitBackfaceVisibility;
+        } else {
+          element.style.removeProperty('backface-visibility');
+          (element.style as any).webkitBackfaceVisibility = '';
+        }
+      } catch {}
+    });
+    this.hardwareAcceleratedElements = [];
+    this.hardwareAccelerationOriginalStyles.clear();
 
     document.body.classList.remove('game-mode');
+    document.body.classList.remove('ios-device');
 
     this.isInitialized = false;
     this.optimizations = {
