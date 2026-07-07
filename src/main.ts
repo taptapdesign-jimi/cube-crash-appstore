@@ -2082,7 +2082,7 @@ async function startNewRun(boardId: number): Promise<void> {
         
         // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
         // Enter animation should start instantly after board exit
-        import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
+        const detailModalOpenPromise = import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
           // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
           // This prevents 1 second blank screen between board exit and detail modal enter
           // Prevent #app from blocking clicks while modal is opening
@@ -2108,6 +2108,8 @@ async function startNewRun(boardId: number): Promise<void> {
           console.warn('⚠️ Failed to import journeyBoardsManager:', error);
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
         });
+
+        await detailModalOpenPromise;
       }
       
       // Ensure navigation stays hidden (Journey has its own back button)

@@ -493,7 +493,15 @@ export function animateCollectiblesScreenExit(): Promise<void> {
           card.style.willChange = 'transform, opacity';
           card.style.transform = 'translateZ(0)'; // Force GPU acceleration
           // 🔥 CSS CONTAINMENT: Add contain property for better performance
-          (card.parentElement as HTMLElement)?.style.setProperty('contain', 'layout style paint');
+          const cardParent = card.parentElement as HTMLElement | null;
+          const previousParentContain = cardParent?.style.contain || '';
+          cardParent?.style.setProperty('contain', 'layout style paint');
+          const restoreCardPerformanceStyles = () => {
+            card.style.willChange = 'auto';
+            if (cardParent) {
+              cardParent.style.contain = previousParentContain;
+            }
+          };
           
           trackTween(card, {
             scale: 0,
@@ -502,10 +510,8 @@ export function animateCollectiblesScreenExit(): Promise<void> {
             ease: 'back.in(1.7)',
             delay: delay,
             force3D: true,
-            onComplete: () => {
-              // Remove will-change after animation to free resources
-              card.style.willChange = 'auto';
-            }
+            onComplete: restoreCardPerformanceStyles,
+            onInterrupt: restoreCardPerformanceStyles
           });
         });
       }

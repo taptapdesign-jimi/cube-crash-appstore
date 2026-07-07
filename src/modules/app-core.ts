@@ -5817,6 +5817,7 @@ async function spawnWildFromMeter(){
               gridY: spawnedTile.gridY,
             }
           : null;
+        let cancelledAfterDrop = false;
         try {
           if (isSpawnCancelled()) {
             try {
@@ -5876,7 +5877,7 @@ async function spawnWildFromMeter(){
                   spawnedTile.eventMode = 'none';
                   removeTile(spawnedTile);
                 } catch {}
-                return false;
+                cancelledAfterDrop = true;
               }
               try {
                 (window as any).__ccWildSpawnDropActiveCount = 0;
@@ -5891,6 +5892,7 @@ async function spawnWildFromMeter(){
             }
           } catch {}
         }
+        if (cancelledAfterDrop) return false;
 
         try {
           if (spawnedTile && !spawnedTile.destroyed) {

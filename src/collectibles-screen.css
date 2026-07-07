@@ -1245,6 +1245,57 @@
   flex-shrink: 0;
 }
 
+@keyframes detailStatPopIn {
+  0% {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.65);
+  }
+  1% {
+    visibility: visible;
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+}
+
+@keyframes detailStatPopOut {
+  0% {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0);
+  }
+}
+
+#collectibles-detail-modal .detail-stat-entering {
+  animation-name: detailStatPopIn;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.17, 0.89, 0.32, 1.27);
+  animation-fill-mode: both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+#collectibles-detail-modal .detail-stat-exiting {
+  animation-name: detailStatPopOut;
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  animation-fill-mode: both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
 /* 🔥 FIGMA: Card section (inside stats-card section) */
 #collectibles-detail-modal .detail-section-card {
   display: flex;

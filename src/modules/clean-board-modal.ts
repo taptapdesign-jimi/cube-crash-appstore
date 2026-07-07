@@ -911,7 +911,7 @@ export async function showCleanBoardModal({
         const durationSec = durationMs / 1000;
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
-        setTimeout(() => {
+        trackTimeout(() => {
           mainScore.style.transition = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
@@ -943,7 +943,7 @@ export async function showCleanBoardModal({
         const durationSec = durationMs / 1000;
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
-        setTimeout(() => {
+        trackTimeout(() => {
           mainScore.style.transition = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
@@ -975,7 +975,7 @@ export async function showCleanBoardModal({
         allowConfettiSpawns();
         createConfettiExplosion(hero);
         
-        setTimeout(() => {
+        trackTimeout(() => {
           // 🌟 Hero is now stars container, animate it in
           console.log('🌟 Animating stars container (hero) to visible');
           hero.style.transition = trans;
@@ -989,11 +989,11 @@ export async function showCleanBoardModal({
           
           // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
           // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
-          setTimeout(() => {
+          trackTimeout(() => {
             starElements.forEach((star, index) => {
               // Only fill stars that were earned (numStars)
               if (index < numStars) {
-                setTimeout(() => {
+                trackTimeout(() => {
                   const { filledImg, emptyImg } = star;
                   // One medium haptic per earned (filled) star.
                   triggerHapticImpactSafe('medium');
@@ -1041,20 +1041,20 @@ export async function showCleanBoardModal({
             });
           }, 500); // 🌟 Start filling stars 500ms after hero appears
         }, 100);
-        setTimeout(() => {
+        trackTimeout(() => {
           title.style.opacity = '1';
           title.style.transform = 'scale(1) translateY(0)';
         }, 220);
-        setTimeout(() => {
+        trackTimeout(() => {
           scoreLabel.style.opacity = '1';
           scoreLabel.style.transform = 'scale(1) translateY(0)';
         }, 320);
-        setTimeout(() => {
+        trackTimeout(() => {
           mainScore.style.opacity = '1';
           mainScore.style.transform = 'scale(1) translateY(0)';
           // 🔥 ANIMATION: Start counting from 0 to currentScore when score appears
           // Add small delay to ensure element is fully visible before animation starts
-          setTimeout(() => {
+          trackTimeout(() => {
             console.log('🎯 Starting initial score animation from 0 to', currentScore);
             updateScore(currentScore, true);
           }, 50); // Small delay to ensure element is rendered
@@ -1068,15 +1068,15 @@ export async function showCleanBoardModal({
           efficiencyWrapper.style.display = 'none';
           efficiencyWrapper.style.visibility = 'hidden';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             boardCleared.style.transition = 'opacity 0.4s ease';
             boardCleared.style.opacity = '1';
           }, 1450);
 
-          setTimeout(() => {
+          trackTimeout(() => {
             animateButtonIn(primaryBtn);
             if (secondaryBtn) {
-              setTimeout(() => {
+              trackTimeout(() => {
                 animateButtonIn(secondaryBtn);
               }, buttonStaggerMs);
             }
@@ -1085,14 +1085,14 @@ export async function showCleanBoardModal({
         }
 
         // 🎯 SEQUENCE 3: Combo Bonus pop-in
-        setTimeout(() => {
+        trackTimeout(() => {
           comboWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
           comboWrapper.style.opacity = '1';
           comboWrapper.style.transform = 'scale(1) translateY(0)';
         }, 1350);
 
         // 🎯 SEQUENCE 4: Transfer Combo Bonus into score (draining to zero)
-        setTimeout(() => {
+        trackTimeout(() => {
           if (safeComboBonus <= 0) {
             comboValue.textContent = '+0';
             updateScore(scoreAfterCombo, true);
@@ -1102,13 +1102,13 @@ export async function showCleanBoardModal({
         }, 2150);
 
         // 🎯 SEQUENCE 5: Hide Combo, show Efficiency Bonus
-        setTimeout(() => {
+        trackTimeout(() => {
           // Hide combo bonus
           comboWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
           comboWrapper.style.opacity = '0';
           comboWrapper.style.transform = 'scale(0.8) translateY(-8px)';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             comboWrapper.style.visibility = 'hidden';
             comboWrapper.style.display = 'none';
             
@@ -1120,7 +1120,7 @@ export async function showCleanBoardModal({
         }, 3650);
 
         // 🎯 SEQUENCE 6: Transfer Efficiency Bonus into score (draining to zero)
-        setTimeout(() => {
+        trackTimeout(() => {
           if (safeEfficiencyBonus <= 0) {
             efficiencyValue.textContent = '+0';
             updateScore(finalScore, true);
@@ -1130,12 +1130,12 @@ export async function showCleanBoardModal({
         }, 4600);
 
         // 🎯 SEQUENCE 7: Hide Efficiency, show "Board cleared" label
-        setTimeout(() => {
+        trackTimeout(() => {
           efficiencyWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
           efficiencyWrapper.style.opacity = '0';
           efficiencyWrapper.style.transform = 'scale(0.8) translateY(-8px)';
 
-          setTimeout(() => {
+          trackTimeout(() => {
             efficiencyWrapper.style.visibility = 'hidden';
             efficiencyWrapper.style.display = 'none';
             // SIMPLE transition - only opacity, NO transforms at all
@@ -1146,12 +1146,12 @@ export async function showCleanBoardModal({
 
         // 🎯 SEQUENCE 8: Button(s) pop-in (sequential bounce - Play Again first, then Exit)
         // Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
-        setTimeout(() => {
+        trackTimeout(() => {
           // Show BOTH CTAs in all modes: primary first (Play Again/Continue), then Exit.
           // Arcade regression fix: Play Again was unintentionally hidden.
           animateButtonIn(primaryBtn);
           if (secondaryBtn) {
-            setTimeout(() => {
+            trackTimeout(() => {
               animateButtonIn(secondaryBtn);
             }, buttonStaggerMs); // 350ms delay between buttons
           }
@@ -1428,20 +1428,20 @@ export async function showCleanBoardModal({
       animateButtonExit(primaryBtn);
         
       if (secondaryBtn) {
-        setTimeout(() => {
+        trackTimeout(() => {
           animateButtonExit(secondaryBtn);
         }, 200);
       }
 
       requestAnimationFrame(() => {
         // Hero: fade + scale in place only (no translate); stars already exiting in place
-        setTimeout(() => {
+        trackTimeout(() => {
           hero.style.opacity = '0';
           hero.style.transform = 'scale(0)';
         }, 0);
         nodes.forEach((node, idx) => {
           const delay = (idx + 1) * 60;
-          setTimeout(() => {
+          trackTimeout(() => {
             const extra = exitScale[idx] ?? 0;
             node.style.opacity = '0';
             node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
@@ -1450,7 +1450,7 @@ export async function showCleanBoardModal({
       });
       // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
       // This prevents buttons from moving up with card scale
-      setTimeout(() => {
+      trackTimeout(() => {
       card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       requestAnimationFrame(() => {
         card.style.transform = 'scale(0.86)';
@@ -1464,7 +1464,7 @@ export async function showCleanBoardModal({
       const collapseDuration = secondaryBtn 
         ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
         : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
-      setTimeout(() => {
+      trackTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
         el.style.transition = 'opacity 0.30s ease';
@@ -1677,18 +1677,18 @@ export async function showCleanBoardModal({
         hero.style.transition = exitTrans;
 
         animateButtonExit(secondaryBtn);
-        setTimeout(() => {
+        trackTimeout(() => {
           animateButtonExit(primaryBtn);
         }, 200);
 
         requestAnimationFrame(() => {
-          setTimeout(() => {
+          trackTimeout(() => {
             hero.style.opacity = '0';
             hero.style.transform = 'scale(0)';
           }, 0);
           nodes.forEach((node, idx) => {
             const delay = (idx + 1) * 60;
-            setTimeout(() => {
+            trackTimeout(() => {
               const extra = exitScale[idx] ?? 0;
               node.style.opacity = '0';
               node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
@@ -1697,7 +1697,7 @@ export async function showCleanBoardModal({
         });
         // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
         // This prevents buttons from moving up with card scale
-        setTimeout(() => {
+        trackTimeout(() => {
           card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
           requestAnimationFrame(() => {
             card.style.transform = 'scale(0.86)';

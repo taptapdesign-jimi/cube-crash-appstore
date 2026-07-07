@@ -153,8 +153,43 @@ function cleanupDetailStatsEnterAnimation(modal: HTMLElement | null | undefined)
     statNodes.forEach((node) => {
       try { gsap.killTweensOf(node); } catch {}
       try { (node as HTMLElement).style.removeProperty('will-change'); } catch {}
+      try {
+        const el = node as HTMLElement;
+        el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+        el.style.removeProperty('animation');
+        el.style.removeProperty('animation-delay');
+      } catch {}
     });
   } catch {}
+}
+
+function getElementVisibilitySnapshot(element: HTMLElement | null): Record<string, unknown> | null {
+  if (!element) return null;
+  const computed = window.getComputedStyle(element);
+  return {
+    exists: true,
+    hidden: element.hidden,
+    ariaHidden: element.getAttribute('aria-hidden'),
+    className: element.className,
+    inlineDisplay: element.style.display,
+    inlineVisibility: element.style.visibility,
+    inlineOpacity: element.style.opacity,
+    inlinePointerEvents: element.style.pointerEvents,
+    inlineZIndex: element.style.zIndex,
+    inlineTransform: element.style.transform,
+    computedDisplay: computed.display,
+    computedVisibility: computed.visibility,
+    computedOpacity: computed.opacity,
+    computedPointerEvents: computed.pointerEvents,
+    computedZIndex: computed.zIndex,
+    computedTransform: computed.transform,
+    rect: {
+      x: Math.round(element.getBoundingClientRect().x),
+      y: Math.round(element.getBoundingClientRect().y),
+      width: Math.round(element.getBoundingClientRect().width),
+      height: Math.round(element.getBoundingClientRect().height),
+    },
+  };
 }
 
 function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void {
@@ -174,11 +209,14 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
   statsContainers.forEach((el) => {
     try { gsap.killTweensOf(el); } catch {}
     el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+    el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
     el.style.removeProperty('transform');
     el.style.removeProperty('opacity');
     el.style.removeProperty('visibility');
     el.style.removeProperty('will-change');
     el.style.removeProperty('transition');
+    el.style.removeProperty('animation');
+    el.style.removeProperty('animation-delay');
     el.style.setProperty('display', el.classList.contains('detail-stats-list') ? 'flex' : 'flex', 'important');
   });
 
@@ -195,6 +233,7 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
     el.style.removeProperty('will-change');
     el.style.removeProperty('transition');
     const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+    el.dataset.statOriginalDisplay = defaultDisplay;
     if (
       el.classList.contains('detail-stat-item') ||
       el.classList.contains('detail-stat-divider') ||
@@ -504,6 +543,7 @@ class JourneyBoardsManager {
   // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame calls for proper cleanup
   private _activeRAFs: Set<number> = new Set();
   private _activeTimeouts: Set<number> = new Set();
+  private _floatingDetailPlayButtons: Set<HTMLElement> = new Set();
   
   /**
    * 🔥 MEMORY LEAK FIX: Track requestAnimationFrame calls for cleanup
@@ -551,6 +591,12 @@ class JourneyBoardsManager {
       } catch {}
     });
     this._activeTimeouts.clear();
+    this._floatingDetailPlayButtons.forEach(button => {
+      try {
+        if (button.parentNode) button.remove();
+      } catch {}
+    });
+    this._floatingDetailPlayButtons.clear();
     this.journeyAreaIdleStartTimeout = null;
     logger.info('✅ Cancelled all tracked Journey timeouts');
   }
@@ -1885,6 +1931,241 @@ class JourneyBoardsManager {
     } else if (opts.cleanup !== false) {
       this.cleanup();
     }
+  }
+
+  private async showJourneyAfterDetailModalClose(context: string): Promise<void> {
+    this.renderDisposed = false;
+    this.cleanupInProgress = false;
+
+    logger.info(`🧭 JourneyDetailCloseDiag start (${context})`, {
+      suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
+      directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
+      returningFromDetailModal: (window as any).__ccReturningFromDetailModal === true,
+      journeyReturnBoardId: (window as any).__ccJourneyReturnBoardId,
+      journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
+      detailModal: getElementVisibilitySnapshot(document.getElementById('collectibles-detail-modal') as HTMLElement | null),
+      app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
+      home: getElementVisibilitySnapshot(document.getElementById('home') as HTMLElement | null),
+    });
+
+    delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+    delete (window as any).__ccDirectDetailModalReturnActive;
+
+    const ensureJourneyBoardsRendered = (phase: string): void => {
+      const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+      if (!container) {
+        logger.warn(`🧭 JourneyDetailCloseDiag missing journey-boards-container (${context}, ${phase})`);
+        return;
+      }
+
+      const cardCount = container.querySelectorAll('.journey-board-card').length;
+      const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+      const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
+      const needsRender =
+        cardCount === 0 ||
+        !cardsContainer ||
+        cardsContainer.getBoundingClientRect().height <= 0 ||
+        container.getBoundingClientRect().height <= 0;
+
+      if (!needsRender) {
+        logger.info(`🧭 JourneyDetailCloseDiag Journey boards ready (${context}, ${phase})`, {
+          cardCount,
+          container: getElementVisibilitySnapshot(container),
+          cardsContainer: getElementVisibilitySnapshot(cardsContainer),
+        });
+        return;
+      }
+
+      logger.warn(`🧭 JourneyDetailCloseDiag Journey board DOM empty/invalid (${context}, ${phase}) - rerendering`, {
+        cardCount,
+        hasCardsContainer: !!cardsContainer,
+        hasBgContainer: !!bgContainer,
+        container: getElementVisibilitySnapshot(container),
+        cardsContainer: getElementVisibilitySnapshot(cardsContainer),
+      });
+
+      try {
+        this.renderBoards();
+      } catch (error) {
+        logger.warn(`⚠️ Failed to rerender Journey boards (${context}, ${phase}):`, error);
+      }
+    };
+
+    const prepareJourneyScreenForEnter = (phase: string): void => {
+      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+      if (!journeyScreen) {
+        console.warn('🧭 JourneyDetailCloseDiag enter prep skipped - journey-screen missing', phase);
+        return;
+      }
+
+      try {
+        gsap.killTweensOf(journeyScreen);
+      } catch {}
+
+      journeyScreen.hidden = false;
+      journeyScreen.removeAttribute('hidden');
+      journeyScreen.classList.remove('hidden');
+      journeyScreen.classList.add('show');
+      journeyScreen.style.display = 'flex';
+      journeyScreen.style.visibility = 'hidden';
+      journeyScreen.style.opacity = '0';
+      journeyScreen.style.zIndex = '999999';
+      journeyScreen.style.pointerEvents = 'none';
+      journeyScreen.style.removeProperty('transform');
+      journeyScreen.style.removeProperty('scale');
+      journeyScreen.style.removeProperty('translate');
+      journeyScreen.style.willChange = 'opacity, transform';
+
+      const header = journeyScreen.querySelector('.collectibles-header') as HTMLElement | null;
+      const scrollable = journeyScreen.querySelector('.collectibles-scrollable') as HTMLElement | null;
+      [header, scrollable].forEach((element) => {
+        if (!element) return;
+        try { gsap.killTweensOf(element); } catch {}
+        element.style.visibility = 'hidden';
+        element.style.opacity = '0';
+        element.style.pointerEvents = 'none';
+        element.style.removeProperty('transform');
+        element.style.willChange = 'opacity, transform';
+      });
+
+      console.log('🧭 JourneyDetailCloseDiag prepare Journey enter', phase, {
+        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
+        journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
+      });
+    };
+
+    const forceJourneyScreenVisible = (phase: string): void => {
+      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+      if (!journeyScreen) {
+        console.warn('🧭 JourneyDetailCloseDiag force reveal skipped - journey-screen missing', phase);
+        return;
+      }
+
+      try {
+        gsap.killTweensOf(journeyScreen);
+      } catch {}
+
+      journeyScreen.hidden = false;
+      journeyScreen.removeAttribute('hidden');
+      journeyScreen.classList.remove('hidden');
+      journeyScreen.classList.add('show');
+      journeyScreen.style.display = 'flex';
+      journeyScreen.style.visibility = 'visible';
+      journeyScreen.style.opacity = '1';
+      journeyScreen.style.zIndex = '999999';
+      journeyScreen.style.pointerEvents = '';
+      journeyScreen.style.removeProperty('transform');
+      journeyScreen.style.removeProperty('scale');
+      journeyScreen.style.removeProperty('translate');
+      journeyScreen.style.willChange = 'auto';
+
+      const header = journeyScreen.querySelector('.collectibles-header') as HTMLElement | null;
+      const scrollable = journeyScreen.querySelector('.collectibles-scrollable') as HTMLElement | null;
+      [header, scrollable].forEach((element) => {
+        if (!element) return;
+        try { gsap.killTweensOf(element); } catch {}
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = '';
+        element.style.removeProperty('transform');
+        element.style.willChange = 'auto';
+      });
+
+      console.log('🧭 JourneyDetailCloseDiag force Journey visible', phase, {
+        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
+        journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
+      });
+    };
+
+    prepareJourneyScreenForEnter('before-showCollectibles');
+    const screen = document.getElementById('journey-screen') as HTMLElement | null;
+
+    ensureJourneyBoardsRendered('before-showCollectibles');
+
+    logger.info(`🧭 JourneyDetailCloseDiag before showCollectibles (${context})`, {
+      journeyScreen: getElementVisibilitySnapshot(screen),
+      journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
+      suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
+      directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
+    });
+
+    const collectiblesManager = (window as any).collectiblesManager;
+    if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+      try {
+        await collectiblesManager.showCollectibles();
+        ensureJourneyBoardsRendered('after-showCollectibles');
+        logger.info(`🧭 JourneyDetailCloseDiag showCollectibles resolved (${context})`, {
+          journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
+          app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
+          journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
+        });
+      } catch (error) {
+        logger.warn(`⚠️ Failed to show Journey after detail modal close (${context}):`, error);
+      }
+    } else {
+      logger.warn(`🧭 JourneyDetailCloseDiag missing collectiblesManager.showCollectibles (${context})`, {
+        hasCollectiblesManager: !!collectiblesManager,
+      });
+    }
+
+    window.setTimeout(() => {
+      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+      const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+      const detailModalVisible =
+        !!detailModal &&
+        detailModal.hidden !== true &&
+        detailModal.style.display !== 'none' &&
+        detailModal.getAttribute('aria-hidden') !== 'true';
+
+      if (!journeyScreen || detailModalVisible) {
+        logger.info(`🧭 JourneyDetailCloseDiag fallback skipped (${context})`, {
+          hasJourneyScreen: !!journeyScreen,
+          detailModalVisible,
+          detailModal: getElementVisibilitySnapshot(detailModal),
+        });
+        return;
+      }
+
+      const computed = window.getComputedStyle(journeyScreen);
+      const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+      const cardCount = container?.querySelectorAll('.journey-board-card').length || 0;
+      const containerRect = container?.getBoundingClientRect();
+      const stillHidden =
+        journeyScreen.hidden === true ||
+        journeyScreen.classList.contains('hidden') ||
+        computed.display === 'none' ||
+        computed.visibility === 'hidden' ||
+        Number(computed.opacity || '1') <= 0.01;
+      const contentBlank =
+        !container ||
+        cardCount === 0 ||
+        !containerRect ||
+        containerRect.height <= 0;
+
+      if (!stillHidden && !contentBlank) {
+        logger.info(`🧭 JourneyDetailCloseDiag fallback not needed (${context})`, {
+          journeyScreen: getElementVisibilitySnapshot(journeyScreen),
+          app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
+          journeyCards: cardCount,
+        });
+        return;
+      }
+
+      forceJourneyScreenVisible('fallback');
+      ensureJourneyBoardsRendered('fallback');
+
+      logger.warn(`⚠️ Journey was hidden or blank after detail close (${context}) - applied reveal fallback`, {
+        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
+        journeyContainer: getElementVisibilitySnapshot(document.getElementById('journey-boards-container') as HTMLElement | null),
+        journeyCards: document.querySelectorAll('#journey-boards-container .journey-board-card').length,
+        app: getElementVisibilitySnapshot(document.getElementById('app') as HTMLElement | null),
+        home: getElementVisibilitySnapshot(document.getElementById('home') as HTMLElement | null),
+      });
+
+      window.setTimeout(() => {
+        ensureJourneyBoardsRendered('fallback-retry');
+      }, 250);
+    }, 950);
   }
 
   constructor() {
@@ -4463,6 +4744,7 @@ class JourneyBoardsManager {
       // 🔥 USER REQUEST: Use EXACT SAME animation as homepage slider CTA button
       let playButtonExitDelay = 0; // Start immediately (FIRST)
       let playButtonExitDuration = 0.65; // CSS animation duration (same as homepage)
+      let cleanupFloatingPlayButton: () => void = () => {};
       
       if (playButton) {
         // 🔥 CRITICAL: Move PLAY button to body BEFORE starting exit animation
@@ -4471,6 +4753,16 @@ class JourneyBoardsManager {
           document.body.appendChild(playButton);
           logger.info('🎮 PLAY button moved to body before exit animation');
         }
+        this._floatingDetailPlayButtons.add(playButton);
+        cleanupFloatingPlayButton = () => {
+          try {
+            this._floatingDetailPlayButtons.delete(playButton);
+            if (playButton.parentNode) {
+              playButton.remove();
+              logger.info('🎮 PLAY button removed after CSS exit animation');
+            }
+          } catch {}
+        };
         
         // 🔥 USER REQUEST: Copy EXACT animation from homepage slider CTA button
         // Homepage uses CSS: .animate-exit { transform: translateY(20px) scale(0); transition: 0.65s cubic-bezier(...); }
@@ -4483,13 +4775,9 @@ class JourneyBoardsManager {
         // Add animate-exit class (same as homepage slider CTA)
         playButton.classList.add('animate-exit');
         
-        // Remove button after animation completes (0.65s)
-        window.setTimeout(() => {
-          if (playButton && playButton.parentNode) {
-            playButton.remove();
-            logger.info('🎮 PLAY button removed after CSS exit animation');
-          }
-        }, 650); // 0.65s animation duration
+        // Cleanup is repeated at modal-exit completion below; this local timer must not
+        // depend on Journey screen lifecycle because detail close can happen after game return.
+        window.setTimeout(cleanupFloatingPlayButton, 650); // 0.65s animation duration
         
         logger.info(`🎮 PLAY button CSS exit animation started at 0ms (FIRST, duration: 0.65s, EXACT same as homepage CTA)`);
       }
@@ -4616,41 +4904,12 @@ class JourneyBoardsManager {
             child.style.transition = 'none';
           }
 
-          // Animate only the parent. Child opacity is kept visible and inherited by the parent,
-          // avoiding per-frame DOM writes during close on iOS.
-          trackTween(child, {
-            scale: 0,
-            opacity: 0,
-            duration: 0.4,
-            ease: 'back.in(1.7)',
-            delay: contentStartDelay + 0.05 + i * 0.05,
-            force3D: true,
-            overwrite: true, // 🔥 CRITICAL: Prevent duplicate animations
-            onComplete: () => {
-              // 🔥 CRITICAL: Ensure children are hidden after animation
-              const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
-              const childValue = child.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
-              const childLabel = child.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
-              const childContent = child.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
-              
-              if (childIcon) {
-                childIcon.style.opacity = '0';
-                childIcon.style.visibility = 'hidden';
-              }
-              if (childValue) {
-                childValue.style.opacity = '0';
-                childValue.style.visibility = 'hidden';
-              }
-              if (childLabel) {
-                childLabel.style.opacity = '0';
-                childLabel.style.visibility = 'hidden';
-              }
-              if (childContent) {
-                childContent.style.opacity = '0';
-                childContent.style.visibility = 'hidden';
-              }
-            }
-          });
+          child.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+          child.style.removeProperty('animation');
+          child.style.removeProperty('animation-delay');
+          child.style.animationDelay = `${contentStartDelay + 0.05 + i * 0.05}s`;
+          void child.offsetHeight;
+          child.classList.add('detail-stat-exiting');
         });
       }
 
@@ -4803,8 +5062,7 @@ class JourneyBoardsManager {
           });
         }
         
-        // 🔥 NOTE: PLAY button is removed by GSAP animation's onComplete callback
-        // No need for setTimeout - GSAP handles cleanup automatically
+        cleanupFloatingPlayButton();
         
         // 🔥 CRITICAL: Clear exiting flag after exit animation completes
         cleanupFlag();
@@ -5838,7 +6096,10 @@ class JourneyBoardsManager {
         img.loading = 'eager';
         (img as any).decoding = 'async';
         (img as any).fetchPriority = 'high';
-        (imageEl as any).__detailImageReady = waitForImageReady(img);
+        (imageEl as any).__detailImageReady = waitForImageReady(
+          img,
+          wasRecentGameExitForDetailMotion() ? 160 : 700
+        );
         motionEl.appendChild(img);
         imageEl.appendChild(motionEl);
         
@@ -5860,8 +6121,8 @@ class JourneyBoardsManager {
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'contain';
-        img.style.opacity = '0';
-        img.style.visibility = 'hidden';
+        img.style.opacity = '1';
+        img.style.visibility = 'visible';
         img.style.animation = 'none';
         img.style.animationPlayState = 'paused';
       }
@@ -6545,8 +6806,7 @@ class JourneyBoardsManager {
         
         // Store original display
         const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
-        const recordedDisplay = el.dataset.statOriginalDisplay || el.style.display || '';
-        el.dataset.statOriginalDisplay = recordedDisplay;
+        el.dataset.statOriginalDisplay = defaultDisplay;
         
         // 🔥 CRITICAL: Set display and transition, but let GSAP control opacity/visibility/transform (same as card)
         // 🔥 SCREEN ARTIFACTS FIX: Force display with !important to override previous exit's display: none !important
@@ -6554,8 +6814,8 @@ class JourneyBoardsManager {
         el.style.transition = 'none';
         // 🔥 SCREEN ARTIFACTS FIX: Set opacity and visibility IMMEDIATELY via inline CSS (not GSAP)
         // This prevents 1-frame flash between display:block and GSAP initialization
-        el.style.setProperty('opacity', '0', 'important');
-        el.style.setProperty('visibility', 'hidden', 'important');
+        el.style.opacity = '0';
+        el.style.visibility = 'hidden';
         el.style.removeProperty('transform');
         el.style.transformOrigin = 'center center';
         el.style.willChange = 'transform, opacity';
@@ -6585,39 +6845,32 @@ class JourneyBoardsManager {
           immediateRender: true
         });
       });
-      // Reset containers so previous exit animation doesn't leave them scaled/hidden
-      // 🔥 CRITICAL: Only reset if modal is not currently animating exit (prevent race condition)
-      // Check if modal is currently exiting - if so, don't reset stats (they're still animating)
-      const isModalExiting = (detailModal as any).__detailModalExiting === true;
-      if (!isModalExiting) {
-        // Use requestAnimationFrame to ensure exit animations have completed
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (boardStatsContainer) {
-              gsap.killTweensOf(boardStatsContainer);
-              boardStatsContainer.style.transform = 'none';
-              boardStatsContainer.style.opacity = '1';
-              boardStatsContainer.style.visibility = 'visible';
-              boardStatsContainer.style.display = 'flex';
-            }
-            if (detailStatsSection) {
-              gsap.killTweensOf(detailStatsSection);
-              detailStatsSection.style.transform = 'none';
-              detailStatsSection.style.opacity = '1';
-              detailStatsSection.style.visibility = 'visible';
-              detailStatsSection.style.display = 'flex';
-            }
-            if (detailStatsList) {
-              gsap.killTweensOf(detailStatsList);
-              detailStatsList.style.transform = 'none';
-              detailStatsList.style.opacity = '1';
-              detailStatsList.style.visibility = 'visible';
-              detailStatsList.style.display = detailStatsList.dataset.statOriginalDisplay || 'flex';
-            }
-          });
-        });
-      } else {
-        logger.info('⏸️ Modal is currently exiting - skipping stats container reset to prevent animation interruption');
+      // Reset containers synchronously. Delayed rAF resets can fire after GSAP
+      // prepares stat children and make repeat enters look skipped or jerky.
+      if (boardStatsContainer) {
+        gsap.killTweensOf(boardStatsContainer);
+        boardStatsContainer.style.transform = 'none';
+        boardStatsContainer.style.opacity = '1';
+        boardStatsContainer.style.visibility = 'visible';
+        boardStatsContainer.style.display = 'flex';
+        boardStatsContainer.style.willChange = 'auto';
+      }
+      if (detailStatsSection) {
+        gsap.killTweensOf(detailStatsSection);
+        detailStatsSection.style.transform = 'none';
+        detailStatsSection.style.opacity = '1';
+        detailStatsSection.style.visibility = 'visible';
+        detailStatsSection.style.display = 'flex';
+        detailStatsSection.style.willChange = 'auto';
+      }
+      if (detailStatsList) {
+        gsap.killTweensOf(detailStatsList);
+        detailStatsList.dataset.statOriginalDisplay = 'flex';
+        detailStatsList.style.transform = 'none';
+        detailStatsList.style.opacity = '1';
+        detailStatsList.style.visibility = 'visible';
+        detailStatsList.style.display = 'flex';
+        detailStatsList.style.willChange = 'auto';
       }
       
       // Content elements array (excluding header and card image - card is already animated separately)
@@ -6760,14 +7013,16 @@ class JourneyBoardsManager {
         detailImage.style.willChange = 'transform, opacity';
       }
 
-      // Now make modal visible and start animations
-      // ⚡ SPEED FIX: Use single rAF (minimal delay ~16ms, but prevents layout thrashing)
+      // Now make modal visible and start animations. This must be awaited because
+      // direct game-return callers hide the PIXI app immediately after openBoardDetails().
+      await new Promise<void>((resolveDetailModalEnterStarted) => {
         requestAnimationFrame(() => {
+          try {
           // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
           const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
           dividersBeforeVisible.forEach((div) => {
-            div.style.setProperty('opacity', '0', 'important');
-            div.style.setProperty('visibility', 'hidden', 'important');
+            div.style.opacity = '0';
+            div.style.visibility = 'hidden';
           });
           
           // Make modal visible
@@ -6874,9 +7129,9 @@ class JourneyBoardsManager {
             detailImage.style.willChange = 'transform, opacity';
             if (detailImgEl) {
               detailImgEl.style.transition = 'none';
-              detailImgEl.style.opacity = '0';
-              detailImgEl.style.visibility = 'hidden';
-              detailImgEl.style.willChange = 'transform, opacity';
+              detailImgEl.style.opacity = '1';
+              detailImgEl.style.visibility = 'visible';
+              detailImgEl.style.willChange = 'auto';
             }
             
             const playDetailImageEnter = () => {
@@ -6905,14 +7160,7 @@ class JourneyBoardsManager {
                     detailImage.style.visibility = 'visible';
                     if (detailImgEl) {
                       detailImgEl.style.visibility = 'visible';
-                      detailImgEl.style.opacity = '0';
-                    }
-                  },
-                  onUpdate: () => {
-                    if (detailImgEl) {
-                      // Keep img in sync with wrapper opacity to avoid flicker
-                      const currentOpacity = gsap.getProperty(detailImage, 'opacity') as number;
-                      detailImgEl.style.opacity = currentOpacity.toString();
+                      detailImgEl.style.opacity = '1';
                     }
                   },
                   onComplete: () => {
@@ -7160,14 +7408,21 @@ class JourneyBoardsManager {
             }
             statElements.forEach((el) => {
               const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
-              // 🔥 SCREEN ARTIFACTS FIX: Force display with !important to override exit's display: none !important
+              el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+              el.style.removeProperty('animation');
+              el.style.removeProperty('animation-delay');
               el.style.setProperty('display', el.dataset.statOriginalDisplay || defaultDisplay, 'important');
-              // 🔥 SCREEN ARTIFACTS FIX: DON'T set visibility/opacity here - let GSAP handle it in animation
-              // This prevents 1-frame flash where divideri are visible before GSAP starts animating
-              // el.style.opacity = '1';
-              // el.style.visibility = 'visible';
+              el.style.opacity = '1';
+              el.style.visibility = 'visible';
               el.style.transform = 'none';
               el.style.willChange = 'auto';
+              const children = el.querySelectorAll('.detail-stat-icon, .stat-icon, .detail-stat-value, .stat-value, .detail-stat-label, .stat-label, .detail-stat-content, .stat-content') as NodeListOf<HTMLElement>;
+              children.forEach((child) => {
+                child.style.visibility = 'visible';
+                child.style.opacity = '1';
+                child.style.removeProperty('transform');
+                child.style.willChange = 'auto';
+              });
             });
           };
           
@@ -7227,19 +7482,11 @@ class JourneyBoardsManager {
               });
             }
 
-            const statsEnterTweens: any[] = [];
-            (detailModal as any).__detailStatsEnterTweens = statsEnterTweens;
-
             statElements.forEach((element, elementIndex) => {
               if (!element) return;
               
               const delay = statBaseDelay + (elementIndex * statStagger); // Use consistent stagger for all elements
-              
-              const duration = 0.5;
-              const ease = 'back.out(1.8)';
-              
-              // v300 behavior: direct per-element tween with delay. Avoid wrapping this in a
-              // timeline; that changed the perceived sequencing and made stats feel slow.
+
               gsap.killTweensOf(element);
               const elementIcon = element.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
               const elementValue = element.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
@@ -7251,110 +7498,74 @@ class JourneyBoardsManager {
               if (elementLabel) gsap.killTweensOf(elementLabel);
               if (elementContent) gsap.killTweensOf(elementContent);
               
-              element.style.setProperty('opacity', '0', 'important');
-              element.style.setProperty('visibility', 'hidden', 'important');
-              element.style.setProperty('transform', 'scale(0)', 'important');
-              element.style.setProperty('transform-origin', 'center center', 'important');
-              element.style.setProperty('transition', 'none', 'important');
-              element.style.setProperty('will-change', 'transform, opacity', 'important');
+              element.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+              element.style.removeProperty('animation');
+              element.style.removeProperty('animation-delay');
+              element.style.opacity = '0';
+              element.style.visibility = 'hidden';
+              element.style.transform = 'scale(0)';
+              element.style.transformOrigin = 'center center';
+              element.style.transition = 'none';
+              element.style.willChange = 'transform, opacity';
 
               const isDivider = element.classList.contains('detail-stat-divider');
               const elementDefaultDisplay = isDivider ? 'block' : 'flex';
               element.style.setProperty('display', elementDefaultDisplay, 'important');
               
-              // 🔥 CRITICAL: Reset children (icons, values, labels) - ensure they're visible
+              // Children stay visible; the parent stat item owns opacity/scale for enter.
               if (elementIcon) {
                 elementIcon.style.transition = 'none';
-                elementIcon.style.opacity = '0';
-                elementIcon.style.visibility = 'hidden';
-                elementIcon.style.willChange = 'transform, opacity';
+                elementIcon.style.opacity = '1';
+                elementIcon.style.visibility = 'visible';
+                elementIcon.style.willChange = 'auto';
               }
               if (elementValue) {
                 elementValue.style.transition = 'none';
-                elementValue.style.opacity = '0';
-                elementValue.style.visibility = 'hidden';
+                elementValue.style.opacity = '1';
+                elementValue.style.visibility = 'visible';
               }
               if (elementLabel) {
                 elementLabel.style.transition = 'none';
-                elementLabel.style.opacity = '0';
-                elementLabel.style.visibility = 'hidden';
+                elementLabel.style.opacity = '1';
+                elementLabel.style.visibility = 'visible';
               }
               if (elementContent) {
                 elementContent.style.transition = 'none';
-                elementContent.style.opacity = '0';
-                elementContent.style.visibility = 'hidden';
+                elementContent.style.opacity = '1';
+                elementContent.style.visibility = 'visible';
               }
 
-              const tween = gsap.fromTo(
-                element,
-                {
-                  scale: 0.65,
-                  opacity: 0,
-                  visibility: 'hidden',
-                  force3D: true,
-                  transformOrigin: 'center center'
-                },
-                {
-                  scale: 1,
-                  opacity: 1,
-                  visibility: 'visible',
-                  duration,
-                  ease,
-                  delay,
-                  force3D: true,
-                  overwrite: true,
-                  onStart: () => {
-                    element.style.removeProperty('opacity');
-                    element.style.removeProperty('visibility');
-                    element.style.removeProperty('transform');
-                    element.style.removeProperty('transform-origin');
-                    element.style.removeProperty('transition');
-                    element.style.removeProperty('will-change');
-
-                    element.style.visibility = 'visible';
-                    const isStatItem = element.classList.contains('detail-stat-item') || element.classList.contains('stat-item');
-                    if (isStatItem) {
-                      try { (window as any).triggerHapticImpact?.('light'); } catch {}
-                    }
-                    if (elementIcon) {
-                      elementIcon.style.visibility = 'visible';
-                      elementIcon.style.opacity = '0';
-                    }
-                    if (elementValue) elementValue.style.visibility = 'visible';
-                    if (elementLabel) elementLabel.style.visibility = 'visible';
-                    if (elementContent) elementContent.style.visibility = 'visible';
-                  },
-                  onUpdate: () => {
-                    const currentOpacity = gsap.getProperty(element, 'opacity') as number;
-                    if (elementIcon) elementIcon.style.opacity = currentOpacity.toString();
-                    if (elementValue) elementValue.style.opacity = currentOpacity.toString();
-                    if (elementLabel) elementLabel.style.opacity = currentOpacity.toString();
-                    if (elementContent) elementContent.style.opacity = currentOpacity.toString();
-                  },
-                  onComplete: () => {
-                    element.style.visibility = 'visible';
-                    element.style.opacity = '1';
-                    element.style.willChange = 'auto';
-                    if (elementIcon) {
-                      elementIcon.style.visibility = 'visible';
-                      elementIcon.style.opacity = '1';
-                    }
-                    if (elementValue) {
-                      elementValue.style.visibility = 'visible';
-                      elementValue.style.opacity = '1';
-                    }
-                    if (elementLabel) {
-                      elementLabel.style.visibility = 'visible';
-                      elementLabel.style.opacity = '1';
-                    }
-                    if (elementContent) {
-                      elementContent.style.visibility = 'visible';
-                      elementContent.style.opacity = '1';
-                    }
-                  }
+              const handleStatEnterEnd = () => {
+                element.removeEventListener('animationend', handleStatEnterEnd);
+                element.classList.remove('detail-stat-entering');
+                element.style.removeProperty('animation');
+                element.style.removeProperty('animation-delay');
+                element.style.visibility = 'visible';
+                element.style.opacity = '1';
+                element.style.transform = 'none';
+                element.style.willChange = 'auto';
+                if (elementIcon) {
+                  elementIcon.style.visibility = 'visible';
+                  elementIcon.style.opacity = '1';
                 }
-              );
-              statsEnterTweens.push(tween);
+                if (elementValue) {
+                  elementValue.style.visibility = 'visible';
+                  elementValue.style.opacity = '1';
+                }
+                if (elementLabel) {
+                  elementLabel.style.visibility = 'visible';
+                  elementLabel.style.opacity = '1';
+                }
+                if (elementContent) {
+                  elementContent.style.visibility = 'visible';
+                  elementContent.style.opacity = '1';
+                }
+              };
+
+              element.addEventListener('animationend', handleStatEnterEnd, { once: true });
+              element.style.animationDelay = `${delay}s`;
+              void element.offsetHeight;
+              element.classList.add('detail-stat-entering');
             });
             
             // 🔒 Safety net: after animations finish, force stats visible in final state
@@ -7364,7 +7575,7 @@ class JourneyBoardsManager {
               (detailModal as any).__detailStatsEnterTweens = null;
               restoreStatsVisibility();
             }, totalDelay * 1000);
-            logger.info(`📊 Detail stats enter animation restored to v300 direct tween flow (${statElements.length} elements)`);
+            logger.info(`📊 Detail stats enter animation using CSS per-item flow (${statElements.length} elements)`);
           } else {
             logger.error(`❌ No stat elements found to animate!`);
             // Fallback: show stats container so content is visible even without animation
@@ -7385,8 +7596,12 @@ class JourneyBoardsManager {
             // Also ensure any stat elements we pre-hid are restored
             restoreStatsVisibility();
           }
-        }); // End forEach for other content elements
-      
+          } finally {
+            resolveDetailModalEnterStarted();
+          }
+        }); // End detail modal enter start frame
+      });
+
       // 🔥 CRITICAL: Replace collectibles-manager event listener with journey boards exit animation
       // This ensures X button uses GSAP exit animation (header as group) instead of CSS animation (child elements separately)
       if (detailCloseBtn) {
@@ -7425,25 +7640,69 @@ class JourneyBoardsManager {
         
         logger.info('✅ X button made visible and clickable after cloning');
 
-        newCloseBtn.addEventListener('pointerdown', () => {
-          playDetailCloseSoftCartoonBounce(newCloseBtn);
-        }, { passive: true });
-        
-        // Add click listener that uses journey boards exit animation (GSAP, header as group)
-        const handleCloseClick = (e: Event) => {
-          e.preventDefault();
-          e.stopPropagation();
-          (e as any).stopImmediatePropagation?.();
-          logger.info('🎁 Journey boards detail modal close button clicked - using GSAP exit animation');
+        const previousCloseDelegates = (detailModal as any).__ccJourneyDetailCloseDelegatedHandlers as {
+          modalPointerUp?: EventListener;
+          modalClick?: EventListener;
+          modalTouchEnd?: EventListener;
+          documentPointerUp?: EventListener;
+          documentClick?: EventListener;
+          documentTouchEnd?: EventListener;
+        } | undefined;
 
-          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
+        if (previousCloseDelegates) {
+          detailModal.removeEventListener('pointerup', previousCloseDelegates.modalPointerUp as EventListener, true);
+          detailModal.removeEventListener('click', previousCloseDelegates.modalClick as EventListener, true);
+          detailModal.removeEventListener('touchend', previousCloseDelegates.modalTouchEnd as EventListener, true);
+          document.removeEventListener('pointerup', previousCloseDelegates.documentPointerUp as EventListener, true);
+          document.removeEventListener('click', previousCloseDelegates.documentClick as EventListener, true);
+          document.removeEventListener('touchend', previousCloseDelegates.documentTouchEnd as EventListener, true);
+        }
+
+        const getCloseButtonFromEvent = (event: Event): HTMLElement | null => {
+          const target = event.target as Element | null;
+          const closeButton = target?.closest?.('#detail-close-btn') as HTMLElement | null;
+          if (!closeButton || !detailModal.contains(closeButton)) {
+            return null;
+          }
+          return closeButton;
+        };
+
+        const runDetailClose = async (source: string, event?: Event, closeButton: HTMLElement = newCloseBtn) => {
+          event?.preventDefault();
+          event?.stopPropagation();
+          (event as any)?.stopImmediatePropagation?.();
+
+          console.log('🧭 JourneyDetailCloseDiag close event received', source, {
+            eventType: event?.type,
+            targetId: (event?.target as HTMLElement | null)?.id || null,
+            targetClass: (event?.target as HTMLElement | null)?.className || null,
+          });
+          logger.info('🎁 Journey boards detail modal close requested - using GSAP exit animation', { source });
+          logger.info('🧭 JourneyDetailCloseDiag close event received', {
+            source,
+            eventType: event?.type,
+            pendingButton: closeButton.getAttribute('data-detail-close-exit-pending'),
+            pendingModal: detailModal.getAttribute('data-detail-close-exit-pending'),
+            closeButton: getElementVisibilitySnapshot(closeButton),
+            detailModal: getElementVisibilitySnapshot(detailModal),
+            journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
+            suppressDirectDetailReturn: (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true,
+            directDetailModalReturnActive: (window as any).__ccDirectDetailModalReturnActive === true,
+          });
+
+          if (
+            closeButton.getAttribute('data-detail-close-exit-pending') === 'true' ||
+            detailModal.getAttribute('data-detail-close-exit-pending') === 'true'
+          ) {
+            logger.info('🧭 JourneyDetailCloseDiag close ignored because exit is pending', { source });
             return;
           }
 
-          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
-          playDetailCloseSoftCartoonBounce(newCloseBtn);
-          (async () => {
-            try {
+          closeButton.setAttribute('data-detail-close-exit-pending', 'true');
+          detailModal.setAttribute('data-detail-close-exit-pending', 'true');
+          playDetailCloseSoftCartoonBounce(closeButton);
+
+          try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
             (window as any).__ccReturningFromDetailModal = true;
             const returnBoardId = Number(detailModal.getAttribute('data-journey-board-id') || 0);
@@ -7451,68 +7710,69 @@ class JourneyBoardsManager {
               (window as any).__ccJourneyReturnBoardId = returnBoardId;
               try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(returnBoardId)); } catch {}
             }
-            delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
-            delete (window as any).__ccDirectDetailModalReturnActive;
 
-            // Use journey boards exit animation (header animates as group)
-            await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close button', { hideCollectibles: false, hideJourney: false, cleanup: true });
+            await this.exitDetailModalAndHideCollectibles(detailModal, source, { hideCollectibles: false, hideJourney: false, cleanup: false });
+            logger.info('🧭 JourneyDetailCloseDiag modal exit finished before Journey reveal', {
+              source,
+              detailModal: getElementVisibilitySnapshot(detailModal),
+              journeyScreen: getElementVisibilitySnapshot(document.getElementById('journey-screen') as HTMLElement | null),
+            });
 
-            // Show Journey screen after modal closes
-            const collectiblesManager = (window as any).collectiblesManager;
-            if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-              collectiblesManager.showCollectibles();
-            }
-            } finally {
-            newCloseBtn.removeAttribute('data-detail-close-exit-pending');
-            }
-          })();
+            await this.showJourneyAfterDetailModalClose(source);
+          } finally {
+            closeButton.removeAttribute('data-detail-close-exit-pending');
+            detailModal.removeAttribute('data-detail-close-exit-pending');
+          }
         };
-        
-        // Multiple ways to attach listener for maximum compatibility
+
+        const createDelegatedCloseHandler = (source: string): EventListener => {
+          return (event: Event) => {
+            const closeButton = getCloseButtonFromEvent(event);
+            if (!closeButton) {
+              return;
+            }
+            void runDetailClose(source, event, closeButton);
+          };
+        };
+
+        const handleClosePointerDown = () => {
+          playDetailCloseSoftCartoonBounce(newCloseBtn);
+        };
+        const handleCloseClick: EventListener = (event) => {
+          void runDetailClose('detail close button direct click', event, newCloseBtn);
+        };
+        const handleClosePointerUp: EventListener = (event) => {
+          void runDetailClose('detail close button direct pointerup', event, newCloseBtn);
+        };
+        const handleCloseTouchEnd: EventListener = (event) => {
+          void runDetailClose('detail close button direct touchend', event, newCloseBtn);
+        };
+
+        newCloseBtn.addEventListener('pointerdown', handleClosePointerDown, { passive: true });
+        newCloseBtn.addEventListener('pointerup', handleClosePointerUp, { capture: true });
         newCloseBtn.addEventListener('click', handleCloseClick, { capture: true });
         newCloseBtn.addEventListener('click', handleCloseClick, { capture: false });
+        newCloseBtn.addEventListener('touchend', handleCloseTouchEnd, { capture: true, passive: false });
         newCloseBtn.onclick = handleCloseClick;
+
+        const closeDelegates = {
+          modalPointerUp: createDelegatedCloseHandler('detail close modal delegated pointerup'),
+          modalClick: createDelegatedCloseHandler('detail close modal delegated click'),
+          modalTouchEnd: createDelegatedCloseHandler('detail close modal delegated touchend'),
+          documentPointerUp: createDelegatedCloseHandler('detail close document delegated pointerup'),
+          documentClick: createDelegatedCloseHandler('detail close document delegated click'),
+          documentTouchEnd: createDelegatedCloseHandler('detail close document delegated touchend'),
+        };
+
+        detailModal.addEventListener('pointerup', closeDelegates.modalPointerUp, true);
+        detailModal.addEventListener('click', closeDelegates.modalClick, true);
+        detailModal.addEventListener('touchend', closeDelegates.modalTouchEnd, { capture: true, passive: false });
+        document.addEventListener('pointerup', closeDelegates.documentPointerUp, true);
+        document.addEventListener('click', closeDelegates.documentClick, true);
+        document.addEventListener('touchend', closeDelegates.documentTouchEnd, { capture: true, passive: false });
+        (detailModal as any).__ccJourneyDetailCloseDelegatedHandlers = closeDelegates;
         
-        // Also handle touch events for mobile
-        newCloseBtn.addEventListener('touchend', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          (e as any).stopImmediatePropagation?.();
-          logger.info('🎁 Journey boards detail modal close button touched - using GSAP exit animation');
-
-          if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
-            return;
-          }
-
-          newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
-          playDetailCloseSoftCartoonBounce(newCloseBtn);
-          (async () => {
-            try {
-            // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
-            (window as any).__ccReturningFromDetailModal = true;
-            const returnBoardId = Number(detailModal.getAttribute('data-journey-board-id') || 0);
-            if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
-              (window as any).__ccJourneyReturnBoardId = returnBoardId;
-              try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(returnBoardId)); } catch {}
-            }
-            delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
-            delete (window as any).__ccDirectDetailModalReturnActive;
-
-            // Use journey boards exit animation (header animates as group)
-            await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close touch', { hideCollectibles: false, hideJourney: false, cleanup: true });
-
-            // Show Journey screen after modal closes
-            const collectiblesManager = (window as any).collectiblesManager;
-            if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-              collectiblesManager.showCollectibles();
-            }
-            } finally {
-            newCloseBtn.removeAttribute('data-detail-close-exit-pending');
-            }
-          })();
-        }, { capture: true, passive: false });
-        
-        logger.info('✅ Journey boards detail modal close button listener attached (GSAP exit animation)');
+        logger.info('✅ Journey boards detail modal close button listeners attached (direct + delegated GSAP exit animation)');
       }
       
       logger.info('✅ Detail modal shown with enter animation');
@@ -7825,91 +8085,9 @@ class JourneyBoardsManager {
    * Sets current board to interim (shows common back.png, cannot click)
    * Only unlocks boards that have been completed (won)
    */
-  public syncWithGameProgress(boardNumber?: number): void {
+  public syncWithGameProgress(_boardNumber?: number): void {
     this.ensureSingleInterimCard();
     this.saveBoardsState();
-    return;
-
-    // 🔥 USER REQUEST: Ensure only ONE interim card before syncing
-    // This prevents multiple interim cards from existing
-    this.ensureSingleInterimCard();
-    try {
-      // Get boardNumber from game state if not provided
-      if (boardNumber === undefined) {
-        try {
-          const savedGame = localStorage.getItem('cc_saved_game');
-          if (savedGame) {
-            const gameState = JSON.parse(savedGame);
-            boardNumber = Number(gameState.boardNumber) || 1;
-          } else {
-            // Try to get from stats service
-            const statsService = (window as any).statsService;
-            if (statsService && typeof statsService.getHighestBoard === 'function') {
-              boardNumber = statsService.getHighestBoard() || 1;
-            } else {
-              boardNumber = 1;
-            }
-          }
-        } catch (e) {
-          boardNumber = 1;
-        }
-      }
-      
-      // 🔥 USER FIX: Only set board to interim if user has actually started playing
-      // Check if user has started game by looking for saved game or highest board > 0
-      let hasStartedGame = false;
-      try {
-        const savedGame = localStorage.getItem('cc_saved_game');
-        if (savedGame) {
-          hasStartedGame = true;
-        } else {
-          const statsService = (window as any).statsService;
-          if (statsService && typeof statsService.getHighestBoard === 'function') {
-            const highestBoard = statsService.getHighestBoard() || 0;
-            // User has started if they've reached at least Board 1 (highestBoard >= 1)
-            // But we need to be careful - if highestBoard is exactly 1, it might mean they just started
-            // So we check if they've made progress beyond initial state
-            hasStartedGame = highestBoard >= 1;
-          }
-        }
-      } catch (e) {
-        // If we can't check, don't set interim status
-        hasStartedGame = false;
-      }
-      
-      // 🔥 USER REQUEST: Board 1 starts as interim (not unlocked)
-      // When user completes a board, next board becomes interim
-      const targetBoard = boardNumber ?? 1;
-      const currentBoard = this.boards.find(b => b.id === targetBoard);
-      
-      // Set interim if:
-      // 1. Board is not already unlocked
-      // 2. Board matches current boardNumber (user is playing this board)
-      // 🔥 CRITICAL FIX: Don't overwrite interim status if it's already set from localStorage
-      // This ensures interim cards persist after hard exit
-      if (currentBoard && !currentBoard.unlocked) {
-        // Only set interim if it's not already set (preserve existing interim status from localStorage)
-        if (!currentBoard.interim) {
-          currentBoard.interim = true;
-          this.saveBoardsState();
-          logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
-        } else {
-          logger.info(`🗺️ Board ${targetBoard} already has interim status (preserved from localStorage)`);
-        }
-      }
-      
-      // Note: Next board is set to interim when current board is completed (in unlockBoardOnCompletion)
-      // This ensures that board N+1 becomes interim only after board N is won
-      
-      // Note: Boards are unlocked (unlocked=true, interim=false) only when they are completed (won)
-      // This is done in unlockBoardByNumber() which is called when board is completed
-      
-      // 🔥 USER REQUEST: Ensure only ONE interim card exists after syncing
-      this.ensureSingleInterimCard();
-      this.saveBoardsState();
-    } catch (error) {
-      logger.warn('Failed to sync journey boards with game progress:', error instanceof Error ? error.message : String(error));
-    }
   }
 
   /**
