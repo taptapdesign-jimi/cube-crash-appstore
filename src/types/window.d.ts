@@ -128,7 +128,7 @@ declare global {
     gtag?: (command: string, action: string, parameters: any) => void;
     
     // CubeCrash Internal Flags (__cc*)
-    // See docs/WINDOW_CC_FLAGS.md for full documentation
+    // See docs/guides/WINDOW_CC_FLAGS.md for full documentation
     __ccCameFromDetailModal?: boolean;
     __ccCameFromHomepage?: boolean;
     __ccCameFromJourney?: boolean;

@@ -342,7 +342,7 @@
 - **Ali nema testova** - infrastruktura postoji ali se ne koristi
 
 **Manual Testing:**
-- **Sanity test dokumentacija** - `SANITY_TEST.md`
+- **Sanity test dokumentacija** - `../guides/SANITY_TEST.md`
 - **Quick start testing guide** - `QUICK_START_TESTING.md`
 - **Ali nema automatskih testova**
 
