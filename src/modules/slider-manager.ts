@@ -342,11 +342,25 @@ class SliderManager {
 
   private warmupSliderLayers(): void {
     if (this.sliderLayerWarmupDone) return;
-    this.sliderLayerWarmupDone = true;
 
     const rafId = requestAnimationFrame(() => {
       this.activeRAFs.delete(rafId);
       if (!this.elements.container || !this.elements.wrapper) return;
+      const containerStyle = window.getComputedStyle(this.elements.container);
+      const wrapperStyle = window.getComputedStyle(this.elements.wrapper);
+      const isRenderable = this.elements.container.offsetWidth > 0
+        && this.elements.wrapper.offsetWidth > 0
+        && containerStyle.display !== 'none'
+        && wrapperStyle.display !== 'none'
+        && containerStyle.visibility !== 'hidden'
+        && wrapperStyle.visibility !== 'hidden';
+
+      if (!isRenderable) {
+        logger.debug('Slider layer warmup deferred until slider is renderable');
+        return;
+      }
+
+      this.sliderLayerWarmupDone = true;
 
       this.elements.container.classList.add('slider-compositor-ready');
       this.elements.wrapper.classList.add('slider-compositor-ready');
@@ -1392,6 +1406,8 @@ class SliderManager {
       this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
       logger.debug('✅ GSAP quickSetter recreated');
     }
+
+    this.warmupSliderLayers();
     
     logger.debug('ensureReady: Slider ready for interaction');
   }
@@ -1493,6 +1509,7 @@ class SliderManager {
     this.activeRAFs.clear();
     this.dragRafId = null;
     this.pendingDragOffset = null;
+    this.sliderLayerWarmupDone = false;
     
     // 4. Kill any GSAP tweens on slider elements (but not globally!)
     if (this.elements.wrapper) {
@@ -1538,6 +1555,8 @@ class SliderManager {
       logger.debug('Slider needs reinitialization - doing it now');
       this.destroy();
       this.init();
+    } else {
+      this.warmupSliderLayers();
     }
     
     // 11. Update navigation button active states
@@ -1664,6 +1683,7 @@ class SliderManager {
       divider: null
     };
     this.isInitialized = false;
+    this.sliderLayerWarmupDone = false;
     
     logger.info('🧹 Slider Manager cleaned up');
   }

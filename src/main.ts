@@ -63,6 +63,7 @@ let gameCoreModule: GameCoreModule | null = null;
 let gameCoreModulePromise: Promise<GameCoreModule> | null = null;
 let cachedAppState: any | null = null;
 let appStatePromise: Promise<any> | null = null;
+let postHomePerformanceWarmupScheduled = false;
 
 async function getAppState(): Promise<any> {
   if (cachedAppState) return cachedAppState;
@@ -84,6 +85,46 @@ async function getGameCoreModule(): Promise<GameCoreModule> {
     });
   }
   return gameCoreModulePromise;
+}
+
+function scheduleIdleTask(task: () => void, timeout: number = 1200): void {
+  if (typeof window !== 'undefined' && typeof (window as any).requestIdleCallback === 'function') {
+    (window as any).requestIdleCallback(task, { timeout });
+    return;
+  }
+  window.setTimeout(task, 0);
+}
+
+function schedulePostHomePerformanceWarmup(): void {
+  if (postHomePerformanceWarmupScheduled) return;
+  postHomePerformanceWarmupScheduled = true;
+
+  window.setTimeout(() => {
+    scheduleIdleTask(() => {
+      if (isNativeDevServerRuntime()) {
+        logger.warn('⏭️ Native dev server runtime: skipping post-home performance warmup');
+        return;
+      }
+
+      void Promise.allSettled([
+        getGameCoreModule().then(() => getAppState()),
+        import('./utils/board-asset-warmup.js').then(({ warmBoardGameAssetsSoon }) => {
+          warmBoardGameAssetsSoon({
+            mode: 'arcade',
+            reason: 'post-home-idle',
+            timeoutMs: 2200,
+          });
+        }),
+      ]).then((results) => {
+        const failed = results.filter((result) => result.status === 'rejected');
+        if (failed.length > 0) {
+          logger.warn('⚠️ Post-home performance warmup completed with failures', failed.map((result: any) => String(result.reason)));
+          return;
+        }
+        logger.info('✅ Post-home performance warmup scheduled');
+      });
+    }, 1800);
+  }, 900);
 }
 
 async function bootGame(): Promise<void> {
@@ -715,6 +756,7 @@ async function startAssetPreloading(): Promise<void> {
     console.log('🎬 Starting homepage enter animation...');
     try {
       animateSliderEnter();
+      schedulePostHomePerformanceWarmup();
       console.log('✅ Homepage enter animation started');
     } catch (error) {
       console.error('❌ Error starting homepage enter animation:', error);
