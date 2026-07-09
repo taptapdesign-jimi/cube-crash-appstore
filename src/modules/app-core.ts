@@ -21,11 +21,7 @@ import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, st
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
-// 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
-// import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
-import { heartsSystem } from './hearts-system.ts';
-import { cleanupAllHeartsResources } from './hearts-bottom-sheet.ts';
 import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
@@ -1052,9 +1048,6 @@ async function prepareArcadeStageClearFinalMergeHandoff(
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
-
-// 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
-// This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
@@ -3318,7 +3311,7 @@ export async function boot(){
     });
 
     try { setRunMode(RUN_MODE_JOURNEY); } catch {}
-    const targetBoard = Math.max(1, Math.min(25, Number(boardNumber || STATE.boardNumber || 1) || 1));
+    const targetBoard = Math.max(1, Math.min(30, Number(boardNumber || STATE.boardNumber || 1) || 1));
 
     try {
       busyEnding = false;
@@ -5251,7 +5244,6 @@ async function startLevel(n){
   // Track best stack depth achieved in this run (for clean board efficiency)
   try { STATE.maxStackDepth = 1; } catch {}
   // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
-  // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
   hudResetCombo();
   devLog('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   clearComboIdleTimer({ comboIdleTimer });
@@ -5326,8 +5318,7 @@ async function startLevel(n){
   
   // layoutBoard() already called above; avoid duplicate on board 1
   
-  // Don't check level end immediately - let the game play first
-  // trackDelayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
+  // Don't check level end immediately - let the game play first.
   // 🔥 ENDGAME HINT: refresh after board is fully visible (covers hard-exit resume)
   trackAppTimeout(() => {
     updateEndgameHintState();
@@ -7476,7 +7467,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       
       // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow complete with animations
       // busyEnding will be set in onComplete callback AFTER animations finish
-      // busyEnding = true; // REMOVED - was preventing normal merge 6 animations
       
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
@@ -8027,7 +8017,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             try {
               // Import handleWildMagnetMergedPulledTiles asynchronously
-              const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
+              const { handleWildMagnetMergedPulledTiles } = await import('./app-merge.js');
               
               // Check if dst is still valid before merging
               // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
@@ -8053,7 +8043,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 
                 // Still call handleWildMagnetMergedPulledTiles with empty array - it will check _isLastMerge and trigger clean board
                 // This ensures clean board flow is triggered properly
-                const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
+                const { handleWildMagnetMergedPulledTiles } = await import('./app-merge.js');
                 const helpersWithMerge = {
                   ...helpers,
                   merge: merge,
@@ -8488,7 +8478,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // 🔥 CRITICAL FIX: DON'T set busyEnding here!
       // Setting busyEnding = true here prevents animations and clean board flow from running
       // We need to let animations play, then trigger clean board flow
-      // busyEnding = true; // REMOVED - was preventing animations and clean board flow
     }
 
     if (wildActive && dstSpecial === 'wild') {
@@ -8671,7 +8660,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow continue
             // The safeguard check (line 3070) will skip spawn and trigger clean board flow
-            // busyEnding = true; // REMOVED - was preventing normal merge 6 flow
             
             // 🔥 CRITICAL: DON'T reset wild meter here - let safeguard check handle it
             // 🔥 CRITICAL: DON'T trigger clean board flow here - let safeguard check handle it
@@ -9713,7 +9701,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           return;
         }
         
-        // 🔥 REMOVED: Premature endgame check that was blocking spawn logic
         // The endgame check was running BEFORE spawn, causing board to look empty (dst removed)
         // This made it trigger clean board flow instead of spawning new tiles
         // Endgame check will be done AFTER spawn in checkLevelEnd()
@@ -12390,12 +12377,6 @@ function updateEndgameHintState(): void {
   } catch {}
 }
 
-// 🔥 REMOVED: showCleanBoardEdgeCase() - DEPRECATED function no longer needed
-// Endgame checker handles all edge cases now
-
-// 🔥 REMOVED: openLockedBounceParallel(k) - DEAD CODE, never called
-// Was a wrapper for FLOW.openLockedBounceParallel but is not used anywhere
-
 // -------------------- helpers --------------------
 // 🔥 v112: sleep moved to app-core-utils.ts
 // Imported: sleep
@@ -12728,7 +12709,6 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       });
     }
   } catch (error) {
-    // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
     // If board-fail-modal fails, log error but don't show the old overlay
     devError('❌ CRITICAL: End-run modal failed - cannot show end screen:', error);
     devError('❌ This should never happen. Check board-fail-modal.js / clean-board-modal.js for errors.');
@@ -12788,10 +12768,6 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     // Don't call it again here - it causes duplicate calls and blank screen
     // The modal already handles exitToMenu and waits for it to complete before resolving
     devLog('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
-  } else if (result?.action === 'no-hearts') {
-    // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
-    devLog('💔 No hearts action - hearts bottom sheet shown, staying out of game');
-    // App element is already hidden in board-fail-modal
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
     devLog('🎮 Play Again action received - functions called directly from modal');
@@ -13147,7 +13123,7 @@ function restartGame(){
   
   devLog('✅ Clean restart completed - HUD position preserved');
 }
-// temporary idle checker (no-op so boot doesn't fail)
+// Idle checker placeholder.
 function scheduleIdleCheck(){ /* no-op for now */ }
 // Pause/Resume functions
 export function pauseGame() {
@@ -13386,15 +13362,6 @@ export function cleanupGame() {
         cleanupExistingStarAnimations();
       }
     } catch {}
-  }
-  
-  // 🔥 FIX: Cleanup hearts system (timer and resources)
-  try {
-    heartsSystem.cleanup();
-    cleanupAllHeartsResources();
-    devLog('✅ Hearts system cleaned up in cleanupGame()');
-  } catch (e) {
-    devWarn('⚠️ Failed to cleanup hearts system:', e);
   }
   
   // 🔥 FIX: Cleanup level flow timeouts

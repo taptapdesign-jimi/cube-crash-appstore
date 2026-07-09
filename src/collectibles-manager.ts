@@ -3,8 +3,6 @@ import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
 import { gsap } from 'gsap';
 import { animateCollectiblesScreenExit, cleanupCollectiblesAnimations } from './ui/collectibles-animations.js';
-import { showHeartsModal } from './modules/hearts-bottom-sheet.js';
-import { isHeartsFeatureEnabled } from './modules/hearts-system.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -543,11 +541,11 @@ class CollectiblesManager {
   private initEventListeners(): void {
     // Prevent duplicate initialization
     if (this.eventListenersInitialized) {
-      console.log('🔄 Event listeners already initialized, skipping...');
+      logger.debug('🔄 Collectibles event listeners already initialized, skipping');
       return;
     }
     
-    console.log('🔌 Initializing event listeners...');
+    logger.debug('🔌 Initializing collectibles event listeners');
     
     // 🔥 MEMORY LEAK FIX: Store bound handlers for cleanup
     // Back button - use event delegation to handle clicks even if button doesn't exist yet
@@ -571,13 +569,11 @@ class CollectiblesManager {
       titleEl.style.cursor = 'pointer';
       titleEl.style.pointerEvents = 'auto'; // Override CSS pointer-events: none
       this.boundHandlers.titleClick = () => {
-        console.log('🎁 Title clicked, scrolling to top');
         const scrollable = document.querySelector('.collectibles-scrollable');
         if (scrollable) {
           scrollable.scrollTo({ top: 0, behavior: 'smooth' });
-          console.log('✅ Scroll to top triggered');
         } else {
-          console.warn('⚠️ Scrollable not found');
+          logger.warn('⚠️ Collectibles scrollable not found');
         }
       };
       titleEl.addEventListener('click', this.boundHandlers.titleClick);
@@ -607,7 +603,6 @@ class CollectiblesManager {
     const closeBtn = document.getElementById('detail-close-btn');
     if (closeBtn) {
       this.boundHandlers.closeBtnClick = (e: Event) => {
-        console.log('🎁 Close button clicked!', e);
         e.preventDefault();
         e.stopPropagation();
         (e as any).stopImmediatePropagation?.();
@@ -631,14 +626,14 @@ class CollectiblesManager {
     this.initDevButtons();
     
     this.eventListenersInitialized = true;
-    console.log('✅ Event listeners initialized successfully');
+    logger.debug('✅ Collectibles event listeners initialized');
   }
   
   // 🔥 MEMORY LEAK FIX: Cleanup all event listeners (public for app-manager)
   public cleanupEventListeners(): void {
     if (!this.eventListenersInitialized) return;
     
-    console.log('🧹 Cleaning up collectibles event listeners...');
+    logger.debug('🧹 Cleaning up collectibles event listeners');
     
     // Remove global document event listeners
     if (this.boundHandlers.backButtonClick) {
@@ -676,28 +671,27 @@ class CollectiblesManager {
     this.boundHandlers = {};
     this.eventListenersInitialized = false;
     
-    console.log('✅ Collectibles event listeners cleaned up');
+    logger.debug('✅ Collectibles event listeners cleaned up');
   }
 
   // 🔥 CRITICAL FIX: Master cleanup method - calls ALL cleanup functions
   // This is the MAIN cleanup entry point called from main.ts exitToMenu()
   public async cleanup(): Promise<void> {
-    console.log('🧹🧹🧹 collectiblesManager.cleanup() - FULL CLEANUP STARTING...');
+    logger.debug('🧹 collectiblesManager.cleanup() starting');
     
     // 1. Cleanup event listeners (document-level, element-level)
     try {
       this.cleanupEventListeners();
-      console.log('✅ collectiblesManager event listeners cleaned up');
     } catch (error) {
-      console.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
+      logger.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
     }
 
     try {
       this.cardBackgroundObserver?.disconnect();
       this.cardBackgroundObserver = null;
-      console.log('✅ collectibles lazy image observer cleaned up');
+      logger.debug('✅ Collectibles lazy image observer cleaned up');
     } catch (error) {
-      console.warn('⚠️ Failed to cleanup collectibles lazy image observer:', error);
+      logger.warn('⚠️ Failed to cleanup collectibles lazy image observer:', error);
     }
     
     // 2. Cleanup journey boards manager (cards, animations, scroll listeners)
@@ -705,13 +699,13 @@ class CollectiblesManager {
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
       if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
         journeyBoardsManager.cleanup();
-        console.log('✅ journeyBoardsManager.cleanup() completed');
+        logger.debug('✅ journeyBoardsManager.cleanup() completed');
       }
     } catch (error) {
-      console.warn('⚠️ Failed to cleanup journey boards manager:', error);
+      logger.warn('⚠️ Failed to cleanup journey boards manager:', error);
     }
     
-    console.log('✅✅✅ collectiblesManager.cleanup() - FULL CLEANUP COMPLETED');
+    logger.debug('✅ collectiblesManager.cleanup() completed');
   }
 
   private getCardBackgroundObserver(): IntersectionObserver | null {
@@ -900,7 +894,7 @@ class CollectiblesManager {
     // 🔥 CRITICAL FIX: Ensure back button event listener is attached (button might not exist when initEventListeners was called)
     const backBtn = document.getElementById('collectibles-back');
     if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
-      console.log('🔌 Attaching back button listener in showCollectibles');
+      logger.debug('🔌 Attaching back button listener in showCollectibles');
       // 🔥 FIX: Store handler for proper cleanup
       const backBtnHandler = (e: Event) => {
         e.preventDefault();
@@ -1009,54 +1003,6 @@ class CollectiblesManager {
       this.initDevButtons();
     }, 100);
     
-    // 💚 Initialize hearts system and attach click handler
-    setTimeout(async () => {
-      if (!isHeartsFeatureEnabled()) {
-        const heartsContainer = document.getElementById('journey-lives-container');
-        if (heartsContainer) {
-          heartsContainer.style.display = 'none';
-          heartsContainer.setAttribute('hidden', '');
-          heartsContainer.setAttribute('aria-hidden', 'true');
-        }
-        return;
-      }
-
-      try {
-        const { heartsSystem } = await import('./modules/hearts-system.js');
-        heartsSystem.init();
-        heartsSystem.refreshUI();
-        
-        // Attach click handler to hearts container
-        const heartsContainer = document.getElementById('journey-lives-container');
-        if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
-          heartsContainer.style.cursor = 'pointer';
-          heartsContainer.addEventListener('click', () => {
-            const heartIcon = document.getElementById('journey-lives-icon') as HTMLElement | null;
-            playJourneySoftCartoonBounce(heartIcon || heartsContainer);
-
-            // Haptic on Journey top-nav hearts icon tap.
-            try { (window as any).triggerHapticImpact?.('light'); } catch {}
-
-            if (heartsContainer.getAttribute('data-heart-modal-opening') === 'true') {
-              return;
-            }
-
-            heartsContainer.setAttribute('data-heart-modal-opening', 'true');
-            try {
-              logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
-              showHeartsModal();
-            } finally {
-              heartsContainer.removeAttribute('data-heart-modal-opening');
-            }
-          });
-          heartsContainer.setAttribute('data-hearts-listener-attached', 'true');
-          logger.info('💚 Hearts click handler attached');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to initialize hearts system:', String(error));
-      }
-    }, 150);
-
     let journeyBoardsManagerPreparedForEnter: any = null;
     let activeBoardAreaPreparedBeforeReveal = false;
     if (journeyContainer && shouldPlayActiveBoardAreaEnter) {
@@ -1113,7 +1059,7 @@ class CollectiblesManager {
             return;
           }
           enterAnimationStarted = true;
-          console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
+          logger.debug('🎬 Starting Journey enter animation immediately');
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
@@ -1158,19 +1104,12 @@ class CollectiblesManager {
           });
         }).catch((error) => {
           window.clearTimeout(revealFallbackTimer);
-          console.error('❌ Failed to load collectibles animations:', error);
+          logger.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
           (screen as HTMLElement).style.opacity = '1';
           (screen as HTMLElement).style.visibility = 'visible';
           (screen as HTMLElement).style.willChange = 'auto';
         });
-      });
-      
-      // 🔥 NEW: Initialize lives manager and update UI (non-blocking)
-      import('./modules/lives-manager.js').then(({ livesManager }) => {
-        livesManager.refreshUI();
-      }).catch((error) => {
-        logger.warn('⚠️ Failed to initialize lives manager:', String(error));
       });
       
           // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes
@@ -1186,7 +1125,7 @@ class CollectiblesManager {
                   (window as any).__ccReturningFromInterimBoard ||
                   localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
                 if (returningFromDetailModal || returningFromInterimBoard) {
-                  console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
+                  logger.debug('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
                   // 🔥 USER REQUEST: Restore previous scroll position when returning from detail modal or interim board
                   restoreJourneyReturnScrollPosition('post-enter-return-skip-auto-scroll');
                   // Clear flags after checking
@@ -1202,7 +1141,7 @@ class CollectiblesManager {
                   // Only auto-scroll when entering from homepage slider
                 const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
                 if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
-                  console.log('🗺️ Starting scroll to interim card after enter animation...');
+                  logger.debug('🗺️ Starting scroll to interim card after enter animation');
                   (journeyBoardsManager as any).restoreOrScrollToInterimCard();
                   }
                 }
@@ -1212,12 +1151,12 @@ class CollectiblesManager {
                 const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
                 const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
                 if (JOURNEY_CARD_IDLE_BOUNCE && JOURNEY_CARD_IDLE_BOUNCE.ENABLE && cardsContainer) {
-                  console.log('🎬 Starting journey card idle bounce AFTER enter animation...');
+                  logger.debug('🎬 Starting journey card idle bounce after enter animation');
                   JOURNEY_CARD_IDLE_BOUNCE.start(cardsContainer);
                   logger.info('✅ Journey card idle bounce started after enter animation');
                 }
               } catch (error) {
-                console.warn('⚠️ Failed to scroll to interim card or start idle bounce:', error);
+                logger.warn('⚠️ Failed to scroll to interim card or start idle bounce:', error);
               }
             }, 450); // 🔥 USER REQUEST: Sped up by 50% (was 900ms, now 450ms) - faster auto-scroll to interim card
           }
@@ -1225,7 +1164,7 @@ class CollectiblesManager {
       // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties
       // No need to refresh after animation - this would cause visible movement
     } catch (error) {
-      console.error('❌ Failed to trigger collectibles enter animation:', error);
+      logger.error('❌ Failed to trigger collectibles enter animation:', error);
       // Fallback: just show the screen normally
       // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
       (screen as HTMLElement).style.display = 'flex';
@@ -1254,7 +1193,7 @@ class CollectiblesManager {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
         // Start the exit animation immediately; keep pre-cleanup synchronous so the
         // first visible response happens on the back tap, not after dynamic imports.
-        console.log('🛑 Preparing Journey visual exit immediately...');
+        logger.debug('🛑 Preparing Journey visual exit immediately');
 
         try {
           const journeyScreen = document.getElementById('journey-screen');
@@ -1264,7 +1203,7 @@ class CollectiblesManager {
             );
             if (animatedElements.length > 0) {
               gsap.killTweensOf(animatedElements);
-              console.log(`✅ Killed GSAP animations on ${animatedElements.length} Journey elements`);
+              logger.debug(`✅ Killed GSAP animations on ${animatedElements.length} Journey elements`);
             }
 
             const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
@@ -1276,28 +1215,28 @@ class CollectiblesManager {
             });
           }
         } catch (error) {
-          console.warn('⚠️ Failed to prepare Journey exit synchronously:', error);
+          logger.warn('⚠️ Failed to prepare Journey exit synchronously:', error);
         }
 
-        console.log('🎬 Step 1: Journey exit animation starting immediately...');
+        logger.debug('🎬 Journey exit animation starting immediately');
         try {
           await animateCollectiblesScreenExit();
-          console.log('✅ Step 1: Journey exit animation completed');
+          logger.debug('✅ Journey exit animation completed');
         } catch (error) {
-          console.error('❌ Failed to trigger Journey exit animation:', error);
+          logger.error('❌ Failed to trigger Journey exit animation:', error);
         }
 
-        console.log('🛑 Stopping remaining Journey animations after exit...');
+        logger.debug('🛑 Stopping remaining Journey animations after exit');
         
         // Step 0: Stop Journey card idle bounce animations
         try {
           const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.stop();
-            console.log('✅ Journey card idle bounce stopped');
+            logger.debug('✅ Journey card idle bounce stopped');
           }
         } catch (error) {
-          console.warn('⚠️ Failed to stop journey card idle bounce:', error);
+          logger.warn('⚠️ Failed to stop journey card idle bounce:', error);
         }
         
         // Step 0b: Stop glow pulse and interim bounce animations
@@ -1307,11 +1246,11 @@ class CollectiblesManager {
             const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
             if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
               journeyBoardsManager.stopGlowPulse();
-              console.log('✅ Glow pulse and interim bounce stopped');
+              logger.debug('✅ Glow pulse and interim bounce stopped');
             }
           }
         } catch (error) {
-          console.warn('⚠️ Failed to stop glow pulse:', error);
+          logger.warn('⚠️ Failed to stop glow pulse:', error);
         }
         
         // Step 0c: Kill all GSAP animations on Journey cards to prevent interference
@@ -1322,16 +1261,16 @@ class CollectiblesManager {
             if (cards.length > 0) {
               const { gsap } = await import('gsap');
               gsap.killTweensOf(cards);
-              console.log(`✅ Killed GSAP animations on ${cards.length} journey cards`);
+              logger.debug(`✅ Killed GSAP animations on ${cards.length} journey cards`);
             }
           }
         } catch (error) {
-          console.warn('⚠️ Failed to kill GSAP animations:', error);
+          logger.warn('⚠️ Failed to kill GSAP animations:', error);
         }
       } else {
         // 🎮 INTERIM CARD pathway: Journey → Game
         // Skip exit animation - already played in continueFromInterimBoard
-        console.log('🎮 Interim card pathway: Skipping exit animation (already played)');
+        logger.debug('🎮 Interim card pathway: skipping exit animation');
       }
       
       // 🔥 FIX: Clean up journey board elements before hiding screen
@@ -1358,12 +1297,12 @@ class CollectiblesManager {
       // 🔥 USER REQUEST: Only show homepage if this is back button pathway
       if (!isBackButton) {
         // Interim card pathway - don't show homepage
-        console.log('🎮 Interim card pathway: Not showing homepage');
+        logger.debug('🎮 Interim card pathway: not showing homepage');
         return; // Exit early
       }
       
       // 🔥 BACK BUTTON PATHWAY: Journey exit → Homepage slide 2 enter
-      console.log('🏠 Step 2: Showing homepage slide 2 after Journey exit animation');
+      logger.debug('🏠 Showing homepage slide 2 after Journey exit animation');
       
       // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when returning to homepage
       // This prevents gray background during transition and ensures correct opacity
@@ -1371,10 +1310,10 @@ class CollectiblesManager {
         const { applyPaperBackground } = await import('./modules/ui-manager.js');
         if (typeof applyPaperBackground === 'function') {
           applyPaperBackground('0.6');
-          console.log('✅ Paper background set to 60% opacity on Journey exit');
+          logger.debug('✅ Paper background set to 60% opacity on Journey exit');
         }
       } catch (error) {
-        console.warn('⚠️ Failed to set paper background on Journey exit:', error);
+        logger.warn('⚠️ Failed to set paper background on Journey exit:', error);
       }
       
       // Step 2a: Show homepage element
@@ -1494,7 +1433,7 @@ class CollectiblesManager {
       // Step 2d: Position slider on Journey slide (index 1) using NEW atomic API
       // When exiting Journey screen, ALWAYS return to Journey slide on homepage slider
       const targetSlideIndex = 1;
-      console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
+      logger.debug(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
       
       // 🔥 CRITICAL FIX: Reinitialize slider FIRST before using it
       // Slider may have been destroyed in exitToMenu - must reinit for navigation to work
@@ -1503,18 +1442,16 @@ class CollectiblesManager {
         try {
           // First, try to reinitialize if needed
           if (typeof sliderManager.init === 'function') {
-            console.log('🔧 Reinitializing slider manager for Journey exit...');
             sliderManager.init();
-            console.log('✅ Slider manager reinitialized');
+            logger.debug('✅ Slider manager reinitialized for Journey exit');
           }
           // 🔥 SWIPE FIX: Also call ensureReady() to reset all animation flags and unlock slider
           if (typeof sliderManager.ensureReady === 'function') {
-            console.log('🔧 Calling sliderManager.ensureReady() for Journey exit...');
             sliderManager.ensureReady();
-            console.log('✅ Slider ensureReady() called - slider should be interactive');
+            logger.debug('✅ Slider ensureReady() called for Journey exit');
           }
         } catch (initError) {
-          console.warn('⚠️ Failed to reinitialize slider:', initError);
+          logger.warn('⚠️ Failed to reinitialize slider:', initError);
         }
       }
       
@@ -1522,10 +1459,10 @@ class CollectiblesManager {
       // This replaces all manual GSAP positioning + class manipulation
       if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
         sliderManager.setSlideInstant(targetSlideIndex);
-        console.log(`✅ Slider positioned at slide ${targetSlideIndex} using setSlideInstant (atomic)`);
+        logger.debug(`✅ Slider positioned at slide ${targetSlideIndex} using setSlideInstant`);
       } else {
         // Fallback: Manual positioning (if slider-manager not available)
-        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
+        logger.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
         const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
         if (sliderWrapper && sliderContainerEl) {
           const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
@@ -1587,9 +1524,9 @@ class CollectiblesManager {
       if (activeSlideCheck) {
         void (activeSlideCheck as HTMLElement).offsetHeight; // Force reflow
         const slideIndex = Array.from(allSlides).indexOf(activeSlideCheck);
-        console.log(`✅ Active slide verified: index ${slideIndex} (should be ${targetSlideIndex})`);
+        logger.debug(`✅ Active slide verified: index ${slideIndex} (should be ${targetSlideIndex})`);
         if (slideIndex !== targetSlideIndex) {
-          console.warn(`⚠️ WARNING: Active slide is ${slideIndex}, expected ${targetSlideIndex}! Fixing...`);
+          logger.warn(`⚠️ Active slide is ${slideIndex}, expected ${targetSlideIndex}. Fixing...`);
           // Fix: Set target slide as active again
           allSlides.forEach((slide, idx) => {
             if (idx === targetSlideIndex) slide.classList.add('active');
@@ -1637,12 +1574,12 @@ class CollectiblesManager {
           const finalActiveSlide = document.querySelector('.slider-slide.active');
           const finalSlideIndex = finalActiveSlide ? Array.from(allSlides).indexOf(finalActiveSlide) : -1;
           if (finalSlideIndex === targetSlideIndex) {
-            console.log(`🎬 Step 3: Triggering slide ${targetSlideIndex} enter animation...`);
+            logger.debug(`🎬 Triggering slide ${targetSlideIndex} enter animation`);
             const { animateSliderEnter } = await import('./utils/animations.js');
             animateSliderEnter();
             logger.info(`✅ Homepage slide ${targetSlideIndex} enter animation triggered - Final destination: Slide ${targetSlideIndex}`);
           } else {
-            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not ${targetSlideIndex}! Cannot animate slide ${targetSlideIndex}.`);
+            logger.error(`❌ Active slide is ${finalSlideIndex}, not ${targetSlideIndex}. Cannot animate slide ${targetSlideIndex}.`);
           }
           resolve(undefined);
         });
@@ -1708,7 +1645,12 @@ class CollectiblesManager {
         cardEl.style.setProperty('--card-bounce-duration', `${randomDuration}s`);
         cardEl.style.setProperty('--card-bounce-delay', `${randomDelay}s`);
         
-        console.log('✅ Added bounce animation to card:', item.cardId, 'height:', randomHeight.toFixed(1), 'px, duration:', randomDuration.toFixed(2), 's, delay:', randomDelay.toFixed(2), 's');
+        logger.debug('✅ Added bounce animation to card', {
+          cardId: item.cardId,
+          height: randomHeight.toFixed(1),
+          duration: randomDuration.toFixed(2),
+          delay: randomDelay.toFixed(2),
+        });
       });
     });
   }
@@ -1757,9 +1699,11 @@ class CollectiblesManager {
     const pendingFlips = Array.isArray((window as any).__pendingCollectibleFlips) ? (window as any).__pendingCollectibleFlips : [];
     const isNewCard = pendingFlips.some((item: any) => item && item.cardId === card.id);
     
-    // Debug logging
     if (card.unlocked && isNewCard) {
-      console.log('🎁 Rendering new card as locked:', card.id, 'pendingFlips length:', pendingFlips.length);
+      logger.debug('🎁 Rendering new card as locked for pending flip', {
+        cardId: card.id,
+        pendingFlips: pendingFlips.length,
+      });
     }
 
     if (card.unlocked) {
@@ -1859,29 +1803,28 @@ class CollectiblesManager {
   }
 
   public showCardDetail(cardId: string, category: string): void {
-    console.log('🎁 showCardDetail called:', { cardId, category });
+    logger.debug('🎁 showCardDetail called', { cardId, category });
     
     const cards = this.collectiblesData[category as keyof CollectiblesData];
-    console.log('🎁 Cards found:', cards);
+    if (!cards) {
+      logger.warn('⚠️ Collectibles category not found:', category);
+      return;
+    }
     
     const index = cards.findIndex(c => c.id === cardId);
-    console.log('🎁 Card index:', index);
     
     if (index === -1) {
-      console.warn('⚠️ Card not found:', cardId);
+      logger.warn('⚠️ Card not found:', cardId);
       return;
     }
 
     const card = cards[index];
     if (!card) {
-      console.warn('⚠️ Card is null at index:', index);
+      logger.warn('⚠️ Card is null at index:', index);
       return;
     }
 
-    console.log('🎁 Card found:', card);
-
     const modal = document.getElementById('collectibles-detail-modal');
-    console.log('🎁 Modal found:', !!modal);
     
     // Hide Play Board button for regular collectibles (only show for Journey boards)
     // Also clear/hide title for regular collectibles (title is only for Journey boards)
@@ -1910,14 +1853,13 @@ class CollectiblesManager {
     
     // Use back image if card is locked, front image if unlocked
     const imagePath = card.unlocked ? frontImagePath : backImagePath;
-    console.log('🎁 Image path:', imagePath, 'unlocked:', card.unlocked);
 
     const cardNumberEl = document.getElementById('detail-card-number');
     const cardImageEl = document.getElementById('detail-card-image') as HTMLElement;
     const cardDescriptionEl = document.getElementById('detail-card-description');
     const cardRarityBadge = document.getElementById('detail-rarity-badge');
     
-    console.log('🎁 Elements found:', {
+    logger.debug('🎁 Detail modal elements found:', {
       cardNumber: !!cardNumberEl,
       cardImage: !!cardImageEl,
       cardDescription: !!cardDescriptionEl,
@@ -1926,9 +1868,8 @@ class CollectiblesManager {
 
     if (cardNumberEl) {
       cardNumberEl.textContent = numberStr;
-      console.log('✅ Card number set:', numberStr);
     } else {
-      console.warn('⚠️ Card number element not found');
+      logger.warn('⚠️ Card number element not found');
     }
     
     if (cardImageEl) {
@@ -1941,9 +1882,8 @@ class CollectiblesManager {
         cardImageEl.classList.add('locked');
       }
       
-      console.log('✅ Card image set:', imagePath, 'locked:', !card.unlocked);
     } else {
-      console.warn('⚠️ Card image element not found');
+      logger.warn('⚠️ Card image element not found');
     }
     
     if (cardRarityBadge) {
@@ -1954,9 +1894,8 @@ class CollectiblesManager {
       } else {
         cardRarityBadge.classList.remove('legendary');
       }
-      console.log('✅ Rarity badge set:', rarityLabel);
     } else {
-      console.warn('⚠️ Rarity badge element not found');
+      logger.warn('⚠️ Rarity badge element not found');
     }
     
     // Update container class for divider styling
@@ -1971,14 +1910,13 @@ class CollectiblesManager {
     
     if (cardDescriptionEl) {
       cardDescriptionEl.textContent = card.description;
-      console.log('✅ Card description set:', card.description);
     } else {
-      console.warn('⚠️ Card description element not found');
+      logger.warn('⚠️ Card description element not found');
     }
     
     // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked) for common boards
     if (category === 'common') {
-      const boardId = Number(number); // Card number = Board number
+      const boardId = index + 1; // Card number = Board number
       
       // Import and get board stats + global stats
       Promise.all([
@@ -2003,13 +1941,13 @@ class CollectiblesManager {
           cubesEl.textContent = globalStats.cubesCracked.toLocaleString();
         }
         
-        console.log(`✅ Board stats displayed for board ${boardId}:`, {
+        logger.debug(`✅ Board stats displayed for board ${boardId}:`, {
           highScore: boardStats.highScore,
           longestCombo: boardStats.longestCombo,
           cubesCracked: globalStats.cubesCracked
         });
       }).catch((error) => {
-        console.warn('⚠️ Failed to load board stats:', error);
+        logger.warn('⚠️ Failed to load board stats:', error);
       });
       
       // 🔥 NEW: Initialize swipeable container - start at stats section (index 0)
@@ -2026,9 +1964,9 @@ class CollectiblesManager {
             return;
           }
           journeyBoardsManager.initDetailModalSwipe(swipeableContainer as HTMLElement);
-          console.log('✅ Swipeable container initialized for regular collectibles - starting at stats section (card visible on right)');
+          logger.debug('✅ Swipeable container initialized for regular collectibles');
         }).catch((error) => {
-          console.warn('⚠️ Failed to initialize swipeable container:', error);
+          logger.warn('⚠️ Failed to initialize swipeable container:', error);
         });
       }
     } else {
@@ -2040,7 +1978,6 @@ class CollectiblesManager {
     }
 
     if (modal) {
-      console.log('✅ Modal exists, showing...');
       this.detailTrigger = document.activeElement as HTMLElement;
       this.currentDetailCardId = cardId; // Store current card ID
       this.currentDetailCategory = category; // Store current category
@@ -2072,7 +2009,6 @@ class CollectiblesManager {
           e.preventDefault();
           e.stopPropagation();
           (e as any).stopImmediatePropagation?.();
-          console.log('🎁 Close button clicked (direct listener)!');
           if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
             return;
           }
@@ -2097,7 +2033,6 @@ class CollectiblesManager {
           e.preventDefault();
           e.stopPropagation();
           (e as any).stopImmediatePropagation?.();
-          console.log('🎁 Close button touched (touchend)!');
           if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
             return;
           }
@@ -2112,9 +2047,9 @@ class CollectiblesManager {
           }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
         }, { capture: true, passive: false });
         
-        console.log('✅ Close button made clickable with multiple listeners');
+        logger.debug('✅ Detail close button listeners attached');
       } else {
-        console.warn('⚠️ Close button not found when showing modal');
+        logger.warn('⚠️ Close button not found when showing modal');
       }
       
       // Common collectible details do not launch Journey boards.
@@ -2141,17 +2076,22 @@ class CollectiblesManager {
         if (target === modal || target.id === 'collectibles-detail-modal') {
           e.preventDefault();
           e.stopPropagation();
-          console.log('🎁 Modal background clicked, closing modal');
           this.hideCardDetail();
         }
       };
       
+      const previousBackgroundClick = (modal as any).__collectiblesDetailBackgroundClick as EventListener | undefined;
+      if (previousBackgroundClick) {
+        modal.removeEventListener('click', previousBackgroundClick, { capture: true } as any);
+        modal.removeEventListener('click', previousBackgroundClick, { capture: false } as any);
+        modal.removeEventListener('touchend', previousBackgroundClick, { capture: true } as any);
+      }
+      (modal as any).__collectiblesDetailBackgroundClick = handleBackgroundClick as EventListener;
+
       // Add background click listener with multiple options
       modal.addEventListener('click', handleBackgroundClick, { capture: true });
       modal.addEventListener('click', handleBackgroundClick, { capture: false });
       modal.addEventListener('touchend', handleBackgroundClick, { capture: true, passive: false });
-      
-      console.log('✅ Background click listener attached to modal');
       
       // Enter animation: pop in (same style as slider)
       // Wait for modal to be visible before animating
@@ -2162,7 +2102,7 @@ class CollectiblesManager {
         const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
         const detailCloseBtn = modal.querySelector('#detail-close-btn');
         
-        console.log('🎬 Starting enter animation for detail modal elements:', {
+        logger.debug('🎬 Starting enter animation for detail modal elements:', {
           detailImage: !!detailImage,
           detailDescription: !!detailDescription,
           detailRarityBadge: !!detailRarityBadge,
@@ -2183,28 +2123,24 @@ class CollectiblesManager {
           setTimeout(() => {
             (detailImage as HTMLElement).classList.remove('animate-enter-initial');
             (detailImage as HTMLElement).classList.add('animate-enter');
-            console.log('✅ Detail image enter animation started');
           }, 0);
         }
         if (detailDescription) {
           setTimeout(() => {
             (detailDescription as HTMLElement).classList.remove('animate-enter-initial');
             (detailDescription as HTMLElement).classList.add('animate-enter');
-            console.log('✅ Detail description enter animation started');
           }, 30);
         }
         if (detailRarityBadge) {
           setTimeout(() => {
             (detailRarityBadge as HTMLElement).classList.remove('animate-enter-initial');
             (detailRarityBadge as HTMLElement).classList.add('animate-enter');
-            console.log('✅ Detail rarity badge enter animation started');
           }, 60);
         }
         if (detailCloseBtn) {
           setTimeout(() => {
             (detailCloseBtn as HTMLElement).classList.remove('animate-enter-initial');
             (detailCloseBtn as HTMLElement).classList.add('animate-enter');
-            console.log('✅ Detail close button enter animation started');
           }, 90);
         }
       });
@@ -2215,9 +2151,9 @@ class CollectiblesManager {
           initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
           onEscape: () => this.hideCardDetail(),
         });
-      console.log('✅ Modal shown');
+      logger.debug('✅ Collectibles detail modal shown');
     } else {
-      console.error('❌ Modal not found in DOM!');
+      logger.error('❌ Modal not found in DOM');
     }
   }
 
@@ -2229,16 +2165,14 @@ class CollectiblesManager {
       const firstCard = cards[0];
       this.showCardDetail(firstCard.id, 'common');
     } else {
-      console.warn('⚠️ No cards found to show');
+      logger.warn('⚠️ No cards found to show');
     }
   }
 
   public hideCardDetail(): void {
-    console.log('🎁 hideCardDetail called');
-    
     const modal = document.getElementById('collectibles-detail-modal');
     if (!modal) {
-      console.warn('⚠️ Modal not found in hideCardDetail');
+      logger.warn('⚠️ Modal not found in hideCardDetail');
       return;
     }
 
@@ -2246,14 +2180,12 @@ class CollectiblesManager {
     // If so, don't use collectibles exit animation - journey boards manager handles it
     const journeyBoardId = modal.getAttribute('data-journey-board-id');
     if (journeyBoardId) {
-      console.log(`🎁 Journey boards detail modal detected (board ${journeyBoardId}) - skipping collectibles exit animation`);
+      logger.debug(`🎁 Journey boards detail modal detected (board ${journeyBoardId}) - skipping collectibles exit animation`);
       // Journey boards manager will handle exit animation via its own event listener
       return;
     }
 
     this.currentDetailCategory = null;
-
-    console.log('✅ Modal found, starting exit animation');
     
     // 🔥 SMOOTH TRANSITION FIX: Freeze card at current animated position before stopping animation
     // This prevents jarring "snap back" when animation is stopped
@@ -2266,13 +2198,11 @@ class CollectiblesManager {
       // Step 2: Apply computed transform as inline style to "freeze" at current position
       if (currentTransform && currentTransform !== 'none') {
         detailImage.style.transform = currentTransform;
-        console.log('🎬 Card frozen at current animated position:', currentTransform);
       }
       
       // Step 3: NOW stop the CSS animation (card stays frozen at captured position)
       detailImage.style.animation = 'none';
       detailImage.style.animationPlayState = 'paused';
-      console.log('🧹 Detail image CSS animations stopped (no snap-back)');
     }
     
     // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
@@ -2285,10 +2215,10 @@ class CollectiblesManager {
             gsap.killTweensOf(el);
           } catch {}
         });
-        console.log('🧹 Detail modal GSAP animations killed');
+        logger.debug('🧹 Detail modal GSAP animations killed');
       }
     } catch (error) {
-      console.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
+      logger.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
     }
     
     // Exit animation: pop out (same style as slider)
@@ -2350,7 +2280,7 @@ class CollectiblesManager {
         }
         detailImageEl.style.removeProperty('background-image');
         detailImageEl.innerHTML = '';
-        console.log('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
+        logger.debug('🧹 Detail image fully cleaned up');
       }
       
       modal.setAttribute('hidden', 'true');
@@ -2362,16 +2292,12 @@ class CollectiblesManager {
       const trigger = this.detailTrigger;
       this.detailTrigger = null;
       
-      // 🔥 USER REQUEST: Always show Journey screen with enter animation after detail modal exit
-      console.log('🎯 Showing Journey screen with enter animation after detail modal exit');
-      
       // Show Journey screen with enter animation
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
         // Small delay to ensure detail modal exit animation completes
         setTimeout(() => {
           collectiblesManager.showCollectibles();
-          console.log('✅ Journey screen shown with enter animation after detail modal closed');
         }, 100); // Small delay after exit animation
       }
 
@@ -2384,7 +2310,7 @@ class CollectiblesManager {
           viewedCard.style.removeProperty('--card-bounce-height');
           viewedCard.style.removeProperty('--card-bounce-duration');
           viewedCard.style.removeProperty('--card-bounce-delay');
-          console.log('✅ Removed bounce animation from viewed card:', this.currentDetailCardId);
+          logger.debug('✅ Removed bounce animation from viewed card:', this.currentDetailCardId);
         }
         this.currentDetailCardId = null;
       }
@@ -2393,7 +2319,7 @@ class CollectiblesManager {
         trigger.focus();
       }
       
-      console.log('✅ Modal hidden');
+      logger.debug('✅ Collectibles detail modal hidden');
     }, 500); // 500ms animation duration
   }
 

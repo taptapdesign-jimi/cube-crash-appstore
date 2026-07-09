@@ -85,7 +85,7 @@ function normalizeBoardId(boardId: unknown): number | null {
   const value = Number(boardId);
   if (!Number.isFinite(value)) return null;
   const normalized = Math.floor(value);
-  return normalized >= 1 && normalized <= 25 ? normalized : null;
+  return normalized >= 1 && normalized <= 30 ? normalized : null;
 }
 
 class AppZoneManager {

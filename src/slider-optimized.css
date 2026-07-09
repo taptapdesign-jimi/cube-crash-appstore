@@ -10,6 +10,14 @@
   margin-top: -10vh; /* Lift up slider to original position */
   background: transparent; /* Transparent - sit on global background */
   z-index: 2; /* Above background, below other elements */
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  contain: layout style;
+  isolation: isolate;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   /* NO OPACITY TRANSITION - only scale animations */
 }
 
@@ -21,6 +29,11 @@
   height: 100%;
   overflow: hidden;
   z-index: 3; /* Above slider-container */
+  contain: layout style;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 #slider-wrapper {
@@ -31,12 +44,22 @@
   position: relative;
   z-index: 3;
   /* 🔥 SMOOTH: GPU acceleration for smooth, non-jerky animations */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  contain: layout paint style;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#slider-wrapper.slider-compositor-ready,
+#slider-container.dragging #slider-wrapper {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .slider-slide {
@@ -49,10 +72,11 @@
   position: relative;
   padding-top: 8vh;
   /* 🔥 SMOOTH: GPU acceleration for smooth animations */
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  contain: layout paint style;
 }
 
 .slider-slide.shop-module-hidden {
@@ -84,13 +108,15 @@
   justify-content: center;
   margin-bottom: 40px;
   margin-top: 36px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 }
 
 .slider-slide[data-slide="1"] .hero-container {
   top: 5%;
 }
-
-/* 🔥 REMOVED: Hero image particles overlay - feature no longer needed */
 
 .hero-image {
   width: 105%;
@@ -103,10 +129,13 @@
   /* Individual animations per slide below */
   /* CRITICAL iOS FIX: Force immediate rendering */
   will-change: auto;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .hero-image.hero-image-cta {
@@ -351,10 +380,6 @@
 }
 
 /* DYNAMIC EXIT ANIMATION CLASSES */
-/* REMOVED: Global transition conflicts with animation classes */
-/* .slide-text, .slide-button, .hero-shadow, .hero-image, .hero-container, #home-logo {
-  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-} */
 
 /* Exit animation keyframes for reference */
 @keyframes slideExit {
@@ -427,8 +452,6 @@
     margin-bottom: 8px !important;
   }
   
-  /* 🔥 REMOVED: All iPad-specific CTA button positioning - let CSS handle it via classes */
-  
   /* iPad-only: homepage slider main image scale reduced 7% from 1.037 to 0.964. */
   .hero-image {
     transform: scale(0.964) translateZ(0) !important;
@@ -448,8 +471,6 @@
   .slider-slide .hero-container {
     margin-bottom: 24px !important; /* 24px gap ispod slike */
   }
-  
-  /* 🔥 REMOVED: All iPad-specific CTA and subtitle positioning - let CSS handle it via classes */
   
   /* CRITICAL: Exit animation must override iPad positioning */
   .slider-slide .slide-button.animate-exit,
@@ -529,8 +550,6 @@
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
     -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   }
-  
-  /* 🔥 REMOVED: All iPad-specific CTA button animation rules - let base CSS handle it */
   
   .slide-tagline.animate-exit {
     transform: translateY(-12px) scale(0) !important; /* 🔥 USER REQUEST: Podignuto za dodatnih 4px gore (-8px - 4px = -12px) */
@@ -796,8 +815,6 @@
     transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
     -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   }
-  
-  /* 🔥 REMOVED: iPhone-specific CTA enter-initial rule that blocked animation - let base CSS handle it */
   
   .slide-button.animate-reset,
   .slider-slide .slide-button.animate-reset,

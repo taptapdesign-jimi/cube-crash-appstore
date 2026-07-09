@@ -1117,7 +1117,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // Board save state was already cleared in clean-board-modal.ts when Continue was clicked
     console.log('✅ endgame-flow: Skipping saveGameState() after clean board (board is completed, no save needed)');
     
-    // 🔥 REMOVED: saveGameState() call - board is completed, save state should NOT exist
     // This prevents "Continue" button from appearing on completed boards when user returns
     
     await performPreNextBoardCleanup(nextLevel);

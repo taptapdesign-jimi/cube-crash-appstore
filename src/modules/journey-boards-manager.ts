@@ -17,7 +17,6 @@ import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
-import { isHeartsFeatureEnabled } from './hearts-system.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -401,19 +400,20 @@ const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
 const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach';
+const ROBO_WORLD_ASSET_BASE = './assets/journey assets/robo';
 const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
 const BOARD_TRANSITION_ASSET_BASE = './assets/board transition';
 const FOREST_MAP_DESIGN_WIDTH = 390;
 const FOREST_MAP_DESIGN_HEIGHT = 760;
-const JOURNEY_MAX_BOARDS = 20;
-const JOURNEY_RENDERED_BOARDS = 20;
+const JOURNEY_MAX_BOARDS = 30;
+const JOURNEY_RENDERED_BOARDS = 30;
 const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
 const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Move bg image + card stack down together (px), all breakpoints */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
-const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 2700;
+const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
@@ -502,6 +502,16 @@ const CARD_POSITIONS = [
   { x: pxToPercent(228), top: forestTopPercent(2569), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
   { x: pxToPercent(40), top: forestTopPercent(2695), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
   { x: pxToPercent(226), top: forestTopPercent(2821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(36), top: forestTopPercent(3403), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(230), top: forestTopPercent(3533), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(44), top: forestTopPercent(3667), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(222), top: forestTopPercent(3791), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(3905), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(226), top: forestTopPercent(4033), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(4161), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(228), top: forestTopPercent(4281), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(40), top: forestTopPercent(4407), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(226), top: forestTopPercent(4533), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
 ];
 
 const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotation?: number }> = {
@@ -524,6 +534,16 @@ const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotati
   18: { x: 30, y: -2, rotation: 6 },
   19: { x: -8, y: 6, rotation: 4 },
   20: { x: 24, y: -6, rotation: 6 },
+  21: { x: -42, y: 24, rotation: -8 },
+  22: { x: 0, y: 23, rotation: -4 },
+  23: { x: 12, y: 28, rotation: 8 },
+  24: { x: 50, y: 4, rotation: 10 },
+  25: { x: 0, y: 16, rotation: 13 },
+  26: { x: -16, y: 6, rotation: -16 },
+  27: { x: 3, y: 8, rotation: 3 },
+  28: { x: 30, y: -2, rotation: 6 },
+  29: { x: -8, y: 6, rotation: 4 },
+  30: { x: 24, y: -6, rotation: 6 },
 };
 
 
@@ -534,6 +554,8 @@ class JourneyBoardsManager {
   private cleanupInProgress = false;
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
   private journeyExitPromise: Promise<void> | null = null;
+  private journeyToGameExitActive = false;
+  private journeyToGameExitBoardId: number | null = null;
   private journeyAreaIdleTickers: Array<() => void> = [];
   private journeyAreaIdleStartTimeout: number | null = null;
   private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
@@ -626,6 +648,7 @@ class JourneyBoardsManager {
       );
       idleTargets.forEach((target) => {
         const el = target as HTMLElement;
+        if ((el as any).__ccJourneyToGameExitTween) return;
         try { gsap.killTweensOf(el); } catch {}
         if (resetTransforms) {
           try {
@@ -1395,6 +1418,37 @@ class JourneyBoardsManager {
       });
     };
 
+    const addRoboMainClouds = () => {
+      const roboCloudSlots = [
+        { x: -34, y: 3162, width: 214, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
+        { x: 170, y: 3142, width: 180 },
+        { x: 278, y: 3210, width: 144 },
+        { x: -38, y: 3320, width: 170 },
+        { x: 58, y: 3382, width: 202, jitter: false },
+        { x: 190, y: 3320, width: 166 },
+        { x: 284, y: 3412, width: 116 },
+      ];
+
+      roboCloudSlots.forEach((slot, index) => {
+        const assetIndex = Math.floor(seededUnit(index + 201) * cloudAssetPool.length) % cloudAssetPool.length;
+        const sizeJitter = slot.jitter === false ? 1 : 0.86 + (seededUnit(index + 213) * 0.28);
+        const cloud = addImage(
+          slot.src || cloudAssetPool[assetIndex],
+          slot.x,
+          slot.y,
+          slot.width * sizeJitter,
+          `journey-forest-cloud-art journey-robo-main-cloud journey-robo-main-cloud-${index + 1}`,
+          1,
+          0,
+          'robo-main',
+          bgContainer
+        );
+        cloud.style.opacity = `${0.72 + (seededUnit(index + 227) * 0.14)}`;
+        cloud.style.willChange = 'transform';
+        cloudTargets.push(cloud);
+      });
+    };
+
     const addForestBoardGroup = (
       boardId: number,
       islandX: number,
@@ -1653,6 +1707,136 @@ class JourneyBoardsManager {
       }
     };
 
+    const addRoboBoardGroup = (
+      boardId: number,
+      roboIndex: number,
+      islandX: number,
+      islandY: number,
+      islandWidth = 200,
+      starsOffsetX = 0,
+      starsOffsetY = 0
+    ) => {
+      const areaId = `board-${boardId}`;
+      const targets: HTMLElement[] = [];
+      boardTargets.set(boardId, targets);
+
+      const islandSrc = `${ROBO_WORLD_ASSET_BASE}/robo${roboIndex}.png`;
+      const craterLayouts = [
+        { src: `${ROBO_WORLD_ASSET_BASE}/crater1.png`, x: 64, y: 62, width: 77, rotation: -3 },
+        { src: `${ROBO_WORLD_ASSET_BASE}/crater2.png`, x: 60, y: 60, width: 82, rotation: 4 },
+        { src: `${ROBO_WORLD_ASSET_BASE}/crater3.png`, x: 66, y: 58, width: 78, rotation: -1 },
+      ];
+      const craterOffsets: Record<number, { x: number; y: number }> = {
+        21: { x: -4, y: -8 },
+        22: { x: 2, y: 0 },
+        23: { x: 0, y: -2 },
+        24: { x: -2, y: 2 },
+        25: { x: 3, y: -1 },
+        26: { x: -3, y: -4 },
+        27: { x: 2, y: -2 },
+        28: { x: -1, y: 1 },
+        29: { x: 1, y: -3 },
+        30: { x: -4, y: 0 },
+      };
+      const craterBase = craterLayouts[(roboIndex - 1) % craterLayouts.length];
+      const craterOffset = craterOffsets[boardId] || { x: 0, y: 0 };
+      const craterLayout = {
+        ...craterBase,
+        x: craterBase.x + craterOffset.x,
+        y: craterBase.y + craterOffset.y,
+      };
+
+      const roboCloudSlots = [
+        { ref: 6, x: -62, y: 84, width: 150 },
+        { ref: 3, x: 56, y: -14, width: 118 },
+        { ref: 5, x: 126, y: 72, width: 100 },
+      ];
+
+      roboCloudSlots.forEach((slot) => {
+        const assetIndex = ((slot.ref - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length;
+        const cloud = addImage(
+          cloudAssetPool[assetIndex],
+          islandX + slot.x,
+          islandY + slot.y,
+          slot.width,
+          `journey-forest-cloud-art journey-forest-board-cloud journey-forest-cloud-board-${boardId} journey-forest-cloud-ref-${slot.ref}`,
+          1,
+          0,
+          areaId,
+          bgContainer
+        );
+        cloud.style.opacity = '0.78';
+        cloud.style.willChange = 'transform';
+        targets.push(cloud);
+      });
+
+      const roboIsland = addImage(
+        islandSrc,
+        islandX,
+        islandY,
+        islandWidth,
+        `journey-forest-island-art journey-robo-island-art journey-forest-island-${boardId}`,
+        2,
+        0,
+        areaId
+      );
+      applyBeach2xSrcSet(roboIsland, islandSrc);
+      targets.push(roboIsland);
+
+      const crater = addImage(
+        craterLayout.src,
+        islandX + craterLayout.x,
+        islandY + craterLayout.y,
+        craterLayout.width,
+        `journey-forest-stump-art journey-robo-crater-art journey-forest-stump-${boardId}`,
+        4,
+        craterLayout.rotation,
+        areaId,
+        decorContainer
+      );
+      applyBeach2xSrcSet(crater, craterLayout.src);
+      targets.push(crater);
+
+      const board = this.boards.find((item) => item.id === boardId);
+      const earnedStars = board?.unlocked === true && board?.interim !== true
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        : 0;
+      const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
+
+      if (shouldRenderLevelStars) {
+        const beamSrc = `${ROBO_WORLD_ASSET_BASE}/alien beam.png`;
+        const beam = addImage(
+          beamSrc,
+          islandX + craterLayout.x + 13,
+          islandY + craterLayout.y - 60,
+          54,
+          `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`,
+          5,
+          0,
+          areaId,
+          decorContainer
+        );
+        applyBeach2xSrcSet(beam, beamSrc);
+        targets.push(beam);
+
+        boardLayoutOffsets.stars.forEach((star, index) => {
+          const shouldShowFilledStar = index < earnedStars;
+          const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
+          targets.push(addImage(
+            shouldShowFilledStar ? star.filledSrc : star.emptySrc,
+            islandX + star.x + starsOffsetX,
+            islandY + star.y + starsOffsetY,
+            star.width,
+            `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
+            6,
+            0,
+            areaId,
+            decorContainer
+          ));
+        });
+      }
+    };
+
     addForestMainClouds();
     mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -16, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
     addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [6, 3, 4]);
@@ -1680,6 +1864,21 @@ class JourneyBoardsManager {
     addBeachBoardGroup(18, 8, 194, 2688, 200, -8, 4);
     addBeachBoardGroup(19, 9, 18, 2812, 200, -10, 8);
     addBeachBoardGroup(20, 10, 194, 2936, 200, -12, 10);
+    addRoboMainClouds();
+    const roboMainSrc = `${ROBO_WORLD_ASSET_BASE}/robo-main.png`;
+    const roboMain = addImage(roboMainSrc, 0, 3166, 390, 'journey-forest-main-art journey-robo-main-art', 3, 0, 'robo-main');
+    applyBeach2xSrcSet(roboMain, roboMainSrc);
+    mainTargets.push(roboMain);
+    addRoboBoardGroup(21, 1, 18, 3532, 200, -14, -3);
+    addRoboBoardGroup(22, 2, 194, 3656, 200, -8, 8);
+    addRoboBoardGroup(23, 3, 18, 3780, 200, -10, 8);
+    addRoboBoardGroup(24, 4, 194, 3904, 200, -12, 10);
+    addRoboBoardGroup(25, 5, 18, 4028, 200, -10, 4);
+    addRoboBoardGroup(26, 6, 194, 4152, 200, -12, 6);
+    addRoboBoardGroup(27, 7, 18, 4276, 200, -10, 8);
+    addRoboBoardGroup(28, 8, 194, 4400, 200, -8, 4);
+    addRoboBoardGroup(29, 9, 18, 4524, 200, -10, 8);
+    addRoboBoardGroup(30, 10, 194, 4648, 200, -12, 10);
 
     return { mainTargets, cloudTargets, boardTargets };
   }
@@ -2263,6 +2462,7 @@ class JourneyBoardsManager {
         });
         transitionTargets.forEach((target) => {
           try { gsap.killTweensOf(target); } catch {}
+          (target as any).__ccJourneyToGameExitTween = true;
           target.style.transformOrigin = '50% 50%';
           target.style.willChange = 'transform, opacity';
           target.style.pointerEvents = 'none';
@@ -2306,6 +2506,7 @@ class JourneyBoardsManager {
             });
             transitionTargets.forEach((target) => {
               try {
+                delete (target as any).__ccJourneyToGameExitTween;
                 target.style.willChange = 'auto';
                 target.style.pointerEvents = '';
               } catch {}
@@ -2347,6 +2548,16 @@ class JourneyBoardsManager {
                 scale: Number(gsap.getProperty(target, 'scale') || 0),
                 opacity: Number(gsap.getProperty(target, 'opacity') || 0),
               });
+              // Interrupts are usually caused by cleanup or a competing tween. Complete the
+              // visual exit state before resolving so the board transition cannot cut mid-motion.
+              try {
+                gsap.set(target, {
+                  scale: 0,
+                  opacity: 0,
+                  visibility: 'hidden',
+                  overwrite: true,
+                });
+              } catch {}
               finishExitTarget(target);
             },
           });
@@ -2366,6 +2577,8 @@ class JourneyBoardsManager {
     }
 
     this.setLastActiveJourneyBoardAreaId(boardId);
+    this.journeyToGameExitActive = true;
+    this.journeyToGameExitBoardId = boardId;
     logger.info('🧭 JourneyForestAnim journey-exit-flow-start', { boardId });
 
     this.journeyExitPromise = (async () => {
@@ -2377,6 +2590,8 @@ class JourneyBoardsManager {
         logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
       } finally {
         this.journeyExitPromise = null;
+        this.journeyToGameExitActive = false;
+        this.journeyToGameExitBoardId = null;
       }
     })();
 
@@ -2886,7 +3101,12 @@ class JourneyBoardsManager {
       this.stopInterimBounce(card as HTMLElement);
       // Kill any remaining GSAP animations on card wrapper
       const cardWrapper = (card as HTMLElement).closest('.journey-board-card-wrapper') as HTMLElement | null;
-      if (cardWrapper && typeof gsap !== 'undefined') {
+      if (
+        cardWrapper &&
+        typeof gsap !== 'undefined' &&
+        !this.journeyToGameExitActive &&
+        !(cardWrapper as any).__ccJourneyToGameExitTween
+      ) {
         gsap.killTweensOf(cardWrapper);
       }
     });
@@ -2966,7 +3186,12 @@ class JourneyBoardsManager {
         }
         // Kill any GSAP animations on card wrapper
         const cardWrapper = cardElement.closest('.journey-board-card-wrapper') as HTMLElement | null;
-        if (cardWrapper && typeof gsap !== 'undefined') {
+        if (
+          cardWrapper &&
+          typeof gsap !== 'undefined' &&
+          !this.journeyToGameExitActive &&
+          !(cardWrapper as any).__ccJourneyToGameExitTween
+        ) {
           gsap.killTweensOf(cardWrapper);
         }
         // Remove ::after pseudo-element animation by removing class or setting animation to none
@@ -3086,6 +3311,16 @@ class JourneyBoardsManager {
       'SUN SPLASH',
       'TIDE TURN',
       'CASTAWAY',
+      'ROBO MAIN',
+      'CRATER RUN',
+      'BEAMLINE',
+      'MARS METAL',
+      'LASER LIFT',
+      'DUST SIGNAL',
+      'ROBOT RIFT',
+      'ALIEN ARC',
+      'ORBIT OUT',
+      'FINAL SIGNAL',
     ];
     return names[boardNumber - 1] || `Board ${boardNumber}`;
   }
@@ -3387,8 +3622,7 @@ class JourneyBoardsManager {
           if (isNaN(opacityValue) || opacityValue < 1.0) {
             card.style.opacity = '1';
             const boardId = card.getAttribute('data-board-id') || 'unknown';
-            console.log(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
-            logger.info(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
+            logger.debug(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
           }
         });
       }
@@ -3412,7 +3646,7 @@ class JourneyBoardsManager {
         (container as any)._positionObserver.disconnect();
         (container as any)._positionObserver = null;
       } catch (e) {
-        console.warn('⚠️ Failed to disconnect previous position observer:', e);
+        logger.warn('⚠️ Failed to disconnect previous position observer:', e);
       }
     }
     
@@ -3614,28 +3848,6 @@ class JourneyBoardsManager {
 
     this.renderForestMapAssets(bgContainer, decorContainer);
     
-    // Debug: Verify edge-to-edge positioning (with delay to ensure styles are applied)
-    setTimeout(() => {
-      if (this.renderDisposed || !document.body.contains(container)) return;
-      const computed = window.getComputedStyle(bgContainer);
-      const containerRect = container.getBoundingClientRect();
-      const bgRect = bgContainer.getBoundingClientRect();
-      console.log('🎨 Background edge-to-edge check:', {
-        containerLeft: containerRect.left,
-        containerWidth: containerRect.width,
-        bgLeft: bgRect.left,
-        bgWidth: bgRect.width,
-        viewportWidth: window.innerWidth,
-        padLeft,
-        padRight,
-        inlineWidth: bgContainer.style.width,
-        inlineLeft: bgContainer.style.left,
-        computedWidth: computed.width,
-        computedLeft: computed.left,
-        isEdgeToEdge: bgRect.left <= 0 && bgRect.width >= window.innerWidth
-      });
-    }, 100);
-
     // Create cards container - also ABSOLUTE position within journey-boards-container
     // Set critical dynamic values inline (top, height) - static styles in CSS
     const cardsContainer = document.createElement('div');
@@ -4260,21 +4472,6 @@ class JourneyBoardsManager {
 
         const cardEl = card as HTMLElement;
         if (!cardEl) {
-          // 🔥 CRITICAL FIX: Check hearts BEFORE calling continueFromInterimBoard (fallback path)
-          if (isHeartsFeatureEnabled()) {
-            try {
-              const { heartsSystem } = await import('./hearts-system.js');
-              if (!heartsSystem.hasHearts()) {
-                logger.info('💔 No hearts available (fallback path) - showing hearts bottom sheet');
-                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-                showHeartsModal();
-                return; // Stay on Journey screen!
-              }
-            } catch (error) {
-              logger.warn('⚠️ Failed to check hearts (fallback), continuing anyway:', error);
-            }
-          }
-          
           this.continueFromInterimBoard(board).catch((error) => {
             logger.error('❌ Failed to continue from interim board:', error);
           });
@@ -4295,23 +4492,6 @@ class JourneyBoardsManager {
           return;
         }
         (cardEl as any)._openingGame = true;
-
-        // 🔥 CRITICAL FIX: Check hearts BEFORE starting Journey exit animation!
-        // If no hearts, show hearts bottom sheet and DON'T exit Journey screen
-        if (isHeartsFeatureEnabled()) {
-          try {
-            const { heartsSystem } = await import('./hearts-system.js');
-            if (!heartsSystem.hasHearts()) {
-              (cardEl as any)._openingGame = false; // Reset flag
-              logger.info('💔 No hearts available - showing hearts bottom sheet, NOT exiting Journey screen');
-              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-              showHeartsModal();
-              return; // Stay on Journey screen!
-            }
-          } catch (error) {
-            logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
-          }
-        }
 
         try {
           // Haptic feedback
@@ -4675,9 +4855,7 @@ class JourneyBoardsManager {
       const otherContentElements = [
         ...(isTabletDetailModalViewport() ? [] : detailDescription ? [detailDescription] : []),
         ...detailStatIconsArray,
-        // detailStatsSection, // 🔥 REMOVED: Stats section is NOT animated here - stat items animate individually
         detailRarityBadgeContainer
-        // detailImage - 🔥 REMOVED: Card is animated separately to prevent snap-back
       ].filter(el => el !== null) as HTMLElement[];
       
       // 🔥 DEBUG: Log PLAY button state
@@ -5039,9 +5217,7 @@ class JourneyBoardsManager {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
     
     try {
-      // 🔥 REMOVED: Hearts check moved to BEFORE Journey exit animation (in handleCardTap)
-      // This prevents showing hearts bottom sheet on empty screen with Journey already exited
-      // Hearts are now checked BEFORE startJourneyExitAnimation() is called
+      // Keep modal-only sheets from appearing over an already exited Journey screen.
       
       // Step 1: Stop Journey card idle bounce animations immediately
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
@@ -5818,17 +5994,8 @@ class JourneyBoardsManager {
         });
     }, preloadAfterEnterDelayMs);
     
-    // 🔥 USER REQUEST: First exit animation on Journey screen (if visible), then enter animation on detail modal
-    console.log(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
-    logger.info(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
-    console.log(`🔍 Board data:`, {
-      id: board.id,
-      name: board.name,
-      imagePath: board.imagePath,
-      interim: board.interim,
-      unlocked: board.unlocked
-    });
-    logger.info(`🔍 Board data:`, {
+    logger.info(`🎬 Opening board details for board ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' after Journey exit'}`);
+    logger.debug('Journey board detail data', {
       id: board.id,
       name: board.name,
       imagePath: board.imagePath,
@@ -5836,27 +6003,14 @@ class JourneyBoardsManager {
       unlocked: board.unlocked
     });
     
-    // 🔥 USER REQUEST: Wait for Journey exit animation to complete BEFORE opening detail modal
-    // This ensures smooth transition: Journey exits → THEN detail modal enters
     if (!skipJourneyExit) {
-      console.log('⏱️ Waiting for Journey exit animation to complete before opening detail modal...');
       await this.startJourneyExitAnimation();
-      console.log('✅ Journey exit animation complete');
-      
-      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes and browser can render
-      // This prevents lag when opening detail modal immediately after exit animation
       await new Promise(resolve => setTimeout(resolve, 100));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      console.log('✅ Delay after exit animation - opening detail modal now');
     } else if (journeyExitPromise) {
-      console.log('⏱️ Waiting for Journey exit promise to complete...');
       await journeyExitPromise;
-      console.log('✅ Journey exit promise resolved');
-      
-      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes
       await new Promise(resolve => setTimeout(resolve, 100));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      console.log('✅ Delay after exit promise - opening detail modal now');
     }
     
     // Step 2: Now open detail modal with enter animation
@@ -5977,7 +6131,7 @@ class JourneyBoardsManager {
         const handleResetStats = async (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
-          console.log(`🔄 Reset stats button clicked for board ${board.id}`);
+          logger.debug(`🔄 Reset stats button clicked for board ${board.id}`);
           
           try {
             const { boardStatsService } = await import('../services/board-stats-service.js');
@@ -6006,7 +6160,7 @@ class JourneyBoardsManager {
               const scoreBottomSheetModule = await import('../modules/score-bottom-sheet.js');
               if (scoreBottomSheetModule && typeof scoreBottomSheetModule.isScoreBottomSheetVisible === 'function') {
                 if (scoreBottomSheetModule.isScoreBottomSheetVisible()) {
-                  console.log('📊 Score bottom sheet is open - refreshing stats after reset');
+                  logger.debug('📊 Score bottom sheet is open - refreshing stats after reset');
                   // showScoreBottomSheet will refresh stats if already visible
                   if (typeof scoreBottomSheetModule.showScoreBottomSheet === 'function') {
                     scoreBottomSheetModule.showScoreBottomSheet();
@@ -6027,7 +6181,7 @@ class JourneyBoardsManager {
         
         (newResetBtn as HTMLElement).addEventListener('click', handleResetStats);
         (newResetBtn as HTMLElement).addEventListener('touchend', handleResetStats, { passive: true });
-        console.log('✅ Reset stats button listener attached');
+        logger.debug('✅ Reset stats button listener attached');
       }
       }, 0); // End deferred reset button setup
       
@@ -6250,7 +6404,6 @@ class JourneyBoardsManager {
                 const isTap = moveDistance < PEEKABOO_TAP_THRESHOLD && tapDuration < PEEKABOO_TAP_TIME_THRESHOLD;
                 
                 if (isTap) {
-                  console.log('🎯 Peekaboo area tapped - sliding to full card view');
                   logger.info('🎯 Peekaboo area tapped - sliding to full card view');
                   
                   slideToPosition(1);
@@ -6275,8 +6428,7 @@ class JourneyBoardsManager {
                 touchEnd: handlePeekabooTap
               };
               
-              console.log('✅ Peekaboo tap detection added to swipeable container');
-              logger.info('✅ Peekaboo tap detection added to swipeable container');
+              logger.debug('✅ Peekaboo tap detection added to swipeable container');
             }
           }
           
@@ -6416,8 +6568,7 @@ class JourneyBoardsManager {
         const buttonText = 'Play';
         const ariaLabel = 'Play Board';
         
-        console.log(`🎮 Board ${board.id} CTA button text: "${buttonText}" (hasSavedState: ${boardHasSavedState})`);
-        logger.info(`🎮 Board ${board.id} button will show: "${buttonText}"`);
+        logger.debug(`🎮 Board ${board.id} button will show: "${buttonText}"`, { hasSavedState: boardHasSavedState });
         
         // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
@@ -6473,33 +6624,12 @@ class JourneyBoardsManager {
           floatingPlayButton.setAttribute('aria-busy', 'true');
           floatingPlayButton.style.pointerEvents = 'none';
 
-          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardIdForPlay}, Board Name: ${boardNameForPlay}`);
-          logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`);
+          logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`, { boardName: boardNameForPlay });
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
           delete (window as any).__ccDirectDetailModalReturnActive;
 
           // Haptic feedback (match homepage slider CTA)
           try { (window as any).triggerHapticImpact?.('light'); } catch {}
-
-          // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
-          // If no hearts, show hearts bottom sheet instead of starting game
-          if (isHeartsFeatureEnabled()) {
-            try {
-              const { heartsSystem } = await import('./hearts-system.js');
-              if (!heartsSystem.hasHearts()) {
-                logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
-                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-                showHeartsModal();
-                (floatingPlayButton as any).__ccPlayStartInFlight = false;
-                floatingPlayButton.removeAttribute('aria-busy');
-                floatingPlayButton.style.pointerEvents = 'auto';
-                return; // Don't start game - show hearts modal instead
-              }
-            } catch (error) {
-              logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
-              // Continue if hearts check fails (fallback behavior)
-            }
-          }
 
           const shakeTarget = (
             detailModal.querySelector('.detail-content') ||
@@ -6522,27 +6652,25 @@ class JourneyBoardsManager {
             fromDetailModal: true,
             detailBoardId: boardIdForPlay,
           });
-          console.log(`🎯 Marked as coming from detail modal AND Journey (REGULAR BOARD, not interim) for board ${boardIdForPlay}`);
+          logger.debug(`🎯 Marked regular Journey detail origin for board ${boardIdForPlay}`);
 
           // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)
           // If YES → continue saved game (resume)
           // If NO → start fresh board (new game)
           const hasSavedState = hasSavedStateForBoard(boardIdForPlay);
-          console.log(`🎮 Board ${boardIdForPlay} has saved state: ${hasSavedState}`);
-          logger.info(`🎮 Board ${boardIdForPlay} saved state exists: ${hasSavedState}`);
+          logger.debug(`🎮 Board ${boardIdForPlay} saved state exists: ${hasSavedState}`);
           
           try {
             // 🔥 USER REQUEST: Show board transition screen before starting/continuing game
             // Import board transition screen module
             const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
-            console.log(`🎬 Showing board transition screen for board ${boardIdForPlay}`);
+            logger.debug(`🎬 Showing board transition screen for board ${boardIdForPlay}`);
             
             await showBoardTransitionScreen({
               boardNumber: boardIdForPlay,
               onComplete: async () => {
                 if (hasSavedState) {
                   // Case A: Board has save state → CONTINUE (resume where left off)
-                  console.log(`🎮 Board ${boardIdForPlay} has saved state - will CONTINUE (resume)`);
                   logger.info(`🎮 Resuming saved game for board ${boardIdForPlay}`);
                   
                   // Set flag to resume at correct board
@@ -6552,29 +6680,25 @@ class JourneyBoardsManager {
                   // Call continueGameWithSavedState to resume
                   if (typeof (window as any).continueGameWithSavedState === 'function') {
                     await (window as any).continueGameWithSavedState();
-                    console.log(`✅ continueGameWithSavedState call completed for board ${boardIdForPlay}`);
+                    logger.debug(`✅ continueGameWithSavedState call completed for board ${boardIdForPlay}`);
                   } else {
-                    console.error('❌ continueGameWithSavedState function NOT FOUND on window object!');
                     logger.error('❌ continueGameWithSavedState function not found');
                   }
                 } else {
                   // Case B: Board has NO save state → START FRESH (new game)
-                  console.log(`🎮 Board ${boardIdForPlay} has NO saved state - will START FRESH (new game)`);
                   logger.info(`🎮 Starting fresh game for board ${boardIdForPlay}`);
                   
                   // Call startNewRunFromJourney to create fresh board
                   if (typeof (window as any).startNewRunFromJourney === 'function') {
                     await (window as any).startNewRunFromJourney(boardIdForPlay);
-                    console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
+                    logger.debug(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
                   } else {
-                    console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
                     logger.error('❌ startNewRunFromJourney function not found');
                   }
                 }
               }
             });
           } catch (error) {
-            console.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
             logger.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
           }
         };
@@ -6585,8 +6709,7 @@ class JourneyBoardsManager {
         detailModal.addEventListener('cc:journey-detail-card-play', handlePlayClick as EventListener, { capture: false });
         (detailModal as any).__ccJourneyDetailCardPlayHandler = handlePlayClick as EventListener;
         
-        console.log(`✅ Play button event listener attached for board ${boardIdForPlay}`);
-        logger.info(`✅ Play button event listener attached for board ${boardIdForPlay}`);
+        logger.debug(`✅ Play button event listener attached for board ${boardIdForPlay}`);
       }
       
       // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO old CTA
@@ -7762,7 +7885,7 @@ class JourneyBoardsManager {
     const counter = document.getElementById('boards-counter');
     if (counter) {
       const unlockedCount = this.boards.filter(b => b.unlocked).length;
-      // 🔥 USER REQUEST: Show "0/25" instead of "00/25" when count is 0
+      // 🔥 USER REQUEST: Show "0/30" instead of "00/30" when count is 0
       counter.textContent = `${unlockedCount}/${JOURNEY_MAX_BOARDS}`;
     }
   }
@@ -7829,7 +7952,7 @@ class JourneyBoardsManager {
             bgContainer.style.visibility = 'visible';
           }
           
-          console.log('📐 Journey background position refreshed:', { topOffset, calculatedHeight });
+          logger.debug('📐 Journey background position refreshed:', { topOffset, calculatedHeight });
         });
       });
   }
@@ -8315,7 +8438,7 @@ class JourneyBoardsManager {
   }
 
   public showBoardPickerModal(action: 'show' | 'hide' | 'reset'): void {
-    console.log('🗺️ showBoardPickerModal called with action:', action);
+    logger.debug('🗺️ showBoardPickerModal called', { action });
     
     // Create modal overlay
     const overlay = document.createElement('div');
@@ -8493,7 +8616,7 @@ class JourneyBoardsManager {
       try {
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       } catch {}
-      console.log('✅ Board picker modal closed and cleaned up');
+      logger.debug('✅ Board picker modal closed and cleaned up');
     };
 
     const handleOverlayClick = (e: Event) => {
@@ -8582,7 +8705,7 @@ class JourneyBoardsManager {
       const handleUnlock = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('🗺️ Journey Show Card button clicked/touched', e.type);
+        logger.debug('🗺️ Journey Show Card button clicked/touched', { type: e.type });
         this.showBoardPickerModal('show');
       };
       
@@ -8607,7 +8730,7 @@ class JourneyBoardsManager {
       const handleHide = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('🗺️ Journey Hide Card button clicked/touched', e.type);
+        logger.debug('🗺️ Journey Hide Card button clicked/touched', { type: e.type });
         this.showBoardPickerModal('hide');
       };
       

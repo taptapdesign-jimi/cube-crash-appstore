@@ -7,10 +7,7 @@ import './utils/gsap-safe.js';
 
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
-// boot and layout imported statically for instant access
-import { boot as bootGame, layoutBoard as layoutGame, cleanupGame, animateBoardExit } from './modules/app-core.js';
 import { gsap } from 'gsap';
-import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
 import { startPerfMonitorIfEnabled } from './utils/perf-monitor.js';
 
@@ -36,49 +33,13 @@ import sliderManager from './modules/slider-manager.js';
 import iosOptimizer from './modules/ios-optimizer.js';
 
 // Import new services
-import { initializeServices, cleanupServices } from './core/service-registry.js';
-import { getGameState, getUIManager, getBoardService, getEventBus } from './core/service-registry.js';
-import { container } from './core/dependency-injection.js';
+import { initializeServices } from './core/service-registry.js';
 import { getBoardSaveKey, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
 import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
-
-// Import refactored modules
-import { 
-  glassCrackAtTile, 
-  woodShardsAtTile, 
-  innerFlashAtTile 
-} from './modules/fx-visual-effects.js';
-import { 
-  landBounce, 
-  screenShake, 
-  magicSparklesAtTile 
-} from './modules/fx-animations.js';
-import { 
-  showMultiplierTile, 
-  smokeBubblesAtTile, 
-  wildImpactEffect, 
-  startWildIdle, 
-  stopWildIdle 
-} from './modules/fx-special-effects.js';
-
-// Import new core modules
-import { 
-  initDrag
-} from './modules/drag-core.js';
-import { 
-  createUnifiedHudContainer, 
-  animateUnifiedHudDrop, 
-  getUnifiedHudInfo, 
-  initHUD 
-} from './modules/hud-core.js';
-import { 
-  collectiblesManager 
-} from './modules/collectibles-logic.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
 import memoryManager from './utils/memory-manager.js';
-import enhancedMemoryManager from './core/enhanced-memory-manager.js';
 import { logger } from './core/logger.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { PerformanceMonitor } from './utils/performance-monitor.js';
@@ -90,12 +51,214 @@ import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
-import { STATE } from './modules/app-state.js';
 import { hideNativeSplash } from './utils/native-splash.js';
+import { isNativeDevServerRuntime } from './utils/native-runtime.js';
 import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
-import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './modules/first-play-tutorial.js';
 import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
+
+type GameCoreModule = typeof import('./modules/app-core.js');
+
+let gameCoreModule: GameCoreModule | null = null;
+let gameCoreModulePromise: Promise<GameCoreModule> | null = null;
+let cachedAppState: any | null = null;
+let appStatePromise: Promise<any> | null = null;
+
+async function getAppState(): Promise<any> {
+  if (cachedAppState) return cachedAppState;
+  if (!appStatePromise) {
+    appStatePromise = import('./modules/app-state.js').then((module) => {
+      cachedAppState = module.STATE;
+      return cachedAppState;
+    });
+  }
+  return appStatePromise;
+}
+
+async function getGameCoreModule(): Promise<GameCoreModule> {
+  if (gameCoreModule) return gameCoreModule;
+  if (!gameCoreModulePromise) {
+    gameCoreModulePromise = import('./modules/app-core.js').then((module) => {
+      gameCoreModule = module;
+      return module;
+    });
+  }
+  return gameCoreModulePromise;
+}
+
+async function bootGame(): Promise<void> {
+  const module = await getGameCoreModule();
+  await module.boot();
+  await getAppState();
+}
+
+async function layoutGame(): Promise<void> {
+  const module = await getGameCoreModule();
+  await module.layoutBoard();
+  await getAppState();
+}
+
+async function animateBoardExit(): Promise<void> {
+  const module = await getGameCoreModule();
+  await module.animateBoardExit();
+}
+
+async function beginFirstPlayTutorialRun(source: 'arcade' | 'journey'): Promise<boolean> {
+  const module = await import('./modules/first-play-tutorial.js');
+  return module.beginFirstPlayTutorialRun(source) === true;
+}
+
+async function activateFirstPlayTutorialWhenReady(): Promise<void> {
+  const module = await import('./modules/first-play-tutorial.js');
+  module.activateFirstPlayTutorialWhenReady();
+}
+
+function cleanupGame(): void {
+  if (!gameCoreModule) {
+    logger.warn('⚠️ cleanupGame called before game core loaded - skipping');
+    return;
+  }
+  gameCoreModule.cleanupGame();
+}
+
+function getJourneyGameStartSnapshot(reason: string): Record<string, unknown> {
+  const readElement = (selector: string) => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (!el) return { exists: false };
+    const computed = window.getComputedStyle(el);
+    const rect = el.getBoundingClientRect();
+    return {
+      exists: true,
+      hidden: el.hidden,
+      className: el.className,
+      inlineDisplay: el.style.display,
+      inlineVisibility: el.style.visibility,
+      inlineOpacity: el.style.opacity,
+      inlinePointerEvents: el.style.pointerEvents,
+      computedDisplay: computed.display,
+      computedVisibility: computed.visibility,
+      computedOpacity: computed.opacity,
+      computedPointerEvents: computed.pointerEvents,
+      rect: {
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      },
+    };
+  };
+
+  const cc = (window as any).CC;
+  const pixiCanvas = cc?.app?.canvas as HTMLCanvasElement | undefined;
+
+  return {
+    reason,
+    appZone: (window as any).__ccAppZone,
+    startAtLevel: (window as any).__ccStartAtLevel,
+    triggerHudDrop: (window as any).__ccTriggerHudDrop,
+    boardTransitionActive: (window as any).__ccBoardTransitionActive,
+    cameFromJourney: (window as any).__ccCameFromJourney,
+    cameFromDetailModal: (window as any).__ccCameFromDetailModal,
+    fromInterimBoard: (window as any).__ccFromInterimBoard,
+    app: readElement('#app'),
+    appCanvas: readElement('#app canvas'),
+    journeyScreen: readElement('#journey-screen'),
+    transitionOverlay: readElement('#cc-board-transition-overlay'),
+    pixiCanvasConnected: !!pixiCanvas && document.body.contains(pixiCanvas),
+    pixiCanvasSize: pixiCanvas ? { width: pixiCanvas.width, height: pixiCanvas.height } : null,
+  };
+}
+
+function formatRuntimeError(error: unknown): Record<string, unknown> | string {
+  if (error instanceof Error) {
+    const cause = (error as Error & { cause?: unknown }).cause;
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      cause: cause instanceof Error
+        ? { name: cause.name, message: cause.message, stack: cause.stack }
+        : cause === undefined ? undefined : String(cause),
+    };
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const anyError = error as Record<string, unknown>;
+    return {
+      ...anyError,
+      message: typeof anyError.message === 'string' ? anyError.message : undefined,
+      stack: typeof anyError.stack === 'string' ? anyError.stack : undefined,
+      target: anyError.target instanceof HTMLScriptElement
+        ? { src: anyError.target.src, type: anyError.target.type }
+        : undefined,
+    };
+  }
+
+  return String(error);
+}
+
+async function recoverJourneyStartFailure(reason: string, error: unknown): Promise<void> {
+  logger.error('🧭 JourneyGameStartDiag failed', {
+    reason,
+    error: formatRuntimeError(error),
+    snapshot: getJourneyGameStartSnapshot(`${reason}:catch`),
+  });
+
+  try {
+    const { cleanupBoardTransitionScreen } = await import('./modules/board-transition-screen.js');
+    cleanupBoardTransitionScreen?.();
+  } catch (cleanupError) {
+    logger.warn('🧭 JourneyGameStartDiag transition cleanup failed', {
+      reason,
+      error: String(cleanupError),
+    });
+  }
+
+  try {
+    uiManager.hideApp();
+  } catch {}
+
+  try {
+    const { showCollectiblesScreen } = await import('./collectibles-manager.js');
+    await showCollectiblesScreen({ skipAutoScroll: true } as any);
+    logger.warn('🧭 JourneyGameStartDiag restored Journey after failed game start', {
+      reason,
+      snapshot: getJourneyGameStartSnapshot(`${reason}:restored-journey`),
+    });
+  } catch (restoreError) {
+    logger.error('🧭 JourneyGameStartDiag failed to restore Journey', {
+      reason,
+      error: String(restoreError),
+      snapshot: getJourneyGameStartSnapshot(`${reason}:restore-failed`),
+    });
+  }
+}
+
+function assertJourneyGameSurfaceVisible(reason: string): void {
+  const appEl = document.getElementById('app') as HTMLElement | null;
+  const canvas = document.querySelector('#app canvas') as HTMLElement | null;
+  const appVisible = !!appEl && window.getComputedStyle(appEl).display !== 'none' && window.getComputedStyle(appEl).visibility !== 'hidden';
+  const canvasVisible = !!canvas && window.getComputedStyle(canvas).display !== 'none' && window.getComputedStyle(canvas).visibility !== 'hidden';
+
+  logger.info('🧭 JourneyGameStartDiag surface check', getJourneyGameStartSnapshot(reason));
+
+  if (appEl && !appVisible) {
+    appEl.hidden = false;
+    appEl.removeAttribute('hidden');
+    appEl.style.display = 'block';
+    appEl.style.visibility = 'visible';
+    appEl.style.opacity = '1';
+    appEl.style.pointerEvents = 'auto';
+  }
+
+  if (canvas && !canvasVisible) {
+    canvas.style.display = 'block';
+    canvas.style.visibility = 'visible';
+    canvas.style.opacity = '1';
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.zIndex = '';
+  }
+}
 
 // Type definitions (ultra-permissive for quick TypeScript fix)
 interface GameState {
@@ -250,10 +413,7 @@ async function startAssetPreloading(): Promise<void> {
       launchScreen.hide();
     }, 12000);
     
-    // Setup progress callback (for future use if needed)
-    assetPreloader.setProgressCallback((percentage: number, loadedCount: number, totalCount: number) => {
-      logger.info(`📦 Loading progress: ${percentage}% (${loadedCount}/${totalCount})`);
-    });
+    const nativeDevServerRuntime = isNativeDevServerRuntime();
     
     // 🔥 CRITICAL: Ensure homepage is HIDDEN while launch screen is active
     // Homepage is created in bootstrapUI() but should stay hidden until launch screen is gone
@@ -274,10 +434,20 @@ async function startAssetPreloading(): Promise<void> {
     // No need to start preloading here - launch screen handles it
     logger.info('✅ Image preloading handled by launch screen Phase 2 (no separate preload needed)');
     
-    // Also start PIXI.js asset preloading (for game assets, not images)
-    assetPreloader.preloadAll().catch((error) => {
-      logger.error('❌ Asset preloading failed:', String(error));
-    });
+    // Also start PIXI.js asset preloading (for game assets, not images).
+    // Native dev server runs unbundled modules through WKWebView; defer heavy warmups
+    // there so the first frame can render and Safari/Xcode can attach.
+    if (nativeDevServerRuntime) {
+      logger.warn('⏭️ Native dev server runtime: skipping startup asset preloading');
+    } else {
+      const { assetPreloader } = await import('./modules/asset-preloader.js');
+      assetPreloader.setProgressCallback((percentage: number, loadedCount: number, totalCount: number) => {
+        logger.info(`📦 Loading progress: ${percentage}% (${loadedCount}/${totalCount})`);
+      });
+      assetPreloader.preloadAll().catch((error) => {
+        logger.error('❌ Asset preloading failed:', String(error));
+      });
+    }
     
     // 🔥 CRITICAL: Wait ONLY for launch screen to complete (don't wait for preloading)
     // Homepage appears IMMEDIATELY after launch screen finishes (after stack to six scale down)
@@ -694,7 +864,7 @@ async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
   const startedFromJourney = (window as any).__ccCameFromJourney === true;
   appZoneManager.prepareJourneyRunOrigin({ reason: `startNewRun:${boardId}`, boardId });
-  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
+  const shouldStartFirstPlayTutorial = await beginFirstPlayTutorialRun('journey');
   resetEndgameRuntimeFlags(`startNewRun:${boardId}`);
   
   // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
@@ -813,7 +983,7 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).continueGameWithSavedState = async () => {
   memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
-  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
+  const shouldStartFirstPlayTutorial = await beginFirstPlayTutorialRun('journey');
   
   // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
   // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
@@ -1014,6 +1184,7 @@ async function startNewRun(boardId: number): Promise<void> {
           }
           
           await layoutGame();
+          assertJourneyGameSurfaceVisible(`continueGameWithSavedState:${savedBoardNumber}:after-layout`);
           if (shouldStartFirstPlayTutorial) {
             activateFirstPlayTutorialWhenReady();
           }
@@ -1029,6 +1200,7 @@ async function startNewRun(boardId: number): Promise<void> {
           logger.error('❌ Failed to resume active run:', String(error));
           delete (window as any).__ccStartAtLevel;
           delete (window as any).__ccTriggerHudDrop;
+          await recoverJourneyStartFailure(`continueGameWithSavedState:${boardToLoad}`, error);
         }
       } else {
         // Wait for exit animation (770ms), then load saved game
@@ -1166,7 +1338,7 @@ async function startNewRun(boardId: number): Promise<void> {
   memoryManager.start();
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
-  const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('journey');
+  const shouldStartFirstPlayTutorial = await beginFirstPlayTutorialRun('journey');
   
   // 🔥 Keep __ccCameFromDetailModal so clean board can show Play Again + Exit (not Continue)
   delete (window as any).__ccDetailModalBoardId;
@@ -1238,6 +1410,7 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
     await layoutGame();
     console.log(`✅ layoutGame() completed`);
+    assertJourneyGameSurfaceVisible(`startNewRunFromJourney:${boardId}:after-layout`);
     if (shouldStartFirstPlayTutorial) {
       activateFirstPlayTutorialWhenReady();
     }
@@ -1253,6 +1426,8 @@ async function startNewRun(boardId: number): Promise<void> {
       console.error(`❌❌❌ Failed to start new run for board ${boardId}:`, error);
       logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
       delete (window as any).__ccStartAtLevel;
+      delete (window as any).__ccTriggerHudDrop;
+      await recoverJourneyStartFailure(`startNewRunFromJourney:${boardId}`, error);
     }
 };
 
@@ -1307,6 +1482,7 @@ async function startNewRun(boardId: number): Promise<void> {
   }
   (window as any)._gamePaused = false;
   console.log('🔓 exitToMenu: gamePaused flag reset');
+  const STATE = await getAppState();
   
   const killAllGsapTweensForExit = (label: string) => {
     console.log(`🧹 exitToMenu: Killing all GSAP tweens (${label})...`);
@@ -1344,6 +1520,40 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
     }
   };
+
+  const cleanupExitDragResidue = (label: string) => {
+    try {
+      const dragState = (STATE as any)?.drag || (window as any).drag;
+      try { dragState?.clearHover?.({ immediateMagnet: true }); } catch {}
+      try { dragState?.cleanup?.(); } catch {}
+      try { if (dragState) dragState.t = null; } catch {}
+
+      const tiles = Array.isArray((STATE as any)?.tiles) ? (STATE as any).tiles : [];
+      tiles.forEach((tile: any) => {
+        try {
+          if (!tile || tile.destroyed) return;
+          if (tile.shadow) {
+            gsap.killTweensOf(tile.shadow);
+            tile.shadow.alpha = 0;
+            tile.shadow.visible = false;
+          }
+          if (tile.scale) {
+            gsap.killTweensOf(tile.scale);
+            tile.scale.x = 1;
+            tile.scale.y = 1;
+          }
+          gsap.killTweensOf(tile);
+          tile.rotation = 0;
+          tile._zBeforeDrag = undefined;
+        } catch {}
+      });
+
+      try { (window as any).updateGhostVisibility?.(); } catch {}
+      console.log(`✅ exitToMenu: Drag/shadow residue cleared (${label})`);
+    } catch (error) {
+      console.warn(`⚠️ exitToMenu: Failed to clear drag/shadow residue (${label})`, error);
+    }
+  };
   
   // 🔥 USER REQUEST: Play NO MOVES! exit animation first (must run BEFORE killing GSAP)
   try {
@@ -1367,6 +1577,7 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // Clean scoped game tweens before exit so stale Pixi callbacks cannot touch destroyed objects.
   killAllGsapTweensForExit('pre-exit');
+  cleanupExitDragResidue('pre-exit');
   
   // 🔥 NOTE: FX cleanup happens after exit animations (see Step 3 below)
   
@@ -1666,6 +1877,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // Step 2: Clean scoped game tweens immediately after animations complete
     killAllGsapTweensForExit('post-exit');
+    cleanupExitDragResidue('post-exit');
     
     // Step 3: Clean up all effects (bubbles, explosions, particles, confetti) FIRST
     try {
@@ -1959,8 +2171,12 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🎯🎯🎯 TARGET SLIDE = ${targetSlide} 🎯🎯🎯`);
     if (targetSlide === 0) {
       console.log('🏠 HOMEPAGE PATH: returning through app zone router');
-      await appZoneManager.showHomepageShell('exitToMenu:homepage');
-      console.log('✅ Navigation and homepage shown through app zone router');
+      if (earlyHomepageHandoffDone) {
+        console.log('⚡ Fast arcade clean exit: homepage shell already visible, preserving active enter animation');
+      } else {
+        await appZoneManager.showHomepageShell('exitToMenu:homepage');
+        console.log('✅ Navigation and homepage shown through app zone router');
+      }
     } else {
       console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, returning through app zone router`);
       await appZoneManager.showJourneyShell('exitToMenu:journey');
@@ -2051,7 +2267,6 @@ async function startNewRun(boardId: number): Promise<void> {
         // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
         // Enter animation should start instantly after board exit
         const detailModalOpenPromise = import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
-          // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
           // This prevents 1 second blank screen between board exit and detail modal enter
           // Prevent #app from blocking clicks while modal is opening
           const appEl = document.getElementById('app');

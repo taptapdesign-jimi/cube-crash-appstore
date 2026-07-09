@@ -221,6 +221,10 @@ function getWarmupAssets(mode: BoardAssetWarmupMode): string[] {
 
 let warmupPromise: Promise<void> | null = null;
 
+function isNativeLocalBundle(): boolean {
+  return typeof window !== 'undefined' && window.location?.protocol === 'app:';
+}
+
 export function protectBoardTextureRenderer(appOrRenderer?: any, reason: string = 'unknown'): void {
   const renderer = appOrRenderer?.renderer ?? appOrRenderer ?? guardedRenderer;
   if (!renderer) return;
@@ -278,7 +282,9 @@ export async function ensureBoardTexturesResident(options: BoardAssetWarmupOptio
   await warmBoardGameAssets({
     ...options,
     reason,
-    timeoutMs: Math.max(350, options.timeoutMs ?? 1600),
+    timeoutMs: isNativeLocalBundle()
+      ? Math.max(6000, options.timeoutMs ?? 1600)
+      : Math.max(350, options.timeoutMs ?? 1600),
   });
 
   const missingOrStale = RESIDENT_BOARD_TEXTURE_ASSETS.filter((assetPath) => {
@@ -328,7 +334,9 @@ export async function ensureBoardTexturesResident(options: BoardAssetWarmupOptio
 export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Promise<void> {
   const mode = options.mode || 'unknown';
   const reason = options.reason || 'unknown';
-  const timeoutMs = Math.max(250, options.timeoutMs ?? 1800);
+  const timeoutMs = isNativeLocalBundle()
+    ? Math.max(6000, options.timeoutMs ?? 1800)
+    : Math.max(250, options.timeoutMs ?? 1800);
 
   if (warmupPromise) return warmupPromise;
 

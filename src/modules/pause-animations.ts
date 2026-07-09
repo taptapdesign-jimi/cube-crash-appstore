@@ -248,7 +248,3 @@ export function animateModalExit(modal: HTMLElement): Promise<void> {
     sequence();
   });
 }
-
-// 🔥 DEAD CODE REMOVED: bounceButtonAnimation, shakeModalAnimation, fadeInAnimation,
-// fadeOutAnimation, scaleInAnimation, scaleOutAnimation, animateButtonPress,
-// animateOverlayBlur, animateOverlayFade - none of these were used

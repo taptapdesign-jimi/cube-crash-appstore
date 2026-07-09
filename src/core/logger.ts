@@ -143,9 +143,7 @@ class Logger {
 // 🔥 OPTIMIZATION: Default to WARN level to reduce console noise
 // Set LOG_LEVEL environment variable to override (DEBUG, INFO, WARN, ERROR, FATAL)
 const getLogLevel = (): LogLevel => {
-  const envLevel = typeof window !== 'undefined' 
-    ? (window as any).__ccLogLevel 
-    : process.env.LOG_LEVEL;
+  const envLevel = typeof window !== 'undefined' ? (window as any).__ccLogLevel : undefined;
   
   if (envLevel) {
     const upper = String(envLevel).toUpperCase();
@@ -174,7 +172,7 @@ export { defaultLogger as logger };
 export type { Logger };
 
 // 🔧 DEBUG HELPER: Expose logger control to window for easy debugging
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as any).__ccLogger = {
     // Set log level dynamically
     setLevel: (level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL') => {

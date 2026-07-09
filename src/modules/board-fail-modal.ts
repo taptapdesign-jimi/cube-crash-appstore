@@ -4,7 +4,6 @@ import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
-import { isHeartsFeatureEnabled } from './hearts-system.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { clearJourneyDetailReturn, resolveJourneyReturnTarget } from './journey-origin-state.js';
 // public/src/modules/board-fail-modal.ts
@@ -112,13 +111,13 @@ function trackFailAnimationFrame(callback: (now: number) => void): number {
 }
 
 function clearAllFailTimeouts(): void {
-  console.log(`🧹 Clearing ${_failModalTimeouts.size} pending timeouts from board-fail-modal`);
+  logger.debug(`🧹 Clearing ${_failModalTimeouts.size} pending timeouts from board-fail-modal`);
   _failModalTimeouts.forEach(timeout => clearTimeout(timeout));
   _failModalTimeouts.clear();
 }
 
 function clearAllFailAnimationFrames(): void {
-  console.log(`🧹 Clearing ${_failModalAnimationFrames.size} pending animation frames from board-fail-modal`);
+  logger.debug(`🧹 Clearing ${_failModalAnimationFrames.size} pending animation frames from board-fail-modal`);
   _failModalAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
   _failModalAnimationFrames.clear();
 }
@@ -373,25 +372,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
       
-      // 💚 Lose one heart only in Journey when hearts are enabled.
-      if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
-        try {
-          const { heartsSystem } = await import('./hearts-system.js');
-          const heartLost = heartsSystem.loseHeart();
-          if (heartLost) {
-            logger.info('💔 Lost 1 heart due to board failure, remaining:', heartsSystem.getCurrentHearts());
-          } else {
-            logger.warn('⚠️ No hearts available to lose - player has 0 hearts');
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to lose heart on board failure:', error);
-        }
-      } else if (isArcadeHomeRunMode()) {
-        logger.info('🎮 Arcade failure - hearts are not consumed');
-      } else {
-        logger.info('💚 Hearts disabled - Journey failure does not consume hearts');
-      }
-      
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
       try {
@@ -588,12 +568,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           try {
             button.removeEventListener(event, handler, options);
           } catch (e) {
-            console.warn(`⚠️ board-fail-modal: Failed to remove ${event} listener:`, e);
+            logger.warn(`⚠️ board-fail-modal: Failed to remove ${event} listener:`, e);
           }
         });
       });
       buttonEventListeners.length = 0;
-      console.log('✅ board-fail-modal: All button event listeners removed');
+      logger.debug('✅ board-fail-modal: All button event listeners removed');
     };
 
     const cleanupFailModalLifecycle = (): void => {
@@ -637,31 +617,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
-        // Check hearts only in Journey. Arcade Play Again should restart freely.
         (async () => {
           try {
-            if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
-              const { heartsSystem } = await import('./hearts-system.js');
-              if (!heartsSystem.hasHearts()) {
-                logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
-                // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
-                // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
-                // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
-                // 🔥 CRITICAL FIX: Reset isResolving flag so user can click Play Again again after closing hearts bottom sheet
-                isResolving = false;
-                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-                showHeartsModal();
-                // Don't resolve or close modal - just show bottom sheet over it
-                return; // Don't continue to restart
-              }
-            } else {
-              logger.info('🎮 Arcade Play Again - skipping hearts check');
-            }
-            
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
             cleanupFailModalLifecycle();
             
-            // Has hearts - proceed with restart
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
@@ -686,7 +646,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             resolve({ action }); 
           } catch (error) {
-            logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
+            logger.warn('⚠️ Failed to restart from board fail modal, proceeding with fallback restart:', error);
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
             cleanupFailModalLifecycle();
@@ -735,7 +695,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         if (returnDecisionPromise) {
           const returnDecision = await returnDecisionPromise;
           logger.info('🎯 board-fail-modal: Journey return target prepared', returnDecision);
-          console.log('🎯 board-fail-modal: Journey return target prepared:', returnDecision);
         }
 
         // 🔥 BUG FIX: Cleanup board/FX after fail-modal exit to avoid cutting off the pop-out

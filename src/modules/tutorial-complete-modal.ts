@@ -11,6 +11,13 @@ function cleanupTutorialCompleteModal(): void {
   const existing = document.getElementById('cc-tutorial-complete-overlay');
   if (existing) {
     try { gsap.killTweensOf(existing.querySelectorAll('*')); } catch {}
+    try {
+      const shadow = existing.querySelector('.cc-tutorial-complete-shadow') as HTMLElement | null;
+      if (shadow) {
+        shadow.style.opacity = '0';
+        shadow.style.transform = 'translateX(-50%) scale(0.32, 0.38)';
+      }
+    } catch {}
     try { existing.remove(); } catch {}
   }
   const style = document.getElementById('cc-tutorial-complete-style');
@@ -233,6 +240,8 @@ export async function showTutorialCompleteModal(options: {
       cleanupFns = cleanupFns.filter((fn) => fn !== finish);
       try { cta && cta.removeEventListener('click', onContinue); } catch {}
       try { gsap.killTweensOf([title, subtitle, hero, thumb, shadow, cta]); } catch {}
+      try { (thumb as any)?.__ccTutorialThumbIdleTween?.kill?.(); } catch {}
+      try { gsap.set(shadow, { opacity: 0, scaleX: 0.32, scaleY: 0.38 }); } catch {}
       if (thumb) {
         thumb.classList.remove('animate-enter', 'animate-enter-initial');
       }
@@ -254,8 +263,8 @@ export async function showTutorialCompleteModal(options: {
       });
       tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0.12)
         .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.15)
+        .to(shadow, { opacity: 0, scaleX: 0.22, scaleY: 0.32, duration: 0.16, ease: 'power2.in' }, 0.08)
         .to(thumb, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.18)
-        .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.18)
         .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.72);
     };
 

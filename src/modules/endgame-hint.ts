@@ -88,8 +88,6 @@ function isBottomSheetActive(): boolean {
     '.simple-bottom-sheet.visible',
     '.resume-bottom-sheet',
     '.resume-bottom-sheet.visible',
-    '.hearts-bottom-sheet',
-    '.hearts-bottom-sheet.visible',
     '.collectible-reward-bottom-sheet',
     '.collectible-reward-bottom-sheet.visible',
     '.collectible-reward-sheet',

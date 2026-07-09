@@ -178,12 +178,6 @@ export function rebuildBoard(): void {
   // Ghost placeholders are now fixed and always visible
 }
 
-// 🔥 REMOVED: isBoardClean() - DEPRECATED function with critical bug
-// This function was causing false positives when tiles were locked (e.g. during magnet pull)
-// Use checkEndGame() from endgame-checker.ts instead
-// Bug: STATE.tiles.every(t => t.locked || t.value <= 0) returned true when all tiles were locked,
-// even if they had values > 0, causing premature "clean board" detection
-
 // Fun bouncy animation with smart optimization
 export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promise<void> {
   const list = [...listTiles];

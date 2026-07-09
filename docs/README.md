@@ -48,6 +48,7 @@ App Store readiness and version milestone reports.
 | Document | Description |
 |----------|-------------|
 | [APP_STORE_READINESS_CHECKLIST.md](release/APP_STORE_READINESS_CHECKLIST.md) | Store readiness checklist |
+| [RELEASE_READINESS_CENTER.md](release/RELEASE_READINESS_CENTER.md) | Daily release gate and iOS smoke flow |
 | [APP_STORE_FINAL_CHECKLIST.md](release/APP_STORE_FINAL_CHECKLIST.md) | Final checklist |
 | [APP_STORE_READINESS_FULL_AUDIT.md](release/APP_STORE_READINESS_FULL_AUDIT.md) | Full audit |
 | [APP_STORE_QUALITY_DEEP_DIVE.md](release/APP_STORE_QUALITY_DEEP_DIVE.md) | Quality deep dive |

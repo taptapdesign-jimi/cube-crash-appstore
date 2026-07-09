@@ -987,7 +987,7 @@ export async function showCleanBoardModal({
           }
           console.log('🌟 Hero styles set:', { opacity: hero.style.opacity, transform: hero.style.transform });
           
-          // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
+          // Animate stars filling in with a soft bounce effect.
           // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
           trackTimeout(() => {
             starElements.forEach((star, index) => {
@@ -1270,7 +1270,6 @@ export async function showCleanBoardModal({
       const handleTouchStart = (e: TouchEvent) => {
         touchStarted = true;
         touchStartedOnButton = button.contains(e.target as Node);
-        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
       };
       
       const handleTouchMove = (e: TouchEvent) => {
@@ -1284,7 +1283,6 @@ export async function showCleanBoardModal({
           if (isOutside) {
             // Cancel the touch
             touchStartedOnButton = false;
-            // 🔥 REMOVED inline style reset - CSS handles it
           }
         }
       };
@@ -1300,25 +1298,21 @@ export async function showCleanBoardModal({
           if (isOnButton) triggerActionOnce();
         }
         
-        // 🔥 REMOVED inline style reset - CSS handles it
         touchStarted = false;
         touchStartedOnButton = false;
       };
       
       const handleMouseDown = () => {
         touchStartedOnButton = true;
-        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
       };
       
       const handleMouseUp = (e: MouseEvent) => {
         if (touchStartedOnButton && button.contains(e.target as Node)) triggerActionOnce();
         
-        // 🔥 REMOVED inline style reset - CSS handles it
         touchStartedOnButton = false;
       };
       
       const handleMouseLeave = () => {
-        // 🔥 REMOVED inline style reset - CSS handles it
         touchStartedOnButton = false;
       };
       

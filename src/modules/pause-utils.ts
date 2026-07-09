@@ -3,7 +3,6 @@
 import { logger } from '../core/logger.js';
 import { container } from '../core/dependency-injection.js';
 import { gsap } from 'gsap';
-import { Container } from 'pixi.js';
 // pause-utils.ts
 // Utility functions for pause modal
 
@@ -162,7 +161,7 @@ export function restartGame(): void {
   }
   
   // Reset board
-  const grid = (container && typeof container.get === 'function') ? container.get('grid') as (Container | null)[][] : null;
+  const grid = (container && typeof container.get === 'function') ? container.get('grid') as (any | null)[][] : null;
   if (grid) {
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < grid[r].length; c++) {

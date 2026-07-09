@@ -1867,15 +1867,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   try { drawBoardBG?.(); } catch {}
   shouldRunPostMagnetEndgameCheck = true;
 
-  // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
-  // when magnet pulled wild star (e.g., magnet + regular + wild scenario)
-  // The check would see only merge 6 tile BEFORE wild merged with it
-  // We'll check endgame AFTER all merges complete (line 1020)
+  // Endgame checks must wait until magnet-pulled tiles finish merging.
   
-  // 🔥 CRITICAL FIX: REMOVED premature mergeability check!
-  // This check was causing instant fail screen when magnet pulled wild tiles
-  // because it ran BEFORE the pulled tiles merged with merge 6 tile
-  // Example: magnet + stack (2 tiles) + wild star
+  // Mergeability checks here would run before pulled wild tiles merge with the merge-6 tile.
   //   1. Magnet merges with stack → merge 6
   //   2. Magnet pulls wild star → wild is LOCKED and animating towards merge 6
   //   3. Respawn 1 new tile (because 1 tile was pulled)
@@ -2348,7 +2342,3 @@ export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: a
   
   return true;
 }
-
-
-// 🔥 DEAD CODE REMOVED: merge() function (677 lines) - was never used, app-core.ts has the active merge()
-// 🔥 DEAD CODE REMOVED: checkGameOver() function (4 lines) - deprecated, centralized checker is used instead

@@ -5,7 +5,8 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
-import { getOriginalGsapTo } from './drag-core.js';
+import { isNativeDevServerRuntime } from '../utils/native-runtime.js';
+import { getOriginalGsapTo } from '../utils/gsap-originals.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -468,17 +469,22 @@ class LaunchScreen {
     // 🔥 PRODUCTION READY iOS APP STORE: Preload critical homepage slider images DURING Phase 2
     // Launch screen Phase 2 lasts 2.5 seconds - perfect time to preload critical images
     // This ensures homepage slider images are ALWAYS ready when homepage appears
-    logger.info('🔥 PRODUCTION READY: Starting critical image preloading during Phase 2 (stack to six)...');
-    const criticalImagePreloadPromise = (async () => {
-      try {
-        const { preloadAllStartupImages } = await import('../utils/comprehensive-image-preloader.js');
-        // Start preloading - this will load critical images BLOCKING
-        await preloadAllStartupImages();
-        logger.info('✅ Critical images preloaded during Phase 2');
-      } catch (error) {
-        logger.warn('⚠️ Critical image preloading failed during Phase 2 (non-critical):', error);
-      }
-    })();
+    const shouldSkipStartupPreload = isNativeDevServerRuntime();
+    logger.info(shouldSkipStartupPreload
+      ? '⏭️ Native dev server runtime: skipping launch critical image preload'
+      : '🔥 PRODUCTION READY: Starting critical image preloading during Phase 2 (stack to six)...');
+    const criticalImagePreloadPromise = shouldSkipStartupPreload
+      ? Promise.resolve()
+      : (async () => {
+          try {
+            const { preloadAllStartupImages } = await import('../utils/comprehensive-image-preloader.js');
+            // Start preloading - this will load critical images BLOCKING
+            await preloadAllStartupImages();
+            logger.info('✅ Critical images preloaded during Phase 2');
+          } catch (error) {
+            logger.warn('⚠️ Critical image preloading failed during Phase 2 (non-critical):', error);
+          }
+        })();
 
     // Show for 2.5 seconds (user requested 2.5 seconds for stack to six)
     // 🔥 CRITICAL: Wait for BOTH 2.5 seconds AND critical image preloading
