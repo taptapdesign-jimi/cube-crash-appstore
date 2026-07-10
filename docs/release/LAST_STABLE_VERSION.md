@@ -6,18 +6,18 @@ When you ask Cursor to restore the last stable version, it should read the flags
 ## Search flags (do not rename)
 
 ```txt
-__CC_LAST_STABLE_VERSION__=605
-__CC_LAST_STABLE_GIT_COMMIT__=c2cdb4d2698fc7dfb4f13e9ecb628e98e678e785
-__CC_LAST_STABLE_GIT_COMMIT_SHORT__=c2cdb4d
-__CC_LAST_STABLE_LABEL__=v605
+__CC_LAST_STABLE_VERSION__=608
+__CC_LAST_STABLE_GIT_COMMIT__=0b02aa234301cd11993ae38089e4dfd7622efff3
+__CC_LAST_STABLE_GIT_COMMIT_SHORT__=0b02aa2
+__CC_LAST_STABLE_LABEL__=v608-IGRAJ
 ```
 
 ## Human summary
 
 | Field | Value |
 |-------|-------|
-| Stable label | **v605** |
-| Stable commit | `c2cdb4d` — remove hearts system, robo Journey boards 21-30, release audit tooling |
+| Stable label | **v608-IGRAJ** |
+| Stable commit | `0b02aa2` — IGRAJ CTA, bundled Stack to Six iPhone wrapper, current web build parity |
 | Date marked stable | 2026-07-10 |
 
 ## How to update (when a new version becomes stable)
@@ -39,5 +39,5 @@ git show __CC_LAST_STABLE_GIT_COMMIT_SHORT__
 git checkout __CC_LAST_STABLE_GIT_COMMIT__
 
 # Create a branch from stable
-git checkout -b restore-stable-v605 __CC_LAST_STABLE_GIT_COMMIT__
+git checkout -b restore-stable-v608-igraj __CC_LAST_STABLE_GIT_COMMIT__
 ```
