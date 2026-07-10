@@ -1,7 +1,7 @@
 {
   "name": "cube-crash",
   "private": true,
-  "version": "2.0.607",
+  "version": "2.0.608",
   "type": "module",
   "scripts": {
     "dev": "vite --host --force",
@@ -10,8 +10,8 @@
     "build:check": "tsc --noEmit",
     "build:strict": "tsc && vite build",
     "preview": "vite preview",
-    "dev:restart": "kill -9 $(lsof -t -i :5173) || true && vite --host --force",
-    "dev:restart:win": "powershell -Command \"$p=(Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue).OwningProcess; if($p){ Stop-Process -Id $p -Force }; vite --host --force\"",
+    "dev:restart": "kill -9 $(lsof -t -i :5174) || true && CUBE_CRASH_DEV_PORT=5174 vite --host --force",
+    "dev:restart:win": "powershell -Command \"$p=(Get-NetTCPConnection -LocalPort 5174 -ErrorAction SilentlyContinue).OwningProcess; if($p){ Stop-Process -Id $p -Force }; $env:CUBE_CRASH_DEV_PORT=5174; vite --host --force\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

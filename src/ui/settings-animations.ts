@@ -41,6 +41,8 @@ export function cleanupSettingsAnimations(): void {
 export function animateSettingsScreenEnter(): void {
   // 🔥 FIX: Kill any existing animations before starting new ones
   cleanupSettingsAnimations();
+  console.log('🎬🎬🎬 animateSettingsScreenEnter CALLED!');
+  console.log('🔍 GSAP available?', typeof gsap !== 'undefined');
   
   // Get settings elements
   const settingsScreen = document.getElementById('settings-screen');
@@ -48,7 +50,7 @@ export function animateSettingsScreenEnter(): void {
   const toggleContainers = Array.from(settingsScreen?.querySelectorAll('.settings-toggle-container') || []) as HTMLElement[];
   const dividers = Array.from(settingsScreen?.querySelectorAll('.settings-divider') || []) as HTMLElement[];
   
-  logger.debug('🎬 Settings screen enter animation requested', 'settings-animations', {
+  console.log('🔍 Found elements:', {
     settingsScreen: !!settingsScreen,
     settingsHeader: !!settingsHeader,
     toggleContainers: toggleContainers.length,
@@ -56,17 +58,19 @@ export function animateSettingsScreenEnter(): void {
   });
   
   if (!settingsScreen) {
-    logger.error('❌ No settings screen found to animate');
+    console.error('❌ No settings screen found to animate!');
     return;
   }
   
   // 🔥 CRITICAL: Set initial state for ALL elements (scale 0, opacity 0)
   const allElements = [settingsHeader, ...toggleContainers, ...dividers].filter(Boolean);
+  console.log('🎯 Setting initial state for', allElements.length, 'elements...');
   
   try {
     gsap.set(allElements, { scale: 0, opacity: 0 });
+    console.log('✅ Initial state set successfully');
   } catch (error) {
-    logger.error('❌ Failed to set settings initial animation state:', error);
+    console.error('❌ Failed to set initial state:', error);
     return;
   }
   
@@ -80,6 +84,7 @@ export function animateSettingsScreenEnter(): void {
       ease: 'back.out(1.7)', 
       delay: 0
     });
+    console.log('📊 Step 1: Settings header pop-in - FIRST');
   }
   
   // STEP 2: Toggle containers and dividers sequentially (interleaved)
@@ -100,6 +105,7 @@ export function animateSettingsScreenEnter(): void {
       ease: 'back.out(1.7)',
       delay: delay
     });
+    console.log(`⚙️ Step ${animationIndex + 2}: Toggle ${i + 1} pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
     animationIndex++;
     
     // Animate divider after toggle (if exists)
@@ -113,11 +119,12 @@ export function animateSettingsScreenEnter(): void {
         ease: 'back.out(1.7)',
         delay: dividerDelay
       });
+      console.log(`➖ Step ${animationIndex + 2}: Divider ${i + 1} pop-in - delay ${(dividerDelay * 1000).toFixed(0)}ms`);
       animationIndex++;
     }
   }
   
-  logger.debug('✅ Settings screen enter animation started');
+  console.log('✅ Settings screen enter animation started');
 }
 
 /**
@@ -125,6 +132,8 @@ export function animateSettingsScreenEnter(): void {
  * Toggle containers and dividers first (reverse order), then header
  */
 export function animateSettingsScreenExit(): void {
+  console.log('🎬 animateSettingsScreenExit CALLED!');
+  
   // 🔥 FIX: Kill any existing animations before starting exit
   cleanupSettingsAnimations();
   
@@ -134,7 +143,7 @@ export function animateSettingsScreenExit(): void {
   const dividers = Array.from(settingsScreen?.querySelectorAll('.settings-divider') || []) as HTMLElement[];
   
   if (!settingsScreen) {
-    logger.error('❌ No settings screen found to animate');
+    console.error('❌ No settings screen found to animate!');
     return;
   }
   
@@ -164,7 +173,7 @@ export function animateSettingsScreenExit(): void {
     });
     
     const elementType = element.classList.contains('settings-divider') ? 'Divider' : 'Toggle';
-    logger.debug(`⚙️ Settings ${elementType} pop-out scheduled`, 'settings-animations', { delayMs: (delay * 1000).toFixed(0) });
+    console.log(`⚙️ Step ${index + 1}: ${elementType} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
   });
   
   // STEP 2: Header LAST
@@ -179,7 +188,8 @@ export function animateSettingsScreenExit(): void {
       ease: 'back.in(1.7)',
       delay: lastDelay + 0.05
     });
+    console.log('📊 Header pop-out - LAST');
   }
   
-  logger.debug('✅ Settings screen exit animation started');
+  console.log('✅ Settings screen exit animation started');
 }

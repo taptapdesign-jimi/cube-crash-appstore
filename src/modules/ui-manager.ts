@@ -6,11 +6,13 @@ import gameState from './game-state.js';
 import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter } from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
+import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 import { markArcadeHomeRunOrigin } from './run-mode.js';
+import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
@@ -23,36 +25,6 @@ import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsA
 const PAPER_BG_IMAGE = "url('./assets/paper-bg.png')";
 const PAPER_BG_STYLE = "#f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat";
 const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
-
-type GameCoreModule = typeof import('./app-core.js');
-let gameCoreModulePromise: Promise<GameCoreModule> | null = null;
-
-async function getGameCoreModule(): Promise<GameCoreModule> {
-  if (!gameCoreModulePromise) {
-    gameCoreModulePromise = import('./app-core.js');
-  }
-  return gameCoreModulePromise;
-}
-
-async function bootGame(): Promise<void> {
-  const module = await getGameCoreModule();
-  await module.boot();
-}
-
-async function layoutGame(): Promise<void> {
-  const module = await getGameCoreModule();
-  await module.layoutBoard();
-}
-
-async function beginFirstPlayTutorialRun(source: 'arcade' | 'journey'): Promise<boolean> {
-  const module = await import('./first-play-tutorial.js');
-  return module.beginFirstPlayTutorialRun(source) === true;
-}
-
-async function activateFirstPlayTutorialWhenReady(): Promise<void> {
-  const module = await import('./first-play-tutorial.js');
-  module.activateFirstPlayTutorialWhenReady();
-}
 
 function playDomSoftCartoonBounce(target: HTMLElement | null): void {
   if (!target) return;
@@ -488,6 +460,7 @@ class UIManager {
     });
     this.unsubscribeFunctions.push(unsubscribeGameActive);
     
+    // 🔥 REMOVED: Slider locked state subscription - SliderManager handles this exclusively
     // Having dual subscriptions caused desynchronization issues
   }
   
@@ -688,7 +661,7 @@ class UIManager {
   // Start new game (public method) - ALWAYS starts from Board 1
   async startNewGame(): Promise<void> {
     memoryManager.start();
-    const shouldStartFirstPlayTutorial = await beginFirstPlayTutorialRun('arcade');
+    const shouldStartFirstPlayTutorial = beginFirstPlayTutorialRun('arcade');
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     markArcadeHomeRunOrigin();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
@@ -2634,6 +2607,7 @@ class UIManager {
     });
   }
   
+  // 🔥 REMOVED: updateSliderLockState - SliderManager handles this exclusively
   // Having dual lock state management caused desynchronization issues
 
   private setNavigationVisibility(visible: boolean): void {

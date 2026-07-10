@@ -1,5 +1,6 @@
 // App Manager - Handles lazy loading and dynamic component rendering
 import { logger } from '../core/logger.js';
+// 🔥 REMOVED: startHeroImageParticles, stopHeroImageParticles - feature no longer needed
 
 export type ScreenType = 'loading' | 'home' | 'game' | 'collectibles' | 'menu' | 'settings';
 
@@ -98,13 +99,15 @@ class AppManager {
           if (collectiblesManager && typeof collectiblesManager.init === 'function') {
             try {
               collectiblesManager.init();
-              logger.debug('✅ Collectibles manager initialized successfully');
+              console.log('✅ Collectibles manager initialized successfully');
             } catch (initError) {
+              console.error('❌ Error initializing collectibles manager:', initError);
               logger.warn('⚠️ Error initializing collectibles manager, continuing:', initError);
               // Don't throw - Journey screen should still be shown even if init fails
             }
           }
         } catch (error) {
+          console.error('❌ Failed to initialize collectibles screen:', error);
           logger.warn('⚠️ Failed to initialize collectibles screen:', error);
           // 🔥 CRITICAL: Don't throw error - collectibles screen should still be shown even if init fails
           // This prevents error handler from triggering loading screen reload
@@ -114,13 +117,16 @@ class AppManager {
         try {
           // Settings screen doesn't require special initialization, but wrap in try-catch anyway
           // This prevents any unexpected errors from crashing the app
-          logger.debug('✅ Settings screen shown');
+          console.log('✅ Settings screen shown');
         } catch (error) {
+          console.error('❌ Failed to show settings screen:', error);
           logger.warn('⚠️ Failed to show settings screen:', error);
           // 🔥 CRITICAL: Don't throw error - settings screen should still be shown even if init fails
           // This prevents error handler from triggering loading screen reload
         }
       }
+      
+      // 🔥 REMOVED: Hero image particles feature no longer needed
       
       logger.info(`✅ Screen shown: ${screen}`);
     } else {
@@ -136,6 +142,8 @@ class AppManager {
     }
     // 🔥 MEMORY LEAK FIX: Comprehensive cleanup when home screen is hidden
     if (screen === 'home') {
+      // 🔥 REMOVED: Hero image particles feature no longer needed
+      
       // Cleanup homepage animations
       try {
         const { cleanupAnimations } = await import('../utils/animations.js');

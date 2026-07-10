@@ -8,7 +8,7 @@ import { logger } from '../core/logger.js';
 import { SLIDER_ANIMATION, SLIDER_CONFIG, getNavButtonActiveSize, getNavButtonInactiveSize } from '../constants/animations.js';
 import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
-import { getOriginalGsapTo } from '../utils/gsap-originals.js';
+import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
@@ -66,9 +66,6 @@ class SliderManager {
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
   private gestureVelocityX: number = 0;
-  private pendingDragOffset: number | null = null;
-  private dragRafId: number | null = null;
-  private sliderLayerWarmupDone: boolean = false;
 
   private setNavButtonVisualState(
     navButton: HTMLElement,
@@ -340,105 +337,6 @@ class SliderManager {
     this.gestureLastTs = now;
   }
 
-  private warmupSliderLayers(): void {
-    if (this.sliderLayerWarmupDone) return;
-
-    const rafId = requestAnimationFrame(() => {
-      this.activeRAFs.delete(rafId);
-      if (!this.elements.container || !this.elements.wrapper) return;
-      const containerStyle = window.getComputedStyle(this.elements.container);
-      const wrapperStyle = window.getComputedStyle(this.elements.wrapper);
-      const isRenderable = this.elements.container.offsetWidth > 0
-        && this.elements.wrapper.offsetWidth > 0
-        && containerStyle.display !== 'none'
-        && wrapperStyle.display !== 'none'
-        && containerStyle.visibility !== 'hidden'
-        && wrapperStyle.visibility !== 'hidden';
-
-      if (!isRenderable) {
-        logger.debug('Slider layer warmup deferred until slider is renderable');
-        return;
-      }
-
-      this.sliderLayerWarmupDone = true;
-
-      this.elements.container.classList.add('slider-compositor-ready');
-      this.elements.wrapper.classList.add('slider-compositor-ready');
-      this.elements.slides?.forEach((slide) => slide.classList.add('slider-compositor-ready'));
-
-      const slideWidth = this.elements.container.offsetWidth || window.innerWidth;
-      const offset = -this.currentSlide * slideWidth;
-      gsap.set(this.elements.wrapper, {
-        x: offset,
-        force3D: true,
-        immediateRender: true
-      });
-
-      const images = Array.from(this.elements.container.querySelectorAll('.hero-image')) as HTMLImageElement[];
-      images.slice(0, 3).forEach((image) => {
-        image.loading = 'eager';
-        image.decoding = 'async';
-        if (typeof image.decode === 'function' && !image.complete) {
-          image.decode().catch(() => undefined);
-        }
-      });
-    });
-    this.activeRAFs.add(rafId);
-  }
-
-  private prepareDragLayer(): void {
-    if (!this.elements.container || !this.elements.wrapper) return;
-    if (this.slideAnimation) {
-      this.slideAnimation.kill();
-      this.slideAnimation = null;
-    }
-    this.elements.container.classList.add('dragging');
-    this.elements.wrapper.style.willChange = 'transform';
-    this.elements.wrapper.style.transform = this.elements.wrapper.style.transform || 'translate3d(0, 0, 0)';
-  }
-
-  private scheduleDragPosition(offset: number): void {
-    this.pendingDragOffset = offset;
-    if (this.dragRafId !== null) return;
-
-    const rafId = requestAnimationFrame(() => {
-      this.activeRAFs.delete(rafId);
-      this.dragRafId = null;
-      const nextOffset = this.pendingDragOffset;
-      this.pendingDragOffset = null;
-      if (nextOffset === null || !this.elements.wrapper) return;
-
-      this.elements.wrapper.style.willChange = 'transform';
-      if (this.quickSetX) {
-        this.quickSetX(nextOffset);
-      } else {
-        this.elements.wrapper.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
-      }
-    });
-
-    this.dragRafId = rafId;
-    this.activeRAFs.add(rafId);
-  }
-
-  private flushPendingDragPosition(): void {
-    if (this.dragRafId !== null) {
-      cancelAnimationFrame(this.dragRafId);
-      this.activeRAFs.delete(this.dragRafId);
-      this.dragRafId = null;
-    }
-
-    const nextOffset = this.pendingDragOffset;
-    this.pendingDragOffset = null;
-    if (nextOffset === null || !this.elements.wrapper) return;
-
-    this.elements.wrapper.style.willChange = 'transform';
-    if (this.quickSetX) {
-      this.quickSetX(nextOffset);
-    } else {
-      this.elements.wrapper.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
-    }
-  }
-
   private commitGesture(deltaX: number, velocityX: number): void {
     const passesDistance = Math.abs(deltaX) > this.threshold;
     const passesVelocity = Math.abs(velocityX) >= this.velocityThreshold;
@@ -494,7 +392,6 @@ class SliderManager {
       
       // Initialize slider
       this.updateSlider();
-      this.warmupSliderLayers();
       
       this.isInitialized = true;
       logger.info('✅ Slider Manager initialized');
@@ -752,7 +649,11 @@ class SliderManager {
         this.startX = this.globalSwipeState.startX; // Use ORIGINAL touch start position!
         this.currentX = touch.clientX;
         this.resetGestureVelocity(this.currentX);
-        this.prepareDragLayer();
+        
+        // Add dragging class
+        if (this.elements.container) {
+          this.elements.container.classList.add('dragging');
+        }
         
         // Immediately update slider position with correct deltaX
         const swipeDeltaX = this.currentX - this.startX;
@@ -765,7 +666,6 @@ class SliderManager {
         this.isDragging = false;
         this.globalSwipeState.isTracking = false;
         this.globalSwipeState.isHorizontalSwipe = false;
-        this.flushPendingDragPosition();
         this.elements.container?.classList.remove('dragging');
         return;
       }
@@ -783,7 +683,6 @@ class SliderManager {
       if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
         this.isDragging = false;
         const deltaX = this.currentX - this.startX;
-        this.flushPendingDragPosition();
         
         // Remove dragging class
         if (this.elements.container) {
@@ -853,7 +752,11 @@ class SliderManager {
     this.startX = touch.clientX;
     this.currentX = this.startX;
     this.resetGestureVelocity(this.currentX);
-    this.prepareDragLayer();
+    
+    // Add dragging class
+    if (this.elements.container) {
+      this.elements.container.classList.add('dragging');
+    }
   }
   
   // Handle touch move
@@ -876,14 +779,12 @@ class SliderManager {
 
     if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
       this.isDragging = false;
-      this.flushPendingDragPosition();
       this.elements.container?.classList.remove('dragging');
       return;
     }
     
     this.isDragging = false;
     const deltaX = this.currentX - this.startX;
-    this.flushPendingDragPosition();
     
     // Remove dragging class
     if (this.elements.container) {
@@ -909,7 +810,11 @@ class SliderManager {
     this.startX = event.clientX;
     this.currentX = this.startX;
     this.resetGestureVelocity(this.currentX);
-    this.prepareDragLayer();
+    
+    // Add dragging class
+    if (this.elements.container) {
+      this.elements.container.classList.add('dragging');
+    }
   }
   
   // Handle mouse move
@@ -930,14 +835,12 @@ class SliderManager {
 
     if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
       this.isDragging = false;
-      this.flushPendingDragPosition();
       this.elements.container?.classList.remove('dragging');
       return;
     }
 
     this.isDragging = false;
     const deltaX = this.currentX - this.startX;
-    this.flushPendingDragPosition();
     
     // Remove dragging class
     if (this.elements.container) {
@@ -971,7 +874,15 @@ class SliderManager {
       currentOffset = baseOffset + (deltaX * SLIDER_CONFIG.ELASTIC_RESISTANCE);
     }
     
-    this.scheduleDragPosition(currentOffset);
+    // 🔥 SMOOTH: Use GSAP quickSetter for smooth drag updates (already optimized for 60fps)
+    // quickSetter internally uses requestAnimationFrame for smooth updates
+    if (this.quickSetX) {
+      this.quickSetX(currentOffset);
+    } else {
+      // Fallback to direct transform with will-change for GPU acceleration
+      this.elements.wrapper.style.willChange = 'transform';
+      this.elements.wrapper.style.transform = `translateX(${currentOffset}px)`;
+    }
   }
   
   // Go to specific slide
@@ -1406,8 +1317,6 @@ class SliderManager {
       this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
       logger.debug('✅ GSAP quickSetter recreated');
     }
-
-    this.warmupSliderLayers();
     
     logger.debug('ensureReady: Slider ready for interaction');
   }
@@ -1507,9 +1416,6 @@ class SliderManager {
     // 3. Clear any pending RAFs
     this.activeRAFs.forEach(raf => cancelAnimationFrame(raf));
     this.activeRAFs.clear();
-    this.dragRafId = null;
-    this.pendingDragOffset = null;
-    this.sliderLayerWarmupDone = false;
     
     // 4. Kill any GSAP tweens on slider elements (but not globally!)
     if (this.elements.wrapper) {
@@ -1555,8 +1461,6 @@ class SliderManager {
       logger.debug('Slider needs reinitialization - doing it now');
       this.destroy();
       this.init();
-    } else {
-      this.warmupSliderLayers();
     }
     
     // 11. Update navigation button active states
@@ -1583,8 +1487,6 @@ class SliderManager {
       cancelAnimationFrame(rafId);
     });
     this.activeRAFs.clear();
-    this.dragRafId = null;
-    this.pendingDragOffset = null;
     logger.info('🧹 Active RAFs cancelled');
     
     // 🔥 FIX: Kill all nav button animations
@@ -1683,7 +1585,6 @@ class SliderManager {
       divider: null
     };
     this.isInitialized = false;
-    this.sliderLayerWarmupDone = false;
     
     logger.info('🧹 Slider Manager cleaned up');
   }

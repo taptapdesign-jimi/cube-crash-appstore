@@ -20,78 +20,6 @@ const trackTween = (target: any, vars: any) => {
   return tween;
 };
 
-const prepareJourneyExitPerformanceMode = (
-  journeyScreen: HTMLElement,
-  collectiblesScrollable: HTMLElement | null
-): (() => void) => {
-  const restoreCallbacks: Array<() => void> = [];
-  if (!collectiblesScrollable || !journeyScreen.querySelector('#journey-boards-container')) {
-    return () => {};
-  }
-
-  const viewportMargin = 180;
-  const candidates = Array.from(journeyScreen.querySelectorAll(
-    [
-      '.journey-board-card-wrapper',
-      '.journey-area-idle-target',
-      '.journey-forest-cloud-art',
-      '.journey-forest-main-art',
-      '.journey-beach-main-art',
-      '.journey-forest-island-art',
-      '.journey-forest-stump-art',
-      '.journey-forest-star-art',
-    ].join(',')
-  )) as HTMLElement[];
-
-  const uniqueCandidates = Array.from(new Set(candidates));
-  uniqueCandidates.forEach((element) => {
-    const rect = element.getBoundingClientRect();
-    const farOutsideViewport =
-      rect.bottom < -viewportMargin ||
-      rect.top > window.innerHeight + viewportMargin ||
-      rect.right < -viewportMargin ||
-      rect.left > window.innerWidth + viewportMargin;
-
-    if (farOutsideViewport) {
-      const previousVisibility = element.style.visibility;
-      const previousPointerEvents = element.style.pointerEvents;
-      const previousWillChange = element.style.willChange;
-      restoreCallbacks.push(() => {
-        element.style.visibility = previousVisibility;
-        element.style.pointerEvents = previousPointerEvents;
-        element.style.willChange = previousWillChange;
-      });
-      try { gsap.killTweensOf(element); } catch {}
-      element.style.visibility = 'hidden';
-      element.style.pointerEvents = 'none';
-      element.style.willChange = 'auto';
-    } else {
-      element.style.willChange = 'transform, opacity';
-    }
-  });
-
-  const previousContain = collectiblesScrollable.style.contain;
-  const previousWillChange = collectiblesScrollable.style.willChange;
-  const previousBackface = collectiblesScrollable.style.backfaceVisibility;
-  const previousTransformOrigin = collectiblesScrollable.style.transformOrigin;
-  restoreCallbacks.push(() => {
-    collectiblesScrollable.style.contain = previousContain;
-    collectiblesScrollable.style.willChange = previousWillChange;
-    collectiblesScrollable.style.backfaceVisibility = previousBackface;
-    collectiblesScrollable.style.transformOrigin = previousTransformOrigin;
-  });
-  collectiblesScrollable.style.contain = 'layout style paint';
-  collectiblesScrollable.style.willChange = 'transform, opacity';
-  collectiblesScrollable.style.backfaceVisibility = 'hidden';
-  collectiblesScrollable.style.transformOrigin = '50% 50%';
-
-  return () => {
-    restoreCallbacks.forEach((restore) => {
-      try { restore(); } catch {}
-    });
-  };
-};
-
 /**
  * Cleanup all collectibles animations
  * Call this when screen is destroyed or before starting new animations
@@ -138,73 +66,6 @@ export function animateCollectiblesScreenEnter(): void {
   
   if (!journeyScreen) {
     console.error('❌ No Journey screen found to animate!');
-    return;
-  }
-
-  const isJourneyBoardMap = !!journeyScreen.querySelector('#journey-boards-container');
-
-  if (isJourneyBoardMap) {
-    const cleanupJourneyEnterPerformanceMode = prepareJourneyExitPerformanceMode(journeyScreen, collectiblesScrollable);
-    try {
-      gsap.killTweensOf(journeyScreen);
-      if (collectiblesHeader) {
-        gsap.killTweensOf(collectiblesHeader);
-        gsap.set(collectiblesHeader, {
-          scale: 1,
-          opacity: 1,
-          visibility: 'visible',
-          clearProps: 'transform',
-          immediateRender: true,
-        });
-      }
-      if (collectiblesScrollable) {
-        gsap.killTweensOf(collectiblesScrollable);
-        gsap.set(collectiblesScrollable, {
-          scale: 1,
-          y: 0,
-          opacity: 1,
-          visibility: 'visible',
-          clearProps: 'transform',
-          immediateRender: true,
-        });
-      }
-
-      gsap.set(journeyScreen, {
-        scale: 0.78,
-        y: 18,
-        opacity: 0,
-        visibility: 'hidden',
-        transformOrigin: '50% 50%',
-        willChange: 'transform, opacity',
-        backfaceVisibility: 'hidden',
-        force3D: true,
-        immediateRender: true,
-      });
-    } catch (error) {
-      cleanupJourneyEnterPerformanceMode();
-      console.error('❌ Failed to set Journey map enter initial state:', error);
-      return;
-    }
-
-    gsap.set(journeyScreen, { visibility: 'visible', immediateRender: true });
-    trackTween(journeyScreen, {
-      scale: 1,
-      y: 0,
-      opacity: 1,
-      duration: 0.54,
-      ease: 'back.out(1.75)',
-      delay: 0,
-      force3D: true,
-      immediateRender: false,
-      onComplete: () => {
-        cleanupJourneyEnterPerformanceMode();
-        try {
-          gsap.set(journeyScreen, {
-            clearProps: 'transform,scale,y,willChange,backfaceVisibility,transformOrigin',
-          });
-        } catch {}
-      },
-    });
     return;
   }
   
@@ -403,17 +264,12 @@ export function animateCollectiblesScreenExit(): Promise<void> {
       resolve();
       return;
     }
-
-    const isJourneyBoardMap = !!journeyScreen.querySelector('#journey-boards-container');
-    const cleanupJourneyExitPerformanceMode = prepareJourneyExitPerformanceMode(journeyScreen, collectiblesScrollable);
     
     // STEP 1: Viewport-based smart batching for cards
-    const cardWrappers = journeyScreen?.querySelectorAll(
-      '.collectible-card-wrapper, .journey-board-card-wrapper'
-    ) as NodeListOf<HTMLElement>;
+    const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
     let maxCardDelay = 0;
 
-    if (!isJourneyBoardMap && cardWrappers && cardWrappers.length > 0) {
+    if (cardWrappers && cardWrappers.length > 0) {
       const cardsArray = Array.from(cardWrappers);
       
       // 🔥 AGGRESSIVE OPTIMIZATION: Separate visible cards from off-screen cards
@@ -493,15 +349,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
           card.style.willChange = 'transform, opacity';
           card.style.transform = 'translateZ(0)'; // Force GPU acceleration
           // 🔥 CSS CONTAINMENT: Add contain property for better performance
-          const cardParent = card.parentElement as HTMLElement | null;
-          const previousParentContain = cardParent?.style.contain || '';
-          cardParent?.style.setProperty('contain', 'layout style paint');
-          const restoreCardPerformanceStyles = () => {
-            card.style.willChange = 'auto';
-            if (cardParent) {
-              cardParent.style.contain = previousParentContain;
-            }
-          };
+          (card.parentElement as HTMLElement)?.style.setProperty('contain', 'layout style paint');
           
           trackTween(card, {
             scale: 0,
@@ -510,34 +358,13 @@ export function animateCollectiblesScreenExit(): Promise<void> {
             ease: 'back.in(1.7)',
             delay: delay,
             force3D: true,
-            onComplete: restoreCardPerformanceStyles,
-            onInterrupt: restoreCardPerformanceStyles
+            onComplete: () => {
+              // Remove will-change after animation to free resources
+              card.style.willChange = 'auto';
+            }
           });
         });
       }
-    }
-
-    if (isJourneyBoardMap) {
-      journeyScreen.style.willChange = 'transform, opacity';
-      journeyScreen.style.transformOrigin = '50% 50%';
-      journeyScreen.style.backfaceVisibility = 'hidden';
-      trackTween(journeyScreen, {
-        scale: 0,
-        opacity: 0,
-        duration: 0.42,
-        ease: 'back.in(1.55)',
-        delay: 0.02,
-        force3D: true,
-      });
-
-      setTimeout(() => {
-        cleanupJourneyExitPerformanceMode();
-        journeyScreen.style.willChange = '';
-        journeyScreen.style.backfaceVisibility = '';
-        journeyScreen.style.transformOrigin = '';
-        resolve();
-      }, 540);
-      return;
     }
     
     // STEP 2: Scrollable area pop-out (full scale range: 1.0 → 0)
@@ -551,8 +378,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
         opacity: 0,
         duration: scrollableDuration,
         ease: 'back.in(1.7)',
-        delay: scrollableDelay,
-        force3D: true,
+        delay: scrollableDelay
       });
     }
     
@@ -567,8 +393,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
         opacity: 0,
         duration: headerDuration,
         ease: 'back.in(1.7)',
-        delay: headerDelay,
-        force3D: true,
+        delay: headerDelay
       });
     }
     
@@ -577,7 +402,6 @@ export function animateCollectiblesScreenExit(): Promise<void> {
     
     // Resolve promise after animation completes
     setTimeout(() => {
-      cleanupJourneyExitPerformanceMode();
       resolve();
     }, totalDuration * 1000);
   });

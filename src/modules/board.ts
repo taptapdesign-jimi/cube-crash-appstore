@@ -16,7 +16,6 @@ import {
 } from './special-dice-registry.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isTileTransientlySpawning } from './tile-state-utils.ts';
-import { getPinnedBoardTexture } from '../utils/board-asset-warmup.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -94,8 +93,6 @@ function isUsableTexture(tex: any): boolean {
 }
 
 function getBoardTexture(assetPath: string): Texture {
-  const pinned = getPinnedBoardTexture(assetPath);
-  if (isUsableTexture(pinned)) return pinned;
   const cached = Assets.get(assetPath);
   if (isUsableTexture(cached)) return cached;
   const fallback = Texture.from(assetPath);

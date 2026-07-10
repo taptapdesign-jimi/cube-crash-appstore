@@ -4,6 +4,8 @@ import { createLogger, defineConfig } from 'vite';
 
 const defaultLogger = createLogger();
 const MIXED_STATIC_DYNAMIC_IMPORT_MESSAGE = 'dynamic import will not move module into another chunk';
+const DEV_SERVER_HOST = process.env.CUBE_CRASH_DEV_HOST || '192.168.1.189';
+const DEV_SERVER_PORT = Number(process.env.CUBE_CRASH_DEV_PORT || 5174);
 
 function shouldSuppressBuildWarning(message) {
   return typeof message === 'string' && message.includes(MIXED_STATIC_DYNAMIC_IMPORT_MESSAGE);
@@ -159,12 +161,60 @@ export default defineConfig({
           res.end(body);
         });
 
-        server.middlewares.use('/native-dev', (req, res) => {
+        server.middlewares.use('/native-smoke', (req, res, next) => {
+          const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
+          if (requestPath !== '/' && requestPath !== '') {
+            next();
+            return;
+          }
+
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CubeCrash Native Smoke</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; background: #14332b; color: #fff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+    body { display: grid; place-items: center; }
+    main { text-align: center; padding: 28px; }
+    h1 { margin: 0 0 10px; font-size: 28px; }
+    p { margin: 6px 0; font-size: 15px; opacity: 0.86; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>NATIVE SMOKE OK</h1>
+    <p>WKWebView can load ${DEV_SERVER_HOST}:${DEV_SERVER_PORT}</p>
+    <p id="tick"></p>
+  </main>
+  <script>
+    console.log("✅ CubeCrash native smoke loaded");
+    document.getElementById("tick").textContent = new Date().toISOString();
+  </script>
+</body>
+</html>`);
+        });
+
+        server.middlewares.use('/native-dev', (req, res, next) => {
+          const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
+          if (requestPath !== '/' && requestPath !== '') {
+            next();
+            return;
+          }
+
           const indexPath = path.resolve(process.cwd(), 'index.html');
           let html = fs.readFileSync(indexPath, 'utf8');
+          html = html
+            .replace(/src="\.\/src\/modules\/launch-screen-init\.ts"/g, `src="./src/modules/launch-screen-init.ts?nativeDevVersion=${nativeDevVersion}"`)
+            .replace(/src="\.\/src\/main\.ts"/g, `src="./src/main.ts?nativeDevVersion=${nativeDevVersion}"`);
           html = html.replace(
             '</head>',
             [
+              '  <base href="/">',
               '  <script>',
               '    window.__ccNativeDevNoViteClient = true;',
               '    console.log("✅ CubeCrash native dev HTML loaded without /@vite/client");',
@@ -239,12 +289,12 @@ export default defineConfig({
   },
   server: {
     host: true, // Allows access from network (iOS simulator)
-    port: 5173,
-    strictPort: true, // Fail if port 5173 is already in use
+    port: DEV_SERVER_PORT,
+    strictPort: true,
     hmr: {
       protocol: 'ws',
-      host: '192.168.1.189',
-      port: 5173
+      host: DEV_SERVER_HOST,
+      port: DEV_SERVER_PORT
     }
   },
   optimizeDeps: {

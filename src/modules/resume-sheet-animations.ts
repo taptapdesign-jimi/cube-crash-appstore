@@ -1,5 +1,7 @@
 // resume-sheet-animations.ts
 // Animations for resume game bottom sheet
+// 🔥 DEAD CODE REMOVED: All unused animation functions removed (~350 lines)
+// Only keeping animateBottomSheetEntrance which is the only function actually used
 
 import { gsap } from 'gsap';
 

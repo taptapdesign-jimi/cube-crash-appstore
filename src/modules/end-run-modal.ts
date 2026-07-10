@@ -959,7 +959,6 @@ export function hideModal(): void {
         outsideTouchEndHandler = null;
       }
       document.onclick = null;
-      cleanupAllEndRunResources();
       removeEndRunOverlay();
       unfreezeGameAndHud('hideModal');
       return;

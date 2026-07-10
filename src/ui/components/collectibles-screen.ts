@@ -1,5 +1,6 @@
 // Journey Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { isHeartsFeatureEnabled } from '../../modules/hearts-system.js';
 
 export interface CollectiblesScreenConfig {
   onBack?: () => void;
@@ -55,6 +56,32 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                     id: 'collectibles-title',
                     text: 'Journey',
                   },
+                  ...(isHeartsFeatureEnabled() ? [{
+                    tag: 'div',
+                    className: 'journey-lives-container',
+                    id: 'journey-lives-container',
+                    children: [
+                      {
+                        tag: 'img',
+                        className: 'journey-lives-icon',
+                        id: 'journey-lives-icon',
+                        attributes: {
+                          src: './assets/journey assets/heart-nav.png',
+                          alt: 'Lives',
+                          'aria-hidden': 'true',
+                        },
+                      },
+                      {
+                        tag: 'span',
+                        className: 'journey-lives-count',
+                        id: 'journey-lives-count',
+                        text: '0',
+                        attributes: {
+                          'aria-label': 'Lives count',
+                        },
+                      },
+                    ],
+                  }] : []),
                 ],
               },
               {

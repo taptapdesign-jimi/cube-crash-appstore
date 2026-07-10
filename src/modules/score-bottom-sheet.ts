@@ -924,6 +924,8 @@ export function hideScoreBottomSheet(): void {
 
   // 🔥 FIX: Wrap in try-catch to ensure flag is reset on error
   try {
+    // 🔥 REMOVED: Haptic on close - not needed for outside click dismiss
+
     // Clean up outside click handlers immediately
     cleanupOutsideScoreSheetHandlers();
 

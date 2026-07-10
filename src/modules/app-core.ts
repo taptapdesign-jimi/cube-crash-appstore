@@ -21,7 +21,11 @@ import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, st
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
+// 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
+// import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
+import { heartsSystem } from './hearts-system.ts';
+import { cleanupAllHeartsResources } from './hearts-bottom-sheet.ts';
 import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
@@ -74,11 +78,7 @@ import {
   getAppCleanupStats
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
-import {
-  ensureBoardTexturesResident,
-  protectBoardTextureRenderer,
-  warmPinnedBoardTextures,
-} from '../utils/board-asset-warmup.ts';
+import { warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -217,7 +217,7 @@ import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
 import { restoreTilesFromSave } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
-import { killGameDomGsapTweens, killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
+import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import {
   tintLocked,
   fixHoverAnchor,
@@ -497,6 +497,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       const sy = Number.isFinite(t.scale?.y) ? t.scale.y : 1;
       if (Math.min(sx, sy) < 0.86) {
         try { gsap?.killTweensOf?.(t.scale); } catch {}
+        let spawnCancelledAfterDrop = false;
         try {
           if (t.scale?.set) t.scale.set(1, 1);
           else if (t.scale) {
@@ -1048,6 +1049,9 @@ async function prepareArcadeStageClearFinalMergeHandoff(
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
+
+// 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
+// This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
@@ -1736,7 +1740,6 @@ function destroyOldBoardForTransition(reason: string = 'unknown'): void {
 function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiveUnknown: boolean = false, skipCacheClear: boolean = false) {
   try {
     const renderer = app?.renderer || (STATE as any)?.app?.renderer;
-    protectBoardTextureRenderer(renderer, `cleanup:${reason}`);
     const managed = renderer?.texture?.managedTextures;
     const preCount = managed ? (managed.size || Object.keys(managed).length) : 0;
 
@@ -1846,12 +1849,8 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
       }
     } catch {}
     
-    // Do not run renderer textureGC during board handoff. On iOS/WebKit this can evict
-    // rarely-rendered tile sources while the DOM Journey/transition screens are active,
-    // producing a board with pips/placeholders but no dice faces.
-    if (!skipCacheClear && (window as any).__ccAllowRendererTextureGC === true) {
-      try { renderer?.textureGC?.run?.(); } catch {}
-    }
+    // Ask PIXI to GC textures where possible
+    try { renderer?.textureGC?.run?.(); } catch {}
     
     // Clear texture cache + unused base textures (skip when skipCacheClear - avoids addressModeU crash
     // when stage may still reference textures during board transition)
@@ -1915,7 +1914,6 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     if (preCount || postCount) {
       devLog('🧹 Texture cleanup (board transition):', { reason, preCount, postCount });
     }
-    void warmPinnedBoardTextures(renderer, `cleanup:${reason}`).catch(() => {});
   } catch (e) {
     devWarn('⚠️ cleanupTexturesForBoardTransition failed:', e);
   }
@@ -1955,7 +1953,12 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
     devLog(`🧹 GSAP cleanup (${label})...`);
     try { animationManager.killAll(); } catch {}
     
-    killGameDomGsapTweens(gsap);
+    // Kill UI element tweens
+    gsap.killTweensOf('[data-wild-loader]');
+    gsap.killTweensOf('.wild-loader');
+    gsap.killTweensOf('p');
+    gsap.killTweensOf('progress');
+    gsap.killTweensOf('ratio');
     
     const list = tilesList || [];
     if (list.length > 0) {
@@ -1993,6 +1996,7 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
         timelines.forEach(tl => {
           try { tl.kill(); } catch {}
         });
+        gsap.globalTimeline.clear();
       } catch {}
     }
     
@@ -2459,16 +2463,16 @@ export async function boot(){
     }
   }, 2000);
   
-  // Hard reset cleanup before destroying old app.
-  // Old GSAP callbacks can otherwise try to access destroyed Pixi objects.
+  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app (hard reset only) 🔥🔥🔥
+  // This is the ROOT CAUSE of _x null errors - old GSAP callbacks try to access destroyed objects
   if (!reuseApp) {
-    devLog('🧹 Hard reset cleanup: clearing game animations and references...');
+    devLog('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
     
-    // Step 1: Kill scoped game/invalid Pixi tweens without interrupting app UI transitions
+    // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
     try {
-      killGameDomGsapTweens(gsap);
-      killInvalidPixiGsapTweens(gsap);
-      devLog('✅ Killed scoped game and invalid Pixi GSAP tweens');
+      gsap.killTweensOf('*'); // Kill all tweens on all targets
+      gsap.globalTimeline.clear(); // Clear the global timeline
+      devLog('✅ Killed ALL GSAP tweens globally');
     } catch (gsapError) {
       devWarn('⚠️ Error killing GSAP tweens:', gsapError);
     }
@@ -2589,7 +2593,7 @@ export async function boot(){
     }
   }
   
-  devLog('✅ Hard reset cleanup complete - safe to create new app');
+  devLog('✅ NUCLEAR CLEANUP complete - safe to create new app');
   
   // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM (hard reset only)
   // This prevents leftover canvas elements from showing when starting new game
@@ -2646,7 +2650,6 @@ export async function boot(){
       app = new Application();
       try {
         await app.init(initOptions);
-        protectBoardTextureRenderer(app, 'app-core-init');
         initError = null;
         if (attempt > 1) {
           devWarn(`✅ PIXI init recovered on retry ${attempt}/${maxInitAttempts}`);
@@ -2671,7 +2674,6 @@ export async function boot(){
   } else {
     // Ensure renderer is active on reuse
     try { app.ticker.start(); } catch {}
-    protectBoardTextureRenderer(app, 'app-core-reuse');
   }
 
   // Install runtime texture hooks (canvas + generateTexture)
@@ -3039,28 +3041,20 @@ export async function boot(){
   }
 
   try {
-    await ensureBoardTexturesResident({
+    await warmBoardGameAssets({
       mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
       boardNumber,
       reason: 'app-core-boot',
       timeoutMs: 1400,
-      renderer: app?.renderer,
     });
   } catch (error) {
-    devWarn('⚠️ Resident board texture guard reported an issue during boot; runtime texture guard will continue recovery', error);
+    devWarn('⚠️ Board asset warmup reported an issue during boot; runtime texture guard will continue recovery', error);
   }
   
   // Core gameplay textures must be valid, not just present in Assets.cache.
   // iOS/WebKit can keep stale cache entries after app/renderer teardown; starting with
   // those references renders pips/placeholders without tile faces.
   await ensureCoreGameTexturesLoaded('boot');
-  await ensureBoardTexturesResident({
-    mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
-    boardNumber,
-    reason: 'app-core-boot-post-core',
-    timeoutMs: 900,
-    renderer: app?.renderer,
-  });
   
   // Fonts are already loaded via CSS @font-face in index.html
   // No need to load fonts dynamically - PIXI will use CSS fonts automatically
@@ -3311,7 +3305,7 @@ export async function boot(){
     });
 
     try { setRunMode(RUN_MODE_JOURNEY); } catch {}
-    const targetBoard = Math.max(1, Math.min(30, Number(boardNumber || STATE.boardNumber || 1) || 1));
+    const targetBoard = Math.max(1, Math.min(25, Number(boardNumber || STATE.boardNumber || 1) || 1));
 
     try {
       busyEnding = false;
@@ -3729,7 +3723,6 @@ export async function layoutBoard(){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard');
-    await warmPinnedBoardTextures(app?.renderer, 'layoutBoard-post-core');
     if (refreshedAssets.length > 0) {
       refreshLiveCoreGameSpriteTextures('layoutBoard');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
@@ -3759,7 +3752,6 @@ export async function layoutBoard(){
         // Assets.get() alone is not enough; stale WebKit/Pixi cache entries can exist but render blank.
         try {
           const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard-before-hud');
-          await warmPinnedBoardTextures(app?.renderer, 'layoutBoard-before-hud-post-core');
           if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
             try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
           }
@@ -5173,13 +5165,6 @@ async function startLevel(n){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
-    await ensureBoardTexturesResident({
-      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
-      boardNumber,
-      reason: 'startLevel-post-core',
-      timeoutMs: 900,
-      renderer: app?.renderer,
-    });
     if (refreshedAssets.length > 0) {
       refreshLiveCoreGameSpriteTextures('startLevel');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
@@ -5244,6 +5229,7 @@ async function startLevel(n){
   // Track best stack depth achieved in this run (for clean board efficiency)
   try { STATE.maxStackDepth = 1; } catch {}
   // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
+  // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
   hudResetCombo();
   devLog('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   clearComboIdleTimer({ comboIdleTimer });
@@ -5318,7 +5304,8 @@ async function startLevel(n){
   
   // layoutBoard() already called above; avoid duplicate on board 1
   
-  // Don't check level end immediately - let the game play first.
+  // Don't check level end immediately - let the game play first
+  // trackDelayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
   // 🔥 ENDGAME HINT: refresh after board is fully visible (covers hard-exit resume)
   trackAppTimeout(() => {
     updateEndgameHintState();
@@ -5802,7 +5789,7 @@ async function spawnWildFromMeter(){
               gridY: spawnedTile.gridY,
             }
           : null;
-        let cancelledAfterDrop = false;
+        let spawnCancelledAfterDrop = false;
         try {
           if (isSpawnCancelled()) {
             try {
@@ -5862,22 +5849,26 @@ async function spawnWildFromMeter(){
                   spawnedTile.eventMode = 'none';
                   removeTile(spawnedTile);
                 } catch {}
-                cancelledAfterDrop = true;
+                spawnCancelledAfterDrop = true;
+              } else {
+                try {
+                  (window as any).__ccWildSpawnDropActiveCount = 0;
+                  (window as any).__ccWildSpawnDropInProgress = false;
+                } catch {}
+                delete (spawnedTile as any)._ccWildSpawnDropping;
+                spawnedTile.visible = true;
+                spawnedTile.alpha = 1;
+                spawnedTile.eventMode = 'static';
+                spawnedTile.cursor = 'pointer';
+                bindTileWithFallback(spawnedTile, false);
               }
-              try {
-                (window as any).__ccWildSpawnDropActiveCount = 0;
-                (window as any).__ccWildSpawnDropInProgress = false;
-              } catch {}
-              delete (spawnedTile as any)._ccWildSpawnDropping;
-              spawnedTile.visible = true;
-              spawnedTile.alpha = 1;
-              spawnedTile.eventMode = 'static';
-              spawnedTile.cursor = 'pointer';
-              bindTileWithFallback(spawnedTile, false);
             }
           } catch {}
         }
-        if (cancelledAfterDrop) return false;
+
+        if (spawnCancelledAfterDrop) {
+          return false;
+        }
 
         try {
           if (spawnedTile && !spawnedTile.destroyed) {
@@ -7467,6 +7458,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       
       // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow complete with animations
       // busyEnding will be set in onComplete callback AFTER animations finish
+      // busyEnding = true; // REMOVED - was preventing normal merge 6 animations
       
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
@@ -8017,7 +8009,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             try {
               // Import handleWildMagnetMergedPulledTiles asynchronously
-              const { handleWildMagnetMergedPulledTiles } = await import('./app-merge.js');
+              const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
               
               // Check if dst is still valid before merging
               // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
@@ -8043,7 +8035,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 
                 // Still call handleWildMagnetMergedPulledTiles with empty array - it will check _isLastMerge and trigger clean board
                 // This ensures clean board flow is triggered properly
-                const { handleWildMagnetMergedPulledTiles } = await import('./app-merge.js');
+                const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
                 const helpersWithMerge = {
                   ...helpers,
                   merge: merge,
@@ -8478,6 +8470,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // 🔥 CRITICAL FIX: DON'T set busyEnding here!
       // Setting busyEnding = true here prevents animations and clean board flow from running
       // We need to let animations play, then trigger clean board flow
+      // busyEnding = true; // REMOVED - was preventing animations and clean board flow
     }
 
     if (wildActive && dstSpecial === 'wild') {
@@ -8660,6 +8653,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow continue
             // The safeguard check (line 3070) will skip spawn and trigger clean board flow
+            // busyEnding = true; // REMOVED - was preventing normal merge 6 flow
             
             // 🔥 CRITICAL: DON'T reset wild meter here - let safeguard check handle it
             // 🔥 CRITICAL: DON'T trigger clean board flow here - let safeguard check handle it
@@ -9701,6 +9695,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           return;
         }
         
+        // 🔥 REMOVED: Premature endgame check that was blocking spawn logic
         // The endgame check was running BEFORE spawn, causing board to look empty (dst removed)
         // This made it trigger clean board flow instead of spawning new tiles
         // Endgame check will be done AFTER spawn in checkLevelEnd()
@@ -12377,6 +12372,12 @@ function updateEndgameHintState(): void {
   } catch {}
 }
 
+// 🔥 REMOVED: showCleanBoardEdgeCase() - DEPRECATED function no longer needed
+// Endgame checker handles all edge cases now
+
+// 🔥 REMOVED: openLockedBounceParallel(k) - DEAD CODE, never called
+// Was a wrapper for FLOW.openLockedBounceParallel but is not used anywhere
+
 // -------------------- helpers --------------------
 // 🔥 v112: sleep moved to app-core-utils.ts
 // Imported: sleep
@@ -12709,6 +12710,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       });
     }
   } catch (error) {
+    // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
     // If board-fail-modal fails, log error but don't show the old overlay
     devError('❌ CRITICAL: End-run modal failed - cannot show end screen:', error);
     devError('❌ This should never happen. Check board-fail-modal.js / clean-board-modal.js for errors.');
@@ -12768,6 +12770,10 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     // Don't call it again here - it causes duplicate calls and blank screen
     // The modal already handles exitToMenu and waits for it to complete before resolving
     devLog('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
+  } else if (result?.action === 'no-hearts') {
+    // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
+    devLog('💔 No hearts action - hearts bottom sheet shown, staying out of game');
+    // App element is already hidden in board-fail-modal
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
     devLog('🎮 Play Again action received - functions called directly from modal');
@@ -13123,7 +13129,7 @@ function restartGame(){
   
   devLog('✅ Clean restart completed - HUD position preserved');
 }
-// Idle checker placeholder.
+// temporary idle checker (no-op so boot doesn't fail)
 function scheduleIdleCheck(){ /* no-op for now */ }
 // Pause/Resume functions
 export function pauseGame() {
@@ -13362,6 +13368,15 @@ export function cleanupGame() {
         cleanupExistingStarAnimations();
       }
     } catch {}
+  }
+  
+  // 🔥 FIX: Cleanup hearts system (timer and resources)
+  try {
+    heartsSystem.cleanup();
+    cleanupAllHeartsResources();
+    devLog('✅ Hearts system cleaned up in cleanupGame()');
+  } catch (e) {
+    devWarn('⚠️ Failed to cleanup hearts system:', e);
   }
   
   // 🔥 FIX: Cleanup level flow timeouts

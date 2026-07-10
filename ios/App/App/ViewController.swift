@@ -38,12 +38,12 @@ class ViewController: CAPBridgeViewController {
         return self.webView ?? findWebView(in: self.view)
     }
 
-    private func configureTransparentWebView() {
+    private func configurePerformantWebView() {
         guard let webView = activeWebView() else { return }
 
-        webView.isOpaque = false
-        webView.backgroundColor = UIColor.clear
-        webView.scrollView.backgroundColor = UIColor.clear
+        webView.isOpaque = true
+        webView.backgroundColor = launchBackgroundColor
+        webView.scrollView.backgroundColor = launchBackgroundColor
         // Stop root WKWebView rubber-banding so fixed headers / top nav do not shift on vertical overscroll.
         let sv = webView.scrollView
         sv.bounces = false
@@ -51,8 +51,8 @@ class ViewController: CAPBridgeViewController {
         sv.alwaysBounceHorizontal = false
     }
     
-    // 🔥 CRITICAL: Set WKWebView to transparent
-    // White background view will be visible behind transparent WebView (for logo screen)
+    // Keep WKWebView opaque. A transparent full-screen WKWebView forces extra iOS
+    // blending work and can make transform-heavy screens feel like low FPS.
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -85,25 +85,23 @@ class ViewController: CAPBridgeViewController {
             self.backgroundView = bgView
         }
         
-        // Set view background to #F9F9F9 - visible behind transparent WebView (matches launch screen)
+        // Set view background to #F9F9F9 (matches launch screen)
         self.view.backgroundColor = launchBackgroundColor
         
-        // 🔥 CRITICAL: Set WebView to transparent SYNCHRONOUSLY (not async) for immediate effect
-        // This prevents the white flash from WKWebView initialization
-        configureTransparentWebView()
+        configurePerformantWebView()
         
         // Also try through subviews (immediate, not async)
         for subview in self.view.subviews {
             if String(describing: type(of: subview)).contains("WebView") {
-                subview.backgroundColor = UIColor.clear
+                subview.backgroundColor = launchBackgroundColor
                 if let wkWebView = subview as? WKWebView {
-                    wkWebView.isOpaque = false // 🔥 CRITICAL
-                    wkWebView.backgroundColor = UIColor.clear // 🔥 CRITICAL
-                    wkWebView.scrollView.backgroundColor = UIColor.clear // 🔥 CRITICAL
+                    wkWebView.isOpaque = true
+                    wkWebView.backgroundColor = launchBackgroundColor
+                    wkWebView.scrollView.backgroundColor = launchBackgroundColor
                 }
                 for subSubview in subview.subviews {
                     if let scrollView = subSubview as? UIScrollView {
-                        scrollView.backgroundColor = UIColor.clear
+                        scrollView.backgroundColor = launchBackgroundColor
                     }
                 }
             }
@@ -114,27 +112,27 @@ class ViewController: CAPBridgeViewController {
             guard let self = self else { return }
             
             // Try accessing webView through various methods
-            self.configureTransparentWebView()
+            self.configurePerformantWebView()
             
             // Also try through subviews
             for subview in self.view.subviews {
                 if String(describing: type(of: subview)).contains("WebView") {
-                    subview.backgroundColor = UIColor.clear
+                    subview.backgroundColor = self.launchBackgroundColor
                     if let wkWebView = subview as? WKWebView {
-                        wkWebView.isOpaque = false // 🔥 CRITICAL
-                        wkWebView.backgroundColor = UIColor.clear // 🔥 CRITICAL
-                        wkWebView.scrollView.backgroundColor = UIColor.clear // 🔥 CRITICAL
+                        wkWebView.isOpaque = true
+                        wkWebView.backgroundColor = self.launchBackgroundColor
+                        wkWebView.scrollView.backgroundColor = self.launchBackgroundColor
                     }
                     for subSubview in subview.subviews {
                         if let scrollView = subSubview as? UIScrollView {
-                            scrollView.backgroundColor = UIColor.clear
+                            scrollView.backgroundColor = self.launchBackgroundColor
                         }
                     }
                 }
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                self?.configureTransparentWebView()
+                self?.configurePerformantWebView()
             }
         }
     }
@@ -151,19 +149,18 @@ class ViewController: CAPBridgeViewController {
             }
         }
         
-        // Set view background to launch color - visible behind transparent WebView
+        // Set view background to launch color
         self.view.backgroundColor = launchBackgroundColor
         
-        // Set WebView to transparent (synchronous for immediate effect)
-        configureTransparentWebView()
+        configurePerformantWebView()
         
         for subview in self.view.subviews {
             if String(describing: type(of: subview)).contains("WebView") {
-                subview.backgroundColor = UIColor.clear
+                subview.backgroundColor = launchBackgroundColor
                 if let wkWebView = subview as? WKWebView {
-                    wkWebView.isOpaque = false // 🔥 CRITICAL
-                    wkWebView.backgroundColor = UIColor.clear // 🔥 CRITICAL
-                    wkWebView.scrollView.backgroundColor = UIColor.clear // 🔥 CRITICAL
+                    wkWebView.isOpaque = true
+                    wkWebView.backgroundColor = launchBackgroundColor
+                    wkWebView.scrollView.backgroundColor = launchBackgroundColor
                 }
             }
         }
@@ -172,22 +169,22 @@ class ViewController: CAPBridgeViewController {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            self.configureTransparentWebView()
+            self.configurePerformantWebView()
             
             for subview in self.view.subviews {
                 if String(describing: type(of: subview)).contains("WebView") {
-                    subview.backgroundColor = UIColor.clear
+                    subview.backgroundColor = self.launchBackgroundColor
                     if let wkWebView = subview as? WKWebView {
-                        wkWebView.isOpaque = false // 🔥 CRITICAL
-                        wkWebView.backgroundColor = UIColor.clear // 🔥 CRITICAL
-                        wkWebView.scrollView.backgroundColor = UIColor.clear // 🔥 CRITICAL
+                        wkWebView.isOpaque = true
+                        wkWebView.backgroundColor = self.launchBackgroundColor
+                        wkWebView.scrollView.backgroundColor = self.launchBackgroundColor
                     }
                 }
             }
 
             // Capacitor can reset scrollView bounce after bridge init — re-apply once layout settles.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-                self?.configureTransparentWebView()
+                self?.configurePerformantWebView()
             }
         }
     }

@@ -47,6 +47,7 @@ App Store readiness and version milestone reports.
 
 | Document | Description |
 |----------|-------------|
+| [LAST_STABLE_VERSION.md](release/LAST_STABLE_VERSION.md) | **Flag: last stable release** (`__CC_LAST_STABLE_VERSION__`) |
 | [APP_STORE_READINESS_CHECKLIST.md](release/APP_STORE_READINESS_CHECKLIST.md) | Store readiness checklist |
 | [RELEASE_READINESS_CENTER.md](release/RELEASE_READINESS_CENTER.md) | Daily release gate and iOS smoke flow |
 | [APP_STORE_FINAL_CHECKLIST.md](release/APP_STORE_FINAL_CHECKLIST.md) | Final checklist |

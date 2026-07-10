@@ -3620,6 +3620,7 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
 }
 
 // --- Merge-6 wild-juice bubble explosion (organic drift) ---
+// 🔥 REMOVED: Old explosion code moved to wild-juice-bubbles-explosion.ts module
 // Wrapper functions for backward compatibility:
 
 let _explosionModuleCache: any = null;
@@ -3764,6 +3765,8 @@ if (typeof window !== 'undefined') {
   };
 }
 
+// 🔥 REMOVED: createWildJuiceBubblesExplosion - moved to wild-juice-bubbles-explosion.ts module
+// This function is no longer used - use showWildJuiceBubblesExplosion() from wild-juice-bubbles-explosion.ts instead
 export function createWildJuiceBubblesExplosion(board, tile) {
   // 🔥 WRAPPER: Redirect to new modular explosion
   import('./wild-juice-bubbles-explosion.js').then(module => {

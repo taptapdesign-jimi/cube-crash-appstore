@@ -320,9 +320,7 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     
     // 🔥 OPTIMIZATION: Add timeout to prevent long waits after hard exit
     // Load all icons with timeout - don't wait forever if cache is empty
-    const isNativeLocalBundle =
-      typeof window !== 'undefined' && window.location?.protocol === 'app:';
-    const TIMEOUT_MS = isNativeLocalBundle ? 12000 : 3000;
+    const TIMEOUT_MS = 3000; // 3 seconds max wait
     try {
       const loadPromise = Promise.allSettled(
         iconsToLoad.map(iconPath => loadIconWithRetry(iconPath))

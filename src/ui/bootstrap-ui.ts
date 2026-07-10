@@ -12,6 +12,8 @@ import {
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
 import { renderNavigation, updateNavBadge } from './components/navigation.js';
+// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+// import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
@@ -20,34 +22,37 @@ import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } fr
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
 
 function bootstrapUI() {
-  logger.debug('🚀 bootstrapUI called', 'bootstrap-ui', {
-    readyState: document.readyState,
-    hasBody: !!document.body,
-  });
+  console.log('🚀 bootstrapUI called');
+  console.log('Document readyState:', document.readyState);
+  console.log('Body exists:', !!document.body);
 
   // Note: Asset preloading is handled by assetPreloader.preloadAll() in main.ts
   // No need for duplicate preloading here
   
   const windowRef = window as Record<string, unknown>;
   if (windowRef[BOOTSTRAP_FLAG]) {
+    console.log('⚠️ UI already bootstrapped');
     logger.info('⚠️ UI already bootstrapped');
     return;
   }
   
+  console.log('🔧 Creating UI roots...');
   const uiRoot = ensureRoot('ui-root');
   const navRoot = ensureRoot('nav-root');
-  logger.debug('✅ UI roots ready', 'bootstrap-ui', {
-    hasUiRoot: !!uiRoot,
-    hasNavRoot: !!navRoot,
-    uiRootInDocument: !!document.getElementById('ui-root'),
-  });
+  console.log('✅ UI roots created:', uiRoot, navRoot);
+  console.log('UI root element:', uiRoot);
+  console.log('UI root exists:', !!uiRoot);
+  console.log('UI root in document:', document.getElementById('ui-root'));
 
   // Clear existing injected markup to avoid duplicates during HMR
   uiRoot.innerHTML = '';
   navRoot.innerHTML = '';
 
+  // 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+  // renderLoading(uiRoot);
   renderHome(uiRoot);
   renderGameContainer(uiRoot);
+  // 🔥 REMOVED: Stats screen no longer exists
   renderCollectibles(uiRoot);
   renderSettings(uiRoot);
   renderMenu(uiRoot);
@@ -84,15 +89,15 @@ function bootstrapUI() {
       try {
         const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
         updateNavBadge(newlyUnlockedCount, 1); // slideIndex 1 = Journey (stats-nav.png)
-        logger.debug('✅ Journey badge initialized', 'bootstrap-ui', { newlyUnlockedCount });
+        console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
       } catch (error) {
-        logger.warn('⚠️ Failed to initialize journey badge on startup:', error);
+        console.warn('⚠️ Failed to initialize journey badge on startup:', error);
       }
     }).catch((error) => {
-      logger.warn('⚠️ Failed to import journey boards manager on startup:', error);
+      console.warn('⚠️ Failed to import journey boards manager on startup:', error);
     });
   } catch (error) {
-    logger.warn('Failed to load badge counts from localStorage:', error);
+    console.warn('Failed to load badge counts from localStorage:', error);
   }
 
   windowRef[BOOTSTRAP_FLAG] = true;
@@ -101,11 +106,16 @@ function bootstrapUI() {
 
 // Export a promise that resolves when bootstrap is complete
 export const bootstrapReady = new Promise<void>((resolve) => {
-  logger.debug('⏳ bootstrapReady Promise created', 'bootstrap-ui', { readyState: document.readyState });
+  console.log('⏳ bootstrapReady Promise created');
+  console.log('Document readyState:', document.readyState);
   
   function waitForReady() {
+    console.log('⏳ waitForReady called, readyState:', document.readyState);
+    
     // Start as soon as DOM is parsed (interactive) to avoid waiting for full window load
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      console.log('✅ Document ready/interactive, calling bootstrapUI immediately');
+      
       // 🔥 OPTIMIZATION: Launch screen is already initialized in launch-screen-init.ts
       // No need to initialize it here - it's already running
       
@@ -115,7 +125,9 @@ export const bootstrapReady = new Promise<void>((resolve) => {
     }
 
     // If still loading, run on DOMContentLoaded (earliest safe hook)
+    console.log('⏳ Waiting for DOMContentLoaded (document still loading)...');
     const onReady = () => {
+      console.log('✅ DOMContentLoaded fired, calling bootstrapUI');
       bootstrapUI();
       resolve();
     };
@@ -123,6 +135,7 @@ export const bootstrapReady = new Promise<void>((resolve) => {
 
     // Fallback: window load if DOMContentLoaded somehow missed
     window.addEventListener('load', () => {
+      console.log('✅ window.load fired (fallback), calling bootstrapUI');
       bootstrapUI();
       resolve();
     }, { once: true });
@@ -141,6 +154,11 @@ function ensureRoot(id: string): HTMLElement {
   }
   return element;
 }
+
+// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+// function renderLoading(root: HTMLElement): void {
+//   // This function is no longer used - launch-screen.ts handles everything
+// }
 
 function renderHome(root: HTMLElement): void {
   if (document.getElementById('home')) return;

@@ -8,7 +8,7 @@
 }
 
 :root{
-  --app-gradient: #f3eee8 url('/assets/paper-bg.png') center/100% 100% no-repeat;
+  --app-gradient: #f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat;
   --paper-alpha: 1;
   --paper-overlay-alpha: 0; /* Inverse of paper-alpha: 0 = fully visible, 1 = hidden */
   --board-perspective: 1200px;
@@ -33,7 +33,7 @@ body{
   right: -12vw;
   /* 🔥 FIXED: Paper overlay logic - paper-alpha 1 = fully visible, 0.5 = 50% visible */
   background-color: #f3eee8;
-  background-image: url('/assets/paper-bg.png');
+  background-image: url('./assets/paper-bg.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
@@ -475,6 +475,10 @@ body{
 }
 
 /* ===== ANIMATION STYLES ===== */
+/* REMOVED: Global transition conflicts with animation classes */
+/* .slide-text, .hero-image, .hero-shadow, .slider-nav-btn {
+  transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+} */
 
 /* Force CTA positioning - spušteno za 16px */
 .slide-text {
@@ -489,6 +493,8 @@ body{
   width: 100% !important;
   transform: translateY(28px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (12px + 16px = 28px) */
 }
+
+/* 🔥 REMOVED: iPad-specific slide-text positioning - let CSS handle it via classes */
 
 /* CRITICAL: Override .slide-text transform when animate-exit is active */
 .slide-text.animate-exit {
@@ -549,6 +555,16 @@ body{
 }
 
 /* Play button elastic spring bounce animation styles - 0.65 seconds */
+/* REMOVED: Transition conflicts with animation classes */
+/* .slider-slide[data-slide="0"] .slide-content,
+.slider-slide[data-slide="0"] .slide-text,
+.slider-slide[data-slide="0"] .slide-button,
+.slider-slide[data-slide="0"] .hero-container,
+#home-logo,
+.slider-nav-btn {
+  transition: transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8);
+  transform-origin: center center;
+} */
 
 #app {
   /* Transition removed - GSAP now handles background animations */
@@ -556,7 +572,7 @@ body{
   background: transparent !important;
   background-image: none !important;
 }
-html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('/assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('/assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {
@@ -1184,6 +1200,8 @@ body.journey-board-game-active #hud-board-indicator {
   -webkit-transform: translateY(20px) scale(0) !important; /* 🔥 USER REQUEST: Spušteno za 8px (12px + 8px = 20px) - samo CTA */
 }
 
+/* 🔥 REMOVED: iPad-specific CTA exit positioning - let CSS handle it via classes */
+
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-exit {
   will-change: transform !important;
@@ -1217,6 +1235,8 @@ body.journey-board-game-active #hud-board-indicator {
   transform: translateY(12px) scale(1) !important;
 }
 
+/* 🔥 REMOVED: iPad-specific slide-text enter positioning - let CSS handle it via classes */
+
 /* Slide-button needs to preserve translateY during scale animation - no translateY in enter, stays in position */
 .slide-button.animate-enter {
   will-change: transform !important;
@@ -1224,12 +1244,16 @@ body.journey-board-game-active #hud-board-indicator {
   transform: scale(1) !important;
 }
 
+/* 🔥 REMOVED: iPad-specific CTA button positioning - let CSS handle it via classes */
+
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-enter {
   will-change: transform !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: scale(1) !important;
 }
+
+/* 🔥 REMOVED: iPad-specific tagline positioning - let CSS handle it via classes */
 
 /* Initial state for enter animation - scale 0, no transition */
 .animate-enter-initial {
@@ -1255,17 +1279,23 @@ body.journey-board-game-active #hud-board-indicator {
   transform: translateY(12px) scale(0) !important;
 }
 
+/* 🔥 REMOVED: iPad-specific slide-text positioning - let CSS handle it via classes */
+
 /* Slide-button needs to preserve translateY during initial state - no translateY, stays in position */
 .slide-button.animate-enter-initial {
   /* Start scaled down so enter animation can play */
   transform: scale(0) !important;
 }
 
+/* 🔥 REMOVED: iPad-specific CTA button initial positioning - let CSS handle it via classes */
+
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-enter-initial {
   transition: none !important;
   transform: scale(0) !important;
 }
+
+/* 🔥 REMOVED: iPad-specific tagline initial positioning - let CSS handle it via classes */
 
 /* Reset state - remove all animation classes */
 .animate-reset {
@@ -1278,6 +1308,8 @@ body.journey-board-game-active #hud-board-indicator {
 .slide-text.animate-reset {
   transform: translateY(12px) scale(1);
 }
+
+/* 🔥 REMOVED: iPad-specific slide-text reset positioning - let CSS handle it via classes */
 
 /* Slide-tagline reset state */
 .slide-tagline.animate-reset {
@@ -2010,7 +2042,7 @@ body.journey-board-game-active #hud-board-indicator {
   right: -48px; /* 40px * 1.2 = 48px padding sa desne strane */
   width: calc(120% + 96px); /* Prošireno za 20% (100% + 80px) * 1.2 = 120% + 96px */
   height: 49px;
-  background-image: url('/assets/home-shadow.png');
+  background-image: url('./assets/home-shadow.png');
   background-size: cover; /* Rastegnuti da pokrije cijelu širinu */
   background-repeat: no-repeat;
   background-position: center;
@@ -2563,6 +2595,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet::after,
+.hearts-bottom-sheet::after,
 .collectible-reward-bottom-sheet::after {
   content: "";
   position: absolute;
@@ -3756,23 +3789,236 @@ html.collectible-reward-open body {
   }
 }
 
+/* ===== HEARTS BOTTOM SHEET ===== */
+.hearts-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: url('../assets/modals/paper.png');
+  background-size: cover;
+  background-position: center;
+  border-radius: 40px 40px 0 0;
+  box-shadow: none;
+  overflow: visible;
+  max-height: 60vh;
+  z-index: 10000000000001;
+  transition: transform 0.3s ease-out;
+  padding: 28px 10% 40px 10%;
+  
+  /* RESPONSIVE WIDTH */
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  
+  transform: translateY(100%);
+  
+  /* iOS touch optimizations */
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+}
+
+.hearts-bottom-sheet::after {
+  z-index: 0;
+}
+
+.hearts-bottom-sheet::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -100vh;
+  height: 100vh;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease-out;
+  background: linear-gradient(
+    to top,
+    rgba(233, 210, 200, 0.42) 0%,
+    rgba(233, 210, 200, 0.30) 38%,
+    rgba(233, 210, 200, 0.14) 72%,
+    rgba(233, 210, 200, 0) 100%
+  );
+  box-shadow:
+    0 -36px 72px rgba(233, 210, 200, 0.7),
+    0 -42vh 120px 36vh rgba(233, 210, 200, 0.38);
+}
+
+.hearts-bottom-sheet.hearts-shadow-active::before {
+  opacity: 1;
+}
+
+.hearts-bottom-sheet.hearts-shadow-fade-out::before {
+  opacity: 0;
+  transition-duration: 0.2s;
+}
+
+.hearts-bottom-sheet.visible {
+  transform: translateY(0);
+}
+
+@media screen and (min-width: 768px) and (max-width: 1400px) {
+  .hearts-bottom-sheet {
+    max-width: none;
+    width: 100%;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding-left: 8%;
+    padding-right: 8%;
+  }
+}
+
 /* iPad: use a simple fixed tint behind bottom sheets.
    The sheet-level ::before is 100vh tall and moves with the sheet transform,
    which can look like a faint ghost layer sliding upward before the sheet appears.
    Avoid a separate "shadow event" here; keep the bounce animation on the sheet itself. */
 @media screen and (min-width: 768px) and (max-width: 1400px) {
   .simple-bottom-sheet:not(.score-bottom-sheet)::before,
-  .score-bottom-sheet::before {
+  .score-bottom-sheet::before,
+  .hearts-bottom-sheet::before {
     content: none !important;
     display: none !important;
   }
 
   #end-run-overlay,
-  .score-bottom-sheet-backdrop {
+  .score-bottom-sheet-backdrop,
+  #hearts-overlay {
     background: rgba(233, 210, 200, 0.24) !important;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: auto;
+  }
+}
+
+.hearts-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 310px;
+  margin: 20px auto 0 auto; /* 20px top margin (same as resume game modal) */
+}
+
+.hearts-title {
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+
+.hearts-title-text {
+  color: #AD8675;
+}
+
+.hearts-title-accent {
+  color: #E77449;
+}
+
+.hearts-display {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+}
+
+.heart-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.hearts-timer {
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.hearts-timer-text {
+  color: #AD8675;
+}
+
+.hearts-timer-value {
+  color: #E77449;
+}
+
+.hearts-description {
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #CBA89A;
+  text-align: center;
+  margin: 0;
+}
+
+.hearts-cta {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.get-heart-btn {
+  width: 100%;
+  max-width: 320px;
+  font-size: 18px;
+  font-weight: 400;
+  white-space: nowrap;
+  position: relative;
+  padding-right: 78px !important; /* room for TV icon overlap */
+  padding-left: 40px !important; /* keep text slightly left */
+  display: flex;
+  align-items: center;
+  justify-content: flex-start !important;
+  overflow: visible !important;
+}
+.get-heart-text {
+  display: inline-block;
+  width: 100%;
+  text-align: left;
+  margin-left: -16px;
+}
+.get-heart-tv {
+  position: absolute;
+  right: 14px;
+  top: -2px;
+  width: 60px;
+  height: auto;
+  transform: none;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 768px) {
+  .hearts-bottom-sheet {
+    padding: 28px 8% 40px 8%;
+  }
+  
+  .hearts-content {
+    gap: 20px;
+  }
+  
+  .hearts-title {
+    font-size: 32px;
+  }
+  
+  .heart-icon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .hearts-display {
+    gap: 20px;
   }
 }
 
@@ -4284,9 +4530,11 @@ body:has(:root) .tile.wild-3d-glow {
   font-size: 28px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
+  /* transition: none !important; REMOVED - conflicts with animation classes */
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  /* transform: scale(1) !important; REMOVED - conflicts with animation classes */
   position: relative !important;
   overflow: hidden !important;
   -webkit-tap-highlight-color: transparent !important;
@@ -4317,6 +4565,7 @@ body:has(:root) .tile.wild-3d-glow {
 
 .primary-button:hover:not(:disabled),
 .menu-btn-primary:hover:not(:disabled) {
+  /* transform: scale(1) !important; REMOVED - conflicts with animations */
   box-shadow: 0 8px 0 0 #C24921 !important;
   background: #E97A55 !important;
   color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
@@ -4330,6 +4579,8 @@ body:has(:root) .tile.wild-3d-glow {
   transition: transform 0.35s ease; /* NO !important - let animation classes override */
   -webkit-tap-highlight-color: transparent !important;
 }
+
+/* REMOVED: Stats button now has same classes as Play button */
 
 /* Force reset for buttons that should not have :active state after navigation */
 .primary-button.button-reset:active,

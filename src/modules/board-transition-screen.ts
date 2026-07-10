@@ -408,12 +408,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
   import('../utils/board-asset-warmup.js')
-    .then(({ ensureBoardTexturesResidentSoon }) => {
-      ensureBoardTexturesResidentSoon({
+    .then(({ warmBoardGameAssetsSoon }) => {
+      warmBoardGameAssetsSoon({
         mode: 'journey',
         boardNumber,
         reason: 'board-transition-screen',
-        timeoutMs: 2200,
+        timeoutMs: 1800,
       });
     })
     .catch((error) => {

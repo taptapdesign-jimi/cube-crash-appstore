@@ -446,28 +446,8 @@ class EnhancedMemoryManager {
       }
     }
     this.tweens.clear();
-    this.clearInvalidGlobalTweens();
+    gsap.killTweensOf('*'); // Nuclear option
     logger.info('✅ Cleared all GSAP tweens');
-  }
-
-  private clearInvalidGlobalTweens(): void {
-    try {
-      const children = gsap.globalTimeline?.getChildren?.(true, true, true) || [];
-      children.forEach((tween: any) => {
-        try {
-          if (!tween || typeof tween.kill !== 'function') return;
-          const targets =
-            typeof tween.targets === 'function'
-              ? tween.targets()
-              : Array.isArray(tween.targets)
-                ? tween.targets
-                : [];
-          if (targets.some((target: any) => target?.destroyed === true)) {
-            tween.kill();
-          }
-        } catch {}
-      });
-    } catch {}
   }
 
   // ============================================================
@@ -505,7 +485,7 @@ class EnhancedMemoryManager {
   }
 
   clearEverything(): void {
-    logger.info('🧹 Full memory cleanup - clearing tracked resources...');
+    logger.info('🧹 NUCLEAR CLEANUP - Clearing everything...');
 
     this.clearAllTimers();
     this.clearAllListeners();
@@ -650,3 +630,4 @@ export { EnhancedMemoryManager };
 if (typeof window !== 'undefined') {
   (window as any).enhancedMemoryManager = enhancedMemoryManager;
 }
+
