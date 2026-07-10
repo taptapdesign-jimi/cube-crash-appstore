@@ -6,18 +6,18 @@ When you ask Cursor to restore the last stable version, it should read the flags
 ## Search flags (do not rename)
 
 ```txt
-__CC_LAST_STABLE_VERSION__=608
-__CC_LAST_STABLE_GIT_COMMIT__=0b02aa234301cd11993ae38089e4dfd7622efff3
-__CC_LAST_STABLE_GIT_COMMIT_SHORT__=0b02aa2
-__CC_LAST_STABLE_LABEL__=v608-IGRAJ
+__CC_LAST_STABLE_VERSION__=609
+__CC_LAST_STABLE_GIT_COMMIT__=46a7f5c2e173892885a05620be89e3b5f4363d1b
+__CC_LAST_STABLE_GIT_COMMIT_SHORT__=46a7f5c
+__CC_LAST_STABLE_LABEL__=v609-IGRAJ-JOURNEY
 ```
 
 ## Human summary
 
 | Field | Value |
 |-------|-------|
-| Stable label | **v608-IGRAJ** |
-| Stable commit | `0b02aa2` — IGRAJ CTA, bundled Stack to Six iPhone wrapper, current web build parity |
+| Stable label | **v609-IGRAJ-JOURNEY** |
+| Stable commit | `46a7f5c` — IGRAJ CTA with v607 Journey beach and robo areas restored |
 | Date marked stable | 2026-07-10 |
 
 ## How to update (when a new version becomes stable)
@@ -39,5 +39,5 @@ git show __CC_LAST_STABLE_GIT_COMMIT_SHORT__
 git checkout __CC_LAST_STABLE_GIT_COMMIT__
 
 # Create a branch from stable
-git checkout -b restore-stable-v608-igraj __CC_LAST_STABLE_GIT_COMMIT__
+git checkout -b restore-stable-v609-igraj-journey __CC_LAST_STABLE_GIT_COMMIT__
 ```
