@@ -583,12 +583,31 @@ class SliderManager {
       
       return false;
     };
+
+    const isVisibleJourneyScreenGesture = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof Element)) return false;
+
+      const journeyScreen = target.closest('#journey-screen') as HTMLElement | null;
+      if (!journeyScreen || journeyScreen.hidden) return false;
+
+      const style = window.getComputedStyle(journeyScreen);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    };
     
     const handleGlobalTouchStart = (e: TouchEvent) => {
       if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) return;
       
       const touch = e.touches[0];
       if (!touch) return;
+
+      if (isVisibleJourneyScreenGesture(e.target)) {
+        this.globalSwipeState.isTracking = false;
+        this.globalSwipeState.isHorizontalSwipe = false;
+        this.isDragging = false;
+        this.elements.container?.classList.remove('dragging');
+        logger.debug('Journey screen touch - homepage slider swipe disabled');
+        return;
+      }
       
       // 🔥 BUTTON FIX: Don't track swipes that start on interactive elements
       // These should be handled as clicks/taps, not swipes

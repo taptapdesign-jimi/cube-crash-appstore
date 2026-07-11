@@ -219,6 +219,63 @@ test('visible locked non-interactive wilds block false clean-board after merge 6
   expect(checkEndGame(context, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
 });
 
+test.each([
+  ['TNT', { special: 'wild-tnt' }],
+  ['magnet', { special: 'wild-magnet' }],
+  ['future TNT archetype', { special: 'wild-tnt', _ccSpecialDiceArchetype: 'wild-tnt' }],
+  ['future magnet archetype', { special: 'wild-magnet', _ccSpecialDiceArchetype: 'wild-magnet' }],
+])('visible non-interactive gameplay-resolving %s dice with regular tiles blocks false fail screen', (_label, specialOverrides) => {
+  const tiles = [
+    makeTile({ value: 4, stackDepth: 1, gridX: 0, gridY: 0 }),
+    makeTile({ value: 5, stackDepth: 1, gridX: 1, gridY: 0 }),
+    makeTile({
+      value: 6,
+      ...specialOverrides,
+      eventMode: 'none',
+      alpha: 1,
+      gridX: 2,
+      gridY: 0,
+    }),
+    makeTile({
+      value: 6,
+      ...specialOverrides,
+      eventMode: 'none',
+      alpha: 1,
+      gridX: 3,
+      gridY: 0,
+    }),
+  ];
+  const context = makeContext(tiles, 5, false);
+
+  expect(tileIsActive(tiles[2])).toBe(true);
+  expect(checkEndGame(context, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
+});
+
+test.each([
+  ['star', { special: 'wild' }],
+  ['juice', { special: 'wild-juice' }],
+])('visible non-interactive %s residue does not block real no-moves fail', (_label, specialOverrides) => {
+  const tiles = [
+    makeTile({ value: 5, stackDepth: 1, gridX: 0, gridY: 0 }),
+    makeTile({ value: 5, stackDepth: 1, gridX: 1, gridY: 0 }),
+    makeTile({ value: 4, stackDepth: 1, gridX: 2, gridY: 0 }),
+    makeTile({
+      value: 0,
+      ...specialOverrides,
+      eventMode: 'none',
+      alpha: 1,
+      visible: true,
+      _isBeingSpawned: false,
+      gridX: 3,
+      gridY: 0,
+    }),
+  ];
+  const context = makeContext(tiles, 5, false);
+
+  expect(tileIsActive(tiles[3])).toBe(false);
+  expect(checkEndGame(context, true)).toEqual({ type: 'stuck', reason: 'no_merges_possible' });
+});
+
 test('getActiveTiles ignores destroyed and invisible tiles', () => {
   const tiles = [
     makeTile({ value: 2 }),

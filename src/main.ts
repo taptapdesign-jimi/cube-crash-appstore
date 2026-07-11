@@ -64,6 +64,7 @@ let gameCoreModulePromise: Promise<GameCoreModule> | null = null;
 let cachedAppState: any | null = null;
 let appStatePromise: Promise<any> | null = null;
 let postHomePerformanceWarmupScheduled = false;
+let postCriticalAssetWarmupScheduled = false;
 
 async function getAppState(): Promise<any> {
   if (cachedAppState) return cachedAppState;
@@ -95,6 +96,43 @@ function scheduleIdleTask(task: () => void, timeout: number = 1200): void {
   window.setTimeout(task, 0);
 }
 
+function isHomepageVisibleForWarmup(): boolean {
+  const home = document.getElementById('home') as HTMLElement | null;
+  if (!home || home.hidden) return false;
+  const computed = window.getComputedStyle(home);
+  return (
+    home.style.display !== 'none' &&
+    home.style.visibility !== 'hidden' &&
+    computed.display !== 'none' &&
+    computed.visibility !== 'hidden' &&
+    Number(computed.opacity || '1') > 0.01
+  );
+}
+
+function schedulePostCriticalAssetWarmup(): void {
+  if (postCriticalAssetWarmupScheduled) return;
+  postCriticalAssetWarmupScheduled = true;
+
+  const runWhenOffHomepage = () => {
+    if (isHomepageVisibleForWarmup()) {
+      window.setTimeout(runWhenOffHomepage, 2500);
+      return;
+    }
+
+    scheduleIdleTask(() => {
+      import('./modules/asset-preloader.js').then(({ assetPreloader }) => {
+        void assetPreloader.preloadPostCriticalAssets?.().catch((error: unknown) => {
+          logger.warn('⚠️ Post-critical asset warmup failed:', String(error));
+        });
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to import asset preloader for post-critical warmup:', String(error));
+      });
+    }, 2000);
+  };
+
+  window.setTimeout(runWhenOffHomepage, 3500);
+}
+
 function schedulePostHomePerformanceWarmup(): void {
   if (postHomePerformanceWarmupScheduled) return;
   postHomePerformanceWarmupScheduled = true;
@@ -103,6 +141,13 @@ function schedulePostHomePerformanceWarmup(): void {
     scheduleIdleTask(() => {
       if (isNativeDevServerRuntime()) {
         logger.warn('⏭️ Native dev server runtime: skipping post-home performance warmup');
+        return;
+      }
+
+      if (isHomepageVisibleForWarmup()) {
+        logger.info('⏭️ Homepage visible: deferring post-home performance warmup to avoid slider contention');
+        postHomePerformanceWarmupScheduled = false;
+        schedulePostHomePerformanceWarmup();
         return;
       }
 
@@ -332,6 +377,54 @@ function primeHomeCtaForEnter(): void {
   }
 }
 
+function waitForHomepageSliderImagesReady(timeoutMs: number = 1200): Promise<void> {
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>(
+    '#slider-wrapper .hero-image, #home-logo, .logo-addon, #home-fixed-shadow-bottom'
+  ));
+
+  if (images.length === 0) return Promise.resolve();
+
+  const waitForImage = (img: HTMLImageElement): Promise<void> => {
+    img.loading = 'eager';
+    img.setAttribute('fetchpriority', 'high');
+    img.decoding = 'async';
+
+    const decodeLoadedImage = (): Promise<void> => {
+      if (typeof img.decode !== 'function' || img.naturalWidth <= 0) {
+        return Promise.resolve();
+      }
+      return img.decode().catch(() => undefined);
+    };
+
+    if (img.complete) {
+      return decodeLoadedImage();
+    }
+
+    return new Promise<void>((resolve) => {
+      const finish = () => {
+        img.removeEventListener('load', finish);
+        img.removeEventListener('error', finish);
+        decodeLoadedImage().finally(resolve);
+      };
+
+      img.addEventListener('load', finish, { once: true });
+      img.addEventListener('error', finish, { once: true });
+    });
+  };
+
+  const imageReadyPromise = Promise.allSettled(images.map(waitForImage)).then(() => undefined);
+  const timeoutPromise = new Promise<void>((resolve) => {
+    window.setTimeout(resolve, timeoutMs);
+  });
+
+  return Promise.race([imageReadyPromise, timeoutPromise]).then(() => {
+    logger.info('✅ Homepage slider images warmed for first interaction', undefined, {
+      imageCount: images.length,
+      timeoutMs,
+    });
+  });
+}
+
 // Initialize core systems
 async function initializeApp(): Promise<void> {
   try {
@@ -478,6 +571,7 @@ async function startAssetPreloading(): Promise<void> {
     // Also start PIXI.js asset preloading (for game assets, not images).
     // Native dev server runs unbundled modules through WKWebView; defer heavy warmups
     // there so the first frame can render and Safari/Xcode can attach.
+    let startupAssetPreloadPromise: Promise<void> = Promise.resolve();
     if (nativeDevServerRuntime) {
       logger.warn('⏭️ Native dev server runtime: skipping startup asset preloading');
     } else {
@@ -485,8 +579,8 @@ async function startAssetPreloading(): Promise<void> {
       assetPreloader.setProgressCallback((percentage: number, loadedCount: number, totalCount: number) => {
         logger.info(`📦 Loading progress: ${percentage}% (${loadedCount}/${totalCount})`);
       });
-      assetPreloader.preloadAll().catch((error) => {
-        logger.error('❌ Asset preloading failed:', String(error));
+      startupAssetPreloadPromise = assetPreloader.preloadCriticalAssetsOnly().catch((error: unknown) => {
+        logger.error('❌ Critical asset preloading failed:', String(error));
       });
     }
     
@@ -589,9 +683,12 @@ async function startAssetPreloading(): Promise<void> {
     
     // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
     primeHomeCtaForEnter();
+    await startupAssetPreloadPromise;
+    await waitForHomepageSliderImagesReady();
+    schedulePostCriticalAssetWarmup();
 
-    // 🔥 NOTE: Journey screen boards are already prepared in preloadAll() (blocking)
-    // No need to prepare again here - boards are ready before homepage is shown
+    // Heavy Journey/deferred warmups are intentionally delayed until homepage is not visible.
+    // Running them during the first homepage swipe causes image/compositor stutter on mobile.
     
     // 🔥 CRITICAL: Show homepage and play enter animation ONLY AFTER launch screen completely finishes
     // This ensures homepage appears only after stack to six logo scale down is complete
@@ -1511,6 +1608,17 @@ async function startNewRun(boardId: number): Promise<void> {
   (window as any).exitingToMenu = true;
   // Abort any in-flight endgame transition callbacks/timeouts from previous run.
   (window as any).__ccEndgameFlowAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0) + 1;
+
+  try {
+    const [{ forceHideScoreBottomSheet }, { forceHideEndRunModal }] = await Promise.all([
+      import('./modules/score-bottom-sheet.js'),
+      import('./modules/end-run-modal.js'),
+    ]);
+    forceHideScoreBottomSheet?.();
+    forceHideEndRunModal?.('exitToMenu');
+  } catch (cleanupError) {
+    console.warn('⚠️ exitToMenu: Failed to force-clean bottom sheets:', cleanupError);
+  }
   
   // 🔥 CRITICAL FIX: Reset gamePaused flag immediately
   // This ensures new game starts with clean state

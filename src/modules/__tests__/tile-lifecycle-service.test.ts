@@ -6,6 +6,7 @@ import {
   normalizeSpawnedTileVisual,
   removeTileFully,
 } from '../tile-lifecycle-service';
+import { isVisibleGameplayResolvingSpecialPresence } from '../tile-state-utils';
 
 test('removeTileFully clears direct grid reference, tile list, runtime flags, and destroys tile', () => {
   const tile: any = {
@@ -72,6 +73,29 @@ test('isGameplayTileCandidate rejects invisible, pending, locked, passive, and e
   expect(isGameplayTileCandidate({ value: 2, eventMode: 'none', visible: true, alpha: 1 })).toBe(false);
   expect(isGameplayTileCandidate({ value: 2, eventMode: 'static', visible: true, alpha: 1, _pendingRemoval: true })).toBe(false);
   expect(isGameplayTileCandidate({ value: 0, eventMode: 'static', visible: true, alpha: 1 })).toBe(false);
+});
+
+test.each([
+  ['TNT', { special: 'wild-tnt' }, true],
+  ['magnet', { special: 'wild-magnet' }, true],
+  ['future TNT archetype', { special: 'wild-tnt', _ccSpecialDiceArchetype: 'wild-tnt' }, true],
+  ['future magnet archetype', { special: 'wild-magnet', _ccSpecialDiceArchetype: 'wild-magnet' }, true],
+  ['star', { special: 'wild' }, false],
+  ['juice', { special: 'wild-juice' }, false],
+])('visible gameplay-resolving special presence classifies %s', (_label, specialOverrides, expected) => {
+  expect(isVisibleGameplayResolvingSpecialPresence({
+    ...specialOverrides,
+    visible: true,
+    alpha: 1,
+    eventMode: 'none',
+  })).toBe(expected);
+});
+
+test('visible gameplay-resolving special presence rejects cleanup residue', () => {
+  expect(isVisibleGameplayResolvingSpecialPresence({ special: 'wild-tnt', visible: false, alpha: 1 })).toBe(false);
+  expect(isVisibleGameplayResolvingSpecialPresence({ special: 'wild-tnt', visible: true, alpha: 0.2 })).toBe(false);
+  expect(isVisibleGameplayResolvingSpecialPresence({ special: 'wild-tnt', visible: true, alpha: 1, _pendingRemoval: true })).toBe(false);
+  expect(isVisibleGameplayResolvingSpecialPresence({ special: 'wild-magnet', visible: true, alpha: 1, _wildMagnetAffected: true })).toBe(false);
 });
 
 test('isLockedEmptyPlaceholder identifies locked ghost residue without matching playable locked specials', () => {

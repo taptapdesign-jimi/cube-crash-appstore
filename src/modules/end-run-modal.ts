@@ -11,6 +11,8 @@ import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
+let endRunTransitionInProgress = false;
+let endRunLifecycleId = 0;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -120,11 +122,39 @@ function cleanupAllEndRunResources(): void {
 }
 
 function removeEndRunOverlay(): void {
-  const existing = document.getElementById('end-run-overlay');
-  if (existing) {
+  document.querySelectorAll('#end-run-overlay').forEach((existing) => {
     existing.remove();
     console.log('🔓 Overlay protection removed (early cleanup)');
+  });
+}
+
+function getEndRunSheetElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll('.simple-bottom-sheet'))
+    .filter((el): el is HTMLElement => el instanceof HTMLElement && !el.classList.contains('score-bottom-sheet'));
+}
+
+function hideAndRemoveEndRunSheetElements(reason: string): void {
+  const sheets = getEndRunSheetElements();
+  if (sheets.length > 0) {
+    console.log(`🧯 Removing ${sheets.length} end-run sheet element(s) (${reason})`);
   }
+
+  sheets.forEach((el) => {
+    try {
+      gsap.killTweensOf(el);
+      el.classList.remove('visible');
+      el.classList.remove('end-run-shadow-active');
+      el.style.pointerEvents = 'none';
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+      el.style.zIndex = '-999999999';
+      el.style.transition = 'none';
+      el.style.transform = 'translateY(100vh)';
+      el.remove();
+    } catch {
+      /* non-fatal */
+    }
+  });
 }
 
 // Ensure PIXI HUD hit areas (X + score) always stay interactive after modal closes
@@ -196,12 +226,9 @@ function forceCompleteClosing(reason: string): void {
   // Unfreeze DOM + PIXI
   unfreezeGameAndHud(`force-close:${reason}`);
 
-  if (modal) {
-    try {
-      modal.remove();
-    } catch {}
-    modal = null;
-  }
+  hideAndRemoveEndRunSheetElements(`force-close:${reason}`);
+  modal = null;
+  endRunTransitionInProgress = false;
 
   setModalVisible(false);
   try {
@@ -214,10 +241,8 @@ function forceCompleteClosing(reason: string): void {
 }
 
 function createModal(): HTMLElement {
-  if (modal) {
-    modal.remove();
-    modal = null;
-  }
+  hideAndRemoveEndRunSheetElements('create');
+  modal = null;
 
   const isArcadeRun = isArcadeHomeRunMode();
   const currentBoardNum = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
@@ -467,6 +492,11 @@ function createModal(): HTMLElement {
 }
 
 export function showEndRunModal(): void {
+  if (endRunTransitionInProgress) {
+    console.warn('⚠️ End Run modal transition in progress - ignoring duplicate show call');
+    return;
+  }
+
   // 🔥 CRITICAL FIX: Check if modal is already visible/open before opening new one
   if (modal && modal.parentNode && !(modal as any)._closing) {
     console.warn('⚠️ End Run modal already open - ignoring duplicate show call');
@@ -475,9 +505,22 @@ export function showEndRunModal(): void {
   
   // 🔥 CRITICAL FIX: Check if modal is in closing state
   if (modal && (modal as any)._closing) {
-    console.warn('⚠️ End Run modal is closing - forcing cleanup so we can reopen');
-    forceCompleteClosing('reopen');
+    console.warn('⚠️ End Run modal is closing - ignoring duplicate show call');
+    return;
   }
+
+  const existingSheets = getEndRunSheetElements();
+  if (existingSheets.length > 0) {
+    const hasClosingSheet = existingSheets.some((el) => (el as any)._closing);
+    if (hasClosingSheet) {
+      console.warn('⚠️ End Run modal DOM is closing - ignoring duplicate show call');
+      return;
+    }
+    forceCompleteClosing('stale-before-open');
+  }
+
+  endRunTransitionInProgress = true;
+  const openLifecycleId = ++endRunLifecycleId;
   
   console.log('🎯 Pausing game for End This Run modal');
   
@@ -618,14 +661,19 @@ export function showEndRunModal(): void {
   
   // Import and run animation - same as resume modal
   trackEndRunAnimationFrame(() => {
+    if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
     import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
-      animateBottomSheetEntrance(el).then(() => {
+      return animateBottomSheetEntrance(el).then(() => {
+        if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
+        endRunTransitionInProgress = false;
         console.log('✅ End run modal entrance complete');
       });
     }).catch((error) => {
       console.error('❌ Failed to load animation:', error);
+      if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
       el.classList.add('end-run-shadow-active');
       el.classList.add('visible');
+      endRunTransitionInProgress = false;
     });
   });
 }
@@ -929,6 +977,8 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 }
 
 export function hideModal(): void {
+  endRunTransitionInProgress = true;
+  const closeLifecycleId = ++endRunLifecycleId;
   let modalEl = modal;
   
   // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
@@ -949,6 +999,7 @@ export function hideModal(): void {
       console.warn('⚠️ hideModal: No modal element in reference or DOM - resetting state');
       setModalVisible(false);
       modal = null;
+      endRunTransitionInProgress = false;
       // Clean up handlers anyway
       if (outsideClickHandler) {
         document.removeEventListener('click', outsideClickHandler);
@@ -960,12 +1011,15 @@ export function hideModal(): void {
       }
       document.onclick = null;
       removeEndRunOverlay();
+      hideAndRemoveEndRunSheetElements('hide:no-modal-ref');
       unfreezeGameAndHud('hideModal');
       return;
     }
   }
   
   if ((modalEl as any)._closing) {
+    removeEndRunOverlay();
+    unfreezeGameAndHud('hideModal:already-closing');
     return;
   }
 
@@ -1020,6 +1074,11 @@ export function hideModal(): void {
   
   // WAIT for animation to complete before final cleanup
   trackEndRunTimeout(() => {
+    if (closeLifecycleId !== endRunLifecycleId || modalEl !== modal) {
+      console.log('📊 Skipping stale end-run close timeout');
+      return;
+    }
+
     // 🔥 CRITICAL FIX: Reset gamePaused flag FIRST so drag-core.ts allows dragging again
     // We used "soft pause" so GSAP/ticker were never paused - just need to reset the flag
     console.log('🎯 Resuming game after End This Run modal closed');
@@ -1061,10 +1120,9 @@ export function hideModal(): void {
     modalEl.style.transform = 'translateY(100vh)';
     modalEl.style.transition = 'none';
     
-    if (modalEl) {
-      modalEl.remove();
-      modal = null;
-    }
+    hideAndRemoveEndRunSheetElements('hide:closed');
+    modal = null;
+    endRunTransitionInProgress = false;
     
     // 🔥 SAME AS SCORE BOTTOM SHEET: Visibility already reset in drag handler
     // Only ensure it's still false (safety check)
@@ -1086,7 +1144,19 @@ export function hideModal(): void {
   }, 400);
 }
 
+export function forceHideEndRunModal(reason = 'force-hide'): void {
+  console.log(`🧯 Force hiding end-run modal (${reason})`);
+  endRunLifecycleId += 1;
+  cleanupAllEndRunResources();
+  forceCompleteClosing(reason);
+}
+
 export function showEndRunModalFromGame(): void {
+  if (endRunTransitionInProgress) {
+    console.warn('⚠️ End Run modal transition in progress - ignoring HUD click');
+    return;
+  }
+
   // 🔥 CRITICAL FIX: Check if modal is already visible before opening
   if (modal && modal.parentNode && !(modal as any)._closing) {
     console.warn('⚠️ End Run modal already open - ignoring HUD click');
@@ -1113,22 +1183,15 @@ export function showEndRunModalFromGame(): void {
     
     // Force hide via function
     forceHideScoreBottomSheet();
-    
-    // 🔥 CRITICAL: Also directly remove from DOM if it still exists (double safety)
-    if (scoreSheetInDOM && scoreSheetInDOM.parentNode) {
-      console.log('📊 Force removing score bottom sheet directly from DOM');
-      scoreSheetInDOM.remove();
-      // 🔥 CRITICAL: Reset state after direct DOM removal
-      resetScoreBottomSheetState();
-    }
+    resetScoreBottomSheetState();
     
     // Wait a bit to ensure DOM is fully cleaned up before opening new modal
     trackEndRunTimeout(() => {
       // Final check - if still exists, remove it
-      const stillExists = document.querySelector('.score-bottom-sheet');
-      if (stillExists) {
+      const stillExists = document.querySelectorAll('.score-bottom-sheet');
+      if (stillExists.length > 0) {
         console.warn('⚠️ Score bottom sheet still exists after cleanup - force removing');
-        stillExists.remove();
+        stillExists.forEach((el) => el.remove());
         // 🔥 CRITICAL: Reset state after final cleanup
         resetScoreBottomSheetState();
       }
@@ -1167,7 +1230,7 @@ export function isEndRunModalVisible(): boolean {
   
   // 🔥 CRITICAL: If modal is closing, it's not visible
   if (modal && (modal as any)._closing) {
-    return false;
+    return true;
   }
   
   // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
@@ -1195,6 +1258,7 @@ export function isEndRunModalVisible(): boolean {
 if (typeof window !== 'undefined') {
   (window as any).isEndRunModalVisible = isEndRunModalVisible;
   (window as any).hideEndRunModal = hideModal;
+  (window as any).forceHideEndRunModal = forceHideEndRunModal;
   (window as any).setEndRunModalVisible = (visible: boolean) => {
     // Update visibility state via utility function
     setModalVisible(visible);

@@ -193,6 +193,11 @@ export function isSpecialDiceTntLikeTile(tile: any, coreWildTypeOverride?: CoreW
   return specialDiceTileMatchesFinaleFx(tile, 'tnt', coreWildTypeOverride);
 }
 
+export function isSpecialDiceGameplayResolvingLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  const fx = getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride);
+  return fx !== null && getSpecialDiceInputReleaseModeForFx(fx) === 'after-gameplay-resolve';
+}
+
 export function isSpecialDiceDirectWildLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
   const fx = getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride);
   if (fx === 'star' || fx === 'juice' || fx === 'tnt') return true;

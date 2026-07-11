@@ -17,7 +17,7 @@ import { renderNavigation, updateNavBadge } from './components/navigation.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
-// Note: preloadCriticalAssets removed - assetPreloader.preloadAll() handles all preloading
+// Note: preloadCriticalAssets removed - startup preloading is orchestrated in main.ts
 
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
 
@@ -26,8 +26,7 @@ function bootstrapUI() {
   console.log('Document readyState:', document.readyState);
   console.log('Body exists:', !!document.body);
 
-  // Note: Asset preloading is handled by assetPreloader.preloadAll() in main.ts
-  // No need for duplicate preloading here
+  // Note: Asset preloading is handled in main.ts. No duplicate preloading here.
   
   const windowRef = window as Record<string, unknown>;
   if (windowRef[BOOTSTRAP_FLAG]) {

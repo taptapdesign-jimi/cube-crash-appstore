@@ -19,6 +19,7 @@ type ScoreSheetMode = 'score' | 'combo';
 let activeMode: ScoreSheetMode = 'score';
 let scoreSheetLifecycleId = 0;
 let scoreSheetEntranceTimeline: gsap.core.Timeline | null = null;
+let scoreSheetTransitionInProgress = false;
 
 // Outside click handlers (same pattern as end-run-modal)
 let outsideClickHandler: ((e: Event) => void) | null = null;
@@ -41,23 +42,67 @@ function cleanupOutsideScoreSheetHandlers(): void {
   document.onclick = null;
 }
 
+function getScoreSheetElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll('.score-bottom-sheet'))
+    .filter((el): el is HTMLElement => el instanceof HTMLElement);
+}
+
+function getScoreSheetBackdropElements(): HTMLElement[] {
+  return Array.from(document.querySelectorAll('.score-bottom-sheet-backdrop'))
+    .filter((el): el is HTMLElement => el instanceof HTMLElement);
+}
+
+function hideAndRemoveScoreSheetDom(reason: string): void {
+  const sheets = getScoreSheetElements();
+  const backdrops = getScoreSheetBackdropElements();
+  if (sheets.length > 0 || backdrops.length > 0) {
+    console.log(`🧯 Removing score sheet DOM (${reason})`, {
+      sheets: sheets.length,
+      backdrops: backdrops.length
+    });
+  }
+
+  sheets.forEach((el) => {
+    try {
+      gsap.killTweensOf(el);
+      el.classList.remove('visible');
+      el.classList.remove('score-sheet-shadow-active');
+      el.classList.add('score-sheet-shadow-fade-out');
+      el.style.pointerEvents = 'none';
+      el.style.display = 'none';
+      el.style.visibility = 'hidden';
+      el.style.transform = 'translateY(100%)';
+      el.style.transition = 'none';
+      el.remove();
+    } catch {
+      /* non-fatal */
+    }
+  });
+
+  backdrops.forEach((el) => {
+    try {
+      el.style.pointerEvents = 'none';
+      el.style.display = 'none';
+      el.remove();
+    } catch {
+      /* non-fatal */
+    }
+  });
+}
+
 function cleanupStaleScoreSheetBeforeOpen(reason: string): void {
-  const domSheet = document.querySelector('.score-bottom-sheet') as HTMLElement | null;
+  const domSheets = getScoreSheetElements();
+  const domBackdrops = getScoreSheetBackdropElements();
   const hasClosingSheet = !!(modal && (modal as any)._closing);
-  if (!domSheet && !backdrop && !hasClosingSheet) return;
+  if (domSheets.length === 0 && domBackdrops.length === 0 && !backdrop && !hasClosingSheet) return;
 
   console.log(`🧯 Cleaning stale score sheet before open (${reason})`);
   scoreSheetLifecycleId += 1;
+  scoreSheetTransitionInProgress = false;
   cleanupOutsideScoreSheetHandlers();
   cleanupAllScoreSheetResources();
   disableScoreSheetBackdrop();
-
-  try {
-    document.querySelectorAll('.score-bottom-sheet').forEach((el) => el.remove());
-    document.querySelectorAll('.score-bottom-sheet-backdrop').forEach((el) => el.remove());
-  } catch {
-    /* non-fatal */
-  }
+  hideAndRemoveScoreSheetDom(`stale-cleanup:${reason}`);
 
   modal = null;
   backdrop = null;
@@ -385,13 +430,7 @@ function restoreGameplayAfterScoreSheetDismissed(reason: string): void {
     return;
   }
   try {
-    document.querySelectorAll('.score-bottom-sheet-backdrop').forEach((el) => {
-      try {
-        el.remove();
-      } catch {
-        /* non-fatal */
-      }
-    });
+    getScoreSheetBackdropElements().forEach((el) => el.remove());
   } catch {
     /* non-fatal */
   }
@@ -412,14 +451,9 @@ function restoreGameplayAfterScoreSheetDismissed(reason: string): void {
 }
 
 function createModal(): HTMLElement {
-  if (modal) {
-    modal.remove();
-    modal = null;
-  }
-  if (backdrop) {
-    backdrop.remove();
-    backdrop = null;
-  }
+  hideAndRemoveScoreSheetDom('create');
+  modal = null;
+  backdrop = null;
 
   const backdropEl = document.createElement('div');
   backdropEl.className = 'score-bottom-sheet-backdrop';
@@ -728,7 +762,7 @@ export function isScoreBottomSheetVisible(): boolean {
     // 🔥 CRITICAL: If modal is closing, it's not visible
     if (modal && (modal as any)._closing) {
       console.log('🔍 isScoreBottomSheetVisible: modal is closing');
-      return false;
+      return true;
     }
     
     // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
@@ -777,6 +811,20 @@ export function getScoreBottomSheetMode(): ScoreSheetMode {
 
 export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
   activeMode = mode;
+  const domSheets = getScoreSheetElements();
+  if (scoreSheetTransitionInProgress && domSheets.length > 0) {
+    const closing = domSheets.some((el) => (el as any)._closing);
+    if (closing) {
+      console.warn(`⚠️ ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet is closing - ignoring duplicate show call`);
+      return;
+    }
+    if (modal && modal.parentNode) {
+      console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet transition active - refreshing stats`);
+      refreshScoreSheetContent(mode);
+      return;
+    }
+  }
+
   // 🔥 SAME LOGIC AS END RUN MODAL: Check if already visible
   // 🔥 CRITICAL FIX: If already visible, refresh stats instead of returning
   // This ensures stats are updated when reset is clicked on detail card modal
@@ -789,6 +837,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
   cleanupStaleScoreSheetBeforeOpen('show');
   scoreSheetLifecycleId += 1;
   const openLifecycleId = scoreSheetLifecycleId;
+  scoreSheetTransitionInProgress = true;
 
   console.log(`📊 Opening ${mode === 'combo' ? 'combo' : 'score'} bottom sheet`);
 
@@ -851,21 +900,27 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
         scoreSheetEntranceTimeline = null;
       }
 
-      animateBottomSheetEntrance(el).catch((error) => {
+      animateBottomSheetEntrance(el).then(() => {
+        if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
+        scoreSheetTransitionInProgress = false;
+      }).catch((error) => {
         console.error('❌ Failed to animate score bottom sheet:', error);
         if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
         el.classList.add('visible');
+        scoreSheetTransitionInProgress = false;
       });
     });
 
     isVisible = true;
   } catch (error) {
     console.error('❌ Failed to open score bottom sheet — restoring gameplay:', error);
+    scoreSheetTransitionInProgress = false;
     restoreGameplayAfterScoreSheetDismissed('show:failed');
   }
 }
 
 export function hideScoreBottomSheet(): void {
+  scoreSheetTransitionInProgress = true;
   console.log('🔍 hideScoreBottomSheet() called', { 
     modal: !!modal, 
     modalEl: !!modal, 
@@ -888,9 +943,12 @@ export function hideScoreBottomSheet(): void {
       console.warn('⚠️ hideScoreBottomSheet: No modal element in reference or DOM - resetting state');
       isVisible = false;
       modal = null;
+      backdrop = null;
+      scoreSheetTransitionInProgress = false;
       cleanupAllScoreSheetResources();
       // Clean up handlers anyway
       cleanupOutsideScoreSheetHandlers();
+      hideAndRemoveScoreSheetDom('hide:no-modal-ref');
       restoreGameplayAfterScoreSheetDismissed('hide:no-modal-ref');
       return;
     }
@@ -937,6 +995,7 @@ export function hideScoreBottomSheet(): void {
     // 🔥 FIX: Reset flag on error so modal can be reopened
     console.error('❌ Error during hideScoreBottomSheet:', error);
     (modalEl as any)._closing = false;
+    scoreSheetTransitionInProgress = false;
     restoreGameplayAfterScoreSheetDismissed('hide:error');
     return;
   }
@@ -960,15 +1019,14 @@ export function hideScoreBottomSheet(): void {
     if (modalEl && modalEl.parentNode) {
       modalEl.parentNode.removeChild(modalEl);
     }
-    if (backdrop && backdrop.parentNode) {
-      backdrop.parentNode.removeChild(backdrop);
-    }
+    hideAndRemoveScoreSheetDom('hide:closed');
     
     // 🔥 CRITICAL: Reset all state AFTER modal is removed from DOM
     (modalEl as any)._closing = false;
     modal = null;
     backdrop = null;
     isVisible = false;
+    scoreSheetTransitionInProgress = false;
     
     restoreGameplayAfterScoreSheetDismissed('hide:closed');
     
@@ -985,18 +1043,12 @@ export function forceHideScoreBottomSheet(): void {
   if (!modalEl) {
     console.log('📊 No score bottom sheet modal reference, but checking DOM...');
     // Even if modal reference is null, check DOM and reset state
-    const domElement = document.querySelector('.score-bottom-sheet');
-    if (domElement) {
-      console.log('📊 Found score bottom sheet in DOM - removing it');
-      domElement.remove();
-    }
-    if (backdrop && backdrop.parentNode) {
-      backdrop.parentNode.removeChild(backdrop);
-    }
+    hideAndRemoveScoreSheetDom('forceHide:no-modal-ref');
     // 🔥 CRITICAL: Always reset state even if modal reference is null
     isVisible = false;
     modal = null;
     backdrop = null;
+    scoreSheetTransitionInProgress = false;
     cleanupAllScoreSheetResources();
     restoreGameplayAfterScoreSheetDismissed('forceHide:no-modal-ref');
     return;
@@ -1009,6 +1061,7 @@ export function forceHideScoreBottomSheet(): void {
   // Reset visibility state immediately
   isVisible = false;
   (modalEl as any)._closing = false;
+  scoreSheetTransitionInProgress = false;
   unfreezeScoreSheetGameplay('forceHide:start');
   cleanupAllScoreSheetResources();
   
@@ -1021,13 +1074,7 @@ export function forceHideScoreBottomSheet(): void {
   modalEl.style.transform = 'translateY(100%)';
   modalEl.style.transition = 'none';
   
-  // Remove from DOM immediately
-  if (modalEl.parentNode) {
-    modalEl.parentNode.removeChild(modalEl);
-  }
-  if (backdrop && backdrop.parentNode) {
-    backdrop.parentNode.removeChild(backdrop);
-  }
+  hideAndRemoveScoreSheetDom('forceHide:immediate');
   
   // Reset state AFTER removing from DOM
   modal = null;
@@ -1043,10 +1090,9 @@ export function resetScoreBottomSheetState(): void {
   console.log('📊 Resetting score bottom sheet state');
   isVisible = false;
   modal = null;
-  if (backdrop && backdrop.parentNode) {
-    backdrop.parentNode.removeChild(backdrop);
-  }
   backdrop = null;
+  scoreSheetTransitionInProgress = false;
+  hideAndRemoveScoreSheetDom('reset-state');
   cleanupAllScoreSheetResources();
   cleanupOutsideScoreSheetHandlers();
   unfreezeScoreSheetGameplay('reset-state:start');

@@ -17,6 +17,19 @@ import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
+import {
+  getJourneyBoardCardBaseRotationDegrees,
+  getJourneyBoardCardBaseScale,
+  getJourneyBoardCardBaseTransform,
+  rememberJourneyBoardCardBaseTransform,
+  restoreJourneyBoardCardBaseTransform,
+  setJourneyBoardCardBaseTransform,
+} from './journey-card-base-transform.js';
+import {
+  animateJourneyViewportScreenExit,
+  lockJourneyViewportTransition,
+  unlockJourneyViewportTransition,
+} from '../ui/collectibles-animations.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -395,8 +408,8 @@ function figmaToPercent(xOffset: number, yOffset: number): { x: number; y: numbe
 // This ensures identical positions on all devices (iPhone 13, 14, 17, etc.)
 const BASE_VIEWPORT_WIDTH = 390; // iPhone 13/14 base width in pixels (for conversion calculations)
 const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for conversion calculations)
-const JOURNEY_CONTENT_TOP_BASE_PX = 50;
-const JOURNEY_CONTENT_SHIFT_UP_PX = 16;
+const JOURNEY_CONTENT_TOP_BASE_PX = 0;
+const JOURNEY_CONTENT_SHIFT_UP_PX = 0;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
 const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach';
@@ -410,8 +423,10 @@ const JOURNEY_RENDERED_BOARDS = 30;
 const JOURNEY_FOREST_LAYOUT_STATE_VERSION = 'forest-board-1-interim-v1';
 const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
-/** Move bg image + card stack down together (px), all breakpoints */
-const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 32;
+/** Single start offset for the full Journey world stack; adding later worlds below must not change it. */
+const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 138;
+/** Position cards/numbers relative to the Journey world/decor layers. */
+const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
@@ -447,6 +462,10 @@ function getJourneyContentTopPx(): number {
       ? 0
       : (pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight;
   return layoutAnchor + JOURNEY_BOARDSTACK_NUDGE_DOWN_PX;
+}
+
+function getJourneyCardStackTopPx(): number {
+  return getJourneyContentTopPx() + JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX;
 }
 
 // Legacy helpers for backward compatibility - now convert to viewport units
@@ -502,16 +521,16 @@ const CARD_POSITIONS = [
   { x: pxToPercent(228), top: forestTopPercent(2569), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
   { x: pxToPercent(40), top: forestTopPercent(2695), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
   { x: pxToPercent(226), top: forestTopPercent(2821), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(36), top: forestTopPercent(3403), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(230), top: forestTopPercent(3533), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(44), top: forestTopPercent(3667), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(222), top: forestTopPercent(3791), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(3905), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(226), top: forestTopPercent(4033), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(4161), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(228), top: forestTopPercent(4281), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
-  { x: pxToPercent(40), top: forestTopPercent(4407), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
-  { x: pxToPercent(226), top: forestTopPercent(4533), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(19), top: forestTopPercent(3419), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(242), top: forestTopPercent(3539), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(56), top: forestTopPercent(3663), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -11 },
+  { x: pxToPercent(246), top: forestTopPercent(3775), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 4 },
+  { x: pxToPercent(62), top: forestTopPercent(3943), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(234), top: forestTopPercent(4042), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(63), top: forestTopPercent(4176), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -6 },
+  { x: pxToPercent(203), top: forestTopPercent(4295), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 6 },
+  { x: pxToPercent(20), top: forestTopPercent(4415), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: -8 },
+  { x: pxToPercent(240), top: forestTopPercent(4529), width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT, rotation: 10 },
 ];
 
 const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotation?: number }> = {
@@ -534,16 +553,16 @@ const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotati
   18: { x: 30, y: -2, rotation: 6 },
   19: { x: -8, y: 6, rotation: 4 },
   20: { x: 24, y: -6, rotation: 6 },
-  21: { x: -42, y: 24, rotation: -8 },
-  22: { x: 0, y: 23, rotation: -4 },
-  23: { x: 12, y: 28, rotation: 8 },
-  24: { x: 50, y: 4, rotation: 10 },
-  25: { x: 0, y: 16, rotation: 13 },
-  26: { x: -16, y: 6, rotation: -16 },
-  27: { x: 3, y: 8, rotation: 3 },
-  28: { x: 30, y: -2, rotation: 6 },
-  29: { x: -8, y: 6, rotation: 4 },
-  30: { x: 24, y: -6, rotation: 6 },
+  21: { x: 6, y: 36, rotation: 1 },
+  22: { x: 0, y: 29, rotation: -4 },
+  23: { x: 5, y: 12, rotation: 8 },
+  24: { x: 22, y: 36, rotation: 7 },
+  25: { x: 40, y: 10, rotation: 21 },
+  26: { x: -18, y: 18, rotation: -19 },
+  27: { x: 43, y: 39, rotation: 7 },
+  28: { x: 30, y: 2, rotation: 6 },
+  29: { x: 19, y: 10, rotation: 4 },
+  30: { x: -13, y: 13, rotation: -2 },
 };
 
 
@@ -650,6 +669,11 @@ class JourneyBoardsManager {
         const el = target as HTMLElement;
         if ((el as any).__ccJourneyToGameExitTween) return;
         try { gsap.killTweensOf(el); } catch {}
+        el.classList.remove('journey-area-idle-target');
+        if (el.classList.contains('journey-robo-alien-beam-art')) {
+          try { gsap.set(el, { clearProps: 'opacity' }); } catch {}
+          el.style.removeProperty('opacity');
+        }
         if (resetTransforms) {
           try {
             const resetVars = el.classList.contains('journey-forest-cloud-art') ? { x: 0, y: 0 } : { y: 0 };
@@ -667,6 +691,83 @@ class JourneyBoardsManager {
       }
     } catch (error) {
       logger.warn('⚠️ Failed to cleanup Journey area idle animations:', error);
+    }
+  }
+
+  private resetJourneyBoardVisualResidue(reason: string): void {
+    try {
+      this.clearJourneyAreaIdleStartTimeout();
+      this.cleanupJourneyAreaIdleAnimations(false);
+
+      const roots = Array.from(document.querySelectorAll('#journey-screen, #journey-boards-container')) as HTMLElement[];
+      const root = roots[0] || document.body;
+      const targets = Array.from(new Set(Array.from(root.querySelectorAll(
+        [
+          '.journey-board-card-wrapper',
+          '.journey-forest-main-art',
+          '.journey-forest-cloud-art',
+          '.journey-forest-island-art',
+          '.journey-forest-stump-art',
+          '.journey-forest-star-art',
+        ].join(', ')
+      )))) as HTMLElement[];
+
+      const duplicateCounts = new Map<string, number>();
+      targets.forEach((target) => {
+        const boardCard = target.classList.contains('journey-board-card-wrapper')
+          ? target.querySelector('.journey-board-card') as HTMLElement | null
+          : null;
+        const boardId = boardCard?.dataset?.boardId;
+        if (boardId) {
+          duplicateCounts.set(`card-${boardId}`, (duplicateCounts.get(`card-${boardId}`) || 0) + 1);
+        }
+        const beamClass = Array.from(target.classList).find((className) => className.startsWith('journey-robo-alien-beam-board-'));
+        if (beamClass) {
+          duplicateCounts.set(beamClass, (duplicateCounts.get(beamClass) || 0) + 1);
+        }
+
+        if ((target as any).__ccJourneyToGameExitTween) return;
+        try { gsap.killTweensOf(target); } catch {}
+        target.classList.remove('journey-area-idle-target');
+        target.style.transition = '';
+        target.style.pointerEvents = '';
+        target.style.willChange = '';
+
+        if (target.classList.contains('journey-board-card-wrapper')) {
+          restoreJourneyBoardCardBaseTransform(target);
+          return;
+        }
+
+        if (target.classList.contains('journey-robo-alien-beam-art')) {
+          target.style.removeProperty('opacity');
+        }
+
+        try {
+          gsap.set(target, {
+            scale: 1,
+            x: 0,
+            y: 0,
+            clearProps: 'scale,x,y',
+            overwrite: true,
+          });
+        } catch {}
+      });
+
+      const duplicates = Array.from(duplicateCounts.entries())
+        .filter(([, count]) => count > 1)
+        .map(([key, count]) => ({ key, count }));
+      if (targets.length || duplicates.length) {
+        logger.info('🧭 Journey visual residue reset', {
+          reason,
+          targetCount: targets.length,
+          duplicates,
+        });
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to reset Journey visual residue:', {
+        reason,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -704,7 +805,9 @@ class JourneyBoardsManager {
       liveTargets.forEach((target) => {
         target.classList.add('journey-area-idle-target');
         target.dataset.journeyAreaId = areaId;
-        target.style.willChange = 'transform';
+        target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
+          ? 'transform, opacity'
+          : 'transform';
       });
 
       const setY = gsap.quickSetter(liveTargets, 'y', 'px') as (value: number) => void;
@@ -917,12 +1020,25 @@ class JourneyBoardsManager {
     } catch {}
   }
 
-  private clearLastActiveJourneyBoardAreaId(): void {
+  private clearLastActiveJourneyBoardAreaId(expectedBoardId?: number): boolean {
     try {
+      if (Number.isFinite(expectedBoardId)) {
+        const currentBoardId = this.getLastActiveJourneyBoardAreaId();
+        if (currentBoardId !== expectedBoardId) {
+          logger.info('🧭 JourneyForestAnim active-board-clear-skip-stale', {
+            expectedBoardId,
+            currentBoardId,
+          });
+          return false;
+        }
+      }
       delete (window as any).__ccLastActiveJourneyBoardAreaId;
       localStorage.removeItem(ACTIVE_BOARD_AREA_STORAGE_KEY);
       this.activeBoardAreaEnterPreparedTargets = [];
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private getJourneyBoardAreaParts(boardId: number, preparedTargets: HTMLElement[] = []): {
@@ -1042,8 +1158,9 @@ class JourneyBoardsManager {
   }
 
   public prepareActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    let boardId: number | null = null;
     try {
-      const boardId = this.getLastActiveJourneyBoardAreaId();
+      boardId = this.getLastActiveJourneyBoardAreaId();
       if (!boardId) {
         logger.info('🧭 JourneyForestAnim active-enter-prepare-skip-no-board', { retryCount });
         return;
@@ -1058,7 +1175,7 @@ class JourneyBoardsManager {
         if (retryCount < 4) {
           this.trackTimeout(() => this.prepareActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
         } else {
-          this.clearLastActiveJourneyBoardAreaId();
+          this.clearLastActiveJourneyBoardAreaId(boardId);
         }
         return;
       }
@@ -1075,6 +1192,7 @@ class JourneyBoardsManager {
       this.activeBoardAreaEnterPreparedTargets = targets;
       targets.forEach((target) => {
         try { gsap.killTweensOf(target); } catch {}
+        rememberJourneyBoardCardBaseTransform(target);
         target.style.transformOrigin = '50% 50%';
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
@@ -1090,16 +1208,20 @@ class JourneyBoardsManager {
         });
       });
     } catch (error) {
-      this.clearLastActiveJourneyBoardAreaId();
+      if (boardId) {
+        this.clearLastActiveJourneyBoardAreaId(boardId);
+      }
       logger.warn('⚠️ Failed to prepare active Journey board area enter animation:', error);
     }
   }
 
   public playActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    let boardId: number | null = null;
     try {
-      const boardId = this.getLastActiveJourneyBoardAreaId();
+      boardId = this.getLastActiveJourneyBoardAreaId();
       if (!boardId) {
         logger.info('🧭 JourneyForestAnim active-enter-play-skip-no-board', { retryCount });
+        unlockJourneyViewportTransition('active-enter-skip-no-board');
         return;
       }
 
@@ -1128,7 +1250,8 @@ class JourneyBoardsManager {
         if (retryCount < 4) {
           this.trackTimeout(() => this.playActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
         } else {
-          this.clearLastActiveJourneyBoardAreaId();
+          unlockJourneyViewportTransition('active-enter-no-targets');
+          this.clearLastActiveJourneyBoardAreaId(boardId);
         }
         return;
       }
@@ -1168,16 +1291,28 @@ class JourneyBoardsManager {
               clearProps: 'visibility',
               overwrite: true,
             });
+            if (target.classList.contains('journey-robo-alien-beam-art')) {
+              target.style.removeProperty('opacity');
+            }
+            restoreJourneyBoardCardBaseTransform(target);
           } catch {}
         });
         this.clearJourneyAreaIdleStartTimeout();
-        if (cardsContainer && document.body.contains(cardsContainer)) {
-          logger.info('🧭 JourneyForestAnim active-enter-start-idle-now', { boardId });
-          this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+        const clearedActiveBoard = this.clearLastActiveJourneyBoardAreaId(boardId);
+        if (clearedActiveBoard) {
+          if (cardsContainer && document.body.contains(cardsContainer)) {
+            logger.info('🧭 JourneyForestAnim active-enter-start-idle-now', { boardId });
+            this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+          } else {
+            logger.warn('🧭 JourneyForestAnim active-enter-idle-skip-missing-container', { boardId });
+          }
+          unlockJourneyViewportTransition('active-enter-complete');
         } else {
-          logger.warn('🧭 JourneyForestAnim active-enter-idle-skip-missing-container', { boardId });
+          logger.info('🧭 JourneyForestAnim active-enter-complete-stale-skip-unlock', {
+            boardId,
+            currentBoardId: this.getLastActiveJourneyBoardAreaId(),
+          });
         }
-        this.clearLastActiveJourneyBoardAreaId();
       };
 
       let pendingTweens = items.length;
@@ -1202,6 +1337,7 @@ class JourneyBoardsManager {
         }
 
         try { gsap.killTweensOf(target); } catch {}
+        rememberJourneyBoardCardBaseTransform(target);
         target.style.opacity = '0';
         target.style.visibility = 'hidden';
         target.style.transformOrigin = 'center center';
@@ -1234,7 +1370,11 @@ class JourneyBoardsManager {
           onComplete: () => {
             target.style.visibility = 'visible';
             target.style.opacity = '1';
+            if (target.classList.contains('journey-robo-alien-beam-art')) {
+              target.style.removeProperty('opacity');
+            }
             target.style.willChange = 'auto';
+            restoreJourneyBoardCardBaseTransform(target);
             logger.info('🧭 JourneyForestAnim active-enter-item-complete', {
               boardId,
               role: item.role,
@@ -1256,7 +1396,10 @@ class JourneyBoardsManager {
       });
 
     } catch (error) {
-      this.clearLastActiveJourneyBoardAreaId();
+      unlockJourneyViewportTransition('active-enter-error');
+      if (boardId) {
+        this.clearLastActiveJourneyBoardAreaId(boardId);
+      }
       logger.warn('⚠️ Failed to play active Journey board area enter animation:', error);
     }
   }
@@ -1427,6 +1570,7 @@ class JourneyBoardsManager {
         { x: 58, y: 3382, width: 202, jitter: false },
         { x: 190, y: 3320, width: 166 },
         { x: 284, y: 3412, width: 116 },
+        { x: 206, y: 3448, width: 214, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
       ];
 
       roboCloudSlots.forEach((slot, index) => {
@@ -1720,37 +1864,118 @@ class JourneyBoardsManager {
       const targets: HTMLElement[] = [];
       boardTargets.set(boardId, targets);
 
+      const roboStarOffsets: Record<number, { x: number; y: number; rotation?: number }> = {
+        21: { x: -18, y: 16 },
+        22: { x: 19, y: 4 },
+        23: { x: 22, y: 0 },
+        24: { x: 52, y: -16, rotation: -4 },
+        25: { x: 24, y: 30 },
+        26: { x: 14, y: 3 },
+        27: { x: 26, y: 15 },
+        28: { x: -14, y: 17, rotation: 8 },
+        29: { x: -13, y: 11 },
+        30: { x: 8, y: -2 },
+      };
+      const starOffset = roboStarOffsets[boardId] || { x: 0, y: 0 };
+      const finalStarsOffsetX = starsOffsetX + starOffset.x;
+      const finalStarsOffsetY = starsOffsetY + starOffset.y;
+      const finalStarsRotation = starOffset.rotation || 0;
+
       const islandSrc = `${ROBO_WORLD_ASSET_BASE}/robo${roboIndex}.png`;
       const craterLayouts = [
         { src: `${ROBO_WORLD_ASSET_BASE}/crater1.png`, x: 64, y: 62, width: 77, rotation: -3 },
         { src: `${ROBO_WORLD_ASSET_BASE}/crater2.png`, x: 60, y: 60, width: 82, rotation: 4 },
         { src: `${ROBO_WORLD_ASSET_BASE}/crater3.png`, x: 66, y: 58, width: 78, rotation: -1 },
       ];
+      const craterSourceOverrides: Record<number, string> = {
+        25: craterLayouts[(6 - 1) % craterLayouts.length].src,
+        26: craterLayouts[(5 - 1) % craterLayouts.length].src,
+      };
+      const craterScaleOverrides: Record<number, number> = {
+        23: 0.9,
+        24: 0.85,
+        25: 0.8,
+      };
       const craterOffsets: Record<number, { x: number; y: number }> = {
-        21: { x: -4, y: -8 },
-        22: { x: 2, y: 0 },
-        23: { x: 0, y: -2 },
-        24: { x: -2, y: 2 },
-        25: { x: 3, y: -1 },
-        26: { x: -3, y: -4 },
-        27: { x: 2, y: -2 },
-        28: { x: -1, y: 1 },
-        29: { x: 1, y: -3 },
-        30: { x: -4, y: 0 },
+        21: { x: -26, y: 2 },
+        22: { x: 20, y: 0 },
+        23: { x: 20, y: 8 },
+        24: { x: 48, y: -12 },
+        25: { x: 29, y: 32 },
+        26: { x: 3, y: 0 },
+        27: { x: 20, y: 16 },
+        28: { x: -13, y: 11 },
+        29: { x: -21, y: 7 },
+        30: { x: -1, y: -4 },
       };
       const craterBase = craterLayouts[(roboIndex - 1) % craterLayouts.length];
       const craterOffset = craterOffsets[boardId] || { x: 0, y: 0 };
       const craterLayout = {
         ...craterBase,
+        src: craterSourceOverrides[boardId] || craterBase.src,
         x: craterBase.x + craterOffset.x,
         y: craterBase.y + craterOffset.y,
+        width: craterBase.width * (craterScaleOverrides[boardId] || 1),
       };
 
-      const roboCloudSlots = [
+      const roboCloudSlotBases = [
         { ref: 6, x: -62, y: 84, width: 150 },
         { ref: 3, x: 56, y: -14, width: 118 },
         { ref: 5, x: 126, y: 72, width: 100 },
       ];
+      const roboCloudSlots = roboCloudSlotBases.map((slot, index) => {
+        const seed = (boardId * 43) + (index * 17);
+        const refOffset = Math.floor(seededUnit(seed + 1) * cloudAssetPool.length);
+        return {
+          ref: 1 + (((slot.ref + refOffset - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length),
+          x: slot.x + Math.round((seededUnit(seed + 2) - 0.5) * 42),
+          y: slot.y + Math.round((seededUnit(seed + 3) - 0.5) * 32),
+          width: Math.round(slot.width * (0.86 + (seededUnit(seed + 4) * 0.34))),
+          rotation: Math.round((seededUnit(seed + 5) - 0.5) * 8),
+          opacity: 0.68 + (seededUnit(seed + 6) * 0.18),
+        };
+      });
+      if (seededUnit(boardId + 307) > 0.42) {
+        const seed = boardId * 59;
+        roboCloudSlots.push({
+          ref: 1 + Math.floor(seededUnit(seed + 1) * cloudAssetPool.length),
+          x: Math.round(-24 + (seededUnit(seed + 2) * 228)),
+          y: Math.round(22 + (seededUnit(seed + 3) * 116)),
+          width: Math.round(72 + (seededUnit(seed + 4) * 64)),
+          rotation: Math.round((seededUnit(seed + 5) - 0.5) * 10),
+          opacity: 0.62 + (seededUnit(seed + 6) * 0.16),
+        });
+      }
+      if (boardId === 23) {
+        roboCloudSlots.push({
+          ref: 6,
+          x: -4,
+          y: 126,
+          width: 208,
+          rotation: -2,
+          opacity: 0.76,
+        });
+      }
+      if (boardId === 29) {
+        roboCloudSlots.push(
+          {
+            ref: 6,
+            x: -64,
+            y: 132,
+            width: 184,
+            rotation: -3,
+            opacity: 0.78,
+          },
+          {
+            ref: 4,
+            x: 82,
+            y: 136,
+            width: 188,
+            rotation: 2,
+            opacity: 0.76,
+          },
+        );
+      }
 
       roboCloudSlots.forEach((slot) => {
         const assetIndex = ((slot.ref - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length;
@@ -1761,11 +1986,11 @@ class JourneyBoardsManager {
           slot.width,
           `journey-forest-cloud-art journey-forest-board-cloud journey-forest-cloud-board-${boardId} journey-forest-cloud-ref-${slot.ref}`,
           1,
-          0,
+          slot.rotation,
           areaId,
           bgContainer
         );
-        cloud.style.opacity = '0.78';
+        cloud.style.opacity = `${slot.opacity}`;
         cloud.style.willChange = 'transform';
         targets.push(cloud);
       });
@@ -1824,12 +2049,12 @@ class JourneyBoardsManager {
           const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
           targets.push(addImage(
             shouldShowFilledStar ? star.filledSrc : star.emptySrc,
-            islandX + star.x + starsOffsetX,
-            islandY + star.y + starsOffsetY,
+            islandX + star.x + finalStarsOffsetX,
+            islandY + star.y + finalStarsOffsetY,
             star.width,
             `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
             6,
-            0,
+            finalStarsRotation,
             areaId,
             decorContainer
           ));
@@ -1870,13 +2095,13 @@ class JourneyBoardsManager {
     applyBeach2xSrcSet(roboMain, roboMainSrc);
     mainTargets.push(roboMain);
     addRoboBoardGroup(21, 1, 18, 3532, 200, -14, -3);
-    addRoboBoardGroup(22, 2, 194, 3656, 200, -8, 8);
-    addRoboBoardGroup(23, 3, 18, 3780, 200, -10, 8);
-    addRoboBoardGroup(24, 4, 194, 3904, 200, -12, 10);
+    addRoboBoardGroup(22, 2, 184, 3646, 200, -8, 8);
+    addRoboBoardGroup(23, 3, 18, 3770, 200, -10, 8);
+    addRoboBoardGroup(24, 4, 166, 3904, 200, -12, 10);
     addRoboBoardGroup(25, 5, 18, 4028, 200, -10, 4);
-    addRoboBoardGroup(26, 6, 194, 4152, 200, -12, 6);
+    addRoboBoardGroup(26, 6, 186, 4152, 200, -12, 6);
     addRoboBoardGroup(27, 7, 18, 4276, 200, -10, 8);
-    addRoboBoardGroup(28, 8, 194, 4400, 200, -8, 4);
+    addRoboBoardGroup(28, 8, 176, 4400, 200, -8, 4);
     addRoboBoardGroup(29, 9, 18, 4524, 200, -10, 8);
     addRoboBoardGroup(30, 10, 194, 4648, 200, -12, 10);
 
@@ -1942,6 +2167,10 @@ class JourneyBoardsManager {
         try { scrollable.removeEventListener('touchend', handlers.end); } catch {}
         try { scrollable.removeEventListener('touchcancel', handlers.end); } catch {}
         try { scrollable.removeEventListener('scroll', handlers.lockX); } catch {}
+        try {
+          if (handlers.releaseTimer) window.clearTimeout(handlers.releaseTimer);
+          if (handlers.releaseTween) handlers.releaseTween.kill();
+        } catch {}
         delete (scrollable as any).__journeyScreenElasticHandlers;
       }
       const target = document.getElementById('journey-boards-container') as HTMLElement | null;
@@ -1986,13 +2215,20 @@ class JourneyBoardsManager {
       }
 
       let startY = 0;
+      let startX = 0;
       let currentY = 0;
       let isDragging = false;
-      const damping = 0.07;
-      const maxPull = 16;
+      let isHorizontalLocked = false;
+      let releaseTween: gsap.core.Tween | null = null;
+      let releaseTimer: number | null = null;
+      const damping = 0.1;
+      const maxPull = 28;
       const lockHorizontalScroll = () => {
         if (scrollable.scrollLeft !== 0) {
           scrollable.scrollLeft = 0;
+        }
+        if (document.scrollingElement && document.scrollingElement.scrollLeft !== 0) {
+          document.scrollingElement.scrollLeft = 0;
         }
       };
 
@@ -2006,15 +2242,29 @@ class JourneyBoardsManager {
         currentY = pull;
         container.style.willChange = 'transform';
         container.style.transition = 'none';
-        container.style.transform = `translateY(${pull}px)`;
+        gsap.set(container, { y: pull, force3D: true });
+      };
+
+      const clearReleaseAnimation = () => {
+        if (releaseTimer !== null) {
+          window.clearTimeout(releaseTimer);
+          releaseTimer = null;
+        }
+        if (releaseTween) {
+          releaseTween.kill();
+          releaseTween = null;
+        }
       };
 
       const onStart = (e: TouchEvent) => {
         if (e.touches.length !== 1) return;
         lockHorizontalScroll();
+        startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         currentY = 0;
         isDragging = true;
+        isHorizontalLocked = false;
+        clearReleaseAnimation();
         try { gsap.killTweensOf(container); } catch {}
         container.style.transition = 'none';
       };
@@ -2022,13 +2272,22 @@ class JourneyBoardsManager {
       const onMove = (e: TouchEvent) => {
         if (!isDragging || e.touches.length !== 1) return;
         lockHorizontalScroll();
+        const dx = e.touches[0].clientX - startX;
         const dy = e.touches[0].clientY - startY;
+        if (isHorizontalLocked || (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.15)) {
+          isHorizontalLocked = true;
+          e.preventDefault();
+          if (currentY !== 0) applyPull(0);
+          lockHorizontalScroll();
+          return;
+        }
         const pullingTop = dy > 0 && isAtTop();
         const pullingBottom = dy < 0 && isAtBottom();
         if (!pullingTop && !pullingBottom) {
           if (currentY !== 0) applyPull(0);
           return;
         }
+        e.preventDefault();
         const pull = Math.max(-maxPull, Math.min(maxPull, dy * damping));
         applyPull(pull);
       };
@@ -2036,26 +2295,51 @@ class JourneyBoardsManager {
       const onEnd = () => {
         if (!isDragging) return;
         isDragging = false;
+        isHorizontalLocked = false;
         if (currentY === 0) {
           container.style.willChange = '';
           return;
         }
-        container.style.transition = 'transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1)';
-        container.style.transform = 'translateY(0px)';
-        window.setTimeout(() => {
+        const releaseDistance = Math.abs(currentY);
+        const duration = Math.min(0.46, Math.max(0.28, 0.22 + releaseDistance / 90));
+        clearReleaseAnimation();
+        container.style.transition = 'none';
+        releaseTween = trackTween(container, {
+          y: 0,
+          duration,
+          ease: 'power3.out',
+          overwrite: true,
+          force3D: true,
+          onComplete: () => {
+            currentY = 0;
+            releaseTween = null;
+            if (this.renderDisposed) return;
+            container.style.transition = '';
+            container.style.willChange = '';
+          }
+        });
+        releaseTimer = window.setTimeout(() => {
+          releaseTimer = null;
           if (this.renderDisposed) return;
           container.style.transition = '';
           container.style.willChange = '';
-        }, 240);
+        }, Math.ceil(duration * 1000) + 80);
       };
 
       scrollable.addEventListener('touchstart', onStart, { passive: true });
-      scrollable.addEventListener('touchmove', onMove, { passive: true });
+      scrollable.addEventListener('touchmove', onMove, { passive: false });
       scrollable.addEventListener('touchend', onEnd, { passive: true });
       scrollable.addEventListener('touchcancel', onEnd, { passive: true });
       scrollable.addEventListener('scroll', lockHorizontalScroll, { passive: true });
       lockHorizontalScroll();
-      (scrollable as any).__journeyScreenElasticHandlers = { start: onStart, move: onMove, end: onEnd, lockX: lockHorizontalScroll };
+      (scrollable as any).__journeyScreenElasticHandlers = {
+        start: onStart,
+        move: onMove,
+        end: onEnd,
+        lockX: lockHorizontalScroll,
+        get releaseTween() { return releaseTween; },
+        get releaseTimer() { return releaseTimer; }
+      };
     } catch (error) {
       logger.warn('⚠️ Failed to install Journey screen elastic overscroll:', error);
     }
@@ -2332,6 +2616,12 @@ class JourneyBoardsManager {
         const detail = event?.detail || {};
         const boardId = detail.boardId;
         if (!Number.isFinite(boardId)) return;
+
+        const board = this.boards.find((item) => item.id === boardId);
+        if (board?.unlocked === true && board?.interim !== true) {
+          this.renderBoards();
+          logger.info(`🏆 Journey map refreshed for board ${boardId} high score update`);
+        }
         
         const modal = document.getElementById('collectibles-detail-modal');
         if (!modal) return;
@@ -2391,11 +2681,11 @@ class JourneyBoardsManager {
 
     this.journeyExitPromise = (async () => {
       try {
-        const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-        await animateCollectiblesScreenExit();
-        logger.info('✅ Journey screen exit animation completed (early start)');
+        lockJourneyViewportTransition('journey-screen-exit');
+        await animateJourneyViewportScreenExit('journey-screen-exit');
+        logger.info('✅ Journey viewport exit animation completed (early start)');
       } catch (error) {
-        logger.warn('⚠️ Failed to start Journey exit animation early:', error);
+        logger.warn('⚠️ Failed to start Journey viewport exit animation early:', error);
       } finally {
         this.journeyExitPromise = null;
       }
@@ -2462,6 +2752,7 @@ class JourneyBoardsManager {
         });
         transitionTargets.forEach((target) => {
           try { gsap.killTweensOf(target); } catch {}
+          rememberJourneyBoardCardBaseTransform(target);
           (target as any).__ccJourneyToGameExitTween = true;
           target.style.transformOrigin = '50% 50%';
           target.style.willChange = 'transform, opacity';
@@ -2524,7 +2815,7 @@ class JourneyBoardsManager {
 
           trackTween(target, {
             scale: 0,
-            opacity: 0,
+            opacity: 1,
             duration: item.exitDuration,
             ease: item.exitEase,
             delay: item.exitDelay,
@@ -2577,8 +2868,10 @@ class JourneyBoardsManager {
     }
 
     this.setLastActiveJourneyBoardAreaId(boardId);
+    this.activeBoardAreaEnterPreparedTargets = [];
     this.journeyToGameExitActive = true;
     this.journeyToGameExitBoardId = boardId;
+    lockJourneyViewportTransition(`journey-board-area-exit-${boardId}`);
     logger.info('🧭 JourneyForestAnim journey-exit-flow-start', { boardId });
 
     this.journeyExitPromise = (async () => {
@@ -2689,22 +2982,20 @@ class JourneyBoardsManager {
       return;
     }
     
+    rememberJourneyBoardCardBaseTransform(cardWrapper);
+
     // Stop any existing bounce animation (safety check)
     this.stopInterimBounce(card);
-    
-    // Get current rotation and scale from transform
-    const transform = cardWrapper.style.transform || '';
-    const rotationMatch = transform.match(/rotate\(([^)]+)\)/);
-    const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
+    restoreJourneyBoardCardBaseTransform(cardWrapper);
+
+    // Use the locked Journey card base transform, never a temporary GSAP scale/y state.
+    const transform = getJourneyBoardCardBaseTransform(cardWrapper) || cardWrapper.style.transform || '';
+    const originalRotation = getJourneyBoardCardBaseRotationDegrees(cardWrapper);
     
     // 🔥 iPad FIX: Detect iPad and adjust scale values to account for existing scale(1.76)
     const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
-    let originalScale = isIPad ? 1.76 : 1; // Default scale based on device (1.76 for iPad, 1 for others)
-    // Extract existing scale if present
-    const scaleMatch = transform.match(/scale\(([^)]+)\)/);
-    if (scaleMatch && scaleMatch[1]) {
-      originalScale = parseFloat(scaleMatch[1]) || originalScale;
-    }
+    const baseTransformScale = getJourneyBoardCardBaseScale(cardWrapper);
+    const originalScale = baseTransformScale || (isIPad ? 1.76 : 1); // Default scale based on device (1.76 for iPad, 1 for others)
     
     // Animation parameters (similar to journey-card-idle-bounce.ts)
     const baseScale = originalScale; // Use detected scale (1.76 for iPad, 1 for others)
@@ -2712,8 +3003,8 @@ class JourneyBoardsManager {
     const tiltDegrees = 2.5;
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
     
-    // Store original transform
-    (cardWrapper as any)._originalTransform = transform || '';
+    // Store only the normalized base transform used by cleanup/restore.
+    setJourneyBoardCardBaseTransform(cardWrapper, transform || cardWrapper.style.transform || '');
     
     // Create continuous bounce animation
     const animateBounce = () => {
@@ -2789,24 +3080,7 @@ class JourneyBoardsManager {
                 return;
               }
               
-              // Restore original transform (includes scale(1.76) for iPad)
-              const storedTransform = (cardWrapper as any)._originalTransform;
-              if (storedTransform) {
-                cardWrapper.style.transform = storedTransform;
-              } else {
-                // Fallback: rebuild transform with original rotation and scale
-                let restoredTransform = '';
-                if (transform.includes('translateX(-50%)')) {
-                  restoredTransform = `translateX(-50%) rotate(${originalRotation}deg)`;
-                } else {
-                  restoredTransform = `rotate(${originalRotation}deg)`;
-                }
-                // 🔥 iPad FIX: Add scale using originalScale (1.76 for iPad, 1 for others)
-                if (originalScale !== 1) {
-                  restoredTransform += ` scale(${originalScale})`;
-                }
-                cardWrapper.style.transform = restoredTransform;
-              }
+              restoreJourneyBoardCardBaseTransform(cardWrapper);
               
               // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
               if ((cardWrapper as any)._bounceTimeout) {
@@ -2855,37 +3129,7 @@ class JourneyBoardsManager {
       delete (cardWrapper as any)._bounceTimeout;
     }
     
-    // Restore original transform (includes scale(1.76) for iPad)
-    const storedTransform = (cardWrapper as any)._originalTransform;
-    if (storedTransform) {
-      cardWrapper.style.transform = storedTransform;
-    } else {
-      // Fallback: rebuild transform with original rotation and scale
-      const currentTransform = cardWrapper.style.transform || '';
-      const rotationMatch = currentTransform.match(/rotate\(([^)]+)\)/);
-      const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
-      
-      // 🔥 iPad FIX: Detect iPad and restore scale (1.76 for iPad, 1 for others)
-      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1366;
-      let originalScale = isIPad ? 1.76 : 1; // Default scale based on device
-      // Extract existing scale if present
-      const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
-      if (scaleMatch && scaleMatch[1]) {
-        originalScale = parseFloat(scaleMatch[1]) || originalScale;
-      }
-      
-      let restoredTransform = '';
-      if (currentTransform.includes('translateX(-50%)')) {
-        restoredTransform = `translateX(-50%) rotate(${originalRotation}deg)`;
-      } else {
-        restoredTransform = `rotate(${originalRotation}deg)`;
-      }
-      // 🔥 iPad FIX: Add scale using originalScale (1.76 for iPad, 1 for others)
-      if (originalScale !== 1) {
-        restoredTransform += ` scale(${originalScale})`;
-      }
-      cardWrapper.style.transform = restoredTransform;
-    }
+    restoreJourneyBoardCardBaseTransform(cardWrapper);
     
     delete (cardWrapper as any)._interimBounceActive;
   }
@@ -3283,10 +3527,23 @@ class JourneyBoardsManager {
       return `${FOREST_WORLD_ASSET_BASE}/cards/forest-1.png`;
     }
 
+    if (boardNumber >= 21 && boardNumber <= 30) {
+      const mirroredBoardNumber = boardNumber - 20;
+      if (mirroredBoardNumber === 1) {
+        return `${FOREST_WORLD_ASSET_BASE}/cards/forest-1.png`;
+      }
+
+      return `./assets/colelctibles/common/${mirroredBoardNumber.toString().padStart(2, '0')}.png`;
+    }
+
     // Use existing collectible images for unlocked boards
     // Map board numbers to collectible image paths (01.png, 02.png, etc.)
     const paddedNumber = boardNumber.toString().padStart(2, '0');
     return `./assets/colelctibles/common/${paddedNumber}.png`;
+  }
+
+  private getLockedBoardImagePath(_boardNumber: number): string | null {
+    return null;
   }
 
   private getBoardName(boardNumber: number): string {
@@ -3639,6 +3896,7 @@ class JourneyBoardsManager {
 
     this.container = container;
     this.renderDisposed = false;
+    this.resetJourneyBoardVisualResidue('renderBoards-before-dom-replace');
     
     // 🔥 CRITICAL FIX: Clean up previous observer if exists
     if ((container as any)._positionObserver) {
@@ -3736,9 +3994,10 @@ class JourneyBoardsManager {
       // 🔥 SCROLLABLE FIX: Put elements INSIDE journey-boards-container so they scroll with content
       // Calculate top offset in pixels for absolute positioning within container
       const FIXED_BG_TOP_PX = getJourneyContentTopPx();
+      const FIXED_CARD_TOP_PX = getJourneyCardStackTopPx();
       
       // Set container height to accommodate FULL background image height + top offset
-      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
+      const containerHeightPx = bgHeightPx + Math.max(FIXED_BG_TOP_PX, FIXED_CARD_TOP_PX) + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
       container.style.height = `${containerHeightPx}px`;
       container.style.position = 'relative';
       container.style.width = '100%';
@@ -3770,7 +4029,8 @@ class JourneyBoardsManager {
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
       const bgHeightPx = viewportWidth * imageAspectRatio;
       const FIXED_BG_TOP_PX = getJourneyContentTopPx();
-      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
+      const FIXED_CARD_TOP_PX = getJourneyCardStackTopPx();
+      const containerHeightPx = bgHeightPx + Math.max(FIXED_BG_TOP_PX, FIXED_CARD_TOP_PX) + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
       container.style.height = `${containerHeightPx}px`;
       container.style.minHeight = `${containerHeightPx}px`;
       container.style.overflow = 'visible';
@@ -3780,7 +4040,8 @@ class JourneyBoardsManager {
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const initialBgHeightPx = viewportWidth * KNOWN_ASPECT_RATIO;
     const FIXED_BG_TOP_PX = getJourneyContentTopPx();
-    const initialContainerHeightPx = initialBgHeightPx + FIXED_BG_TOP_PX + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
+    const FIXED_CARD_TOP_PX = getJourneyCardStackTopPx();
+    const initialContainerHeightPx = initialBgHeightPx + Math.max(FIXED_BG_TOP_PX, FIXED_CARD_TOP_PX) + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
     
     // Set initial container height
     container.style.height = `${initialContainerHeightPx}px`;
@@ -3853,7 +4114,7 @@ class JourneyBoardsManager {
     const cardsContainer = document.createElement('div');
     cardsContainer.className = 'journey-cards-container';
     // Critical dynamic values must be inline to ensure they're applied
-    cardsContainer.style.top = `${FIXED_BG_TOP_PX}px`;
+    cardsContainer.style.top = `${FIXED_CARD_TOP_PX}px`;
     cardsContainer.style.height = `${initialBgHeightPx}px`; // Will be updated when image loads
     
     // Append to container (journey-boards-container) so it scrolls with content
@@ -3977,10 +4238,6 @@ class JourneyBoardsManager {
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'journey-board-card-wrapper';
     
-    // 🔥 SCROLLABLE FIX: Use pixel-based positioning within scrollable container
-    // Background starts at FIXED_BG_TOP_PX, so we add card's top offset to that
-    const FIXED_BG_TOP_PX = getJourneyContentTopPx();
-    
     // Calculate background height in pixels
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const imageAspectRatio = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
@@ -4019,7 +4276,7 @@ class JourneyBoardsManager {
     // Convert top position to pixels (relative to background start)
     const topPercent = typeof position.top === 'number' ? position.top : parseFloat(String(position.top || 0));
     // topPercent is percentage of background height
-    let topPx = FIXED_BG_TOP_PX + (topPercent / 100) * bgHeightPx;
+    let topPx = (topPercent / 100) * bgHeightPx;
     
     // 🔥 iPad FIX: Spusti sve kartice za 10% visine kontejnera prema dole
     if (isIPad) {
@@ -4133,6 +4390,7 @@ class JourneyBoardsManager {
       cardWrapper.style.left = `${leftPx + wrapperLeftOffset}px`;
       cardWrapper.style.transform = `rotate(${position.rotation}deg) scale(${scaleFactor})`;
     }
+    setJourneyBoardCardBaseTransform(cardWrapper, cardWrapper.style.transform || '');
     cardWrapper.style.top = `${topPx + wrapperTopOffset}px`;
     cardWrapper.style.width = `${wrapperWidth}px`;
     cardWrapper.style.height = `${wrapperHeight}px`;
@@ -4565,19 +4823,17 @@ class JourneyBoardsManager {
       });
     } else {
       // Locked card - show journey-card-empty.png image with number overlay
-      const showLockedCardImage = false;
+      const lockedBoardImagePath = this.getLockedBoardImagePath(board.id);
       const lockedContainer = document.createElement('div');
       lockedContainer.className = 'journey-board-locked-container';
       card.classList.add('journey-board-card-number-only');
       
-      if (showLockedCardImage) {
-        // Add empty card image
+      if (lockedBoardImagePath) {
+        // Boards 21-30 reuse existing collectible art instead of rendering as empty number-only cards.
         const image = document.createElement('img');
-        // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
-        image.src = './assets/colelctibles/journey-card-empty.png';
+        image.src = lockedBoardImagePath;
         image.alt = `Board ${board.id} (locked)`;
-        image.className = 'journey-board-empty-image';
-        // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+        image.className = 'journey-board-image journey-board-locked-replica-image';
         image.loading = 'eager';
         (image as any).fetchPriority = 'high';
         // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
@@ -4659,14 +4915,9 @@ class JourneyBoardsManager {
 
     cardWrapper.appendChild(card);
     
-    // 🔥 iPad FIX: Store original transform for interim cards immediately after rendering
-    // This ensures scale is preserved even if animation hasn't started yet
-    if (isInterim) {
-      const currentTransform = cardWrapper.style.transform || '';
-      if (currentTransform && !(cardWrapper as any)._originalTransform) {
-        (cardWrapper as any)._originalTransform = currentTransform;
-        logger.info('✅ Stored original transform for interim card:', currentTransform);
-      }
+    const currentTransform = cardWrapper.style.transform || '';
+    if (currentTransform) {
+      setJourneyBoardCardBaseTransform(cardWrapper, currentTransform);
     }
     
     return cardWrapper;
@@ -4688,9 +4939,9 @@ class JourneyBoardsManager {
       // 🔥 CRITICAL FIX: Play Journey screen exit animation BEFORE starting game
       // This ensures user sees smooth transition and board game animations have proper timing
       logger.info('🎬 Starting Journey screen exit animation...');
-      const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-      await animateCollectiblesScreenExit();
-      logger.info('✅ Journey screen exit animation completed');
+      lockJourneyViewportTransition(`journey-board-tap-${boardId}`);
+      await animateJourneyViewportScreenExit(`journey-board-tap-${boardId}`);
+      logger.info('✅ Journey viewport exit animation completed');
       
       // 🔥 CRITICAL FIX: Hide Journey UI BEFORE starting game (cleanup)
       this.hideHomeAndJourneyScreens('before game start');
@@ -6731,8 +6982,7 @@ class JourneyBoardsManager {
               }
               
               const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-              const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-              const journeyExitPromise = animateCollectiblesScreenExit();
+              const journeyExitPromise = animateJourneyViewportScreenExit(`detail-continue-board-${board.id}`);
               
               await Promise.all([detailModalExitPromise, journeyExitPromise]);
               logger.info('✅ All exit animations completed');
@@ -7806,6 +8056,7 @@ class JourneyBoardsManager {
             const returnBoardId = Number(detailModal.getAttribute('data-journey-board-id') || 0);
             if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
               (window as any).__ccJourneyReturnBoardId = returnBoardId;
+              this.setLastActiveJourneyBoardAreaId(returnBoardId);
               try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(returnBoardId)); } catch {}
             }
 
@@ -7908,6 +8159,8 @@ class JourneyBoardsManager {
           const calculatedHeight = containerWidth * imageAspectRatio;
           
           const topOffset = getJourneyContentTopPx();
+          const cardsTopOffset = getJourneyCardStackTopPx();
+          const stackBottomOffset = Math.max(topOffset, cardsTopOffset);
           
           // Update positions - hide during update if position changed significantly
           const currentTop = parseFloat(bgContainer.style.top) || 0;
@@ -7921,7 +8174,7 @@ class JourneyBoardsManager {
             bgContainer.style.transition = 'none';
           }
           
-          container.style.height = `${calculatedHeight + topOffset + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX}px`;
+          container.style.height = `${calculatedHeight + stackBottomOffset + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX}px`;
           bgContainer.style.height = `${calculatedHeight}px`;
           bgContainer.style.top = `${topOffset}px`;
           bgContainer.style.position = 'absolute';
@@ -7929,7 +8182,7 @@ class JourneyBoardsManager {
           const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
           if (cardsContainer) {
             cardsContainer.style.height = `${calculatedHeight}px`;
-            cardsContainer.style.top = `${topOffset}px`;
+            cardsContainer.style.top = `${cardsTopOffset}px`;
           }
 
           const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
@@ -7952,7 +8205,7 @@ class JourneyBoardsManager {
             bgContainer.style.visibility = 'visible';
           }
           
-          logger.debug('📐 Journey background position refreshed:', { topOffset, calculatedHeight });
+          logger.debug('📐 Journey background position refreshed:', { topOffset, cardsTopOffset, calculatedHeight });
         });
       });
   }

@@ -64,6 +64,50 @@ test('visible locked non-interactive special dice keep board playable', () => {
   expect(anyMergePossible(tiles as any)).toBe(true);
 });
 
+test.each([
+  ['TNT', { special: 'wild-tnt' }],
+  ['magnet', { special: 'wild-magnet' }],
+  ['future TNT archetype', { special: 'wild-tnt', _ccSpecialDiceArchetype: 'wild-tnt' }],
+  ['future magnet archetype', { special: 'wild-magnet', _ccSpecialDiceArchetype: 'wild-magnet' }],
+])('visible non-interactive gameplay-resolving %s dice still keep regular tiles playable', (_label, specialOverrides) => {
+  const tiles = [
+    makeTile(4),
+    makeTile(5),
+    makeTile(6, {
+      ...specialOverrides,
+      eventMode: 'none',
+      alpha: 1,
+    }),
+    makeTile(6, {
+      ...specialOverrides,
+      eventMode: 'none',
+      alpha: 1,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(true);
+});
+
+test.each([
+  ['star', { special: 'wild' }],
+  ['juice', { special: 'wild-juice' }],
+])('visible non-interactive %s residue does not keep a no-moves board playable', (_label, specialOverrides) => {
+  const tiles = [
+    makeTile(5),
+    makeTile(5),
+    makeTile(4),
+    makeTile(0, {
+      ...specialOverrides,
+      visible: true,
+      alpha: 1,
+      eventMode: 'none',
+      _isBeingSpawned: false,
+    }),
+  ];
+
+  expect(anyMergePossible(tiles as any)).toBe(false);
+});
+
 test('future magnet-archetype special dice keep board playable', () => {
   const tiles = [
     makeTile(5),
@@ -86,23 +130,6 @@ test('stale wild pulled by magnet does not keep a 4+3 board playable', () => {
       locked: true,
       eventMode: 'none',
       _wildMagnetAffected: true,
-    }),
-  ];
-
-  expect(anyMergePossible(tiles as any)).toBe(false);
-});
-
-test('visible non-interactive wild residue does not keep a no-moves board playable', () => {
-  const tiles = [
-    makeTile(5),
-    makeTile(5),
-    makeTile(4),
-    makeTile(0, {
-      special: 'wild-juice',
-      visible: true,
-      alpha: 1,
-      eventMode: 'none',
-      _isBeingSpawned: false,
     }),
   ];
 

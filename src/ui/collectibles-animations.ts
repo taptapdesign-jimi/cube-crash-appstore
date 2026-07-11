@@ -1,8 +1,34 @@
 import gsap from 'gsap';
 import animationManager from '../modules/animation-manager.js';
+import {
+  rememberJourneyBoardCardBaseTransform,
+  restoreJourneyBoardCardBaseTransform,
+} from '../modules/journey-card-base-transform.js';
 
 // 🔥 FIX: Track active GSAP tweens for cleanup
 const activeCollectiblesTweens: gsap.core.Tween[] = [];
+const JOURNEY_VIEWPORT_EXIT_SELECTOR = [
+  '.journey-board-card-wrapper',
+  '.journey-forest-main-art',
+  '.journey-forest-cloud-art',
+  '.journey-forest-island-art',
+  '.journey-forest-stump-art',
+  '.journey-forest-star-art',
+].join(', ');
+const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 42;
+const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.5;
+const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.04;
+
+let activeJourneyViewportLock: {
+  scrollable: HTMLElement;
+  scrollTop: number;
+  previousTouchAction: string;
+  previousOverscrollBehavior: string;
+  previousOverscrollBehaviorY: string;
+  previousWebkitOverflowScrolling: string;
+  preventMove: (event: Event) => void;
+  keepScroll: () => void;
+} | null = null;
 
 const trackTween = (target: any, vars: any) => {
   const tween = animationManager.trackExternalTween(gsap.to(target, vars));
@@ -20,11 +46,184 @@ const trackTween = (target: any, vars: any) => {
   return tween;
 };
 
+export function lockJourneyViewportTransition(reason: string = 'journey-transition'): void {
+  const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+  if (!scrollable) return;
+
+  if (activeJourneyViewportLock?.scrollable === scrollable) {
+    activeJourneyViewportLock.scrollTop = scrollable.scrollTop;
+    return;
+  }
+
+  unlockJourneyViewportTransition('replace-lock');
+
+  const scrollTop = scrollable.scrollTop;
+  const preventMove = (event: Event): void => {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    event.stopPropagation();
+  };
+  const keepScroll = (): void => {
+    if (!activeJourneyViewportLock) return;
+    const targetScrollTop = activeJourneyViewportLock.scrollTop;
+    if (Math.abs(scrollable.scrollTop - targetScrollTop) > 0.5) {
+      scrollable.scrollTop = targetScrollTop;
+    }
+  };
+
+  activeJourneyViewportLock = {
+    scrollable,
+    scrollTop,
+    previousTouchAction: scrollable.style.touchAction,
+    previousOverscrollBehavior: scrollable.style.overscrollBehavior,
+    previousOverscrollBehaviorY: scrollable.style.overscrollBehaviorY,
+    previousWebkitOverflowScrolling: scrollable.style.webkitOverflowScrolling,
+    preventMove,
+    keepScroll,
+  };
+
+  try {
+    (window as any).__ccJourneyViewportTransitionLocked = true;
+    (window as any).__ccJourneyViewportTransitionLockReason = reason;
+    (window as any).__ccJourneyScrollTop = scrollTop;
+    localStorage.setItem('__ccJourneyScrollTop', String(scrollTop));
+  } catch {}
+
+  scrollable.style.touchAction = 'none';
+  scrollable.style.overscrollBehavior = 'none';
+  scrollable.style.overscrollBehaviorY = 'none';
+  scrollable.style.webkitOverflowScrolling = 'auto';
+  scrollable.addEventListener('touchmove', preventMove, { passive: false, capture: true });
+  scrollable.addEventListener('wheel', preventMove, { passive: false, capture: true });
+  scrollable.addEventListener('scroll', keepScroll, { passive: true });
+  keepScroll();
+}
+
+export function unlockJourneyViewportTransition(reason: string = 'journey-transition-complete'): void {
+  const lock = activeJourneyViewportLock;
+  if (!lock) return;
+
+  activeJourneyViewportLock = null;
+  lock.scrollable.removeEventListener('touchmove', lock.preventMove, true);
+  lock.scrollable.removeEventListener('wheel', lock.preventMove, true);
+  lock.scrollable.removeEventListener('scroll', lock.keepScroll);
+  lock.scrollable.style.touchAction = lock.previousTouchAction;
+  lock.scrollable.style.overscrollBehavior = lock.previousOverscrollBehavior;
+  lock.scrollable.style.overscrollBehaviorY = lock.previousOverscrollBehaviorY;
+  lock.scrollable.style.webkitOverflowScrolling = lock.previousWebkitOverflowScrolling;
+
+  try {
+    delete (window as any).__ccJourneyViewportTransitionLocked;
+    (window as any).__ccJourneyViewportTransitionUnlockedReason = reason;
+  } catch {}
+}
+
+function getActiveJourneyBoardAreaId(): number | null {
+  try {
+    const raw =
+      (window as any).__ccLastActiveJourneyBoardAreaId ??
+      localStorage.getItem('__ccLastActiveJourneyBoardAreaId');
+    const boardId = Number(raw || 0);
+    return Number.isFinite(boardId) && boardId > 0 ? boardId : null;
+  } catch {
+    return null;
+  }
+}
+
+function isActiveJourneyAreaElement(element: HTMLElement, boardId: number | null): boolean {
+  if (!boardId) return false;
+  if (element.classList.contains(`journey-forest-island-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-stump-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-star-board-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-cloud-board-${boardId}`)) return true;
+  const card = element.matches('.journey-board-card-wrapper')
+    ? element.querySelector('.journey-board-card')
+    : element.closest('.journey-board-card-wrapper')?.querySelector('.journey-board-card');
+  return (card as HTMLElement | null)?.dataset?.boardId === String(boardId);
+}
+
+function isElementViewportVisible(element: HTMLElement, viewportMargin = 32): boolean {
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
+    return false;
+  }
+  return rect.bottom >= -viewportMargin &&
+    rect.top <= window.innerHeight + viewportMargin &&
+    rect.right >= -viewportMargin &&
+    rect.left <= window.innerWidth + viewportMargin;
+}
+
+function selectJourneyViewportExitTargets(journeyScreen: HTMLElement): HTMLElement[] {
+  const activeBoardId = getActiveJourneyBoardAreaId();
+  const candidates = Array.from(
+    journeyScreen.querySelectorAll(JOURNEY_VIEWPORT_EXIT_SELECTOR)
+  ) as HTMLElement[];
+
+  const uniqueTargets = Array.from(new Set(candidates))
+    .filter((element) =>
+      document.body.contains(element) &&
+      !isActiveJourneyAreaElement(element, activeBoardId) &&
+      isElementViewportVisible(element)
+    )
+    .sort((a, b) => {
+      const aRect = a.getBoundingClientRect();
+      const bRect = b.getBoundingClientRect();
+      const viewportCenter = window.innerHeight * 0.5;
+      return Math.abs((aRect.top + aRect.height * 0.5) - viewportCenter) -
+        Math.abs((bRect.top + bRect.height * 0.5) - viewportCenter);
+    });
+
+  return uniqueTargets.slice(0, JOURNEY_VIEWPORT_EXIT_MAX_TARGETS);
+}
+
+type JourneyExitTargetSnapshot = {
+  opacity: string;
+  pointerEvents: string;
+  transform: string;
+  transition: string;
+  visibility: string;
+  willChange: string;
+};
+
+function restoreJourneyExitTargets(
+  targets: HTMLElement[],
+  snapshots: Map<HTMLElement, JourneyExitTargetSnapshot>
+): void {
+  targets.forEach((target) => {
+    const snapshot = snapshots.get(target);
+    try {
+      gsap.set(target, {
+        scale: 1,
+        y: 0,
+        clearProps: 'scale,y',
+        overwrite: true,
+      });
+      target.style.opacity = snapshot?.opacity ?? '';
+      if (target.classList.contains('journey-robo-alien-beam-art')) {
+        target.style.removeProperty('opacity');
+      }
+      target.style.visibility = snapshot?.visibility ?? '';
+      if (target.classList.contains('journey-board-card-wrapper')) {
+        restoreJourneyBoardCardBaseTransform(target);
+      } else {
+        target.style.transform = snapshot?.transform ?? '';
+      }
+      target.style.transition = snapshot?.transition ?? '';
+      target.style.pointerEvents = snapshot?.pointerEvents ?? '';
+      target.style.willChange = snapshot?.willChange ?? '';
+    } catch {}
+  });
+}
+
 /**
  * Cleanup all collectibles animations
  * Call this when screen is destroyed or before starting new animations
  */
 export function cleanupCollectiblesAnimations(): void {
+  unlockJourneyViewportTransition('collectibles-cleanup');
   // Kill all tracked tweens
   activeCollectiblesTweens.forEach(tween => {
     try { tween.kill(); } catch {}
@@ -88,8 +287,10 @@ export function animateCollectiblesScreenEnter(): void {
     if (collectiblesHeader) {
       gsap.set(collectiblesHeader, { 
         scale: 0, 
+        y: 0,
         opacity: 0,
         visibility: 'hidden',
+        transformOrigin: '50% 0%',
         force3D: true,
         immediateRender: true
       });
@@ -133,9 +334,15 @@ export function animateCollectiblesScreenEnter(): void {
   // STEP 1: Header FIRST (0ms delay) - pop-in with scale
   if (collectiblesHeader) {
     // Set visibility first, then animate
-    gsap.set(collectiblesHeader, { visibility: 'visible', immediateRender: true });
+    gsap.set(collectiblesHeader, {
+      y: 0,
+      visibility: 'visible',
+      transformOrigin: '50% 0%',
+      immediateRender: true,
+    });
     trackTween(collectiblesHeader, {
       scale: 1,
+      y: 0,
       opacity: 1,
       duration: 0.5,
       ease: 'back.out(1.7)',
@@ -248,161 +455,160 @@ export function animateCollectiblesScreenEnter(): void {
 }
 
 /**
- * Animate Journey screen EXIT with pop-out effects
- * 🔥 OPTIMIZED: Viewport-based smart batching - only animates visible cards, off-screen cards hide instantly
- * Elements pop out in reverse order: visible cards first (batched), off-screen cards instantly, then scrollable, then header
- * Returns Promise that resolves when animation completes
+ * Journey-specific exit for deep maps.
+ * It animates only what is inside the current viewport and never scales the
+ * full scrollable map, which is expensive on iOS when the map is thousands of
+ * pixels tall.
  */
-export function animateCollectiblesScreenExit(): Promise<void> {
+export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'): Promise<void> {
   return new Promise((resolve) => {
-    const journeyScreen = document.getElementById('journey-screen');
-    const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement;
-    const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
-    
+    const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+    const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
+
     if (!journeyScreen) {
       console.error('❌ No Journey screen found to animate!');
       resolve();
       return;
     }
-    
-    // STEP 1: Viewport-based smart batching for cards
-    const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
-    let maxCardDelay = 0;
 
-    if (cardWrappers && cardWrappers.length > 0) {
-      const cardsArray = Array.from(cardWrappers);
-      
-      // 🔥 AGGRESSIVE OPTIMIZATION: Separate visible cards from off-screen cards
-      // Use strict viewport detection (no margin) to minimize animated cards
-      const viewport = {
-        top: window.scrollY || window.pageYOffset,
-        bottom: (window.scrollY || window.pageYOffset) + window.innerHeight,
-        left: 0,
-        right: window.innerWidth
-      };
-      
-      const visibleCards: HTMLElement[] = [];
-      const offScreenCards: HTMLElement[] = [];
-      
-      cardsArray.forEach((card) => {
-        const rect = card.getBoundingClientRect();
-        const cardTop = rect.top + (window.scrollY || window.pageYOffset);
-        const cardBottom = cardTop + rect.height;
-        
-        // 🔥 STRICT VIEWPORT: Only cards actually visible (no margin) - reduces animated cards
-        const isVisible = cardBottom >= viewport.top && cardTop <= viewport.bottom;
-        
-        if (isVisible) {
-          visibleCards.push(card);
-        } else {
-          offScreenCards.push(card);
-        }
-      });
-      
-      // 🔥 AGGRESSIVE OPTIMIZATION: Off-screen cards hide instantly (no animation) - prevents lag
-      offScreenCards.forEach((card) => {
-        gsap.set(card, {
-          scale: 0,
-          opacity: 0,
-          visibility: 'hidden',
-          immediateRender: true
-        });
-      });
-      
-      // 🔥 AGGRESSIVE OPTIMIZATION: Limit animated cards to maximum 8 for smooth performance
-      // If more than 8 visible cards, animate only first 8, hide rest instantly
-      const MAX_ANIMATED_CARDS = 8;
-      const cardsToAnimate = visibleCards.slice(0, MAX_ANIMATED_CARDS);
-      const cardsToHideInstantly = visibleCards.slice(MAX_ANIMATED_CARDS);
-      
-      // Hide excess visible cards instantly
-      cardsToHideInstantly.forEach((card) => {
-        gsap.set(card, {
-          scale: 0,
-          opacity: 0,
-          visibility: 'hidden',
-          immediateRender: true
-        });
-      });
-      
-      // 🔥 OPTIMIZATION: Animate only limited number of cards in small batches
-      if (cardsToAnimate.length > 0) {
-        // Shuffle cards to animate for random order
-        for (let i = cardsToAnimate.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [cardsToAnimate[i], cardsToAnimate[j]] = [cardsToAnimate[j], cardsToAnimate[i]];
-        }
-        
-        // 🔥 AGGRESSIVE BATCHING: Small batches of 3-4 cards for better performance
-        const batchSize = cardsToAnimate.length > 6 ? 3 : cardsToAnimate.length;
-        const batchStagger = 0.06; // 60ms between batches (slightly longer for smoother)
-        const cardStagger = 0.03; // 30ms between cards in batch
-        
-        // Animate cards in small batches
-        cardsToAnimate.forEach((card, index) => {
-          const batchIndex = Math.floor(index / batchSize);
-          const cardIndexInBatch = index % batchSize;
-          const delay = (batchIndex * batchStagger) + (cardIndexInBatch * cardStagger);
-          maxCardDelay = Math.max(maxCardDelay, delay + 0.35);
-          
-          // 🔥 GPU OPTIMIZATION: Add will-change for better performance
-          card.style.willChange = 'transform, opacity';
-          card.style.transform = 'translateZ(0)'; // Force GPU acceleration
-          // 🔥 CSS CONTAINMENT: Add contain property for better performance
-          (card.parentElement as HTMLElement)?.style.setProperty('contain', 'layout style paint');
-          
-          trackTween(card, {
-            scale: 0,
-            opacity: 0,
-            duration: 0.35,
-            ease: 'back.in(1.7)',
-            delay: delay,
-            force3D: true,
-            onComplete: () => {
-              // Remove will-change after animation to free resources
-              card.style.willChange = 'auto';
-            }
-          });
-        });
-      }
-    }
-    
-    // STEP 2: Scrollable area pop-out (full scale range: 1.0 → 0)
-    const scrollableDelay = 0.2;
-    const scrollableDuration = 0.4;
-    const scrollableEnd = scrollableDelay + scrollableDuration;
+    lockJourneyViewportTransition(reason);
 
-    if (collectiblesScrollable) {
-      trackTween(collectiblesScrollable, {
-        scale: 0,
-        opacity: 0,
-        duration: scrollableDuration,
-        ease: 'back.in(1.7)',
-        delay: scrollableDelay
-      });
-    }
-    
-    // STEP 3: Header scales out LAST
-    const headerDelay = 0.3;
-    const headerDuration = 0.4;
-    const headerEnd = headerDelay + headerDuration;
-    
-    if (collectiblesHeader) {
-      trackTween(collectiblesHeader, {
-        scale: 0,
-        opacity: 0,
-        duration: headerDuration,
-        ease: 'back.in(1.7)',
-        delay: headerDelay
-      });
-    }
-    
-    // Calculate total animation duration (longest animation)
-    const totalDuration = Math.max(maxCardDelay, scrollableEnd, headerEnd) + 0.1;
-    
-    // Resolve promise after animation completes
-    setTimeout(() => {
+    const viewportTargets = selectJourneyViewportExitTargets(journeyScreen);
+    const animatedTargets: HTMLElement[] = [];
+    const targetSnapshots = new Map<HTMLElement, JourneyExitTargetSnapshot>();
+    const completedViewportTargets = new WeakSet<HTMLElement>();
+    let pendingViewportTargets = 0;
+    let latestViewportExitEnd = 0;
+    let viewportExitComplete = false;
+    let headerExitComplete = false;
+    let exitResolved = false;
+    let headerExitStarted = false;
+
+    const completeExit = (): void => {
+      if (exitResolved) return;
+      exitResolved = true;
+      try {
+        journeyScreen.style.visibility = 'hidden';
+        journeyScreen.style.pointerEvents = 'none';
+        journeyScreen.style.willChange = 'auto';
+        gsap.set(journeyScreen, { opacity: 0, clearProps: 'transform,scale,y' });
+        restoreJourneyExitTargets(animatedTargets, targetSnapshots);
+      } catch {}
       resolve();
-    }, totalDuration * 1000);
+    };
+
+    const maybeCompleteExit = (): void => {
+      if (!viewportExitComplete || !headerExitComplete) return;
+      trackTween(journeyScreen, {
+        opacity: 1,
+        duration: 0.01,
+        ease: 'none',
+        delay: JOURNEY_HEADER_EXIT_COMPLETE_PAD,
+        overwrite: true,
+        onComplete: completeExit,
+        onInterrupt: completeExit,
+      });
+    };
+
+    const finishHeaderExit = (): void => {
+      headerExitComplete = true;
+      maybeCompleteExit();
+    };
+
+    const startHeaderExit = (delay = 0): void => {
+      if (headerExitStarted) return;
+      headerExitStarted = true;
+      if (!collectiblesHeader) {
+        finishHeaderExit();
+        return;
+      }
+
+      try {
+        gsap.killTweensOf(collectiblesHeader);
+        collectiblesHeader.style.willChange = 'transform, opacity';
+        collectiblesHeader.style.opacity = '1';
+        collectiblesHeader.style.transformOrigin = '50% 0%';
+        trackTween(collectiblesHeader, {
+          scale: 0,
+          opacity: 1,
+          y: -18,
+          duration: 0.34,
+          ease: 'back.in(1.7)',
+          delay,
+          force3D: true,
+          overwrite: true,
+          onComplete: finishHeaderExit,
+          onInterrupt: finishHeaderExit,
+        });
+      } catch {
+        finishHeaderExit();
+      }
+    };
+
+    const finishViewportVisualTarget = (target: HTMLElement): void => {
+      try {
+        target.style.visibility = 'hidden';
+        target.style.pointerEvents = 'none';
+        gsap.set(target, {
+          opacity: 0,
+          overwrite: true,
+        });
+      } catch {}
+    };
+
+    const completeViewportTarget = (target: HTMLElement): void => {
+      if (completedViewportTargets.has(target)) return;
+      completedViewportTargets.add(target);
+      finishViewportVisualTarget(target);
+      pendingViewportTargets -= 1;
+      if (pendingViewportTargets <= 0) {
+        viewportExitComplete = true;
+        maybeCompleteExit();
+      }
+    };
+
+    viewportTargets.forEach((target, index) => {
+      try {
+        gsap.killTweensOf(target);
+        rememberJourneyBoardCardBaseTransform(target);
+        targetSnapshots.set(target, {
+          opacity: target.style.opacity,
+          pointerEvents: target.style.pointerEvents,
+          transform: target.style.transform,
+          transition: target.style.transition,
+          visibility: target.style.visibility,
+          willChange: target.style.willChange,
+        });
+        target.style.willChange = 'transform, opacity';
+        target.style.pointerEvents = 'none';
+        target.style.transition = 'none';
+
+        const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
+        const delay = Math.min(0.18, index * 0.012);
+        const duration = isLargeWorldArt ? 0.32 : 0.34;
+        latestViewportExitEnd = Math.max(latestViewportExitEnd, delay + duration);
+        animatedTargets.push(target);
+        pendingViewportTargets += 1;
+
+        trackTween(target, {
+          opacity: 1,
+          scale: isLargeWorldArt ? 0.96 : 0,
+          y: isLargeWorldArt ? -18 : 0,
+          duration,
+          ease: isLargeWorldArt ? 'back.in(1.05)' : 'back.in(1.7)',
+          delay,
+          force3D: true,
+          overwrite: true,
+          onComplete: () => completeViewportTarget(target),
+          onInterrupt: () => completeViewportTarget(target),
+        });
+      } catch {}
+    });
+
+    if (pendingViewportTargets <= 0) {
+      viewportExitComplete = true;
+    }
+    const headerDelay = Math.max(0, latestViewportExitEnd - JOURNEY_HEADER_EXIT_LEAD_SECONDS);
+    startHeaderExit(headerDelay);
   });
 }

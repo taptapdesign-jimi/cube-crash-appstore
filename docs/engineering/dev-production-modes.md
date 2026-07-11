@@ -1,51 +1,64 @@
-# Cube Crash DEV vs Production Modes
+# Stack to Six Web/App Sync Workflow
 
-This project uses the following meanings:
+This project uses `/Users/user/cube-crash` as the web source and `/Users/user/Stack to Six/Stack to Six.xcodeproj` as the only active native iPhone shell.
 
-## DEV / Development
+Do not use the legacy `/Users/user/Kockice Crash/Kockice Crash.xcodeproj` workflow unless the user explicitly asks for it.
 
-DEV means the Xcode-installed iPhone app loads the Mac's Vite dev server.
+## Default Workflow
 
-- Current native shell to use: `/Users/user/Stack to Six/Stack to Six.xcodeproj`.
-- Current Xcode scheme/target: `Stack to Six`.
-- Current bundle id: `com.taptapdesign.stacktosix.Stack-to-Six`.
-- Current test device: always `iPhone 13 blue` for now.
-- Web app source: Vite dev server, not bundled `dist`.
-- iPhone URL: `http://192.168.1.189:5174/native-dev/`.
-- Physical iPhone + Mac LAN dev server triggers the iOS Local Network permission prompt. That prompt is mandatory for this DEV topology.
-- Mac Chrome URL: `http://localhost:5174`.
-- In `Stack to Six/GameViewController.swift`, `useDevServer` must be `true`.
-- In `Stack to Six/GameViewController.swift`, `devServerURL` must be `http://192.168.1.189:5174/native-dev/` for LAN DEV.
-- Do not point the iPhone wrapper at the root `http://192.168.1.189:5174/` endpoint. That browser-style endpoint injects `/@vite/client` and can make WKWebView stall or show an empty screen.
-- Do not point the iPhone wrapper at old ports such as `5155`, or at the IPv6 `fdf2:...` address that previously failed with `No network route`.
-- Do not use free localtunnel URLs for the native app; they show an interstitial confirmation page and break WKWebView startup.
-- To avoid the Local Network prompt, use production/standalone bundled files or a real stable HTTPS endpoint that does not show interstitial pages.
+When a change must be visible both on web and in the iPhone app:
 
-Use:
+1. Edit the source in `/Users/user/cube-crash`.
+2. Verify on web at `http://localhost:5174` when useful.
+3. Run `npm run build`.
+   - `postbuild` runs `scripts/postbuild.mjs`.
+   - It syncs `dist/` into `/Users/user/Stack to Six/Stack to Six/Web.bundle`.
+   - It must not sync or modify the legacy Kockice Crash project.
+4. Build the Stack to Six native app.
+5. Install the new Stack to Six build on `iPhone 13 blue`.
 
-```bash
-npm run dev
-xcodebuild -project "/Users/user/Stack to Six/Stack to Six.xcodeproj" -scheme "Stack to Six" -configuration Debug -destination 'id=0F62B71E-0B04-53C3-906E-EC28F5D2390B' build
-```
-
-Historical warning: `/Users/user/cube-crash/ios/App/App.xcworkspace` is a different Capacitor shell with bundle id `com.taptapdesign.cubecrash`. Do not install that when the user is testing the visible `Kockice Crash` app.
-
-## Production / Standalone
-
-Production means the iPhone app runs bundled static files from `Web.bundle`/`dist`, without the dev server.
-
-- Native shell: installed/launched from Xcode.
-- Web app source: bundled `dist`.
-- In the active native shell's `GameViewController.swift`, `useDevServer` should be `false`.
-- Current emergency reset for `Stack to Six`: `/Users/user/Stack to Six/Stack to Six/GameViewController.swift` is set to `useDevServer = false` and loads `app://localhost/index.html` from `Web.bundle`.
-- This mode must not show the iOS Local Network prompt because the app does not load `192.168.1.189`, `5174`, `loca.lt`, or any dev-server URL.
-
-Use:
+Use this install cycle after user-visible changes:
 
 ```bash
 npm run build
-CAPACITOR_USE_DEV_SERVER=false npx cap sync ios
+xcodebuild -project "/Users/user/Stack to Six/Stack to Six.xcodeproj" -scheme "Stack to Six" -configuration Debug -destination 'id=00008110-001E39961AFA801E' build
+xcrun devicectl device install app --device 00008110-001E39961AFA801E "/Users/user/Library/Developer/Xcode/DerivedData/Stack_to_Six-ecsveioqnzuvvgcxshslsqgqdbhc/Build/Products/Debug-iphoneos/Stack to Six.app"
 ```
+
+## Current Native Mode
+
+Stack to Six is normally kept in bundled mode:
+
+- File: `/Users/user/Stack to Six/Stack to Six/GameViewController.swift`.
+- Expected setting: `useDevServer = false`.
+- Expected load path: `app://localhost/index.html`.
+- The app runs from `Web.bundle`, works without internet, and does not require Wi-Fi.
+- Web `localhost:5174` updates immediately after refresh, but the installed app updates only after the build/install cycle above.
+
+This mode is App Store-friendly in principle because the app does not depend on a development server. A real App Store/TestFlight release still requires the normal release checks: version/build number, signing, archive, icons, privacy/orientation checks, and upload validation.
+
+## LAN DEV Mode Is Not Default
+
+The live iPhone DEV server path was tested with:
+
+- iPhone URL: `http://192.168.1.189:5174/native-dev/`.
+- Mac Chrome URL: `http://localhost:5174`.
+- `useDevServer = true`.
+
+It produced a white/empty screen on the physical iPhone because the native preflight timed out, even after Local Network permission was accepted:
+
+```text
+Native dev preflight failed: The request timed out.
+```
+
+Do not switch Stack to Six back to live `5174` loading unless the user explicitly requests another LAN DEV experiment and accepts the risk of the white screen returning.
+
+Do not point the iPhone wrapper at:
+
+- `http://192.168.1.189:5174/` root endpoint.
+- old ports such as `5155`.
+- the previous IPv6 `fdf2:...` address that failed with `No network route`.
+- free localtunnel URLs that show interstitial pages.
 
 ## Always Verify
 
@@ -55,4 +68,17 @@ Before comparing performance or debugging mode-specific behavior:
 rg -n "useDevServer|devServerURL" "/Users/user/Stack to Six/Stack to Six/GameViewController.swift"
 ```
 
-If `useDevServer = true` and `devServerURL` points to `http://192.168.1.189:5174/native-dev/`, it is the correct LAN iPhone DEV mode.
+Expected normal output should show bundled mode:
+
+```text
+useDevServer = false
+devServerURL = ""
+```
+
+Also verify the app bundle receives the latest web build:
+
+```bash
+cmp -s dist/index.html "/Users/user/Stack to Six/Stack to Six/Web.bundle/index.html"; echo $?
+```
+
+`0` means the bundled native web entrypoint matches `dist`.

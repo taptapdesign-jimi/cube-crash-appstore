@@ -10,7 +10,7 @@
  */
 
 import { logger } from '../core/logger.js';
-import { isTileTransientlySpawning } from './tile-state-utils.ts';
+import { isTileTransientlySpawning, isVisibleGameplayResolvingSpecialPresence } from './tile-state-utils.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
@@ -114,6 +114,7 @@ function isWildEffectivelyPresent(tile: any): boolean {
   if (tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;
   if (isVisibleLockedWildGameplayPresence(tile)) return true;
+  if (isVisibleGameplayResolvingSpecialPresence(tile)) return true;
   if (tile.eventMode === 'none') return false;
   return true;
 }
@@ -184,6 +185,7 @@ export function tileIsActive(tile: any): boolean {
   if (tileIsWild(tile)) {
     if (isVisibleLockedWildGameplayPresence(tile)) return true;
     if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
+      if (isVisibleGameplayResolvingSpecialPresence(tile)) return true;
       return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
     }
     if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;

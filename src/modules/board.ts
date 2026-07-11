@@ -15,7 +15,7 @@ import {
   isSpecialDiceMagnetLikeTile,
 } from './special-dice-registry.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
-import { isTileTransientlySpawning } from './tile-state-utils.ts';
+import { isTileTransientlySpawning, isVisibleGameplayResolvingSpecialPresence } from './tile-state-utils.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -886,6 +886,7 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
       return true;
     }
     if (tile.eventMode === 'none' || tile.eventMode === 'passive') {
+      if (isVisibleGameplayResolvingSpecialPresence(tile)) return true;
       return isTileTransientlySpawning(tile, { autoClearStaleFlag: false, ignoreWildJuice: true });
     }
     if (typeof (tile as any).alpha === 'number' && (tile as any).alpha <= 0.01) return false;

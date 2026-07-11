@@ -2,6 +2,7 @@
 // Helpers for aggressively clearing magnet/wild residue before reusing a tile.
 
 import { isWildLikeTile } from './final-merge-rules';
+import { isSpecialDiceGameplayResolvingLikeTile } from './special-dice-registry';
 
 export interface TileLike {
   special?: string | null;
@@ -72,6 +73,18 @@ export function boardHasPersistentLockedTiles(tiles: any[] | null | undefined): 
     if (t._isBeingSpawned === true) return true;
     return (t.value | 0) > 0;
   });
+}
+
+export function isVisibleGameplayResolvingSpecialPresence(tile: any): boolean {
+  if (!tile || tile.destroyed) return false;
+  if (!isSpecialDiceGameplayResolvingLikeTile(tile)) return false;
+  if (tile.visible === false) return false;
+  if (tile._wildMagnetAffected === true) return false;
+  if (tile._pendingRemoval === true) return false;
+  if (tile._beingRemoved === true) return false;
+  if (tile._cleanupQueued === true) return false;
+  if (typeof tile.alpha === 'number' && tile.alpha <= 0.35) return false;
+  return true;
 }
 
 function tileIsWild(tile: any): boolean {

@@ -30,7 +30,16 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
                 className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/journey-map-homepage.png',
+                  srcset: [
+                    './assets/journey-map-homepage.png 1x',
+                    './assets/journey-map-homepage@2x.png 2x',
+                    './assets/journey-map-homepage@3x.png 3x',
+                  ].join(', '),
+                  sizes: '(max-width: 500px) 90vw, 320px',
                   alt: 'Journey Map',
+                  loading: 'eager',
+                  fetchpriority: 'high',
+                  decoding: 'async',
                   'data-hero-cta': 'journey',
                   role: 'button',
                   tabindex: '0',

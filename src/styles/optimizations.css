@@ -60,6 +60,13 @@ img {
   image-rendering: crisp-edges;
 }
 
+#slider-wrapper .hero-image,
+#home-logo,
+.logo-addon,
+#home-fixed-shadow-bottom {
+  content-visibility: visible;
+}
+
 /* Fonts are loaded from src/styles/fonts.css with font-display: swap */
 
 /* Optimize scrolling */

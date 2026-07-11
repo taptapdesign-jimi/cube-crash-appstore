@@ -118,12 +118,13 @@ async function updateCleanBoardHighScore(boardNumber: number, finalScore: number
   try {
     const { boardStatsService } = await import('../services/board-stats-service.js');
     const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+    const stats = boardStatsService.getBoardStats(boardNumber);
     if (isNewHigh) {
       logger.info(`🏆 New board ${boardNumber} high score after clean board (${source}): ${finalScore}`);
-      window.dispatchEvent(new CustomEvent('cc-board-highscore-updated', {
-        detail: { boardId: boardNumber, highScore: finalScore }
-      }));
     }
+    window.dispatchEvent(new CustomEvent('cc-board-highscore-updated', {
+      detail: { boardId: boardNumber, highScore: stats.highScore, source }
+    }));
   } catch (error) {
     logger.warn(`⚠️ Failed to update board high score before ${source}:`, error);
   }

@@ -136,6 +136,9 @@
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  image-rendering: auto !important;
+  image-rendering: smooth !important;
+  content-visibility: visible;
 }
 
 .hero-image.hero-image-cta {

@@ -44,7 +44,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                   'data-hero-cta': 'play',
                   role: 'button',
                   tabindex: '0',
-                  'aria-label': 'Igraj',
+                  'aria-label': 'Play',
                 },
               },
               {
@@ -66,10 +66,10 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                 tag: 'button',
                 id: 'btn-home',
                 className: 'slide-button tap-scale menu-btn-primary',
-                text: 'IGRAJ',
+                text: 'Play',
                 attributes: {
                   type: 'button',
-                  'aria-label': 'Igraj',
+                  'aria-label': 'Play',
                 },
                 eventListeners: onButtonClick ? { click: onButtonClick } : undefined,
               },

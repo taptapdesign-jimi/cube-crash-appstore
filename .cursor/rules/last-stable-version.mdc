@@ -1,0 +1,18 @@
+---
+description: Last stable release version flag and restore instructions
+alwaysApply: true
+---
+
+# Last stable version
+
+When the user asks for **zadnja stabilna verzija**, **last stable version**, **vrati stabilnu**, **restore stable**, or similar:
+
+1. Read `docs/release/LAST_STABLE_VERSION.md`.
+2. Parse the `__CC_LAST_STABLE_*__` flags (grep-friendly markers).
+3. Tell the user clearly: **"Zadnja stabilna verzija je v{NUMBER}"** using `__CC_LAST_STABLE_LABEL__`.
+4. Include commit short hash and one-line commit message from git if needed.
+5. Only restore/checkout/reset code when the user explicitly asks to apply the restore — otherwise report the flag values and suggested git commands.
+
+Do not guess a stable version from `package.json` or recent commits. Always use `docs/release/LAST_STABLE_VERSION.md`.
+
+To mark a new stable release, update all four `__CC_LAST_STABLE_*__` flags in that file.

@@ -32,7 +32,16 @@ export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig 
                 className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/collectibles-box.png',
+                  srcset: [
+                    './assets/collectibles-box.png 1x',
+                    './assets/collectibles-box@2x.png 2x',
+                    './assets/collectibles-box@3x.png 3x',
+                  ].join(', '),
+                  sizes: '(max-width: 500px) 90vw, 320px',
                   alt: 'Collectibles box',
+                  loading: 'eager',
+                  fetchpriority: 'high',
+                  decoding: 'async',
                   'data-hero-cta': 'collectibles',
                   role: 'button',
                   tabindex: '0',

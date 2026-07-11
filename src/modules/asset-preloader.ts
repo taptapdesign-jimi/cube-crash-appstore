@@ -330,6 +330,8 @@ export class AssetPreloader {
   private onComplete: CompleteCallback | null = null;
   private onError: ErrorCallback | null = null;
   private preloadPromise: Promise<void> | null = null;
+  private criticalPreloadPromise: Promise<void> | null = null;
+  private postCriticalPreloadPromise: Promise<void> | null = null;
 
   constructor() {
     this.loadedCount = 0;
@@ -338,6 +340,8 @@ export class AssetPreloader {
     this.onComplete = null;
     this.onError = null;
     this.preloadPromise = null;
+    this.criticalPreloadPromise = null;
+    this.postCriticalPreloadPromise = null;
   }
 
   setProgressCallback(callback: ProgressCallback): void {
@@ -602,129 +606,11 @@ export class AssetPreloader {
       return this.preloadPromise;
     }
     this.preloadPromise = (async () => {
-      logger.info('🔄 Starting asset preloading (critical assets first)...');
-      
       try {
-        // Set total count to critical assets only for progress tracking
-        this.totalCount = CRITICAL_ASSETS.length;
-        this.loadedCount = 0;
-        
-        logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
-        
-        // 🔥 CRITICAL: Register assets with Assets.add() BEFORE loading (skip if already in cache to avoid Resolver "already has key" warnings)
-        const registeredKeys = new Set<string>();
-        CRITICAL_ASSETS.forEach((assetPath: string) => {
-          if (registeredKeys.has(assetPath)) return;
-          if (isAssetAliasRegistered(assetPath)) return;
-          if (isAliasAlreadyInPixiResolver(assetPath)) {
-            markAssetAliasRegistered(assetPath);
-            return;
-          }
-          if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
-            markAssetAliasRegistered(assetPath);
-            return;
-          }
-          registeredKeys.add(assetPath);
-          try {
-            Assets.add({ alias: assetPath, src: assetPath });
-            markAssetAliasRegistered(assetPath);
-          } catch (err) {
-            // Ignore if already added
-          }
-        });
-        
-        // 🔥 OPTIMIZED: Load assets with progress tracking for smooth progress bar
-        // Use smaller batches with progress updates for better UX
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        
-        // Use smaller batches for better progress tracking and faster perceived loading
-        const batchSize = isIOS ? 8 : (isMobile ? 6 : 10);
-        
-        logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
-        
-        // Initial progress update
-        this.updateProgress();
-        
-        let totalLoaded = 0;
-        for (let i = 0; i < CRITICAL_ASSETS.length; i += batchSize) {
-          const batch = CRITICAL_ASSETS.slice(i, i + batchSize);
-          try {
-            // Load batch in parallel
-            await Assets.load(batch);
-            totalLoaded += batch.length;
-            this.loadedCount = totalLoaded;
-            this.updateProgress(); // Update progress after each batch
-            logger.debug(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
-            await this.yieldToMainThread();
-          } catch (error) {
-            // If batch fails, try loading individually
-            logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
-            for (const assetPath of batch) {
-              try {
-                await Assets.load(assetPath);
-                totalLoaded++;
-                this.loadedCount = totalLoaded;
-                this.updateProgress(); // Update progress after each asset
-              } catch (err) {
-                logger.warn(`⚠️ Failed to load: ${assetPath}`, err);
-                totalLoaded++; // Count as loaded to prevent blocking
-                this.loadedCount = totalLoaded;
-                this.updateProgress(); // Update progress even on error
-              }
-            }
-            await this.yieldToMainThread();
-          }
-        }
-        
-        // Ensure progress is at 100% before completing
-        this.loadedCount = this.totalCount;
-        this.updateProgress();
-        
-        logger.info(`✅ All critical assets preloaded successfully (${this.loadedCount}/${this.totalCount} loaded)`);
-        
-        // 🔥 CRITICAL: Preload HTML img tag images (homepage slider) to ensure they're in browser cache
-        // This prevents images from disappearing on mobile after preload screen hides
-        await this.preloadHTMLImages();
-        
-        // 🔥 CRITICAL: Preload Journey screen assets (BLOCKING - must complete before preload screen closes)
-        // This ensures Journey screen loads instantly when opened, no delay or blank screen
-        logger.info('🗺️ Preloading Journey screen assets (blocking)...');
-        await this.preloadJourneyAssets();
-        logger.info('✅ Journey screen assets preloaded');
-        
-        logger.info('🎁 Preloading collectibles placeholders (blocking, lightweight)...');
-        await this.preloadCollectiblesImages();
-        logger.info('✅ Collectibles placeholders preloaded');
-        
-        // 🔥 CRITICAL: Prepare Journey screen boards (BLOCKING - must complete before preload screen closes)
-        // This ensures Journey boards are rendered and ready before user clicks Journey CTA
-        logger.info('🗺️ Preparing Journey screen boards (blocking)...');
-        try {
-          const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
-          const manager = await ensureCollectiblesManager();
-          if (manager && typeof manager.prepareJourneyScreen === 'function') {
-            await manager.prepareJourneyScreen();
-            logger.info('✅ Journey screen boards prepared');
-          } else {
-            logger.warn('⚠️ prepareJourneyScreen function not found in collectibles-manager');
-          }
-        } catch (err) {
-          logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
-        }
-        
-        // Load deferred assets in background (non-blocking)
-        this.preloadDeferredAssets().catch(err => {
-          logger.warn('⚠️ Deferred asset loading failed (non-critical):', err);
-        });
-        
-        // Load audio files directly (not through PIXI.js)
-        try {
-          await this.loadAudioFiles();
-        } catch (err) {
-          logger.warn('⚠️ Audio loading failed, continuing...', err);
-        }
-        
+        logger.info('🔄 Starting full asset preloading (critical + post-critical)...');
+        await this.preloadCriticalAssetsOnly();
+        await this.preloadPostCriticalAssets();
+
         if (this.onComplete) {
           this.onComplete();
         }
@@ -743,6 +629,130 @@ export class AssetPreloader {
       }
     })();
     return this.preloadPromise;
+  }
+
+  async preloadCriticalAssetsOnly(): Promise<void> {
+    if (this.criticalPreloadPromise) {
+      return this.criticalPreloadPromise;
+    }
+
+    this.criticalPreloadPromise = (async () => {
+      logger.info('🔄 Starting critical asset preloading only...');
+
+      this.totalCount = CRITICAL_ASSETS.length;
+      this.loadedCount = 0;
+
+      logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets`);
+
+      const registeredKeys = new Set<string>();
+      CRITICAL_ASSETS.forEach((assetPath: string) => {
+        if (registeredKeys.has(assetPath)) return;
+        if (isAssetAliasRegistered(assetPath)) return;
+        if (isAliasAlreadyInPixiResolver(assetPath)) {
+          markAssetAliasRegistered(assetPath);
+          return;
+        }
+        if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
+          markAssetAliasRegistered(assetPath);
+          return;
+        }
+        registeredKeys.add(assetPath);
+        try {
+          Assets.add({ alias: assetPath, src: assetPath });
+          markAssetAliasRegistered(assetPath);
+        } catch (err) {
+          // Ignore if already added
+        }
+      });
+
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const batchSize = isIOS ? 8 : (isMobile ? 6 : 10);
+
+      logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
+      this.updateProgress();
+
+      let totalLoaded = 0;
+      for (let i = 0; i < CRITICAL_ASSETS.length; i += batchSize) {
+        const batch = CRITICAL_ASSETS.slice(i, i + batchSize);
+        try {
+          await Assets.load(batch);
+          totalLoaded += batch.length;
+          this.loadedCount = totalLoaded;
+          this.updateProgress();
+          logger.debug(`✅ Loaded critical batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
+          await this.yieldToMainThread();
+        } catch (error) {
+          logger.warn(`⚠️ Critical batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
+          for (const assetPath of batch) {
+            try {
+              await Assets.load(assetPath);
+            } catch (err) {
+              logger.warn(`⚠️ Failed to load critical asset: ${assetPath}`, err);
+            } finally {
+              totalLoaded++;
+              this.loadedCount = totalLoaded;
+              this.updateProgress();
+            }
+          }
+          await this.yieldToMainThread();
+        }
+      }
+
+      this.loadedCount = this.totalCount;
+      this.updateProgress();
+      logger.info(`✅ Critical assets preloaded successfully (${this.loadedCount}/${this.totalCount} loaded)`);
+    })();
+
+    return this.criticalPreloadPromise;
+  }
+
+  async preloadPostCriticalAssets(): Promise<void> {
+    if (this.postCriticalPreloadPromise) {
+      return this.postCriticalPreloadPromise;
+    }
+
+    this.postCriticalPreloadPromise = (async () => {
+      logger.info('🔄 Starting post-critical asset preloading...');
+
+      await this.preloadCriticalAssetsOnly();
+
+      await this.preloadHTMLImages();
+
+      logger.info('🗺️ Preloading Journey screen assets...');
+      await this.preloadJourneyAssets();
+      logger.info('✅ Journey screen assets preloaded');
+
+      logger.info('🎁 Preloading collectibles placeholders...');
+      await this.preloadCollectiblesImages();
+      logger.info('✅ Collectibles placeholders preloaded');
+
+      logger.info('🗺️ Preparing Journey screen boards...');
+      try {
+        const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
+        const manager = await ensureCollectiblesManager();
+        if (manager && typeof manager.prepareJourneyScreen === 'function') {
+          await manager.prepareJourneyScreen();
+          logger.info('✅ Journey screen boards prepared');
+        } else {
+          logger.warn('⚠️ prepareJourneyScreen function not found in collectibles-manager');
+        }
+      } catch (err) {
+        logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
+      }
+
+      await this.preloadDeferredAssets();
+
+      try {
+        await this.loadAudioFiles();
+      } catch (err) {
+        logger.warn('⚠️ Audio loading failed, continuing...', err);
+      }
+
+      logger.info('✅ Post-critical asset preloading completed');
+    })();
+
+    return this.postCriticalPreloadPromise;
   }
 
   // Load deferred assets in background (non-blocking)

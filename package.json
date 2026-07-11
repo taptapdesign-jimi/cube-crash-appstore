@@ -1,12 +1,12 @@
 {
   "name": "cube-crash",
   "private": true,
-  "version": "2.0.609",
+  "version": "2.0.610",
   "type": "module",
   "scripts": {
     "dev": "vite --host --force",
     "build": "vite build",
-    "postbuild": "mkdir -p dist/assets && rsync -a --exclude='.DS_Store' assets/ dist/assets/",
+    "postbuild": "node scripts/postbuild.mjs",
     "build:check": "tsc --noEmit",
     "build:strict": "tsc && vite build",
     "preview": "vite preview",

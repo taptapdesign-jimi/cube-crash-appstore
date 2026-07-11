@@ -33,6 +33,8 @@ function isWildMeterSmokeFrozen(): boolean {
 }
 const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 0;
 const HUD_TAP_BOUNCE_CLOSE_DELAY_MS = 120;
+const HUD_BOTTOM_SHEET_TAP_LOCK_MS = 560;
+let hudBottomSheetTapLocked = false;
 
 function getTextureSource(tex: any): any {
   return tex?.source ?? tex?.baseTexture ?? null;
@@ -142,7 +144,22 @@ function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof
   return timeout;
 }
 
+function acquireHudBottomSheetTapLock(source: string, duration = HUD_BOTTOM_SHEET_TAP_LOCK_MS): boolean {
+  if (hudBottomSheetTapLocked) {
+    console.log(`🧷 HUD bottom sheet tap ignored while transition is locked (${source})`);
+    return false;
+  }
+
+  hudBottomSheetTapLocked = true;
+  trackHudTimeout(() => {
+    hudBottomSheetTapLocked = false;
+  }, duration);
+  return true;
+}
+
 function openScoreStatsBottomSheetFromHud(bounceTarget: any, sourceLabel = 'HUD'): void {
+  if (!acquireHudBottomSheetTapLock(`${sourceLabel}:score`)) return;
+
   let isScoreSheetOpen = false;
   try {
     if (typeof window.isScoreBottomSheetVisible === 'function') {
@@ -1709,6 +1726,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       closeButtonContainer.on('pointerdown', (e) => {
         e.stopPropagation();
         e.stopImmediatePropagation();
+        if (!acquireHudBottomSheetTapLock('close-circle')) return;
         playHudCloseSoftCartoonBounce(closeButtonContainer);
         trackHudTimeout(() => {
           if (!closeButtonContainer.destroyed) {
@@ -1861,6 +1879,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           closeButtonContainer.on('pointerdown', (e) => {
             e.stopPropagation();
             e.stopImmediatePropagation();
+            if (!acquireHudBottomSheetTapLock('close-circle:async')) return;
             playHudCloseSoftCartoonBounce(closeButtonContainer);
             trackHudTimeout(() => {
               if (!closeButtonContainer.destroyed) {
@@ -2331,6 +2350,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   debugBg.on('pointerdown', (e) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
+    if (!acquireHudBottomSheetTapLock('x-hit-area')) return;
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
     playHudCloseSoftCartoonBounce(HUD_ROOT?._visibleCloseButton || xButton);
@@ -2550,6 +2570,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     scoreDebugBg.on('pointerdown', (e) => {
       e.stopPropagation();
       e.stopImmediatePropagation();
+      if (!acquireHudBottomSheetTapLock('score-hit-area')) return;
       
       console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
       
@@ -2653,6 +2674,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 	    comboDebugBg.on('pointerdown', (e) => {
 	      e.stopPropagation();
 	      e.stopImmediatePropagation();
+	      if (!acquireHudBottomSheetTapLock('combo-hit-area')) return;
 
 	      console.log('🔥 COMBO AREA CLICKED - Opening combo bottom sheet');
 

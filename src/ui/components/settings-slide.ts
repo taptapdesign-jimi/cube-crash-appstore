@@ -30,7 +30,16 @@ export function createSettingsSlide(config: SlideConfig): HTMLElementConfig {
                 className: 'hero-image hero-image-cta',
                 attributes: {
                   src: './assets/settings-slider.png',
+                  srcset: [
+                    './assets/settings-slider.png 1x',
+                    './assets/settings-slider@2x.png 2x',
+                    './assets/settings-slider@3x.png 3x',
+                  ].join(', '),
+                  sizes: '(max-width: 500px) 90vw, 320px',
                   alt: 'Settings slider',
+                  loading: 'eager',
+                  fetchpriority: 'high',
+                  decoding: 'async',
                   'data-hero-cta': 'settings',
                   role: 'button',
                   tabindex: '0',

@@ -7,6 +7,7 @@ import {
   getSpecialDiceSplashOptions,
   getSpecialDiceVariant,
   isSpecialDiceDirectWildLikeTile,
+  isSpecialDiceGameplayResolvingLikeTile,
   isSpecialDiceJuiceLikeTile,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
@@ -137,4 +138,19 @@ test('special dice input release policy is archetype-driven', () => {
   expect(getSpecialDiceSplashOptions(cubero)).toMatchObject({
     inputReleaseAtRatio: 0.25,
   });
+});
+
+test('gameplay-resolving helper follows input release policy for current and future specials', () => {
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({ special: 'wild-tnt' }))).toBe(true);
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({ special: 'wild-magnet' }))).toBe(true);
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({ special: 'wild' }))).toBe(false);
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({ special: 'wild-juice' }))).toBe(false);
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({
+    special: 'wild-tnt',
+    _ccSpecialDiceArchetype: 'wild-tnt',
+  }))).toBe(true);
+  expect(isSpecialDiceGameplayResolvingLikeTile(makeTile({
+    special: 'wild-magnet',
+    _ccSpecialDiceArchetype: 'wild-magnet',
+  }))).toBe(true);
 });

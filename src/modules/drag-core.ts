@@ -296,6 +296,8 @@ export function initDrag(cfg) {
     hoverAlpha = 0.15,
 
     threshold = 0.10,
+    hitPad = 0.22,
+    snapRadius = 0.68,
   } = cfg;
 
   const drag = {
@@ -312,6 +314,8 @@ export function initDrag(cfg) {
     hoverCandidateFrames: 0,
     _lastGlobal: null, // world-space pointer
     threshold,
+    hitPad,
+    snapRadius,
     // inertial tilt state
     vx: 0, vy: 0, lastTime: 0,
     lagX: 0, lagY: 0,
@@ -1533,6 +1537,53 @@ export function initDrag(cfg) {
           closest = t;
         }
       }
+      if (closest) {
+        best = closest;
+        bestRatio = Math.max(bestRatio, th);
+      }
+    }
+
+    // Regular dice need a small release-only grace area. Fast touch flicks can fire
+    // pointerup with the finger over the intended tile while the dragged sprite's
+    // last bounds are still just outside the overlap threshold.
+    const regularReleaseFallbackAllowed =
+      allowCenterFallback &&
+      pointerGlobal &&
+      src.special !== 'wild-magnet' &&
+      !isSourceDirectWild;
+    if (regularReleaseFallbackAllowed && (!best || bestRatio < th)) {
+      let closest = null;
+      let closestDist = Infinity;
+      const px = Number(pointerGlobal.x);
+      const py = Number(pointerGlobal.y);
+      const pad = tileSize * (Number.isFinite(drag.hitPad) ? drag.hitPad : 0.22);
+      const maxPointerCenterDist = tileSize * (Number.isFinite(drag.snapRadius) ? drag.snapRadius : 0.68);
+
+      if (Number.isFinite(px) && Number.isFinite(py)) {
+        for (const t of candidates) {
+          if (!isGameplayTileCandidate(t)) continue;
+          if ((t as any)._ccWildSpawnDropping === true) continue;
+          if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
+          const r = getRect(t);
+          if (!r || r.w === 0 || r.h === 0) continue;
+
+          const insideReleaseArea =
+            px >= r.x - pad &&
+            px <= r.x + r.w + pad &&
+            py >= r.y - pad &&
+            py <= r.y + r.h + pad;
+          if (!insideReleaseArea) continue;
+
+          const cx = r.x + r.w / 2;
+          const cy = r.y + r.h / 2;
+          const dist = Math.hypot(px - cx, py - cy);
+          if (dist < closestDist && dist <= maxPointerCenterDist) {
+            closestDist = dist;
+            closest = t;
+          }
+        }
+      }
+
       if (closest) {
         best = closest;
         bestRatio = Math.max(bestRatio, th);
