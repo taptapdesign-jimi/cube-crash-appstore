@@ -434,13 +434,17 @@ const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
 const BOARD_AREA_MODAL_ENTER_EASE = 'back.out(1.8)';
 const BOARD_AREA_MODAL_ENTER_BASE_DELAY = 0.05;
-const BOARD_AREA_MODAL_EXIT_DURATION = 0.4;
-const BOARD_AREA_MODAL_EXIT_EASE = 'back.in(1.7)';
+const BOARD_AREA_MODAL_EXIT_DURATION = 0.48;
+const BOARD_AREA_MODAL_EXIT_EASE = 'back.in(1.25)';
 const BOARD_AREA_MODAL_EXIT_BASE_DELAY = 0;
 const BOARD_AREA_MODAL_STAGGER = 0.05;
-const BOARD_AREA_JOURNEY_EXIT_HANDOFF_RATIO = 0.3;
+const BOARD_AREA_MODAL_EXIT_MIN_SCALE = 0.04;
+const BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS = 120;
 const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
+const LAST_ACTIVE_WORLD_STORAGE_KEY = '__ccLastActiveJourneyWorldId';
+const LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY = '__ccLastActiveJourneyWorldBoardId';
+const JOURNEY_WORLD_SIZE = 10;
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -573,6 +577,7 @@ class JourneyBoardsManager {
   private cleanupInProgress = false;
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
   private journeyExitPromise: Promise<void> | null = null;
+  private journeyViewportExitPromise: Promise<void> | null = null;
   private journeyToGameExitActive = false;
   private journeyToGameExitBoardId: number | null = null;
   private journeyAreaIdleTickers: Array<() => void> = [];
@@ -694,6 +699,41 @@ class JourneyBoardsManager {
     }
   }
 
+  private getJourneyBoardCardVisualTarget(target: HTMLElement): HTMLElement {
+    if (!target.classList.contains('journey-board-card-wrapper')) return target;
+    return (target.querySelector('.journey-board-card') as HTMLElement | null) || target;
+  }
+
+  private prepareJourneyBoardCardVisualTarget(target: HTMLElement): HTMLElement {
+    const visualTarget = this.getJourneyBoardCardVisualTarget(target);
+    if (visualTarget !== target) {
+      restoreJourneyBoardCardBaseTransform(target);
+      try { gsap.killTweensOf(visualTarget); } catch {}
+      visualTarget.style.transformOrigin = '50% 50%';
+      visualTarget.style.transition = 'none';
+      visualTarget.style.willChange = 'transform, opacity';
+    }
+    return visualTarget;
+  }
+
+  private restoreJourneyBoardCardVisualTarget(target: HTMLElement): void {
+    const visualTarget = this.getJourneyBoardCardVisualTarget(target);
+    if (visualTarget === target) return;
+    try {
+      gsap.killTweensOf(visualTarget);
+      gsap.set(visualTarget, {
+        scale: 1,
+        opacity: 1,
+        visibility: 'visible',
+        clearProps: 'transform,opacity,visibility',
+        overwrite: true,
+      });
+    } catch {}
+    visualTarget.style.transition = '';
+    visualTarget.style.willChange = '';
+    restoreJourneyBoardCardBaseTransform(target);
+  }
+
   private resetJourneyBoardVisualResidue(reason: string): void {
     try {
       this.clearJourneyAreaIdleStartTimeout();
@@ -768,6 +808,43 @@ class JourneyBoardsManager {
         reason,
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  public prepareJourneyBoardCardTransformsForReveal(reason: string): void {
+    try {
+      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
+      const root = cardsContainer || document.getElementById('journey-boards-container') || document;
+      const wrappers = Array.from(root.querySelectorAll('.journey-board-card-wrapper')) as HTMLElement[];
+
+      wrappers.forEach((wrapper) => {
+        if ((wrapper as any).__ccJourneyToGameExitTween) return;
+        try { gsap.killTweensOf(wrapper); } catch {}
+        try { gsap.killTweensOf(this.getJourneyBoardCardVisualTarget(wrapper)); } catch {}
+
+        rememberJourneyBoardCardBaseTransform(wrapper);
+        restoreJourneyBoardCardBaseTransform(wrapper);
+        this.restoreJourneyBoardCardVisualTarget(wrapper);
+
+        wrapper.style.transition = 'none';
+        wrapper.style.willChange = 'auto';
+        const visualTarget = this.getJourneyBoardCardVisualTarget(wrapper);
+        visualTarget.style.transition = 'none';
+        visualTarget.style.willChange = 'auto';
+
+        window.requestAnimationFrame(() => {
+          if (!document.body.contains(wrapper)) return;
+          wrapper.style.transition = '';
+          visualTarget.style.transition = '';
+        });
+      });
+
+      logger.info('🧭 Journey card transforms prepared for reveal', {
+        reason,
+        count: wrappers.length,
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to prepare Journey card transforms for reveal:', error);
     }
   }
 
@@ -1012,9 +1089,57 @@ class JourneyBoardsManager {
     }
   }
 
+  private getJourneyWorldIdForBoard(boardId: number): number | null {
+    if (!Number.isFinite(boardId) || boardId <= 0) return null;
+    return Math.floor((boardId - 1) / JOURNEY_WORLD_SIZE) + 1;
+  }
+
+  private getJourneyWorldRange(worldId: number): { start: number; end: number } | null {
+    if (!Number.isFinite(worldId) || worldId <= 0) return null;
+    const start = ((Math.floor(worldId) - 1) * JOURNEY_WORLD_SIZE) + 1;
+    return {
+      start,
+      end: Math.min(start + JOURNEY_WORLD_SIZE - 1, JOURNEY_MAX_BOARDS),
+    };
+  }
+
+  private rememberLastActiveJourneyWorld(boardId: number): void {
+    try {
+      const worldId = this.getJourneyWorldIdForBoard(boardId);
+      if (!worldId) return;
+      (window as any).__ccLastActiveJourneyWorldId = worldId;
+      (window as any).__ccLastActiveJourneyWorldBoardId = boardId;
+      localStorage.setItem(LAST_ACTIVE_WORLD_STORAGE_KEY, String(worldId));
+      localStorage.setItem(LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY, String(boardId));
+    } catch {}
+  }
+
+  private getLastActiveJourneyWorld(): { worldId: number | null; boardId: number | null } {
+    try {
+      const rawBoardId =
+        (window as any).__ccLastActiveJourneyWorldBoardId ??
+        localStorage.getItem(LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY) ??
+        this.getLastActiveJourneyBoardAreaId();
+      const boardId = Number(rawBoardId || 0);
+      const rawWorldId =
+        (window as any).__ccLastActiveJourneyWorldId ??
+        localStorage.getItem(LAST_ACTIVE_WORLD_STORAGE_KEY) ??
+        this.getJourneyWorldIdForBoard(boardId);
+      const worldId = Number(rawWorldId || 0);
+
+      return {
+        worldId: Number.isFinite(worldId) && worldId > 0 ? worldId : null,
+        boardId: Number.isFinite(boardId) && boardId > 0 ? boardId : null,
+      };
+    } catch {
+      return { worldId: null, boardId: null };
+    }
+  }
+
   private setLastActiveJourneyBoardAreaId(boardId: number): void {
     try {
       if (!Number.isFinite(boardId) || boardId <= 0) return;
+      this.rememberLastActiveJourneyWorld(boardId);
       (window as any).__ccLastActiveJourneyBoardAreaId = boardId;
       localStorage.setItem(ACTIVE_BOARD_AREA_STORAGE_KEY, String(boardId));
     } catch {}
@@ -1148,15 +1273,6 @@ class JourneyBoardsManager {
     });
   }
 
-  private getBoardAreaExitDurationMs(boardId: number): number {
-    const items = this.getBoardAreaTransitionItems(this.getJourneyBoardAreaParts(boardId));
-    const maxEnd = items.reduce((max, item) => {
-      if (!item.target || !document.body.contains(item.target)) return max;
-      return Math.max(max, item.exitDelay + item.exitDuration);
-    }, 0);
-    return Math.max(180, Math.round((maxEnd + 0.18) * 1000 * BOARD_AREA_JOURNEY_EXIT_HANDOFF_RATIO));
-  }
-
   public prepareActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
     let boardId: number | null = null;
     try {
@@ -1197,15 +1313,37 @@ class JourneyBoardsManager {
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
         target.style.transition = 'none';
-        gsap.set(target, {
-          scale: BOARD_AREA_MODAL_ENTER_SCALE,
-          opacity: 0,
-          y: 0,
-          visibility: 'hidden',
-          transformOrigin: '50% 50%',
-          force3D: true,
-          immediateRender: true,
-        });
+        const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
+        if (visualTarget !== target) {
+          gsap.set(target, {
+            scale: 1,
+            opacity: 1,
+            y: 0,
+            visibility: 'hidden',
+            clearProps: 'scale,y',
+            transformOrigin: '50% 50%',
+            force3D: false,
+            immediateRender: true,
+          });
+          gsap.set(visualTarget, {
+            scale: BOARD_AREA_MODAL_ENTER_SCALE,
+            opacity: 0,
+            visibility: 'visible',
+            transformOrigin: '50% 50%',
+            force3D: true,
+            immediateRender: true,
+          });
+        } else {
+          gsap.set(target, {
+            scale: BOARD_AREA_MODAL_ENTER_SCALE,
+            opacity: 0,
+            y: 0,
+            visibility: 'hidden',
+            transformOrigin: '50% 50%',
+            force3D: true,
+            immediateRender: true,
+          });
+        }
       });
     } catch (error) {
       if (boardId) {
@@ -1295,6 +1433,7 @@ class JourneyBoardsManager {
               target.style.removeProperty('opacity');
             }
             restoreJourneyBoardCardBaseTransform(target);
+            this.restoreJourneyBoardCardVisualTarget(target);
           } catch {}
         });
         this.clearJourneyAreaIdleStartTimeout();
@@ -1338,23 +1477,45 @@ class JourneyBoardsManager {
 
         try { gsap.killTweensOf(target); } catch {}
         rememberJourneyBoardCardBaseTransform(target);
-        target.style.opacity = '0';
+        const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
+        const animTarget = visualTarget;
+        target.style.opacity = visualTarget === target ? '0' : '1';
         target.style.visibility = 'hidden';
         target.style.transformOrigin = 'center center';
         target.style.transition = 'none';
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
 
-        gsap.set(target, {
-          scale: item.fromScale,
-          opacity: 0,
-          visibility: 'hidden',
-          force3D: true,
-          transformOrigin: 'center center',
-          immediateRender: true,
-        });
+        if (visualTarget !== target) {
+          gsap.set(target, {
+            scale: 1,
+            opacity: 1,
+            visibility: 'hidden',
+            clearProps: 'scale,y',
+            force3D: false,
+            transformOrigin: 'center center',
+            immediateRender: true,
+          });
+          gsap.set(visualTarget, {
+            scale: item.fromScale,
+            opacity: 0,
+            visibility: 'visible',
+            force3D: true,
+            transformOrigin: 'center center',
+            immediateRender: true,
+          });
+        } else {
+          gsap.set(target, {
+            scale: item.fromScale,
+            opacity: 0,
+            visibility: 'hidden',
+            force3D: true,
+            transformOrigin: 'center center',
+            immediateRender: true,
+          });
+        }
 
-        trackTween(target, {
+        trackTween(animTarget, {
           scale: 1,
           opacity: 1,
           visibility: 'visible',
@@ -1365,11 +1526,14 @@ class JourneyBoardsManager {
           overwrite: true,
           onStart: () => {
             target.style.visibility = 'visible';
-            target.style.opacity = '0';
+            target.style.opacity = visualTarget === target ? '0' : '1';
           },
           onComplete: () => {
             target.style.visibility = 'visible';
             target.style.opacity = '1';
+            if (visualTarget !== target) {
+              this.restoreJourneyBoardCardVisualTarget(target);
+            }
             if (target.classList.contains('journey-robo-alien-beam-art')) {
               target.style.removeProperty('opacity');
             }
@@ -2536,6 +2700,7 @@ class JourneyBoardsManager {
     const screen = document.getElementById('journey-screen') as HTMLElement | null;
 
     ensureJourneyBoardsRendered('before-showCollectibles');
+    this.prepareJourneyBoardCardTransformsForReveal('detail-modal-return-before-showCollectibles');
 
     const collectiblesManager = (window as any).collectiblesManager;
     if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
@@ -2663,8 +2828,8 @@ class JourneyBoardsManager {
 
   // Start Journey screen exit animation immediately (safe to call multiple times)
   private startJourneyExitAnimation(): Promise<void> {
-    if (this.journeyExitPromise) {
-      return this.journeyExitPromise;
+    if (this.journeyViewportExitPromise) {
+      return this.journeyViewportExitPromise;
     }
 
     const journeyScreen = document.getElementById('journey-screen');
@@ -2679,7 +2844,7 @@ class JourneyBoardsManager {
       return Promise.resolve();
     }
 
-    this.journeyExitPromise = (async () => {
+    this.journeyViewportExitPromise = (async () => {
       try {
         lockJourneyViewportTransition('journey-screen-exit');
         await animateJourneyViewportScreenExit('journey-screen-exit');
@@ -2687,11 +2852,11 @@ class JourneyBoardsManager {
       } catch (error) {
         logger.warn('⚠️ Failed to start Journey viewport exit animation early:', error);
       } finally {
-        this.journeyExitPromise = null;
+        this.journeyViewportExitPromise = null;
       }
     })();
 
-    return this.journeyExitPromise;
+    return this.journeyViewportExitPromise;
   }
 
   private getJourneyAreaElements(boardId: number): HTMLElement[] {
@@ -2754,12 +2919,29 @@ class JourneyBoardsManager {
           try { gsap.killTweensOf(target); } catch {}
           rememberJourneyBoardCardBaseTransform(target);
           (target as any).__ccJourneyToGameExitTween = true;
+          const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
           target.style.transformOrigin = '50% 50%';
           target.style.willChange = 'transform, opacity';
           target.style.pointerEvents = 'none';
           target.style.transition = 'none';
           target.style.opacity = '1';
           target.style.visibility = 'visible';
+          if (visualTarget !== target) {
+            gsap.set(target, {
+              scale: 1,
+              opacity: 1,
+              visibility: 'visible',
+              clearProps: 'scale,y',
+              overwrite: true,
+            });
+            gsap.set(visualTarget, {
+              scale: 1,
+              opacity: 1,
+              visibility: 'visible',
+              force3D: true,
+              overwrite: true,
+            });
+          }
         });
 
         let pendingTweens = items.length;
@@ -2769,8 +2951,9 @@ class JourneyBoardsManager {
             target.style.visibility = 'hidden';
             target.style.willChange = 'auto';
             target.style.pointerEvents = '';
+            this.restoreJourneyBoardCardVisualTarget(target);
             gsap.set(target, {
-              scale: 0,
+              scale: target.classList.contains('journey-board-card-wrapper') ? 1 : BOARD_AREA_MODAL_EXIT_MIN_SCALE,
               opacity: 0,
               overwrite: true,
             });
@@ -2813,9 +2996,12 @@ class JourneyBoardsManager {
             return;
           }
 
-          trackTween(target, {
-            scale: 0,
-            opacity: 1,
+          const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
+          const animTarget = visualTarget;
+
+          trackTween(animTarget, {
+            scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
+            opacity: 0,
             duration: item.exitDuration,
             ease: item.exitEase,
             delay: item.exitDelay,
@@ -2842,8 +3028,8 @@ class JourneyBoardsManager {
               // Interrupts are usually caused by cleanup or a competing tween. Complete the
               // visual exit state before resolving so the board transition cannot cut mid-motion.
               try {
-                gsap.set(target, {
-                  scale: 0,
+                gsap.set(animTarget, {
+                  scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
                   opacity: 0,
                   visibility: 'hidden',
                   overwrite: true,
@@ -2876,13 +3062,21 @@ class JourneyBoardsManager {
 
     this.journeyExitPromise = (async () => {
       try {
-        await this.animateBoardAreaExit(boardId);
-        logger.info('🧭 JourneyForestAnim journey-exit-handoff-after-area-complete', { boardId });
-        this.journeyExitPromise = null;
-        await this.startJourneyExitAnimation();
+        const activeAreaExitPromise = this.animateBoardAreaExit(boardId);
+        const viewportExitPromise = (async () => {
+          await new Promise((resolve) => window.setTimeout(resolve, BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS));
+          logger.info('🧭 JourneyForestAnim viewport-exit-overlap-start', {
+            boardId,
+            delayMs: BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS,
+          });
+          await this.startJourneyExitAnimation();
+        })();
+
+        await Promise.all([activeAreaExitPromise, viewportExitPromise]);
         logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
       } finally {
         this.journeyExitPromise = null;
+        this.journeyViewportExitPromise = null;
         this.journeyToGameExitActive = false;
         this.journeyToGameExitBoardId = null;
       }
@@ -3583,16 +3777,8 @@ class JourneyBoardsManager {
   }
 
   /**
-   * 🔥 FINALNA VERZIJA: Pametna logika za scroll do interim kartice
-   * 
-   * PRAVILA (točno prema zahtjevu):
-   * 1) Kad uđem u Journey (s homepage-a) → scrollaj do interim kartice
-   * 2) Kad uđem u igru preko interim kartice i izađem (Exit) → vrati me gdje sam bio:
-   *    - ako je interim kartica ostala u vidokrugu → NE radi ništa
-   *    - ako je izašla iz viewporta → scrollaj do nje (bilo gore ili dolje)
-   * 3) Kad izađem iz Journey screena i vratim se → 
-   *    - ako je interim bila u viewportu → ne treba scroll
-   *    - ako nije → animiraj scroll
+   * Scrolls fresh Journey entries to the last active world target:
+   * world interim first, then the last active board, then the nearest active board in that world.
    */
   private restoreOrScrollToInterimCard(): void {
     try {
@@ -3602,18 +3788,12 @@ class JourneyBoardsManager {
         return;
       }
 
-      // Provjeri je li interim kartica trenutno u viewportu
-      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
-      if (!interimCard) {
-        logger.info('🗺️ No interim card found - skipping scroll');
+      const scrollTarget = this.getPreferredJourneyWorldScrollTarget();
+      if (!scrollTarget) {
+        logger.info('🗺️ No Journey world scroll target found - skipping scroll');
         return;
       }
-
-      const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
-      if (!cardWrapper) {
-        logger.warn('⚠️ Interim card wrapper not found');
-        return;
-      }
+      const { cardWrapper, boardId, reason, worldId } = scrollTarget;
 
       // Čekaj da se layout stabilizira
       requestAnimationFrame(() => {
@@ -3638,7 +3818,10 @@ class JourneyBoardsManager {
           
           if (isCardVisible && isReasonablyVisible) {
             // Kartica JE u viewportu → NE radi scroll
-            logger.info(`🗺️ Interim card is in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - no scroll needed`);
+            logger.info(`🗺️ Journey target board ${boardId} is in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - no scroll needed`, {
+              worldId,
+              reason,
+            });
             
             // Osiguraj da je scroll enabled
             scrollable.style.touchAction = 'pan-y';
@@ -3646,16 +3829,71 @@ class JourneyBoardsManager {
             return;
           }
           
-          // Kartica NIJE u viewportu → scrollaj do nje
-          logger.info(`🗺️ Interim card NOT in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - will scroll to it`);
-          this.scrollToInterimCard();
+          logger.info(`🗺️ Journey target board ${boardId} NOT in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - will scroll to it`, {
+            worldId,
+            reason,
+          });
+          this.scrollToInterimCard(boardId);
         });
       });
     } catch (error) {
-      logger.warn('⚠️ Failed to check interim card viewport:', error instanceof Error ? error.message : String(error));
-      // Fallback: pokušaj scroll do interim
+      logger.warn('⚠️ Failed to check Journey world scroll target viewport:', error instanceof Error ? error.message : String(error));
       this.scrollToInterimCard();
     }
+  }
+
+  private getPreferredJourneyWorldScrollTarget(): {
+    card: HTMLElement;
+    cardWrapper: HTMLElement;
+    boardId: number;
+    worldId: number | null;
+    reason: string;
+  } | null {
+    const getCardTarget = (boardId: number, reason: string, worldId: number | null) => {
+      const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+      const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+      return card && cardWrapper
+        ? { card, cardWrapper, boardId, worldId, reason }
+        : null;
+    };
+
+    const { worldId, boardId: lastBoardId } = this.getLastActiveJourneyWorld();
+    const range = worldId ? this.getJourneyWorldRange(worldId) : null;
+
+    if (range) {
+      const boardsInWorld = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
+      const interimInWorld = boardsInWorld.find((board) => board.interim === true);
+      if (interimInWorld) {
+        const target = getCardTarget(interimInWorld.id, 'world-interim', worldId);
+        if (target) return target;
+      }
+
+      if (lastBoardId && lastBoardId >= range.start && lastBoardId <= range.end) {
+        const target = getCardTarget(lastBoardId, 'last-active-board', worldId);
+        if (target) return target;
+      }
+
+      const activeBoards = boardsInWorld.filter((board) => board.unlocked === true || board.interim === true);
+      const sortedActiveBoards = [...activeBoards].sort((a, b) => {
+        if (lastBoardId) return Math.abs(a.id - lastBoardId) - Math.abs(b.id - lastBoardId);
+        return b.id - a.id;
+      });
+      for (const board of sortedActiveBoards) {
+        const target = getCardTarget(board.id, 'nearest-active-board-in-world', worldId);
+        if (target) return target;
+      }
+    }
+
+    const globalInterim = this.boards.find((board) => board.interim === true);
+    if (globalInterim) {
+      const target = getCardTarget(globalInterim.id, 'global-interim-fallback', this.getJourneyWorldIdForBoard(globalInterim.id));
+      if (target) return target;
+    }
+
+    const firstActive = [...this.boards].reverse().find((board) => board.unlocked === true || board.interim === true);
+    return firstActive
+      ? getCardTarget(firstActive.id, 'global-active-fallback', this.getJourneyWorldIdForBoard(firstActive.id))
+      : null;
   }
 
   /**
@@ -3663,7 +3901,7 @@ class JourneyBoardsManager {
    * Exact specification: anticipation → main travel → overshoot + settle
    * Card must be perfectly centered in viewport (50% width, 50% height)
    */
-  private scrollToInterimCard(): void {
+  private scrollToInterimCard(preferredBoardId?: number): void {
     try {
       const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
       if (!scrollable) {
@@ -3671,18 +3909,26 @@ class JourneyBoardsManager {
         return;
       }
 
-      // Find interim card
-      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
-      if (!interimCard) {
-        logger.info('🗺️ No interim card found - skipping scroll');
+      const scrollTarget = preferredBoardId
+        ? (() => {
+            const card = document.querySelector(`.journey-board-card[data-board-id="${preferredBoardId}"]`) as HTMLElement | null;
+            const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+            return card && cardWrapper
+              ? {
+                  card,
+                  cardWrapper,
+                  boardId: preferredBoardId,
+                  worldId: this.getJourneyWorldIdForBoard(preferredBoardId),
+                  reason: 'preferred-board',
+                }
+              : null;
+          })()
+        : this.getPreferredJourneyWorldScrollTarget();
+      if (!scrollTarget) {
+        logger.info('🗺️ No Journey world scroll target found - skipping scroll');
         return;
       }
-
-      const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
-      if (!cardWrapper) {
-        logger.warn('⚠️ Interim card wrapper not found');
-        return;
-      }
+      const { cardWrapper, boardId, worldId, reason } = scrollTarget;
 
       // Wait for layout to settle and ensure screen is fully visible
       // Use multiple RAF calls to ensure DOM is ready and screen enter animation has started
@@ -3712,10 +3958,10 @@ class JourneyBoardsManager {
                 return;
               }
               
-              logger.warn(`⚠️ Interim card not yet visible, retrying scroll in 200ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+              logger.warn(`⚠️ Journey target board ${boardId} not yet visible, retrying scroll in 200ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
               (this as any)._scrollRetryCount = retryCount + 1;
               setTimeout(() => {
-                this.scrollToInterimCard();
+                this.scrollToInterimCard(boardId);
               }, 200);
               return;
             }
@@ -3742,7 +3988,10 @@ class JourneyBoardsManager {
             const scrollDistance = finalScrollPosition - startScrollPosition;
             
             // Scroll distance je >= 20px, pokreni animaciju
-            logger.info(`🎁 Starting scroll animation to interim card. From: ${startScrollPosition}, To: ${finalScrollPosition}, Distance: ${scrollDistance}`);
+            logger.info(`🎁 Starting scroll animation to Journey board ${boardId}. From: ${startScrollPosition}, To: ${finalScrollPosition}, Distance: ${scrollDistance}`, {
+              worldId,
+              reason,
+            });
           
           // Kill any existing scroll animations
           gsap.killTweensOf(scrollable, 'scrollTop');
@@ -3803,7 +4052,11 @@ class JourneyBoardsManager {
                     scrollable.style.pointerEvents = '';
                   }
                 }, 50);
-                logger.info('✅ Scroll to interim card animation completed');
+                logger.info('✅ Scroll to Journey world target animation completed', {
+                  boardId,
+                  worldId,
+                  reason,
+                });
               });
             }
           });
@@ -3861,7 +4114,7 @@ class JourneyBoardsManager {
         });
       });
     } catch (error) {
-      logger.warn('⚠️ Failed to scroll to interim card:', error instanceof Error ? error.message : String(error));
+      logger.warn('⚠️ Failed to scroll to Journey world target:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -4173,41 +4426,38 @@ class JourneyBoardsManager {
         JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
       }
       
-      // 🔥 USER REQUEST: Check if interim card is in viewport during scroll
-      // If user manually scrolls to interim card, save state to skip auto-scroll later
-      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
-      if (interimCard) {
-        const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
-        if (cardWrapper) {
-          const cardRect = cardWrapper.getBoundingClientRect();
-          const viewportH = window.innerHeight;
-          const viewportW = window.innerWidth;
-          const viewportCenterX = viewportW / 2;
-          const viewportCenterY = viewportH / 2;
-          
-          // Check if card is visible in viewport
-          const tolerance = 100;
-          const isCardInViewport = 
-            cardRect.top < viewportH + tolerance && 
-            cardRect.bottom > -tolerance &&
-            cardRect.left < viewportW + tolerance &&
-            cardRect.right > -tolerance;
-          
-          // Check if card center is reasonably close to viewport center
-          const cardCenterX = cardRect.left + cardRect.width / 2;
-          const cardCenterY = cardRect.top + cardRect.height / 2;
-          const centerDistanceX = Math.abs(cardCenterX - viewportCenterX);
-          const centerDistanceY = Math.abs(cardCenterY - viewportCenterY);
-          const isCardReasonablyCentered = centerDistanceX < 150 && centerDistanceY < 150;
-          
-          // If card is in viewport and reasonably centered, save state
-          if (isCardInViewport && isCardReasonablyCentered) {
-            try {
-              localStorage.setItem('__ccInterimCardInViewport', 'true');
-              logger.info('🗺️ Interim card scrolled into viewport - saved state');
-            } catch (e) {
-              // Ignore errors
-            }
+      const scrollTarget = this.getPreferredJourneyWorldScrollTarget();
+      const cardWrapper = scrollTarget?.cardWrapper || null;
+      if (cardWrapper) {
+        const cardRect = cardWrapper.getBoundingClientRect();
+        const viewportH = window.innerHeight;
+        const viewportW = window.innerWidth;
+        const viewportCenterX = viewportW / 2;
+        const viewportCenterY = viewportH / 2;
+
+        const tolerance = 100;
+        const isCardInViewport =
+          cardRect.top < viewportH + tolerance &&
+          cardRect.bottom > -tolerance &&
+          cardRect.left < viewportW + tolerance &&
+          cardRect.right > -tolerance;
+
+        const cardCenterX = cardRect.left + cardRect.width / 2;
+        const cardCenterY = cardRect.top + cardRect.height / 2;
+        const centerDistanceX = Math.abs(cardCenterX - viewportCenterX);
+        const centerDistanceY = Math.abs(cardCenterY - viewportCenterY);
+        const isCardReasonablyCentered = centerDistanceX < 150 && centerDistanceY < 150;
+
+        if (isCardInViewport && isCardReasonablyCentered) {
+          try {
+            localStorage.setItem('__ccInterimCardInViewport', 'true');
+            logger.info('🗺️ Journey world target scrolled into viewport - saved state', {
+              boardId: scrollTarget?.boardId,
+              worldId: scrollTarget?.worldId,
+              reason: scrollTarget?.reason,
+            });
+          } catch (e) {
+            // Ignore errors
           }
         }
       }
@@ -4443,12 +4693,20 @@ class JourneyBoardsManager {
     
     if (isUnlocked) {
       // Unlocked card - show image and can click for details
+      const cardImagePath = board.imagePath || '';
+      if (cardImagePath) {
+        card.style.backgroundImage = `url("${cardImagePath.replace(/"/g, '\\"')}")`;
+        card.style.backgroundSize = 'contain';
+        card.style.backgroundPosition = 'center center';
+        card.style.backgroundRepeat = 'no-repeat';
+        card.style.backgroundColor = 'transparent';
+      }
       
       const image = document.createElement('img');
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
-      image.src = board.imagePath || '';
+      image.src = cardImagePath;
       image.alt = board.name || `Board ${board.id}`;
-      image.className = 'journey-board-image';
+      image.className = 'journey-board-image journey-board-image-preload';
       // WKWebView can skip lazy images inside Journey's animated/fixed layout on
       // the first open. Load DOM-visible Journey cards immediately, while keeping
       // global startup preloads disabled so these large PNGs are not decoded early.
@@ -4458,6 +4716,15 @@ class JourneyBoardsManager {
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false; // Prevent HTML5 drag
       image.setAttribute('draggable', 'false'); // Ensure draggable is false
+      image.setAttribute('aria-hidden', 'true');
+      image.style.position = 'absolute';
+      image.style.left = '0';
+      image.style.top = '0';
+      image.style.width = '1px';
+      image.style.height = '1px';
+      image.style.opacity = '0';
+      image.style.pointerEvents = 'none';
+      image.style.visibility = 'hidden';
       card.appendChild(image);
       
       // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
@@ -4930,6 +5197,8 @@ class JourneyBoardsManager {
     logger.info(`🗺️ Journey board ${boardId} tapped - starting game`);
     
     try {
+      this.rememberLastActiveJourneyWorld(boardId);
+
       // 🔥 CRITICAL FIX: Stop Journey card idle bounce animations BEFORE exit animation
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
         JOURNEY_CARD_IDLE_BOUNCE.stop();
@@ -5494,12 +5763,7 @@ class JourneyBoardsManager {
       // Step 4: Wait for exit animation to complete
       await exitPromise;
       logger.info('✅ Journey exit animation completed');
-      
-      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes and browser can render
-      // This prevents lag when starting board transition screen immediately after exit animation
-      await new Promise(resolve => setTimeout(resolve, 100));
-      logger.info('✅ Delay after exit animation - ensuring smooth transition');
-      
+
       // Step 5: Hide Journey UI (cleanup after hideCollectibles)
       this.hideHomeAndJourneyScreens('after journey exit', { setJourneyZIndex: true, cleanup: false });
       
@@ -6256,11 +6520,9 @@ class JourneyBoardsManager {
     
     if (!skipJourneyExit) {
       await this.startJourneyExitAnimation();
-      await new Promise(resolve => setTimeout(resolve, 100));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     } else if (journeyExitPromise) {
       await journeyExitPromise;
-      await new Promise(resolve => setTimeout(resolve, 100));
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }
     

@@ -1107,7 +1107,7 @@ class CollectiblesManager {
 
     let journeyBoardsManagerPreparedForEnter: any = null;
     let activeBoardAreaPreparedBeforeReveal = false;
-    if (journeyContainer && shouldPlayActiveBoardAreaEnter) {
+    if (journeyContainer) {
       try {
         if (journeyBoardsReadyPromise) {
           logger.info('🧭 JourneyForestAnim pre-reveal-waiting-for-boards-ready', {
@@ -1121,12 +1121,15 @@ class CollectiblesManager {
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
         restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
-        hideLastActiveJourneyBoardAreaBeforeEnter();
-        journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
-        restoreJourneyReturnScrollPosition('pre-reveal-after-active-prepare');
-        activeBoardAreaPreparedBeforeReveal = true;
+        journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal');
+        if (shouldPlayActiveBoardAreaEnter) {
+          hideLastActiveJourneyBoardAreaBeforeEnter();
+          journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
+          restoreJourneyReturnScrollPosition('pre-reveal-after-active-prepare');
+          activeBoardAreaPreparedBeforeReveal = true;
+        }
       } catch (error) {
-        logger.warn('⚠️ Failed to prepare active Journey area before reveal:', String(error));
+        logger.warn('⚠️ Failed to prepare Journey before reveal:', String(error));
       }
     }
     

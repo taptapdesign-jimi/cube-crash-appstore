@@ -935,6 +935,28 @@
   visibility: hidden !important;
 }
 
+#collectibles-detail-modal[data-journey-board-id] {
+  background-color: #f3eee8 !important;
+  background-image:
+    linear-gradient(rgba(243, 238, 232, 0.4), rgba(243, 238, 232, 0.4)),
+    url('/assets/paper-bg.png') !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
+#collectibles-detail-modal[data-journey-board-id] .detail-header {
+  background: #f3eee8 !important;
+}
+
+#collectibles-detail-modal[data-journey-board-id] .detail-content,
+#collectibles-detail-modal[data-journey-board-id] .detail-swipeable-container,
+#collectibles-detail-modal[data-journey-board-id] .detail-section,
+#collectibles-detail-modal[data-journey-board-id] .detail-section-stats-card,
+#collectibles-detail-modal[data-journey-board-id] .detail-section-stats {
+  background: transparent !important;
+}
+
 #collectibles-detail-modal .detail-content {
   /* Safe paddings: 40px + device insets */
   --safe-left: env(safe-area-inset-left, 0px);
@@ -1991,8 +2013,12 @@
   background: transparent;
   border: none;
   box-shadow: none !important;
-  filter: drop-shadow(0 12px 13px var(--collectibles-card-shadow)) !important;
+  filter: none !important;
   overflow: hidden !important; /* 🔥 FIX: Clip shimmer to card boundaries (shadow still visible via box-shadow) */
+  isolation: isolate;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .journey-board-card.unlocked::after {
@@ -2124,6 +2150,13 @@
   user-select: none; /* Standard */
   -webkit-user-drag: none; /* Prevent dragging */
   pointer-events: none; /* Prevent image from intercepting touch events */
+}
+
+.journey-board-card.unlocked .journey-board-image-preload {
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 /* 🔥 USER REQUEST: Ribbon for newly unlocked (not viewed) cards */

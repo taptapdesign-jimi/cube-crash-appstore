@@ -15,9 +15,13 @@ const JOURNEY_VIEWPORT_EXIT_SELECTOR = [
   '.journey-forest-stump-art',
   '.journey-forest-star-art',
 ].join(', ');
-const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 42;
-const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.5;
-const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.04;
+const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 96;
+const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 320;
+const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.42;
+const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.12;
+const JOURNEY_VIEWPORT_EXIT_MIN_SCALE = 0.04;
+const JOURNEY_SCREEN_EXIT_TAIL_DURATION = 0.3;
+const JOURNEY_SCREEN_EXIT_TAIL_DELAY = 0.02;
 
 let activeJourneyViewportLock: {
   scrollable: HTMLElement;
@@ -34,12 +38,22 @@ const trackTween = (target: any, vars: any) => {
   const tween = animationManager.trackExternalTween(gsap.to(target, vars));
   activeCollectiblesTweens.push(tween);
 
-  const originalOnComplete = tween.eventCallback('onComplete');
-  tween.eventCallback('onComplete', () => {
+  const untrackTween = (): void => {
     const index = activeCollectiblesTweens.indexOf(tween);
     if (index >= 0) activeCollectiblesTweens.splice(index, 1);
+  };
+  const originalOnComplete = tween.eventCallback('onComplete');
+  const originalOnInterrupt = tween.eventCallback('onInterrupt');
+  tween.eventCallback('onComplete', () => {
+    untrackTween();
     if (typeof originalOnComplete === 'function') {
       originalOnComplete.call(tween);
+    }
+  });
+  tween.eventCallback('onInterrupt', () => {
+    untrackTween();
+    if (typeof originalOnInterrupt === 'function') {
+      originalOnInterrupt.call(tween);
     }
   });
 
@@ -166,7 +180,7 @@ function selectJourneyViewportExitTargets(journeyScreen: HTMLElement): HTMLEleme
     .filter((element) =>
       document.body.contains(element) &&
       !isActiveJourneyAreaElement(element, activeBoardId) &&
-      isElementViewportVisible(element)
+      isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX)
     )
     .sort((a, b) => {
       const aRect = a.getBoundingClientRect();
@@ -214,8 +228,209 @@ function restoreJourneyExitTargets(
       target.style.transition = snapshot?.transition ?? '';
       target.style.pointerEvents = snapshot?.pointerEvents ?? '';
       target.style.willChange = snapshot?.willChange ?? '';
+      if (target.classList.contains('journey-board-card-wrapper')) {
+        const card = target.querySelector('.journey-board-card') as HTMLElement | null;
+        if (card) {
+          try {
+            gsap.killTweensOf(card);
+            gsap.set(card, {
+              scale: 1,
+              opacity: 1,
+              visibility: 'visible',
+              clearProps: 'transform,opacity,visibility',
+              overwrite: true,
+            });
+          } catch {}
+          card.style.transition = '';
+          card.style.willChange = '';
+        }
+      }
     } catch {}
   });
+}
+
+function getJourneyViewportAnimationTarget(target: HTMLElement): HTMLElement {
+  if (!target.classList.contains('journey-board-card-wrapper')) return target;
+  return (target.querySelector('.journey-board-card') as HTMLElement | null) || target;
+}
+
+function prepareJourneyViewportAnimationTarget(target: HTMLElement): HTMLElement {
+  const animationTarget = getJourneyViewportAnimationTarget(target);
+  if (animationTarget !== target) {
+    restoreJourneyBoardCardBaseTransform(target);
+    try { gsap.killTweensOf(animationTarget); } catch {}
+    animationTarget.style.transformOrigin = '50% 50%';
+    animationTarget.style.transition = 'none';
+    animationTarget.style.willChange = 'transform, opacity';
+    target.style.opacity = '1';
+    target.style.visibility = 'visible';
+  }
+  return animationTarget;
+}
+
+function finishJourneyViewportEnterTarget(target: HTMLElement): void {
+  try {
+    target.style.visibility = 'visible';
+    target.style.opacity = '1';
+    target.style.pointerEvents = '';
+    target.style.transition = '';
+    target.style.willChange = 'auto';
+    if (target.classList.contains('journey-robo-alien-beam-art')) {
+      target.style.removeProperty('opacity');
+    }
+
+    if (target.classList.contains('journey-board-card-wrapper')) {
+      restoreJourneyBoardCardBaseTransform(target);
+      const card = target.querySelector('.journey-board-card') as HTMLElement | null;
+      if (card) {
+        gsap.set(card, {
+          scale: 1,
+          opacity: 1,
+          y: 0,
+          visibility: 'visible',
+          clearProps: 'transform,opacity,visibility',
+          overwrite: true,
+        });
+        card.style.transition = '';
+        card.style.willChange = '';
+      }
+      return;
+    }
+
+    gsap.set(target, {
+      scale: 1,
+      opacity: 1,
+      y: 0,
+      visibility: 'visible',
+      clearProps: 'scale,y,visibility',
+      overwrite: true,
+    });
+  } catch {}
+}
+
+function animateJourneyViewportScreenEnter(
+  journeyScreen: HTMLElement,
+  collectiblesHeader: HTMLElement | null,
+  collectiblesScrollable: HTMLElement | null
+): void {
+  gsap.set(journeyScreen, {
+    opacity: 0,
+    visibility: 'visible',
+    immediateRender: true,
+  });
+
+  if (collectiblesScrollable) {
+    gsap.killTweensOf(collectiblesScrollable);
+    gsap.set(collectiblesScrollable, {
+      scale: 1,
+      y: 0,
+      opacity: 1,
+      visibility: 'visible',
+      clearProps: 'transform',
+      immediateRender: true,
+    });
+
+    const bgContainer = collectiblesScrollable.querySelector('.journey-bg-container') as HTMLElement | null;
+    if (bgContainer) {
+      gsap.killTweensOf(bgContainer);
+      bgContainer.style.opacity = '1';
+      bgContainer.style.visibility = 'visible';
+      bgContainer.style.removeProperty('transform');
+      bgContainer.style.display = 'block';
+    }
+  }
+
+  const viewportTargets = selectJourneyViewportExitTargets(journeyScreen);
+  viewportTargets.forEach((target, index) => {
+    try {
+      gsap.killTweensOf(target);
+      rememberJourneyBoardCardBaseTransform(target);
+      const animationTarget = prepareJourneyViewportAnimationTarget(target);
+      target.style.pointerEvents = 'none';
+      target.style.transition = 'none';
+      target.style.visibility = 'visible';
+      target.style.willChange = 'transform, opacity';
+
+      const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
+      const fromScale = isLargeWorldArt ? 0.96 : 0.66;
+      const fromY = isLargeWorldArt ? 12 : 0;
+      const delay = Math.min(0.24, index * 0.018);
+      const duration = isLargeWorldArt ? 0.42 : 0.48;
+
+      if (animationTarget !== target) {
+        target.style.opacity = '1';
+        target.style.visibility = 'visible';
+        gsap.set(animationTarget, {
+          scale: fromScale,
+          opacity: 0,
+          y: fromY,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          immediateRender: true,
+        });
+      } else {
+        gsap.set(target, {
+          scale: fromScale,
+          opacity: 0,
+          y: fromY,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          immediateRender: true,
+        });
+      }
+
+      trackTween(animationTarget, {
+        scale: 1,
+        opacity: 1,
+        y: 0,
+        duration,
+        ease: isLargeWorldArt ? 'power2.out' : 'back.out(1.65)',
+        delay,
+        force3D: true,
+        overwrite: true,
+        onComplete: () => finishJourneyViewportEnterTarget(target),
+        onInterrupt: () => finishJourneyViewportEnterTarget(target),
+      });
+    } catch {
+      finishJourneyViewportEnterTarget(target);
+    }
+  });
+
+  trackTween(journeyScreen, {
+    opacity: 1,
+    duration: 0.24,
+    ease: 'power2.out',
+    delay: 0,
+    immediateRender: false,
+    onComplete: () => {
+      try { gsap.set(journeyScreen, { clearProps: 'transform' }); } catch {}
+    },
+  });
+
+  if (collectiblesHeader) {
+    gsap.killTweensOf(collectiblesHeader);
+    gsap.set(collectiblesHeader, {
+      scale: 0.72,
+      y: -8,
+      opacity: 0,
+      visibility: 'visible',
+      transformOrigin: '50% 0%',
+      immediateRender: true,
+    });
+    trackTween(collectiblesHeader, {
+      scale: 1,
+      y: 0,
+      opacity: 1,
+      duration: 0.46,
+      ease: 'back.out(1.55)',
+      delay: 0.06,
+      force3D: true,
+      immediateRender: false,
+      onComplete: () => {
+        try { gsap.set(collectiblesHeader, { clearProps: 'transform' }); } catch {}
+      },
+    });
+  }
 }
 
 /**
@@ -265,6 +480,11 @@ export function animateCollectiblesScreenEnter(): void {
   
   if (!journeyScreen) {
     console.error('❌ No Journey screen found to animate!');
+    return;
+  }
+
+  if (journeyScreen.querySelector('.journey-cards-container')) {
+    animateJourneyViewportScreenEnter(journeyScreen, collectiblesHeader || null, collectiblesScrollable || null);
     return;
   }
   
@@ -464,6 +684,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
   return new Promise((resolve) => {
     const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
     const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
+    const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
 
     if (!journeyScreen) {
       console.error('❌ No Journey screen found to animate!');
@@ -483,6 +704,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
     let headerExitComplete = false;
     let exitResolved = false;
     let headerExitStarted = false;
+    let screenTailStarted = false;
 
     const completeExit = (): void => {
       if (exitResolved) return;
@@ -492,9 +714,58 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         journeyScreen.style.pointerEvents = 'none';
         journeyScreen.style.willChange = 'auto';
         gsap.set(journeyScreen, { opacity: 0, clearProps: 'transform,scale,y' });
+        if (collectiblesScrollable) {
+          collectiblesScrollable.style.willChange = 'auto';
+          gsap.set(collectiblesScrollable, {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            clearProps: 'transform,opacity,visibility',
+            overwrite: true,
+          });
+        }
         restoreJourneyExitTargets(animatedTargets, targetSnapshots);
       } catch {}
       resolve();
+    };
+
+    const startScreenTailExit = (): void => {
+      if (screenTailStarted) return;
+      screenTailStarted = true;
+
+      if (!collectiblesScrollable) {
+        trackTween(journeyScreen, {
+          opacity: 0,
+          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
+          ease: 'power2.in',
+          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
+          overwrite: true,
+          onComplete: completeExit,
+          onInterrupt: completeExit,
+        });
+        return;
+      }
+
+      try {
+        gsap.killTweensOf(collectiblesScrollable);
+        collectiblesScrollable.style.visibility = 'visible';
+        collectiblesScrollable.style.willChange = 'transform, opacity';
+        collectiblesScrollable.style.transformOrigin = '50% 12%';
+        trackTween(collectiblesScrollable, {
+          opacity: 0,
+          scale: 0.985,
+          y: -10,
+          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
+          ease: 'power2.in',
+          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
+          force3D: true,
+          overwrite: true,
+          onComplete: completeExit,
+          onInterrupt: completeExit,
+        });
+      } catch {
+        completeExit();
+      }
     };
 
     const maybeCompleteExit = (): void => {
@@ -505,8 +776,8 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         ease: 'none',
         delay: JOURNEY_HEADER_EXIT_COMPLETE_PAD,
         overwrite: true,
-        onComplete: completeExit,
-        onInterrupt: completeExit,
+        onComplete: startScreenTailExit,
+        onInterrupt: startScreenTailExit,
       });
     };
 
@@ -529,11 +800,11 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         collectiblesHeader.style.opacity = '1';
         collectiblesHeader.style.transformOrigin = '50% 0%';
         trackTween(collectiblesHeader, {
-          scale: 0,
-          opacity: 1,
-          y: -18,
-          duration: 0.34,
-          ease: 'back.in(1.7)',
+          scale: JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+          opacity: 0,
+          y: -10,
+          duration: 0.44,
+          ease: 'back.in(1.25)',
           delay,
           force3D: true,
           overwrite: true,
@@ -551,6 +822,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         target.style.pointerEvents = 'none';
         gsap.set(target, {
           opacity: 0,
+          scale: target.classList.contains('journey-board-card-wrapper') ? 1 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
           overwrite: true,
         });
       } catch {}
@@ -579,23 +851,24 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
           visibility: target.style.visibility,
           willChange: target.style.willChange,
         });
+        const animationTarget = prepareJourneyViewportAnimationTarget(target);
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
         target.style.transition = 'none';
 
         const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
         const delay = Math.min(0.18, index * 0.012);
-        const duration = isLargeWorldArt ? 0.32 : 0.34;
+        const duration = isLargeWorldArt ? 0.4 : 0.44;
         latestViewportExitEnd = Math.max(latestViewportExitEnd, delay + duration);
         animatedTargets.push(target);
         pendingViewportTargets += 1;
 
-        trackTween(target, {
-          opacity: 1,
-          scale: isLargeWorldArt ? 0.96 : 0,
-          y: isLargeWorldArt ? -18 : 0,
+        trackTween(animationTarget, {
+          opacity: isLargeWorldArt ? 0.72 : 0,
+          scale: isLargeWorldArt ? 0.96 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+          y: isLargeWorldArt ? -12 : 0,
           duration,
-          ease: isLargeWorldArt ? 'back.in(1.05)' : 'back.in(1.7)',
+          ease: isLargeWorldArt ? 'power2.in' : 'back.in(1.25)',
           delay,
           force3D: true,
           overwrite: true,
