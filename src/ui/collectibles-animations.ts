@@ -4,20 +4,24 @@ import {
   rememberJourneyBoardCardBaseTransform,
   restoreJourneyBoardCardBaseTransform,
 } from '../modules/journey-card-base-transform.js';
-import {
-  emitJourneyCardExitSmoke,
-  getActiveJourneyBoardAreaId,
-  getJourneyViewportEnterStart,
-  getJourneyViewportExitSpec,
-  isActiveJourneyBoardAreaEnterPending,
-  isActiveJourneyAreaElement,
-  JOURNEY_MOTION,
-  selectJourneyViewportTransitionTargets,
-  traceJourneyMotion,
-} from '../modules/journey-motion.js';
 
 // 🔥 FIX: Track active GSAP tweens for cleanup
 const activeCollectiblesTweens: gsap.core.Tween[] = [];
+const JOURNEY_VIEWPORT_EXIT_SELECTOR = [
+  '.journey-board-card-wrapper',
+  '.journey-forest-main-art',
+  '.journey-forest-cloud-art',
+  '.journey-forest-island-art',
+  '.journey-forest-stump-art',
+  '.journey-forest-star-art',
+].join(', ');
+const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 44;
+const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 180;
+const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.42;
+const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.12;
+const JOURNEY_VIEWPORT_EXIT_MIN_SCALE = 0.04;
+const JOURNEY_SCREEN_EXIT_TAIL_DURATION = 0.3;
+const JOURNEY_SCREEN_EXIT_TAIL_DELAY = 0.02;
 
 let activeJourneyViewportLock: {
   scrollable: HTMLElement;
@@ -129,17 +133,56 @@ export function unlockJourneyViewportTransition(reason: string = 'journey-transi
   } catch {}
 }
 
+function getActiveJourneyBoardAreaId(): number | null {
+  try {
+    const raw =
+      (window as any).__ccLastActiveJourneyBoardAreaId ??
+      localStorage.getItem('__ccLastActiveJourneyBoardAreaId');
+    const boardId = Number(raw || 0);
+    return Number.isFinite(boardId) && boardId > 0 ? boardId : null;
+  } catch {
+    return null;
+  }
+}
+
+function isActiveJourneyBoardAreaEnterPending(): boolean {
+  try {
+    return (window as any).__ccJourneyActiveAreaEnterPending === true;
+  } catch {
+    return false;
+  }
+}
+
+function isActiveJourneyAreaElement(element: HTMLElement, boardId: number | null): boolean {
+  if (!boardId) return false;
+  if (element.classList.contains(`journey-forest-island-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-stump-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-star-board-${boardId}`)) return true;
+  if (element.classList.contains(`journey-forest-cloud-board-${boardId}`)) return true;
+  const card = element.matches('.journey-board-card-wrapper')
+    ? element.querySelector('.journey-board-card')
+    : element.closest('.journey-board-card-wrapper')?.querySelector('.journey-board-card');
+  return (card as HTMLElement | null)?.dataset?.boardId === String(boardId);
+}
+
+function isElementViewportVisible(element: HTMLElement, viewportMargin = 32): boolean {
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
+    return false;
+  }
+  return rect.bottom >= -viewportMargin &&
+    rect.top <= window.innerHeight + viewportMargin &&
+    rect.right >= -viewportMargin &&
+    rect.left <= window.innerWidth + viewportMargin;
+}
+
 function selectJourneyViewportExitTargets(journeyScreen: HTMLElement, reason: string): HTMLElement[] {
-  const shouldIncludeActiveArea =
-    reason === 'journey-back-button' ||
-    reason === 'journey-exit' ||
-    reason === 'journey-board-card-open' ||
-    reason.startsWith('detail-continue-board-');
+  const isBackToHomeExit = reason === 'journey-back-button' || reason === 'journey-exit';
   return selectJourneyViewportTransitionTargets(journeyScreen, {
-    excludeActiveArea: !shouldIncludeActiveArea,
+    excludeActiveArea: !isBackToHomeExit,
     includeHiddenPrepared: true,
-    maxTargets: JOURNEY_MOTION.viewportExitMaxTargets,
-    viewportMarginPx: JOURNEY_MOTION.viewportExitMarginPx,
   });
 }
 
@@ -150,13 +193,39 @@ function selectJourneyViewportEnterTargets(journeyScreen: HTMLElement): HTMLElem
   });
 }
 
-function getJourneyViewportTargetBoardId(target: HTMLElement): number | null {
-  const raw = target.classList.contains('journey-board-card-wrapper')
-    ? target.querySelector('.journey-board-card')?.getAttribute('data-board-id')
-    : target.closest('.journey-board-card-wrapper')?.querySelector('.journey-board-card')?.getAttribute('data-board-id') ??
-      target.getAttribute('data-board-id');
-  const boardId = Number(raw || 0);
-  return Number.isFinite(boardId) && boardId > 0 ? boardId : null;
+function selectJourneyViewportTransitionTargets(
+  journeyScreen: HTMLElement,
+  opts: { excludeActiveArea: boolean; includeHiddenPrepared: boolean }
+): HTMLElement[] {
+  const activeBoardId = getActiveJourneyBoardAreaId();
+  const candidates = Array.from(
+    journeyScreen.querySelectorAll(JOURNEY_VIEWPORT_EXIT_SELECTOR)
+  ) as HTMLElement[];
+
+  const uniqueTargets = Array.from(new Set(candidates))
+    .filter((element) => {
+      if (!document.body.contains(element)) return false;
+      if (opts.excludeActiveArea && isActiveJourneyAreaElement(element, activeBoardId)) return false;
+      if (opts.includeHiddenPrepared && element.dataset.ccJourneyEnterPrepared === 'true') {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 &&
+          rect.height > 0 &&
+          rect.bottom >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.top <= window.innerHeight + JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.right >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.left <= window.innerWidth + JOURNEY_VIEWPORT_EXIT_MARGIN_PX;
+      }
+      return isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX);
+    })
+    .sort((a, b) => {
+      const aRect = a.getBoundingClientRect();
+      const bRect = b.getBoundingClientRect();
+      const viewportCenter = window.innerHeight * 0.5;
+      return Math.abs((aRect.top + aRect.height * 0.5) - viewportCenter) -
+        Math.abs((bRect.top + bRect.height * 0.5) - viewportCenter);
+    });
+
+  return uniqueTargets.slice(0, JOURNEY_VIEWPORT_EXIT_MAX_TARGETS);
 }
 
 type JourneyExitTargetSnapshot = {
@@ -273,6 +342,16 @@ function finishJourneyViewportEnterTarget(target: HTMLElement): void {
       overwrite: true,
     });
   } catch {}
+}
+
+function getJourneyViewportEnterStart(target: HTMLElement): { scale: number; y: number; duration: number; ease: string } {
+  const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
+  return {
+    scale: isLargeWorldArt ? 0.96 : 0.66,
+    y: isLargeWorldArt ? 12 : 0,
+    duration: isLargeWorldArt ? 0.42 : 0.48,
+    ease: isLargeWorldArt ? 'power2.out' : 'back.out(1.65)',
+  };
 }
 
 export function prepareJourneyViewportScreenEnter(reason: string = 'journey-enter-prepare'): void {
@@ -452,12 +531,6 @@ function animateJourneyViewportScreenEnter(
   }
 
   const viewportTargets = selectJourneyViewportEnterTargets(journeyScreen);
-  traceJourneyMotion('viewport-enter-start', {
-    targetCount: viewportTargets.length,
-    hasHeader: !!collectiblesHeader,
-    hasScrollable: !!collectiblesScrollable,
-    wasPrepared,
-  });
   viewportTargets.forEach((target, index) => {
     try {
       const animationTarget = prepareJourneyViewportAnimationTarget(target);
@@ -553,9 +626,6 @@ function animateJourneyViewportScreenEnter(
       delete (window as any).__ccJourneyViewportEnterPrepared;
       delete (window as any).__ccJourneyViewportEnterPreparedReason;
       delete (window as any).__ccJourneyViewportEnterAnimating;
-      traceJourneyMotion('viewport-enter-complete', {
-        targetCount: viewportTargets.length,
-      });
     } catch {}
   });
 }
@@ -828,15 +898,8 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
 
     lockJourneyViewportTransition(reason);
 
-	    const viewportTargets = selectJourneyViewportExitTargets(journeyScreen, reason);
-	    traceJourneyMotion('viewport-exit-start', {
-	      reason,
-	      targetCount: viewportTargets.length,
-	      hasHeader: !!collectiblesHeader,
-	      hasScrollable: !!collectiblesScrollable,
-	      scrollTop: collectiblesScrollable?.scrollTop ?? null,
-	    });
-	    try {
+    const viewportTargets = selectJourneyViewportExitTargets(journeyScreen, reason);
+    try {
       delete (window as any).__ccJourneyActiveAreaEnterPending;
       delete (window as any).__ccJourneyViewportEnterPrepared;
       delete (window as any).__ccJourneyViewportEnterPreparedReason;
@@ -872,29 +935,19 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         }
         restoreJourneyExitTargets(animatedTargets, targetSnapshots);
       } catch {}
-	      resolve();
-	      traceJourneyMotion('viewport-exit-complete', {
-	        reason,
-	        animatedTargets: animatedTargets.length,
-	      });
-	    };
+      resolve();
+    };
 
     const startScreenTailExit = (): void => {
       if (screenTailStarted) return;
       screenTailStarted = true;
-      traceJourneyMotion('viewport-screen-tail-start', {
-        reason,
-        animatedTargets: animatedTargets.length,
-        latestViewportExitEnd,
-        hasScrollable: !!collectiblesScrollable,
-      });
 
       if (!collectiblesScrollable) {
-	        trackTween(journeyScreen, {
-	          opacity: 0,
-	          duration: JOURNEY_MOTION.screenExitTailDuration,
-	          ease: 'power2.in',
-	          delay: JOURNEY_MOTION.screenExitTailDelay,
+        trackTween(journeyScreen, {
+          opacity: 0,
+          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
+          ease: 'power2.in',
+          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
           overwrite: true,
           onComplete: completeExit,
           onInterrupt: completeExit,
@@ -908,12 +961,12 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         collectiblesScrollable.style.willChange = 'transform, opacity';
         collectiblesScrollable.style.transformOrigin = '50% 12%';
         trackTween(collectiblesScrollable, {
-	          opacity: 0,
-	          scale: 0.985,
-	          y: -10,
-	          duration: JOURNEY_MOTION.screenExitTailDuration,
-	          ease: 'power2.in',
-	          delay: JOURNEY_MOTION.screenExitTailDelay,
+          opacity: 0,
+          scale: 0.985,
+          y: -10,
+          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
+          ease: 'power2.in',
+          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
           force3D: true,
           overwrite: true,
           onComplete: completeExit,
@@ -930,7 +983,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         opacity: 1,
         duration: 0.01,
         ease: 'none',
-	        delay: JOURNEY_MOTION.headerExitCompletePad,
+        delay: JOURNEY_HEADER_EXIT_COMPLETE_PAD,
         overwrite: true,
         onComplete: startScreenTailExit,
         onInterrupt: startScreenTailExit,
@@ -956,7 +1009,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         collectiblesHeader.style.opacity = '1';
         collectiblesHeader.style.transformOrigin = '50% 0%';
         trackTween(collectiblesHeader, {
-	          scale: JOURNEY_MOTION.targetExitMinScale,
+          scale: JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
           opacity: 0,
           y: -10,
           duration: 0.44,
@@ -978,7 +1031,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         target.style.pointerEvents = 'none';
         gsap.set(target, {
           opacity: 0,
-	          scale: target.classList.contains('journey-board-card-wrapper') ? 1 : JOURNEY_MOTION.targetExitMinScale,
+          scale: target.classList.contains('journey-board-card-wrapper') ? 1 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
           overwrite: true,
         });
       } catch {}
@@ -995,15 +1048,10 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
       }
     };
 
-	    const isBoardCardOpenExit = reason === 'journey-board-card-open';
-	    const activeBoardId = getActiveJourneyBoardAreaId();
-	    let activeAreaOrder = 0;
-	    let restAreaOrder = 0;
-
-	    viewportTargets.forEach((target, index) => {
-	      try {
-	        gsap.killTweensOf(target);
-	        rememberJourneyBoardCardBaseTransform(target);
+    viewportTargets.forEach((target, index) => {
+      try {
+        gsap.killTweensOf(target);
+        rememberJourneyBoardCardBaseTransform(target);
         targetSnapshots.set(target, {
           opacity: target.style.opacity,
           pointerEvents: target.style.pointerEvents,
@@ -1012,19 +1060,10 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
           visibility: target.style.visibility,
           willChange: target.style.willChange,
         });
-	        const targetBoardId = getJourneyViewportTargetBoardId(target);
-	        const isActiveCardTarget =
-	          isBoardCardOpenExit &&
-	          target.classList.contains('journey-board-card-wrapper') &&
-	          targetBoardId === activeBoardId;
-	        const isActiveAreaTarget =
-	          isBoardCardOpenExit &&
-	          !isActiveCardTarget &&
-	          isActiveJourneyAreaElement(target, activeBoardId);
-	        const animationTarget = isActiveCardTarget ? target : prepareJourneyViewportAnimationTarget(target);
-	        target.style.willChange = 'transform, opacity';
-	        target.style.pointerEvents = 'none';
-	        target.style.transition = 'none';
+        const animationTarget = prepareJourneyViewportAnimationTarget(target);
+        target.style.willChange = 'transform, opacity';
+        target.style.pointerEvents = 'none';
+        target.style.transition = 'none';
         target.style.visibility = 'visible';
         target.style.opacity = '1';
         try {
@@ -1039,77 +1078,32 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
           });
         } catch {}
 
-	        const activeAreaDelay = 0.58 + (activeAreaOrder * 0.055);
-	        const restAreaDelay = 0.96 + Math.min(0.42, restAreaOrder * 0.035);
-	        const delay = isBoardCardOpenExit
-	          ? isActiveCardTarget
-	            ? 0
-	            : isActiveAreaTarget
-	              ? activeAreaDelay
-	              : restAreaDelay
-	          : Math.min(0.18, index * 0.012);
-	        if (isBoardCardOpenExit) {
-	          if (isActiveAreaTarget) activeAreaOrder += 1;
-	          if (!isActiveCardTarget && !isActiveAreaTarget) restAreaOrder += 1;
-	        }
-	        const exitSpec = getJourneyViewportExitSpec(target);
-	        const exitDuration = isBoardCardOpenExit && !isActiveCardTarget
-	          ? exitSpec.exitDuration * 1.28
-	          : exitSpec.exitDuration;
-	        const punchDuration = isBoardCardOpenExit && !isActiveCardTarget
-	          ? exitSpec.punchDuration * 1.1
-	          : exitSpec.punchDuration;
-	        const duration = punchDuration + exitDuration;
-		        traceJourneyMotion('viewport-exit-target-start', {
-		          reason,
-		          index,
-		          delay,
-		          duration,
-		          className: target.className,
-	          boardId: targetBoardId,
-	          isActiveCardTarget,
-	          isActiveAreaTarget,
-		          exitSpec,
-		        });
-		        latestViewportExitEnd = Math.max(latestViewportExitEnd, delay + duration);
-	        animatedTargets.push(target);
-	        pendingViewportTargets += 1;
+        const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
+        const delay = Math.min(0.18, index * 0.012);
+        const duration = isLargeWorldArt ? 0.42 : 0.44;
+        latestViewportExitEnd = Math.max(latestViewportExitEnd, delay + duration);
+        animatedTargets.push(target);
+        pendingViewportTargets += 1;
 
-	        const timeline = animationManager.trackExternalTimeline(gsap.timeline({
-	          delay,
-	          onComplete: () => completeViewportTarget(target),
-	          onInterrupt: () => completeViewportTarget(target),
-	        }));
-	        timeline.to(animationTarget, {
-		          opacity: 1,
-		          scale: exitSpec.punchScale,
-		          y: 0,
-	          duration: punchDuration,
-		          ease: exitSpec.punchEase,
-	          force3D: true,
-	          overwrite: true,
-	          onStart: () => {
-	            if (target.classList.contains('journey-board-card-wrapper')) {
-	              emitJourneyCardExitSmoke(target.querySelector('.journey-board-card') as HTMLElement | null);
-	            }
-	          },
-	        });
-	        timeline.to(animationTarget, {
-		          opacity: 0,
-		          scale: exitSpec.exitScale,
-		          y: exitSpec.exitY,
-	          duration: exitDuration,
-	          ease: exitSpec.exitEase,
-	          force3D: true,
-	          overwrite: true,
-	        });
+        trackTween(animationTarget, {
+          opacity: 0,
+          scale: isLargeWorldArt ? 0.78 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+          y: isLargeWorldArt ? 18 : 0,
+          duration,
+          ease: isLargeWorldArt ? 'back.in(1.15)' : 'back.in(1.25)',
+          delay,
+          force3D: true,
+          overwrite: true,
+          onComplete: () => completeViewportTarget(target),
+          onInterrupt: () => completeViewportTarget(target),
+        });
       } catch {}
     });
 
     if (pendingViewportTargets <= 0) {
       viewportExitComplete = true;
     }
-	    const headerDelay = Math.max(0, latestViewportExitEnd - JOURNEY_MOTION.headerExitLeadSeconds);
+    const headerDelay = Math.max(0, latestViewportExitEnd - JOURNEY_HEADER_EXIT_LEAD_SECONDS);
     startHeaderExit(headerDelay);
   });
 }

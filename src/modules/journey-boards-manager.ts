@@ -30,11 +30,6 @@ import {
   lockJourneyViewportTransition,
   unlockJourneyViewportTransition,
 } from '../ui/collectibles-animations.js';
-import {
-  emitJourneyCardExitSmoke,
-  JOURNEY_MOTION,
-  traceJourneyMotion,
-} from './journey-motion.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -447,11 +442,14 @@ const BOARD_AREA_MODAL_EXIT_EASE = 'back.in(1.25)';
 const BOARD_AREA_MODAL_EXIT_BASE_DELAY = 0;
 const BOARD_AREA_MODAL_STAGGER = 0.05;
 const BOARD_AREA_MODAL_EXIT_MIN_SCALE = 0.04;
+const BOARD_AREA_CARD_TAP_PUNCH_SCALE = 1.12;
+const BOARD_AREA_CARD_TAP_PUNCH_DURATION = 0.14;
+const BOARD_AREA_CARD_TAP_PUNCH_EASE = 'back.out(2.4)';
+const BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS = 120;
 const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
 const LAST_ACTIVE_WORLD_STORAGE_KEY = '__ccLastActiveJourneyWorldId';
 const LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY = '__ccLastActiveJourneyWorldBoardId';
-const ENABLE_JOURNEY_MODAL_RETURN_DEBUG = true;
 const JOURNEY_WORLD_SIZE = 10;
 
 // Helper to convert pixels to viewport width units (vw)
@@ -623,37 +621,6 @@ class JourneyBoardsManager {
     }, delayMs);
     this._activeTimeouts.add(timeoutId);
     return timeoutId;
-  }
-
-  private logJourneyModalReturnEnterState(label: string, context: string, extra: Record<string, unknown> = {}): void {
-    if (!ENABLE_JOURNEY_MODAL_RETURN_DEBUG && (window as any).__ccJourneyModalReturnDebug !== true) return;
-    try {
-      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
-      const journeyContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
-      const header = document.querySelector('#journey-screen .collectibles-header') as HTMLElement | null;
-      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-      const activeBoardId = this.getLastActiveJourneyBoardAreaId();
-
-      logger.info('🧪 JourneyModalReturn enter-state', {
-        label,
-        context,
-        activeBoardId,
-        returningFromDetailModal: (window as any).__ccReturningFromDetailModal === true,
-        activeAreaEnterPending: (window as any).__ccJourneyActiveAreaEnterPending === true,
-        viewportEnterAnimating: (window as any).__ccJourneyViewportEnterAnimating === true,
-        viewportTransitionLocked: (window as any).__ccJourneyViewportTransitionLocked === true,
-        scrollTop: scrollable?.scrollTop ?? null,
-        savedScrollTop: (window as any).__ccJourneyScrollTop ?? localStorage.getItem('__ccJourneyScrollTop'),
-        journeyScreen: getElementVisibilitySnapshot(journeyScreen),
-        header: getElementVisibilitySnapshot(header),
-        scrollable: getElementVisibilitySnapshot(scrollable),
-        journeyContainer: getElementVisibilitySnapshot(journeyContainer),
-        journeyCards: journeyContainer?.querySelectorAll('.journey-board-card').length ?? 0,
-        ...extra,
-      });
-    } catch (error) {
-      logger.warn('⚠️ JourneyModalReturn enter-state log failed:', error);
-    }
   }
   
   /**
@@ -1079,10 +1046,10 @@ class JourneyBoardsManager {
     this.startVisibleInterimCardIdleEffects(cardsContainer);
   }
 
-	  private scheduleJourneyAreaIdleAnimations(cardsContainer: HTMLElement, delayMs: number): void {
-	    this.clearJourneyAreaIdleStartTimeout();
-	    logger.info('🧭 JourneyForestAnim idle-schedule', {
-	      delayMs,
+  private scheduleJourneyAreaIdleAnimations(cardsContainer: HTMLElement, delayMs: number): void {
+    this.clearJourneyAreaIdleStartTimeout();
+    logger.info('🧭 JourneyForestAnim idle-schedule', {
+      delayMs,
       cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
       activeBoardId: this.getLastActiveJourneyBoardAreaId(),
     });
@@ -1095,52 +1062,12 @@ class JourneyBoardsManager {
       logger.info('🧭 JourneyForestAnim idle-schedule-fired', { delayMs });
       this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
     }, delayMs);
-	    this.journeyAreaIdleStartTimeout = timeoutId || null;
-	  }
+    this.journeyAreaIdleStartTimeout = timeoutId || null;
+  }
 
-	  public resumeJourneyIdleAfterEnter(reason: string = 'journey-enter-complete'): void {
-	    try {
-	      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
-	      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
-	      const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
-	      const modalOpen = !!detailModal && detailModal.hidden !== true && detailModal.style.display !== 'none';
-	      const journeyVisible =
-	        !!journeyScreen &&
-	        journeyScreen.hidden !== true &&
-	        journeyScreen.style.display !== 'none' &&
-	        window.getComputedStyle(journeyScreen).display !== 'none';
-
-	      if (!cardsContainer || !document.body.contains(cardsContainer) || !journeyVisible || modalOpen) {
-	        logger.warn('🧭 JourneyForestAnim idle-resume-skip', {
-	          reason,
-	          hasCardsContainer: !!cardsContainer,
-	          journeyVisible,
-	          modalOpen,
-	        });
-	        traceJourneyMotion('idle-resume-skip', {
-	          reason,
-	          hasCardsContainer: !!cardsContainer,
-	          journeyVisible,
-	          modalOpen,
-	        });
-	        return;
-	      }
-
-	      logger.info('🧭 JourneyForestAnim idle-resume-after-enter', { reason });
-	      traceJourneyMotion('idle-resume-after-enter', {
-	        reason,
-	        cards: cardsContainer.querySelectorAll('.journey-board-card').length,
-	        interimCards: cardsContainer.querySelectorAll('.journey-board-card.interim').length,
-	      });
-	      this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
-	    } catch (error) {
-	      logger.warn('⚠️ Failed to resume Journey idle after enter:', error);
-	    }
-	  }
-
-	  private getCurrentJourneyForestAreas(
-	    cardsContainer: HTMLElement
-	  ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
+  private getCurrentJourneyForestAreas(
+    cardsContainer: HTMLElement
+  ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
     const mainTargets = Array.from(
       document.querySelectorAll('[data-journey-area-id="forest-main"], .journey-forest-main-art')
     ) as HTMLElement[];
@@ -1431,36 +1358,26 @@ class JourneyBoardsManager {
     });
   }
 
-	  public prepareActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
-	    let boardId: number | null = null;
-	    try {
-	      boardId = this.getLastActiveJourneyBoardAreaId();
-	      const isDetailModalReturn = (window as any).__ccReturningFromDetailModal === true;
-	      if (!boardId) {
-	        logger.info('🧭 JourneyForestAnim active-enter-prepare-skip-no-board', { retryCount });
-	        if (isDetailModalReturn) {
-	          this.logJourneyModalReturnEnterState('active-area-prepare-skip-no-board', 'active-area-enter', { retryCount });
-	        }
-	        return;
-	      }
+  public prepareActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    let boardId: number | null = null;
+    try {
+      boardId = this.getLastActiveJourneyBoardAreaId();
+      if (!boardId) {
+        logger.info('🧭 JourneyForestAnim active-enter-prepare-skip-no-board', { retryCount });
+        return;
+      }
 
-	      const targets = this.getJourneyAreaElements(boardId);
-	      if (!targets.length) {
+      const targets = this.getJourneyAreaElements(boardId);
+      if (!targets.length) {
         logger.warn('🧭 JourneyForestAnim active-enter-prepare-no-targets', {
           boardId,
-	          retryCount,
-	        });
-	        if (isDetailModalReturn) {
-	          this.logJourneyModalReturnEnterState('active-area-prepare-no-targets', 'active-area-enter', {
-	            boardId,
-	            retryCount,
-	          });
-	        }
-	        if (retryCount < 4) {
-	          this.trackTimeout(() => this.prepareActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
-	        } else {
-	          this.clearLastActiveJourneyBoardAreaId(boardId);
-	        }
+          retryCount,
+        });
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.prepareActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
+        } else {
+          this.clearLastActiveJourneyBoardAreaId(boardId);
+        }
         return;
       }
 
@@ -1470,25 +1387,13 @@ class JourneyBoardsManager {
         targetCount: targets.length,
         targets: targets.map((target) => ({
           className: target.className,
-	          areaId: target.dataset?.journeyAreaId,
-	        })),
-	      });
-	      if (isDetailModalReturn) {
-	        this.logJourneyModalReturnEnterState('active-area-prepare-start', 'active-area-enter', {
-	          boardId,
-	          retryCount,
-	          targetCount: targets.length,
-	          targets: targets.map((target) => ({
-	            className: target.className,
-	            areaId: target.dataset?.journeyAreaId,
-	            snapshot: getElementVisibilitySnapshot(target),
-	          })),
-	        });
-	      }
-	      this.activeBoardAreaEnterPreparedTargets = targets;
-	      targets.forEach((target) => {
-	        try { gsap.killTweensOf(target); } catch {}
-	        rememberJourneyBoardCardBaseTransform(target);
+          areaId: target.dataset?.journeyAreaId,
+        })),
+      });
+      this.activeBoardAreaEnterPreparedTargets = targets;
+      targets.forEach((target) => {
+        try { gsap.killTweensOf(target); } catch {}
+        rememberJourneyBoardCardBaseTransform(target);
         target.style.transformOrigin = '50% 50%';
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
@@ -1522,37 +1427,26 @@ class JourneyBoardsManager {
             transformOrigin: '50% 50%',
             force3D: true,
             immediateRender: true,
-	          });
-	        }
-	      });
-	      if (isDetailModalReturn) {
-	        this.logJourneyModalReturnEnterState('active-area-prepare-complete', 'active-area-enter', {
-	          boardId,
-	          retryCount,
-	          preparedTargets: targets.length,
-	        });
-	      }
-	    } catch (error) {
-	      if (boardId) {
-	        this.clearLastActiveJourneyBoardAreaId(boardId);
-	      }
+          });
+        }
+      });
+    } catch (error) {
+      if (boardId) {
+        this.clearLastActiveJourneyBoardAreaId(boardId);
+      }
       logger.warn('⚠️ Failed to prepare active Journey board area enter animation:', error);
     }
   }
 
-	  public playActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
-	    let boardId: number | null = null;
-	    try {
-	      boardId = this.getLastActiveJourneyBoardAreaId();
-	      const isDetailModalReturn = (window as any).__ccReturningFromDetailModal === true;
-	      if (!boardId) {
-	        logger.info('🧭 JourneyForestAnim active-enter-play-skip-no-board', { retryCount });
-	        if (isDetailModalReturn) {
-	          this.logJourneyModalReturnEnterState('active-area-play-skip-no-board', 'active-area-enter', { retryCount });
-	        }
-	        unlockJourneyViewportTransition('active-enter-skip-no-board');
-	        return;
-	      }
+  public playActiveJourneyBoardAreaEnterAnimation(retryCount = 0): void {
+    let boardId: number | null = null;
+    try {
+      boardId = this.getLastActiveJourneyBoardAreaId();
+      if (!boardId) {
+        logger.info('🧭 JourneyForestAnim active-enter-play-skip-no-board', { retryCount });
+        unlockJourneyViewportTransition('active-enter-skip-no-board');
+        return;
+      }
 
       const preparedTargets = this.activeBoardAreaEnterPreparedTargets
         .filter((target) => target && document.body.contains(target));
@@ -1574,21 +1468,11 @@ class JourneyBoardsManager {
           preparedTargets: preparedTargets.length,
           itemCount: items.length,
           targets: targets.length,
-	          transitionTargets: transitionTargets.length,
-	        });
-	        if (isDetailModalReturn) {
-	          this.logJourneyModalReturnEnterState('active-area-play-no-targets', 'active-area-enter', {
-	            boardId,
-	            retryCount,
-	            preparedTargets: preparedTargets.length,
-	            itemCount: items.length,
-	            targets: targets.length,
-	            transitionTargets: transitionTargets.length,
-	          });
-	        }
-	        if (retryCount < 4) {
-	          this.trackTimeout(() => this.playActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
-	        } else {
+          transitionTargets: transitionTargets.length,
+        });
+        if (retryCount < 4) {
+          this.trackTimeout(() => this.playActiveJourneyBoardAreaEnterAnimation(retryCount + 1), 80);
+        } else {
           unlockJourneyViewportTransition('active-enter-no-targets');
           this.clearLastActiveJourneyBoardAreaId(boardId);
         }
@@ -1607,41 +1491,17 @@ class JourneyBoardsManager {
           enterDelay: Number(item.enterDelay.toFixed(3)),
           duration: item.enterDuration,
           className: item.target.className,
-	          })),
-	        });
-	      if (isDetailModalReturn) {
-	        this.logJourneyModalReturnEnterState('active-area-play-start', 'active-area-enter', {
-	          boardId,
-	          retryCount,
-	          preparedTargets: preparedTargets.length,
-	          targetCount: targets.length,
-	          itemCount: items.length,
-	          items: items.map((item) => ({
-	            role: item.role,
-	            enterOrder: item.enterOrder,
-	            enterDelay: Number(item.enterDelay.toFixed(3)),
-	            duration: item.enterDuration,
-	            className: item.target.className,
-	            snapshot: getElementVisibilitySnapshot(item.target),
-	          })),
-	        });
-	      }
-	      this.cleanupJourneyAreaIdleAnimations(false);
-	      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
-	      const restoreTargetsVisible = () => {
+        })),
+      });
+      this.cleanupJourneyAreaIdleAnimations(false);
+      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
+      const restoreTargetsVisible = () => {
         logger.info('🧭 JourneyForestAnim active-enter-complete-restore', {
           boardId,
           targets: targets.length,
-	          cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
-	        });
-	        if (isDetailModalReturn) {
-	          this.logJourneyModalReturnEnterState('active-area-play-restore', 'active-area-enter', {
-	            boardId,
-	            targetCount: targets.length,
-	            cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
-	          });
-	        }
-	        targets.forEach((target) => {
+          cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
+        });
+        targets.forEach((target) => {
           try {
             target.style.willChange = 'auto';
             target.style.pointerEvents = '';
@@ -1748,20 +1608,10 @@ class JourneyBoardsManager {
           delay: item.enterDelay,
           force3D: true,
           overwrite: true,
-	          onStart: () => {
-	            if (isDetailModalReturn) {
-	              this.logJourneyModalReturnEnterState('active-area-item-start', 'active-area-enter', {
-	                boardId,
-	                role: item.role,
-	                enterOrder: item.enterOrder,
-	                className: target.className,
-	                target: getElementVisibilitySnapshot(target),
-	                visualTarget: getElementVisibilitySnapshot(visualTarget),
-	              });
-	            }
-	            if (target.classList.contains('journey-board-card-wrapper')) {
-	              restoreJourneyBoardCardBaseTransform(target);
-	            }
+          onStart: () => {
+            if (target.classList.contains('journey-board-card-wrapper')) {
+              restoreJourneyBoardCardBaseTransform(target);
+            }
             target.style.visibility = 'visible';
             if (item.role !== 'star') {
               target.style.opacity = visualTarget === target ? '0' : '1';
@@ -1908,10 +1758,10 @@ class JourneyBoardsManager {
       img.style.transformOrigin = '50% 50%';
       parent.appendChild(img);
       return img;
-	    };
-	    const applyBeach2xSrcSet = (img: HTMLImageElement, src: string) => {
-	      img.srcset = `${encodeURI(src.replace(/\.png$/, '@2x.png'))} 2x`;
-	    };
+    };
+    const applyBeach2xSrcSet = (img: HTMLImageElement, src: string) => {
+      img.srcset = `${src.replace(/\.png$/, '@2x.png')} 2x`;
+    };
 
     const addForestMainClouds = () => {
       const cloudSlots = [
@@ -2843,11 +2693,10 @@ class JourneyBoardsManager {
     this.renderDisposed = false;
     this.cleanupInProgress = false;
 
-	    logger.info(`🗺️ Returning to Journey after detail modal close (${context})`);
-	    this.logJourneyModalReturnEnterState('detail-close-return-start', context);
+    logger.info(`🗺️ Returning to Journey after detail modal close (${context})`);
 
-	    delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
-	    delete (window as any).__ccDirectDetailModalReturnActive;
+    delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+    delete (window as any).__ccDirectDetailModalReturnActive;
 
     const ensureJourneyBoardsRendered = (phase: string): void => {
       const container = document.getElementById('journey-boards-container') as HTMLElement | null;
@@ -2880,17 +2729,15 @@ class JourneyBoardsManager {
       }
     };
 
-	    const prepareJourneyScreenForEnter = (phase: string): void => {
-	      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
-	      if (!journeyScreen) {
-	        logger.warn(`⚠️ Journey enter prep skipped - journey-screen missing (${context}, ${phase})`);
-	        this.logJourneyModalReturnEnterState('screen-prep-missing-screen', context, { phase });
-	        return;
-	      }
-	      this.logJourneyModalReturnEnterState('screen-prep-before', context, { phase });
+    const prepareJourneyScreenForEnter = (phase: string): void => {
+      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+      if (!journeyScreen) {
+        logger.warn(`⚠️ Journey enter prep skipped - journey-screen missing (${context}, ${phase})`);
+        return;
+      }
 
-	      try {
-	        gsap.killTweensOf(journeyScreen);
+      try {
+        gsap.killTweensOf(journeyScreen);
       } catch {}
 
       journeyScreen.hidden = false;
@@ -2915,11 +2762,10 @@ class JourneyBoardsManager {
         element.style.visibility = 'hidden';
         element.style.opacity = '0';
         element.style.pointerEvents = 'none';
-	        element.style.removeProperty('transform');
-	        element.style.willChange = 'opacity, transform';
-	      });
-	      this.logJourneyModalReturnEnterState('screen-prep-after', context, { phase });
-	    };
+        element.style.removeProperty('transform');
+        element.style.willChange = 'opacity, transform';
+      });
+    };
 
     const forceJourneyScreenVisible = (phase: string): void => {
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
@@ -2948,44 +2794,36 @@ class JourneyBoardsManager {
 
       const header = journeyScreen.querySelector('.collectibles-header') as HTMLElement | null;
       const scrollable = journeyScreen.querySelector('.collectibles-scrollable') as HTMLElement | null;
-	      [header, scrollable].forEach((element) => {
-	        if (!element) return;
-	        try { gsap.killTweensOf(element); } catch {}
+      [header, scrollable].forEach((element) => {
+        if (!element) return;
+        try { gsap.killTweensOf(element); } catch {}
         element.style.visibility = 'visible';
         element.style.opacity = '1';
         element.style.pointerEvents = '';
-	        element.style.removeProperty('transform');
-	        element.style.willChange = 'auto';
-	      });
-	      this.logJourneyModalReturnEnterState('force-visible', context, { phase });
-	    };
+        element.style.removeProperty('transform');
+        element.style.willChange = 'auto';
+      });
+    };
 
-	    prepareJourneyScreenForEnter('before-showCollectibles');
-	    const screen = document.getElementById('journey-screen') as HTMLElement | null;
+    prepareJourneyScreenForEnter('before-showCollectibles');
+    const screen = document.getElementById('journey-screen') as HTMLElement | null;
 
-	    ensureJourneyBoardsRendered('before-showCollectibles');
-	    this.prepareJourneyBoardCardTransformsForReveal('detail-modal-return-before-showCollectibles');
-	    this.logJourneyModalReturnEnterState('before-showCollectibles-call', context, {
-	      hasScreen: !!screen,
-	      hasCollectiblesManager: !!(window as any).collectiblesManager,
-	    });
+    ensureJourneyBoardsRendered('before-showCollectibles');
+    this.prepareJourneyBoardCardTransformsForReveal('detail-modal-return-before-showCollectibles');
 
-	    const collectiblesManager = (window as any).collectiblesManager;
-	    if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-	      try {
-	        await collectiblesManager.showCollectibles();
-	        ensureJourneyBoardsRendered('after-showCollectibles');
-	        this.logJourneyModalReturnEnterState('after-showCollectibles-resolved', context);
-	      } catch (error) {
-	        logger.warn(`⚠️ Failed to show Journey after detail modal close (${context}):`, error);
-	        this.logJourneyModalReturnEnterState('after-showCollectibles-error', context, { error: String(error) });
-	      }
-	    } else {
-	      logger.warn(`⚠️ Missing collectiblesManager.showCollectibles while returning to Journey (${context})`, {
-	        hasCollectiblesManager: !!collectiblesManager,
-	      });
-	      this.logJourneyModalReturnEnterState('showCollectibles-missing', context);
-	    }
+    const collectiblesManager = (window as any).collectiblesManager;
+    if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+      try {
+        await collectiblesManager.showCollectibles();
+        ensureJourneyBoardsRendered('after-showCollectibles');
+      } catch (error) {
+        logger.warn(`⚠️ Failed to show Journey after detail modal close (${context}):`, error);
+      }
+    } else {
+      logger.warn(`⚠️ Missing collectiblesManager.showCollectibles while returning to Journey (${context})`, {
+        hasCollectiblesManager: !!collectiblesManager,
+      });
+    }
 
     const runJourneyRevealFallback = (attempt = 0) => {
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
@@ -3041,10 +2879,9 @@ class JourneyBoardsManager {
       window.setTimeout(() => {
         ensureJourneyBoardsRendered('fallback-retry');
       }, 250);
-	    };
-	    window.setTimeout(() => runJourneyRevealFallback(), 1250);
-	    this.logJourneyModalReturnEnterState('detail-close-return-fallback-scheduled', context, { delayMs: 1250 });
-	  }
+    };
+    window.setTimeout(() => runJourneyRevealFallback(), 1250);
+  }
 
   constructor() {
     this.initializeBoards();
@@ -3109,7 +2946,7 @@ class JourneyBoardsManager {
   }
 
   // Start Journey screen exit animation immediately (safe to call multiple times)
-  private startJourneyExitAnimation(reason: string = 'journey-screen-exit'): Promise<void> {
+  private startJourneyExitAnimation(): Promise<void> {
     if (this.journeyViewportExitPromise) {
       return this.journeyViewportExitPromise;
     }
@@ -3129,8 +2966,8 @@ class JourneyBoardsManager {
     this.journeyViewportExitPromise = (async () => {
       try {
         lockJourneyViewportTransition('journey-screen-exit');
-        await animateJourneyViewportScreenExit(reason);
-        logger.info('✅ Journey viewport exit animation completed (early start)', { reason });
+        await animateJourneyViewportScreenExit('journey-screen-exit');
+        logger.info('✅ Journey viewport exit animation completed (early start)');
       } catch (error) {
         logger.warn('⚠️ Failed to start Journey viewport exit animation early:', error);
       } finally {
@@ -3280,7 +3117,7 @@ class JourneyBoardsManager {
 
           const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
           const isCardExit = item.role === 'card';
-          const animTarget = isCardExit ? target : visualTarget;
+          const animTarget = visualTarget;
           const sourceCard = isCardExit ? this.getJourneyBoardCardVisualTarget(target) : null;
 
           const completeExit = () => {
@@ -3314,33 +3151,49 @@ class JourneyBoardsManager {
             finishExitTarget(target);
           };
 
-	          if (isCardExit) {
-	            const exitTimeline = trackTimeline({
-	              delay: item.exitDelay,
-	              onComplete: completeExit,
-	              onInterrupt: interruptExit,
-	            });
-	            exitTimeline.to(animTarget, {
-	              scale: JOURNEY_MOTION.cardPunchScale,
-	              opacity: 1,
-	              duration: JOURNEY_MOTION.cardPunchDuration,
-	              ease: JOURNEY_MOTION.cardPunchEase,
-	              force3D: true,
-	              overwrite: true,
-	              transformOrigin: '50% 50%',
-	              onStart: () => {
-	                emitJourneyCardExitSmoke(sourceCard);
-		              },
-		            });
-		            exitTimeline.to(animTarget, {
-		              scale: JOURNEY_MOTION.cardShrinkScale,
-		              opacity: 0,
-		              duration: JOURNEY_MOTION.cardShrinkDuration,
-		              ease: JOURNEY_MOTION.cardShrinkEase,
-		              force3D: true,
-		              overwrite: true,
-		              transformOrigin: '50% 50%',
-	            });
+          if (isCardExit) {
+            const exitTimeline = trackTimeline({
+              delay: item.exitDelay,
+              onComplete: completeExit,
+              onInterrupt: interruptExit,
+            });
+            exitTimeline.to(animTarget, {
+              scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
+              opacity: 1,
+              duration: BOARD_AREA_CARD_TAP_PUNCH_DURATION,
+              ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
+              force3D: true,
+              overwrite: true,
+              transformOrigin: '50% 50%',
+              onStart: () => {
+                if (sourceCard && sourceCard.parentElement) {
+                  try {
+                    smokeBubblesAtCard(sourceCard, {
+                      sizeScale: 0.52,
+                      distanceScale: 0.52,
+                      countScale: 0.28,
+                      haloScale: 0.5,
+                      strength: 1.7,
+                      trailAlpha: 0.86,
+                      baseAlpha: 0.86,
+                      allowOverlap: true,
+                      activeLockMs: 120,
+                      fadeOutTime: 0.58,
+                      cleanupTime: 1.08,
+                    });
+                  } catch {}
+                }
+              },
+            });
+            exitTimeline.to(animTarget, {
+              scale: 0,
+              opacity: 0,
+              duration: item.exitDuration,
+              ease: item.exitEase,
+              force3D: true,
+              overwrite: true,
+              transformOrigin: '50% 50%',
+            });
             return;
           }
 
@@ -3381,8 +3234,8 @@ class JourneyBoardsManager {
 
         this.cleanupJourneyAreaIdleAnimations(false);
 
-	        const cardPunchDuration = JOURNEY_MOTION.cardPunchDuration;
-	        const cardShrinkDuration = JOURNEY_MOTION.cardShrinkDuration;
+        const cardPunchDuration = BOARD_AREA_CARD_TAP_PUNCH_DURATION;
+        const cardShrinkDuration = 0.46;
         const cardTotalDuration = cardPunchDuration + cardShrinkDuration;
         const forestExitSpeedFactor = 0.65;
         const stumpExitDuration = 0.17 * forestExitSpeedFactor;
@@ -3404,7 +3257,6 @@ class JourneyBoardsManager {
 
         const timelineTargets = Array.from(new Set([
           ...(cardWrapper ? [cardWrapper] : []),
-          ...(card ? [card] : []),
           ...groups.flatMap((group) => group.targets),
         ])).filter((target) => target && document.body.contains(target));
 
@@ -3435,10 +3287,6 @@ class JourneyBoardsManager {
               delete (target as any).__ccJourneyToGameExitTween;
               target.style.willChange = 'auto';
               target.style.pointerEvents = '';
-              if (target.classList.contains('journey-board-card')) {
-                target.classList.remove('journey-card-tapping');
-                target.style.transition = '';
-              }
             } catch {}
           });
         };
@@ -3461,74 +3309,40 @@ class JourneyBoardsManager {
           },
         });
 
-        const isInterimExitCard = card?.classList.contains('interim') === true;
-        const cardExitVisualTarget = isInterimExitCard
-          ? cardWrapper
-          : card && document.body.contains(card) ? card : cardWrapper;
-
-        if (cardWrapper && cardExitVisualTarget && document.body.contains(cardWrapper)) {
-          try {
-            gsap.killTweensOf(cardExitVisualTarget);
-            cardExitVisualTarget.classList.add('journey-card-tapping');
-            cardExitVisualTarget.style.transition = 'none';
-            cardExitVisualTarget.style.transformOrigin = '50% 50%';
-            cardExitVisualTarget.style.willChange = 'transform, opacity';
-            cardExitVisualTarget.style.opacity = '1';
-            cardExitVisualTarget.style.visibility = 'visible';
-            gsap.set(cardExitVisualTarget, {
-              scale: 1,
-              opacity: 1,
-              y: 0,
-              visibility: 'visible',
-              force3D: true,
-              overwrite: true,
-            });
-          } catch {}
-          traceJourneyMotion('card-local-exit-target-ready', {
-            boardId,
-            targetClassName: cardExitVisualTarget.className,
-            wrapperClassName: cardWrapper.className,
-            targetIsCard: cardExitVisualTarget === card,
-            isInterim: isInterimExitCard,
-          });
-
-	          timeline.to(cardExitVisualTarget, {
-	            scale: JOURNEY_MOTION.cardPunchScale,
-	            opacity: 1,
-	            duration: cardPunchDuration,
-	            ease: JOURNEY_MOTION.cardPunchEase,
-	            immediateRender: false,
-	            onStart: () => {
-	              emitJourneyCardExitSmoke(card);
-              traceJourneyMotion('card-local-exit-punch-start', { boardId });
-	            },
-	          }, 0);
-	          timeline.to(cardExitVisualTarget, {
-	            scale: JOURNEY_MOTION.cardShrinkScale,
-	            opacity: 0,
-	            duration: cardShrinkDuration,
-	            ease: JOURNEY_MOTION.cardShrinkEase,
-	            immediateRender: false,
+        if (cardWrapper && document.body.contains(cardWrapper)) {
+          timeline.to(cardWrapper, {
+            scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
+            opacity: 1,
+            duration: cardPunchDuration,
+            ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
+            immediateRender: false,
             onStart: () => {
-              traceJourneyMotion('card-local-exit-shrink-start', { boardId });
+              if (card && card.parentElement) {
+                try {
+                  smokeBubblesAtCard(card, {
+                    sizeScale: 0.62,
+                    distanceScale: 0.62,
+                    countScale: 0.42,
+                    haloScale: 0.62,
+                    strength: 2.0,
+                    trailAlpha: 0.92,
+                    baseAlpha: 0.92,
+                    allowOverlap: true,
+                    activeLockMs: 180,
+                    fadeOutTime: 0.72,
+                    cleanupTime: 1.25,
+                  });
+                } catch {}
+              }
             },
-            onComplete: () => {
-              try {
-                gsap.set(cardExitVisualTarget, {
-                  scale: JOURNEY_MOTION.cardShrinkScale,
-                  opacity: 0,
-                  visibility: 'hidden',
-                  overwrite: true,
-                });
-                gsap.set(cardWrapper, {
-                  opacity: 0,
-                  visibility: 'hidden',
-                  overwrite: true,
-                });
-              } catch {}
-              traceJourneyMotion('card-local-exit-shrink-complete', { boardId });
-            },
-	          }, cardPunchDuration);
+          }, 0);
+          timeline.to(cardWrapper, {
+            scale: 0,
+            opacity: 0,
+            duration: cardShrinkDuration,
+            ease: 'back.in(1.7)',
+            immediateRender: false,
+          }, cardPunchDuration);
         }
 
         groups.forEach((group) => {
@@ -3600,7 +3414,6 @@ class JourneyBoardsManager {
   private startBoardAreaThenJourneyExit(boardId: number): Promise<void> {
     if (this.journeyExitPromise) {
       logger.warn('🧭 JourneyForestAnim journey-exit-skip-existing-promise', { boardId });
-      traceJourneyMotion('board-area-exit-skip-existing-promise', { boardId });
       return this.journeyExitPromise;
     }
 
@@ -3609,30 +3422,22 @@ class JourneyBoardsManager {
     this.journeyToGameExitActive = true;
     this.journeyToGameExitBoardId = boardId;
     lockJourneyViewportTransition(`journey-board-area-exit-${boardId}`);
-    logger.info('🧭 JourneyForestAnim board-card-staged-exit-flow-start', { boardId });
-    traceJourneyMotion('board-card-staged-exit-flow-start', {
-      boardId,
-      activeAreaTargets: this.getJourneyAreaElements(boardId).length,
-    });
+    logger.info('🧭 JourneyForestAnim journey-exit-flow-start', { boardId });
 
     this.journeyExitPromise = (async () => {
-      let journeyStarted = false;
-      let linkedJourneyExitPromise: Promise<void> | null = null;
-      const startLinkedJourneyExit = () => {
-        if (journeyStarted) return;
-        journeyStarted = true;
-        traceJourneyMotion('board-card-staged-viewport-exit-linked', { boardId });
-        linkedJourneyExitPromise = this.startJourneyExitAnimation();
-      };
-
       try {
-        await this.animateInterimAreaExitBeforeJourney(boardId, startLinkedJourneyExit);
-        startLinkedJourneyExit();
-        if (linkedJourneyExitPromise) {
-          await linkedJourneyExitPromise;
-        }
-        logger.info('🧭 JourneyForestAnim board-card-staged-exit-flow-complete', { boardId });
-        traceJourneyMotion('board-card-staged-exit-flow-complete', { boardId });
+        const activeAreaExitPromise = this.animateBoardAreaExit(boardId);
+        const viewportExitPromise = (async () => {
+          await new Promise((resolve) => window.setTimeout(resolve, BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS));
+          logger.info('🧭 JourneyForestAnim viewport-exit-overlap-start', {
+            boardId,
+            delayMs: BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS,
+          });
+          await this.startJourneyExitAnimation();
+        })();
+
+        await Promise.all([activeAreaExitPromise, viewportExitPromise]);
+        logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
       } finally {
         this.journeyExitPromise = null;
         this.journeyViewportExitPromise = null;
@@ -5399,33 +5204,22 @@ class JourneyBoardsManager {
           e.stopPropagation();
         } catch {}
 
-	        // Avoid duplicate trigger: ignore click right after touchend
-	        const now = Date.now();
-	        const previousTapTs = Number((card as any)._lastTapTs || 0);
-	        if (previousTapTs && now - previousTapTs < 350) {
-	          return;
-	        }
-	        (card as any)._lastTapTs = now;
+        // Avoid duplicate trigger: ignore click right after touchend
+        const now = Date.now();
+        if ((card as any)._lastTapTs && now - (card as any)._lastTapTs < 350) {
+          return;
+        }
+        (card as any)._lastTapTs = now;
 
         logger.info(`🖱️🖱️🖱️ CARD CLICKED FOR BOARD ${board.id}`);
-	        logger.info(`🔍 Board data on click:`, {
-	          id: board.id,
-	          name: board.name,
-	          imagePath: board.imagePath,
-	          interim: board.interim,
-	          unlocked: board.unlocked
-	        });
-	        traceJourneyMotion('board-card-tap', {
-	          boardId: board.id,
-	          name: board.name,
-		          interim: board.interim === true,
-		          unlocked: board.unlocked === true,
-		          openingDetail: (card as any)._openingDetail === true,
-		          previousTapDeltaMs: previousTapTs ? now - previousTapTs : null,
-	          cardClassName: card.className,
-	          wrapperClassName: card.closest('.journey-board-card-wrapper')?.className ?? null,
-	        });
-	        // Notify interaction to stop idle animations
+        logger.info(`🔍 Board data on click:`, {
+          id: board.id,
+          name: board.name,
+          imagePath: board.imagePath,
+          interim: board.interim,
+          unlocked: board.unlocked
+        });
+        // Notify interaction to stop idle animations
         if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
         }

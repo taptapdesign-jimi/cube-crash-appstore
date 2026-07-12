@@ -19,10 +19,9 @@ import { isHeartsFeatureEnabled } from './modules/hearts-system.js';
 logger.info('🎁 Collectibles Manager module loaded');
 
 const JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS = 410;
-const JOURNEY_ACTIVE_AREA_ENTER_LATE_OVERLAP_DELAY_MS = 620;
+const JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 260;
 const JOURNEY_SCROLL_TOP_KEY = '__ccJourneyScrollTop';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
-const ENABLE_JOURNEY_MODAL_RETURN_DEBUG = true;
 
 function hideLastActiveJourneyBoardAreaBeforeEnter(): void {
   let boardId = 0;
@@ -102,65 +101,6 @@ function getSavedJourneyScrollTop(): number | null {
   } catch {
     const value = Number((window as any).__ccJourneyScrollTop);
     return Number.isFinite(value) && value >= 0 ? value : null;
-  }
-}
-
-function getJourneyElementDebugSnapshot(element: HTMLElement | null): Record<string, unknown> | null {
-  if (!element) return null;
-  try {
-    const computed = window.getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return {
-      id: element.id || null,
-      className: element.className,
-      hidden: element.hidden === true,
-      ariaHidden: element.getAttribute('aria-hidden'),
-      inlineDisplay: element.style.display || null,
-      inlineVisibility: element.style.visibility || null,
-      inlineOpacity: element.style.opacity || null,
-      inlineTransform: element.style.transform || null,
-      computedDisplay: computed.display,
-      computedVisibility: computed.visibility,
-      computedOpacity: computed.opacity,
-      computedPointerEvents: computed.pointerEvents,
-      computedTransform: computed.transform,
-      rect: {
-        x: Math.round(rect.x),
-        y: Math.round(rect.y),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-      },
-    };
-  } catch {
-    return null;
-  }
-}
-
-function logJourneyModalReturnCollectiblesEnter(label: string, extra: Record<string, unknown> = {}): void {
-  if (!ENABLE_JOURNEY_MODAL_RETURN_DEBUG && (window as any).__ccJourneyModalReturnDebug !== true) return;
-  if ((window as any).__ccReturningFromDetailModal !== true) return;
-  try {
-    const screen = document.getElementById('journey-screen') as HTMLElement | null;
-    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
-    const header = document.querySelector('#journey-screen .collectibles-header') as HTMLElement | null;
-    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-    logger.info('🧪 JourneyModalReturn collectibles-enter', {
-      label,
-      returningFromDetailModal: (window as any).__ccReturningFromDetailModal === true,
-      activeAreaEnterPending: (window as any).__ccJourneyActiveAreaEnterPending === true,
-      viewportEnterAnimating: (window as any).__ccJourneyViewportEnterAnimating === true,
-      viewportTransitionLocked: (window as any).__ccJourneyViewportTransitionLocked === true,
-      scrollTop: scrollable?.scrollTop ?? null,
-      savedScrollTop: (window as any).__ccJourneyScrollTop ?? localStorage.getItem(JOURNEY_SCROLL_TOP_KEY),
-      journeyScreen: getJourneyElementDebugSnapshot(screen),
-      header: getJourneyElementDebugSnapshot(header),
-      scrollable: getJourneyElementDebugSnapshot(scrollable),
-      journeyContainer: getJourneyElementDebugSnapshot(container),
-      journeyCards: container?.querySelectorAll('.journey-board-card').length ?? 0,
-      ...extra,
-    });
-  } catch (error) {
-    logger.warn('⚠️ JourneyModalReturn collectibles-enter log failed:', error);
   }
 }
 
@@ -474,7 +414,7 @@ class CollectiblesManager {
   private currentDetailCategory: string | null = null;
   private eventListenersInitialized: boolean = false;
   private journeyPreparePromise: Promise<void> | null = null;
-  
+
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
     backButtonClick?: (e: Event) => void;
@@ -526,9 +466,9 @@ class CollectiblesManager {
     this.saveCollectiblesState();
     this.initEventListeners();
     this.handleDailyVisit();
-    
+
     // 🔥 CRITICAL: Update stats service with current unlocked count after loading state
-    const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length + 
+    const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length +
                           this.collectiblesData.legendary.filter(c => c.unlocked).length;
     if (typeof (window as any).trackCollectiblesUnlocked === 'function') {
       (window as any).trackCollectiblesUnlocked(totalUnlocked);
@@ -644,9 +584,9 @@ class CollectiblesManager {
       console.log('🔄 Event listeners already initialized, skipping...');
       return;
     }
-    
+
     console.log('🔌 Initializing event listeners...');
-    
+
     // 🔥 MEMORY LEAK FIX: Store bound handlers for cleanup
     // Back button - use event delegation to handle clicks even if button doesn't exist yet
     this.boundHandlers.backButtonClick = (e: Event) => {
@@ -688,7 +628,7 @@ class CollectiblesManager {
         const card = target.closest('.collectible-card') as HTMLElement;
         const cardId = card.dataset.cardId;
         const category = card.dataset.category;
-        
+
         // Allow all cards (locked or unlocked) to open detail page
         if (cardId && category) {
           // Light haptic for card tap
@@ -727,17 +667,17 @@ class CollectiblesManager {
     }
 
     this.initDevButtons();
-    
+
     this.eventListenersInitialized = true;
     console.log('✅ Event listeners initialized successfully');
   }
-  
+
   // 🔥 MEMORY LEAK FIX: Cleanup all event listeners (public for app-manager)
   public cleanupEventListeners(): void {
     if (!this.eventListenersInitialized) return;
-    
+
     console.log('🧹 Cleaning up collectibles event listeners...');
-    
+
     // Remove global document event listeners
     if (this.boundHandlers.backButtonClick) {
       document.removeEventListener('click', this.boundHandlers.backButtonClick);
@@ -745,7 +685,7 @@ class CollectiblesManager {
     if (this.boundHandlers.cardClick) {
       document.removeEventListener('click', this.boundHandlers.cardClick);
     }
-    
+
     // 🔥 FIX: Remove showCollectibles back button handler
     const backBtn = document.getElementById('collectibles-back');
     if (backBtn && this.boundHandlers.showCollectiblesBackBtnClick) {
@@ -753,27 +693,27 @@ class CollectiblesManager {
       backBtn.removeAttribute('data-listener-attached');
       delete this.boundHandlers.showCollectiblesBackBtnClick;
     }
-    
+
     // Remove element-specific event listeners
     const titleEl = document.getElementById('collectibles-title');
     if (titleEl && this.boundHandlers.titleClick) {
       titleEl.removeEventListener('click', this.boundHandlers.titleClick);
     }
-    
+
     const closeBtn = document.getElementById('detail-close-btn');
     if (closeBtn && this.boundHandlers.closeBtnClick) {
       closeBtn.removeEventListener('click', this.boundHandlers.closeBtnClick);
     }
-    
+
     const modal = document.getElementById('collectibles-detail-modal');
     if (modal && this.boundHandlers.modalClick) {
       modal.removeEventListener('click', this.boundHandlers.modalClick);
     }
-    
+
     // Clear bound handlers
     this.boundHandlers = {};
     this.eventListenersInitialized = false;
-    
+
     console.log('✅ Collectibles event listeners cleaned up');
   }
 
@@ -781,7 +721,7 @@ class CollectiblesManager {
   // This is the MAIN cleanup entry point called from main.ts exitToMenu()
   public async cleanup(): Promise<void> {
     console.log('🧹🧹🧹 collectiblesManager.cleanup() - FULL CLEANUP STARTING...');
-    
+
     // 1. Cleanup event listeners (document-level, element-level)
     try {
       this.cleanupEventListeners();
@@ -797,7 +737,7 @@ class CollectiblesManager {
     } catch (error) {
       console.warn('⚠️ Failed to cleanup collectibles lazy image observer:', error);
     }
-    
+
     // 2. Cleanup journey boards manager (cards, animations, scroll listeners)
     try {
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
@@ -808,7 +748,7 @@ class CollectiblesManager {
     } catch (error) {
       console.warn('⚠️ Failed to cleanup journey boards manager:', error);
     }
-    
+
     console.log('✅✅✅ collectiblesManager.cleanup() - FULL CLEANUP COMPLETED');
   }
 
@@ -869,12 +809,12 @@ class CollectiblesManager {
       logger.error('❌ journey-screen element not found');
       return;
     }
-    
+
     // 🔥 PRODUCTION READY: Don't wait for preloading - render boards immediately
     // Images will load from Cache API or browser cache as needed (non-blocking)
     // This ensures Journey screen appears instantly, images load in background
     logger.info('🗺️ Rendering Journey boards immediately (images will load from cache as needed)');
-    
+
     // Render boards in background
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
@@ -887,7 +827,7 @@ class CollectiblesManager {
       journeyBoardsManager.renderBoards();
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered in background');
-      
+
       // Mark as viewed (badge will be reset by exit animation, not here)
       journeyBoardsManager.markAsViewed();
       // 🔥 CRITICAL: Don't reset badge here - exit animation will handle it
@@ -948,7 +888,7 @@ class CollectiblesManager {
       homeElement.style.zIndex = '-1';
       logger.info('✅ Homepage hidden - Journey screen is active');
     }
-    
+
     // 🔥 Hide slider container when Journey screen is shown
     const sliderContainer = document.getElementById('slider-container');
     if (sliderContainer) {
@@ -958,7 +898,7 @@ class CollectiblesManager {
       sliderContainer.style.zIndex = '-1';
       logger.info('✅ Slider container hidden - Journey screen is active');
     }
-    
+
     // Reset slider manager state
     const sliderManager = (window as any).sliderManager;
     if (sliderManager) {
@@ -981,7 +921,7 @@ class CollectiblesManager {
         logger.warn('⚠️ Failed to position slider for Journey:', err);
       }
     }
-    
+
     // Hide navigation (Journey has its own back button)
     const navElement = document.getElementById('independent-nav');
     if (navElement) {
@@ -993,7 +933,7 @@ class CollectiblesManager {
 
     // Preload already happens in constructor, skip await to show screen immediately
     // Images will load progressively in the background
-    
+
     // 🔥 CRITICAL FIX: Ensure back button event listener is attached (button might not exist when initEventListeners was called)
     const backBtn = document.getElementById('collectibles-back');
     if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
@@ -1013,7 +953,7 @@ class CollectiblesManager {
       (backBtn as any)._backBtnHandler = backBtnHandler;
       backBtn.setAttribute('data-listener-attached', 'true');
     }
-    
+
     // 🔥 CRITICAL: Remove all inline styles that might hide the screen
     // This ensures journey screen is visible when shown again after being hidden
     (screen as HTMLElement).style.removeProperty('display');
@@ -1022,7 +962,7 @@ class CollectiblesManager {
     (screen as HTMLElement).style.removeProperty('pointer-events'); // 🔥 FIX: Reset pointer-events
     screen.removeAttribute('hidden');
     screen.classList.remove('hidden');
-    
+
     // 🔥 CRITICAL MOBILE FIX: Set opacity 0 and visibility hidden IMMEDIATELY to prevent flash
     // This must be done BEFORE display:flex to prevent any visible frame
     // Use inline styles that GSAP will override - this ensures screen is invisible until animation starts
@@ -1038,33 +978,23 @@ class CollectiblesManager {
     const returningFromInterimBoardEarly =
       (window as any).__ccReturningFromInterimBoard ||
       localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
-	    const returningFromDetailModalEarly = (window as any).__ccReturningFromDetailModal;
-	    const shouldPlayActiveBoardAreaEnter =
-	      !!journeyContainer && (returningFromInterimBoardEarly || returningFromDetailModalEarly);
-	    logJourneyModalReturnCollectiblesEnter('flags-computed', {
-	      hasJourneyContainer: !!journeyContainer,
-	      returningFromInterimBoardEarly,
-	      returningFromDetailModalEarly,
-	      shouldPlayActiveBoardAreaEnter,
-	    });
-	    try {
-	      if (shouldPlayActiveBoardAreaEnter) {
-	        (window as any).__ccJourneyActiveAreaEnterPending = true;
+    const returningFromDetailModalEarly = (window as any).__ccReturningFromDetailModal;
+    const shouldPlayActiveBoardAreaEnter =
+      !!journeyContainer && (returningFromInterimBoardEarly || returningFromDetailModalEarly);
+    try {
+      if (shouldPlayActiveBoardAreaEnter) {
+        (window as any).__ccJourneyActiveAreaEnterPending = true;
       } else {
         delete (window as any).__ccJourneyActiveAreaEnterPending;
       }
     } catch {}
-	    if (shouldPlayActiveBoardAreaEnter) {
-	      hideLastActiveJourneyBoardAreaBeforeEnter();
-	      logJourneyModalReturnCollectiblesEnter('active-area-hidden-early', {
-	        shouldPlayActiveBoardAreaEnter,
-	      });
-	    }
-	    if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
-	      restoreJourneyReturnScrollPosition('early-return-before-render');
-	      logJourneyModalReturnCollectiblesEnter('scroll-restored-early');
-	      try {
-	        const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    if (shouldPlayActiveBoardAreaEnter) {
+      hideLastActiveJourneyBoardAreaBeforeEnter();
+    }
+    if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
+      restoreJourneyReturnScrollPosition('early-return-before-render');
+      try {
+        const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
         const savedScrollTopEarly =
           (window as any).__ccJourneyScrollTop ??
           Number(localStorage.getItem('__ccJourneyScrollTop'));
@@ -1080,7 +1010,7 @@ class CollectiblesManager {
         }
       } catch {}
     }
-    
+
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
     // If not, render them now (non-blocking - don't await)
     if (journeyContainer) {
@@ -1095,7 +1025,7 @@ class CollectiblesManager {
         logger.info('🗺️ Boards already rendered - skipping render');
         journeyBoardsReadyPromise = Promise.resolve();
       }
-      
+
       // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
       // This fixes broken scroll when returning from game
       setTimeout(() => {
@@ -1121,21 +1051,21 @@ class CollectiblesManager {
       logger.info('🎁 Cards rendered and counters updated');
     }
     this.triggerPendingFlipAnimations();
-    
+
     // 🔥 USER REQUEST: Scroll to interim card is handled AFTER enter animation completes
     // (moved to after animateCollectiblesScreenEnter call to prevent scroll during animation)
-    
+
     // Only focus target collectible if it's not journey screen (collectibles screen only)
     if (!journeyContainer) {
       this.focusTargetCollectible(options);
     }
-    
+
     // 🔥 CRITICAL: Initialize dev buttons after screen is shown (buttons might not exist when constructor runs)
     // Use setTimeout to ensure buttons are in DOM after screen is rendered
     setTimeout(() => {
       this.initDevButtons();
     }, 100);
-    
+
     // 💚 Initialize hearts system and attach click handler
     setTimeout(async () => {
       if (!isHeartsFeatureEnabled()) {
@@ -1152,7 +1082,7 @@ class CollectiblesManager {
         const { heartsSystem } = await import('./modules/hearts-system.js');
         heartsSystem.init();
         heartsSystem.refreshUI();
-        
+
         // Attach click handler to hearts container
         const heartsContainer = document.getElementById('journey-lives-container');
         if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
@@ -1185,16 +1115,12 @@ class CollectiblesManager {
     }, 150);
 
     let journeyBoardsManagerPreparedForEnter: any = null;
-	    let activeBoardAreaPreparedBeforeReveal = false;
-	    if (journeyContainer) {
-	      try {
-	        logJourneyModalReturnCollectiblesEnter('pre-reveal-start', {
-	          hasJourneyBoardsReadyPromise: !!journeyBoardsReadyPromise,
-	          shouldPlayActiveBoardAreaEnter,
-	        });
-	        if (journeyBoardsReadyPromise) {
-	          logger.info('🧭 JourneyForestAnim pre-reveal-waiting-for-boards-ready', {
-	            shouldPlayActiveBoardAreaEnter,
+    let activeBoardAreaPreparedBeforeReveal = false;
+    if (journeyContainer) {
+      try {
+        if (journeyBoardsReadyPromise) {
+          logger.info('🧭 JourneyForestAnim pre-reveal-waiting-for-boards-ready', {
+            shouldPlayActiveBoardAreaEnter,
           });
           await journeyBoardsReadyPromise;
           logger.info('🧭 JourneyForestAnim pre-reveal-boards-ready', {
@@ -1203,86 +1129,30 @@ class CollectiblesManager {
         }
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
-	        restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
-	        journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal');
-	        prepareJourneyViewportScreenEnter('collectibles-pre-reveal');
-	        logJourneyModalReturnCollectiblesEnter('viewport-prepared', {
-	          shouldPlayActiveBoardAreaEnter,
-	        });
-	        if (shouldPlayActiveBoardAreaEnter) {
-	          hideLastActiveJourneyBoardAreaBeforeEnter();
-	          journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
-	          restoreJourneyReturnScrollPosition('pre-reveal-after-active-prepare');
-	          activeBoardAreaPreparedBeforeReveal = true;
-	          logJourneyModalReturnCollectiblesEnter('active-area-prepared-before-reveal', {
-	            activeBoardAreaPreparedBeforeReveal,
-	          });
-	        }
-	      } catch (error) {
-	        logger.warn('⚠️ Failed to prepare Journey before reveal:', String(error));
-	        logJourneyModalReturnCollectiblesEnter('pre-reveal-error', {
-	          error: String(error),
-	        });
-	      }
-	    }
-    
+        restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
+        journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal');
+        prepareJourneyViewportScreenEnter('collectibles-pre-reveal');
+        if (shouldPlayActiveBoardAreaEnter) {
+          hideLastActiveJourneyBoardAreaBeforeEnter();
+          journeyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
+          restoreJourneyReturnScrollPosition('pre-reveal-after-active-prepare');
+          activeBoardAreaPreparedBeforeReveal = true;
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to prepare Journey before reveal:', String(error));
+      }
+    }
+
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     // Screen is now visible with opacity 0, ready for animation
     // 🔥 CRITICAL: Set display FIRST, then animate immediately (no delays)
     (screen as HTMLElement).style.display = 'flex';
     (screen as HTMLElement).style.zIndex = '999999';
-	    screen.classList.add('show');
-	    screen.removeAttribute('hidden');
-	    // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
+    screen.classList.add('show');
+    screen.removeAttribute('hidden');
+    // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
 
-	    let journeyPostEnterCompleted = false;
-	    const completeJourneyPostEnter = async (reason: string): Promise<void> => {
-	      if (!journeyContainer || journeyPostEnterCompleted) return;
-	      journeyPostEnterCompleted = true;
-	      try {
-	        const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
-	        const returningFromInterimBoard =
-	          (window as any).__ccReturningFromInterimBoard ||
-	          localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
-
-	        logJourneyModalReturnCollectiblesEnter('post-enter-start', {
-	          reason,
-	          returningFromDetailModal: returningFromDetailModal === true,
-	          returningFromInterimBoard: returningFromInterimBoard === true,
-	        });
-
-	        if (returningFromDetailModal || returningFromInterimBoard) {
-	          console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
-	          restoreJourneyReturnScrollPosition(`post-enter-${reason}`);
-	          delete (window as any).__ccReturningFromDetailModal;
-	          delete (window as any).__ccReturningFromInterimBoard;
-	          localStorage.removeItem('__ccReturningFromInterimBoard');
-	          localStorage.removeItem('__ccJourneyScrollTop');
-	        } else {
-	          const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-	          if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
-	            console.log('🗺️ Starting scroll to interim card after enter animation...');
-	            (journeyBoardsManager as any).restoreOrScrollToInterimCard();
-	          }
-	        }
-
-	        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-	        if (shouldPlayActiveBoardAreaEnter) {
-	          logJourneyModalReturnCollectiblesEnter('post-enter-idle-deferred-to-active-area', { reason });
-	        } else {
-	          journeyBoardsManager.resumeJourneyIdleAfterEnter?.(`collectibles-enter-complete-${reason}`);
-	        }
-	        logJourneyModalReturnCollectiblesEnter('post-enter-complete', { reason });
-	      } catch (error) {
-	        console.warn('⚠️ Failed to complete Journey post-enter flow:', error);
-	        logJourneyModalReturnCollectiblesEnter('post-enter-error', {
-	          reason,
-	          error: String(error),
-	        });
-	      }
-	    };
-
-	    try {
+    try {
       let enterAnimationStarted = false;
       let fallbackRevealApplied = false;
       const revealFallbackTimer = window.setTimeout(() => {
@@ -1303,36 +1173,28 @@ class CollectiblesManager {
       requestAnimationFrame(() => {
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
           window.clearTimeout(revealFallbackTimer);
-	          if (fallbackRevealApplied) {
-	            logger.info('🎬 Journey screen already revealed by fallback - skipping enter animation');
-	            logJourneyModalReturnCollectiblesEnter('fallback-revealed-skip-viewport-enter', {
-	              shouldPlayActiveBoardAreaEnter,
-	            });
-		            if (journeyContainer && shouldPlayActiveBoardAreaEnter) {
-	              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-	                const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
-	                restoreJourneyReturnScrollPosition('fallback-revealed-active-enter');
-	                try {
+          if (fallbackRevealApplied) {
+            logger.info('🎬 Journey screen already revealed by fallback - skipping enter animation');
+            if (journeyContainer && shouldPlayActiveBoardAreaEnter) {
+              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+                const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
+                restoreJourneyReturnScrollPosition('fallback-revealed-active-enter');
+                try {
                   delete (window as any).__ccJourneyActiveAreaEnterPending;
                 } catch {}
                 activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
-	              }).catch((error) => {
-	                logger.warn('⚠️ Failed to restore active Journey board area after fallback reveal:', String(error));
-	              });
-	            }
-	            void completeJourneyPostEnter('fallback-revealed');
-	            return;
-	          }
-	          enterAnimationStarted = true;
-	          console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
-	          logJourneyModalReturnCollectiblesEnter('viewport-enter-import-ready', {
-	            fallbackRevealApplied,
-	            shouldPlayActiveBoardAreaEnter,
-	          });
-	          // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
-	          // Use RAF to ensure browser is ready to render animation on mobile
-	          requestAnimationFrame(() => {
-	            if (journeyContainer) {
+              }).catch((error) => {
+                logger.warn('⚠️ Failed to restore active Journey board area after fallback reveal:', String(error));
+              });
+            }
+            return;
+          }
+          enterAnimationStarted = true;
+          console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
+          // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
+          // Use RAF to ensure browser is ready to render animation on mobile
+          requestAnimationFrame(() => {
+            if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
                 const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
                 if (journeyBoardsReadyPromise && !activeBoardAreaPreparedBeforeReveal) {
@@ -1344,81 +1206,57 @@ class CollectiblesManager {
                     hasCards: !!journeyContainer.querySelector('.journey-board-card'),
                   });
                 }
-	                if (shouldPlayActiveBoardAreaEnter && !activeBoardAreaPreparedBeforeReveal) {
-	                  hideLastActiveJourneyBoardAreaBeforeEnter();
-	                  activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
-	                  logJourneyModalReturnCollectiblesEnter('active-area-prepared-late', {
-	                    activeBoardAreaPreparedBeforeReveal,
-	                  });
-	                }
-	                logJourneyModalReturnCollectiblesEnter('viewport-enter-starting', {
-	                  shouldPlayActiveBoardAreaEnter,
-	                  activeBoardAreaPreparedBeforeReveal,
-	                });
-	                const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
-	                let activeAreaEnterStarted = false;
-	                const startActiveAreaEnter = (source: string): void => {
-	                  if (!shouldPlayActiveBoardAreaEnter || activeAreaEnterStarted) return;
+                if (shouldPlayActiveBoardAreaEnter && !activeBoardAreaPreparedBeforeReveal) {
+                  hideLastActiveJourneyBoardAreaBeforeEnter();
+                  activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
+                }
+                const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
+                let activeAreaEnterStarted = false;
+                const startActiveAreaEnter = (source: string): void => {
+                  if (!shouldPlayActiveBoardAreaEnter || activeAreaEnterStarted) return;
                   activeAreaEnterStarted = true;
                   try {
                     delete (window as any).__ccJourneyActiveAreaEnterPending;
                   } catch {}
-	                  logger.info('🧭 JourneyForestAnim collectibles-active-enter-fired', {
-	                    source,
-	                  });
-	                  logJourneyModalReturnCollectiblesEnter('active-area-enter-fired', {
-	                    source,
-	                  });
-	                  activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
-	                };
-                if (shouldPlayActiveBoardAreaEnter) {
-                  logger.info('🧭 JourneyForestAnim collectibles-active-enter-late-overlap-scheduled', {
-                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_LATE_OVERLAP_DELAY_MS,
-                    returningFromInterimBoardEarly,
-                    returningFromDetailModalEarly,
+                  logger.info('🧭 JourneyForestAnim collectibles-active-enter-fired', {
+                    source,
+                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS,
                   });
-                  logJourneyModalReturnCollectiblesEnter('active-area-enter-late-overlap-scheduled', {
-                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_LATE_OVERLAP_DELAY_MS,
+                  activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
+                };
+                if (shouldPlayActiveBoardAreaEnter) {
+                  logger.info('🧭 JourneyForestAnim collectibles-active-enter-scheduled', {
+                    delayMs: JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS,
                     returningFromInterimBoardEarly,
                     returningFromDetailModalEarly,
                   });
                   window.setTimeout(() => {
-                    startActiveAreaEnter('viewport-enter-late-overlap');
-                  }, JOURNEY_ACTIVE_AREA_ENTER_LATE_OVERLAP_DELAY_MS);
+                    startActiveAreaEnter('viewport-enter-overlap');
+                  }, JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS);
                 }
-	                enterPromise.then(() => {
-	                  logJourneyModalReturnCollectiblesEnter('viewport-enter-resolved', {
-	                    shouldPlayActiveBoardAreaEnter,
-	                  });
-	                  if (!shouldPlayActiveBoardAreaEnter) {
-	                    activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
-	                  }
-	                  if (shouldPlayActiveBoardAreaEnter) {
-	                    startActiveAreaEnter('viewport-enter-complete');
-	                  }
-	                  void completeJourneyPostEnter('viewport-enter-resolved');
-		                }).catch((error) => {
-		                  logger.warn('⚠️ Journey viewport enter completion failed:', String(error));
-		                  logJourneyModalReturnCollectiblesEnter('viewport-enter-error', {
-		                    error: String(error),
-		                  });
-	                  if (!shouldPlayActiveBoardAreaEnter) {
+                enterPromise.then(() => {
+                  if (!shouldPlayActiveBoardAreaEnter) {
                     activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
                   }
-	                  if (shouldPlayActiveBoardAreaEnter) {
-	                    startActiveAreaEnter('viewport-enter-error-fallback');
-	                  }
-	                  void completeJourneyPostEnter('viewport-enter-error');
-	                });
-	              }).catch((error) => {
-	                animateCollectiblesScreenEnter();
-	                void completeJourneyPostEnter('manager-import-error');
-	                logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
-	              });
-	            } else {
-	              animateCollectiblesScreenEnter();
-	              void completeJourneyPostEnter('no-journey-container');
-	            }
+                  if (shouldPlayActiveBoardAreaEnter) {
+                    startActiveAreaEnter('viewport-enter-complete-fallback');
+                  }
+                }).catch((error) => {
+                  logger.warn('⚠️ Journey viewport enter completion failed:', String(error));
+                  if (!shouldPlayActiveBoardAreaEnter) {
+                    activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
+                  }
+                  if (shouldPlayActiveBoardAreaEnter) {
+                    startActiveAreaEnter('viewport-enter-error-fallback');
+                  }
+                });
+              }).catch((error) => {
+                animateCollectiblesScreenEnter();
+                logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
+              });
+            } else {
+              animateCollectiblesScreenEnter();
+            }
           });
         }).catch((error) => {
           window.clearTimeout(revealFallbackTimer);
@@ -1429,17 +1267,79 @@ class CollectiblesManager {
           (screen as HTMLElement).style.willChange = 'auto';
         });
       });
-      
+
       // 🔥 NEW: Initialize lives manager and update UI (non-blocking)
       import('./modules/lives-manager.js').then(({ livesManager }) => {
         livesManager.refreshUI();
       }).catch((error) => {
         logger.warn('⚠️ Failed to initialize lives manager:', String(error));
       });
-      
-	          // Journey post-enter work is completed from the actual viewport enter promise.
-	          // A fixed timeout here races active-area enter and causes inconsistent return animation.
-      
+
+          // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes
+          // Enter animation takes ~0.7s (header 0.5s + delay 0.1s + cards 0.4s)
+          // 🔥 USER REQUEST: Reduced wait time by 50% for faster auto-scroll (450ms vs 900ms)
+          if (journeyContainer) {
+            setTimeout(async () => {
+              try {
+                // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal or interim board
+                // Auto-scroll should ONLY happen when entering Journey from homepage slider
+                const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
+                const returningFromInterimBoard =
+                  (window as any).__ccReturningFromInterimBoard ||
+                  localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
+                if (returningFromDetailModal || returningFromInterimBoard) {
+                  console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
+                  // 🔥 USER REQUEST: Restore previous scroll position when returning from detail modal or interim board
+                  if (returningFromDetailModal || returningFromInterimBoard) {
+                    try {
+                      const scrollable = journeyContainer.querySelector('.collectibles-scrollable') as HTMLElement | null;
+                      const savedScrollTop =
+                        (window as any).__ccJourneyScrollTop ??
+                        Number(localStorage.getItem('__ccJourneyScrollTop'));
+                      if (scrollable && typeof savedScrollTop === 'number') {
+                        scrollable.scrollTop = savedScrollTop;
+                        requestAnimationFrame(() => {
+                          scrollable.scrollTop = savedScrollTop;
+                          // Apply again after layout settles (prevents reset to top)
+                          setTimeout(() => {
+                            scrollable.scrollTop = savedScrollTop;
+                          }, 50);
+                          setTimeout(() => {
+                            scrollable.scrollTop = savedScrollTop;
+                          }, 150);
+                        });
+                      }
+                    } catch {}
+                  }
+                  // Clear flags after checking
+                  delete (window as any).__ccReturningFromDetailModal;
+                  delete (window as any).__ccReturningFromInterimBoard;
+                  localStorage.removeItem('__ccReturningFromInterimBoard');
+                  localStorage.removeItem('__ccJourneyScrollTop');
+                } else {
+                  // Only auto-scroll when entering from homepage slider
+                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
+                  console.log('🗺️ Starting scroll to interim card after enter animation...');
+                  (journeyBoardsManager as any).restoreOrScrollToInterimCard();
+                  }
+                }
+
+                // 🔥 CRITICAL: Start idle bounce animations AFTER enter animation completes
+                // This prevents jerky/laggy behavior on mobile when cards try to animate during enter animation
+                const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
+                const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
+                if (JOURNEY_CARD_IDLE_BOUNCE && JOURNEY_CARD_IDLE_BOUNCE.ENABLE && cardsContainer) {
+                  console.log('🎬 Starting journey card idle bounce AFTER enter animation...');
+                  JOURNEY_CARD_IDLE_BOUNCE.start(cardsContainer);
+                  logger.info('✅ Journey card idle bounce started after enter animation');
+                }
+              } catch (error) {
+                console.warn('⚠️ Failed to scroll to interim card or start idle bounce:', error);
+              }
+            }, 450); // 🔥 USER REQUEST: Sped up by 50% (was 900ms, now 450ms) - faster auto-scroll to interim card
+          }
+
       // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties
       // No need to refresh after animation - this would cause visible movement
     } catch (error) {
@@ -1452,7 +1352,7 @@ class CollectiblesManager {
       (screen as HTMLElement).style.zIndex = '999999';
       screen.classList.add('show');
       screen.removeAttribute('hidden');
-      
+
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
     }
@@ -1467,7 +1367,7 @@ class CollectiblesManager {
       // 🔥 BUG FIX: Do NOT delete flag here - hideCollectiblesScreenWithAnimation needs it
       // Flag will be deleted by hideCollectiblesScreenWithAnimation after it reads it
       // delete (window as any).__ccJourneyExitMode;
-      
+
       if (isBackButton) {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
         // Start the exit animation immediately; keep pre-cleanup synchronous so the
@@ -1506,7 +1406,7 @@ class CollectiblesManager {
         }
 
         console.log('🛑 Stopping remaining Journey animations after exit...');
-        
+
         // Step 0: Stop Journey card idle bounce animations
         try {
           const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
@@ -1517,7 +1417,7 @@ class CollectiblesManager {
         } catch (error) {
           console.warn('⚠️ Failed to stop journey card idle bounce:', error);
         }
-        
+
         // Step 0b: Stop glow pulse and interim bounce animations
         try {
           const journeyContainer = document.getElementById('journey-boards-container');
@@ -1531,7 +1431,7 @@ class CollectiblesManager {
         } catch (error) {
           console.warn('⚠️ Failed to stop glow pulse:', error);
         }
-        
+
         // Step 0c: Kill all GSAP animations on Journey cards to prevent interference
         try {
           const journeyScreen = document.getElementById('journey-screen');
@@ -1551,7 +1451,7 @@ class CollectiblesManager {
         // Skip exit animation - already played in continueFromInterimBoard
         console.log('🎮 Interim card pathway: Skipping exit animation (already played)');
       }
-      
+
       // 🔥 FIX: Clean up journey board elements before hiding screen
       const journeyContainer = document.getElementById('journey-boards-container');
       if (journeyContainer) {
@@ -1560,10 +1460,10 @@ class CollectiblesManager {
       }
 
       cleanupCollectiblesAnimations();
-      
+
       screen.classList.remove('show');
       screen.classList.add('hidden');
-      
+
       // 🔥 CRITICAL FIX: Explicitly disable journey screen to prevent click blocking
       // The .hidden class doesn't have CSS rule for pointer-events, so we must set it inline
       screen.style.display = 'none';
@@ -1572,17 +1472,17 @@ class CollectiblesManager {
       screen.style.zIndex = '-1';
       screen.setAttribute('hidden', 'true');
       logger.info('✅ Journey screen completely hidden and disabled');
-      
+
       // 🔥 USER REQUEST: Only show homepage if this is back button pathway
       if (!isBackButton) {
         // Interim card pathway - don't show homepage
         console.log('🎮 Interim card pathway: Not showing homepage');
         return; // Exit early
       }
-      
+
       // 🔥 BACK BUTTON PATHWAY: Journey exit → Homepage slide 2 enter
       console.log('🏠 Step 2: Showing homepage slide 2 after Journey exit animation');
-      
+
       // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when returning to homepage
       // This prevents gray background during transition and ensures correct opacity
       try {
@@ -1594,7 +1494,7 @@ class CollectiblesManager {
       } catch (error) {
         console.warn('⚠️ Failed to set paper background on Journey exit:', error);
       }
-      
+
       // Step 2a: Show homepage element
       const homeElement = document.getElementById('home');
       if (homeElement) {
@@ -1611,7 +1511,7 @@ class CollectiblesManager {
         homeElement.style.pointerEvents = 'auto';
         logger.info('✅ Homepage element shown and made interactive');
       }
-      
+
       // Step 2b: Show slider container
       const sliderContainerEl = document.getElementById('slider-container');
       if (sliderContainerEl) {
@@ -1628,7 +1528,7 @@ class CollectiblesManager {
         sliderContainerEl.style.pointerEvents = 'auto';
         logger.info('✅ Slider container shown and made interactive');
       }
-      
+
       // 🔥 CRITICAL FIX: Also ensure slider wrapper is interactive for drag gestures
       const sliderWrapperEl = document.getElementById('slider-wrapper');
       if (sliderWrapperEl) {
@@ -1636,40 +1536,40 @@ class CollectiblesManager {
         sliderWrapperEl.style.pointerEvents = 'auto';
         logger.info('✅ Slider wrapper made interactive for drag');
       }
-      
+
       // Step 2c: Ensure ALL slides are visible (slider uses translateX)
       const allSlides = document.querySelectorAll('.slider-slide');
       allSlides.forEach((slide, index) => {
         (slide as HTMLElement).style.display = 'block';
         (slide as HTMLElement).style.visibility = 'visible';
         (slide as HTMLElement).style.opacity = '1';
-        
+
         // Ensure ALL content within each slide is visible
         const slideContent = slide.querySelector('.slide-content');
         const heroImage = slide.querySelector('.hero-image');
         const slideText = slide.querySelector('.slide-text');
         const slideTagline = slide.querySelector('.slide-tagline');
         const slideButton = slide.querySelector('.slide-button');
-        
+
         if (slideContent) (slideContent as HTMLElement).style.display = 'flex';
         if (heroImage) (heroImage as HTMLElement).style.display = 'block';
-        
+
         // 🔥 iPad FIX: Preserve transform positions on iPad after navigation
         const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-        
+
         if (slideText) {
           (slideText as HTMLElement).style.display = 'block';
           (slideText as HTMLElement).style.visibility = 'visible';
           (slideText as HTMLElement).style.opacity = '1';
           const isActiveSlide = slide.classList.contains('active');
-          
+
           if (isIPad) {
             const currentTransform = (slideText as HTMLElement).style.transform;
             if (!currentTransform || !currentTransform.includes('translateY(64px)')) {
               (slideText as HTMLElement).style.transform = 'translateY(64px)';
               (slideText as HTMLElement).style.webkitTransform = 'translateY(64px)';
             }
-            
+
             // 🔥 FIX: Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial
             if (!isActiveSlide) {
               (slideText as HTMLElement).classList.remove('animate-enter-initial');
@@ -1693,7 +1593,7 @@ class CollectiblesManager {
           // Animacija će se pokrenuti samo za aktivni slide
           const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
           const isActiveSlide = slide.classList.contains('active');
-          
+
           if (isIPad && !isActiveSlide) {
             // Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial i postaviti display
             (slideButton as HTMLElement).classList.remove('animate-enter-initial');
@@ -1708,12 +1608,12 @@ class CollectiblesManager {
         }
       });
       logger.info('✅ All slides and content made visible');
-      
+
       // Step 2d: Position slider on Journey slide (index 1) using NEW atomic API
       // When exiting Journey screen, ALWAYS return to Journey slide on homepage slider
       const targetSlideIndex = 1;
       console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
-      
+
       // 🔥 CRITICAL FIX: Reinitialize slider FIRST before using it
       // Slider may have been destroyed in exitToMenu - must reinit for navigation to work
       const sliderManager = (window as any).sliderManager;
@@ -1735,7 +1635,7 @@ class CollectiblesManager {
           console.warn('⚠️ Failed to reinitialize slider:', initError);
         }
       }
-      
+
       // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
       // This replaces all manual GSAP positioning + class manipulation
       if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
@@ -1748,33 +1648,33 @@ class CollectiblesManager {
         if (sliderWrapper && sliderContainerEl) {
           const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
           const targetOffset = -targetSlideIndex * slideWidth;
-          
+
           if (typeof gsap !== 'undefined') {
             gsap.set(sliderWrapper, { x: targetOffset, immediateRender: true });
           } else {
             sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
           }
         }
-        
+
         // Set active classes manually
         allSlides.forEach((slide, index) => {
           if (index === targetSlideIndex) slide.classList.add('active');
           else slide.classList.remove('active');
         });
-        
+
         const navButtons = document.querySelectorAll('.independent-nav-button');
         navButtons.forEach((button, index) => {
           if (index === targetSlideIndex) button.classList.add('active');
           else button.classList.remove('active');
         });
       }
-      
+
       // Step 2h: Restore homepage UI state via centralized methods
       // This ensures clean, non-duplicated code with single source of truth
       try {
         const sliderManager = (window as any).sliderManager;
         const uiManager = (window as any).uiManager;
-        
+
         // 1. 🔥 V140 STYLE: Use ensureReady() - simple slider mechanics reset
         // Animation is handled by animateSliderEnter() which is called in Step 3
         if (sliderManager && typeof sliderManager.ensureReady === 'function') {
@@ -1784,13 +1684,13 @@ class CollectiblesManager {
           (window as any).unlockSlider();
           logger.info('✅ Slider unlocked via fallback');
         }
-        
+
         // 2. Show navigation (includes buttons) via UI Manager
         if (uiManager && typeof uiManager.showNavigation === 'function') {
           uiManager.showNavigation();
           logger.info('✅ Navigation shown via uiManager');
         }
-        
+
         // 3. Reattach CTA button event listeners (Play, Journey, etc.)
         if (uiManager && typeof uiManager.reattachHomepageButtonListeners === 'function') {
           uiManager.reattachHomepageButtonListeners();
@@ -1799,7 +1699,7 @@ class CollectiblesManager {
       } catch (error) {
         logger.warn('⚠️ Failed to restore homepage UI state:', error);
       }
-      
+
       // Step 2i: Force DOM reflow to ensure .active class is applied
       const activeSlideCheck = document.querySelector('.slider-slide.active');
       if (activeSlideCheck) {
@@ -1815,7 +1715,7 @@ class CollectiblesManager {
           });
         }
       }
-      
+
       // 🔥 BUG FIX: Final navigation visibility enforcement BEFORE animation
       // This ensures navigation is definitely visible even if there were race conditions earlier
       const navElementFinal = document.getElementById('independent-nav');
@@ -1831,7 +1731,7 @@ class CollectiblesManager {
         navElementFinal.setAttribute('aria-hidden', 'false');
         logger.info('✅ Final navigation visibility enforcement - navigation guaranteed visible');
       }
-      
+
       // 🔥 CRITICAL FIX: Ensure #app element is DISABLED when returning to homepage
       // Without this, #app remains with pointer-events: auto and z-index: 999, blocking all CTA clicks
       // This is a safety net in case hideApp() wasn't called earlier in the flow
@@ -1845,7 +1745,7 @@ class CollectiblesManager {
         appElement.style.pointerEvents = 'none';
         logger.info('✅ App element disabled - prevents blocking clicks on homepage slider');
       }
-      
+
       // Step 3: Trigger homepage slide ENTER animation
       // 🔥 BUG FIX: Trigger enter animation for the ACTUAL target slide, not hardcoded slide 1
       // Use requestAnimationFrame to ensure DOM is fully updated before animation
@@ -1912,7 +1812,7 @@ class CollectiblesManager {
 
         // Add bounce animation class
         cardEl.classList.add('bounce-idle');
-        
+
         // Random bounce parameters for each card to make them unique
         // Bounce height: random between 10px and 14px
         const randomHeight = Math.random() * 4 + 10; // 10-14px
@@ -1920,12 +1820,12 @@ class CollectiblesManager {
         const randomDuration = Math.random() * 0.4 + 1.0; // 1.0-1.4s
         // Bounce delay: random between 0s and 0.3s (small delay to stagger animations)
         const randomDelay = Math.random() * 0.3; // 0-0.3s
-        
+
         // Apply random bounce parameters
         cardEl.style.setProperty('--card-bounce-height', `${randomHeight}px`);
         cardEl.style.setProperty('--card-bounce-duration', `${randomDuration}s`);
         cardEl.style.setProperty('--card-bounce-delay', `${randomDelay}s`);
-        
+
         console.log('✅ Added bounce animation to card:', item.cardId, 'height:', randomHeight.toFixed(1), 'px, duration:', randomDuration.toFixed(2), 's, delay:', randomDelay.toFixed(2), 's');
       });
     });
@@ -1934,7 +1834,7 @@ class CollectiblesManager {
   private renderCategory(category: keyof CollectiblesData): void {
     const container = document.getElementById(`${category}-cards`);
     if (!container) return;
-    
+
     container.innerHTML = '';
 
     this.collectiblesData[category].forEach((card, index) => {
@@ -1970,11 +1870,11 @@ class CollectiblesManager {
 
     cardDiv.dataset.frontImage = imagePath;
     cardDiv.dataset.backImage = placeholderPath;
-    
+
     // Check if this is a new card (pending flip)
     const pendingFlips = Array.isArray((window as any).__pendingCollectibleFlips) ? (window as any).__pendingCollectibleFlips : [];
     const isNewCard = pendingFlips.some((item: any) => item && item.cardId === card.id);
-    
+
     // Debug logging
     if (card.unlocked && isNewCard) {
       console.log('🎁 Rendering new card as locked:', card.id, 'pendingFlips length:', pendingFlips.length);
@@ -1988,7 +1888,7 @@ class CollectiblesManager {
         'aria-label',
         `Collectible ${numberStr} (${rarityLabel}): ${card.name} unlocked`
       );
-      
+
       // Mark new cards for bounce animation
       if (isNewCard) {
         cardDiv.classList.add('newly-unlocked');
@@ -2008,7 +1908,7 @@ class CollectiblesManager {
     badge.innerHTML = `<span class="badge-number">${numberStr}</span> ${rarityLabel}`;
     badge.setAttribute('aria-hidden', 'true');
     cardDiv.appendChild(badge);
-    
+
     cardDiv.addEventListener('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
@@ -2042,7 +1942,7 @@ class CollectiblesManager {
 
     const commonCounter = document.getElementById('common-counter');
     const legendaryCounter = document.getElementById('legendary-counter');
-    
+
     if (commonCounter) commonCounter.textContent = `${commonUnlocked}/20`;
     if (legendaryCounter) legendaryCounter.textContent = `${legendaryUnlocked}/6`;
   }
@@ -2078,13 +1978,13 @@ class CollectiblesManager {
 
   public showCardDetail(cardId: string, category: string): void {
     console.log('🎁 showCardDetail called:', { cardId, category });
-    
+
     const cards = this.collectiblesData[category as keyof CollectiblesData];
     console.log('🎁 Cards found:', cards);
-    
+
     const index = cards.findIndex(c => c.id === cardId);
     console.log('🎁 Card index:', index);
-    
+
     if (index === -1) {
       console.warn('⚠️ Card not found:', cardId);
       return;
@@ -2100,7 +2000,7 @@ class CollectiblesManager {
 
     const modal = document.getElementById('collectibles-detail-modal');
     console.log('🎁 Modal found:', !!modal);
-    
+
     // Hide Play Board button for regular collectibles (only show for Journey boards)
     // Also clear/hide title for regular collectibles (title is only for Journey boards)
     if (modal) {
@@ -2114,18 +2014,18 @@ class CollectiblesManager {
       }
       // Remove Journey board ID attribute if present
       modal.removeAttribute('data-journey-board-id');
-      
+
       // Clear title for regular collectibles (title is only shown for Journey boards)
       const titleEl = modal.querySelector('#detail-title');
       if (titleEl) {
         titleEl.textContent = '';
       }
     }
-    
+
     const numberStr = (index + 1).toString().padStart(2, '0');
     const frontImagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
     const backImagePath = this.getPlaceholderPath(category as keyof CollectiblesData);
-    
+
     // Use back image if card is locked, front image if unlocked
     const imagePath = card.unlocked ? frontImagePath : backImagePath;
     console.log('🎁 Image path:', imagePath, 'unlocked:', card.unlocked);
@@ -2134,7 +2034,7 @@ class CollectiblesManager {
     const cardImageEl = document.getElementById('detail-card-image') as HTMLElement;
     const cardDescriptionEl = document.getElementById('detail-card-description');
     const cardRarityBadge = document.getElementById('detail-rarity-badge');
-    
+
     console.log('🎁 Elements found:', {
       cardNumber: !!cardNumberEl,
       cardImage: !!cardImageEl,
@@ -2148,22 +2048,22 @@ class CollectiblesManager {
     } else {
       console.warn('⚠️ Card number element not found');
     }
-    
+
     if (cardImageEl) {
       cardImageEl.style.backgroundImage = `url('${imagePath}')`;
-      
+
       // Add locked class to image element if card is locked
       if (card.unlocked) {
         cardImageEl.classList.remove('locked');
       } else {
         cardImageEl.classList.add('locked');
       }
-      
+
       console.log('✅ Card image set:', imagePath, 'locked:', !card.unlocked);
     } else {
       console.warn('⚠️ Card image element not found');
     }
-    
+
     if (cardRarityBadge) {
       const rarityLabel = category === 'legendary' ? 'LEGENDARY' : 'COMMON';
       cardRarityBadge.textContent = rarityLabel;
@@ -2176,7 +2076,7 @@ class CollectiblesManager {
     } else {
       console.warn('⚠️ Rarity badge element not found');
     }
-    
+
     // Update container class for divider styling
     const badgeContainer = document.querySelector('.detail-rarity-badge-container');
     if (badgeContainer) {
@@ -2186,18 +2086,18 @@ class CollectiblesManager {
         badgeContainer.classList.remove('has-legendary');
       }
     }
-    
+
     if (cardDescriptionEl) {
       cardDescriptionEl.textContent = card.description;
       console.log('✅ Card description set:', card.description);
     } else {
       console.warn('⚠️ Card description element not found');
     }
-    
+
     // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked) for common boards
     if (category === 'common') {
       const boardId = Number(number); // Card number = Board number
-      
+
       // Import and get board stats + global stats
       Promise.all([
         import('./services/board-stats-service.js'),
@@ -2205,12 +2105,12 @@ class CollectiblesManager {
       ]).then(([{ boardStatsService }, { statsService }]) => {
         const boardStats = boardStatsService.getBoardStats(boardId);
         const globalStats = statsService.getStats();
-        
+
         // Update stats values in new swipeable format
         const highScoreEl = document.getElementById('detail-stat-highscore-value');
         const comboEl = document.getElementById('detail-stat-combo-value');
         const cubesEl = document.getElementById('detail-stat-cubes-value');
-        
+
         if (highScoreEl) {
           highScoreEl.textContent = boardStats.highScore.toLocaleString();
         }
@@ -2220,7 +2120,7 @@ class CollectiblesManager {
         if (cubesEl) {
           cubesEl.textContent = globalStats.cubesCracked.toLocaleString();
         }
-        
+
         console.log(`✅ Board stats displayed for board ${boardId}:`, {
           highScore: boardStats.highScore,
           longestCombo: boardStats.longestCombo,
@@ -2229,7 +2129,7 @@ class CollectiblesManager {
       }).catch((error) => {
         console.warn('⚠️ Failed to load board stats:', error);
       });
-      
+
       // 🔥 NEW: Initialize swipeable container - start at stats section (index 0)
       const swipeableContainer = modal?.querySelector('.detail-swipeable-container');
       if (swipeableContainer) {
@@ -2264,27 +2164,27 @@ class CollectiblesManager {
       this.currentDetailCategory = category; // Store current category
       modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
-      
+
       // 🔥 USER REQUEST: Hide reset stats button for regular collectibles (only show for journey boards)
       const resetStatsBtn = modal.querySelector('#detail-reset-stats-btn') as HTMLElement;
       if (resetStatsBtn) {
         resetStatsBtn.style.display = 'none';
         resetStatsBtn.style.visibility = 'hidden';
       }
-      
+
       // CRITICAL: Ensure close button is always clickable
       const closeBtn = document.getElementById('detail-close-btn');
       if (closeBtn) {
         // Remove any existing event listeners by cloning the button
         const newCloseBtn = closeBtn.cloneNode(true) as HTMLElement;
         closeBtn.parentNode?.replaceChild(newCloseBtn, closeBtn);
-        
+
         // Set pointer events explicitly to ensure it's always clickable
         newCloseBtn.style.pointerEvents = 'auto';
         newCloseBtn.style.zIndex = '2000000';
         newCloseBtn.style.position = 'relative';
         newCloseBtn.style.cursor = 'pointer';
-        
+
         // Add click listener directly to ensure it always works
         const handleCloseClick = (e: Event) => {
           e.preventDefault();
@@ -2304,12 +2204,12 @@ class CollectiblesManager {
             }
           }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
         };
-        
+
         // Multiple ways to attach listener for maximum compatibility
         newCloseBtn.addEventListener('click', handleCloseClick, { capture: true });
         newCloseBtn.addEventListener('click', handleCloseClick, { capture: false });
         newCloseBtn.onclick = handleCloseClick;
-        
+
         // Also handle touch events for mobile
         newCloseBtn.addEventListener('touchend', (e: Event) => {
           e.preventDefault();
@@ -2329,19 +2229,19 @@ class CollectiblesManager {
             }
           }, JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
         }, { capture: true, passive: false });
-        
+
         console.log('✅ Close button made clickable with multiple listeners');
       } else {
         console.warn('⚠️ Close button not found when showing modal');
       }
-      
+
       // Common collectible details do not launch Journey boards.
       // Journey board modals create and own this CTA in journey-boards-manager.ts.
       const existingPlayBtn = document.getElementById('board-detail-play-button');
       if (existingPlayBtn) {
         existingPlayBtn.remove();
       }
-      
+
       // Hide old buttons (not used anymore)
       const playBoardBtn = modal.querySelector('#detail-play-board-btn');
       const continueBoardBtn = modal.querySelector('#detail-continue-board-btn');
@@ -2351,7 +2251,7 @@ class CollectiblesManager {
       if (continueBoardBtn) {
         (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
-      
+
       // CRITICAL: Ensure background click also works to close modal
       const handleBackgroundClick = (e: MouseEvent | TouchEvent) => {
         const target = e.target as HTMLElement;
@@ -2363,14 +2263,14 @@ class CollectiblesManager {
           this.hideCardDetail();
         }
       };
-      
+
       // Add background click listener with multiple options
       modal.addEventListener('click', handleBackgroundClick, { capture: true });
       modal.addEventListener('click', handleBackgroundClick, { capture: false });
       modal.addEventListener('touchend', handleBackgroundClick, { capture: true, passive: false });
-      
+
       console.log('✅ Background click listener attached to modal');
-      
+
       // Enter animation: pop in (same style as slider)
       // Wait for modal to be visible before animating
       requestAnimationFrame(() => {
@@ -2379,14 +2279,14 @@ class CollectiblesManager {
         const detailDescription = modal.querySelector('#detail-card-description');
         const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
         const detailCloseBtn = modal.querySelector('#detail-close-btn');
-        
+
         console.log('🎬 Starting enter animation for detail modal elements:', {
           detailImage: !!detailImage,
           detailDescription: !!detailDescription,
           detailRarityBadge: !!detailRarityBadge,
           detailCloseBtn: !!detailCloseBtn
         });
-        
+
         // Set initial state (scale 0) for all elements
         [detailImage, detailDescription, detailRarityBadge, detailCloseBtn].forEach(el => {
           if (el) {
@@ -2395,7 +2295,7 @@ class CollectiblesManager {
             void (el as HTMLElement).offsetHeight; // Force reflow
           }
         });
-        
+
         // Animate in with staggered delays (same as slider)
         if (detailImage) {
           setTimeout(() => {
@@ -2426,7 +2326,7 @@ class CollectiblesManager {
           }, 90);
         }
       });
-      
+
         this.detailFocusTrap?.destroy();
         this.detailFocusTrap = createFocusTrap({
           container: modal,
@@ -2453,7 +2353,7 @@ class CollectiblesManager {
 
   public hideCardDetail(): void {
     console.log('🎁 hideCardDetail called');
-    
+
     const modal = document.getElementById('collectibles-detail-modal');
     if (!modal) {
       console.warn('⚠️ Modal not found in hideCardDetail');
@@ -2472,7 +2372,7 @@ class CollectiblesManager {
     this.currentDetailCategory = null;
 
     console.log('✅ Modal found, starting exit animation');
-    
+
     // 🔥 SMOOTH TRANSITION FIX: Freeze card at current animated position before stopping animation
     // This prevents jarring "snap back" when animation is stopped
     const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
@@ -2480,19 +2380,19 @@ class CollectiblesManager {
       // Step 1: Capture current computed transform (includes animation position)
       const computedStyle = window.getComputedStyle(detailImage);
       const currentTransform = computedStyle.transform;
-      
+
       // Step 2: Apply computed transform as inline style to "freeze" at current position
       if (currentTransform && currentTransform !== 'none') {
         detailImage.style.transform = currentTransform;
         console.log('🎬 Card frozen at current animated position:', currentTransform);
       }
-      
+
       // Step 3: NOW stop the CSS animation (card stays frozen at captured position)
       detailImage.style.animation = 'none';
       detailImage.style.animationPlayState = 'paused';
       console.log('🧹 Detail image CSS animations stopped (no snap-back)');
     }
-    
+
     // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
     try {
       const gsap = (window as any).gsap;
@@ -2508,13 +2408,13 @@ class CollectiblesManager {
     } catch (error) {
       console.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
     }
-    
+
     // Exit animation: pop out (same style as slider)
     // Find modal elements
     const detailDescription = modal.querySelector('#detail-card-description');
     const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
     const detailCloseBtn = modal.querySelector('#detail-close-btn');
-    
+
     // Animate out with staggered delays (reverse order of enter)
     if (detailCloseBtn) {
       (detailCloseBtn as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
@@ -2538,7 +2438,7 @@ class CollectiblesManager {
         (detailImage as HTMLElement).classList.add('animate-exit');
       }, 90);
     }
-    
+
     // Wait for animation to complete (650ms for exit animation), then hide modal
     setTimeout(() => {
       // Remove animation classes
@@ -2546,13 +2446,13 @@ class CollectiblesManager {
       const detailDescription = modal.querySelector('#detail-card-description');
       const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
       const detailCloseBtn = modal.querySelector('#detail-close-btn');
-      
+
       [detailImage, detailDescription, detailRarityBadge, detailCloseBtn].forEach(el => {
         if (el) {
           (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         }
       });
-      
+
       // 🔥 MEMORY LEAK FIX: Full cleanup of detail image element
       const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
       if (detailImageEl) {
@@ -2570,19 +2470,19 @@ class CollectiblesManager {
         detailImageEl.innerHTML = '';
         console.log('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
       }
-      
+
       modal.setAttribute('hidden', 'true');
       modal.setAttribute('aria-hidden', 'true');
-      
+
       this.detailFocusTrap?.destroy();
       this.detailFocusTrap = null;
 
       const trigger = this.detailTrigger;
       this.detailTrigger = null;
-      
+
       // 🔥 USER REQUEST: Always show Journey screen with enter animation after detail modal exit
       console.log('🎯 Showing Journey screen with enter animation after detail modal exit');
-      
+
       // Show Journey screen with enter animation
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
@@ -2610,7 +2510,7 @@ class CollectiblesManager {
       if (trigger && typeof trigger.focus === 'function') {
         trigger.focus();
       }
-      
+
       console.log('✅ Modal hidden');
     }, 500); // 500ms animation duration
   }
@@ -2666,9 +2566,9 @@ class CollectiblesManager {
       unlockedCards.forEach(({ category, card, number }) => {
         this.notifyCardUnlocked(category, number, card, { source: 'event', eventName });
       });
-      
+
       // 🔥 CRITICAL: Update stats service with current unlocked count
-      const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length + 
+      const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length +
                             this.collectiblesData.legendary.filter(c => c.unlocked).length;
       if (typeof (window as any).trackCollectiblesUnlocked === 'function') {
         (window as any).trackCollectiblesUnlocked(totalUnlocked);
@@ -2812,7 +2712,7 @@ class CollectiblesManager {
       //     logger.info('🎁 Daily visit bonus unlocked collectible 01');
       //   }
       // }
-      
+
       logger.info(`📊 Daily visit count: ${data.count} for date: ${data.date}`);
     } catch (error) {
       logger.warn('Failed to process daily visit tracking:', String(error));
@@ -2823,7 +2723,7 @@ class CollectiblesManager {
     const { render = true, silent = false } = options;
     let card: CollectibleCard | null = null;
     let categoryKey: keyof CollectiblesData | null = null;
-    
+
     if (number >= 1 && number <= 20) {
       categoryKey = 'common';
       card = this.collectiblesData.common[number - 1] || null;
@@ -2833,7 +2733,7 @@ class CollectiblesManager {
     }
 
     if (!card || !categoryKey) return false;
-    
+
     if (!card.unlocked) {
       card.unlocked = true;
       this.saveCollectiblesState();
@@ -2901,7 +2801,7 @@ class CollectiblesManager {
         }
         localStorage.setItem(storageKey, JSON.stringify(list));
         window.__pendingCollectibleFlips = list;
-        
+
         // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
         // No badge update needed here - badge only shows on Journey icon
       }
@@ -2920,7 +2820,7 @@ class CollectiblesManager {
     }
 
     if (!card) return false;
-    
+
     if (card.unlocked) {
       card.unlocked = false;
       this.saveCollectiblesState();
@@ -2928,13 +2828,13 @@ class CollectiblesManager {
         this.renderCards();
         this.updateCounters();
       }
-      
+
       // Remove from pending flips and update badge
       if (Array.isArray((window as any).__pendingCollectibleFlips)) {
         (window as any).__pendingCollectibleFlips = (window as any).__pendingCollectibleFlips.filter(
           (item: any) => item && item.cardId !== card.id
         );
-        
+
         // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
         // No badge update needed here - badge only shows on Journey icon
       }
