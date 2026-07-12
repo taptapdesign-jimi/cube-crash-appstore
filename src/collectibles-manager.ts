@@ -1318,11 +1318,24 @@ class CollectiblesManager {
                   localStorage.removeItem('__ccJourneyScrollTop');
                 } else {
                   // Only auto-scroll when entering from homepage slider
-                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
-                  console.log('🗺️ Starting scroll to interim card after enter animation...');
-                  (journeyBoardsManager as any).restoreOrScrollToInterimCard();
+                  const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                  if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
+                    console.log('🗺️ Starting scroll to interim card after enter animation...');
+                    (journeyBoardsManager as any).restoreOrScrollToInterimCard();
                   }
+                }
+
+                try {
+                  const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                  if (journeyBoardsManager && typeof (journeyBoardsManager as any).resumeInterimCardIdleEffects === 'function') {
+                    (journeyBoardsManager as any).resumeInterimCardIdleEffects(
+                      returningFromDetailModal || returningFromInterimBoard
+                        ? 'collectibles-return-after-modal'
+                        : 'collectibles-enter-after-home'
+                    );
+                  }
+                } catch (resumeError) {
+                  logger.warn('⚠️ Failed to resume interim card idle effects after Journey enter:', String(resumeError));
                 }
 
                 // 🔥 CRITICAL: Start idle bounce animations AFTER enter animation completes

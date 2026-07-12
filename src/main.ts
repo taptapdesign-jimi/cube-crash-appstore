@@ -2350,7 +2350,8 @@ async function startNewRun(boardId: number): Promise<void> {
     if (targetSlide === 0) {
       console.log('🏠 HOMEPAGE PATH: returning through app zone router');
       if (earlyHomepageHandoffDone) {
-        console.log('⚡ Fast arcade clean exit: homepage shell already visible, preserving active enter animation');
+        await appZoneManager.showHomepageShell('exitToMenu:homepage-fast-finalize');
+        console.log('⚡ Fast arcade clean exit: homepage shell finalized after cleanup');
       } else {
         await appZoneManager.showHomepageShell('exitToMenu:homepage');
         console.log('✅ Navigation and homepage shown through app zone router');
@@ -2544,6 +2545,18 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       }
 
+      try {
+        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+        journeyBoardsManager.resumeInterimCardIdleEffects?.('exitToMenu-journey-pathway');
+        window.setTimeout(() => {
+          try {
+            journeyBoardsManager.resumeInterimCardIdleEffects?.('exitToMenu-journey-pathway-late');
+          } catch {}
+        }, 650);
+      } catch (resumeError) {
+        console.warn('⚠️ exitToMenu: failed to resume Journey interim effects:', resumeError);
+      }
+
       // Resume menu soundtrack with fade in when Journey is shown (so music plays on Journey)
       try {
         const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
@@ -2588,7 +2601,9 @@ async function startNewRun(boardId: number): Promise<void> {
         uiManager.hideApp();
         console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
       } else {
-        console.log('⚡ Homepage already handed off in fast arcade path - skipping duplicate enter/hide');
+        await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
+        uiManager.hideApp();
+        console.log('⚡ Homepage already handed off in fast arcade path - app hidden after finalized shell');
       }
     }
     console.log('✅ Exit complete - pathways separated');

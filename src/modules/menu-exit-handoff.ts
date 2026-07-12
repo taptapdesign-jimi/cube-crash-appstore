@@ -24,6 +24,11 @@ export function isAnyMenuScreenVisible(): boolean {
     || isVisible(document.getElementById('collectibles-detail-modal') as HTMLElement | null);
 }
 
+function isHomepageMenuReady(): boolean {
+  return isVisible(document.getElementById('home') as HTMLElement | null)
+    && isVisible(document.getElementById('slider-container') as HTMLElement | null);
+}
+
 async function forceHomepageVisible(reason: string): Promise<void> {
   try {
     const { appZoneManager } = await import('./app-zone-manager.js');
@@ -98,6 +103,17 @@ async function forceAutoMenuVisible(reason: string): Promise<void> {
     const { ensureCollectiblesManager, showCollectiblesScreen } = await import('../collectibles-manager.js');
     await ensureCollectiblesManager?.();
     await showCollectiblesScreen?.();
+    try {
+      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+      journeyBoardsManager.resumeInterimCardIdleEffects?.(`menu-exit-handoff:${reason}`);
+      window.setTimeout(() => {
+        try {
+          journeyBoardsManager.resumeInterimCardIdleEffects?.(`menu-exit-handoff-late:${reason}`);
+        } catch {}
+      }, 650);
+    } catch (resumeError) {
+      console.warn('⚠️ menu-exit-handoff: failed to resume Journey interim effects', { reason, resumeError });
+    }
     const uiManagerModule = await import('./ui-manager.js');
     uiManagerModule.default?.hideApp?.();
   } catch (error) {
@@ -108,14 +124,17 @@ async function forceAutoMenuVisible(reason: string): Promise<void> {
 
 export async function ensureMenuVisibleAfterExit(options: MenuExitOptions): Promise<void> {
   await wait(320);
+  if (options.target === 'homepage') {
+    if (isHomepageMenuReady()) return;
+    console.warn('⚠️ menu-exit-handoff: homepage shell incomplete after exit, applying fallback', options);
+    (window as any).exitingToMenu = false;
+    await forceHomepageVisible(options.reason);
+    return;
+  }
   if (isAnyMenuScreenVisible()) return;
   console.warn('⚠️ menu-exit-handoff: no visible menu after exit, applying fallback', options);
   (window as any).exitingToMenu = false;
-  if (options.target === 'homepage') {
-    await forceHomepageVisible(options.reason);
-  } else {
-    await forceAutoMenuVisible(options.reason);
-  }
+  await forceAutoMenuVisible(options.reason);
 }
 
 export async function requestExitToMenu(options: MenuExitOptions): Promise<void> {

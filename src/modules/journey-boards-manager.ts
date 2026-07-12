@@ -3975,6 +3975,22 @@ class JourneyBoardsManager {
     });
   }
 
+  public resumeInterimCardIdleEffects(reason = 'resume'): void {
+    if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS || this.renderDisposed) return;
+
+    try {
+      this.startVisibleInterimCardIdleEffects(document);
+      this.startGlowPulse();
+      requestAnimationFrame(() => {
+        if (this.renderDisposed) return;
+        this.startVisibleInterimCardIdleEffects(document);
+      });
+      logger.info('✅ Resumed interim card idle effects', { reason });
+    } catch (error) {
+      logger.warn('⚠️ Failed to resume interim card idle effects:', error);
+    }
+  }
+
   /**
    * Clean up journey board elements when screen is hidden
    */
