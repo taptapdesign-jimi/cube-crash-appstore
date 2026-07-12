@@ -3545,7 +3545,7 @@ class JourneyBoardsManager {
     this.stopInterimBounce(card);
     
     const baseScale = 1;
-    const scaleUp = 1.08;
+    const scaleUp = 1.16;
     const tiltDegrees = 2.5;
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
     if ((card as any)._interimBounceInlineTransition === undefined) {
@@ -3577,8 +3577,8 @@ class JourneyBoardsManager {
       trackTween(card, {
         scale: scaleUp,
         rotation: tiltDegrees * tiltDirection,
-        duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
-        ease: 'power2.out',
+        duration: 0.12, // 🔥 USER REQUEST: Fast, visible interim jump
+        ease: 'back.out(2.2)',
         transformOrigin: 'center center',
         onComplete: () => {
           // 🔥 USER REQUEST: Trigger smoke bubbles at peak of bounce animation (at 0.1s peak)
@@ -3601,11 +3601,11 @@ class JourneyBoardsManager {
             // logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
             const randomAlpha = 0.8 + Math.random() * 0.2; // Random between 0.8 and 1.0
             smokeBubblesAtCard(card, {
-              sizeScale: 0.55, // Better quality (similar to tiles)
-              distanceScale: 0.55, // Better quality (similar to tiles)
-              countScale: 0.34, // Controlled overlap: every bounce gets smoke without overloading mobile
-              haloScale: 0.55, // Better halo
-              strength: 1.8 + Math.random() * 0.7, // ~100% jače
+              sizeScale: 0.68, // Stronger cloud behind interim card
+              distanceScale: 0.68, // Wider cloud spread behind interim card
+              countScale: 0.48, // Visible cloud without overloading mobile
+              haloScale: 0.68, // Better halo
+              strength: 2.2 + Math.random() * 0.8, // Stronger cloud pop
               trailAlpha: randomAlpha, // Random alpha for trail/plume (0.8-1.0)
               baseAlpha: randomAlpha, // Random alpha for base smoke particles (0.8-1.0)
               allowOverlap: true,
@@ -3619,8 +3619,8 @@ class JourneyBoardsManager {
           trackTween(card, {
             scale: baseScale,
             rotation: 0,
-            duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
-            ease: 'power2.in',
+            duration: 0.12, // 🔥 USER REQUEST: Fast, visible interim jump
+            ease: 'back.in(1.35)',
             transformOrigin: 'center center',
             onComplete: () => {
               // 🔥 CRITICAL FIX: Check if bounce is still active before scheduling next bounce
@@ -4860,7 +4860,6 @@ class JourneyBoardsManager {
     const scrollHandler = () => {
       notifyThrottled();
       scrollable.classList.add('journey-scroll-active');
-      this.pauseJourneyAreaIdleForInteraction(850);
       if ((scrollable as any)._journeyScrollActiveTimeout) {
         window.clearTimeout((scrollable as any)._journeyScrollActiveTimeout);
       }
@@ -4881,10 +4880,6 @@ class JourneyBoardsManager {
         const isInterimTapSurface = !!eventTarget?.closest?.('.journey-board-card.interim, .journey-interim-area-hit-target');
         if (event?.type === 'touchstart' && isInterimTapSurface) {
           return;
-        }
-        this.pauseJourneyAreaIdleForInteraction(event?.type === 'touchmove' ? 850 : 650);
-        if (event?.type === 'touchmove' && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
-          JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
         }
       };
       cardsContainer.addEventListener('touchstart', touchHandler, { passive: true });

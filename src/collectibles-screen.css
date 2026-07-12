@@ -2057,12 +2057,6 @@
   animation-delay: 0s !important;
 }
 
-.collectibles-scrollable.journey-scroll-active .journey-board-card.unlocked.idle-shimmer-trigger::after,
-.collectibles-scrollable.journey-scroll-active .journey-board-card.interim::after,
-.collectibles-scrollable.journey-scroll-active .journey-area-idle-target {
-  animation-play-state: paused !important;
-}
-
 .journey-board-card.journey-card-tapping {
   transition: none !important;
   will-change: transform !important;
