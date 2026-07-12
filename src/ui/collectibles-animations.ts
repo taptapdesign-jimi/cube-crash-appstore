@@ -145,6 +145,14 @@ function getActiveJourneyBoardAreaId(): number | null {
   }
 }
 
+function isActiveJourneyBoardAreaEnterPending(): boolean {
+  try {
+    return (window as any).__ccJourneyActiveAreaEnterPending === true;
+  } catch {
+    return false;
+  }
+}
+
 function isActiveJourneyAreaElement(element: HTMLElement, boardId: number | null): boolean {
   if (!boardId) return false;
   if (element.classList.contains(`journey-forest-island-${boardId}`)) return true;
@@ -171,17 +179,43 @@ function isElementViewportVisible(element: HTMLElement, viewportMargin = 32): bo
 }
 
 function selectJourneyViewportExitTargets(journeyScreen: HTMLElement): HTMLElement[] {
+  return selectJourneyViewportTransitionTargets(journeyScreen, {
+    excludeActiveArea: true,
+    includeHiddenPrepared: false,
+  });
+}
+
+function selectJourneyViewportEnterTargets(journeyScreen: HTMLElement): HTMLElement[] {
+  return selectJourneyViewportTransitionTargets(journeyScreen, {
+    excludeActiveArea: isActiveJourneyBoardAreaEnterPending(),
+    includeHiddenPrepared: true,
+  });
+}
+
+function selectJourneyViewportTransitionTargets(
+  journeyScreen: HTMLElement,
+  opts: { excludeActiveArea: boolean; includeHiddenPrepared: boolean }
+): HTMLElement[] {
   const activeBoardId = getActiveJourneyBoardAreaId();
   const candidates = Array.from(
     journeyScreen.querySelectorAll(JOURNEY_VIEWPORT_EXIT_SELECTOR)
   ) as HTMLElement[];
 
   const uniqueTargets = Array.from(new Set(candidates))
-    .filter((element) =>
-      document.body.contains(element) &&
-      !isActiveJourneyAreaElement(element, activeBoardId) &&
-      isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX)
-    )
+    .filter((element) => {
+      if (!document.body.contains(element)) return false;
+      if (opts.excludeActiveArea && isActiveJourneyAreaElement(element, activeBoardId)) return false;
+      if (opts.includeHiddenPrepared && element.dataset.ccJourneyEnterPrepared === 'true') {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 &&
+          rect.height > 0 &&
+          rect.bottom >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.top <= window.innerHeight + JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.right >= -JOURNEY_VIEWPORT_EXIT_MARGIN_PX &&
+          rect.left <= window.innerWidth + JOURNEY_VIEWPORT_EXIT_MARGIN_PX;
+      }
+      return isElementViewportVisible(element, JOURNEY_VIEWPORT_EXIT_MARGIN_PX);
+    })
     .sort((a, b) => {
       const aRect = a.getBoundingClientRect();
       const bRect = b.getBoundingClientRect();
@@ -270,6 +304,7 @@ function prepareJourneyViewportAnimationTarget(target: HTMLElement): HTMLElement
 
 function finishJourneyViewportEnterTarget(target: HTMLElement): void {
   try {
+    delete target.dataset.ccJourneyEnterPrepared;
     target.style.visibility = 'visible';
     target.style.opacity = '1';
     target.style.pointerEvents = '';
@@ -308,16 +343,166 @@ function finishJourneyViewportEnterTarget(target: HTMLElement): void {
   } catch {}
 }
 
+function getJourneyViewportEnterStart(target: HTMLElement): { scale: number; y: number; duration: number; ease: string } {
+  const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
+  return {
+    scale: isLargeWorldArt ? 0.96 : 0.66,
+    y: isLargeWorldArt ? 12 : 0,
+    duration: isLargeWorldArt ? 0.42 : 0.48,
+    ease: isLargeWorldArt ? 'power2.out' : 'back.out(1.65)',
+  };
+}
+
+export function prepareJourneyViewportScreenEnter(reason: string = 'journey-enter-prepare'): void {
+  const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+  const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
+  const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
+  if (!journeyScreen) return;
+
+  try {
+    gsap.killTweensOf(journeyScreen);
+    journeyScreen.hidden = false;
+    journeyScreen.removeAttribute('hidden');
+    journeyScreen.classList.remove('hidden');
+    journeyScreen.classList.add('show');
+    journeyScreen.style.display = 'flex';
+    journeyScreen.style.zIndex = '999999';
+    gsap.set(journeyScreen, {
+      opacity: 0,
+      visibility: 'hidden',
+      immediateRender: true,
+    });
+    journeyScreen.style.pointerEvents = 'none';
+    journeyScreen.style.willChange = 'opacity';
+  } catch {}
+
+  if (collectiblesHeader) {
+    try {
+      gsap.killTweensOf(collectiblesHeader);
+      gsap.set(collectiblesHeader, {
+        scale: 0.72,
+        y: -8,
+        opacity: 0,
+        visibility: 'hidden',
+        transformOrigin: '50% 0%',
+        immediateRender: true,
+      });
+      collectiblesHeader.style.pointerEvents = 'none';
+      collectiblesHeader.style.willChange = 'transform, opacity';
+    } catch {}
+  }
+
+  if (collectiblesScrollable) {
+    try {
+      gsap.killTweensOf(collectiblesScrollable);
+      gsap.set(collectiblesScrollable, {
+        scale: 1,
+        y: 0,
+        opacity: 1,
+        visibility: 'visible',
+        clearProps: 'transform',
+        immediateRender: true,
+      });
+      collectiblesScrollable.style.pointerEvents = 'none';
+    } catch {}
+  }
+
+  const viewportTargets = selectJourneyViewportEnterTargets(journeyScreen);
+  viewportTargets.forEach((target) => {
+    try {
+      gsap.killTweensOf(target);
+      rememberJourneyBoardCardBaseTransform(target);
+      const animationTarget = prepareJourneyViewportAnimationTarget(target);
+      const start = getJourneyViewportEnterStart(target);
+      target.dataset.ccJourneyEnterPrepared = 'true';
+      target.style.pointerEvents = 'none';
+      target.style.transition = 'none';
+      target.style.visibility = 'visible';
+      target.style.willChange = 'transform, opacity';
+
+      if (animationTarget !== target) {
+        target.style.opacity = '1';
+        target.style.visibility = 'visible';
+        gsap.set(animationTarget, {
+          scale: start.scale,
+          opacity: 0,
+          y: start.y,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          immediateRender: true,
+        });
+      } else {
+        gsap.set(target, {
+          scale: start.scale,
+          opacity: 0,
+          y: start.y,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          immediateRender: true,
+        });
+      }
+    } catch {
+      finishJourneyViewportEnterTarget(target);
+    }
+  });
+
+  try {
+    (window as any).__ccJourneyViewportEnterPrepared = true;
+    (window as any).__ccJourneyViewportEnterPreparedReason = reason;
+  } catch {}
+}
+
 function animateJourneyViewportScreenEnter(
   journeyScreen: HTMLElement,
   collectiblesHeader: HTMLElement | null,
   collectiblesScrollable: HTMLElement | null
-): void {
+): Promise<void> {
+  const completionPromises: Promise<void>[] = [];
+  const waitForTween = (
+    target: gsap.TweenTarget,
+    vars: gsap.TweenVars,
+    complete?: () => void
+  ): void => {
+    completionPromises.push(new Promise((resolve) => {
+      const originalOnComplete = vars.onComplete;
+      const originalOnInterrupt = vars.onInterrupt;
+      trackTween(target, {
+        ...vars,
+        onComplete: function (...args: any[]) {
+          complete?.();
+          if (typeof originalOnComplete === 'function') {
+            originalOnComplete.apply(this, args);
+          }
+          resolve();
+        },
+        onInterrupt: function (...args: any[]) {
+          complete?.();
+          if (typeof originalOnInterrupt === 'function') {
+            originalOnInterrupt.apply(this, args);
+          }
+          resolve();
+        },
+      });
+    }));
+  };
+
+  const wasPrepared = (() => {
+    try {
+      return (window as any).__ccJourneyViewportEnterPrepared === true;
+    } catch {
+      return false;
+    }
+  })();
+  if (!wasPrepared) {
+    prepareJourneyViewportScreenEnter('journey-enter-late-prepare');
+  }
+
   gsap.set(journeyScreen, {
     opacity: 0,
     visibility: 'visible',
     immediateRender: true,
   });
+  journeyScreen.style.pointerEvents = 'none';
 
   if (collectiblesScrollable) {
     gsap.killTweensOf(collectiblesScrollable);
@@ -340,63 +525,58 @@ function animateJourneyViewportScreenEnter(
     }
   }
 
-  const viewportTargets = selectJourneyViewportExitTargets(journeyScreen);
+  const viewportTargets = selectJourneyViewportEnterTargets(journeyScreen);
   viewportTargets.forEach((target, index) => {
     try {
-      gsap.killTweensOf(target);
-      rememberJourneyBoardCardBaseTransform(target);
       const animationTarget = prepareJourneyViewportAnimationTarget(target);
+      gsap.killTweensOf(animationTarget);
+      rememberJourneyBoardCardBaseTransform(target);
       target.style.pointerEvents = 'none';
       target.style.transition = 'none';
       target.style.visibility = 'visible';
       target.style.willChange = 'transform, opacity';
 
-      const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
-      const fromScale = isLargeWorldArt ? 0.96 : 0.66;
-      const fromY = isLargeWorldArt ? 12 : 0;
+      const start = getJourneyViewportEnterStart(target);
       const delay = Math.min(0.24, index * 0.018);
-      const duration = isLargeWorldArt ? 0.42 : 0.48;
 
       if (animationTarget !== target) {
         target.style.opacity = '1';
         target.style.visibility = 'visible';
         gsap.set(animationTarget, {
-          scale: fromScale,
+          scale: start.scale,
           opacity: 0,
-          y: fromY,
+          y: start.y,
           visibility: 'visible',
           transformOrigin: '50% 50%',
           immediateRender: true,
         });
       } else {
         gsap.set(target, {
-          scale: fromScale,
+          scale: start.scale,
           opacity: 0,
-          y: fromY,
+          y: start.y,
           visibility: 'visible',
           transformOrigin: '50% 50%',
           immediateRender: true,
         });
       }
 
-      trackTween(animationTarget, {
+      waitForTween(animationTarget, {
         scale: 1,
         opacity: 1,
         y: 0,
-        duration,
-        ease: isLargeWorldArt ? 'power2.out' : 'back.out(1.65)',
+        duration: start.duration,
+        ease: start.ease,
         delay,
         force3D: true,
         overwrite: true,
-        onComplete: () => finishJourneyViewportEnterTarget(target),
-        onInterrupt: () => finishJourneyViewportEnterTarget(target),
-      });
+      }, () => finishJourneyViewportEnterTarget(target));
     } catch {
       finishJourneyViewportEnterTarget(target);
     }
   });
 
-  trackTween(journeyScreen, {
+  waitForTween(journeyScreen, {
     opacity: 1,
     duration: 0.24,
     ease: 'power2.out',
@@ -417,7 +597,7 @@ function animateJourneyViewportScreenEnter(
       transformOrigin: '50% 0%',
       immediateRender: true,
     });
-    trackTween(collectiblesHeader, {
+    waitForTween(collectiblesHeader, {
       scale: 1,
       y: 0,
       opacity: 1,
@@ -431,6 +611,17 @@ function animateJourneyViewportScreenEnter(
       },
     });
   }
+
+  return Promise.all(completionPromises).then(() => {
+    try {
+      journeyScreen.style.pointerEvents = '';
+      if (collectiblesHeader) collectiblesHeader.style.pointerEvents = '';
+      if (collectiblesScrollable) collectiblesScrollable.style.pointerEvents = '';
+      delete (window as any).__ccJourneyActiveAreaEnterPending;
+      delete (window as any).__ccJourneyViewportEnterPrepared;
+      delete (window as any).__ccJourneyViewportEnterPreparedReason;
+    } catch {}
+  });
 }
 
 /**
@@ -439,6 +630,11 @@ function animateJourneyViewportScreenEnter(
  */
 export function cleanupCollectiblesAnimations(): void {
   unlockJourneyViewportTransition('collectibles-cleanup');
+  try {
+    delete (window as any).__ccJourneyActiveAreaEnterPending;
+    delete (window as any).__ccJourneyViewportEnterPrepared;
+    delete (window as any).__ccJourneyViewportEnterPreparedReason;
+  } catch {}
   // Kill all tracked tweens
   activeCollectiblesTweens.forEach(tween => {
     try { tween.kill(); } catch {}
@@ -472,7 +668,7 @@ export function cleanupCollectiblesAnimations(): void {
  * Animate collectibles screen ENTER with pop-in effects
  * Elements pop in: header first, then scrollable, then first 8 cards from 30% scale (remaining cards instantly visible)
  */
-export function animateCollectiblesScreenEnter(): void {
+export function animateCollectiblesScreenEnter(): Promise<void> {
   // Get Journey screen elements
   const journeyScreen = document.getElementById('journey-screen');
   const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement;
@@ -480,12 +676,11 @@ export function animateCollectiblesScreenEnter(): void {
   
   if (!journeyScreen) {
     console.error('❌ No Journey screen found to animate!');
-    return;
+    return Promise.resolve();
   }
 
   if (journeyScreen.querySelector('.journey-cards-container')) {
-    animateJourneyViewportScreenEnter(journeyScreen, collectiblesHeader || null, collectiblesScrollable || null);
-    return;
+    return animateJourneyViewportScreenEnter(journeyScreen, collectiblesHeader || null, collectiblesScrollable || null);
   }
   
   // 🔥 CRITICAL: Set initial state - journey screen, header and scrollable scale from 0
@@ -531,7 +726,7 @@ export function animateCollectiblesScreenEnter(): void {
 
   } catch (error) {
     console.error('❌ Failed to set initial state:', error);
-    return;
+    return Promise.resolve();
   }
   
   // 🔥 CRITICAL MOBILE FIX: Fade in journey screen FIRST with explicit opacity/visibility
@@ -672,6 +867,8 @@ export function animateCollectiblesScreenEnter(): void {
       });
     });
   }
+
+  return Promise.resolve();
 }
 
 /**

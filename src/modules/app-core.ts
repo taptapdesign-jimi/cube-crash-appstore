@@ -483,6 +483,7 @@ const tiles: Tile[] = STATE.tiles as Tile[];
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
 const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid perma-deferral
+const TNT_POST_MUTATION_FAIL_RECHECK_MS = 1000;
 
 let drag: (Drag & { t?: any }) | null = null;
 
@@ -12309,12 +12310,19 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
 
       if (!busyEnding) {
-        const minAfterTntChangeMs = 1000;
         const sinceTntChange = lastTntBonusChangeAt ? (Date.now() - lastTntBonusChangeAt) : Infinity;
-        const extraWait = sinceTntChange < minAfterTntChangeMs ? (minAfterTntChangeMs - sinceTntChange) : 0;
+        if (sinceTntChange < TNT_POST_MUTATION_FAIL_RECHECK_MS) {
+          const recheckDelayMs = TNT_POST_MUTATION_FAIL_RECHECK_MS - sinceTntChange;
+          devWarn('🛡️ checkLevelEnd: Deferring TNT-adjacent stuck/fail for a fresh board recheck', {
+            sinceTntChange,
+            recheckDelayMs,
+            lastReason,
+          });
+          scheduleCheckLevelEnd(Math.max(0.12, recheckDelayMs / 1000), 'recent-tnt-bonus-mutation');
+          return;
+        }
         await runNoMovesFailFlow({
           reason: 'check_level_end_stuck',
-          extraWaitMs: extraWait,
           resetHint: false,
           exitTimeoutMs: 700,
           persistStuckState: true,

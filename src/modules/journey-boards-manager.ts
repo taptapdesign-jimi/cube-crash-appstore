@@ -44,6 +44,10 @@ const trackTween = (target: any, vars: any) => {
   return animationManager.trackExternalTween(origTo(target, vars));
 };
 
+const trackFromToTween = (target: any, fromVars: any, toVars: any) => (
+  animationManager.trackExternalTween(gsap.fromTo(target, fromVars, toVars))
+);
+
 function shouldSkipDetailModalGameAssetPreload(): boolean {
   try {
     const lastGameExitAt = Number((window as any).__ccLastGameExitAt || 0);
@@ -785,11 +789,15 @@ class JourneyBoardsManager {
         try {
           gsap.set(target, {
             scale: 1,
+            opacity: 1,
+            visibility: 'visible',
             x: 0,
             y: 0,
             clearProps: 'scale,x,y',
             overwrite: true,
           });
+          target.style.opacity = '1';
+          target.style.visibility = 'visible';
         } catch {}
       });
 
@@ -880,6 +888,12 @@ class JourneyBoardsManager {
       }
 
       liveTargets.forEach((target) => {
+        if (target.classList.contains('journey-board-card-wrapper')) {
+          restoreJourneyBoardCardBaseTransform(target);
+        } else {
+          target.style.opacity = '1';
+          target.style.visibility = 'visible';
+        }
         target.classList.add('journey-area-idle-target');
         target.dataset.journeyAreaId = areaId;
         target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
@@ -1262,13 +1276,15 @@ class JourneyBoardsManager {
         target: item.target,
         enterOrder: item.enterOrder,
         exitOrder,
-        enterDelay: BOARD_AREA_MODAL_ENTER_BASE_DELAY + (item.enterOrder * BOARD_AREA_MODAL_STAGGER),
+        enterDelay: item.role === 'star'
+          ? BOARD_AREA_MODAL_ENTER_BASE_DELAY + (Math.max(0, liveItems.length - 2) * BOARD_AREA_MODAL_STAGGER)
+          : BOARD_AREA_MODAL_ENTER_BASE_DELAY + (item.enterOrder * BOARD_AREA_MODAL_STAGGER),
         exitDelay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (exitOrder * BOARD_AREA_MODAL_STAGGER),
-        enterDuration: BOARD_AREA_MODAL_ENTER_DURATION,
+        enterDuration: item.role === 'star' ? BOARD_AREA_MODAL_EXIT_DURATION : BOARD_AREA_MODAL_ENTER_DURATION,
         exitDuration: BOARD_AREA_MODAL_EXIT_DURATION,
-        fromScale: BOARD_AREA_MODAL_ENTER_SCALE,
+        fromScale: item.role === 'star' ? BOARD_AREA_MODAL_EXIT_MIN_SCALE : BOARD_AREA_MODAL_ENTER_SCALE,
         exitEase: BOARD_AREA_MODAL_EXIT_EASE,
-        enterEase: BOARD_AREA_MODAL_ENTER_EASE,
+        enterEase: item.role === 'star' ? 'back.out(1.25)' : BOARD_AREA_MODAL_ENTER_EASE,
       };
     });
   }
@@ -1515,20 +1531,27 @@ class JourneyBoardsManager {
           });
         }
 
-        trackTween(animTarget, {
+        const enterTweenVars = {
           scale: 1,
           opacity: 1,
-          visibility: 'visible',
           duration: item.enterDuration,
           ease: item.enterEase,
           delay: item.enterDelay,
           force3D: true,
           overwrite: true,
           onStart: () => {
+            if (target.classList.contains('journey-board-card-wrapper')) {
+              restoreJourneyBoardCardBaseTransform(target);
+            }
             target.style.visibility = 'visible';
-            target.style.opacity = visualTarget === target ? '0' : '1';
+            if (item.role !== 'star') {
+              target.style.opacity = visualTarget === target ? '0' : '1';
+            }
           },
           onComplete: () => {
+            if (target.classList.contains('journey-board-card-wrapper')) {
+              restoreJourneyBoardCardBaseTransform(target);
+            }
             target.style.visibility = 'visible';
             target.style.opacity = '1';
             if (visualTarget !== target) {
@@ -1556,7 +1579,22 @@ class JourneyBoardsManager {
             });
             finishOne();
           },
-        });
+        };
+
+        if (item.role === 'star') {
+          trackFromToTween(animTarget, {
+            scale: item.fromScale,
+            opacity: 0,
+            visibility: 'visible',
+            transformOrigin: 'center center',
+            immediateRender: true,
+          }, enterTweenVars);
+        } else {
+          trackTween(animTarget, {
+            ...enterTweenVars,
+            visibility: 'visible',
+          });
+        }
       });
 
     } catch (error) {

@@ -71,6 +71,31 @@ test('moves depleted but merge possible returns continue', () => {
   expect(result.reason).toBe('merges_possible');
 });
 
+test('reported post-TNT board with 5, 3, and 2 continues because 3+2 is playable', () => {
+  const tiles = [
+    makeTile({ value: 5, stackDepth: 1, gridX: 1, gridY: 1 }),
+    makeTile({ value: 3, stackDepth: 1, gridX: 2, gridY: 1 }),
+    makeTile({ value: 2, stackDepth: 1, gridX: 3, gridY: 1 }),
+  ];
+  const context: EndGameContext = {
+    tiles,
+    moves: 0,
+    makeBoard: {
+      anyMergePossible: (allTiles: any[]) => {
+        const active = allTiles.filter((tile) => tile && !tile.destroyed && !tile.locked && tile.visible !== false);
+        return active.some((a, index) => active.some((b, otherIndex) => {
+          if (otherIndex <= index) return false;
+          const av = a.value | 0;
+          const bv = b.value | 0;
+          return av > 0 && bv > 0 && av + bv <= 6;
+        }));
+      },
+    },
+  };
+
+  expect(checkEndGame(context, true)).toEqual({ type: 'continue', reason: 'merges_possible' });
+});
+
 test('wild + merge6 allows continue', () => {
   const tiles = [
     makeTile({ value: 6 }),
