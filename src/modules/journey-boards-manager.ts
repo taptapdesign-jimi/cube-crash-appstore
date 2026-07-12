@@ -442,6 +442,9 @@ const BOARD_AREA_MODAL_EXIT_EASE = 'back.in(1.25)';
 const BOARD_AREA_MODAL_EXIT_BASE_DELAY = 0;
 const BOARD_AREA_MODAL_STAGGER = 0.05;
 const BOARD_AREA_MODAL_EXIT_MIN_SCALE = 0.04;
+const BOARD_AREA_CARD_TAP_PUNCH_SCALE = 1.12;
+const BOARD_AREA_CARD_TAP_PUNCH_DURATION = 0.14;
+const BOARD_AREA_CARD_TAP_PUNCH_EASE = 'back.out(2.4)';
 const BOARD_AREA_VIEWPORT_EXIT_OVERLAP_DELAY_MS = 120;
 const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
@@ -682,7 +685,14 @@ class JourneyBoardsManager {
       idleTargets.forEach((target) => {
         const el = target as HTMLElement;
         if ((el as any).__ccJourneyToGameExitTween) return;
-        try { gsap.killTweensOf(el); } catch {}
+        const isActiveInterimWrapper = this.isInterimCardWrapper(el) && (el as any)._interimBounceActive;
+        try {
+          if (isActiveInterimWrapper) {
+            gsap.killTweensOf(el, 'x,y');
+          } else {
+            gsap.killTweensOf(el);
+          }
+        } catch {}
         el.classList.remove('journey-area-idle-target');
         if (el.classList.contains('journey-robo-alien-beam-art')) {
           try { gsap.set(el, { clearProps: 'opacity' }); } catch {}
@@ -752,6 +762,11 @@ class JourneyBoardsManager {
   private getJourneyBoardCardVisualTarget(target: HTMLElement): HTMLElement {
     if (!target.classList.contains('journey-board-card-wrapper')) return target;
     return (target.querySelector('.journey-board-card') as HTMLElement | null) || target;
+  }
+
+  private isInterimCardWrapper(target: HTMLElement): boolean {
+    return target.classList.contains('journey-board-card-wrapper') &&
+      !!target.querySelector('.journey-board-card.interim');
   }
 
   private prepareJourneyBoardCardVisualTarget(target: HTMLElement): HTMLElement {
@@ -1022,6 +1037,8 @@ class JourneyBoardsManager {
         delay: randomInRange(0.08, 0.72),
       });
     });
+
+    this.startVisibleInterimCardIdleEffects(cardsContainer);
   }
 
   private scheduleJourneyAreaIdleAnimations(cardsContainer: HTMLElement, delayMs: number): void {
@@ -3094,7 +3111,86 @@ class JourneyBoardsManager {
           }
 
           const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
-          const animTarget = visualTarget;
+          const isCardExit = item.role === 'card';
+          const animTarget = isCardExit ? target : visualTarget;
+          const sourceCard = isCardExit ? this.getJourneyBoardCardVisualTarget(target) : null;
+
+          const completeExit = () => {
+            logger.info('🧭 JourneyForestAnim active-exit-item-complete', {
+              boardId,
+              role: item.role,
+              exitOrder: item.exitOrder,
+              className: target.className,
+            });
+            finishExitTarget(target);
+          };
+          const interruptExit = () => {
+            logger.warn('🧭 JourneyForestAnim active-exit-item-interrupt', {
+              boardId,
+              role: item.role,
+              exitOrder: item.exitOrder,
+              className: target.className,
+              scale: Number(gsap.getProperty(animTarget, 'scale') || 0),
+              opacity: Number(gsap.getProperty(animTarget, 'opacity') || 0),
+            });
+            // Interrupts are usually caused by cleanup or a competing tween. Complete the
+            // visual exit state before resolving so the board transition cannot cut mid-motion.
+            try {
+              gsap.set(animTarget, {
+                scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
+                opacity: 0,
+                visibility: 'hidden',
+                overwrite: true,
+              });
+            } catch {}
+            finishExitTarget(target);
+          };
+
+          if (isCardExit) {
+            const exitTimeline = trackTimeline({
+              delay: item.exitDelay,
+              onComplete: completeExit,
+              onInterrupt: interruptExit,
+            });
+            exitTimeline.to(animTarget, {
+              scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
+              opacity: 1,
+              duration: BOARD_AREA_CARD_TAP_PUNCH_DURATION,
+              ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
+              force3D: true,
+              overwrite: true,
+              transformOrigin: '50% 50%',
+              onStart: () => {
+                if (sourceCard && sourceCard.parentElement) {
+                  try {
+                    smokeBubblesAtCard(sourceCard, {
+                      sizeScale: 0.52,
+                      distanceScale: 0.52,
+                      countScale: 0.28,
+                      haloScale: 0.5,
+                      strength: 1.7,
+                      trailAlpha: 0.86,
+                      baseAlpha: 0.86,
+                      allowOverlap: true,
+                      activeLockMs: 120,
+                      fadeOutTime: 0.58,
+                      cleanupTime: 1.08,
+                    });
+                  } catch {}
+                }
+              },
+            });
+            exitTimeline.to(animTarget, {
+              scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
+              opacity: 0,
+              duration: item.exitDuration,
+              ease: item.exitEase,
+              force3D: true,
+              overwrite: true,
+              transformOrigin: '50% 50%',
+            });
+            return;
+          }
 
           trackTween(animTarget, {
             scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
@@ -3104,36 +3200,8 @@ class JourneyBoardsManager {
             delay: item.exitDelay,
             force3D: true,
             overwrite: true,
-            onComplete: () => {
-              logger.info('🧭 JourneyForestAnim active-exit-item-complete', {
-                boardId,
-                role: item.role,
-                exitOrder: item.exitOrder,
-                className: target.className,
-              });
-              finishExitTarget(target);
-            },
-            onInterrupt: () => {
-              logger.warn('🧭 JourneyForestAnim active-exit-item-interrupt', {
-                boardId,
-                role: item.role,
-                exitOrder: item.exitOrder,
-                className: target.className,
-                scale: Number(gsap.getProperty(target, 'scale') || 0),
-                opacity: Number(gsap.getProperty(target, 'opacity') || 0),
-              });
-              // Interrupts are usually caused by cleanup or a competing tween. Complete the
-              // visual exit state before resolving so the board transition cannot cut mid-motion.
-              try {
-                gsap.set(animTarget, {
-                  scale: BOARD_AREA_MODAL_EXIT_MIN_SCALE,
-                  opacity: 0,
-                  visibility: 'hidden',
-                  overwrite: true,
-                });
-              } catch {}
-              finishExitTarget(target);
-            },
+            onComplete: completeExit,
+            onInterrupt: interruptExit,
           });
         });
 
@@ -3142,6 +3210,200 @@ class JourneyBoardsManager {
         resolve();
       }
     });
+  }
+
+  private animateInterimAreaExitBeforeJourney(boardId: number, onJourneyExitLinked?: () => void): Promise<void> {
+    return new Promise((resolve) => {
+      try {
+        logger.info('🧪 JourneyInterimFX exit-start', { boardId });
+        const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+        const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+        const stump = document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null;
+        const stars = Array.from(
+          document.querySelectorAll(`.journey-forest-star-board-${boardId}`)
+        ) as HTMLElement[];
+        const clouds = Array.from(
+          document.querySelectorAll(`.journey-forest-cloud-board-${boardId}`)
+        ) as HTMLElement[];
+        const island = document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null;
+
+        this.cleanupJourneyAreaIdleAnimations(false);
+
+        const cardPunchDuration = BOARD_AREA_CARD_TAP_PUNCH_DURATION;
+        const cardShrinkDuration = 0.46;
+        const cardTotalDuration = cardPunchDuration + cardShrinkDuration;
+        const forestExitSpeedFactor = 0.65;
+        const stumpExitDuration = 0.17 * forestExitSpeedFactor;
+        const starsExitDuration = 0.16 * forestExitSpeedFactor;
+        const cloudExitDuration = 0.22 * forestExitSpeedFactor;
+        const islandExitDuration = (0.17 * forestExitSpeedFactor * 1.5) + 0.2;
+        const stumpExitAt = 0.04;
+        const cloudsExitAt = 0.12;
+        const starsExitAt = Math.max(0.42, cardPunchDuration + 0.16);
+        const islandExitAt = Math.max(starsExitAt + 0.08, cardTotalDuration - 0.16);
+        const journeyExitAt = islandExitAt;
+
+        const groups: Array<{ targets: HTMLElement[]; at: number; duration: number; ease?: string }> = [
+          { targets: stump ? [stump] : [], at: stumpExitAt, duration: stumpExitDuration, ease: 'back.in(2.5)' },
+          { targets: clouds, at: cloudsExitAt, duration: cloudExitDuration, ease: 'back.in(2.1)' },
+          { targets: stars, at: starsExitAt, duration: starsExitDuration, ease: 'back.in(2.7)' },
+          { targets: island ? [island] : [], at: islandExitAt, duration: islandExitDuration, ease: 'back.in(2.9)' },
+        ];
+
+        const timelineTargets = Array.from(new Set([
+          ...(cardWrapper ? [cardWrapper] : []),
+          ...groups.flatMap((group) => group.targets),
+        ])).filter((target) => target && document.body.contains(target));
+
+        if (!timelineTargets.length) {
+          onJourneyExitLinked?.();
+          resolve();
+          return;
+        }
+
+        const initialState = new WeakMap<HTMLElement, { scale: number; opacity: number }>();
+        timelineTargets.forEach((target) => {
+          try { gsap.killTweensOf(target); } catch {}
+          rememberJourneyBoardCardBaseTransform(target);
+          (target as any).__ccJourneyToGameExitTween = true;
+          initialState.set(target, {
+            scale: Number(gsap.getProperty(target, 'scale')) || 1,
+            opacity: Number(gsap.getProperty(target, 'opacity')) || 1,
+          });
+          target.style.transformOrigin = '50% 50%';
+          target.style.willChange = 'transform, opacity';
+          target.style.pointerEvents = 'none';
+          target.style.visibility = 'visible';
+        });
+
+        const cleanupTargets = () => {
+          timelineTargets.forEach((target) => {
+            try {
+              delete (target as any).__ccJourneyToGameExitTween;
+              target.style.willChange = 'auto';
+              target.style.pointerEvents = '';
+            } catch {}
+          });
+        };
+
+        const timeline = trackTimeline({
+          defaults: {
+            force3D: true,
+            overwrite: 'auto',
+            transformOrigin: '50% 50%',
+          },
+          onComplete: () => {
+            cleanupTargets();
+            logger.info('🧪 JourneyInterimFX exit-complete', { boardId });
+            resolve();
+          },
+          onInterrupt: () => {
+            cleanupTargets();
+            logger.warn('🧪 JourneyInterimFX exit-interrupt', { boardId });
+            resolve();
+          },
+        });
+
+        if (cardWrapper && document.body.contains(cardWrapper)) {
+          timeline.to(cardWrapper, {
+            scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
+            opacity: 1,
+            duration: cardPunchDuration,
+            ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
+            immediateRender: false,
+            onStart: () => {
+              if (card && card.parentElement) {
+                try {
+                  smokeBubblesAtCard(card, {
+                    sizeScale: 0.62,
+                    distanceScale: 0.62,
+                    countScale: 0.42,
+                    haloScale: 0.62,
+                    strength: 2.0,
+                    trailAlpha: 0.92,
+                    baseAlpha: 0.92,
+                    allowOverlap: true,
+                    activeLockMs: 180,
+                    fadeOutTime: 0.72,
+                    cleanupTime: 1.25,
+                  });
+                } catch {}
+              }
+            },
+          }, 0);
+          timeline.to(cardWrapper, {
+            scale: 0,
+            opacity: 0,
+            duration: cardShrinkDuration,
+            ease: 'back.in(1.7)',
+            immediateRender: false,
+          }, cardPunchDuration);
+        }
+
+        groups.forEach((group) => {
+          const liveTargets = group.targets.filter((target) => target && document.body.contains(target));
+          if (!liveTargets.length) return;
+          timeline.fromTo(liveTargets, {
+            scale: (index: number, target: HTMLElement) => initialState.get(target)?.scale ?? 1,
+            opacity: (index: number, target: HTMLElement) => initialState.get(target)?.opacity ?? 1,
+          }, {
+            scale: 0,
+            opacity: 0,
+            duration: group.duration,
+            ease: group.ease || 'back.in(2.5)',
+            immediateRender: group.at === 0,
+          }, group.at);
+        });
+
+        timeline.call(() => {
+          logger.info('🧪 JourneyInterimFX linked-journey-exit', { boardId, journeyExitAt });
+          onJourneyExitLinked?.();
+        }, undefined, journeyExitAt);
+      } catch (error) {
+        logger.warn('⚠️ Failed to animate interim area exit before Journey exit:', error);
+        onJourneyExitLinked?.();
+        resolve();
+      }
+    });
+  }
+
+  private startInterimAreaThenJourneyExit(boardId: number): Promise<void> {
+    if (this.journeyExitPromise) {
+      logger.warn('🧪 JourneyInterimFX exit-skip-existing-promise', { boardId });
+      return this.journeyExitPromise;
+    }
+
+    this.setLastActiveJourneyBoardAreaId(boardId);
+    this.activeBoardAreaEnterPreparedTargets = [];
+    this.journeyToGameExitActive = true;
+    this.journeyToGameExitBoardId = boardId;
+    lockJourneyViewportTransition(`journey-interim-area-exit-${boardId}`);
+
+    this.journeyExitPromise = (async () => {
+      let journeyStarted = false;
+      let linkedJourneyExitPromise: Promise<void> | null = null;
+      const startLinkedJourneyExit = () => {
+        if (journeyStarted) return;
+        journeyStarted = true;
+        linkedJourneyExitPromise = this.startJourneyExitAnimation();
+      };
+
+      try {
+        await this.animateInterimAreaExitBeforeJourney(boardId, startLinkedJourneyExit);
+        startLinkedJourneyExit();
+        if (linkedJourneyExitPromise) {
+          await linkedJourneyExitPromise;
+        }
+        logger.info('🧪 JourneyInterimFX flow-complete', { boardId });
+      } finally {
+        this.journeyExitPromise = null;
+        this.journeyViewportExitPromise = null;
+        this.journeyToGameExitActive = false;
+        this.journeyToGameExitBoardId = null;
+      }
+    })();
+
+    return this.journeyExitPromise;
   }
 
   private startBoardAreaThenJourneyExit(boardId: number): Promise<void> {
@@ -3263,7 +3525,8 @@ class JourneyBoardsManager {
       return;
     }
 
-    // Get card wrapper (has the transform/rotation)
+    // Get card wrapper for lifecycle flags; animate the card itself so Journey
+    // area-idle y/x tickers on the wrapper cannot cancel the interim bounce.
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
     
@@ -3273,29 +3536,19 @@ class JourneyBoardsManager {
       return;
     }
     
-    rememberJourneyBoardCardBaseTransform(cardWrapper);
-
     // Stop any existing bounce animation (safety check)
     this.stopInterimBounce(card);
-    restoreJourneyBoardCardBaseTransform(cardWrapper);
-
-    // Use the locked Journey card base transform, never a temporary GSAP scale/y state.
-    const transform = getJourneyBoardCardBaseTransform(cardWrapper) || cardWrapper.style.transform || '';
-    const originalRotation = getJourneyBoardCardBaseRotationDegrees(cardWrapper);
     
-    // 🔥 iPad FIX: Detect iPad and adjust scale values to account for existing scale(1.76)
-    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
-    const baseTransformScale = getJourneyBoardCardBaseScale(cardWrapper);
-    const originalScale = baseTransformScale || (isIPad ? 1.76 : 1); // Default scale based on device (1.76 for iPad, 1 for others)
-    
-    // Animation parameters (similar to journey-card-idle-bounce.ts)
-    const baseScale = originalScale; // Use detected scale (1.76 for iPad, 1 for others)
-    const scaleUp = originalScale * 1.05; // Scale up by 5% from base (2 -> 2.1 for iPad, 1 -> 1.05 for others)
+    const baseScale = 1;
+    const scaleUp = 1.08;
     const tiltDegrees = 2.5;
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
-    
-    // Store only the normalized base transform used by cleanup/restore.
-    setJourneyBoardCardBaseTransform(cardWrapper, transform || cardWrapper.style.transform || '');
+    if ((card as any)._interimBounceInlineTransition === undefined) {
+      (card as any)._interimBounceInlineTransition = card.style.transition || '';
+    }
+    card.style.transition = 'none';
+    card.style.transformOrigin = '50% 50%';
+    card.style.willChange = 'transform';
     
     // Create continuous bounce animation
     const animateBounce = () => {
@@ -3310,15 +3563,15 @@ class JourneyBoardsManager {
         return;
       }
       
-      // Kill any existing animation
-      gsap.killTweensOf(cardWrapper, 'scale,rotation');
+      // Kill only this card's interim bounce components.
+      gsap.killTweensOf(card, 'scale,rotation');
       
       // logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
       
       // Phase 1: Scale up with rotation - fast 0.1s (original speed)
-      trackTween(cardWrapper, {
+      trackTween(card, {
         scale: scaleUp,
-        rotation: originalRotation + tiltDegrees * tiltDirection,
+        rotation: tiltDegrees * tiltDirection,
         duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
         ease: 'power2.out',
         transformOrigin: 'center center',
@@ -3358,9 +3611,9 @@ class JourneyBoardsManager {
           }
           
           // Phase 2: Return to scale and rotation - fast 0.1s (original speed)
-          trackTween(cardWrapper, {
+          trackTween(card, {
             scale: baseScale,
-            rotation: originalRotation,
+            rotation: 0,
             duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
             ease: 'power2.in',
             transformOrigin: 'center center',
@@ -3370,8 +3623,6 @@ class JourneyBoardsManager {
                 logger.warn('⚠️ Bounce stopped during animation, not scheduling next bounce');
                 return;
               }
-              
-              restoreJourneyBoardCardBaseTransform(cardWrapper);
               
               // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
               if ((cardWrapper as any)._bounceTimeout) {
@@ -3407,12 +3658,28 @@ class JourneyBoardsManager {
   /**
    * 🔥 USER REQUEST: Stop bounce animation on interim card
    */
-  private stopInterimBounce(card: HTMLElement): void {
+  private stopInterimBounce(card: HTMLElement, opts: { restoreBase?: boolean } = {}): void {
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
     
     // Kill GSAP animations
-    gsap.killTweensOf(cardWrapper, 'scale,rotation');
+    gsap.killTweensOf(card, 'scale,rotation');
+    if (opts.restoreBase !== false) {
+      try {
+        gsap.set(card, {
+          scale: 1,
+          rotation: 0,
+          clearProps: 'transform',
+          overwrite: true,
+        });
+      } catch {}
+      card.style.willChange = '';
+      const previousTransition = (card as any)._interimBounceInlineTransition;
+      if (previousTransition !== undefined) {
+        card.style.transition = previousTransition;
+        delete (card as any)._interimBounceInlineTransition;
+      }
+    }
     
     // Clear timeout
     if ((cardWrapper as any)._bounceTimeout) {
@@ -3420,9 +3687,34 @@ class JourneyBoardsManager {
       delete (cardWrapper as any)._bounceTimeout;
     }
     
-    restoreJourneyBoardCardBaseTransform(cardWrapper);
+    if (opts.restoreBase !== false) {
+      try { gsap.killTweensOf(cardWrapper, 'scale,rotation'); } catch {}
+      restoreJourneyBoardCardBaseTransform(cardWrapper);
+    }
     
     delete (cardWrapper as any)._interimBounceActive;
+  }
+
+  private startVisibleInterimCardIdleEffects(root: ParentNode = document): void {
+    if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS || this.renderDisposed) return;
+
+    try {
+      const interimCards = root.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
+      interimCards.forEach((interimCard) => {
+        const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
+        if (!cardWrapper || !document.body.contains(cardWrapper)) return;
+        if ((cardWrapper as any).__ccJourneyToGameExitTween || (interimCard as any)._openingGame) return;
+        if ((cardWrapper as any)._interimBounceActive) return;
+        this.startInterimBounce(interimCard);
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to start visible interim idle effects:', error);
+    }
+  }
+
+  public startInterimIdleEffectsAfterReveal(reason: string): void {
+    logger.info('🧪 JourneyInterimFX idle-start-after-reveal', { reason });
+    this.startGlowPulse();
   }
 
   /**
@@ -3440,26 +3732,20 @@ class JourneyBoardsManager {
       return;
     }
 
-    // Keep the existing pulse alive across repeated render/show calls.
+    // Keep the existing pulse alive across repeated render/show calls, but bind
+    // bounce/smoke to any newly rendered interim card after Journey DOM refreshes.
     if (this.glowPulseInterval !== null) {
+      this.startVisibleInterimCardIdleEffects(document);
       return;
     }
     
+    this.startVisibleInterimCardIdleEffects(document);
+
     // Find interim card
     const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
     if (!interimCard) {
       logger.warn('⚠️ No interim card found for glow pulse');
       return; // No interim card found
-    }
-    
-    // 🔥 CRITICAL FIX: Check if bounce is already active on this card before starting
-    const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
-    if (cardWrapper && (cardWrapper as any)._interimBounceActive) {
-      logger.warn('⚠️ Interim bounce already active on card, skipping duplicate start');
-    } else {
-      // 🔥 USER REQUEST: Start independent bounce animation (continuous, independent from other cards)
-      // Smoke bubbles are triggered DURING bounce animation (at 0.3s peak), not independently
-      this.startInterimBounce(interimCard);
     }
     
     // 🔥 FIXED: Simplified interval that reliably triggers shimmer and glow every 3 seconds
@@ -4499,8 +4785,9 @@ class JourneyBoardsManager {
       // Add scroll and touch listeners (these don't interfere with enter animation)
       this.setupIdleInteractionListeners();
       
-      // 🔥 USER REQUEST: Start continuous glow pulse on interim card (non-animated, doesn't interfere)
-      this.startGlowPulse();
+      // Interim idle FX are started after the Journey reveal animation in
+      // collectibles-manager. Starting here is too early because pre-reveal
+      // cleanup kills card visual tweens.
       
       // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
       // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
@@ -4591,6 +4878,11 @@ class JourneyBoardsManager {
     if (cardsContainer) {
       const touchHandler = (event?: Event) => {
         notifyThrottled();
+        const eventTarget = event?.target as HTMLElement | null;
+        const isInterimTapSurface = !!eventTarget?.closest?.('.journey-board-card.interim, .journey-interim-area-hit-target');
+        if (event?.type === 'touchstart' && isInterimTapSurface) {
+          return;
+        }
         this.pauseJourneyAreaIdleForInteraction(event?.type === 'touchmove' ? 850 : 650);
         if (event?.type === 'touchmove' && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
@@ -5147,15 +5439,11 @@ class JourneyBoardsManager {
             (window as any).triggerHapticImpact('light');
           }
 
-          // Stop interim bounce/smoke so the real area exit owns the motion cleanly.
-          try { this.stopInterimBounce(cardEl); } catch {}
-          try {
-            if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
-              JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects(cardEl);
-            }
-          } catch {}
+          // Stop only the repeating idle loop. Preserve the current visual state
+          // and smoke long enough for the board-area tap exit to own the bounce-out.
+          try { this.stopInterimBounce(cardEl, { restoreBase: false }); } catch {}
 
-          const journeyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
+          const journeyExitPromise = this.startInterimAreaThenJourneyExit(board.id);
           logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
           this.continueFromInterimBoard(board, journeyExitPromise)
             .catch((error) => {
@@ -5167,7 +5455,7 @@ class JourneyBoardsManager {
         } catch (error) {
           (cardEl as any)._openingGame = false;
           logger.warn('⚠️ Interim card tap animation failed, continuing game immediately:', error);
-          const fallbackExitPromise = this.startBoardAreaThenJourneyExit(board.id);
+          const fallbackExitPromise = this.startInterimAreaThenJourneyExit(board.id);
           this.continueFromInterimBoard(board, fallbackExitPromise).catch((err) => {
             logger.error('❌ Failed to continue from interim board:', err);
           });
@@ -5328,12 +5616,11 @@ class JourneyBoardsManager {
         logger.info('✅ Journey card idle bounce stopped');
       }
       
-      // 🔥 CRITICAL FIX: Play Journey screen exit animation BEFORE starting game
-      // This ensures user sees smooth transition and board game animations have proper timing
-      logger.info('🎬 Starting Journey screen exit animation...');
-      lockJourneyViewportTransition(`journey-board-tap-${boardId}`);
-      await animateJourneyViewportScreenExit(`journey-board-tap-${boardId}`);
-      logger.info('✅ Journey viewport exit animation completed');
+      // Play the same local board-area/card pop-out used by modal/interim flows,
+      // then let the locked Journey viewport exit run underneath it.
+      logger.info('🎬 Starting Journey board-area exit animation...');
+      await this.startBoardAreaThenJourneyExit(boardId);
+      logger.info('✅ Journey board-area exit animation completed');
       
       // 🔥 CRITICAL FIX: Hide Journey UI BEFORE starting game (cleanup)
       this.hideHomeAndJourneyScreens('before game start');

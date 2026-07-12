@@ -1183,8 +1183,16 @@ class CollectiblesManager {
                   delete (window as any).__ccJourneyActiveAreaEnterPending;
                 } catch {}
                 activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
+                activeJourneyBoardsManager.startInterimIdleEffectsAfterReveal?.('fallback-revealed-active-enter');
               }).catch((error) => {
                 logger.warn('⚠️ Failed to restore active Journey board area after fallback reveal:', String(error));
+              });
+            } else if (journeyContainer) {
+              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+                const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
+                activeJourneyBoardsManager.startInterimIdleEffectsAfterReveal?.('fallback-revealed-no-active-enter');
+              }).catch((error) => {
+                logger.warn('⚠️ Failed to start interim Journey FX after fallback reveal:', String(error));
               });
             }
             return;
@@ -1241,6 +1249,7 @@ class CollectiblesManager {
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-complete-fallback');
                   }
+                  activeJourneyBoardsManager.startInterimIdleEffectsAfterReveal?.('viewport-enter-complete');
                 }).catch((error) => {
                   logger.warn('⚠️ Journey viewport enter completion failed:', String(error));
                   if (!shouldPlayActiveBoardAreaEnter) {
@@ -1249,6 +1258,7 @@ class CollectiblesManager {
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-error-fallback');
                   }
+                  activeJourneyBoardsManager.startInterimIdleEffectsAfterReveal?.('viewport-enter-error-fallback');
                 });
               }).catch((error) => {
                 animateCollectiblesScreenEnter();
