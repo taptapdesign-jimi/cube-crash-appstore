@@ -2126,11 +2126,8 @@
     /* 🔥 iPhone FIX: Higher z-index for visibility */
     z-index: 100 !important;
     position: relative !important;
-    /* 🔥 iPhone FIX: Ensure filter is applied with will-change */
-    will-change: filter !important;
-    /* 🔥 iPhone FIX: Force hardware acceleration */
-    transform: translateZ(0) !important;
-    -webkit-transform: translateZ(0) !important;
+    /* Keep transform free for the JS interim bounce loop. */
+    will-change: filter, transform !important;
     /* 🔥 iPhone FIX: Remove transition during animation */
     transition: none !important;
     /* 🔥 iPhone FIX: Isolation for better rendering */

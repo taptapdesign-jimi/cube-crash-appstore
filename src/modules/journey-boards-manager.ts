@@ -3632,110 +3632,81 @@ class JourneyBoardsManager {
       (card as any)._interimBounceInlineTransition = card.style.transition || '';
     }
     card.style.transition = 'none';
+    card.style.animation = '';
+    card.style.animationPlayState = '';
     card.style.transformOrigin = '50% 50%';
     card.style.willChange = 'transform';
     
-    // Create continuous bounce animation
-    const animateBounce = () => {
+    const triggerInterimSmoke = () => {
       if (this.renderDisposed || !card.parentElement) {
         this.stopInterimBounce(card);
         return;
       }
-      
-      // 🔥 CRITICAL FIX: Double-check that bounce is still active (prevent race conditions)
+
       if (!(cardWrapper as any)._interimBounceActive) {
-        logger.warn('⚠️ Bounce animation stopped externally, aborting animateBounce');
+        logger.debug('ℹ️ Bounce stopped before smoke trigger during teardown, skipping smoke');
         return;
       }
-      
-      // Kill only this card's interim bounce components.
-      gsap.killTweensOf(card, 'scale,rotation');
-      
-      // logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
-      
-      // Phase 1: Scale up with rotation - fast 0.1s (original speed)
-      trackTween(card, {
-        scale: scaleUp,
-        rotation: tiltDegrees * tiltDirection,
-        duration: 0.12, // 🔥 USER REQUEST: Fast, visible interim jump
-        ease: 'back.out(2.2)',
-        transformOrigin: 'center center',
-        onComplete: () => {
-          // 🔥 USER REQUEST: Trigger smoke bubbles at peak of bounce animation (at 0.1s peak)
-          if (card && card.parentElement) {
-            // 🔥 CRITICAL FIX: Check if bounce is still active before triggering smoke
-            if (!(cardWrapper as any)._interimBounceActive) {
-              // Expected during fast teardown/slide exits; avoid noisy warning.
-              logger.debug('ℹ️ Bounce stopped before smoke trigger during teardown, skipping smoke');
-              return;
-            }
-            
-            const activeSmokeContainers = Array.isArray((card as any)._overlapSmokeContainers)
-              ? (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container && !(container as any)._cleanedUp && container.parentNode)
-              : [];
-            (card as any)._overlapSmokeContainers = activeSmokeContainers;
-            if (activeSmokeContainers.length > 3) {
-              try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
-            }
 
-            // logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
-            const randomAlpha = 0.8 + Math.random() * 0.2; // Random between 0.8 and 1.0
-            smokeBubblesAtCard(card, {
-              sizeScale: 0.68, // Stronger cloud behind interim card
-              distanceScale: 0.68, // Wider cloud spread behind interim card
-              countScale: 0.48, // Visible cloud without overloading mobile
-              haloScale: 0.68, // Better halo
-              strength: 2.2 + Math.random() * 0.8, // Stronger cloud pop
-              trailAlpha: randomAlpha, // Random alpha for trail/plume (0.8-1.0)
-              baseAlpha: randomAlpha, // Random alpha for base smoke particles (0.8-1.0)
-              allowOverlap: true,
-              activeLockMs: 120,
-              fadeOutTime: 0.62,
-              cleanupTime: 1.15
-            });
-          }
-          
-          // Phase 2: Return to scale and rotation - fast 0.1s (original speed)
-          trackTween(card, {
-            scale: baseScale,
-            rotation: 0,
-            duration: 0.12, // 🔥 USER REQUEST: Fast, visible interim jump
-            ease: 'back.in(1.35)',
-            transformOrigin: 'center center',
-            onComplete: () => {
-              // 🔥 CRITICAL FIX: Check if bounce is still active before scheduling next bounce
-              if (!(cardWrapper as any)._interimBounceActive || this.renderDisposed || !card.parentElement) {
-                logger.warn('⚠️ Bounce stopped during animation, not scheduling next bounce');
-                return;
-              }
-              
-              // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
-              if ((cardWrapper as any)._bounceTimeout) {
-                clearTimeout((cardWrapper as any)._bounceTimeout);
-                (cardWrapper as any)._bounceTimeout = null;
-              }
-              
-              // Fixed 0.400s gap between bounce cycles.
-              const nextBounceDelay = 400;
-              logger.debug(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
-              (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, nextBounceDelay);
-            }
-          });
-        }
+      const activeSmokeContainers = Array.isArray((card as any)._overlapSmokeContainers)
+        ? (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container && !(container as any)._cleanedUp && container.parentNode)
+        : [];
+      (card as any)._overlapSmokeContainers = activeSmokeContainers;
+      if (activeSmokeContainers.length > 3) {
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+      }
+
+      const randomAlpha = 0.8 + Math.random() * 0.2;
+      smokeBubblesAtCard(card, {
+        sizeScale: 0.68,
+        distanceScale: 0.68,
+        countScale: 0.48,
+        haloScale: 0.68,
+        strength: 2.2 + Math.random() * 0.8,
+        trailAlpha: randomAlpha,
+        baseAlpha: randomAlpha,
+        allowOverlap: true,
+        activeLockMs: 120,
+        fadeOutTime: 0.62,
+        cleanupTime: 1.15
       });
     };
-    
-    // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
+
     if ((cardWrapper as any)._bounceTimeout) {
       clearTimeout((cardWrapper as any)._bounceTimeout);
       (cardWrapper as any)._bounceTimeout = null;
     }
-    
-    // Start first bounce after a short delay.
-    (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, 250);
-    
-    // Store reference for cleanup
+
     (cardWrapper as any)._interimBounceActive = true;
+    const bounceTimeline = trackTimeline({
+      delay: 0.12,
+      repeat: -1,
+      repeatDelay: 0.4,
+      defaults: {
+        transformOrigin: 'center center',
+        force3D: true,
+      },
+      onRepeat: () => {
+        if (this.renderDisposed || !card.parentElement || !(cardWrapper as any)._interimBounceActive) {
+          this.stopInterimBounce(card);
+        }
+      },
+    });
+    bounceTimeline
+      .to(card, {
+        scale: scaleUp,
+        rotation: tiltDegrees * tiltDirection,
+        duration: 0.12,
+        ease: 'back.out(2.2)',
+        onComplete: triggerInterimSmoke,
+      })
+      .to(card, {
+        scale: baseScale,
+        rotation: 0,
+        duration: 0.12,
+        ease: 'back.in(1.35)',
+      });
+    (cardWrapper as any)._interimBounceTimeline = bounceTimeline;
     
     logger.debug('💚 Started interim bounce animation on card');
   }
@@ -3747,6 +3718,12 @@ class JourneyBoardsManager {
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
     
+    const timeline = (cardWrapper as any)._interimBounceTimeline;
+    if (timeline) {
+      try { timeline.kill(); } catch {}
+      delete (cardWrapper as any)._interimBounceTimeline;
+    }
+
     // Kill GSAP animations
     gsap.killTweensOf(card, 'scale,rotation');
     if (opts.restoreBase !== false) {
@@ -3789,7 +3766,14 @@ class JourneyBoardsManager {
         const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
         if (!cardWrapper || !document.body.contains(cardWrapper)) return;
         if ((cardWrapper as any).__ccJourneyToGameExitTween || (interimCard as any)._openingGame) return;
-        if ((cardWrapper as any)._interimBounceActive) return;
+        if ((cardWrapper as any)._interimBounceActive) {
+          const bounceTimeline = (cardWrapper as any)._interimBounceTimeline;
+          const hasBounceTimeline = !!bounceTimeline && !(bounceTimeline as any)._killed;
+          const hasActiveBounceTween = typeof gsap !== 'undefined' && gsap.isTweening(interimCard);
+          if (hasBounceTimeline || hasActiveBounceTween) return;
+          logger.warn('⚠️ Interim bounce flag was stale; restarting bounce/smoke loop');
+          delete (cardWrapper as any)._interimBounceActive;
+        }
         this.startInterimBounce(interimCard);
       });
     } catch (error) {
@@ -3830,6 +3814,8 @@ class JourneyBoardsManager {
     
     // 🔥 FIXED: Simplified interval that reliably triggers shimmer and glow every 3 seconds
     const triggerShimmerAndGlow = () => {
+      this.startVisibleInterimCardIdleEffects(document);
+
       const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
       if (!currentInterimCard || this.renderDisposed) {
         logger.warn('⚠️ Interim card not found or disposed, stopping glow pulse');
@@ -3908,6 +3894,12 @@ class JourneyBoardsManager {
    * 🔥 FIXED: Simplified to ensure glow always triggers reliably on both mobile and iPad
    */
   private triggerGlowPulse(card: HTMLElement): void {
+    const existingGlowCleanup = (card as any)._interimGlowCleanup;
+    if (existingGlowCleanup) {
+      clearTimeout(existingGlowCleanup);
+      (card as any)._interimGlowCleanup = null;
+    }
+
     // Remove class first to reset animation
     card.classList.remove('interim-glow-pulse');
     
@@ -3922,6 +3914,13 @@ class JourneyBoardsManager {
         
         // Force style recalculation to ensure animation starts
         void card.offsetHeight;
+
+        (card as any)._interimGlowCleanup = window.setTimeout(() => {
+          if (!this.renderDisposed && card.parentElement) {
+            card.classList.remove('interim-glow-pulse');
+          }
+          (card as any)._interimGlowCleanup = null;
+        }, 620);
       });
     });
   }
@@ -4743,7 +4742,7 @@ class JourneyBoardsManager {
       // Update cards container height
       const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement;
       if (cardsContainer) {
-        cardsContainer.style.height = `${bgHeightPx}px`; // Match background height
+        cardsContainer.style.height = `${containerHeightPx}px`; // Full Journey stack so high-board smoke can render
       }
     };
 
@@ -4840,7 +4839,7 @@ class JourneyBoardsManager {
     cardsContainer.className = 'journey-cards-container';
     // Critical dynamic values must be inline to ensure they're applied
     cardsContainer.style.top = `${FIXED_CARD_TOP_PX}px`;
-    cardsContainer.style.height = `${initialBgHeightPx}px`; // Will be updated when image loads
+    cardsContainer.style.height = `${initialContainerHeightPx}px`; // Full Journey stack; updated when image loads
     
     // Append to container (journey-boards-container) so it scrolls with content
     container.appendChild(cardsContainer);
@@ -5146,7 +5145,7 @@ class JourneyBoardsManager {
     const card = document.createElement('div');
     const isInterim = board.interim === true;
     const isUnlocked = board.unlocked === true;
-    card.className = `journey-board-card ${isUnlocked ? 'unlocked' : isInterim ? 'interim' : 'locked'}`;
+    card.className = `journey-board-card ${isInterim ? 'interim' : isUnlocked ? 'unlocked' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
     
@@ -9021,7 +9020,7 @@ class JourneyBoardsManager {
 
           const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
           if (cardsContainer) {
-            cardsContainer.style.height = `${calculatedHeight}px`;
+            cardsContainer.style.height = `${calculatedHeight + stackBottomOffset + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX}px`;
             cardsContainer.style.top = `${cardsTopOffset}px`;
           }
 
@@ -9242,6 +9241,7 @@ class JourneyBoardsManager {
    * 🔥 CRITICAL FIX: Public method to save boards state (for external access)
    */
   public saveBoardsStatePublic(): void {
+    this.ensureSingleInterimCard();
     this.saveBoardsState();
   }
 
