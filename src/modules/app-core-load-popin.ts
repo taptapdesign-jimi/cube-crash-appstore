@@ -30,10 +30,14 @@ export function playLoadPopInAnimation({
 
   // Enable per-tile haptics only for load/continue pop-in flow.
   (window as any).__ccLoadPopInHapticPerTile = true;
+  (window as any).__ccLoadPopInHapticCadence = 4;
 
   // Play same sweetPopIn animation as new game
   sweetPopIn(tiles, { onHalf }).then(() => {
     delete (window as any).__ccLoadPopInHapticPerTile;
+    delete (window as any).__ccLoadPopInHapticCadence;
+    delete (window as any).__ccGameStartInProgress;
+    delete (window as any).__ccGameStartInProgressSince;
     (window as any).__ccEnterAnimationActive = false;
     if (typeof (window as any).updateGhostVisibility === 'function') {
       (window as any).updateGhostVisibility();
@@ -42,6 +46,9 @@ export function playLoadPopInAnimation({
     onComplete();
   }).catch((error) => {
     delete (window as any).__ccLoadPopInHapticPerTile;
+    delete (window as any).__ccLoadPopInHapticCadence;
+    delete (window as any).__ccGameStartInProgress;
+    delete (window as any).__ccGameStartInProgressSince;
     devLog('⚠️ Continue animation failed:', error);
   });
 }

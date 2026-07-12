@@ -1157,12 +1157,16 @@ class CollectiblesManager {
       let fallbackRevealApplied = false;
       const revealFallbackTimer = window.setTimeout(() => {
         if (enterAnimationStarted) return;
+        if (journeyBoardsReadyPromise) {
+          logger.info('⏭️ Journey enter fallback delayed because boards are still preparing');
+          return;
+        }
         fallbackRevealApplied = true;
         (screen as HTMLElement).style.opacity = '1';
         (screen as HTMLElement).style.visibility = 'visible';
         (screen as HTMLElement).style.willChange = 'auto';
         logger.warn('⚠️ Journey enter animation delayed - showing screen immediately to avoid blank state');
-      }, 900);
+      }, 1600);
 
       // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
       // Then import and start animation immediately

@@ -1412,7 +1412,15 @@ function shouldOptimizeAsGameTexture(assetPath: string): boolean {
   return (CORE_GAME_TEXTURE_ASSETS as readonly string[]).includes(assetPath);
 }
 
+let lastCoreGameTextureEnsureSuccessAt = 0;
+const RECENT_CORE_TEXTURE_ENSURE_MS = 2500;
+
 async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<string[]> {
+  const now = Date.now();
+  if (context !== 'boot' && lastCoreGameTextureEnsureSuccessAt > 0 && now - lastCoreGameTextureEnsureSuccessAt < RECENT_CORE_TEXTURE_ENSURE_MS) {
+    return [];
+  }
+
   const staleAssets: string[] = [];
 
   for (const assetPath of CORE_RENDER_TEXTURE_ASSETS) {
@@ -1476,6 +1484,8 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
       context,
       failedAssets: Array.from(failedAssets),
     });
+  } else {
+    lastCoreGameTextureEnsureSuccessAt = Date.now();
   }
 
   return staleAssets;
@@ -2632,11 +2642,16 @@ export async function boot(){
   
   if (!reuseApp) {
     devLog('🎮 Creating fresh PIXI app');
+    const rawDevicePixelRatio = window.devicePixelRatio || 1;
+    const isIOSRuntime = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const rendererResolution = isIOSRuntime
+      ? Math.min(2, rawDevicePixelRatio)
+      : rawDevicePixelRatio;
     const initOptions = {
       resizeTo: window,
       backgroundAlpha: 0,
       antialias: false,
-      resolution: window.devicePixelRatio || 1,
+      resolution: rendererResolution,
       powerPreference: "high-performance" as const
     };
     const isTransientRendererInitError = (error: unknown): boolean => {

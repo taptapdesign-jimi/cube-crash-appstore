@@ -21,8 +21,8 @@ Use this install cycle after user-visible changes:
 
 ```bash
 npm run build
-xcodebuild -project "/Users/user/Stack to Six/Stack to Six.xcodeproj" -scheme "Stack to Six" -configuration Debug -destination 'id=00008110-001E39961AFA801E' build
-xcrun devicectl device install app --device 00008110-001E39961AFA801E "/Users/user/Library/Developer/Xcode/DerivedData/Stack_to_Six-ecsveioqnzuvvgcxshslsqgqdbhc/Build/Products/Debug-iphoneos/Stack to Six.app"
+xcodebuild -project "/Users/user/Stack to Six/Stack to Six.xcodeproj" -scheme "Stack to Six" -configuration Debug -destination 'id=00008110-001E39961AFA801E' -derivedDataPath /Users/user/cube-crash/.xcode-derived-stack build
+xcrun devicectl device install app --device 00008110-001E39961AFA801E "/Users/user/cube-crash/.xcode-derived-stack/Build/Products/Debug-iphoneos/Stack to Six.app"
 ```
 
 ## Current Native Mode

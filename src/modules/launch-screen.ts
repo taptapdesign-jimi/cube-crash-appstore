@@ -6,6 +6,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
+import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -487,8 +488,13 @@ class LaunchScreen {
       new Promise(resolve => setTimeout(resolve, 2500)), // Minimum 2.5 seconds
       criticalImagePreloadPromise.catch(() => {}) // Critical images preload
     ]);
+
+    await waitForCriticalStartupReadiness({
+      reason: 'launch-phase-2',
+      timeoutMs: 10000,
+    });
     
-    logger.info('✅ Phase 2 complete - critical images preloaded (or timeout reached)');
+    logger.info('✅ Phase 2 complete - critical startup readiness satisfied');
 
     // PHASE 3: Scale down all images to 0% and fade out
     logger.info('🎬 Phase 3: Scaling down all images to 0%');

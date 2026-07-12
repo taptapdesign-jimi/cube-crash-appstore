@@ -13,6 +13,7 @@ dist-*
 coverage
 public
 *.local
+.xcode-derived*/
 
 # Editor directories and files
 .vscode/*

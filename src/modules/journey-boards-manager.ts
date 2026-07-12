@@ -54,10 +54,9 @@ function shouldSkipDetailModalGameAssetPreload(): boolean {
     const recentGameExit = lastGameExitAt > 0 && Date.now() - lastGameExitAt < 15000;
     if (recentGameExit) return true;
 
-    const appCanvas = document.querySelector('#app canvas');
     const pixiApp = (window as any).STATE?.app || (window as any).CC?.app || (window as any).app;
     const appDestroyed = pixiApp?.destroyed === true || pixiApp?.renderer?.destroyed === true;
-    return appDestroyed || !appCanvas;
+    return appDestroyed;
   } catch {
     return true;
   }
@@ -586,6 +585,8 @@ class JourneyBoardsManager {
   private journeyToGameExitBoardId: number | null = null;
   private journeyAreaIdleTickers: Array<() => void> = [];
   private journeyAreaIdleStartTimeout: number | null = null;
+  private journeyScrollSettledTimeout: number | null = null;
+  private journeyAreaIdlePausedForInteraction = false;
   private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
@@ -648,6 +649,7 @@ class JourneyBoardsManager {
     });
     this._floatingDetailPlayButtons.clear();
     this.journeyAreaIdleStartTimeout = null;
+    this.journeyScrollSettledTimeout = null;
     logger.info('✅ Cancelled all tracked Journey timeouts');
   }
 
@@ -670,6 +672,9 @@ class JourneyBoardsManager {
         try { gsap.ticker.remove(ticker); } catch {}
       });
       this.journeyAreaIdleTickers = [];
+      if (resetTransforms) {
+        this.journeyAreaIdlePausedForInteraction = false;
+      }
 
       const idleTargets = document.querySelectorAll(
         '.journey-area-idle-target, .journey-board-card-wrapper[data-journey-area-id]'
@@ -700,6 +705,47 @@ class JourneyBoardsManager {
       }
     } catch (error) {
       logger.warn('⚠️ Failed to cleanup Journey area idle animations:', error);
+    }
+  }
+
+  private pauseJourneyAreaIdleForInteraction(resumeDelayMs = 900): void {
+    try {
+      this.clearJourneyAreaIdleStartTimeout();
+      if (!this.journeyAreaIdlePausedForInteraction) {
+        this.journeyAreaIdlePausedForInteraction = true;
+        this.cleanupJourneyAreaIdleAnimations(false);
+      }
+
+      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
+      const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+      const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+      const modalOpen = !!detailModal && detailModal.hidden !== true && detailModal.style.display !== 'none';
+      const journeyVisible =
+        !!journeyScreen &&
+        journeyScreen.hidden !== true &&
+        journeyScreen.style.display !== 'none' &&
+        window.getComputedStyle(journeyScreen).display !== 'none';
+
+      if (this.journeyScrollSettledTimeout) {
+        window.clearTimeout(this.journeyScrollSettledTimeout);
+        this._activeTimeouts.delete(this.journeyScrollSettledTimeout);
+        this.journeyScrollSettledTimeout = null;
+      }
+
+      if (!cardsContainer || !journeyVisible || modalOpen) return;
+
+      const timeoutId = this.trackTimeout(() => {
+        this.journeyScrollSettledTimeout = null;
+        if (!document.body.contains(cardsContainer)) return;
+        const activeDetailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+        const isModalOpen = !!activeDetailModal && activeDetailModal.hidden !== true && activeDetailModal.style.display !== 'none';
+        if (isModalOpen) return;
+        this.journeyAreaIdlePausedForInteraction = false;
+        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+      }, resumeDelayMs);
+      this.journeyScrollSettledTimeout = timeoutId || null;
+    } catch (error) {
+      logger.warn('⚠️ Failed to pause Journey idle for interaction:', error);
     }
   }
 
@@ -860,6 +906,7 @@ class JourneyBoardsManager {
     forestAreas: { mainTargets: HTMLElement[]; cloudTargets?: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> },
     cardsContainer: HTMLElement
   ): void {
+    this.journeyAreaIdlePausedForInteraction = false;
     this.cleanupJourneyAreaIdleAnimations(false);
     if (this.renderDisposed) return;
 
@@ -2331,6 +2378,7 @@ class JourneyBoardsManager {
         try { swipeableContainer.removeEventListener('touchstart', handlers.touchStart); } catch {}
         try { swipeableContainer.removeEventListener('touchmove', handlers.touchMove); } catch {}
         try { swipeableContainer.removeEventListener('touchend', handlers.touchEnd); } catch {}
+        try { swipeableContainer.removeEventListener('touchcancel', handlers.touchEnd); } catch {}
         try { swipeableContainer.removeEventListener('mousedown', handlers.mouseDown); } catch {}
         try { swipeableContainer.removeEventListener('mousemove', handlers.mouseMove); } catch {}
         try { swipeableContainer.removeEventListener('mouseup', handlers.mouseUp); } catch {}
@@ -2340,6 +2388,7 @@ class JourneyBoardsManager {
           if (handlers.cardTapTouchEnd) swipeableContainer.removeEventListener('touchend', handlers.cardTapTouchEnd, { capture: true } as any);
           if (handlers.cardTapMouseDown) swipeableContainer.removeEventListener('mousedown', handlers.cardTapMouseDown, { capture: true } as any);
           if (handlers.cardTapMouseUp) swipeableContainer.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+          if (handlers.cancelSwipeRaf) handlers.cancelSwipeRaf();
         } catch {}
         delete (swipeableContainer as any).__detailSwipeHandlers;
       }
@@ -2754,7 +2803,7 @@ class JourneyBoardsManager {
       });
     }
 
-    window.setTimeout(() => {
+    const runJourneyRevealFallback = (attempt = 0) => {
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
       const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       const detailModalVisible =
@@ -2764,6 +2813,15 @@ class JourneyBoardsManager {
         detailModal.getAttribute('aria-hidden') !== 'true';
 
       if (!journeyScreen || detailModalVisible) {
+        return;
+      }
+
+      const journeyAnimationActive =
+        (window as any).__ccJourneyViewportEnterAnimating === true ||
+        (window as any).__ccJourneyActiveAreaEnterPending === true ||
+        (window as any).__ccJourneyViewportTransitionLocked === true;
+      if (journeyAnimationActive && attempt < 6) {
+        window.setTimeout(() => runJourneyRevealFallback(attempt + 1), 240);
         return;
       }
 
@@ -2799,13 +2857,14 @@ class JourneyBoardsManager {
       window.setTimeout(() => {
         ensureJourneyBoardsRendered('fallback-retry');
       }, 250);
-    }, 950);
+    };
+    window.setTimeout(() => runJourneyRevealFallback(), 1250);
   }
 
   constructor() {
     this.initializeBoards();
     this.loadBoardsState();
-    
+
     // 🔥 USER BUG FIX: Initialize journey_last_viewed_board_id if it doesn't exist
     // This ensures badge works correctly from the start
     if (!localStorage.getItem('journey_last_viewed_board_id')) {
@@ -3592,6 +3651,15 @@ class JourneyBoardsManager {
     if (scrollable && (scrollable as any)._journeyIdleScrollHandler) {
       scrollable.removeEventListener('scroll', (scrollable as any)._journeyIdleScrollHandler);
       (scrollable as any)._journeyIdleScrollHandler = null;
+      scrollable.classList.remove('journey-scroll-active');
+      if ((scrollable as any)._journeyScrollActiveTimeout) {
+        window.clearTimeout((scrollable as any)._journeyScrollActiveTimeout);
+        (scrollable as any)._journeyScrollActiveTimeout = null;
+      }
+      if ((scrollable as any)._journeyViewportCheckTimer) {
+        window.clearTimeout((scrollable as any)._journeyViewportCheckTimer);
+        (scrollable as any)._journeyViewportCheckTimer = null;
+      }
     }
     
     const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
@@ -4456,17 +4524,17 @@ class JourneyBoardsManager {
         }
       }, 100); // Throttle to max once per 100ms
     };
-    
-    // Scroll listener
-    const scrollHandler = () => {
-      notifyThrottled();
-      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
-        JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
-      }
-      
-      const scrollTarget = this.getPreferredJourneyWorldScrollTarget();
-      const cardWrapper = scrollTarget?.cardWrapper || null;
-      if (cardWrapper) {
+
+    let viewportCheckTimer: number | null = null;
+    const scheduleViewportCheck = () => {
+      if (viewportCheckTimer !== null) return;
+      viewportCheckTimer = window.setTimeout(() => {
+        (scrollable as any)._journeyViewportCheckTimer = null;
+        viewportCheckTimer = null;
+        const scrollTarget = this.getPreferredJourneyWorldScrollTarget();
+        const cardWrapper = scrollTarget?.cardWrapper || null;
+        if (!cardWrapper) return;
+
         const cardRect = cardWrapper.getBoundingClientRect();
         const viewportH = window.innerHeight;
         const viewportW = window.innerWidth;
@@ -4498,7 +4566,23 @@ class JourneyBoardsManager {
             // Ignore errors
           }
         }
+      }, 180);
+      (scrollable as any)._journeyViewportCheckTimer = viewportCheckTimer;
+    };
+
+    // Scroll listener
+    const scrollHandler = () => {
+      notifyThrottled();
+      scrollable.classList.add('journey-scroll-active');
+      this.pauseJourneyAreaIdleForInteraction(850);
+      if ((scrollable as any)._journeyScrollActiveTimeout) {
+        window.clearTimeout((scrollable as any)._journeyScrollActiveTimeout);
       }
+      (scrollable as any)._journeyScrollActiveTimeout = window.setTimeout(() => {
+        scrollable.classList.remove('journey-scroll-active');
+        (scrollable as any)._journeyScrollActiveTimeout = null;
+      }, 180);
+      scheduleViewportCheck();
     };
     scrollable.addEventListener('scroll', scrollHandler, { passive: true });
     
@@ -4507,6 +4591,7 @@ class JourneyBoardsManager {
     if (cardsContainer) {
       const touchHandler = (event?: Event) => {
         notifyThrottled();
+        this.pauseJourneyAreaIdleForInteraction(event?.type === 'touchmove' ? 850 : 650);
         if (event?.type === 'touchmove' && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.cleanupSmokeEffects();
         }
@@ -5309,6 +5394,7 @@ class JourneyBoardsManager {
         swipeableContainer.removeEventListener('touchstart', handlers.touchStart);
         swipeableContainer.removeEventListener('touchmove', handlers.touchMove);
         swipeableContainer.removeEventListener('touchend', handlers.touchEnd);
+        swipeableContainer.removeEventListener('touchcancel', handlers.touchEnd);
         swipeableContainer.removeEventListener('mousedown', handlers.mouseDown);
         swipeableContainer.removeEventListener('mousemove', handlers.mouseMove);
         swipeableContainer.removeEventListener('mouseup', handlers.mouseUp);
@@ -5324,6 +5410,9 @@ class JourneyBoardsManager {
         }
         if (handlers.cardTapMouseUp) {
           swipeableContainer.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+        }
+        if (handlers.cancelSwipeRaf) {
+          handlers.cancelSwipeRaf();
         }
         
         // Kill GSAP animations
@@ -5995,6 +6084,7 @@ class JourneyBoardsManager {
       try { container.removeEventListener('touchstart', handlers.touchStart); } catch {}
       try { container.removeEventListener('touchmove', handlers.touchMove); } catch {}
       try { container.removeEventListener('touchend', handlers.touchEnd); } catch {}
+      try { container.removeEventListener('touchcancel', handlers.touchEnd); } catch {}
       try { container.removeEventListener('mousedown', handlers.mouseDown); } catch {}
       try { container.removeEventListener('mousemove', handlers.mouseMove); } catch {}
       try { container.removeEventListener('mouseup', handlers.mouseUp); } catch {}
@@ -6004,6 +6094,7 @@ class JourneyBoardsManager {
         if (handlers.cardTapTouchEnd) container.removeEventListener('touchend', handlers.cardTapTouchEnd, { capture: true } as any);
         if (handlers.cardTapMouseDown) container.removeEventListener('mousedown', handlers.cardTapMouseDown, { capture: true } as any);
         if (handlers.cardTapMouseUp) container.removeEventListener('mouseup', handlers.cardTapMouseUp, { capture: true } as any);
+        if (handlers.cancelSwipeRaf) handlers.cancelSwipeRaf();
       } catch {}
       try { handlers.quickSetX && gsap.killTweensOf(container); } catch {}
       delete (container as any).__detailSwipeHandlers;
@@ -6129,7 +6220,10 @@ class JourneyBoardsManager {
     let lastTime = 0;
     let velocity = 0;
     let momentumAnimation: gsap.core.Tween | null = null;
+    let swipeRafId: number | null = null;
+    let pendingSwipeX: number | null = null;
     const detailImageForTap = container.querySelector('#detail-card-image') as HTMLElement | null;
+    const detailMotionForSwipe = detailImageForTap?.querySelector('.detail-image-motion') as HTMLElement | null;
     let cardTapStartX = 0;
     let cardTapStartY = 0;
     let cardTapStartTime = 0;
@@ -6139,8 +6233,41 @@ class JourneyBoardsManager {
     const CARD_TAP_TIME_THRESHOLD = 320;
     
     quickSetX(0);
-    container.style.willChange = 'transform';
+    container.style.willChange = 'auto';
     container.style.cursor = 'grab';
+
+    const setDetailSwipeActive = (active: boolean) => {
+      const modal = container.closest('#collectibles-detail-modal') as HTMLElement | null;
+      modal?.classList.toggle('detail-swipe-active', active);
+      if (detailMotionForSwipe) {
+        detailMotionForSwipe.style.animationPlayState = active ? 'paused' : 'running';
+      }
+    };
+
+    const flushSwipeX = () => {
+      swipeRafId = null;
+      if (pendingSwipeX === null) return;
+      quickSetX(pendingSwipeX);
+      pendingSwipeX = null;
+    };
+
+    const scheduleSwipeX = (x: number) => {
+      currentX = x;
+      pendingSwipeX = x;
+      if (swipeRafId !== null) return;
+      swipeRafId = requestAnimationFrame(flushSwipeX);
+    };
+
+    const flushPendingSwipeX = () => {
+      if (swipeRafId !== null) {
+        cancelAnimationFrame(swipeRafId);
+        swipeRafId = null;
+      }
+      if (pendingSwipeX !== null) {
+        quickSetX(pendingSwipeX);
+        pendingSwipeX = null;
+      }
+    };
     
     // 🔥 USER REQUEST: Initialize text margin for starting position (step 0)
     updateTextMarginForPosition(0);
@@ -6177,6 +6304,8 @@ class JourneyBoardsManager {
           momentumAnimation.kill();
           momentumAnimation = null;
         }
+        container.style.willChange = 'transform';
+        setDetailSwipeActive(true);
         container.style.cursor = 'grabbing';
       }
       
@@ -6209,8 +6338,7 @@ class JourneyBoardsManager {
         newX = -maxScroll + (overScroll * 0.3); // 70% resistance
       }
       
-      quickSetX(newX);
-      currentX = newX;
+      scheduleSwipeX(newX);
       
       lastX = currentTouchX;
       lastTime = currentTime;
@@ -6220,6 +6348,7 @@ class JourneyBoardsManager {
     const handleTouchEnd = () => {
       if (!isDragging) return;
       isDragging = false;
+      flushPendingSwipeX();
       container.style.cursor = 'grab';
       const totalDelta = startTranslateX - currentX; // Positive = swiped left
       const targetIndex = getSnapIndexByVelocity(dragStartSnapIndex, totalDelta, velocity);
@@ -6238,6 +6367,8 @@ class JourneyBoardsManager {
           },
           onComplete: () => {
             momentumAnimation = null;
+          container.style.willChange = 'auto';
+          setDetailSwipeActive(false);
           // Final position update
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
@@ -6273,6 +6404,8 @@ class JourneyBoardsManager {
           momentumAnimation.kill();
           momentumAnimation = null;
         }
+        container.style.willChange = 'transform';
+        setDetailSwipeActive(true);
         container.style.cursor = 'grabbing';
       }
       
@@ -6296,8 +6429,7 @@ class JourneyBoardsManager {
         newX = -maxScroll + (overScroll * 0.3);
       }
       
-      quickSetX(newX);
-      currentX = newX;
+      scheduleSwipeX(newX);
       
       lastX = currentMouseX;
       lastTime = currentTime;
@@ -6307,6 +6439,7 @@ class JourneyBoardsManager {
     const handleMouseUp = () => {
       if (!isDragging) return;
       isDragging = false;
+      flushPendingSwipeX();
       container.style.cursor = 'grab';
       const totalDelta = startTranslateX - currentX; // Positive = swiped left
       const targetIndex = getSnapIndexByVelocity(dragStartSnapIndex, totalDelta, velocity);
@@ -6324,6 +6457,8 @@ class JourneyBoardsManager {
           },
           onComplete: () => {
             momentumAnimation = null;
+          container.style.willChange = 'auto';
+          setDetailSwipeActive(false);
           // 🔥 USER REQUEST: Update text margin after mouse swipe completes
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
@@ -6332,9 +6467,10 @@ class JourneyBoardsManager {
     };
     
     // Attach event listeners
-    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', handleTouchEnd, { passive: true });
     container.addEventListener('mousedown', handleMouseDown);
     container.addEventListener('mousemove', handleMouseMove);
     container.addEventListener('mouseup', handleMouseUp);
@@ -6354,6 +6490,9 @@ class JourneyBoardsManager {
         momentumAnimation.kill();
         momentumAnimation = null;
       }
+      flushPendingSwipeX();
+      container.style.willChange = 'transform';
+      setDetailSwipeActive(true);
         momentumAnimation = trackTween(container, {
           x: targetX,
         duration: 0.5,
@@ -6364,6 +6503,8 @@ class JourneyBoardsManager {
           },
           onComplete: () => {
             momentumAnimation = null;
+          container.style.willChange = 'auto';
+          setDetailSwipeActive(false);
           // 🔥 USER REQUEST: Update text margin after slide completes
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
@@ -6443,6 +6584,14 @@ class JourneyBoardsManager {
       cardTapTouchEnd: handleCardTapTouchEnd,
       cardTapMouseDown: handleCardTapMouseDown,
       cardTapMouseUp: handleCardTapMouseUp,
+      cancelSwipeRaf: () => {
+        if (swipeRafId !== null) {
+          cancelAnimationFrame(swipeRafId);
+          swipeRafId = null;
+        }
+        pendingSwipeX = null;
+        setDetailSwipeActive(false);
+      },
       quickSetX: quickSetX,
       slideToPosition: slideToPosition,
       snapPoints: snapPoints,
@@ -6502,10 +6651,13 @@ class JourneyBoardsManager {
         logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
       }
     }
-    // 🔥 PERFORMANCE FIX: Defer preloads so first detail enter animation stays smooth.
-    // We still warm assets before PLAY in most cases, but we never block UI opening.
-    const preloadAfterEnterDelayMs = 550;
-    this.trackTimeout(() => {
+
+    this.pauseJourneyAreaIdleForInteraction(0);
+
+    // Defer preloads until the modal is settled and not being swiped. Running these during
+    // the first modal drag is visible on iOS as card/slider stutter.
+    const scheduleDetailIdlePreload = (delayMs = 2400, attempt = 0) => {
+      this.trackTimeout(() => {
       const activeDetailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       const modalStillShowingBoard =
         !!activeDetailModal &&
@@ -6516,36 +6668,53 @@ class JourneyBoardsManager {
         logger.info(`⏭️ Skipping board ${board.id} delayed preload because detail modal is no longer active`);
         return;
       }
-
-      // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
-      void import('../utils/comprehensive-image-preloader.js')
-        .then(({ preloadJourneyBoardImages }) => preloadJourneyBoardImages([board.id]))
-        .then(() => {
-          logger.info(`✅ Journey board ${board.id} image preloaded in background`);
-        })
-        .catch((error) => {
-          logger.warn('⚠️ Failed to preload journey board images:', error);
-        });
-
-      // 🔥 CRITICAL: Preload game assets in background to avoid delay on Play click.
-      if (shouldSkipDetailModalGameAssetPreload()) {
-        logger.info(`⏭️ Skipping board ${board.id} game asset preload during detail modal open (recent game exit or inactive PIXI app)`);
+      const modalBusy =
+        activeDetailModal.classList.contains('detail-swipe-active') ||
+        (window as any).__ccJourneyViewportTransitionLocked === true;
+      if (modalBusy && attempt < 8) {
+        scheduleDetailIdlePreload(900, attempt + 1);
         return;
       }
 
-      void import('../utils/board-asset-warmup.js')
-        .then(({ ensureBoardTexturesResidentSoon }) => {
-          ensureBoardTexturesResidentSoon({
-            mode: 'journey',
-            boardNumber: board.id,
-            reason: 'journey-detail-open',
-            timeoutMs: 1800,
+      const runPreload = () => {
+        // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
+        void import('../utils/comprehensive-image-preloader.js')
+          .then(({ preloadJourneyBoardImages }) => preloadJourneyBoardImages([board.id]))
+          .then(() => {
+            logger.info(`✅ Journey board ${board.id} image preloaded in background`);
+          })
+          .catch((error) => {
+            logger.warn('⚠️ Failed to preload journey board images:', error);
           });
-        })
-        .catch((error) => {
-          logger.warn('⚠️ Failed to schedule resident game texture preload:', error);
-        });
-    }, preloadAfterEnterDelayMs);
+
+        // 🔥 CRITICAL: Preload game assets in background to avoid delay on Play click.
+        if (shouldSkipDetailModalGameAssetPreload()) {
+          logger.info(`⏭️ Skipping board ${board.id} game asset preload during detail modal open (recent game exit or inactive PIXI app)`);
+          return;
+        }
+
+        void import('../utils/board-asset-warmup.js')
+          .then(({ warmBoardGameAssetsSoon }) => {
+            warmBoardGameAssetsSoon({
+              mode: 'journey',
+              boardNumber: board.id,
+              reason: 'journey-detail-open-idle',
+              timeoutMs: 1400,
+            });
+          })
+          .catch((error) => {
+            logger.warn('⚠️ Failed to schedule resident game texture preload:', error);
+          });
+      };
+
+      if (typeof (window as any).requestIdleCallback === 'function') {
+        (window as any).requestIdleCallback(runPreload, { timeout: 1800 });
+      } else {
+        this.trackTimeout(runPreload, 0);
+      }
+      }, delayMs);
+    };
+    scheduleDetailIdlePreload();
     
     logger.info(`🎬 Opening board details for board ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' after Journey exit'}`);
     logger.debug('Journey board detail data', {
@@ -6900,10 +7069,14 @@ class JourneyBoardsManager {
               swipeableContainer.removeEventListener('touchstart', handlers.touchStart);
               swipeableContainer.removeEventListener('touchmove', handlers.touchMove);
               swipeableContainer.removeEventListener('touchend', handlers.touchEnd);
+              swipeableContainer.removeEventListener('touchcancel', handlers.touchEnd);
               swipeableContainer.removeEventListener('mousedown', handlers.mouseDown);
               swipeableContainer.removeEventListener('mousemove', handlers.mouseMove);
               swipeableContainer.removeEventListener('mouseup', handlers.mouseUp);
               swipeableContainer.removeEventListener('mouseleave', handlers.mouseUp);
+              if (handlers.cancelSwipeRaf) {
+                handlers.cancelSwipeRaf();
+              }
               delete (swipeableContainer as any).__detailSwipeHandlers;
             }
             return;

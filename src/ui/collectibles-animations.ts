@@ -15,8 +15,8 @@ const JOURNEY_VIEWPORT_EXIT_SELECTOR = [
   '.journey-forest-stump-art',
   '.journey-forest-star-art',
 ].join(', ');
-const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 96;
-const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 320;
+const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 44;
+const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 180;
 const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.42;
 const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.12;
 const JOURNEY_VIEWPORT_EXIT_MIN_SCALE = 0.04;
@@ -178,10 +178,11 @@ function isElementViewportVisible(element: HTMLElement, viewportMargin = 32): bo
     rect.left <= window.innerWidth + viewportMargin;
 }
 
-function selectJourneyViewportExitTargets(journeyScreen: HTMLElement): HTMLElement[] {
+function selectJourneyViewportExitTargets(journeyScreen: HTMLElement, reason: string): HTMLElement[] {
+  const isBackToHomeExit = reason === 'journey-back-button' || reason === 'journey-exit';
   return selectJourneyViewportTransitionTargets(journeyScreen, {
-    excludeActiveArea: true,
-    includeHiddenPrepared: false,
+    excludeActiveArea: !isBackToHomeExit,
+    includeHiddenPrepared: true,
   });
 }
 
@@ -497,6 +498,10 @@ function animateJourneyViewportScreenEnter(
     prepareJourneyViewportScreenEnter('journey-enter-late-prepare');
   }
 
+  try {
+    (window as any).__ccJourneyViewportEnterAnimating = true;
+  } catch {}
+
   gsap.set(journeyScreen, {
     opacity: 0,
     visibility: 'visible',
@@ -620,6 +625,7 @@ function animateJourneyViewportScreenEnter(
       delete (window as any).__ccJourneyActiveAreaEnterPending;
       delete (window as any).__ccJourneyViewportEnterPrepared;
       delete (window as any).__ccJourneyViewportEnterPreparedReason;
+      delete (window as any).__ccJourneyViewportEnterAnimating;
     } catch {}
   });
 }
@@ -634,6 +640,7 @@ export function cleanupCollectiblesAnimations(): void {
     delete (window as any).__ccJourneyActiveAreaEnterPending;
     delete (window as any).__ccJourneyViewportEnterPrepared;
     delete (window as any).__ccJourneyViewportEnterPreparedReason;
+    delete (window as any).__ccJourneyViewportEnterAnimating;
   } catch {}
   // Kill all tracked tweens
   activeCollectiblesTweens.forEach(tween => {
@@ -891,7 +898,12 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
 
     lockJourneyViewportTransition(reason);
 
-    const viewportTargets = selectJourneyViewportExitTargets(journeyScreen);
+    const viewportTargets = selectJourneyViewportExitTargets(journeyScreen, reason);
+    try {
+      delete (window as any).__ccJourneyActiveAreaEnterPending;
+      delete (window as any).__ccJourneyViewportEnterPrepared;
+      delete (window as any).__ccJourneyViewportEnterPreparedReason;
+    } catch {}
     const animatedTargets: HTMLElement[] = [];
     const targetSnapshots = new Map<HTMLElement, JourneyExitTargetSnapshot>();
     const completedViewportTargets = new WeakSet<HTMLElement>();
@@ -1052,20 +1064,33 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
         target.style.transition = 'none';
+        target.style.visibility = 'visible';
+        target.style.opacity = '1';
+        try {
+          gsap.set(animationTarget, {
+            scale: 1,
+            opacity: 1,
+            y: 0,
+            visibility: 'visible',
+            transformOrigin: '50% 50%',
+            force3D: true,
+            overwrite: true,
+          });
+        } catch {}
 
         const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
         const delay = Math.min(0.18, index * 0.012);
-        const duration = isLargeWorldArt ? 0.4 : 0.44;
+        const duration = isLargeWorldArt ? 0.42 : 0.44;
         latestViewportExitEnd = Math.max(latestViewportExitEnd, delay + duration);
         animatedTargets.push(target);
         pendingViewportTargets += 1;
 
         trackTween(animationTarget, {
-          opacity: isLargeWorldArt ? 0.72 : 0,
-          scale: isLargeWorldArt ? 0.96 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
-          y: isLargeWorldArt ? -12 : 0,
+          opacity: 0,
+          scale: isLargeWorldArt ? 0.78 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+          y: isLargeWorldArt ? 18 : 0,
           duration,
-          ease: isLargeWorldArt ? 'power2.in' : 'back.in(1.25)',
+          ease: isLargeWorldArt ? 'back.in(1.15)' : 'back.in(1.25)',
           delay,
           force3D: true,
           overwrite: true,

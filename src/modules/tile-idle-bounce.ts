@@ -130,6 +130,12 @@ export function notifyBoardInteraction(): void {
 function animateRandomTile(): void {
   if (!state.isActive) return;
 
+  if (typeof window !== 'undefined' && (window as any).__ccGameplayDragActive === true) {
+    state.lastInteractionTime = Date.now();
+    state.animationTimer = setTimeout(animateRandomTile, 500);
+    return;
+  }
+
   // 🔥 MEMORY LEAK FIX: Don't run when tab is hidden - prevents 700MB+ leak over 1h idle
   // User left game open, tab in background → tile bounce kept creating smoke particles
   if (typeof document !== 'undefined' && document.hidden) {

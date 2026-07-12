@@ -56,6 +56,7 @@ import { isNativeDevServerRuntime } from './utils/native-runtime.js';
 import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
 import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
+import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -109,13 +110,63 @@ function isHomepageVisibleForWarmup(): boolean {
   );
 }
 
+function isJourneyOrModalBusyForWarmup(): boolean {
+  try {
+    const journey = document.getElementById('journey-screen') as HTMLElement | null;
+    const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+    const journeyVisible = !!journey &&
+      journey.hidden !== true &&
+      journey.style.display !== 'none' &&
+      window.getComputedStyle(journey).display !== 'none' &&
+      window.getComputedStyle(journey).visibility !== 'hidden' &&
+      Number(window.getComputedStyle(journey).opacity || '1') > 0.01;
+    const detailVisible = !!detailModal &&
+      detailModal.hidden !== true &&
+      detailModal.style.display !== 'none' &&
+      window.getComputedStyle(detailModal).display !== 'none' &&
+      window.getComputedStyle(detailModal).visibility !== 'hidden';
+    return journeyVisible ||
+      detailVisible ||
+      (window as any).__ccJourneyViewportTransitionLocked === true ||
+      (window as any).__ccJourneyActiveAreaEnterPending === true;
+  } catch {
+    return true;
+  }
+}
+
+function isGameBusyForWarmup(): boolean {
+  try {
+    if (
+      (window as any).__ccGameStartInProgress === true ||
+      (window as any).__ccEnterAnimationActive === true ||
+      (window as any).__ccGameplayDragActive === true
+    ) {
+      return true;
+    }
+
+    const appEl = document.getElementById('app') as HTMLElement | null;
+    if (!appEl || appEl.hidden) return false;
+
+    const computed = window.getComputedStyle(appEl);
+    return (
+      appEl.style.display !== 'none' &&
+      appEl.style.visibility !== 'hidden' &&
+      computed.display !== 'none' &&
+      computed.visibility !== 'hidden' &&
+      Number(computed.opacity || '1') > 0.01
+    );
+  } catch {
+    return true;
+  }
+}
+
 function schedulePostCriticalAssetWarmup(): void {
   if (postCriticalAssetWarmupScheduled) return;
   postCriticalAssetWarmupScheduled = true;
 
   const runWhenOffHomepage = () => {
-    if (isHomepageVisibleForWarmup()) {
-      window.setTimeout(runWhenOffHomepage, 2500);
+    if (isHomepageVisibleForWarmup() || isJourneyOrModalBusyForWarmup() || isGameBusyForWarmup()) {
+      window.setTimeout(runWhenOffHomepage, 4500);
       return;
     }
 
@@ -146,6 +197,13 @@ function schedulePostHomePerformanceWarmup(): void {
 
       if (isHomepageVisibleForWarmup()) {
         logger.info('⏭️ Homepage visible: deferring post-home performance warmup to avoid slider contention');
+        postHomePerformanceWarmupScheduled = false;
+        schedulePostHomePerformanceWarmup();
+        return;
+      }
+
+      if (isJourneyOrModalBusyForWarmup() || isGameBusyForWarmup()) {
+        logger.info('⏭️ Journey/modal/game active: deferring post-home performance warmup');
         postHomePerformanceWarmupScheduled = false;
         schedulePostHomePerformanceWarmup();
         return;
@@ -375,54 +433,6 @@ function primeHomeCtaForEnter(): void {
   } catch (error) {
     logger.warn('⚠️ Failed to prime home CTA for enter animation:', String(error));
   }
-}
-
-function waitForHomepageSliderImagesReady(timeoutMs: number = 1200): Promise<void> {
-  const images = Array.from(document.querySelectorAll<HTMLImageElement>(
-    '#slider-wrapper .hero-image, #home-logo, .logo-addon, #home-fixed-shadow-bottom'
-  ));
-
-  if (images.length === 0) return Promise.resolve();
-
-  const waitForImage = (img: HTMLImageElement): Promise<void> => {
-    img.loading = 'eager';
-    img.setAttribute('fetchpriority', 'high');
-    img.decoding = 'async';
-
-    const decodeLoadedImage = (): Promise<void> => {
-      if (typeof img.decode !== 'function' || img.naturalWidth <= 0) {
-        return Promise.resolve();
-      }
-      return img.decode().catch(() => undefined);
-    };
-
-    if (img.complete) {
-      return decodeLoadedImage();
-    }
-
-    return new Promise<void>((resolve) => {
-      const finish = () => {
-        img.removeEventListener('load', finish);
-        img.removeEventListener('error', finish);
-        decodeLoadedImage().finally(resolve);
-      };
-
-      img.addEventListener('load', finish, { once: true });
-      img.addEventListener('error', finish, { once: true });
-    });
-  };
-
-  const imageReadyPromise = Promise.allSettled(images.map(waitForImage)).then(() => undefined);
-  const timeoutPromise = new Promise<void>((resolve) => {
-    window.setTimeout(resolve, timeoutMs);
-  });
-
-  return Promise.race([imageReadyPromise, timeoutPromise]).then(() => {
-    logger.info('✅ Homepage slider images warmed for first interaction', undefined, {
-      imageCount: images.length,
-      timeoutMs,
-    });
-  });
 }
 
 // Initialize core systems
@@ -684,7 +694,6 @@ async function startAssetPreloading(): Promise<void> {
     // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
     primeHomeCtaForEnter();
     await startupAssetPreloadPromise;
-    await waitForHomepageSliderImagesReady();
     schedulePostCriticalAssetWarmup();
 
     // Heavy Journey/deferred warmups are intentionally delayed until homepage is not visible.
@@ -818,6 +827,11 @@ async function startAssetPreloading(): Promise<void> {
     } catch (error) {
       console.warn('⚠️ Failed to reinitialize slider after splash:', error);
     }
+
+    await waitForHomepageFirstPaintReady({
+      reason: 'main-before-home-enter',
+      timeoutMs: 3500,
+    });
     
     // 🔥 CRITICAL: Verify slider elements exist before starting animation
     const sliderWrapper = document.getElementById('slider-wrapper');
@@ -1247,6 +1261,8 @@ async function startNewRun(boardId: number): Promise<void> {
           }
           // 🔥 USER REQUEST: Trigger HUD drop animation when resuming from Journey
           (window as any).__ccTriggerHudDrop = true;
+          (window as any).__ccGameStartInProgress = true;
+          (window as any).__ccGameStartInProgressSince = Date.now();
           
           await bootGame();
           
@@ -1273,6 +1289,7 @@ async function startNewRun(boardId: number): Promise<void> {
           
           // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
           // This ensures tiles are loaded before layout is calculated
+          let layoutHandledByLoadState = false;
           if (canLoadState && (window as any).__ccSkipRebuildBoard) {
             const loadGameState = (window as any).loadGameState;
             if (typeof loadGameState === 'function') {
@@ -1298,6 +1315,7 @@ async function startNewRun(boardId: number): Promise<void> {
                 }
               } else {
                 logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
+                layoutHandledByLoadState = true;
               }
             } else {
               logger.error('❌ loadGameState function not found');
@@ -1322,7 +1340,15 @@ async function startNewRun(boardId: number): Promise<void> {
             logger.info(`🎮 No tiles/grid - rebuildBoard() should have been called by startLevel() for board ${savedBoardNumber}`);
           }
           
-          await layoutGame();
+          if (!layoutHandledByLoadState) {
+            await layoutGame();
+            window.setTimeout(() => {
+              delete (window as any).__ccGameStartInProgress;
+              delete (window as any).__ccGameStartInProgressSince;
+            }, 900);
+          } else {
+            logger.info(`🎮 Skipping duplicate layoutGame() after loadGameState for board ${savedBoardNumber}`);
+          }
           assertJourneyGameSurfaceVisible(`continueGameWithSavedState:${savedBoardNumber}:after-layout`);
           if (shouldStartFirstPlayTutorial) {
             activateFirstPlayTutorialWhenReady();
@@ -1339,6 +1365,8 @@ async function startNewRun(boardId: number): Promise<void> {
           logger.error('❌ Failed to resume active run:', String(error));
           delete (window as any).__ccStartAtLevel;
           delete (window as any).__ccTriggerHudDrop;
+          delete (window as any).__ccGameStartInProgress;
+          delete (window as any).__ccGameStartInProgressSince;
           await recoverJourneyStartFailure(`continueGameWithSavedState:${boardToLoad}`, error);
         }
       } else {

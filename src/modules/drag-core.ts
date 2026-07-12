@@ -66,6 +66,19 @@ const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
 const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
 const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
+const DRAG_WATCHDOG_REFRESH_MS = 650;
+const DRAG_HOVER_PICK_THROTTLE_MS = 24;
+
+function isIOSRuntime(): boolean {
+  return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+}
+
+function setGameplayDragActive(active: boolean): void {
+  try {
+    (window as any).__ccGameplayDragActive = active;
+    document.body?.classList.toggle('gameplay-drag-active', active);
+  } catch {}
+}
 
 function getTileSpecial(tile: any): string | null {
   if (!tile) return null;
@@ -342,6 +355,9 @@ export function initDrag(cfg) {
     _boardCenterY: board ? board.y : 0,
     _boardPivotApplied: false,
     _watchdogTimeout: null as any,
+    _lastWatchdogRefreshAt: 0,
+    _lastMagnetFieldUpdateAt: 0,
+    _pausedSpecialIdleTiles: new Set<any>(),
   };
 
   function eventPointerId(e: any): number | null {
@@ -359,6 +375,14 @@ export function initDrag(cfg) {
   }
 
   const helpers = { snapBack, clearHover };
+
+  function shouldUseTouchDragPerformanceMode(): boolean {
+    return drag.pointerType === 'touch' || isIOSRuntime();
+  }
+
+  function shouldSuppressDragDecorativeFx(): boolean {
+    return shouldUseTouchDragPerformanceMode();
+  }
 
   function clearDragRuntime() {
     try {
@@ -379,9 +403,16 @@ export function initDrag(cfg) {
     drag._lastSmokeTime = null;
     drag.pointerId = null;
     drag.pointerType = null;
+    drag._lastWatchdogRefreshAt = 0;
+    setGameplayDragActive(false);
   }
 
-  function restartDragWatchdog() {
+  function restartDragWatchdog(force = false) {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (!force && drag._lastWatchdogRefreshAt > 0 && now - drag._lastWatchdogRefreshAt < DRAG_WATCHDOG_REFRESH_MS) {
+      return;
+    }
+    drag._lastWatchdogRefreshAt = now;
     if (drag._watchdogTimeout) {
       clearTimeout(drag._watchdogTimeout);
       drag._watchdogTimeout = null;
@@ -395,6 +426,7 @@ export function initDrag(cfg) {
       clearHover({ immediateMagnet: true });
       clearDragRuntime();
       drag.t = null;
+      resumeSpecialDiceIdleAfterDrag();
       try {
         if (t && !t.destroyed) {
           snapBack(t, () => {
@@ -405,6 +437,29 @@ export function initDrag(cfg) {
         try { restoreZ(t); } catch {}
       }
     }, 9000);
+  }
+
+  function pauseSpecialDiceIdleForDrag(activeTile: any): void {
+    drag._pausedSpecialIdleTiles.clear();
+    const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
+    for (const tile of list) {
+      if (!tile || tile.destroyed || tile === activeTile) continue;
+      if (!tile._ccSpecialDiceIdleTl) continue;
+      drag._pausedSpecialIdleTiles.add(tile);
+      try { stopSpecialDiceIdleMotion(tile); } catch {}
+    }
+  }
+
+  function resumeSpecialDiceIdleAfterDrag() {
+    if (!drag._pausedSpecialIdleTiles.size) return;
+    const pausedTiles = Array.from(drag._pausedSpecialIdleTiles);
+    drag._pausedSpecialIdleTiles.clear();
+    setTimeout(() => {
+      for (const tile of pausedTiles) {
+        if (!tile || tile.destroyed || tile.locked || tile._ccWildSpawnDropping === true) continue;
+        try { startSpecialDiceIdleMotion(tile); } catch {}
+      }
+    }, 350);
   }
 
   // ⚙️ Z-INDEX SAFETY HELPERS
@@ -585,6 +640,8 @@ export function initDrag(cfg) {
       } catch {}
     }
     drag.t = t;
+    setGameplayDragActive(true);
+    pauseSpecialDiceIdleForDrag(t);
     drag.pointerId = eventPointerId(e);
     drag.pointerType = e?.pointerType || null;
     drag.startGX = t.gridX;
@@ -607,6 +664,7 @@ export function initDrag(cfg) {
     lastPickDropAllowCenterFallback = null;
     drag.hoverCandidate = null;
     drag.hoverCandidateFrames = 0;
+    drag._lastMagnetFieldUpdateAt = 0;
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
@@ -702,7 +760,7 @@ export function initDrag(cfg) {
 
     // Start sparkles immediately when wild cube is picked up
     // 🔥 CRITICAL: All wild tiles (wild star, wild juice, wild magnet) get sparkles with their original colors
-    if (isAnyWildTile(t)) {
+    if (isAnyWildTile(t) && !shouldSuppressDragDecorativeFx()) {
       try {
         // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
         // This ensures particles appear behind the wild tile when dragging
@@ -746,7 +804,7 @@ export function initDrag(cfg) {
     app.stage.on('pointerup', onUp);
     app.stage.on('pointerupoutside', onUp);
     app.stage.on('pointercancel', onCancel);
-    restartDragWatchdog();
+    restartDragWatchdog(true);
   }
 
   function onMove(e) {
@@ -762,17 +820,11 @@ export function initDrag(cfg) {
       clearHover();
       
       clearDragRuntime();
+      resumeSpecialDiceIdleAfterDrag();
       
       return;
     }
     
-    // Notify idle bounce that user is still interacting (carrying a tile)
-    try {
-      TILE_IDLE_BOUNCE.notifyInteraction();
-    } catch (error) {
-      console.warn('⚠️ Failed to notify board interaction on move:', error);
-    }
-
     // stari global point (za brzinu)
     const prevGP = drag._lastGlobal || { x: e.global.x, y: e.global.y };
 
@@ -833,7 +885,7 @@ export function initDrag(cfg) {
 
     // Wild cube sparkles effect - continuous when selected (picked up)
     // 🔥 CRITICAL: wild-juice does NOT get sparkles, only bubbles (handled in else block)
-    if (t.special === 'wild') {
+    if (t.special === 'wild' && !shouldSuppressDragDecorativeFx()) {
       // Store velocity for sparkles direction
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;
@@ -861,7 +913,7 @@ export function initDrag(cfg) {
       // The updateMagnet function is already called below for the target tile
       // This provides the same gentle magnetic pull effect as wild tiles
       // No need for custom strong pull - updateMagnet handles it perfectly
-    } else {
+    } else if (!shouldSuppressDragDecorativeFx()) {
       // Trails: juice wild gets bubbles; others get smoke
       if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms
         try {
@@ -884,13 +936,6 @@ export function initDrag(cfg) {
       }
     }
 
-    // 🔧 SHADOW PATCH: refresh bez gubitka alpha
-    if (t.refreshShadow && t.shadow) {
-      const __a = t.shadow.alpha;
-      t.refreshShadow();
-      if (t.shadow) t.shadow.alpha = __a;
-    }
-
     // ažuriraj _lastGlobal za sljedeći frame
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
 
@@ -902,6 +947,10 @@ export function initDrag(cfg) {
     // 🧲 MAGNETIC REACTION: For wild-magnet, apply gentle pull to ALL nearby tiles (like wild tile)
     // This provides the same gentle magnetic pull effect as wild tiles for all tiles in range
     if (t.special === 'wild-magnet') {
+      if (now - (drag._lastMagnetFieldUpdateAt || 0) < DRAG_HOVER_PICK_THROTTLE_MS) {
+        return;
+      }
+      drag._lastMagnetFieldUpdateAt = now;
       const allTiles = typeof getTiles === 'function' ? getTiles() : [];
       const magnetX = t.x;
       const magnetY = t.y;
@@ -990,13 +1039,19 @@ export function initDrag(cfg) {
           
           try { state.moveTween?.kill(); } catch {}
           if (!otherTile.destroyed) {
-            state.moveTween = trackTween(otherTile, {
-              x: destX,
-              y: destY,
-              duration: MAGNET_MOVE_DUR,
-              ease: 'sine.out',
-              overwrite: 'auto'
-            });
+            if (shouldUseTouchDragPerformanceMode()) {
+              otherTile.x = otherTile.x + (destX - otherTile.x) * 0.35;
+              otherTile.y = otherTile.y + (destY - otherTile.y) * 0.35;
+              state.moveTween = null;
+            } else {
+              state.moveTween = trackTween(otherTile, {
+                x: destX,
+                y: destY,
+                duration: MAGNET_MOVE_DUR,
+                ease: 'sine.out',
+                overwrite: 'auto'
+              });
+            }
           }
         } else {
           // Out of range - release magnet effect for this tile
@@ -1037,7 +1092,7 @@ export function initDrag(cfg) {
         }
         
         // Show selection animation if magnet is close (like wild tile selection)
-        if (distToMagnet < selectionRange) {
+        if (distToMagnet < selectionRange && !shouldSuppressDragDecorativeFx()) {
           // Only show selection if not already showing or if magnet just entered range
           if (!otherTile._magnetSelected || (now - (otherTile._magnetSelectedTime || 0)) > 150) {
             try {
@@ -1103,6 +1158,7 @@ export function initDrag(cfg) {
     const t = drag.t;
     drag.t = null;
     clearDragRuntime();
+    resumeSpecialDiceIdleAfterDrag();
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
     try {
@@ -1238,7 +1294,7 @@ export function initDrag(cfg) {
       return;
     }
 
-    const target = pickDropTarget(t, { pointerGlobal: e?.global });
+    const target = pickDropTarget(t, { pointerGlobal: e?.global, force: true });
     
     if (!target) {
       clearHover();
@@ -1327,6 +1383,7 @@ export function initDrag(cfg) {
     drag.t = null;
     clearHover({ immediateMagnet: true });
     clearDragRuntime();
+    resumeSpecialDiceIdleAfterDrag();
     if (!t || t.destroyed) return;
     try {
       snapBack(t, () => {
@@ -1340,7 +1397,7 @@ export function initDrag(cfg) {
   // === STABLE HIT-TEST: preklapanje pravokutnika, bez auto-aimanja ===
   // 🔥 PERFORMANCE: Throttle pickDropTarget to prevent lag
   let lastPickDropTime = 0;
-  const PICK_DROP_THROTTLE = 16; // ~60fps max (16ms between calls)
+  const PICK_DROP_THROTTLE = DRAG_HOVER_PICK_THROTTLE_MS;
   let lastPickDropResult = null;
   let lastPickDropSrc = null;
   let lastPickDropX = null;
@@ -1365,17 +1422,15 @@ export function initDrag(cfg) {
   function pickDropTarget(src, opts = {}) {
     const allowCenterFallback = opts.allowCenterFallback !== false;
     const pointerGlobal = opts.pointerGlobal || null;
+    const force = opts.force === true;
     // 🔥 PERFORMANCE: Throttle pickDropTarget calls to prevent lag
     const now = performance.now();
     const srcX = src?.x ?? 0;
     const srcY = src?.y ?? 0;
-    const srcStationary = lastPickDropX !== null &&
-      Math.abs(srcX - lastPickDropX) < 0.01 &&
-      Math.abs(srcY - lastPickDropY) < 0.01;
     if (
+      !force &&
       src === lastPickDropSrc &&
       lastPickDropAllowCenterFallback === allowCenterFallback &&
-      srcStationary &&
       now - lastPickDropTime < PICK_DROP_THROTTLE
     ) {
       return lastPickDropResult; // Return cached result if called too soon
@@ -1421,7 +1476,7 @@ export function initDrag(cfg) {
         if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
-        const r = getRect(t);
+        const r = getGlobalRect(t);
         if (!r || r.w === 0 || r.h === 0) continue;
         const inside =
           px >= r.x - pad &&
@@ -1564,7 +1619,7 @@ export function initDrag(cfg) {
           if (!isGameplayTileCandidate(t)) continue;
           if ((t as any)._ccWildSpawnDropping === true) continue;
           if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
-          const r = getRect(t);
+          const r = getGlobalRect(t);
           if (!r || r.w === 0 || r.h === 0) continue;
 
           const insideReleaseArea =
@@ -1802,13 +1857,19 @@ export function initDrag(cfg) {
 
     try { state.moveTween?.kill?.(); } catch {}
     if (!target.destroyed) {
-      state.moveTween = trackTween(target, {
-        x: destX,
-        y: destY,
-        duration: MAGNET_MOVE_DUR,
-        ease: 'sine.out',
-        overwrite: 'auto'
-      });
+      if (shouldUseTouchDragPerformanceMode()) {
+        target.x = target.x + (destX - target.x) * 0.35;
+        target.y = target.y + (destY - target.y) * 0.35;
+        state.moveTween = null;
+      } else {
+        state.moveTween = trackTween(target, {
+          x: destX,
+          y: destY,
+          duration: MAGNET_MOVE_DUR,
+          ease: 'sine.out',
+          overwrite: 'auto'
+        });
+      }
     }
   }
 
@@ -1839,8 +1900,32 @@ export function initDrag(cfg) {
 
   function getRect(d) {
     if (!d || d.destroyed) return { x: 0, y: 0, w: 0, h: 0 };
-    const b = d.getBounds?.(true) || { x: d.x, y: d.y, width: d.width || 128, height: d.height || 128 };
-    return { x: b.x || 0, y: b.y || 0, w: b.width || 128, h: b.height || 128 };
+    const scaleX = Math.abs(d.scale?.x ?? 1);
+    const scaleY = Math.abs(d.scale?.y ?? 1);
+    const w = Math.max(1, tileSize * scaleX);
+    const h = Math.max(1, tileSize * scaleY);
+    const x = Number(d.x || 0) - w / 2;
+    const y = Number(d.y || 0) - h / 2;
+    return { x, y, w, h };
+  }
+
+  function getGlobalRect(d) {
+    if (!d || d.destroyed) return { x: 0, y: 0, w: 0, h: 0 };
+    try {
+      const center = d.parent?.toGlobal
+        ? d.parent.toGlobal({ x: d.x || 0, y: d.y || 0 })
+        : board.toGlobal({ x: d.x || 0, y: d.y || 0 });
+      const boardScaleX = Math.abs(board?.worldTransform?.a || board?.scale?.x || 1);
+      const boardScaleY = Math.abs(board?.worldTransform?.d || board?.scale?.y || 1);
+      const scaleX = Math.abs(d.scale?.x ?? 1);
+      const scaleY = Math.abs(d.scale?.y ?? 1);
+      const w = Math.max(1, tileSize * scaleX * boardScaleX);
+      const h = Math.max(1, tileSize * scaleY * boardScaleY);
+      return { x: center.x - w / 2, y: center.y - h / 2, w, h };
+    } catch {
+      const b = d.getBounds?.(true) || { x: d.x, y: d.y, width: d.width || tileSize, height: d.height || tileSize };
+      return { x: b.x || 0, y: b.y || 0, w: b.width || tileSize, h: b.height || tileSize };
+    }
   }
   function intersectRatio(a, b) {
     const x1 = Math.max(a.x, b.x);
@@ -1981,6 +2066,7 @@ export function initDrag(cfg) {
   // This should be called when app is destroyed to prevent memory leaks
   function cleanup() {
     clearDragRuntime();
+    resumeSpecialDiceIdleAfterDrag();
     
     // Clear drag state
     drag.t = null;

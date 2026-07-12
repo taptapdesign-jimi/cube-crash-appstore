@@ -22,16 +22,8 @@
   }
 }
 
-/* iOS performance optimizations */
-.ios-device * {
-  /* Enable hardware acceleration */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  -webkit-perspective: 1000;
-  perspective: 1000;
-}
+/* iOS performance optimizations must stay scoped.
+   Promoting every element to its own compositing layer hurts canvas-heavy gameplay. */
 
 /* iOS touch optimizations */
 .ios-device button,

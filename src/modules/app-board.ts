@@ -189,6 +189,9 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   const list = [...listTiles];
   const isLoadPopInHaptics = (window as any).__ccLoadPopInHapticPerTile === true;
   const isEntryPopInHaptics = (window as any).__ccEnterAnimationActive === true;
+  const loadPopInHapticCadence = Math.max(1, Number((window as any).__ccLoadPopInHapticCadence || 4) | 0);
+  const maxLoadPopInHaptics = 7;
+  let loadPopInHapticsSent = 0;
 
   // FULL random order — no spatial pattern
   for (let i = list.length - 1; i > 0; i--) {
@@ -285,9 +288,14 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0; // do -160ms
       const enterDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
 
+      const shouldTriggerLoadPopInHaptic =
+        isLoadPopInHaptics &&
+        i % loadPopInHapticCadence === 0 &&
+        loadPopInHapticsSent < maxLoadPopInHaptics;
       const shouldTriggerPopInHaptic =
-        isLoadPopInHaptics || (isEntryPopInHaptics && i % 2 === 0);
+        shouldTriggerLoadPopInHaptic || (isEntryPopInHaptics && i % 2 === 0);
       if (shouldTriggerPopInHaptic && typeof (window as any).triggerHapticImpact === 'function') {
+        if (shouldTriggerLoadPopInHaptic) loadPopInHapticsSent++;
         const hapticDelay = enterDel + (isEntryPopInHaptics ? ENTRY_POPIN_HAPTIC_START_DELAY_MS / 1000 : 0);
         const hapticCall = trackDelayedCall(hapticDelay, () => {
           try { (window as any).triggerHapticImpact?.('light'); } catch {}

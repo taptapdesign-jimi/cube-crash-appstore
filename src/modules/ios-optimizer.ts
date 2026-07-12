@@ -219,15 +219,6 @@ class IOSOptimizer {
     // Optimize animations for iOS
     this.animationOptimizationStyleEl = document.createElement('style');
     this.animationOptimizationStyleEl.textContent = `
-      .ios-device * {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-        -webkit-perspective: 1000;
-        perspective: 1000;
-      }
-      
       .ios-device .slider__wrapper {
         -webkit-transform: translateZ(0);
         transform: translateZ(0);

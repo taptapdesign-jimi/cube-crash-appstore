@@ -649,9 +649,12 @@ export async function preloadJourneyBoardImages(boardIds: number[]): Promise<voi
     
     // Add collectibles card images for opened boards
     boardIds.forEach(boardId => {
-      if (boardId >= 1 && boardId <= 16) {
-        const id = String(boardId).padStart(2, '0');
-        imagesToPreload.push(`./assets/colelctibles/common/${id}.png`);
+      if (boardId < 1 || boardId > 30) return;
+      const assetBoardId = boardId >= 21 ? boardId - 20 : boardId;
+      const id = String(assetBoardId).padStart(2, '0');
+      imagesToPreload.push(`./assets/colelctibles/common/${id}.png`);
+      if (boardId === 1 || boardId === 21) {
+        imagesToPreload.push('./assets/journey assets/forest/forest world/cards/forest-1.png');
       }
     });
     
