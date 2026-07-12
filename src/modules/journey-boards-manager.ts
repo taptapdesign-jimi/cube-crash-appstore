@@ -685,14 +685,7 @@ class JourneyBoardsManager {
       idleTargets.forEach((target) => {
         const el = target as HTMLElement;
         if ((el as any).__ccJourneyToGameExitTween) return;
-        const isActiveInterimWrapper = this.isInterimCardWrapper(el) && (el as any)._interimBounceActive;
-        try {
-          if (isActiveInterimWrapper) {
-            gsap.killTweensOf(el, 'x,y');
-          } else {
-            gsap.killTweensOf(el);
-          }
-        } catch {}
+        try { gsap.killTweensOf(el); } catch {}
         el.classList.remove('journey-area-idle-target');
         if (el.classList.contains('journey-robo-alien-beam-art')) {
           try { gsap.set(el, { clearProps: 'opacity' }); } catch {}
@@ -888,23 +881,35 @@ class JourneyBoardsManager {
 
       wrappers.forEach((wrapper) => {
         if ((wrapper as any).__ccJourneyToGameExitTween) return;
+        const visualTarget = this.getJourneyBoardCardVisualTarget(wrapper);
+        const isActiveInterimCard =
+          visualTarget.classList.contains('journey-board-card') &&
+          visualTarget.classList.contains('interim') &&
+          (wrapper as any)._interimBounceActive;
         try { gsap.killTweensOf(wrapper); } catch {}
-        try { gsap.killTweensOf(this.getJourneyBoardCardVisualTarget(wrapper)); } catch {}
+        if (!isActiveInterimCard) {
+          try { gsap.killTweensOf(visualTarget); } catch {}
+        }
 
         rememberJourneyBoardCardBaseTransform(wrapper);
         restoreJourneyBoardCardBaseTransform(wrapper);
-        this.restoreJourneyBoardCardVisualTarget(wrapper);
+        if (!isActiveInterimCard) {
+          this.restoreJourneyBoardCardVisualTarget(wrapper);
+        }
 
         wrapper.style.transition = 'none';
         wrapper.style.willChange = 'auto';
-        const visualTarget = this.getJourneyBoardCardVisualTarget(wrapper);
-        visualTarget.style.transition = 'none';
-        visualTarget.style.willChange = 'auto';
+        if (!isActiveInterimCard) {
+          visualTarget.style.transition = 'none';
+          visualTarget.style.willChange = 'auto';
+        }
 
         window.requestAnimationFrame(() => {
           if (!document.body.contains(wrapper)) return;
           wrapper.style.transition = '';
-          visualTarget.style.transition = '';
+          if (!isActiveInterimCard) {
+            visualTarget.style.transition = '';
+          }
         });
       });
 
@@ -3712,11 +3717,6 @@ class JourneyBoardsManager {
     }
   }
 
-  public startInterimIdleEffectsAfterReveal(reason: string): void {
-    logger.info('🧪 JourneyInterimFX idle-start-after-reveal', { reason });
-    this.startGlowPulse();
-  }
-
   /**
    * 🔥 USER REQUEST: Start independent animations on interim card
    * - Bounce animation: continuous (independent from other cards)
@@ -4785,9 +4785,8 @@ class JourneyBoardsManager {
       // Add scroll and touch listeners (these don't interfere with enter animation)
       this.setupIdleInteractionListeners();
       
-      // Interim idle FX are started after the Journey reveal animation in
-      // collectibles-manager. Starting here is too early because pre-reveal
-      // cleanup kills card visual tweens.
+      // 🔥 USER REQUEST: Start continuous glow pulse on interim card (non-animated, doesn't interfere)
+      this.startGlowPulse();
       
       // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
       // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
