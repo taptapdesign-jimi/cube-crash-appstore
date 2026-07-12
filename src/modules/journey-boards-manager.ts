@@ -586,7 +586,7 @@ class JourneyBoardsManager {
   private journeyViewportExitPromise: Promise<void> | null = null;
   private journeyToGameExitActive = false;
   private journeyToGameExitBoardId: number | null = null;
-  private journeyAreaIdleTickers: Array<() => void> = [];
+  private journeyAreaIdleTickers: Array<{ ticker: () => void; targets: HTMLElement[]; areaId: string }> = [];
   private journeyAreaIdleStartTimeout: number | null = null;
   private journeyScrollSettledTimeout: number | null = null;
   private journeyAreaIdlePausedForInteraction = false;
@@ -671,8 +671,8 @@ class JourneyBoardsManager {
   private cleanupJourneyAreaIdleAnimations(resetTransforms = true): void {
     try {
       const tickerCount = this.journeyAreaIdleTickers.length;
-      this.journeyAreaIdleTickers.forEach((ticker) => {
-        try { gsap.ticker.remove(ticker); } catch {}
+      this.journeyAreaIdleTickers.forEach((entry) => {
+        try { gsap.ticker.remove(entry.ticker); } catch {}
       });
       this.journeyAreaIdleTickers = [];
       if (resetTransforms) {
@@ -709,6 +709,141 @@ class JourneyBoardsManager {
     } catch (error) {
       logger.warn('⚠️ Failed to cleanup Journey area idle animations:', error);
     }
+  }
+
+  private stopJourneyAreaIdleForTargets(targets: HTMLElement[]): void {
+    try {
+      const targetSet = new Set(targets.filter((target) => target && document.body.contains(target)));
+      if (!targetSet.size || !this.journeyAreaIdleTickers.length) return;
+
+      const remaining: Array<{ ticker: () => void; targets: HTMLElement[]; areaId: string }> = [];
+      let removed = 0;
+      this.journeyAreaIdleTickers.forEach((entry) => {
+        const overlaps = entry.targets.some((target) => targetSet.has(target));
+        if (!overlaps) {
+          remaining.push(entry);
+          return;
+        }
+        removed += 1;
+        try { gsap.ticker.remove(entry.ticker); } catch {}
+      });
+      this.journeyAreaIdleTickers = remaining;
+
+      targetSet.forEach((target) => {
+        if ((target as any).__ccJourneyToGameExitTween) return;
+        try { gsap.killTweensOf(target); } catch {}
+        target.classList.remove('journey-area-idle-target');
+        target.style.willChange = 'auto';
+      });
+
+      logger.info('🧭 JourneyForestAnim idle-stop-targets', {
+        targetCount: targetSet.size,
+        removedTickers: removed,
+        remainingTickers: this.journeyAreaIdleTickers.length,
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to stop Journey area idle for targets:', error);
+    }
+  }
+
+  private createJourneyAreaIdleTimeline(
+    areaId: string,
+    targets: HTMLElement[],
+    options: { amplitude: number; cycleDuration: number; delay: number; xAmplitude?: number; xPhaseOffset?: number; rampSeconds?: number }
+  ): void {
+    const liveTargets = targets.filter((target) => target && document.body.contains(target));
+    if (!liveTargets.length) {
+      logger.warn('🧭 JourneyForestAnim idle-skip-empty-area', { areaId });
+      return;
+    }
+
+    liveTargets.forEach((target) => {
+      if (target.classList.contains('journey-board-card-wrapper')) {
+        restoreJourneyBoardCardBaseTransform(target);
+      } else {
+        target.style.opacity = '1';
+        target.style.visibility = 'visible';
+      }
+      target.classList.add('journey-area-idle-target');
+      target.dataset.journeyAreaId = areaId;
+      target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
+        ? 'transform, opacity'
+        : 'transform';
+    });
+
+    const targetStates = liveTargets.map((target) => {
+      const initialYRaw = Number(gsap.getProperty(target, 'y') || 0);
+      const initialXRaw = Number(gsap.getProperty(target, 'x') || 0);
+      return {
+        setY: gsap.quickSetter(target, 'y', 'px') as (value: number) => void,
+        setX: options.xAmplitude
+          ? gsap.quickSetter(target, 'x', 'px') as (value: number) => void
+          : null,
+        initialY: Number.isFinite(initialYRaw) ? initialYRaw : 0,
+        initialX: Number.isFinite(initialXRaw) ? initialXRaw : 0,
+      };
+    });
+    const startTime = gsap.ticker.time;
+    const speed = (Math.PI * 2) / options.cycleDuration;
+    const phaseOffset = options.delay * speed;
+    const rampSeconds = options.rampSeconds ?? JOURNEY_AREA_IDLE_RAMP_IN_SECONDS;
+    const ticker = () => {
+      if (this.renderDisposed) {
+        try { gsap.ticker.remove(ticker); } catch {}
+        return;
+      }
+
+      const elapsed = gsap.ticker.time - startTime;
+      const waveY = Math.sin((elapsed * speed) + phaseOffset) * options.amplitude;
+      const rampProgress = Math.min(1, Math.max(0, elapsed / rampSeconds));
+      const ramp = rampProgress * rampProgress * rampProgress * (rampProgress * ((rampProgress * 6) - 15) + 10);
+      const xPhase = options.xPhaseOffset ?? 1.4;
+      const waveX = options.xAmplitude
+        ? Math.sin((elapsed * speed * 0.82) + phaseOffset + xPhase) * options.xAmplitude
+        : 0;
+      targetStates.forEach((state) => {
+        state.setY(state.initialY + ((waveY - state.initialY) * ramp));
+        if (state.setX && options.xAmplitude) {
+          state.setX(state.initialX + ((waveX - state.initialX) * ramp));
+        }
+      });
+    };
+
+    gsap.ticker.add(ticker);
+    this.journeyAreaIdleTickers.push({ ticker, targets: liveTargets, areaId });
+    logger.info('🧭 JourneyForestAnim idle-area-created', {
+      areaId,
+      targetCount: liveTargets.length,
+      amplitude: Number(options.amplitude.toFixed(2)),
+      xAmplitude: Number((options.xAmplitude || 0).toFixed(2)),
+      cycleDuration: Number(options.cycleDuration.toFixed(2)),
+      phaseOffset: Number(options.delay.toFixed(2)),
+      initialY: Number((targetStates[0]?.initialY || 0).toFixed(2)),
+      rampInSeconds: rampSeconds,
+      totalTickers: this.journeyAreaIdleTickers.length,
+    });
+  }
+
+  private startJourneyBoardAreaIdleAnimation(boardId: number, cardsContainer: HTMLElement): void {
+    const forestAreas = this.getCurrentJourneyForestAreas(cardsContainer);
+    const targets = [...(forestAreas.boardTargets.get(boardId) || [])];
+    const card = cardsContainer.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+    const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (cardWrapper && !targets.includes(cardWrapper)) {
+      cardWrapper.dataset.journeyAreaId = `board-${boardId}`;
+      targets.push(cardWrapper);
+    }
+    if (!targets.length) return;
+
+    this.stopJourneyAreaIdleForTargets(targets);
+
+    this.createJourneyAreaIdleTimeline(`board-${boardId}-unified-resume`, targets, {
+      amplitude: 5.4,
+      cycleDuration: 3.7,
+      delay: 0,
+      rampSeconds: 1.8,
+    });
+    this.startVisibleInterimCardIdleEffects(cardsContainer);
   }
 
   private pauseJourneyAreaIdleForInteraction(resumeDelayMs = 900): void {
@@ -943,83 +1078,14 @@ class JourneyBoardsManager {
       min + (Math.random() * (max - min))
     );
 
-    const createIdleTimeline = (
-      areaId: string,
-      targets: HTMLElement[],
-      options: { amplitude: number; cycleDuration: number; delay: number; xAmplitude?: number; xPhaseOffset?: number }
-    ) => {
-      const liveTargets = targets.filter((target) => target && document.body.contains(target));
-      if (!liveTargets.length) {
-        logger.warn('🧭 JourneyForestAnim idle-skip-empty-area', { areaId });
-        return;
-      }
-
-      liveTargets.forEach((target) => {
-        if (target.classList.contains('journey-board-card-wrapper')) {
-          restoreJourneyBoardCardBaseTransform(target);
-        } else {
-          target.style.opacity = '1';
-          target.style.visibility = 'visible';
-        }
-        target.classList.add('journey-area-idle-target');
-        target.dataset.journeyAreaId = areaId;
-        target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
-          ? 'transform, opacity'
-          : 'transform';
-      });
-
-      const setY = gsap.quickSetter(liveTargets, 'y', 'px') as (value: number) => void;
-      const setX = options.xAmplitude
-        ? gsap.quickSetter(liveTargets, 'x', 'px') as (value: number) => void
-        : null;
-      const startTime = gsap.ticker.time;
-      const speed = (Math.PI * 2) / options.cycleDuration;
-      const phaseOffset = options.delay * speed;
-      const initialYRaw = Number(gsap.getProperty(liveTargets[0], 'y') || 0);
-      const initialY = Number.isFinite(initialYRaw) ? initialYRaw : 0;
-      const initialXRaw = Number(gsap.getProperty(liveTargets[0], 'x') || 0);
-      const initialX = Number.isFinite(initialXRaw) ? initialXRaw : 0;
-      const ticker = () => {
-        if (this.renderDisposed) {
-          try { gsap.ticker.remove(ticker); } catch {}
-          return;
-        }
-
-        const elapsed = gsap.ticker.time - startTime;
-        const waveY = Math.sin((elapsed * speed) + phaseOffset) * options.amplitude;
-        const rampProgress = Math.min(1, Math.max(0, elapsed / JOURNEY_AREA_IDLE_RAMP_IN_SECONDS));
-        const ramp = 1 - Math.pow(1 - rampProgress, 3);
-        setY(initialY + ((waveY - initialY) * ramp));
-        if (setX && options.xAmplitude) {
-          const xPhase = options.xPhaseOffset ?? 1.4;
-          const waveX = Math.sin((elapsed * speed * 0.82) + phaseOffset + xPhase) * options.xAmplitude;
-          setX(initialX + ((waveX - initialX) * ramp));
-        }
-      };
-
-      gsap.ticker.add(ticker);
-      this.journeyAreaIdleTickers.push(ticker);
-      logger.info('🧭 JourneyForestAnim idle-area-created', {
-        areaId,
-        targetCount: liveTargets.length,
-        amplitude: Number(options.amplitude.toFixed(2)),
-        xAmplitude: Number((options.xAmplitude || 0).toFixed(2)),
-        cycleDuration: Number(options.cycleDuration.toFixed(2)),
-        phaseOffset: Number(options.delay.toFixed(2)),
-        initialY: Number(initialY.toFixed(2)),
-        rampInSeconds: JOURNEY_AREA_IDLE_RAMP_IN_SECONDS,
-        totalTickers: this.journeyAreaIdleTickers.length,
-      });
-    };
-
-    createIdleTimeline('forest-main', forestAreas.mainTargets, {
+    this.createJourneyAreaIdleTimeline('forest-main', forestAreas.mainTargets, {
       amplitude: randomInRange(4.8, 6.4),
       cycleDuration: randomInRange(3.1, 3.9),
       delay: randomInRange(0.05, 0.22),
     });
 
     (forestAreas.cloudTargets || []).forEach((cloud, index) => {
-      createIdleTimeline(`forest-main-cloud-${index + 1}`, [cloud], {
+      this.createJourneyAreaIdleTimeline(`forest-main-cloud-${index + 1}`, [cloud], {
         amplitude: randomInRange(9.5, 16),
         xAmplitude: randomInRange(12, 20),
         xPhaseOffset: randomInRange(0.7, 2.4),
@@ -1036,7 +1102,7 @@ class JourneyBoardsManager {
         targets.push(cardWrapper);
       }
 
-      createIdleTimeline(`board-${boardId}`, targets, {
+      this.createJourneyAreaIdleTimeline(`board-${boardId}`, targets, {
         amplitude: randomInRange(6.5, 10.5),
         cycleDuration: randomInRange(2.55, 3.45),
         delay: randomInRange(0.08, 0.72),
@@ -1493,8 +1559,13 @@ class JourneyBoardsManager {
           className: item.target.className,
         })),
       });
-      this.cleanupJourneyAreaIdleAnimations(false);
       const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
+      if (cardsContainer && document.body.contains(cardsContainer) && !this.journeyAreaIdleTickers.length) {
+        logger.info('🧭 JourneyForestAnim active-enter-start-background-idle', { boardId });
+        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+      }
+      const cardMotionTargets = targets.filter((target) => target.classList.contains('journey-board-card-wrapper'));
+      this.stopJourneyAreaIdleForTargets(cardMotionTargets);
       const restoreTargetsVisible = () => {
         logger.info('🧭 JourneyForestAnim active-enter-complete-restore', {
           boardId,
@@ -1506,14 +1577,17 @@ class JourneyBoardsManager {
             target.style.willChange = 'auto';
             target.style.pointerEvents = '';
             target.style.transition = '';
-            gsap.set(target, {
+            const restoreVars: Record<string, unknown> = {
               scale: 1,
               opacity: 1,
-              y: 0,
               visibility: 'visible',
               clearProps: 'visibility',
               overwrite: true,
-            });
+            };
+            if (target.classList.contains('journey-board-card-wrapper')) {
+              restoreVars.y = 0;
+            }
+            gsap.set(target, restoreVars);
             if (target.classList.contains('journey-robo-alien-beam-art')) {
               target.style.removeProperty('opacity');
             }
@@ -1525,8 +1599,13 @@ class JourneyBoardsManager {
         const clearedActiveBoard = this.clearLastActiveJourneyBoardAreaId(boardId);
         if (clearedActiveBoard) {
           if (cardsContainer && document.body.contains(cardsContainer)) {
-            logger.info('🧭 JourneyForestAnim active-enter-start-idle-now', { boardId });
-            this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+            if (this.journeyAreaIdleTickers.length) {
+              logger.info('🧭 JourneyForestAnim active-enter-resume-board-idle-only', { boardId });
+              this.startJourneyBoardAreaIdleAnimation(boardId, cardsContainer);
+            } else {
+              logger.info('🧭 JourneyForestAnim active-enter-start-idle-now', { boardId });
+              this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+            }
           } else {
             logger.warn('🧭 JourneyForestAnim active-enter-idle-skip-missing-container', { boardId });
           }
@@ -1760,7 +1839,8 @@ class JourneyBoardsManager {
       return img;
     };
     const applyBeach2xSrcSet = (img: HTMLImageElement, src: string) => {
-      img.srcset = `${src.replace(/\.png$/, '@2x.png')} 2x`;
+      const src2x = src.replace(/\.png$/, '@2x.png');
+      img.srcset = `${encodeURI(src2x)} 2x`;
     };
 
     const addForestMainClouds = () => {
@@ -5158,7 +5238,9 @@ class JourneyBoardsManager {
         }
         // Set timer for long press detection (iOS long press is ~500ms)
         longPressTimer = window.setTimeout(() => {
-          e.preventDefault();
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           e.stopPropagation();
           longPressTimer = null;
         }, 300); // Prevent after 300ms (before iOS long press triggers)
@@ -5341,7 +5423,9 @@ class JourneyBoardsManager {
           longPressTimer = null;
         }
         longPressTimer = window.setTimeout(() => {
-          e.preventDefault();
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           e.stopPropagation();
           longPressTimer = null;
         }, 300);
@@ -5539,7 +5623,9 @@ class JourneyBoardsManager {
           longPressTimer = null;
         }
         longPressTimer = window.setTimeout(() => {
-          e.preventDefault();
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           e.stopPropagation();
           longPressTimer = null;
         }, 300);
