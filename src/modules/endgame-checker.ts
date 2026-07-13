@@ -431,8 +431,8 @@ function getTotalTileCount(activeTiles: any[]): number {
 }
 
 /**
- * Check if a single stack tile can merge with itself
- * 🔥 CRITICAL FIX: Also handle case where single tile has depth 1 (can't self-merge, is stuck)
+ * Single visible tile has no legal drag/drop move.
+ * Stack depth is visual/state history only; it must not create a synthetic self-merge.
  */
 function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boolean | null {
   if (activeTiles.length !== 1 || totalTilesCount < MIN_TILES_FOR_MERGE) {
@@ -444,59 +444,15 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   const stackDepth = (singleTile as any).stackDepth || 1;
   const isWild = tileIsWild(singleTile);
 
-  console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount, isWild });
+  console.log('🔍 isGameStuck: Single visible tile cannot self-merge:', { value, stackDepth, totalTilesCount, isWild });
 
-  // 🔥 CRITICAL FIX: Wild tiles can always merge with other tiles, so if it's wild, it's NOT stuck
+  // Let wild-specific continuation checks decide single wild/special dice.
   if (isWild) {
-    console.log('✅ isGameStuck: Single tile is wild - can merge with spawned tiles (NOT stuck)');
-    return null; // Let wild combination check handle this
+    return null;
   }
 
-  // Special case: merge 6 with depth 1 cannot merge (already max)
-  if (value === MAX_MERGE_VALUE && stackDepth === 1) {
-    console.log('🚨 isGameStuck: Single merge 6 with depth 1 - DEFINITELY STUCK');
-    return false;
-  }
-
-  // 🔥 CRITICAL BUG FIX: Single tile with depth 1 CANNOT self-merge (needs at least 2 tiles)
-  // This fixes the bug where player merges spawned tiles (1+1=2) and gets stuck with 1 tile (value 2, depth 1)
-  if (stackDepth === 1) {
-    console.log('🚨 isGameStuck: Single tile with depth 1 - CANNOT self-merge, IS STUCK');
-    console.log('🚨 Details: value =', value, ', depth =', stackDepth, ', cannot merge with itself (needs depth >= 2)');
-    return false; // Stuck - can't self-merge with depth 1
-  }
-
-  // Check if stack can merge with itself (2 tiles from stack, depth >= 2)
-  const canMergeSelf = (value + value) <= MAX_MERGE_VALUE;
-
-  if (canMergeSelf && stackDepth >= 2) {
-    // 🔥 USER REQUEST FIX: Stack CAN reach merge 6, but check what remains AFTER self-merge
-    // Example: value 3 (depth 2) can self-merge to 6, but then it's merge 6 (depth 1) = DEAD END!
-    const afterSelfMergeValue = value + value;
-    const afterSelfMergeDepth = stackDepth - 1; // Depth decreases by 1 after self-merge
-    
-    console.log('🔍 canSingleStackMerge: Stack can self-merge - checking what remains after:', {
-      beforeSelfMerge: { value, depth: stackDepth },
-      afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
-      isDeadEnd: afterSelfMergeValue === MAX_MERGE_VALUE && afterSelfMergeDepth === 1
-    });
-    
-    // If self-merge results in merge 6 (depth 1) → that's a DEAD END (stuck!)
-    if (afterSelfMergeValue === MAX_MERGE_VALUE && afterSelfMergeDepth === 1) {
-      console.log('🚨 isGameStuck: Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END - IS STUCK');
-      console.log('🚨 Details:', {
-        explanation: `${value}+${value}=${afterSelfMergeValue} (depth ${stackDepth} → ${afterSelfMergeDepth}) = merge 6 with depth 1 = DEAD END`
-      });
-      return false; // STUCK - self-merge leads to dead end
-    }
-    
-    // If after self-merge there's still room to continue (e.g., value 2, depth 3 → 4, depth 2 → can continue)
-    console.log('✅ isGameStuck: Stack can self-merge and continue after (', value, '+', value, '=', afterSelfMergeValue, ', depth:', stackDepth, '→', afterSelfMergeDepth, ') - NOT stuck');
-    return true;
-  } else {
-    console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6 OR depth < 2) - IS STUCK');
-    return false;
-  }
+  console.log('🚨 isGameStuck: Single regular visible tile has no legal move - IS STUCK');
+  return false;
 }
 
 /**

@@ -698,7 +698,9 @@ export function initDrag(cfg) {
       const grid = cfg.getGrid();
       if (grid && grid[drag.startGY] && grid[drag.startGY][drag.startGX] === t) {
         grid[drag.startGY][drag.startGX] = null;
-        console.log('🎯 DRAG: Temporarily cleared grid at', drag.startGX, drag.startGY);
+        if (isVerboseGameplayLogsEnabled()) {
+          console.log('🎯 DRAG: Temporarily cleared grid at', drag.startGX, drag.startGY);
+        }
         
         // Update ghost visibility to show placeholder at drag origin
         if (typeof window.updateGhostVisibility === 'function') {
@@ -2030,7 +2032,9 @@ export function initDrag(cfg) {
   }
 
   function snapBack(t, onSnapBackComplete) {
-    console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
+    if (isVerboseGameplayLogsEnabled()) {
+      console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
+    }
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
     

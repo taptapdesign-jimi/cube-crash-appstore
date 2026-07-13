@@ -8,6 +8,13 @@ import type { Tile } from '../types/game-types.js';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 
+const isVerboseGameplayLogsEnabled = () =>
+  typeof window !== 'undefined' && (window as any).__ccVerboseGameplayLogs === true;
+
+const dragDebugLog = (...args: any[]) => {
+  if (isVerboseGameplayLogsEnabled()) console.log(...args);
+};
+
 interface InstallDragConfig {
   app: Application;
   board: Container;
@@ -78,10 +85,10 @@ export function installDrag({
       }
       const baseCanDrop = canDrop ?? ((src: Tile, dst: Tile) => {
       if ((src as any)?._ccWildSpawnDropping === true || (dst as any)?._ccWildSpawnDropping === true) {
-        console.log('🔥 canDrop: Incoming wild drop is not mergeable yet');
+        dragDebugLog('🔥 canDrop: Incoming wild drop is not mergeable yet');
         return false;
       }
-      console.log('🔥 canDrop check:', {
+      dragDebugLog('🔥 canDrop check:', {
         src: (src as any)?.value,
         dst: (dst as any)?.value,
         locked: (dst as any)?.locked,
@@ -90,7 +97,7 @@ export function installDrag({
       });
       // CRITICAL: Check if destination is valid FIRST
       if (!dst || (dst as any).locked || ((dst as any).value | 0) <= 0) {
-        console.log('🔥 canDrop: Invalid destination (null, locked, or value = 0)');
+        dragDebugLog('🔥 canDrop: Invalid destination (null, locked, or value = 0)');
         return false;
       }
       const sv = (src && ((src as any).value | 0)) || 0;
@@ -105,27 +112,27 @@ export function installDrag({
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet
         if (dstIsWild || dstIsWildMagnet) {
-          console.log('🔥 Wild-magnet cannot merge into wild or wild-magnet');
+          dragDebugLog('🔥 Wild-magnet cannot merge into wild or wild-magnet');
           return false;
         }
         // CRITICAL: Check if destination is valid (not locked, has value > 0)
         if (!dst || (dst as any).locked || ((dst as any).value | 0) <= 0) {
-          console.log('🔥 Wild-magnet cannot merge into invalid destination (locked or value = 0)');
+          dragDebugLog('🔥 Wild-magnet cannot merge into invalid destination (locked or value = 0)');
           return false;
         }
         // Wild-magnet can merge into any normal tile
-        console.log('🔥 Wild-magnet can merge into normal tile');
+        dragDebugLog('🔥 Wild-magnet can merge into normal tile');
         return true;
       }
 
       if (dstIsWildMagnet) {
         // Any tile can merge into wild-magnet (except wild and wild-magnet)
         if (srcIsWild || srcIsWildMagnet) {
-          console.log('🔥 Wild or wild-magnet cannot merge into wild-magnet');
+          dragDebugLog('🔥 Wild or wild-magnet cannot merge into wild-magnet');
           return false;
         }
         // Normal tiles can merge into wild-magnet
-        console.log('🔥 Normal tile can merge into wild-magnet');
+        dragDebugLog('🔥 Normal tile can merge into wild-magnet');
         return true;
       }
 
@@ -135,7 +142,7 @@ export function installDrag({
       // They internally carry value 6, so comparing values makes regular 6 snap back.
       if (wild) {
         if (srcIsWild && dstIsWild) {
-          console.log('🔥 Wild merge check (wild->wild): not allowed');
+          dragDebugLog('🔥 Wild merge check (wild->wild): not allowed');
           return false;
         }
         if (srcIsWild && !dstIsWild) {
@@ -149,7 +156,7 @@ export function installDrag({
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
       if (sv === dv) return (sv + dv) <= 6;  // allow same value only when sum<=6 (3+3 OK, 4+4 and 5+5 must snap back)
       const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
-      console.log('🔥 canDrop result:', canMerge);
+      dragDebugLog('🔥 canDrop result:', canMerge);
       return canMerge;
       });
       return baseCanDrop(src, dst);

@@ -3061,7 +3061,7 @@ export async function boot(){
       mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
       boardNumber,
       reason: 'app-core-boot',
-      timeoutMs: 1400,
+      timeoutMs: 2600,
     });
   } catch (error) {
     devWarn('⚠️ Board asset warmup reported an issue during boot; runtime texture guard will continue recovery', error);

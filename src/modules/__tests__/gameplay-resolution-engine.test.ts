@@ -507,6 +507,24 @@ test('no-moves board resolves to fail when no runtime guard is active', () => {
   });
 });
 
+test('single visible stacked regular tile resolves to fail, not synthetic self-merge continue', () => {
+  const tiles = [
+    makeTile({ value: 3, stackDepth: 3, gridX: 2, gridY: 5 }),
+  ];
+  const snapshot = createGameplaySnapshot({
+    tiles,
+    moves: 2,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'level-check',
+  });
+
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'fail',
+    reason: 'single_non_6_tile',
+  });
+});
+
 test('journey no-moves board is not blocked by stale hidden wild residue', () => {
   const tiles = [
     makeTile({ value: 5 }),

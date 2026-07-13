@@ -350,12 +350,20 @@ test('single stack 3x2 is stuck (self-merge dead end into 6x1)', () => {
   expect(result.reason).toBe('single_non_6_tile');
 });
 
-test('single stack 2x3 can continue (self-merge chain available)', () => {
+test('single stack 2x3 is stuck because a single visible tile cannot self-merge', () => {
   const tiles = [makeTile({ value: 2, stackDepth: 3 })];
   const context = makeContext(tiles, 3, false);
   const result = checkEndGame(context, true);
-  expect(result.type).toBe('continue');
-  expect(result.reason).toBe('merges_possible');
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('single_non_6_tile');
+});
+
+test('single stack 3x3 after magnet flow is stuck, not playable', () => {
+  const tiles = [makeTile({ value: 3, stackDepth: 3, gridX: 2, gridY: 5 })];
+  const context = makeContext(tiles, 2, false);
+  const result = checkEndGame(context, true);
+  expect(result.type).toBe('stuck');
+  expect(result.reason).toBe('single_non_6_tile');
 });
 
 test('stale _isBeingSpawned on interactive regular tiles does not block stuck detection', () => {

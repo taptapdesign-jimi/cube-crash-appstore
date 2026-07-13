@@ -190,11 +190,6 @@ function schedulePostHomePerformanceWarmup(): void {
 
   window.setTimeout(() => {
     scheduleIdleTask(() => {
-      if (isNativeDevServerRuntime()) {
-        logger.warn('⏭️ Native dev server runtime: skipping post-home performance warmup');
-        return;
-      }
-
       if (isHomepageVisibleForWarmup()) {
         logger.info('⏭️ Homepage visible: deferring post-home performance warmup to avoid slider contention');
         postHomePerformanceWarmupScheduled = false;
@@ -209,8 +204,7 @@ function schedulePostHomePerformanceWarmup(): void {
         return;
       }
 
-      void Promise.allSettled([
-        getGameCoreModule().then(() => getAppState()),
+      const tasks: Promise<unknown>[] = [
         import('./utils/board-asset-warmup.js').then(({ warmBoardGameAssetsSoon }) => {
           warmBoardGameAssetsSoon({
             mode: 'arcade',
@@ -218,7 +212,15 @@ function schedulePostHomePerformanceWarmup(): void {
             timeoutMs: 2200,
           });
         }),
-      ]).then((results) => {
+      ];
+
+      if (isNativeDevServerRuntime()) {
+        logger.info('🎮 Native dev server runtime: running board texture warmup without game-core import');
+      } else {
+        tasks.unshift(getGameCoreModule().then(() => getAppState()));
+      }
+
+      void Promise.allSettled(tasks).then((results) => {
         const failed = results.filter((result) => result.status === 'rejected');
         if (failed.length > 0) {
           logger.warn('⚠️ Post-home performance warmup completed with failures', failed.map((result: any) => String(result.reason)));

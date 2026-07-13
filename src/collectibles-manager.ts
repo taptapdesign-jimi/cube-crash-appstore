@@ -23,6 +23,31 @@ const JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS = 260;
 const JOURNEY_SCROLL_TOP_KEY = '__ccJourneyScrollTop';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 
+function primeJourneyScreenHiddenForEnter(screen: HTMLElement, reason: string): void {
+  try {
+    screen.hidden = false;
+    screen.removeAttribute('hidden');
+    screen.classList.remove('hidden');
+    screen.classList.add('show');
+    screen.style.display = 'flex';
+    screen.style.zIndex = '999999';
+    screen.style.setProperty('opacity', '0', 'important');
+    screen.style.setProperty('visibility', 'hidden', 'important');
+    screen.style.pointerEvents = 'none';
+    screen.style.willChange = 'opacity';
+    screen.dataset.ccJourneyPrimedHidden = reason;
+  } catch {}
+}
+
+function releaseJourneyScreenHiddenPrime(screen: HTMLElement): void {
+  try {
+    screen.style.setProperty('opacity', '0');
+    screen.style.setProperty('visibility', 'visible');
+    screen.style.pointerEvents = 'none';
+    delete screen.dataset.ccJourneyPrimedHidden;
+  } catch {}
+}
+
 function hideLastActiveJourneyBoardAreaBeforeEnter(): void {
   let boardId = 0;
   try {
@@ -850,6 +875,7 @@ class CollectiblesManager {
       logger.error('❌ collectibles-screen element not found');
       return;
     }
+    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-start');
 
     const suppressDirectDetailReturn =
       (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true ||
@@ -954,20 +980,17 @@ class CollectiblesManager {
       backBtn.setAttribute('data-listener-attached', 'true');
     }
 
-    // 🔥 CRITICAL: Remove all inline styles that might hide the screen
-    // This ensures journey screen is visible when shown again after being hidden
-    (screen as HTMLElement).style.removeProperty('display');
-    (screen as HTMLElement).style.removeProperty('visibility');
-    (screen as HTMLElement).style.removeProperty('z-index');
-    (screen as HTMLElement).style.removeProperty('pointer-events'); // 🔥 FIX: Reset pointer-events
+    // Keep Journey hidden while DOM/render/scroll prep runs. This prevents a
+    // one-frame final-state flash before enter animation start values are applied.
+    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-before-render-prep');
     screen.removeAttribute('hidden');
     screen.classList.remove('hidden');
 
     // 🔥 CRITICAL MOBILE FIX: Set opacity 0 and visibility hidden IMMEDIATELY to prevent flash
     // This must be done BEFORE display:flex to prevent any visible frame
     // Use inline styles that GSAP will override - this ensures screen is invisible until animation starts
-    (screen as HTMLElement).style.opacity = '0';
-    (screen as HTMLElement).style.visibility = 'hidden';
+    (screen as HTMLElement).style.setProperty('opacity', '0', 'important');
+    (screen as HTMLElement).style.setProperty('visibility', 'hidden', 'important');
     // 🔥 CRITICAL: Also set will-change for better mobile performance
     (screen as HTMLElement).style.willChange = 'opacity, transform';
 
@@ -1146,51 +1169,28 @@ class CollectiblesManager {
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     // Screen is now visible with opacity 0, ready for animation
     // 🔥 CRITICAL: Set display FIRST, then animate immediately (no delays)
-    (screen as HTMLElement).style.display = 'flex';
-    (screen as HTMLElement).style.zIndex = '999999';
-    screen.classList.add('show');
-    screen.removeAttribute('hidden');
+    primeJourneyScreenHiddenForEnter(screen as HTMLElement, 'showCollectibles-before-enter-start');
     // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
 
     try {
       let enterAnimationStarted = false;
-      let fallbackRevealApplied = false;
       const revealFallbackTimer = window.setTimeout(() => {
         if (enterAnimationStarted) return;
         if (journeyBoardsReadyPromise) {
           logger.info('⏭️ Journey enter fallback delayed because boards are still preparing');
           return;
         }
-        fallbackRevealApplied = true;
-        (screen as HTMLElement).style.opacity = '1';
-        (screen as HTMLElement).style.visibility = 'visible';
-        (screen as HTMLElement).style.willChange = 'auto';
-        logger.warn('⚠️ Journey enter animation delayed - showing screen immediately to avoid blank state');
-      }, 1600);
+        logger.warn('⚠️ Journey enter animation delayed - keeping screen primed hidden to prevent flash');
+      }, 2400);
 
       // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
       // Then import and start animation immediately
       requestAnimationFrame(() => {
         import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
           window.clearTimeout(revealFallbackTimer);
-          if (fallbackRevealApplied) {
-            logger.info('🎬 Journey screen already revealed by fallback - skipping enter animation');
-            if (journeyContainer && shouldPlayActiveBoardAreaEnter) {
-              import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-                const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
-                restoreJourneyReturnScrollPosition('fallback-revealed-active-enter');
-                try {
-                  delete (window as any).__ccJourneyActiveAreaEnterPending;
-                } catch {}
-                activeJourneyBoardsManager.playActiveJourneyBoardAreaEnterAnimation?.();
-              }).catch((error) => {
-                logger.warn('⚠️ Failed to restore active Journey board area after fallback reveal:', String(error));
-              });
-            }
-            return;
-          }
           enterAnimationStarted = true;
           console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
+          releaseJourneyScreenHiddenPrime(screen as HTMLElement);
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
@@ -1262,6 +1262,7 @@ class CollectiblesManager {
           window.clearTimeout(revealFallbackTimer);
           console.error('❌ Failed to load collectibles animations:', error);
           // Fallback: just show screen normally
+          releaseJourneyScreenHiddenPrime(screen as HTMLElement);
           (screen as HTMLElement).style.opacity = '1';
           (screen as HTMLElement).style.visibility = 'visible';
           (screen as HTMLElement).style.willChange = 'auto';
@@ -1359,6 +1360,7 @@ class CollectiblesManager {
       console.error('❌ Failed to trigger collectibles enter animation:', error);
       // Fallback: just show the screen normally
       // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
+      releaseJourneyScreenHiddenPrime(screen as HTMLElement);
       (screen as HTMLElement).style.display = 'flex';
       (screen as HTMLElement).style.visibility = 'visible';
       (screen as HTMLElement).style.opacity = '1';
