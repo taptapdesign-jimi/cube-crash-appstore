@@ -15,9 +15,9 @@ const JOURNEY_VIEWPORT_EXIT_SELECTOR = [
   '.journey-forest-stump-art',
   '.journey-forest-star-art',
 ].join(', ');
-const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 44;
-const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 180;
-const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.42;
+const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 64;
+const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 300;
+const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.12;
 const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.12;
 const JOURNEY_VIEWPORT_EXIT_MIN_SCALE = 0.04;
 const JOURNEY_SCREEN_EXIT_TAIL_DURATION = 0.3;
@@ -347,7 +347,7 @@ function finishJourneyViewportEnterTarget(target: HTMLElement): void {
 function getJourneyViewportEnterStart(target: HTMLElement): { scale: number; y: number; duration: number; ease: string } {
   const isLargeWorldArt = target.classList.contains('journey-forest-main-art');
   return {
-    scale: isLargeWorldArt ? 0.96 : 0.66,
+    scale: isLargeWorldArt ? 1 : 0.66,
     y: isLargeWorldArt ? 12 : 0,
     duration: isLargeWorldArt ? 0.42 : 0.48,
     ease: isLargeWorldArt ? 'power2.out' : 'back.out(1.65)',
@@ -1087,7 +1087,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
 
         trackTween(animationTarget, {
           opacity: 0,
-          scale: isLargeWorldArt ? 0.78 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+          scale: isLargeWorldArt ? 1 : JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
           y: isLargeWorldArt ? 18 : 0,
           duration,
           ease: isLargeWorldArt ? 'back.in(1.15)' : 'back.in(1.25)',

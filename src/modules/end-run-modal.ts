@@ -13,6 +13,7 @@ import { container } from '../core/dependency-injection.js';
 let modal: HTMLElement | null = null;
 let endRunTransitionInProgress = false;
 let endRunLifecycleId = 0;
+let endRunOpenStartedAt = 0;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -238,6 +239,55 @@ function forceCompleteClosing(reason: string): void {
   } catch (err) {
     console.warn('⚠️ Error resetting modal visibility during force close:', err);
   }
+}
+
+function getEndRunSheetElement(): HTMLElement | null {
+  if (modal && modal.parentNode && !(modal as any)._closing) return modal;
+  const sheets = getEndRunSheetElements();
+  return sheets.find((el) => !(el as any)._closing) || null;
+}
+
+function isEndRunSheetActuallyVisible(sheet: HTMLElement | null = getEndRunSheetElement()): boolean {
+  if (!sheet || !sheet.isConnected) return false;
+
+  const style = window.getComputedStyle(sheet);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
+    return false;
+  }
+
+  const rect = sheet.getBoundingClientRect();
+  return rect.width > 1
+    && rect.height > 1
+    && rect.top < window.innerHeight - 12
+    && rect.bottom > 12;
+}
+
+function recoverStuckEndRunModalState(reason: string): boolean {
+  if (isEndRunSheetActuallyVisible()) return false;
+
+  console.warn('⚠️ End Run modal stuck without visible sheet - recovering gameplay', {
+    reason,
+    transition: endRunTransitionInProgress,
+    modalVisible: isModalVisible(),
+    elapsedMs: endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : null,
+  });
+  forceCompleteClosing(reason);
+  try {
+    resumeGame();
+  } catch {}
+  try {
+    safeResumeGame();
+  } catch {}
+  safeUnlockSlider();
+  return true;
+}
+
+function scheduleEndRunOpenVisibilityGuard(openLifecycleId: number, el: HTMLElement): void {
+  trackEndRunTimeout(() => {
+    if (openLifecycleId !== endRunLifecycleId || el !== modal || (el as any)._closing) return;
+    if (isEndRunSheetActuallyVisible(el)) return;
+    recoverStuckEndRunModalState('open-visibility-guard');
+  }, 1050);
 }
 
 function createModal(): HTMLElement {
@@ -493,8 +543,13 @@ function createModal(): HTMLElement {
 
 export function showEndRunModal(): void {
   if (endRunTransitionInProgress) {
+    const transitionElapsedMs = endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : 0;
+    if (transitionElapsedMs > 950 && recoverStuckEndRunModalState('show-transition-stuck')) {
+      // Continue with a fresh open below.
+    } else {
     console.warn('⚠️ End Run modal transition in progress - ignoring duplicate show call');
     return;
+    }
   }
 
   // 🔥 CRITICAL FIX: Check if modal is already visible/open before opening new one
@@ -520,114 +575,116 @@ export function showEndRunModal(): void {
   }
 
   endRunTransitionInProgress = true;
+  endRunOpenStartedAt = Date.now();
   const openLifecycleId = ++endRunLifecycleId;
-  
-  console.log('🎯 Pausing game for End This Run modal');
-  
-  // Light haptic for opening bottom sheet
-  if (typeof (window as any).triggerHapticImpact === 'function') {
-    (window as any).triggerHapticImpact('light');
-  }
-  
-  safePauseGame();
-  
-  // 🔥 CRITICAL FIX: Use "soft pause" - only block interactions, DON'T pause animations
-  // This prevents the exploit where magnet/merge animations get interrupted
-  // Animations continue in background while bottom sheet is open (looks nice, prevents exploits)
-  // Only set gamePaused flag to block new drag interactions
+
   try {
-    if (container && typeof (container as any).set === 'function') {
-      (container as any).set('gamePaused', true);
+    console.log('🎯 Pausing game for End This Run modal');
+
+    // Light haptic for opening bottom sheet
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
     }
-  } catch (error) {
-    console.warn('⚠️ Failed to set gamePaused via DI:', error);
-  }
-  (window as any)._gamePaused = true;
-  console.log('🔒 Game soft-paused (interactions blocked, animations continue)');
-  
-  // 🔥 NOTE: We intentionally DON'T call pauseGame() here anymore
-  // pauseGame() would pause GSAP timeline and stop PIXI ticker, breaking ongoing animations
-  // Instead, we only block pointer events and set gamePaused flag
-  
-  // 🔥 NOTE: Combo timer now uses setTimeout and works independently
-  // No need to kill/restart combo timer when bottom sheet opens/closes
-  
-  // CRITICAL: Freeze entire game - disable ALL interactions
-  // 1. Freeze board container
-  const boardContainer = document.getElementById('board-container');
-  if (boardContainer) {
-    boardContainer.style.pointerEvents = 'none';
-    boardContainer.style.userSelect = 'none';
-    boardContainer.style.touchAction = 'none';
-    console.log('🔒 Board frozen - ALL events disabled');
-  }
-  
-  // 2. Freeze HUD elements (DOM only - PIXI elements handled separately)
-  const hudElements = document.querySelectorAll('#hud-container, #score-text, #level-text, #combo-text, .wild-meter, #hud');
-  hudElements.forEach(el => {
-    if (el instanceof HTMLElement) {
-      el.style.pointerEvents = 'none';
-      el.style.userSelect = 'none';
-      el.style.touchAction = 'none';
-    }
-  });
-  
-  // 🔥 CRITICAL: Freeze PIXI HUD elements BUT keep X button and score button interactive
-  // These are PIXI Graphics elements, not DOM, so they need special handling
-  // 🔥 USER REQUEST: Keep X button and score button interactive so they can close the modal
-  try {
-    const hudRoot = (window as any).HUD_ROOT;
-    if (hudRoot && !hudRoot.destroyed) {
-      // Disable interaction on HUD_ROOT but allow children to be interactive
-      hudRoot.eventMode = 'passive'; // Allow children to receive events
-      hudRoot.interactive = false;
-      
-      // 🔥 CRITICAL: Keep X button interactive so it can close the modal
-      const xButton = hudRoot._xButton;
-      if (xButton && !xButton.destroyed) {
-        xButton.eventMode = 'static';
-        xButton.interactive = true;
-        xButton.interactiveChildren = true;
-        const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
-        if (debugBg && !debugBg.destroyed) {
-          debugBg.eventMode = 'static';
-          debugBg.interactive = true;
-        }
+
+    safePauseGame();
+
+    // 🔥 CRITICAL FIX: Use "soft pause" - only block interactions, DON'T pause animations
+    // This prevents the exploit where magnet/merge animations get interrupted
+    // Animations continue in background while bottom sheet is open (looks nice, prevents exploits)
+    // Only set gamePaused flag to block new drag interactions
+    try {
+      if (container && typeof (container as any).set === 'function') {
+        (container as any).set('gamePaused', true);
       }
-      
-      // 🔥 CRITICAL: Keep score touch area interactive so it can close the modal
-      const scoreTouchArea = hudRoot._scoreTouchArea;
-      if (scoreTouchArea && !scoreTouchArea.destroyed) {
-        scoreTouchArea.eventMode = 'static';
-        scoreTouchArea.interactive = true;
-        scoreTouchArea.interactiveChildren = true;
-        const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
-        if (scoreDebugBg && !scoreDebugBg.destroyed) {
-          scoreDebugBg.eventMode = 'static';
-          scoreDebugBg.interactive = true;
-        }
-      }
-      
-      console.log('🔒 PIXI HUD frozen - X button and score button remain interactive');
+    } catch (error) {
+      console.warn('⚠️ Failed to set gamePaused via DI:', error);
     }
-  } catch (err) {
-    console.warn('⚠️ Error freezing PIXI HUD:', err);
-  }
-  
-  console.log('🔒 HUD frozen - X button and score button remain interactive');
-  
-  // 3. Freeze entire app container as final safety
-  const appContainer = document.getElementById('app');
-  if (appContainer) {
-    // Remove any stale overlay from previous run to avoid blocking clicks
-    removeEndRunOverlay();
-    
-    // Don't set pointer-events: none on entire app, just add overlay protection
-    // 🔥 USER REQUEST: Overlay should not block clicks on HUD buttons (X and score)
-    // HUD is at top of screen, so we'll use pointer-events: none and handle clicks manually
-    const overlay = document.createElement('div');
-    overlay.id = 'end-run-overlay';
-    overlay.style.cssText = `
+    (window as any)._gamePaused = true;
+    console.log('🔒 Game soft-paused (interactions blocked, animations continue)');
+
+    // 🔥 NOTE: We intentionally DON'T call pauseGame() here anymore
+    // pauseGame() would pause GSAP timeline and stop PIXI ticker, breaking ongoing animations
+    // Instead, we only block pointer events and set gamePaused flag
+
+    // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+    // No need to kill/restart combo timer when bottom sheet opens/closes
+
+    // CRITICAL: Freeze entire game - disable ALL interactions
+    // 1. Freeze board container
+    const boardContainer = document.getElementById('board-container');
+    if (boardContainer) {
+      boardContainer.style.pointerEvents = 'none';
+      boardContainer.style.userSelect = 'none';
+      boardContainer.style.touchAction = 'none';
+      console.log('🔒 Board frozen - ALL events disabled');
+    }
+
+    // 2. Freeze HUD elements (DOM only - PIXI elements handled separately)
+    const hudElements = document.querySelectorAll('#hud-container, #score-text, #level-text, #combo-text, .wild-meter, #hud');
+    hudElements.forEach(el => {
+      if (el instanceof HTMLElement) {
+        el.style.pointerEvents = 'none';
+        el.style.userSelect = 'none';
+        el.style.touchAction = 'none';
+      }
+    });
+
+    // 🔥 CRITICAL: Freeze PIXI HUD elements BUT keep X button and score button interactive
+    // These are PIXI Graphics elements, not DOM, so they need special handling
+    // 🔥 USER REQUEST: Keep X button and score button interactive so they can close the modal
+    try {
+      const hudRoot = (window as any).HUD_ROOT;
+      if (hudRoot && !hudRoot.destroyed) {
+        // Disable interaction on HUD_ROOT but allow children to be interactive
+        hudRoot.eventMode = 'passive'; // Allow children to receive events
+        hudRoot.interactive = false;
+
+        // 🔥 CRITICAL: Keep X button interactive so it can close the modal
+        const xButton = hudRoot._xButton;
+        if (xButton && !xButton.destroyed) {
+          xButton.eventMode = 'static';
+          xButton.interactive = true;
+          xButton.interactiveChildren = true;
+          const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+          if (debugBg && !debugBg.destroyed) {
+            debugBg.eventMode = 'static';
+            debugBg.interactive = true;
+          }
+        }
+
+        // 🔥 CRITICAL: Keep score touch area interactive so it can close the modal
+        const scoreTouchArea = hudRoot._scoreTouchArea;
+        if (scoreTouchArea && !scoreTouchArea.destroyed) {
+          scoreTouchArea.eventMode = 'static';
+          scoreTouchArea.interactive = true;
+          scoreTouchArea.interactiveChildren = true;
+          const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+          if (scoreDebugBg && !scoreDebugBg.destroyed) {
+            scoreDebugBg.eventMode = 'static';
+            scoreDebugBg.interactive = true;
+          }
+        }
+
+        console.log('🔒 PIXI HUD frozen - X button and score button remain interactive');
+      }
+    } catch (err) {
+      console.warn('⚠️ Error freezing PIXI HUD:', err);
+    }
+
+    console.log('🔒 HUD frozen - X button and score button remain interactive');
+
+    // 3. Freeze entire app container as final safety
+    const appContainer = document.getElementById('app');
+    if (appContainer) {
+      // Remove any stale overlay from previous run to avoid blocking clicks
+      removeEndRunOverlay();
+
+      // Don't set pointer-events: none on entire app, just add overlay protection
+      // 🔥 USER REQUEST: Overlay should not block clicks on HUD buttons (X and score)
+      // HUD is at top of screen, so we'll use pointer-events: none and handle clicks manually
+      const overlay = document.createElement('div');
+      overlay.id = 'end-run-overlay';
+      overlay.style.cssText = `
       position: fixed;
       top: 0;
       left: 0;
@@ -639,43 +696,55 @@ export function showEndRunModal(): void {
       touch-action: none;
       user-select: none;
     `;
-    document.body.appendChild(overlay);
-    console.log('🔒 Overlay protection added (pointer-events: none to allow HUD clicks)');
-  }
-  
-  const el = createModal();
-  console.log('🎯 END RUN MODAL CREATED');
-  
-  // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
-  (el as any)._closing = false;
-  
-  // 🔥 CRITICAL FIX: Update modal visibility state
-  setModalVisible(true);
-  try {
-    if (typeof window.setEndRunModalVisible === 'function') {
-      window.setEndRunModalVisible(true);
+      document.body.appendChild(overlay);
+      console.log('🔒 Overlay protection added (pointer-events: none to allow HUD clicks)');
     }
-  } catch (err) {
-    console.warn('⚠️ Error setting modal visibility state:', err);
-  }
-  
-  // Import and run animation - same as resume modal
-  trackEndRunAnimationFrame(() => {
-    if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
-    import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
-      return animateBottomSheetEntrance(el).then(() => {
-        if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
-        endRunTransitionInProgress = false;
-        console.log('✅ End run modal entrance complete');
-      });
-    }).catch((error) => {
-      console.error('❌ Failed to load animation:', error);
+
+    const el = createModal();
+    console.log('🎯 END RUN MODAL CREATED');
+
+    // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
+    (el as any)._closing = false;
+
+    // 🔥 CRITICAL FIX: Update modal visibility state
+    setModalVisible(true);
+    try {
+      if (typeof window.setEndRunModalVisible === 'function') {
+        window.setEndRunModalVisible(true);
+      }
+    } catch (err) {
+      console.warn('⚠️ Error setting modal visibility state:', err);
+    }
+
+    scheduleEndRunOpenVisibilityGuard(openLifecycleId, el);
+
+    // Import and run animation - same as resume modal
+    trackEndRunAnimationFrame(() => {
       if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
-      el.classList.add('end-run-shadow-active');
-      el.classList.add('visible');
-      endRunTransitionInProgress = false;
+      import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
+        return animateBottomSheetEntrance(el).then(() => {
+          if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
+          endRunTransitionInProgress = false;
+          console.log('✅ End run modal entrance complete');
+        });
+      }).catch((error) => {
+        console.error('❌ Failed to load animation:', error);
+        if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
+        el.style.display = 'block';
+        el.style.visibility = 'visible';
+        el.style.transform = 'translateY(0)';
+        el.style.webkitTransform = 'translateY(0)';
+        endRunTransitionInProgress = false;
+        el.classList.add('end-run-shadow-active');
+        el.classList.add('visible');
+      });
     });
-  });
+  } catch (error) {
+    console.error('❌ Failed to open End Run modal - recovering gameplay:', error);
+    if (openLifecycleId === endRunLifecycleId) {
+      recoverStuckEndRunModalState('open-exception');
+    }
+  }
 }
 
 // Simple drag functionality - DRAG ON ENTIRE BOTTOM SHEET
@@ -1153,8 +1222,13 @@ export function forceHideEndRunModal(reason = 'force-hide'): void {
 
 export function showEndRunModalFromGame(): void {
   if (endRunTransitionInProgress) {
+    const transitionElapsedMs = endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : 0;
+    if (transitionElapsedMs > 950 && recoverStuckEndRunModalState('hud-transition-stuck')) {
+      // Continue with a fresh open below.
+    } else {
     console.warn('⚠️ End Run modal transition in progress - ignoring HUD click');
     return;
+    }
   }
 
   // 🔥 CRITICAL FIX: Check if modal is already visible before opening
@@ -1165,8 +1239,12 @@ export function showEndRunModalFromGame(): void {
   
   // 🔥 CRITICAL FIX: Also check via isModalVisible function
   if (isModalVisible()) {
+    if (!isEndRunSheetActuallyVisible() && recoverStuckEndRunModalState('hud-visible-state-stale')) {
+      // Continue with a fresh open below.
+    } else {
     console.warn('⚠️ End Run modal already visible (via isModalVisible) - ignoring HUD click');
     return;
+    }
   }
   
   // 🔥 USER REQUEST: If score bottom sheet is open, force hide it immediately before opening end-run modal
