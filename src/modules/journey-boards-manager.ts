@@ -451,7 +451,37 @@ const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
 const LAST_ACTIVE_WORLD_STORAGE_KEY = '__ccLastActiveJourneyWorldId';
 const LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY = '__ccLastActiveJourneyWorldBoardId';
+const JOURNEY_V700_VIEW_STORAGE_KEY = '__ccJourneyV700View';
+const JOURNEY_V700_WORLD_STORAGE_KEY = '__ccJourneyV700WorldId';
 const JOURNEY_WORLD_SIZE = 10;
+const JOURNEY_WORLD_MAIN_OFFSETS_PX: Record<number, number> = {
+  1: 0,
+  2: 1454,
+  3: 3166,
+};
+const JOURNEY_WORLD_LABELS: Record<number, { id: number; name: string; subtitle: string; asset: string; className: string }> = {
+  1: {
+    id: 1,
+    name: 'Forest',
+    subtitle: 'Boards 01-10',
+    asset: `${FOREST_WORLD_ASSET_BASE}/Forest main.png`,
+    className: 'journey-v700-world-forest',
+  },
+  2: {
+    id: 2,
+    name: 'Beach',
+    subtitle: 'Boards 11-20',
+    asset: `${BEACH_WORLD_ASSET_BASE}/beach-main.png`,
+    className: 'journey-v700-world-beach',
+  },
+  3: {
+    id: 3,
+    name: 'Robo',
+    subtitle: 'Boards 21-30',
+    asset: `${ROBO_WORLD_ASSET_BASE}/robo-main.png`,
+    className: 'journey-v700-world-robo',
+  },
+};
 
 // Helper to convert pixels to viewport width units (vw)
 // This ensures cards are always at the same position relative to screen width
@@ -592,6 +622,8 @@ class JourneyBoardsManager {
   private journeyScrollSettledTimeout: number | null = null;
   private journeyAreaIdlePausedForInteraction = false;
   private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
+  private journeyV700View: 'hub' | 'world' = 'hub';
+  private journeyV700WorldId: number | null = null;
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -1873,7 +1905,7 @@ class JourneyBoardsManager {
           `journey-forest-cloud-art journey-forest-main-cloud journey-forest-main-cloud-${index + 1}`,
           1,
           0,
-          undefined,
+          'forest-main',
           bgContainer
         );
         cloud.style.opacity = `${0.74 + (seededUnit(index + 31) * 0.16)}`;
@@ -4739,11 +4771,285 @@ class JourneyBoardsManager {
     // Initialize journey debug buttons
     this.initJourneyButtons();
 
+    if (this.journeyV700View !== 'world' || !this.journeyV700WorldId) {
+      this.renderJourneyV700Hub(container);
+      return;
+    }
+
     // 🔥 APP STORE FIX: Use FIXED viewport-based positioning - NO dynamic calculations
     // Background and cards use position: fixed with viewport units (vw/vh)
     // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
     this.renderBoardsFixed(container);
+    this.applyJourneyV700WorldScope(container, this.journeyV700WorldId);
     this.installJourneyScreenElasticOverscroll(container);
+  }
+
+  private setJourneyV700View(view: 'hub' | 'world', worldId: number | null = null): void {
+    this.journeyV700View = view;
+    this.journeyV700WorldId = view === 'world' && worldId ? worldId : null;
+    try {
+      localStorage.setItem(JOURNEY_V700_VIEW_STORAGE_KEY, view);
+      if (this.journeyV700WorldId) {
+        localStorage.setItem(JOURNEY_V700_WORLD_STORAGE_KEY, String(this.journeyV700WorldId));
+        (window as any).__ccJourneyV700WorldId = this.journeyV700WorldId;
+      } else {
+        localStorage.removeItem(JOURNEY_V700_WORLD_STORAGE_KEY);
+        delete (window as any).__ccJourneyV700WorldId;
+      }
+      (window as any).__ccJourneyV700View = view;
+    } catch {}
+  }
+
+  private renderJourneyV700Hub(container: HTMLElement): void {
+    this.setJourneyV700View('hub');
+    container.dataset.journeyV700View = 'hub';
+    container.style.height = '100%';
+    container.style.minHeight = '100%';
+    container.style.position = 'relative';
+    container.style.overflow = 'visible';
+
+    const highestUnlocked = this.boards.reduce((max, board) => board.unlocked || board.interim ? Math.max(max, board.id) : max, 1);
+    const activeWorldId = this.getJourneyWorldIdForBoard(highestUnlocked) || 1;
+
+    const hub = document.createElement('div');
+    hub.className = 'journey-v700-hub';
+    hub.setAttribute('aria-label', 'Journey worlds');
+
+    const worldIds = [1, 2, 3];
+    worldIds.forEach((worldId) => {
+      const meta = JOURNEY_WORLD_LABELS[worldId];
+      const range = this.getJourneyWorldRange(worldId);
+      if (!meta || !range) return;
+
+      const worldBoards = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
+      const unlockedCount = worldBoards.filter((board) => board.unlocked || board.interim).length;
+      const locked = worldId > activeWorldId && unlockedCount === 0;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}`;
+      button.dataset.worldId = String(worldId);
+      button.disabled = locked;
+      button.setAttribute('aria-label', `${meta.name} world`);
+
+      const image = document.createElement('img');
+      image.src = meta.asset;
+      image.alt = '';
+      image.draggable = false;
+      image.setAttribute('aria-hidden', 'true');
+      image.className = 'journey-v700-world-image';
+      button.appendChild(image);
+
+      const badge = document.createElement('span');
+      badge.className = 'journey-v700-world-badge';
+      badge.textContent = `${unlockedCount}/${worldBoards.length}`;
+      button.appendChild(badge);
+
+      const label = document.createElement('span');
+      label.className = 'journey-v700-world-label';
+      label.innerHTML = `<strong>${meta.name}</strong><small>${meta.subtitle}</small>`;
+      button.appendChild(label);
+
+      const openWorld = (event: Event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (locked) return;
+        this.openJourneyV700World(worldId, button);
+      };
+
+      button.addEventListener('click', openWorld);
+      button.addEventListener('touchend', openWorld, { passive: false });
+      hub.appendChild(button);
+    });
+
+    container.appendChild(hub);
+
+    try {
+      gsap.fromTo(
+        Array.from(hub.querySelectorAll('.journey-v700-world-card')),
+        { y: 26, scale: 0.88, opacity: 0 },
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.56,
+          stagger: 0.08,
+          ease: 'back.out(1.7)',
+          force3D: true,
+          clearProps: 'willChange',
+        }
+      );
+    } catch {}
+  }
+
+  private openJourneyV700World(worldId: number, source?: HTMLElement): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    if (!container) return;
+
+    try { (window as any).triggerHapticImpact?.('light'); } catch {}
+    const startWorldRender = () => {
+      this.setJourneyV700View('world', worldId);
+      this.renderBoards();
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      if (scrollable) {
+        scrollable.scrollTop = 0;
+      }
+    };
+
+    if (!source) {
+      startWorldRender();
+      return;
+    }
+
+    try {
+      gsap.to(source, {
+        scale: 0.9,
+        y: 18,
+        opacity: 0,
+        duration: 0.22,
+        ease: 'back.in(1.8)',
+        force3D: true,
+        onComplete: startWorldRender,
+      });
+    } catch {
+      startWorldRender();
+    }
+  }
+
+  private applyJourneyV700WorldScope(container: HTMLElement, worldId: number): void {
+    const range = this.getJourneyWorldRange(worldId);
+    const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
+    const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
+    if (!range) return;
+
+    container.dataset.journeyV700View = 'world';
+    container.dataset.journeyV700WorldId = String(worldId);
+
+    const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
+    const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+    const worldHeightPx = viewportWidth * (FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH);
+    const scopedHeight = Math.max(worldHeightPx + 760, window.innerHeight * 1.25);
+
+    container.style.height = `${scopedHeight}px`;
+    container.style.minHeight = `${scopedHeight}px`;
+    if (bgContainer) bgContainer.style.height = `${worldHeightPx}px`;
+    if (decorContainer) decorContainer.style.height = `${worldHeightPx}px`;
+    if (cardsContainer) cardsContainer.style.height = `${scopedHeight}px`;
+
+    const isAllowedArea = (areaId: string | undefined): boolean => {
+      if (!areaId) return false;
+      if (worldId === 1 && areaId === 'forest-main') return true;
+      if (worldId === 2 && areaId === 'beach-main') return true;
+      if (worldId === 3 && areaId === 'robo-main') return true;
+      const match = areaId.match(/^board-(\d+)$/);
+      if (!match) return false;
+      const boardId = Number(match[1]);
+      return boardId >= range.start && boardId <= range.end;
+    };
+
+    const scopeImage = (element: HTMLElement) => {
+      const areaId = element.dataset.journeyAreaId;
+      if (!isAllowedArea(areaId)) {
+        element.style.display = 'none';
+        return;
+      }
+      element.style.display = '';
+      const rawTop = parseFloat(element.style.top || '0');
+      if (Number.isFinite(rawTop)) {
+        element.style.top = `${rawTop - worldOffsetPercent}%`;
+      }
+    };
+
+    bgContainer?.querySelectorAll<HTMLElement>('.journey-area-idle-target').forEach(scopeImage);
+    decorContainer?.querySelectorAll<HTMLElement>('.journey-area-idle-target').forEach(scopeImage);
+
+    cardsContainer?.querySelectorAll<HTMLElement>('.journey-board-card-wrapper').forEach((wrapper) => {
+      const boardId = Number(wrapper.querySelector('.journey-board-card')?.getAttribute('data-board-id') || 0);
+      if (boardId < range.start || boardId > range.end) {
+        wrapper.style.display = 'none';
+        return;
+      }
+      wrapper.style.display = '';
+      const rawTop = parseFloat(wrapper.style.top || '0');
+      if (Number.isFinite(rawTop)) {
+        wrapper.style.top = `${rawTop - worldOffsetPx}px`;
+      }
+    });
+
+    this.installJourneyV700WorldClose(container, worldId);
+
+    try {
+      const visible = (target: HTMLElement) => target.style.display !== 'none';
+      const targets = [
+        ...(bgContainer ? Array.from(bgContainer.querySelectorAll<HTMLElement>('.journey-area-idle-target')).filter(visible) : []),
+        ...(decorContainer ? Array.from(decorContainer.querySelectorAll<HTMLElement>('.journey-area-idle-target')).filter(visible) : []),
+        ...(cardsContainer ? Array.from(cardsContainer.querySelectorAll<HTMLElement>('.journey-board-card-wrapper')).filter(visible) : []),
+      ];
+      gsap.fromTo(
+        targets,
+        { y: 30, scale: 0.86, opacity: 0 },
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.46,
+          stagger: 0.018,
+          ease: 'back.out(1.7)',
+          force3D: true,
+          onComplete: () => targets.forEach((target) => {
+            try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
+          }),
+        }
+      );
+    } catch {}
+  }
+
+  private installJourneyV700WorldClose(container: HTMLElement, worldId: number): void {
+    const existing = container.querySelector('.journey-v700-world-close');
+    existing?.remove();
+
+    const meta = JOURNEY_WORLD_LABELS[worldId];
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'journey-v700-world-close';
+    close.setAttribute('aria-label', 'Close world');
+    close.innerHTML = `
+      <span aria-hidden="true">&times;</span>
+      <strong>${meta?.name || 'World'}</strong>
+    `;
+
+    const closeWorld = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try { (window as any).triggerHapticImpact?.('light'); } catch {}
+      const visibleTargets = Array.from(container.querySelectorAll<HTMLElement>(
+        '.journey-area-idle-target, .journey-board-card-wrapper'
+      )).filter((target) => target.style.display !== 'none');
+      try {
+        gsap.to(visibleTargets, {
+          y: 26,
+          scale: 0.88,
+          opacity: 0,
+          duration: 0.22,
+          stagger: 0.008,
+          ease: 'back.in(1.6)',
+          force3D: true,
+          onComplete: () => {
+            this.setJourneyV700View('hub');
+            this.renderBoards();
+          },
+        });
+      } catch {
+        this.setJourneyV700View('hub');
+        this.renderBoards();
+      }
+    };
+
+    close.addEventListener('click', closeWorld);
+    close.addEventListener('touchend', closeWorld, { passive: false });
+    container.appendChild(close);
   }
 
   private markJourneyDevBoardRefresh(reason: string): void {
