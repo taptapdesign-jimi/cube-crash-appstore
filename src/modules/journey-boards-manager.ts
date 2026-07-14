@@ -433,6 +433,7 @@ const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
+const INTERIM_BOUNCE_SMOKE_STALE_MS = 3600;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
 const BOARD_AREA_MODAL_ENTER_EASE = 'back.out(1.8)';
@@ -3614,6 +3615,27 @@ class JourneyBoardsManager {
     // area-idle y/x tickers on the wrapper cannot cancel the interim bounce.
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
+    const cardRect = cardWrapper.getBoundingClientRect();
+    if (
+      !Number.isFinite(cardRect.width) ||
+      !Number.isFinite(cardRect.height) ||
+      cardRect.width < 20 ||
+      cardRect.height < 20
+    ) {
+      logger.info('🧪 JourneyInterimFX bounce-start-deferred-invalid-geometry', {
+        boardId: card.dataset.boardId,
+        width: cardRect.width,
+        height: cardRect.height,
+      });
+      if (!(cardWrapper as any)._interimGeometryRetryScheduled) {
+        (cardWrapper as any)._interimGeometryRetryScheduled = true;
+        this.scheduleInterimIdleEffectsRetry('invalid-geometry', 140, () => {
+          delete (cardWrapper as any)._interimGeometryRetryScheduled;
+        });
+      }
+      return;
+    }
+    delete (cardWrapper as any)._interimGeometryRetryScheduled;
     
     // 🔥 CRITICAL FIX: Check if bounce animation is already active to prevent duplicates
     if ((cardWrapper as any)._interimBounceActive) {
@@ -3657,6 +3679,7 @@ class JourneyBoardsManager {
       }
 
       const randomAlpha = 0.8 + Math.random() * 0.2;
+      (cardWrapper as any)._interimBounceLastSmokeAt = Date.now();
       smokeBubblesAtCard(card, {
         sizeScale: 0.68,
         distanceScale: 0.68,
@@ -3678,6 +3701,7 @@ class JourneyBoardsManager {
     }
 
     (cardWrapper as any)._interimBounceActive = true;
+    (cardWrapper as any)._interimBounceStartedAt = Date.now();
     const bounceTimeline = trackTimeline({
       delay: 0.12,
       repeat: -1,
@@ -3755,6 +3779,50 @@ class JourneyBoardsManager {
     }
     
     delete (cardWrapper as any)._interimBounceActive;
+    delete (cardWrapper as any)._interimBounceLastSmokeAt;
+    delete (cardWrapper as any)._interimBounceStartedAt;
+  }
+
+  private isInterimBounceTimelineHealthy(cardWrapper: HTMLElement, card: HTMLElement): boolean {
+    const bounceTimeline = (cardWrapper as any)._interimBounceTimeline;
+    if (!bounceTimeline || (bounceTimeline as any)._killed) return false;
+    try {
+      if (typeof bounceTimeline.paused === 'function' && bounceTimeline.paused()) return false;
+      if (typeof bounceTimeline.timeScale === 'function' && bounceTimeline.timeScale() === 0) return false;
+    } catch {}
+
+    const lastSmokeAt = Number((cardWrapper as any)._interimBounceLastSmokeAt || 0);
+    const startedAt = Number((cardWrapper as any)._interimBounceStartedAt || 0);
+    if (lastSmokeAt <= 0 && startedAt > 0 && Date.now() - startedAt > 1600) {
+      logger.warn('🧪 JourneyInterimFX bounce-stale-no-first-smoke-restart', {
+        boardId: card.dataset.boardId,
+        msSinceStart: Date.now() - startedAt,
+      });
+      return false;
+    }
+    if (lastSmokeAt > 0 && Date.now() - lastSmokeAt > INTERIM_BOUNCE_SMOKE_STALE_MS) {
+      logger.warn('🧪 JourneyInterimFX bounce-stale-no-smoke-restart', {
+        boardId: card.dataset.boardId,
+        msSinceSmoke: Date.now() - lastSmokeAt,
+      });
+      return false;
+    }
+
+    try {
+      if (typeof gsap !== 'undefined' && gsap.isTweening(card)) return true;
+    } catch {}
+
+    // During repeatDelay there may be no active tween, so a valid timeline is enough
+    // unless smoke health says it is stale.
+    return true;
+  }
+
+  private scheduleInterimIdleEffectsRetry(reason: string, delayMs: number, beforeRun?: () => void): void {
+    this.trackTimeout(() => {
+      beforeRun?.();
+      this.startVisibleInterimCardIdleEffects(document);
+    }, delayMs);
+    logger.info('🧪 JourneyInterimFX idle-retry-scheduled', { reason, delayMs });
   }
 
   private startVisibleInterimCardIdleEffects(root: ParentNode = document): void {
@@ -3767,12 +3835,9 @@ class JourneyBoardsManager {
         if (!cardWrapper || !document.body.contains(cardWrapper)) return;
         if ((cardWrapper as any).__ccJourneyToGameExitTween || (interimCard as any)._openingGame) return;
         if ((cardWrapper as any)._interimBounceActive) {
-          const bounceTimeline = (cardWrapper as any)._interimBounceTimeline;
-          const hasBounceTimeline = !!bounceTimeline && !(bounceTimeline as any)._killed;
-          const hasActiveBounceTween = typeof gsap !== 'undefined' && gsap.isTweening(interimCard);
-          if (hasBounceTimeline || hasActiveBounceTween) return;
+          if (this.isInterimBounceTimelineHealthy(cardWrapper, interimCard)) return;
           logger.warn('⚠️ Interim bounce flag was stale; restarting bounce/smoke loop');
-          delete (cardWrapper as any)._interimBounceActive;
+          this.stopInterimBounce(interimCard);
         }
         this.startInterimBounce(interimCard);
       });
@@ -3981,9 +4046,15 @@ class JourneyBoardsManager {
     try {
       this.startVisibleInterimCardIdleEffects(document);
       this.startGlowPulse();
-      requestAnimationFrame(() => {
-        if (this.renderDisposed) return;
-        this.startVisibleInterimCardIdleEffects(document);
+      [0, 120, 360, 900, 1800, 3200].forEach((delayMs) => {
+        if (delayMs === 0) {
+          requestAnimationFrame(() => {
+            if (this.renderDisposed) return;
+            this.startVisibleInterimCardIdleEffects(document);
+          });
+          return;
+        }
+        this.scheduleInterimIdleEffectsRetry(`${reason}:${delayMs}`, delayMs);
       });
       logger.info('✅ Resumed interim card idle effects', { reason });
     } catch (error) {
