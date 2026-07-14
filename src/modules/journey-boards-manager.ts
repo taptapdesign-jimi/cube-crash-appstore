@@ -5163,12 +5163,16 @@ class JourneyBoardsManager {
     return new Promise((resolve) => {
       try {
         gsap.killTweensOf(targets);
+        gsap.set(targets, {
+          transformOrigin: '50% 50%',
+          visibility: 'visible',
+          force3D: true,
+        });
         gsap.to(targets, {
-          y: -18,
-          scale: 0.94,
+          scale: 0,
           opacity: 0,
-          duration: 0.32,
-          ease: 'back.in(1.45)',
+          duration: 0.4,
+          ease: 'back.in(1.7)',
           force3D: true,
           overwrite: true,
           onComplete: resolve,
@@ -5187,18 +5191,23 @@ class JourneyBoardsManager {
       gsap.killTweensOf(targets);
       gsap.fromTo(
         targets,
-        { y: -18, scale: 0.94, opacity: 0 },
         {
-          y: 0,
+          scale: 0,
+          opacity: 0,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          force3D: true,
+        },
+        {
           scale: 1,
           opacity: 1,
-          duration: 0.42,
+          duration: 0.5,
           ease: 'back.out(1.8)',
           force3D: true,
           overwrite: true,
           onComplete: () => {
             targets.forEach((target) => {
-              try { gsap.set(target, { clearProps: 'transform,opacity' }); } catch {}
+              try { gsap.set(target, { clearProps: 'transform,opacity,visibility,transformOrigin' }); } catch {}
             });
           },
         }
