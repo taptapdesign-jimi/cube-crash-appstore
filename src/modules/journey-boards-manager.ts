@@ -4921,11 +4921,11 @@ class JourneyBoardsManager {
 
     try {
       gsap.to(source, {
-        scale: 0.9,
-        y: 18,
+        scale: 0.78,
+        y: 28,
         opacity: 0,
-        duration: 0.22,
-        ease: 'back.in(1.8)',
+        duration: 0.42,
+        ease: 'back.in(1.45)',
         force3D: true,
         onComplete: startWorldRender,
       });
@@ -5050,8 +5050,8 @@ class JourneyBoardsManager {
             y: 0,
             scale: 1,
             opacity: 1,
-            duration: BOARD_AREA_MODAL_EXIT_DURATION,
-            delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * 0.04),
+            duration: 0.56,
+            delay: 0.08 + (index * 0.065),
             ease: BOARD_AREA_MODAL_ENTER_EASE,
             force3D: true,
             onComplete: () => group.forEach((target) => {
