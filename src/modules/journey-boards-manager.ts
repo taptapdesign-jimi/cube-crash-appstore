@@ -4904,7 +4904,9 @@ class JourneyBoardsManager {
     if (!container) return;
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
-    const startWorldRender = () => {
+    const navExitPromise = this.playJourneyV700NavExit();
+    const startWorldRender = async () => {
+      await navExitPromise;
       this.setJourneyV700View('world', worldId);
       this.updateJourneyV700Nav('world', worldId);
       this.renderBoards();
@@ -4912,6 +4914,7 @@ class JourneyBoardsManager {
       if (scrollable) {
         scrollable.scrollTop = 0;
       }
+      this.playJourneyV700NavEnter();
     };
 
     if (!source) {
@@ -5147,6 +5150,66 @@ class JourneyBoardsManager {
     }
   }
 
+  private getJourneyV700NavTargets(): HTMLElement[] {
+    return [
+      document.getElementById('collectibles-back') as HTMLElement | null,
+      document.getElementById('collectibles-title') as HTMLElement | null,
+      document.querySelector('#journey-screen .collectibles-header-spacer') as HTMLElement | null,
+    ].filter((target): target is HTMLElement => !!target && document.body.contains(target));
+  }
+
+  private playJourneyV700NavExit(): Promise<void> {
+    const targets = this.getJourneyV700NavTargets();
+    if (!targets.length) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      try {
+        gsap.killTweensOf(targets);
+        gsap.to(targets, {
+          y: -10,
+          scale: 0.78,
+          opacity: 0,
+          duration: 0.24,
+          stagger: 0.025,
+          ease: 'back.in(1.55)',
+          force3D: true,
+          overwrite: true,
+          onComplete: resolve,
+        });
+      } catch {
+        resolve();
+      }
+    });
+  }
+
+  private playJourneyV700NavEnter(): void {
+    const targets = this.getJourneyV700NavTargets();
+    if (!targets.length) return;
+
+    try {
+      gsap.killTweensOf(targets);
+      gsap.fromTo(
+        targets,
+        { y: -10, scale: 0.78, opacity: 0 },
+        {
+          y: 0,
+          scale: 1,
+          opacity: 1,
+          duration: 0.34,
+          stagger: 0.025,
+          ease: 'back.out(1.8)',
+          force3D: true,
+          overwrite: true,
+          onComplete: () => {
+            targets.forEach((target) => {
+              try { gsap.set(target, { clearProps: 'transform,opacity' }); } catch {}
+            });
+          },
+        }
+      );
+    } catch {}
+  }
+
   private closeJourneyV700World(): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     if (!container) return;
@@ -5155,11 +5218,14 @@ class JourneyBoardsManager {
     (container as any).__ccJourneyV700Closing = true;
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
-    const complete = () => {
+    const navExitPromise = this.playJourneyV700NavExit();
+    const complete = async () => {
+      await navExitPromise;
       this.setJourneyV700View('hub');
       this.updateJourneyV700Nav('hub');
       (container as any).__ccJourneyV700Closing = false;
       this.renderBoards();
+      this.playJourneyV700NavEnter();
     };
 
     try {
