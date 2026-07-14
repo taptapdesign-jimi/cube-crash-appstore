@@ -5045,14 +5045,14 @@ class JourneyBoardsManager {
         gsap.killTweensOf(group);
         gsap.fromTo(
           group,
-          { y: 30, scale: 0.78, opacity: 0 },
+          { y: 30, scale: BOARD_AREA_MODAL_ENTER_SCALE, opacity: 0 },
           {
             y: 0,
             scale: 1,
             opacity: 1,
-            duration: index === 0 ? 0.38 : 0.34,
-            delay: Math.min(index * 0.022, 0.16),
-            ease: 'back.out(1.9)',
+            duration: BOARD_AREA_MODAL_ENTER_DURATION,
+            delay: BOARD_AREA_MODAL_ENTER_BASE_DELAY + (index * 0.055),
+            ease: BOARD_AREA_MODAL_ENTER_EASE,
             force3D: true,
             onComplete: () => group.forEach((target) => {
               try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
@@ -5081,11 +5081,11 @@ class JourneyBoardsManager {
         gsap.killTweensOf(group);
         gsap.to(group, {
           y: 26,
-          scale: 0.78,
+          scale: BOARD_AREA_MODAL_ENTER_SCALE,
           opacity: 0,
-          duration: 0.24,
-          delay: Math.min(index * 0.014, 0.11),
-          ease: 'back.in(1.55)',
+          duration: BOARD_AREA_MODAL_EXIT_DURATION,
+          delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * 0.04),
+          ease: BOARD_AREA_MODAL_EXIT_EASE,
           force3D: true,
           onComplete: done,
         });
