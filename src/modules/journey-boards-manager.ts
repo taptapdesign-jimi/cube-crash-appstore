@@ -1133,7 +1133,9 @@ class JourneyBoardsManager {
       const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
       if (cardWrapper) {
         cardWrapper.dataset.journeyAreaId = `board-${boardId}`;
-        targets.push(cardWrapper);
+        if (!targets.includes(cardWrapper)) {
+          targets.push(cardWrapper);
+        }
       }
 
       this.createJourneyAreaIdleTimeline(`board-${boardId}`, targets, {
@@ -1197,6 +1199,16 @@ class JourneyBoardsManager {
 
   public playJourneyForestSceneEnterAnimation(retryCount = 0): void {
     try {
+      const journeyContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+      const isV700Hub =
+        this.journeyV700View === 'hub' ||
+        journeyContainer?.dataset.journeyV700View === 'hub' ||
+        (window as any).__ccJourneyV700View === 'hub';
+      if (isV700Hub) {
+        this.logJourneyV700Flow('legacy-scene-enter-skipped-v700-hub', { retryCount }, journeyContainer);
+        return;
+      }
+
       const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
       if (!cardsContainer || !document.body.contains(cardsContainer)) {
         logger.warn('🧭 JourneyForestAnim scene-enter-missing-container', { retryCount });
@@ -4801,6 +4813,44 @@ class JourneyBoardsManager {
     } catch {}
   }
 
+  private getJourneyV700FlowSnapshot(container?: HTMLElement | null): Record<string, unknown> {
+    const journeyContainer = container || document.getElementById('journey-boards-container') as HTMLElement | null;
+    const navHeader = document.querySelector('#journey-screen .collectibles-header') as HTMLElement | null;
+    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const targets = journeyContainer ? this.getJourneyV700WorldTargets(journeyContainer) : [];
+    const visibleTargetCount = targets.filter((target) => {
+      const rect = target.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && target.style.display !== 'none';
+    }).length;
+
+    return {
+      view: this.journeyV700View,
+      worldId: this.journeyV700WorldId,
+      containerConnected: !!journeyContainer && document.body.contains(journeyContainer),
+      containerView: journeyContainer?.dataset.journeyV700View || null,
+      containerWorldId: journeyContainer?.dataset.journeyV700WorldId || null,
+      closing: journeyContainer ? (journeyContainer as any).__ccJourneyV700Closing === true : false,
+      navExists: !!navHeader,
+      navOpacity: navHeader ? String(gsap.getProperty(navHeader, 'opacity')) : null,
+      navTransform: navHeader ? window.getComputedStyle(navHeader).transform : null,
+      scrollTop: scrollable?.scrollTop ?? null,
+      visibleTargetCount,
+      idleTickerCount: this.journeyAreaIdleTickers.length,
+      idlePaused: this.journeyAreaIdlePausedForInteraction,
+    };
+  }
+
+  private logJourneyV700Flow(label: string, data: Record<string, unknown> = {}, container?: HTMLElement | null): void {
+    try {
+      logger.info('🧭 JourneyV700Flow', {
+        label,
+        t: Math.round(performance.now()),
+        ...data,
+        ...this.getJourneyV700FlowSnapshot(container),
+      });
+    } catch {}
+  }
+
   private renderJourneyV700Hub(container: HTMLElement): void {
     this.setJourneyV700View('hub');
     this.updateJourneyV700Nav('hub');
@@ -4812,6 +4862,7 @@ class JourneyBoardsManager {
 
     const highestUnlocked = this.boards.reduce((max, board) => board.unlocked || board.interim ? Math.max(max, board.id) : max, 1);
     const activeWorldId = this.getJourneyWorldIdForBoard(highestUnlocked) || 1;
+    this.logJourneyV700Flow('hub-render-start', { highestUnlocked, activeWorldId }, container);
 
     const hub = document.createElement('div');
     hub.className = 'journey-v700-hub';
@@ -4866,10 +4917,14 @@ class JourneyBoardsManager {
       const openWorld = (event: Event) => {
         event.preventDefault();
         event.stopPropagation();
+        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, container);
         if (locked) return;
         const now = Date.now();
         const lastTap = Number((button as any).__ccJourneyV700LastTap || 0);
-        if (now - lastTap < 350) return;
+        if (now - lastTap < 350) {
+          this.logJourneyV700Flow('world-card-tap-ignored-debounce', { worldId, deltaMs: now - lastTap }, container);
+          return;
+        }
         (button as any).__ccJourneyV700LastTap = now;
         this.openJourneyV700World(worldId, button);
       };
@@ -4882,31 +4937,48 @@ class JourneyBoardsManager {
     container.appendChild(hub);
 
     try {
-      gsap.fromTo(
-        Array.from(hub.querySelectorAll('.journey-v700-world-card')),
-        { y: 26, scale: 0.88, opacity: 0 },
-        {
-          y: 0,
-          scale: 1,
-          opacity: 1,
-          duration: 0.56,
-          stagger: 0.08,
-          ease: 'back.out(1.7)',
-          force3D: true,
-          clearProps: 'willChange',
+      const worldCards = Array.from(hub.querySelectorAll('.journey-v700-world-card')) as HTMLElement[];
+      this.logJourneyV700Flow('hub-enter-start', { worldCount: worldCards.length }, container);
+      let remainingWorldCards = worldCards.length;
+      const finishWorldCard = () => {
+        remainingWorldCards -= 1;
+        if (remainingWorldCards <= 0) {
+          this.logJourneyV700Flow('hub-enter-complete', {}, container);
         }
-      );
-    } catch {}
+      };
+      worldCards.forEach((card, index) => {
+        gsap.fromTo(
+          card,
+          { y: 30, scale: BOARD_AREA_MODAL_ENTER_SCALE, opacity: 0 },
+          {
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            duration: 0.56,
+            delay: 0.08 + (index * 0.065),
+            ease: BOARD_AREA_MODAL_ENTER_EASE,
+            force3D: true,
+            clearProps: 'willChange',
+            onComplete: finishWorldCard,
+          }
+        );
+      });
+    } catch (error) {
+      this.logJourneyV700Flow('hub-enter-error', { error: error instanceof Error ? error.message : String(error) }, container);
+    }
   }
 
   private openJourneyV700World(worldId: number, source?: HTMLElement): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     if (!container) return;
 
+    this.logJourneyV700Flow('open-world-start', { requestedWorldId: worldId, hasSource: !!source }, container);
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
     const startWorldRender = async () => {
+      this.logJourneyV700Flow('open-world-hub-exit-complete-await-nav', { requestedWorldId: worldId }, container);
       await navExitPromise;
+      this.logJourneyV700Flow('open-world-nav-exit-complete-render-world', { requestedWorldId: worldId }, container);
       this.setJourneyV700View('world', worldId);
       this.updateJourneyV700Nav('world', worldId);
       this.renderBoards();
@@ -4915,33 +4987,30 @@ class JourneyBoardsManager {
         scrollable.scrollTop = 0;
       }
       this.playJourneyV700NavEnter();
+      this.logJourneyV700Flow('open-world-rendered', { requestedWorldId: worldId }, document.getElementById('journey-boards-container') as HTMLElement | null);
     };
 
-    if (!source) {
+    this.playJourneyV700HubExit(`open-world-${worldId}`).then(() => {
       startWorldRender();
-      return;
-    }
-
-    try {
-      gsap.to(source, {
-        scale: 0.78,
-        y: 28,
-        opacity: 0,
-        duration: 0.42,
-        ease: 'back.in(1.45)',
-        force3D: true,
-        onComplete: startWorldRender,
-      });
-    } catch {
+    }).catch((error) => {
+      this.logJourneyV700Flow('open-world-hub-exit-error-fallback', {
+        requestedWorldId: worldId,
+        error: error instanceof Error ? error.message : String(error),
+      }, container);
       startWorldRender();
-    }
+    });
   }
 
   private applyJourneyV700WorldScope(container: HTMLElement, worldId: number): void {
     const range = this.getJourneyWorldRange(worldId);
     const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
     const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
-    if (!range) return;
+    if (!range) {
+      this.logJourneyV700Flow('world-scope-missing-range', { worldId }, container);
+      return;
+    }
+
+    this.logJourneyV700Flow('world-scope-start', { worldId, rangeStart: range.start, rangeEnd: range.end }, container);
 
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
@@ -4995,7 +5064,9 @@ class JourneyBoardsManager {
 
     try {
       this.playJourneyV700WorldEnter(container, worldId);
-    } catch {}
+    } catch (error) {
+      this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
+    }
   }
 
   private getJourneyV700WorldTargets(container: HTMLElement): HTMLElement[] {
@@ -5005,56 +5076,156 @@ class JourneyBoardsManager {
     )).filter(visible);
   }
 
+  private getJourneyV700BoardIdForTarget(target: HTMLElement): number {
+    const card = target.classList.contains('journey-board-card-wrapper')
+      ? target.querySelector('.journey-board-card') as HTMLElement | null
+      : null;
+    const cardBoardId = Number(card?.getAttribute('data-board-id') || 0);
+    if (Number.isFinite(cardBoardId) && cardBoardId > 0) return cardBoardId;
+
+    const areaMatch = target.dataset.journeyAreaId?.match(/^(?:v700-)?board-(\d+)$/);
+    const areaBoardId = Number(areaMatch?.[1] || 0);
+    return Number.isFinite(areaBoardId) && areaBoardId > 0 ? areaBoardId : 0;
+  }
+
+  private getJourneyV700VisibleBoardAreaTargets(boardId: number): HTMLElement[] {
+    const parts = this.getJourneyBoardAreaParts(boardId);
+    const targets = [
+      parts.cardWrapper,
+      parts.island,
+      parts.stump,
+      ...parts.stars,
+      ...parts.clouds,
+    ].filter((target): target is HTMLElement => !!target && document.body.contains(target));
+    return Array.from(new Set(targets)).filter((target) => {
+      if (target.style.display === 'none') return false;
+      const rect = target.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+  }
+
+  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const worldCards = Array.from(
+      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
+    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');
+
+    this.logJourneyV700Flow('hub-exit-start', { reason, worldCount: worldCards.length }, container);
+    if (!worldCards.length) {
+      this.logJourneyV700Flow('hub-exit-no-worlds', { reason }, container);
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      let remaining = worldCards.length;
+      const finishCard = () => {
+        remaining -= 1;
+        if (remaining > 0) return;
+        this.logJourneyV700Flow('hub-exit-complete', { reason }, container);
+        resolve();
+      };
+
+      worldCards.slice().reverse().forEach((card, index) => {
+        try {
+          gsap.killTweensOf(card);
+          gsap.to(card, {
+            y: 28,
+            scale: BOARD_AREA_MODAL_ENTER_SCALE,
+            opacity: 0,
+            duration: BOARD_AREA_MODAL_EXIT_DURATION,
+            delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * 0.065),
+            ease: BOARD_AREA_MODAL_EXIT_EASE,
+            force3D: true,
+            overwrite: true,
+            onComplete: finishCard,
+          });
+        } catch {
+          finishCard();
+        }
+      });
+    });
+  }
+
   private getJourneyV700WorldTargetGroups(container: HTMLElement, worldId: number | null): HTMLElement[][] {
     const visibleTargets = this.getJourneyV700WorldTargets(container);
     const groups: HTMLElement[][] = [];
     const mainAreaId = worldId === 1 ? 'forest-main' : worldId === 2 ? 'beach-main' : worldId === 3 ? 'robo-main' : null;
+    const worldRange = worldId ? this.getJourneyWorldRange(worldId) : null;
 
     if (mainAreaId) {
       const mainTargets = visibleTargets.filter((target) => target.dataset.journeyAreaId === mainAreaId);
       if (mainTargets.length) groups.push(mainTargets);
     }
 
-    const boardGroups = new Map<number, HTMLElement[]>();
-    visibleTargets.forEach((target) => {
-      const card = target.classList.contains('journey-board-card-wrapper')
-        ? target.querySelector('.journey-board-card') as HTMLElement | null
-        : null;
-      const cardBoardId = Number(card?.getAttribute('data-board-id') || 0);
-      const areaMatch = target.dataset.journeyAreaId?.match(/^board-(\d+)$/);
-      const boardId = cardBoardId || Number(areaMatch?.[1] || 0);
-      if (!Number.isFinite(boardId) || boardId <= 0) return;
-      const group = boardGroups.get(boardId) || [];
-      group.push(target);
-      boardGroups.set(boardId, group);
-    });
-
-    Array.from(boardGroups.keys())
-      .sort((a, b) => a - b)
-      .forEach((boardId) => {
-        const group = boardGroups.get(boardId);
-        if (group?.length) groups.push(group);
+    if (worldRange) {
+      for (let boardId = worldRange.start; boardId <= worldRange.end; boardId += 1) {
+        const group = this.getJourneyV700VisibleBoardAreaTargets(boardId);
+        if (group.length) groups.push(group);
+      }
+    } else {
+      const boardGroups = new Map<number, HTMLElement[]>();
+      visibleTargets.forEach((target) => {
+        const boardId = this.getJourneyV700BoardIdForTarget(target);
+        if (boardId <= 0) return;
+        const group = boardGroups.get(boardId) || [];
+        group.push(target);
+        boardGroups.set(boardId, group);
       });
+
+      Array.from(boardGroups.keys())
+        .sort((a, b) => a - b)
+        .forEach((boardId) => {
+          const group = boardGroups.get(boardId);
+          if (group?.length) groups.push(group);
+        });
+    }
 
     return groups;
   }
 
+  private startJourneyV700WorldGroupIdle(group: HTMLElement[], areaId: string, cardsContainer: HTMLElement): void {
+    const liveTargets = group.filter((target) => (
+      target &&
+      document.body.contains(target) &&
+      target.style.display !== 'none'
+    ));
+    if (!liveTargets.length) return;
+
+    const randomInRange = (min: number, max: number): number => (
+      min + (Math.random() * (max - min))
+    );
+
+    this.stopJourneyAreaIdleForTargets(liveTargets);
+    this.createJourneyAreaIdleTimeline(areaId, liveTargets, {
+      amplitude: randomInRange(6.2, 9.2),
+      cycleDuration: randomInRange(2.75, 3.65),
+      delay: randomInRange(0.05, 0.42),
+      rampSeconds: 1.25,
+    });
+    this.startVisibleInterimCardIdleEffects(cardsContainer);
+  }
+
   private playJourneyV700WorldEnter(container: HTMLElement, worldId: number): void {
     const groups = this.getJourneyV700WorldTargetGroups(container, worldId);
+    this.logJourneyV700Flow('world-enter-start', { worldId, groupCount: groups.length }, container);
     if (!groups.length) return;
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    this.clearJourneyAreaIdleStartTimeout();
+    this.cleanupJourneyAreaIdleAnimations(false);
     let remainingGroups = groups.length;
-    const finishGroup = () => {
+    const completeGroup = (areaId: string, groupSize: number) => {
       remainingGroups -= 1;
-      if (remainingGroups > 0) return;
-      if (cardsContainer && document.body.contains(cardsContainer)) {
-        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+      this.logJourneyV700Flow('world-enter-group-complete', { worldId, areaId, groupSize, remainingGroups }, container);
+      if (remainingGroups <= 0) {
+        this.logJourneyV700Flow('world-enter-complete', { worldId }, container);
       }
     };
 
     groups.forEach((group, index) => {
       try {
         gsap.killTweensOf(group);
+        const firstTarget = group[0];
+        const areaId = firstTarget?.dataset.journeyAreaId || `v700-world-group-${index + 1}`;
         gsap.fromTo(
           group,
           { y: 30, scale: BOARD_AREA_MODAL_ENTER_SCALE, opacity: 0 },
@@ -5066,47 +5237,90 @@ class JourneyBoardsManager {
             delay: 0.08 + (index * 0.065),
             ease: BOARD_AREA_MODAL_ENTER_EASE,
             force3D: true,
-            onComplete: () => group.forEach((target) => {
-              try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
-            }) || finishGroup(),
+            onComplete: () => {
+              group.forEach((target) => {
+                try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
+              });
+              if (cardsContainer && document.body.contains(cardsContainer)) {
+                this.startJourneyV700WorldGroupIdle(group, areaId, cardsContainer);
+              }
+              completeGroup(areaId, group.length);
+            },
           }
         );
-      } catch {
-        finishGroup();
+      } catch (error) {
+        this.logJourneyV700Flow('world-enter-group-error', { worldId, index, error: error instanceof Error ? error.message : String(error) }, container);
+        completeGroup(`error-group-${index + 1}`, group.length);
       }
     });
   }
 
   private playJourneyV700WorldExit(container: HTMLElement, onComplete: () => void): void {
     const groups = this.getJourneyV700WorldTargetGroups(container, this.journeyV700WorldId);
+    this.logJourneyV700Flow('world-exit-start', {
+      worldId: this.journeyV700WorldId,
+      groupCount: groups.length,
+      groups: groups.map((group, index) => ({
+        index,
+        size: group.length,
+        cardCount: group.filter((target) => target.classList.contains('journey-board-card-wrapper')).length,
+        areaIds: Array.from(new Set(group.map((target) => target.dataset.journeyAreaId || 'none'))),
+      })),
+    }, container);
     if (!groups.length) {
+      this.logJourneyV700Flow('world-exit-no-groups-complete', {}, container);
+      onComplete();
+      return;
+    }
+    const allTargets = Array.from(new Set(groups.flat()))
+      .filter((target) => target && document.body.contains(target) && target.style.display !== 'none');
+    if (!allTargets.length) {
+      this.logJourneyV700Flow('world-exit-no-live-targets-complete', {}, container);
       onComplete();
       return;
     }
 
-    let remaining = groups.length;
-    const done = () => {
-      remaining -= 1;
-      if (remaining <= 0) onComplete();
+    let completed = false;
+    const completeOnce = (source: string) => {
+      if (completed) return;
+      completed = true;
+      if ((container as any).__ccJourneyV700WorldExitFallbackTimer) {
+        window.clearTimeout((container as any).__ccJourneyV700WorldExitFallbackTimer);
+        delete (container as any).__ccJourneyV700WorldExitFallbackTimer;
+      }
+      this.logJourneyV700Flow('world-exit-complete', { source }, container);
+      onComplete();
     };
 
-    groups.slice().reverse().forEach((group, index) => {
-      try {
-        gsap.killTweensOf(group);
-        gsap.to(group, {
-          y: 26,
-          scale: BOARD_AREA_MODAL_ENTER_SCALE,
-          opacity: 0,
-          duration: BOARD_AREA_MODAL_EXIT_DURATION,
-          delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * 0.04),
-          ease: BOARD_AREA_MODAL_EXIT_EASE,
-          force3D: true,
-          onComplete: done,
-        });
-      } catch {
-        done();
-      }
-    });
+    try {
+      gsap.killTweensOf(allTargets);
+      allTargets.forEach((target) => {
+        target.style.transformOrigin = '50% 50%';
+        target.style.willChange = 'transform, opacity';
+      });
+
+      const tween = gsap.to(allTargets, {
+        y: 26,
+        scale: BOARD_AREA_MODAL_ENTER_SCALE,
+        opacity: 0,
+        duration: BOARD_AREA_MODAL_EXIT_DURATION,
+        ease: BOARD_AREA_MODAL_EXIT_EASE,
+        force3D: true,
+        overwrite: true,
+        onComplete: () => completeOnce('timeline-complete'),
+      });
+
+      const exitDurationMs = Math.ceil((BOARD_AREA_MODAL_EXIT_DURATION + 0.35) * 1000);
+      const fallbackTimer = window.setTimeout(() => {
+        this.logJourneyV700Flow('world-exit-timeout-fallback', { exitDurationMs, tweenProgress: Number(tween.progress().toFixed(3)) }, container);
+        try { tween.progress(1, false); } catch {}
+        completeOnce('timeout-fallback');
+      }, exitDurationMs);
+      (container as any).__ccJourneyV700WorldExitFallbackTimer = fallbackTimer;
+    } catch (error) {
+      this.logJourneyV700Flow('world-exit-timeline-error', { error: error instanceof Error ? error.message : String(error) }, container);
+      completeOnce('timeline-error-fallback');
+    }
   }
 
   private applyJourneyV700WorldHeights(container: HTMLElement): void {
@@ -5149,6 +5363,7 @@ class JourneyBoardsManager {
           event.preventDefault();
           event.stopPropagation();
           (event as any).stopImmediatePropagation?.();
+          this.logJourneyV700Flow('nav-close-handler-fired', { eventType: event.type }, document.getElementById('journey-boards-container') as HTMLElement | null);
           this.closeJourneyV700World();
         };
         backButton.addEventListener('click', this.journeyV700NavCloseHandler, { capture: true });
@@ -5169,9 +5384,24 @@ class JourneyBoardsManager {
 
   private playJourneyV700NavExit(): Promise<void> {
     const targets = this.getJourneyV700NavTargets();
-    if (!targets.length) return Promise.resolve();
+    this.logJourneyV700Flow('nav-exit-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+    if (!targets.length) {
+      this.logJourneyV700Flow('nav-exit-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+      return Promise.resolve();
+    }
 
     return new Promise((resolve) => {
+      let completed = false;
+      const completeOnce = (source: string) => {
+        if (completed) return;
+        completed = true;
+        this.logJourneyV700Flow('nav-exit-complete', { targetCount: targets.length, source }, document.getElementById('journey-boards-container') as HTMLElement | null);
+        resolve();
+      };
+      const fallbackTimer = window.setTimeout(() => {
+        this.logJourneyV700Flow('nav-exit-timeout-fallback', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+        completeOnce('timeout-fallback');
+      }, 620);
       try {
         gsap.killTweensOf(targets);
         gsap.set(targets, {
@@ -5186,17 +5416,26 @@ class JourneyBoardsManager {
           ease: 'back.in(1.7)',
           force3D: true,
           overwrite: true,
-          onComplete: resolve,
+          onComplete: () => {
+            window.clearTimeout(fallbackTimer);
+            completeOnce('tween-complete');
+          },
         });
-      } catch {
-        resolve();
+      } catch (error) {
+        window.clearTimeout(fallbackTimer);
+        this.logJourneyV700Flow('nav-exit-error', { error: error instanceof Error ? error.message : String(error) }, document.getElementById('journey-boards-container') as HTMLElement | null);
+        completeOnce('error-fallback');
       }
     });
   }
 
   private playJourneyV700NavEnter(): void {
     const targets = this.getJourneyV700NavTargets();
-    if (!targets.length) return;
+    this.logJourneyV700Flow('nav-enter-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+    if (!targets.length) {
+      this.logJourneyV700Flow('nav-enter-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+      return;
+    }
 
     try {
       gsap.killTweensOf(targets);
@@ -5220,33 +5459,63 @@ class JourneyBoardsManager {
             targets.forEach((target) => {
               try { gsap.set(target, { clearProps: 'transform,opacity,visibility,transformOrigin' }); } catch {}
             });
+            this.logJourneyV700Flow('nav-enter-complete', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
           },
         }
       );
-    } catch {}
+    } catch (error) {
+      this.logJourneyV700Flow('nav-enter-error', { error: error instanceof Error ? error.message : String(error) }, document.getElementById('journey-boards-container') as HTMLElement | null);
+    }
   }
 
   private closeJourneyV700World(): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
-    if (!container) return;
-    if (this.journeyV700View !== 'world') return;
-    if ((container as any).__ccJourneyV700Closing === true) return;
+    if (!container) {
+      this.logJourneyV700Flow('close-world-no-container');
+      return;
+    }
+    this.logJourneyV700Flow('close-world-start', {}, container);
+    if (this.journeyV700View !== 'world') {
+      this.logJourneyV700Flow('close-world-ignored-not-world', {}, container);
+      return;
+    }
+    if ((container as any).__ccJourneyV700Closing === true) {
+      this.logJourneyV700Flow('close-world-ignored-already-closing', {}, container);
+      return;
+    }
     (container as any).__ccJourneyV700Closing = true;
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
+    let completed = false;
     const complete = async () => {
+      if (completed) {
+        this.logJourneyV700Flow('close-world-complete-ignored-duplicate', {}, container);
+        return;
+      }
+      completed = true;
+      this.logJourneyV700Flow('close-world-content-exit-complete-await-nav', {}, container);
       await navExitPromise;
-      this.setJourneyV700View('hub');
-      this.updateJourneyV700Nav('hub');
-      (container as any).__ccJourneyV700Closing = false;
-      this.renderBoards();
-      this.playJourneyV700NavEnter();
+      this.logJourneyV700Flow('close-world-nav-exit-complete-render-hub', {}, container);
+      try {
+        this.setJourneyV700View('hub');
+        this.updateJourneyV700Nav('hub');
+        (container as any).__ccJourneyV700Closing = false;
+        this.renderBoards();
+        this.playJourneyV700NavEnter();
+        this.logJourneyV700Flow('close-world-rendered-hub', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+      } catch (error) {
+        (container as any).__ccJourneyV700Closing = false;
+        this.logJourneyV700Flow('close-world-render-hub-error', { error: error instanceof Error ? error.message : String(error) }, container);
+        throw error;
+      }
     };
 
     try {
+      this.cleanupJourneyAreaIdleAnimations(false);
       this.playJourneyV700WorldExit(container, complete);
-    } catch {
+    } catch (error) {
+      this.logJourneyV700Flow('close-world-exit-error-fallback', { error: error instanceof Error ? error.message : String(error) }, container);
       complete();
     }
   }

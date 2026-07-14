@@ -1282,6 +1282,18 @@ class CollectiblesManager {
           if (journeyContainer) {
             setTimeout(async () => {
               try {
+                const journeyBoardsContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+                const isJourneyV700Hub =
+                  (window as any).__ccJourneyV700View === 'hub' ||
+                  journeyBoardsContainer?.dataset.journeyV700View === 'hub';
+                if (isJourneyV700Hub) {
+                  logger.info('🧭 JourneyV700Flow legacy-post-enter-skipped-v700-hub', {
+                    hasJourneyBoardsContainer: !!journeyBoardsContainer,
+                    containerView: journeyBoardsContainer?.dataset.journeyV700View || null,
+                  });
+                  return;
+                }
+
                 // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal or interim board
                 // Auto-scroll should ONLY happen when entering Journey from homepage slider
                 const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
@@ -1410,6 +1422,22 @@ class CollectiblesManager {
           }
         } catch (error) {
           console.warn('⚠️ Failed to prepare Journey exit synchronously:', error);
+        }
+
+        try {
+          const journeyBoardsContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+          const isJourneyV700Hub =
+            (window as any).__ccJourneyV700View === 'hub' ||
+            journeyBoardsContainer?.dataset.journeyV700View === 'hub';
+          if (isJourneyV700Hub) {
+            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+            if (journeyBoardsManager && typeof (journeyBoardsManager as any).playJourneyV700HubExit === 'function') {
+              logger.info('🧭 JourneyV700Flow playing hub exit before back-to-home viewport exit');
+              await (journeyBoardsManager as any).playJourneyV700HubExit('back-to-home');
+            }
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to play Journey V700 hub exit before back-to-home:', String(error));
         }
 
         console.log('🎬 Step 1: Journey exit animation starting immediately...');
