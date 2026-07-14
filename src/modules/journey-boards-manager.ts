@@ -5050,8 +5050,8 @@ class JourneyBoardsManager {
             y: 0,
             scale: 1,
             opacity: 1,
-            duration: BOARD_AREA_MODAL_ENTER_DURATION,
-            delay: BOARD_AREA_MODAL_ENTER_BASE_DELAY + (index * 0.055),
+            duration: BOARD_AREA_MODAL_EXIT_DURATION,
+            delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * 0.04),
             ease: BOARD_AREA_MODAL_ENTER_EASE,
             force3D: true,
             onComplete: () => group.forEach((target) => {
