@@ -5042,6 +5042,15 @@ class JourneyBoardsManager {
   private playJourneyV700WorldEnter(container: HTMLElement, worldId: number): void {
     const groups = this.getJourneyV700WorldTargetGroups(container, worldId);
     if (!groups.length) return;
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    let remainingGroups = groups.length;
+    const finishGroup = () => {
+      remainingGroups -= 1;
+      if (remainingGroups > 0) return;
+      if (cardsContainer && document.body.contains(cardsContainer)) {
+        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
+      }
+    };
 
     groups.forEach((group, index) => {
       try {
@@ -5059,10 +5068,12 @@ class JourneyBoardsManager {
             force3D: true,
             onComplete: () => group.forEach((target) => {
               try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
-            }),
+            }) || finishGroup(),
           }
         );
-      } catch {}
+      } catch {
+        finishGroup();
+      }
     });
   }
 
