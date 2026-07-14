@@ -624,6 +624,7 @@ class JourneyBoardsManager {
   private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
   private journeyV700View: 'hub' | 'world' = 'hub';
   private journeyV700WorldId: number | null = null;
+  private journeyV700NavCloseHandler: ((event: Event) => void) | null = null;
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -4802,6 +4803,7 @@ class JourneyBoardsManager {
 
   private renderJourneyV700Hub(container: HTMLElement): void {
     this.setJourneyV700View('hub');
+    this.updateJourneyV700Nav('hub');
     container.dataset.journeyV700View = 'hub';
     container.style.height = '100%';
     container.style.minHeight = '100%';
@@ -4845,15 +4847,30 @@ class JourneyBoardsManager {
       badge.textContent = `${unlockedCount}/${worldBoards.length}`;
       button.appendChild(badge);
 
-      const label = document.createElement('span');
-      label.className = 'journey-v700-world-label';
-      label.innerHTML = `<strong>${meta.name}</strong><small>${meta.subtitle}</small>`;
-      button.appendChild(label);
+      const cloudOne = document.createElement('img');
+      cloudOne.src = `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`;
+      cloudOne.alt = '';
+      cloudOne.draggable = false;
+      cloudOne.setAttribute('aria-hidden', 'true');
+      cloudOne.className = 'journey-v700-world-cloud journey-v700-world-cloud-a';
+      button.appendChild(cloudOne);
+
+      const cloudTwo = document.createElement('img');
+      cloudTwo.src = `${BOARD_TRANSITION_ASSET_BASE}/oblak-forest1.png`;
+      cloudTwo.alt = '';
+      cloudTwo.draggable = false;
+      cloudTwo.setAttribute('aria-hidden', 'true');
+      cloudTwo.className = 'journey-v700-world-cloud journey-v700-world-cloud-b';
+      button.appendChild(cloudTwo);
 
       const openWorld = (event: Event) => {
         event.preventDefault();
         event.stopPropagation();
         if (locked) return;
+        const now = Date.now();
+        const lastTap = Number((button as any).__ccJourneyV700LastTap || 0);
+        if (now - lastTap < 350) return;
+        (button as any).__ccJourneyV700LastTap = now;
         this.openJourneyV700World(worldId, button);
       };
 
@@ -4889,6 +4906,7 @@ class JourneyBoardsManager {
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const startWorldRender = () => {
       this.setJourneyV700View('world', worldId);
+      this.updateJourneyV700Nav('world', worldId);
       this.renderBoards();
       const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
       if (scrollable) {
@@ -4928,15 +4946,7 @@ class JourneyBoardsManager {
     const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
     const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
-    const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
-    const worldHeightPx = viewportWidth * (FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH);
-    const scopedHeight = Math.max(worldHeightPx + 760, window.innerHeight * 1.25);
-
-    container.style.height = `${scopedHeight}px`;
-    container.style.minHeight = `${scopedHeight}px`;
-    if (bgContainer) bgContainer.style.height = `${worldHeightPx}px`;
-    if (decorContainer) decorContainer.style.height = `${worldHeightPx}px`;
-    if (cardsContainer) cardsContainer.style.height = `${scopedHeight}px`;
+    this.applyJourneyV700WorldHeights(container);
 
     const isAllowedArea = (areaId: string | undefined): boolean => {
       if (!areaId) return false;
@@ -4978,25 +4988,20 @@ class JourneyBoardsManager {
       }
     });
 
-    this.installJourneyV700WorldClose(container, worldId);
+    this.updateJourneyV700Nav('world', worldId);
 
     try {
-      const visible = (target: HTMLElement) => target.style.display !== 'none';
-      const targets = [
-        ...(bgContainer ? Array.from(bgContainer.querySelectorAll<HTMLElement>('.journey-area-idle-target')).filter(visible) : []),
-        ...(decorContainer ? Array.from(decorContainer.querySelectorAll<HTMLElement>('.journey-area-idle-target')).filter(visible) : []),
-        ...(cardsContainer ? Array.from(cardsContainer.querySelectorAll<HTMLElement>('.journey-board-card-wrapper')).filter(visible) : []),
-      ];
+      const targets = this.getJourneyV700WorldTargets(container);
       gsap.fromTo(
         targets,
-        { y: 30, scale: 0.86, opacity: 0 },
+        { y: 34, scale: 0.72, opacity: 0 },
         {
           y: 0,
           scale: 1,
           opacity: 1,
-          duration: 0.46,
-          stagger: 0.018,
-          ease: 'back.out(1.7)',
+          duration: 0.54,
+          stagger: 0.014,
+          ease: 'back.out(1.9)',
           force3D: true,
           onComplete: () => targets.forEach((target) => {
             try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
@@ -5006,50 +5011,95 @@ class JourneyBoardsManager {
     } catch {}
   }
 
-  private installJourneyV700WorldClose(container: HTMLElement, worldId: number): void {
-    const existing = container.querySelector('.journey-v700-world-close');
-    existing?.remove();
+  private getJourneyV700WorldTargets(container: HTMLElement): HTMLElement[] {
+    const visible = (target: HTMLElement) => target.style.display !== 'none';
+    return Array.from(container.querySelectorAll<HTMLElement>(
+      '.journey-area-idle-target, .journey-board-card-wrapper'
+    )).filter(visible);
+  }
 
-    const meta = JOURNEY_WORLD_LABELS[worldId];
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'journey-v700-world-close';
-    close.setAttribute('aria-label', 'Close world');
-    close.innerHTML = `
-      <span aria-hidden="true">&times;</span>
-      <strong>${meta?.name || 'World'}</strong>
-    `;
+  private applyJourneyV700WorldHeights(container: HTMLElement): void {
+    const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
+    const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+    const worldHeightPx = viewportWidth * (FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH);
+    const scopedHeight = Math.max(worldHeightPx + 1050, window.innerHeight * 1.45);
 
-    const closeWorld = (event: Event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      try { (window as any).triggerHapticImpact?.('light'); } catch {}
-      const visibleTargets = Array.from(container.querySelectorAll<HTMLElement>(
-        '.journey-area-idle-target, .journey-board-card-wrapper'
-      )).filter((target) => target.style.display !== 'none');
-      try {
-        gsap.to(visibleTargets, {
-          y: 26,
-          scale: 0.88,
-          opacity: 0,
-          duration: 0.22,
-          stagger: 0.008,
-          ease: 'back.in(1.6)',
-          force3D: true,
-          onComplete: () => {
-            this.setJourneyV700View('hub');
-            this.renderBoards();
-          },
-        });
-      } catch {
-        this.setJourneyV700View('hub');
-        this.renderBoards();
+    container.style.height = `${scopedHeight}px`;
+    container.style.minHeight = `${scopedHeight}px`;
+    if (bgContainer) bgContainer.style.height = `${worldHeightPx}px`;
+    if (decorContainer) decorContainer.style.height = `${worldHeightPx}px`;
+    if (cardsContainer) cardsContainer.style.height = `${scopedHeight}px`;
+  }
+
+  private updateJourneyV700Nav(view: 'hub' | 'world', worldId: number | null = null): void {
+    const title = document.getElementById('collectibles-title') as HTMLElement | null;
+    const backButton = document.getElementById('collectibles-back') as HTMLButtonElement | null;
+    const backIcon = backButton?.querySelector('img') as HTMLImageElement | null;
+    const meta = worldId ? JOURNEY_WORLD_LABELS[worldId] : null;
+
+    if (title) {
+      title.textContent = view === 'world' && meta ? meta.name : 'Journey';
+    }
+
+    if (backButton) {
+      backButton.setAttribute('aria-label', view === 'world' ? 'Close world' : 'Back to slider');
+      backButton.classList.toggle('journey-v700-nav-close', view === 'world');
+
+      if (this.journeyV700NavCloseHandler) {
+        backButton.removeEventListener('click', this.journeyV700NavCloseHandler, { capture: true } as any);
+        backButton.removeEventListener('touchend', this.journeyV700NavCloseHandler, { capture: true } as any);
+        this.journeyV700NavCloseHandler = null;
       }
+
+      if (view === 'world') {
+        this.journeyV700NavCloseHandler = (event: Event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          (event as any).stopImmediatePropagation?.();
+          this.closeJourneyV700World();
+        };
+        backButton.addEventListener('click', this.journeyV700NavCloseHandler, { capture: true });
+        backButton.addEventListener('touchend', this.journeyV700NavCloseHandler, { capture: true, passive: false } as any);
+      }
+    }
+
+    if (backIcon) {
+      backIcon.src = view === 'world' ? './assets/close-icon.png' : './assets/chevron-back.png';
+    }
+  }
+
+  private closeJourneyV700World(): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    if (!container) return;
+    if (this.journeyV700View !== 'world') return;
+    if ((container as any).__ccJourneyV700Closing === true) return;
+    (container as any).__ccJourneyV700Closing = true;
+
+    try { (window as any).triggerHapticImpact?.('light'); } catch {}
+    const visibleTargets = this.getJourneyV700WorldTargets(container);
+    const complete = () => {
+      this.setJourneyV700View('hub');
+      this.updateJourneyV700Nav('hub');
+      (container as any).__ccJourneyV700Closing = false;
+      this.renderBoards();
     };
 
-    close.addEventListener('click', closeWorld);
-    close.addEventListener('touchend', closeWorld, { passive: false });
-    container.appendChild(close);
+    try {
+      gsap.to(visibleTargets, {
+        y: 30,
+        scale: 0.72,
+        opacity: 0,
+        duration: 0.34,
+        stagger: 0.008,
+        ease: 'back.in(1.7)',
+        force3D: true,
+        onComplete: complete,
+      });
+    } catch {
+      complete();
+    }
   }
 
   private markJourneyDevBoardRefresh(reason: string): void {
@@ -5137,6 +5187,10 @@ class JourneyBoardsManager {
       if (cardsContainer) {
         cardsContainer.style.height = `${containerHeightPx}px`; // Full Journey stack so high-board smoke can render
       }
+
+      if (this.journeyV700View === 'world' && this.journeyV700WorldId) {
+        this.applyJourneyV700WorldHeights(container);
+      }
     };
 
     img.onerror = () => {
@@ -5151,6 +5205,9 @@ class JourneyBoardsManager {
       container.style.height = `${containerHeightPx}px`;
       container.style.minHeight = `${containerHeightPx}px`;
       container.style.overflow = 'visible';
+      if (this.journeyV700View === 'world' && this.journeyV700WorldId) {
+        this.applyJourneyV700WorldHeights(container);
+      }
     };
     
     // Use fallback aspect ratio for initial calculation
