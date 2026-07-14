@@ -4991,23 +4991,7 @@ class JourneyBoardsManager {
     this.updateJourneyV700Nav('world', worldId);
 
     try {
-      const targets = this.getJourneyV700WorldTargets(container);
-      gsap.fromTo(
-        targets,
-        { y: 34, scale: 0.72, opacity: 0 },
-        {
-          y: 0,
-          scale: 1,
-          opacity: 1,
-          duration: 0.54,
-          stagger: 0.014,
-          ease: 'back.out(1.9)',
-          force3D: true,
-          onComplete: () => targets.forEach((target) => {
-            try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
-          }),
-        }
-      );
+      this.playJourneyV700WorldEnter(container, worldId);
     } catch {}
   }
 
@@ -5016,6 +5000,99 @@ class JourneyBoardsManager {
     return Array.from(container.querySelectorAll<HTMLElement>(
       '.journey-area-idle-target, .journey-board-card-wrapper'
     )).filter(visible);
+  }
+
+  private getJourneyV700WorldTargetGroups(container: HTMLElement, worldId: number | null): HTMLElement[][] {
+    const visibleTargets = this.getJourneyV700WorldTargets(container);
+    const groups: HTMLElement[][] = [];
+    const mainAreaId = worldId === 1 ? 'forest-main' : worldId === 2 ? 'beach-main' : worldId === 3 ? 'robo-main' : null;
+
+    if (mainAreaId) {
+      const mainTargets = visibleTargets.filter((target) => target.dataset.journeyAreaId === mainAreaId);
+      if (mainTargets.length) groups.push(mainTargets);
+    }
+
+    const boardGroups = new Map<number, HTMLElement[]>();
+    visibleTargets.forEach((target) => {
+      const card = target.classList.contains('journey-board-card-wrapper')
+        ? target.querySelector('.journey-board-card') as HTMLElement | null
+        : null;
+      const cardBoardId = Number(card?.getAttribute('data-board-id') || 0);
+      const areaMatch = target.dataset.journeyAreaId?.match(/^board-(\d+)$/);
+      const boardId = cardBoardId || Number(areaMatch?.[1] || 0);
+      if (!Number.isFinite(boardId) || boardId <= 0) return;
+      const group = boardGroups.get(boardId) || [];
+      group.push(target);
+      boardGroups.set(boardId, group);
+    });
+
+    Array.from(boardGroups.keys())
+      .sort((a, b) => a - b)
+      .forEach((boardId) => {
+        const group = boardGroups.get(boardId);
+        if (group?.length) groups.push(group);
+      });
+
+    return groups;
+  }
+
+  private playJourneyV700WorldEnter(container: HTMLElement, worldId: number): void {
+    const groups = this.getJourneyV700WorldTargetGroups(container, worldId);
+    if (!groups.length) return;
+
+    groups.forEach((group, index) => {
+      try {
+        gsap.killTweensOf(group);
+        gsap.fromTo(
+          group,
+          { y: 30, scale: 0.78, opacity: 0 },
+          {
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            duration: index === 0 ? 0.38 : 0.34,
+            delay: Math.min(index * 0.022, 0.16),
+            ease: 'back.out(1.9)',
+            force3D: true,
+            onComplete: () => group.forEach((target) => {
+              try { gsap.set(target, { clearProps: 'opacity' }); } catch {}
+            }),
+          }
+        );
+      } catch {}
+    });
+  }
+
+  private playJourneyV700WorldExit(container: HTMLElement, onComplete: () => void): void {
+    const groups = this.getJourneyV700WorldTargetGroups(container, this.journeyV700WorldId);
+    if (!groups.length) {
+      onComplete();
+      return;
+    }
+
+    let remaining = groups.length;
+    const done = () => {
+      remaining -= 1;
+      if (remaining <= 0) onComplete();
+    };
+
+    groups.slice().reverse().forEach((group, index) => {
+      try {
+        gsap.killTweensOf(group);
+        gsap.to(group, {
+          y: 26,
+          scale: 0.78,
+          opacity: 0,
+          duration: 0.24,
+          delay: Math.min(index * 0.014, 0.11),
+          ease: 'back.in(1.55)',
+          force3D: true,
+          onComplete: done,
+        });
+      } catch {
+        done();
+      }
+    });
   }
 
   private applyJourneyV700WorldHeights(container: HTMLElement): void {
@@ -5078,7 +5155,6 @@ class JourneyBoardsManager {
     (container as any).__ccJourneyV700Closing = true;
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
-    const visibleTargets = this.getJourneyV700WorldTargets(container);
     const complete = () => {
       this.setJourneyV700View('hub');
       this.updateJourneyV700Nav('hub');
@@ -5087,16 +5163,7 @@ class JourneyBoardsManager {
     };
 
     try {
-      gsap.to(visibleTargets, {
-        y: 30,
-        scale: 0.72,
-        opacity: 0,
-        duration: 0.34,
-        stagger: 0.008,
-        ease: 'back.in(1.7)',
-        force3D: true,
-        onComplete: complete,
-      });
+      this.playJourneyV700WorldExit(container, complete);
     } catch {
       complete();
     }
