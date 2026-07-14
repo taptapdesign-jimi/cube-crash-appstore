@@ -5152,9 +5152,7 @@ class JourneyBoardsManager {
 
   private getJourneyV700NavTargets(): HTMLElement[] {
     return [
-      document.getElementById('collectibles-back') as HTMLElement | null,
-      document.getElementById('collectibles-title') as HTMLElement | null,
-      document.querySelector('#journey-screen .collectibles-header-spacer') as HTMLElement | null,
+      document.querySelector('#journey-screen .collectibles-header') as HTMLElement | null,
     ].filter((target): target is HTMLElement => !!target && document.body.contains(target));
   }
 
@@ -5166,12 +5164,11 @@ class JourneyBoardsManager {
       try {
         gsap.killTweensOf(targets);
         gsap.to(targets, {
-          y: -10,
-          scale: 0.78,
+          y: -18,
+          scale: 0.94,
           opacity: 0,
-          duration: 0.24,
-          stagger: 0.025,
-          ease: 'back.in(1.55)',
+          duration: 0.32,
+          ease: 'back.in(1.45)',
           force3D: true,
           overwrite: true,
           onComplete: resolve,
@@ -5190,13 +5187,12 @@ class JourneyBoardsManager {
       gsap.killTweensOf(targets);
       gsap.fromTo(
         targets,
-        { y: -10, scale: 0.78, opacity: 0 },
+        { y: -18, scale: 0.94, opacity: 0 },
         {
           y: 0,
           scale: 1,
           opacity: 1,
-          duration: 0.34,
-          stagger: 0.025,
+          duration: 0.42,
           ease: 'back.out(1.8)',
           force3D: true,
           overwrite: true,
