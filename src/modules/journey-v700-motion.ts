@@ -1,0 +1,79 @@
+export interface JourneyV700MotionProfile {
+  enter: {
+    baseDelay: number;
+    duration: number;
+    ease: string;
+    scale: number;
+    y: number;
+    groupStagger: number;
+  };
+  exit: {
+    duration: number;
+    ease: string;
+    scale: number;
+    y: number;
+    groupStagger: number;
+  };
+  cascadeWindow: number;
+}
+
+const DEFAULT_PROFILE: JourneyV700MotionProfile = {
+  enter: {
+    baseDelay: 0.08,
+    duration: 0.56,
+    ease: 'back.out(1.8)',
+    scale: 0.65,
+    y: 30,
+    groupStagger: 0.065,
+  },
+  exit: {
+    duration: 0.48,
+    ease: 'back.in(1.25)',
+    scale: 0.65,
+    y: 28,
+    groupStagger: 0.065,
+  },
+  cascadeWindow: 0.13,
+};
+
+const REDUCED_PROFILE: JourneyV700MotionProfile = {
+  enter: {
+    baseDelay: 0,
+    duration: 0.2,
+    ease: 'power1.out',
+    scale: 0.96,
+    y: 8,
+    groupStagger: 0.012,
+  },
+  exit: {
+    duration: 0.16,
+    ease: 'power1.in',
+    scale: 0.96,
+    y: 8,
+    groupStagger: 0.012,
+  },
+  cascadeWindow: 0.06,
+};
+
+export function getJourneyV700MotionProfile(reducedMotion: boolean): JourneyV700MotionProfile {
+  return reducedMotion ? REDUCED_PROFILE : DEFAULT_PROFILE;
+}
+
+export function getJourneyV700UnitStagger(groupCount: number, reducedMotion: boolean): number {
+  const motion = getJourneyV700MotionProfile(reducedMotion);
+  if (groupCount <= 1) return 0;
+  return Math.min(0.03, motion.cascadeWindow / (groupCount - 1));
+}
+
+export function getJourneyV700EnterOffset(unitId: string, index: number, reducedMotion: boolean): number {
+  if (index === 0 || unitId.includes('main')) return 0;
+  if (reducedMotion) return Math.min(0.06, index * 0.006);
+
+  let hash = 2166136261;
+  for (let characterIndex = 0; characterIndex < unitId.length; characterIndex += 1) {
+    hash ^= unitId.charCodeAt(characterIndex);
+    hash = Math.imul(hash, 16777619);
+  }
+  const normalized = (hash >>> 0) / 4294967295;
+  return 0.035 + (normalized * 0.185);
+}

@@ -2000,6 +2000,12 @@
   user-select: none;
   -webkit-user-drag: none;
   animation: journey-v700-world-idle 4.4s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.journey-v700-world-card.journey-v700-idle-ready .journey-v700-world-image,
+.journey-v700-world-card.journey-v700-idle-ready .journey-v700-world-cloud {
+  animation-play-state: running;
 }
 
 .journey-v700-world-beach .journey-v700-world-image {
@@ -2018,6 +2024,7 @@
   user-select: none;
   -webkit-user-drag: none;
   animation: journey-v700-cloud-idle 5.8s ease-in-out infinite;
+  animation-play-state: paused;
 }
 
 .journey-v700-world-cloud-a {
