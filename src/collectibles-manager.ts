@@ -1211,6 +1211,9 @@ class CollectiblesManager {
                   activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
                 const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
+                if (!shouldPlayActiveBoardAreaEnter) {
+                  activeJourneyBoardsManager.playJourneyV700HubEnterFromHomepage?.();
+                }
                 let activeAreaEnterStarted = false;
                 const startActiveAreaEnter = (source: string): void => {
                   if (!shouldPlayActiveBoardAreaEnter || activeAreaEnterStarted) return;

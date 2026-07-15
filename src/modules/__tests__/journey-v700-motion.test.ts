@@ -1,5 +1,6 @@
 import {
   getJourneyV700EnterOffset,
+  getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
 } from '../journey-v700-motion.js';
@@ -29,6 +30,14 @@ describe('Journey V700 motion contract', () => {
 
     expect(stagger).toBeCloseTo(0.13 / 9);
     expect(stagger).toBeLessThan(0.03);
+  });
+
+  it('enters the three hub worlds sequentially inside a fast cascade', () => {
+    const stagger = getJourneyV700HubEnterStagger(false);
+
+    expect(stagger).toBeGreaterThanOrEqual(0.08);
+    expect(stagger * 2).toBeLessThanOrEqual(0.2);
+    expect(getJourneyV700HubEnterStagger(true)).toBeLessThan(stagger);
   });
 
   it('keeps main first and gives Units stable irregular enter offsets', () => {

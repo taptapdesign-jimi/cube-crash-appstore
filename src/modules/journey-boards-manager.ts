@@ -30,7 +30,7 @@ import {
   lockJourneyViewportTransition,
   unlockJourneyViewportTransition,
 } from '../ui/collectibles-animations.js';
-import { getJourneyV700MotionProfile } from './journey-v700-motion.js';
+import { getJourneyV700HubEnterStagger, getJourneyV700MotionProfile } from './journey-v700-motion.js';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -5068,7 +5068,9 @@ class JourneyBoardsManager {
       const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
       const motion = getJourneyV700MotionProfile(reducedMotion);
       const baseDelay = motion.enter.baseDelay;
-      const stagger = motion.enter.groupStagger;
+      const stagger = returningFromWorld
+        ? motion.enter.groupStagger
+        : getJourneyV700HubEnterStagger(reducedMotion);
       const duration = motion.enter.duration;
 
       if (now < this.journeyV700HubEnterCooldownUntil) {
@@ -5116,6 +5118,65 @@ class JourneyBoardsManager {
     } catch (error) {
       this.logJourneyV700Flow('hub-enter-error', { error: error instanceof Error ? error.message : String(error) }, container);
     }
+  }
+
+  /**
+   * Background preparation renders the Hub while the Homepage exit is still visible.
+   * Replay the three World Units only when the Journey viewport actually starts entering.
+   */
+  public playJourneyV700HubEnterFromHomepage(): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    if (!container || container.dataset.journeyV700View !== 'hub') return;
+
+    const worldCards = Array.from(
+      container.querySelectorAll<HTMLElement>('.journey-v700-world-card')
+    );
+    if (!worldCards.length) return;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    const motion = getJourneyV700MotionProfile(reducedMotion);
+    const stagger = getJourneyV700HubEnterStagger(reducedMotion);
+    this.journeyV700Phase = 'entering';
+    this.journeyV700HubEnterCooldownUntil = 0;
+    worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
+
+    try {
+      gsap.killTweensOf(worldCards);
+      gsap.set(worldCards, {
+        y: motion.enter.y,
+        scale: motion.enter.scale,
+        opacity: 0,
+        visibility: 'visible',
+        force3D: true,
+      });
+    } catch {}
+
+    this.logJourneyV700Flow('hub-visible-enter-start', {
+      source: 'homepage',
+      worldCount: worldCards.length,
+      stagger,
+    }, container);
+
+    let remainingWorldCards = worldCards.length;
+    worldCards.forEach((card, index) => {
+      gsap.to(card, {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        duration: motion.enter.duration,
+        delay: motion.enter.baseDelay + (index * stagger),
+        ease: motion.enter.ease,
+        force3D: true,
+        overwrite: true,
+        onComplete: () => {
+          remainingWorldCards -= 1;
+          if (remainingWorldCards > 0) return;
+          worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
+          this.journeyV700Phase = 'idle';
+          this.logJourneyV700Flow('hub-visible-enter-complete', { source: 'homepage' }, container);
+        },
+      });
+    });
   }
 
   private openJourneyV700World(worldId: number, source?: HTMLElement): void {

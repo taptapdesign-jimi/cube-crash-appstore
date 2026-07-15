@@ -59,6 +59,11 @@ export function getJourneyV700MotionProfile(reducedMotion: boolean): JourneyV700
   return reducedMotion ? REDUCED_PROFILE : DEFAULT_PROFILE;
 }
 
+/** Three Journey hub worlds enter top-to-bottom quickly, but with a clearly readable order. */
+export function getJourneyV700HubEnterStagger(reducedMotion: boolean): number {
+  return reducedMotion ? 0.02 : 0.09;
+}
+
 export function getJourneyV700UnitStagger(groupCount: number, reducedMotion: boolean): number {
   const motion = getJourneyV700MotionProfile(reducedMotion);
   if (groupCount <= 1) return 0;
