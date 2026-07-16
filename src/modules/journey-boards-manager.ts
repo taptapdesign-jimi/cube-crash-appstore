@@ -30,7 +30,11 @@ import {
   lockJourneyViewportTransition,
   unlockJourneyViewportTransition,
 } from '../ui/collectibles-animations.js';
-import { getJourneyV700HubEnterStagger, getJourneyV700MotionProfile } from './journey-v700-motion.js';
+import {
+  getJourneyV700HubEnterStagger,
+  getJourneyV700MotionProfile,
+  shouldRestoreJourneyInterimWrapperForIdle,
+} from './journey-v700-motion.js';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -451,8 +455,10 @@ const BOARD_AREA_MODAL_EXIT_BASE_DELAY = 0;
 const BOARD_AREA_MODAL_STAGGER = 0.05;
 const BOARD_AREA_MODAL_EXIT_MIN_SCALE = 0.04;
 const BOARD_AREA_CARD_TAP_PUNCH_SCALE = 1.12;
-const BOARD_AREA_CARD_TAP_PUNCH_DURATION = 0.14;
+const BOARD_AREA_CARD_TAP_PUNCH_DURATION = 0.1;
 const BOARD_AREA_CARD_TAP_PUNCH_EASE = 'back.out(2.4)';
+const BOARD_AREA_CARD_TAP_EXIT_DURATION = 0.24;
+const BOARD_AREA_CARD_TAP_EXIT_EASE = 'back.in(1.7)';
 const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
 const LAST_ACTIVE_WORLD_STORAGE_KEY = '__ccLastActiveJourneyWorldId';
@@ -980,6 +986,22 @@ class JourneyBoardsManager {
     restoreJourneyBoardCardBaseTransform(target);
   }
 
+  private restoreJourneyBoardCardWrapperVisibility(target: HTMLElement): void {
+    if (!target.classList.contains('journey-board-card-wrapper')) return;
+    restoreJourneyBoardCardBaseTransform(target);
+    try {
+      gsap.set(target, {
+        opacity: 1,
+        visibility: 'visible',
+        overwrite: true,
+      });
+    } catch {}
+    target.style.opacity = '1';
+    target.style.visibility = 'visible';
+    target.style.pointerEvents = '';
+    target.style.willChange = 'auto';
+  }
+
   private resetJourneyBoardVisualResidue(reason: string): void {
     try {
       this.clearJourneyAreaIdleStartTimeout();
@@ -1020,7 +1042,8 @@ class JourneyBoardsManager {
         target.style.willChange = '';
 
         if (target.classList.contains('journey-board-card-wrapper')) {
-          restoreJourneyBoardCardBaseTransform(target);
+          this.restoreJourneyBoardCardWrapperVisibility(target);
+          this.restoreJourneyBoardCardVisualTarget(target);
           return;
         }
 
@@ -1080,7 +1103,7 @@ class JourneyBoardsManager {
         }
 
         rememberJourneyBoardCardBaseTransform(wrapper);
-        restoreJourneyBoardCardBaseTransform(wrapper);
+        this.restoreJourneyBoardCardWrapperVisibility(wrapper);
         if (!isActiveInterimCard) {
           this.restoreJourneyBoardCardVisualTarget(wrapper);
         }
@@ -3458,12 +3481,84 @@ class JourneyBoardsManager {
     });
   }
 
+  /** Shared V625-style tapped-card exit for regular and interim Journey cards. */
+  private animateJourneyCardTapExit(boardId: number): Promise<void> {
+    return new Promise((resolve) => {
+      const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+      const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+      if (!card || !cardWrapper || !document.body.contains(cardWrapper)) {
+        resolve();
+        return;
+      }
+
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        try {
+          delete (cardWrapper as any).__ccJourneyCardTapExitActive;
+          cardWrapper.style.willChange = 'auto';
+        } catch {}
+        resolve();
+      };
+
+      try {
+        gsap.killTweensOf(cardWrapper);
+        (cardWrapper as any).__ccJourneyCardTapExitActive = true;
+        cardWrapper.style.pointerEvents = 'none';
+        cardWrapper.style.visibility = 'visible';
+        cardWrapper.style.willChange = 'transform, opacity';
+        cardWrapper.style.transformOrigin = '50% 50%';
+
+        const timeline = trackTimeline({
+          defaults: {
+            force3D: true,
+            overwrite: 'auto',
+            transformOrigin: '50% 50%',
+          },
+          onComplete: finish,
+          onInterrupt: finish,
+        });
+        timeline.to(cardWrapper, {
+          scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
+          opacity: 1,
+          duration: BOARD_AREA_CARD_TAP_PUNCH_DURATION,
+          ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
+          onStart: () => {
+            try {
+              smokeBubblesAtCard(card, {
+                sizeScale: 0.58,
+                distanceScale: 0.58,
+                countScale: 0.36,
+                haloScale: 0.58,
+                strength: 1.9,
+                trailAlpha: 0.9,
+                baseAlpha: 0.9,
+                allowOverlap: true,
+                activeLockMs: 150,
+                fadeOutTime: 0.62,
+                cleanupTime: 1.1,
+              });
+            } catch {}
+          },
+        });
+        timeline.to(cardWrapper, {
+          scale: 0,
+          opacity: 0,
+          duration: BOARD_AREA_CARD_TAP_EXIT_DURATION,
+          ease: BOARD_AREA_CARD_TAP_EXIT_EASE,
+        });
+      } catch (error) {
+        logger.warn('⚠️ Journey shared card tap exit failed:', { boardId, error });
+        finish();
+      }
+    });
+  }
+
   private animateInterimAreaExitBeforeJourney(boardId: number, onJourneyExitLinked?: () => void): Promise<void> {
     return new Promise((resolve) => {
       try {
         logger.info('🧪 JourneyInterimFX exit-start', { boardId });
-        const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
-        const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
         const stump = document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null;
         const stars = Array.from(
           document.querySelectorAll(`.journey-forest-star-board-${boardId}`)
@@ -3475,18 +3570,15 @@ class JourneyBoardsManager {
 
         this.cleanupJourneyAreaIdleAnimations(false);
 
-        const cardPunchDuration = BOARD_AREA_CARD_TAP_PUNCH_DURATION;
-        const cardShrinkDuration = 0.46;
-        const cardTotalDuration = cardPunchDuration + cardShrinkDuration;
         const forestExitSpeedFactor = 0.65;
         const stumpExitDuration = 0.17 * forestExitSpeedFactor;
         const starsExitDuration = 0.16 * forestExitSpeedFactor;
         const cloudExitDuration = 0.22 * forestExitSpeedFactor;
         const islandExitDuration = (0.17 * forestExitSpeedFactor * 1.5) + 0.2;
-        const stumpExitAt = 0.04;
-        const cloudsExitAt = 0.12;
-        const starsExitAt = Math.max(0.42, cardPunchDuration + 0.16);
-        const islandExitAt = Math.max(starsExitAt + 0.08, cardTotalDuration - 0.16);
+        const stumpExitAt = 0;
+        const cloudsExitAt = 0.03;
+        const starsExitAt = 0.06;
+        const islandExitAt = 0.09;
         const journeyExitAt = islandExitAt;
 
         const groups: Array<{ targets: HTMLElement[]; at: number; duration: number; ease?: string }> = [
@@ -3497,7 +3589,6 @@ class JourneyBoardsManager {
         ];
 
         const timelineTargets = Array.from(new Set([
-          ...(cardWrapper ? [cardWrapper] : []),
           ...groups.flatMap((group) => group.targets),
         ])).filter((target) => target && document.body.contains(target));
 
@@ -3550,42 +3641,6 @@ class JourneyBoardsManager {
           },
         });
 
-        if (cardWrapper && document.body.contains(cardWrapper)) {
-          timeline.to(cardWrapper, {
-            scale: BOARD_AREA_CARD_TAP_PUNCH_SCALE,
-            opacity: 1,
-            duration: cardPunchDuration,
-            ease: BOARD_AREA_CARD_TAP_PUNCH_EASE,
-            immediateRender: false,
-            onStart: () => {
-              if (card && card.parentElement) {
-                try {
-                  smokeBubblesAtCard(card, {
-                    sizeScale: 0.62,
-                    distanceScale: 0.62,
-                    countScale: 0.42,
-                    haloScale: 0.62,
-                    strength: 2.0,
-                    trailAlpha: 0.92,
-                    baseAlpha: 0.92,
-                    allowOverlap: true,
-                    activeLockMs: 180,
-                    fadeOutTime: 0.72,
-                    cleanupTime: 1.25,
-                  });
-                } catch {}
-              }
-            },
-          }, 0);
-          timeline.to(cardWrapper, {
-            scale: 0,
-            opacity: 0,
-            duration: cardShrinkDuration,
-            ease: 'back.in(1.7)',
-            immediateRender: false,
-          }, cardPunchDuration);
-        }
-
         groups.forEach((group) => {
           const liveTargets = group.targets.filter((target) => target && document.body.contains(target));
           if (!liveTargets.length) return;
@@ -3635,6 +3690,7 @@ class JourneyBoardsManager {
       };
 
       try {
+        await this.animateJourneyCardTapExit(boardId);
         await this.animateInterimAreaExitBeforeJourney(boardId, startLinkedJourneyExit);
         startLinkedJourneyExit();
         if (linkedJourneyExitPromise) {
@@ -3667,6 +3723,7 @@ class JourneyBoardsManager {
 
     this.journeyExitPromise = (async () => {
       try {
+        await this.animateJourneyCardTapExit(boardId);
         const container = document.getElementById('journey-boards-container') as HTMLElement | null;
         const useCoordinatedWorldExit =
           !!container &&
@@ -3997,7 +4054,39 @@ class JourneyBoardsManager {
       interimCards.forEach((interimCard) => {
         const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
         if (!cardWrapper || !document.body.contains(cardWrapper)) return;
-        if ((cardWrapper as any).__ccJourneyToGameExitTween || (interimCard as any)._openingGame) return;
+        const worldPhase = this.journeyWorldAnimation.getPhase();
+        const transitionOwnsCard =
+          this.journeyToGameExitActive ||
+          this.journeyV700Phase === 'entering' ||
+          this.journeyV700Phase === 'exiting' ||
+          worldPhase === 'entering' ||
+          worldPhase === 'exiting' ||
+          (cardWrapper as any).__ccJourneyToGameExitTween ||
+          (cardWrapper as any).__ccJourneyCardTapExitActive ||
+          (interimCard as any)._openingGame;
+        if (transitionOwnsCard) return;
+
+        const wrapperStyle = window.getComputedStyle(cardWrapper);
+        const wrapperOpacity = Number(wrapperStyle.opacity || cardWrapper.style.opacity || '1');
+        const wrapperScale = Number(gsap.getProperty(cardWrapper, 'scale'));
+        const hasHiddenResidue = shouldRestoreJourneyInterimWrapperForIdle({
+          opacity: wrapperOpacity,
+          scale: wrapperScale,
+          visibility: wrapperStyle.visibility,
+        });
+        if (hasHiddenResidue) {
+          logger.warn('🧪 JourneyInterimFX restoring hidden wrapper before idle', {
+            boardId: interimCard.dataset.boardId,
+            opacity: wrapperOpacity,
+            scale: wrapperScale,
+            visibility: wrapperStyle.visibility,
+            managerPhase: this.journeyV700Phase,
+            worldPhase,
+          });
+          try { gsap.killTweensOf(cardWrapper); } catch {}
+          this.restoreJourneyBoardCardWrapperVisibility(cardWrapper);
+          this.restoreJourneyBoardCardVisualTarget(cardWrapper);
+        }
         if ((cardWrapper as any)._interimBounceActive) {
           if (this.isInterimBounceTimelineHealthy(cardWrapper, interimCard)) return;
           logger.warn('⚠️ Interim bounce flag was stale; restarting bounce/smoke loop');

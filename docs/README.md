@@ -27,6 +27,7 @@ Technical deep dives, performance, and subsystem analysis.
 
 | Document | Description |
 |----------|-------------|
+| [JOURNEY_ANIMATION_CONTRACT.md](engineering/JOURNEY_ANIMATION_CONTRACT.md) | Canonical Journey enter, exit, Unit, tapped-card, and lifecycle contract |
 | [PERFORMANCE_OPTIMIZATION.md](engineering/PERFORMANCE_OPTIMIZATION.md) | Performance notes |
 | [ANIMATION_EFFECTS.md](engineering/ANIMATION_EFFECTS.md) | Animation effects |
 | [IOS_WEBVIEW_CRASH_MITIGATION.md](engineering/IOS_WEBVIEW_CRASH_MITIGATION.md) | iOS WebView crash mitigation |

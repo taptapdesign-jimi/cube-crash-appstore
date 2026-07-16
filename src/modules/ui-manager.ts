@@ -1478,12 +1478,15 @@ class UIManager {
   }
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
-  showHomepageQuietly(): void {
+  showHomepageQuietly(options: { skipSliderForceReady?: boolean } = {}): void {
     applyPaperBackground('0.6');
     this.elements.home?.style.setProperty('--paper-alpha', '0.6');
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
+      this.elements.home.style.visibility = 'visible';
+      this.elements.home.style.opacity = '1';
+      this.elements.home.style.pointerEvents = 'auto';
       // Dev test/log buttons removed
       
       // 🔥 CRITICAL FIX: Explicitly ensure slider container is visible
@@ -1501,17 +1504,21 @@ class UIManager {
       
       // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
       // This resets ALL animation flags, unlocks slider, and reinitializes if needed
-      try {
-        if (sliderManager && typeof sliderManager.forceReady === 'function') {
-          sliderManager.forceReady();
-          logger.info('✅ Slider forceReady() called in showHomepageQuietly - slider fully reset');
-        } else if (sliderManager && typeof sliderManager.ensureReady === 'function') {
-          // Fallback: Use ensureReady if forceReady not available
-          sliderManager.ensureReady();
-          logger.info('✅ Slider ensureReady() called in showHomepageQuietly (fallback)');
+      if (!options.skipSliderForceReady) {
+        try {
+          if (sliderManager && typeof sliderManager.forceReady === 'function') {
+            sliderManager.forceReady();
+            logger.info('✅ Slider forceReady() called in showHomepageQuietly - slider fully reset');
+          } else if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+            // Fallback: Use ensureReady if forceReady not available
+            sliderManager.ensureReady();
+            logger.info('✅ Slider ensureReady() called in showHomepageQuietly (fallback)');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to force slider ready:', error);
         }
-      } catch (error) {
-        logger.warn('⚠️ Failed to force slider ready:', error);
+      } else {
+        logger.info('✅ showHomepageQuietly kept existing slider ready state for prepared enter animation');
       }
       
       // 🔥 FIX: Explicitly show and enable navigation (independent-nav)

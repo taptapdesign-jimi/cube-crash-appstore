@@ -89,7 +89,7 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
     // Remove any existing animation classes
-    element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
     
     // Force reflow
     void element.offsetHeight;
@@ -101,29 +101,139 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
   activeTimeouts.add(timeout);
 };
 
+const getBaseTransform = (element: HTMLElement): string => {
+  const computedTransform = window.getComputedStyle(element).transform;
+  if (
+    computedTransform === 'matrix(0, 0, 0, 0, 0, 0)' ||
+    computedTransform === 'matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)'
+  ) {
+    return '';
+  }
+  return computedTransform && computedTransform !== 'none' ? computedTransform : '';
+};
+
+const HOME_ENTER_DIAG_PREFIX = '🏠🧪 HOME_ENTER_DIAG';
+
+const getHomeEnterElementLabel = (element: HTMLElement): string => {
+  if (element.id) return `#${element.id}`;
+  const dataSlide = element.getAttribute('data-slide');
+  if (dataSlide) return `.slider-slide[data-slide="${dataSlide}"]`;
+  const className = String(element.className || '').trim().replace(/\s+/g, '.');
+  return className ? `.${className}` : element.tagName.toLowerCase();
+};
+
+const logHomeEnterElementState = (phase: string, element: HTMLElement | null | undefined, extra: Record<string, unknown> = {}): void => {
+  if (!element) {
+    console.log(HOME_ENTER_DIAG_PREFIX, phase, { exists: false, ...extra });
+    return;
+  }
+
+  const computed = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  console.log(HOME_ENTER_DIAG_PREFIX, phase, {
+    label: getHomeEnterElementLabel(element),
+    classes: element.className,
+    hidden: element.hasAttribute('hidden'),
+    ariaHidden: element.getAttribute('aria-hidden'),
+    inlineDisplay: element.style.display || null,
+    inlineVisibility: element.style.visibility || null,
+    inlineOpacity: element.style.opacity || null,
+    inlineTransform: element.style.transform || null,
+    inlineTransition: element.style.transition || null,
+    display: computed.display,
+    visibility: computed.visibility,
+    opacity: computed.opacity,
+    pointerEvents: computed.pointerEvents,
+    zIndex: computed.zIndex,
+    transform: computed.transform,
+    transition: computed.transition,
+    rect: {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    },
+    ...extra,
+  });
+};
+
+const easeHomeEnterScale = (progress: number): number => {
+  const clamped = Math.max(0, Math.min(1, progress));
+  const c1 = 1.35;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(clamped - 1, 3) + c1 * Math.pow(clamped - 1, 2);
+};
+
+const applyHomeEnterScale = (element: HTMLElement, baseTransform: string, scale: number): void => {
+  const transform = baseTransform ? `${baseTransform} scale(${scale})` : `scale(${scale})`;
+  element.style.setProperty('transform', transform, 'important');
+  element.style.setProperty('-webkit-transform', transform, 'important');
+};
+
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
 const reverseBounce = (element: HTMLElement, delay: number) => {
-  // Set initial state (from scale 0) - NO TRANSITION YET
-  element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-  element.classList.add('animate-enter-initial');
-  // NO OPACITY - scale only
-  
-  // Force reflow to apply initial state
+  element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+  element.style.removeProperty('transition');
+  element.style.removeProperty('-webkit-transition');
+  element.style.removeProperty('opacity');
+  element.style.removeProperty('visibility');
+  element.style.removeProperty('transform');
+  element.style.removeProperty('-webkit-transform');
+
+  // Commit class/style removal before reading the base transform. Without this,
+  // iOS can report the stale animate-enter-initial scale(0) matrix as the base,
+  // so every manual frame remains visually scaled to zero until cleanup.
   void element.offsetHeight;
-  
+
+  const baseTransform = getBaseTransform(element);
+  const initialTransform = baseTransform ? `${baseTransform} scale(0)` : 'scale(0)';
+
+  logHomeEnterElementState('reverseBounce:before-initial-set', element, {
+    delay,
+    baseTransform,
+    initialTransform,
+  });
+
+  element.style.setProperty('transform-origin', 'center center', 'important');
+  element.style.setProperty('-webkit-transform-origin', 'center center', 'important');
+  applyHomeEnterScale(element, baseTransform, 0);
+  element.style.setProperty('will-change', 'transform', 'important');
+
+  // Force reflow so the initial inline scale(0) is committed before animating.
+  void element.offsetHeight;
+  logHomeEnterElementState('reverseBounce:after-initial-reflow', element, { delay });
+
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    // 🔥 CRITICAL: Make element visible when animation starts
-    // Element might be hidden by inline styles from main.ts
-    element.style.removeProperty('opacity');
-    element.style.removeProperty('visibility');
-    element.style.removeProperty('transition');
-    
-    // 🔥 FIX: Add animate-enter BEFORE removing animate-enter-initial
-    // This prevents 1-frame flash where element has no animation class and is fully visible
-    element.classList.add('animate-enter');
-    element.classList.remove('animate-enter-initial');
-    // NO OPACITY - scale only
+    logHomeEnterElementState('reverseBounce:timeout-fired', element, { delay });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        element.style.removeProperty('opacity');
+        element.style.removeProperty('visibility');
+        element.style.removeProperty('transition');
+        element.style.removeProperty('-webkit-transition');
+
+        const durationMs = 680;
+        const startedAt = performance.now();
+        const tick = (now: number) => {
+          const rawProgress = (now - startedAt) / durationMs;
+          const progress = Math.max(0, Math.min(1, rawProgress));
+          const scale = easeHomeEnterScale(progress);
+          applyHomeEnterScale(element, baseTransform, scale);
+
+          if (progress < 1) {
+            requestAnimationFrame(tick);
+            return;
+          }
+
+          applyHomeEnterScale(element, baseTransform, 1);
+          element.classList.add('animate-enter-complete');
+        };
+
+        logHomeEnterElementState('reverseBounce:raf-start', element, { delay, durationMs });
+        requestAnimationFrame(tick);
+      });
+    });
   }, delay);
   activeTimeouts.add(timeout);
 };
@@ -138,9 +248,194 @@ let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 const HOMEPAGE_ENTER_HAPTIC_OFFSET_MS = 200;
 const HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS = 155;
 const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 130;
+const HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS = 45;
+const HOMEPAGE_ENTER_CONTENT_DELAY_MS = 95;
+const HOMEPAGE_ENTER_NAV_DELAY_MS = 155;
+const HOMEPAGE_ENTER_FINALIZE_DELAY_MS = 1060;
 
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
+
+/** Prime the complete active Homepage slide while its shell is still hidden. */
+export const prepareSliderEnter = (): void => {
+  cachedElements = {};
+  const activeSlide = document.querySelector('.slider-slide.active') ||
+    document.querySelector('.slider-slide[data-slide="0"]');
+  const slides = Array.from(document.querySelectorAll('.slider-slide')) as HTMLElement[];
+  let restoredInactiveTargets = 0;
+
+  slides.forEach((slide) => {
+    if (slide === activeSlide) return;
+    const inactiveTargets = Array.from(
+      slide.querySelectorAll('.hero-container, .slide-button, .slide-text, .slide-tagline')
+    ) as HTMLElement[];
+    inactiveTargets.forEach((target) => {
+      target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce');
+      target.style.removeProperty('opacity');
+      target.style.removeProperty('visibility');
+      target.style.removeProperty('display');
+      target.style.removeProperty('transition');
+      target.style.removeProperty('-webkit-transition');
+      target.style.removeProperty('transform');
+      target.style.removeProperty('-webkit-transform');
+      target.style.removeProperty('will-change');
+      restoredInactiveTargets += 1;
+    });
+  });
+
+  const targets = [
+    activeSlide?.querySelector('.hero-container'),
+    activeSlide?.querySelector('.slide-button'),
+    activeSlide?.querySelector('.slide-text'),
+    activeSlide?.querySelector('.slide-tagline'),
+    document.getElementById('home-logo'),
+    document.getElementById('logo-shards-gore-ljevo'),
+    document.getElementById('logo-shards-gore-desno'),
+    document.getElementById('logo-shards-dole-ljevi'),
+    document.getElementById('logo-shards-dole-desni'),
+    document.getElementById('independent-nav'),
+    document.querySelector('.slider-nav-divider'),
+    document.getElementById('home-fixed-shadow-bottom'),
+  ].filter((target): target is HTMLElement => target instanceof HTMLElement);
+
+  targets.forEach((target) => {
+    target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+    target.classList.add('animate-enter-initial');
+    target.style.removeProperty('opacity');
+    target.style.removeProperty('visibility');
+    target.style.transition = 'none';
+  });
+
+  logger.info('🏠 Homepage enter primed', 'animations', {
+    activeSlide: activeSlide?.getAttribute('data-slide') || null,
+    activeTargetCount: targets.length,
+    restoredInactiveTargets,
+  });
+};
+
+export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'): void => {
+  const activeSlide = document.querySelector('.slider-slide.active') ||
+    document.querySelector('.slider-slide[data-slide="0"]');
+  const shellTargets = [
+    document.getElementById('home'),
+    document.querySelector('#home .content'),
+    document.getElementById('home-logo-wrapper'),
+    document.getElementById('slider-container'),
+    document.querySelector('#slider-container .slider-viewport'),
+    document.getElementById('slider-wrapper'),
+    activeSlide,
+  ].filter((target): target is HTMLElement => target instanceof HTMLElement);
+
+  shellTargets.forEach((target) => {
+    target.removeAttribute('hidden');
+    target.classList.remove('hidden');
+    target.style.removeProperty('display');
+    target.style.removeProperty('visibility');
+    target.style.removeProperty('opacity');
+    target.style.removeProperty('pointer-events');
+    target.style.removeProperty('z-index');
+  });
+
+  const home = document.getElementById('home');
+  if (home) {
+    home.style.display = 'block';
+    home.style.visibility = 'visible';
+    home.style.opacity = '1';
+    home.style.pointerEvents = 'auto';
+    home.style.zIndex = '1';
+  }
+
+  const sliderContainer = document.getElementById('slider-container');
+  if (sliderContainer) {
+    sliderContainer.style.display = 'block';
+    sliderContainer.style.visibility = 'visible';
+    sliderContainer.style.opacity = '1';
+    sliderContainer.style.pointerEvents = 'auto';
+  }
+
+  const targets = [
+    activeSlide?.querySelector('.hero-container'),
+    activeSlide?.querySelector('.slide-button'),
+    activeSlide?.querySelector('.slide-text'),
+    activeSlide?.querySelector('.slide-tagline'),
+    document.getElementById('home-logo'),
+    document.getElementById('logo-shards-gore-ljevo'),
+    document.getElementById('logo-shards-gore-desno'),
+    document.getElementById('logo-shards-dole-ljevi'),
+    document.getElementById('logo-shards-dole-desni'),
+    document.getElementById('independent-nav'),
+    document.querySelector('.slider-nav-divider'),
+    document.getElementById('home-fixed-shadow-bottom'),
+  ].filter((target): target is HTMLElement => target instanceof HTMLElement);
+
+  targets.forEach((target) => {
+    target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce');
+    target.style.removeProperty('opacity');
+    target.style.removeProperty('visibility');
+    target.style.removeProperty('display');
+    target.style.removeProperty('transition');
+    target.style.removeProperty('-webkit-transition');
+    target.style.removeProperty('will-change');
+  });
+
+  const independentNav = document.getElementById('independent-nav');
+  if (independentNav) {
+    independentNav.style.display = 'block';
+    independentNav.style.visibility = 'visible';
+    independentNav.style.opacity = '1';
+    independentNav.style.pointerEvents = 'none';
+    independentNav.style.zIndex = '100';
+    independentNav.style.removeProperty('transform');
+    independentNav.style.removeProperty('-webkit-transform');
+    independentNav.style.removeProperty('transition');
+    independentNav.style.removeProperty('-webkit-transition');
+    independentNav.style.removeProperty('will-change');
+    independentNav.setAttribute('aria-hidden', 'false');
+    independentNav.removeAttribute('hidden');
+    const content = independentNav.querySelector('.independent-nav-content') as HTMLElement | null;
+    if (content) {
+      content.style.display = 'flex';
+      content.style.visibility = 'visible';
+      content.style.opacity = '1';
+      content.style.pointerEvents = 'none';
+    }
+    const buttonsWrap = independentNav.querySelector('.independent-nav-buttons') as HTMLElement | null;
+    if (buttonsWrap) {
+      buttonsWrap.style.display = 'flex';
+      buttonsWrap.style.visibility = 'visible';
+      buttonsWrap.style.opacity = '1';
+      buttonsWrap.style.pointerEvents = 'auto';
+    }
+    independentNav.querySelectorAll('.independent-nav-button').forEach((button) => {
+      const btn = button as HTMLElement;
+      btn.style.display = 'flex';
+      btn.style.visibility = 'visible';
+      btn.style.opacity = '1';
+      btn.style.pointerEvents = 'auto';
+      btn.style.cursor = 'pointer';
+      btn.style.removeProperty('transition');
+      btn.style.removeProperty('-webkit-transition');
+      btn.style.transform = btn.classList.contains('active') ? 'scale(1)' : 'translateZ(0)';
+      btn.style.webkitTransform = btn.classList.contains('active') ? 'translateZ(0) scale(1)' : 'translateZ(0)';
+    });
+    independentNav.querySelectorAll('.nav-icon-motion, .nav-icon-visual, .independent-nav-button img').forEach((node) => {
+      const el = node as HTMLElement;
+      el.style.display = el.tagName === 'IMG' ? 'block' : 'flex';
+      el.style.visibility = 'visible';
+      el.style.opacity = '1';
+      el.style.pointerEvents = 'none';
+      el.style.transform = el.tagName === 'IMG' ? 'translateZ(0)' : 'translate3d(0, 0, 0) scale(1)';
+      el.style.webkitTransform = el.style.transform;
+    });
+  }
+
+  logger.info('🏠 Homepage enter visibility finalized', 'animations', {
+    reason,
+    activeSlide: activeSlide?.getAttribute('data-slide') || null,
+    shellTargetCount: shellTargets.length,
+    targetCount: targets.length,
+  });
+};
 
 // Journey nav badge module: kept in code/storage for later restore, currently hidden by request.
 const JOURNEY_NAV_BADGE_ENABLED = false;
@@ -340,12 +635,12 @@ function startExitAnimationSequence(): void {
     });
     
     // Use cached elements or query them once and cache
-    if (!cachedElements.homeLogo) {
+    if (!cachedElements.homeLogo || !cachedElements.homeLogo.isConnected) {
       cachedElements.homeLogo = document.querySelector('#home-logo');
     }
     const homeLogo = cachedElements.homeLogo;
     
-    if (!cachedElements.independentNav) {
+    if (!cachedElements.independentNav || !cachedElements.independentNav.isConnected) {
       cachedElements.independentNav = document.getElementById('independent-nav');
     }
     const independentNav = cachedElements.independentNav;
@@ -370,7 +665,7 @@ function startExitAnimationSequence(): void {
       const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
       
     if (slideButton) {
-        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         void slideButton.offsetHeight;
         slideButton.classList.add('animate-exit');
         
@@ -388,7 +683,7 @@ function startExitAnimationSequence(): void {
     }
     
     if (slideText) {
-        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         void slideText.offsetHeight;
         slideText.classList.add('animate-exit');
         
@@ -407,7 +702,7 @@ function startExitAnimationSequence(): void {
       
       // Animate tagline together with text and CTA
       if (slideTagline) {
-        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         void (slideTagline as HTMLElement).offsetHeight;
         (slideTagline as HTMLElement).classList.add('animate-exit');
         
@@ -452,7 +747,7 @@ function startExitAnimationSequence(): void {
           const timeout = setTimeout(() => {
             activeTimeouts.delete(timeout);
             // Remove any existing animation classes
-            addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+            addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
             
             // Force reflow
             void addonEl.offsetHeight;
@@ -499,7 +794,7 @@ function startExitAnimationSequence(): void {
         // Prevent fade-out during exit; keep opacity solid while nav scales
         journeyBadge.style.setProperty('opacity', '1', 'important');
         // Add animate-exit class IMMEDIATELY to protect badge from removal
-        journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         journeyBadge.classList.add('animate-exit');
         logger.info('🎯 Badge found and protected - ready for exit animation');
       } else {
@@ -584,7 +879,7 @@ function startExitAnimationSequenceLegacy(): void {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
   if (slideButton) {
-      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
       void slideButton.offsetHeight;
       slideButton.classList.add('animate-exit');
       
@@ -600,7 +895,7 @@ function startExitAnimationSequenceLegacy(): void {
   }
   
   if (slideText) {
-      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
       void slideText.offsetHeight;
       slideText.classList.add('animate-exit');
       
@@ -617,7 +912,7 @@ function startExitAnimationSequenceLegacy(): void {
     
     // Animate tagline together with text and CTA
     if (slideTagline) {
-      (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
       void (slideTagline as HTMLElement).offsetHeight;
       (slideTagline as HTMLElement).classList.add('animate-exit');
       
@@ -658,7 +953,7 @@ function startExitAnimationSequenceLegacy(): void {
         const timeout = setTimeout(() => {
           activeTimeouts.delete(timeout);
           // Remove any existing animation classes
-          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
           
           // Force reflow
           void addonEl.offsetHeight;
@@ -771,17 +1066,19 @@ function startEnterAnimationSequence(): void {
     }
     
     // Find the currently active slide (slide with .active class)
-    const activeSlide = document.querySelector('.slider-slide.active');
+    let activeSlide = document.querySelector('.slider-slide.active');
     if (!activeSlide) {
       logger.warn('⚠️ No active slide found, animating from first slide');
       // 🔥 CRITICAL: Try to activate first slide if none is active
       const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
       if (firstSlide) {
+        activeSlide = firstSlide;
         firstSlide.classList.add('active');
         logger.info('✅ Activated first slide (slide 0)');
         // Retry with first slide
         const retryActiveSlide = document.querySelector('.slider-slide.active');
         if (retryActiveSlide) {
+          activeSlide = retryActiveSlide;
           logger.info('✅ Found active slide after activation');
           // Continue with normal flow below
         } else {
@@ -801,12 +1098,12 @@ function startEnterAnimationSequence(): void {
     
     
     // Use cached elements or query them once and cache
-    if (!cachedElements.homeLogo) {
+    if (!cachedElements.homeLogo || !cachedElements.homeLogo.isConnected) {
       cachedElements.homeLogo = document.querySelector('#home-logo');
     }
     const homeLogo = cachedElements.homeLogo;
     
-    if (!cachedElements.independentNav) {
+    if (!cachedElements.independentNav || !cachedElements.independentNav.isConnected) {
       cachedElements.independentNav = document.getElementById('independent-nav');
     }
     const independentNav = cachedElements.independentNav;
@@ -822,6 +1119,23 @@ function startEnterAnimationSequence(): void {
       document.getElementById('logo-shards-dole-ljevi'),
       document.getElementById('logo-shards-dole-desni')
     ];
+
+    console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:start', {
+      activeSlide: (activeSlide as HTMLElement).getAttribute('data-slide'),
+      isAnimatingEnter,
+      sliderStateAnimatingEnter: sliderState.isAnimatingEnter,
+      firstVisualDelay: HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS,
+      contentDelay: HOMEPAGE_ENTER_CONTENT_DELAY_MS,
+      navDelay: HOMEPAGE_ENTER_NAV_DELAY_MS,
+      finalizeDelay: HOMEPAGE_ENTER_FINALIZE_DELAY_MS,
+    });
+    logHomeEnterElementState('sequence:home', homeElement as HTMLElement);
+    logHomeEnterElementState('sequence:active-slide', activeSlide as HTMLElement);
+    logHomeEnterElementState('sequence:hero-before-reverse', heroContainer as HTMLElement | null);
+    logHomeEnterElementState('sequence:logo-before-reverse', homeLogo as HTMLElement | null);
+    logHomeEnterElementState('sequence:nav-before-reverse', independentNav as HTMLElement | null);
+    logHomeEnterElementState('sequence:button-before-reverse', slideButton as HTMLElement | null);
+    logHomeEnterElementState('sequence:text-before-reverse', slideText as HTMLElement | null);
     
     // 🔥 CRITICAL: Prepare elements for animation - they're already hidden
     // We'll make them visible when animation starts (in reverseBounce timeout)
@@ -847,24 +1161,24 @@ function startEnterAnimationSequence(): void {
     // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
     // Last element that exits is first to enter!
     
-    // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
+    // STEP 1: Main visual and logo first; navigation follows after the content is established.
     if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, 0);
-      logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (reverse of exit)');
+      reverseBounce(independentNav as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
+      logger.info('🎯 Step 3: Navigation cartoonish bounce - LAST');
     } else {
       logger.warn('⚠️ Navigation not found');
     }
     
     // Shadow animates together with navigation
     if (fixedShadowBottom) {
-      reverseBounce(fixedShadowBottom as HTMLElement, 0);
-      logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (with navigation)');
+      reverseBounce(fixedShadowBottom as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
+      logger.info('🌑 Step 3: Shadow cartoonish bounce - LAST (with navigation)');
     }
     
-    // STEP 2: Home logo and shards SECOND (30ms delay)
+    // Logo and shards enter with the hero.
     if (homeLogo) {
-      reverseBounce(homeLogo as HTMLElement, 30);
-      logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
+      reverseBounce(homeLogo as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+      logger.info('🎨 Step 1: Home logo cartoonish bounce - FIRST');
     } else {
       logger.warn('⚠️ Home logo not found');
     }
@@ -886,7 +1200,7 @@ function startEnterAnimationSequence(): void {
         // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-enter class
         if (isIPad) {
           // Set initial state (from scale 0) - NO TRANSITION YET
-          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
           addonEl.classList.add('animate-enter-initial');
           
           // Force reflow to apply initial state
@@ -909,13 +1223,13 @@ function startEnterAnimationSequence(): void {
                 addonEl.style.setProperty('will-change', 'transform', 'important');
               });
             });
-          }, 30);
+          }, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
           activeTimeouts.add(timeout);
         } else {
-          reverseBounce(addonEl, 30); // Same delay as logo - no stagger
+          reverseBounce(addonEl, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS); // Same delay as logo - no stagger
         }
         
-        logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
+        logger.info(`✨ Step 1: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
       }
     });
     
@@ -935,7 +1249,7 @@ function startEnterAnimationSequence(): void {
         slideText.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
       } else {
         // Element nema animate-enter-initial, postavi ga
-        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         slideText.classList.add('animate-enter-initial');
       }
       void slideText.offsetHeight; // Force reflow
@@ -962,7 +1276,7 @@ function startEnterAnimationSequence(): void {
         (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-reset');
       } else {
         // Element nema animate-enter-initial, postavi ga
-        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         (slideTagline as HTMLElement).classList.add('animate-enter-initial');
       }
       void (slideTagline as HTMLElement).offsetHeight; // Force reflow
@@ -1013,18 +1327,18 @@ function startEnterAnimationSequence(): void {
         (slideTagline as HTMLElement).style.removeProperty('display');
         logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
-    }, 0);
+    }, HOMEPAGE_ENTER_CONTENT_DELAY_MS);
     activeTimeouts.add(enterTimeout);
     
-    // STEP 5: Hero image LAST (120ms delay) - was first to exit
+    // Hero enters with the logo as the primary visual.
     if (heroContainer) {
       // 🔥 CRITICAL: Make hero visible when animation starts
       // Hero was hidden by main.ts, now make it visible for animation
       (heroContainer as HTMLElement).style.removeProperty('opacity');
       (heroContainer as HTMLElement).style.removeProperty('visibility');
       (heroContainer as HTMLElement).style.removeProperty('display');
-      reverseBounce(heroContainer as HTMLElement, 120);
-      logger.info('🖼️ Step 5: Hero image cartoonish bounce - LAST (reverse of exit)');
+      reverseBounce(heroContainer as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+      logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (with logo)');
     } else {
       logger.warn('⚠️ Hero container not found in active slide');
     }
@@ -1032,6 +1346,12 @@ function startEnterAnimationSequence(): void {
     // CRITICAL: After all animations complete, ensure all elements are at final state
     const finalTimeout = setTimeout(() => {
       activeTimeouts.delete(finalTimeout);
+      console.log(HOME_ENTER_DIAG_PREFIX, 'sequence:final-cleanup-start', {
+        finalizeDelay: HOMEPAGE_ENTER_FINALIZE_DELAY_MS,
+      });
+      logHomeEnterElementState('sequence:final-cleanup-hero-before', activeSlide?.querySelector('.hero-container') as HTMLElement | null);
+      logHomeEnterElementState('sequence:final-cleanup-logo-before', document.querySelector('#home-logo') as HTMLElement | null);
+      logHomeEnterElementState('sequence:final-cleanup-nav-before', document.querySelector('#independent-nav') as HTMLElement | null);
       
       // Clean up elements from active slide + shared elements
       if (activeSlide) {
@@ -1068,12 +1388,13 @@ function startEnterAnimationSequence(): void {
               }
             }
             
-            // 🔥 FIX: Ne uklanjati animate-enter-initial klasu - ona osigurava da se elementi ne vide prije animacije
-            // Samo ukloni animate-enter i animate-exit klase, animate-enter-initial ostaje
-            el.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
 
             // Clear temporary visibility overrides after animation completes
             el.style.visibility = '';
+            el.style.opacity = '';
+            el.style.display = '';
+            el.style.removeProperty('will-change');
             
             // 🔥 iPad FIX: Restore transform position after removing classes - ALWAYS set on iPad
             if (isIPad && preservedTransform) {
@@ -1081,6 +1402,13 @@ function startEnterAnimationSequence(): void {
               el.style.webkitTransform = preservedTransform;
               el.style.transition = 'none';
               el.style.webkitTransition = 'none';
+            } else {
+              el.style.removeProperty('transform');
+              el.style.removeProperty('-webkit-transform');
+              el.style.removeProperty('transition');
+              el.style.removeProperty('-webkit-transition');
+              el.style.removeProperty('transform-origin');
+              el.style.removeProperty('-webkit-transform-origin');
             }
           }
         });
@@ -1100,14 +1428,25 @@ function startEnterAnimationSequence(): void {
       sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          // 🔥 FIX: Ne uklanjati animate-enter-initial klasu za shared elements
-          // Samo ukloni animate-enter i animate-exit klase
-          el.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+          el.style.visibility = '';
+          el.style.opacity = '';
+          el.style.display = '';
+          el.style.removeProperty('transform');
+          el.style.removeProperty('-webkit-transform');
+          el.style.removeProperty('transition');
+          el.style.removeProperty('-webkit-transition');
+          el.style.removeProperty('transform-origin');
+          el.style.removeProperty('-webkit-transform-origin');
+          el.style.removeProperty('will-change');
         }
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 770); // 120ms delay + 650ms animation = 770ms total (matches exit)
+      logHomeEnterElementState('sequence:final-cleanup-hero-after', activeSlide?.querySelector('.hero-container') as HTMLElement | null);
+      logHomeEnterElementState('sequence:final-cleanup-logo-after', document.querySelector('#home-logo') as HTMLElement | null);
+      logHomeEnterElementState('sequence:final-cleanup-nav-after', document.querySelector('#independent-nav') as HTMLElement | null);
+    }, HOMEPAGE_ENTER_FINALIZE_DELAY_MS);
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
@@ -1119,27 +1458,27 @@ function startEnterAnimationSequence(): void {
 // Legacy fallback for enter animation when no active slide is found
 function startEnterAnimationSequenceLegacy(): void {
   scheduleHomepageEnterPatternHaptics();
-  // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
+  // Fallback keeps the same canonical order: hero/logo → content → navigation.
   
   // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
   const independentNav = document.getElementById('independent-nav');
   if (independentNav) {
-    reverseBounce(independentNav as HTMLElement, 0);
-    logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (legacy, reverse of exit)');
+    reverseBounce(independentNav as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
+    logger.info('🎯 Step 3: Navigation cartoonish bounce - LAST (legacy)');
   }
   
   // Shadow animates together with navigation
   const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
   if (fixedShadowBottom) {
-    reverseBounce(fixedShadowBottom as HTMLElement, 0);
-    logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (legacy, with navigation)');
+    reverseBounce(fixedShadowBottom as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
+    logger.info('🌑 Step 3: Shadow cartoonish bounce - LAST (legacy, with navigation)');
   }
   
   // STEP 2: Home logo and shards SECOND (30ms delay)
   const homeLogo = document.querySelector('#home-logo');
   if (homeLogo) {
-    reverseBounce(homeLogo as HTMLElement, 30);
-    logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND (legacy)');
+    reverseBounce(homeLogo as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+    logger.info('🎨 Step 1: Home logo cartoonish bounce - FIRST (legacy)');
   }
   
   // Animate shards together with logo
@@ -1160,7 +1499,7 @@ function startEnterAnimationSequenceLegacy(): void {
       // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-enter class
       if (isIPad) {
         // Set initial state (from scale 0) - NO TRANSITION YET
-        addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         addonEl.classList.add('animate-enter-initial');
         
         // Force reflow to apply initial state
@@ -1183,13 +1522,13 @@ function startEnterAnimationSequenceLegacy(): void {
               addonEl.style.setProperty('will-change', 'transform', 'important');
             });
           });
-        }, 30 + (index * 5)); // Slight stagger for visual effect
+        }, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS + (index * 5)); // Slight stagger for visual effect
         activeTimeouts.add(timeout);
       } else {
-        reverseBounce(addonEl, 30 + (index * 5)); // Slight stagger for visual effect
+        reverseBounce(addonEl, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS + (index * 5)); // Slight stagger for visual effect
       }
       
-      logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (legacy)`);
+      logger.info(`✨ Step 1: Logo addon ${index + 1} cartoonish bounce - with logo (legacy)`);
     }
   });
   
@@ -1200,17 +1539,17 @@ function startEnterAnimationSequenceLegacy(): void {
   const slideTagline = document.querySelector('.slide-tagline');
   
   if (slideText) {
-    slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
     slideText.classList.add('animate-enter-initial');
     void slideText.offsetHeight;
   }
   if (slideButton) {
-    slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
     slideButton.classList.add('animate-enter-initial');
     void slideButton.offsetHeight;
   }
   if (slideTagline) {
-    (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
     (slideTagline as HTMLElement).classList.add('animate-enter-initial');
     void (slideTagline as HTMLElement).offsetHeight;
   }
@@ -1239,14 +1578,14 @@ function startEnterAnimationSequenceLegacy(): void {
       (slideTagline as HTMLElement).style.opacity = '1';
       logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
   }
-  }, 60);
+  }, HOMEPAGE_ENTER_CONTENT_DELAY_MS);
   activeTimeouts.add(enterTimeout);
   
-  // STEP 5: Hero image LAST (120ms delay) - was first to exit
+  // Hero image enters first with the logo.
   const heroContainer = document.querySelector('.hero-container');
   if (heroContainer) {
-    reverseBounce(heroContainer as HTMLElement, 120);
-    logger.info('🖼️ Step 5: Hero image cartoonish bounce - LAST (legacy, reverse of exit)');
+    reverseBounce(heroContainer as HTMLElement, HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS);
+    logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (legacy, with logo)');
   }
 
 };

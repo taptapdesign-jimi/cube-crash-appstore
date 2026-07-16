@@ -64,6 +64,17 @@ export function getJourneyV700HubEnterStagger(reducedMotion: boolean): number {
   return reducedMotion ? 0.02 : 0.09;
 }
 
+export function shouldRestoreJourneyInterimWrapperForIdle(state: {
+  opacity: number;
+  scale: number;
+  visibility: string;
+}): boolean {
+  return state.visibility === 'hidden' ||
+    !Number.isFinite(state.opacity) ||
+    state.opacity <= 0.01 ||
+    (Number.isFinite(state.scale) && state.scale <= 0.05);
+}
+
 export function getJourneyV700UnitStagger(groupCount: number, reducedMotion: boolean): number {
   const motion = getJourneyV700MotionProfile(reducedMotion);
   if (groupCount <= 1) return 0;

@@ -3,6 +3,7 @@ import {
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
+  shouldRestoreJourneyInterimWrapperForIdle,
 } from '../journey-v700-motion.js';
 
 describe('Journey V700 motion contract', () => {
@@ -48,5 +49,11 @@ describe('Journey V700 motion contract', () => {
     expect(Math.max(...offsets)).toBeLessThanOrEqual(0.22);
     expect(new Set(offsets.slice(1).map((offset) => offset.toFixed(4))).size).toBeGreaterThan(7);
     expect(getJourneyV700EnterOffset('board-4', 4, false)).toBe(offsets[4]);
+  });
+
+  it('restores an interim wrapper before idle when exit residue left it hidden', () => {
+    expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 0, scale: 0, visibility: 'visible' })).toBe(true);
+    expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 1, scale: 1, visibility: 'hidden' })).toBe(true);
+    expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 1, scale: 1, visibility: 'visible' })).toBe(false);
   });
 });

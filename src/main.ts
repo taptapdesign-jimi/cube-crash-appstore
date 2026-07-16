@@ -27,7 +27,7 @@ interface GameModules {
 
 // Import core modules
 import gameState from './modules/game-state.js';
-import uiManager from './modules/ui-manager.js';
+import uiManager, { applyPaperBackground } from './modules/ui-manager.js';
 import animationManager from './modules/animation-manager.js';
 import sliderManager from './modules/slider-manager.js';
 import iosOptimizer from './modules/ios-optimizer.js';
@@ -49,7 +49,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter, resetAnimationFlags } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, finalizeSliderEnterVisibility, prepareSliderEnter, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
@@ -66,6 +66,408 @@ let cachedAppState: any | null = null;
 let appStatePromise: Promise<any> | null = null;
 let postHomePerformanceWarmupScheduled = false;
 let postCriticalAssetWarmupScheduled = false;
+
+const waitForHomepageEnterPrime = (): Promise<void> => new Promise(resolve => {
+  requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+});
+
+const HOME_ENTER_DIAG_PREFIX = '🏠🧪 HOME_ENTER_DIAG';
+
+function getHomeEnterDiagSnapshot(element: HTMLElement | null | undefined) {
+  if (!element) return { exists: false };
+  const computed = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return {
+    exists: true,
+    id: element.id || null,
+    classes: element.className,
+    hidden: element.hasAttribute('hidden'),
+    ariaHidden: element.getAttribute('aria-hidden'),
+    inlineDisplay: element.style.display || null,
+    inlineVisibility: element.style.visibility || null,
+    inlineOpacity: element.style.opacity || null,
+    inlineTransform: element.style.transform || null,
+    inlineTransition: element.style.transition || null,
+    display: computed.display,
+    visibility: computed.visibility,
+    opacity: computed.opacity,
+    pointerEvents: computed.pointerEvents,
+    zIndex: computed.zIndex,
+    transform: computed.transform,
+    transition: computed.transition,
+    rect: {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    },
+  };
+}
+
+function forceHomepageSlideZero(reason: string, options: { revealActiveSlide?: boolean } = {}): void {
+  const { revealActiveSlide = true } = options;
+  const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
+  const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement | null;
+  const slides = Array.from(document.querySelectorAll('.slider-slide')) as HTMLElement[];
+
+  if (sliderContainer) {
+    sliderContainer.style.display = 'block';
+    sliderContainer.style.visibility = 'visible';
+    sliderContainer.style.opacity = '1';
+    sliderContainer.style.pointerEvents = 'auto';
+  }
+
+  if (sliderWrapper) {
+    sliderWrapper.style.pointerEvents = 'auto';
+    sliderWrapper.style.transform = 'translate3d(0px, 0px, 0px)';
+  }
+
+  slides.forEach((slide) => {
+    const isHomeSlide = slide.getAttribute('data-slide') === '0';
+    slide.classList.toggle('active', isHomeSlide);
+    if (isHomeSlide && revealActiveSlide) {
+      slide.removeAttribute('hidden');
+      slide.style.removeProperty('display');
+      slide.style.removeProperty('visibility');
+      slide.style.removeProperty('opacity');
+      slide.style.removeProperty('pointer-events');
+    }
+  });
+
+  console.log('🏠 Homepage slide zero enforced', {
+    reason,
+    revealActiveSlide,
+    slideCount: slides.length,
+    wrapperTransform: sliderWrapper?.style.transform || null,
+  });
+  console.log(HOME_ENTER_DIAG_PREFIX, 'main:force-slide-zero', {
+    reason,
+    home: getHomeEnterDiagSnapshot(document.getElementById('home') as HTMLElement | null),
+    sliderContainer: getHomeEnterDiagSnapshot(sliderContainer),
+    sliderWrapper: getHomeEnterDiagSnapshot(sliderWrapper),
+    activeSlide: getHomeEnterDiagSnapshot(document.querySelector('.slider-slide.active') as HTMLElement | null),
+  });
+}
+
+function restoreHomepageNavigationTree(reason: string, options: { preserveNavScale?: boolean } = {}): void {
+  const { preserveNavScale = false } = options;
+  const nav = document.getElementById('independent-nav') as HTMLElement | null;
+  if (!nav) {
+    console.warn('⚠️ Homepage nav restore: #independent-nav missing', { reason });
+    return;
+  }
+
+  nav.classList.remove('animate-exit', 'animate-enter', 'animate-enter-complete', 'animate-reset', 'exit-animation', 'animation-complete');
+  if (preserveNavScale) {
+    // Pre-enter restore must rebuild the nav child tree without revealing the
+    // nav for a single frame. The actual visible scale-up is owned by
+    // animateSliderEnter()/reverseBounce.
+    nav.classList.add('animate-enter-initial');
+  } else {
+    nav.classList.remove('animate-enter-initial');
+  }
+  nav.removeAttribute('hidden');
+  nav.setAttribute('aria-hidden', 'false');
+  nav.style.display = 'block';
+  nav.style.visibility = 'visible';
+  nav.style.opacity = '1';
+  nav.style.pointerEvents = 'none';
+  nav.style.zIndex = '100';
+  nav.style.removeProperty('transform');
+  nav.style.removeProperty('-webkit-transform');
+  nav.style.removeProperty('transition');
+  nav.style.removeProperty('-webkit-transition');
+  nav.style.removeProperty('will-change');
+
+  const content = nav.querySelector('.independent-nav-content') as HTMLElement | null;
+  if (content) {
+    content.style.display = 'flex';
+    content.style.visibility = 'visible';
+    content.style.opacity = '1';
+    content.style.pointerEvents = 'none';
+    content.style.removeProperty('transition');
+    content.style.removeProperty('-webkit-transition');
+  }
+
+  const buttonsWrap = nav.querySelector('.independent-nav-buttons') as HTMLElement | null;
+  if (buttonsWrap) {
+    buttonsWrap.style.display = 'flex';
+    buttonsWrap.style.visibility = 'visible';
+    buttonsWrap.style.opacity = '1';
+    buttonsWrap.style.pointerEvents = 'auto';
+    buttonsWrap.style.removeProperty('transition');
+    buttonsWrap.style.removeProperty('-webkit-transition');
+  }
+
+  const navButtons = Array.from(nav.querySelectorAll('.independent-nav-button')) as HTMLElement[];
+  navButtons.forEach((button) => {
+    button.style.display = 'flex';
+    button.style.visibility = 'visible';
+    button.style.opacity = '1';
+    button.style.pointerEvents = 'auto';
+    button.style.cursor = 'pointer';
+    button.style.removeProperty('transition');
+    button.style.removeProperty('-webkit-transition');
+    button.style.removeProperty('filter');
+    button.style.removeProperty('-webkit-filter');
+    if (button.classList.contains('active')) {
+      button.style.transform = 'scale(1)';
+      button.style.webkitTransform = 'translateZ(0) scale(1)';
+    } else {
+      button.style.transform = 'translateZ(0)';
+      button.style.webkitTransform = 'translateZ(0)';
+    }
+  });
+
+  const iconNodes = Array.from(nav.querySelectorAll('.nav-icon-motion, .nav-icon-visual, .independent-nav-button img')) as HTMLElement[];
+  iconNodes.forEach((node) => {
+    node.style.display = node.tagName === 'IMG' ? 'block' : 'flex';
+    node.style.visibility = 'visible';
+    node.style.opacity = '1';
+    node.style.pointerEvents = 'none';
+    node.style.removeProperty('transition');
+    node.style.removeProperty('-webkit-transition');
+    node.style.removeProperty('filter');
+    node.style.removeProperty('-webkit-filter');
+    node.style.transform = node.tagName === 'IMG' ? 'translateZ(0)' : 'translate3d(0, 0, 0) scale(1)';
+    node.style.webkitTransform = node.style.transform;
+  });
+
+  console.log('🏠 Homepage navigation tree restored', {
+    reason,
+    preserveNavScale,
+    buttonCount: navButtons.length,
+    iconNodeCount: iconNodes.length,
+  });
+}
+
+async function primeHomepageForEnterLikeStartup(reason: string): Promise<void> {
+  const home = document.getElementById('home') as HTMLElement | null;
+  if (!home) {
+    console.warn('⚠️ Homepage enter: #home missing during prime', { reason });
+    return;
+  }
+
+  home.setAttribute('hidden', 'true');
+  home.style.display = 'none';
+  home.style.opacity = '0';
+  home.style.visibility = 'hidden';
+  home.style.zIndex = '-1';
+  home.style.transition = 'none';
+
+  const activeSlide = document.querySelector('.slider-slide.active') ||
+    document.querySelector('.slider-slide[data-slide="0"]');
+  const targets = [
+    document.getElementById('home-logo'),
+    document.getElementById('logo-shards-gore-ljevo'),
+    document.getElementById('logo-shards-gore-desno'),
+    document.getElementById('logo-shards-dole-ljevi'),
+    document.getElementById('logo-shards-dole-desni'),
+    document.getElementById('independent-nav'),
+    document.querySelector('.slider-nav-divider'),
+    document.getElementById('home-fixed-shadow-bottom'),
+    activeSlide?.querySelector('.hero-container'),
+    activeSlide?.querySelector('.slide-button'),
+    activeSlide?.querySelector('.slide-text'),
+    activeSlide?.querySelector('.slide-tagline'),
+  ].filter((target): target is HTMLElement => target instanceof HTMLElement);
+
+  targets.forEach((target) => {
+    target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce');
+    target.classList.add('animate-enter-initial');
+    target.style.display = target.id === 'independent-nav' ? 'block' : '';
+    target.style.removeProperty('visibility');
+    target.style.removeProperty('opacity');
+    target.style.removeProperty('transition');
+    target.style.removeProperty('-webkit-transition');
+    target.style.removeProperty('transform');
+    target.style.removeProperty('-webkit-transform');
+    target.style.removeProperty('will-change');
+  });
+
+  await waitForHomepageEnterPrime();
+
+  home.style.display = 'block';
+  home.style.visibility = 'visible';
+  home.style.zIndex = '1';
+  home.removeAttribute('hidden');
+
+  [
+    document.querySelector('#home .content'),
+    document.getElementById('home-logo-wrapper'),
+    document.getElementById('slider-container'),
+    document.querySelector('#slider-container .slider-viewport'),
+    document.getElementById('slider-wrapper'),
+    activeSlide,
+  ].forEach((target) => {
+    if (!(target instanceof HTMLElement)) return;
+    target.removeAttribute('hidden');
+    target.classList.remove('hidden');
+    target.style.removeProperty('display');
+    target.style.removeProperty('visibility');
+    target.style.removeProperty('opacity');
+    target.style.removeProperty('pointer-events');
+    target.style.removeProperty('z-index');
+  });
+
+  await waitForHomepageEnterPrime();
+
+  home.style.opacity = '1';
+  home.style.pointerEvents = 'auto';
+  restoreHomepageNavigationTree(`${reason}:before-enter-animation`, { preserveNavScale: true });
+
+  try {
+    uiManager.reattachHomepageButtonListeners();
+  } catch (error) {
+    console.warn('⚠️ Homepage enter: failed to reattach homepage listeners', error);
+  }
+
+  console.log('🏠 Homepage primed with startup enter sequence', {
+    reason,
+    targetCount: targets.length,
+    activeSlide: activeSlide instanceof HTMLElement ? activeSlide.getAttribute('data-slide') : null,
+  });
+}
+
+async function playHomepageSliderEnterHandoff(reason: string): Promise<void> {
+  console.log(`🏠 Homepage enter handoff: ${reason}`);
+  resetAnimationFlags();
+
+  applyPaperBackground('0.6');
+  forceHomepageSlideZero(`${reason}:pre-prime-hidden`, { revealActiveSlide: false });
+  await primeHomepageForEnterLikeStartup(reason);
+
+  try {
+    if (sliderManager && typeof (sliderManager as any).forceReady === 'function') {
+      (sliderManager as any).forceReady();
+    }
+    if (sliderManager && typeof (sliderManager as any).setSlideInstant === 'function') {
+      (sliderManager as any).setSlideInstant(0);
+    }
+  } catch (error) {
+    console.warn('⚠️ Homepage enter handoff: slider reset failed:', error);
+  }
+
+  forceHomepageSlideZero(`${reason}:after-slider-reset`, { revealActiveSlide: false });
+
+  try {
+    if (gameState && typeof (gameState as any).set === 'function') {
+      (gameState as any).set('sliderLocked', false);
+      (gameState as any).set('currentSlide', 0);
+    }
+  } catch {}
+
+  await waitForHomepageFirstPaintReady({
+    reason: `${reason}:before-enter`,
+    timeoutMs: 3500,
+  });
+  prepareSliderEnter();
+  try {
+    const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+    const hero = activeSlide?.querySelector('.hero-container') as HTMLElement | null;
+    const nav = document.getElementById('independent-nav') as HTMLElement | null;
+    console.log('🏠 Homepage enter handoff state', {
+      reason,
+      activeSlide: activeSlide?.getAttribute('data-slide') || null,
+      heroClasses: hero?.className || null,
+      navClasses: nav?.className || null,
+      heroTransform: hero ? window.getComputedStyle(hero).transform : null,
+      navTransform: nav ? window.getComputedStyle(nav).transform : null,
+    });
+  } catch {}
+  await waitForHomepageEnterPrime();
+  forceHomepageSlideZero(`${reason}:before-enter`, { revealActiveSlide: false });
+  prepareSliderEnter();
+  {
+    const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+    console.log(HOME_ENTER_DIAG_PREFIX, 'main:before-animateSliderEnter', {
+      reason,
+      home: getHomeEnterDiagSnapshot(document.getElementById('home') as HTMLElement | null),
+      sliderContainer: getHomeEnterDiagSnapshot(document.getElementById('slider-container') as HTMLElement | null),
+      sliderWrapper: getHomeEnterDiagSnapshot(document.getElementById('slider-wrapper') as HTMLElement | null),
+      activeSlide: getHomeEnterDiagSnapshot(activeSlide),
+      hero: getHomeEnterDiagSnapshot(activeSlide?.querySelector('.hero-container') as HTMLElement | null),
+      logo: getHomeEnterDiagSnapshot(document.getElementById('home-logo') as HTMLElement | null),
+      nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
+    });
+  }
+  animateSliderEnter();
+  window.setTimeout(() => {
+    {
+      const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+      console.log(HOME_ENTER_DIAG_PREFIX, 'main:safety-finalize-before', {
+        reason,
+        activeSlide: getHomeEnterDiagSnapshot(activeSlide),
+        hero: getHomeEnterDiagSnapshot(activeSlide?.querySelector('.hero-container') as HTMLElement | null),
+        logo: getHomeEnterDiagSnapshot(document.getElementById('home-logo') as HTMLElement | null),
+        nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
+      });
+    }
+    forceHomepageSlideZero(`${reason}:safety-finalize`);
+    finalizeSliderEnterVisibility(`${reason}:safety-finalize`);
+    uiManager.hideApp();
+    uiManager.showNavigation();
+    restoreHomepageNavigationTree(`${reason}:safety-finalize`);
+    try {
+      if (gameState && typeof (gameState as any).set === 'function') {
+        (gameState as any).set('sliderLocked', false);
+      }
+      uiManager.reattachHomepageButtonListeners();
+    } catch (error) {
+      console.warn('⚠️ Homepage enter: failed to restore interaction after finalize', error);
+    }
+    window.setTimeout(() => {
+      restoreHomepageNavigationTree(`${reason}:post-finalize-safety`);
+      try {
+        uiManager.reattachHomepageButtonListeners();
+      } catch {}
+    }, 120);
+    {
+      const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+      console.log(HOME_ENTER_DIAG_PREFIX, 'main:safety-finalize-after', {
+        reason,
+        activeSlide: getHomeEnterDiagSnapshot(activeSlide),
+        hero: getHomeEnterDiagSnapshot(activeSlide?.querySelector('.hero-container') as HTMLElement | null),
+        logo: getHomeEnterDiagSnapshot(document.getElementById('home-logo') as HTMLElement | null),
+        nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
+      });
+    }
+  }, 1120);
+}
+
+function hideGameVisualResidueForHomepage(reason: string): void {
+  console.log(`🏠 Hiding game visual residue for homepage: ${reason}`);
+  document.querySelectorAll('canvas').forEach((canvas) => {
+    if (canvas instanceof HTMLElement) {
+      canvas.style.display = 'none';
+      canvas.style.visibility = 'hidden';
+      canvas.style.opacity = '0';
+      canvas.style.pointerEvents = 'none';
+      canvas.style.zIndex = '-1';
+    }
+  });
+
+  [
+    document.getElementById('hud-container'),
+    document.getElementById('hud-board-indicator'),
+    document.getElementById('hud-board'),
+  ].forEach((element) => {
+    if (!element) return;
+    element.style.display = 'none';
+    element.style.visibility = 'hidden';
+    element.style.opacity = '0';
+    element.style.pointerEvents = 'none';
+    element.style.zIndex = '-1';
+  });
+
+  try {
+    const STATE = (window as any).STATE || (window as any).CC?.STATE;
+    if (STATE?.board) STATE.board.visible = false;
+    if (STATE?.hud) STATE.hud.visible = false;
+    const app = (window as any).app || STATE?.app;
+    if (app?.stage) app.stage.visible = false;
+  } catch {}
+}
 
 async function getAppState(): Promise<any> {
   if (cachedAppState) return cachedAppState;
@@ -2083,36 +2485,6 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to run cleanupConfetti:', error);
     }
 
-    // ⚡ FAST ARCADE PATH: show homepage as soon as destructive animation cleanup is done.
-    // Keep this after post-exit GSAP/FX cleanup so animateSliderEnter() is not killed,
-    // but before PIXI/game cleanup so Stage reached Exit does not feel stuck.
-    if (isFastArcadeCleanExit) {
-      try {
-        resetAnimationFlags();
-        try {
-          if (sliderManager && typeof (sliderManager as any).forceReady === 'function') {
-            (sliderManager as any).forceReady();
-          }
-        } catch {}
-        try {
-          if (gameState && typeof (gameState as any).set === 'function') {
-            (gameState as any).set('sliderLocked', false);
-          }
-        } catch {}
-
-        uiManager.showNavigation();
-        uiManager.showHomepageQuietly();
-        animateSliderEnter();
-        await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
-        uiManager.hideApp();
-        earlyHomepageHandoffDone = true;
-        (window as any).__ccEarlyHomepageHandoff = true;
-        console.log('⚡ Fast arcade clean exit: early homepage handoff completed');
-      } catch (earlyHandoffError) {
-        console.warn('⚠️ Fast arcade clean exit: early homepage handoff failed, continuing normal flow', earlyHandoffError);
-      }
-    }
-    
     // Step 3c: Stop PIXI ticker BEFORE cleanupGame to prevent _x null errors
     // 🔥 CRITICAL FIX: Ticker must be stopped BEFORE objects are destroyed to prevent render errors
     try {
@@ -2352,8 +2724,9 @@ async function startNewRun(boardId: number): Promise<void> {
     if (targetSlide === 0) {
       console.log('🏠 HOMEPAGE PATH: returning through app zone router');
       if (earlyHomepageHandoffDone) {
-        await appZoneManager.showHomepageShell('exitToMenu:homepage-fast-finalize');
-        console.log('⚡ Fast arcade clean exit: homepage shell finalized after cleanup');
+        console.log('⚡ Fast arcade clean exit: homepage shell already visible, preserving active enter animation');
+      } else if (isFastArcadeCleanExit) {
+        console.log('⚡ Fast arcade clean exit: deferring homepage shell show until prepared enter handoff');
       } else {
         await appZoneManager.showHomepageShell('exitToMenu:homepage');
         console.log('✅ Navigation and homepage shown through app zone router');
@@ -2587,21 +2960,26 @@ async function startNewRun(boardId: number): Promise<void> {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
       if (!earlyHomepageHandoffDone) {
-        // 🔥 iOS FIX: Force-reset animation flags before entering so stuck 'isAnimatingEnter'
-        // from a previous session (common on iOS when the flag timeout was never reached)
-        // does not silently skip the animation and leave a blank paper background.
-        resetAnimationFlags();
-        animateSliderEnter();
+        if (isFastArcadeCleanExit) {
+          hideGameVisualResidueForHomepage('exitToMenu:fast-arcade-homepage');
+          await waitForHomepageEnterPrime();
+          await new Promise(resolve => setTimeout(resolve, 120));
+        }
+        await playHomepageSliderEnterHandoff('exitToMenu:homepage-final');
         // Resume menu soundtrack with fade in when homepage is shown
         try {
           const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
           fadeInAndResume();
         } catch (_) { /* ignore */ }
         (window as any).__ccSoundtrackResumedThisExit = true;
-        // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
-        await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
-        uiManager.hideApp();
-        console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
+        if (!isFastArcadeCleanExit) {
+          // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
+          await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
+          uiManager.hideApp();
+          console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
+        } else {
+          console.log('✅ Fast arcade homepage enter started after game residue was hidden');
+        }
       } else {
         await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
         uiManager.hideApp();
