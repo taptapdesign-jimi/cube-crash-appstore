@@ -1983,17 +1983,17 @@
 }
 
 .journey-v700-world-forest {
-  left: 8px;
+  left: -2px;
   top: calc(env(safe-area-inset-top, 0px) + 118px);
 }
 
 .journey-v700-world-beach {
-  right: 8px;
+  right: -8px;
   top: calc(env(safe-area-inset-top, 0px) + 358px);
 }
 
 .journey-v700-world-robo {
-  left: 10px;
+  left: -6px;
   top: calc(env(safe-area-inset-top, 0px) + 608px);
 }
 
@@ -2046,6 +2046,11 @@
   animation-play-state: paused;
   will-change: transform;
   z-index: 0;
+}
+
+.journey-v700-world-cloud.is-locked {
+  opacity: calc(var(--cloud-opacity, 0.82) * 0.48);
+  filter: saturate(0.45);
 }
 
 .journey-v700-world-badge {

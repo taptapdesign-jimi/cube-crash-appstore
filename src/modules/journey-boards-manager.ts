@@ -5364,12 +5364,15 @@ class JourneyBoardsManager {
     hubCloudLayer.className = 'journey-v700-hub-cloud-layer';
     hubCloudLayer.setAttribute('aria-hidden', 'true');
     JOURNEY_V700_HUB_CLOUDS.forEach((cloudSpec, cloudIndex) => {
+      const cloudWorldId = cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 2 : 3;
+      const cloudLocked = cloudWorldId > activeWorldId;
       const cloud = document.createElement('img');
       cloud.src = cloudSpec.src;
       cloud.alt = '';
       cloud.draggable = false;
       cloud.setAttribute('aria-hidden', 'true');
-      cloud.className = `journey-v700-world-cloud journey-v700-hub-cloud journey-v700-hub-cloud-${cloudIndex + 1}`;
+      cloud.className = `journey-v700-world-cloud journey-v700-hub-cloud journey-v700-hub-cloud-${cloudIndex + 1}${cloudLocked ? ' is-locked' : ''}`;
+      cloud.dataset.worldId = String(cloudWorldId);
       cloud.style.setProperty('--cloud-x', `${cloudSpec.x}px`);
       cloud.style.setProperty('--cloud-y', `${cloudSpec.y}px`);
       cloud.style.setProperty('--cloud-width', `${cloudSpec.width}px`);

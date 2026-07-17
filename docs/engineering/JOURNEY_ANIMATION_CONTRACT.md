@@ -2,6 +2,67 @@
 
 This document defines what the user means by **enter animation**, **exit animation**, and **cjelina / Unit** when discussing the Journey screen. Treat these values and lifecycle rules as the project benchmark unless the user explicitly requests a different motion.
 
+## VS Code Codex Handoff
+
+Use this section as the compact handoff when continuing the project in VS Code Codex.
+
+Project/context:
+
+- Repo: `/Users/user/cube-crash`
+- Current Journey branch: `feature/v700-journey-hub`
+- Last named stable animation anchors: **v701** for world-screen Units, **v702** for Homepage-to-Journey-Worlds visible enter, **v706** for shared Journey navigation tap/exit behavior.
+- The iOS app is **Stack to Six**, not Kockice Crash. Do not uninstall the app from the phone unless the user explicitly asks; reinstall over the existing app so the user does not need to trust the developer profile again.
+
+Primary files:
+
+- `src/modules/journey-boards-manager.ts` — Journey hub/world rendering, world-screen content, Forest/Beach/Area 51 Units, card modal flow, board-game return flow, Journey-specific nav.
+- `src/collectibles-manager.ts` — Journey screen show/hide, Homepage handoff, Journey hub back flow, generic collectibles/detail integration.
+- `src/ui/collectibles-animations.ts` — Journey viewport enter/exit animation, cleanup locks, Homepage transition coordination.
+- `src/collectibles-screen.css` — Journey hub/world/nav/modal styles and positions.
+- `src/modules/journey-v700-motion.ts` — shared motion profile for V700 Journey movement.
+- `src/utils/nav-icon-bounce.ts` — shared cartoon tap bounce for every Journey X/back/nav icon. Reuse this; do not create duplicate tap-bounce helpers.
+
+Build/install commands:
+
+```bash
+npm run type-check
+npm run build
+xcodebuild -project "/Users/user/Stack to Six/Stack to Six.xcodeproj" -scheme "Stack to Six" -configuration Debug -destination 'id=0F62B71E-0B04-53C3-906E-EC28F5D2390B' build
+xcrun devicectl device install app --device 0F62B71E-0B04-53C3-906E-EC28F5D2390B "/Users/user/Library/Developer/Xcode/DerivedData/Stack_to_Six-ecsveioqnzuvvgcxshslsqgqdbhc/Build/Products/Debug-iphoneos/Stack to Six.app"
+```
+
+Validation rule: run `npm run type-check` for TypeScript changes and `npm run build` for CSS/runtime/bundle changes. Commit/push only when the user asks.
+
+User vocabulary:
+
+- **cjelina / Unit** means the complete visual group, not one DOM element. For board areas this means island, clouds behind it, stars, stump, card/number/badge, smoke/shards if active, and related decorative pieces.
+- **enter animation** means fast cartoon bounce-in from hidden/smaller state with a tiny sequential offset. It must not be one instant all-at-once reveal, and it must not have long slow delays.
+- **exit animation** means fast cartoon bounce-out/scale-in as one coordinated lifecycle. Navigation exits with the content, not after the content.
+- **benchmark** means copy the timing/lifecycle behavior, not only approximate the CSS transform.
+
+Do not regress these rules:
+
+- No 1-frame flashes. Prime elements into hidden start state before making a screen visible.
+- No opacity fade-out before card scale-in visually completes. The tapped card should read as scaling into itself; opacity can be finalized at the end for cleanup.
+- No clouds in front of Journey worlds. World clouds belong behind the world and should follow the same active/inactive state as their world.
+- No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
+- Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 51 world screens.
+- Preserve scroll interactivity after returning from card modal or board game.
+- Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
+
+Journey hub layout notes:
+
+- Hub world positions are controlled in `src/collectibles-screen.css` by `.journey-v700-world-forest`, `.journey-v700-world-beach`, and `.journey-v700-world-robo`.
+- Hub clouds are created near `renderJourneyV700Hub` in `src/modules/journey-boards-manager.ts`.
+- Current cloud-to-world mapping is by Y position: top clouds belong to Forest, middle to Beach, bottom to Area 51. Locked/inactive clouds use `.journey-v700-world-cloud.is-locked`.
+
+Navigation rules:
+
+- Every Journey X/back/nav tap should call `playNavIconCartoonBounce(...)` from `src/utils/nav-icon-bounce.ts`.
+- Forest/Beach/Area 51 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
+- Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
+- Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
+
 ## Standard Journey Worlds Enter
 
 Context: **Homepage slider → Journey Worlds hub**.
@@ -100,13 +161,13 @@ Both card types use the same shared V625-style animation before modal/game navig
 // Exit
 {
   scale: 0,
-  opacity: 0,
-  duration: 0.24,
+  opacity: 1, // keep visible during scale-in; final cleanup may set opacity: 0 after scale completes
+  duration: 0.40,
   ease: 'back.in(1.7)',
 }
 ```
 
-Lifecycle requirement: lock duplicate input, stop the card idle animation, play the shared punch-and-shrink exit with its smoke feedback, then continue the existing Unit/World exit. Open the regular-card detail modal or continue the interim game only after the Journey exit promise completes. On interruption, resolve the handoff and remove animation ownership flags so navigation cannot deadlock.
+Lifecycle requirement: lock duplicate input, stop the card idle animation, play the shared punch-and-shrink exit with its smoke feedback, then continue the existing Unit/World exit. The card must visibly scale into itself; do not fade it away halfway through the shrink. Open the regular-card detail modal or continue the interim game only after the Journey exit promise completes. On interruption, resolve the handoff and remove animation ownership flags so navigation cannot deadlock.
 
 ## Replication Rule
 
