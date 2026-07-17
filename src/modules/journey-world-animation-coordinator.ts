@@ -74,9 +74,7 @@ export class JourneyWorldAnimationCoordinator {
           overwrite: true,
           onComplete: () => {
             unit.targets.forEach((target) => {
-              target.style.visibility = 'visible';
-              target.style.opacity = '1';
-              target.style.pointerEvents = '';
+              this.finalizeEnterTarget(target);
             });
           },
         });
@@ -90,6 +88,9 @@ export class JourneyWorldAnimationCoordinator {
     });
 
     if (this.phase !== 'entering') return;
+    liveUnits.forEach((unit) => {
+      unit.targets.forEach((target) => this.finalizeEnterTarget(target));
+    });
     this.phase = 'idle';
     this.startIdle(liveUnits, reducedMotion);
   }
@@ -176,5 +177,28 @@ export class JourneyWorldAnimationCoordinator {
         clouds: Array.from(new Set(unit.clouds)).filter((target) => document.body.contains(target) && target.style.display !== 'none'),
       }))
       .filter((unit) => unit.targets.length > 0);
+  }
+
+  private finalizeEnterTarget(target: HTMLElement): void {
+    if (!document.body.contains(target)) return;
+
+    try {
+      gsap.set(target, {
+        y: 0,
+        scale: 1,
+        opacity: 1,
+        visibility: 'visible',
+        force3D: true,
+        overwrite: true,
+      });
+    } catch {
+      target.style.opacity = '1';
+      target.style.visibility = 'visible';
+    }
+
+    target.style.visibility = 'visible';
+    target.style.opacity = '1';
+    target.style.pointerEvents = '';
+    target.style.willChange = 'auto';
   }
 }

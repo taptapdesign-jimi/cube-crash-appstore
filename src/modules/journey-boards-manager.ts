@@ -5629,6 +5629,29 @@ class JourneyBoardsManager {
 
     this.updateJourneyV700Nav('world', worldId);
 
+    if ((window as any).__ccSuppressJourneyV700AutoWorldEnter === true) {
+      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+      const motion = getJourneyV700MotionProfile(reducedMotion);
+      const targets = this.getJourneyV700WorldTargets(container);
+      try {
+        gsap.killTweensOf(targets);
+        gsap.set(targets, {
+          y: motion.enter.y,
+          scale: motion.enter.scale,
+          opacity: 0,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          force3D: true,
+          overwrite: true,
+        });
+      } catch {}
+      this.logJourneyV700Flow('world-scope-auto-enter-suppressed', {
+        worldId,
+        targetCount: targets.length,
+      }, container);
+      return;
+    }
+
     try {
       this.playJourneyV700WorldEnter(container, worldId);
     } catch (error) {
@@ -5745,11 +5768,12 @@ class JourneyBoardsManager {
   private getJourneyV700WorldTargetGroups(
     container: HTMLElement,
     worldId: number | null,
-    options: { excludeBoardId?: number | null; lastBoardId?: number | null } = {}
+    options: { excludeBoardId?: number | null; lastBoardId?: number | null; mainExitFirst?: boolean } = {}
   ): HTMLElement[][] {
     const visibleTargets = this.getJourneyV700WorldTargets(container);
     const groups: HTMLElement[][] = [];
     const mainAreaId = worldId === 1 ? 'forest-main' : worldId === 2 ? 'beach-main' : worldId === 3 ? 'robo-main' : null;
+    const mainCloudClass = worldId === 1 ? 'journey-forest-main-cloud' : worldId === 2 ? 'journey-beach-main-cloud' : worldId === 3 ? 'journey-robo-main-cloud' : null;
     const worldRange = worldId ? this.getJourneyWorldRange(worldId) : null;
     const excludeBoardId = Number(options.excludeBoardId || 0);
     const lastBoardId = Number(options.lastBoardId || 0);
@@ -5761,7 +5785,10 @@ class JourneyBoardsManager {
     };
 
     if (mainAreaId) {
-      const mainTargets = visibleTargets.filter((target) => target.dataset.journeyAreaId === mainAreaId);
+      const mainTargets = visibleTargets.filter((target) => (
+        target.dataset.journeyAreaId === mainAreaId ||
+        (!!mainCloudClass && target.classList.contains(mainCloudClass))
+      ));
       pushGroup(mainTargets);
     }
 
@@ -5788,6 +5815,20 @@ class JourneyBoardsManager {
         });
     }
 
+    if (options.mainExitFirst && mainAreaId) {
+      const mainIndex = groups.findIndex((group) => (
+        group.some((target) => (
+          target.dataset.journeyAreaId === mainAreaId ||
+          (!!mainCloudClass && target.classList.contains(mainCloudClass))
+        ))
+      ));
+      // JourneyWorldAnimationCoordinator.exit reverses units, so main last here exits first.
+      if (mainIndex >= 0 && mainIndex < groups.length - 1) {
+        const [mainGroup] = groups.splice(mainIndex, 1);
+        groups.push(mainGroup);
+      }
+    }
+
     if (Number.isFinite(lastBoardId) && lastBoardId > 0) {
       const lastIndex = groups.findIndex((group) => (
         group.some((target) => this.getJourneyV700BoardIdForTarget(target) === lastBoardId)
@@ -5804,7 +5845,7 @@ class JourneyBoardsManager {
   private getJourneyV700AnimationUnits(
     container: HTMLElement,
     worldId: number | null,
-    options: { excludeBoardId?: number | null; lastBoardId?: number | null } = {}
+    options: { excludeBoardId?: number | null; lastBoardId?: number | null; mainExitFirst?: boolean } = {}
   ): JourneyWorldAnimationUnit[] {
     const lastBoardId = Number(options.lastBoardId || 0);
     const groups = this.getJourneyV700WorldTargetGroups(container, worldId, options);
@@ -5837,6 +5878,33 @@ class JourneyBoardsManager {
           : undefined,
       };
     });
+  }
+
+  public playJourneyV700WorldEnterFromReturn(source = 'journey-return'): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const worldId = this.journeyV700WorldId || Number((window as any).__ccJourneyV700WorldId || localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) || 0);
+    const isWorldView =
+      this.journeyV700View === 'world' ||
+      container?.dataset.journeyV700View === 'world' ||
+      (window as any).__ccJourneyV700View === 'world' ||
+      localStorage.getItem(JOURNEY_V700_VIEW_STORAGE_KEY) === 'world';
+
+    if (!container || !isWorldView || !Number.isFinite(worldId) || worldId <= 0) {
+      this.logJourneyV700Flow('world-return-enter-skip', {
+        source,
+        hasContainer: !!container,
+        isWorldView,
+        worldId,
+      }, container);
+      return;
+    }
+
+    delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+    this.journeyV700View = 'world';
+    this.journeyV700WorldId = worldId;
+    container.dataset.journeyV700View = 'world';
+    container.dataset.journeyV700WorldId = String(worldId);
+    this.playJourneyV700WorldEnter(container, worldId, { source });
   }
 
   private playJourneyV700WorldEnter(
@@ -5913,12 +5981,37 @@ class JourneyBoardsManager {
       await this.journeyWorldAnimation.enter(units, reducedMotion);
       if (this.journeyV700View !== 'world' || this.journeyV700WorldId !== worldId) return;
       allTargets.forEach((target) => {
+        try {
+          gsap.set(target, {
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            visibility: 'visible',
+            overwrite: true,
+          });
+        } catch {}
+        if (target.classList.contains('journey-board-card-wrapper')) {
+          restoreJourneyBoardCardBaseTransform(target);
+          this.restoreJourneyBoardCardVisualTarget(target);
+          this.restoreJourneyBoardCardInnerVisual(target);
+        }
         target.style.visibility = 'visible';
         target.style.opacity = '1';
         target.style.pointerEvents = '';
+        target.style.willChange = 'auto';
       });
       this.journeyV700Phase = 'idle';
-      this.startVisibleInterimCardIdleEffects(container);
+      if (source.includes('interim-game-return')) {
+        const activeBoardId = this.getLastActiveJourneyBoardAreaId();
+        if (activeBoardId) {
+          this.clearLastActiveJourneyBoardAreaId(activeBoardId);
+        }
+        this.activeBoardAreaEnterInProgress = false;
+        this.activeBoardAreaEnterPreparedTargets = [];
+        this.resumeInterimCardIdleEffects(source);
+      } else {
+        this.startVisibleInterimCardIdleEffects(container);
+      }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
     }).catch((error) => {
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
@@ -5932,6 +6025,7 @@ class JourneyBoardsManager {
   ): void {
     const units = this.getJourneyV700AnimationUnits(container, this.journeyV700WorldId, {
       excludeBoardId: options.excludeBoardId,
+      mainExitFirst: true,
     });
     console.log('🧩 JourneyUnitExit world-exit-units-ready', {
       worldId: this.journeyV700WorldId,
