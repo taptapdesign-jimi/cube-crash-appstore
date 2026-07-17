@@ -170,70 +170,97 @@ const applyHomeEnterScale = (element: HTMLElement, baseTransform: string, scale:
   element.style.setProperty('-webkit-transform', transform, 'important');
 };
 
-// Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
-const reverseBounce = (element: HTMLElement, delay: number) => {
+const removeHomeEnterClassesWithoutTransition = (
+  element: HTMLElement,
+  finalTransform: string | null = null,
+  keepFinalTransform = false
+): void => {
+  const computedTransform = window.getComputedStyle(element).transform;
+  const stableTransform = finalTransform || (computedTransform && computedTransform !== 'none' ? computedTransform : null);
+
+  element.style.setProperty('transition', 'none', 'important');
+  element.style.setProperty('-webkit-transition', 'none', 'important');
+
+  if (stableTransform) {
+    element.style.setProperty('transform', stableTransform, 'important');
+    element.style.setProperty('-webkit-transform', stableTransform, 'important');
+  }
+
+  // Commit the stable visual state before removing animation classes. Otherwise
+  // base CTA CSS can start a second transform transition during cleanup.
+  void element.offsetHeight;
+
   element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+  void element.offsetHeight;
+
+  if (!keepFinalTransform) {
+    element.style.removeProperty('transform');
+    element.style.removeProperty('-webkit-transform');
+    void element.offsetHeight;
+  }
+
   element.style.removeProperty('transition');
   element.style.removeProperty('-webkit-transition');
+};
+
+const getHomepageCtaBaseTransform = (): string => {
+  if (typeof window !== 'undefined' && window.innerWidth <= 767) {
+    return 'translateY(2.25vh)';
+  }
+  return 'translateY(0px)';
+};
+
+const setHomepageCtaEnterTransform = (button: Element, scale: number, withTransition: boolean): void => {
+  const element = button as HTMLElement;
+  const baseTransform = getHomepageCtaBaseTransform();
+  const transform = `${baseTransform} scale(${scale})`;
+  element.style.setProperty('transform', transform, 'important');
+  element.style.setProperty('-webkit-transform', transform, 'important');
+  element.style.setProperty('transform-origin', '50% 50%', 'important');
+  element.style.setProperty('-webkit-transform-origin', '50% 50%', 'important');
+  element.style.setProperty('will-change', 'transform', 'important');
+  if (withTransition) {
+    element.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+    element.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+  } else {
+    element.style.setProperty('transition', 'none', 'important');
+    element.style.setProperty('-webkit-transition', 'none', 'important');
+  }
+};
+
+export const primeHomepageCtaEnterTransform = (button: Element | null | undefined): void => {
+  if (!button) return;
+  setHomepageCtaEnterTransform(button, 0, false);
+};
+
+// Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
+const reverseBounce = (element: HTMLElement, delay: number) => {
+  // v700-style enter: let CSS own the whole bounce curve. The manual RAF
+  // interpolator caused visible mid-cycle stalls when Journey cleanup/reflow
+  // ran on the same frames as Homepage enter.
+  element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+  element.classList.add('animate-enter-initial');
   element.style.removeProperty('opacity');
   element.style.removeProperty('visibility');
+  element.style.removeProperty('transition');
+  element.style.removeProperty('-webkit-transition');
   element.style.removeProperty('transform');
   element.style.removeProperty('-webkit-transform');
+  element.style.removeProperty('will-change');
 
-  // Commit class/style removal before reading the base transform. Without this,
-  // iOS can report the stale animate-enter-initial scale(0) matrix as the base,
-  // so every manual frame remains visually scaled to zero until cleanup.
+  // Force reflow to apply initial scale(0) state before class transition.
   void element.offsetHeight;
-
-  const baseTransform = getBaseTransform(element);
-  const initialTransform = baseTransform ? `${baseTransform} scale(0)` : 'scale(0)';
-
-  logHomeEnterElementState('reverseBounce:before-initial-set', element, {
-    delay,
-    baseTransform,
-    initialTransform,
-  });
-
-  element.style.setProperty('transform-origin', 'center center', 'important');
-  element.style.setProperty('-webkit-transform-origin', 'center center', 'important');
-  applyHomeEnterScale(element, baseTransform, 0);
-  element.style.setProperty('will-change', 'transform', 'important');
-
-  // Force reflow so the initial inline scale(0) is committed before animating.
-  void element.offsetHeight;
-  logHomeEnterElementState('reverseBounce:after-initial-reflow', element, { delay });
 
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    logHomeEnterElementState('reverseBounce:timeout-fired', element, { delay });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        element.style.removeProperty('opacity');
-        element.style.removeProperty('visibility');
-        element.style.removeProperty('transition');
-        element.style.removeProperty('-webkit-transition');
+    element.style.removeProperty('opacity');
+    element.style.removeProperty('visibility');
+    element.style.removeProperty('transition');
+    element.style.removeProperty('-webkit-transition');
 
-        const durationMs = 680;
-        const startedAt = performance.now();
-        const tick = (now: number) => {
-          const rawProgress = (now - startedAt) / durationMs;
-          const progress = Math.max(0, Math.min(1, rawProgress));
-          const scale = easeHomeEnterScale(progress);
-          applyHomeEnterScale(element, baseTransform, scale);
-
-          if (progress < 1) {
-            requestAnimationFrame(tick);
-            return;
-          }
-
-          applyHomeEnterScale(element, baseTransform, 1);
-          element.classList.add('animate-enter-complete');
-        };
-
-        logHomeEnterElementState('reverseBounce:raf-start', element, { delay, durationMs });
-        requestAnimationFrame(tick);
-      });
-    });
+    // Add enter before removing initial to avoid a full-scale flash.
+    element.classList.add('animate-enter');
+    element.classList.remove('animate-enter-initial');
   }, delay);
   activeTimeouts.add(timeout);
 };
@@ -1136,6 +1163,58 @@ function startEnterAnimationSequence(): void {
     logHomeEnterElementState('sequence:nav-before-reverse', independentNav as HTMLElement | null);
     logHomeEnterElementState('sequence:button-before-reverse', slideButton as HTMLElement | null);
     logHomeEnterElementState('sequence:text-before-reverse', slideText as HTMLElement | null);
+
+    const probeHomeEnterMotion = (label: string, element: HTMLElement | null | undefined, durationMs = 1200): void => {
+      if (!element) return;
+      const startedAt = performance.now();
+      const samples = new Set<number>([0, 80, 160, 240, 320, 420, 540, 680, 820, 1000, 1200]);
+      const logSnapshot = (phase: string, extra: Record<string, unknown> = {}) => {
+        const computed = window.getComputedStyle(element);
+        console.log('🏠🧪 HOME_ENTER_MOTION', {
+          label,
+          phase,
+          t: Math.round(performance.now() - startedAt),
+          classes: element.className,
+          inlineTransform: element.style.transform || null,
+          inlineTransition: element.style.transition || null,
+          transform: computed.transform,
+          transition: computed.transition,
+          opacity: computed.opacity,
+          visibility: computed.visibility,
+          ...extra,
+        });
+      };
+      const onTransitionStart = (event: TransitionEvent) => {
+        if (event.propertyName !== 'transform') return;
+        logSnapshot('transitionstart', { propertyName: event.propertyName, elapsedTime: event.elapsedTime });
+      };
+      const onTransitionEnd = (event: TransitionEvent) => {
+        if (event.propertyName !== 'transform') return;
+        logSnapshot('transitionend', { propertyName: event.propertyName, elapsedTime: event.elapsedTime });
+      };
+      element.addEventListener('transitionstart', onTransitionStart);
+      element.addEventListener('transitionend', onTransitionEnd);
+      logSnapshot('probe-start');
+      samples.forEach((delayMs) => {
+        const timeout = setTimeout(() => {
+          activeTimeouts.delete(timeout);
+          logSnapshot(`sample-${delayMs}`);
+        }, delayMs);
+        activeTimeouts.add(timeout);
+      });
+      const cleanup = setTimeout(() => {
+        activeTimeouts.delete(cleanup);
+        element.removeEventListener('transitionstart', onTransitionStart);
+        element.removeEventListener('transitionend', onTransitionEnd);
+        logSnapshot('probe-complete');
+      }, durationMs + 80);
+      activeTimeouts.add(cleanup);
+    };
+
+    probeHomeEnterMotion('hero', heroContainer as HTMLElement | null);
+    probeHomeEnterMotion('logo', homeLogo as HTMLElement | null);
+    probeHomeEnterMotion('nav', independentNav as HTMLElement | null);
+    probeHomeEnterMotion('button', slideButton as HTMLElement | null);
     
     // 🔥 CRITICAL: Prepare elements for animation - they're already hidden
     // We'll make them visible when animation starts (in reverseBounce timeout)
@@ -1259,9 +1338,9 @@ function startEnterAnimationSequence(): void {
       // Reset CTA animation classes to ensure scale pop-in (not fade)
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset', 'animate-enter-initial');
       slideButton.classList.add('animate-enter-initial');
-      // Clear inline overrides so CSS drive the bounce
-      slideButton.style.removeProperty('transform');
-      slideButton.style.removeProperty('transition');
+      // CTA has multiple global/menu/tap-scale transform rules. Own the enter
+      // transform inline so every homepage slide gets the same visible bounce.
+      setHomepageCtaEnterTransform(slideButton, 0, false);
       // 🔥 CRITICAL: Keep button hidden until animation starts (from main.ts)
       // Don't remove opacity/visibility here - animation will make it visible
       void slideButton.offsetHeight; // Force reflow
@@ -1306,6 +1385,7 @@ function startEnterAnimationSequence(): void {
         void slideButton.offsetHeight;
         slideButton.classList.remove('animate-enter-initial');
         slideButton.classList.add('animate-enter');
+        setHomepageCtaEnterTransform(slideButton, 1, true);
         // 🔥 CRITICAL: Make button visible when animation starts
         // Button was hidden by main.ts, now make it visible for animation
         slideButton.style.removeProperty('opacity');
@@ -1388,7 +1468,7 @@ function startEnterAnimationSequence(): void {
               }
             }
             
-            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+            removeHomeEnterClassesWithoutTransition(el, preservedTransform || null, Boolean(isIPad && preservedTransform));
 
             // Clear temporary visibility overrides after animation completes
             el.style.visibility = '';
@@ -1398,10 +1478,8 @@ function startEnterAnimationSequence(): void {
             
             // 🔥 iPad FIX: Restore transform position after removing classes - ALWAYS set on iPad
             if (isIPad && preservedTransform) {
-              el.style.transform = preservedTransform;
-              el.style.webkitTransform = preservedTransform;
-              el.style.transition = 'none';
-              el.style.webkitTransition = 'none';
+              el.style.setProperty('transform', preservedTransform, 'important');
+              el.style.setProperty('-webkit-transform', preservedTransform, 'important');
             } else {
               el.style.removeProperty('transform');
               el.style.removeProperty('-webkit-transform');
@@ -1428,7 +1506,7 @@ function startEnterAnimationSequence(): void {
       sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
+          removeHomeEnterClassesWithoutTransition(el);
           el.style.visibility = '';
           el.style.opacity = '';
           el.style.display = '';

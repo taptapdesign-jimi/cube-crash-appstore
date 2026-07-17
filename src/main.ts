@@ -49,7 +49,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter, finalizeSliderEnterVisibility, prepareSliderEnter, resetAnimationFlags } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
@@ -104,7 +104,11 @@ function getHomeEnterDiagSnapshot(element: HTMLElement | null | undefined) {
   };
 }
 
-function forceHomepageSlideZero(reason: string, options: { revealActiveSlide?: boolean } = {}): void {
+function forceHomepageSlideTarget(
+  reason: string,
+  targetSlideIndex = 0,
+  options: { revealActiveSlide?: boolean } = {}
+): void {
   const { revealActiveSlide = true } = options;
   const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
   const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement | null;
@@ -119,13 +123,15 @@ function forceHomepageSlideZero(reason: string, options: { revealActiveSlide?: b
 
   if (sliderWrapper) {
     sliderWrapper.style.pointerEvents = 'auto';
-    sliderWrapper.style.transform = 'translate3d(0px, 0px, 0px)';
+    const slideWidth = sliderContainer?.offsetWidth || window.innerWidth || 0;
+    sliderWrapper.style.transform = `translate3d(${-targetSlideIndex * slideWidth}px, 0px, 0px)`;
   }
 
   slides.forEach((slide) => {
-    const isHomeSlide = slide.getAttribute('data-slide') === '0';
-    slide.classList.toggle('active', isHomeSlide);
-    if (isHomeSlide && revealActiveSlide) {
+    const slideIndex = parseInt(slide.getAttribute('data-slide') || '0', 10);
+    const isTargetSlide = slideIndex === targetSlideIndex;
+    slide.classList.toggle('active', isTargetSlide);
+    if (isTargetSlide && revealActiveSlide) {
       slide.removeAttribute('hidden');
       slide.style.removeProperty('display');
       slide.style.removeProperty('visibility');
@@ -134,8 +140,9 @@ function forceHomepageSlideZero(reason: string, options: { revealActiveSlide?: b
     }
   });
 
-  console.log('🏠 Homepage slide zero enforced', {
+  console.log('🏠 Homepage slide target enforced', {
     reason,
+    targetSlideIndex,
     revealActiveSlide,
     slideCount: slides.length,
     wrapperTransform: sliderWrapper?.style.transform || null,
@@ -241,7 +248,7 @@ function restoreHomepageNavigationTree(reason: string, options: { preserveNavSca
   });
 }
 
-async function primeHomepageForEnterLikeStartup(reason: string): Promise<void> {
+async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex = 0): Promise<void> {
   const home = document.getElementById('home') as HTMLElement | null;
   if (!home) {
     console.warn('⚠️ Homepage enter: #home missing during prime', { reason });
@@ -255,7 +262,9 @@ async function primeHomepageForEnterLikeStartup(reason: string): Promise<void> {
   home.style.zIndex = '-1';
   home.style.transition = 'none';
 
-  const activeSlide = document.querySelector('.slider-slide.active') ||
+  const activeSlide =
+    document.querySelector(`.slider-slide[data-slide="${targetSlideIndex}"]`) ||
+    document.querySelector('.slider-slide.active') ||
     document.querySelector('.slider-slide[data-slide="0"]');
   const targets = [
     document.getElementById('home-logo'),
@@ -283,6 +292,9 @@ async function primeHomepageForEnterLikeStartup(reason: string): Promise<void> {
     target.style.removeProperty('transform');
     target.style.removeProperty('-webkit-transform');
     target.style.removeProperty('will-change');
+    if (target.classList.contains('slide-button')) {
+      primeHomepageCtaEnterTransform(target);
+    }
   });
 
   await waitForHomepageEnterPrime();
@@ -329,31 +341,35 @@ async function primeHomepageForEnterLikeStartup(reason: string): Promise<void> {
   });
 }
 
-async function playHomepageSliderEnterHandoff(reason: string): Promise<void> {
-  console.log(`🏠 Homepage enter handoff: ${reason}`);
+async function playHomepageSliderEnterHandoff(
+  reason: string,
+  options: { targetSlideIndex?: number } = {}
+): Promise<void> {
+  const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? 0) || 0);
+  console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex });
   resetAnimationFlags();
 
   applyPaperBackground('0.6');
-  forceHomepageSlideZero(`${reason}:pre-prime-hidden`, { revealActiveSlide: false });
-  await primeHomepageForEnterLikeStartup(reason);
+  forceHomepageSlideTarget(`${reason}:pre-prime-hidden`, targetSlideIndex, { revealActiveSlide: false });
+  await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);
 
   try {
     if (sliderManager && typeof (sliderManager as any).forceReady === 'function') {
       (sliderManager as any).forceReady();
     }
     if (sliderManager && typeof (sliderManager as any).setSlideInstant === 'function') {
-      (sliderManager as any).setSlideInstant(0);
+      (sliderManager as any).setSlideInstant(targetSlideIndex);
     }
   } catch (error) {
     console.warn('⚠️ Homepage enter handoff: slider reset failed:', error);
   }
 
-  forceHomepageSlideZero(`${reason}:after-slider-reset`, { revealActiveSlide: false });
+  forceHomepageSlideTarget(`${reason}:after-slider-reset`, targetSlideIndex, { revealActiveSlide: false });
 
   try {
     if (gameState && typeof (gameState as any).set === 'function') {
       (gameState as any).set('sliderLocked', false);
-      (gameState as any).set('currentSlide', 0);
+      (gameState as any).set('currentSlide', targetSlideIndex);
     }
   } catch {}
 
@@ -376,7 +392,7 @@ async function playHomepageSliderEnterHandoff(reason: string): Promise<void> {
     });
   } catch {}
   await waitForHomepageEnterPrime();
-  forceHomepageSlideZero(`${reason}:before-enter`, { revealActiveSlide: false });
+  forceHomepageSlideTarget(`${reason}:before-enter`, targetSlideIndex, { revealActiveSlide: false });
   prepareSliderEnter();
   {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -403,7 +419,7 @@ async function playHomepageSliderEnterHandoff(reason: string): Promise<void> {
         nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
       });
     }
-    forceHomepageSlideZero(`${reason}:safety-finalize`);
+    forceHomepageSlideTarget(`${reason}:safety-finalize`, targetSlideIndex);
     finalizeSliderEnterVisibility(`${reason}:safety-finalize`);
     uiManager.hideApp();
     uiManager.showNavigation();
@@ -434,6 +450,8 @@ async function playHomepageSliderEnterHandoff(reason: string): Promise<void> {
     }
   }, 1120);
 }
+
+(window as any).__ccPlayHomepageSliderEnterHandoff = playHomepageSliderEnterHandoff;
 
 function hideGameVisualResidueForHomepage(reason: string): void {
   console.log(`🏠 Hiding game visual residue for homepage: ${reason}`);

@@ -2315,7 +2315,7 @@ class UIManager {
         button.classList.remove('active');
       }
     });
-    this.showHomepageQuietly();
+    logger.info('✅ Settings exit will use shared homepage enter handoff after settings animation');
     
     // 🎬 CRITICAL: Trigger settings screen exit animation (pop-out) AFTER showing homepage
     // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid delay
@@ -2335,7 +2335,7 @@ class UIManager {
         settingsScreen.setAttribute('aria-hidden', 'true');
         settingsScreen.style.display = 'none';
         settingsScreen.setAttribute('hidden', 'true');
-        this.setNavigationVisibility(true);
+        // Shared homepage handoff owns nav visibility and enter animation.
       }
       
       // Force reflow to ensure DOM is updated before animation
@@ -2344,8 +2344,16 @@ class UIManager {
       // Step 2: Play enter animation for Settings slide
       // Use requestAnimationFrame to ensure DOM is fully updated
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          console.log(`🎬 Playing enter animation for Settings slide (index ${SETTINGS_SLIDE_INDEX})`);
+        requestAnimationFrame(async () => {
+          console.log(`🎬 Playing shared homepage enter handoff for Settings slide (index ${SETTINGS_SLIDE_INDEX})`);
+          const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
+          if (typeof homepageEnterHandoff === 'function') {
+            await homepageEnterHandoff('settings-exit-homepage-slide', { targetSlideIndex: SETTINGS_SLIDE_INDEX });
+            return;
+          }
+
+          console.warn('⚠️ Shared homepage enter handoff missing; using legacy Settings homepage enter path');
+          this.showHomepageQuietly();
           animateSliderEnter();
         });
       });

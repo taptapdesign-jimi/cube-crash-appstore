@@ -1695,6 +1695,14 @@ class CollectiblesManager {
       // 🔥 BACK BUTTON PATHWAY: Journey exit → Homepage slide 2 enter
       console.log('🏠 Step 2: Showing homepage slide 2 after Journey exit animation');
 
+      const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
+      if (typeof homepageEnterHandoff === 'function') {
+        await homepageEnterHandoff('journey-exit-homepage-slide-1', { targetSlideIndex: 1 });
+        return;
+      }
+
+      console.warn('⚠️ Shared homepage enter handoff missing; using legacy Journey homepage return path');
+
       // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when returning to homepage
       // This prevents gray background during transition and ensures correct opacity
       try {
