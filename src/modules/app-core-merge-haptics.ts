@@ -13,8 +13,8 @@ export function triggerMergeHaptics({ wildActive, trackAppTimeout }: MergeHaptic
         (window as any).triggerHapticImpact('heavy');
       }, 150);
     } else {
-      // All non-wild merges = LIGHT (soft like CTA buttons)
-      (window as any).triggerHapticImpact('light');
+      // A successful merge must read above pickup/hover confirmation.
+      (window as any).triggerHapticImpact('medium');
     }
   }
 }

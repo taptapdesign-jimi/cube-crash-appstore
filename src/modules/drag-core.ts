@@ -53,7 +53,8 @@ function schedulePostFailedDropEndgameCheck(reason: string): void {
 }
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
-const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
+const TILT_MAX_RAD = 0.22;   // maksimalna rotacija mišem (~12.6°)
+const TOUCH_TILT_MAX_RAD = 0.16; // touch ostaje živ, ali ne djeluje nestabilno pod prstom
 const TILT_SCALE   = 18;     // skala pretvorbe brzine → rotacija
 const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjećaj)
 const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
@@ -62,12 +63,19 @@ const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
 const BOARD_WOBBLE_ENABLED = true; // 🔥 USER REQUEST: Disabled for wild-juice drag (may use later) - kept constant for future use
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
-const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
+const MAGNET_SCALE_MULT  = 1.04;    // jasniji premium "lock" bez promjene drop pravila
 const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
 const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
 const DRAG_WATCHDOG_REFRESH_MS = 650;
 const DRAG_HOVER_PICK_THROTTLE_MS = 24;
+const HOVER_HAPTIC_COOLDOWN_MS = 120;
+
+function triggerDragHaptic(kind: 'light' | 'medium' | 'heavy' = 'light'): void {
+  try {
+    (window as any).triggerHapticImpact?.(kind);
+  } catch {}
+}
 
 function isIOSRuntime(): boolean {
   return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -738,6 +746,7 @@ export function initDrag(cfg) {
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    drag._lastHoverHapticAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     // reset inertial state
     drag.vx = 0; drag.vy = 0;
@@ -794,7 +803,23 @@ export function initDrag(cfg) {
       trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
     }
 
-    trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
+    // Pickup reads immediately, then settles into a slightly softer lifted hold.
+    // The tile position remains fully attached to the pointer on touch devices.
+    try { gsap.killTweensOf(t.scale); } catch {}
+    trackTimeline()
+      .to(t.scale, {
+        x: 1.13,
+        y: 1.09,
+        duration: 0.055,
+        ease: 'power3.out',
+      })
+      .to(t.scale, {
+        x: 1.105,
+        y: 1.105,
+        duration: 0.075,
+        ease: 'back.out(2.2)',
+      });
+    triggerDragHaptic('light');
 
     // 🔥 FPS DROP FIX: Stop wild juice idle bubbles when dragging starts (prevents conflict with drag particles)
     if (t.special === 'wild-juice') {
@@ -938,7 +963,8 @@ export function initDrag(cfg) {
 
     // --- target rotacija SUPROTNO od smjera (low-pass težina) ---
     const touchPerformanceMode = shouldUseTouchDragPerformanceMode();
-    const targetRot = Math.max(-TILT_MAX_RAD, Math.min(TILT_MAX_RAD, (-drag.vx * TILT_SCALE)));
+    const tiltLimit = touchPerformanceMode ? TOUCH_TILT_MAX_RAD : TILT_MAX_RAD;
+    const targetRot = Math.max(-tiltLimit, Math.min(tiltLimit, (-drag.vx * TILT_SCALE)));
     if (t.rotG) {
       const cur = t.rotG.rotation || 0;
       const rotationSmooth = touchPerformanceMode ? 0.18 : ROT_SMOOTH;
@@ -1951,6 +1977,12 @@ export function initDrag(cfg) {
       state.originScaleX = baseScaleX;
       state.originScaleY = baseScaleY;
 
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (now - Number(drag._lastHoverHapticAt || 0) >= HOVER_HAPTIC_COOLDOWN_MS) {
+        drag._lastHoverHapticAt = now;
+        triggerDragHaptic('light');
+      }
+
       if (container && container.scale) {
         try { state.scaleTween?.kill?.(); } catch {}
         state.scaleTween = trackTween(container.scale, {
@@ -2083,6 +2115,8 @@ export function initDrag(cfg) {
 
     const container = target.rotG || target;
     const frame = new Container();
+    frame.alpha = 0;
+    frame.scale.set(0.92, 0.92);
     container.addChild(frame);
 
     const pad = 3;
@@ -2100,6 +2134,23 @@ export function initDrag(cfg) {
     frame.zIndex = 1000;
 
     frame.addChild(ring);
+
+    // One short confirmation pulse only when the valid target changes. This is
+    // intentionally not a looping animation, so hover adds no sustained frame cost.
+    (frame as any)._ccHoverInTl = trackTimeline({
+      onComplete: () => { (frame as any)._ccHoverInTl = null; },
+    })
+      .to(frame, {
+        alpha: 1,
+        duration: 0.07,
+        ease: 'power2.out',
+      }, 0)
+      .to(frame.scale, {
+        x: 1,
+        y: 1,
+        duration: 0.115,
+        ease: 'back.out(2.8)',
+      }, 0);
 
     drag.hoverTarget = target;
     drag.hoverFrame = frame;
@@ -2134,6 +2185,9 @@ export function initDrag(cfg) {
     releaseMagnet({ immediate: !!opts.immediateMagnet });
     if (drag.hoverFrame) {
       try {
+        (drag.hoverFrame as any)._ccHoverInTl?.kill?.();
+        gsap.killTweensOf(drag.hoverFrame);
+        gsap.killTweensOf(drag.hoverFrame.scale);
         if (drag.hoverFrame.parent) drag.hoverFrame.parent.removeChild(drag.hoverFrame);
         drag.hoverFrame.destroy({ children: true });
       } catch {}
@@ -2168,16 +2222,38 @@ export function initDrag(cfg) {
     
     // Ghost placeholders are now fixed and always visible
     
-    trackTimeline({
+    try { gsap.killTweensOf(t); } catch {}
+    try { gsap.killTweensOf(t.scale); } catch {}
+
+    // Return along the shortest path. A compact landing squash communicates the
+    // occupied grid cell without the old left/right shake feeling punitive.
+    const tl = trackTimeline({
       onComplete: () => {
+        if (t?.scale) t.scale.set(1, 1);
+        if (t) t.rotation = 0;
         restoreZ(t);
         try { onSnapBackComplete?.(t); } catch {}
       }
-    })
-      .to(t, { x: drag.startX + 9, y: drag.startY, rotation: 0.06, duration: 0.06 })
-      .to(t, { x: drag.startX - 9, y: drag.startY, rotation: -0.06, duration: 0.08 })
-      .to(t, { x: drag.startX, y: drag.startY, rotation: 0, duration: 0.10 })
-      .to(t.scale, { x: 1, y: 1, duration: 0.10 }, '<')
+    });
+    tl.to(t, {
+      x: drag.startX,
+      y: drag.startY,
+      rotation: 0,
+      duration: 0.18,
+      ease: 'back.out(1.65)',
+    }, 0)
+      .to(t.scale, {
+        x: 1.035,
+        y: 0.965,
+        duration: 0.13,
+        ease: 'power2.in',
+      }, 0)
+      .to(t.scale, {
+        x: 1,
+        y: 1,
+        duration: 0.105,
+        ease: 'back.out(2.5)',
+      })
       .add(() => {
         // 🔧 SHADOW PATCH: vrati sjenu i sakrij ako je baza 0
         if (t.shadow) {

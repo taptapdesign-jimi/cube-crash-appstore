@@ -12580,7 +12580,7 @@ function removeTile(t){
   });
 }
 
-// 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
+// 🔥 COMBINED MERGE ANIMATION: compact landing squash + buoyant settle
 function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   if (!targetTile) return;
 
@@ -12589,7 +12589,11 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
     targetTile.anchor.set(0.5, 0.5);
   }
 
-  // Create combined timeline: impact bump + strong bounce, all returning to exactly (1,1)
+  // Kill scale ownership left by hover/idle before starting the merge response.
+  try { gsap.killTweensOf(targetTile.scale); } catch {}
+
+  // A directional squash reads as weight and impact more clearly than uniform zoom.
+  // The whole response stays below 300ms so the next move still feels immediate.
   const tl = animationManager.trackExternalTimeline(gsap.timeline({
     onComplete: () => {
       // Hard-reset to exactly (1, 1) to avoid floating-point drift
@@ -12599,26 +12603,26 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
     }
   }));
 
-  // Step 1: Immediate impact bump (1 → 1.02)
+  // Step 1: contact squash.
   tl.to(targetTile.scale, {
-    x: 1.02,
-    y: 1.02,
-    duration: 0.08,
-    ease: 'power2.out'
+    x: 1.075,
+    y: 0.94,
+    duration: 0.055,
+    ease: 'power3.out'
   });
 
-  // Step 2: Strong bounce from current scale (1.02 → 1.16 → back to 1.0) - 30% longer
+  // Step 2: energy rebounds vertically, then settles cleanly at the canonical scale.
   tl.to(targetTile.scale, {
-    x: 1.16,        // Strong overshoot from current 1.02
-    y: 1.16,
-    duration: 0.078, // Bounce up - 30% longer (was 0.06)
+    x: 0.985,
+    y: 1.14,
+    duration: 0.085,
     ease: 'power2.out'
   }).to(targetTile.scale, {
-    x: 1.0,         // Back to exactly 1.0
+    x: 1.0,
     y: 1.0,
-    duration: 0.117, // Smooth return - 30% longer (was 0.09)
-    ease: 'back.out(1.8)' // Juicy clean bounce, no extra wobble
-  }, '+=0'); // No delay between bounce phases
+    duration: 0.13,
+    ease: 'back.out(2.25)'
+  });
 
   devLog('🍬 Playing combined merge impact + absorb animation on tile');
 }
