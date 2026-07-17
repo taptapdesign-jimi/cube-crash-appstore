@@ -1593,28 +1593,99 @@ class CollectiblesManager {
           console.warn('⚠️ Failed to prepare Journey exit synchronously:', error);
         }
 
-        try {
-          const journeyBoardsContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
-          const isJourneyV700Hub =
-            (window as any).__ccJourneyV700View === 'hub' ||
-            journeyBoardsContainer?.dataset.journeyV700View === 'hub';
-          if (isJourneyV700Hub) {
-            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-            if (journeyBoardsManager && typeof (journeyBoardsManager as any).playJourneyV700HubExit === 'function') {
-              logger.info('🧭 JourneyV700Flow playing hub exit before back-to-home viewport exit');
-              await (journeyBoardsManager as any).playJourneyV700HubExit('back-to-home');
-            }
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to play Journey V700 hub exit before back-to-home:', String(error));
-        }
+	        let v700HubBackExitPlayed = false;
+	        try {
+	          const journeyBoardsContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+	          const isJourneyV700Hub =
+	            (window as any).__ccJourneyV700View === 'hub' ||
+	            journeyBoardsContainer?.dataset.journeyV700View === 'hub';
+	          if (isJourneyV700Hub) {
+	            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+	            if (journeyBoardsManager && typeof (journeyBoardsManager as any).playJourneyV700HubExit === 'function') {
+	              logger.info('🧭 JourneyV700Flow playing combined hub+nav exit before back-to-home handoff');
+	              await (journeyBoardsManager as any).playJourneyV700HubExit('back-to-home');
+	              v700HubBackExitPlayed = true;
+	            }
+	          }
+	        } catch (error) {
+	          logger.warn('⚠️ Failed to play Journey V700 hub exit before back-to-home:', String(error));
+	        }
 
-        console.log('🎬 Step 1: Journey exit animation starting immediately...');
-        try {
-          await animateJourneyViewportScreenExit('journey-back-button');
-          console.log('✅ Step 1: Journey exit animation completed');
-        } catch (error) {
-          console.error('❌ Failed to trigger Journey exit animation:', error);
+	        if (!v700HubBackExitPlayed) {
+	          console.log('🎬 Step 1: Journey exit animation starting immediately...');
+	          try {
+	            await animateJourneyViewportScreenExit('journey-back-button');
+	            console.log('✅ Step 1: Journey exit animation completed');
+	          } catch (error) {
+	            console.error('❌ Failed to trigger Journey exit animation:', error);
+	          }
+	        } else {
+	          console.log('✅ Step 1: Combined Journey V700 hub+nav exit completed');
+	        }
+
+        const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
+        if (typeof homepageEnterHandoff === 'function') {
+          screen.classList.remove('show');
+          screen.classList.add('hidden');
+          screen.style.display = 'none';
+          screen.style.visibility = 'hidden';
+          screen.style.pointerEvents = 'none';
+          screen.style.zIndex = '-1';
+          screen.setAttribute('hidden', 'true');
+          logger.info('✅ Journey screen hidden before fast homepage handoff');
+
+          const finishJourneyBackCleanup = async () => {
+            console.log('🛑 Stopping remaining Journey animations after fast homepage handoff...');
+
+            try {
+              const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
+              if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+                JOURNEY_CARD_IDLE_BOUNCE.stop();
+                console.log('✅ Journey card idle bounce stopped');
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to stop journey card idle bounce:', error);
+            }
+
+            try {
+              const journeyContainer = document.getElementById('journey-boards-container');
+              if (journeyContainer) {
+                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
+                  journeyBoardsManager.stopGlowPulse();
+                  console.log('✅ Glow pulse and interim bounce stopped');
+                }
+                journeyBoardsManager.cleanup();
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to cleanup Journey boards after fast handoff:', error);
+            }
+
+            try {
+              const journeyScreen = document.getElementById('journey-screen');
+              if (journeyScreen) {
+                const cards = journeyScreen.querySelectorAll('.journey-board-card, .journey-board-card-wrapper');
+                if (cards.length > 0) {
+                  const { gsap } = await import('gsap');
+                  gsap.killTweensOf(cards);
+                  console.log(`✅ Killed GSAP animations on ${cards.length} journey cards`);
+                }
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to kill GSAP animations:', error);
+            }
+
+            cleanupCollectiblesAnimations();
+          };
+
+          void finishJourneyBackCleanup();
+
+          console.log('🏠 Step 2: Fast showing homepage slide 2 after Journey exit animation');
+          await homepageEnterHandoff('journey-exit-homepage-slide-1-fast', {
+            targetSlideIndex: 1,
+            skipFirstPaintReady: true,
+          });
+          return;
         }
 
         console.log('🛑 Stopping remaining Journey animations after exit...');
@@ -1697,7 +1768,10 @@ class CollectiblesManager {
 
       const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
       if (typeof homepageEnterHandoff === 'function') {
-        await homepageEnterHandoff('journey-exit-homepage-slide-1', { targetSlideIndex: 1 });
+        await homepageEnterHandoff('journey-exit-homepage-slide-1', {
+          targetSlideIndex: 1,
+          skipFirstPaintReady: true,
+        });
         return;
       }
 

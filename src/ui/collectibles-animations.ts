@@ -19,9 +19,14 @@ const JOURNEY_VIEWPORT_EXIT_MAX_TARGETS = 64;
 const JOURNEY_VIEWPORT_EXIT_MARGIN_PX = 300;
 const JOURNEY_HEADER_EXIT_LEAD_SECONDS = 0.12;
 const JOURNEY_HEADER_EXIT_COMPLETE_PAD = 0.12;
+const JOURNEY_BACK_BUTTON_HEADER_EXIT_COMPLETE_PAD = 0.02;
+const JOURNEY_HEADER_EXIT_DURATION = 0.44;
+const JOURNEY_BACK_BUTTON_HEADER_EXIT_DURATION = 0.28;
 const JOURNEY_VIEWPORT_EXIT_MIN_SCALE = 0.04;
 const JOURNEY_SCREEN_EXIT_TAIL_DURATION = 0.3;
 const JOURNEY_SCREEN_EXIT_TAIL_DELAY = 0.02;
+const JOURNEY_BACK_BUTTON_SCREEN_EXIT_TAIL_DURATION = 0.16;
+const JOURNEY_BACK_BUTTON_SCREEN_EXIT_TAIL_DELAY = 0;
 
 let activeJourneyViewportLock: {
   scrollable: HTMLElement;
@@ -929,6 +934,19 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
     const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
     const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
     const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
+    const isBackButtonReturn = reason === 'journey-back-button';
+    const headerExitCompletePad = isBackButtonReturn
+      ? JOURNEY_BACK_BUTTON_HEADER_EXIT_COMPLETE_PAD
+      : JOURNEY_HEADER_EXIT_COMPLETE_PAD;
+    const screenExitTailDuration = isBackButtonReturn
+      ? JOURNEY_BACK_BUTTON_SCREEN_EXIT_TAIL_DURATION
+      : JOURNEY_SCREEN_EXIT_TAIL_DURATION;
+    const screenExitTailDelay = isBackButtonReturn
+      ? JOURNEY_BACK_BUTTON_SCREEN_EXIT_TAIL_DELAY
+      : JOURNEY_SCREEN_EXIT_TAIL_DELAY;
+    const headerExitDuration = isBackButtonReturn
+      ? JOURNEY_BACK_BUTTON_HEADER_EXIT_DURATION
+      : JOURNEY_HEADER_EXIT_DURATION;
 
     if (!journeyScreen) {
       console.error('❌ No Journey screen found to animate!');
@@ -983,15 +1001,15 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
       screenTailStarted = true;
 
       if (!collectiblesScrollable) {
-        trackTween(journeyScreen, {
-          opacity: 0,
-          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
-          ease: 'power2.in',
-          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
-          overwrite: true,
-          onComplete: completeExit,
-          onInterrupt: completeExit,
-        });
+	        trackTween(journeyScreen, {
+	          opacity: 0,
+	          duration: screenExitTailDuration,
+	          ease: 'power2.in',
+	          delay: screenExitTailDelay,
+	          overwrite: true,
+	          onComplete: completeExit,
+	          onInterrupt: completeExit,
+	        });
         return;
       }
 
@@ -1000,16 +1018,16 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         collectiblesScrollable.style.visibility = 'visible';
         collectiblesScrollable.style.willChange = 'transform, opacity';
         collectiblesScrollable.style.transformOrigin = '50% 12%';
-        trackTween(collectiblesScrollable, {
-          opacity: 0,
-          scale: 0.985,
-          y: -10,
-          duration: JOURNEY_SCREEN_EXIT_TAIL_DURATION,
-          ease: 'power2.in',
-          delay: JOURNEY_SCREEN_EXIT_TAIL_DELAY,
-          force3D: true,
-          overwrite: true,
-          onComplete: completeExit,
+	        trackTween(collectiblesScrollable, {
+	          opacity: 0,
+	          scale: 0.985,
+	          y: -10,
+	          duration: screenExitTailDuration,
+	          ease: 'power2.in',
+	          delay: screenExitTailDelay,
+	          force3D: true,
+	          overwrite: true,
+	          onComplete: completeExit,
           onInterrupt: completeExit,
         });
       } catch {
@@ -1017,16 +1035,16 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
       }
     };
 
-    const maybeCompleteExit = (): void => {
-      if (!viewportExitComplete || !headerExitComplete) return;
-      trackTween(journeyScreen, {
-        opacity: 1,
-        duration: 0.01,
-        ease: 'none',
-        delay: JOURNEY_HEADER_EXIT_COMPLETE_PAD,
-        overwrite: true,
-        onComplete: startScreenTailExit,
-        onInterrupt: startScreenTailExit,
+	    const maybeCompleteExit = (): void => {
+	      if (!viewportExitComplete || !headerExitComplete) return;
+	      trackTween(journeyScreen, {
+	        opacity: 1,
+	        duration: 0.01,
+	        ease: 'none',
+	        delay: headerExitCompletePad,
+	        overwrite: true,
+	        onComplete: startScreenTailExit,
+	        onInterrupt: startScreenTailExit,
       });
     };
 
@@ -1049,11 +1067,11 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
         collectiblesHeader.style.opacity = '1';
         collectiblesHeader.style.transformOrigin = '50% 0%';
         trackTween(collectiblesHeader, {
-          scale: JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
-          opacity: 0,
-          y: -10,
-          duration: 0.44,
-          ease: 'back.in(1.25)',
+	          scale: JOURNEY_VIEWPORT_EXIT_MIN_SCALE,
+	          opacity: 0,
+	          y: -10,
+	          duration: headerExitDuration,
+	          ease: 'back.in(1.25)',
           delay,
           force3D: true,
           overwrite: true,
@@ -1143,7 +1161,7 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
     if (pendingViewportTargets <= 0) {
       viewportExitComplete = true;
     }
-    const headerDelay = Math.max(0, latestViewportExitEnd - JOURNEY_HEADER_EXIT_LEAD_SECONDS);
+    const headerDelay = isBackButtonReturn ? 0 : Math.max(0, latestViewportExitEnd - JOURNEY_HEADER_EXIT_LEAD_SECONDS);
     startHeaderExit(headerDelay);
   });
 }

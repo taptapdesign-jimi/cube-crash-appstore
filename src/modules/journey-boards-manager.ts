@@ -2745,10 +2745,10 @@ class JourneyBoardsManager {
       let currentY = 0;
       let isDragging = false;
       let isHorizontalLocked = false;
-      let releaseTween: gsap.core.Tween | null = null;
+	      let releaseTween: gsap.core.Tween | gsap.core.Timeline | null = null;
       let releaseTimer: number | null = null;
-      const damping = 0.1;
-      const maxPull = 28;
+	      const damping = 0.34;
+	      const maxPull = 72;
       const lockHorizontalScroll = () => {
         if (scrollable.scrollLeft !== 0) {
           scrollable.scrollLeft = 0;
@@ -2826,31 +2826,42 @@ class JourneyBoardsManager {
           container.style.willChange = '';
           return;
         }
-        const releaseDistance = Math.abs(currentY);
-        const duration = Math.min(0.46, Math.max(0.28, 0.22 + releaseDistance / 90));
-        clearReleaseAnimation();
-        container.style.transition = 'none';
-        releaseTween = trackTween(container, {
-          y: 0,
-          duration,
-          ease: 'power3.out',
-          overwrite: true,
-          force3D: true,
-          onComplete: () => {
-            currentY = 0;
-            releaseTween = null;
-            if (this.renderDisposed) return;
-            container.style.transition = '';
-            container.style.willChange = '';
-          }
-        });
-        releaseTimer = window.setTimeout(() => {
-          releaseTimer = null;
-          if (this.renderDisposed) return;
-          container.style.transition = '';
-          container.style.willChange = '';
-        }, Math.ceil(duration * 1000) + 80);
-      };
+	        const releaseDistance = Math.abs(currentY);
+	        const direction = Math.sign(currentY) || 1;
+	        const settleOvershoot = -direction * Math.min(8, Math.max(3, releaseDistance * 0.12));
+	        const firstLegDuration = Math.min(0.28, Math.max(0.16, 0.13 + releaseDistance / 320));
+	        const settleDuration = Math.min(0.58, Math.max(0.38, 0.34 + releaseDistance / 260));
+	        clearReleaseAnimation();
+	        container.style.transition = 'none';
+	        container.style.willChange = 'transform';
+	        releaseTween = gsap.timeline({
+	          defaults: { force3D: true, overwrite: true },
+	          onComplete: () => {
+	            currentY = 0;
+	            releaseTween = null;
+	            if (this.renderDisposed) return;
+	            container.style.transition = '';
+	            container.style.willChange = '';
+	          }
+	        });
+	        releaseTween
+	          .to(container, {
+	            y: settleOvershoot,
+	            duration: firstLegDuration,
+	            ease: 'power3.out',
+	          })
+	          .to(container, {
+	            y: 0,
+	            duration: settleDuration,
+	            ease: 'elastic.out(1, 0.78)',
+	          }, '>-0.06');
+	        releaseTimer = window.setTimeout(() => {
+	          releaseTimer = null;
+	          if (this.renderDisposed) return;
+	          container.style.transition = '';
+	          container.style.willChange = '';
+	        }, Math.ceil((firstLegDuration + settleDuration) * 1000) + 120);
+	      };
 
       scrollable.addEventListener('touchstart', onStart, { passive: true });
       scrollable.addEventListener('touchmove', onMove, { passive: false });
@@ -3184,20 +3195,29 @@ class JourneyBoardsManager {
         scrollable.style.pointerEvents = '';
       }
 
-      if (header) {
-        try { gsap.killTweensOf(header); } catch {}
-        header.style.display = '';
-        header.style.visibility = 'visible';
-        header.style.opacity = '1';
-        header.style.pointerEvents = '';
-        header.style.removeProperty('transform');
-        header.style.willChange = 'auto';
-      }
+	      if (header) {
+	        try { gsap.killTweensOf(header); } catch {}
+	        header.style.display = '';
+	        header.style.visibility = 'visible';
+	        header.style.opacity = '0';
+	        header.style.pointerEvents = '';
+	        header.style.transition = 'none';
+	        header.style.willChange = 'transform, opacity';
+	        gsap.set(header, {
+	          scale: 0,
+	          y: 0,
+	          opacity: 0,
+	          visibility: 'visible',
+	          transformOrigin: '50% 0%',
+	          force3D: true,
+	          overwrite: true,
+	        });
+	      }
 
-      const worldId = this.journeyV700WorldId;
-      this.updateJourneyV700Nav('world', worldId);
-      this.playJourneyV700NavEnter();
-      restoreDirectDetailReturnScroll('preserve-world-before-enter');
+	      const worldId = this.journeyV700WorldId;
+	      this.updateJourneyV700Nav('world', worldId);
+	      this.playJourneyV700NavEnter({ transformOrigin: '50% 0%' });
+	      restoreDirectDetailReturnScroll('preserve-world-before-enter');
       this.trackTimeout(() => {
         if (!isCurrentDetailReturn()) {
           this.logJourneyV700Flow('detail-modal-return-world-enter-skipped-stale', {
@@ -3215,15 +3235,19 @@ class JourneyBoardsManager {
         this.playJourneyV700WorldEnter(journeyContainerForReturn, worldId, {
           source: 'detail-modal-return',
           lastBoardId: activeBoardId,
-        });
-        if (activeBoardId) {
-          this.clearLastActiveJourneyBoardAreaId(activeBoardId);
-        }
-        restoreDirectDetailReturnScroll('preserve-world-after-enter-start');
-        [180, 420, 900].forEach((delayMs) => {
-          this.trackTimeout(() => restoreDirectDetailReturnScroll(`preserve-world-settled-${delayMs}ms`), delayMs);
-        });
-      }, 40);
+	        });
+	        if (activeBoardId) {
+	          this.clearLastActiveJourneyBoardAreaId(activeBoardId);
+	        }
+	        restoreDirectDetailReturnScroll('preserve-world-after-enter-start');
+	        this.installJourneyScreenElasticOverscroll(journeyContainerForReturn);
+	        [180, 420, 900].forEach((delayMs) => {
+	          this.trackTimeout(() => {
+	            restoreDirectDetailReturnScroll(`preserve-world-settled-${delayMs}ms`);
+	            this.installJourneyScreenElasticOverscroll(journeyContainerForReturn);
+	          }, delayMs);
+	        });
+	      }, 40);
       return;
     }
 
@@ -5262,10 +5286,10 @@ class JourneyBoardsManager {
     // 🔥 APP STORE FIX: Use FIXED viewport-based positioning - NO dynamic calculations
     // Background and cards use position: fixed with viewport units (vw/vh)
     // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
-    this.renderBoardsFixed(container);
-    this.applyJourneyV700WorldScope(container, this.journeyV700WorldId);
-    this.cleanupJourneyScreenElasticOverscroll();
-  }
+	    this.renderBoardsFixed(container);
+	    this.applyJourneyV700WorldScope(container, this.journeyV700WorldId);
+	    this.installJourneyScreenElasticOverscroll(container);
+	  }
 
   private setJourneyV700View(view: 'hub' | 'world', worldId: number | null = null): void {
     this.journeyV700View = view;
@@ -5782,19 +5806,27 @@ class JourneyBoardsManager {
     });
   }
 
-  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
-    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
-    const worldCards = Array.from(
-      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
-    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');
-    const hub = container?.querySelector<HTMLElement>('.journey-v700-hub') || null;
-    const hubCloudLayer = container?.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer') || null;
+	  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
+	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+	    const worldCards = Array.from(
+	      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
+	    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');
+	    const hub = container?.querySelector<HTMLElement>('.journey-v700-hub') || null;
+	    const hubCloudLayer = container?.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer') || null;
+	    const includeNavExit = reason === 'back-to-home';
+	    const navTargets = includeNavExit ? this.getJourneyV700NavTargets() : [];
 
-    this.logJourneyV700Flow('hub-exit-start', { reason, worldCount: worldCards.length, cloudLayer: !!hubCloudLayer }, container);
-    if (!worldCards.length && !hubCloudLayer) {
-      this.logJourneyV700Flow('hub-exit-no-worlds', { reason }, container);
-      return Promise.resolve();
-    }
+	    this.logJourneyV700Flow('hub-exit-start', {
+	      reason,
+	      worldCount: worldCards.length,
+	      cloudLayer: !!hubCloudLayer,
+	      navCount: navTargets.length,
+	      includeNavExit,
+	    }, container);
+	    if (!worldCards.length && !hubCloudLayer && !navTargets.length) {
+	      this.logJourneyV700Flow('hub-exit-no-worlds', { reason }, container);
+	      return Promise.resolve();
+	    }
 
     this.journeyV700Phase = 'exiting';
     worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
@@ -5803,16 +5835,45 @@ class JourneyBoardsManager {
     const motion = getJourneyV700MotionProfile(reducedMotion);
 
     return new Promise((resolve) => {
-      let remaining = worldCards.length + (hubCloudLayer ? 1 : 0);
-      const finishTarget = () => {
-        remaining -= 1;
-        if (remaining > 0) return;
-        this.logJourneyV700Flow('hub-exit-complete', { reason }, container);
-        resolve();
-      };
+	      let remaining = worldCards.length + (hubCloudLayer ? 1 : 0) + navTargets.length;
+	      const finishTarget = () => {
+	        remaining -= 1;
+	        if (remaining > 0) return;
+	        this.logJourneyV700Flow('hub-exit-complete', { reason }, container);
+	        resolve();
+	      };
 
-      if (hubCloudLayer) {
-        try {
+	      navTargets.forEach((target) => {
+	        try {
+	          gsap.killTweensOf(target);
+	          target.style.willChange = 'transform, opacity';
+	          target.style.pointerEvents = 'none';
+	          gsap.set(target, {
+	            scale: 1,
+	            opacity: 1,
+	            visibility: 'visible',
+	            transformOrigin: '50% 0%',
+	            force3D: true,
+	            overwrite: true,
+	          });
+	          gsap.to(target, {
+	            y: -10,
+	            scale: 0.04,
+	            opacity: 0,
+	            duration: motion.exit.duration,
+	            delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY,
+	            ease: motion.exit.ease,
+	            force3D: true,
+	            overwrite: true,
+	            onComplete: finishTarget,
+	          });
+	        } catch {
+	          finishTarget();
+	        }
+	      });
+
+	      if (hubCloudLayer) {
+	        try {
           gsap.killTweensOf(hubCloudLayer);
           gsap.to(hubCloudLayer, {
             y: motion.exit.y * 0.55,
@@ -6260,33 +6321,34 @@ class JourneyBoardsManager {
     });
   }
 
-  private playJourneyV700NavEnter(): void {
-    const targets = this.getJourneyV700NavTargets();
-    this.logJourneyV700Flow('nav-enter-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
-    if (!targets.length) {
-      this.logJourneyV700Flow('nav-enter-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
-      return;
-    }
+	  private playJourneyV700NavEnter(options: { transformOrigin?: string } = {}): void {
+	    const targets = this.getJourneyV700NavTargets();
+	    this.logJourneyV700Flow('nav-enter-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+	    if (!targets.length) {
+	      this.logJourneyV700Flow('nav-enter-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+	      return;
+	    }
+	    const transformOrigin = options.transformOrigin || '50% 50%';
 
-    try {
-      gsap.killTweensOf(targets);
-      gsap.fromTo(
-        targets,
+	    try {
+	      gsap.killTweensOf(targets);
+	      gsap.fromTo(
+	        targets,
         {
-          scale: 0,
-          opacity: 0,
-          visibility: 'visible',
-          transformOrigin: '50% 50%',
-          force3D: true,
-        },
-        {
+	          scale: 0,
+	          opacity: 0,
+	          visibility: 'visible',
+	          transformOrigin,
+	          force3D: true,
+	        },
+	        {
           scale: 1,
           opacity: 1,
           duration: 0.5,
-          ease: 'back.out(1.8)',
-          force3D: true,
-          overwrite: true,
-          onComplete: () => {
+	          ease: 'back.out(1.8)',
+	          force3D: true,
+	          overwrite: true,
+	          onComplete: () => {
             targets.forEach((target) => {
               try { gsap.set(target, { clearProps: 'transform,opacity,visibility,transformOrigin' }); } catch {}
             });

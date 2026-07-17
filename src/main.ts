@@ -343,10 +343,11 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
 
 async function playHomepageSliderEnterHandoff(
   reason: string,
-  options: { targetSlideIndex?: number } = {}
+  options: { targetSlideIndex?: number; skipFirstPaintReady?: boolean } = {}
 ): Promise<void> {
   const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? 0) || 0);
-  console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex });
+  const skipFirstPaintReady = options.skipFirstPaintReady === true;
+  console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex, skipFirstPaintReady });
   resetAnimationFlags();
 
   applyPaperBackground('0.6');
@@ -373,10 +374,17 @@ async function playHomepageSliderEnterHandoff(
     }
   } catch {}
 
-  await waitForHomepageFirstPaintReady({
-    reason: `${reason}:before-enter`,
-    timeoutMs: 3500,
-  });
+  if (!skipFirstPaintReady) {
+    await waitForHomepageFirstPaintReady({
+      reason: `${reason}:before-enter`,
+      timeoutMs: 3500,
+    });
+  } else {
+    console.log('🏠 Homepage enter handoff skipped first-paint readiness for warm return', {
+      reason,
+      targetSlideIndex,
+    });
+  }
   prepareSliderEnter();
   try {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
