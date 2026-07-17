@@ -438,11 +438,13 @@ const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Single start offset for the full Journey world stack; adding later worlds below must not change it. */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 138;
 /** Lift the complete Forest, Beach and Area 51 world scene without changing its internal alignment. */
-const JOURNEY_V700_WORLD_CONTENT_LIFT_PX = 40;
+const JOURNEY_V700_WORLD_CONTENT_LIFT_PX = 16;
 /** Position cards/numbers relative to the Journey world/decor layers. */
 const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
+/** V700 scoped world bottom room after the 10th unit; keeps the screen compact without clipping idle/exit motion. */
+const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 760;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const INTERIM_BOUNCE_SMOKE_STALE_MS = 3600;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
@@ -6074,7 +6076,7 @@ class JourneyBoardsManager {
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const worldHeightPx = viewportWidth * (FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH);
-    const scopedHeight = Math.max(worldHeightPx + 1050, window.innerHeight * 1.45);
+    const scopedHeight = Math.max(worldHeightPx + JOURNEY_V700_WORLD_BOTTOM_ROOM_PX, window.innerHeight * 1.45);
 
     container.style.height = `${scopedHeight}px`;
     container.style.minHeight = `${scopedHeight}px`;
