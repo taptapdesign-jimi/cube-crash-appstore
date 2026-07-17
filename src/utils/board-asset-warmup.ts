@@ -11,7 +11,6 @@ import {
   ASSET_WILD_MAGNET,
   ASSET_WILD_TNT,
 } from '../modules/constants.js';
-import { SPECIAL_DICE_VARIANTS } from '../modules/special-dice-registry.js';
 
 export type BoardAssetWarmupMode = 'arcade' | 'journey' | 'unknown';
 
@@ -80,54 +79,24 @@ const CORE_HUD_ASSETS = [
   './assets/hud/help.png',
 ] as const;
 
-const JOURNEY_BOARD_ASSETS = [
-  './assets/journey assets/bottom1.png',
-  './assets/journey assets/bottom1@2x.png',
-  './assets/journey assets/bottom2.png',
-  './assets/journey assets/bottom2@2x.png',
-  './assets/journey assets/bottom3.png',
-  './assets/journey assets/bottom3@2x.png',
-  './assets/journey assets/bottom4.png',
-  './assets/journey assets/bottom4@2x.png',
-  './assets/journey assets/bottom5.png',
-  './assets/journey assets/bottom5@2x.png',
-  './assets/journey assets/bottom6.png',
-  './assets/journey assets/bottom6@2x.png',
-  './assets/journey assets/bottom7.png',
-  './assets/journey assets/bottom7@2x.png',
-  './assets/journey assets/bottom8.png',
-  './assets/journey assets/bottom8@2x.png',
-  './assets/journey assets/bottom9.png',
-  './assets/journey assets/bottom9@2x.png',
-  './assets/journey assets/bottom10.png',
-  './assets/journey assets/bottom10@2x.png',
-  './assets/journey assets/bottom11.png',
-  './assets/journey assets/bottom11@2x.png',
-  './assets/journey assets/bottom12.png',
-  './assets/journey assets/bottom12@2x.png',
-] as const;
+const JOURNEY_BOTTOM_DECOR_COUNT = 12;
+const journeyBottomDecorByBoard = new Map<number, number>();
 
-const TNT_ANIMATION_ASSETS = Array.from({ length: 12 }, (_, index) => {
-  const frame = index + 1;
+export function getJourneyBottomDecorIndexForBoard(boardNumber?: number): number {
+  const safeBoardNumber = Math.max(1, Math.floor(Number(boardNumber) || 1));
+  const existing = journeyBottomDecorByBoard.get(safeBoardNumber);
+  if (existing) return existing;
+  const selected = Math.floor(Math.random() * JOURNEY_BOTTOM_DECOR_COUNT) + 1;
+  journeyBottomDecorByBoard.set(safeBoardNumber, selected);
+  return selected;
+}
+
+function getJourneyBoardAssets(boardNumber?: number): string[] {
+  const decorIndex = getJourneyBottomDecorIndexForBoard(boardNumber);
   return [
-    `./assets/shop/explosion pack/animation/tnt${frame}.png`,
-    `./assets/shop/explosion pack/animation/tnt${frame}@2x.png`,
+    `./assets/journey assets/bottom${decorIndex}.png`,
+    `./assets/journey assets/bottom${decorIndex}@2x.png`,
   ];
-}).flat();
-
-function getSpecialDiceAssets(): string[] {
-  const assets: string[] = [];
-  Object.values(SPECIAL_DICE_VARIANTS).forEach((variant) => {
-    if (variant.texture) assets.push(variant.texture);
-    if (variant.texture && !variant.texture.includes('@2x')) {
-      const dot = variant.texture.lastIndexOf('.');
-      if (dot > 0) assets.push(`${variant.texture.slice(0, dot)}@2x${variant.texture.slice(dot)}`);
-    }
-    variant.explosionSpriteSources?.forEach((source) => assets.push(source));
-    variant.orbitParticleSources?.forEach((source) => assets.push(source));
-    variant.burstParticleSources?.forEach((source) => assets.push(source));
-  });
-  return assets;
 }
 
 function unique(values: readonly string[]): string[] {
@@ -156,68 +125,64 @@ function removeStaleTexture(assetPath: string): void {
   try { (Texture as any).removeFromCache?.(assetPath); } catch {}
 }
 
-function getWarmupAssets(mode: BoardAssetWarmupMode): string[] {
-  const modeAssets = mode === 'journey' ? JOURNEY_BOARD_ASSETS : [];
+export function getBoardGameWarmupAssets(mode: BoardAssetWarmupMode, boardNumber?: number): string[] {
+  const modeAssets = mode === 'journey' ? getJourneyBoardAssets(boardNumber) : [];
   return unique([
     ...CORE_BOARD_ASSETS,
     ...CORE_HUD_ASSETS,
     ...modeAssets,
-    ...TNT_ANIMATION_ASSETS,
-    ...getSpecialDiceAssets(),
   ]);
 }
 
-let warmupPromise: Promise<void> | null = null;
+let activeWarmupLoadPromise: Promise<void> | null = null;
 
 export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Promise<void> {
   const mode = options.mode || 'unknown';
   const reason = options.reason || 'unknown';
   const timeoutMs = Math.max(250, options.timeoutMs ?? 1800);
 
-  if (warmupPromise) return warmupPromise;
+  if (!activeWarmupLoadPromise) {
+    activeWarmupLoadPromise = (async () => {
+      const assets = getBoardGameWarmupAssets(mode, options.boardNumber);
+      const missingOrStale: string[] = [];
 
-  warmupPromise = (async () => {
-    const assets = getWarmupAssets(mode);
-    const missingOrStale: string[] = [];
-
-    for (const assetPath of assets) {
-      let tex: any = null;
-      try { tex = Assets.get(assetPath); } catch {}
-      if (isUsableTexture(tex)) continue;
-      removeStaleTexture(assetPath);
-      missingOrStale.push(assetPath);
-    }
-
-    if (missingOrStale.length === 0) return;
-
-    logger.info(`🎮 Board asset warmup (${mode}) loading ${missingOrStale.length} asset(s)`, 'board-asset-warmup', {
-      reason,
-      boardNumber: options.boardNumber,
-    });
-
-    const loadOne = async (assetPath: string): Promise<void> => {
-      try {
-        let tex: any = await Assets.load(assetPath);
-        if (!isUsableTexture(tex)) {
-          removeStaleTexture(assetPath);
-          tex = Texture.from(assetPath);
-        }
-      } catch (error) {
-        logger.warn('⚠️ Board asset warmup skipped asset; runtime guard will retry', 'board-asset-warmup', { assetPath, error });
+      for (const assetPath of assets) {
+        let tex: any = null;
+        try { tex = Assets.get(assetPath); } catch {}
+        if (isUsableTexture(tex)) continue;
+        removeStaleTexture(assetPath);
+        missingOrStale.push(assetPath);
       }
-    };
 
-    const loadPromise = Promise.allSettled(missingOrStale.map(loadOne));
-    const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(resolve, timeoutMs);
+      if (missingOrStale.length === 0) return;
+
+      logger.info(`🎮 Board asset warmup (${mode}) loading ${missingOrStale.length} asset(s)`, 'board-asset-warmup', {
+        reason,
+        boardNumber: options.boardNumber,
+      });
+
+      const loadOne = async (assetPath: string): Promise<void> => {
+        try {
+          let tex: any = await Assets.load(assetPath);
+          if (!isUsableTexture(tex)) {
+            removeStaleTexture(assetPath);
+            tex = Texture.from(assetPath);
+          }
+        } catch (error) {
+          logger.warn('⚠️ Board asset warmup skipped asset; runtime guard will retry', 'board-asset-warmup', { assetPath, error });
+        }
+      };
+
+      await Promise.allSettled(missingOrStale.map(loadOne));
+    })().finally(() => {
+      activeWarmupLoadPromise = null;
     });
+  }
 
-    await Promise.race([loadPromise.then(() => undefined), timeoutPromise]);
-  })().finally(() => {
-    warmupPromise = null;
+  const timeoutPromise = new Promise<void>((resolve) => {
+    setTimeout(resolve, timeoutMs);
   });
-
-  return warmupPromise;
+  return Promise.race([activeWarmupLoadPromise, timeoutPromise]);
 }
 
 export function warmBoardGameAssetsSoon(options: BoardAssetWarmupOptions = {}): void {

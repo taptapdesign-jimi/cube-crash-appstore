@@ -358,7 +358,68 @@ export function initDrag(cfg) {
     _lastWatchdogRefreshAt: 0,
     _lastMagnetFieldUpdateAt: 0,
     _pausedSpecialIdleTiles: new Set<any>(),
+    _perfSample: null as any,
+    _perfTicker: null as any,
+    _pendingMoveEvent: null as any,
+    _moveRaf: null as number | null,
   };
+
+  function beginDragPerfSample() {
+    const now = performance.now();
+    drag._perfSample = {
+      startedAt: now,
+      moveEvents: 0,
+      processedMoves: 0,
+      moveTotalMs: 0,
+      moveMaxMs: 0,
+      moveOver8Ms: 0,
+      tickerFrames: 0,
+      tickerOver20Ms: 0,
+      tickerOver34Ms: 0,
+      tickerMaxMs: 0,
+    };
+    drag._perfTicker = () => {
+      const sample = drag._perfSample;
+      if (!sample) return;
+      const deltaMs = Number(app?.ticker?.deltaMS || 0);
+      sample.tickerFrames += 1;
+      sample.tickerMaxMs = Math.max(sample.tickerMaxMs, deltaMs);
+      if (deltaMs > 20) sample.tickerOver20Ms += 1;
+      if (deltaMs > 34) sample.tickerOver34Ms += 1;
+    };
+    try { app?.ticker?.add(drag._perfTicker); } catch {}
+  }
+
+  function finishDragPerfSample(reason: string) {
+    const sample = drag._perfSample;
+    if (drag._perfTicker) {
+      try { app?.ticker?.remove(drag._perfTicker); } catch {}
+    }
+    drag._perfTicker = null;
+    drag._perfSample = null;
+    if (!sample) return;
+    const durationMs = Math.max(0, performance.now() - sample.startedAt);
+    const payload = {
+      reason,
+      durationMs: Math.round(durationMs),
+      pointerType: drag.pointerType,
+      rendererResolution: Number(app?.renderer?.resolution || 1),
+      moveEvents: sample.moveEvents,
+      processedMoves: sample.processedMoves,
+      coalescedMoves: Math.max(0, sample.moveEvents - sample.processedMoves),
+      moveAverageMs: sample.processedMoves > 0
+        ? Number((sample.moveTotalMs / sample.processedMoves).toFixed(2))
+        : 0,
+      moveMaxMs: Number(sample.moveMaxMs.toFixed(2)),
+      moveOver8Ms: sample.moveOver8Ms,
+      tickerFrames: sample.tickerFrames,
+      tickerOver20Ms: sample.tickerOver20Ms,
+      tickerOver34Ms: sample.tickerOver34Ms,
+      tickerMaxMs: Number(sample.tickerMaxMs.toFixed(2)),
+    };
+    try { (window as any).__ccLastDragPerf = payload; } catch {}
+    console.info('🧪 DragPerf summary', payload);
+  }
 
   function eventPointerId(e: any): number | null {
     const pid = e?.pointerId;
@@ -385,12 +446,20 @@ export function initDrag(cfg) {
   }
 
   function clearDragRuntime() {
+    if (drag._perfSample || drag._perfTicker) {
+      finishDragPerfSample('runtime-clear');
+    }
     try {
       app?.stage?.off('pointermove', onMove);
       app?.stage?.off('pointerup', onUp);
       app?.stage?.off('pointerupoutside', onUp);
       app?.stage?.off('pointercancel', onCancel);
     } catch {}
+    if (drag._moveRaf !== null) {
+      cancelAnimationFrame(drag._moveRaf);
+      drag._moveRaf = null;
+    }
+    drag._pendingMoveEvent = null;
     if (drag._sparkleInterval) {
       clearInterval(drag._sparkleInterval);
       drag._sparkleInterval = null;
@@ -644,6 +713,7 @@ export function initDrag(cfg) {
     pauseSpecialDiceIdleForDrag(t);
     drag.pointerId = eventPointerId(e);
     drag.pointerType = e?.pointerType || null;
+    beginDragPerfSample();
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
     drag.startX = t.x;
@@ -809,7 +879,7 @@ export function initDrag(cfg) {
     restartDragWatchdog(true);
   }
 
-  function onMove(e) {
+  function processMove(e) {
     if (!drag.t) return;
     if (!isActivePointerEvent(e)) return;
     restartDragWatchdog();
@@ -867,18 +937,27 @@ export function initDrag(cfg) {
     */
 
     // --- target rotacija SUPROTNO od smjera (low-pass težina) ---
+    const touchPerformanceMode = shouldUseTouchDragPerformanceMode();
     const targetRot = Math.max(-TILT_MAX_RAD, Math.min(TILT_MAX_RAD, (-drag.vx * TILT_SCALE)));
     if (t.rotG) {
       const cur = t.rotG.rotation || 0;
-      const next = cur + (targetRot - cur) * ROT_SMOOTH;
+      const rotationSmooth = touchPerformanceMode ? 0.18 : ROT_SMOOTH;
+      const next = cur + (targetRot - cur) * rotationSmooth;
       t.rotG.rotation = next;
 
-      // parallax lag: smoothtani drift suprotno od smjera
-      const targetLagX = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vx * 240));
-      const targetLagY = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vy * 240));
-      drag.lagX = drag.lagX + (targetLagX - drag.lagX) * 0.12;
-      drag.lagY = drag.lagY + (targetLagY - drag.lagY) * 0.12;
-      px += drag.lagX; py += drag.lagY;
+      // Desktop keeps the weighted parallax. Touch must stay directly under the finger;
+      // positional lag reads as input latency even when the renderer is holding 60 FPS.
+      if (touchPerformanceMode) {
+        drag.lagX = 0;
+        drag.lagY = 0;
+      } else {
+        const targetLagX = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vx * 240));
+        const targetLagY = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vy * 240));
+        drag.lagX = drag.lagX + (targetLagX - drag.lagX) * 0.12;
+        drag.lagY = drag.lagY + (targetLagY - drag.lagY) * 0.12;
+        px += drag.lagX;
+        py += drag.lagY;
+      }
     }
 
     if (t.position?.set) {
@@ -1154,11 +1233,57 @@ export function initDrag(cfg) {
     // Ghost placeholders are now fixed and don't need redrawing
   }
 
+  function processQueuedMove() {
+    drag._moveRaf = null;
+    const e = drag._pendingMoveEvent;
+    drag._pendingMoveEvent = null;
+    if (!e) return;
+    const startedAt = performance.now();
+    try {
+      processMove(e);
+    } finally {
+      const sample = drag._perfSample;
+      if (sample) {
+        const elapsed = performance.now() - startedAt;
+        sample.processedMoves += 1;
+        sample.moveTotalMs += elapsed;
+        sample.moveMaxMs = Math.max(sample.moveMaxMs, elapsed);
+        if (elapsed > 8) sample.moveOver8Ms += 1;
+      }
+    }
+  }
+
+  function onMove(e) {
+    if (!drag.t || !isActivePointerEvent(e)) return;
+    const sample = drag._perfSample;
+    if (sample) sample.moveEvents += 1;
+    drag._pendingMoveEvent = {
+      pointerId: eventPointerId(e),
+      pointerType: e?.pointerType || drag.pointerType,
+      global: {
+        x: Number(e?.global?.x || 0),
+        y: Number(e?.global?.y || 0),
+      },
+    };
+    if (drag._moveRaf === null) {
+      drag._moveRaf = requestAnimationFrame(processQueuedMove);
+    }
+  }
+
   function onUp(e) {
     if (!isActivePointerEvent(e)) return;
 
+    if (drag._pendingMoveEvent) {
+      if (drag._moveRaf !== null) {
+        cancelAnimationFrame(drag._moveRaf);
+        drag._moveRaf = null;
+      }
+      processQueuedMove();
+    }
+
     const t = drag.t;
     drag.t = null;
+    finishDragPerfSample('pointerup');
     clearDragRuntime();
     resumeSpecialDiceIdleAfterDrag();
     
@@ -1383,6 +1508,7 @@ export function initDrag(cfg) {
     if (!isActivePointerEvent(e)) return;
     const t = drag.t;
     drag.t = null;
+    finishDragPerfSample('pointercancel');
     clearHover({ immediateMagnet: true });
     clearDragRuntime();
     resumeSpecialDiceIdleAfterDrag();

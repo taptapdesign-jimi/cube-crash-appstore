@@ -78,7 +78,7 @@ import {
   getAppCleanupStats
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
-import { warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
+import { getJourneyBottomDecorIndexForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -5069,11 +5069,6 @@ async function animateBoardExit(){
 // Imported: randVal
 let journeyGameBottomDecorHideTimer: number | null = null;
 let journeyGameBottomDecorRunKey = 0;
-const JOURNEY_GAME_BOTTOM_DECOR_COUNT = 12;
-
-function getRandomJourneyGameBottomDecorIndex(): number {
-  return Math.floor(Math.random() * JOURNEY_GAME_BOTTOM_DECOR_COUNT) + 1;
-}
 
 function getJourneyGameBottomDecorUrl(decorIndex: number, scale = 1): string {
   const scaleSuffix = scale === 2 ? '@2x' : '';
@@ -5090,7 +5085,7 @@ function updateJourneyGameBottomDecorSource(img: HTMLImageElement): void {
   const existingDecorIndex = Number(img.dataset.decorIndex);
   const decorIndex = img.dataset.boardKey === boardKey && img.dataset.runKey === runKey && Number.isFinite(existingDecorIndex)
     ? existingDecorIndex
-    : getRandomJourneyGameBottomDecorIndex();
+    : getJourneyBottomDecorIndexForBoard(Number(boardKey));
   const decorKey = String(decorIndex);
   if (img.dataset.decorIndex === decorKey && img.dataset.boardKey === boardKey && img.dataset.runKey === runKey) return;
 
