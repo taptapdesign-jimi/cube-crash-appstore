@@ -1946,17 +1946,29 @@
 .journey-v700-hub {
   position: relative;
   width: 100%;
-  min-height: calc(100dvh + 120px);
+  min-height: calc(100dvh + 260px);
   padding: calc(env(safe-area-inset-top, 0px) + 84px) 18px calc(env(safe-area-inset-bottom, 0px) + 34px);
   box-sizing: border-box;
   pointer-events: auto;
 }
 
+.journey-v700-hub-cloud-layer {
+  position: absolute;
+  left: 0;
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
+  width: 100%;
+  height: 920px;
+  pointer-events: none;
+  z-index: 0;
+  transform-origin: 50% 50%;
+}
+
 .journey-v700-world-card {
   position: absolute;
+  isolation: isolate;
   display: block;
-  width: min(52vw, 210px);
-  height: min(36vw, 146px);
+  width: min(67.6vw, 273px);
+  height: min(46.8vw, 190px);
   padding: 0;
   border: 0;
   border-radius: 8px;
@@ -1967,6 +1979,7 @@
   -webkit-tap-highlight-color: transparent;
   transform-origin: 50% 50%;
   pointer-events: auto;
+  z-index: 2;
 }
 
 .journey-v700-world-forest {
@@ -1976,12 +1989,12 @@
 
 .journey-v700-world-beach {
   right: 8px;
-  top: calc(env(safe-area-inset-top, 0px) + 288px);
+  top: calc(env(safe-area-inset-top, 0px) + 338px);
 }
 
 .journey-v700-world-robo {
   left: 10px;
-  top: calc(env(safe-area-inset-top, 0px) + 486px);
+  top: calc(env(safe-area-inset-top, 0px) + 588px);
 }
 
 .journey-v700-world-card.is-locked {
@@ -1993,18 +2006,19 @@
   position: absolute;
   left: 50%;
   top: 48%;
-  width: min(50vw, 195px);
+  width: min(65vw, 254px);
   height: auto;
   transform: translate(-50%, -50%);
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+  z-index: 2;
   animation: journey-v700-world-idle 4.4s ease-in-out infinite;
   animation-play-state: paused;
 }
 
 .journey-v700-world-card.journey-v700-idle-ready .journey-v700-world-image,
-.journey-v700-world-card.journey-v700-idle-ready .journey-v700-world-cloud {
+.journey-v700-hub.journey-v700-idle-ready .journey-v700-world-cloud {
   animation-play-state: running;
 }
 
@@ -2018,28 +2032,20 @@
 
 .journey-v700-world-cloud {
   position: absolute;
+  left: var(--cloud-x, 0px);
+  top: var(--cloud-y, 0px);
+  width: var(--cloud-width, 120px);
   height: auto;
-  opacity: 0.72;
+  opacity: var(--cloud-opacity, 0.82);
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
-  animation: journey-v700-cloud-idle 5.8s ease-in-out infinite;
+  transform: translate3d(0, 0, 0) scale(1);
+  animation: journey-v700-cloud-idle var(--cloud-duration, 6.4s) ease-in-out infinite;
+  animation-delay: var(--cloud-delay, 0s);
   animation-play-state: paused;
-}
-
-.journey-v700-world-cloud-a {
-  left: -18px;
-  top: 52%;
-  width: 92px;
-  animation-delay: -1.1s;
-}
-
-.journey-v700-world-cloud-b {
-  right: -12px;
-  top: 18%;
-  width: 74px;
-  opacity: 0.62;
-  animation-delay: -3.4s;
+  will-change: transform;
+  z-index: 0;
 }
 
 .journey-v700-world-badge {
@@ -2058,6 +2064,7 @@
   font: 800 16px/1 'Baloo2', system-ui, sans-serif;
   box-shadow: 0 8px 18px rgba(173, 135, 117, 0.16);
   pointer-events: none;
+  z-index: 3;
 }
 
 #journey-screen .collectibles-back-button.journey-v700-nav-close img {
@@ -2079,7 +2086,7 @@
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(8px, -5px, 0) scale(1.03);
+    transform: translate3d(var(--cloud-dx, 8px), var(--cloud-dy, -5px), 0) scale(var(--cloud-scale, 1.03));
   }
 }
 

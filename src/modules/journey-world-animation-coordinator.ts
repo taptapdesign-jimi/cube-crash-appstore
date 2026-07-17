@@ -9,6 +9,7 @@ export interface JourneyWorldAnimationUnit {
   id: string;
   targets: HTMLElement[];
   clouds: HTMLElement[];
+  enterDelayOffset?: number;
 }
 
 type JourneyWorldAnimationPhase = 'hidden' | 'entering' | 'idle' | 'exiting';
@@ -53,22 +54,37 @@ export class JourneyWorldAnimationCoordinator {
 
       liveUnits.forEach((unit, index) => {
         gsap.killTweensOf(unit.targets);
+        unit.targets.forEach((target) => {
+          target.style.visibility = 'visible';
+          target.style.pointerEvents = 'none';
+        });
         const tween = gsap.fromTo(unit.targets, {
           y: motion.enter.y,
           scale: motion.enter.scale,
           opacity: 0,
+          visibility: 'visible',
         }, {
           y: 0,
           scale: 1,
           opacity: 1,
+          visibility: 'visible',
           duration: motion.enter.duration,
           ease: motion.enter.ease,
           force3D: true,
           overwrite: true,
+          onComplete: () => {
+            unit.targets.forEach((target) => {
+              target.style.visibility = 'visible';
+              target.style.opacity = '1';
+              target.style.pointerEvents = '';
+            });
+          },
         });
         // drag-core's Timeline.fromTo guard drops GSAP's position argument.
         // Timeline.add is not patched, so it preserves the exact short cascade.
-        const irregularOffset = getJourneyV700EnterOffset(unit.id, index, reducedMotion);
+        const irregularOffset = Number.isFinite(unit.enterDelayOffset)
+          ? Number(unit.enterDelayOffset)
+          : getJourneyV700EnterOffset(unit.id, index, reducedMotion);
         timeline.add(tween, motion.enter.baseDelay + irregularOffset);
       });
     });
@@ -128,7 +144,10 @@ export class JourneyWorldAnimationCoordinator {
       const speed = (Math.PI * 2) / duration;
       const phaseOffset = unitIndex * 0.47;
       const ySetters = unit.targets.map((target) => gsap.quickSetter(target, 'y', 'px') as (value: number) => void);
-      const cloudSetters = unit.clouds.map((cloud) => gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void);
+      const cloudSetters = unit.clouds.map((cloud) => ({
+        x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
+        y: gsap.quickSetter(cloud, 'y', 'px') as (value: number) => void,
+      }));
       const ticker = () => {
         if (this.phase !== 'idle') return;
         const elapsed = gsap.ticker.time - startTime;
@@ -136,9 +155,11 @@ export class JourneyWorldAnimationCoordinator {
         const easedRamp = ramp * ramp * (3 - (2 * ramp));
         const y = Math.sin((elapsed * speed) + phaseOffset) * 7 * easedRamp;
         ySetters.forEach((setY) => setY(y));
-        cloudSetters.forEach((setX, cloudIndex) => {
+        cloudSetters.forEach((setters, cloudIndex) => {
           const x = Math.sin((elapsed * speed * 0.62) + phaseOffset + cloudIndex) * 10 * easedRamp;
-          setX(x);
+          const y = Math.cos((elapsed * speed * 0.48) + phaseOffset + (cloudIndex * 0.73)) * 5 * easedRamp;
+          setters.x(x);
+          setters.y(y);
         });
       };
 
