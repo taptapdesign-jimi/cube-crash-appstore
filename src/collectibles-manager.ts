@@ -13,6 +13,7 @@ import {
   rememberJourneyBoardCardBaseTransform,
   restoreJourneyBoardCardBaseTransform,
 } from './modules/journey-card-base-transform.js';
+import { playNavIconCartoonBounce } from './utils/nav-icon-bounce.js';
 import { showHeartsModal } from './modules/hearts-bottom-sheet.js';
 import { isHeartsFeatureEnabled } from './modules/hearts-system.js';
 // Collectibles Manager - Handles all collectibles functionality
@@ -332,47 +333,6 @@ function restoreJourneyScrollableInteractivity(reason: string, unlockViewport = 
   }
 }
 
-function playJourneySoftCartoonBounce(target: HTMLElement | null): void {
-  if (!target) return;
-
-  try {
-    gsap.killTweensOf(target);
-    gsap.set(target, {
-      scale: 1,
-      transformOrigin: '50% 50%',
-      willChange: 'transform',
-      force3D: true,
-    });
-
-    gsap.timeline({
-      defaults: { force3D: true },
-      onComplete: () => {
-        gsap.set(target, {
-          scale: 1,
-          clearProps: 'scale,willChange,force3D',
-        });
-      },
-    })
-      .to(target, {
-        scale: 1.18,
-        duration: 0.12,
-        ease: 'back.out(2.2)',
-      })
-      .to(target, {
-        scale: 0.93,
-        duration: 0.09,
-        ease: 'power2.out',
-      })
-      .to(target, {
-        scale: 1,
-        duration: 0.17,
-        ease: 'back.out(1.9)',
-      });
-  } catch (error) {
-    logger.warn('⚠️ Failed to animate Journey soft cartoon bounce:', String(error));
-  }
-}
-
 function setupJourneyContentElasticOverscroll(scrollable: HTMLElement | null): void {
   if (!scrollable) return;
 
@@ -630,16 +590,6 @@ class CollectiblesManager {
     }
   }
 
-  private playJourneyBackButtonBounce(backBtn: Element | null): void {
-    const visualTarget = (backBtn?.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement | null);
-    playJourneySoftCartoonBounce(visualTarget);
-  }
-
-  private playDetailCloseButtonBounce(closeBtn: Element | null): void {
-    const visualTarget = (closeBtn?.querySelector('img') as HTMLElement | null) || (closeBtn as HTMLElement | null);
-    playJourneySoftCartoonBounce(visualTarget);
-  }
-
   private scheduleJourneyBackExit(backBtn: Element | null): void {
     const backButtonEl = backBtn as HTMLElement | null;
 
@@ -752,7 +702,7 @@ class CollectiblesManager {
         e.stopPropagation();
         (e as any).stopImmediatePropagation?.();
 
-        this.playJourneyBackButtonBounce(backBtn);
+        playNavIconCartoonBounce(backBtn);
         this.scheduleJourneyBackExit(backBtn);
       }
     };
@@ -804,7 +754,7 @@ class CollectiblesManager {
         e.preventDefault();
         e.stopPropagation();
         (e as any).stopImmediatePropagation?.();
-        this.playDetailCloseButtonBounce(closeBtn);
+        playNavIconCartoonBounce(closeBtn);
         window.setTimeout(() => this.hideCardDetail(), JOURNEY_TAP_BOUNCE_ACTION_DELAY_MS);
       };
       closeBtn.addEventListener('click', this.boundHandlers.closeBtnClick);
@@ -1100,7 +1050,7 @@ class CollectiblesManager {
         e.stopPropagation();
         (e as any).stopImmediatePropagation?.();
 
-        this.playJourneyBackButtonBounce(backBtn);
+        playNavIconCartoonBounce(backBtn);
         this.scheduleJourneyBackExit(backBtn);
       };
       backBtn.addEventListener('click', backBtnHandler);
@@ -1242,10 +1192,10 @@ class CollectiblesManager {
         // Attach click handler to hearts container
         const heartsContainer = document.getElementById('journey-lives-container');
         if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
-          heartsContainer.style.cursor = 'pointer';
-          heartsContainer.addEventListener('click', () => {
-            const heartIcon = document.getElementById('journey-lives-icon') as HTMLElement | null;
-            playJourneySoftCartoonBounce(heartIcon || heartsContainer);
+	          heartsContainer.style.cursor = 'pointer';
+	          heartsContainer.addEventListener('click', () => {
+	            const heartIcon = document.getElementById('journey-lives-icon') as HTMLElement | null;
+	            playNavIconCartoonBounce(heartIcon || heartsContainer);
 
             // Haptic on Journey top-nav hearts icon tap.
             try { (window as any).triggerHapticImpact?.('light'); } catch {}
@@ -2488,7 +2438,7 @@ class CollectiblesManager {
           if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
             return;
           }
-          this.playDetailCloseButtonBounce(newCloseBtn);
+          playNavIconCartoonBounce(newCloseBtn);
           newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
           window.setTimeout(() => {
             try {
@@ -2513,7 +2463,7 @@ class CollectiblesManager {
           if (newCloseBtn.getAttribute('data-detail-close-exit-pending') === 'true') {
             return;
           }
-          this.playDetailCloseButtonBounce(newCloseBtn);
+          playNavIconCartoonBounce(newCloseBtn);
           newCloseBtn.setAttribute('data-detail-close-exit-pending', 'true');
           window.setTimeout(() => {
             try {

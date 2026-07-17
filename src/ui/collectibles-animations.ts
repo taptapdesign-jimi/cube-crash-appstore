@@ -1056,13 +1056,24 @@ export function animateJourneyViewportScreenExit(reason: string = 'journey-exit'
     const startHeaderExit = (delay = 0): void => {
       if (headerExitStarted) return;
       headerExitStarted = true;
-      if (!collectiblesHeader) {
-        finishHeaderExit();
-        return;
-      }
+	      if (!collectiblesHeader) {
+	        finishHeaderExit();
+	        return;
+	      }
+	      try {
+	        const computed = window.getComputedStyle(collectiblesHeader);
+	        const alreadyExited =
+	          computed.visibility === 'hidden' ||
+	          Number(computed.opacity || '1') <= 0.01 ||
+	          collectiblesHeader.style.pointerEvents === 'none';
+	        if (alreadyExited) {
+	          finishHeaderExit();
+	          return;
+	        }
+	      } catch {}
 
-      try {
-        gsap.killTweensOf(collectiblesHeader);
+	      try {
+	        gsap.killTweensOf(collectiblesHeader);
         collectiblesHeader.style.willChange = 'transform, opacity';
         collectiblesHeader.style.opacity = '1';
         collectiblesHeader.style.transformOrigin = '50% 0%';

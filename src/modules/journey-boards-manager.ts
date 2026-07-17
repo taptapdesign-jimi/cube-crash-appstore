@@ -13,6 +13,7 @@ import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idl
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { clearArcadeSaveState, getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
@@ -273,21 +274,6 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
   });
 }
 
-function playDetailCloseSoftCartoonBounce(closeBtn: HTMLElement | null): void {
-  if (!closeBtn) return;
-
-  try {
-    closeBtn.classList.remove('detail-close-cartoon-bounce');
-    void closeBtn.offsetWidth;
-    closeBtn.classList.add('detail-close-cartoon-bounce');
-    window.setTimeout(() => {
-      closeBtn.classList.remove('detail-close-cartoon-bounce');
-    }, 420);
-  } catch (error) {
-    logger.warn('⚠️ Failed to animate detail close soft cartoon bounce:', error);
-  }
-}
-
 function playDetailCardTapCartoonBounce(detailImage: HTMLElement | null): void {
   if (!detailImage) return;
 
@@ -438,13 +424,13 @@ const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Single start offset for the full Journey world stack; adding later worlds below must not change it. */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 138;
 /** Lift the complete Forest, Beach and Area 51 world scene without changing its internal alignment. */
-const JOURNEY_V700_WORLD_CONTENT_LIFT_PX = 16;
+const JOURNEY_V700_WORLD_CONTENT_LIFT_PX = 0;
 /** Position cards/numbers relative to the Journey world/decor layers. */
 const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 /** Extra scroll room so the lowest Journey cards are not clipped at the bottom. */
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 /** V700 scoped world bottom room after the 10th unit; keeps the screen compact without clipping idle/exit motion. */
-const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 760;
+const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 680;
 /** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 51 intentionally stay unchanged. */
 const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
@@ -3931,13 +3917,15 @@ class JourneyBoardsManager {
     lockJourneyViewportTransition(`journey-interim-area-exit-${boardId}`);
 
     this.journeyExitPromise = (async () => {
-      let journeyStarted = false;
-      let linkedJourneyExitPromise: Promise<void> | null = null;
-      let contentExitPromise: Promise<void> | null = null;
-      const startLinkedContentExit = () => {
-        if (contentExitPromise) return;
-        contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
-      };
+	      let journeyStarted = false;
+	      let linkedJourneyExitPromise: Promise<void> | null = null;
+	      let contentExitPromise: Promise<void> | null = null;
+	      let navExitPromise: Promise<void> | null = null;
+	      const startLinkedContentExit = () => {
+	        if (contentExitPromise) return;
+	        contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
+	        navExitPromise = this.playJourneyV700NavExit();
+	      };
       const startLinkedJourneyExit = () => {
         if (journeyStarted) return;
         journeyStarted = true;
@@ -3946,10 +3934,13 @@ class JourneyBoardsManager {
 
       try {
         await this.runClickedJourneyBoardUnitExit(boardId, 'interim-card', startLinkedContentExit);
-        if (contentExitPromise) {
-          await contentExitPromise;
-        }
-        startLinkedJourneyExit();
+	        if (contentExitPromise) {
+	          await contentExitPromise;
+	        }
+	        if (navExitPromise) {
+	          await navExitPromise;
+	        }
+	        startLinkedJourneyExit();
         if (linkedJourneyExitPromise) {
           await linkedJourneyExitPromise;
         }
@@ -3980,17 +3971,22 @@ class JourneyBoardsManager {
 
     this.journeyExitPromise = (async () => {
       try {
-        let contentExitPromise: Promise<void> | null = null;
-        const startLinkedContentExit = () => {
-          if (contentExitPromise) return;
-          contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
-        };
+	        let contentExitPromise: Promise<void> | null = null;
+	        let navExitPromise: Promise<void> | null = null;
+	        const startLinkedContentExit = () => {
+	          if (contentExitPromise) return;
+	          contentExitPromise = this.startJourneyWorldContentExitExcludingBoard(boardId);
+	          navExitPromise = this.playJourneyV700NavExit();
+	        };
 
         await this.runClickedJourneyBoardUnitExit(boardId, 'regular-card', startLinkedContentExit);
-        if (contentExitPromise) {
-          await contentExitPromise;
-        }
-        logger.info('🧭 JourneyForestAnim viewport-exit-after-content', {
+	        if (contentExitPromise) {
+	          await contentExitPromise;
+	        }
+	        if (navExitPromise) {
+	          await navExitPromise;
+	        }
+	        logger.info('🧭 JourneyForestAnim viewport-exit-after-content', {
           boardId,
           coordinatedWorldExit: !!contentExitPromise,
         });
@@ -5278,10 +5274,11 @@ class JourneyBoardsManager {
     // Initialize journey debug buttons
     this.initJourneyButtons();
 
-    if (this.journeyV700View !== 'world' || !this.journeyV700WorldId) {
-      this.renderJourneyV700Hub(container);
-      return;
-    }
+	    if (this.journeyV700View !== 'world' || !this.journeyV700WorldId) {
+	      this.renderJourneyV700Hub(container);
+	      this.installJourneyScreenElasticOverscroll(container);
+	      return;
+	    }
 
     // 🔥 APP STORE FIX: Use FIXED viewport-based positioning - NO dynamic calculations
     // Background and cards use position: fixed with viewport units (vw/vh)
@@ -5416,10 +5413,42 @@ class JourneyBoardsManager {
       badge.textContent = `${unlockedCount}/${worldBoards.length}`;
       button.appendChild(badge);
 
-      const openWorld = (event: Event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, container);
+	      let worldCardTouchStartX = 0;
+	      let worldCardTouchStartY = 0;
+	      let worldCardTouchMoved = false;
+	      let suppressNextSyntheticClick = false;
+	      const worldCardDragThresholdPx = 12;
+
+	      const onWorldCardTouchStart = (event: TouchEvent) => {
+	        if (event.touches.length !== 1) return;
+	        worldCardTouchStartX = event.touches[0].clientX;
+	        worldCardTouchStartY = event.touches[0].clientY;
+	        worldCardTouchMoved = false;
+	      };
+
+	      const onWorldCardTouchMove = (event: TouchEvent) => {
+	        if (event.touches.length !== 1) return;
+	        const dx = event.touches[0].clientX - worldCardTouchStartX;
+	        const dy = event.touches[0].clientY - worldCardTouchStartY;
+	        if (Math.hypot(dx, dy) >= worldCardDragThresholdPx) {
+	          worldCardTouchMoved = true;
+	        }
+	      };
+
+	      const openWorld = (event: Event) => {
+	        if (event.type === 'touchend' && worldCardTouchMoved) {
+	          suppressNextSyntheticClick = true;
+	          this.logJourneyV700Flow('world-card-touchend-ignored-drag', { worldId }, container);
+	          return;
+	        }
+	        if (event.type === 'click' && suppressNextSyntheticClick) {
+	          suppressNextSyntheticClick = false;
+	          this.logJourneyV700Flow('world-card-click-ignored-after-drag', { worldId }, container);
+	          return;
+	        }
+	        event.preventDefault();
+	        event.stopPropagation();
+	        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, container);
         if (locked) return;
         const now = Date.now();
         const lastTap = Number((button as any).__ccJourneyV700LastTap || 0);
@@ -5431,8 +5460,10 @@ class JourneyBoardsManager {
         this.openJourneyV700World(worldId, button);
       };
 
-      button.addEventListener('click', openWorld);
-      button.addEventListener('touchend', openWorld, { passive: false });
+	      button.addEventListener('touchstart', onWorldCardTouchStart, { passive: true });
+	      button.addEventListener('touchmove', onWorldCardTouchMove, { passive: true });
+	      button.addEventListener('click', openWorld);
+	      button.addEventListener('touchend', openWorld, { passive: false });
       hub.appendChild(button);
     });
 
@@ -6250,14 +6281,15 @@ class JourneyBoardsManager {
         this.journeyV700NavCloseHandler = null;
       }
 
-      if (view === 'world') {
-        this.journeyV700NavCloseHandler = (event: Event) => {
-          if (event.cancelable) event.preventDefault();
-          event.stopPropagation();
-          (event as any).stopImmediatePropagation?.();
-          this.logJourneyV700Flow('nav-close-handler-fired', { eventType: event.type }, document.getElementById('journey-boards-container') as HTMLElement | null);
-          this.closeJourneyV700World();
-        };
+	      if (view === 'world') {
+	        this.journeyV700NavCloseHandler = (event: Event) => {
+	          if (event.cancelable) event.preventDefault();
+	          event.stopPropagation();
+	          (event as any).stopImmediatePropagation?.();
+	          this.logJourneyV700Flow('nav-close-handler-fired', { eventType: event.type }, document.getElementById('journey-boards-container') as HTMLElement | null);
+	          playNavIconCartoonBounce(backButton);
+	          this.closeJourneyV700World();
+	        };
         backButton.addEventListener('click', this.journeyV700NavCloseHandler, { capture: true });
         backButton.addEventListener('touchend', this.journeyV700NavCloseHandler, { capture: true, passive: false } as any);
       }
@@ -6274,16 +6306,18 @@ class JourneyBoardsManager {
     ].filter((target): target is HTMLElement => !!target && document.body.contains(target));
   }
 
-  private playJourneyV700NavExit(): Promise<void> {
-    const targets = this.getJourneyV700NavTargets();
-    this.logJourneyV700Flow('nav-exit-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
-    if (!targets.length) {
-      this.logJourneyV700Flow('nav-exit-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
-      return Promise.resolve();
-    }
+	  private playJourneyV700NavExit(): Promise<void> {
+	    const targets = this.getJourneyV700NavTargets();
+	    this.logJourneyV700Flow('nav-exit-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+	    if (!targets.length) {
+	      this.logJourneyV700Flow('nav-exit-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+	      return Promise.resolve();
+	    }
+	    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+	    const motion = getJourneyV700MotionProfile(reducedMotion);
 
-    return new Promise((resolve) => {
-      let completed = false;
+	    return new Promise((resolve) => {
+	      let completed = false;
       const completeOnce = (source: string) => {
         if (completed) return;
         completed = true;
@@ -6293,22 +6327,26 @@ class JourneyBoardsManager {
       const fallbackTimer = window.setTimeout(() => {
         this.logJourneyV700Flow('nav-exit-timeout-fallback', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
         completeOnce('timeout-fallback');
-      }, 620);
-      try {
-        gsap.killTweensOf(targets);
-        gsap.set(targets, {
-          transformOrigin: '50% 50%',
-          visibility: 'visible',
-          force3D: true,
-        });
-        gsap.to(targets, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'back.in(1.7)',
-          force3D: true,
-          overwrite: true,
-          onComplete: () => {
+	      }, Math.ceil(motion.exit.duration * 1000) + 220);
+	      try {
+	        gsap.killTweensOf(targets);
+	        gsap.set(targets, {
+	          scale: 1,
+	          opacity: 1,
+	          transformOrigin: '50% 0%',
+	          visibility: 'visible',
+	          force3D: true,
+	          overwrite: true,
+	        });
+	        gsap.to(targets, {
+	          y: -10,
+	          scale: 0.04,
+	          opacity: 0,
+	          duration: motion.exit.duration,
+	          ease: motion.exit.ease,
+	          force3D: true,
+	          overwrite: true,
+	          onComplete: () => {
             window.clearTimeout(fallbackTimer);
             completeOnce('tween-complete');
           },
@@ -6321,34 +6359,40 @@ class JourneyBoardsManager {
     });
   }
 
-	  private playJourneyV700NavEnter(options: { transformOrigin?: string } = {}): void {
-	    const targets = this.getJourneyV700NavTargets();
-	    this.logJourneyV700Flow('nav-enter-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
-	    if (!targets.length) {
-	      this.logJourneyV700Flow('nav-enter-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
-	      return;
-	    }
-	    const transformOrigin = options.transformOrigin || '50% 50%';
+		  private playJourneyV700NavEnter(options: { transformOrigin?: string; delay?: number } = {}): void {
+		    const targets = this.getJourneyV700NavTargets();
+		    this.logJourneyV700Flow('nav-enter-start', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
+		    if (!targets.length) {
+		      this.logJourneyV700Flow('nav-enter-no-targets', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
+		      return;
+		    }
+		    const transformOrigin = options.transformOrigin || '50% 0%';
+		    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+		    const motion = getJourneyV700MotionProfile(reducedMotion);
+		    const delay = Number.isFinite(options.delay) ? Number(options.delay) : motion.enter.baseDelay;
 
-	    try {
-	      gsap.killTweensOf(targets);
+		    try {
+		      gsap.killTweensOf(targets);
 	      gsap.fromTo(
 	        targets,
-        {
-	          scale: 0,
-	          opacity: 0,
-	          visibility: 'visible',
-	          transformOrigin,
+		        {
+		          scale: motion.enter.scale,
+		          y: -10,
+		          opacity: 0,
+		          visibility: 'visible',
+		          transformOrigin,
 	          force3D: true,
 	        },
-	        {
-          scale: 1,
-          opacity: 1,
-          duration: 0.5,
-	          ease: 'back.out(1.8)',
-	          force3D: true,
-	          overwrite: true,
-	          onComplete: () => {
+		        {
+	          scale: 1,
+	          y: 0,
+	          opacity: 1,
+	          duration: motion.enter.duration,
+	          delay,
+		          ease: motion.enter.ease,
+		          force3D: true,
+		          overwrite: true,
+		          onComplete: () => {
             targets.forEach((target) => {
               try { gsap.set(target, { clearProps: 'transform,opacity,visibility,transformOrigin' }); } catch {}
             });
@@ -7833,10 +7877,9 @@ class JourneyBoardsManager {
         });
       }
 
-      // STEP 3: Header LAST (includes X, title, divider - animated as group, same as settings screen)
-      // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
-      const lastDelay = contentStartDelay + (otherContentElements.length > 0 ? (otherContentElements.length * 0.05) : 0);
-      if (detailHeader) {
+	      // Header/nav exits immediately on close tap, in sync with the rest of Journey navigation.
+	      const headerExitDelay = 0;
+	      if (detailHeader) {
         // 🔥 APP STORE: Remove enter animation listener if user closed before enter completed (no leak)
         const enterEndHandler = (detailHeader as any).__detailHeaderEnterEnd;
         if (typeof enterEndHandler === 'function') {
@@ -7872,21 +7915,21 @@ class JourneyBoardsManager {
           }
         });
 
-        trackTween(detailHeader, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'back.in(1.7)',
-          delay: lastDelay + 0.05,
-          force3D: true
-        });
-        logger.info(`📊 Header pop-out - LAST (X, title, divider animate together as group at ${((lastDelay + 0.05) * 1000).toFixed(0)}ms)`);
-      }
+	        trackTween(detailHeader, {
+	          scale: 0,
+	          opacity: 0,
+	          duration: 0.4,
+	          ease: 'back.in(1.7)',
+	          delay: headerExitDelay,
+	          force3D: true
+	        });
+	        logger.info(`📊 Header pop-out - FIRST (X, title, divider animate together as group at ${(headerExitDelay * 1000).toFixed(0)}ms)`);
+	      }
 
       // Calculate total animation duration (content elements + stats + PLAY button + header)
       // 🔥 CRITICAL: Include ALL exit animations in total duration (stats, PLAY button, header)
       const playButtonEndTime = playButtonExitDelay + playButtonExitDuration; // When PLAY button animation ends
-      const headerEndTime = lastDelay + 0.05 + 0.4; // When header animation ends
+	      const headerEndTime = headerExitDelay + 0.4; // When header animation ends
       // 🔥 BUG FIX: Include stats exit animations in total duration calculation
       const totalDuration = Math.max(playButtonEndTime, headerEndTime, statsExitEndTime) * 1000 + 100; // Use the longest one + 100ms buffer
       logger.info(`⏱️ Exit animation durations - Stats: ${(statsExitEndTime * 1000).toFixed(0)}ms, PLAY: ${(playButtonEndTime * 1000).toFixed(0)}ms, Header: ${(headerEndTime * 1000).toFixed(0)}ms, Total: ${totalDuration.toFixed(0)}ms`);
@@ -9681,11 +9724,11 @@ class JourneyBoardsManager {
       const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
       
       // 🔥 USER BUG FIX: Ensure X button is visible and clickable BEFORE any animations
-      if (detailCloseBtn) {
-        detailCloseBtn.style.display = 'flex';
-        detailCloseBtn.style.visibility = 'visible';
-        detailCloseBtn.style.opacity = '1';
-        detailCloseBtn.style.pointerEvents = 'auto';
+	                if (detailCloseBtn) {
+	                  detailCloseBtn.style.display = 'flex';
+	                  detailCloseBtn.style.visibility = 'visible';
+	                  detailCloseBtn.style.opacity = '1';
+	                  detailCloseBtn.style.pointerEvents = 'auto';
         detailCloseBtn.style.zIndex = '2000000';
         detailCloseBtn.style.position = 'relative';
         detailCloseBtn.style.cursor = 'pointer';
@@ -10024,10 +10067,16 @@ class JourneyBoardsManager {
                     closeBtnImg.style.opacity = '1';
                     if (!closeBtnImg.src || closeBtnImg.src.includes('undefined') || closeBtnImg.src.includes('null')) {
                       closeBtnImg.src = './assets/close-icon.png';
-                    }
-                  }
-                  logger.info('✅ X button verified visible after header animation completes');
-                }
+	                    }
+	                  }
+	                  detailCloseBtn.classList.remove('detail-close-enter-cartoon-bounce');
+	                  void detailCloseBtn.offsetWidth;
+	                  detailCloseBtn.classList.add('detail-close-enter-cartoon-bounce');
+	                  this.trackTimeout(() => {
+	                    detailCloseBtn.classList.remove('detail-close-enter-cartoon-bounce');
+	                  }, 460);
+	                  logger.info('✅ X button verified visible after header animation completes');
+	                }
               });
             };
             (detailHeader as any).__detailHeaderEnterEnd = onHeaderEnterEnd;
@@ -10699,7 +10748,7 @@ class JourneyBoardsManager {
           this.journeyDetailCloseInProgress = true;
           this.journeyDetailCloseGuardUntil = now + 1800;
           (window as any).__ccJourneyDetailCloseInProgress = true;
-          playDetailCloseSoftCartoonBounce(closeButton);
+          playNavIconCartoonBounce(closeButton);
 
           try {
             // 🔥 USER REQUEST: Mark that we're returning from detail modal (skip auto-scroll)
@@ -10735,7 +10784,7 @@ class JourneyBoardsManager {
         };
 
         const handleClosePointerDown = () => {
-          playDetailCloseSoftCartoonBounce(newCloseBtn);
+          playNavIconCartoonBounce(newCloseBtn);
         };
         const handleCloseClick: EventListener = (event) => {
           void runDetailClose('detail close button direct click', event, newCloseBtn);
