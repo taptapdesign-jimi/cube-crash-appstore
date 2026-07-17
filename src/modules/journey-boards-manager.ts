@@ -781,6 +781,7 @@ class JourneyBoardsManager {
         if (this.isJourneyCardTapExitProtectedTarget(el)) return;
         try { gsap.killTweensOf(el); } catch {}
         if (el.classList.contains('journey-robo-alien-beam-art')) {
+          el.classList.remove('journey-robo-alien-beam-idle-ready');
           try { gsap.set(el, { clearProps: 'opacity' }); } catch {}
           el.style.removeProperty('opacity');
         }
@@ -859,6 +860,13 @@ class JourneyBoardsManager {
       }
       target.classList.add('journey-area-idle-target');
       target.dataset.journeyAreaId = areaId;
+      if (
+        target.classList.contains('journey-robo-alien-beam-art') &&
+        this.journeyV700Phase === 'idle' &&
+        !this.activeBoardAreaEnterInProgress
+      ) {
+        target.classList.add('journey-robo-alien-beam-idle-ready');
+      }
       target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
         ? 'transform, opacity'
         : 'transform';
@@ -1606,6 +1614,7 @@ class JourneyBoardsManager {
       this.activeBoardAreaEnterPreparedTargets = targets;
       targets.forEach((target) => {
         try { gsap.killTweensOf(target); } catch {}
+        target.classList.remove('journey-robo-alien-beam-idle-ready');
         rememberJourneyBoardCardBaseTransform(target);
         target.style.transformOrigin = '50% 50%';
         target.style.willChange = 'transform, opacity';
@@ -1741,6 +1750,7 @@ class JourneyBoardsManager {
             gsap.set(target, restoreVars);
             if (target.classList.contains('journey-robo-alien-beam-art')) {
               target.style.removeProperty('opacity');
+              target.classList.add('journey-robo-alien-beam-idle-ready');
             }
             restoreJourneyBoardCardBaseTransform(target);
             this.restoreJourneyBoardCardVisualTarget(target);
@@ -3491,6 +3501,7 @@ class JourneyBoardsManager {
         });
         transitionTargets.forEach((target) => {
           try { gsap.killTweensOf(target); } catch {}
+          target.classList.remove('journey-robo-alien-beam-idle-ready');
           rememberJourneyBoardCardBaseTransform(target);
           (target as any).__ccJourneyToGameExitTween = true;
           const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
@@ -6126,6 +6137,7 @@ class JourneyBoardsManager {
     try {
       gsap.killTweensOf(allTargets);
       allTargets.forEach((target) => {
+        target.classList.remove('journey-robo-alien-beam-idle-ready');
         target.style.visibility = 'visible';
         target.style.pointerEvents = 'none';
       });
@@ -6182,6 +6194,12 @@ class JourneyBoardsManager {
         target.style.willChange = 'auto';
       });
       this.journeyV700Phase = 'idle';
+      allTargets.forEach((target) => {
+        if (target.classList.contains('journey-robo-alien-beam-art')) {
+          target.style.removeProperty('opacity');
+          target.classList.add('journey-robo-alien-beam-idle-ready');
+        }
+      });
       if (source.includes('interim-game-return')) {
         const activeBoardId = this.getLastActiveJourneyBoardAreaId();
         if (activeBoardId) {
@@ -6239,6 +6257,9 @@ class JourneyBoardsManager {
     this.journeyV700Phase = 'exiting';
     this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
+    units.flatMap((unit) => unit.targets).forEach((target) => {
+      target.classList.remove('journey-robo-alien-beam-idle-ready');
+    });
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     void this.journeyWorldAnimation.exit(units, reducedMotion).then(() => {
       this.logJourneyV700Flow('world-exit-complete', { source: 'coordinator' }, container);

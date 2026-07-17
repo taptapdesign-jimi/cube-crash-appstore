@@ -1355,8 +1355,11 @@
 }
 
 .journey-robo-alien-beam-art {
-  animation: journey-robo-alien-beam-idle 1.35s ease-in-out infinite;
   will-change: transform, opacity;
+}
+
+.journey-robo-alien-beam-art.journey-robo-alien-beam-idle-ready {
+  animation: journey-robo-alien-beam-idle 1.35s ease-in-out infinite;
 }
 
 @keyframes journey-robo-alien-beam-idle {
