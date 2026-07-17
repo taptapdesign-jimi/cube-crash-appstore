@@ -66,6 +66,14 @@ export function lockJourneyViewportTransition(reason: string = 'journey-transiti
 
   if (activeJourneyViewportLock?.scrollable === scrollable) {
     activeJourneyViewportLock.scrollTop = scrollable.scrollTop;
+    try {
+      console.info('🧪 JourneyScrollLock refresh', {
+        reason,
+        scrollTop: scrollable.scrollTop,
+        touchAction: scrollable.style.touchAction,
+        overflowY: scrollable.style.overflowY,
+      });
+    } catch {}
     return;
   }
 
@@ -112,11 +120,34 @@ export function lockJourneyViewportTransition(reason: string = 'journey-transiti
   scrollable.addEventListener('wheel', preventMove, { passive: false, capture: true });
   scrollable.addEventListener('scroll', keepScroll, { passive: true });
   keepScroll();
+  try {
+    console.info('🧪 JourneyScrollLock locked', {
+      reason,
+      scrollTop,
+      scrollHeight: scrollable.scrollHeight,
+      clientHeight: scrollable.clientHeight,
+      touchAction: scrollable.style.touchAction,
+      overflowY: scrollable.style.overflowY,
+      lockFlag: (window as any).__ccJourneyViewportTransitionLocked === true,
+    });
+  } catch {}
 }
 
 export function unlockJourneyViewportTransition(reason: string = 'journey-transition-complete'): void {
   const lock = activeJourneyViewportLock;
-  if (!lock) return;
+  if (!lock) {
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      console.info('🧪 JourneyScrollLock unlock-noop', {
+        reason,
+        hasScrollable: !!scrollable,
+        lockFlag: (window as any).__ccJourneyViewportTransitionLocked === true,
+        touchAction: scrollable?.style.touchAction || null,
+        overflowY: scrollable?.style.overflowY || null,
+      });
+    } catch {}
+    return;
+  }
 
   activeJourneyViewportLock = null;
   lock.scrollable.removeEventListener('touchmove', lock.preventMove, true);
@@ -130,6 +161,15 @@ export function unlockJourneyViewportTransition(reason: string = 'journey-transi
   try {
     delete (window as any).__ccJourneyViewportTransitionLocked;
     (window as any).__ccJourneyViewportTransitionUnlockedReason = reason;
+    console.info('🧪 JourneyScrollLock unlocked', {
+      reason,
+      scrollTop: lock.scrollable.scrollTop,
+      scrollHeight: lock.scrollable.scrollHeight,
+      clientHeight: lock.scrollable.clientHeight,
+      touchAction: lock.scrollable.style.touchAction,
+      overflowY: lock.scrollable.style.overflowY,
+      lockFlag: (window as any).__ccJourneyViewportTransitionLocked === true,
+    });
   } catch {}
 }
 

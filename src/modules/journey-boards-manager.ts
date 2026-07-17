@@ -445,6 +445,8 @@ const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 /** V700 scoped world bottom room after the 10th unit; keeps the screen compact without clipping idle/exit motion. */
 const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 760;
+/** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 51 intentionally stay unchanged. */
+const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const INTERIM_BOUNCE_SMOKE_STALE_MS = 3600;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
@@ -1781,6 +1783,7 @@ class JourneyBoardsManager {
             currentBoardId: this.getLastActiveJourneyBoardAreaId(),
           });
           this.activeBoardAreaEnterInProgress = false;
+          unlockJourneyViewportTransition('active-enter-complete-stale');
         }
       };
 
@@ -2947,6 +2950,80 @@ class JourneyBoardsManager {
     logger.info(`🗺️ Returning to Journey after detail modal close (${context})`, { returnEpoch });
     const isCurrentDetailReturn = (): boolean => returnEpoch === this.journeyDetailReturnEpoch;
 
+    const restoreDirectDetailReturnScroll = (phase: string): void => {
+      try {
+        unlockJourneyViewportTransition(`detail-modal-return-${phase}`);
+        const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+        const scrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
+        const journeyContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+        if (!scrollable) return;
+
+        const screenElasticHandlers = (scrollable as any).__journeyScreenElasticHandlers;
+        if (screenElasticHandlers) {
+          try { scrollable.removeEventListener('touchstart', screenElasticHandlers.start); } catch {}
+          try { scrollable.removeEventListener('touchmove', screenElasticHandlers.move); } catch {}
+          try { scrollable.removeEventListener('touchend', screenElasticHandlers.end); } catch {}
+          try { scrollable.removeEventListener('touchcancel', screenElasticHandlers.end); } catch {}
+          try { scrollable.removeEventListener('scroll', screenElasticHandlers.lockX); } catch {}
+          try {
+            if (screenElasticHandlers.releaseTimer) window.clearTimeout(screenElasticHandlers.releaseTimer);
+            if (screenElasticHandlers.releaseTween) screenElasticHandlers.releaseTween.kill?.();
+          } catch {}
+          delete (scrollable as any).__journeyScreenElasticHandlers;
+        }
+
+        const contentElasticHandlers = (scrollable as any).__journeyElasticOverscrollHandlers;
+        if (contentElasticHandlers) {
+          try { scrollable.removeEventListener('touchstart', contentElasticHandlers.start); } catch {}
+          try { scrollable.removeEventListener('touchmove', contentElasticHandlers.move); } catch {}
+          try { scrollable.removeEventListener('touchend', contentElasticHandlers.end); } catch {}
+          try { scrollable.removeEventListener('touchcancel', contentElasticHandlers.end); } catch {}
+          try {
+            if (contentElasticHandlers.releaseTimer) window.clearTimeout(contentElasticHandlers.releaseTimer);
+          } catch {}
+          delete (scrollable as any).__journeyElasticOverscrollHandlers;
+        }
+
+        scrollable.style.touchAction = 'pan-y';
+        scrollable.style.pointerEvents = '';
+        scrollable.style.overflow = 'auto';
+        scrollable.style.overflowY = 'auto';
+        scrollable.style.overflowX = 'hidden';
+        scrollable.style.webkitOverflowScrolling = 'touch';
+        scrollable.style.removeProperty('transform');
+        scrollable.style.removeProperty('transition');
+        scrollable.style.removeProperty('will-change');
+
+        if (journeyScreen) {
+          journeyScreen.style.pointerEvents = '';
+        }
+        if (journeyContainer) {
+          try { gsap.killTweensOf(journeyContainer); } catch {}
+          journeyContainer.style.pointerEvents = 'auto';
+          journeyContainer.style.removeProperty('transform');
+          journeyContainer.style.removeProperty('transition');
+          journeyContainer.style.removeProperty('will-change');
+        }
+
+        const computed = window.getComputedStyle(scrollable);
+        console.info('🧪 JourneyScrollDirectReturn restored', {
+          context,
+          phase,
+          lockFlag: (window as any).__ccJourneyViewportTransitionLocked === true,
+          removedScreenElastic: !!screenElasticHandlers,
+          removedContentElastic: !!contentElasticHandlers,
+          touchAction: computed.touchAction,
+          overflowY: computed.overflowY,
+          pointerEvents: computed.pointerEvents,
+          scrollTop: scrollable.scrollTop,
+          scrollHeight: scrollable.scrollHeight,
+          clientHeight: scrollable.clientHeight,
+        });
+      } catch (error) {
+        logger.warn('⚠️ Failed to restore Journey scroll after direct detail return:', String(error));
+      }
+    };
+
     delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
     delete (window as any).__ccDirectDetailModalReturnActive;
 
@@ -3120,6 +3197,7 @@ class JourneyBoardsManager {
       const worldId = this.journeyV700WorldId;
       this.updateJourneyV700Nav('world', worldId);
       this.playJourneyV700NavEnter();
+      restoreDirectDetailReturnScroll('preserve-world-before-enter');
       this.trackTimeout(() => {
         if (!isCurrentDetailReturn()) {
           this.logJourneyV700Flow('detail-modal-return-world-enter-skipped-stale', {
@@ -3141,6 +3219,10 @@ class JourneyBoardsManager {
         if (activeBoardId) {
           this.clearLastActiveJourneyBoardAreaId(activeBoardId);
         }
+        restoreDirectDetailReturnScroll('preserve-world-after-enter-start');
+        [180, 420, 900].forEach((delayMs) => {
+          this.trackTimeout(() => restoreDirectDetailReturnScroll(`preserve-world-settled-${delayMs}ms`), delayMs);
+        });
       }, 40);
       return;
     }
@@ -5182,7 +5264,7 @@ class JourneyBoardsManager {
     // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
     this.renderBoardsFixed(container);
     this.applyJourneyV700WorldScope(container, this.journeyV700WorldId);
-    this.installJourneyScreenElasticOverscroll(container);
+    this.cleanupJourneyScreenElasticOverscroll();
   }
 
   private setJourneyV700View(view: 'hub' | 'world', worldId: number | null = null): void {
@@ -5574,6 +5656,8 @@ class JourneyBoardsManager {
     const range = this.getJourneyWorldRange(worldId);
     const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
     const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
+    const forestExtraDownPx = worldId === 1 ? JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX : 0;
+    const forestExtraDownPercent = (forestExtraDownPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
     if (!range) {
       this.logJourneyV700Flow('world-scope-missing-range', { worldId }, container);
       return;
@@ -5609,7 +5693,7 @@ class JourneyBoardsManager {
       element.style.display = '';
       const rawTop = parseFloat(element.style.top || '0');
       if (Number.isFinite(rawTop)) {
-        element.style.top = `${rawTop - worldOffsetPercent}%`;
+        element.style.top = `${rawTop - worldOffsetPercent + forestExtraDownPercent}%`;
       }
     };
 
@@ -5625,7 +5709,7 @@ class JourneyBoardsManager {
       wrapper.style.display = '';
       const rawTop = parseFloat(wrapper.style.top || '0');
       if (Number.isFinite(rawTop)) {
-        wrapper.style.top = `${rawTop - worldOffsetPx}px`;
+        wrapper.style.top = `${rawTop - worldOffsetPx + forestExtraDownPx}px`;
       }
     });
 

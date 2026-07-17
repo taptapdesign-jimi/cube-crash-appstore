@@ -202,6 +202,136 @@ function restoreJourneyReturnScrollPosition(reason: string): void {
   }
 }
 
+function restoreJourneyScrollableInteractivity(reason: string, unlockViewport = true): void {
+  try {
+    if (unlockViewport) {
+      unlockJourneyViewportTransition(reason);
+    }
+    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    if (!scrollable) return;
+
+    const screen = document.getElementById('journey-screen') as HTMLElement | null;
+    const journeyContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const screenElasticHandlers = (scrollable as any).__journeyScreenElasticHandlers;
+    if (screenElasticHandlers) {
+      try { scrollable.removeEventListener('touchstart', screenElasticHandlers.start); } catch {}
+      try { scrollable.removeEventListener('touchmove', screenElasticHandlers.move); } catch {}
+      try { scrollable.removeEventListener('touchend', screenElasticHandlers.end); } catch {}
+      try { scrollable.removeEventListener('touchcancel', screenElasticHandlers.end); } catch {}
+      try { scrollable.removeEventListener('scroll', screenElasticHandlers.lockX); } catch {}
+      try {
+        if (screenElasticHandlers.releaseTimer) window.clearTimeout(screenElasticHandlers.releaseTimer);
+        if (screenElasticHandlers.releaseTween) screenElasticHandlers.releaseTween.kill?.();
+      } catch {}
+      delete (scrollable as any).__journeyScreenElasticHandlers;
+    }
+
+    const contentElasticHandlers = (scrollable as any).__journeyElasticOverscrollHandlers;
+    if (contentElasticHandlers) {
+      try { scrollable.removeEventListener('touchstart', contentElasticHandlers.start); } catch {}
+      try { scrollable.removeEventListener('touchmove', contentElasticHandlers.move); } catch {}
+      try { scrollable.removeEventListener('touchend', contentElasticHandlers.end); } catch {}
+      try { scrollable.removeEventListener('touchcancel', contentElasticHandlers.end); } catch {}
+      try {
+        if (contentElasticHandlers.releaseTimer) window.clearTimeout(contentElasticHandlers.releaseTimer);
+      } catch {}
+      delete (scrollable as any).__journeyElasticOverscrollHandlers;
+    }
+
+    scrollable.style.touchAction = 'pan-y';
+    scrollable.style.pointerEvents = '';
+    scrollable.style.removeProperty('transform');
+    scrollable.style.removeProperty('transition');
+    scrollable.style.removeProperty('will-change');
+    scrollable.style.overscrollBehavior = '';
+    scrollable.style.overscrollBehaviorY = '';
+    scrollable.style.webkitOverflowScrolling = 'touch';
+    scrollable.style.overflow = 'auto';
+    scrollable.style.overflowY = 'auto';
+    scrollable.style.overflowX = 'hidden';
+
+    if (screen) {
+      screen.style.pointerEvents = '';
+    }
+    if (journeyContainer) {
+      try { gsap.killTweensOf(journeyContainer); } catch {}
+      journeyContainer.style.removeProperty('transform');
+      journeyContainer.style.removeProperty('transition');
+      journeyContainer.style.removeProperty('will-change');
+      journeyContainer.style.pointerEvents = 'auto';
+    }
+
+    const body = document.body as HTMLElement;
+    const html = document.documentElement as HTMLElement;
+    if ((body as any)._originalTouchAction !== undefined) {
+      body.style.touchAction = (body as any)._originalTouchAction;
+      delete (body as any)._originalTouchAction;
+    }
+    if ((html as any)._originalTouchAction !== undefined) {
+      html.style.touchAction = (html as any)._originalTouchAction;
+      delete (html as any)._originalTouchAction;
+    }
+
+    if (!(scrollable as any).__ccJourneyScrollProbeInstalled) {
+      let probeStartY = 0;
+      let probeStartScrollTop = 0;
+      const onProbeStart = (event: TouchEvent) => {
+        if (event.touches.length !== 1) return;
+        probeStartY = event.touches[0].clientY;
+        probeStartScrollTop = scrollable.scrollTop;
+      };
+      const onProbeMove = (event: TouchEvent) => {
+        if (event.touches.length !== 1) return;
+        const dy = Math.round(event.touches[0].clientY - probeStartY);
+        if (Math.abs(dy) < 18) return;
+        const target = event.target as HTMLElement | null;
+        const computedNow = window.getComputedStyle(scrollable);
+        logger.info('🧪 JourneyScrollProbe touchmove', {
+          dy,
+          startScrollTop: probeStartScrollTop,
+          currentScrollTop: scrollable.scrollTop,
+          defaultPrevented: event.defaultPrevented,
+          cancelable: event.cancelable,
+          targetTag: target?.tagName || null,
+          targetClass: target?.className || null,
+          lockFlag: (window as any).__ccJourneyViewportTransitionLocked === true,
+          lockReason: (window as any).__ccJourneyViewportTransitionLockReason || null,
+          screenElastic: !!(scrollable as any).__journeyScreenElasticHandlers,
+          contentElastic: !!(scrollable as any).__journeyElasticOverscrollHandlers,
+          touchAction: computedNow.touchAction,
+          overflowY: computedNow.overflowY,
+          pointerEvents: computedNow.pointerEvents,
+          scrollHeight: scrollable.scrollHeight,
+          clientHeight: scrollable.clientHeight,
+        });
+      };
+      scrollable.addEventListener('touchstart', onProbeStart, { passive: true, capture: true });
+      scrollable.addEventListener('touchmove', onProbeMove, { passive: true, capture: true });
+      (scrollable as any).__ccJourneyScrollProbeInstalled = true;
+      (scrollable as any).__ccJourneyScrollProbeHandlers = { start: onProbeStart, move: onProbeMove };
+    }
+
+    const computed = window.getComputedStyle(scrollable);
+    logger.info('🧪 JourneyScrollRestore', {
+      reason,
+      unlockViewport,
+      hadViewportLock: (window as any).__ccJourneyViewportTransitionLocked === true,
+      removedScreenElastic: !!screenElasticHandlers,
+      removedContentElastic: !!contentElasticHandlers,
+      inlineTouchAction: scrollable.style.touchAction,
+      computedTouchAction: computed.touchAction,
+      inlineOverflowY: scrollable.style.overflowY,
+      computedOverflowY: computed.overflowY,
+      pointerEvents: computed.pointerEvents,
+      scrollTop: scrollable.scrollTop,
+      scrollHeight: scrollable.scrollHeight,
+      clientHeight: scrollable.clientHeight,
+    });
+  } catch (error) {
+    logger.warn('⚠️ Failed to restore Journey scroll interactivity:', String(error));
+  }
+}
+
 function playJourneySoftCartoonBounce(target: HTMLElement | null): void {
   if (!target) return;
 
@@ -1068,20 +1198,7 @@ class CollectiblesManager {
       // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
       // This fixes broken scroll when returning from game
       setTimeout(() => {
-        const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
-        if (scrollable) {
-          // Force enable scrolling
-          scrollable.style.touchAction = 'pan-y';
-          scrollable.style.pointerEvents = '';
-          setupJourneyContentElasticOverscroll(scrollable);
-          if (scrollable.style.overflow === 'hidden') {
-            scrollable.style.overflow = 'auto';
-          }
-          if (scrollable.style.overflowY === 'hidden') {
-            scrollable.style.overflowY = 'auto';
-          }
-          logger.info('✅ Journey screen scroll enabled');
-        }
+        restoreJourneyScrollableInteractivity('showCollectibles-scroll-enable-timeout', false);
       }, 100);
     } else {
       // This is Collectibles screen - render collectibles
@@ -1261,6 +1378,20 @@ class CollectiblesManager {
                     startActiveAreaEnter('viewport-enter-overlap');
                   }, JOURNEY_ACTIVE_AREA_ENTER_OVERLAP_DELAY_MS);
                 }
+                const restoreScrollAfterEnter = (source: string): void => {
+                  restoreJourneyScrollableInteractivity(source);
+                  if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
+                    restoreJourneyReturnScrollPosition(`${source}-restore-scroll`);
+                  }
+                  [180, 420, 900].forEach((delayMs) => {
+                    window.setTimeout(() => {
+                      restoreJourneyScrollableInteractivity(`${source}-settled-${delayMs}ms`);
+                      if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
+                        restoreJourneyReturnScrollPosition(`${source}-settled-${delayMs}ms-restore-scroll`);
+                      }
+                    }, delayMs);
+                  });
+                };
                 enterPromise.then(() => {
                   if (!shouldPlayActiveBoardAreaEnter && !shouldUseV700WorldReturnEnter) {
                     activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
@@ -1268,6 +1399,7 @@ class CollectiblesManager {
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-complete-fallback');
                   }
+                  restoreScrollAfterEnter('journey-enter-complete');
                 }).catch((error) => {
                   logger.warn('⚠️ Journey viewport enter completion failed:', String(error));
                   if (shouldUseV700WorldReturnEnter) {
@@ -1279,13 +1411,18 @@ class CollectiblesManager {
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-error-fallback');
                   }
+                  restoreScrollAfterEnter('journey-enter-error');
                 });
               }).catch((error) => {
-                animateCollectiblesScreenEnter();
+                Promise.resolve(animateCollectiblesScreenEnter()).finally(() => {
+                  restoreJourneyScrollableInteractivity('journey-manager-import-error');
+                });
                 logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));
               });
             } else {
-              animateCollectiblesScreenEnter();
+              Promise.resolve(animateCollectiblesScreenEnter()).finally(() => {
+                restoreJourneyScrollableInteractivity('collectibles-enter-complete');
+              });
             }
           });
         }).catch((error) => {
@@ -1296,6 +1433,7 @@ class CollectiblesManager {
           (screen as HTMLElement).style.opacity = '1';
           (screen as HTMLElement).style.visibility = 'visible';
           (screen as HTMLElement).style.willChange = 'auto';
+          restoreJourneyScrollableInteractivity('journey-enter-import-fallback');
         });
       });
 
@@ -1409,6 +1547,7 @@ class CollectiblesManager {
       (screen as HTMLElement).style.zIndex = '999999';
       screen.classList.add('show');
       screen.removeAttribute('hidden');
+      restoreJourneyScrollableInteractivity('showCollectibles-enter-catch-fallback');
 
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
