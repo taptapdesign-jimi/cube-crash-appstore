@@ -4944,6 +4944,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const blendMode      = options.blendMode ?? 'add';
   const bubbleAlpha    = options.baseAlpha ?? 1.0;
   const bubbleColor    = options.color ?? options.bubbleColor ?? 0xFFFFFF;
+  const bubbleColors   = Array.isArray(options.colors) && options.colors.length > 0
+    ? options.colors.filter((color) => Number.isFinite(color))
+    : null;
   const haloColor      = options.haloColor ?? bubbleColor;
   const startScaleHint = options.startScale ?? null;
   const sizeBoostChance = options.sizeBoostChance ?? 0;
@@ -5020,13 +5023,16 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       
       // Random opacity variation
       const randomAlpha = bubbleAlpha * (0.7 + Math.random() * 0.6); // 70-130% of base alpha
+      const puffColor = bubbleColors?.length
+        ? bubbleColors[Math.floor(Math.random() * bubbleColors.length)]
+        : bubbleColor;
       
       if (isEllipse) {
         // Ellipse shape for variety
-        puff.ellipse(0, 0, rx, ry).fill({ color: bubbleColor, alpha: randomAlpha });
+        puff.ellipse(0, 0, rx, ry).fill({ color: puffColor, alpha: randomAlpha });
       } else {
         // Circle shape
-        puff.circle(0, 0, rx).fill({ color: bubbleColor, alpha: randomAlpha });
+        puff.circle(0, 0, rx).fill({ color: puffColor, alpha: randomAlpha });
       }
       
       puff.alpha = 0.0;
@@ -5137,7 +5143,11 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
 export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = {}){
   if (!board || !tile) return;
   
-  const count = Math.floor(19 + Math.random() * 11); // 19-30 particles (30% more: 14-23 -> 19-30)
+  // Strength now controls density. Desktop's established 0.7 call preserves the
+  // original 19–30 range; touch can request a lighter pooled trail instead of
+  // disabling this feedback completely.
+  const densityScale = Math.max(0.2, Math.min(1.4, strength / 0.7));
+  const count = Math.max(4, Math.floor((19 + Math.random() * 11) * densityScale));
   const { x, y } = centerInBoard(board, tile, tileSize);
   
   for (let i = 0; i < count; i++) {

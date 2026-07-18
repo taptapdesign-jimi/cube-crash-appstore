@@ -6351,6 +6351,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
     if (wildActive) clearWildState(dst);
 
+    // Contact feedback belongs to pointer release. Start it as soon as the stack
+    // visual/value is committed, while the source tile continues its short absorb
+    // motion independently. Waiting for that tween's onComplete made the board feel
+    // as though it reacted after the player's finger had already left the screen.
+    if (!wildActive) {
+      playRegularMergeContactPresentation(dst, src);
+    }
+
     // 2. Rotation and overlay for all stack layers (each rotates opposite to previous)
     if (srcDepth > 1 && dst.stackG && dst.stackG.children.length > 0) {
       let previousDirection = 0; // Start with no direction
@@ -6935,8 +6943,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (!isWildTntMergeNow) {
             smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
           }
-        } else {
-          playRegularMergeContactPresentation(dst, src);
         }
 
         // countdown moves
@@ -12633,17 +12639,32 @@ function playRegularMergeContactPresentation(targetTile: any, sourceTile: any): 
   playStackLayerClick(targetTile);
   playMergeImpactAndAbsorbAnimation(targetTile);
   playNeighborMergeRecoil(targetTile, sourceTile);
+  const reducedFx = isBoardFxReduced();
   smokeBubblesAtTile(board, targetTile, TILE, 0.72, {
     behind: true,
-    baseAlpha: 0.42,
-    sizeScale: 0.48,
-    distanceScale: 0.345,
-    countScale: 0.36,
-    ttl: 0.192,
-    durationScale: 0.48,
+    // Warm, normal-blended dust stays readable on the light paper/board. The
+    // previous white additive puff disappeared visually even though it existed.
+    color: 0xD5B28B,
+    colors: [0xC99E72, 0xD8B58D, 0xF3E5D2, 0xFFF9EE],
+    haloColor: 0xE4C7A4,
+    blendMode: 'normal',
+    baseAlpha: reducedFx ? 0.52 : 0.68,
+    trailAlpha: reducedFx ? 0.48 : 0.68,
+    sizeScale: reducedFx ? 0.38 : 0.44,
+    sizeBoostChance: reducedFx ? 0.16 : 0.28,
+    sizeBoostScale: reducedFx ? 1.14 : 1.26,
+    distanceScale: reducedFx ? 0.4 : 0.54,
+    countScale: reducedFx ? 0.18 : 0.28,
+    bursts: reducedFx ? 3 : 3,
+    burstGap: 0.022,
+    ttl: 0.55,
+    durationScale: reducedFx ? 0.62 : 0.78,
+    haloAlpha: 0.28,
+    haloScale: 0.72,
     fxTag: 'stack-smoke',
-    blendMode: 'add',
-    spawnShape: 'box',
+    // Side emission reads as dust escaping from underneath the landed stack.
+    spawnShape: 'edges',
+    spread: 1.1,
   });
 }
 

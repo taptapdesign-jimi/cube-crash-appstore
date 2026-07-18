@@ -1025,9 +1025,10 @@ export function initDrag(cfg) {
       // The updateMagnet function is already called below for the target tile
       // This provides the same gentle magnetic pull effect as wild tiles
       // No need for custom strong pull - updateMagnet handles it perfectly
-    } else if (!shouldSuppressDragDecorativeFx()) {
+    } else if (!shouldSuppressDragDecorativeFx() || !isAnyWildTile(t)) {
       // Trails: juice wild gets bubbles; others get smoke
-      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms
+      const smokeIntervalMs = shouldUseTouchDragPerformanceMode() ? 170 : 120;
+      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > smokeIntervalMs) {
         try {
           // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
           // This ensures particles appear behind the tile when dragging
@@ -1037,8 +1038,10 @@ export function initDrag(cfg) {
           // 🔥 USER REQUEST: Wild juice uses same particles as wild star (no bubbles, only magicSparklesAtTile)
           // Removed dragJuiceBubbleTrail - wild juice now uses only magicSparklesAtTile particles like wild star
           if (t.special !== 'wild-juice' && t.special !== 'wild-tnt' && t.special !== 'wild') {
-            // Only non-wild tiles use dragSmokeTrail
-            dragSmokeTrail(board, t, 96, 0.7, { zIndex: particlesZ });
+            // Keep the tactile smoke identity on touch/iPhone, but emit a much lighter
+            // pooled trail there so it does not undo the drag frame-budget work.
+            const smokeStrength = shouldUseTouchDragPerformanceMode() ? 0.24 : 0.7;
+            dragSmokeTrail(board, t, 96, smokeStrength, { zIndex: particlesZ });
           }
           // Wild and wild-juice use only magicSparklesAtTile (no additional bubbles or smoke)
           drag._lastSmokeTime = now;
