@@ -10,6 +10,7 @@ import { applyPaperBackground } from './ui-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
 import { beginBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.js';
+import { startIOSJourneyPerformanceAudit } from '../utils/ios-journey-performance-audit.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -374,6 +375,7 @@ function stopMemSampling(label: string): void {
 export async function showBoardTransitionScreen(options: BoardTransitionOptions): Promise<void> {
   const { boardNumber, onComplete, hideForest = false, displayText } = options;
   beginBoardLifecycleTrace('board-transition', boardNumber);
+  startIOSJourneyPerformanceAudit(boardNumber);
   markBoardLifecycle('transition-start');
 
   // 🔥 CRITICAL FIX: Validate boardNumber

@@ -95,6 +95,7 @@ import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createPopInRunner } from './app-core-popin-delay.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
+import { markMergePerformance } from '../utils/merge-performance.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
@@ -5988,6 +5989,7 @@ async function spawnWildFromMeter(){
 // 🔥 v112: pickWildValue moved to app-core-utils.ts
 // Imported: pickWildValue
 function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
+  markMergePerformance('merge-handler-start');
   const __replayToken = replayRecorder.beginStep('merge', {
     src: src ? { gridX: src.gridX, gridY: src.gridY, value: src.value, special: src.special } : null,
     dst: dst ? { gridX: dst.gridX, gridY: dst.gridY, value: dst.value, special: dst.special } : null,
@@ -6356,6 +6358,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // motion independently. Waiting for that tween's onComplete made the board feel
     // as though it reacted after the player's finger had already left the screen.
     if (!wildActive) {
+      markMergePerformance('stack-contact');
       playRegularMergeContactPresentation(dst, src);
     }
 
@@ -6538,6 +6541,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     trackTween(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
+        markMergePerformance('source-absorbed');
         // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
         // This ensures data is available even if dst tile became merge 6 and lost _wildStarSystem
         const savedStarPositionsSmall = savedStarPositionsEarly.length > 0 ? savedStarPositionsEarly : [];

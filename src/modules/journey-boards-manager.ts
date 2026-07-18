@@ -3352,9 +3352,18 @@ class JourneyBoardsManager {
         if (!Number.isFinite(boardId)) return;
 
         const board = this.boards.find((item) => item.id === boardId);
-        if (board?.unlocked === true && board?.interim !== true) {
+        const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+        const journeyIsVisible = !!journeyScreen
+          && !journeyScreen.hidden
+          && !journeyScreen.classList.contains('hidden')
+          && journeyScreen.style.display !== 'none'
+          && getComputedStyle(journeyScreen).display !== 'none';
+
+        if (board?.unlocked === true && board?.interim !== true && journeyIsVisible && !this.renderDisposed) {
           this.renderBoards();
           logger.info(`🏆 Journey map refreshed for board ${boardId} high score update`);
+        } else if (board?.unlocked === true && board?.interim !== true) {
+          logger.info(`⏭️ Journey map refresh deferred while hidden for board ${boardId}`);
         }
         
         const modal = document.getElementById('collectibles-detail-modal');
@@ -4738,6 +4747,17 @@ class JourneyBoardsManager {
           particle.parentNode.removeChild(particle);
         }
       });
+
+      // A hidden Journey tree must not retain compositor layers or async GSAP work while
+      // Pixi gameplay is active. Clean every descendant, including world-specific art
+      // that is not covered by the legacy card/smoke selectors above.
+      const journeyDescendants = Array.from(journeyScreen.querySelectorAll<HTMLElement>('*'));
+      if (typeof gsap !== 'undefined' && journeyDescendants.length > 0) {
+        try { gsap.killTweensOf(journeyDescendants); } catch {}
+      }
+      journeyDescendants.forEach((element) => {
+        element.style.removeProperty('will-change');
+      });
       
       logger.info(`✅ Killed GSAP tweens for ${cards.length} cards, stopped shimmer on ${interimCards.length} interim cards, and removed ${smokeParticles.length} smoke particles`);
     }
@@ -4768,6 +4788,11 @@ class JourneyBoardsManager {
       }
       if (cardsContainer && cardsContainer.parentNode) {
         cardsContainer.parentNode.removeChild(cardsContainer);
+      }
+
+      const journeyBoardsContainer = journeyScreen.querySelector('#journey-boards-container') as HTMLElement | null;
+      if (journeyBoardsContainer) {
+        journeyBoardsContainer.replaceChildren();
       }
     }
     

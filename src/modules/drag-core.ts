@@ -16,6 +16,7 @@ import { canStartTileDrag } from './input-gate.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
 import { completeBoardLifecycleTrace } from '../utils/board-lifecycle-performance.ts';
+import { beginMergePerformanceTrace } from '../utils/merge-performance.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -1543,6 +1544,18 @@ export function initDrag(cfg) {
     restoreZ(t);
     
     // Wild-juice bubbles explosion is triggered centrally in app-core effSum === 6 flow.
+    const sourceSpecial = getTileSpecial(t);
+    const targetSpecial = getTileSpecial(target);
+    const isWildMerge = !!sourceSpecial || !!targetSpecial;
+    const regularSum = (t.value | 0) + (target.value | 0);
+    beginMergePerformanceTrace({
+      kind: isWildMerge ? 'wild-merge' : (regularSum === 6 ? 'regular-merge6' : 'regular-stack'),
+      sourceValue: t.value | 0,
+      targetValue: target.value | 0,
+      sourceSpecial,
+      targetSpecial,
+      rendererResolution: Number(app?.renderer?.resolution || 1),
+    });
     
     onMerge?.(t, target, helpers);
   }
