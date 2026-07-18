@@ -19,6 +19,8 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+const trackFromTo = (target: any, fromVars: any, toVars: any) =>
+  animationManager.trackExternalTween(gsap.fromTo(target, fromVars, toVars));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 const __tntIdleTiles = new Set<any>();
 const __tntIdleParticles = new Set<any>();
@@ -4830,7 +4832,7 @@ export function landBounce(tile, opts = {}){
   // 1) instant pre-impact micro-squash (feels like weight)
   // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
   if (g && typeof g.rotation !== 'undefined') g.rotation = 0;
-  gsap.fromTo(
+  trackFromTo(
     g.scale,
     { x: sx * (1 + amp * 0.35), y: sy * (1 - amp * 0.6) },
     { x: sx * (1 - amp * 0.35), y: sy * (1 + amp), duration: 0.08, ease: 'power2.out' }
@@ -5553,7 +5555,7 @@ export function wildImpactEffect(tile, opts = {}) {
   // 1) Dramatic pre-impact anticipation (bigger shrink + tilt)
   // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
   if (g && typeof g.rotation !== 'undefined') g.rotation = 0;
-  gsap.fromTo(g.scale, 
+  trackFromTo(g.scale,
     { x: sx * 0.88, y: sy * 0.88 },
     { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.08, ease: 'power2.out' }
   );

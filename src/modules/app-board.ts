@@ -8,6 +8,7 @@ import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
 import { removeTileFully } from './tile-lifecycle-service.ts';
+import { markBoardLifecycle, startBoardLifecycleFrameWindow } from '../utils/board-lifecycle-performance.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -186,6 +187,8 @@ export function rebuildBoard(): void {
 
 // Fun bouncy animation with smart optimization
 export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promise<void> {
+  markBoardLifecycle('popin-start');
+  const stopPopInFrameWindow = startBoardLifecycleFrameWindow('popin');
   const sourceTiles = [...listTiles];
   const popInPlan = createBoardPopInPlan(sourceTiles.length);
   const list = popInPlan.map((step) => sourceTiles[step.tileIndex]);
@@ -246,6 +249,8 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
         list.forEach(forceTileFinalState);
       }
       try { drawBoardBG(); } catch {}
+      stopPopInFrameWindow();
+      markBoardLifecycle(forced ? 'popin-forced-complete' : 'popin-complete');
       resolve();
     };
 

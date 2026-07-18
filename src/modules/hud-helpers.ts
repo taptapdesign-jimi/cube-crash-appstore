@@ -92,7 +92,7 @@ function playPixiSoftCartoonBounce(target: any): void {
     gsap.killTweensOf(visualTarget.scale);
     visualTarget.scale.set(baseScaleX, baseScaleY);
 
-    const tl = gsap.timeline({
+    const tl = trackTimeline({
       onComplete: () => {
         visualTarget._softBounceActive = false;
         if (!visualTarget.destroyed) visualTarget.scale.set(baseScaleX, baseScaleY);
@@ -584,8 +584,7 @@ export function updateBoardIndicatorValueWithBounce(boardNumber) {
     gsap.killTweensOf(indicator);
     gsap.set(indicator, { y: 0, opacity: 1 });
     gsap.set(boardIndicatorLabel, { scale: 0.88, y: 8, transformOrigin: 'center center' });
-    const timeline = gsap.timeline();
-    animationManager.trackExternalTimeline(timeline);
+    const timeline = trackTimeline();
     timeline
       .to(boardIndicatorLabel, {
         scale: 1.13,

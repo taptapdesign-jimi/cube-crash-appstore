@@ -52,6 +52,18 @@ test('post-magnet resolution asks central level-end check for stuck unlocked til
   expect(result.reason).toBe('stuck-unlocked-tiles');
 });
 
+test('post-magnet resolution detects the reported 4 + 3 arcade residue as no-moves', () => {
+  const result = resolvePostMagnetEndgameAction({
+    tiles: [tile({ value: 4 }), tile({ value: 3 })],
+    anyMergePossible: () => false,
+    spawnCount: 2,
+  });
+
+  expect(result.action).toBe('check-level-end');
+  expect(result.reason).toBe('stuck-unlocked-tiles');
+  expect(result.activeTiles.map(activeTile => activeTile.value)).toEqual([4, 3]);
+});
+
 test('post-magnet playable filter ignores locked regular tiles but keeps locked wild dice', () => {
   expect(isPlayablePostMagnetTile(tile({ value: 4, locked: true }))).toBe(false);
   expect(isPlayablePostMagnetTile(tile({ value: 0, locked: true, special: 'wild-juice' }))).toBe(true);

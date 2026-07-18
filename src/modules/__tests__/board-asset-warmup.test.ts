@@ -32,4 +32,15 @@ describe('board asset warmup scope', () => {
 
     expect(assets.some((asset) => asset.includes('journey assets/bottom'))).toBe(false);
   });
+
+  test('warms canonical Pixi textures and only the matching ghost resolution', () => {
+    const assets = getBoardGameWarmupAssets('arcade', 1, 3);
+
+    expect(assets).toContain('./assets/tile.png');
+    expect(assets).not.toContain('./assets/tile@2x.png');
+    expect(assets).not.toContain('./assets/tile@3x.png');
+    expect(assets).toContain('./assets/ghost-placeholder@3x.png');
+    expect(assets).not.toContain('./assets/ghost-placeholder.png');
+    expect(assets).not.toContain('./assets/ghost-placeholder@2x.png');
+  });
 });

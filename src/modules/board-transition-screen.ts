@@ -9,6 +9,7 @@ import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { applyPaperBackground } from './ui-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
+import { beginBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -372,6 +373,8 @@ function stopMemSampling(label: string): void {
  */
 export async function showBoardTransitionScreen(options: BoardTransitionOptions): Promise<void> {
   const { boardNumber, onComplete, hideForest = false, displayText } = options;
+  beginBoardLifecycleTrace('board-transition', boardNumber);
+  markBoardLifecycle('transition-start');
 
   // 🔥 CRITICAL FIX: Validate boardNumber
   if (!Number.isFinite(boardNumber) || boardNumber < 1) {
@@ -433,6 +436,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       finished = true;
       try { sampleMemorySpike('4_transition_complete'); } catch {}
       stopMemSampling('finished');
+      markBoardLifecycle('transition-complete');
       resolve();
       try {
         onComplete();

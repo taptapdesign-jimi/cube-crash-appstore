@@ -15,6 +15,7 @@ import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special
 import { canStartTileDrag } from './input-gate.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
+import { completeBoardLifecycleTrace } from '../utils/board-lifecycle-performance.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -645,6 +646,7 @@ export function initDrag(cfg) {
       try { e?.preventDefault?.(); } catch {}
       return;
     }
+    completeBoardLifecycleTrace('first-input');
     
     // 🧲 MAGNETIC REACTION: No need to store original positions
     // updateMagnet function handles gentle pull automatically (same as wild tile)
@@ -2276,9 +2278,15 @@ export function initDrag(cfg) {
 
   // 🔥 FIX: Add cleanup function to remove all listeners and clear intervals
   // This should be called when app is destroyed to prevent memory leaks
-  function cleanup() {
+  function cleanup(options: { resumeIdle?: boolean } = {}) {
     clearDragRuntime();
-    resumeSpecialDiceIdleAfterDrag();
+    if (options.resumeIdle !== false) {
+      resumeSpecialDiceIdleAfterDrag();
+    } else {
+      drag._pausedSpecialIdleTiles.clear();
+    }
+    try { clearHover({ immediateMagnet: true }); } catch {}
+    try { releaseMagnet({ immediate: true }); } catch {}
     
     // Clear drag state
     drag.t = null;

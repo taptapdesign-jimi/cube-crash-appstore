@@ -95,6 +95,7 @@ import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createPopInRunner } from './app-core-popin-delay.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
+import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
 import { finalizeBoardVisibility } from './app-core-board-visibility.ts';
@@ -232,6 +233,9 @@ import {
 
 const trackTween = (target: gsap.TweenTarget, vars: gsap.TweenVars) =>
   animationManager.trackExternalTween(gsap.to(target, vars));
+
+const trackTimeline = (vars: gsap.TimelineVars = {}) =>
+  animationManager.trackExternalTimeline(gsap.timeline(vars));
 
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -1604,6 +1608,9 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
     typeof reason === 'string' &&
     (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
   const shouldClearPools = reason.includes('cleanupGame') || reason.includes('restartGame');
+  if (isNavCleanup || shouldClearPools) {
+    try { (drag as any)?.cleanup?.({ resumeIdle: false }); } catch {}
+  }
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
   try { cleanupAllTntIdleEffects?.(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
@@ -1966,7 +1973,17 @@ function installRuntimeTextureHooks() {
 function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: { clearTimeline?: boolean } = {}) {
   try {
     devLog(`🧹 GSAP cleanup (${label})...`);
+    const animationStatsBefore = animationManager.getStats();
     try { animationManager.killAll(); } catch {}
+    const animationStatsAfter = animationManager.getStats();
+    try {
+      (window as any).__ccLastAnimationCleanup = {
+        label,
+        before: animationStatsBefore,
+        after: animationStatsAfter,
+        at: Date.now(),
+      };
+    } catch {}
     
     // Kill UI element tweens
     gsap.killTweensOf('[data-wild-loader]');
@@ -2423,6 +2440,8 @@ async function showMysteryPrize(){
 
 // -------------------- boot --------------------
 export async function boot(){
+  ensureBoardLifecycleTrace('direct-board-boot');
+  markBoardLifecycle('boot-start');
   devLog('🎮 Initializing PIXI app');
   // 🔥 CRITICAL: Start loading Baloo2 font early - HUD text shows black boxes if font isn't ready
   ensureFonts().catch(() => {});
@@ -3588,11 +3607,14 @@ export async function boot(){
     
     devLog(`📄 Board game paper background RE-APPLIED as fallback: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   }, 100); // 100ms delay to ensure it runs after all other code
+  markBoardLifecycle('boot-complete');
 }
 
 // -------------------- layout + HUD --------------------
 // 🔥 REFACTORED: Preimenovano za jasnoću - ovo je board layout, ne HUD layout
 export async function layoutBoard(){
+  ensureBoardLifecycleTrace('direct-board-layout');
+  markBoardLifecycle('layout-start');
   const { w, h} = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
@@ -3944,6 +3966,7 @@ export async function layoutBoard(){
       devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
   }
+  markBoardLifecycle('layout-complete');
 }
 
 // 🔥 v112: Utility functions moved to app-core-utils.ts
@@ -5552,7 +5575,7 @@ function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number
       const dir = Math.random() < 0.5 ? 1 : -1;
       t.scale?.set?.(0.30, 0.30);
       const delay = index * 150;
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         delay: delay / 1000,
         onComplete: () => {
           if (!t || t.destroyed) return;
@@ -5574,7 +5597,7 @@ function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number
         .to(t.scale, { x: 0.96, y: 0.96,  duration: 0.10, ease: 'power2.inOut' })
         .to(t.scale, { x: 1.02, y: 1.02,  duration: 0.10, ease: 'power2.out' })
         .to(t.scale, { x: 1.00, y: 1.00,  duration: 0.12, ease: 'back.out(2)' });
-      gsap.timeline({ delay: delay / 1000 })
+      trackTimeline({ delay: delay / 1000 })
         .to(trg, { rotation:  0.035*dir,      duration: 0.10, ease: 'power2.out' })
         .to(trg, { rotation: -0.035*0.6*dir,  duration: 0.12, ease: 'power2.out' })
         .to(trg, { rotation:  0,              duration: 0.14, ease: 'power2.out' });
@@ -8856,7 +8879,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               try { gsap.killTweensOf(tile); } catch {}
               gsap.set(tile, { x: origX, y: origY, zIndex: 320 });
               try { board?.sortChildren?.(); } catch {}
-              gsap.timeline({
+              trackTimeline({
                 onComplete: finishBlastTile,
                 onInterrupt: finishBlastTile
               })
@@ -8949,7 +8972,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     const wobbleDur = 0.7 + Math.random() * 0.5;
                     const wobbleElastic = 0.35 + Math.random() * 0.2;
 
-                    gsap.to(tile, {
+                    trackTween(tile, {
                       x: blastX,
                       y: blastY,
                       duration: blastDuration,
@@ -8957,7 +8980,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       overwrite: 'auto'
                     });
 
-                    const wobble = gsap.to(tile, {
+                    const wobble = trackTween(tile, {
                       x: blastX + (Math.random() - 0.5) * wobbleAmp,
                       y: blastY + (Math.random() - 0.5) * wobbleAmp,
                       duration: wobbleDur,
@@ -9007,7 +9030,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     pending += 1;
                     maxReturnDuration = Math.max(maxReturnDuration, h.returnDuration);
                     try { h.wobble.kill(); } catch {}
-                    gsap.to(h.tile, {
+                    trackTween(h.tile, {
                       x: h.origX,
                       y: h.origY,
                       duration: h.returnDuration,
@@ -9110,7 +9133,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 markTileBoardBlastDisplacing(tile, origX, origY);
                 try { gsap.killTweensOf(tile); } catch {}
                 gsap.set(tile, { x: origX, y: origY });
-                gsap.to(tile, {
+                trackTween(tile, {
                   x: blastX,
                   y: blastY,
                   duration: magnetBlastDuration,
@@ -9122,7 +9145,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const magnetReturnCall = trackDelayedCall(magnetReturnDelay + magnetBlastDuration, () => {
                 magnetBlastHandles.forEach((h) => {
                   if (!h.tile.destroyed) {
-                    const retTween = gsap.to(h.tile, {
+                    const retTween = trackTween(h.tile, {
                       x: h.origX,
                       y: h.origY,
                       duration: magnetReturnDuration,
@@ -13307,6 +13330,10 @@ export function cleanupGame() {
   } catch (error) {
     devWarn('⚠️ Failed to stop/reset tile idle bounce:', error);
   }
+
+  // HUD owns independent tap-lock and delayed reset timers; clear those before
+  // destroying PIXI targets so no callback can touch a dead HUD after exit.
+  try { HUD.cleanupHudTimeouts?.(); } catch {}
   
   // CRITICAL: Update high score before cleanup using statsService
   try {

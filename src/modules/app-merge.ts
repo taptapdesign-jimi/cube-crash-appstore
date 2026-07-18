@@ -465,6 +465,17 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const endEndgameGuard = (window as any)?.CC?.endEndgameGuard;
   let endgameGuardActive = false;
   let shouldRunPostMagnetEndgameCheck = false;
+  let pendingPostGuardEndgameCheckSource: string | null = null;
+  const requestPostGuardEndgameCheck = (source: string): boolean => {
+    const checker = (window as any)?.CC?.checkLevelEnd;
+    if (typeof checker !== 'function') return false;
+    if (endgameGuardActive) {
+      pendingPostGuardEndgameCheckSource = source;
+      console.log(`🎯 Queued central endgame check until magnet guard release (${source})`);
+      return true;
+    }
+    return triggerCentralEndgameCheck(source);
+  };
   if (typeof beginEndgameGuard === 'function') {
     try {
       beginEndgameGuard(endgameGuardSource, 2200);
@@ -486,7 +497,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // decision.
   if (validTiles.length === 0 && dst && !dst.destroyed) {
     console.log('🧲 Wild Magnet Mode B: no pulled tiles - delegating to central endgame resolver');
-    triggerCentralEndgameCheck('magnet_no_pulled_tiles');
+    requestPostGuardEndgameCheck('magnet_no_pulled_tiles');
     return;
   }
   
@@ -1122,7 +1133,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const onlyDstRemainsAfterPull = remainingTilesCount === 1 && (activeTilesAfterPulledMerge[0] === dst || dstIsActive) && pulledCells.length === 0;
   if (onlyDstRemainsAfterPull) {
     console.log('🧲 Magnet merge appears to have only dst remaining - delegating to central endgame resolver');
-    triggerCentralEndgameCheck('magnet_only_dst_remains');
+    requestPostGuardEndgameCheck('magnet_only_dst_remains');
     return;
   }
   
@@ -1138,7 +1149,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         locked: t.locked,
       })),
     });
-    triggerCentralEndgameCheck('magnet_few_tiles_remaining');
+    requestPostGuardEndgameCheck('magnet_few_tiles_remaining');
     return;
   }
 
@@ -1258,7 +1269,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL FIX: NEVER call endgame check if we have tiles to respawn!
   // This was causing instant fail screen when magnet pulled tiles (e.g., magnet + 2 cubes)
   // because endgame check would see only merge 6 tile BEFORE new tiles spawned
-  if (shouldDelegateToCentralEndgame && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
+  if (shouldDelegateToCentralEndgame && requestPostGuardEndgameCheck('mergePulledTilesBeforeRespawn')) {
     console.log('🧲 mergePulledTilesIntoMerge6: Central endgame handled before respawn, skipping spawns.');
     return;
   }
@@ -1303,7 +1314,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
 
     // Keep the merge-6 tile visible. The centralized final handoff owns SWOOP wait,
     // residual tile/ghost pop-out, HUD/bottom exit, and cleanup.
-    if (triggerCentralEndgameCheck('magnet_final_merge6')) {
+    if (requestPostGuardEndgameCheck('magnet_final_merge6')) {
       console.log('✅ Magnet final merge-6 delegated to central endgame check');
     } else if (await triggerCentralCleanBoardFlow(FINAL_MERGE_REASONS.legacyMagnetFinalMerge6)) {
       console.log('✅ Clean board flow completed for magnet final merge-6 fallback');
@@ -2228,9 +2239,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     try { (window as any).updateGhostVisibility?.(); } catch {}
     // 🔥 UX FIX: STACK IT! hint is recomputed inside checkLevelEnd().
     // This branch previously returned early and could leave hint stale/hidden after magnet flows.
-    trackAppTimeout(() => {
-      try { triggerCentralEndgameCheck('mergePulledTiles_mergePotential_refresh'); } catch {}
-    }, 80);
+    pendingPostGuardEndgameCheckSource = 'mergePulledTiles_mergePotential_refresh';
     console.log('✅ Spawned tiles have merge/stack potential - game continues, NOT calling checkLevelEnd');
     return; // Don't call checkLevelEnd - let player merge/stack tiles
   }
@@ -2240,7 +2249,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // This handles the case where isBoardClean is true but isActuallyLastMerge is false (due to spawnCount > 0)
   if (postMagnetResolution.reason === 'clean-merge6-only') {
     console.log('🧲 Board is clean (only merge 6, no other tiles) and no merge potential - calling checkLevelEnd to trigger clean board flow');
-    triggerCentralEndgameCheck('mergePulledTiles_clean_merge6_only');
+    requestPostGuardEndgameCheck('mergePulledTiles_clean_merge6_only');
     return; // Exit early after triggering clean board flow
   }
   
@@ -2256,7 +2265,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (unlockedActiveTiles.length > 0) {
       // No merge/stack potential but we have unlocked tiles → call checkLevelEnd to check stuck and show fail screen
       console.log('🚨 No merge/stack potential with unlocked tiles - calling checkLevelEnd to check stuck and show fail screen');
-      triggerCentralEndgameCheck('mergePulledTiles_stuck_unlocked_tiles');
+      requestPostGuardEndgameCheck('mergePulledTiles_stuck_unlocked_tiles');
       return; // Exit early after triggering fail screen check
     } else if (hasAnyActiveTiles && activeTilesFinal.length >= 1) {
       // 🔥 CRITICAL FIX: Changed from > 1 to >= 1 to catch single tile stuck state
@@ -2264,7 +2273,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       // This handles Bug 2: all tiles remain locked after spawn, no merge potential
       // AND Bug: after player merges spawned tiles (1+1=2), only 1 tile remains that can't merge
       console.log('🚨 No merge/stack potential, tiles are locked OR only 1 tile remains - calling checkLevelEnd to check stuck and show fail screen');
-      triggerCentralEndgameCheck('mergePulledTiles_stuck_active_tiles');
+      requestPostGuardEndgameCheck('mergePulledTiles_stuck_active_tiles');
       return; // Exit early after triggering fail screen check
     }
   }
@@ -2291,17 +2300,18 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (endgameGuardActive && typeof endEndgameGuard === 'function') {
       try {
         endEndgameGuard(endgameGuardSource);
+        endgameGuardActive = false;
       } catch (error) {
         console.warn('⚠️ Failed to end endgame guard in mergePulledTilesIntoMerge6', error);
       }
     }
-    if (shouldRunPostMagnetEndgameCheck) {
-      trackAppTimeout(() => {
-        try { triggerCentralEndgameCheck('mergePulledTiles_postGuard_settle'); } catch {}
-      }, 180);
-      trackAppTimeout(() => {
-        try { triggerCentralEndgameCheck('mergePulledTiles_postGuard_safety'); } catch {}
-      }, 720);
+    const postGuardCheckSource = pendingPostGuardEndgameCheckSource
+      || (shouldRunPostMagnetEndgameCheck ? 'mergePulledTiles_postGuard_settle' : null);
+    if (postGuardCheckSource) {
+      // checkLevelEnd owns its own settle delay and transient-state retries. Invoke it once,
+      // only after this magnet transaction has released its guard; calling it before the
+      // release makes the checker defer and can leave NO MOVES waiting for the next drag.
+      triggerCentralEndgameCheck(postGuardCheckSource);
     }
   }
 }

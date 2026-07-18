@@ -23,59 +23,25 @@ export type BoardAssetWarmupOptions = {
 
 const CORE_BOARD_ASSETS = [
   ASSET_TILE,
-  './assets/tile@2x.png',
-  './assets/tile@3x.png',
   ASSET_NUMBERS,
-  './assets/tile_numbers@2x.png',
-  './assets/tile_numbers@3x.png',
   ASSET_NUMBERS2,
-  './assets/tile_numbers2@2x.png',
-  './assets/tile_numbers2@3x.png',
   ASSET_NUMBERS3,
-  './assets/tile_numbers3@2x.png',
-  './assets/tile_numbers3@3x.png',
   ASSET_NUMBERS4,
-  './assets/tile_numbers4@2x.png',
-  './assets/tile_numbers4@3x.png',
-  './assets/ghost-placeholder.png',
-  './assets/ghost-placeholder@2x.png',
-  './assets/ghost-placeholder@3x.png',
   ASSET_WILD,
-  './assets/wild@2x.png',
-  './assets/wild@3x.png',
   ASSET_WILD_MAGNET,
-  './assets/wild-magnet@2x.png',
-  './assets/wild-magnet@3x.png',
   ASSET_WILD_JUICE,
-  './assets/wild-juice@2x.png',
-  './assets/wild-juice@3x.png',
   ASSET_WILD_TNT,
-  './assets/shop/explosion pack/tnt@2x.png',
-  './assets/shop/explosion pack/tnt@3x.png',
-  './assets/small-star.png',
-  './assets/small-star@2x.png',
+  // Stars collector and wild-star runtime both try @3x first.
   './assets/small-star@3x.png',
 ] as const;
 
 const CORE_HUD_ASSETS = [
   './assets/close-icon.png',
-  './assets/close-icon@2x.png',
-  './assets/close-icon@3x.png',
   './assets/hud/star-hud.png',
-  './assets/hud/star-hud@2x.png',
-  './assets/hud/star-hud@3x.png',
   './assets/hud/score-hud.png',
-  './assets/hud/score-hud@2x.png',
-  './assets/hud/score-hud@3x.png',
   './assets/hud/combo-hud.png',
-  './assets/hud/combo-hud@2x.png',
-  './assets/hud/combo-hud@3x.png',
   './assets/hud/extra-combo-hud.png',
-  './assets/hud/extra-combo-hud@2x.png',
-  './assets/hud/extra-combo-hud@3x.png',
   './assets/hud/mega-combo-hud.png',
-  './assets/hud/mega-combo-hud@2x.png',
-  './assets/hud/mega-combo-hud@3x.png',
   './assets/hud/help.png',
 ] as const;
 
@@ -139,10 +105,21 @@ function getCachedTexture(assetPath: string): any {
   }
 }
 
-export function getBoardGameWarmupAssets(mode: BoardAssetWarmupMode, boardNumber?: number): string[] {
+function getGhostAssetForPixelRatio(pixelRatio: number): string {
+  if (pixelRatio >= 3) return './assets/ghost-placeholder@3x.png';
+  if (pixelRatio >= 2) return './assets/ghost-placeholder@2x.png';
+  return './assets/ghost-placeholder.png';
+}
+
+export function getBoardGameWarmupAssets(
+  mode: BoardAssetWarmupMode,
+  boardNumber?: number,
+  pixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+): string[] {
   const modeAssets = mode === 'journey' ? getJourneyBoardAssets(boardNumber) : [];
   return unique([
     ...CORE_BOARD_ASSETS,
+    getGhostAssetForPixelRatio(pixelRatio),
     ...CORE_HUD_ASSETS,
     ...modeAssets,
   ]);
