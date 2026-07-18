@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
 import * as makeBoard from './board.js';
+import { createBoardPopInPlan } from './board-popin-scheduler.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
@@ -21,7 +22,6 @@ interface SweetPopOptions {
   rate?: number;
   durationScale?: number;
 }
-const ENTRY_POPIN_HAPTIC_START_DELAY_MS = 200;
 
 function isFirstPlayTutorialDemoBoard(): boolean {
   return typeof window !== 'undefined' && (window as any).__ccFirstPlayTutorialActive === true;
@@ -186,22 +186,10 @@ export function rebuildBoard(): void {
 
 // Fun bouncy animation with smart optimization
 export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promise<void> {
-  const list = [...listTiles];
-  const isLoadPopInHaptics = (window as any).__ccLoadPopInHapticPerTile === true;
-  const isEntryPopInHaptics = (window as any).__ccEnterAnimationActive === true;
-  const loadPopInHapticCadence = Math.max(1, Number((window as any).__ccLoadPopInHapticCadence || 4) | 0);
-  const maxLoadPopInHaptics = 7;
-  let loadPopInHapticsSent = 0;
+  const sourceTiles = [...listTiles];
+  const popInPlan = createBoardPopInPlan(sourceTiles.length);
+  const list = popInPlan.map((step) => sourceTiles[step.tileIndex]);
 
-  // FULL random order — no spatial pattern
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = (Math.random() * (i + 1)) | 0;
-    [list[i], list[j]] = [list[j], list[i]];
-  }
-
-  // Tunables: jednako brzi kao "druga polovica" — sve brzo + divlji jitter
-  const stepMin = 0.020, stepMax = 0.030;         // 20–30ms per index (brže)
-  const jitterMax = 0.18;                         // do 180ms dodatnog jittera (wilder)
   const total = list.length || 1;
   const halfTotal = Math.ceil(total / 2); // 50% of tiles
   let halfFired = false;
@@ -268,6 +256,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
 
     list.forEach((t, i) => {
       const tile = t as any;
+      const popStep = popInPlan[i];
       // Start hidden
       tile.visible = true;
       tile.scale.set(0);
@@ -280,65 +269,31 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
         tile.alpha = 0;
       }
 
-      const p = i / Math.max(1, total - 1); // progress 0..1 po random listi
-      const step = stepMin + Math.random() * (stepMax - stepMin);
-      // Stalno BRZO: koristimo fast rate iz "druge polovice" za sve
-      const rate = 0.55; // isto kao kasni dio prijašnje verzije
-      // Povremeni "burst" – dio kockica krene ranije
-      const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0; // do -160ms
-      const enterDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
+      const enterDel = popStep.enterDelay;
 
-      const shouldTriggerLoadPopInHaptic =
-        isLoadPopInHaptics &&
-        i % loadPopInHapticCadence === 0 &&
-        loadPopInHapticsSent < maxLoadPopInHaptics;
-      const shouldTriggerPopInHaptic =
-        shouldTriggerLoadPopInHaptic || (isEntryPopInHaptics && i % 2 === 0);
-      if (shouldTriggerPopInHaptic && typeof (window as any).triggerHapticImpact === 'function') {
-        if (shouldTriggerLoadPopInHaptic) loadPopInHapticsSent++;
-        const hapticDelay = enterDel + (isEntryPopInHaptics ? ENTRY_POPIN_HAPTIC_START_DELAY_MS / 1000 : 0);
-        const hapticCall = trackDelayedCall(hapticDelay, () => {
-          try { (window as any).triggerHapticImpact?.('light'); } catch {}
-        });
-        activeDelayedCalls.push(hapticCall);
-      }
+      const amp = popStep.amplitude;
+      const d1 = popStep.growDuration;
+      const d2 = popStep.compressDuration;
+      const d3 = popStep.settleDuration;
 
-      // Trajanja uvijek brza, s blagom varijacijom
-      const durMul = 0.55 + Math.random() * 0.20; // 0.55–0.75
-      const amp = 1.08 + Math.random() * 0.07;     // 1.08–1.15
-      const d1b = 0.18 + Math.random() * 0.08;
-      const d2b = 0.12 + Math.random() * 0.05;
-      const d3b = 0.10 + Math.random() * 0.06;
-      const d1 = Math.max(0.10, d1b * durMul); // blow
-      const d2 = Math.max(0.08, d2b * durMul); // compress
-      const d3 = Math.max(0.08, d3b * durMul); // settle
-
-      const tl = trackTimeline({
+      const tileTimeline = trackTimeline({
         delay: enterDel,
         onComplete: () => {
           makeBoard.syncTileZIndex(tile, STATE.board);
           completed++;
-          // Halfway callback
           if (!halfFired && completed >= halfTotal) {
             halfFired = true;
-            try {
-              opts.onHalf?.();
-            } catch {}
+            try { opts.onHalf?.(); } catch {}
           }
-
           if (completed === total) {
-            const finalCall = trackDelayedCall(0.03, () => {
-              finishPopIn(false);
-            });
+            const finalCall = trackDelayedCall(0.03, () => finishPopIn(false));
             activeDelayedCalls.push(finalCall);
           }
-        }
+        },
       });
-      
-      // 🔥 FIX: Track timeline
-      activeTimelines.push(tl);
-      
-      tl.to(tile, {
+      activeTimelines.push(tileTimeline);
+
+      tileTimeline.to(tile, {
           alpha: tile.locked ? (tile.value > 0 ? 0 : 0.25) : 1,
           duration: Math.max(0.12, d1 * 0.68),
           ease: 'power2.out'
@@ -362,12 +317,11 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
           ease: 'back.out(1.5)'
         }, d1 + d2);
 
-      // Accumulate latest finishing time for time-based halfway trigger
-      const endAt = enterDel + d1 + d2 + d3;
+      const endAt = popStep.endTime;
       if (endAt > maxEndTime) maxEndTime = endAt;
     });
 
-    console.log('🎯 Starting pure random stagger pop-in — all fast like late-half', { stepMin, stepMax, jitterMax });
+    console.log('🎯 Starting legacy-overlap random pop-in', { tiles: list.length, ownerTimelines: activeTimelines.length });
 
     // Fire onHalf at 50% of overall animation timeframe as well (not only by completion)
     if (typeof opts.onHalf === 'function') {

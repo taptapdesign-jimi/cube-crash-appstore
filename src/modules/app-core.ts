@@ -94,6 +94,7 @@ import { handleSweetPopInComplete } from './app-core-popin-final.ts';
 import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createPopInRunner } from './app-core-popin-delay.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
+import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
 import { finalizeBoardVisibility } from './app-core-board-visibility.ts';
@@ -1602,6 +1603,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   const isNavCleanup =
     typeof reason === 'string' &&
     (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
+  const shouldClearPools = reason.includes('cleanupGame') || reason.includes('restartGame');
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
   try { cleanupAllTntIdleEffects?.(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
@@ -1626,16 +1628,18 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
     try { clearAllAppAnimationFrames(); } catch {}
     try { clearAllAppIntervals(); } catch {}
     try { clearAllAppListeners(); } catch {}
-    try {
-      import('./dom-element-pool.js').then((m) => {
-        try { m.domElementPool?.clear?.(); } catch {}
-      }).catch(() => {});
-    } catch {}
-    try {
-      import('./object-pool.js').then((m) => {
-        try { m.graphicsPool?.clear?.(); } catch {}
-      }).catch(() => {});
-    } catch {}
+    if (shouldClearPools) {
+      try {
+        import('./dom-element-pool.js').then((m) => {
+          try { m.domElementPool?.clear?.(); } catch {}
+        }).catch(() => {});
+      } catch {}
+      try {
+        import('./object-pool.js').then((m) => {
+          try { m.graphicsPool?.clear?.(); } catch {}
+        }).catch(() => {});
+      } catch {}
+    }
   }
   // 🔥 Stability: stop per-tile idle FX to avoid lingering tickers/intervals
   try {
@@ -4917,13 +4921,10 @@ function rebuildBoard(){
         hudDropPending: _hudDropPending,
         setHudDropPending: (v) => { _hudDropPending = v; },
       });
-      // 🔥 UX: Stronger haptic on mid pop-in (double heavy tap)
+      // One clear board-entry confirmation; per-tile haptics are intentionally absent.
       try {
         if (typeof (window as any).triggerHapticImpact === 'function') {
-          (window as any).triggerHapticImpact('heavy');
-          trackAppTimeout(() => {
-            try { (window as any).triggerHapticImpact?.('heavy'); } catch {}
-          }, 300);
+          (window as any).triggerHapticImpact('medium');
         }
       } catch {}
     },
@@ -5172,6 +5173,7 @@ async function startLevel(n){
   resetTransientRunGuards('startLevel');
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
   (window as any).__ccEnterAnimationActive = true;
+  startBoardFrameBudgetMonitor();
   try { hideGhostPlaceholders(); } catch {}
 
   try {
@@ -6326,24 +6328,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
     if (wildActive) clearWildState(dst);
 
-    // 🔥 USER REQUEST: Show smoke effect below stacked tiles (2 tiles that don't result in merge 6)
-    // Smoke with 70% opacity, behind tiles, using object pooling
-    smokeBubblesAtTile(board, dst, TILE, 0.72, {
-      behind: true,
-      baseAlpha: 0.42,
-      sizeScale: 0.48,
-      distanceScale: 0.345,
-      countScale: 0.36,
-      ttl: 0.192,
-      durationScale: 0.48,
-      fxTag: 'stack-smoke',
-      blendMode: 'add',
-      spawnShape: 'box'
-    });
-
-    // 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
-    playMergeImpactAndAbsorbAnimation(dst);
-
     // 2. Rotation and overlay for all stack layers (each rotates opposite to previous)
     if (srcDepth > 1 && dst.stackG && dst.stackG.children.length > 0) {
       let previousDirection = 0; // Start with no direction
@@ -6929,19 +6913,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
           }
         } else {
-          FX.landBounce?.(dst);
-          const softSmokeStrength = 0.5 + Math.random() * 0.3;
-          smokeBubblesAtTile(board, dst, {
-            tileSize: TILE,
-            strength: softSmokeStrength,
-            behind: true,
-            sizeScale: 1.12,
-            distanceScale: 0.7,
-            countScale: 0.75,
-            haloScale: 1.1,
-            ttl: 0.9,
-            spawnShape: 'box'
-          } as any);
+          playRegularMergeContactPresentation(dst, src);
         }
 
         // countdown moves
@@ -7568,6 +7540,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         (window as any).triggerHapticImpact('medium');
       }
     }
+    if (!wildActive) playMerge6HeroBounce(dst);
     
     // Use combinedCount calculated earlier (for last merge check).
     // Final merge results must never render as a stack of 6s; the result is only
@@ -9371,11 +9344,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // 🎨 TEMPLATE-BASED: Use new template system for reliable pooling
           regularMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
-            zIndex: dstZIndex
+            zIndex: dstZIndex,
+            density: isBoardFxReduced() ? 0.55 : 1,
           });
           
-          // Impact effect (50% of wild: squash 0.24->0.12, stretch 0.20->0.10, tilt 0.14->0.07, bounce 1.18->1.09)
-          wildImpactEffect(dst, { squash: 0.12, stretch: 0.10, tilt: 0.07, bounce: 1.09 });
+          // One uniform hero bounce already owns regular merge-6 impact.
           
           // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
           smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, {
@@ -12580,7 +12553,7 @@ function removeTile(t){
   });
 }
 
-// 🔥 COMBINED MERGE ANIMATION: compact landing squash + buoyant settle
+// 🔥 COMBINED MERGE ANIMATION: clean uniform bounce without squash/stretch
 function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   if (!targetTile) return;
 
@@ -12592,8 +12565,7 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   // Kill scale ownership left by hover/idle before starting the merge response.
   try { gsap.killTweensOf(targetTile.scale); } catch {}
 
-  // A directional squash reads as weight and impact more clearly than uniform zoom.
-  // The whole response stays below 300ms so the next move still feels immediate.
+  // Uniform scaling keeps stacked cube geometry solid and avoids a flattened look.
   const tl = animationManager.trackExternalTimeline(gsap.timeline({
     onComplete: () => {
       // Hard-reset to exactly (1, 1) to avoid floating-point drift
@@ -12603,28 +12575,146 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
     }
   }));
 
-  // Step 1: contact squash.
+  const motionVariation = 0.97 + Math.random() * 0.06;
+  const peakScale = 1.105 + Math.random() * 0.025;
+
+  // Small impact bump.
   tl.to(targetTile.scale, {
-    x: 1.075,
-    y: 0.94,
-    duration: 0.055,
-    ease: 'power3.out'
+    x: 1.02,
+    y: 1.02,
+    duration: 0.06 * motionVariation,
+    ease: 'power2.out'
   });
 
-  // Step 2: energy rebounds vertically, then settles cleanly at the canonical scale.
+  // One compact, symmetric bounce and a clean settle.
   tl.to(targetTile.scale, {
-    x: 0.985,
-    y: 1.14,
-    duration: 0.085,
+    x: peakScale,
+    y: peakScale,
+    duration: 0.075 * motionVariation,
     ease: 'power2.out'
   }).to(targetTile.scale, {
     x: 1.0,
     y: 1.0,
-    duration: 0.13,
-    ease: 'back.out(2.25)'
+    duration: 0.115 * motionVariation,
+    ease: 'back.out(1.8)'
   });
 
   devLog('🍬 Playing combined merge impact + absorb animation on tile');
+}
+
+function playRegularMergeContactPresentation(targetTile: any, sourceTile: any): void {
+  if (!targetTile || targetTile.destroyed) return;
+
+  // One owner for regular merge presentation: no duplicate smoke and no legacy
+  // squash/stretch landBounce. All scale motion stays perfectly uniform.
+  playStackLayerClick(targetTile);
+  playMergeImpactAndAbsorbAnimation(targetTile);
+  playNeighborMergeRecoil(targetTile, sourceTile);
+  smokeBubblesAtTile(board, targetTile, TILE, 0.72, {
+    behind: true,
+    baseAlpha: 0.42,
+    sizeScale: 0.48,
+    distanceScale: 0.345,
+    countScale: 0.36,
+    ttl: 0.192,
+    durationScale: 0.48,
+    fxTag: 'stack-smoke',
+    blendMode: 'add',
+    spawnShape: 'box',
+  });
+}
+
+function playStackLayerClick(targetTile: any): void {
+  const layers = targetTile?.stackG?.children;
+  if (!Array.isArray(layers) || layers.length === 0) return;
+  const layer = layers[layers.length - 1];
+  if (!layer || layer.destroyed) return;
+
+  const baseRotation = Number(layer.rotation || 0);
+  const direction = Math.random() < 0.5 ? -1 : 1;
+  const clickRotation = direction * (0.035 + Math.random() * 0.017); // 2–3°
+  try { gsap.killTweensOf(layer); } catch {}
+  try {
+    layer.rotation = baseRotation + clickRotation;
+    trackTween(layer, {
+      rotation: baseRotation,
+      duration: 0.13 + Math.random() * 0.025,
+      ease: 'back.out(2.3)',
+      overwrite: 'auto',
+    });
+  } catch {
+    try { layer.rotation = baseRotation; } catch {}
+  }
+}
+
+function playNeighborMergeRecoil(targetTile: any, sourceTile: any): void {
+  if (!targetTile || targetTile.destroyed) return;
+  if (isBoardFxReduced()) return;
+  const candidates = tiles
+    .filter((tile: any) => {
+      if (!tile || tile === targetTile || tile === sourceTile || tile.destroyed || tile.locked) return false;
+      if (tile.special || tile.isWild || tile.isWildFace) return false;
+      const distance = Math.hypot(Number(tile.x || 0) - Number(targetTile.x || 0), Number(tile.y || 0) - Number(targetTile.y || 0));
+      return distance > 0 && distance <= TILE * 1.55;
+    })
+    .sort((a: any, b: any) => {
+      const da = Math.hypot(a.x - targetTile.x, a.y - targetTile.y);
+      const db = Math.hypot(b.x - targetTile.x, b.y - targetTile.y);
+      return da - db;
+    })
+    .slice(0, 4);
+
+  for (const tile of candidates) {
+    const visual = tile.rotG;
+    if (!visual || visual.destroyed) continue;
+    const baseX = Number(visual.x || 0);
+    const baseY = Number(visual.y || 0);
+    const dx = Number(tile.x || 0) - Number(targetTile.x || 0);
+    const dy = Number(tile.y || 0) - Number(targetTile.y || 0);
+    const length = Math.max(1, Math.hypot(dx, dy));
+    const impulse = 1.25 + Math.random() * 0.65;
+    try { gsap.killTweensOf(visual); } catch {}
+    animationManager.trackExternalTimeline(gsap.timeline({
+      onComplete: () => {
+        if (!visual.destroyed) visual.position.set(baseX, baseY);
+      },
+    }))
+      .to(visual, {
+        x: baseX + (dx / length) * impulse,
+        y: baseY + (dy / length) * impulse,
+        duration: 0.055,
+        ease: 'power2.out',
+      })
+      .to(visual, {
+        x: baseX,
+        y: baseY,
+        duration: 0.105,
+        ease: 'back.out(2)',
+      });
+  }
+}
+
+function playMerge6HeroBounce(targetTile: any): void {
+  if (!targetTile || targetTile.destroyed || !targetTile.scale) return;
+  try { gsap.killTweensOf(targetTile.scale); } catch {}
+  const peak = 1.15 + Math.random() * 0.018;
+  animationManager.trackExternalTimeline(gsap.timeline({
+    onComplete: () => {
+      if (!targetTile.destroyed && targetTile.scale) targetTile.scale.set(1, 1);
+    },
+  }))
+    .to(targetTile.scale, {
+      x: peak,
+      y: peak,
+      duration: 0.105,
+      ease: 'back.out(2.5)',
+    })
+    .to(targetTile.scale, {
+      x: 1,
+      y: 1,
+      duration: 0.17,
+      ease: 'back.out(1.9)',
+    });
 }
 
 async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlow?: boolean } = {}){
@@ -13194,6 +13284,7 @@ export function restart() {
 // Clean up game when exiting
 export function cleanupGame() {
   devLog('🧹 Cleaning up game state');
+  stopBoardFrameBudgetMonitor();
   
   // 🔥 CRITICAL FIX: Stop PIXI ticker FIRST to prevent render errors during cleanup
   // This prevents "Cannot read properties of null (reading '_x')" errors

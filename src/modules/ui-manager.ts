@@ -693,7 +693,6 @@ class UIManager {
       (window as any)._gamePaused = false;
       
       console.log('✅ Game state set (gamePaused reset)');
-      
       // Clear old global/transient saved game state for new game. Arcade run state is kept for resume.
       console.log('🧹 Clearing old transient saved game state...');
       localStorage.removeItem('cc_saved_game');
@@ -870,6 +869,9 @@ class UIManager {
       (window as any)._gamePaused = false;
       
       console.log('✅ Game state set (gamePaused reset)');
+      // Continue/load owns board creation. Prevent boot() from constructing and
+      // animating a temporary fresh board before saved tiles are restored.
+      (window as any).__ccSkipRebuildBoard = true;
       
       // Start game
       console.log('🎯 Starting game boot...');
@@ -896,6 +898,7 @@ class UIManager {
         } else {
           console.error('❌ loadGameState function not found');
         }
+        delete (window as any).__ccSkipRebuildBoard;
         
         // Show app element AFTER loading saved state
         console.log('📱 Showing app element...');
@@ -908,12 +911,14 @@ class UIManager {
         console.log('🔄 ====================================');
         
       } catch (error) {
+        delete (window as any).__ccSkipRebuildBoard;
         console.error('❌ Game boot failed:', error);
         logger.error('❌ Failed to start game with saved state:', error);
         throw error;
       }
       
     } catch (error) {
+      delete (window as any).__ccSkipRebuildBoard;
       delete (window as any).__ccTriggerHudDrop;
       logger.error('❌ Failed to start new game with saved state:', error);
     }

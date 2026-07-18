@@ -35,9 +35,10 @@ function getFxHotFactor(): number {
   const now = nowTs();
   const delta = now - lastFxBurstTs;
   lastFxBurstTs = now;
-  if (delta >= FX_HOT_WINDOW_MS) return 1;
+  const thermalFactor = (typeof window !== 'undefined' && (window as any).__ccReducedBoardFx === true) ? 0.58 : 1;
+  if (delta >= FX_HOT_WINDOW_MS) return thermalFactor;
   // Blend from 0.55 → 1 based on elapsed time inside the window.
-  return 0.55 + (delta / FX_HOT_WINDOW_MS) * 0.45;
+  return (0.55 + (delta / FX_HOT_WINDOW_MS) * 0.45) * thermalFactor;
 }
 
 /** Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild. */
@@ -1683,8 +1684,14 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
   const shardsInLayer = [];
   const baseTile = params.baseTile || 96;
   
+  const density = Math.max(0.35, Math.min(1, Number(opts.density ?? 1)));
+  const patternStride = density >= 0.99 ? 1 : Math.max(2, Math.round(1 / density));
+  const activePatternData = patternStride === 1
+    ? patternData
+    : patternData.filter((_shardDef, index) => index % patternStride === 0);
+
   // Spawn each shard according to pattern
-  patternData.forEach((shardDef, index) => {
+  activePatternData.forEach((shardDef, index) => {
     // 🔥 POOLING: Acquire Graphics from pattern-specific pool
     // pool.acquire() already calls reset() which handles all cleanup and reset
     const shard = pool.acquire();

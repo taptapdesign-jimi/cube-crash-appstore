@@ -119,10 +119,24 @@ function isUsableTexture(tex: any): boolean {
 function removeStaleTexture(assetPath: string): void {
   try {
     const cache = (Assets as any)?.cache;
-    try { cache?.delete?.(assetPath); } catch {}
-    try { cache?.remove?.(assetPath); } catch {}
+    const isCached = typeof cache?.has === 'function' ? cache.has(assetPath) : false;
+    if (!isCached) return;
+    try {
+      if (typeof cache?.remove === 'function') cache.remove(assetPath);
+      else cache?.delete?.(assetPath);
+    } catch {}
   } catch {}
   try { (Texture as any).removeFromCache?.(assetPath); } catch {}
+}
+
+function getCachedTexture(assetPath: string): any {
+  try {
+    const cache = (Assets as any)?.cache;
+    if (typeof cache?.has !== 'function' || !cache.has(assetPath)) return null;
+    return cache.get(assetPath);
+  } catch {
+    return null;
+  }
 }
 
 export function getBoardGameWarmupAssets(mode: BoardAssetWarmupMode, boardNumber?: number): string[] {
@@ -147,8 +161,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
       const missingOrStale: string[] = [];
 
       for (const assetPath of assets) {
-        let tex: any = null;
-        try { tex = Assets.get(assetPath); } catch {}
+        const tex = getCachedTexture(assetPath);
         if (isUsableTexture(tex)) continue;
         removeStaleTexture(assetPath);
         missingOrStale.push(assetPath);

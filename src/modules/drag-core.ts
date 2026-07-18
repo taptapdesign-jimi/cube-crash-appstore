@@ -69,13 +69,6 @@ const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
 const DRAG_WATCHDOG_REFRESH_MS = 650;
 const DRAG_HOVER_PICK_THROTTLE_MS = 24;
-const HOVER_HAPTIC_COOLDOWN_MS = 120;
-
-function triggerDragHaptic(kind: 'light' | 'medium' | 'heavy' = 'light'): void {
-  try {
-    (window as any).triggerHapticImpact?.(kind);
-  } catch {}
-}
 
 function isIOSRuntime(): boolean {
   return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -746,7 +739,6 @@ export function initDrag(cfg) {
     
     // Track drag start time for wild-magnet sequential pulling
     drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    drag._lastHoverHapticAt = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     // reset inertial state
     drag.vx = 0; drag.vy = 0;
@@ -801,6 +793,18 @@ export function initDrag(cfg) {
       const to = Math.min(1, t.shadow._dragAlpha ?? 0.30);
       gsap.killTweensOf(t.shadow);
       trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
+      // The shadow may deform because it is not game geometry: widening and
+      // lowering it sells lift while the cube itself remains perfectly rigid.
+      try {
+        gsap.killTweensOf(t.shadow.scale);
+        trackTween(t.shadow.scale, {
+          x: 1.09,
+          y: 0.9,
+          duration: 0.1,
+          ease: 'power2.out',
+          overwrite: 'auto',
+        });
+      } catch {}
     }
 
     // Pickup reads immediately, then settles into a slightly softer lifted hold.
@@ -819,7 +823,6 @@ export function initDrag(cfg) {
         duration: 0.075,
         ease: 'back.out(2.2)',
       });
-    triggerDragHaptic('light');
 
     // 🔥 FPS DROP FIX: Stop wild juice idle bubbles when dragging starts (prevents conflict with drag particles)
     if (t.special === 'wild-juice') {
@@ -1411,6 +1414,15 @@ export function initDrag(cfg) {
           ease: 'power2.out',
           onComplete: () => { if (t.shadow) t.shadow.visible = (base > 0); }
         });
+        try {
+          trackTween(t.shadow.scale, {
+            x: 1,
+            y: 1,
+            duration: 0.14,
+            ease: 'back.out(1.8)',
+            overwrite: 'auto',
+          });
+        } catch {}
       }
     }
 
@@ -1976,12 +1988,6 @@ export function initDrag(cfg) {
       container._magnetBaseScaleY = baseScaleY;
       state.originScaleX = baseScaleX;
       state.originScaleY = baseScaleY;
-
-      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      if (now - Number(drag._lastHoverHapticAt || 0) >= HOVER_HAPTIC_COOLDOWN_MS) {
-        drag._lastHoverHapticAt = now;
-        triggerDragHaptic('light');
-      }
 
       if (container && container.scale) {
         try { state.scaleTween?.kill?.(); } catch {}
