@@ -64,9 +64,7 @@ const CRITICAL_IMAGES: string[] = [
   './assets/shop/cubero/krpa4.png',
   './assets/shop/cubero/krpa5.png',
   './assets/shop/cubero/krpa6.png',
-  './assets/shop/cubero/krpa7.png',
-  './assets/mystery-box.png',
-  './assets/gold-coin.png'
+  './assets/shop/cubero/krpa7.png'
 ];
 
 let preloadPromise: Promise<void> | null = null;

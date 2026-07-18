@@ -401,6 +401,7 @@
   overflow-x: hidden !important; /* 🔥 iOS FIX: Force hidden to prevent horizontal scroll */
   /* 🔥 FIX: Enable smooth swipeable scrolling on iOS */
   -webkit-overflow-scrolling: touch;
+  overflow-anchor: none;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -418,7 +419,7 @@
      (top header moving down on pull) while keeping normal momentum scroll inside this pane. */
   overscroll-behavior: contain;
   overscroll-behavior-x: none !important;
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: contain;
   /* 🔥 PREMIUM FIX: Prevent horizontal scrolling */
   width: 100%;
   max-width: 100%;
@@ -1209,6 +1210,8 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  overflow-anchor: none;
   touch-action: pan-y; /* Allow vertical scrolling within section */
   flex-shrink: 0; /* Prevent sections from shrinking */
   box-sizing: border-box;
@@ -2383,9 +2386,10 @@
   #collectibles-detail-modal {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
+    overscroll-behavior: contain;
+    overscroll-behavior-y: contain;
     touch-action: pan-y;
+    overflow-anchor: none;
   }
 
   /* iPad-only: remove horizontal swipe, stack content vertically */

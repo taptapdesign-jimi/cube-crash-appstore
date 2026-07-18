@@ -78,9 +78,7 @@ export const ASSET_WILD: string = './assets/wild.png';
 export const ASSET_WILD_MAGNET: string = './assets/wild-magnet.png';
 export const ASSET_WILD_JUICE: string = './assets/wild-juice.png';
 export const ASSET_WILD_TNT: string = './assets/shop/explosion pack/tnt.png';
-export const ASSET_MYSTERY: string = './assets/mystery-box.png';
-export const ASSET_COIN: string = './assets/gold-coin.png';
-export const SFX_EXPLODE: string = './assets/explode.mp3';
+export const SFX_EXPLODE: string = './assets/sound/sfx/explode.mp3';
 
 // Pips (kvadrati s 4px radiusom, bliže centru)
 export const PIP_COLOR: number = 0x815A42;

@@ -1,5 +1,9 @@
 // @ts-nocheck
 import { logger } from './core/logger.js';
+import {
+  isJourneyBackgroundPreparationAllowed,
+  readJourneyPreparationRuntimeState,
+} from './modules/journey-background-preparation.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
 import { gsap } from 'gsap';
 import {
@@ -529,6 +533,7 @@ class CollectiblesManager {
   private currentDetailCategory: string | null = null;
   private eventListenersInitialized: boolean = false;
   private journeyPreparePromise: Promise<void> | null = null;
+  private journeyPrepareEpoch = 0;
 
   // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
   private boundHandlers: {
@@ -826,6 +831,7 @@ class CollectiblesManager {
   // This is the MAIN cleanup entry point called from main.ts exitToMenu()
   public async cleanup(): Promise<void> {
     console.log('🧹🧹🧹 collectiblesManager.cleanup() - FULL CLEANUP STARTING...');
+    this.cancelJourneyScreenPreparation('collectibles cleanup');
 
     // 1. Cleanup event listeners (document-level, element-level)
     try {
@@ -903,11 +909,21 @@ class CollectiblesManager {
   // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
   // This allows boards to render while slider exit animation plays
   async prepareJourneyScreen(): Promise<void> {
+    const preparationAllowed = (): boolean =>
+      isJourneyBackgroundPreparationAllowed(readJourneyPreparationRuntimeState());
+
+    if (!preparationAllowed()) {
+      logger.info('⏭️ Journey background preparation blocked outside menu ownership',
+        readJourneyPreparationRuntimeState());
+      return;
+    }
+
     if (this.journeyPreparePromise) {
       return this.journeyPreparePromise;
     }
 
-    this.journeyPreparePromise = (async () => {
+    const prepareEpoch = ++this.journeyPrepareEpoch;
+    const preparePromise = (async () => {
     logger.info('🗺️ prepareJourneyScreen - rendering boards in background');
     const screen = document.getElementById('journey-screen');
     if (!screen) {
@@ -929,6 +945,13 @@ class CollectiblesManager {
         return;
       }
       const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      if (prepareEpoch !== this.journeyPrepareEpoch || !preparationAllowed()) {
+        logger.info('⏭️ Discarded stale or out-of-zone Journey background preparation', {
+          prepareEpoch,
+          runtime: readJourneyPreparationRuntimeState(),
+        });
+        return;
+      }
       journeyBoardsManager.renderBoards();
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered in background');
@@ -940,12 +963,21 @@ class CollectiblesManager {
       logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
     }
     })();
+    this.journeyPreparePromise = preparePromise;
 
     try {
-      await this.journeyPreparePromise;
+      await preparePromise;
     } finally {
-      this.journeyPreparePromise = null;
+      if (this.journeyPreparePromise === preparePromise) {
+        this.journeyPreparePromise = null;
+      }
     }
+  }
+
+  public cancelJourneyScreenPreparation(reason: string): void {
+    this.journeyPrepareEpoch += 1;
+    this.journeyPreparePromise = null;
+    logger.info('🛑 Journey background preparation invalidated', { reason });
   }
 
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {
@@ -1505,6 +1537,7 @@ class CollectiblesManager {
   }
 
   async hideCollectibles(): Promise<void> {
+    this.cancelJourneyScreenPreparation('hide collectibles');
     const screen = document.getElementById('journey-screen');
     if (screen) {
       // Determine hide mode explicitly (prevents stale __ccCameFromJourney from breaking back button)

@@ -108,7 +108,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/modals/paper@3x.png',
   './assets/modals/star.png',
   './assets/modals/star@2x.png',
-  './assets/modals/star@3x.png',
   './assets/modals/star-empty.png',
   './assets/modals/star-empty@2x.png',
   './assets/modals/star-empty@3x.png',

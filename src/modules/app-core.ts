@@ -2397,28 +2397,6 @@ function resetWildProgress(value=0, animate=false){
 // 🔥 v112: ensureFonts moved to app-core-helpers.ts
 // Imported: ensureFonts
 
-// --- asset fallbacks & runtime-resolved paths ---
-const MYSTERY_CANDIDATES = [
-  CONSTS.ASSET_MYSTERY,
-  './assets/mystery-box.png',
-  './assets/mistery-box.png',
-  './assets/mystery-box.jpeg',
-  './assets/mistery-box.jpeg'
-].filter(Boolean);
-
-const COIN_CANDIDATES = [
-  CONSTS.ASSET_COIN,
-  './assets/gold-coin.png',
-  './assets/gold-coin.jpeg'
-].filter(Boolean);
-
-// Resolved at boot:
-let MYSTERY_PATH = null;
-let COIN_PATH = null;
-
-// 🔥 v112: loadFirstTexture moved to app-core-helpers.ts
-// Imported: loadFirstTexture
-
 // Cache-busted celebration import
 async function showCleanBoardCelebrationFresh(args){
   const bust = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV)
@@ -3059,8 +3037,6 @@ export async function boot(){
   // Resolve prize assets - DEFER non-critical prize loading to avoid delay
   // These are only needed during endgame, not for initial board
   trackAppTimeout(() => {
-    loadFirstTexture(MYSTERY_CANDIDATES).then(path => { MYSTERY_PATH = path; }).catch(() => {});
-    loadFirstTexture(COIN_CANDIDATES).then(path => { COIN_PATH = path; }).catch(() => {});
   }, 0);
 
   // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache BEFORE any other assets

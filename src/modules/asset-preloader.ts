@@ -4,6 +4,7 @@
 
 import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
+import { shouldPausePostCriticalPreload } from './post-critical-preload-policy.js';
 import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 
 function isAliasAlreadyInPixiResolver(alias: string): boolean {
@@ -378,8 +379,25 @@ export class AssetPreloader {
     });
   }
 
+  private shouldPausePostCriticalWork(): boolean {
+    const overlay = document.getElementById('cc-board-transition-overlay');
+    const overlayVisible = !!overlay &&
+      getComputedStyle(overlay).display !== 'none' &&
+      getComputedStyle(overlay).visibility !== 'hidden';
+    return shouldPausePostCriticalPreload({
+      isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      appZone: (window as any).__ccAppZone,
+      gameStartInProgress: (window as any).__ccGameStartInProgress === true,
+      boardTransitionVisible: overlayVisible,
+    });
+  }
+
   private async loadImagesInBatches(images: string[], batchSize: number): Promise<void> {
     for (let i = 0; i < images.length; i += batchSize) {
+      if (this.shouldPausePostCriticalWork()) {
+        logger.info('⏸️ Post-critical image preload paused for Journey/board ownership');
+        return;
+      }
       const batch = images.slice(i, i + batchSize);
       const loadPromises = batch.map((src: string) => {
         return new Promise<void>((resolve) => {
@@ -396,7 +414,7 @@ export class AssetPreloader {
 
   async loadAudioFiles(): Promise<void> {
     const audioFiles: string[] = [
-      './assets/explode.mp3'
+      './assets/sound/sfx/explode.mp3'
     ];
     
     for (const audioFile of audioFiles) {
@@ -717,14 +735,23 @@ export class AssetPreloader {
 
       await this.preloadCriticalAssetsOnly();
 
+      if (this.shouldPausePostCriticalWork()) {
+        logger.info('⏸️ Post-critical preload skipped because Journey/board owns iOS');
+        return;
+      }
+
       await this.preloadHTMLImages();
+
+      if (this.shouldPausePostCriticalWork()) return;
 
       logger.info('🗺️ Preloading Journey screen assets...');
       await this.preloadJourneyAssets();
+      if (this.shouldPausePostCriticalWork()) return;
       logger.info('✅ Journey screen assets preloaded');
 
       logger.info('🎁 Preloading collectibles placeholders...');
       await this.preloadCollectiblesImages();
+      if (this.shouldPausePostCriticalWork()) return;
       logger.info('✅ Collectibles placeholders preloaded');
 
       logger.info('🗺️ Preparing Journey screen boards...');

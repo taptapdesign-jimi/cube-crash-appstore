@@ -36,6 +36,7 @@ import {
   getJourneyV700MotionProfile,
   shouldRestoreJourneyInterimWrapperForIdle,
 } from './journey-v700-motion.js';
+import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -2882,6 +2883,10 @@ class JourneyBoardsManager {
     context: string,
     opts: { setJourneyZIndex?: boolean; hideJourney?: boolean; cleanup?: boolean } = {}
   ): void {
+    const collectiblesManager = (window as any).collectiblesManager;
+    if (typeof collectiblesManager?.cancelJourneyScreenPreparation === 'function') {
+      collectiblesManager.cancelJourneyScreenPreparation(`hide Journey: ${context}`);
+    }
     const homeElement = document.getElementById('home');
     const sliderContainer = document.getElementById('slider-container');
     if (homeElement) {
@@ -5238,6 +5243,20 @@ class JourneyBoardsManager {
 
   public renderBoards(): void {
     const container = document.getElementById('journey-boards-container');
+    const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+    const transitionOverlay = document.getElementById('cc-board-transition-overlay') as HTMLElement | null;
+    const transitionOverlayVisible = !!transitionOverlay &&
+      getComputedStyle(transitionOverlay).display !== 'none' &&
+      getComputedStyle(transitionOverlay).visibility !== 'hidden';
+    const journeyScreenHidden = !journeyScreen ||
+      journeyScreen.hidden ||
+      journeyScreen.classList.contains('hidden') ||
+      getComputedStyle(journeyScreen).display === 'none';
+
+    if (shouldBlockHiddenJourneyRender(journeyScreenHidden, transitionOverlayVisible)) {
+      logger.info('⏭️ Blocked hidden Journey render during board transition');
+      return;
+    }
     
     // 🔥 USER REQUEST: Ensure all locked cards have 100% opacity after rendering
     // This fixes any locked cards that might have opacity < 100%
@@ -5719,13 +5738,35 @@ class JourneyBoardsManager {
       try {
         this.logJourneyV700Flow('open-world-hub-exit-complete-await-nav', { requestedWorldId: worldId }, container);
         await navExitPromise;
+        const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+        const journeyStillOwnsScreen = !this.renderDisposed &&
+          !!journeyScreen &&
+          !journeyScreen.hidden &&
+          !journeyScreen.classList.contains('hidden') &&
+          getComputedStyle(journeyScreen).display !== 'none';
+        if (!journeyStillOwnsScreen) {
+          this.logJourneyV700Flow('open-world-render-cancelled-after-exit', {
+            requestedWorldId: worldId,
+            renderDisposed: this.renderDisposed,
+          }, container);
+          return;
+        }
         this.logJourneyV700Flow('open-world-nav-exit-complete-render-world', { requestedWorldId: worldId }, container);
+        const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+        if (scrollable) {
+          try { gsap.killTweensOf(scrollable, 'scrollTop'); } catch {}
+          scrollable.style.overflowAnchor = 'none';
+          scrollable.scrollTop = 0;
+        }
         this.setJourneyV700View('world', worldId);
         this.updateJourneyV700Nav('world', worldId);
         this.renderBoards();
-        const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
         if (scrollable) {
           scrollable.scrollTop = 0;
+          requestAnimationFrame(() => {
+            if (this.journeyV700View !== 'world' || this.journeyV700WorldId !== worldId) return;
+            scrollable.scrollTop = 0;
+          });
         }
         this.playJourneyV700NavEnter();
         this.logJourneyV700Flow('open-world-rendered', { requestedWorldId: worldId }, document.getElementById('journey-boards-container') as HTMLElement | null);
@@ -7561,6 +7602,10 @@ class JourneyBoardsManager {
     logger.info(`🗺️ Journey board ${boardId} tapped - starting game`);
     
     try {
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (typeof collectiblesManager?.cancelJourneyScreenPreparation === 'function') {
+        collectiblesManager.cancelJourneyScreenPreparation(`Journey board ${boardId} tapped`);
+      }
       this.rememberLastActiveJourneyWorld(boardId);
 
       // 🔥 CRITICAL FIX: Stop Journey card idle bounce animations BEFORE exit animation
