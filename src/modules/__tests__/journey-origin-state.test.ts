@@ -4,6 +4,7 @@ import {
   isJourneyOriginActive,
   markJourneyDetailReturn,
   markJourneyGameOrigin,
+  prepareJourneyFailReturnTarget,
   resolveJourneyReturnTarget,
 } from '../journey-origin-state';
 
@@ -44,6 +45,9 @@ describe('journey-origin-state', () => {
     delete (global as any).__ccReturningFromInterimBoard;
     delete (global as any).__ccCameFromDetailModal;
     delete (global as any).__ccDetailModalBoardId;
+    delete (global as any).__ccReturningFromDetailModal;
+    delete (global as any).__ccJourneyReturnBoardId;
+    delete (global as any).__ccLastActiveJourneyBoardAreaId;
   });
 
   it('marks journey origin without leaving homepage flag active', () => {
@@ -86,6 +90,25 @@ describe('journey-origin-state', () => {
       isUnlockedBoard: false,
       isInterim: false,
     });
+  });
+
+  it('returns failed unlocked boards to their Journey world instead of the detail modal', () => {
+    markJourneyDetailReturn(4);
+
+    expect(prepareJourneyFailReturnTarget(4)).toEqual({
+      target: 'journey',
+      boardId: 4,
+      isUnlockedBoard: false,
+      isInterim: false,
+    });
+    expect((global as any).__ccCameFromJourney).toBe(true);
+    expect((global as any).__ccCameFromDetailModal).toBeUndefined();
+    expect((global as any).__ccDetailModalBoardId).toBeUndefined();
+    expect((global as any).__ccReturningFromDetailModal).toBe(true);
+    expect((global as any).__ccJourneyReturnBoardId).toBe(4);
+    expect(storage.get('__ccJourneyReturnBoardId')).toBe('4');
+    expect((global as any).__ccLastActiveJourneyBoardAreaId).toBe(4);
+    expect(storage.get('__ccLastActiveJourneyBoardAreaId')).toBe('4');
   });
 
   it('clears detail and interim return flags independently', () => {

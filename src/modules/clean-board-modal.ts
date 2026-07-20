@@ -82,6 +82,23 @@ function triggerHapticImpactSafe(kind: 'light' | 'medium' | 'heavy'): void {
   } catch {}
 }
 
+function getAppCanvasSafely(app: any): HTMLCanvasElement | null {
+  // Pixi v8 exposes `canvas` through a renderer-backed getter. During the
+  // narrow win -> X -> Exit race the renderer may already be detached, and
+  // merely reading app.canvas can throw before Clean Board CTA cleanup runs.
+  try {
+    const canvas = app?.canvas;
+    if (canvas instanceof HTMLCanvasElement) return canvas;
+  } catch (error) {
+    console.warn('⚠️ clean-board-modal: app.canvas unavailable during handoff', error);
+  }
+  try {
+    const view = app?.view;
+    if (view instanceof HTMLCanvasElement) return view;
+  } catch {}
+  return document.querySelector('#app canvas');
+}
+
 function createCounterLightHapticTrigger(minIntervalMs = CLEAN_BOARD_COUNTER_HAPTIC_INTERVAL_MS) {
   let lastAt = 0;
   let lastValue = Number.NaN;
@@ -213,9 +230,26 @@ export async function showCleanBoardModal({
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
+    let settled = false;
+    let navigationAbortHandler: (() => void) | null = null;
     const safeResolve = (action: string = 'continue') => {
+      if (settled) return;
+      settled = true;
+      if (navigationAbortHandler) {
+        try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
+        navigationAbortHandler = null;
+      }
       try { resolve({ action }); } catch {}
     };
+    navigationAbortHandler = () => {
+      // Navigation owns the destination now. Resolve the modal promise as an
+      // abort so the suspended endgame flow cannot resume later when the card
+      // modal closes and reveal a stale Clean Board final state.
+      try { cleanupCleanBoardModalLifecycle(); } catch {}
+      try { document.getElementById('cc-clean-board-overlay')?.remove(); } catch {}
+      safeResolve('__navigation-abort__');
+    };
+    window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
     const run = async () => {
       try {
     const stopConfettiSpawnsSafe = () => {
@@ -1257,14 +1291,29 @@ export async function showCleanBoardModal({
     };
 
     // Add button press handling for proper UX
-    const addButtonPressHandling = (button: HTMLButtonElement, action: () => void): void => {
+    const addButtonPressHandling = (button: HTMLButtonElement, action: () => void | Promise<void>): void => {
       let touchStarted = false;
       let touchStartedOnButton = false;
       let actionTriggered = false;
       const triggerActionOnce = () => {
         if (actionTriggered || button.disabled) return;
         actionTriggered = true;
-        action();
+        const recoverFailedAction = (error: unknown) => {
+          console.error('❌ clean-board-modal: CTA action failed; restoring modal input', error);
+          actionTriggered = false;
+          primaryBtn.disabled = false;
+          if (secondaryBtn) secondaryBtn.disabled = false;
+          el.removeAttribute('data-clean-board-exiting');
+          el.style.pointerEvents = 'auto';
+        };
+        try {
+          const result = action();
+          if (result && typeof result.then === 'function') {
+            void result.catch(recoverFailedAction);
+          }
+        } catch (error) {
+          recoverFailedAction(error);
+        }
       };
       
       const handleTouchStart = (e: TouchEvent) => {
@@ -1375,7 +1424,7 @@ export async function showCleanBoardModal({
       // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
       // 🚀 PERFORMANCE: Use display:none to completely remove from render flow (not just opacity)
       // Pixi v8: use app.canvas; fallback to app.view for older versions
-      const appCanvas = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+      const appCanvas = getAppCanvasSafely(app);
       if (appCanvas?.style) {
         appCanvas.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
         appCanvas.style.opacity = '0';
@@ -1709,7 +1758,7 @@ export async function showCleanBoardModal({
           console.log('✅ clean-board-modal: Board exit animation completed, hiding board...');
           
           // 🔥 NOW hide board app/stage AFTER exit animation completes
-          const canvas = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+          const canvas = getAppCanvasSafely(app);
           if (canvas?.style) {
             canvas.style.display = 'none';
             canvas.style.opacity = '0';
@@ -1723,7 +1772,7 @@ export async function showCleanBoardModal({
           killAllGSAPTweens();
         }).catch((error) => {
           console.error('❌ clean-board-modal: Board exit animation failed:', error);
-          const canvas2 = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+          const canvas2 = getAppCanvasSafely(app);
           if (canvas2?.style) {
             canvas2.style.display = 'none';
             canvas2.style.opacity = '0';

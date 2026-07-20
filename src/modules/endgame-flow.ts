@@ -40,6 +40,8 @@ interface EndgameContext {
   skipStarsWait?: boolean;
   /** final-merge-handoff already completed; do not run secondary FX waits before reward UI */
   finalMergeCompleted?: boolean;
+  /** Run ownership captured when the terminal merge first requested this flow. */
+  abortToken?: number;
 }
 
 function isFirstPlayTutorialCompletionFlow(): boolean {
@@ -771,7 +773,13 @@ function createNewCardCleanBoardHandoffCover(): () => void {
 }
 
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
-  const abortTokenAtStart = Number((window as any).__ccEndgameFlowAbortToken || 0);
+  // A terminal merge can spend time in its visual handoff before calling this
+  // function. Use the token captured at that original request, otherwise a
+  // late callback can start after Exit -> Play and incorrectly adopt the new
+  // run's token as its own.
+  const abortTokenAtStart = Number(
+    ctx.abortToken ?? (window as any).__ccEndgameFlowAbortToken ?? 0
+  );
   const shouldAbortEndgameFlow = (): boolean => {
     try {
       if ((window as any).exitingToMenu === true) return true;
@@ -1010,6 +1018,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     } catch (error) {
       logger.warn('⚠️ Journey completion flow failed:', error);
     }
+    // The completion flow can include its own visible/async handoff. The user
+    // may open X -> Exit while it is running, then start the board again from
+    // the returned detail modal. Never let this old run continue into a Clean
+    // Board modal over that newer gameplay session.
+    if (shouldAbortEndgameFlow()) {
+      console.warn('⚠️ endgame-flow: aborted after Journey completion handoff');
+      return;
+    }
     // 🔥 CRITICAL FIX: Calculate nextLevel from boardNumber, not level
     // boardNumber is always accurate (set in startLevel), while level might be stale
     // This ensures correct next board number when coming from interim board
@@ -1035,6 +1051,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // 🔥 CRITICAL FIX: Hide board indicator IMMEDIATELY when clean board modal appears
     // This prevents persistent "BOARD 07" element from showing during clean board modal and transition
     await animateBoardIndicatorExitSafe(0.3, 'before-clean-board-modal');
+    if (shouldAbortEndgameFlow()) {
+      console.warn('⚠️ endgame-flow: aborted before Clean Board modal');
+      return;
+    }
     
     let modalResult: { action: string } | undefined;
     try {
@@ -1060,6 +1080,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         cleanupNewCardHandoffCover();
         cleanupNewCardHandoffCover = null;
       }
+    }
+
+    if (modalResult?.action === '__navigation-abort__' || shouldAbortEndgameFlow()) {
+      console.warn('⚠️ endgame-flow: Clean Board modal invalidated by navigation; stopping stale completion flow');
+      return;
     }
     
     console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);

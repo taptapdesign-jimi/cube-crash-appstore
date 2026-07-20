@@ -2484,7 +2484,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 
   const isHudStageClearDevTriggerEnabled = (): boolean => {
     const host = String(window.location?.hostname || '');
-    return !!(
+    return isArcadeHomeRunMode() && !!(
       (import.meta as any)?.env?.DEV ||
       (window as any)?.DEV ||
       host === 'localhost' ||

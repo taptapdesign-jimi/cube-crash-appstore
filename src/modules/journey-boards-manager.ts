@@ -12,7 +12,7 @@ import { logger } from '../core/logger.js';
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { clearArcadeSaveState, getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { clearArcadeSaveState, getBoardSaveKey, hasResumableSavedStateForBoard } from '../utils/board-save-utils.js';
 import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
@@ -37,6 +37,7 @@ import {
   shouldRestoreJourneyInterimWrapperForIdle,
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
+import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -1612,6 +1613,7 @@ class JourneyBoardsManager {
           areaId: target.dataset?.journeyAreaId,
         })),
       });
+      emitIOSNativeDiagnostic('active-area-prepared', { boardId, targetCount: targets.length });
       this.activeBoardAreaEnterPreparedTargets = targets;
       targets.forEach((target) => {
         try { gsap.killTweensOf(target); } catch {}
@@ -1720,11 +1722,15 @@ class JourneyBoardsManager {
           className: item.target.className,
         })),
       });
+      emitIOSNativeDiagnostic('active-area-play-start', {
+        boardId,
+        preparedTargets: preparedTargets.length,
+        itemCount: items.length,
+      });
       const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
-      if (cardsContainer && document.body.contains(cardsContainer) && !this.journeyAreaIdleTickers.length) {
-        logger.info('🧭 JourneyForestAnim active-enter-start-background-idle', { boardId });
-        this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
-      }
+      // The active Unit owns this interval. Idle must not start while its
+      // pop-in is still running; completion below resumes the correct idle
+      // owner after every Unit part has settled.
       const cardMotionTargets = targets.filter((target) => target.classList.contains('journey-board-card-wrapper'));
       this.stopJourneyAreaIdleForTargets(cardMotionTargets);
       const restoreTargetsVisible = () => {
@@ -1733,6 +1739,7 @@ class JourneyBoardsManager {
           targets: targets.length,
           cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
         });
+        emitIOSNativeDiagnostic('active-area-complete', { boardId, targetCount: targets.length });
         targets.forEach((target) => {
           try {
             target.style.willChange = 'auto';
@@ -8353,7 +8360,13 @@ class JourneyBoardsManager {
   public async openBoardDetailsById(boardId: number, skipJourneyExit: boolean = false): Promise<void> {
     const board = this.boards.find(b => b.id === boardId);
     if (board) {
-      await this.openBoardDetails(board, skipJourneyExit);
+      // Direct game-return callers use `skipJourneyExit=true` only after the
+      // board exit has already completed. Pass an explicitly completed owner
+      // promise so openBoardDetails does not mistake the missing card-tap
+      // promise for an interrupted Journey Unit exit and start a second exit
+      // over the destination modal.
+      const completedJourneyExit = skipJourneyExit ? Promise.resolve() : undefined;
+      await this.openBoardDetails(board, skipJourneyExit, completedJourneyExit);
     } else {
       logger.warn(`⚠️ Board ${boardId} not found`);
     }
@@ -9584,10 +9597,13 @@ class JourneyBoardsManager {
       let playButtonForAnimation: HTMLElement | null = null;
       
       if (!isInterim) {
-        // 🔥 USER REQUEST: Always show PLAY on board detail CTA (never CONTINUE).
-        const boardHasSavedState = hasSavedStateForBoard(board.id);
-        const buttonText = 'Play';
-        const ariaLabel = 'Play Board';
+        // Journey-wide rule for every regular board/world: a real
+        // board-specific save means resume/Continue; no save means fresh/Play.
+        // Exit-without-a-move already clears this save, so reopening the card
+        // correctly returns to Play without another UI-specific flag.
+        const boardHasSavedState = hasResumableSavedStateForBoard(board.id, { clearInvalid: true });
+        const buttonText = boardHasSavedState ? 'Continue' : 'Play';
+        const ariaLabel = boardHasSavedState ? 'Continue Board' : 'Play Board';
         
         logger.debug(`🎮 Board ${board.id} button will show: "${buttonText}"`, { hasSavedState: boardHasSavedState });
         
@@ -9595,7 +9611,7 @@ class JourneyBoardsManager {
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
         floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
-        floatingPlayButton.textContent = buttonText; // Always "Play"
+        floatingPlayButton.textContent = buttonText;
         floatingPlayButton.setAttribute('type', 'button');
         floatingPlayButton.setAttribute('aria-label', ariaLabel);
         
@@ -9678,7 +9694,7 @@ class JourneyBoardsManager {
           // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)
           // If YES → continue saved game (resume)
           // If NO → start fresh board (new game)
-          const hasSavedState = hasSavedStateForBoard(boardIdForPlay);
+          const hasSavedState = hasResumableSavedStateForBoard(boardIdForPlay, { clearInvalid: true });
           logger.debug(`🎮 Board ${boardIdForPlay} saved state exists: ${hasSavedState}`);
           
           try {

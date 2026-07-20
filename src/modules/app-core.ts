@@ -1062,6 +1062,7 @@ async function prepareArcadeStageClearFinalMergeHandoff(
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
+  const cleanBoardRunAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0);
 
   // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
   // This prevents clean board modal from appearing when user navigates away from game
@@ -1219,6 +1220,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       boardNumber,
       skipStarsWait: shouldSkipStarsWaitForCleanBoard,
       finalMergeCompleted: terminalFinalMergeReason,
+      abortToken: cleanBoardRunAbortToken,
       hideGrid: () => {
         try {
           setJourneyGameBottomDecorVisible(false);
@@ -1283,6 +1285,8 @@ async function runNoMovesFailFlow({
   devLog('⏳ Running no-moves fail flow before fail screen', { reason, waitMs, extraWaitMs });
   failScreenFlowInProgress = true;
   busyEnding = true;
+  try { (window as any).__ccTerminalEndScreenPending = true; } catch {}
+  try { setInputGateLock('terminal-no-moves', true, { ttlMs: 12000, scope: 'all' }); } catch {}
   try { (window as any).__ccFailScreenPending = true; } catch {}
   try { TILE_IDLE_BOUNCE.stop(); } catch {}
   try { cleanupFxContainersByTag('tile-idle-smoke'); } catch {}
@@ -12906,6 +12910,8 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     // Don't call it again here - it causes duplicate calls and blank screen
     // The modal already handles exitToMenu and waits for it to complete before resolving
     devLog('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
+  } else if (result?.action === '__navigation-abort__') {
+    devLog('⏭️ Fail modal invalidated by navigation - stopping stale fail flow');
   } else if (result?.action === 'no-hearts') {
     // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
     devLog('💔 No hearts action - hearts bottom sheet shown, staying out of game');
@@ -12919,6 +12925,8 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     // 🔥 FIX: Ensure busyEnding is always reset, even on error
     busyEnding = false;
     failScreenFlowInProgress = false;
+    try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
+    try { setInputGateLock('terminal-no-moves', false); } catch {}
   }
 }
 

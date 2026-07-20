@@ -424,7 +424,13 @@ function createModal(): HTMLElement {
   }
   
   if (exitBtn) {
+    let exitActionInProgress = false;
     const exitClickHandler = async () => {
+      if (exitActionInProgress) {
+        console.log('🚪 Duplicate Exit button event ignored while handoff owns the transition');
+        return;
+      }
+      exitActionInProgress = true;
       console.log('🚪 Exit button clicked - starting ULTRA INSTANT exit sequence');
       
       // Haptic for Exit button
@@ -436,48 +442,19 @@ function createModal(): HTMLElement {
       const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
       const returnDecision = await resolveJourneyReturnTarget(currentBoardNumber);
       console.log('🎯 end-run-modal: Journey return target prepared:', returnDecision);
-      
-      // 🔥 CRITICAL FIX: Kill all GSAP tweens on PIXI objects to prevent _x null errors
-      // The issue is that GSAP tweens hold references to PIXI objects that may be destroyed
-      // Don't stop ticker yet - we need it for the exit animation
-      try {
-        const STATE = (window as any).STATE;
-        const gsapLib = (window as any).gsap || gsap;
-        
-        // Kill all tweens on tiles (which might have destroyed positions)
-        if (STATE?.tiles && STATE.tiles.length > 0) {
-          STATE.tiles.forEach((tile: any) => {
-            try {
-              if (tile && !tile.destroyed) {
-                gsapLib.killTweensOf(tile);
-                if (tile.scale) gsapLib.killTweensOf(tile.scale);
-                if (tile.position) gsapLib.killTweensOf(tile.position);
-              }
-            } catch {}
-          });
-          console.log('✅ Killed GSAP tweens on tiles (Exit click)');
-        }
-        
-        // Kill tweens on board and stage
-        if (STATE?.board && !STATE.board.destroyed) {
-          gsapLib.killTweensOf(STATE.board);
-        }
-        if (STATE?.stage) {
-          gsapLib.killTweensOf(STATE.stage);
-        }
-        
-        console.log('✅ GSAP tweens killed on Exit click');
-      } catch (gsapError) {
-        console.warn('⚠️ Failed to kill GSAP tweens on Exit:', gsapError);
-      }
+
+      // Do not kill tile/merge tweens here. exitToMenu owns ordered gameplay
+      // shutdown; cancelling a magnet/wild merge early can strand its value-6
+      // visual outside the normal tile lifecycle.
       
       // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();
       
-      // Step 2: Wait for modal animation to complete, then start board exit
-      // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
-      // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
-      setTimeout(() => {
+      // Step 2: Wait for modal animation to complete, then own the complete
+      // board-to-menu/detail handoff. This delay is intentionally not tracked by
+      // modal cleanup, but the async handler itself remains the single owner.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
+      try {
         console.log('🎯 Modal hidden, starting board exit...');
         
         // 🔥 CRITICAL FIX: Reset gamePaused flag BEFORE exitToMenu
@@ -514,13 +491,33 @@ function createModal(): HTMLElement {
         }
         
         console.log('🎯 Requesting menu exit handoff (will play board exit animation first if available)...');
-        requestExitToMenu({
+        await requestExitToMenu({
           reason: 'end-run-modal-exit',
           target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
-        }).catch((error) => {
-          console.warn('⚠️ end-run-modal: menu exit handoff failed:', error);
         });
-      }, 400); // Wait for modal close animation to complete
+
+        if (returnDecision.target === 'detail-modal' && returnDecision.boardId !== null) {
+          const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
+          const detailStyle = detailModal ? window.getComputedStyle(detailModal) : null;
+          const detailVisible = !!detailModal
+            && detailModal.hidden !== true
+            && detailStyle?.display !== 'none'
+            && detailStyle?.visibility !== 'hidden'
+            && Number(detailStyle?.opacity || '1') > 0.01;
+
+          if (!detailVisible) {
+            console.warn('⚠️ end-run-modal: detail destination not visible after handoff, opening explicitly', {
+              boardId: returnDecision.boardId,
+            });
+            const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+            await journeyBoardsManager.openBoardDetailsById?.(returnDecision.boardId, true);
+          }
+        }
+        console.log('✅ end-run-modal: Exit handoff completed with a visible destination');
+      } catch (error) {
+        console.warn('⚠️ end-run-modal: menu exit handoff failed:', error);
+        exitActionInProgress = false;
+      }
     };
     trackEndRunEventListener(exitBtn, 'click', exitClickHandler);
     const exitTouchHandler = (e: Event) => {
@@ -842,13 +839,6 @@ function addDragFunctionality(modalEl: HTMLElement): void {
           modalEl.classList.remove('end-run-shadow-active');
         }
         setModalVisible(false);
-      try {
-        if (typeof window.setEndRunModalVisible === 'function') {
-          window.setEndRunModalVisible(false);
-        }
-      } catch (err) {
-        console.warn('⚠️ Error resetting modal visibility state:', err);
-      }
       console.log('📊 End run modal drag close - visibility reset immediately');
       
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
@@ -865,8 +855,12 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       } catch (e) { /* ignore */ }
       (window as any)._gamePaused = false;
       console.log('🔓 Game resumed immediately on drag close');
-      
-      trackEndRunTimeout(() => hideModal(), 400);
+
+      // Let hideModal own the complete close lifecycle. The old path first
+      // marked `_closing=true` through the window setter, then called hideModal
+      // 400ms later; hideModal treated that as a duplicate and never cleared
+      // the modal reference/transition lock, so X could not open it again.
+      hideModal();
     } else {
       console.log('🎯 SNAPPING BACK');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -940,13 +934,6 @@ function addDragFunctionality(modalEl: HTMLElement): void {
           modalEl.classList.remove('end-run-shadow-active');
         }
         setModalVisible(false);
-      try {
-        if (typeof window.setEndRunModalVisible === 'function') {
-          window.setEndRunModalVisible(false);
-        }
-      } catch (err) {
-        console.warn('⚠️ Error resetting modal visibility state:', err);
-      }
       console.log('📊 End run modal drag close (mouse) - visibility reset immediately');
       
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
@@ -963,8 +950,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       } catch (e) { /* ignore */ }
       (window as any)._gamePaused = false;
       console.log('🔓 Game resumed immediately on mouse drag close');
-      
-      trackEndRunTimeout(() => hideModal(), 400);
+
+      hideModal();
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -1046,8 +1033,6 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 }
 
 export function hideModal(): void {
-  endRunTransitionInProgress = true;
-  const closeLifecycleId = ++endRunLifecycleId;
   let modalEl = modal;
   
   // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
@@ -1087,11 +1072,16 @@ export function hideModal(): void {
   }
   
   if ((modalEl as any)._closing) {
+    // A second X tap during the 400ms close must not claim a new lifecycle ID.
+    // Doing so invalidates the original close callback and leaves the hidden
+    // sheet reference + transition lock stuck forever.
     removeEndRunOverlay();
     unfreezeGameAndHud('hideModal:already-closing');
     return;
   }
 
+  endRunTransitionInProgress = true;
+  const closeLifecycleId = ++endRunLifecycleId;
   (modalEl as any)._closing = true;
   
   // 🔥 CRITICAL FIX: Clean up outside click handlers immediately
@@ -1221,6 +1211,10 @@ export function forceHideEndRunModal(reason = 'force-hide'): void {
 }
 
 export function showEndRunModalFromGame(): void {
+  if ((window as any).__ccTerminalEndScreenPending === true) {
+    console.warn('⏭️ End Run modal blocked while terminal No Moves/Fail handoff owns input');
+    return;
+  }
   if (endRunTransitionInProgress) {
     const transitionElapsedMs = endRunOpenStartedAt > 0 ? Date.now() - endRunOpenStartedAt : 0;
     if (transitionElapsedMs > 950 && recoverStuckEndRunModalState('hud-transition-stuck')) {

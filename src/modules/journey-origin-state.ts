@@ -1,4 +1,5 @@
 import { RUN_MODE_JOURNEY, setRunMode } from './run-mode.js';
+import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 export interface JourneyOriginOptions {
   fromInterim?: boolean;
@@ -123,6 +124,41 @@ export async function resolveJourneyReturnTarget(boardId: unknown): Promise<Jour
   clearJourneyDetailReturn();
   markJourneyGameOrigin({ fromInterim: false });
   return { target: 'journey', boardId: normalizedBoardId, isUnlockedBoard: false, isInterim: false };
+}
+
+/**
+ * A failed Journey board always returns to its containing Journey world.
+ * Failure is not a continuation of the board-detail flow, even when the board
+ * was originally launched from its detail modal.
+ */
+export function prepareJourneyFailReturnTarget(boardId: unknown): JourneyReturnDecision {
+  const normalizedBoardId = normalizeBoardId(boardId);
+  if (typeof window === 'undefined') {
+    return { target: 'homepage', boardId: normalizedBoardId, isUnlockedBoard: false, isInterim: false };
+  }
+
+  clearJourneyDetailReturn();
+  markJourneyGameOrigin({ fromInterim: false });
+
+  // A fail Exit returns to the same world/board area, not to a fresh Journey
+  // entry from Homepage. Reuse the established active-area return lifecycle so
+  // the viewport is primed hidden and the complete Forest/Beach/Area 51 Unit
+  // performs one coordinated standard enter.
+  (window as any).__ccReturningFromDetailModal = true;
+  if (normalizedBoardId) {
+    (window as any).__ccJourneyReturnBoardId = normalizedBoardId;
+    (window as any).__ccLastActiveJourneyBoardAreaId = normalizedBoardId;
+    try { localStorage.setItem('__ccJourneyReturnBoardId', String(normalizedBoardId)); } catch {}
+    try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(normalizedBoardId)); } catch {}
+  }
+  emitIOSNativeDiagnostic('fail-return-prepared', { boardId: normalizedBoardId });
+
+  return {
+    target: 'journey',
+    boardId: normalizedBoardId,
+    isUnlockedBoard: false,
+    isInterim: false,
+  };
 }
 
 export function clearJourneyInterimOrigin(): void {

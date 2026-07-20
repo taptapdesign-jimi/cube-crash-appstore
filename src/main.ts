@@ -34,8 +34,9 @@ import iosOptimizer from './modules/ios-optimizer.js';
 
 // Import new services
 import { initializeServices } from './core/service-registry.js';
-import { getBoardSaveKey, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
+import { getBoardSaveKey, hasResumableSavedStateForBoard, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
 import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
+import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
@@ -1602,6 +1603,10 @@ async function startNewRun(boardId: number): Promise<void> {
         } catch (_) { /* ignore */ }
       }
     }
+    if (savedGame && !hasResumableSavedStateForBoard(boardToLoad, { clearInvalid: true })) {
+      logger.warn(`⚠️ Discarding non-resumable terminal/invalid save for board ${boardToLoad}`);
+      savedGame = null;
+    }
     console.log(`🔄 Attempting to load board ${boardToLoad} from ${saveKey}`);
     logger.info(`🔄 Loading board ${boardToLoad} save state (${saveKey})`);
     
@@ -2924,9 +2929,10 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // Show Journey screen immediately (no delays, no RAF hacks)
       const collectiblesManager = (window as any).collectiblesManager;
+      emitIOSNativeDiagnostic('main-before-show');
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
         // This will handle Journey screen enter animation internally
-        collectiblesManager.showCollectibles();
+        await collectiblesManager.showCollectibles();
         console.log('✅ Journey screen shown with enter animation');
       } else {
         try {
@@ -2945,18 +2951,11 @@ async function startNewRun(boardId: number): Promise<void> {
           }
         }
       }
+      emitIOSNativeDiagnostic('main-after-show-scheduled');
 
-      try {
-        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-        journeyBoardsManager.resumeInterimCardIdleEffects?.('exitToMenu-journey-pathway');
-        window.setTimeout(() => {
-          try {
-            journeyBoardsManager.resumeInterimCardIdleEffects?.('exitToMenu-journey-pathway-late');
-          } catch {}
-        }, 650);
-      } catch (resumeError) {
-        console.warn('⚠️ exitToMenu: failed to resume Journey interim effects:', resumeError);
-      }
+      // showCollectibles owns the complete visible enter lifecycle and resumes
+      // idle effects only after enter completion. Starting them here as well
+      // races the Forest/Beach/Area Unit enter on physical iOS.
 
       // Resume menu soundtrack with fade in when Journey is shown (so music plays on Journey)
       try {
@@ -2978,6 +2977,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // This ensures exit animation was fully visible before hiding app
       // Wait a bit to ensure Journey screen enter animation has started
       await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
+      emitIOSNativeDiagnostic('main-before-hide-app');
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER Journey screen shown (exit animation was visible)');
       

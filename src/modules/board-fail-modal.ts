@@ -6,7 +6,7 @@ import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
-import { clearJourneyDetailReturn, resolveJourneyReturnTarget } from './journey-origin-state.js';
+import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './journey-origin-state.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -236,7 +236,7 @@ function playFailModalExitAnimation(params: {
         animateButtonExit(primaryButton);
         setTimeout(() => {
           animateButtonExit(secondaryButton);
-        }, 200);
+        }, 70);
 
         nodes.forEach((node, index) => {
           popOut(node, {
@@ -252,14 +252,16 @@ function playFailModalExitAnimation(params: {
           gsap.killTweensOf(card);
           gsap.to(card, {
             scale: 0.86,
-            duration: 0.32,
+            duration: 0.24,
             ease: exitEase,
             overwrite: 'auto',
             force3D: true,
           });
-        }, 400);
+        }, 160);
 
-        const collapseDuration = nodes.length * 60 + 200 + 650 + 200;
+        // Keep this handoff compact: the previous formula left the almost-empty
+        // modal sitting on screen for 1.17s before the final card collapse.
+        const collapseDelayMs = 360;
         setTimeout(() => {
           gsap.killTweensOf(card);
           gsap.to(card, {
@@ -276,14 +278,14 @@ function playFailModalExitAnimation(params: {
             ease: 'power1.out',
             overwrite: 'auto',
           });
-        }, collapseDuration);
+        }, collapseDelayMs);
 
         setTimeout(() => {
           animatedTargets.forEach(target => {
             target.style.willChange = '';
           });
           resolve();
-        }, collapseDuration + 320);
+        }, collapseDelayMs + 260);
       } catch (error) {
         logger.warn('⚠️ board-fail-modal: Exit animation failed, closing directly:', error);
         try {
@@ -312,6 +314,24 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
   _isModalOpen = true;
   
   return new Promise(async (resolve) => {
+    let settled = false;
+    let navigationAbortHandler: (() => void) | null = null;
+    const safeResolve = (action: string): void => {
+      if (settled) return;
+      settled = true;
+      if (navigationAbortHandler) {
+        try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
+        navigationAbortHandler = null;
+      }
+      resolve({ action });
+    };
+    navigationAbortHandler = () => {
+      try { cleanupFailModalLifecycle(); } catch {}
+      try { document.getElementById(OVERLAY_ID)?.remove(); } catch {}
+      _isModalOpen = false;
+      safeResolve('__navigation-abort__');
+    };
+    window.addEventListener('cc-navigation', navigationAbortHandler, { once: true });
     // 🔥 CRITICAL FIX: Wrap entire promise body in try-catch to ensure resolve is ALWAYS called
     // Without this, if an error occurs before any button action, the promise never resolves
     // and busyEnding stays stuck, blocking future fail screens
@@ -428,6 +448,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       logger.warn(`⚠️ board-fail-modal: Failed to clear saved game state for board ${boardNumber}:`, error);
     }
     
+    if (settled) {
+      logger.info('⏭️ board-fail-modal: Navigation aborted modal before DOM creation');
+      return;
+    }
+
     removeExisting();
 
     const overlay = document.createElement('div');
@@ -684,7 +709,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             try { overlay.remove(); } catch {} 
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-            resolve({ action }); 
+            safeResolve(action);
           } catch (error) {
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
             
@@ -711,7 +736,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             try { overlay.remove(); } catch {} 
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-            resolve({ action }); 
+            safeResolve(action);
           }
         })();
         return; // Exit early - modal closing is handled above
@@ -722,55 +747,36 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         resetArcadeFailedRunForFreshStart();
         
-        let returnDecisionPromise: Promise<any> | null = null;
         if (isArcadeHomeRunMode()) {
           clearJourneyDetailReturn();
           logger.info('🎮 board-fail-modal: Arcade Exit - returning to homepage with no detail modal flags');
         } else {
-          returnDecisionPromise = resolveJourneyReturnTarget(boardNumber);
+          const returnDecision = prepareJourneyFailReturnTarget(boardNumber);
+          logger.info('🎯 board-fail-modal: Journey fail return target prepared', returnDecision);
         }
         
         await runExitAnimation(action);
 
-        if (returnDecisionPromise) {
-          const returnDecision = await returnDecisionPromise;
-          logger.info('🎯 board-fail-modal: Journey return target prepared', returnDecision);
-          console.log('🎯 board-fail-modal: Journey return target prepared:', returnDecision);
-        }
-
         // 🔥 BUG FIX: Cleanup board/FX after fail-modal exit to avoid cutting off the pop-out
         try { (window as any).CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
-        try {
-          const appEl = document.getElementById('app');
-          if (appEl) {
-            appEl.style.opacity = '0';
-            appEl.style.visibility = 'hidden';
-            appEl.style.pointerEvents = 'none';
-          }
-          const canvasEl = document.querySelector('canvas') as HTMLCanvasElement | null;
-          if (canvasEl) {
-            canvasEl.style.opacity = '0';
-            canvasEl.style.visibility = 'hidden';
-          }
-        } catch {}
 
-        (async () => {
-          try {
-            await requestExitToMenu({
-              reason: 'board-fail-modal-exit',
-              target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
-              skipBoardExit: true,
-              fastArcadeCleanExit: isArcadeHomeRunMode(),
-            });
-            logger.info('✅ menu exit handoff completed from board-fail-modal');
-          } catch (error) {
-            logger.warn('⚠️ menu exit handoff failed:', error);
-          }
-        })();
+        // Keep the fail overlay alive until the destination owns the screen.
+        // Resolving early lets app-core resume while no Journey or board layer is visible.
+        try {
+          await requestExitToMenu({
+            reason: 'board-fail-modal-exit',
+            target: isArcadeHomeRunMode() ? 'homepage' : 'auto',
+            skipBoardExit: true,
+            fastArcadeCleanExit: isArcadeHomeRunMode(),
+          });
+          logger.info('✅ menu exit handoff completed from board-fail-modal');
+        } catch (error) {
+          logger.warn('⚠️ menu exit handoff failed:', error);
+        }
         
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-        resolve({ action }); 
+        safeResolve(action);
         return; // Exit early - modal closing is handled above
       }
       
@@ -782,7 +788,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         await runExitAnimation(action);
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
-        resolve({ action }); 
+        safeResolve(action);
       }
     };
 
@@ -947,7 +953,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       _isModalOpen = false;
       clearAllFailTimeouts();  // 🔥 FIX: Correct function name (was clearAllFailModalTimeouts)
       clearAllFailAnimationFrames();  // 🔥 FIX: Correct function name (was clearAllFailModalAnimationFrames)
-      resolve({ action: 'menu' }); // Default action on error
+      safeResolve('menu'); // Default action on error
     }
   });
 }

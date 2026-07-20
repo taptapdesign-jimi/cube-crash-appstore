@@ -73,6 +73,58 @@ export function hasSavedStateForBoard(boardNumber: number): boolean {
   return localStorage.getItem(saveKey) !== null;
 }
 
+type ResumableSaveOptions = {
+  clearInvalid?: boolean;
+  storage?: Pick<Storage, 'getItem' | 'removeItem'>;
+};
+
+function isPlayableSavedTile(snapshot: any): boolean {
+  if (!snapshot || snapshot.destroyed === true) return false;
+  if (snapshot.locked === true || snapshot.open === false) return false;
+  const value = Number(snapshot.value);
+  const special = typeof snapshot.special === 'string' ? snapshot.special : '';
+  return (Number.isFinite(value) && value > 0 && value < 6) || special.length > 0;
+}
+
+/**
+ * A Journey save is resumable only when it belongs to the requested board and
+ * still contains at least two playable tiles. Terminal clean-board residue
+ * (for example one remaining star/special) must never produce Continue.
+ */
+export function isBoardSaveStateResumable(state: any, boardNumber: number): boolean {
+  if (!state || typeof state !== 'object') return false;
+  const savedBoard = Number.isFinite(Number(state.boardNumber))
+    ? Number(state.boardNumber)
+    : Number(state.level);
+  if (Number.isFinite(savedBoard) && Math.floor(savedBoard) !== Math.floor(boardNumber)) return false;
+
+  const gridTiles = Array.isArray(state.grid)
+    ? state.grid.flatMap((row: any) => Array.isArray(row) ? row : [])
+    : [];
+  const candidates = gridTiles.length > 0
+    ? gridTiles
+    : (Array.isArray(state.tiles) ? state.tiles : []);
+  return candidates.filter(isPlayableSavedTile).length >= 2;
+}
+
+export function hasResumableSavedStateForBoard(
+  boardNumber: number,
+  options: ResumableSaveOptions = {},
+): boolean {
+  const storage = options.storage ?? localStorage;
+  const saveKey = getBoardSaveKey(boardNumber);
+  const serialized = storage.getItem(saveKey);
+  if (!serialized) return false;
+  try {
+    const resumable = isBoardSaveStateResumable(JSON.parse(serialized), boardNumber);
+    if (!resumable && options.clearInvalid) storage.removeItem(saveKey);
+    return resumable;
+  } catch {
+    if (options.clearInvalid) storage.removeItem(saveKey);
+    return false;
+  }
+}
+
 /**
  * Delete saved state for a specific board
  * @param boardNumber - Board number to clear
