@@ -2740,7 +2740,57 @@ async function startNewRun(boardId: number): Promise<void> {
     returnToDetailModal = exitRoute.returnToDetailModal;
     detailModalBoardId = exitRoute.detailModalBoardId;
 
+    // A board exit that returns to its Journey detail card must keep the
+    // preserved world hidden until that modal is later closed. Set ownership
+    // before showJourneyShell(); setting it in the detail branch below is too
+    // late because showCollectibles has already started a full world enter in
+    // the background by then.
+    if (returnToDetailModal && detailModalBoardId !== null) {
+      (window as any).__ccSuppressJourneyShowForDirectDetailReturn = true;
+      (window as any).__ccDirectDetailModalReturnActive = true;
+      emitIOSNativeDiagnostic('main-detail-modal-return-suppression-primed', {
+        boardId: detailModalBoardId,
+      });
+    }
+
     if (exitRoute.target === 'journey') {
+      // AppZoneManager intentionally consumes the broad Journey-origin flags
+      // while resolving the route. A direct board -> Journey return still
+      // needs an explicit animation handoff, otherwise showCollectibles sees
+      // a fresh screen and reveals the already-rendered world at final state
+      // without invoking the coordinated V700 Unit enter.
+      const returnBoardId = Number(
+        (window as any).__ccStartAtLevel ||
+        STATE?.boardNumber ||
+        STATE?.level ||
+        (window as any).__ccJourneyReturnBoardId ||
+        0
+      );
+      const returningFromInterimBoard = isJourneyInterimOriginActive();
+      if (returningFromInterimBoard) {
+        (window as any).__ccReturningFromInterimBoard = true;
+        try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
+      } else {
+        // This established marker means "return to the active Journey world"
+        // in showCollectibles; in a V700 world it triggers the full coordinated
+        // Unit enter rather than the legacy active-area-only path.
+        (window as any).__ccReturningFromDetailModal = true;
+      }
+      // Set this before showJourneyShell can scope/render the saved world.
+      // showCollectibles will consume the flag when it starts the one visible
+      // coordinated return enter.
+      (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+      if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
+        (window as any).__ccJourneyReturnBoardId = returnBoardId;
+        (window as any).__ccLastActiveJourneyBoardAreaId = returnBoardId;
+        try { localStorage.setItem('__ccJourneyReturnBoardId', String(returnBoardId)); } catch {}
+        try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(returnBoardId)); } catch {}
+      }
+      emitIOSNativeDiagnostic('main-journey-board-return-prepared', {
+        boardId: Number.isFinite(returnBoardId) && returnBoardId > 0 ? returnBoardId : null,
+        returningFromInterimBoard,
+      });
+
       const detailModal = document.getElementById('collectibles-detail-modal');
       if (detailModal) {
         detailModal.hidden = true;
@@ -2865,16 +2915,15 @@ async function startNewRun(boardId: number): Promise<void> {
             // Skip Journey exit animation because Journey screen is already hidden
             await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
             console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
-            window.setTimeout(() => {
-              delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
-            }, 2000);
           } else {
             console.warn('⚠️ openBoardDetailsById method not found');
             delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+            delete (window as any).__ccDirectDetailModalReturnActive;
           }
         }).catch((error) => {
           console.warn('⚠️ Failed to import journeyBoardsManager:', error);
           delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+          delete (window as any).__ccDirectDetailModalReturnActive;
         });
 
         await detailModalOpenPromise;

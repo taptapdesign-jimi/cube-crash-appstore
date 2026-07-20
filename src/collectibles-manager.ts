@@ -1000,7 +1000,11 @@ class CollectiblesManager {
         !!detailModal &&
         detailModal.hidden !== true &&
         detailModal.style.display !== 'none';
-      if (detailModalOpeningOrVisible || (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true) {
+      if (
+        detailModalOpeningOrVisible ||
+        (window as any).__ccSuppressJourneyShowForDirectDetailReturn === true ||
+        (window as any).__ccDirectDetailModalReturnActive === true
+      ) {
         (screen as HTMLElement).style.display = 'flex';
         (screen as HTMLElement).style.opacity = '0';
         (screen as HTMLElement).style.visibility = 'hidden';
@@ -1277,6 +1281,9 @@ class CollectiblesManager {
         journeyBoardsManagerPreparedForEnter = journeyBoardsManager;
         restoreJourneyReturnScrollPosition('pre-reveal-after-boards-ready');
         journeyBoardsManager.prepareJourneyBoardCardTransformsForReveal?.('collectibles-pre-reveal');
+        if (shouldUseV700WorldReturnEnter) {
+          journeyBoardsManager.prepareJourneyV700WorldEnterFromReturn?.('collectibles-pre-reveal-world-return');
+        }
         prepareJourneyViewportScreenEnter('collectibles-pre-reveal');
         emitIOSNativeDiagnostic('viewport-prepared', { shouldPlayActiveBoardAreaEnter });
         if (shouldPlayActiveBoardAreaEnter) {
@@ -1337,18 +1344,22 @@ class CollectiblesManager {
                 }
                 const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
                 emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
-                if (!shouldPlayActiveBoardAreaEnter) {
-                  activeJourneyBoardsManager.playJourneyV700HubEnterFromHomepage?.();
-                }
+                let v700WorldReturnEnterStarted = false;
                 if (shouldUseV700WorldReturnEnter) {
-                  logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-scheduled', {
+                  v700WorldReturnEnterStarted = true;
+                  logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-with-viewport', {
                     returningFromInterimBoardEarly,
                     containerView: journeyContainer.dataset.journeyV700View || null,
                     windowView: (window as any).__ccJourneyV700View || null,
                   });
                   activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
-                    returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-fail-return'
+                    returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return'
                   );
+                }
+                if (!shouldPlayActiveBoardAreaEnter) {
+                  if (!shouldUseV700WorldReturnEnter) {
+                    activeJourneyBoardsManager.playJourneyV700HubEnterFromHomepage?.();
+                  }
                 }
                 let activeAreaEnterStarted = false;
                 const startActiveAreaEnter = (source: string): void => {
@@ -1389,6 +1400,16 @@ class CollectiblesManager {
                   });
                 };
                 enterPromise.then(() => {
+                  if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
+                    logger.info('🧩 JourneyV700Flow collectibles-v700-world-return-enter-visible', {
+                      returningFromInterimBoardEarly,
+                      containerView: journeyContainer.dataset.journeyV700View || null,
+                      windowView: (window as any).__ccJourneyV700View || null,
+                    });
+                    activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
+                      returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return'
+                    );
+                  }
                   if (!shouldPlayActiveBoardAreaEnter && !shouldUseV700WorldReturnEnter) {
                     activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
                   }
@@ -1398,7 +1419,7 @@ class CollectiblesManager {
                   restoreScrollAfterEnter('journey-enter-complete');
                 }).catch((error) => {
                   logger.warn('⚠️ Journey viewport enter completion failed:', String(error));
-                  if (shouldUseV700WorldReturnEnter) {
+                  if (shouldUseV700WorldReturnEnter && !v700WorldReturnEnterStarted) {
                     activeJourneyBoardsManager.playJourneyV700WorldEnterFromReturn?.(
                       returningFromInterimBoardEarly
                         ? 'interim-game-return-viewport-error'

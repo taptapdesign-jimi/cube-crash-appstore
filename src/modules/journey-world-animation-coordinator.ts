@@ -4,6 +4,7 @@ import {
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
 } from './journey-v700-motion.js';
+import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 export interface JourneyWorldAnimationUnit {
   id: string;
@@ -83,6 +84,14 @@ export class JourneyWorldAnimationCoordinator {
         const irregularOffset = Number.isFinite(unit.enterDelayOffset)
           ? Number(unit.enterDelayOffset)
           : getJourneyV700EnterOffset(unit.id, index, reducedMotion);
+        tween.eventCallback('onStart', () => {
+          emitIOSNativeDiagnostic('world-unit-enter-start', {
+            unitId: unit.id,
+            unitIndex: index,
+            targetCount: unit.targets.length,
+            scheduledAt: motion.enter.baseDelay + irregularOffset,
+          });
+        });
         timeline.add(tween, motion.enter.baseDelay + irregularOffset);
       });
     });

@@ -679,6 +679,33 @@ class JourneyBoardsManager {
   private journeyV700HubEnterCooldownUntil = 0;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
+  private journeyV700WorldMotionEpoch = 0;
+
+  private emitJourneyCardGeometryDiagnostic(event: string, tappedBoardId?: number): void {
+    try {
+      const container = document.getElementById('journey-boards-container');
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      const cards = Array.from(container?.querySelectorAll<HTMLElement>('.journey-board-card-wrapper') || [])
+        .filter((wrapper) => wrapper.style.display !== 'none' && document.body.contains(wrapper))
+        .map((wrapper) => {
+          const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
+          const boardId = Number(card?.dataset.boardId || 0);
+          const rect = wrapper.getBoundingClientRect();
+          return {
+            boardId,
+            top: Math.round(rect.top * 10) / 10,
+            y: Math.round(Number(gsap.getProperty(wrapper, 'y') || 0) * 10) / 10,
+            transform: wrapper.style.transform || null,
+            tapped: boardId === tappedBoardId,
+          };
+        });
+      emitIOSNativeDiagnostic(`card-geometry-${event}`, {
+        tappedBoardId: tappedBoardId || null,
+        scrollTop: Math.round((scrollable?.scrollTop || 0) * 10) / 10,
+        cards,
+      });
+    } catch {}
+  }
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -861,7 +888,13 @@ class JourneyBoardsManager {
         target.style.visibility = 'visible';
       }
       target.classList.add('journey-area-idle-target');
-      target.dataset.journeyAreaId = areaId;
+      // `data-journey-area-id` is the canonical V700 Unit identity. Legacy
+      // idle used to overwrite Beach/Robo main ownership with `forest-main`
+      // and `forest-main-cloud-*`, so the next enter omitted the main PNG.
+      // Only backfill identity for genuinely unowned legacy targets.
+      if (!target.dataset.journeyAreaId) {
+        target.dataset.journeyAreaId = areaId;
+      }
       if (
         target.classList.contains('journey-robo-alien-beam-art') &&
         this.journeyV700Phase === 'idle' &&
@@ -951,6 +984,24 @@ class JourneyBoardsManager {
 
   private pauseJourneyAreaIdleForInteraction(resumeDelayMs = 900): void {
     try {
+      // Opening a detail modal is initiated while the coordinated world exit
+      // is already in flight. Do not let the modal's generic interaction
+      // pause tear down/restart world idle during the short card-shrink
+      // overlap: that restart writes every Unit back near y=0 and produces
+      // the visible one-frame card jerk before the standard exit.
+      if (
+        this.journeyToGameExitActive &&
+        this.journeyV700View === 'world' &&
+        !!this.journeyV700WorldId
+      ) {
+        logger.info('🧭 JourneyForestAnim interaction-idle-pause-owned-by-world-exit', {
+          resumeDelayMs,
+          worldId: this.journeyV700WorldId,
+          boardId: this.journeyToGameExitBoardId,
+        });
+        return;
+      }
+
       this.clearJourneyAreaIdleStartTimeout();
       if (!this.journeyAreaIdlePausedForInteraction) {
         this.journeyAreaIdlePausedForInteraction = true;
@@ -3154,16 +3205,32 @@ class JourneyBoardsManager {
     };
 
     const journeyContainerForReturn = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const resolvedReturnWorldId = Number(
+      this.journeyV700WorldId ||
+      journeyContainerForReturn?.dataset.journeyV700WorldId ||
+      (window as any).__ccJourneyV700WorldId ||
+      localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) ||
+      0
+    );
+    const hasPreservedWorldIdentity =
+      journeyContainerForReturn?.dataset.journeyV700View === 'world' ||
+      (window as any).__ccJourneyV700View === 'world' ||
+      localStorage.getItem(JOURNEY_V700_VIEW_STORAGE_KEY) === 'world';
     const preserveVisibleV700World =
-      this.journeyV700View === 'world' &&
-      !!this.journeyV700WorldId &&
-      (
-        journeyContainerForReturn?.dataset.journeyV700View === 'world' ||
-        (window as any).__ccJourneyV700View === 'world'
-      ) &&
+      Number.isFinite(resolvedReturnWorldId) &&
+      resolvedReturnWorldId > 0 &&
+      hasPreservedWorldIdentity &&
       !!journeyContainerForReturn?.querySelector('.journey-cards-container, .journey-bg-container');
 
     if (preserveVisibleV700World && journeyContainerForReturn) {
+      // Board cleanup may reset the manager's in-memory view while the
+      // preserved V700 world DOM and persisted identity remain valid. Restore
+      // that authoritative identity before selecting animation ownership so
+      // this close cannot fall through to showCollectibles and later re-enter.
+      this.journeyV700View = 'world';
+      this.journeyV700WorldId = resolvedReturnWorldId;
+      journeyContainerForReturn.dataset.journeyV700View = 'world';
+      journeyContainerForReturn.dataset.journeyV700WorldId = String(resolvedReturnWorldId);
       this.logJourneyV700Flow('detail-modal-return-preserve-world', { context, returnEpoch }, journeyContainerForReturn);
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
       const header = journeyScreen?.querySelector('.collectibles-header') as HTMLElement | null;
@@ -3171,6 +3238,21 @@ class JourneyBoardsManager {
       const homeElement = document.getElementById('home') as HTMLElement | null;
       const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
       const navElement = document.getElementById('independent-nav') as HTMLElement | null;
+      const worldId = resolvedReturnWorldId;
+      const activeBoardId = this.getLastActiveJourneyBoardAreaId();
+
+      // The preserved world is still mounted behind the detail modal. Prime every
+      // complete Unit before revealing journey-screen; otherwise the browser can
+      // paint the old idle/final transforms for one or more frames before the
+      // normal enter lifecycle gets a chance to establish its start state.
+      if (activeBoardId) {
+        this.getJourneyV700VisibleBoardAreaTargets(journeyContainerForReturn, activeBoardId)
+          .forEach((target) => this.restoreJourneyBoardCardInnerVisual(target));
+      }
+      this.primeJourneyV700WorldEnter(journeyContainerForReturn, worldId, {
+        source: 'detail-modal-return-before-reveal',
+        lastBoardId: activeBoardId,
+      });
 
       [homeElement, sliderContainer, navElement].forEach((element) => {
         if (!element) return;
@@ -3222,40 +3304,45 @@ class JourneyBoardsManager {
 	        });
 	      }
 
-	      const worldId = this.journeyV700WorldId;
 	      this.updateJourneyV700Nav('world', worldId);
 	      this.playJourneyV700NavEnter({ transformOrigin: '50% 0%' });
 	      restoreDirectDetailReturnScroll('preserve-world-before-enter');
-      this.trackTimeout(() => {
-        if (!isCurrentDetailReturn()) {
-          this.logJourneyV700Flow('detail-modal-return-world-enter-skipped-stale', {
-            context,
-            returnEpoch,
-            currentEpoch: this.journeyDetailReturnEpoch,
-          }, journeyContainerForReturn);
-          return;
-        }
-        const activeBoardId = this.getLastActiveJourneyBoardAreaId();
-        if (activeBoardId) {
-          this.getJourneyV700VisibleBoardAreaTargets(journeyContainerForReturn, activeBoardId)
-            .forEach((target) => this.restoreJourneyBoardCardInnerVisual(target));
-        }
-        this.playJourneyV700WorldEnter(journeyContainerForReturn, worldId, {
-          source: 'detail-modal-return',
-          lastBoardId: activeBoardId,
-	        });
-	        if (activeBoardId) {
-	          this.clearLastActiveJourneyBoardAreaId(activeBoardId);
-	        }
-	        restoreDirectDetailReturnScroll('preserve-world-after-enter-start');
+
+      // This marker belongs to the completed board -> detail-modal handoff. The
+      // direct detail close below is now the sole owner of the visible world
+      // enter; leaving the marker alive lets a deferred Journey return compete
+      // for the same targets and invalidate this motion epoch.
+      delete (window as any).__ccReturningFromDetailModal;
+      delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+
+      if (!isCurrentDetailReturn()) {
+        this.logJourneyV700Flow('detail-modal-return-world-enter-skipped-stale', {
+          context,
+          returnEpoch,
+          currentEpoch: this.journeyDetailReturnEpoch,
+        }, journeyContainerForReturn);
+        return;
+      }
+
+      // The preserved world was already displayed before gameplay and all of
+      // its assets are local/cached. Start in this same lifecycle tick instead
+      // of exposing a primed screen while waiting for every decorative image.
+      this.playJourneyV700WorldEnter(journeyContainerForReturn, worldId, {
+        source: 'detail-modal-return-after-game',
+        lastBoardId: activeBoardId,
+        waitForImages: false,
+	    });
+	    if (activeBoardId) {
+	      this.clearLastActiveJourneyBoardAreaId(activeBoardId);
+	    }
+	    restoreDirectDetailReturnScroll('preserve-world-after-enter-start');
+	    this.installJourneyScreenElasticOverscroll(journeyContainerForReturn);
+	    [180, 420, 900].forEach((delayMs) => {
+	      this.trackTimeout(() => {
+	        restoreDirectDetailReturnScroll(`preserve-world-settled-${delayMs}ms`);
 	        this.installJourneyScreenElasticOverscroll(journeyContainerForReturn);
-	        [180, 420, 900].forEach((delayMs) => {
-	          this.trackTimeout(() => {
-	            restoreDirectDetailReturnScroll(`preserve-world-settled-${delayMs}ms`);
-	            this.installJourneyScreenElasticOverscroll(journeyContainerForReturn);
-	          }, delayMs);
-	        });
-	      }, 40);
+	      }, delayMs);
+	    });
       return;
     }
 
@@ -3481,8 +3568,6 @@ class JourneyBoardsManager {
           skipCard,
           overlapMs: BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS,
         });
-        this.cleanupJourneyAreaIdleAnimations(false);
-
         const items = this.getBoardAreaTransitionItems(this.getJourneyBoardAreaParts(boardId))
           .filter((item) => !(skipCard && item.role === 'card'));
 
@@ -3497,6 +3582,21 @@ class JourneyBoardsManager {
           });
           resolve();
           return;
+        }
+
+        // In the coordinated V700 world flow, every visible Unit is owned by
+        // JourneyWorldAnimationCoordinator. A global legacy-idle cleanup here
+        // kills animation state for every card immediately before the world
+        // exit starts, which makes non-tapped cards visibly snap toward y=0.
+        // Stop only the tapped Unit; the coordinator will stop the remaining
+        // idle motion and animate every other Unit from its current position.
+        const hasCoordinatedWorldOwner =
+          this.journeyV700View === 'world' &&
+          !!this.journeyV700WorldId;
+        if (hasCoordinatedWorldOwner) {
+          this.stopJourneyAreaIdleForTargets(transitionTargets);
+        } else {
+          this.cleanupJourneyAreaIdleAnimations(false);
         }
 
         const debugItems = items.map((item) => ({
@@ -3920,6 +4020,7 @@ class JourneyBoardsManager {
       view: this.journeyV700View,
       worldId: this.journeyV700WorldId,
     });
+    this.emitJourneyCardGeometryDiagnostic('world-exit-start', boardId);
 
     if (!useCoordinatedWorldExit || !container) {
       return Promise.resolve();
@@ -5857,7 +5958,14 @@ class JourneyBoardsManager {
 
     this.updateJourneyV700Nav('world', worldId);
 
-    if ((window as any).__ccSuppressJourneyV700AutoWorldEnter === true) {
+    const hasExplicitWorldReturnOwner =
+      (window as any).__ccReturningFromDetailModal === true ||
+      (window as any).__ccReturningFromInterimBoard === true ||
+      localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
+    if (
+      (window as any).__ccSuppressJourneyV700AutoWorldEnter === true ||
+      hasExplicitWorldReturnOwner
+    ) {
       const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
       const motion = getJourneyV700MotionProfile(reducedMotion);
       const targets = this.getJourneyV700WorldTargets(container);
@@ -5876,6 +5984,7 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('world-scope-auto-enter-suppressed', {
         worldId,
         targetCount: targets.length,
+        hasExplicitWorldReturnOwner,
       }, container);
       return;
     }
@@ -6039,6 +6148,13 @@ class JourneyBoardsManager {
     const groups: HTMLElement[][] = [];
     const mainAreaId = worldId === 1 ? 'forest-main' : worldId === 2 ? 'beach-main' : worldId === 3 ? 'robo-main' : null;
     const mainCloudClass = worldId === 1 ? 'journey-forest-main-cloud' : worldId === 2 ? 'journey-beach-main-cloud' : worldId === 3 ? 'journey-robo-main-cloud' : null;
+    const isCurrentWorldMainArt = (target: HTMLElement): boolean => {
+      if (worldId === 2) return target.classList.contains('journey-beach-main-art');
+      if (worldId === 3) return target.classList.contains('journey-robo-main-art');
+      if (worldId !== 1 || !target.classList.contains('journey-forest-main-art')) return false;
+      return !target.classList.contains('journey-beach-main-art') &&
+        !target.classList.contains('journey-robo-main-art');
+    };
     const worldRange = worldId ? this.getJourneyWorldRange(worldId) : null;
     const excludeBoardId = Number(options.excludeBoardId || 0);
     const lastBoardId = Number(options.lastBoardId || 0);
@@ -6050,10 +6166,20 @@ class JourneyBoardsManager {
     };
 
     if (mainAreaId) {
-      const mainTargets = visibleTargets.filter((target) => (
+      // Use structural world classes as recovery provenance as well as the
+      // canonical area id. Older idle ownership may already have corrupted a
+      // live DOM node before this fixed build resumes it.
+      const mainTargets = Array.from(container.querySelectorAll<HTMLElement>('[data-journey-area-id], .journey-forest-main-art'))
+        .filter((target) => document.body.contains(target))
+        .filter((target) => (
         target.dataset.journeyAreaId === mainAreaId ||
-        (!!mainCloudClass && target.classList.contains(mainCloudClass))
+        (!!mainCloudClass && target.classList.contains(mainCloudClass)) ||
+        isCurrentWorldMainArt(target)
       ));
+      mainTargets.forEach((target) => {
+        target.dataset.journeyAreaId = mainAreaId;
+        target.style.display = '';
+      });
       pushGroup(mainTargets);
     }
 
@@ -6145,6 +6271,53 @@ class JourneyBoardsManager {
     });
   }
 
+  private primeJourneyV700WorldEnter(
+    container: HTMLElement,
+    worldId: number,
+    options: { source?: string; lastBoardId?: number | null } = {}
+  ): void {
+    const units = this.getJourneyV700AnimationUnits(container, worldId, {
+      lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
+    });
+    if (!units.length) return;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    const motion = getJourneyV700MotionProfile(reducedMotion);
+    const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
+    this.clearJourneyAreaIdleStartTimeout();
+    this.cleanupJourneyAreaIdleAnimations(false);
+
+    try {
+      gsap.killTweensOf(allTargets);
+      allTargets.forEach((target) => {
+        target.classList.remove('journey-robo-alien-beam-idle-ready');
+        target.style.visibility = 'visible';
+        target.style.pointerEvents = 'none';
+      });
+      gsap.set(allTargets, {
+        y: motion.enter.y,
+        scale: motion.enter.scale,
+        opacity: 0,
+        visibility: 'visible',
+        transformOrigin: '50% 50%',
+        force3D: true,
+        overwrite: true,
+      });
+      emitIOSNativeDiagnostic('world-enter-primed-before-screen-reveal', {
+        worldId,
+        source: options.source || 'unknown',
+        unitCount: units.length,
+        targetCount: allTargets.length,
+      });
+    } catch (error) {
+      this.logJourneyV700Flow('world-enter-prime-error', {
+        worldId,
+        source: options.source || 'unknown',
+        error: error instanceof Error ? error.message : String(error),
+      }, container);
+    }
+  }
+
   public playJourneyV700WorldEnterFromReturn(source = 'journey-return'): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = this.journeyV700WorldId || Number((window as any).__ccJourneyV700WorldId || localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) || 0);
@@ -6172,12 +6345,49 @@ class JourneyBoardsManager {
     this.playJourneyV700WorldEnter(container, worldId, { source });
   }
 
+  public prepareJourneyV700WorldEnterFromReturn(source = 'journey-return-pre-reveal'): boolean {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const worldId = Number(
+      this.journeyV700WorldId ||
+      container?.dataset.journeyV700WorldId ||
+      (window as any).__ccJourneyV700WorldId ||
+      localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) ||
+      0
+    );
+    const isWorldView =
+      this.journeyV700View === 'world' ||
+      container?.dataset.journeyV700View === 'world' ||
+      (window as any).__ccJourneyV700View === 'world' ||
+      localStorage.getItem(JOURNEY_V700_VIEW_STORAGE_KEY) === 'world';
+
+    if (!container || !isWorldView || !Number.isFinite(worldId) || worldId <= 0) {
+      this.logJourneyV700Flow('world-return-prime-skip', {
+        source,
+        hasContainer: !!container,
+        isWorldView,
+        worldId,
+      }, container);
+      return false;
+    }
+
+    this.journeyV700View = 'world';
+    this.journeyV700WorldId = worldId;
+    container.dataset.journeyV700View = 'world';
+    container.dataset.journeyV700WorldId = String(worldId);
+    this.primeJourneyV700WorldEnter(container, worldId, {
+      source,
+      lastBoardId: this.getLastActiveJourneyBoardAreaId(),
+    });
+    return true;
+  }
+
   private playJourneyV700WorldEnter(
     container: HTMLElement,
     worldId: number,
     options: {
       source?: string;
       lastBoardId?: number | null;
+      waitForImages?: boolean;
     } = {}
   ): void {
     const units = this.getJourneyV700AnimationUnits(container, worldId, {
@@ -6186,6 +6396,7 @@ class JourneyBoardsManager {
     const source = options.source || 'default';
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
+    const motionEpoch = ++this.journeyV700WorldMotionEpoch;
     this.journeyV700Phase = 'entering';
     this.logJourneyV700Flow('world-enter-start', {
       worldId,
@@ -6203,6 +6414,12 @@ class JourneyBoardsManager {
         cardsOrNumbers: unit.targets.filter((target) => target.classList.contains('journey-board-card-wrapper')).length,
       })),
     }, container);
+    emitIOSNativeDiagnostic('world-enter-start', {
+      worldId,
+      source,
+      unitCount: units.length,
+      units: units.map((unit) => ({ id: unit.id, targets: unit.targets.length })),
+    });
     if (!units.length) return;
     this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
@@ -6231,8 +6448,13 @@ class JourneyBoardsManager {
     } catch {}
 
     const images = allTargets.filter((target): target is HTMLImageElement => target instanceof HTMLImageElement);
-    void Promise.all(images.map((image) => waitForImageReady(image))).then(async () => {
+    const imageReadiness = options.waitForImages === false
+      ? Promise.resolve()
+      : Promise.all(images.map((image) => waitForImageReady(image))).then(() => undefined);
+    void imageReadiness.then(async () => {
       if (
+        this.journeyV700WorldMotionEpoch !== motionEpoch ||
+        this.journeyV700Phase !== 'entering' ||
         this.journeyV700View !== 'world' ||
         this.journeyV700WorldId !== worldId ||
         !document.body.contains(container)
@@ -6244,8 +6466,22 @@ class JourneyBoardsManager {
         imageCount: images.length,
         unitCount: units.length,
       }, container);
+      emitIOSNativeDiagnostic('world-enter-images-ready', {
+        worldId,
+        source,
+        imageCount: images.length,
+        unitCount: units.length,
+      });
       await this.journeyWorldAnimation.enter(units, reducedMotion);
-      if (this.journeyV700View !== 'world' || this.journeyV700WorldId !== worldId) return;
+      // An early X interrupts the enter timeline. Its promise resolves through
+      // onInterrupt, but that does not grant the stale enter continuation
+      // permission to restore final opacity/scale over the active exit.
+      if (
+        this.journeyV700WorldMotionEpoch !== motionEpoch ||
+        this.journeyV700Phase !== 'entering' ||
+        this.journeyV700View !== 'world' ||
+        this.journeyV700WorldId !== worldId
+      ) return;
       allTargets.forEach((target) => {
         try {
           gsap.set(target, {
@@ -6266,6 +6502,7 @@ class JourneyBoardsManager {
         target.style.pointerEvents = '';
         target.style.willChange = 'auto';
       });
+      emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       this.journeyV700Phase = 'idle';
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art')) {
@@ -6295,6 +6532,7 @@ class JourneyBoardsManager {
     onComplete: () => void,
     options: { excludeBoardId?: number | null } = {}
   ): void {
+    ++this.journeyV700WorldMotionEpoch;
     const units = this.getJourneyV700AnimationUnits(container, this.journeyV700WorldId, {
       excludeBoardId: options.excludeBoardId,
       mainExitFirst: true,
@@ -7200,6 +7438,8 @@ class JourneyBoardsManager {
           currentView: this.journeyV700View,
           currentWorldId: this.journeyV700WorldId,
         });
+        this.emitJourneyCardGeometryDiagnostic('tap', board.id);
+        requestAnimationFrame(() => this.emitJourneyCardGeometryDiagnostic('tap-next-frame', board.id));
         logger.info(`🖱️🖱️🖱️ CARD CLICKED FOR BOARD ${board.id}`);
         logger.info(`🔍 Board data on click:`, {
           id: board.id,

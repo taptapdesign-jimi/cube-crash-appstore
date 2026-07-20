@@ -678,6 +678,24 @@ let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let busyEnding = false;
+
+/**
+ * HUD/menu controls must yield as soon as a terminal merge owns the board,
+ * not only after the clean-board async flow eventually sets busyEnding.
+ */
+export function isTerminalEndgameInteractionLocked(): boolean {
+  if (busyEnding || failScreenFlowInProgress) return true;
+  try {
+    if ((window as any).__ccFailScreenPending === true) return true;
+    return tiles.some((tile: any) => (
+      tile &&
+      !tile.destroyed &&
+      (tile as any)._isLastMerge === true
+    ));
+  } catch {
+    return false;
+  }
+}
 let failScreenFlowInProgress = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
 let activeDragEndgameSkipStartedAt: number | null = null; // Track stale drag blocks separately from spawn guards

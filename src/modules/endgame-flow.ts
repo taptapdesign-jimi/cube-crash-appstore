@@ -14,6 +14,7 @@ import {
   resolveJourneyReturnTarget,
 } from './journey-origin-state.js';
 import { resolveJourneyStartDecision } from './journey-start-decision.ts';
+import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -250,6 +251,20 @@ async function handleJourneyCleanBoardExit(ctx: EndgameContext, boardNumber: num
     }
     console.log('🎯 endgame-flow: Clean board exit return target prepared:', returnDecision);
     logger.info('🎯 endgame-flow: Clean board exit return target prepared', returnDecision);
+
+    if (returnDecision.target === 'journey') {
+      // Prepare the visible world return before requestExitToMenu begins its
+      // cleanup/shell handoff. Waiting until main.ts resolves the final route
+      // is too late: the preserved Journey DOM can scope the Beach world and
+      // start its default enter while the screen is still hidden.
+      (window as any).__ccReturningFromDetailModal = true;
+      (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+      (window as any).__ccJourneyReturnBoardId = boardNumber;
+      (window as any).__ccLastActiveJourneyBoardAreaId = boardNumber;
+      try { localStorage.setItem('__ccJourneyReturnBoardId', String(boardNumber)); } catch {}
+      try { localStorage.setItem('__ccLastActiveJourneyBoardAreaId', String(boardNumber)); } catch {}
+      emitIOSNativeDiagnostic('clean-board-journey-return-prepared', { boardId: boardNumber });
+    }
 
     await clearCompletedBoardSaveState(boardNumber, 'clean-board-detail-exit');
 

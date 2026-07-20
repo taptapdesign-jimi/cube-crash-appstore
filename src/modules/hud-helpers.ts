@@ -3,7 +3,7 @@
 import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { pauseGame, resumeGame, restart } from './app-core.ts';
+import { isTerminalEndgameInteractionLocked, pauseGame, resumeGame, restart } from './app-core.ts';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
@@ -35,6 +35,12 @@ const HUD_TAP_BOUNCE_OPEN_DELAY_MS = 0;
 const HUD_TAP_BOUNCE_CLOSE_DELAY_MS = 120;
 const HUD_BOTTOM_SHEET_TAP_LOCK_MS = 560;
 let hudBottomSheetTapLocked = false;
+
+function shouldBlockHudCloseForTerminalResolution(source: string): boolean {
+  if (!isTerminalEndgameInteractionLocked()) return false;
+  console.log(`🔒 HUD close ignored while terminal endgame owns the board (${source})`);
+  return true;
+}
 
 function getTextureSource(tex: any): any {
   return tex?.source ?? tex?.baseTexture ?? null;
@@ -1646,6 +1652,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       const handleCloseClick = (e) => {
         e.stopPropagation();
         e.stopImmediatePropagation();
+        if (shouldBlockHudCloseForTerminalResolution('circle-close')) return;
         
         console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
         
@@ -1799,6 +1806,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           const handleCloseClick = (e) => {
             e.stopPropagation();
             e.stopImmediatePropagation();
+            if (shouldBlockHudCloseForTerminalResolution('circle-close-rebuilt')) return;
             
             console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
             
@@ -2349,6 +2357,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   debugBg.on('pointerdown', (e) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
+    if (shouldBlockHudCloseForTerminalResolution('x-hit-area')) return;
     if (!acquireHudBottomSheetTapLock('x-hit-area')) return;
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
@@ -2361,6 +2370,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   });
 
   const openEndRunFromHudClose = () => {
+    if (shouldBlockHudCloseForTerminalResolution('x-delayed-open')) return;
 
     // 🔥 USER REQUEST: Check if end-run modal is already open (toggle behavior)
           let isEndRunModalOpen = false;

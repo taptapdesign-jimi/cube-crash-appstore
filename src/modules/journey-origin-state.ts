@@ -145,6 +145,9 @@ export function prepareJourneyFailReturnTarget(boardId: unknown): JourneyReturnD
   // the viewport is primed hidden and the complete Forest/Beach/Area 51 Unit
   // performs one coordinated standard enter.
   (window as any).__ccReturningFromDetailModal = true;
+  // Must be present before any preserved Journey world is scoped/rendered;
+  // showCollectibles later consumes it for the single visible return enter.
+  (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
   if (normalizedBoardId) {
     (window as any).__ccJourneyReturnBoardId = normalizedBoardId;
     (window as any).__ccLastActiveJourneyBoardAreaId = normalizedBoardId;
