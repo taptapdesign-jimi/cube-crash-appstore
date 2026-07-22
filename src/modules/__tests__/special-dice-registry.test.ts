@@ -1,6 +1,7 @@
 import {
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
+  getSpecialDiceFinaleFxForTile,
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceInputReleaseAtRatioForFx,
   getSpecialDiceInputReleaseModeForFx,
@@ -153,4 +154,15 @@ test('gameplay-resolving helper follows input release policy for current and fut
     special: 'wild-magnet',
     _ccSpecialDiceArchetype: 'wild-magnet',
   }))).toBe(true);
+});
+
+test('archetype preserves TNT finale when generic special field is missing', () => {
+  const tnt = makeTile({
+    special: null,
+    isWild: true,
+    _ccSpecialDiceArchetype: 'wild-tnt',
+  });
+
+  expect(getSpecialDiceFinaleFxForTile(tnt)).toBe('tnt');
+  expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });

@@ -9,14 +9,34 @@
 import { Graphics, Container, Sprite, Texture, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { magicSparklesAtTile, dragSmokeTrail, isWildJuiceExplosionRunning, cleanupWildJuiceExplosion } from "./fx.ts";
+import {
+  magicSparklesAtTile,
+  dragSmokeTrail,
+  isWildJuiceExplosionRunning,
+  cleanupWildJuiceExplosion,
+  stopWildJuiceBubbles,
+  stopMagnetIdleParticles,
+  stopTntIdleParticles,
+  stopTntIdleShake,
+} from './fx.ts';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { canStartTileDrag } from './input-gate.ts';
-import { isSpecialDiceDirectWildLikeTile, isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
+import {
+  isSpecialDiceDirectWildLikeTile,
+  getSpecialDiceFinaleFxForTile,
+  isSpecialDiceJuiceLikeTile,
+  isSpecialDiceMagnetLikeTile,
+  isSpecialDiceTntLikeTile,
+} from './special-dice-registry.ts';
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
 import { completeBoardLifecycleTrace } from '../utils/board-lifecycle-performance.ts';
 import { beginMergePerformanceTrace } from '../utils/merge-performance.ts';
+import {
+  consumeWildDragTrailPoints,
+  createWildDragTrailCadenceState,
+  resetWildDragTrailCadence,
+} from './wild-drag-trail-cadence.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -39,6 +59,25 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(__dg_orig_to(target, vars));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 const WILD_SPECIALS = new Set(['wild', 'wild-magnet', 'wild-juice', 'wild-tnt']);
+const TOUCH_REGULAR_TRAIL_SPACING_PX = 20;
+const DESKTOP_REGULAR_TRAIL_SPACING_PX = 16;
+const TOUCH_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME = 2;
+const DESKTOP_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME = 3;
+const TOUCH_WILD_TRAIL_SPACING_PX = 18;
+const DESKTOP_WILD_TRAIL_SPACING_PX = 14;
+const TOUCH_WILD_TRAIL_MAX_BURSTS_PER_FRAME = 2;
+const DESKTOP_WILD_TRAIL_MAX_BURSTS_PER_FRAME = 3;
+
+function emitNativeDragPerformance(payload: Record<string, unknown>): void {
+  try {
+    const handler = (window as any).webkit?.messageHandlers?.consoleLog;
+    if (!handler?.postMessage) return;
+    handler.postMessage({
+      level: 'info',
+      message: `🧪 DragPerf summary ${JSON.stringify(payload)}`,
+    });
+  } catch {}
+}
 
 function schedulePostFailedDropEndgameCheck(reason: string): void {
   const checkLevelEnd = (window as any).CC?.checkLevelEnd;
@@ -89,6 +128,14 @@ function getTileSpecial(tile: any): string | null {
   if (WILD_SPECIALS.has(special)) return special;
   const remembered = typeof tile._ccWildSpecial === 'string' ? tile._ccWildSpecial : '';
   if (WILD_SPECIALS.has(remembered)) return remembered;
+  // Registry/archetype identity must win over the generic isWild fallback.
+  // Otherwise a collectible TNT tile can be silently downgraded to `wild`
+  // during drag, which removes its TNT BOOM merge finale.
+  const registryFx = getSpecialDiceFinaleFxForTile(tile);
+  if (registryFx === 'tnt') return 'wild-tnt';
+  if (registryFx === 'magnet') return 'wild-magnet';
+  if (registryFx === 'juice') return 'wild-juice';
+  if (registryFx === 'star') return 'wild';
   if (tile.isWild === true || tile.isWildFace === true) return 'wild';
   return null;
 }
@@ -111,7 +158,6 @@ function repairWildTileState(tile: any): string | null {
   try { if (tile.num) tile.num.visible = false; } catch {}
   try { if (tile.overlay) tile.overlay.visible = false; } catch {}
   try { if (tile.shadow) tile.shadow.visible = false; } catch {}
-  try { (window as any).CC?.applyWildSkinLocal?.(tile); } catch {}
   return special;
 }
 
@@ -345,9 +391,8 @@ export function initDrag(cfg) {
       moveTween: null,
       scaleTween: null,
     },
-    _lastSparkleTime: null as any,
-    _sparkleInterval: null as any,
-    _lastSmokeTime: null as any,
+    _regularTrailCadence: createWildDragTrailCadenceState(),
+    _wildTrailCadence: createWildDragTrailCadenceState(),
     _boardWobbleActive: false,
     _boardBaseX: board?.x ?? 0,
     _boardBaseY: board?.y ?? 0,
@@ -380,6 +425,8 @@ export function initDrag(cfg) {
       tickerOver20Ms: 0,
       tickerOver34Ms: 0,
       tickerMaxMs: 0,
+      trailBursts: 0,
+      trailParticles: 0,
     };
     drag._perfTicker = () => {
       const sample = drag._perfSample;
@@ -419,9 +466,12 @@ export function initDrag(cfg) {
       tickerOver20Ms: sample.tickerOver20Ms,
       tickerOver34Ms: sample.tickerOver34Ms,
       tickerMaxMs: Number(sample.tickerMaxMs.toFixed(2)),
+      trailBursts: sample.trailBursts,
+      trailParticles: sample.trailParticles,
     };
     try { (window as any).__ccLastDragPerf = payload; } catch {}
     console.info('🧪 DragPerf summary', payload);
+    emitNativeDragPerformance(payload);
   }
 
   function eventPointerId(e: any): number | null {
@@ -448,6 +498,90 @@ export function initDrag(cfg) {
     return shouldUseTouchDragPerformanceMode();
   }
 
+  function emitWildDragTrail(tile: any, atMs: number): void {
+    if (!tile || tile.destroyed || !isAnyWildTile(tile)) {
+      resetWildDragTrailCadence(drag._wildTrailCadence);
+      return;
+    }
+
+    const touchMode = shouldUseTouchDragPerformanceMode();
+    const points = consumeWildDragTrailPoints(
+      drag._wildTrailCadence,
+      Number(tile.x) || 0,
+      Number(tile.y) || 0,
+      atMs,
+      {
+        spacingPx: touchMode ? TOUCH_WILD_TRAIL_SPACING_PX : DESKTOP_WILD_TRAIL_SPACING_PX,
+        maxBurstsPerFrame: touchMode
+          ? TOUCH_WILD_TRAIL_MAX_BURSTS_PER_FRAME
+          : DESKTOP_WILD_TRAIL_MAX_BURSTS_PER_FRAME,
+      },
+    );
+    if (points.length === 0) return;
+
+    const tileZ = tile?.zIndex ?? 0;
+    const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
+    for (const point of points) {
+      const isFastDrag = point.speedPxPerMs >= 0.65;
+      const particleCount = touchMode
+        ? (isFastDrag ? 3 : 2)
+        : (isFastDrag ? 4 : 3);
+      magicSparklesAtTile(board, tile, {
+        intensity: 1,
+        particleCount,
+        fillAlpha: touchMode ? 0.92 : 1,
+        sizeMultiplier: touchMode ? 1.04 : 1,
+        distanceScale: 0.9,
+        customPosition: { x: point.x, y: point.y },
+        zIndex: particlesZ,
+      });
+      if (drag._perfSample) {
+        drag._perfSample.trailBursts += 1;
+        drag._perfSample.trailParticles += particleCount;
+      }
+    }
+  }
+
+  function emitRegularDragTrail(tile: any, atMs: number): void {
+    if (!tile || tile.destroyed || isAnyWildTile(tile)) {
+      resetWildDragTrailCadence(drag._regularTrailCadence);
+      return;
+    }
+
+    const touchMode = shouldUseTouchDragPerformanceMode();
+    const points = consumeWildDragTrailPoints(
+      drag._regularTrailCadence,
+      Number(tile.x) || 0,
+      Number(tile.y) || 0,
+      atMs,
+      {
+        spacingPx: touchMode ? TOUCH_REGULAR_TRAIL_SPACING_PX : DESKTOP_REGULAR_TRAIL_SPACING_PX,
+        maxBurstsPerFrame: touchMode
+          ? TOUCH_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME
+          : DESKTOP_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME,
+      },
+    );
+    if (points.length === 0) return;
+
+    const tileZ = tile?.zIndex ?? 0;
+    const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
+    for (const point of points) {
+      const isFastDrag = point.speedPxPerMs >= 0.65;
+      const particleCount = touchMode
+        ? (isFastDrag ? 7 : 5)
+        : (isFastDrag ? 9 : 7);
+      dragSmokeTrail(board, tile, 96, 0.7, {
+        zIndex: particlesZ,
+        particleCount,
+        customPosition: { x: point.x, y: point.y },
+      });
+      if (drag._perfSample) {
+        drag._perfSample.trailBursts += 1;
+        drag._perfSample.trailParticles += particleCount;
+      }
+    }
+  }
+
   function clearDragRuntime() {
     if (drag._perfSample || drag._perfTicker) {
       finishDragPerfSample('runtime-clear');
@@ -463,16 +597,12 @@ export function initDrag(cfg) {
       drag._moveRaf = null;
     }
     drag._pendingMoveEvent = null;
-    if (drag._sparkleInterval) {
-      clearInterval(drag._sparkleInterval);
-      drag._sparkleInterval = null;
-    }
     if (drag._watchdogTimeout) {
       clearTimeout(drag._watchdogTimeout);
       drag._watchdogTimeout = null;
     }
-    drag._lastSparkleTime = null;
-    drag._lastSmokeTime = null;
+    resetWildDragTrailCadence(drag._regularTrailCadence);
+    resetWildDragTrailCadence(drag._wildTrailCadence);
     drag.pointerId = null;
     drag.pointerType = null;
     drag._lastWatchdogRefreshAt = 0;
@@ -703,14 +833,12 @@ export function initDrag(cfg) {
     }
     
     releaseMagnet({ immediate: true });
-    // 🔥 USER REQUEST: Stop TNT idle (particles + shake) when dragging wild-tnt
-    if ((t as any)?.special === 'wild-tnt') {
-      try {
-        import('./fx.js').then(fxModule => {
-          if (fxModule?.stopTntIdleParticles) fxModule.stopTntIdleParticles(t);
-          if (fxModule?.stopTntIdleShake) fxModule.stopTntIdleShake(t);
-        }).catch(() => {});
-      } catch {}
+    // TNT idle FX must stop before drag ownership begins. A dynamic import here
+    // allowed the tile to move for one or more frames while its idle interval
+    // and shake timeline were still active.
+    if (isSpecialDiceTntLikeTile(t)) {
+      try { stopTntIdleParticles(t); } catch {}
+      try { stopTntIdleShake(t); } catch {}
     }
     drag.t = t;
     setGameplayDragActive(true);
@@ -827,81 +955,16 @@ export function initDrag(cfg) {
         ease: 'back.out(2.2)',
       });
 
-    // 🔥 FPS DROP FIX: Stop wild juice idle bubbles when dragging starts (prevents conflict with drag particles)
-    if (t.special === 'wild-juice') {
-      try {
-        // Import stopWildJuiceBubbles dynamically to avoid circular dependency
-        import('./fx.js').then(fxModule => {
-          if (fxModule && typeof fxModule.stopWildJuiceBubbles === 'function') {
-            fxModule.stopWildJuiceBubbles(t);
-            console.log('🧹 Stopped wild juice idle bubbles on drag start');
-          }
-        }).catch(err => {
-          console.warn('⚠️ Failed to stop wild juice bubbles on drag start:', err);
-        });
-      } catch (err) {
-        console.warn('⚠️ Error stopping wild juice bubbles on drag start:', err);
-      }
+    // Idle FX and drag trail have separate owners. Stop every idle producer
+    // synchronously before seeding the distance-based trail cadence.
+    if (isSpecialDiceJuiceLikeTile(t)) {
+      try { stopWildJuiceBubbles(t); } catch {}
     }
-
-    // 🔥 CRITICAL FIX: Stop magnet idle particles when dragging starts (prevents white particles mixing with red drag particles)
-    if (t.special === 'wild-magnet') {
-      try {
-        // Import stopMagnetIdleParticles dynamically to avoid circular dependency
-        import('./fx.js').then(fxModule => {
-          if (fxModule && typeof fxModule.stopMagnetIdleParticles === 'function') {
-            fxModule.stopMagnetIdleParticles(t);
-            console.log('🧹 Stopped magnet idle particles on drag start');
-          }
-        }).catch(err => {
-          console.warn('⚠️ Failed to stop magnet idle particles on drag start:', err);
-        });
-      } catch (err) {
-        console.warn('⚠️ Error stopping magnet idle particles on drag start:', err);
-      }
+    if (isSpecialDiceMagnetLikeTile(t)) {
+      try { stopMagnetIdleParticles(t); } catch {}
     }
-
-    // Start sparkles immediately when wild cube is picked up
-    // 🔥 CRITICAL: All wild tiles (wild star, wild juice, wild magnet) get sparkles with their original colors
-    if (isAnyWildTile(t) && !shouldSuppressDragDecorativeFx()) {
-      try {
-        // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
-        // This ensures particles appear behind the wild tile when dragging
-        const tileZ = t?.zIndex ?? 0;
-        const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-        // 🔥 USER REQUEST: All wild tiles use same intensity (1.0) for consistent smoke trail
-        magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
-        drag._lastSparkleTime = drag.lastTime;
-        
-        // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
-        // Use velocity-based throttling to reduce particles when dragging fast
-        drag._sparkleInterval = setInterval(() => {
-          if (drag.t && isAnyWildTile(drag.t) && !drag.t.destroyed) {
-            try {
-              // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
-              const dragSpeed = Math.hypot(drag.vx || 0, drag.vy || 0);
-              const speedFactor = dragSpeed > 5 ? 0.6 : 1.0; // Reduce intensity by 40% if dragging fast (>5px/frame)
-              
-              // 🔥 CRITICAL: Set z-index to be BELOW dragged tile
-              const tileZ = drag.t?.zIndex ?? 0;
-              const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-              // 🔥 FPS DROP FIX: Reduce intensity when dragging fast to prevent comet trails
-              magicSparklesAtTile(board, drag.t, { intensity: 1.0 * speedFactor, zIndex: particlesZ });
-            } catch (err) {
-              console.warn('Wild interval sparkles error:', err);
-            }
-          } else {
-            // Clear interval if tile is no longer being dragged
-            if (drag._sparkleInterval) {
-              clearInterval(drag._sparkleInterval);
-              drag._sparkleInterval = null;
-            }
-          }
-        }, 250); // Same interval as before (250ms for smooth performance)
-      } catch (err) {
-        console.warn('Wild pickup sparkles error:', err);
-      }
-    }
+    resetWildDragTrailCadence(drag._regularTrailCadence, t.x, t.y, drag.lastTime);
+    resetWildDragTrailCadence(drag._wildTrailCadence, t.x, t.y, drag.lastTime);
 
     app.stage.on('pointermove', onMove);
     app.stage.on('pointerup', onUp);
@@ -996,60 +1059,16 @@ export function initDrag(cfg) {
       t.position.set(px, py);
     }
 
-    // Wild cube sparkles effect - continuous when selected (picked up)
-    // 🔥 CRITICAL: wild-juice does NOT get sparkles, only bubbles (handled in else block)
-    if (t.special === 'wild' && !shouldSuppressDragDecorativeFx()) {
-      // Store velocity for sparkles direction
+    if (isAnyWildTile(t)) {
+      // All wild archetypes share one spatially continuous trail owner. Their
+      // registry/core identity still selects the original colors and shapes.
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;
-      
-      // Continuous sparkles when wild cube is picked up (whether moving or not)
-      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) { // Every 100ms for continuous effect
-        try {
-          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
-          // This ensures particles appear behind the wild tile when dragging
-          const tileZ = t?.zIndex ?? 0;
-          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-          magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
-          drag._lastSparkleTime = now;
-        } catch (err) {
-          console.warn('Wild sparkles error:', err);
-        }
-      }
-    } else if (t.special === 'wild-magnet') {
-      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-juice)
-      // Sparkles are handled by the interval set in onDown function, no need for duplicate here
-      t._lastVelX = drag.vx;
-      t._lastVelY = drag.vy;
-      
-      // 🧲 MAGNETIC REACTION: Use same gentle pull as wild tile (via updateMagnet)
-      // The updateMagnet function is already called below for the target tile
-      // This provides the same gentle magnetic pull effect as wild tiles
-      // No need for custom strong pull - updateMagnet handles it perfectly
-    } else if (!shouldSuppressDragDecorativeFx() || !isAnyWildTile(t)) {
-      // Trails: juice wild gets bubbles; others get smoke
-      const smokeIntervalMs = shouldUseTouchDragPerformanceMode() ? 170 : 120;
-      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > smokeIntervalMs) {
-        try {
-          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
-          // This ensures particles appear behind the tile when dragging
-          const tileZ = t?.zIndex ?? 0;
-          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-          
-          // 🔥 USER REQUEST: Wild juice uses same particles as wild star (no bubbles, only magicSparklesAtTile)
-          // Removed dragJuiceBubbleTrail - wild juice now uses only magicSparklesAtTile particles like wild star
-          if (t.special !== 'wild-juice' && t.special !== 'wild-tnt' && t.special !== 'wild') {
-            // Keep the tactile smoke identity on touch/iPhone, but emit a much lighter
-            // pooled trail there so it does not undo the drag frame-budget work.
-            const smokeStrength = shouldUseTouchDragPerformanceMode() ? 0.24 : 0.7;
-            dragSmokeTrail(board, t, 96, smokeStrength, { zIndex: particlesZ });
-          }
-          // Wild and wild-juice use only magicSparklesAtTile (no additional bubbles or smoke)
-          drag._lastSmokeTime = now;
-        } catch (err) {
-          console.warn('Trail error:', err);
-        }
-      }
+      emitWildDragTrail(t, now);
+    } else {
+      // Preserve the v625 wooden smoke language, but distribute its pooled
+      // puffs spatially instead of producing large timer-driven bursts.
+      emitRegularDragTrail(t, now);
     }
 
     // ažuriraj _lastGlobal za sljedeći frame

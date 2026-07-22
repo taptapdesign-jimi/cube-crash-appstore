@@ -951,7 +951,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const isIdleParticles = opts.trackForIdle === true;
   // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild juice, wild star, wild magnet)
   const baseShardCount = isIdleParticles ? 12 : 20; // Lower base for idle to reduce CPU/GPU
-  let shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity
+  const requestedParticleCount = Number(opts.particleCount);
+  let shardCount = Number.isFinite(requestedParticleCount)
+    ? Math.max(1, Math.min(20, Math.round(requestedParticleCount)))
+    : Math.max(1, Math.round(baseShardCount * intensity));
   if (isIdleParticles) {
     shardCount = Math.min(shardCount, 14);
   }
@@ -1128,11 +1131,6 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     board.addChild(shard);
     
-    // Sort children to ensure correct zIndex order
-    try {
-      board.sortChildren?.();
-    } catch {}
-    
     // Stronger movement - more visible trail
     const endAngle = angle + (Math.random() - 0.5) * 1.0; // Wider spread
     const endDistance = distance * (1.5 + Math.random() * 0.5); // Further movement
@@ -1172,6 +1170,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       }
     });
   }
+
+  // All shards in this burst share the same z-index relationship. Sorting once
+  // after the batch avoids repeating an increasingly expensive stage sort for
+  // every pooled particle during drag.
+  try {
+    board.sortChildren?.();
+  } catch {}
   
   // 🔥 MEMORY LEAK FIX: Store tracked particles on tile for immediate cleanup
   if (isIdleParticles && particlesToTrack && particlesToTrack.length > 0) {
@@ -5147,8 +5152,13 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
   // original 19–30 range; touch can request a lighter pooled trail instead of
   // disabling this feedback completely.
   const densityScale = Math.max(0.2, Math.min(1.4, strength / 0.7));
-  const count = Math.max(4, Math.floor((19 + Math.random() * 11) * densityScale));
-  const { x, y } = centerInBoard(board, tile, tileSize);
+  const requestedCount = Number(opts?.particleCount);
+  const count = Number.isFinite(requestedCount)
+    ? Math.max(1, Math.min(30, Math.floor(requestedCount)))
+    : Math.max(4, Math.floor((19 + Math.random() * 11) * densityScale));
+  const fallbackPosition = centerInBoard(board, tile, tileSize);
+  const x = Number.isFinite(opts?.customPosition?.x) ? opts.customPosition.x : fallbackPosition.x;
+  const y = Number.isFinite(opts?.customPosition?.y) ? opts.customPosition.y : fallbackPosition.y;
   
   for (let i = 0; i < count; i++) {
     // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics (same as wild tiles)
@@ -5196,7 +5206,7 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     
     const color = colors[Math.floor(Math.random() * colors.length)];
     puff.circle(0, 0, radius).fill({ color: color, alpha: 0.8 });
-    puff.alpha = 0.8; // Set initial alpha to 0.8
+    puff.alpha = 0.8;
     puff.x = x + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
     puff.y = y + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
     
@@ -5216,11 +5226,6 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     try { puff.interactiveChildren = false; } catch {}
     
     board.addChild(puff);
-    
-    // Sort children to ensure correct zIndex order
-    try {
-      board.sortChildren?.();
-    } catch {}
     
     // Longer duration for visibility
     const duration = 0.9 + Math.random() * 0.5; // 0.9-1.4s (longer trail)
@@ -5242,6 +5247,10 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
       }
     });
   }
+
+  try {
+    board.sortChildren?.();
+  } catch {}
 }
 
 // Juice-specific drag bubbles (same style as idle bubbles, with three color shades)
