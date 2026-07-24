@@ -10,13 +10,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="screen-orientation" content="portrait">
   <meta name="orientation" content="portrait">
-  <!-- 🔥 CRITICAL: Set #F9F9F9 background IMMEDIATELY in inline style (before CSS loads) -->
-  <!-- This prevents gradient from showing before launch screen sets white background -->
+  <!-- Match the native launch screen before any external CSS or JavaScript loads. -->
   <style>
     html, body {
-      background: #f9f9f9 !important;
-      background-color: #F9F9F9 !important;
-      background-image: none !important;
+      background: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%) !important;
+      background-color: #F3EEE8 !important;
     }
   </style>
   <link rel="manifest" href="./manifest.webmanifest">
@@ -26,7 +24,6 @@
   <link rel="stylesheet" href="./src/styles/fonts.css">
   
   <!-- 🔥 CRITICAL: Preload launch screen logos FIRST (before anything else) -->
-  <link rel="preload" as="image" href="./assets/taptapdesign.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/logo-cube-crash.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/logo addons/smokeandshards.png" fetchpriority="high">
   <!-- Preload homepage shards for instant display -->
@@ -98,10 +95,9 @@
     }
     
     body {
-      /* 🔥 CRITICAL: Start with #F9F9F9 background for logo screen, matches launch screen */
-      /* Background will be changed to gradient by launch-screen.ts and ui-manager.ts */
-      background: #F9F9F9; /* Removed !important - JavaScript will override with gradient */
-      background-color: #F9F9F9;
+      /* Keep the native launch screen and studio intro on one continuous surface. */
+      background: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%);
+      background-color: #F3EEE8;
       background-attachment: fixed;
       background-repeat: no-repeat;
       font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
@@ -112,8 +108,7 @@
       min-height: 100dvh;
     }
     
-    /* 🔥 CRITICAL: No gradient here - launch-screen.ts handles all background changes */
-    /* Background stays #F9F9F9 until Phase 2, then gradient is set by JavaScript */
+    /* launch-screen.ts preserves this same surface throughout startup. */
     
     #ui-root {
       position: relative;
@@ -151,12 +146,6 @@
       visibility: hidden;
     }
     
-    /* ONLY loading-screen visible by default */
-    #loading-screen {
-      display: flex !important;
-      visibility: visible !important;
-    }
-    
     #home:not([hidden]) {
       display: block !important;
       visibility: visible !important;
@@ -190,16 +179,16 @@
 </head>
 <body style="overflow: hidden;">
   <!-- 🔥 CRITICAL: Launch screen INLINE in HTML (no JavaScript delay) -->
-  <div id="launch-screen" class="launch-screen" style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #F9F9F9 !important; opacity: 1 !important; visibility: visible !important;">
+  <div id="launch-screen" class="launch-screen" style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; background: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%) !important; opacity: 1 !important; visibility: visible !important;">
     <div class="launch-content" style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
-      <!-- Phase 1: Taptapdesign logo (VISIBLE IMMEDIATELY) -->
-      <div class="launch-logo-taptap" style="position: absolute !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important;">
-        <img id="launch-logo-taptap" src="./assets/taptapdesign.png" alt="TapTap Design" loading="eager" fetchpriority="high" style="width: 344px; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; pointer-events: auto;" draggable="false">
-      </div>
-      <!-- Phase 2: Stack to six logo (hidden initially, will be shown by launch-screen.ts) -->
-      <div class="launch-logo-stack" style="position: absolute !important; width: 100% !important; height: 100% !important; display: none !important; align-items: center !important; justify-content: center !important; opacity: 0 !important;">
-        <img id="launch-smoke-shards" src="./assets/logo addons/smokeandshards.png" alt="" loading="eager" fetchpriority="high" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6); width: 400px; height: auto; opacity: 1.0; z-index: 1; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none;" draggable="false">
-        <img id="launch-logo-stack" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" style="width: 248px; height: auto; display: block; margin: 0 auto; position: relative; z-index: 2; opacity: 0; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; pointer-events: auto;" draggable="false">
+      <!-- Studio presents image is the first visible web launch frame. -->
+      <div class="launch-studio-presents" style="position: absolute !important; inset: 0 !important; display: flex !important; align-items: center !important; justify-content: center !important; opacity: 0 !important; visibility: visible !important;">
+        <div id="launch-studio-logo-unit" class="launch-studio-logo-unit">
+          <img id="launch-studio-logo" class="launch-studio-logo-art" src="./assets/logo addons/taplogo.png" alt="TapTap Design" loading="eager" fetchpriority="high" draggable="false">
+          <img id="launch-studio-logo-sheen" class="launch-studio-logo-art launch-studio-logo-sheen" src="./assets/logo addons/taplogo.png" alt="" aria-hidden="true" draggable="false">
+          <span class="launch-studio-presents-label">PRESENTS</span>
+        </div>
+        <img id="launch-studio-character" class="launch-studio-character" src="./assets/logo addons/lik-board.png" alt="" loading="eager" fetchpriority="high" draggable="false">
       </div>
     </div>
   </div>
@@ -223,96 +212,18 @@
       // Disable drag on launch screen images immediately
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-          disableImageDrag(document.getElementById('launch-logo-taptap'));
-          disableImageDrag(document.getElementById('launch-logo-stack'));
-          disableImageDrag(document.getElementById('launch-smoke-shards'));
+          disableImageDrag(document.getElementById('launch-studio-logo'));
+          disableImageDrag(document.getElementById('launch-studio-logo-sheen'));
+          disableImageDrag(document.getElementById('launch-studio-character'));
         });
       } else {
-        disableImageDrag(document.getElementById('launch-logo-taptap'));
-        disableImageDrag(document.getElementById('launch-logo-stack'));
-        disableImageDrag(document.getElementById('launch-smoke-shards'));
+        disableImageDrag(document.getElementById('launch-studio-logo'));
+        disableImageDrag(document.getElementById('launch-studio-logo-sheen'));
+        disableImageDrag(document.getElementById('launch-studio-character'));
       }
     })();
   </script>
   
-  <!-- Inline critical loader with production styling -->
-  <style>
-    /* Inline critical loader styling matching production CSS */
-    #loading-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-      transition: opacity 0.5s ease, visibility 0.5s ease;
-      background: #F9F9F9; /* 🔥 CRITICAL: #F9F9F9 matches launch screen */
-    }
-    #loading-screen .loading-content {
-      text-align: center;
-      max-width: 400px;
-      padding: 40px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 18px;
-      position: relative;
-    }
-    /* 🔥 PREMIUM: Phase 1 - taptapdesign logo */
-    #loading-screen .loading-logo-taptap {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-    }
-    #loading-screen .loading-logo-taptap img {
-      width: 344px; /* 🔥 30% larger than 265px: 265px * 1.3 = 344.5px */
-      height: auto;
-      display: block;
-      margin: 0 auto; /* Center logo */
-    }
-    /* 🔥 PREMIUM: Phase 2 - stack to six logo + smokeandshards */
-    #loading-screen .loading-logo-stack {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-    }
-    #loading-screen .loading-logo-stack-img {
-      width: 344px; /* 🔥 30% larger than 265px: 265px * 1.3 = 344.5px */
-      height: auto;
-      display: block;
-      position: relative;
-      z-index: 2;
-      margin: 0 auto; /* Center logo */
-    }
-    #loading-screen .loading-smoke-shards {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 400px;
-      height: auto;
-      opacity: 0.3;
-      z-index: 1;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-    /* Hide old loading elements */
-    #loading-screen .loading-text,
-    #loading-screen .loading-progress,
-    #loading-screen .loading-bar-container {
-      display: none !important;
-    }
-  </style>
-  <!-- Loading screen will be created dynamically by loading-screen.ts component -->
-  <!-- Empty div removed - loading screen is created in bootstrap-ui.ts -->
-
   <div id="ui-root"></div>
   <div id="nav-root"></div>
   
@@ -528,11 +439,12 @@
     import { launchScreen } from './src/modules/launch-screen.ts';
 
     function startLaunchScreenSequence() {
-      // Launch screen Phase 2 preloads critical images; no preload here
+      // The Stack to Six launch screen owns critical image preloading.
       launchScreen.init();
       launchScreen.start(function() {}).catch(function(error) {
         console.error('❌ Launch screen sequence error:', error);
         console.error('Error details:', error.stack);
+        launchScreen.dispose('inline-start-error');
       });
     }
 

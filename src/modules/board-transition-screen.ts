@@ -451,7 +451,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       startMemSampling();
       // 🔥 USER REQUEST: Apply paper background with same opacity as board game (35%)
       // This replaces the gray overlay with paper texture
-      applyPaperBackground('0.35');
+      applyPaperBackground();
     } catch (error) {
       logger.error('❌ board-transition-screen: Failed to apply paper background:', error);
       // Continue anyway - non-critical

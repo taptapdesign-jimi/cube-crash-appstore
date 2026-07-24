@@ -15,15 +15,10 @@ import { markArcadeHomeRunOrigin } from './run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
+import { APP_PAPER_BACKGROUND, applyAppPaperBackground } from '../utils/app-paper-background.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
-// 🔥 FIXED: Paper texture opacity should work correctly:
-// --paper-alpha: 1 → paper fully visible
-// --paper-alpha: 0.5 → paper 50% visible
-// We achieve this by setting the paper texture opacity directly, with a solid base color underneath
-const PAPER_BG_IMAGE = "url('./assets/paper-bg.png')";
-const PAPER_BG_STYLE = "#f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat";
 const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
 
 function playDomSoftCartoonBounce(target: HTMLElement | null): void {
@@ -92,53 +87,8 @@ function clearSliderBackgrounds(): void {
   });
 }
 
-export function applyPaperBackground(alpha: string): void {
-  document.documentElement?.style.setProperty('--paper-alpha', alpha);
-  const body = document.body;
-  const html = document.documentElement;
-  const globalBg = document.getElementById('global-bg');
-  const appElement = document.getElementById('app');
-
-  // Parse alpha to create the proper background layering
-  const alphaNum = parseFloat(alpha);
-  const baseColor = '#f3eee8';
-  
-  // Create a semi-transparent overlay to control paper visibility
-  // When alpha = 1, no overlay (paper fully visible)
-  // When alpha = 0.5, 50% white overlay (paper 50% visible)
-  const overlayAlpha = 1 - alphaNum;
-  const backgroundLayers = overlayAlpha > 0.01
-    ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
-    : `url('./assets/paper-bg.png')`;
-
-  if (body) {
-    body.style.setProperty('background-color', baseColor, 'important');
-    body.style.setProperty('background-image', backgroundLayers, 'important');
-    body.style.setProperty('background-size', '100% 100%', 'important');
-    body.style.setProperty('background-repeat', 'no-repeat', 'important');
-    body.style.setProperty('background-position', 'center', 'important');
-  }
-  if (html) {
-    html.style.setProperty('background-color', baseColor, 'important');
-    html.style.setProperty('background-image', backgroundLayers, 'important');
-    html.style.setProperty('background-size', '100% 100%', 'important');
-    html.style.setProperty('background-repeat', 'no-repeat', 'important');
-    html.style.setProperty('background-position', 'center', 'important');
-  }
-  if (globalBg) {
-    (globalBg as HTMLElement).style.setProperty('background-color', baseColor, 'important');
-    (globalBg as HTMLElement).style.setProperty('background-image', backgroundLayers, 'important');
-    (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
-    (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
-    (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
-  }
-  if (appElement) {
-    // Keep app container transparent so it never overrides global paper opacity
-    appElement.style.setProperty('background', 'transparent', 'important');
-    appElement.style.setProperty('background-image', 'none', 'important');
-  }
-
-  console.log(`📄 Paper background applied with alpha=${alpha}, overlayAlpha=${overlayAlpha}, visible=${alphaNum * 100}%`);
+export function applyPaperBackground(): void {
+  applyAppPaperBackground();
 }
 
 // Extend Window interface for haptic feedback
@@ -928,10 +878,8 @@ class UIManager {
   showHomepage(): void {
     logger.info('🏠 showHomepage() called');
     
-    // 🔥 CRITICAL: ALWAYS set paper background to 60% opacity when showing homepage
-    // This ensures paper bg is visible on homepage, even if it was set to 35% in board game
-    applyPaperBackground('0.6');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
+    // Keep Homepage on the same viewport-relative paper surface as the intro.
+    applyPaperBackground();
     
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
@@ -971,8 +919,8 @@ class UIManager {
         globalBg.style.position = 'fixed';
         globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
         globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-        globalBg.style.left = '-12vw';
-        globalBg.style.right = '-12vw';
+        globalBg.style.left = '0';
+        globalBg.style.right = '0';
         globalBg.style.pointerEvents = 'none';
         globalBg.style.zIndex = '-1';
         if (document.body.firstChild) {
@@ -980,17 +928,11 @@ class UIManager {
         } else {
           document.body.appendChild(globalBg);
         }
-      // applyPaperBackground() already set the background, but ensure it's set here too
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
+      applyPaperBackground();
       logger.info('✅ #global-bg created and paper background set');
     }
     
-    // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
-    // No need to set it again - the function handles everything with !important flags
+    // The shared paper helper has already synchronized every global owner.
     
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
     // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
@@ -1169,8 +1111,7 @@ class UIManager {
   showApp(): void {
     const appElement = document.getElementById('app');
     if (appElement) {
-      // 🔥 CRITICAL: Ensure board game uses 35% paper opacity
-      applyPaperBackground('0.35');
+      applyPaperBackground();
       // 🔥 CRITICAL FIX: DO NOT remove canvas elements here - boot() already added the canvas
       // Removing canvas here would remove the canvas that boot() just added!
       // Only remove canvas if app is not booted yet (which shouldn't happen)
@@ -1457,35 +1398,12 @@ class UIManager {
       logger.info('✅ Homepage shown, ready for slider enter animation');
     }
     
-    // 🔥 CRITICAL: Reset background to gradient when showing homepage with animation
-    // This ensures homepage always has gradient background, not solid color
-    const body = document.body;
-    const globalBg = document.getElementById('global-bg');
-    const appElement = document.getElementById('app');
-    const targetGradient = PAPER_BG_STYLE;
-    const targetGlobalBgGradient = PAPER_BG_STYLE;
-    
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      gsap.set(body, { background: targetGradient });
-    }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      gsap.set(globalBg, { background: targetGlobalBgGradient });
-    }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      gsap.set(appElement, { background: PAPER_BG_STYLE });
-    }
+    applyPaperBackground();
   }
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
   showHomepageQuietly(options: { skipSliderForceReady?: boolean } = {}): void {
-    applyPaperBackground('0.6');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
+    applyPaperBackground();
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
@@ -1588,8 +1506,7 @@ class UIManager {
         });
       }, 150); // Slightly longer delay to ensure navigation is fully rendered
 
-      // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
-      // No need to set it again - the function handles everything with !important flags
+      // The shared paper helper has already synchronized every global owner.
       // NO TRANSITIONS, NO OPACITY - elements will be animated by animateSliderEnter
       // DO NOT set opacity 0 here - it will break animation visibility
       logger.info('✅ Homepage shown QUIETLY - ready for animateSliderEnter to control animations');
@@ -1603,21 +1520,8 @@ class UIManager {
     try { (window as any).CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
     try { (window as any).CC?.softResetBoardView?.('nav:collectibles'); } catch {}
 
-    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
-    // This MUST happen before ANY other code, including logger calls
-    // This prevents gray color from showing during slider exit animation
-    applyPaperBackground('0.6');
-    const body = document.body;
-    const html = document.documentElement;
-    const globalBg = document.getElementById('global-bg');
+    applyPaperBackground();
     const appElement = document.getElementById('app');
-    
-    // 🎨 PREMIUM FADE: Use paper background with 60% opacity for Journey screen
-    // This creates a premium transition effect when entering from HOMEPAGE CTA only
-    const paperOverlayAlpha = 0.4; // 1 - 0.6 = 60% paper visible
-    const targetSolidColor = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, #f3eee8`;
-    const currentGradient = targetSolidColor; // Use 60% opacity from the start
-    const currentGlobalBgGradient = targetSolidColor; // Use 60% opacity from the start
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture
     clearSliderBackgrounds();
@@ -1687,7 +1591,7 @@ class UIManager {
       sliderContainer.style.pointerEvents = 'none'; // Prevent any interactions during transition
     }
     
-    // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
+    // The shared paper surface is already active.
     // No need to override it - it will stay at 60% throughout the entire transition
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
@@ -1743,7 +1647,7 @@ class UIManager {
     setTimeout(async () => {
       console.log('🗺️ Step 2: Exit animation complete, showing Journey screen');
       
-      // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
+      // The shared paper surface is already active.
       // No need to change it - it stays at 60% throughout
       // Just ensure app element is transparent
       if (appElement) {
@@ -1900,10 +1804,7 @@ class UIManager {
       }
     }
     
-    // 🎨 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when exiting Journey screen
-    // This ensures paper bg is visible on homepage with correct opacity, preventing gray flash
-    // This runs IMMEDIATELY (not after animation) to prevent gray background during transition
-    applyPaperBackground('0.6');
+    applyPaperBackground();
     
     const body = document.body;
     const html = document.documentElement;
@@ -2001,14 +1902,14 @@ class UIManager {
     } else if (cameFromHomepage) {
       // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
       logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
-      // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
+      // The shared paper surface is already active.
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
       const { appZoneManager } = await import('./app-zone-manager.js');
       await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:homepage');
     } else {
       // Default: show homepage (for backward compatibility)
       logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
-      // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
+      // The shared paper surface is already active.
       // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
       const { appZoneManager } = await import('./app-zone-manager.js');
       await appZoneManager.showHomepageShell('ui-manager:hideCollectibles:default-homepage');
@@ -2066,8 +1967,7 @@ class UIManager {
   // Show Journey screen
   showCollectiblesScreen(): void {
     logger.info('🗺️ Showing Journey screen');
-    // 🔥 CRITICAL: Set paper background to 60% opacity for Journey screen
-    applyPaperBackground('0.6');
+    applyPaperBackground();
     try {
       const promise =
         window.showCollectiblesScreen?.() ??
@@ -2087,19 +1987,13 @@ class UIManager {
     try { (window as any).CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
     try { (window as any).CC?.softResetBoardView?.('nav:settings'); } catch {}
 
-    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
-    // This MUST happen before ANY other code, including logger calls
-    // This prevents gray color from showing during slider exit animation
-    applyPaperBackground('0.6');
+    applyPaperBackground();
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    // Keep Settings background at the same 60% paper opacity as homepage
-    const paperOverlayAlpha = 0.4; // 1 - 0.6 = 60% paper visible
-    const targetPaperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, #f3eee8`;
-    const currentGradient = targetPaperBg;
-    const currentGlobalBgGradient = targetPaperBg;
+    const currentGradient = APP_PAPER_BACKGROUND;
+    const currentGlobalBgGradient = APP_PAPER_BACKGROUND;
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped/tiled paper background
     clearSliderBackgrounds();
@@ -2132,9 +2026,6 @@ class UIManager {
         button.classList.remove('active');
       }
     });
-    
-    // 🎨 PREMIUM FADE: Keep paper background at 60% opacity for Settings screen
-    const targetSolidColor = targetPaperBg;
     
     console.log('🎨 [Settings ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -2268,9 +2159,8 @@ class UIManager {
         focusTarget?.focus();
       }, 100);
       
-    // Step 3: Ensure paper background remains at 60% opacity (no fade needed)
-    console.log('⚙️ Step 3: Paper background already at 60% opacity - no fade needed');
-    applyPaperBackground('0.6');
+    // Keep the shared intro paper surface after Settings enters.
+    applyPaperBackground();
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
@@ -2286,9 +2176,7 @@ class UIManager {
     try { cleanupSettingsAnimations?.(); } catch {}
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     
-    // 🎨 CRITICAL: Keep paper background at 60% opacity during Settings exit
-    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
-    applyPaperBackground('0.6');
+    applyPaperBackground();
     const appElement = document.getElementById('app');
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');

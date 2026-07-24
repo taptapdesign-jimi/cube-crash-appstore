@@ -45,38 +45,33 @@ let preloadPromise: Promise<void> | null = null;
 
 export function preloadTntFrames(): Promise<void> {
   if (preloadPromise) return preloadPromise;
-  const uniqueFrames = Array.from(new Set([...TNT_ANIM_FRAMES, ...TNT_ANIM_FRAMES_FALLBACK]));
+
   preloadPromise = (async () => {
-    try {
-      await Assets.load(uniqueFrames);
-      return;
-    } catch {}
-    // Fallback preload path (without persistent cache map)
-    await new Promise<void>((resolve) => {
-      let idx = 0;
-      const img = new Image();
-      const loadNext = () => {
-        if (idx >= uniqueFrames.length) {
-          resolve();
-          return;
+    await Promise.all(
+      Array.from({ length: 12 }, async (_, index) => {
+        const candidates = Array.from(new Set([
+          TNT_ANIM_FRAMES[index],
+          TNT_ANIM_FRAMES_FALLBACK[index],
+        ].filter(Boolean)));
+
+        for (const src of candidates) {
+          const cached = Assets.get(src) as Texture | undefined;
+          if (isRenderableTexture(cached)) return;
+          try {
+            const loaded = await Assets.load<Texture>(src);
+            if (isRenderableTexture(loaded)) return;
+          } catch {}
         }
-        const src = uniqueFrames[idx++];
-        let doneCalled = false;
-        const done = () => {
-          if (doneCalled) return;
-          doneCalled = true;
-          img.onload = null;
-          img.onerror = null;
-          loadNext();
-        };
-        img.onload = done;
-        img.onerror = done;
-        img.src = src;
-        if (img.complete) done();
-      };
-      loadNext();
-    });
-  })();
+
+        throw new Error(`TNT frame ${index + 1} could not be loaded into the Pixi asset cache`);
+      })
+    );
+  })().catch((error) => {
+    // A transient local WebView/asset-cache failure must remain retryable.
+    preloadPromise = null;
+    throw error;
+  });
+
   return preloadPromise;
 }
 
@@ -476,6 +471,13 @@ export function showTntAnimation(options: {
       activeFrameSprites.push(frameEl);
     }
     tntMemSample('tnt_1_frames_created');
+  }
+  if (frameEls.length !== NUM_FRAMES) {
+    logger.warn('⚠️ TNT sprite sequence started without every renderable frame', 'tnt-animation', {
+      expected: NUM_FRAMES,
+      actual: frameEls.length,
+      hasPixiHost: !!pixiHost,
+    });
   }
 
   // BOOM text – centar viewporta

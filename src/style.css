@@ -8,9 +8,7 @@
 }
 
 :root{
-  --app-gradient: #f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat;
-  --paper-alpha: 1;
-  --paper-overlay-alpha: 0; /* Inverse of paper-alpha: 0 = fully visible, 1 = hidden */
+  --app-gradient: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%);
   --board-perspective: 1200px;
   --tile-3d-depth: 20px;
   --board-tilt: 20deg;
@@ -19,8 +17,7 @@
 
 body{
   position: relative;
-  /* 🔥 CRITICAL: No background here - launch-screen.ts sets #F9F9F9, then gradient after stack to six logo */
-  /* Background will be set by launch-screen.ts and ui-manager.ts */
+  /* The inline boot style and launch module own the continuous paper surface. */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -29,34 +26,12 @@ body{
   position: fixed;
   top: calc(-1 * env(safe-area-inset-top, 0px));
   bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
-  left: -12vw;
-  right: -12vw;
-  /* 🔥 FIXED: Paper overlay logic - paper-alpha 1 = fully visible, 0.5 = 50% visible */
-  background-color: #f3eee8;
-  background-image: url('./assets/paper-bg.png');
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
-  background-position: center;
+  left: 0;
+  right: 0;
+  background: var(--app-gradient);
   pointer-events: none;
   z-index: -1; /* 🔥 CRITICAL: Behind content, not in front */
   /* Transition removed - GSAP now handles background animations */
-}
-
-/* Removed gradient-fade-out rules - gradient stays visible */
-
-/* ===== LOADING SCREEN STYLES ===== */
-.loading-screen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: #F9F9F9; /* 🔥 CRITICAL: #F9F9F9 matches launch screen */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -110,23 +85,6 @@ body{
 }
 
 
-.loading-screen.hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.loading-content {
-  text-align: center;
-  max-width: 400px;
-  padding: 40px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  position: relative;
-}
-
 /* 🔥 PREMIUM: Launch Screen Styles */
 #launch-screen {
   position: fixed;
@@ -138,7 +96,7 @@ body{
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #F9F9F9;
+  background: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%);
   opacity: 1;
   visibility: visible;
 }
@@ -152,79 +110,113 @@ body{
   justify-content: center;
 }
 
-/* Phase 1: Taptapdesign logo */
-#launch-screen .launch-logo-taptap {
+#launch-screen .launch-studio-presents {
   position: absolute;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 1; /* 🔥 CRITICAL: Start visible (inline HTML sets this, but CSS should match) */
+  opacity: 0;
   visibility: visible;
 }
 
-#launch-screen .launch-logo-taptap img {
-  width: 275px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  /* 🔥 PREMIUM: Prevent image dragging and long press */
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  -webkit-user-drag: none;
-  -webkit-touch-callout: none;
-  pointer-events: auto;
-}
-
-/* Phase 2: Stack to six logo + smokeandshards */
-#launch-screen .launch-logo-stack {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-}
-
-#launch-screen .launch-logo-stack img#launch-logo-stack {
-  width: 248px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  position: relative;
-  z-index: 2;
-  opacity: 0;
-  /* 🔥 PREMIUM: Prevent image dragging and long press */
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  -webkit-user-drag: none;
-  -webkit-touch-callout: none;
-  pointer-events: auto;
-}
-
-#launch-screen .launch-logo-stack img#launch-smoke-shards {
+#launch-screen .launch-studio-logo-unit {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.6);
-  width: 400px;
-  height: auto;
-  opacity: 1.0;
-  z-index: 1;
+  width: min(80.6vw, 315px);
+  transform: translate(-50%, -265px) scale(0.92);
+  transform-origin: center center;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   pointer-events: none;
-  /* 🔥 PREMIUM: Prevent image dragging and long press */
+}
+
+#launch-screen .launch-studio-logo-art {
+  position: relative;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
+  transform-origin: center center;
+}
+
+#launch-screen #launch-studio-logo {
+  z-index: 1;
+}
+
+#launch-screen .launch-studio-logo-sheen {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: 2;
+  opacity: 0;
+  filter: brightness(1.32) saturate(1.06);
+  -webkit-mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
+  mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  will-change: opacity, mask-position;
+}
+
+#launch-screen .launch-studio-logo-sheen.is-idle-active {
+  animation: launch-studio-sheen 6s ease-in-out infinite;
+}
+
+#launch-screen .launch-studio-presents-label {
+  margin-top: 14px;
+  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #b87960;
+}
+
+#launch-screen .launch-studio-character {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(74vw, 289px);
+  max-height: 54vh;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  transform: translate(-50%, -105px) scale(0.82);
+  transform-origin: center center;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+@keyframes launch-studio-sheen {
+  0%, 4% {
+    opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
+  }
+  10%, 31% {
+    opacity: 0.24;
+  }
+  37% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+  100% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
 }
 
 /* Hide old loading elements */
@@ -572,7 +564,7 @@ body{
   background: transparent !important;
   background-image: none !important;
 }
-html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:var(--app-gradient);background-color:#f3eee8;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {

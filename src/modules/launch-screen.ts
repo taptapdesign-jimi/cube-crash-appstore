@@ -1,12 +1,13 @@
 // @ts-nocheck
 // Launch Screen Module
-// Handles the initial launch sequence with taptapdesign logo → stack to six logo → app
+// Handles the initial Stack to Six preload sequence.
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
+import { APP_PAPER_BACKGROUND } from '../utils/app-paper-background.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -15,19 +16,33 @@ const trackTween = (target: any, vars: any) => {
 };
 
 let priorityPaperBgLoadPromise: Promise<void> | null = null;
+const STUDIO_LOGO_URL = new URL('../../assets/logo addons/taplogo.png', import.meta.url).href;
+const studioCharacterModules = import.meta.glob([
+  '../../assets/logo addons/lik-*.png',
+  '!../../assets/logo addons/lik-*@2x.png',
+], {
+  eager: true,
+  query: '?url',
+  import: 'default',
+}) as Record<string, string>;
+const STUDIO_CHARACTER_URLS = Object.values(studioCharacterModules);
+const selectedStudioCharacterUrl = STUDIO_CHARACTER_URLS[
+  Math.floor(Math.random() * STUDIO_CHARACTER_URLS.length)
+] || new URL('../../assets/logo addons/lik-board.png', import.meta.url).href;
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
-  taptapContainer: HTMLElement | null;
-  taptapLogo: HTMLImageElement | null;
-  stackContainer: HTMLElement | null;
-  stackLogo: HTMLImageElement | null;
-  smokeShards: HTMLImageElement | null;
+  studioPresentsContainer: HTMLElement | null;
+  studioLogoUnit: HTMLElement | null;
+  studioLogo: HTMLImageElement | null;
+  studioLogoSheen: HTMLImageElement | null;
+  studioCharacter: HTMLImageElement | null;
 }
 
 class LaunchScreen {
   private elements: LaunchScreenElements;
   private isActive: boolean = false;
+  private runAbortController: AbortController | null = null;
   // 🔥 FIX: Track event listener cleanup functions
   private eventCleanups: Array<() => void> = [];
   
@@ -39,31 +54,42 @@ class LaunchScreen {
   constructor() {
     this.elements = {
       container: null,
-      taptapContainer: null,
-      taptapLogo: null,
-      stackContainer: null,
-      stackLogo: null,
-      smokeShards: null
+      studioPresentsContainer: null,
+      studioLogoUnit: null,
+      studioLogo: null,
+      studioLogoSheen: null,
+      studioCharacter: null
     };
   }
 
   /**
    * Priority preload for paper background texture.
-   * Must start before other heavy launch preloads, while taptap logo is visible.
+   * Must start before other heavy launch preloads while the paper surface is visible.
    */
   private preloadPriorityPaperBg(timeoutMs = 2000): Promise<void> {
     if (priorityPaperBgLoadPromise) return priorityPaperBgLoadPromise;
 
     priorityPaperBgLoadPromise = new Promise<void>((resolve) => {
       let finished = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      let img: HTMLImageElement | null = null;
       const finish = () => {
         if (finished) return;
         finished = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (img) {
+          img.onload = null;
+          img.onerror = null;
+          img = null;
+        }
         resolve();
       };
 
       try {
-        const img = new Image();
+        img = new Image();
         img.decoding = 'async';
         img.loading = 'eager';
         try { (img as any).fetchPriority = 'high'; } catch {}
@@ -80,7 +106,7 @@ class LaunchScreen {
         finish();
       }
 
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         if (!finished) {
           logger.warn('⚠️ Priority paper background preload timeout (continuing)');
         }
@@ -91,25 +117,64 @@ class LaunchScreen {
     return priorityPaperBgLoadPromise;
   }
 
+  private isCurrentRun(container: HTMLElement): boolean {
+    return this.isActive &&
+      this.elements.container === container &&
+      container.isConnected;
+  }
+
+  private waitForRun(promise: Promise<unknown>, signal: AbortSignal): Promise<boolean> {
+    if (signal.aborted) return Promise.resolve(false);
+    return new Promise<boolean>((resolve, reject) => {
+      let settled = false;
+      const finish = (result: boolean) => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', onAbort);
+        resolve(result);
+      };
+      const onAbort = () => finish(false);
+      signal.addEventListener('abort', onAbort, { once: true });
+      promise.then(
+        () => finish(true),
+        (error) => {
+          if (settled) return;
+          settled = true;
+          signal.removeEventListener('abort', onAbort);
+          reject(error);
+        }
+      );
+    });
+  }
+
   /**
    * Initialize launch screen - creates DOM structure
    */
   init(): void {
-    // 🔥 CRITICAL: If container already exists (created in launch-screen-init.ts), just cache it
+    // The inline HTML owns the first frame; cache it when present.
     const existingContainer = document.getElementById('launch-screen');
     if (existingContainer) {
       // Container already exists - just cache the elements
       this.elements.container = existingContainer as HTMLElement;
-      this.elements.taptapContainer = existingContainer.querySelector('.launch-logo-taptap') as HTMLElement;
-      this.elements.taptapLogo = existingContainer.querySelector('#launch-logo-taptap') as HTMLImageElement;
-      this.elements.stackContainer = existingContainer.querySelector('.launch-logo-stack') as HTMLElement;
-      this.elements.stackLogo = existingContainer.querySelector('#launch-logo-stack') as HTMLImageElement;
-      this.elements.smokeShards = existingContainer.querySelector('#launch-smoke-shards') as HTMLImageElement;
+      this.elements.studioPresentsContainer = existingContainer.querySelector('.launch-studio-presents') as HTMLElement;
+      this.elements.studioLogoUnit = existingContainer.querySelector('#launch-studio-logo-unit') as HTMLElement;
+      this.elements.studioLogo = existingContainer.querySelector('#launch-studio-logo') as HTMLImageElement;
+      this.elements.studioLogoSheen = existingContainer.querySelector('#launch-studio-logo-sheen') as HTMLImageElement;
+      this.elements.studioCharacter = existingContainer.querySelector('#launch-studio-character') as HTMLImageElement;
+      if (this.elements.studioLogo) {
+        this.elements.studioLogo.src = STUDIO_LOGO_URL;
+      }
+      if (this.elements.studioLogoSheen) {
+        this.elements.studioLogoSheen.src = STUDIO_LOGO_URL;
+      }
+      if (this.elements.studioCharacter) {
+        this.elements.studioCharacter.src = selectedStudioCharacterUrl;
+      }
       
       // 🔥 PREMIUM: Disable drag and long press on existing images
-      this.disableImageDrag(this.elements.taptapLogo);
-      this.disableImageDrag(this.elements.stackLogo);
-      this.disableImageDrag(this.elements.smokeShards);
+      this.disableImageDrag(this.elements.studioLogo);
+      this.disableImageDrag(this.elements.studioLogoSheen);
+      this.disableImageDrag(this.elements.studioCharacter);
       
       logger.info('✅ Launch screen elements cached from existing DOM');
       return;
@@ -120,10 +185,8 @@ class LaunchScreen {
       return;
     }
 
-    // 🔥 SENIOR PRINCIPAL: Single source of truth for background
-    // Set #F9F9F9 immediately and synchronously - this is the ONLY place that sets initial background
-    // CSS already has #F9F9F9 as fallback, but we enforce it here to prevent any race conditions
-    this.setBackground('#F9F9F9');
+    // Keep the web preloader on the same paper surface as the native launch screen.
+    this.setBackground(APP_PAPER_BACKGROUND);
 
     // Create launch screen container
     const container = document.createElement('div');
@@ -139,7 +202,7 @@ class LaunchScreen {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #F9F9F9;
+      background: ${APP_PAPER_BACKGROUND};
       opacity: 1;
       visibility: visible;
     `;
@@ -156,112 +219,54 @@ class LaunchScreen {
       justify-content: center;
     `;
 
-    // Phase 1: Taptapdesign logo container
-    const taptapContainer = document.createElement('div');
-    taptapContainer.className = 'launch-logo-taptap';
-    taptapContainer.style.cssText = `
+    const studioPresentsContainer = document.createElement('div');
+    studioPresentsContainer.className = 'launch-studio-presents';
+    studioPresentsContainer.style.cssText = `
       position: absolute;
-      width: 100%;
-      height: 100%;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 1;
+      opacity: 0;
       visibility: visible;
     `;
 
-    const taptapLogo = document.createElement('img');
-    taptapLogo.id = 'launch-logo-taptap';
-    taptapLogo.src = './assets/taptapdesign.png';
-    taptapLogo.alt = 'TapTap Design';
-    taptapLogo.loading = 'eager';
-    taptapLogo.draggable = false;
-    taptapLogo.style.cssText = `
-      width: 344px;
-      height: auto;
-      display: block;
-      margin: 0 auto;
-      user-select: none;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      -webkit-user-drag: none;
-      -webkit-touch-callout: none;
-      pointer-events: auto;
-    `;
-    // 🔥 PREMIUM: Disable drag and long press
-    this.disableImageDrag(taptapLogo);
+    const studioLogoUnit = document.createElement('div');
+    studioLogoUnit.id = 'launch-studio-logo-unit';
+    studioLogoUnit.className = 'launch-studio-logo-unit';
 
-    taptapContainer.appendChild(taptapLogo);
-    content.appendChild(taptapContainer);
+    const studioLogo = document.createElement('img');
+    studioLogo.id = 'launch-studio-logo';
+    studioLogo.className = 'launch-studio-logo-art';
+    studioLogo.src = STUDIO_LOGO_URL;
+    studioLogo.alt = 'TapTap Design';
+    studioLogo.loading = 'eager';
+    studioLogo.draggable = false;
+    this.disableImageDrag(studioLogo);
 
-    // Phase 2: Stack to six logo container
-    const stackContainer = document.createElement('div');
-    stackContainer.className = 'launch-logo-stack';
-    stackContainer.style.cssText = `
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-    `;
+    const studioLogoSheen = studioLogo.cloneNode(false) as HTMLImageElement;
+    studioLogoSheen.id = 'launch-studio-logo-sheen';
+    studioLogoSheen.className = 'launch-studio-logo-art launch-studio-logo-sheen';
+    studioLogoSheen.alt = '';
+    studioLogoSheen.setAttribute('aria-hidden', 'true');
+    this.disableImageDrag(studioLogoSheen);
 
-    // Smoke and shards background
-    const smokeShards = document.createElement('img');
-    smokeShards.id = 'launch-smoke-shards';
-    smokeShards.src = './assets/logo addons/smokeandshards.png';
-    smokeShards.alt = '';
-    smokeShards.draggable = false;
-    smokeShards.style.cssText = `
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.6);
-      width: 400px;
-      height: auto;
-      opacity: 1.0;
-      z-index: 1;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      -webkit-user-drag: none;
-      -webkit-touch-callout: none;
-    `;
-    // 🔥 PREMIUM: Disable drag and long press
-    this.disableImageDrag(smokeShards);
+    const presentsLabel = document.createElement('span');
+    presentsLabel.className = 'launch-studio-presents-label';
+    presentsLabel.textContent = 'PRESENTS';
 
-    // Stack to six logo
-    const stackLogo = document.createElement('img');
-    stackLogo.id = 'launch-logo-stack';
-    stackLogo.src = './assets/logo-cube-crash.png';
-    stackLogo.alt = 'CubeCrash';
-    stackLogo.draggable = false;
-    stackLogo.style.cssText = `
-      width: 248px;
-      height: auto;
-      display: block;
-      margin: 0 auto;
-      position: relative;
-      z-index: 2;
-      opacity: 0;
-      user-select: none;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      -webkit-user-drag: none;
-      -webkit-touch-callout: none;
-      pointer-events: auto;
-    `;
-    // 🔥 PREMIUM: Disable drag and long press
-    this.disableImageDrag(stackLogo);
+    const studioCharacter = document.createElement('img');
+    studioCharacter.id = 'launch-studio-character';
+    studioCharacter.className = 'launch-studio-character';
+    studioCharacter.src = selectedStudioCharacterUrl;
+    studioCharacter.alt = '';
+    studioCharacter.loading = 'eager';
+    studioCharacter.draggable = false;
+    this.disableImageDrag(studioCharacter);
 
-    stackContainer.appendChild(smokeShards);
-    stackContainer.appendChild(stackLogo);
-    content.appendChild(stackContainer);
+    studioLogoUnit.append(studioLogo, studioLogoSheen, presentsLabel);
+    studioPresentsContainer.append(studioLogoUnit, studioCharacter);
+    content.appendChild(studioPresentsContainer);
 
     container.appendChild(content);
     document.body.appendChild(container);
@@ -269,11 +274,11 @@ class LaunchScreen {
     // Cache elements
     this.elements = {
       container,
-      taptapContainer,
-      taptapLogo,
-      stackContainer,
-      stackLogo,
-      smokeShards
+      studioPresentsContainer,
+      studioLogoUnit,
+      studioLogo,
+      studioLogoSheen,
+      studioCharacter
     };
 
     logger.info('✅ Launch screen initialized');
@@ -308,14 +313,19 @@ class LaunchScreen {
     }
 
     this.isActive = true;
+    this.runAbortController?.abort();
+    const runAbortController = new AbortController();
+    this.runAbortController = runAbortController;
+    const runSignal = runAbortController.signal;
     console.log('🚀 Starting launch sequence...');
     logger.info('🚀 Starting launch sequence...');
+    logger.info('🎲 Random studio character selected', selectedStudioCharacterUrl);
 
     // 🔥 PRIORITY: Start paper texture preload first, before other launch tasks.
-    // This runs while taptap logo is displayed.
+    // This runs while the paper launch surface is displayed.
     const priorityPaperLoad = this.preloadPriorityPaperBg();
 
-    // Start soundtrack as soon as taptap splash begins (fades out when board game starts)
+    // Start soundtrack with the studio intro (fades out when board game starts).
     try {
       const { startSoundtrack } = await import('./soundtrack-manager.js');
       startSoundtrack();
@@ -323,188 +333,187 @@ class LaunchScreen {
       logger.warn('🔊 Soundtrack start failed:', e);
     }
 
-    const { container, taptapContainer, taptapLogo, stackContainer, stackLogo, smokeShards } = this.elements;
+    const { container, studioPresentsContainer, studioLogoUnit, studioLogo, studioLogoSheen, studioCharacter } = this.elements;
 
     // 🔥 CRITICAL: Log all elements to debug
     console.log('🔍 Launch screen elements check:', {
       container: !!container,
-      taptapContainer: !!taptapContainer,
-      taptapLogo: !!taptapLogo,
-      stackContainer: !!stackContainer,
-      stackLogo: !!stackLogo,
-      smokeShards: !!smokeShards
+      studioPresentsContainer: !!studioPresentsContainer,
+      studioLogoUnit: !!studioLogoUnit,
+      studioLogo: !!studioLogo,
+      studioLogoSheen: !!studioLogoSheen,
+      studioCharacter: !!studioCharacter
     });
     logger.info('🔍 Launch screen elements check:', {
       container: !!container,
-      taptapContainer: !!taptapContainer,
-      taptapLogo: !!taptapLogo,
-      stackContainer: !!stackContainer,
-      stackLogo: !!stackLogo,
-      smokeShards: !!smokeShards
+      studioPresentsContainer: !!studioPresentsContainer,
+      studioLogoUnit: !!studioLogoUnit,
+      studioLogo: !!studioLogo,
+      studioLogoSheen: !!studioLogoSheen,
+      studioCharacter: !!studioCharacter
     });
 
-    if (!taptapContainer || !taptapLogo || !stackContainer || !stackLogo || !smokeShards) {
+    if (!studioPresentsContainer || !studioLogoUnit || !studioLogo || !studioLogoSheen || !studioCharacter) {
       console.error('❌ Launch screen elements missing:', {
-        taptapContainer: !taptapContainer,
-        taptapLogo: !taptapLogo,
-        stackContainer: !stackContainer,
-        stackLogo: !stackLogo,
-        smokeShards: !smokeShards
+        studioPresentsContainer: !studioPresentsContainer,
+        studioLogoUnit: !studioLogoUnit,
+        studioLogo: !studioLogo,
+        studioLogoSheen: !studioLogoSheen,
+        studioCharacter: !studioCharacter
       });
       logger.error('❌ Launch screen elements missing:', {
-        taptapContainer: !taptapContainer,
-        taptapLogo: !taptapLogo,
-        stackContainer: !stackContainer,
-        stackLogo: !stackLogo,
-        smokeShards: !smokeShards
+        studioPresentsContainer: !studioPresentsContainer,
+        studioLogoUnit: !studioLogoUnit,
+        studioLogo: !studioLogo,
+        studioLogoSheen: !studioLogoSheen,
+        studioCharacter: !studioCharacter
       });
       this.isActive = false;
       return;
     }
 
-    // Phase 1: Show taptap logo immediately (no intro animation)
-    taptapContainer.style.opacity = '1';
-    taptapContainer.style.visibility = 'visible';
-    console.log('🎬 Phase 1: Taptapdesign logo shown');
-    logger.info('🎬 Phase 1: Taptapdesign logo shown');
-
-    const taptapLogoReady = this.waitForImages([taptapLogo], 1500).catch(() => {
-      logger.warn('⚠️ Taptap logo image load timeout - continuing anyway');
+    const launchStyle = getComputedStyle(container);
+    console.info('[CC_STARTUP_BG] phase=studio-presents', {
+      background: launchStyle.background,
+      backgroundColor: launchStyle.backgroundColor,
+      backgroundImage: launchStyle.backgroundImage,
+      paperComplete: priorityPaperLoadPromise !== null,
+      logoComplete: studioLogo.complete,
+      logoNaturalWidth: studioLogo.naturalWidth,
+      characterComplete: studioCharacter.complete,
+      characterNaturalWidth: studioCharacter.naturalWidth,
     });
-    const stackLogosReady = this.waitForImages([stackLogo, smokeShards], 1800).catch(() => {
-      logger.warn('⚠️ Stack logo images load timeout - continuing anyway');
+    try {
+      (window as any).webkit?.messageHandlers?.consoleLog?.postMessage?.({
+        level: 'info',
+        message: `[CC_STARTUP_BG] ${JSON.stringify({
+          phase: 'studio-presents',
+          backgroundColor: launchStyle.backgroundColor,
+          backgroundImage: launchStyle.backgroundImage,
+          logoComplete: studioLogo.complete,
+          logoNaturalWidth: studioLogo.naturalWidth,
+          characterComplete: studioCharacter.complete,
+          characterNaturalWidth: studioCharacter.naturalWidth,
+        })}`,
+      });
+    } catch {}
+    const launchImagesReady = this.waitForImages([studioLogo, studioLogoSheen, studioCharacter], 1800).catch(() => {
+      logger.warn('⚠️ Studio intro image load timeout - continuing anyway');
     });
 
-    // Show taptap for 2 seconds while next-phase launch assets warm up.
-    logger.info('⏳ Phase 1: Waiting 2 seconds for taptap logo...');
-    await Promise.all([
-      new Promise(resolve => setTimeout(resolve, 2000)),
+    const launchImagesCompleted = await this.waitForRun(Promise.all([
       priorityPaperLoad.catch(() => {}),
-      taptapLogoReady,
-      stackLogosReady
-    ]);
-    logger.info('✅ Phase 1: 2 seconds elapsed');
+      launchImagesReady
+    ]), runSignal);
+    if (!launchImagesCompleted || !this.isCurrentRun(container)) return;
 
-    // Before stack to six: quickly scale taptap into itself (0.3s)
-    logger.info('🎬 Scaling taptap into itself (0.3s)...');
-    await new Promise<void>((resolve) => {
-      trackTween(taptapContainer, {
-        scale: 0,
-        opacity: 0,
-        duration: 0.3,
-        ease: 'power2.in',
-        onComplete: () => {
-          taptapContainer.style.display = 'none';
-          taptapContainer.style.visibility = 'hidden';
-          taptapContainer.style.pointerEvents = 'none';
-          if (taptapContainer.parentElement) {
-            taptapContainer.parentElement.removeChild(taptapContainer);
-          }
-          logger.info('✅ Taptap scaled down and removed');
-          resolve();
-        }
-      });
-    });
-
-    // PHASE 2: Set stack to six screen background and run transition (500ms fade in)
-    logger.info('🎬 Phase 2: Stack to six screen - setting background and fading in');
-    const paperOverlayAlpha = 0.4; // 1 - 0.6
-    const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
-    const paperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, ${gradientBg}`;
-
-    if (!stackContainer || !stackLogo || !smokeShards) {
-      logger.error('❌ Stack container / logo / smoke shards not found!');
-      return;
-    }
-
-    this.setBackground(paperBg);
-    if (container) {
-      container.style.opacity = '1';
-      container.style.visibility = 'visible';
-      container.style.zIndex = '10000';
-      container.style.background = paperBg;
-    }
-
-    stackContainer.style.setProperty('display', 'flex', 'important');
-    stackContainer.style.setProperty('opacity', '0', 'important');
-    stackContainer.style.setProperty('visibility', 'visible', 'important');
-    stackContainer.style.setProperty('position', 'absolute', 'important');
-    stackContainer.style.setProperty('width', '100%', 'important');
-    stackContainer.style.setProperty('height', '100%', 'important');
-    stackContainer.style.setProperty('align-items', 'center', 'important');
-    stackContainer.style.setProperty('justify-content', 'center', 'important');
-    stackContainer.style.setProperty('z-index', '1', 'important');
-    smokeShards.style.setProperty('opacity', '1.0', 'important');
-    smokeShards.style.setProperty('visibility', 'visible', 'important');
-    smokeShards.style.setProperty('display', 'block', 'important');
-    stackLogo.style.setProperty('opacity', '1', 'important');
-    stackLogo.style.setProperty('visibility', 'visible', 'important');
-    stackLogo.style.setProperty('display', 'block', 'important');
-
-    // 500ms ease-in-out fade in of stack to six
-    await new Promise<void>((resolve) => {
-      trackTween(stackContainer, {
-        opacity: 1,
-        duration: 0.5,
-        ease: 'power2.inOut',
-        onComplete: () => {
-          logger.info('✅ Phase 2: Stack to six visible');
-          resolve();
-        }
-      });
-    });
-
-    logger.info('🎬 Phase 2: Stack to six visible after crossfade');
-    logger.info('🔍 Stack container verification:', {
-      containerExists: !!stackContainer,
-      logoExists: !!stackLogo,
-      smokeShardsExists: !!smokeShards,
-      display: window.getComputedStyle(stackContainer).display,
-      opacity: window.getComputedStyle(stackContainer).opacity,
-      visibility: window.getComputedStyle(stackContainer).visibility,
-      stackLogoOpacity: window.getComputedStyle(stackLogo).opacity,
-      smokeShardsOpacity: window.getComputedStyle(smokeShards).opacity
-    });
-    
-    // 🔥 PRODUCTION READY iOS APP STORE: Preload critical homepage slider images DURING Phase 2
-    // Launch screen Phase 2 lasts 2.5 seconds - perfect time to preload critical images
-    // This ensures homepage slider images are ALWAYS ready when homepage appears
-    logger.info('🔥 PRODUCTION READY: Starting critical image preloading during Phase 2 (stack to six)...');
+    // Begin actual homepage asset work behind the studio intro.
+    logger.info('🔥 Starting critical image preloading behind studio intro...');
     const criticalImagePreloadPromise = (async () => {
       try {
         const { preloadAllStartupImages } = await import('../utils/comprehensive-image-preloader.js');
-        // Start preloading - this will load critical images BLOCKING
         await preloadAllStartupImages();
-        logger.info('✅ Critical images preloaded during Phase 2');
+        logger.info('✅ Critical images preloaded behind studio intro');
       } catch (error) {
-        logger.warn('⚠️ Critical image preloading failed during Phase 2 (non-critical):', error);
+        logger.warn('⚠️ Critical image preloading failed softly behind studio intro:', error);
       }
     })();
 
-    // Show for 2.5 seconds (user requested 2.5 seconds for stack to six)
-    // 🔥 CRITICAL: Wait for BOTH 2.5 seconds AND critical image preloading
-    // This ensures Phase 2 is always at least 2.5s while images preload in parallel
-    await Promise.all([
-      new Promise(resolve => setTimeout(resolve, 2500)), // Minimum 2.5 seconds
-      criticalImagePreloadPromise.catch(() => {}) // Critical images preload
-    ]);
+    studioPresentsContainer.style.setProperty('opacity', '1');
+    const idleSheenTimer = window.setTimeout(() => {
+      studioLogoSheen.classList.add('is-idle-active');
+      logger.info('✨ Studio intro idle sheen activated');
+    }, 200);
+    this.eventCleanups.push(() => window.clearTimeout(idleSheenTimer));
 
-    await waitForCriticalStartupReadiness({
-      reason: 'launch-phase-2',
-      timeoutMs: 10000,
+    const logoEnterPromise = new Promise<void>((resolve) => {
+      trackTween(studioLogoUnit, {
+        opacity: 1,
+        scale: 1,
+        duration: 0.45,
+        ease: 'power2.inOut',
+        onComplete: resolve,
+        onInterrupt: resolve
+      });
     });
-    
-    logger.info('✅ Phase 2 complete - critical startup readiness satisfied');
 
-    // PHASE 3: Scale down all images to 0% and fade out
-    logger.info('🎬 Phase 3: Scaling down all images to 0%');
+    const characterEnterPromise = new Promise<void>((resolve) => {
+      const characterEnterTimer = window.setTimeout(() => {
+        trackTween(studioCharacter, {
+          opacity: 1,
+          scale: 1,
+          duration: 0.55,
+          ease: 'back.out(1.8)',
+          onComplete: resolve,
+          onInterrupt: resolve
+        });
+      }, 150);
+      this.eventCleanups.push(() => {
+        window.clearTimeout(characterEnterTimer);
+        resolve();
+      });
+    });
+    const enterCompleted = await this.waitForRun(
+      Promise.all([logoEnterPromise, characterEnterPromise]),
+      runSignal
+    );
+    if (!enterCompleted || !this.isCurrentRun(container)) return;
+
+    const idleRotation = 0.7 + Math.random() * 0.55;
+    const idleDirection = Math.random() < 0.5 ? -1 : 1;
+    const idleBreathScale = 1.008 + Math.random() * 0.012;
+    const idleHalfDuration = 0.9 + Math.random() * 0.35;
+    const characterIdleTween = trackTween(studioCharacter, {
+      keyframes: [
+        {
+          rotation: -idleRotation * idleDirection,
+          scale: 1.004,
+          duration: idleHalfDuration,
+          ease: 'sine.inOut'
+        },
+        {
+          rotation: idleRotation * idleDirection,
+          scale: idleBreathScale,
+          duration: idleHalfDuration * 2,
+          ease: 'sine.inOut'
+        },
+        {
+          rotation: 0,
+          scale: 1,
+          duration: idleHalfDuration,
+          ease: 'sine.inOut'
+        }
+      ],
+      repeat: -1
+    });
+    logger.info('🎭 Studio character gentle idle started', {
+      rotationDegrees: Number(idleRotation.toFixed(2)),
+      breathScale: Number(idleBreathScale.toFixed(3)),
+      firstDirection: idleDirection < 0 ? 'counterclockwise' : 'clockwise'
+    });
+
+    // Keep the intro visible for its hero moment and for all critical preload work.
+    const preloadCompleted = await this.waitForRun(Promise.all([
+      new Promise(resolve => setTimeout(resolve, 2800)),
+      criticalImagePreloadPromise.catch(() => {})
+    ]), runSignal);
+    if (!preloadCompleted || !this.isCurrentRun(container)) return;
+
+    const readinessCompleted = await this.waitForRun(waitForCriticalStartupReadiness({
+      reason: 'studio-intro-preloader',
+      timeoutMs: 10000,
+    }), runSignal);
+    if (!readinessCompleted || !this.isCurrentRun(container)) return;
+
+    studioLogoSheen.classList.remove('is-idle-active');
+    characterIdleTween?.kill?.();
+    logger.info('✅ Studio intro preload complete - homepage readiness satisfied');
     
     // 🔥 CRITICAL: Set container background to gradient BEFORE fade out to prevent white flash
     // Container currently has #F9F9F9, but we need gradient to match body/html
-    const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
-    const preservedPaperBg = `linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, ${preservedGradient}`;
+    const preservedPaperBg = APP_PAPER_BACKGROUND;
     container.style.background = preservedPaperBg;
-    logger.info('✅ Phase 3: Container background set to paper + gradient before fade out');
+    logger.info('✅ Launch container background set to paper + gradient before fade out');
     
     // 🔥 CRITICAL: Ensure gradient background stays visible on body, html, and #global-bg
     // Do this BEFORE fade out to prevent any white flash
@@ -522,72 +531,75 @@ class LaunchScreen {
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', preservedPaperBg, 'important');
     }
-    logger.info('✅ Phase 3: Paper+gradient background explicitly set on body/html/#global-bg BEFORE fade out');
-    
-    await new Promise<void>((resolve) => {
-      trackTween([stackLogo, smokeShards, stackContainer], {
-        scale: 0,
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.in',
-        onComplete: () => {
-          // 🔥 CRITICAL: Hide and remove from DOM to prevent ghost images
-          stackContainer.style.display = 'none';
-          stackContainer.style.visibility = 'hidden';
-          stackContainer.style.pointerEvents = 'none';
-          stackLogo.style.display = 'none';
-          stackLogo.style.visibility = 'hidden';
-          smokeShards.style.display = 'none';
-          smokeShards.style.visibility = 'hidden';
-          // Remove from DOM completely
-          if (stackContainer.parentElement) {
-            stackContainer.parentElement.removeChild(stackContainer);
-          }
-          logger.info('✅ Phase 3: All images scaled down and removed');
-          resolve();
-        }
-      });
+    logger.info('✅ Paper+gradient background set on body/html/#global-bg before fade out');
 
-      // Also fade out container (but NOT the background - gradient stays!)
-      // Only fade out the container's opacity, don't touch background
-      // 🔥 CRITICAL: Container background is already set to gradient above
-      trackTween(container, {
-        opacity: 0,
-        duration: 0.5,
-        ease: 'power2.in',
+    // Reveal the same paper surface beneath the two independent exit units.
+    container.style.background = 'transparent';
+
+    const characterExitPromise = new Promise<void>((resolve) => {
+      trackTween(studioCharacter, {
+        scale: 0,
+        duration: 0.65,
+        ease: 'back.in(2.2)',
+        force3D: true,
+        onInterrupt: resolve,
         onComplete: () => {
-      // 🔥 CRITICAL: Ensure container background stays as paper+gradient
-      container.style.background = preservedPaperBg;
-      logger.info('✅ Phase 3: Launch screen faded out (paper+gradient preserved on container)');
-          
-          // 🔥 CRITICAL: Hide launch screen container completely
-          this.hide();
-          
-          // 🔥 CRITICAL: Remove container from DOM completely so main.ts can detect it's gone
-          this.remove();
-          console.log('✅ Launch screen container removed from DOM');
-          logger.info('✅ Launch screen container removed from DOM');
-          
-          // 🔥 CRITICAL: Set isActive to false FIRST, before calling onComplete
-          // This ensures main.ts can detect that launch screen is complete
-          this.isActive = false;
-          console.log('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
-          logger.info('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
-          
-          // 🔥 CRITICAL: Call completion callback AFTER everything is done (including scale down and fade out)
-          // This ensures homepage enter animation starts only after launch screen is completely gone
-          if (onComplete) {
-            logger.info('✅ Calling onComplete callback...');
-            onComplete();
-            logger.info('✅ onComplete callback executed');
-          } else {
-            logger.warn('⚠️ No onComplete callback provided');
-          }
+          studioCharacter.style.display = 'none';
+          logger.info('✅ Studio character exit complete');
+          resolve();
         }
       });
     });
 
-    // 🔥 CRITICAL: Gradient is already set in Phase 2, no need to set it again here
+    const logoExitPromise = new Promise<void>((resolve) => {
+      const logoExitTimer = window.setTimeout(() => {
+        trackTween(studioLogoUnit, {
+          scale: 0,
+          duration: 0.65,
+          ease: 'back.in(2.2)',
+          force3D: true,
+          onInterrupt: resolve,
+          onComplete: () => {
+            studioLogoUnit.style.display = 'none';
+            logger.info('✅ Studio logo exit complete');
+            resolve();
+          }
+        });
+      }, 180);
+      this.eventCleanups.push(() => {
+        window.clearTimeout(logoExitTimer);
+        resolve();
+      });
+    });
+
+    const exitCompleted = await this.waitForRun(
+      Promise.all([characterExitPromise, logoExitPromise]),
+      runSignal
+    );
+    if (!exitCompleted || !this.isCurrentRun(container)) return;
+    studioPresentsContainer.style.display = 'none';
+
+    this.hide();
+    this.remove();
+    console.log('✅ Launch screen container removed from DOM');
+    logger.info('✅ Launch screen container removed from DOM');
+
+    this.isActive = false;
+    if (this.runAbortController === runAbortController) {
+      this.runAbortController = null;
+    }
+    console.log('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
+    logger.info('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
+
+    if (onComplete) {
+      logger.info('✅ Calling onComplete callback...');
+      onComplete();
+      logger.info('✅ onComplete callback executed');
+    } else {
+      logger.warn('⚠️ No onComplete callback provided');
+    }
+
+    // The paper gradient is already set; do not reset it here.
     // Just remove boot class if it exists
     try {
       if (document.documentElement) {
@@ -596,7 +608,7 @@ class LaunchScreen {
       if (document.body) {
         document.body.classList.remove('boot');
       }
-      logger.info('✅ Boot class removed after launch screen completion (gradient already set in Phase 2)');
+      logger.info('✅ Boot class removed after launch screen completion');
     } catch(e) {
       logger.warn('⚠️ Failed to remove boot class:', e);
     }
@@ -619,6 +631,25 @@ class LaunchScreen {
   }
 
   /**
+   * Abort any in-flight launch lifecycle and run the same complete cleanup
+   * used by the successful path. Safe to call repeatedly.
+   */
+  dispose(reason = 'launch-dispose'): void {
+    logger.warn('🧹 Disposing launch screen', 'launch-screen', { reason });
+    this.isActive = false;
+    this.runAbortController?.abort();
+    this.runAbortController = null;
+    try {
+      this.elements.studioLogoSheen?.classList.remove('is-idle-active');
+    } catch {}
+    this.remove();
+    try {
+      document.documentElement?.classList.remove('boot');
+      document.body?.classList.remove('boot');
+    } catch {}
+  }
+
+  /**
    * Remove launch screen from DOM
    */
   remove(): void {
@@ -631,11 +662,11 @@ class LaunchScreen {
     // 🔥 FIX: Kill GSAP animations on all launch screen elements to prevent memory leaks
     const elementsToKill = [
       this.elements.container,
-      this.elements.taptapContainer,
-      this.elements.taptapLogo,
-      this.elements.stackContainer,
-      this.elements.stackLogo,
-      this.elements.smokeShards
+      this.elements.studioPresentsContainer,
+      this.elements.studioLogoUnit,
+      this.elements.studioLogo,
+      this.elements.studioLogoSheen,
+      this.elements.studioCharacter
     ].filter(Boolean);
     
     if (elementsToKill.length > 0) {
@@ -648,11 +679,11 @@ class LaunchScreen {
     
     // 🔥 FIX: Clear all element references to allow garbage collection
     this.elements.container = null;
-    this.elements.taptapContainer = null;
-    this.elements.taptapLogo = null;
-    this.elements.stackContainer = null;
-    this.elements.stackLogo = null;
-    this.elements.smokeShards = null;
+    this.elements.studioPresentsContainer = null;
+    this.elements.studioLogoUnit = null;
+    this.elements.studioLogo = null;
+    this.elements.studioLogoSheen = null;
+    this.elements.studioCharacter = null;
   }
 
   /**
@@ -697,8 +728,8 @@ class LaunchScreen {
         globalBg.style.position = 'fixed';
         globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
         globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-        globalBg.style.left = '-12vw';
-        globalBg.style.right = '-12vw';
+        globalBg.style.left = '0';
+        globalBg.style.right = '0';
         globalBg.style.pointerEvents = 'none';
         globalBg.style.zIndex = '-1'; // 🔥 CRITICAL: Behind content, not in front
         // Insert at the beginning of body
@@ -725,7 +756,7 @@ class LaunchScreen {
       }
       
       // 🔥 DEBUG: Check actual background values after setting
-      setTimeout(() => {
+      const backgroundDiagnosticTimer = setTimeout(() => {
         const bodyBg = document.body ? window.getComputedStyle(document.body).background : 'N/A';
         const htmlBg = document.documentElement ? window.getComputedStyle(document.documentElement).background : 'N/A';
         const globalBgComputed = globalBg ? window.getComputedStyle(globalBg as HTMLElement).background : 'N/A';
@@ -735,6 +766,7 @@ class LaunchScreen {
           globalBg: globalBgComputed.substring(0, 80)
         });
       }, 100);
+      this.eventCleanups.push(() => clearTimeout(backgroundDiagnosticTimer));
     } catch(e) {
       logger.warn('⚠️ Failed to set background:', e);
     }

@@ -940,10 +940,11 @@
   background-color: #f3eee8 !important;
   background-image:
     linear-gradient(rgba(243, 238, 232, 0.4), rgba(243, 238, 232, 0.4)),
-    url('/assets/paper-bg.png') !important;
-  background-size: 100% 100% !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
+    url('/assets/paper-bg.png'),
+    linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%) !important;
+  background-size: auto, 100% 100%, auto !important;
+  background-repeat: no-repeat, no-repeat, no-repeat !important;
+  background-position: center, center, center !important;
 }
 
 #collectibles-detail-modal[data-journey-board-id] .detail-header {

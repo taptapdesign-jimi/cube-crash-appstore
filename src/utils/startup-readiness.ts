@@ -16,9 +16,8 @@ const STARTUP_IMAGE_SELECTOR = [
   '#home-logo',
   '.logo-addon',
   '#home-fixed-shadow-bottom',
-  '#launch-logo-taptap',
-  '#launch-logo-stack',
-  '#launch-smoke-shards',
+  '#launch-studio-logo',
+  '#launch-studio-character',
 ].join(', ');
 
 let criticalStartupReadinessPromise: Promise<void> | null = null;

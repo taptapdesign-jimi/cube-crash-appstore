@@ -456,6 +456,7 @@ const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
 const LAST_ACTIVE_WORLD_STORAGE_KEY = '__ccLastActiveJourneyWorldId';
 const LAST_ACTIVE_WORLD_BOARD_STORAGE_KEY = '__ccLastActiveJourneyWorldBoardId';
 const JOURNEY_V700_VIEW_STORAGE_KEY = '__ccJourneyV700View';
+const JOURNEY_V700_HUB_SCROLL_STORAGE_KEY = '__ccJourneyV700HubScrollTop';
 const JOURNEY_V700_WORLD_STORAGE_KEY = '__ccJourneyV700WorldId';
 const JOURNEY_WORLD_SIZE = 10;
 const JOURNEY_WORLD_MAIN_OFFSETS_PX: Record<number, number> = {
@@ -680,6 +681,7 @@ class JourneyBoardsManager {
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
+  private journeyV700HubScrollTop = 0;
 
   private emitJourneyCardGeometryDiagnostic(event: string, tappedBoardId?: number): void {
     try {
@@ -5007,10 +5009,7 @@ class JourneyBoardsManager {
     return names[boardNumber - 1] || `Board ${boardNumber}`;
   }
 
-  /**
-   * Scrolls fresh Journey entries to the last active world target:
-   * world interim first, then the last active board, then the nearest active board in that world.
-   */
+  /** Scrolls only an unfinished world screen to its active interim card. */
   private restoreOrScrollToInterimCard(): void {
     try {
       const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
@@ -5088,42 +5087,19 @@ class JourneyBoardsManager {
         : null;
     };
 
-    const { worldId, boardId: lastBoardId } = this.getLastActiveJourneyWorld();
-    const range = worldId ? this.getJourneyWorldRange(worldId) : null;
+    if (this.journeyV700View !== 'world' || !this.journeyV700WorldId) return null;
 
-    if (range) {
-      const boardsInWorld = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
-      const interimInWorld = boardsInWorld.find((board) => board.interim === true);
-      if (interimInWorld) {
-        const target = getCardTarget(interimInWorld.id, 'world-interim', worldId);
-        if (target) return target;
-      }
+    const worldId = this.journeyV700WorldId;
+    const range = this.getJourneyWorldRange(worldId);
+    if (!range) return null;
 
-      if (lastBoardId && lastBoardId >= range.start && lastBoardId <= range.end) {
-        const target = getCardTarget(lastBoardId, 'last-active-board', worldId);
-        if (target) return target;
-      }
-
-      const activeBoards = boardsInWorld.filter((board) => board.unlocked === true || board.interim === true);
-      const sortedActiveBoards = [...activeBoards].sort((a, b) => {
-        if (lastBoardId) return Math.abs(a.id - lastBoardId) - Math.abs(b.id - lastBoardId);
-        return b.id - a.id;
-      });
-      for (const board of sortedActiveBoards) {
-        const target = getCardTarget(board.id, 'nearest-active-board-in-world', worldId);
-        if (target) return target;
-      }
-    }
-
-    const globalInterim = this.boards.find((board) => board.interim === true);
-    if (globalInterim) {
-      const target = getCardTarget(globalInterim.id, 'global-interim-fallback', this.getJourneyWorldIdForBoard(globalInterim.id));
-      if (target) return target;
-    }
-
-    const firstActive = [...this.boards].reverse().find((board) => board.unlocked === true || board.interim === true);
-    return firstActive
-      ? getCardTarget(firstActive.id, 'global-active-fallback', this.getJourneyWorldIdForBoard(firstActive.id))
+    const interimInWorld = this.boards.find((board) => (
+      board.id >= range.start &&
+      board.id <= range.end &&
+      board.interim === true
+    ));
+    return interimInWorld
+      ? getCardTarget(interimInWorld.id, 'world-interim', worldId)
       : null;
   }
 
@@ -5505,6 +5481,53 @@ class JourneyBoardsManager {
     } catch {}
   }
 
+  private rememberJourneyV700HubScrollPosition(reason: string): void {
+    if (this.journeyV700View !== 'hub') return;
+    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    if (!scrollable) return;
+
+    this.journeyV700HubScrollTop = Math.max(0, scrollable.scrollTop);
+    try {
+      localStorage.setItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY, String(this.journeyV700HubScrollTop));
+    } catch {}
+    this.logJourneyV700Flow('hub-scroll-saved', {
+      reason,
+      scrollTop: this.journeyV700HubScrollTop,
+    });
+  }
+
+  private restoreJourneyV700HubScrollPosition(reason: string): void {
+    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    if (!scrollable) return;
+
+    let savedScrollTop = this.journeyV700HubScrollTop;
+    try {
+      const persisted = Number(localStorage.getItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY));
+      if (Number.isFinite(persisted) && persisted >= 0) {
+        savedScrollTop = persisted;
+      }
+    } catch {}
+
+    const apply = (phase: string) => {
+      if (this.journeyV700View !== 'hub') return;
+      const maxScrollTop = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
+      const targetScrollTop = Math.max(0, Math.min(maxScrollTop, savedScrollTop));
+      scrollable.scrollTop = targetScrollTop;
+      this.logJourneyV700Flow('hub-scroll-restored', {
+        reason,
+        phase,
+        targetScrollTop,
+      });
+    };
+
+    apply('sync');
+    this.trackRAF(() => {
+      apply('raf-1');
+      this.trackRAF(() => apply('raf-2'));
+    });
+    this.trackTimeout(() => apply('layout-settled'), 160);
+  }
+
   private renderJourneyV700Hub(container: HTMLElement): void {
     this.journeyV700Phase = 'entering';
     this.setJourneyV700View('hub');
@@ -5634,6 +5657,11 @@ class JourneyBoardsManager {
     });
 
     container.appendChild(hub);
+    this.restoreJourneyV700HubScrollPosition(
+      (container as any).__ccJourneyV700ReturningFromWorld === true
+        ? 'return-from-world'
+        : 'hub-render'
+    );
 
     try {
       const worldCards = Array.from(hub.querySelectorAll('.journey-v700-world-card')) as HTMLElement[];
@@ -5839,6 +5867,7 @@ class JourneyBoardsManager {
 
     this.journeyV700WorldOpenInProgress = true;
     (container as any).__ccJourneyV700Opening = true;
+    this.rememberJourneyV700HubScrollPosition(`open-world-${worldId}`);
     this.logJourneyV700Flow('open-world-start', { requestedWorldId: worldId, hasSource: !!source }, container);
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
@@ -6035,6 +6064,7 @@ class JourneyBoardsManager {
 
 	  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+	    this.rememberJourneyV700HubScrollPosition(reason);
 	    const worldCards = Array.from(
 	      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
 	    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');
@@ -6520,6 +6550,9 @@ class JourneyBoardsManager {
         this.resumeInterimCardIdleEffects(source);
       } else {
         this.startVisibleInterimCardIdleEffects(container);
+      }
+      if (source === 'default') {
+        this.restoreOrScrollToInterimCard();
       }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
     }).catch((error) => {

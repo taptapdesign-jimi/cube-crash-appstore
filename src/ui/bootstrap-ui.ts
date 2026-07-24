@@ -12,8 +12,6 @@ import {
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
 import { renderNavigation, updateNavBadge } from './components/navigation.js';
-// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
-// import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 import { SETTINGS_SLIDE_INDEX, SHOP_MODULE_ENABLED, SHOP_MODULE_SLIDE_INDEX } from '../modules/shop-module.js';
@@ -47,8 +45,6 @@ function bootstrapUI() {
   uiRoot.innerHTML = '';
   navRoot.innerHTML = '';
 
-  // 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
-  // renderLoading(uiRoot);
   renderHome(uiRoot);
   renderGameContainer(uiRoot);
   // 🔥 REMOVED: Stats screen no longer exists
@@ -115,9 +111,7 @@ export const bootstrapReady = new Promise<void>((resolve) => {
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       console.log('✅ Document ready/interactive, calling bootstrapUI immediately');
       
-      // 🔥 OPTIMIZATION: Launch screen is already initialized in launch-screen-init.ts
-      // No need to initialize it here - it's already running
-      
+      // The inline index bootstrap already owns the launch-screen lifecycle.
       bootstrapUI();
       resolve();
       return;
@@ -153,11 +147,6 @@ function ensureRoot(id: string): HTMLElement {
   }
   return element;
 }
-
-// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
-// function renderLoading(root: HTMLElement): void {
-//   // This function is no longer used - launch-screen.ts handles everything
-// }
 
 function renderHome(root: HTMLElement): void {
   if (document.getElementById('home')) return;

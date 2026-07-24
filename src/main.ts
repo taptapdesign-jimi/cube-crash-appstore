@@ -58,6 +58,7 @@ import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
 import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
+import { SLIDER_CONFIG } from './constants/animations.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -228,17 +229,40 @@ function restoreHomepageNavigationTree(reason: string, options: { preserveNavSca
   });
 
   const iconNodes = Array.from(nav.querySelectorAll('.nav-icon-motion, .nav-icon-visual, .independent-nav-button img')) as HTMLElement[];
-  iconNodes.forEach((node) => {
-    node.style.display = node.tagName === 'IMG' ? 'block' : 'flex';
-    node.style.visibility = 'visible';
-    node.style.opacity = '1';
-    node.style.pointerEvents = 'none';
-    node.style.removeProperty('transition');
-    node.style.removeProperty('-webkit-transition');
-    node.style.removeProperty('filter');
-    node.style.removeProperty('-webkit-filter');
-    node.style.transform = node.tagName === 'IMG' ? 'translateZ(0)' : 'translate3d(0, 0, 0) scale(1)';
-    node.style.webkitTransform = node.style.transform;
+  navButtons.forEach((button) => {
+    const isActive = button.classList.contains('active');
+    const motion = button.querySelector('.nav-icon-motion') as HTMLElement | null;
+    const visual = button.querySelector('.nav-icon-visual') as HTMLElement | null;
+    const image = button.querySelector('img') as HTMLElement | null;
+
+    [motion, visual, image].filter(Boolean).forEach((node) => {
+      const element = node as HTMLElement;
+      element.style.display = element.tagName === 'IMG' ? 'block' : 'flex';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      element.style.pointerEvents = 'none';
+      element.style.removeProperty('transition');
+      element.style.removeProperty('-webkit-transition');
+      element.style.removeProperty('filter');
+      element.style.removeProperty('-webkit-filter');
+    });
+
+    if (motion) {
+      gsap.killTweensOf(motion);
+      gsap.set(motion, {
+        y: isActive ? SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
+        transformOrigin: '50% 70%',
+        force3D: true,
+      });
+    }
+    if (visual) {
+      gsap.killTweensOf(visual);
+      gsap.set(visual, { scaleX: 1, scaleY: 1, transformOrigin: '50% 70%', force3D: true });
+    }
+    if (image) {
+      gsap.killTweensOf(image);
+      gsap.set(image, { clearProps: 'transform' });
+    }
   });
 
   console.log('🏠 Homepage navigation tree restored', {
@@ -351,7 +375,7 @@ async function playHomepageSliderEnterHandoff(
   console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex, skipFirstPaintReady });
   resetAnimationFlags();
 
-  applyPaperBackground('0.6');
+  applyPaperBackground();
   forceHomepageSlideTarget(`${reason}:pre-prime-hidden`, targetSlideIndex, { revealActiveSlide: false });
   await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);
 
@@ -951,11 +975,10 @@ async function startAssetPreloading(): Promise<void> {
   try {
     logger.info('📦 Starting asset preloading...');
     
-    // 🔥 CRITICAL: Launch screen is already initialized and STARTED in launch-screen-init.ts
-    // Don't start it again here - just wait for it to complete
+    // The inline index bootstrap owns the launch screen; wait for that lifecycle.
     const { launchScreen } = await import('./modules/launch-screen.ts');
     
-    // Check if launch screen is already running (started in index.html inline script)
+    // Check if launch screen is already running (started in index.html inline script).
     const launchContainer = document.getElementById('launch-screen');
     if (!launchContainer) {
       // Fallback: initialize and start if not already done (shouldn't happen)
@@ -967,6 +990,7 @@ async function startAssetPreloading(): Promise<void> {
         logger.info('✅ Launch screen sequence completed');
       }).catch((error) => {
         logger.error('❌ Launch screen start error:', String(error));
+        launchScreen.dispose('main-fallback-start-error');
       });
     } else {
       logger.info('✅ Launch screen container found - waiting for sequence to complete (started in index.html)');
@@ -984,8 +1008,8 @@ async function startAssetPreloading(): Promise<void> {
 
     // Fallback: force-hide loader if something stalls (safety net)
     const forceHideTimeout = setTimeout(() => {
-      logger.warn('⚠️ Loader safety timeout reached - forcing hide');
-      launchScreen.hide();
+      logger.warn('⚠️ Loader safety timeout reached - forcing complete disposal');
+      launchScreen.dispose('main-safety-timeout');
     }, 12000);
     
     const nativeDevServerRuntime = isNativeDevServerRuntime();
@@ -1312,7 +1336,7 @@ async function startAssetPreloading(): Promise<void> {
     // Ensure loader doesn't block UI if preload fails
     try { 
       const { launchScreen } = await import('./modules/launch-screen.ts');
-      launchScreen.hide();
+      launchScreen.dispose('main-asset-preload-error');
     } catch {}
     throw error;
   }

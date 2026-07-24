@@ -1,7 +1,7 @@
 /**
  * Stack to Six soundtrack manager.
  * - Plays soundtrack everywhere except on board game.
- * - Starts when taptap splash starts; fades out when board game starts.
+ * - Starts with the Stack to Six preloader; fades out when board game starts.
  * - Loop: 8 seconds before end, volume fades out; on loop restart, volume back to 1.
  * - When app goes to background (tab/visibility hidden), soundtrack pauses so it doesn't play "through the player".
  */
@@ -170,7 +170,7 @@ export function stopSoundtrack(): void {
 }
 
 /**
- * Start soundtrack (e.g. when taptap splash starts).
+ * Start soundtrack with the Stack to Six preloader.
  * Plays from start and sets up loop with 8s pre-end fade.
  * Skips if music is disabled in settings.
  */

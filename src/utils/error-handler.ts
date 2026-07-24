@@ -54,7 +54,7 @@ class ErrorHandler {
     const isAppInitialized = (window as any).__cube_crash_ui_bootstrapped__ === true;
     
     // During preloader phase, silently ignore asset errors
-    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    const isLoadingScreen = !!document.querySelector('#launch-screen');
     if (isLoadingScreen && isAssetError) {
       logger.info(`🔇 Silently ignoring asset error during preload: ${errorMessage}`);
       return; // Don't show error or increment counter
@@ -225,7 +225,7 @@ class ErrorHandler {
     logger.warn('🎮 PIXI.js error detected, attempting recovery...');
     
     // Don't do anything during preloader phase
-    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    const isLoadingScreen = !!document.querySelector('#launch-screen');
     if (isLoadingScreen) {
       logger.info('🔇 Skipping PIXI error handling during preloader phase');
       return;
@@ -253,7 +253,7 @@ class ErrorHandler {
     logger.warn('💾 Memory error detected, attempting cleanup...');
     
     // Don't do anything during preloader phase
-    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    const isLoadingScreen = !!document.querySelector('#launch-screen');
     if (isLoadingScreen) {
       logger.info('🔇 Skipping memory error handling during preloader phase');
       return;
@@ -299,7 +299,7 @@ class ErrorHandler {
     logger.warn(`⚠️ Generic error in ${context}:`, error instanceof Error ? error.message : 'Unknown error');
     
     // DON'T show user-friendly message during preloader phase
-    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    const isLoadingScreen = !!document.querySelector('#launch-screen');
     if (isLoadingScreen) {
       logger.info('🔇 Skipping error display during preloader phase');
       return;

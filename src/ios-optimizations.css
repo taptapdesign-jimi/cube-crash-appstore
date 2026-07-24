@@ -108,18 +108,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* iOS loading optimizations */
-.ios-device .loading-screen {
-  /* Prevent iOS from showing loading indicators */
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  
-  /* Optimize loading animations */
-  will-change: opacity;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
 /* iOS navigation optimizations */
 .ios-device .navigation {
   /* Prevent iOS from interfering with navigation */

@@ -1,4 +1,5 @@
-import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
+import { gsap } from 'gsap';
+import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 import gameState from '../modules/game-state.js';
 import { sliderState } from '../modules/slider-state.js';
@@ -445,14 +446,33 @@ export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'
       btn.style.transform = btn.classList.contains('active') ? 'scale(1)' : 'translateZ(0)';
       btn.style.webkitTransform = btn.classList.contains('active') ? 'translateZ(0) scale(1)' : 'translateZ(0)';
     });
-    independentNav.querySelectorAll('.nav-icon-motion, .nav-icon-visual, .independent-nav-button img').forEach((node) => {
-      const el = node as HTMLElement;
-      el.style.display = el.tagName === 'IMG' ? 'block' : 'flex';
-      el.style.visibility = 'visible';
-      el.style.opacity = '1';
-      el.style.pointerEvents = 'none';
-      el.style.transform = el.tagName === 'IMG' ? 'translateZ(0)' : 'translate3d(0, 0, 0) scale(1)';
-      el.style.webkitTransform = el.style.transform;
+    independentNav.querySelectorAll('.independent-nav-button').forEach((button) => {
+      const navButton = button as HTMLElement;
+      const isActive = navButton.classList.contains('active');
+      const motion = navButton.querySelector('.nav-icon-motion') as HTMLElement | null;
+      const visual = navButton.querySelector('.nav-icon-visual') as HTMLElement | null;
+      const image = navButton.querySelector('img') as HTMLElement | null;
+
+      [motion, visual, image].filter(Boolean).forEach((node) => {
+        const element = node as HTMLElement;
+        element.style.display = element.tagName === 'IMG' ? 'block' : 'flex';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'none';
+      });
+      if (motion) {
+        gsap.set(motion, {
+          y: isActive ? SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
+          transformOrigin: '50% 70%',
+          force3D: true,
+        });
+      }
+      if (visual) {
+        gsap.set(visual, { scaleX: 1, scaleY: 1, transformOrigin: '50% 70%', force3D: true });
+      }
+      if (image) {
+        gsap.set(image, { clearProps: 'transform' });
+      }
     });
   }
 

@@ -208,9 +208,10 @@ export default defineConfig({
 
           const indexPath = path.resolve(process.cwd(), 'index.html');
           let html = fs.readFileSync(indexPath, 'utf8');
-          html = html
-            .replace(/src="\.\/src\/modules\/launch-screen-init\.ts"/g, `src="./src/modules/launch-screen-init.ts?nativeDevVersion=${nativeDevVersion}"`)
-            .replace(/src="\.\/src\/main\.ts"/g, `src="./src/main.ts?nativeDevVersion=${nativeDevVersion}"`);
+          html = html.replace(
+            /src="\.\/src\/main\.ts"/g,
+            `src="./src/main.ts?nativeDevVersion=${nativeDevVersion}"`
+          );
           html = html.replace(
             '</head>',
             [
