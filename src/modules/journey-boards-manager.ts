@@ -32,8 +32,11 @@ import {
   unlockJourneyViewportTransition,
 } from '../ui/collectibles-animations.js';
 import {
+  getJourneyElasticPull,
+  getJourneyHubScrollTarget,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
+  isJourneyInterimIdleOwnedByEnter,
   shouldRestoreJourneyInterimWrapperForIdle,
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
@@ -499,6 +502,7 @@ type JourneyV700WorldCloudSpec = {
   duration: number;
   delay: number;
   scale: number;
+  worldId?: number;
 };
 
 const JOURNEY_V700_WORLD_CLOUD_ASSETS = [
@@ -519,7 +523,7 @@ const JOURNEY_V700_HUB_CLOUDS: JourneyV700WorldCloudSpec[] = [
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 136, y: 442, width: 236, opacity: 0.78, dx: -8, dy: 6, duration: 6.6, delay: -1.2, scale: 1.03 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 32, y: 604, width: 214, opacity: 0.72, dx: 7, dy: -5, duration: 5.9, delay: -2.7, scale: 1.04 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 198, y: 626, width: 184, opacity: 0.68, dx: -7, dy: 5, duration: 7.1, delay: -0.4, scale: 1.03 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 730, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 660, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04, worldId: 3 },
 ];
 
 // Helper to convert pixels to viewport width units (vw)
@@ -2800,6 +2804,8 @@ class JourneyBoardsManager {
       let startY = 0;
       let startX = 0;
       let currentY = 0;
+      let edgeStartY: number | null = null;
+      let activeEdge: 'top' | 'bottom' | null = null;
       let isDragging = false;
       let isHorizontalLocked = false;
 	      let releaseTween: gsap.core.Tween | gsap.core.Timeline | null = null;
@@ -2845,6 +2851,8 @@ class JourneyBoardsManager {
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         currentY = 0;
+        edgeStartY = null;
+        activeEdge = null;
         isDragging = true;
         isHorizontalLocked = false;
         clearReleaseAnimation();
@@ -2867,11 +2875,21 @@ class JourneyBoardsManager {
         const pullingTop = dy > 0 && isAtTop();
         const pullingBottom = dy < 0 && isAtBottom();
         if (!pullingTop && !pullingBottom) {
+          edgeStartY = null;
+          activeEdge = null;
           if (currentY !== 0) applyPull(0);
           return;
         }
         e.preventDefault();
-        const pull = Math.max(-maxPull, Math.min(maxPull, dy * damping));
+        const edge: 'top' | 'bottom' = pullingTop ? 'top' : 'bottom';
+        const touchY = e.touches[0].clientY;
+        if (edgeStartY === null || activeEdge !== edge) {
+          edgeStartY = touchY;
+          activeEdge = edge;
+          if (currentY !== 0) applyPull(0);
+          return;
+        }
+        const pull = getJourneyElasticPull(touchY - edgeStartY, edge, damping, maxPull);
         applyPull(pull);
       };
 
@@ -2879,6 +2897,8 @@ class JourneyBoardsManager {
         if (!isDragging) return;
         isDragging = false;
         isHorizontalLocked = false;
+        edgeStartY = null;
+        activeEdge = null;
         if (currentY === 0) {
           container.style.willChange = '';
           return;
@@ -4426,9 +4446,19 @@ class JourneyBoardsManager {
   }
 
   private isActiveBoardAreaEnterOwned(): boolean {
-    if (this.activeBoardAreaEnterInProgress) return true;
-    if (this.getLastActiveJourneyBoardAreaId()) return true;
-    return this.activeBoardAreaEnterPreparedTargets.some((target) => target && document.body.contains(target));
+    return isJourneyInterimIdleOwnedByEnter({
+      activeEnter: this.activeBoardAreaEnterInProgress,
+      pendingEnter: (window as any).__ccJourneyActiveAreaEnterPending === true,
+      connectedPreparedTargets: this.activeBoardAreaEnterPreparedTargets.filter(
+        (target) => target && document.body.contains(target)
+      ).length,
+    });
+  }
+
+  private getCurrentJourneyInterimCard(): HTMLElement | null {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    if (!container || container.dataset.journeyV700View !== 'world') return null;
+    return container.querySelector('.journey-board-card.interim') as HTMLElement | null;
   }
 
   private scheduleInterimIdleEffectsRetry(reason: string, delayMs: number, beforeRun?: () => void): void {
@@ -4527,7 +4557,7 @@ class JourneyBoardsManager {
     this.startVisibleInterimCardIdleEffects(document);
 
     // Find interim card
-    const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+    const interimCard = this.getCurrentJourneyInterimCard();
     if (!interimCard) {
       logger.warn('⚠️ No interim card found for glow pulse');
       return; // No interim card found
@@ -4537,7 +4567,7 @@ class JourneyBoardsManager {
     const triggerShimmerAndGlow = () => {
       this.startVisibleInterimCardIdleEffects(document);
 
-      const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      const currentInterimCard = this.getCurrentJourneyInterimCard();
       if (!currentInterimCard || this.renderDisposed) {
         logger.warn('⚠️ Interim card not found or disposed, stopping glow pulse');
         this.stopGlowPulse();
@@ -5508,10 +5538,22 @@ class JourneyBoardsManager {
       }
     } catch {}
 
+    const returningFromWorld = reason === 'return-from-world';
+    if (!returningFromWorld) {
+      this.journeyV700HubScrollTop = 0;
+      try {
+        localStorage.removeItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY);
+      } catch {}
+    }
+
     const apply = (phase: string) => {
       if (this.journeyV700View !== 'hub') return;
       const maxScrollTop = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
-      const targetScrollTop = Math.max(0, Math.min(maxScrollTop, savedScrollTop));
+      const targetScrollTop = getJourneyHubScrollTarget({
+        returningFromWorld,
+        savedScrollTop,
+        maxScrollTop,
+      });
       scrollable.scrollTop = targetScrollTop;
       this.logJourneyV700Flow('hub-scroll-restored', {
         reason,
@@ -5550,7 +5592,7 @@ class JourneyBoardsManager {
     hubCloudLayer.className = 'journey-v700-hub-cloud-layer';
     hubCloudLayer.setAttribute('aria-hidden', 'true');
     JOURNEY_V700_HUB_CLOUDS.forEach((cloudSpec, cloudIndex) => {
-      const cloudWorldId = cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 2 : 3;
+      const cloudWorldId = cloudSpec.worldId ?? (cloudSpec.y < 220 ? 1 : cloudSpec.y < 560 ? 2 : 3);
       const cloudLocked = cloudWorldId > activeWorldId;
       const cloud = document.createElement('img');
       cloud.src = cloudSpec.src;
@@ -6540,7 +6582,7 @@ class JourneyBoardsManager {
           target.classList.add('journey-robo-alien-beam-idle-ready');
         }
       });
-      if (source.includes('interim-game-return')) {
+      if (source.includes('game-return')) {
         const activeBoardId = this.getLastActiveJourneyBoardAreaId();
         if (activeBoardId) {
           this.clearLastActiveJourneyBoardAreaId(activeBoardId);

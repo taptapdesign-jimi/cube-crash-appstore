@@ -96,6 +96,7 @@ import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createPopInRunner } from './app-core-popin-delay.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
+import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
 import { markMergePerformance } from '../utils/merge-performance.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
@@ -9315,9 +9316,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const isWildOnlyMerge = isWildMerge && !isWildJuiceMerge && !isWildMagnetMerge;
           
           // 🎨 TEMPLATE-BASED: Use new template system for reliable pooling
-          regularMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
+          const reducedMergeFx = isBoardFxReduced();
+          const regularMerge6Fx = getRegularMerge6FxProfile(reducedMergeFx);
+          regularMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, {
             zIndex: dstZIndex,
-            density: isBoardFxReduced() ? 0.55 : 1,
+            density: regularMerge6Fx.shardDensity,
+            visualScale: regularMerge6Fx.shardVisualScale,
+            distanceScale: regularMerge6Fx.shardDistanceScale,
           });
           
           // One uniform hero bounce already owns regular merge-6 impact.
@@ -9327,8 +9332,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             spawnShape: 'box',
             sizeBoostChance: 0.2,
             sizeBoostScale: 1.3,
+            sizeScale: regularMerge6Fx.smokeSizeScale,
             instantFadeOut: true,
-            distanceScale: 0.6
+            distanceScale: regularMerge6Fx.smokeDistanceScale,
           });
         }
 
@@ -12583,31 +12589,30 @@ function playRegularMergeContactPresentation(targetTile: any, sourceTile: any): 
   playMergeImpactAndAbsorbAnimation(targetTile);
   playNeighborMergeRecoil(targetTile, sourceTile);
   const reducedFx = isBoardFxReduced();
+  const stackSmoke = getRegularStackSmokeProfile(reducedFx);
   smokeBubblesAtTile(board, targetTile, TILE, 0.72, {
     behind: true,
-    // Warm, normal-blended dust stays readable on the light paper/board. The
-    // previous white additive puff disappeared visually even though it existed.
-    color: 0xD5B28B,
-    colors: [0xC99E72, 0xD8B58D, 0xF3E5D2, 0xFFF9EE],
-    haloColor: 0xE4C7A4,
+    // Pure white smoke complements the existing warm contact dust and escapes
+    // around all four tile edges.
+    color: 0xFFFFFF,
+    colors: [0xFFFFFF],
+    haloColor: 0xFFFFFF,
     blendMode: 'normal',
-    baseAlpha: reducedFx ? 0.52 : 0.68,
-    trailAlpha: reducedFx ? 0.48 : 0.68,
-    sizeScale: reducedFx ? 0.38 : 0.44,
-    sizeBoostChance: reducedFx ? 0.16 : 0.28,
-    sizeBoostScale: reducedFx ? 1.14 : 1.26,
-    distanceScale: reducedFx ? 0.4 : 0.54,
-    countScale: reducedFx ? 0.18 : 0.28,
+    baseAlpha: stackSmoke.baseAlpha,
+    trailAlpha: stackSmoke.trailAlpha,
+    sizeScale: stackSmoke.sizeScale,
+    sizeBoostChance: stackSmoke.sizeBoostChance,
+    sizeBoostScale: stackSmoke.sizeBoostScale,
+    distanceScale: stackSmoke.distanceScale,
+    countScale: stackSmoke.countScale,
     bursts: reducedFx ? 3 : 3,
     burstGap: 0.022,
     ttl: 0.55,
-    durationScale: reducedFx ? 0.62 : 0.78,
+    durationScale: stackSmoke.durationScale,
     haloAlpha: 0.28,
     haloScale: 0.72,
     fxTag: 'stack-smoke',
-    // Side emission reads as dust escaping from underneath the landed stack.
     spawnShape: 'edges',
-    spread: 1.1,
   });
 }
 

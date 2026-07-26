@@ -75,6 +75,35 @@ export function shouldRestoreJourneyInterimWrapperForIdle(state: {
     (Number.isFinite(state.scale) && state.scale <= 0.05);
 }
 
+export function isJourneyInterimIdleOwnedByEnter(state: {
+  activeEnter: boolean;
+  pendingEnter: boolean;
+  connectedPreparedTargets: number;
+}): boolean {
+  return state.activeEnter || state.pendingEnter || state.connectedPreparedTargets > 0;
+}
+
+export function getJourneyElasticPull(
+  deltaFromEdge: number,
+  edge: 'top' | 'bottom',
+  damping = 0.34,
+  maxPull = 72,
+): number {
+  const directionalDelta = edge === 'top'
+    ? Math.max(0, deltaFromEdge)
+    : Math.min(0, deltaFromEdge);
+  return Math.max(-maxPull, Math.min(maxPull, directionalDelta * damping));
+}
+
+export function getJourneyHubScrollTarget(state: {
+  returningFromWorld: boolean;
+  savedScrollTop: number;
+  maxScrollTop: number;
+}): number {
+  if (!state.returningFromWorld) return 0;
+  return Math.max(0, Math.min(state.maxScrollTop, state.savedScrollTop));
+}
+
 export function getJourneyV700UnitStagger(groupCount: number, reducedMotion: boolean): number {
   const motion = getJourneyV700MotionProfile(reducedMotion);
   if (groupCount <= 1) return 0;

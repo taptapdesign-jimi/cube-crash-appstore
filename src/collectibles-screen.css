@@ -1830,83 +1830,36 @@
 
 /* 🔥 CRITICAL: When trigger class is added, start single-run animation (JS restarts each cycle) */
 .journey-board-card.interim.interim-shimmer-trigger::after {
-  /* 🔥 USER REQUEST: Single-run animation so JS can restart it every interval */
-  /* 🔥 FIX: Animacija skraćena na 1.7s da se završi pre intervala (2.9s) */
-  animation: journey-interim-shimmer 1.7s linear !important;
-  /* 🔥 USER REQUEST: Start immediately (0s delay) so shimmer is visible before glow (glow starts 150ms later) */
+  animation: journey-interim-shimmer 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) !important;
   animation-delay: 0s !important;
 }
 
 @keyframes journey-interim-shimmer {
-  0%{
+  0% {
     transform: translateX(-160%) skewX(-12deg);
     opacity: 0;
   }
-  0.5%{
-    transform: translateX(-159%) skewX(-12deg);
-    opacity: 0.05;
+  14% {
+    transform: translateX(-125%) skewX(-12deg);
+    opacity: 0.35;
   }
-  1%{
-    transform: translateX(-158%) skewX(-12deg);
-    opacity: 0.125;
+  38% {
+    transform: translateX(-55%) skewX(-12deg);
+    opacity: 0.58;
   }
-  1.5%{
-    transform: translateX(-156%) skewX(-12deg);
-    opacity: 0.2;
-  }
-  2%{
-    transform: translateX(-154%) skewX(-12deg);
-    opacity: 0.25;
-  }
-  3%{
-    transform: translateX(-150%) skewX(-12deg);
-    opacity: 0.325;
-  }
-  5%{
-    transform: translateX(-140%) skewX(-12deg);
-    opacity: 0.375;
-  }
-  8%{
-    transform: translateX(-130%) skewX(-12deg);
-    opacity: 0.425;
-  }
-  12%{
-    transform: translateX(-120%) skewX(-12deg);
-    opacity: 0.45;
-  }
-  15%{
-    transform: translateX(-110%) skewX(-12deg);
-    opacity: 0.475;
-  }
-  20%{
-    transform: translateX(-80%) skewX(-12deg);
-    opacity: 0.5;
-  }
-  25%{
-    transform: translateX(-40%) skewX(-12deg);
-    opacity: 0.5;
-  }
-  30%{
+  50% {
     transform: translateX(0%) skewX(-12deg);
-    opacity: 0.5;
+    opacity: 0.68;
   }
-  35%{
-    transform: translateX(40%) skewX(-12deg);
-    opacity: 0.5;
+  62% {
+    transform: translateX(55%) skewX(-12deg);
+    opacity: 0.58;
   }
-  40%{
-    transform: translateX(80%) skewX(-12deg);
-    opacity: 0.5;
+  86% {
+    transform: translateX(125%) skewX(-12deg);
+    opacity: 0.35;
   }
-  45%{
-    transform: translateX(120%) skewX(-12deg);
-    opacity: 0.25;
-  }
-  50%{
-    transform: translateX(160%) skewX(-12deg);
-    opacity: 0;
-  }
-  51%, 100%{
+  100% {
     transform: translateX(160%) skewX(-12deg);
     opacity: 0;
   }
@@ -1953,7 +1906,8 @@
 .journey-v700-hub {
   position: relative;
   width: 100%;
-  min-height: calc(env(safe-area-inset-top, 0px) + 688px + min(46.8vw, 190px) + env(safe-area-inset-bottom, 0px));
+  /* Robo artwork bottom + a deliberate 100px paper finish on phone layouts. */
+  min-height: calc(env(safe-area-inset-top, 0px) + 608px + min(22.464vw, 91px) + min(32.5vw, 127px) + 100px + env(safe-area-inset-bottom, 0px));
   padding: calc(env(safe-area-inset-top, 0px) + 84px) 18px calc(env(safe-area-inset-bottom, 0px) + 34px);
   box-sizing: border-box;
   pointer-events: auto;

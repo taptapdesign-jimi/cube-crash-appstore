@@ -1696,6 +1696,8 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
   const activePatternData = patternStride === 1
     ? patternData
     : patternData.filter((_shardDef, index) => index % patternStride === 0);
+  const visualScale = Math.max(0.75, Math.min(1.5, Number(opts.visualScale ?? 1)));
+  const distanceScale = Math.max(0.75, Math.min(1.5, Number(opts.distanceScale ?? 1)));
 
   // Spawn each shard according to pattern
   activePatternData.forEach((shardDef, index) => {
@@ -1708,7 +1710,7 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Draw shard (filled polygon shape - same as non-templated version)
     // 🔥 CRITICAL FIX: Use filled polygons instead of lines for visibility
-    const baseSize = (8 + Math.random() * 10) * (shardDef.size || 1.0) * 2.4; // Match non-templated size
+    const baseSize = (8 + Math.random() * 10) * (shardDef.size || 1.0) * 2.4 * visualScale;
     const width = baseSize;
     const height = width * (0.8 + Math.random() * 1.4);
     
@@ -1767,7 +1769,7 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     
     // Calculate travel distance (pattern distance is normalized 0-1)
     const angle = (shardDef.angle * Math.PI) / 180;
-    const distance = shardDef.distance * baseTile * (params.spread || 1.0);
+    const distance = shardDef.distance * baseTile * (params.spread || 1.0) * distanceScale;
     let targetX = Math.cos(angle) * distance;
     let targetY = Math.sin(angle) * distance;
     

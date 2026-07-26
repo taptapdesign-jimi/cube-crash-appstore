@@ -1,8 +1,11 @@
 import {
+  getJourneyElasticPull,
+  getJourneyHubScrollTarget,
   getJourneyV700EnterOffset,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
+  isJourneyInterimIdleOwnedByEnter,
   shouldRestoreJourneyInterimWrapperForIdle,
 } from '../journey-v700-motion.js';
 
@@ -55,5 +58,43 @@ describe('Journey V700 motion contract', () => {
     expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 0, scale: 0, visibility: 'visible' })).toBe(true);
     expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 1, scale: 1, visibility: 'hidden' })).toBe(true);
     expect(shouldRestoreJourneyInterimWrapperForIdle({ opacity: 1, scale: 1, visibility: 'visible' })).toBe(false);
+  });
+
+  it('does not let a remembered board id block interim idle after enter ownership ended', () => {
+    expect(isJourneyInterimIdleOwnedByEnter({
+      activeEnter: false,
+      pendingEnter: false,
+      connectedPreparedTargets: 0,
+    })).toBe(false);
+    expect(isJourneyInterimIdleOwnedByEnter({
+      activeEnter: false,
+      pendingEnter: true,
+      connectedPreparedTargets: 0,
+    })).toBe(true);
+  });
+
+  it('starts elastic pull at zero when the swipe first reaches an edge', () => {
+    expect(getJourneyElasticPull(0, 'bottom')).toBe(0);
+    expect(getJourneyElasticPull(-30, 'bottom')).toBeCloseTo(-10.2);
+    expect(getJourneyElasticPull(30, 'bottom')).toBe(0);
+    expect(getJourneyElasticPull(30, 'top')).toBeCloseTo(10.2);
+  });
+
+  it('starts a fresh Journey Worlds entry at the top but preserves an in-hub return', () => {
+    expect(getJourneyHubScrollTarget({
+      returningFromWorld: false,
+      savedScrollTop: 420,
+      maxScrollTop: 600,
+    })).toBe(0);
+    expect(getJourneyHubScrollTarget({
+      returningFromWorld: true,
+      savedScrollTop: 420,
+      maxScrollTop: 600,
+    })).toBe(420);
+    expect(getJourneyHubScrollTarget({
+      returningFromWorld: true,
+      savedScrollTop: 800,
+      maxScrollTop: 600,
+    })).toBe(600);
   });
 });
