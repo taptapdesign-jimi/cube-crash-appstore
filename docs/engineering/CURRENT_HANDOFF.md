@@ -1,0 +1,77 @@
+# Current Stack to Six Handoff
+
+Updated: 2026-07-28
+
+## Repository state
+
+- Branch: `feature/v700-journey-hub`.
+- Last committed online checkpoint: `46f8e31 v809 polish Journey flow and gameplay effects`.
+- The working tree currently contains uncommitted gameplay/final-merge work. Always run `git status --short` and inspect overlapping diffs before editing; do not discard or overwrite them.
+- At the time of this update, modified files are:
+  - `AGENTS.md`
+  - `docs/engineering/CURRENT_HANDOFF.md`
+  - `docs/engineering/PROJECT_CONTEXT.md`
+  - `docs/engineering/dev-production-modes.md`
+  - `src/modules/__tests__/app-core-merge-lastmerge.test.ts`
+  - `src/modules/__tests__/final-merge-rules.test.ts`
+  - `src/modules/__tests__/gameplay-resolution-engine.test.ts`
+  - `src/modules/__tests__/first-play-tutorial-hud-lock.test.ts`
+  - `src/modules/app-core-merge-lastmerge.ts`
+  - `src/modules/app-core.ts`
+  - `src/modules/first-play-tutorial-hud-lock.ts`
+  - `src/modules/first-play-tutorial.ts`
+  - `src/modules/final-merge-rules.ts`
+  - `src/modules/fx.ts`
+
+## Latest local changes
+
+- Arcade wild-star orbit suppression is now owned by `wild-stars.ts`, not only its FX wrapper: attach, async texture/fallback completion, and the shared ticker all reject or clean orbit halos whenever the run mode is Arcade. Journey orbit halos remain enabled, and `run-mode.test.ts` covers the policy.
+- Journey Worlds now applies the extra bottom trim to the hub's actual `min-height` owner as well as the cloud layer, and clips cloud overflow at that boundary, removing the residual scroll tail below Robo without moving any world.
+- The merge multiplier badge now always uses the original brown/taupe disk with light text. The prior intentional white-over-Wild branch was the source of the inconsistent white/brown appearance and has been removed.
+- Validation for these three fixes passed: targeted `run-mode.test.ts` (2 tests), targeted ESLint, `npm run type-check`, and `SKIP_NATIVE_BUNDLE_SYNC=true npm run build`.
+- Physical installs and tests must always target `iPhone 13 blue`; other visible iPhones and iPads are not fallback targets unless the user explicitly changes this rule.
+- Journey Worlds Forest Unit now includes three added framing clouds: one large upper-left, one large upper-right, and one medium at Forest's lower-right edge. Screenshot-guided tuning moved both right-side clouds another 60px left so their visible cloud mass sits close to the Forest island while preserving their diagonal vertical separation. All three are explicitly owned by world 1 so lock, enter/exit, and idle state stay with Forest.
+- Journey Worlds hub first trims the paper/scroll tail below Robo by 8% of the stable viewport height, then removes another 40% of the measured remaining tail from the absolute cloud-layer box. The cloud layer was the real scrollHeight blocker; world positions, inter-world spacing, visible clouds, and Journey motion remain unchanged.
+- Arcade gameplay must not show wild-star orbiting idle decoration; ownership now lives in `wild-stars.ts` across attach, async completion, and ticker cleanup.
+- Journey orbiting stars remain enabled.
+- Wild-star merge/reward flow remains connected.
+- `npm run type-check` and `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` passed after this change.
+- This latest Arcade-only change has not yet been synced into Stack to Six `Web.bundle` or installed on the phone.
+- The repository now has an automatic continuity layer: `AGENTS.md` requires every new chat to read `PROJECT_CONTEXT.md` and this handoff before acting.
+- Global skills `stack-to-six-project-context` and `cube-crash-dev-production-modes` now identify Stack to Six as the only normal iOS target and treat Kockice Crash as explicitly opt-in legacy infrastructure.
+- Arcade first-play tutorial HUD cleanup now separates the active tutorial lock from the post-tutorial completion assist. Close/help controls restore immediately after step 4 and no longer remain disabled when entering Journey before an app restart.
+- Regression coverage: `first-play-tutorial-hud-lock.test.ts` passes both active-tutorial and completion-assist-only states. Targeted ESLint, `npm run type-check`, and a no-sync production build also pass.
+- The current web build, including centralized Arcade orbit cleanup, the corrected Journey Worlds bottom extent, the always-brown merge multiplier, the latest Forest cloud placement, and tutorial HUD lifecycle fix, has been synced into the Stack to Six `Web.bundle` and built successfully as `/tmp/stack-to-six-derived/Build/Products/Debug-iphoneos/Stack to Six.app`.
+- The final app was verified with bundle ID `com.taptapdesign.stacktosix.Stack-to-Six`, current intro assets, and the complete runtime asset tree. `iPhone 13 blue` is paired over `localNetwork`; Developer Mode, DDI services, and unlocked state verified correctly. A fresh Wi-Fi attempt for this newest 306 MB build again failed inside Apple's remote install transport with `IXRemoteErrorDomain code 6 / Connection interrupted`. The latest build is therefore not confirmed installed; the ready-to-install `.app` remains at the path above and no other device was targeted.
+
+## Latest physical-iPhone state
+
+- A follow-up physical Journey trace on the currently installed diagnostic Stack to Six build completed successfully on `iPhone 13 blue`: Homepage → Journey → Forest → board 2 → gameplay → interim-board return. The initial world enter and the board return both primed the screen hidden, completed their full 11-Unit enter, and ended at visible opacity 1 without console errors or a stuck animation flag.
+- The 30-second Journey gameplay window averaged `16.74 ms` across its one-second samples. Forty measured drags averaged `1.01 ms` in the move handler, peaked at `4 ms`, and had zero processed moves over `8 ms`; observed regular stack/merge windows peaked at `28 ms`, and `reducedFx` remained false. There was one isolated `78 ms` frame during board enter and two smaller isolated hitches (`49 ms` and `41 ms`); gameplay was not under sustained frame pressure. The user reported the run felt good.
+- The completed diagnostic Arcade trace captured 147 ordered gameplay events across Stage 1 and Stage 2: 63 merge entries, 40 merge-6 decisions, 23 non-merge-6 early checks, 8 wild spawns, 7 special merge-6 FX selections, 5 level-end decisions, and one clean-flow dispatch. Every Arcade wild spawn reported `orbitPresent: false`, including core stars and the `cubero` star variant; the Arcade orbit suppression is physically verified.
+- Stage 1's final pair was a stack-depth-2 regular value 5 plus `wild-magnet`. The merge-6 resolver saw exactly two active physical tiles, no blocker, and no pull target; it returned `complete / arcade-stage / final_wild_merge6`, selected the magnet FX branch, then dispatched clean flow and advanced to Board 2. The previously reported missing-final-merge handoff did not reproduce in this trace. Stage 2 later correctly resolved a separate `4 + 3` no-moves state as fail. TNT did not spawn in this run, so its final-merge path remains test-covered but not physically exercised here.
+- Performance for the diagnostic run remained healthy over 66 drags: maximum average move-handler cost `2.75 ms`, maximum individual processed move `8 ms`, one over-8 sample, one renderer frame over `34 ms`, and worst ticker frame `40 ms`. This is a small isolated hitch, not sustained lag; no 80–120 ms stall occurred.
+- The first post-install Arcade physical trace showed consistently cheap touch processing (`0.2–4 ms`, no move handler over `8 ms`) and no severe renderer hitch; observed ticker maxima were about `31 ms`. That build exposed only DragPerf and haptic telemetry, so wild identity, merge-6 FX routing, and final handoff could not be proven from the console.
+- A narrow iOS-only `[CC_ARCADE_TRACE]` diagnostic channel was added in `src/utils/ios-arcade-gameplay-trace.ts` and connected in `app-core.ts` at merge entry, early final-pair classification, merge-6 resolver decision, merge-6 FX selection, completed wild spawn/orbit state, level-end decision, and clean-flow dispatch. It does not change gameplay decisions or effects. Type-check, targeted ESLint, and 68 focused final-merge/run-mode tests passed.
+- The diagnostic build was synced with the complete raw assets tree, built successfully, verified with the exact Stack to Six bundle ID, 717 raw asset files, and the trace marker inside the final app. Install-over then completed successfully on `iPhone 13 blue`; Apple reported the new installation URL ending in `03B73FF5-645F-4633-81A2-F50D40700763/Stack to Six.app`. The next step is one short Arcade physical trace and analysis of the `[CC_ARCADE_TRACE]` sequence.
+- After the user reset the phone's Wi-Fi on 2026-07-28, a long install-over attempt completed successfully for `/tmp/stack-to-six-derived/Build/Products/Debug-iphoneos/Stack to Six.app`. Apple reported bundle ID `com.taptapdesign.stacktosix.Stack-to-Six` and a new installation URL ending in `EBBC07FB-6902-4B94-8019-BA0DF06AFE73/Stack to Six.app`. The exact bundle then launched successfully in bundled `app://localhost/index.html` mode with the native console attached. This is the first confirmed phone install containing the current Journey bottom trim, centralized Arcade wild-star orbit suppression, always-brown multiplier badge, Forest cloud placement, tutorial HUD lifecycle fix, and current final-merge work. Physical visual verification of Journey Worlds and Arcade orbit behavior is the next step.
+- On 2026-07-28 the installed `Stack to Six` bundle was launched successfully on `iPhone 13 blue` and attached to the native console, but it did not emit the current `JourneyV700Flow` hub diagnostics during a user-confirmed Journey Worlds reproduction. Combined with the visible old Journey bottom extent and Arcade wild-star orbit, this is evidence that the phone still contains older web content.
+- The ready `/tmp/stack-to-six-derived/Build/Products/Debug-iphoneos/Stack to Six.app` was re-verified against the current `dist/index.html`, raw `assets/tile.png`, bundled mode, and exact bundle ID. Three install-over attempts on the unlocked/available `iPhone 13 blue`—including both CoreDevice ID and hardware UDID addressing—failed in Apple's remote install transport with `IXRemoteErrorDomain code 6 / Connection interrupted`. Do not claim the current Journey trim or Arcade orbit suppression is installed until a later attempt returns an explicit install success and the exact bundle is relaunched.
+- A freshly built Stack to Six development app was installed successfully under `com.taptapdesign.stacktosix.Stack-to-Six`.
+- Before that correction, the phone had the wrong Kockice Crash app; device inspection exposed the bundle mismatch.
+- The installed Stack to Six build contains `taplogo.png` and all eight current random `lik-*` intro characters.
+- Automatic launch was blocked once because iOS required explicit trust for the development profile. If it remains blocked, the user must approve it under Settings → General → VPN & Device Management → Developer App.
+- Do not assume this installed app contains work performed after the most recent native sync/install. Rebuild and install over Stack to Six when the user asks for phone verification.
+
+## Current UX decisions worth preserving
+
+- The startup background is one continuous shared paper surface; no white/gray interstitial frame.
+- Intro sequence uses `taplogo.png` plus one random `lik-*` character, not the retired combined preload art or a separate Stack to Six logo phase.
+- Journey Worlds hub and individual Journey world scroll behavior must remain distinct as documented in `PROJECT_CONTEXT.md`.
+- Journey enter/exit/nav motion must follow `JOURNEY_ANIMATION_CONTRACT.md`.
+- Arcade gameplay must not show orbiting wild-star idle decorations; Journey still may.
+- Post-tutorial completion assist may stay active until the tutorial board ends, but it must never keep HUD close/help navigation locked.
+
+## How to maintain this file
+
+Update only concrete continuation state: branch/checkpoint, meaningful uncommitted files, latest validated behavior, and what is or is not installed. Move lasting architecture or workflow facts to `PROJECT_CONTEXT.md`.

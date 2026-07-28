@@ -53,6 +53,80 @@ describe('app-core-merge-lastmerge', () => {
     });
   });
 
+  it('keeps the final wild-star pair in the captured merge snapshot after live mutation', () => {
+    const src = { value: 0, special: 'wild-star', stackDepth: 1, visible: true };
+    const dst = { value: 5, stackDepth: 1, visible: true };
+
+    const result = resolveLastMergeEarlyState({
+      tiles: [src, dst],
+      src,
+      dst,
+      effSum: 6,
+      isWildMagnetMerge: false,
+      mode: 'arcade',
+    });
+
+    // The star finale may consume its live special/visibility before merge-6 spawn
+    // resolution. The entry snapshot must remain the authoritative final pair.
+    src.special = undefined as any;
+    src.visible = false;
+
+    expect(result.isActuallyLastMerge).toBe(true);
+    expect(result.finalMergeSnapshot).toMatchObject({
+      isFinalMerge: true,
+      isFinalWildLastTwo: true,
+    });
+    expect(result.activeTilesBeforeWildProgress).toEqual([src, dst]);
+    expect(result.visibleTilesCountBeforeWildProgress).toBe(2);
+  });
+
+  it.each([
+    ['star', 'wild'],
+    ['juice', 'wild-juice'],
+    ['TNT', 'wild-tnt'],
+    ['magnet without pull targets', 'wild-magnet'],
+  ])('marks final %s plus regular as complete in Arcade in both merge directions', (_label, special) => {
+    const specialTile = { value: 0, special, stackDepth: 1, visible: true };
+    const regularTile = { value: 5, stackDepth: 1, visible: true };
+
+    for (const [src, dst] of [[specialTile, regularTile], [regularTile, specialTile]]) {
+      const result = resolveLastMergeEarlyState({
+        tiles: [specialTile, regularTile],
+        src,
+        dst,
+        effSum: 6,
+        isWildMagnetMerge: special === 'wild-magnet',
+        mode: 'arcade',
+      });
+
+      expect(result.isActuallyLastMerge).toBe(true);
+      expect(result.finalMergeSnapshot.isFinalWildLastTwo).toBe(true);
+    }
+  });
+
+  it('recognizes a future registry special by archetype metadata', () => {
+    const src = {
+      value: 0,
+      special: null,
+      _ccSpecialDiceArchetype: 'wild-tnt',
+      stackDepth: 1,
+      visible: true,
+    };
+    const dst = { value: 5, stackDepth: 1, visible: true };
+
+    const result = resolveLastMergeEarlyState({
+      tiles: [src, dst],
+      src,
+      dst,
+      effSum: 6,
+      isWildMagnetMerge: false,
+      mode: 'arcade',
+    });
+
+    expect(result.isActuallyLastMerge).toBe(true);
+    expect(result.finalMergeSnapshot.isFinalWildLastTwo).toBe(true);
+  });
+
   it('marks final regular merge-6 and prevents wild meter fill', () => {
     const src = { value: 4, stackDepth: 1 };
     const dst = { value: 2, stackDepth: 1 };

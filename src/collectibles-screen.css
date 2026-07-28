@@ -1906,8 +1906,11 @@
 .journey-v700-hub {
   position: relative;
   width: 100%;
-  /* Robo artwork bottom + a deliberate 100px paper finish on phone layouts. */
-  min-height: calc(env(safe-area-inset-top, 0px) + 608px + min(22.464vw, 91px) + min(32.5vw, 127px) + 100px + env(safe-area-inset-bottom, 0px));
+  /* Trim only the paper finish below Robo by 8% of the stable viewport height. */
+  --journey-v700-hub-bottom-trim: min(8svh, 68px);
+  /* Remove another 40% of the remaining measured tail without moving the worlds. */
+  --journey-v700-hub-extra-bottom-trim: min(6.2svh, 53px);
+  min-height: calc(env(safe-area-inset-top, 0px) + 608px + min(22.464vw, 91px) + min(32.5vw, 127px) + 100px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim) + env(safe-area-inset-bottom, 0px));
   padding: calc(env(safe-area-inset-top, 0px) + 84px) 18px calc(env(safe-area-inset-bottom, 0px) + 34px);
   box-sizing: border-box;
   pointer-events: auto;
@@ -1918,7 +1921,8 @@
   left: 0;
   top: calc(env(safe-area-inset-top, 0px) + 82px);
   width: 100%;
-  height: 920px;
+  height: calc(920px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim));
+  overflow: hidden;
   pointer-events: none;
   z-index: 0;
   transform-origin: 50% 50%;

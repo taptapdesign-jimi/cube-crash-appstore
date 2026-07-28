@@ -41,7 +41,12 @@ export function isWildLikeSpecial(special: unknown): boolean {
 }
 
 export function isWildLikeTile(tile: any): boolean {
-  return isWildLikeSpecial(tile?.special) || tile?.isWild === true || tile?.isWildFace === true;
+  return isWildLikeSpecial(tile?.special) ||
+    isWildLikeSpecial(tile?._ccWildSpecial) ||
+    isWildLikeSpecial(tile?._ccSpecialDiceArchetype) ||
+    isWildLikeSpecial(tile?.specialDiceArchetype) ||
+    tile?.isWild === true ||
+    tile?.isWildFace === true;
 }
 
 function isStalePlayableWildSpawnDrop(tile: any): boolean {

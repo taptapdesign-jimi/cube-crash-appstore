@@ -6,6 +6,7 @@ import { setValue as setBoardValue } from './board.js';
 import { startWildStars } from './fx.ts';
 import { cleanupSmokeBubbles } from './hud-helpers.ts';
 import { isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
+import { shouldLockFirstPlayTutorialHud } from './first-play-tutorial-hud-lock.ts';
 
 const FORCE_NEXT_KEY = 'cc_first_play_tutorial_force_next';
 const DONE_KEY = 'cc_first_play_tutorial_done';
@@ -121,7 +122,10 @@ function stopTutorialBoardAssist(): void {
 
 function isTutorialHudLockActive(): boolean {
   if (!isBrowser()) return false;
-  return active || (window as any).__ccFirstPlayTutorialSlowWildMeter === true;
+  return shouldLockFirstPlayTutorialHud({
+    tutorialActive: active,
+    completionAssistActive: (window as any).__ccFirstPlayTutorialSlowWildMeter === true,
+  });
 }
 
 function setLowTutorialBoardValue(tile: any, index: number): void {

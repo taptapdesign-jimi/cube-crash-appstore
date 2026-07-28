@@ -98,6 +98,7 @@ import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
 import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
 import { markMergePerformance } from '../utils/merge-performance.ts';
+import { emitIOSArcadeGameplayTrace } from '../utils/ios-arcade-gameplay-trace.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
@@ -5844,6 +5845,15 @@ async function spawnWildFromMeter(){
           }
         } catch {}
 
+        emitIOSArcadeGameplayTrace('wild-spawn-complete', {
+          boardNumber,
+          special: spawnedTile?.special || wildType || null,
+          variant: specialDiceVariant?.id || null,
+          x: spawnedTile?.gridX ?? cell.c,
+          y: spawnedTile?.gridY ?? cell.r,
+          orbitPresent: !!((spawnedTile as any)?._wildStarSystem),
+        });
+
         // 🔥 USER REQUEST: Mark first wild as spawned
         const wasFirstWild = !firstWildSpawned;
         if (!firstWildSpawned) {
@@ -5914,6 +5924,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   const __replayToken = replayRecorder.beginStep('merge', {
     src: src ? { gridX: src.gridX, gridY: src.gridY, value: src.value, special: src.special } : null,
     dst: dst ? { gridX: dst.gridX, gridY: dst.gridY, value: dst.value, special: dst.special } : null,
+  });
+  emitIOSArcadeGameplayTrace('merge-entry', {
+    boardNumber,
+    src: src ? { value: src.value | 0, special: src.special || null, stackDepth: (src as any).stackDepth || 1, x: src.gridX, y: src.gridY } : null,
+    dst: dst ? { value: dst.value | 0, special: dst.special || null, stackDepth: (dst as any).stackDepth || 1, x: dst.gridX, y: dst.gridY } : null,
+    activeTileCount: tiles.filter((tile: any) => tileIsActive(tile)).length,
   });
   try {
   logger.debug('🔥🔥🔥 MERGE FUNCTION CALLED', 'app-core', { srcValue: src?.value, dstValue: dst?.value });
@@ -6395,6 +6411,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       activeTilesBeforeWildProgress,
       wasLastThreeOrMoreStackForCheck,
     } = lastMergeResult;
+    // The merge-6 finale runs from a later callback scope. Preserve the immutable
+    // entry snapshot on its target so special-dice visual teardown cannot change
+    // final-pair classification before spawn resolution.
+    (dst as any)._ccActiveTilesAtMergeEntry = activeTilesBeforeWildProgress.slice();
+    (dst as any)._ccFinalMergeSnapshotAtMergeEntry = {
+      ...lastMergeResult.finalMergeSnapshot,
+    };
+    emitIOSArcadeGameplayTrace('last-merge-early', {
+      boardNumber,
+      effSum,
+      isActuallyLastMerge: lastMergeResult.isActuallyLastMerge,
+      activeTileCount: visibleTilesCountBeforeWildProgress,
+      activeStackCount: activeTilesCountBeforeWildProgress,
+      willPullTiles: lastMergeResult.willPullTiles,
+      snapshot: lastMergeResult.finalMergeSnapshot,
+    });
     let stackMergeFilledWildMeter = false;
     
     if (!lastMergeResult.isActuallyLastMerge) {
@@ -6956,14 +6988,27 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL: Include wild tiles even if they have value 0
     // Wild tiles should be counted as active tiles for last merge detection
     // 🔥 CRITICAL FIX: Include wild-juice in wild tile check (same as wild star)
-    const boardGameplaySnapshotBeforeMerge = collectBoardGameplayTiles();
-    const finalMergeTileSetsBeforeMerge = getFinalMergeTileSets({
-      tiles: boardGameplaySnapshotBeforeMerge,
+    // Use the snapshot captured at merge entry. Special-dice finale animation can
+    // mutate/remove the wild tile before this merge-6 branch runs; re-reading the
+    // live board here would then lose the original final pair and incorrectly spawn.
+    const capturedTilesAtMergeEntry = Array.isArray((dst as any)?._ccActiveTilesAtMergeEntry)
+      ? (dst as any)._ccActiveTilesAtMergeEntry
+      : null;
+    const capturedFinalMergeSnapshot = (dst as any)?._ccFinalMergeSnapshotAtMergeEntry;
+    const capturedWasFinalMerge = capturedFinalMergeSnapshot?.isFinalMerge === true;
+    const liveFinalMergeTileSets = getFinalMergeTileSets({
+      tiles: capturedTilesAtMergeEntry ?? collectBoardGameplayTiles(),
       src,
       dst,
     });
-    const activeTilesBeforeMerge = finalMergeTileSetsBeforeMerge.activeTilesBeforeMerge;
-    const finalMergeBlockersBefore = finalMergeTileSetsBeforeMerge.finalMergeBlockersBefore;
+    // A confirmed entry-time final merge is immutable. Finale FX may clear the
+    // special marker, visibility, or live tile ownership before this callback.
+    const activeTilesBeforeMerge = capturedWasFinalMerge && capturedTilesAtMergeEntry
+      ? capturedTilesAtMergeEntry
+      : liveFinalMergeTileSets.activeTilesBeforeMerge;
+    const finalMergeBlockersBefore = capturedWasFinalMerge
+      ? []
+      : liveFinalMergeTileSets.finalMergeBlockersBefore;
     
     // 🔥 CRITICAL FIX v36: Count TOTAL tiles including stacked tiles (stackDepth)
     // This is essential for correct "last merge" detection with stacked tiles
@@ -7241,11 +7286,26 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       },
       willPulledTilesMerge: false,
     });
-    const finalMergeSnapshot = finalMergeResult.finalMerge;
+    const finalMergeSnapshot = capturedWasFinalMerge
+      ? capturedFinalMergeSnapshot
+      : finalMergeResult.finalMerge;
     const isFinalWildLastTwo = finalMergeSnapshot.isFinalWildLastTwo;
     const isFinalRegularMerge6Snapshot = finalMergeSnapshot.isFinalRegularMerge6;
     const finalMergeDecision = finalMergeResult.decision;
-    const isFinalMergeByResolver = finalMergeDecision.type === 'complete';
+    const isFinalMergeByResolver = capturedWasFinalMerge || finalMergeDecision.type === 'complete';
+    emitIOSArcadeGameplayTrace('merge6-decision', {
+      boardNumber,
+      srcSpecial: srcSpecialMerge6 || null,
+      dstSpecial: dstSpecialMerge6 || null,
+      activeTileCount: activeTilesBeforeMerge.length,
+      blockerCount: finalMergeBlockersBefore.length,
+      isWildMagnetMerge,
+      hasTilesToPull,
+      capturedWasFinalMerge,
+      isFinalMergeByResolver,
+      snapshot: finalMergeSnapshot,
+      decision: finalMergeDecision,
+    });
     try {
       (dst as any)._ccFinalMergeAllowedByResolver = isFinalMergeByResolver;
       (dst as any)._ccFinalMergeBlockerCount = finalMergeBlockersBefore.length;
@@ -9131,6 +9191,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // 🔥 NEW SYSTEM: Direct call to woodShardsAtTile with explicit flags
           // This bypasses getMerge6ShardConfig and ensures correct shard colors
+          emitIOSArcadeGameplayTrace('merge6-fx-selected', {
+            boardNumber,
+            kind: isMainWildMagnetMerge
+              ? 'magnet'
+              : isMainWildTntMerge
+                ? 'tnt'
+                : isMainWildJuiceMerge
+                  ? 'juice'
+                  : isMainWildStarMerge
+                    ? 'star'
+                    : 'wild-fallback',
+            srcSpecial: srcSpecialMerge6 || null,
+            dstSpecial: dstSpecialMerge6 || null,
+          });
           if (isMainWildMagnetMerge) {
             // Wild-magnet merge: red shards using template-based pooling
             // NO STARS for wild-magnet merge
@@ -11891,6 +11965,22 @@ function checkLevelEnd(){
     } catch (resolverError) {
       devWarn('⚠️ Gameplay resolver shadow compare failed at checkLevelEnd', resolverError);
     }
+    if (levelEndDecision.type !== 'continue' || checkLevelEndResult.type !== 'continue') {
+      emitIOSArcadeGameplayTrace('level-end-decision', {
+        boardNumber,
+        legacy: checkLevelEndResult,
+        resolver: resolverDecisionForLevelEnd,
+        selected: levelEndDecision,
+        activeTiles: tiles.filter((tile: any) => tileIsActive(tile)).map((tile: any) => ({
+          value: tile.value | 0,
+          special: tile.special || null,
+          locked: tile.locked === true,
+          stackDepth: tile.stackDepth || 1,
+          x: tile.gridX,
+          y: tile.gridY,
+        })),
+      });
+    }
     if (levelEndDecision.type === 'wait') {
       devLog('⏳ checkLevelEnd deferred by gameplay resolver', {
         resolverDecision: resolverDecisionForLevelEnd,
@@ -12019,6 +12109,12 @@ function checkLevelEnd(){
           : 'clean_board_from_checkLevelEnd';
 
       devLog('🚨🚨🚨 checkLevelEnd: Board is clean, triggering clean board flow', {
+        cleanFlowReason,
+        legacyReason: checkLevelEndResult.reason,
+        resolverReason: levelEndDecision.reason,
+      });
+      emitIOSArcadeGameplayTrace('clean-flow-dispatch', {
+        boardNumber,
         cleanFlowReason,
         legacyReason: checkLevelEndResult.reason,
         resolverReason: levelEndDecision.reason,

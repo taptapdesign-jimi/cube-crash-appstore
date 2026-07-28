@@ -515,6 +515,10 @@ const JOURNEY_V700_WORLD_CLOUD_ASSETS = [
 ];
 
 const JOURNEY_V700_HUB_CLOUDS: JourneyV700WorldCloudSpec[] = [
+  // Forest framing: large upper-left and upper-right clouds plus a medium cloud hugging Forest's lower-right edge.
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: -70, y: -6, width: 272, opacity: 0.78, dx: 8, dy: -5, duration: 7.3, delay: -3.2, scale: 1.03, worldId: 1 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 100, y: 6, width: 248, opacity: 0.76, dx: 7, dy: -5, duration: 7.1, delay: -4.6, scale: 1.03, worldId: 1 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 200, y: 138, width: 166, opacity: 0.72, dx: -7, dy: 5, duration: 6.7, delay: -1.9, scale: 1.02, worldId: 1 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -34, y: 76, width: 286, opacity: 0.8, dx: 8, dy: -5, duration: 6.4, delay: -0.8, scale: 1.02 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 214, y: 58, width: 184, opacity: 0.72, dx: -7, dy: 6, duration: 5.8, delay: -2.1, scale: 1.04 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 24, y: 246, width: 214, opacity: 0.78, dx: -9, dy: 5, duration: 7.2, delay: -1.5, scale: 1.02 },

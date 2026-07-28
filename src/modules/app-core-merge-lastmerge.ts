@@ -39,6 +39,7 @@ type LastMergeEarlyState = {
   cannotPullDueToEndGame: boolean;
   srcSpecialForCheck: any;
   dstSpecialForCheck: any;
+  finalMergeSnapshot: ReturnType<typeof resolveMergeFinality>['finalMerge'];
 };
 
 export function resolveLastMergeEarlyState({
@@ -108,6 +109,7 @@ export function resolveLastMergeEarlyState({
     cannotPullDueToEndGame,
     srcSpecialForCheck,
     dstSpecialForCheck,
+    finalMergeSnapshot,
   };
 }
 
@@ -191,12 +193,5 @@ export function handleLastMergeEarly({
     devLog('🧲 Would be last merge, but wild-magnet will pull tiles - NOT marking as last merge (new tiles will spawn)');
   }
   
-  return {
-    isActuallyLastMerge,
-    wasLastThreeOrMoreStackForCheck,
-    willPullTiles,
-    visibleTilesCountBeforeWildProgress,
-    activeTilesCountBeforeWildProgress,
-    activeTilesBeforeWildProgress,
-  };
+  return state;
 }

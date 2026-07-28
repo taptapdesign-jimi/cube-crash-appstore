@@ -122,6 +122,29 @@ test('future wild-prefixed special dice are treated as wild-like', () => {
   });
 });
 
+test.each([
+  ['stored core wild type', { special: null, _ccWildSpecial: 'wild-juice' }],
+  ['registry archetype', { special: null, _ccSpecialDiceArchetype: 'wild-tnt' }],
+  ['public archetype metadata', { special: null, specialDiceArchetype: 'wild-star' }],
+])('%s remains wild-like when the live special field is cleared', (_label, overrides) => {
+  const src = makeTile({ value: 0, ...overrides });
+  const dst = makeTile({ value: 5 });
+  const tileSets = getFinalMergeTileSets({ tiles: [src, dst], src, dst });
+
+  expect(isWildLikeTile(src)).toBe(true);
+  expect(tileSets.activeTilesBeforeMerge).toEqual([src, dst]);
+  expect(getFinalMergeSnapshot({
+    activeTilesBeforeMerge: tileSets.activeTilesBeforeMerge,
+    finalMergeBlockersBefore: tileSets.finalMergeBlockersBefore,
+    src,
+    dst,
+    effSum: 6,
+  })).toMatchObject({
+    isFinalWildLastTwo: true,
+    isFinalMerge: true,
+  });
+});
+
 test('visual wild flags are treated as wild-like even without special name', () => {
   expect(isWildLikeTile(makeTile({ isWild: true }))).toBe(true);
   expect(isWildLikeTile(makeTile({ isWildFace: true }))).toBe(true);

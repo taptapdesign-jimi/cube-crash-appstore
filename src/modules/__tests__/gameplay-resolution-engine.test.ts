@@ -320,6 +320,31 @@ test('future special dice archetype metadata still resolves as final wild merge'
   });
 });
 
+test('cleared live special still resolves complete from registry archetype metadata', () => {
+  const src = makeTile({
+    value: 0,
+    special: null,
+    _ccSpecialDiceArchetype: 'wild-tnt',
+  });
+  const dst = makeTile({ value: 5 });
+  const snapshot = createGameplaySnapshot({
+    tiles: [src, dst],
+    moves: 0,
+    makeBoard: makeBoard(false),
+    mode: 'arcade',
+    phase: 'after-merge',
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(resolveGameplayState(snapshot)).toEqual({
+    type: 'complete',
+    target: 'arcade-stage',
+    reason: 'final_wild_merge6',
+  });
+});
+
 test('journey final juice merge with stacked regular and duplicate refs resolves complete', () => {
   const src = makeTile({ value: 0, special: 'wild-juice' });
   const dst = makeTile({ value: 5, stackDepth: 2 });

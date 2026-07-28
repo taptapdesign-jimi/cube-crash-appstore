@@ -1,4 +1,11 @@
-import { getRunMode, markArcadeHomeRunOrigin, RUN_MODE_ARCADE_HOME } from '../run-mode';
+import {
+  getRunMode,
+  markArcadeHomeRunOrigin,
+  RUN_MODE_ARCADE_HOME,
+  RUN_MODE_JOURNEY,
+  setRunMode,
+  shouldRenderWildStarOrbit,
+} from '../run-mode';
 
 describe('run-mode arcade origin', () => {
   beforeEach(() => {
@@ -38,5 +45,13 @@ describe('run-mode arcade origin', () => {
     expect(localStorage.getItem('__ccCameFromJourney')).toBeNull();
     expect(localStorage.getItem('__ccFromInterimBoard')).toBeNull();
     expect(localStorage.getItem('__ccReturningFromInterimBoard')).toBeNull();
+  });
+
+  it('allows the wild-star idle orbit in Journey but never in Arcade', () => {
+    setRunMode(RUN_MODE_JOURNEY);
+    expect(shouldRenderWildStarOrbit()).toBe(true);
+
+    setRunMode(RUN_MODE_ARCADE_HOME);
+    expect(shouldRenderWildStarOrbit()).toBe(false);
   });
 });

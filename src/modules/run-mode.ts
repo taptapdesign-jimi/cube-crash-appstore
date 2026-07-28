@@ -27,6 +27,10 @@ export function isArcadeHomeRunMode(): boolean {
   return getRunMode() === RUN_MODE_ARCADE_HOME;
 }
 
+export function shouldRenderWildStarOrbit(): boolean {
+  return !isArcadeHomeRunMode();
+}
+
 function setStorageFlag(key: string, enabled: boolean): void {
   try {
     if (enabled) {

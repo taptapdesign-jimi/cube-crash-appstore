@@ -4873,13 +4873,10 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
   c.x = x; c.y = y; c.zIndex = 10000; c.alpha = 0;
   autoAdd(board, c, Math.min(0.9, (life || 0.45) + 0.35)); 
 
-  // When sitting over a Wild, switch to white badge for contrast.
-  const overWild =
-    !!(tile && (tile.special === 'wild' || tile.isWildFace === true || tile.isWild === true));
-
-  const FILL   = overWild ? 0xFFFFFF : 0xAB806E; // white over wild, taupe otherwise
-  const STROKE = overWild ? 0xE6DCD2 : 0xFAEDE0; // soft stroke
-  const TXT    = overWild ? 0x6B5444 : 0xF5F5F5; // readable text
+  // Keep one visual contract for every merge path, including merges over Wild tiles.
+  const FILL   = 0xAB806E;
+  const STROKE = 0xFAEDE0;
+  const TXT    = 0xF5F5F5;
   const rr     = tileSize * 0.28;
 
   // disk + ring + soft outer halo

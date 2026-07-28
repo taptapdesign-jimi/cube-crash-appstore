@@ -2,6 +2,7 @@
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
 import { getSpecialDiceVariantForTile, isSpecialDiceDirectWildLikeTile } from './special-dice-registry.ts';
+import { shouldRenderWildStarOrbit } from './run-mode.ts';
 
 type WildishTile = Container & {
   special?: string;
@@ -426,6 +427,10 @@ function playOrbitIntro(container: Container): void {
 export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: any = {}): void {
   if (!tileIsPureWild(tile)) return;
   if (getSpecialDiceVariantForTile(tile)?.idleOrbit === false) return;
+  if (!shouldRenderWildStarOrbit()) {
+    detachWildStarHalo(tile);
+    return;
+  }
 
   const existingSystem = systems.get(tile) || (tile as any)._wildStarSystem;
   if (existingSystem && !existingSystem.disposed && opts?.force !== true) {
@@ -475,6 +480,10 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
   // Pomoćna funkcija za pokretanje sistema sa teksturom
   const startSystemWithTexture = (texture: Texture) => {
     if (system.disposed) return;
+    if (!shouldRenderWildStarOrbit()) {
+      detachWildStarHalo(tile);
+      return;
+    }
     
     setupStars(system, texture, babyStarCount);
     container.alpha = 1.0;
@@ -487,6 +496,10 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined, opts: a
   // Pomoćna funkcija za fallback zvijezdice
   const startSystemWithFallback = () => {
     if (system.disposed) return;
+    if (!shouldRenderWildStarOrbit()) {
+      detachWildStarHalo(tile);
+      return;
+    }
     
     system.container.removeChildren();
     system.stars = [];
@@ -580,6 +593,10 @@ export function detachWildStarHalo(tile: WildishTile | null | undefined): void {
 function ensureSharedTicker(): void {
   if (sharedTicker) return;
   sharedTicker = () => {
+    if (!shouldRenderWildStarOrbit()) {
+      Array.from(activeSystems).forEach((system) => detachWildStarHalo(system.tile));
+      return;
+    }
     activeSystems.forEach((system) => tickSystem(system));
   };
   gsap.ticker.add(sharedTicker);
