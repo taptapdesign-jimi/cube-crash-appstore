@@ -1,12 +1,13 @@
 import {
   getJourneyElasticPull,
-  getJourneyHubScrollTarget,
+  getJourneyHubEntryScrollTop,
   getJourneyV700EnterOffset,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
   isJourneyInterimIdleOwnedByEnter,
   shouldRestoreJourneyInterimWrapperForIdle,
+  shouldCorrectJourneyHubAutomaticScroll,
 } from '../journey-v700-motion.js';
 
 describe('Journey V700 motion contract', () => {
@@ -80,21 +81,14 @@ describe('Journey V700 motion contract', () => {
     expect(getJourneyElasticPull(30, 'top')).toBeCloseTo(10.2);
   });
 
-  it('starts a fresh Journey Worlds entry at the top but preserves an in-hub return', () => {
-    expect(getJourneyHubScrollTarget({
-      returningFromWorld: false,
-      savedScrollTop: 420,
-      maxScrollTop: 600,
-    })).toBe(0);
-    expect(getJourneyHubScrollTarget({
-      returningFromWorld: true,
-      savedScrollTop: 420,
-      maxScrollTop: 600,
-    })).toBe(420);
-    expect(getJourneyHubScrollTarget({
-      returningFromWorld: true,
-      savedScrollTop: 800,
-      maxScrollTop: 600,
-    })).toBe(600);
+  it('always starts the Journey Worlds hub at the absolute top', () => {
+    expect(getJourneyHubEntryScrollTop()).toBe(0);
   });
+
+  it('rejects automatic hub movement until manual scroll ownership begins', () => {
+    expect(shouldCorrectJourneyHubAutomaticScroll('hub', 420)).toBe(true);
+    expect(shouldCorrectJourneyHubAutomaticScroll('hub', 0)).toBe(false);
+    expect(shouldCorrectJourneyHubAutomaticScroll('world', 420)).toBe(false);
+  });
+
 });

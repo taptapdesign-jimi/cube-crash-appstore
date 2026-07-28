@@ -95,13 +95,16 @@ export function getJourneyElasticPull(
   return Math.max(-maxPull, Math.min(maxPull, directionalDelta * damping));
 }
 
-export function getJourneyHubScrollTarget(state: {
-  returningFromWorld: boolean;
-  savedScrollTop: number;
-  maxScrollTop: number;
-}): number {
-  if (!state.returningFromWorld) return 0;
-  return Math.max(0, Math.min(state.maxScrollTop, state.savedScrollTop));
+/** Journey Worlds hub always enters at the top; only individual worlds own auto-scroll. */
+export function getJourneyHubEntryScrollTop(): 0 {
+  return 0;
+}
+
+export function shouldCorrectJourneyHubAutomaticScroll(
+  view: 'hub' | 'world',
+  scrollTop: number,
+): boolean {
+  return view === 'hub' && Number.isFinite(scrollTop) && Math.abs(scrollTop) > 0.5;
 }
 
 export function getJourneyV700UnitStagger(groupCount: number, reducedMotion: boolean): number {

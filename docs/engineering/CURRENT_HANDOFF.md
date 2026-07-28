@@ -5,11 +5,12 @@ Updated: 2026-07-28
 ## Repository state
 
 - Branch: `feature/v700-journey-hub`.
-- Current online checkpoint name: `v811 optimize Journey world return`.
+- Current online checkpoint name: `v812 keep Journey Worlds at top until manual scroll`.
 - The working tree was clean when this checkpoint was created. Always run `git status --short` before editing and preserve any newer user work.
 
 ## Latest local changes
 
+- Journey Worlds hub scroll ownership now follows the updated product decision: every hub render, including `return-from-world`, clears the retired saved hub position and starts at `scrollTop = 0`. The old save/restore property, helper, calls, storage behavior, and stale test expectation were removed; individual Forest/Beach/Area 51 interim-card auto-scroll remains unchanged. A fixed sync/RAF/layout reset alone was physically insufficient because iOS/layout mutated the scroller after that window, so the hub now rejects programmatic scroll until the user's first real pointer/touch/wheel intent, then removes its listeners and gives manual scrolling full ownership.
 - Journey world return phase one now reuses the exact pre-reveal preparation instead of repeating `killTweensOf`/`gsap.set` across all 88 Forest targets. `JourneyWorldAnimationCoordinator` owns one finalization pass, and idle begins on the next animation frame with an explicit cancellation path; the v701 duration, easing, scale, position, Unit order, and irregular offsets are unchanged.
 - A narrow iOS-only `world-enter-performance` audit now measures the actual game-to-world return window and reports frame count, average, worst frame, and threshold counts. Its summary utility has focused tests. All 35 Journey-focused tests, targeted ESLint, type-check, and the production build passed.
 - Arcade wild-star orbit suppression is now owned by `wild-stars.ts`, not only its FX wrapper: attach, async texture/fallback completion, and the shared ticker all reject or clean orbit halos whenever the run mode is Arcade. Journey orbit halos remain enabled, and `run-mode.test.ts` covers the policy.
@@ -33,6 +34,7 @@ Updated: 2026-07-28
 
 ## Latest physical-iPhone state
 
+- The v812 hub-scroll guard build was installed successfully on `iPhone 13 blue` at installation URL ending in `52243FE9-49A4-4980-A9EA-46A196598CF0/Stack to Six.app`. Its trace proved the late mutation: after entering the hub at zero, iOS/layout attempted `scrollTop` values `85`, `40`, and `88`; each was immediately corrected to `0`. At the user's first manual touch the guard logged `manual-input`, removed all four listeners, and stopped correcting scroll. The user visually confirmed the screen now stays at the top and manual scrolling works correctly.
 - The post-optimization Forest return comparison is physically verified. Both `journey-game-return` and the subsequent detail-modal return reported `reusedPreRevealPreparation: true` for all 88 targets. The measured 11-Unit Journey game return completed in `892 ms` across 50 frames with `17.28 ms` average, `36 ms` worst, one frame over `34 ms`, and zero frames over `50 ms`; the screen ended visible at opacity 1 with no console errors or stuck lifecycle flags. The user reported the return now feels “puno bolje”. Phase one is accepted; do not change its v701 motion values.
 - The phase-one optimized Stack to Six build was verified with the exact bundle ID, `717` raw assets, and the new `world-enter-performance` marker, then installed successfully over Wi-Fi on `iPhone 13 blue`. Apple reported installation URL ending in `D072A8F4-8314-4550-B653-9E7B9F712D4F/Stack to Six.app`.
 - A follow-up physical Journey trace on the currently installed diagnostic Stack to Six build completed successfully on `iPhone 13 blue`: Homepage → Journey → Forest → board 2 → gameplay → interim-board return. The initial world enter and the board return both primed the screen hidden, completed their full 11-Unit enter, and ended at visible opacity 1 without console errors or a stuck animation flag.

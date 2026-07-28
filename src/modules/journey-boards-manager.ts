@@ -33,7 +33,8 @@ import {
 } from '../ui/collectibles-animations.js';
 import {
   getJourneyElasticPull,
-  getJourneyHubScrollTarget,
+  getJourneyHubEntryScrollTop,
+  shouldCorrectJourneyHubAutomaticScroll,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   isJourneyInterimIdleOwnedByEnter,
@@ -690,8 +691,12 @@ class JourneyBoardsManager {
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
-  private journeyV700HubScrollTop = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
+  private journeyV700HubTopGuard: {
+    scrollable: HTMLElement;
+    onScroll: () => void;
+    onManualIntent: () => void;
+  } | null = null;
 
   private emitJourneyCardGeometryDiagnostic(event: string, tappedBoardId?: number): void {
     try {
@@ -4765,6 +4770,7 @@ class JourneyBoardsManager {
     try {
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
+    this.releaseJourneyV700HubTopGuard('cleanup');
     
     // 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
     this.cancelAllRAFs();
@@ -5518,54 +5524,28 @@ class JourneyBoardsManager {
     } catch {}
   }
 
-  private rememberJourneyV700HubScrollPosition(reason: string): void {
-    if (this.journeyV700View !== 'hub') return;
+  private resetJourneyV700HubScrollToTop(reason: string): void {
     const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
     if (!scrollable) return;
 
-    this.journeyV700HubScrollTop = Math.max(0, scrollable.scrollTop);
+    this.armJourneyV700HubTopGuard(scrollable, reason);
     try {
-      localStorage.setItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY, String(this.journeyV700HubScrollTop));
+      localStorage.removeItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY);
     } catch {}
-    this.logJourneyV700Flow('hub-scroll-saved', {
-      reason,
-      scrollTop: this.journeyV700HubScrollTop,
-    });
-  }
-
-  private restoreJourneyV700HubScrollPosition(reason: string): void {
-    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-    if (!scrollable) return;
-
-    let savedScrollTop = this.journeyV700HubScrollTop;
-    try {
-      const persisted = Number(localStorage.getItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY));
-      if (Number.isFinite(persisted) && persisted >= 0) {
-        savedScrollTop = persisted;
-      }
-    } catch {}
-
-    const returningFromWorld = reason === 'return-from-world';
-    if (!returningFromWorld) {
-      this.journeyV700HubScrollTop = 0;
-      try {
-        localStorage.removeItem(JOURNEY_V700_HUB_SCROLL_STORAGE_KEY);
-      } catch {}
-    }
 
     const apply = (phase: string) => {
       if (this.journeyV700View !== 'hub') return;
-      const maxScrollTop = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
-      const targetScrollTop = getJourneyHubScrollTarget({
-        returningFromWorld,
-        savedScrollTop,
-        maxScrollTop,
-      });
-      scrollable.scrollTop = targetScrollTop;
-      this.logJourneyV700Flow('hub-scroll-restored', {
+      try { gsap.killTweensOf(scrollable, 'scrollTop'); } catch {}
+      scrollable.scrollTop = getJourneyHubEntryScrollTop();
+      this.logJourneyV700Flow('hub-scroll-reset-top', {
         reason,
         phase,
-        targetScrollTop,
+        scrollTop: scrollable.scrollTop,
+      });
+      emitIOSNativeDiagnostic('hub-scroll-reset-top', {
+        reason,
+        phase,
+        scrollTop: scrollable.scrollTop,
       });
     };
 
@@ -5575,6 +5555,55 @@ class JourneyBoardsManager {
       this.trackRAF(() => apply('raf-2'));
     });
     this.trackTimeout(() => apply('layout-settled'), 160);
+  }
+
+  private armJourneyV700HubTopGuard(scrollable: HTMLElement, reason: string): void {
+    this.releaseJourneyV700HubTopGuard('replace');
+
+    const onScroll = () => {
+      if (this.journeyV700View !== 'hub') {
+        this.releaseJourneyV700HubTopGuard('view-changed');
+        return;
+      }
+      if (!shouldCorrectJourneyHubAutomaticScroll(this.journeyV700View, scrollable.scrollTop)) return;
+
+      const attemptedScrollTop = scrollable.scrollTop;
+      try { gsap.killTweensOf(scrollable, 'scrollTop'); } catch {}
+      scrollable.scrollTop = getJourneyHubEntryScrollTop();
+      emitIOSNativeDiagnostic('hub-scroll-auto-corrected', {
+        reason,
+        attemptedScrollTop,
+        correctedScrollTop: scrollable.scrollTop,
+      });
+    };
+    const onManualIntent = () => {
+      this.releaseJourneyV700HubTopGuard('manual-input');
+    };
+
+    scrollable.addEventListener('scroll', onScroll, { passive: true });
+    scrollable.addEventListener('pointerdown', onManualIntent, { passive: true });
+    scrollable.addEventListener('touchstart', onManualIntent, { passive: true });
+    scrollable.addEventListener('wheel', onManualIntent, { passive: true });
+    this.journeyV700HubTopGuard = { scrollable, onScroll, onManualIntent };
+    emitIOSNativeDiagnostic('hub-scroll-top-guard-armed', {
+      reason,
+      scrollTop: scrollable.scrollTop,
+    });
+  }
+
+  private releaseJourneyV700HubTopGuard(reason: string): void {
+    const guard = this.journeyV700HubTopGuard;
+    if (!guard) return;
+
+    this.journeyV700HubTopGuard = null;
+    guard.scrollable.removeEventListener('scroll', guard.onScroll);
+    guard.scrollable.removeEventListener('pointerdown', guard.onManualIntent);
+    guard.scrollable.removeEventListener('touchstart', guard.onManualIntent);
+    guard.scrollable.removeEventListener('wheel', guard.onManualIntent);
+    emitIOSNativeDiagnostic('hub-scroll-top-guard-released', {
+      reason,
+      scrollTop: guard.scrollable.scrollTop,
+    });
   }
 
   private renderJourneyV700Hub(container: HTMLElement): void {
@@ -5706,7 +5735,7 @@ class JourneyBoardsManager {
     });
 
     container.appendChild(hub);
-    this.restoreJourneyV700HubScrollPosition(
+    this.resetJourneyV700HubScrollToTop(
       (container as any).__ccJourneyV700ReturningFromWorld === true
         ? 'return-from-world'
         : 'hub-render'
@@ -5916,7 +5945,6 @@ class JourneyBoardsManager {
 
     this.journeyV700WorldOpenInProgress = true;
     (container as any).__ccJourneyV700Opening = true;
-    this.rememberJourneyV700HubScrollPosition(`open-world-${worldId}`);
     this.logJourneyV700Flow('open-world-start', { requestedWorldId: worldId, hasSource: !!source }, container);
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
@@ -6112,8 +6140,8 @@ class JourneyBoardsManager {
   }
 
 	  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
+	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
-	    this.rememberJourneyV700HubScrollPosition(reason);
 	    const worldCards = Array.from(
 	      container?.querySelectorAll<HTMLElement>('.journey-v700-world-card') || []
 	    ).filter((card) => document.body.contains(card) && card.style.display !== 'none');

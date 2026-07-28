@@ -61,7 +61,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Journey motion contract: [`JOURNEY_ANIMATION_CONTRACT.md`](JOURNEY_ANIMATION_CONTRACT.md).
 - Physical iOS performance workflow: [`IOS_LIVE_PERFORMANCE_INVESTIGATION.md`](IOS_LIVE_PERFORMANCE_INVESTIGATION.md).
 
-Journey Worlds hub and an individual Journey world are different surfaces. The hub starts at the top on a fresh homepage entry and may restore its own saved hub position on an internal return. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 51 screens.
+Journey Worlds hub and an individual Journey world are different surfaces. Every Journey Worlds hub entry starts at the absolute top, including returns from Forest/Beach/Area 51; the user scrolls the hub manually from there. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 51 screens.
 
 ## Engineering guardrails
 
