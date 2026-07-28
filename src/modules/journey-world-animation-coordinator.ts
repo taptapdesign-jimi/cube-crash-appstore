@@ -13,12 +13,17 @@ export interface JourneyWorldAnimationUnit {
   enterDelayOffset?: number;
 }
 
+interface JourneyWorldEnterOptions {
+  targetsPrimed?: boolean;
+}
+
 type JourneyWorldAnimationPhase = 'hidden' | 'entering' | 'idle' | 'exiting';
 
 export class JourneyWorldAnimationCoordinator {
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
   private idleTickers: Array<() => void> = [];
+  private idleStartFrame: number | null = null;
 
   public getPhase(): JourneyWorldAnimationPhase {
     return this.phase;
@@ -27,12 +32,20 @@ export class JourneyWorldAnimationCoordinator {
   public stop(resetTransforms = false): void {
     this.activeTimeline?.kill();
     this.activeTimeline = null;
+    if (this.idleStartFrame !== null) {
+      cancelAnimationFrame(this.idleStartFrame);
+      this.idleStartFrame = null;
+    }
     this.idleTickers.forEach((ticker) => gsap.ticker.remove(ticker));
     this.idleTickers = [];
     if (resetTransforms) this.phase = 'hidden';
   }
 
-  public async enter(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {
+  public async enter(
+    units: JourneyWorldAnimationUnit[],
+    reducedMotion: boolean,
+    options: JourneyWorldEnterOptions = {},
+  ): Promise<void> {
     const liveUnits = this.getLiveUnits(units);
     if (!liveUnits.length) {
       this.phase = 'idle';
@@ -54,17 +67,14 @@ export class JourneyWorldAnimationCoordinator {
       this.activeTimeline = timeline;
 
       liveUnits.forEach((unit, index) => {
-        gsap.killTweensOf(unit.targets);
-        unit.targets.forEach((target) => {
-          target.style.visibility = 'visible';
-          target.style.pointerEvents = 'none';
-        });
-        const tween = gsap.fromTo(unit.targets, {
-          y: motion.enter.y,
-          scale: motion.enter.scale,
-          opacity: 0,
-          visibility: 'visible',
-        }, {
+        if (!options.targetsPrimed) {
+          gsap.killTweensOf(unit.targets);
+          unit.targets.forEach((target) => {
+            target.style.visibility = 'visible';
+            target.style.pointerEvents = 'none';
+          });
+        }
+        const enterVars = {
           y: 0,
           scale: 1,
           opacity: 1,
@@ -73,12 +83,15 @@ export class JourneyWorldAnimationCoordinator {
           ease: motion.enter.ease,
           force3D: true,
           overwrite: true,
-          onComplete: () => {
-            unit.targets.forEach((target) => {
-              this.finalizeEnterTarget(target);
-            });
-          },
-        });
+        };
+        const tween = options.targetsPrimed
+          ? gsap.to(unit.targets, enterVars)
+          : gsap.fromTo(unit.targets, {
+            y: motion.enter.y,
+            scale: motion.enter.scale,
+            opacity: 0,
+            visibility: 'visible',
+          }, enterVars);
         // drag-core's Timeline.fromTo guard drops GSAP's position argument.
         // Timeline.add is not patched, so it preserves the exact short cascade.
         const irregularOffset = Number.isFinite(unit.enterDelayOffset)
@@ -101,7 +114,11 @@ export class JourneyWorldAnimationCoordinator {
       unit.targets.forEach((target) => this.finalizeEnterTarget(target));
     });
     this.phase = 'idle';
-    this.startIdle(liveUnits, reducedMotion);
+    this.idleStartFrame = requestAnimationFrame(() => {
+      this.idleStartFrame = null;
+      if (this.phase !== 'idle') return;
+      this.startIdle(liveUnits, reducedMotion);
+    });
   }
 
   public async exit(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {

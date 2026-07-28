@@ -5,26 +5,13 @@ Updated: 2026-07-28
 ## Repository state
 
 - Branch: `feature/v700-journey-hub`.
-- Last committed online checkpoint: `46f8e31 v809 polish Journey flow and gameplay effects`.
-- The working tree currently contains uncommitted gameplay/final-merge work. Always run `git status --short` and inspect overlapping diffs before editing; do not discard or overwrite them.
-- At the time of this update, modified files are:
-  - `AGENTS.md`
-  - `docs/engineering/CURRENT_HANDOFF.md`
-  - `docs/engineering/PROJECT_CONTEXT.md`
-  - `docs/engineering/dev-production-modes.md`
-  - `src/modules/__tests__/app-core-merge-lastmerge.test.ts`
-  - `src/modules/__tests__/final-merge-rules.test.ts`
-  - `src/modules/__tests__/gameplay-resolution-engine.test.ts`
-  - `src/modules/__tests__/first-play-tutorial-hud-lock.test.ts`
-  - `src/modules/app-core-merge-lastmerge.ts`
-  - `src/modules/app-core.ts`
-  - `src/modules/first-play-tutorial-hud-lock.ts`
-  - `src/modules/first-play-tutorial.ts`
-  - `src/modules/final-merge-rules.ts`
-  - `src/modules/fx.ts`
+- Current online checkpoint name: `v811 optimize Journey world return`.
+- The working tree was clean when this checkpoint was created. Always run `git status --short` before editing and preserve any newer user work.
 
 ## Latest local changes
 
+- Journey world return phase one now reuses the exact pre-reveal preparation instead of repeating `killTweensOf`/`gsap.set` across all 88 Forest targets. `JourneyWorldAnimationCoordinator` owns one finalization pass, and idle begins on the next animation frame with an explicit cancellation path; the v701 duration, easing, scale, position, Unit order, and irregular offsets are unchanged.
+- A narrow iOS-only `world-enter-performance` audit now measures the actual game-to-world return window and reports frame count, average, worst frame, and threshold counts. Its summary utility has focused tests. All 35 Journey-focused tests, targeted ESLint, type-check, and the production build passed.
 - Arcade wild-star orbit suppression is now owned by `wild-stars.ts`, not only its FX wrapper: attach, async texture/fallback completion, and the shared ticker all reject or clean orbit halos whenever the run mode is Arcade. Journey orbit halos remain enabled, and `run-mode.test.ts` covers the policy.
 - Journey Worlds now applies the extra bottom trim to the hub's actual `min-height` owner as well as the cloud layer, and clips cloud overflow at that boundary, removing the residual scroll tail below Robo without moving any world.
 - The merge multiplier badge now always uses the original brown/taupe disk with light text. The prior intentional white-over-Wild branch was the source of the inconsistent white/brown appearance and has been removed.
@@ -46,6 +33,8 @@ Updated: 2026-07-28
 
 ## Latest physical-iPhone state
 
+- The post-optimization Forest return comparison is physically verified. Both `journey-game-return` and the subsequent detail-modal return reported `reusedPreRevealPreparation: true` for all 88 targets. The measured 11-Unit Journey game return completed in `892 ms` across 50 frames with `17.28 ms` average, `36 ms` worst, one frame over `34 ms`, and zero frames over `50 ms`; the screen ended visible at opacity 1 with no console errors or stuck lifecycle flags. The user reported the return now feels “puno bolje”. Phase one is accepted; do not change its v701 motion values.
+- The phase-one optimized Stack to Six build was verified with the exact bundle ID, `717` raw assets, and the new `world-enter-performance` marker, then installed successfully over Wi-Fi on `iPhone 13 blue`. Apple reported installation URL ending in `D072A8F4-8314-4550-B653-9E7B9F712D4F/Stack to Six.app`.
 - A follow-up physical Journey trace on the currently installed diagnostic Stack to Six build completed successfully on `iPhone 13 blue`: Homepage → Journey → Forest → board 2 → gameplay → interim-board return. The initial world enter and the board return both primed the screen hidden, completed their full 11-Unit enter, and ended at visible opacity 1 without console errors or a stuck animation flag.
 - The 30-second Journey gameplay window averaged `16.74 ms` across its one-second samples. Forty measured drags averaged `1.01 ms` in the move handler, peaked at `4 ms`, and had zero processed moves over `8 ms`; observed regular stack/merge windows peaked at `28 ms`, and `reducedFx` remained false. There was one isolated `78 ms` frame during board enter and two smaller isolated hitches (`49 ms` and `41 ms`); gameplay was not under sustained frame pressure. The user reported the run felt good.
 - The completed diagnostic Arcade trace captured 147 ordered gameplay events across Stage 1 and Stage 2: 63 merge entries, 40 merge-6 decisions, 23 non-merge-6 early checks, 8 wild spawns, 7 special merge-6 FX selections, 5 level-end decisions, and one clean-flow dispatch. Every Arcade wild spawn reported `orbitPresent: false`, including core stars and the `cubero` star variant; the Arcade orbit suppression is physically verified.

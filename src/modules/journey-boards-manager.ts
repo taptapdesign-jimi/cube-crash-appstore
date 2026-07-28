@@ -41,6 +41,7 @@ import {
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { startIOSJourneyWorldEnterAudit } from '../utils/ios-journey-world-enter-audit.js';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -690,6 +691,7 @@ class JourneyBoardsManager {
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700HubScrollTop = 0;
+  private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
 
   private emitJourneyCardGeometryDiagnostic(event: string, tappedBoardId?: number): void {
     try {
@@ -4071,6 +4073,7 @@ class JourneyBoardsManager {
 
     this.setLastActiveJourneyBoardAreaId(boardId);
     this.activeBoardAreaEnterPreparedTargets = [];
+    this.journeyV700PreparedWorldEnter = null;
     this.journeyToGameExitActive = true;
     this.journeyToGameExitBoardId = boardId;
     lockJourneyViewportTransition(`journey-interim-area-exit-${boardId}`);
@@ -6355,7 +6358,10 @@ class JourneyBoardsManager {
     const units = this.getJourneyV700AnimationUnits(container, worldId, {
       lastBoardId: options.lastBoardId ?? this.getLastActiveJourneyBoardAreaId(),
     });
-    if (!units.length) return;
+    if (!units.length) {
+      this.journeyV700PreparedWorldEnter = null;
+      return;
+    }
 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
@@ -6379,6 +6385,7 @@ class JourneyBoardsManager {
         force3D: true,
         overwrite: true,
       });
+      this.journeyV700PreparedWorldEnter = { worldId, targets: allTargets };
       emitIOSNativeDiagnostic('world-enter-primed-before-screen-reveal', {
         worldId,
         source: options.source || 'unknown',
@@ -6386,6 +6393,7 @@ class JourneyBoardsManager {
         targetCount: allTargets.length,
       });
     } catch (error) {
+      this.journeyV700PreparedWorldEnter = null;
       this.logJourneyV700Flow('world-enter-prime-error', {
         worldId,
         source: options.source || 'unknown',
@@ -6500,28 +6508,51 @@ class JourneyBoardsManager {
     this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
     const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
+    const preparedWorldEnter = this.journeyV700PreparedWorldEnter;
+    const preparedTargetSet = preparedWorldEnter ? new Set(preparedWorldEnter.targets) : null;
+    const canReusePreparedTargets = preparedWorldEnter?.worldId === worldId &&
+      preparedWorldEnter.targets.length === allTargets.length &&
+      allTargets.every((target) => preparedTargetSet?.has(target));
+    this.journeyV700PreparedWorldEnter = null;
+    let targetsPrimed = canReusePreparedTargets;
     try {
-      gsap.killTweensOf(allTargets);
-      allTargets.forEach((target) => {
-        target.classList.remove('journey-robo-alien-beam-idle-ready');
-        target.style.visibility = 'visible';
-        target.style.pointerEvents = 'none';
-      });
-      gsap.set(allTargets, {
-        y: motion.enter.y,
-        scale: motion.enter.scale,
-        opacity: 0,
-        visibility: 'visible',
-        transformOrigin: '50% 50%',
-        force3D: true,
-      });
+      if (!canReusePreparedTargets) {
+        gsap.killTweensOf(allTargets);
+        allTargets.forEach((target) => {
+          target.classList.remove('journey-robo-alien-beam-idle-ready');
+          target.style.visibility = 'visible';
+          target.style.pointerEvents = 'none';
+        });
+        gsap.set(allTargets, {
+          y: motion.enter.y,
+          scale: motion.enter.scale,
+          opacity: 0,
+          visibility: 'visible',
+          transformOrigin: '50% 50%',
+          force3D: true,
+        });
+        targetsPrimed = true;
+      }
       console.log('🧩 JourneyUnitExit world-enter-targets-prepared-visible', {
         worldId,
         source,
         targetCount: allTargets.length,
+        reusedPreRevealPreparation: canReusePreparedTargets,
         hiddenAfterPrepare: allTargets.filter((target) => target.style.visibility === 'hidden').length,
       });
-    } catch {}
+    } catch {
+      targetsPrimed = false;
+    }
+
+    emitIOSNativeDiagnostic('world-enter-preparation-ready', {
+      worldId,
+      source,
+      targetCount: allTargets.length,
+      reusedPreRevealPreparation: canReusePreparedTargets,
+    });
+    const finishWorldEnterAudit = source.includes('game-return')
+      ? startIOSJourneyWorldEnterAudit({ worldId, source, unitCount: units.length, targetCount: allTargets.length })
+      : () => {};
 
     const images = allTargets.filter((target): target is HTMLImageElement => target instanceof HTMLImageElement);
     const imageReadiness = options.waitForImages === false
@@ -6534,7 +6565,10 @@ class JourneyBoardsManager {
         this.journeyV700View !== 'world' ||
         this.journeyV700WorldId !== worldId ||
         !document.body.contains(container)
-      ) return;
+      ) {
+        finishWorldEnterAudit('stale-before-enter');
+        return;
+      }
 
       this.logJourneyV700Flow('world-enter-images-ready', {
         worldId,
@@ -6548,7 +6582,7 @@ class JourneyBoardsManager {
         imageCount: images.length,
         unitCount: units.length,
       });
-      await this.journeyWorldAnimation.enter(units, reducedMotion);
+      await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed });
       // An early X interrupts the enter timeline. Its promise resolves through
       // onInterrupt, but that does not grant the stale enter continuation
       // permission to restore final opacity/scale over the active exit.
@@ -6557,27 +6591,18 @@ class JourneyBoardsManager {
         this.journeyV700Phase !== 'entering' ||
         this.journeyV700View !== 'world' ||
         this.journeyV700WorldId !== worldId
-      ) return;
+      ) {
+        finishWorldEnterAudit('stale-after-enter');
+        return;
+      }
       allTargets.forEach((target) => {
-        try {
-          gsap.set(target, {
-            y: 0,
-            scale: 1,
-            opacity: 1,
-            visibility: 'visible',
-            overwrite: true,
-          });
-        } catch {}
         if (target.classList.contains('journey-board-card-wrapper')) {
           restoreJourneyBoardCardBaseTransform(target);
           this.restoreJourneyBoardCardVisualTarget(target);
           this.restoreJourneyBoardCardInnerVisual(target);
         }
-        target.style.visibility = 'visible';
-        target.style.opacity = '1';
-        target.style.pointerEvents = '';
-        target.style.willChange = 'auto';
       });
+      finishWorldEnterAudit('complete');
       emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       this.journeyV700Phase = 'idle';
       allTargets.forEach((target) => {
@@ -6602,6 +6627,7 @@ class JourneyBoardsManager {
       }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
     }).catch((error) => {
+      finishWorldEnterAudit('error');
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
     });
   }
@@ -6611,6 +6637,7 @@ class JourneyBoardsManager {
     onComplete: () => void,
     options: { excludeBoardId?: number | null } = {}
   ): void {
+    this.journeyV700PreparedWorldEnter = null;
     ++this.journeyV700WorldMotionEpoch;
     const units = this.getJourneyV700AnimationUnits(container, this.journeyV700WorldId, {
       excludeBoardId: options.excludeBoardId,
