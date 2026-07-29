@@ -4956,6 +4956,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const sizeBoostChance = options.sizeBoostChance ?? 0;
   const sizeBoostScale = options.sizeBoostScale ?? 1;
   const instantFadeOut = options.instantFadeOut === true;
+  const solidAlpha     = options.solidAlpha === true;
+  const upwardBias     = Math.max(0, options.upwardBias ?? 0);
   const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
   const spawnShape     = options.spawnShape ?? 'box';
 
@@ -5026,7 +5028,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const ry = r0 * aspectRatio;
       
       // Random opacity variation
-      const randomAlpha = bubbleAlpha * (0.7 + Math.random() * 0.6); // 70-130% of base alpha
+      const randomAlpha = solidAlpha
+        ? bubbleAlpha
+        : bubbleAlpha * (0.7 + Math.random() * 0.6); // 70-130% of base alpha
       const puffColor = bubbleColors?.length
         ? bubbleColors[Math.floor(Math.random() * bubbleColors.length)]
         : bubbleColor;
@@ -5060,7 +5064,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
         sy = (Math.random() - 0.5) * (size - INSET * 2);
         const boxRange = OUT_MAX * 0.8;
         dx = sx + (Math.random() - 0.5) * boxRange * 2;
-        dy = sy + (Math.random() - 0.5) * boxRange * 2;
+        dy = sy + (Math.random() - 0.5) * boxRange * 2
+          - size * upwardBias * (0.6 + Math.random() * 0.8);
       } else {
         const side = (i + b) % 4;
         const sidePos = spawnOnSide(side);

@@ -1713,8 +1713,8 @@ class UIManager {
         const collectiblesManager = (window as any).collectiblesManager;
         if (collectiblesManager) {
           const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
-          if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
-            journeyBoardsManager.stopGlowPulse();
+          if (journeyBoardsManager && typeof journeyBoardsManager.stopInterimCardIdleEffects === 'function') {
+            journeyBoardsManager.stopInterimCardIdleEffects();
             logger.info('✅ Glow pulse and interim bounce stopped');
           }
         }
@@ -1742,8 +1742,7 @@ class UIManager {
           // Stop CSS animations by removing animation property
           cardEl.style.animation = 'none';
           cardEl.style.animationPlayState = 'paused';
-          // Remove shimmer/glow classes
-          cardEl.classList.remove('interim-shimmer-trigger', 'interim-glow-pulse');
+          cardEl.classList.remove('interim-idle-effects-active');
           // Kill any GSAP animations on card wrapper
           const cardWrapper = cardEl.closest('.journey-board-card-wrapper') as HTMLElement | null;
           if (cardWrapper) {

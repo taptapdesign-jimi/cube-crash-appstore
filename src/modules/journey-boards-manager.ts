@@ -47,6 +47,10 @@ import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
 } from './journey-world-animation-coordinator.js';
+import {
+  createJourneyInterimBounceVariant,
+  JOURNEY_INTERIM_IDLE_MOTION,
+} from './journey-interim-idle-policy.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -441,7 +445,6 @@ const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 680;
 /** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 51 intentionally stay unchanged. */
 const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
-const INTERIM_BOUNCE_SMOKE_STALE_MS = 3600;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
 const BOARD_AREA_MODAL_ENTER_EASE = 'back.out(1.8)';
@@ -669,12 +672,34 @@ class JourneyBoardsManager {
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
   private cleanupInProgress = false;
-  private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
+  private interimIdleEffectsCard: HTMLElement | null = null;
   private journeyExitPromise: Promise<void> | null = null;
   private journeyViewportExitPromise: Promise<void> | null = null;
   private journeyToGameExitActive = false;
   private journeyToGameExitBoardId: number | null = null;
-  private journeyAreaIdleTickers: Array<{ ticker: () => void; targets: HTMLElement[]; areaId: string }> = [];
+  private journeyAreaIdleTicker: (() => void) | null = null;
+  private journeyAreaIdleEntries: Array<{
+    targets: HTMLElement[];
+    areaId: string;
+    targetStates: Array<{
+      target: HTMLElement;
+      setY: (value: number) => void;
+      setX: ((value: number) => void) | null;
+      initialY: number;
+      initialX: number;
+    }>;
+    startTime: number;
+    speed: number;
+    phaseOffset: number;
+    rampSeconds: number;
+    amplitude: number;
+    xAmplitude: number;
+    xPhaseOffset: number;
+    visibilityTarget: HTMLElement;
+    isVisible: boolean;
+  }> = [];
+  private journeyAreaIdleVisibilityObserver: IntersectionObserver | null = null;
+  private journeyAreaIdleEntryByVisibilityTarget = new Map<HTMLElement, typeof this.journeyAreaIdleEntries[number]>();
   private journeyAreaIdleStartTimeout: number | null = null;
   private journeyScrollSettledTimeout: number | null = null;
   private journeyAreaIdlePausedForInteraction = false;
@@ -809,11 +834,18 @@ class JourneyBoardsManager {
 
   private cleanupJourneyAreaIdleAnimations(resetTransforms = true): void {
     try {
-      const tickerCount = this.journeyAreaIdleTickers.length;
-      this.journeyAreaIdleTickers.forEach((entry) => {
-        try { gsap.ticker.remove(entry.ticker); } catch {}
-      });
-      this.journeyAreaIdleTickers = [];
+      const tickerCount = this.journeyAreaIdleTicker ? 1 : 0;
+      const areaCount = this.journeyAreaIdleEntries.length;
+      if (this.journeyAreaIdleTicker) {
+        try { gsap.ticker.remove(this.journeyAreaIdleTicker); } catch {}
+        this.journeyAreaIdleTicker = null;
+      }
+      if (this.journeyAreaIdleVisibilityObserver) {
+        try { this.journeyAreaIdleVisibilityObserver.disconnect(); } catch {}
+        this.journeyAreaIdleVisibilityObserver = null;
+      }
+      this.journeyAreaIdleEntryByVisibilityTarget.clear();
+      this.journeyAreaIdleEntries = [];
       if (resetTransforms) {
         this.journeyAreaIdlePausedForInteraction = false;
       }
@@ -843,6 +875,7 @@ class JourneyBoardsManager {
         logger.info('🧭 JourneyForestAnim idle-cleanup', {
           resetTransforms,
           removedTickers: tickerCount,
+          removedAreas: areaCount,
           targetCount: idleTargets.length,
         });
       }
@@ -854,20 +887,27 @@ class JourneyBoardsManager {
   private stopJourneyAreaIdleForTargets(targets: HTMLElement[]): void {
     try {
       const targetSet = new Set(targets.filter((target) => target && document.body.contains(target)));
-      if (!targetSet.size || !this.journeyAreaIdleTickers.length) return;
+      if (!targetSet.size || !this.journeyAreaIdleEntries.length) return;
 
-      const remaining: Array<{ ticker: () => void; targets: HTMLElement[]; areaId: string }> = [];
+      const remaining: typeof this.journeyAreaIdleEntries = [];
       let removed = 0;
-      this.journeyAreaIdleTickers.forEach((entry) => {
+      this.journeyAreaIdleEntries.forEach((entry) => {
         const overlaps = entry.targets.some((target) => targetSet.has(target));
         if (!overlaps) {
           remaining.push(entry);
           return;
         }
         removed += 1;
-        try { gsap.ticker.remove(entry.ticker); } catch {}
+        if (this.journeyAreaIdleVisibilityObserver) {
+          try { this.journeyAreaIdleVisibilityObserver.unobserve(entry.visibilityTarget); } catch {}
+        }
+        this.journeyAreaIdleEntryByVisibilityTarget.delete(entry.visibilityTarget);
       });
-      this.journeyAreaIdleTickers = remaining;
+      this.journeyAreaIdleEntries = remaining;
+      if (!remaining.length && this.journeyAreaIdleTicker) {
+        try { gsap.ticker.remove(this.journeyAreaIdleTicker); } catch {}
+        this.journeyAreaIdleTicker = null;
+      }
 
       targetSet.forEach((target) => {
         if ((target as any).__ccJourneyToGameExitTween) return;
@@ -878,8 +918,9 @@ class JourneyBoardsManager {
 
       logger.info('🧭 JourneyForestAnim idle-stop-targets', {
         targetCount: targetSet.size,
-        removedTickers: removed,
-        remainingTickers: this.journeyAreaIdleTickers.length,
+        removedAreas: removed,
+        remainingAreas: this.journeyAreaIdleEntries.length,
+        frameTickerActive: !!this.journeyAreaIdleTicker,
       });
     } catch (error) {
       logger.warn('⚠️ Failed to stop Journey area idle for targets:', error);
@@ -928,6 +969,7 @@ class JourneyBoardsManager {
       const initialYRaw = Number(gsap.getProperty(target, 'y') || 0);
       const initialXRaw = Number(gsap.getProperty(target, 'x') || 0);
       return {
+        target,
         setY: gsap.quickSetter(target, 'y', 'px') as (value: number) => void,
         setX: options.xAmplitude
           ? gsap.quickSetter(target, 'x', 'px') as (value: number) => void
@@ -936,34 +978,99 @@ class JourneyBoardsManager {
         initialX: Number.isFinite(initialXRaw) ? initialXRaw : 0,
       };
     });
-    const startTime = gsap.ticker.time;
     const speed = (Math.PI * 2) / options.cycleDuration;
-    const phaseOffset = options.delay * speed;
-    const rampSeconds = options.rampSeconds ?? JOURNEY_AREA_IDLE_RAMP_IN_SECONDS;
-    const ticker = () => {
-      if (this.renderDisposed) {
-        try { gsap.ticker.remove(ticker); } catch {}
-        return;
-      }
-
-      const elapsed = gsap.ticker.time - startTime;
-      const waveY = Math.sin((elapsed * speed) + phaseOffset) * options.amplitude;
-      const rampProgress = Math.min(1, Math.max(0, elapsed / rampSeconds));
-      const ramp = rampProgress * rampProgress * rampProgress * (rampProgress * ((rampProgress * 6) - 15) + 10);
-      const xPhase = options.xPhaseOffset ?? 1.4;
-      const waveX = options.xAmplitude
-        ? Math.sin((elapsed * speed * 0.82) + phaseOffset + xPhase) * options.xAmplitude
-        : 0;
-      targetStates.forEach((state) => {
-        state.setY(state.initialY + ((waveY - state.initialY) * ramp));
-        if (state.setX && options.xAmplitude) {
-          state.setX(state.initialX + ((waveX - state.initialX) * ramp));
-        }
-      });
+    const visibilityTarget = liveTargets.find((target) => target.classList.contains('journey-board-card-wrapper'))
+      || liveTargets.find((target) => target.classList.contains('journey-forest-island-art'))
+      || liveTargets[0];
+    const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const visibilityRect = visibilityTarget.getBoundingClientRect();
+    const viewportRect = scrollable?.getBoundingClientRect();
+    const isInitiallyVisible = viewportRect
+      ? visibilityRect.bottom >= viewportRect.top - 240 && visibilityRect.top <= viewportRect.bottom + 240
+      : true;
+    const entry = {
+      targets: liveTargets,
+      areaId,
+      targetStates,
+      startTime: gsap.ticker.time,
+      speed,
+      phaseOffset: options.delay * speed,
+      rampSeconds: options.rampSeconds ?? JOURNEY_AREA_IDLE_RAMP_IN_SECONDS,
+      amplitude: options.amplitude,
+      xAmplitude: options.xAmplitude || 0,
+      xPhaseOffset: options.xPhaseOffset ?? 1.4,
+      visibilityTarget,
+      isVisible: isInitiallyVisible,
     };
+    this.journeyAreaIdleEntries.push(entry);
 
-    gsap.ticker.add(ticker);
-    this.journeyAreaIdleTickers.push({ ticker, targets: liveTargets, areaId });
+    if (typeof IntersectionObserver !== 'undefined') {
+      if (!this.journeyAreaIdleVisibilityObserver) {
+        this.journeyAreaIdleVisibilityObserver = new IntersectionObserver((records) => {
+          records.forEach((record) => {
+            const target = record.target as HTMLElement;
+            const observedEntry = this.journeyAreaIdleEntryByVisibilityTarget.get(target);
+            if (!observedEntry) return;
+            const nextVisible = record.isIntersecting;
+            if (nextVisible && !observedEntry.isVisible) {
+              observedEntry.startTime = gsap.ticker.time;
+              observedEntry.targetStates.forEach((state) => {
+                const y = Number(gsap.getProperty(state.target, 'y') || 0);
+                const x = Number(gsap.getProperty(state.target, 'x') || 0);
+                state.initialY = Number.isFinite(y) ? y : 0;
+                state.initialX = Number.isFinite(x) ? x : 0;
+              });
+            }
+            observedEntry.isVisible = nextVisible;
+            observedEntry.targets.forEach((idleTarget) => {
+              idleTarget.style.willChange = nextVisible
+                ? (idleTarget.classList.contains('journey-robo-alien-beam-art') ? 'transform, opacity' : 'transform')
+                : 'auto';
+            });
+          });
+        }, {
+          root: scrollable,
+          rootMargin: '240px 0px',
+          threshold: 0,
+        });
+      }
+      this.journeyAreaIdleEntryByVisibilityTarget.set(visibilityTarget, entry);
+      this.journeyAreaIdleVisibilityObserver.observe(visibilityTarget);
+    }
+
+    if (!this.journeyAreaIdleTicker) {
+      this.journeyAreaIdleTicker = () => {
+        if (this.renderDisposed) {
+          if (this.journeyAreaIdleTicker) {
+            try { gsap.ticker.remove(this.journeyAreaIdleTicker); } catch {}
+          }
+          this.journeyAreaIdleTicker = null;
+          this.journeyAreaIdleEntries = [];
+          return;
+        }
+
+        const now = gsap.ticker.time;
+        this.journeyAreaIdleEntries.forEach((entry) => {
+          if (!entry.isVisible) return;
+          const elapsed = now - entry.startTime;
+          const waveY = Math.sin((elapsed * entry.speed) + entry.phaseOffset) * entry.amplitude;
+          const rampProgress = Math.min(1, Math.max(0, elapsed / entry.rampSeconds));
+          const ramp = rampProgress * rampProgress * rampProgress * (rampProgress * ((rampProgress * 6) - 15) + 10);
+          const waveX = entry.xAmplitude
+            ? Math.sin((elapsed * entry.speed * 0.82) + entry.phaseOffset + entry.xPhaseOffset) * entry.xAmplitude
+            : 0;
+
+          entry.targetStates.forEach((state) => {
+            if (!state.target.isConnected) return;
+            state.setY(state.initialY + ((waveY - state.initialY) * ramp));
+            if (state.setX && entry.xAmplitude) {
+              state.setX(state.initialX + ((waveX - state.initialX) * ramp));
+            }
+          });
+        });
+      };
+      gsap.ticker.add(this.journeyAreaIdleTicker);
+    }
     logger.info('🧭 JourneyForestAnim idle-area-created', {
       areaId,
       targetCount: liveTargets.length,
@@ -972,8 +1079,9 @@ class JourneyBoardsManager {
       cycleDuration: Number(options.cycleDuration.toFixed(2)),
       phaseOffset: Number(options.delay.toFixed(2)),
       initialY: Number((targetStates[0]?.initialY || 0).toFixed(2)),
-      rampInSeconds: rampSeconds,
-      totalTickers: this.journeyAreaIdleTickers.length,
+      rampInSeconds: entry.rampSeconds,
+      totalAreas: this.journeyAreaIdleEntries.length,
+      frameTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
     });
   }
 
@@ -1838,7 +1946,7 @@ class JourneyBoardsManager {
         if (clearedActiveBoard) {
           this.activeBoardAreaEnterInProgress = false;
           if (cardsContainer && document.body.contains(cardsContainer)) {
-            if (this.journeyAreaIdleTickers.length) {
+            if (this.journeyAreaIdleEntries.length) {
               logger.info('🧭 JourneyForestAnim active-enter-resume-board-idle-only', { boardId });
               this.startJourneyBoardAreaIdleAnimation(boardId, cardsContainer);
             } else {
@@ -3957,7 +4065,7 @@ class JourneyBoardsManager {
 
   private cleanupJourneyTapTransientFx(boardId: number): void {
     try {
-      this.stopGlowPulse();
+      this.stopInterimCardIdleEffects();
       try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
       const tappedCard = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
       if (tappedCard) {
@@ -4286,10 +4394,9 @@ class JourneyBoardsManager {
     // Stop any existing bounce animation (safety check)
     this.stopInterimBounce(card);
     
-    const baseScale = 1;
-    const scaleUp = 1.16;
-    const tiltDegrees = 2.5;
+    const tiltDegrees = JOURNEY_INTERIM_IDLE_MOTION.tiltDegrees;
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
+    let bounceVariant = createJourneyInterimBounceVariant();
     if ((card as any)._interimBounceInlineTransition === undefined) {
       (card as any)._interimBounceInlineTransition = card.style.transition || '';
     }
@@ -4299,7 +4406,7 @@ class JourneyBoardsManager {
     card.style.transformOrigin = '50% 50%';
     card.style.willChange = 'transform';
     
-    const triggerInterimSmoke = () => {
+    const triggerLandingSmoke = () => {
       if (this.renderDisposed || !card.parentElement) {
         this.stopInterimBounce(card);
         return;
@@ -4310,28 +4417,23 @@ class JourneyBoardsManager {
         return;
       }
 
-      const activeSmokeContainers = Array.isArray((card as any)._overlapSmokeContainers)
-        ? (card as any)._overlapSmokeContainers.filter((container: HTMLElement) => container && !(container as any)._cleanedUp && container.parentNode)
-        : [];
-      (card as any)._overlapSmokeContainers = activeSmokeContainers;
-      if (activeSmokeContainers.length > 3) {
-        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
-      }
-
-      const randomAlpha = 0.8 + Math.random() * 0.2;
-      (cardWrapper as any)._interimBounceLastSmokeAt = Date.now();
+      // Every completed landing gets one fresh, bounded puff. Cleaning the
+      // previous container first keeps the cadence exact without overlap buildup.
+      try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+      // 40% stronger than the prior 0.68-0.82 range, capped at solid white.
+      const randomAlpha = Math.min(1, (0.68 + Math.random() * 0.14) * 1.4);
       smokeBubblesAtCard(card, {
-        sizeScale: 0.68,
-        distanceScale: 0.68,
-        countScale: 0.48,
-        haloScale: 0.68,
-        strength: 2.2 + Math.random() * 0.8,
+        sizeScale: 0.54,
+        distanceScale: 0.58,
+        countScale: 0.28,
+        haloScale: 0.52,
+        strength: 1.55 + Math.random() * 0.2,
         trailAlpha: randomAlpha,
         baseAlpha: randomAlpha,
-        allowOverlap: true,
-        activeLockMs: 120,
-        fadeOutTime: 0.62,
-        cleanupTime: 1.15
+        allowOverlap: false,
+        activeLockMs: 720,
+        fadeOutTime: 0.46,
+        cleanupTime: 0.92
       });
     };
 
@@ -4343,9 +4445,10 @@ class JourneyBoardsManager {
     (cardWrapper as any)._interimBounceActive = true;
     (cardWrapper as any)._interimBounceStartedAt = Date.now();
     const bounceTimeline = trackTimeline({
-      delay: 0.12,
+      delay: 0.3,
       repeat: -1,
-      repeatDelay: 0.4,
+      repeatDelay: JOURNEY_INTERIM_IDLE_MOTION.repeatDelaySeconds,
+      repeatRefresh: true,
       defaults: {
         transformOrigin: 'center center',
         force3D: true,
@@ -4353,22 +4456,51 @@ class JourneyBoardsManager {
       onRepeat: () => {
         if (this.renderDisposed || !card.parentElement || !(cardWrapper as any)._interimBounceActive) {
           this.stopInterimBounce(card);
+          return;
         }
+        bounceVariant = createJourneyInterimBounceVariant();
       },
     });
     bounceTimeline
       .to(card, {
-        scale: scaleUp,
-        rotation: tiltDegrees * tiltDirection,
-        duration: 0.12,
-        ease: 'back.out(2.2)',
-        onComplete: triggerInterimSmoke,
+        scaleX: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX,
+        scaleY: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY,
+        y: 1.5,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
+        ease: 'power2.in',
       })
       .to(card, {
-        scale: baseScale,
+        scaleX: () => bounceVariant.peakScaleX,
+        scaleY: () => bounceVariant.peakScaleY,
+        rotation: () => tiltDegrees * tiltDirection * bounceVariant.tiltMultiplier,
+        y: -JOURNEY_INTERIM_IDLE_MOTION.liftPx,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
+        ease: 'back.out(2.5)',
+      })
+      .to(card, {
+        scaleX: () => bounceVariant.landScaleX,
+        scaleY: () => bounceVariant.landScaleY,
+        rotation: () => -tiltDegrees * tiltDirection * bounceVariant.tiltMultiplier * 0.22,
+        y: 1,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
+        ease: 'power2.in',
+        onComplete: triggerLandingSmoke,
+      })
+      .to(card, {
+        scaleX: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX,
+        scaleY: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY,
+        rotation: tiltDegrees * tiltDirection * 0.12,
+        y: -2.5,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
+        ease: 'power2.out',
+      })
+      .to(card, {
+        scaleX: 1,
+        scaleY: 1,
         rotation: 0,
-        duration: 0.12,
-        ease: 'back.in(1.35)',
+        y: 0,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.settleDurationSeconds,
+        ease: 'back.out(1.7)',
       });
     (cardWrapper as any)._interimBounceTimeline = bounceTimeline;
     
@@ -4384,17 +4516,20 @@ class JourneyBoardsManager {
     
     const timeline = (cardWrapper as any)._interimBounceTimeline;
     if (timeline) {
-      try { timeline.kill(); } catch {}
+      animationManager.killExternalTimeline(timeline);
       delete (cardWrapper as any)._interimBounceTimeline;
     }
 
     // Kill GSAP animations
-    gsap.killTweensOf(card, 'scale,rotation');
+    gsap.killTweensOf(card, 'scale,scaleX,scaleY,rotation,y');
     if (opts.restoreBase !== false) {
       try {
         gsap.set(card, {
           scale: 1,
+          scaleX: 1,
+          scaleY: 1,
           rotation: 0,
+          y: 0,
           clearProps: 'transform',
           overwrite: true,
         });
@@ -4419,7 +4554,6 @@ class JourneyBoardsManager {
     }
     
     delete (cardWrapper as any)._interimBounceActive;
-    delete (cardWrapper as any)._interimBounceLastSmokeAt;
     delete (cardWrapper as any)._interimBounceStartedAt;
   }
 
@@ -4430,23 +4564,6 @@ class JourneyBoardsManager {
       if (typeof bounceTimeline.paused === 'function' && bounceTimeline.paused()) return false;
       if (typeof bounceTimeline.timeScale === 'function' && bounceTimeline.timeScale() === 0) return false;
     } catch {}
-
-    const lastSmokeAt = Number((cardWrapper as any)._interimBounceLastSmokeAt || 0);
-    const startedAt = Number((cardWrapper as any)._interimBounceStartedAt || 0);
-    if (lastSmokeAt <= 0 && startedAt > 0 && Date.now() - startedAt > 1600) {
-      logger.warn('🧪 JourneyInterimFX bounce-stale-no-first-smoke-restart', {
-        boardId: card.dataset.boardId,
-        msSinceStart: Date.now() - startedAt,
-      });
-      return false;
-    }
-    if (lastSmokeAt > 0 && Date.now() - lastSmokeAt > INTERIM_BOUNCE_SMOKE_STALE_MS) {
-      logger.warn('🧪 JourneyInterimFX bounce-stale-no-smoke-restart', {
-        boardId: card.dataset.boardId,
-        msSinceSmoke: Date.now() - lastSmokeAt,
-      });
-      return false;
-    }
 
     try {
       if (typeof gsap !== 'undefined' && gsap.isTweening(card)) return true;
@@ -4544,198 +4661,43 @@ class JourneyBoardsManager {
     }
   }
 
-  /**
-   * 🔥 USER REQUEST: Start independent animations on interim card
-   * - Bounce animation: continuous (independent from other cards)
-   * - Smoke bubbles: every 2.7 seconds
-   * - Shimmer: every 2.0 seconds
-   * - Glow: every 3.0 seconds
-   * With proper cleanup to prevent memory leaks
-   */
-  private startGlowPulse(): void {
+  /** Own the complete interim idle lifecycle without recurring class resets/reflows. */
+  private startInterimCardIdleEffects(): void {
     if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS) {
-      this.stopGlowPulse();
+      this.stopInterimCardIdleEffects();
       try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
       return;
     }
 
-    // Keep the existing pulse alive across repeated render/show calls, but bind
-    // bounce/smoke to any newly rendered interim card after Journey DOM refreshes.
-    if (this.glowPulseInterval !== null) {
-      this.startVisibleInterimCardIdleEffects(document);
-      return;
-    }
-    
     this.startVisibleInterimCardIdleEffects(document);
-
-    // Find interim card
     const interimCard = this.getCurrentJourneyInterimCard();
-    if (!interimCard) {
-      logger.warn('⚠️ No interim card found for glow pulse');
-      return; // No interim card found
+    if (!interimCard || this.renderDisposed) return;
+    const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
+
+    if (this.interimIdleEffectsCard && this.interimIdleEffectsCard !== interimCard) {
+      this.interimIdleEffectsCard.classList.remove('interim-idle-effects-active');
+      this.interimIdleEffectsCard.closest('.journey-board-card-wrapper')?.classList.remove('interim-idle-effects-active');
     }
-    
-    // 🔥 FIXED: Simplified interval that reliably triggers shimmer and glow every 3 seconds
-    const triggerShimmerAndGlow = () => {
-      this.startVisibleInterimCardIdleEffects(document);
-
-      const currentInterimCard = this.getCurrentJourneyInterimCard();
-      if (!currentInterimCard || this.renderDisposed) {
-        logger.warn('⚠️ Interim card not found or disposed, stopping glow pulse');
-        this.stopGlowPulse();
-        return;
-      }
-      
-      // Clear any pending timeouts from a previous tick
-      const existingRemove = (currentInterimCard as any)._interimShimmerRemoveTimeout;
-      if (existingRemove) {
-        clearTimeout(existingRemove);
-        (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
-      }
-      const existingGlow = (currentInterimCard as any)._interimGlowTimeout;
-      if (existingGlow) {
-        clearTimeout(existingGlow);
-        (currentInterimCard as any)._interimGlowTimeout = null;
-      }
-      const existingGlowCleanup = (currentInterimCard as any)._interimGlowCleanup;
-      if (existingGlowCleanup) {
-        clearTimeout(existingGlowCleanup);
-        (currentInterimCard as any)._interimGlowCleanup = null;
-      }
-      
-      // 1) Remove classes to reset animation state
-      currentInterimCard.classList.remove('interim-shimmer-trigger');
-      currentInterimCard.classList.remove('interim-glow-pulse');
-      
-      // 2) Force reflow so the browser sees the removal
-      void currentInterimCard.offsetHeight;
-      
-      // 3) Use requestAnimationFrame to ensure styles are flushed
-      requestAnimationFrame(() => {
-        if (this.renderDisposed || !currentInterimCard.parentElement) {
-          return;
-        }
-        
-        // 4) Re-add shimmer class to restart animation - shimmer starts immediately
-        currentInterimCard.classList.add('interim-shimmer-trigger');
-        // logger.info('✨ Shimmer triggered on interim card');
-        
-        // 5) Glow 150ms later so shimmer is clearly visible BEFORE glow
-        (currentInterimCard as any)._interimGlowTimeout = window.setTimeout(() => {
-          if (!this.renderDisposed && currentInterimCard.parentElement) {
-            this.triggerGlowPulse(currentInterimCard);
-          }
-        }, 150);
-        
-        // 6) Remove shimmer class AFTER animation completes (1.7s animation)
-        (currentInterimCard as any)._interimShimmerRemoveTimeout = window.setTimeout(() => {
-          if (!this.renderDisposed && currentInterimCard.parentElement) {
-            currentInterimCard.classList.remove('interim-shimmer-trigger');
-            // Force reflow so next add restarts cleanly
-            void currentInterimCard.offsetHeight;
-        // logger.info('✨ Shimmer stopped on interim card');
-          }
-          (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
-        }, 1700); // Remove after animation completes (1.7s)
-      });
-    };
-    
-    // 🔥 FIXED: Use setInterval for reliable timing (every 2.9 seconds - same as v102)
-    // Trigger immediately first
-    triggerShimmerAndGlow();
-    
-    // Then set up interval for subsequent triggers
-    this.glowPulseInterval = window.setInterval(() => {
-      triggerShimmerAndGlow();
-    }, 2900) as any; // Convert to number for compatibility (2.9s like v102)
-    
-    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (2.9s interval) on interim card');
-  }
-  
-  /**
-   * Trigger single glow pulse animation on interim card
-   * 🔥 FIXED: Simplified to ensure glow always triggers reliably on both mobile and iPad
-   */
-  private triggerGlowPulse(card: HTMLElement): void {
-    const existingGlowCleanup = (card as any)._interimGlowCleanup;
-    if (existingGlowCleanup) {
-      clearTimeout(existingGlowCleanup);
-      (card as any)._interimGlowCleanup = null;
-    }
-
-    // Remove class first to reset animation
-    card.classList.remove('interim-glow-pulse');
-    
-    // Force reflow to ensure class removal is processed
-    void card.offsetHeight;
-    
-    // 🔥 MOBILE FIX: Use double requestAnimationFrame for more reliable class application on mobile
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Add class to trigger animation
-        card.classList.add('interim-glow-pulse');
-        
-        // Force style recalculation to ensure animation starts
-        void card.offsetHeight;
-
-        (card as any)._interimGlowCleanup = window.setTimeout(() => {
-          if (!this.renderDisposed && card.parentElement) {
-            card.classList.remove('interim-glow-pulse');
-          }
-          (card as any)._interimGlowCleanup = null;
-        }, 620);
-      });
+    interimCard.classList.add('interim-idle-effects-active');
+    cardWrapper?.classList.add('interim-idle-effects-active');
+    this.interimIdleEffectsCard = interimCard;
+    logger.info('✅ Interim idle session active', {
+      boardId: interimCard.dataset.boardId || null,
+      frameTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
+      idleAreaCount: this.journeyAreaIdleEntries.length,
     });
   }
   
-  // 🔥 USER REQUEST: triggerShimmer removed - shimmer is now handled directly in interval
-  // 🔥 USER REQUEST: triggerSmokeBubbles removed - smoke bubbles are now triggered DURING bounce animation
-  
-  /**
-   * 🔥 MEMORY LEAK FIX: Stop glow pulse, shimmer, smoke bubbles, and bounce intervals and cleanup
-   * Made public so it can be called from ui-manager.ts during exit animation
-   */
-  public stopGlowPulse(): void {
-    // Stop glow pulse interval
-    if (this.glowPulseInterval !== null) {
-      clearInterval(this.glowPulseInterval);
-      this.glowPulseInterval = null;
-      logger.info('✅ Stopped glow pulse interval');
-    }
-    
-    // 🔥 USER REQUEST: Shimmer is now part of glow animation (no separate interval needed)
-    // 🔥 USER REQUEST: Smoke bubbles are now part of bounce animation (no separate interval needed)
-    
-    // 🔥 USER REQUEST: Stop bounce animation
+  /** Stop the complete DOM-bound interim idle session. */
+  public stopInterimCardIdleEffects(): void {
     const interimCards = document.querySelectorAll('.journey-board-card.interim');
     interimCards.forEach(card => {
       this.stopInterimBounce(card as HTMLElement);
+      (card as HTMLElement).classList.remove('interim-idle-effects-active');
+      (card as HTMLElement).closest('.journey-board-card-wrapper')?.classList.remove('interim-idle-effects-active');
     });
-    
-    // Remove glow pulse and shimmer classes from all interim cards
-    interimCards.forEach(card => {
-      const cardEl = card as HTMLElement;
-      
-      // Clear pending shimmer/glow timeouts so they don't fire after stop
-      const pendingRemove = (cardEl as any)._interimShimmerRemoveTimeout;
-      if (pendingRemove) {
-        clearTimeout(pendingRemove);
-        (cardEl as any)._interimShimmerRemoveTimeout = null;
-      }
-      const pendingGlow = (cardEl as any)._interimGlowTimeout;
-      if (pendingGlow) {
-        clearTimeout(pendingGlow);
-        (cardEl as any)._interimGlowTimeout = null;
-      }
-      const pendingGlowCleanup = (cardEl as any)._interimGlowCleanup;
-      if (pendingGlowCleanup) {
-        clearTimeout(pendingGlowCleanup);
-        (cardEl as any)._interimGlowCleanup = null;
-      }
-      
-      cardEl.classList.remove('interim-glow-pulse');
-      cardEl.classList.remove('interim-shimmer-trigger');
-    });
+    this.interimIdleEffectsCard = null;
+    try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
   }
 
   public resumeInterimCardIdleEffects(reason = 'resume'): void {
@@ -4743,8 +4705,8 @@ class JourneyBoardsManager {
 
     try {
       this.startVisibleInterimCardIdleEffects(document);
-      this.startGlowPulse();
-      [0, 120, 360, 900, 1800, 3200].forEach((delayMs) => {
+      this.startInterimCardIdleEffects();
+      [0, 180].forEach((delayMs) => {
         if (delayMs === 0) {
           requestAnimationFrame(() => {
             if (this.renderDisposed) return;
@@ -4780,11 +4742,10 @@ class JourneyBoardsManager {
     this.cleanupDetailModalRuntimeState();
     this.cleanupJourneyScreenElasticOverscroll();
     
-    // 🔥 MEMORY LEAK FIX: Stop glow pulse interval (this also stops interim bounce animations)
-    this.stopGlowPulse();
+    this.stopInterimCardIdleEffects();
     
     // 🔥 MEMORY FIX: Ensure all interim bounce animations are stopped
-    // stopGlowPulse() should handle this, but double-check for safety
+    // Double-check cards that may have detached during the owner cleanup.
     const allInterimCards = document.querySelectorAll('.journey-board-card.interim');
     allInterimCards.forEach(card => {
       this.stopInterimBounce(card as HTMLElement);
@@ -5406,10 +5367,8 @@ class JourneyBoardsManager {
       return;
     }
     
-    // 🔥 FIX: Stop glow pulse before re-rendering to prevent duplicates
-    if (this.glowPulseInterval !== null) {
-      this.stopGlowPulse();
-    }
+    // End the previous DOM-bound idle session before replacing Journey nodes.
+    if (this.interimIdleEffectsCard) this.stopInterimCardIdleEffects();
 
     this.container = container;
     this.renderDisposed = false;
@@ -5508,7 +5467,8 @@ class JourneyBoardsManager {
       navTransform: navHeader ? window.getComputedStyle(navHeader).transform : null,
       scrollTop: scrollable?.scrollTop ?? null,
       visibleTargetCount,
-      idleTickerCount: this.journeyAreaIdleTickers.length,
+      idleTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
+      idleAreaCount: this.journeyAreaIdleEntries.length,
       idlePaused: this.journeyAreaIdlePausedForInteraction,
     };
   }
@@ -6648,7 +6608,7 @@ class JourneyBoardsManager {
         this.activeBoardAreaEnterPreparedTargets = [];
         this.resumeInterimCardIdleEffects(source);
       } else {
-        this.startVisibleInterimCardIdleEffects(container);
+        this.resumeInterimCardIdleEffects(source);
       }
       if (source === 'default') {
         this.restoreOrScrollToInterimCard();
@@ -7133,17 +7093,10 @@ class JourneyBoardsManager {
     // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter completes)
     // This prevents jerky/laggy behavior on mobile when 16 cards try to animate during enter animation
     
-    // Only setup listeners and glow pulse (non-animated effects)
+    // Only install interaction listeners during render. The complete interim
+    // idle session starts after the visible Journey enter reaches idle.
     requestAnimationFrame(() => {
-      // Add scroll and touch listeners (these don't interfere with enter animation)
       this.setupIdleInteractionListeners();
-      
-      // 🔥 USER REQUEST: Start continuous glow pulse on interim card (non-animated, doesn't interfere)
-      this.startGlowPulse();
-      
-      // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
-      // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
-      // DO NOT scroll here - it will cause scroll during enter animation
     });
   }
   

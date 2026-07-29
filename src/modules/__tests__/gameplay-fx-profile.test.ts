@@ -22,5 +22,9 @@ describe('gameplay FX profile', () => {
     expect(full.shardDistanceScale).toBeGreaterThan(1);
     expect(full.shardDensity).toBe(1);
     expect(reduced.shardDensity).toBeLessThan(full.shardDensity);
+    expect(full.smokeSizeScale).toBeGreaterThan(1.3);
+    expect(full.smokeDistanceScale).toBeGreaterThan(1.1);
+    expect(full.smokeCountScale).toBeLessThanOrEqual(0.9);
+    expect(full.smokeUpwardBias).toBeGreaterThan(0);
   });
 });

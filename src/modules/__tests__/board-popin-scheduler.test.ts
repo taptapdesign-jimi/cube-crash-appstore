@@ -1,4 +1,4 @@
-import { createBoardPopInPlan } from '../board-popin-scheduler';
+import { createBoardPopInHapticSchedule, createBoardPopInPlan } from '../board-popin-scheduler';
 
 describe('board pop-in scheduler', () => {
   test('keeps every active and inactive tile in the animation plan exactly once', () => {
@@ -46,5 +46,18 @@ describe('board pop-in scheduler', () => {
       delayIndex > 0 && delay - sortedDelays[delayIndex - 1] < 0.012
     ).length;
     expect(nearSimultaneousStarts).toBeGreaterThan(10);
+  });
+
+  test('groups board-entry haptics into four ordered beats instead of one per tile', () => {
+    const schedule = createBoardPopInHapticSchedule(createBoardPopInPlan(36, () => 0.5));
+
+    expect(schedule).toHaveLength(4);
+    expect(schedule).toEqual([...schedule].sort((a, b) => a - b));
+    expect(schedule.every((beat, index) => index === 0 || beat - schedule[index - 1] >= 0.055)).toBe(true);
+  });
+
+  test('does not schedule more haptics than visible pop-in tiles', () => {
+    expect(createBoardPopInHapticSchedule(createBoardPopInPlan(2, () => 0.5))).toHaveLength(2);
+    expect(createBoardPopInHapticSchedule([])).toEqual([]);
   });
 });

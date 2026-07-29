@@ -16,7 +16,10 @@ export function getRegularMerge6FxProfile(reducedFx: boolean) {
     shardDensity: reducedFx ? 0.55 : 1,
     shardVisualScale: reducedFx ? 1.12 : 1.18,
     shardDistanceScale: reducedFx ? 1.12 : 1.2,
-    smokeSizeScale: reducedFx ? 1.12 : 1.22,
-    smokeDistanceScale: reducedFx ? 0.76 : 0.86,
+    // Keep density bounded; sell the break through larger, wider solid-white puffs.
+    smokeSizeScale: reducedFx ? 1.25 : 1.36,
+    smokeDistanceScale: reducedFx ? 1.08 : 1.2,
+    smokeCountScale: reducedFx ? 0.72 : 0.9,
+    smokeUpwardBias: reducedFx ? 0.2 : 0.28,
   };
 }

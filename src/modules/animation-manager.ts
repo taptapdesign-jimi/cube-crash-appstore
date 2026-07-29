@@ -123,6 +123,12 @@ class AnimationManager {
     });
     return timeline;
   }
+
+  killExternalTimeline(timeline: gsap.core.Timeline | null | undefined): void {
+    if (!timeline) return;
+    this.activeTimelines.delete(timeline);
+    try { timeline.kill(); } catch {}
+  }
   
   // Initialize animation manager
   init(): void {

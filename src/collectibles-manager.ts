@@ -1608,7 +1608,7 @@ class CollectiblesManager {
               const cardEl = card as HTMLElement;
               cardEl.style.animation = 'none';
               cardEl.style.animationPlayState = 'paused';
-              cardEl.classList.remove('interim-shimmer-trigger', 'interim-glow-pulse');
+              cardEl.classList.remove('interim-idle-effects-active');
             });
           }
         } catch (error) {
@@ -1673,8 +1673,8 @@ class CollectiblesManager {
               const journeyContainer = document.getElementById('journey-boards-container');
               if (journeyContainer) {
                 const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
-                  journeyBoardsManager.stopGlowPulse();
+                if (journeyBoardsManager && typeof journeyBoardsManager.stopInterimCardIdleEffects === 'function') {
+                  journeyBoardsManager.stopInterimCardIdleEffects();
                   console.log('✅ Glow pulse and interim bounce stopped');
                 }
                 journeyBoardsManager.cleanup();
@@ -1728,8 +1728,8 @@ class CollectiblesManager {
           const journeyContainer = document.getElementById('journey-boards-container');
           if (journeyContainer) {
             const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-            if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
-              journeyBoardsManager.stopGlowPulse();
+            if (journeyBoardsManager && typeof journeyBoardsManager.stopInterimCardIdleEffects === 'function') {
+              journeyBoardsManager.stopInterimCardIdleEffects();
               console.log('✅ Glow pulse and interim bounce stopped');
             }
           }

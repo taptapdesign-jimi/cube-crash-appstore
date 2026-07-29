@@ -1797,10 +1797,45 @@
   }
 }
 
-/* 🔥 USER REQUEST: Shimmer animation for journey interim cards (same as detail screen) */
-/* Triggered by JS class 'interim-shimmer-trigger' - appears 100ms before glow */
-/* 🔥 USER REQUEST: Shimmer animation for journey interim cards (same as detail screen) */
-/* Using infinite animation like detail screen - controlled by JS class to start/stop */
+/* Outer energy halo belongs to the wrapper so it is not clipped by the card. */
+.journey-board-card-wrapper.interim-idle-effects-active {
+  isolation: isolate;
+}
+
+.journey-board-card-wrapper.interim-idle-effects-active::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  z-index: -1;
+  border-radius: 24px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 235, 137, 0.72) 0%, rgba(255, 177, 75, 0.42) 38%, rgba(232, 111, 64, 0.18) 60%, rgba(232, 111, 64, 0) 76%);
+  opacity: 0;
+  transform: scale(0.82) translateZ(0);
+  transform-origin: center;
+  animation: journey-interim-outer-burn 4.2s ease-out infinite;
+}
+
+/* White-hot center plus gold body burn. This is intentionally much stronger
+   than a tint: screen blending lights the question mark and card engraving. */
+.journey-board-card.interim::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 998;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 246, 1) 0%, rgba(255, 255, 209, 0.98) 13%, rgba(255, 224, 102, 0.78) 31%, rgba(255, 164, 61, 0.42) 55%, rgba(218, 104, 66, 0) 82%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
+  transform: scale(0.9) translateZ(0);
+  transform-origin: 50% 48%;
+}
+
+/* Interim-card shimmer surface, using the same masked duplicate-light idea as
+   the TapTap Design launch logo instead of translating a broad blurred layer. */
 .journey-board-card.interim::after {
   content: "";
   position: absolute;
@@ -1808,17 +1843,17 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.52) 50%,
-    rgba(255,255,255,0.00) 100%
-  );
-  transform: translateX(-160%) skewX(-12deg) translateZ(0);
+  background: rgba(255, 255, 255, 0.76);
+  transform: translateZ(0);
   opacity: 0;
   display: block;
   visibility: visible;
-  filter: blur(0.56px);
+  -webkit-mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
+  mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-position: 145% 0;
+  mask-position: 145% 0;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   pointer-events: none;
@@ -1828,40 +1863,65 @@
   animation: none;
 }
 
-/* 🔥 CRITICAL: When trigger class is added, start single-run animation (JS restarts each cycle) */
-.journey-board-card.interim.interim-shimmer-trigger::after {
-  animation: journey-interim-shimmer 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) !important;
+/* One compositor-owned shimmer session. JS adds/removes this class only at the
+   Journey idle lifecycle boundary; there is no interval, forced reflow or RAF loop. */
+.journey-board-card.interim.interim-idle-effects-active::after {
+  animation: journey-interim-shimmer 4.2s ease-in-out infinite !important;
   animation-delay: 0s !important;
 }
 
+.journey-board-card.interim.interim-idle-effects-active::before {
+  animation: journey-interim-burn 4.2s ease-out infinite;
+}
+
 @keyframes journey-interim-shimmer {
-  0% {
-    transform: translateX(-160%) skewX(-12deg);
+  0%, 4% {
     opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
   }
-  14% {
-    transform: translateX(-125%) skewX(-12deg);
-    opacity: 0.35;
+  9%, 28% {
+    opacity: 0.42;
   }
-  38% {
-    transform: translateX(-55%) skewX(-12deg);
-    opacity: 0.58;
-  }
-  50% {
-    transform: translateX(0%) skewX(-12deg);
-    opacity: 0.68;
-  }
-  62% {
-    transform: translateX(55%) skewX(-12deg);
-    opacity: 0.58;
-  }
-  86% {
-    transform: translateX(125%) skewX(-12deg);
-    opacity: 0.35;
+  36% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
   }
   100% {
-    transform: translateX(160%) skewX(-12deg);
     opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+}
+
+@keyframes journey-interim-burn {
+  0%, 7%, 38%, 100% {
+    opacity: 0;
+    transform: scale(0.9) translateZ(0);
+  }
+  15% {
+    opacity: 0.96;
+    transform: scale(1) translateZ(0);
+  }
+  27% {
+    opacity: 0.42;
+    transform: scale(1.08) translateZ(0);
+  }
+}
+
+@keyframes journey-interim-outer-burn {
+  0%, 7%, 40%, 100% {
+    opacity: 0;
+    transform: scale(0.82) translateZ(0);
+  }
+  16% {
+    opacity: 0.82;
+    transform: scale(1) translateZ(0);
+  }
+  30% {
+    opacity: 0.24;
+    transform: scale(1.12) translateZ(0);
   }
 }
 
@@ -2214,48 +2274,6 @@
 
 /* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */
 /* 🔥 USER REQUEST: Duplicate .journey-board-card.interim::after removed - styles are in definition above */
-
-/* Glow pulse animation for interim card during scroll focus */
-.journey-board-card.interim.interim-glow-pulse {
-  animation: interim-glow-pulse 0.5s ease-out;
-}
-
-@keyframes interim-glow-pulse {
-  0% {
-    /* 🔥 v102 approach: Only glow effect - base shadow is box-shadow on card */
-    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
-  }
-  50% {
-    /* 🔥 v102 approach: Glow effect only - base shadow combines automatically */
-    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
-  }
-  100% {
-    /* 🔥 v102 approach: Glow effect only - base shadow combines automatically */
-    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
-  }
-}
-
-/* 🔥 MOBILE FIX: Enhanced glow for iPhone compatibility */
-@media (max-width: 768px) {
-  .journey-board-card.interim.interim-glow-pulse {
-    /* Force animation to run on mobile */
-    animation: interim-glow-pulse 0.5s ease-out !important;
-    /* 🔥 iPhone FIX: Higher z-index for visibility */
-    z-index: 100 !important;
-    position: relative !important;
-    /* Keep transform free for the JS interim bounce loop. */
-    will-change: filter, transform !important;
-    /* 🔥 iPhone FIX: Remove transition during animation */
-    transition: none !important;
-    /* 🔥 iPhone FIX: Isolation for better rendering */
-    isolation: isolate !important;
-    /* 🔥 iPhone FIX: Backface visibility for performance */
-    backface-visibility: hidden !important;
-    -webkit-backface-visibility: hidden !important;
-  }
-}
-
-
 
 .journey-board-card.unlocked .journey-board-image {
   width: 100%;

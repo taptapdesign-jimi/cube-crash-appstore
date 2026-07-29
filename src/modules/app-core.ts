@@ -9407,8 +9407,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             sizeBoostChance: 0.2,
             sizeBoostScale: 1.3,
             sizeScale: regularMerge6Fx.smokeSizeScale,
+            countScale: regularMerge6Fx.smokeCountScale,
             instantFadeOut: true,
             distanceScale: regularMerge6Fx.smokeDistanceScale,
+            upwardBias: regularMerge6Fx.smokeUpwardBias,
+            color: 0xFFFFFF,
+            haloColor: 0xFFFFFF,
+            baseAlpha: 1,
+            trailAlpha: 1,
+            solidAlpha: true,
+            blendMode: 'normal',
           });
         }
 

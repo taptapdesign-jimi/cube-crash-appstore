@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
 import * as makeBoard from './board.js';
-import { createBoardPopInPlan } from './board-popin-scheduler.js';
+import { createBoardPopInHapticSchedule, createBoardPopInPlan } from './board-popin-scheduler.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
@@ -192,6 +192,9 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
   const sourceTiles = [...listTiles];
   const popInPlan = createBoardPopInPlan(sourceTiles.length);
   const list = popInPlan.map((step) => sourceTiles[step.tileIndex]);
+  const shouldPlayGroupedEntryHaptics =
+    (window as any).__ccEnterAnimationActive === true &&
+    typeof (window as any).triggerHapticImpact === 'function';
 
   const total = list.length || 1;
   const halfTotal = Math.ceil(total / 2); // 50% of tiles
@@ -257,6 +260,15 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     if (list.length === 0) {
       finishPopIn(false);
       return;
+    }
+
+    if (shouldPlayGroupedEntryHaptics) {
+      createBoardPopInHapticSchedule(popInPlan).forEach((delaySeconds) => {
+        const hapticCall = trackDelayedCall(delaySeconds, () => {
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
+        });
+        activeDelayedCalls.push(hapticCall);
+      });
     }
 
     list.forEach((t, i) => {
