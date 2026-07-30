@@ -7,6 +7,8 @@ import { isArcadeHomeRunMode } from './run-mode.js';
 import { isHeartsFeatureEnabled } from './hearts-system.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './journey-origin-state.js';
+import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -90,7 +92,7 @@ function resetArcadeFailedRunForFreshStart(): void {
   } catch {
     /* non-fatal */
   }
-  logger.info('🎮 Arcade failed run reset on Exit - next Arcade start will be fresh Stage 01');
+  logger.info('🎮 Arcade failed run reset on Exit - next Arcade start will be fresh Round 01');
 }
 
 function trackFailTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
@@ -465,11 +467,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       'align-items:center',
       'justify-content:center',
       'padding:48px 24px',
-      'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, #f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity 0.25s ease'
     ].join(';');
+    applyAppPaperSurfaceToElement(overlay);
 
     const card = document.createElement('div');
     card.style.cssText = [
@@ -549,10 +551,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     title.style.cssText = 'color:#e77449;font-weight:800;font-size:56px;line-height:56px;margin:0;';
 
     const boardStatus = document.createElement('div');
-    const boardLabel = String(Math.max(1, boardNumber | 0)).padStart(2, '0');
-    boardStatus.textContent = isArcadeHomeRunMode()
-      ? `Stage ${boardLabel} not cleared`
-      : `Board ${boardLabel} not cleared`;
+    const progressLabel = formatGameplayProgressLabel(
+      isArcadeHomeRunMode() ? 'arcade' : 'journey',
+      Math.max(1, boardNumber | 0),
+      { padTo: 2 },
+    );
+    boardStatus.textContent = `${progressLabel} not cleared`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
     textCluster.appendChild(title);
@@ -691,7 +695,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
               (window as any).__ccForceArcadeRestartStage01 = true;
-              logger.info('🎮 Arcade Play Again after fail - forcing fresh Stage 01 restart');
+              logger.info('🎮 Arcade Play Again after fail - forcing fresh Round 01 restart');
             }
             
             await runExitAnimation(action);
@@ -718,7 +722,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
               (window as any).__ccForceArcadeRestartStage01 = true;
-              logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Stage 01 restart');
+              logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Round 01 restart');
             }
             
             await runExitAnimation(action);

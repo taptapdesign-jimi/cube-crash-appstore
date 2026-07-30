@@ -22,7 +22,7 @@ export function handleStartLevelHudDrop({
   // 🔥 JOURNEY PROGRESSION: Check if HUD drop should be triggered (from Journey Play Board)
   if (!isTriggerHudDrop()) return;
   setHudDropPending(true);
-  logger.debug('✅ HUD drop pending set to true (from Journey Play Board)', 'app-core');
+  logger.debug('✅ HUD drop pending set to true (from Journey Play Stage)', 'app-core');
   clearTriggerHudDrop();
   setHudInitDone(false);
   try {

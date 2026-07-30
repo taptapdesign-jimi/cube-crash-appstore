@@ -142,7 +142,7 @@ export function prepareJourneyFailReturnTarget(boardId: unknown): JourneyReturnD
 
   // A fail Exit returns to the same world/board area, not to a fresh Journey
   // entry from Homepage. Reuse the established active-area return lifecycle so
-  // the viewport is primed hidden and the complete Forest/Beach/Area 51 Unit
+  // the viewport is primed hidden and the complete Forest/Beach/Area 55 Unit
   // performs one coordinated standard enter.
   (window as any).__ccReturningFromDetailModal = true;
   // Must be present before any preserved Journey world is scoped/rendered;

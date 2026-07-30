@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
 import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
+import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -143,7 +144,7 @@ async function showNewCardDevScreen(): Promise<void> {
     await showJourneyNewCardScreen({
       boardNumber,
       cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
-      cardName: board?.name || `Board ${boardNumber}`,
+      cardName: board?.name || formatGameplayProgressLabel('journey', boardNumber),
     });
   } catch (error) {
     console.error('❌ Failed to show Settings New Card dev screen:', error);
@@ -252,7 +253,7 @@ async function showCleanBoardDevFlow(): Promise<void> {
     });
   } catch (error) {
     console.error('❌ Failed to show Settings Clean Board dev flow:', error);
-    alert('Clean Board dev flow is not available right now.');
+    alert('Clean Stage dev flow is not available right now.');
   }
 }
 
@@ -541,10 +542,10 @@ function createSettingsDevArea(): HTMLElementConfig {
         children: [
           createDevButton('settings-dev-show-card-btn', 'Show Card', 'show'),
           createDevButton('settings-dev-hide-card-btn', 'Hide Card', 'hide'),
-          createDevButton('settings-dev-reset-board-btn', 'Reset Board', 'reset'),
+          createDevButton('settings-dev-reset-board-btn', 'Reset Stage', 'reset'),
           createSettingsDevActionButton('settings-dev-new-card-btn', 'New Card', 'new-card', showNewCardDevScreen),
           createSettingsDevActionButton('settings-dev-new-dice-btn', 'New Dice', 'new-dice', showNewDiceDevScreen),
-          createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Board', 'clean-board', showCleanBoardDevFlow),
+          createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Stage', 'clean-board', showCleanBoardDevFlow),
           createSettingsDevActionButton('settings-dev-last-merge-btn', 'LAST MERGE', 'last-merge', showLastMergeDevPicker),
           createFirstPlayDevButton(),
         ],

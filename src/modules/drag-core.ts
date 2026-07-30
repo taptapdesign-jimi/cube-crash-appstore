@@ -1485,8 +1485,34 @@ export function initDrag(cfg) {
     }
 
     const target = pickDropTarget(t, { pointerGlobal: e?.global, force: true });
+
+    const logDropDiagnostic = (payload: Record<string, unknown>) => {
+      if (!import.meta.env.DEV && (window as any).__ccDropDiagnostics !== true) return;
+      console.info('[CC_DROP_DIAG]', {
+        source: {
+          value: t?.value,
+          special: t?.special || null,
+          gridX: t?.gridX,
+          gridY: t?.gridY,
+          x: t?.x,
+          y: t?.y,
+        },
+        pointer: {
+          x: Number(e?.global?.x),
+          y: Number(e?.global?.y),
+          type: e?.pointerType || drag.pointerType,
+        },
+        ...payload,
+      });
+    };
     
     if (!target) {
+      logDropDiagnostic({
+        result: 'no-target',
+        gameplayTileCount: typeof getTiles === 'function'
+          ? getTiles().filter((tile: any) => isGameplayTileCandidate(tile)).length
+          : null,
+      });
       clearHover();
       const tileRef = t;
       snapBack(t, () => {
@@ -1525,6 +1551,21 @@ export function initDrag(cfg) {
     // CRITICAL: Only call canDrop if target is valid
     // If target is invalid, canMerge is false
     const canMerge = isValidTarget && canDrop(t, target);
+    logDropDiagnostic({
+      result: canMerge ? 'accepted' : 'rejected',
+      isValidTarget,
+      target: {
+        value: target?.value,
+        special: target?.special || null,
+        gridX: target?.gridX,
+        gridY: target?.gridY,
+        x: target?.x,
+        y: target?.y,
+        inTiles: typeof getTiles === 'function' ? getTiles().includes(target) : null,
+        candidate: isGameplayTileCandidate(target),
+      },
+      canDrop: canMerge,
+    });
     
     if (!canMerge) {
       clearHover();

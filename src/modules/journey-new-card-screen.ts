@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -480,7 +481,7 @@ export async function showJourneyNewCardScreen({
 
   const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
   const safeCardPath = cardImagePath || `./assets/colelctibles/common/${String(safeBoardNumber).padStart(2, '0')}.png`;
-  const safeCardName = cardName || `Board ${safeBoardNumber}`;
+  const safeCardName = cardName || formatGameplayProgressLabel('journey', safeBoardNumber);
   const displayCardName = toDisplayCardName(safeCardName);
   const revealSubtitle = `"${displayCardName}" added`;
 

@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 import { gsap } from 'gsap';
+import { formatGameplayProgressLabel, getGameplayProgressTerm } from './gameplay-terminology.ts';
 
 const HEADLINES = [
   'Sweet Win',
@@ -305,14 +306,14 @@ function createOverlay(clearedStage: number, nextStage: number): {
   overlay.innerHTML = `
     <section class="cc-arcade-stage-card" aria-hidden="true">
       <h1 class="cc-arcade-stage-title">${renderVariedTitleLetterSpans(headline, 'cc-arcade-stage-title-letter')}</h1>
-      <p class="cc-arcade-stage-subtitle">${renderLetterSpans(`Stage ${safeCleared} complete`, 'cc-arcade-stage-subtitle-letter')}</p>
+      <p class="cc-arcade-stage-subtitle">${renderLetterSpans(`${formatGameplayProgressLabel('arcade', safeCleared)} complete`, 'cc-arcade-stage-subtitle-letter')}</p>
       <div class="cc-arcade-stage-thumb-wrap">
         <div class="cc-arcade-stage-thumb-shadow"></div>
         <img class="cc-arcade-stage-thumb" src="./assets/thumbs-up@2x.png" alt="">
       </div>
     </section>
     <section class="cc-arcade-stage-next" aria-hidden="true">
-      <div class="cc-arcade-next-label">${renderLetterSpans('Stage', 'cc-arcade-next-letter')}</div>
+      <div class="cc-arcade-next-label">${renderLetterSpans(getGameplayProgressTerm('arcade'), 'cc-arcade-next-letter')}</div>
       <div class="cc-arcade-next-number">${Array.from(safeNext).map((digit) => `<span class="cc-arcade-next-digit-wrap"><span class="cc-arcade-next-digit">${digit}</span></span>`).join('')}</div>
     </section>
   `;

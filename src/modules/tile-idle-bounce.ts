@@ -11,6 +11,7 @@ import animationManager from './animation-manager.js';
 import type { Tile } from '../types';
 import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
+import { createGameplayTileCartoonVariant } from './gameplay-tile-cartoon-motion.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
@@ -179,18 +180,14 @@ function animateTile(tile: Tile): void {
   
   state.activeAnimations.add(tile);
   
-  const rotG = tile.rotG || tile;
-  const baseScaleX = rotG.scale?.x || 1;
-  const baseScaleY = rotG.scale?.y || 1;
-  
-  // For center scaling, we need to animate the parent tile's scale, not rotG
-  // This way it scales from the true geometric center without moving
+  // Animate the complete tile from its center so every stack layer follows.
   const baseTileScaleX = tile.scale?.x || 1;
   const baseTileScaleY = tile.scale?.y || 1;
-  
-  // Random tilt angle: 1-5 degrees left or right
+  const variant = createGameplayTileCartoonVariant('idle');
+
+  // Keep tilt secondary to the shared stretch/squash pose.
   const tiltDirection = Math.random() > 0.5 ? 1 : -1;
-  const tiltDegrees = 1 + Math.random() * 4; // 1-5 degrees
+  const tiltDegrees = variant.tiltDegrees * (0.82 + Math.random() * 0.36);
   const tiltRadians = (tiltDegrees * tiltDirection) * (Math.PI / 180);
   
   // Store original rotation
@@ -201,41 +198,64 @@ function animateTile(tile: Tile): void {
     onComplete: () => {
       state.activeAnimations.delete(tile);
       (tile as any)._idleBounceTl = null;
-    }
+      if (!tile.destroyed && tile.scale) {
+        tile.scale.x = baseTileScaleX;
+        tile.scale.y = baseTileScaleY;
+        tile.rotation = originalRotation;
+      }
+    },
+    onInterrupt: () => {
+      state.activeAnimations.delete(tile);
+      (tile as any)._idleBounceTl = null;
+    },
   });
   (tile as any)._idleBounceTl = tl;
-  
-  // Phase 1: Scale up with rotation - fast 0.1s
+
+  // One bounded cartoon cycle: anticipation -> random stretch/squash -> rebound -> settle.
   tl.to(tile.scale, {
-    x: baseTileScaleX * 1.05,  // Very subtle scale up
-    y: baseTileScaleY * 1.05,
-    duration: 0.1,
-    ease: 'power2.out'
+    x: baseTileScaleX * variant.anticipation.scaleX,
+    y: baseTileScaleY * variant.anticipation.scaleY,
+    duration: variant.anticipation.durationSeconds,
+    ease: variant.anticipation.ease,
   });
-  
-  // Simultaneously rotate the tile
   tl.to(tile, {
     rotation: originalRotation + tiltRadians,
-    duration: 0.1,
-    ease: 'power2.out'
-  }, '<'); // Start at same time as scale
-  
-  // Phase 2: Return to scale and rotation - fast 0.1s
+    duration: variant.anticipation.durationSeconds,
+    ease: variant.anticipation.ease,
+  }, '<');
+
+  tl.to(tile.scale, {
+    x: baseTileScaleX * variant.peak.scaleX,
+    y: baseTileScaleY * variant.peak.scaleY,
+    duration: variant.peak.durationSeconds,
+    ease: variant.peak.ease,
+  });
+  tl.to(tile, {
+    rotation: originalRotation - tiltRadians * 0.32,
+    duration: variant.peak.durationSeconds,
+    ease: variant.peak.ease,
+  }, '<');
+
+  tl.to(tile.scale, {
+    x: baseTileScaleX * variant.rebound.scaleX,
+    y: baseTileScaleY * variant.rebound.scaleY,
+    duration: variant.rebound.durationSeconds,
+    ease: variant.rebound.ease,
+  });
+  tl.to(tile, {
+    rotation: originalRotation,
+    duration: variant.rebound.durationSeconds,
+    ease: variant.rebound.ease,
+  }, '<');
+
   tl.to(tile.scale, {
     x: baseTileScaleX,
     y: baseTileScaleY,
-    duration: 0.1,
-    ease: 'power2.in'
+    duration: variant.settleDurationSeconds,
+    ease: variant.settleEase,
   });
-  
-  // Return rotation to 0 to avoid merge conflicts
-  tl.to(tile, {
-    rotation: originalRotation,
-    duration: 0.1,
-    ease: 'power2.in'
-  }, '<'); // Start at same time as scale return
-  
-  // Activate smoke bubbles at 0.1s (peak of animation)
+
+  // Keep the existing bounded idle smoke, aligned with the cartoon peak.
   tl.call(() => {
     // USER REQUEST: Idle smoke belongs only to regular cubes, never to active wild cubes.
     if (state.board && tile && !isWildTile(tile)) {
@@ -252,7 +272,7 @@ function animateTile(tile: Tile): void {
         fxTag: 'tile-idle-smoke'
       });
     }
-  }, null, 0.1);
+  }, null, variant.anticipation.durationSeconds + variant.peak.durationSeconds);
 }
 
 function stopTileAnimation(tile: Tile): void {

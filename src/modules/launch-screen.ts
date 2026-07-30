@@ -7,7 +7,7 @@ import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
-import { APP_PAPER_BACKGROUND } from '../utils/app-paper-background.js';
+import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -151,6 +151,9 @@ class LaunchScreen {
    * Initialize launch screen - creates DOM structure
    */
   init(): void {
+    // Body is the single viewport-relative paper owner throughout startup.
+    applyAppPaperBackground();
+
     // The inline HTML owns the first frame; cache it when present.
     const existingContainer = document.getElementById('launch-screen');
     if (existingContainer) {
@@ -185,9 +188,6 @@ class LaunchScreen {
       return;
     }
 
-    // Keep the web preloader on the same paper surface as the native launch screen.
-    this.setBackground(APP_PAPER_BACKGROUND);
-
     // Create launch screen container
     const container = document.createElement('div');
     container.id = 'launch-screen';
@@ -202,7 +202,7 @@ class LaunchScreen {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: ${APP_PAPER_BACKGROUND};
+      background: transparent;
       opacity: 1;
       visibility: visible;
     `;
@@ -509,31 +509,8 @@ class LaunchScreen {
     characterIdleTween?.kill?.();
     logger.info('✅ Studio intro preload complete - homepage readiness satisfied');
     
-    // 🔥 CRITICAL: Set container background to gradient BEFORE fade out to prevent white flash
-    // Container currently has #F9F9F9, but we need gradient to match body/html
-    const preservedPaperBg = APP_PAPER_BACKGROUND;
-    container.style.background = preservedPaperBg;
-    logger.info('✅ Launch container background set to paper + gradient before fade out');
-    
-    // 🔥 CRITICAL: Ensure gradient background stays visible on body, html, and #global-bg
-    // Do this BEFORE fade out to prevent any white flash
-    if (document.body) {
-      document.body.style.setProperty('background', preservedPaperBg, 'important');
-      document.body.style.setProperty('background-color', '#f3eee8', 'important');
-      document.body.style.setProperty('background-image', preservedPaperBg, 'important');
-    }
-    if (document.documentElement) {
-      document.documentElement.style.setProperty('background', preservedPaperBg, 'important');
-      document.documentElement.style.setProperty('background-color', '#f3eee8', 'important');
-      document.documentElement.style.setProperty('background-image', preservedPaperBg, 'important');
-    }
-    const globalBg = document.getElementById('global-bg');
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', preservedPaperBg, 'important');
-    }
-    logger.info('✅ Paper+gradient background set on body/html/#global-bg before fade out');
-
-    // Reveal the same paper surface beneath the two independent exit units.
+    // Reassert the one shared surface before exit; the launch layer stays clear.
+    applyAppPaperBackground();
     container.style.background = 'transparent';
 
     const characterExitPromise = new Promise<void>((resolve) => {
@@ -619,14 +596,10 @@ class LaunchScreen {
    */
   hide(): void {
     if (this.elements.container) {
-      // 🔥 CRITICAL: Don't reset background when hiding - gradient must stay!
-      // Only hide the container, but preserve its gradient background
       this.elements.container.style.display = 'none';
       this.elements.container.style.visibility = 'hidden';
-      // Ensure background is still gradient (not white)
-      const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-      this.elements.container.style.background = preservedGradient;
-      logger.info('✅ Launch screen hidden (gradient background preserved)');
+      this.elements.container.style.background = 'transparent';
+      logger.info('✅ Launch screen hidden; shared paper surface preserved');
     }
   }
 
@@ -684,92 +657,6 @@ class LaunchScreen {
     this.elements.studioLogo = null;
     this.elements.studioLogoSheen = null;
     this.elements.studioCharacter = null;
-  }
-
-  /**
-   * Set background color - SINGLE SOURCE OF TRUTH
-   * This is the ONLY function that sets background, ensuring no conflicts
-   */
-  private setBackground(colorOrGradient: string): void {
-    try {
-      logger.info('🎨 launch-screen.setBackground() called:', colorOrGradient.substring(0, 50) + '...');
-      
-      // Set on container with 100% opacity
-      if (this.elements.container) {
-        this.elements.container.style.background = colorOrGradient;
-        this.elements.container.style.opacity = '1';
-        this.elements.container.style.visibility = 'visible';
-        this.elements.container.style.zIndex = '10000';
-        logger.info('✅ Launch screen container background set with 100% opacity');
-      }
-      
-      // Set on body and html using GSAP (no !important to avoid conflicts)
-      if (document.body && gsap) {
-        gsap.killTweensOf(document.body);
-        document.body.style.transition = 'none';
-        gsap.set(document.body, { background: colorOrGradient });
-        logger.info('✅ Body gradient set via GSAP in launch-screen');
-      } else if (document.body) {
-        document.body.style.background = colorOrGradient;
-        logger.info('✅ Body gradient set directly (GSAP not available)');
-      }
-      
-      if (document.documentElement) {
-        document.documentElement.style.background = colorOrGradient;
-        logger.info('✅ HTML gradient set directly');
-      }
-      
-      // Set on #global-bg - create if it doesn't exist
-      let globalBg = document.getElementById('global-bg');
-      if (!globalBg) {
-        logger.info('🔧 Creating #global-bg element in launch-screen (not found in DOM)');
-        globalBg = document.createElement('div');
-        globalBg.id = 'global-bg';
-        globalBg.style.position = 'fixed';
-        globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
-        globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-        globalBg.style.left = '0';
-        globalBg.style.right = '0';
-        globalBg.style.pointerEvents = 'none';
-        globalBg.style.zIndex = '-1'; // 🔥 CRITICAL: Behind content, not in front
-        // Insert at the beginning of body
-        if (document.body.firstChild) {
-          document.body.insertBefore(globalBg, document.body.firstChild);
-        } else {
-          document.body.appendChild(globalBg);
-        }
-        logger.info('✅ #global-bg element created and inserted into DOM in launch-screen');
-      }
-      
-      if (globalBg && gsap) {
-        gsap.killTweensOf(globalBg);
-        (globalBg as HTMLElement).style.transition = 'none';
-        gsap.set(globalBg, { background: colorOrGradient });
-        (globalBg as HTMLElement).style.zIndex = '-1'; // 🔥 CRITICAL: Behind content
-        (globalBg as HTMLElement).style.pointerEvents = 'none';
-        logger.info('✅ #global-bg gradient set via GSAP in launch-screen');
-      } else if (globalBg) {
-        (globalBg as HTMLElement).style.background = colorOrGradient;
-        (globalBg as HTMLElement).style.zIndex = '-1'; // 🔥 CRITICAL: Behind content
-        (globalBg as HTMLElement).style.pointerEvents = 'none';
-        logger.info('✅ #global-bg gradient set directly (GSAP not available)');
-      }
-      
-      // 🔥 DEBUG: Check actual background values after setting
-      const backgroundDiagnosticTimer = setTimeout(() => {
-        const bodyBg = document.body ? window.getComputedStyle(document.body).background : 'N/A';
-        const htmlBg = document.documentElement ? window.getComputedStyle(document.documentElement).background : 'N/A';
-        const globalBgComputed = globalBg ? window.getComputedStyle(globalBg as HTMLElement).background : 'N/A';
-        logger.info('🔍 [launch-screen] Computed backgrounds after setting:', {
-          body: bodyBg.substring(0, 80),
-          html: htmlBg.substring(0, 80),
-          globalBg: globalBgComputed.substring(0, 80)
-        });
-      }, 100);
-      this.eventCleanups.push(() => clearTimeout(backgroundDiagnosticTimer));
-    } catch(e) {
-      logger.warn('⚠️ Failed to set background:', e);
-    }
   }
 
   /**

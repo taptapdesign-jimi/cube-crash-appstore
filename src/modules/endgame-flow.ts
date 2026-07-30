@@ -15,6 +15,7 @@ import {
 } from './journey-origin-state.js';
 import { resolveJourneyStartDecision } from './journey-start-decision.ts';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -776,10 +777,10 @@ function createNewCardCleanBoardHandoffCover(): () => void {
     'inset:0',
     'z-index:1294000',
     'pointer-events:none',
-    'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, radial-gradient(ellipse at center, rgb(255,255,255) 0%, rgb(255,250,244) 48%, rgb(252,238,223) 100%)',
     'opacity:1',
     'transform:translateZ(0)',
   ].join(';');
+  applyAppPaperSurfaceToElement(cover);
   document.body.appendChild(cover);
   return () => {
     try { gsap.killTweensOf(cover); } catch {}

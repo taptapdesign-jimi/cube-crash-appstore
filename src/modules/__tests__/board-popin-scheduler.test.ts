@@ -48,12 +48,12 @@ describe('board pop-in scheduler', () => {
     expect(nearSimultaneousStarts).toBeGreaterThan(10);
   });
 
-  test('groups board-entry haptics into four ordered beats instead of one per tile', () => {
+  test('groups board-entry haptics into six compact ordered beats instead of one per tile', () => {
     const schedule = createBoardPopInHapticSchedule(createBoardPopInPlan(36, () => 0.5));
 
-    expect(schedule).toHaveLength(4);
+    expect(schedule).toHaveLength(6);
     expect(schedule).toEqual([...schedule].sort((a, b) => a - b));
-    expect(schedule.every((beat, index) => index === 0 || beat - schedule[index - 1] >= 0.055)).toBe(true);
+    expect(schedule.every((beat, index) => index === 0 || beat - schedule[index - 1] >= 0.045)).toBe(true);
   });
 
   test('does not schedule more haptics than visible pop-in tiles', () => {

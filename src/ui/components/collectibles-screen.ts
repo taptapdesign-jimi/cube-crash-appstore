@@ -362,7 +362,7 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                     tag: 'p',
                     id: 'detail-card-description',
                     className: 'detail-description',
-                    text: 'Clean a board in less than 2 minutes',
+                    text: 'Clean a stage in less than 2 minutes',
                   },
                 ],
               },

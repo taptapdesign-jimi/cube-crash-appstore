@@ -41,6 +41,11 @@ import { isArcadeHomeRunMode, markArcadeHomeRunOrigin, setRunMode, RUN_MODE_JOUR
 import { isJourneyOriginActive } from './journey-origin-state.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
 import { FINAL_MERGE_REASONS, getFinalMergeCleanBoardReason } from './final-merge-reasons.ts';
+import {
+  findRecentFinalMergeRuntime,
+  isFinalMergeRuntimeTileProtected,
+  markFinalMergeRuntime,
+} from './final-merge-runtime-guard.ts';
 import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import { updateEndgameHint, resetEndgameHint } from './endgame-hint.ts';
 import { shouldShowStackItHintForTiles } from './endgame-hint-eligibility.ts';
@@ -126,6 +131,7 @@ import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
 import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
 import { handleStartLevelHudDrop } from './app-core-startlevel-huddrop.ts';
 import { shouldShowJourneyBottomDecor } from './journey-bottom-decor-decision.ts';
+import { createGameplayTileCartoonVariant } from './gameplay-tile-cartoon-motion.ts';
 import { resolveFinalMergeSpawnGuard, resolvePreSpawnFinalMergeCompletion } from './final-merge-spawn-guard.ts';
 import { resolveMagnetPullProgressDecision } from './magnet-pull-progress-decision.ts';
 import { resolveMerge6SpawnMode } from './merge6-spawn-mode-decision.ts';
@@ -409,6 +415,7 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
     const candidates = tiles.filter((t: Tile) => {
       if (!t || t.destroyed) return false;
       if ((t.value | 0) !== 6) return false;
+      if (isFinalMergeRuntimeTileProtected(t)) return false;
       // 🔒 EXCLUDE: ALL active magnet pull merge 6 - must stay on board
       if ((t as any)._wildMagnetPulledTilesMerge === true) return false;
       if ((t as any)._wildMagnetMergeCallback) return false;
@@ -5014,8 +5021,57 @@ async function animateBoardExit(){
 // Imported: tintLocked
 // 🔥 v112: randVal moved to app-core-utils.ts
 // Imported: randVal
-let journeyGameBottomDecorHideTimer: number | null = null;
 let journeyGameBottomDecorRunKey = 0;
+let journeyGameBottomDecorLifecycleToken = 0;
+let journeyGameBottomDecorTween: gsap.core.Tween | null = null;
+
+async function waitForJourneyGameBottomDecorReady(
+  img: HTMLImageElement,
+  timeoutMs = 1000,
+): Promise<void> {
+  const waitForDecode = async (): Promise<void> => {
+    if (typeof img.decode !== 'function') return;
+    let timeoutId: number | null = null;
+    try {
+      await Promise.race([
+        img.decode().catch(() => undefined),
+        new Promise<void>((resolve) => {
+          timeoutId = window.setTimeout(resolve, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    }
+  };
+
+  if (img.complete && img.naturalWidth > 0) {
+    await waitForDecode();
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      img.removeEventListener('load', finish);
+      img.removeEventListener('error', finish);
+      resolve();
+    };
+    const timeoutId = window.setTimeout(finish, timeoutMs);
+    img.addEventListener('load', finish, { once: true });
+    img.addEventListener('error', finish, { once: true });
+  });
+
+  await waitForDecode();
+}
+
+function killJourneyGameBottomDecorTween(): void {
+  if (!journeyGameBottomDecorTween) return;
+  try { journeyGameBottomDecorTween.kill(); } catch {}
+  journeyGameBottomDecorTween = null;
+}
 
 function getJourneyGameBottomDecorUrl(decorIndex: number, scale = 1): string {
   const scaleSuffix = scale === 2 ? '@2x' : '';
@@ -5061,45 +5117,126 @@ function ensureJourneyGameBottomDecor(): HTMLImageElement | null {
   return img;
 }
 
+function primeJourneyGameBottomDecor(img: HTMLImageElement): void {
+  img.hidden = false;
+  img.classList.remove('is-visible', 'is-entering', 'is-exiting');
+  img.classList.add('is-prepared');
+  gsap.set(img, {
+    y: 84,
+    scaleX: 0.94,
+    scaleY: 0.82,
+    opacity: 0,
+    transformOrigin: '50% 100%',
+    force3D: true,
+  });
+}
+
+function prepareJourneyGameBottomDecor(): void {
+  const host = document.getElementById('app');
+  const img = ensureJourneyGameBottomDecor();
+  if (!host || !img) return;
+
+  ++journeyGameBottomDecorLifecycleToken;
+  killJourneyGameBottomDecorTween();
+  host.classList.add('journey-board-game-active');
+  document.body?.classList.add('journey-board-game-active');
+  updateJourneyGameBottomDecorSource(img);
+  primeJourneyGameBottomDecor(img);
+  // Decode while the board transition is still covering gameplay. The visible
+  // HUD/board-enter callback owns the animation itself.
+  void waitForJourneyGameBottomDecorReady(img);
+}
+
 function setJourneyGameBottomDecorVisible(visible: boolean): void {
   const host = document.getElementById('app');
   if (!host) return;
   const img = visible ? ensureJourneyGameBottomDecor() : host.querySelector<HTMLImageElement>('#journey-game-bottom-decor');
-  if (journeyGameBottomDecorHideTimer !== null) {
-    window.clearTimeout(journeyGameBottomDecorHideTimer);
-    journeyGameBottomDecorHideTimer = null;
-  }
   if (!img) {
     host.classList.toggle('journey-board-game-active', visible);
     return;
   }
   if (visible) {
-    const alreadyVisible = !img.hidden && img.classList.contains('is-visible') && !img.classList.contains('is-exiting');
+    const alreadyVisible = !img.hidden &&
+      !img.classList.contains('is-exiting') &&
+      (img.classList.contains('is-visible') || img.classList.contains('is-entering'));
     host.classList.add('journey-board-game-active');
     document.body?.classList.add('journey-board-game-active');
     if (alreadyVisible) {
       return;
     }
     updateJourneyGameBottomDecorSource(img);
-    img.hidden = false;
-    img.classList.remove('is-visible', 'is-exiting');
-    img.getBoundingClientRect();
-    window.requestAnimationFrame(() => {
-      img.classList.add('is-visible');
+    const lifecycleToken = ++journeyGameBottomDecorLifecycleToken;
+    killJourneyGameBottomDecorTween();
+    primeJourneyGameBottomDecor(img);
+    img.classList.remove('is-prepared');
+    img.classList.add('is-entering');
+
+    void waitForJourneyGameBottomDecorReady(img).then(() => {
+      if (
+        lifecycleToken !== journeyGameBottomDecorLifecycleToken ||
+        img.hidden ||
+        img.classList.contains('is-exiting') ||
+        !host.classList.contains('journey-board-game-active')
+      ) return;
+
+      journeyGameBottomDecorTween = trackTween(img, {
+        y: 0,
+        scaleX: 1,
+        scaleY: 1,
+        opacity: 1,
+        duration: 0.62,
+        ease: 'back.out(1.9)',
+        force3D: true,
+        overwrite: 'auto',
+        onComplete: () => {
+          if (lifecycleToken !== journeyGameBottomDecorLifecycleToken) return;
+          journeyGameBottomDecorTween = null;
+          img.classList.remove('is-entering');
+          img.classList.add('is-visible');
+          gsap.set(img, { clearProps: 'transform,opacity,willChange' });
+        },
+      });
     });
     return;
   }
-  img.classList.remove('is-visible');
-  img.classList.add('is-exiting');
-  journeyGameBottomDecorHideTimer = window.setTimeout(() => {
-    img.hidden = true;
-    img.classList.remove('is-exiting');
+  const lifecycleToken = ++journeyGameBottomDecorLifecycleToken;
+  const exitOpacity = Number(gsap.getProperty(img, 'opacity'));
+  killJourneyGameBottomDecorTween();
+  if (img.hidden) {
+    img.classList.remove('is-visible', 'is-entering', 'is-exiting', 'is-prepared');
     host.classList.remove('journey-board-game-active');
     document.body?.classList.remove('journey-board-game-active');
-    journeyGameBottomDecorHideTimer = null;
-    // Reset any lingering GSAP shake transform so next show starts clean.
-    try { (window as any).gsap?.set(img, { x: 0, y: 0, clearProps: 'x,y' }); } catch {}
-  }, 520);
+    gsap.set(img, { clearProps: 'transform,opacity,willChange' });
+    return;
+  }
+  // Freeze the current rendered alpha before removing the steady-state class,
+  // otherwise CSS would snap the image to opacity 0 before GSAP can exit it.
+  gsap.set(img, { opacity: Number.isFinite(exitOpacity) ? exitOpacity : 1 });
+  img.classList.remove('is-visible', 'is-entering', 'is-prepared');
+  img.classList.add('is-exiting');
+
+  const finishHide = () => {
+    if (lifecycleToken !== journeyGameBottomDecorLifecycleToken) return;
+    journeyGameBottomDecorTween = null;
+    img.hidden = true;
+    img.classList.remove('is-exiting', 'is-prepared');
+    host.classList.remove('journey-board-game-active');
+    document.body?.classList.remove('journey-board-game-active');
+    gsap.set(img, { clearProps: 'transform,opacity,willChange' });
+  };
+
+  journeyGameBottomDecorTween = trackTween(img, {
+    y: 70,
+    scaleX: 0.96,
+    scaleY: 0.88,
+    opacity: 0,
+    duration: 0.44,
+    ease: 'back.in(1.45)',
+    force3D: true,
+    overwrite: 'auto',
+    onComplete: finishHide,
+    onInterrupt: finishHide,
+  });
 }
 
 function showJourneyGameBottomDecorForHudDrop(): void {
@@ -5165,10 +5302,10 @@ async function startLevel(n){
   if (isArcadeHomeRunMode()) {
     setJourneyGameBottomDecorVisible(false);
   } else {
-    // Journey board gameplay always owns the bottom decor. HUD drop callbacks also show it,
-    // but startLevel is the lifecycle source of truth so saved/resumed boards cannot miss it.
+    // Prime/decode behind the board transition. The visible HUD/board enter
+    // callback starts the actual cartoon pop-in so it cannot finish offscreen.
     journeyGameBottomDecorRunKey += 1;
-    showJourneyGameBottomDecorForHudDrop();
+    prepareJourneyGameBottomDecor();
   }
   
   // STATS TRACKING: Update highest board reached
@@ -7310,6 +7447,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       (dst as any)._ccFinalMergeAllowedByResolver = isFinalMergeByResolver;
       (dst as any)._ccFinalMergeBlockerCount = finalMergeBlockersBefore.length;
       (dst as any)._ccFinalMergeActiveSnapshotCount = activeTilesBeforeMerge.length;
+      if (isFinalMergeByResolver) {
+        markFinalMergeRuntime(dst, getSpecialDiceFinaleFxForMerge({
+          src,
+          dst,
+          srcSpecial: srcSpecialMerge6,
+          dstSpecial: dstSpecialMerge6,
+        }));
+      }
       if (!isFinalMergeByResolver) {
         (dst as any)._ccNonFinalMerge6 = true;
         (dst as any)._ccNonFinalMerge6At = Date.now();
@@ -9408,14 +9553,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             sizeBoostScale: 1.3,
             sizeScale: regularMerge6Fx.smokeSizeScale,
             countScale: regularMerge6Fx.smokeCountScale,
-            instantFadeOut: true,
+            instantFadeOut: false,
+            durationScale: 0.9,
             distanceScale: regularMerge6Fx.smokeDistanceScale,
             upwardBias: regularMerge6Fx.smokeUpwardBias,
             color: 0xFFFFFF,
             haloColor: 0xFFFFFF,
             baseAlpha: 1,
             trailAlpha: 1,
-            solidAlpha: true,
+            cloudAlphaProfile: true,
             blendMode: 'normal',
           });
         }
@@ -11528,8 +11674,6 @@ function checkLevelEnd(){
 
     checkLevelEndTimer = trackDelayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
       checkLevelEndTimer = null;
-      // Safety sweep before any decision
-      forceRemoveMagnetMergeResidues('checkLevelEnd');
       if (failScreenFlowInProgress || (window as any).__ccFailScreenPending === true) {
         devLog('⏳ checkLevelEnd skipped - fail screen flow already pending/in progress');
         checkLevelEndRetryCount = 0;
@@ -11565,43 +11709,28 @@ function checkLevelEnd(){
       checkLevelEndSkipStartedAt = null;
     }
 
+    const checkLevelEndNow = Date.now();
+    const recentFinalMergeRuntime = findRecentFinalMergeRuntime(tiles, checkLevelEndNow);
+    const protectedFinalMergeTile = tiles.find((tile: any) =>
+      isFinalMergeRuntimeTileProtected(tile, checkLevelEndNow)
+    );
+    if (protectedFinalMergeTile) {
+      devLog('⏳ checkLevelEnd deferred - final merge animation/handoff is active', {
+        finaleFx: recentFinalMergeRuntime?.finaleFx || 'regular',
+      });
+      scheduleCheckLevelEnd(0.25, 'final-merge-runtime-active');
+      return;
+    }
+
+    // Recovery sweep is safe only after active final-merge runtimes have been
+    // excluded. Its own predicate repeats this guard as defense in depth.
+    forceRemoveMagnetMergeResidues('checkLevelEnd');
+
     // 🛡️ SAFETY helpers
     const clearTileFromGridSafe = (tile: any) => {
       return detachTileFromGrid(tile, grid);
     };
 
-    // 🛡️ SAFETY: Remove only TRULY orphaned merge-6 tiles (stale from crash/abort)
-    // ⚠️ Do NOT remove ACTIVE magnet pull merge 6: _willPullTiles, _hasTilesToPull, _wildMagnetPulledTilesMerge, etc.
-    try {
-      const lingeringMagnet6 = tiles.filter((t: any) => {
-        if (!t || t.destroyed) return false;
-        if ((t.value | 0) !== 6) return false;
-        if ((t as any)._wildMagnetPulledTilesMerge === true) return false;
-        if ((t as any)._wildMagnetMergeCallback) return false;
-        if ((t as any)._willPullTiles === true) return false;
-        if ((t as any)._hasTilesToPull === true) return false;
-        if ((t as any)._wildMagnetPulledTilesScoring === true) return false;
-        return (t as any)._noTilesPulled === true || (t as any)._wasWildMagnetMerge6 === true;
-      });
-      lingeringMagnet6.forEach((t: any) => {
-        clearTileFromGridSafe(t);
-        t.visible = false;
-        t.alpha = 0;
-        t.eventMode = 'none';
-        removeTile(t);
-        delete (t as any)._wildMagnetPulledTilesMerge;
-        delete (t as any)._wildMagnetMergeCallback;
-        delete (t as any)._willPullTiles;
-        delete (t as any)._hasTilesToPull;
-        delete (t as any)._wildMagnetPulledTilesScoring;
-        delete (t as any)._noTilesPulled;
-        delete (t as any)._wasWildMagnetMerge6;
-        devWarn('🧲 SAFETY: Removed lingering magnet merge-6 tile during checkLevelEnd');
-      });
-    } catch (err) {
-      devWarn('⚠️ SAFETY: Failed to sweep lingering magnet merge-6 tiles:', err);
-    }
-    
     // 🔥 CRITICAL FIX: Skip check if _isLastMerge flag is set on any merge-6 tile (clean board flow in progress)
     // This prevents fail screen from triggering when clean board flow is in progress
     const hasLastMergeTile = tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
@@ -12111,8 +12240,9 @@ function checkLevelEnd(){
         return; // Don't trigger clean board - game continues
       }
       
-      const cleanFlowReason =
-        checkLevelEndResult.reason === 'last_merge' || checkLevelEndResult.reason === 'only_merge6_remains'
+      const cleanFlowReason = recentFinalMergeRuntime
+        ? getFinalMergeCleanBoardReason(recentFinalMergeRuntime.finaleFx)
+        : checkLevelEndResult.reason === 'last_merge' || checkLevelEndResult.reason === 'only_merge6_remains'
           ? 'clean_board_from_last_merge_checkLevelEnd'
           : 'clean_board_from_checkLevelEnd';
 
@@ -12635,7 +12765,7 @@ function removeTile(t){
   });
 }
 
-// 🔥 COMBINED MERGE ANIMATION: clean uniform bounce without squash/stretch
+// Shared Journey/Arcade stack contact motion; tuning lives in gameplay-tile-cartoon-motion.ts.
 function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   if (!targetTile) return;
 
@@ -12644,41 +12774,50 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
     targetTile.anchor.set(0.5, 0.5);
   }
 
-  // Kill scale ownership left by hover/idle before starting the merge response.
-  try { gsap.killTweensOf(targetTile.scale); } catch {}
+  try {
+    gsap.killTweensOf(targetTile.scale);
+    animationManager.killExternalTimeline((targetTile as any)._mergeImpactTl);
+  } catch {}
 
-  // Uniform scaling keeps stacked cube geometry solid and avoids a flattened look.
-  const tl = animationManager.trackExternalTimeline(gsap.timeline({
-    onComplete: () => {
-      // Hard-reset to exactly (1, 1) to avoid floating-point drift
-      if (targetTile.scale) {
-        targetTile.scale.set(1, 1);
-      }
-    }
-  }));
-
+  targetTile.scale?.set?.(1, 1);
+  const variant = createGameplayTileCartoonVariant('stack');
   const motionVariation = 0.97 + Math.random() * 0.06;
-  const peakScale = 1.105 + Math.random() * 0.025;
+  let tl: gsap.core.Timeline | null = null;
+  const releaseOwnership = () => {
+    if ((targetTile as any)._mergeImpactTl === tl) {
+      (targetTile as any)._mergeImpactTl = null;
+    }
+  };
 
-  // Small impact bump.
-  tl.to(targetTile.scale, {
-    x: 1.02,
-    y: 1.02,
-    duration: 0.06 * motionVariation,
-    ease: 'power2.out'
-  });
+  tl = animationManager.trackExternalTimeline(gsap.timeline({
+    onComplete: () => {
+      if (!targetTile.destroyed && targetTile.scale) targetTile.scale.set(1, 1);
+      releaseOwnership();
+    },
+    onInterrupt: releaseOwnership,
+  }));
+  (targetTile as any)._mergeImpactTl = tl;
 
-  // One compact, symmetric bounce and a clean settle.
   tl.to(targetTile.scale, {
-    x: peakScale,
-    y: peakScale,
-    duration: 0.075 * motionVariation,
-    ease: 'power2.out'
+    x: variant.anticipation.scaleX,
+    y: variant.anticipation.scaleY,
+    duration: variant.anticipation.durationSeconds * motionVariation,
+    ease: variant.anticipation.ease,
   }).to(targetTile.scale, {
-    x: 1.0,
-    y: 1.0,
-    duration: 0.115 * motionVariation,
-    ease: 'back.out(1.8)'
+    x: variant.peak.scaleX,
+    y: variant.peak.scaleY,
+    duration: variant.peak.durationSeconds * motionVariation,
+    ease: variant.peak.ease,
+  }).to(targetTile.scale, {
+    x: variant.rebound.scaleX,
+    y: variant.rebound.scaleY,
+    duration: variant.rebound.durationSeconds * motionVariation,
+    ease: variant.rebound.ease,
+  }).to(targetTile.scale, {
+    x: 1,
+    y: 1,
+    duration: variant.settleDurationSeconds * motionVariation,
+    ease: variant.settleEase,
   });
 
   devLog('🍬 Playing combined merge impact + absorb animation on tile');
@@ -12687,8 +12826,8 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
 function playRegularMergeContactPresentation(targetTile: any, sourceTile: any): void {
   if (!targetTile || targetTile.destroyed) return;
 
-  // One owner for regular merge presentation: no duplicate smoke and no legacy
-  // squash/stretch landBounce. All scale motion stays perfectly uniform.
+  // One owner for regular merge presentation: no duplicate smoke or legacy
+  // landBounce; the shared cartoon profile owns all scale motion.
   playStackLayerClick(targetTile);
   playMergeImpactAndAbsorbAnimation(targetTile);
   playNeighborMergeRecoil(targetTile, sourceTile);
@@ -12942,7 +13081,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     if (result?.action === 'play-again' || result?.action === 'retry' || result?.action === 'continue') {
       if (isArcadeRunReachedSummary) {
         try { (window as any).__ccForceArcadeRestartStage01 = true; } catch {}
-        devLog('🎮 Arcade run reached Play Again - restarting fresh Stage 01');
+        devLog('🎮 Arcade run reached Play Again - restarting fresh Round 01');
         restartGame();
       } else {
         // Board fail modal already calls window.CC.restart() immediately on Play Again.
@@ -14174,7 +14313,7 @@ async function showResumeGameModal(): Promise<void> {
 
     // Subtitle
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'Resume your last board.';
+    subtitle.textContent = 'Resume your last stage.';
     subtitle.style.cssText = [
       'margin: 0',
       'font-size: 18px',

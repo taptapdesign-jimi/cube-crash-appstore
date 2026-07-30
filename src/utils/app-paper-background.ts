@@ -7,7 +7,11 @@ export const APP_PAPER_GRADIENT =
 export const APP_PAPER_BACKGROUND =
   `${APP_PAPER_OVERLAY}, ${APP_PAPER_TEXTURE} center/100% 100% no-repeat, ${APP_PAPER_GRADIENT}`;
 
-const applyPaperSurfaceToElement = (element: HTMLElement): void => {
+/**
+ * Paints a full-viewport/occluding surface with the canonical app paper.
+ * Use this only when a screen must cover gameplay content beneath it.
+ */
+export const applyAppPaperSurfaceToElement = (element: HTMLElement): void => {
   element.style.setProperty('background', APP_PAPER_BACKGROUND, 'important');
   element.style.setProperty('background-color', APP_PAPER_BASE_COLOR, 'important');
   element.style.setProperty(
@@ -21,8 +25,9 @@ const applyPaperSurfaceToElement = (element: HTMLElement): void => {
 };
 
 /**
- * Applies the exact launch/preloader paper surface to every global background owner.
- * Screen containers remain transparent so the texture keeps one viewport-relative position.
+ * Applies the canonical viewport paper to one visible owner: body.
+ * HTML remains a solid fallback and #global-bg remains transparent, preventing
+ * duplicate texture layers or slightly different viewport positioning.
  */
 export function applyAppPaperBackground(): void {
   const html = document.documentElement;
@@ -31,13 +36,15 @@ export function applyAppPaperBackground(): void {
   const app = document.getElementById('app') as HTMLElement | null;
 
   html.style.setProperty('--app-gradient', APP_PAPER_BACKGROUND);
-  applyPaperSurfaceToElement(html);
-  if (body) applyPaperSurfaceToElement(body);
+  html.style.setProperty('background', APP_PAPER_BASE_COLOR, 'important');
+  html.style.setProperty('background-image', 'none', 'important');
+  if (body) applyAppPaperSurfaceToElement(body);
 
   if (globalBg) {
     globalBg.style.setProperty('left', '0');
     globalBg.style.setProperty('right', '0');
-    applyPaperSurfaceToElement(globalBg);
+    globalBg.style.setProperty('background', 'transparent', 'important');
+    globalBg.style.setProperty('background-image', 'none', 'important');
   }
 
   if (app) {

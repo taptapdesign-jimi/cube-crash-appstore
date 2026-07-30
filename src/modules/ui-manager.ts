@@ -15,7 +15,7 @@ import { markArcadeHomeRunOrigin } from './run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
-import { APP_PAPER_BACKGROUND, applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -1987,12 +1987,7 @@ class UIManager {
     try { (window as any).CC?.softResetBoardView?.('nav:settings'); } catch {}
 
     applyPaperBackground();
-    const body = document.body;
-    const html = document.documentElement;
-    const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const currentGradient = APP_PAPER_BACKGROUND;
-    const currentGlobalBgGradient = APP_PAPER_BACKGROUND;
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped/tiled paper background
     clearSliderBackgrounds();
@@ -2026,7 +2021,7 @@ class UIManager {
       }
     });
     
-    console.log('🎨 [Settings ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    console.log('🎨 [Settings ENTER] Preserving shared paper surface - GSAP:', !!gsap, 'App:', !!appElement);
     
     // 🔥 CRITICAL: Start fade animation FIRST, then play exit animation
     // Fade duration: 0.8s for smooth premium transition
@@ -2037,19 +2032,7 @@ class UIManager {
     // Animate to solid color AFTER exit animation completes
     console.log('⚠️ [DEBUG] Keeping gradient with !important during exit animation, will fade to solid AFTER');
     
-    // Ensure paper background stays with !important during exit animation
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-    }
+    applyPaperBackground();
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
@@ -2058,18 +2041,7 @@ class UIManager {
     // Step 1: Play exit animation for Settings slide (gradient stays with !important during exit)
     // 🔥 CRITICAL: Re-apply paper background ONE MORE TIME right before exit animation
     // This ensures 50% paper opacity is preserved if something changed it during slider positioning
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-    }
+    applyPaperBackground();
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');

@@ -98,7 +98,7 @@ function createNavButton(
       tag: 'div',
       className: 'nav-badge',
       attributes: {
-        'aria-label': `${badgeCount} new journey boards`,
+        'aria-label': `${badgeCount} new Journey stages`,
       },
       children: [
         {
@@ -211,7 +211,7 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
   }
   
   const slideName = 'Journey';
-  const ariaLabel = `${count} new journey boards`;
+  const ariaLabel = `${count} new Journey stages`;
   const forceReset = opts.forceReset === true;
   
   // ✅ SIMPLIFIED: Get current badge count from all sources

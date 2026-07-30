@@ -61,8 +61,8 @@ const stepCopy: Record<TutorialStep, { title: string; subtitle: string }> = {
     subtitle: 'Drag to stack this dice to make 6.',
   },
   3: {
-    title: 'Clear the board',
-    subtitle: 'Stack and merge dice until\nthe board is clear.',
+    title: 'Clear the stage',
+    subtitle: 'Stack and merge dice until\nthe stage is clear.',
   },
   4: {
     title: 'Special dice',
@@ -801,7 +801,7 @@ function combinedRect(rects: Array<DOMRect | null>): DOMRect | null {
 
 function titleHtml(step: TutorialStep): string {
   if (step === 2) return '<strong>Merge</strong> dice';
-  if (step === 3) return '<strong>Clear</strong> the board';
+  if (step === 3) return '<strong>Clear</strong> the stage';
   if (step === 4) return '<strong>Special</strong> dice';
   return '<strong>Drag</strong> to stack';
 }

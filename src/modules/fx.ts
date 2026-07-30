@@ -9,6 +9,7 @@ import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { getSpecialDiceTrailColors } from './special-dice-registry.ts';
+import { getSmokeCloudParticleAlpha } from './gameplay-fx-profile.ts';
 import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
@@ -4957,6 +4958,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const sizeBoostScale = options.sizeBoostScale ?? 1;
   const instantFadeOut = options.instantFadeOut === true;
   const solidAlpha     = options.solidAlpha === true;
+  const cloudAlphaProfile = options.cloudAlphaProfile === true;
   const upwardBias     = Math.max(0, options.upwardBias ?? 0);
   const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
   const spawnShape     = options.spawnShape ?? 'box';
@@ -5028,7 +5030,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const ry = r0 * aspectRatio;
       
       // Random opacity variation
-      const randomAlpha = solidAlpha
+      const randomAlpha = solidAlpha || cloudAlphaProfile
         ? bubbleAlpha
         : bubbleAlpha * (0.7 + Math.random() * 0.6); // 70-130% of base alpha
       const puffColor = bubbleColors?.length
@@ -5115,7 +5117,12 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
         }
       });
 
-      const targetAlpha = options.trailAlpha ?? 0.95;
+      const radialDistance = Math.hypot(sx / Math.max(1, size * 0.5), sy / Math.max(1, size * 0.5));
+      const centerStrength = 1 - Math.min(1, radialDistance / 1.25);
+      const cloudAlpha = getSmokeCloudParticleAlpha(centerStrength);
+      const targetAlpha = cloudAlphaProfile
+        ? cloudAlpha * (options.trailAlpha ?? 1)
+        : (options.trailAlpha ?? 0.95);
       tl.to(puff, { alpha: targetAlpha, duration: tIn, ease: 'power2.out' }, stg)
         .to(puff, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
         .to(puff, { alpha: targetAlpha, duration: tHold, ease: 'none' }, `>${0}`)

@@ -195,7 +195,7 @@ export async function showTutorialCompleteModal(options: {
     const overlay = document.createElement('div');
     overlay.id = 'cc-tutorial-complete-overlay';
     const titleText = options.title || 'Congrats!';
-    const subtitleText = options.subtitle || 'You cleared the board.';
+    const subtitleText = options.subtitle || 'You cleared the stage.';
     overlay.innerHTML = `
       <h1 class="cc-tutorial-complete-title" style="opacity:0;transform:scale(0) translateY(-28px);"></h1>
       <p class="cc-tutorial-complete-subtitle" style="opacity:0;transform:scale(0) translateY(-22px);"></p>

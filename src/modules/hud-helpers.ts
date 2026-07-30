@@ -11,6 +11,7 @@ import { smokeBubblesAtTile } from './fx.ts';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -298,8 +299,11 @@ let boardIndicatorLabel: HTMLElement | null = null;
 let comboWobbleTween: gsap.core.Tween | null = null; // GSAP tween for combo icon wobble animation
 
 function formatHudBoardIndicatorLabel(boardNumber: number): string {
-  const padded = String(Math.max(0, boardNumber | 0)).padStart(2, '0');
-  return isArcadeHomeRunMode() ? `Stage ${padded}` : `Board ${padded}`;
+  return formatGameplayProgressLabel(
+    isArcadeHomeRunMode() ? 'arcade' : 'journey',
+    Math.max(0, boardNumber | 0),
+    { padTo: 2 },
+  );
 }
 
 // 🔥 CLEANUP: Function to kill all combo animations and prevent memory leaks
@@ -1220,7 +1224,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   // (renderamo ih jednom; pozicioniranje brojeva ispod)
   if (!HUD_ROOT._labels) {
     const lblStyle = { fontFamily: 'Baloo2, system-ui, -apple-system, sans-serif', fontSize: 16, fill: 0x735C4C, fontWeight: '700', fontStyle: 'normal' };
-    const m = new Text({ text: 'Board', style: lblStyle });
+    const m = new Text({ text: 'Stage', style: lblStyle });
     const s = new Text({ text: 'Score', style: lblStyle });
     const c = new Text({ text: 'Combo', style: lblStyle });
     m.anchor.set(0.5, 0);

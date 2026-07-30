@@ -43,6 +43,7 @@ import {
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { startIOSJourneyWorldEnterAudit } from '../utils/ios-journey-world-enter-audit.js';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import {
   JourneyWorldAnimationCoordinator,
   type JourneyWorldAnimationUnit,
@@ -85,10 +86,6 @@ function shouldSkipDetailModalGameAssetPreload(): boolean {
 
 function waitForImageReady(img: HTMLImageElement, timeoutMs = 1200): Promise<void> {
   if (!img || !img.src) return Promise.resolve();
-  if (img.complete && img.naturalWidth > 0) {
-    const decode = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
-    return decode.catch(() => {});
-  }
 
   return new Promise((resolve) => {
     let done = false;
@@ -109,6 +106,18 @@ function waitForImageReady(img: HTMLImageElement, timeoutMs = 1200): Promise<voi
     };
     const onError = finish;
     const timer = window.setTimeout(finish, timeoutMs);
+
+    if (img.complete) {
+      if (img.naturalWidth > 0 && typeof img.decode === 'function') {
+        // A complete image can still leave decode() pending in Chrome/WebKit.
+        // The shared timer guarantees World enter cannot stay hidden forever.
+        void img.decode().then(finish).catch(finish);
+      } else {
+        finish();
+      }
+      return;
+    }
+
     img.addEventListener('load', onLoad, { once: true });
     img.addEventListener('error', onError, { once: true });
   });
@@ -191,7 +200,7 @@ function cleanupDetailStatsEnterAnimation(modal: HTMLElement | null | undefined)
       try { (node as HTMLElement).style.removeProperty('will-change'); } catch {}
       try {
         const el = node as HTMLElement;
-        el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+        el.classList.remove('detail-stat-exiting');
         el.style.removeProperty('animation');
         el.style.removeProperty('animation-delay');
       } catch {}
@@ -245,7 +254,7 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
   statsContainers.forEach((el) => {
     try { gsap.killTweensOf(el); } catch {}
     el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
-    el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+    el.classList.remove('detail-stat-exiting');
     el.style.removeProperty('transform');
     el.style.removeProperty('opacity');
     el.style.removeProperty('visibility');
@@ -434,7 +443,7 @@ const JOURNEY_DEV_BOARD_REFRESH_KEY = '__ccJourneyDevBoardsDirty';
 const JOURNEY_RETURN_BOARD_ID_KEY = '__ccJourneyReturnBoardId';
 /** Single start offset for the full Journey world stack; adding later worlds below must not change it. */
 const JOURNEY_BOARDSTACK_NUDGE_DOWN_PX = 138;
-/** Lift the complete Forest, Beach and Area 51 world scene without changing its internal alignment. */
+/** Lift the complete Forest, Beach and Area 55 world scene without changing its internal alignment. */
 const JOURNEY_V700_WORLD_CONTENT_LIFT_PX = 0;
 /** Position cards/numbers relative to the Journey world/decor layers. */
 const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
@@ -442,7 +451,7 @@ const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 /** V700 scoped world bottom room after the 10th unit; keeps the screen compact without clipping idle/exit motion. */
 const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 680;
-/** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 51 intentionally stay unchanged. */
+/** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 55 intentionally stay unchanged. */
 const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
@@ -476,21 +485,21 @@ const JOURNEY_WORLD_LABELS: Record<number, { id: number; name: string; subtitle:
   1: {
     id: 1,
     name: 'Forest',
-    subtitle: 'Boards 01-10',
+    subtitle: 'Stages 01-10',
     asset: `${FOREST_WORLD_ASSET_BASE}/Forest main.png`,
     className: 'journey-v700-world-forest',
   },
   2: {
     id: 2,
     name: 'Beach',
-    subtitle: 'Boards 11-20',
+    subtitle: 'Stages 11-20',
     asset: `${BEACH_WORLD_ASSET_BASE}/beach-main.png`,
     className: 'journey-v700-world-beach',
   },
   3: {
     id: 3,
-    name: 'Robo',
-    subtitle: 'Boards 21-30',
+    name: 'Area 55',
+    subtitle: 'Stages 21-30',
     asset: `${ROBO_WORLD_ASSET_BASE}/robo-main.png`,
     className: 'journey-v700-world-robo',
   },
@@ -520,8 +529,9 @@ const JOURNEY_V700_WORLD_CLOUD_ASSETS = [
 ];
 
 const JOURNEY_V700_HUB_CLOUDS: JourneyV700WorldCloudSpec[] = [
-  // Forest framing: large upper-left and upper-right clouds plus a medium cloud hugging Forest's lower-right edge.
+  // Forest framing: upper-left cloud bank, upper-right cloud, and a medium cloud hugging Forest's lower-right edge.
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: -70, y: -6, width: 272, opacity: 0.78, dx: 8, dy: -5, duration: 7.3, delay: -3.2, scale: 1.03, worldId: 1 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[1], x: -92, y: 58, width: 188, opacity: 0.74, dx: 7, dy: 4, duration: 6.8, delay: -2.4, scale: 1.025, worldId: 1 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 100, y: 6, width: 248, opacity: 0.76, dx: 7, dy: -5, duration: 7.1, delay: -4.6, scale: 1.03, worldId: 1 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 200, y: 138, width: 166, opacity: 0.72, dx: -7, dy: 5, duration: 6.7, delay: -1.9, scale: 1.02, worldId: 1 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -34, y: 76, width: 286, opacity: 0.8, dx: 8, dy: -5, duration: 6.4, delay: -0.8, scale: 1.02 },
@@ -2198,7 +2208,7 @@ class JourneyBoardsManager {
 
     const addForestMainClouds = () => {
       const cloudSlots = [
-        { x: -14, y: -18, width: 286, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
+        { x: -44, y: -38, width: 286, src: `${BOARD_TRANSITION_ASSET_BASE}/oblak+srednji.png`, jitter: false },
         { x: 248, y: -32, width: 184 },
         { x: 332, y: 30, width: 136 },
         { x: -74, y: 266, width: 120 },
@@ -4999,18 +5009,18 @@ class JourneyBoardsManager {
       'SUN SPLASH',
       'TIDE TURN',
       'CASTAWAY',
-      'ROBO MAIN',
+      'AREA 55',
       'CRATER RUN',
       'BEAMLINE',
       'MARS METAL',
       'LASER LIFT',
       'DUST SIGNAL',
-      'ROBOT RIFT',
+      'AREA 55 RIFT',
       'ALIEN ARC',
       'ORBIT OUT',
       'FINAL SIGNAL',
     ];
-    return names[boardNumber - 1] || `Board ${boardNumber}`;
+    return names[boardNumber - 1] || formatGameplayProgressLabel('journey', boardNumber);
   }
 
   /** Scrolls only an unfinished world screen to its active interim card. */
@@ -5886,6 +5896,26 @@ class JourneyBoardsManager {
     });
   }
 
+  /**
+   * Own the visible Journey content enter after homepage/background preparation.
+   * A remembered World view must not consume its enter while the screen is hidden.
+   */
+  public playJourneyV700VisibleEnterFromHomepage(): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    if (!container) return;
+
+    const view = container.dataset.journeyV700View || this.journeyV700View;
+    if (view === 'world' && this.journeyV700WorldId) {
+      this.playJourneyV700WorldEnter(container, this.journeyV700WorldId, {
+        source: 'homepage-visible-world',
+        waitForImages: false,
+      });
+      return;
+    }
+
+    this.playJourneyV700HubEnterFromHomepage();
+  }
+
   private openJourneyV700World(worldId: number, source?: HTMLElement): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     if (!container) return;
@@ -5905,6 +5935,12 @@ class JourneyBoardsManager {
 
     this.journeyV700WorldOpenInProgress = true;
     (container as any).__ccJourneyV700Opening = true;
+    // A manual Hub -> World tap starts a new visible lifecycle. Return-only
+    // suppression markers from a prior game/tutorial may not own this render.
+    delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+    delete (window as any).__ccReturningFromDetailModal;
+    delete (window as any).__ccReturningFromInterimBoard;
+    localStorage.removeItem('__ccReturningFromInterimBoard');
     this.logJourneyV700Flow('open-world-start', { requestedWorldId: worldId, hasSource: !!source }, container);
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
@@ -5950,7 +5986,7 @@ class JourneyBoardsManager {
       }
     };
 
-    this.playJourneyV700HubExit(`open-world-${worldId}`).then(() => {
+    this.playJourneyV700HubExit(`open-world-${worldId}`, source || null).then(() => {
       startWorldRender();
     }).catch((error) => {
       this.logJourneyV700Flow('open-world-hub-exit-error-fallback', {
@@ -6028,10 +6064,8 @@ class JourneyBoardsManager {
       (window as any).__ccReturningFromDetailModal === true ||
       (window as any).__ccReturningFromInterimBoard === true ||
       localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
-    if (
-      (window as any).__ccSuppressJourneyV700AutoWorldEnter === true ||
-      hasExplicitWorldReturnOwner
-    ) {
+    const isVisibleHubToWorldOpen = (container as any).__ccJourneyV700Opening === true;
+    if (!isVisibleHubToWorldOpen) {
       const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
       const motion = getJourneyV700MotionProfile(reducedMotion);
       const targets = this.getJourneyV700WorldTargets(container);
@@ -6051,12 +6085,17 @@ class JourneyBoardsManager {
         worldId,
         targetCount: targets.length,
         hasExplicitWorldReturnOwner,
+        hasSuppressAutoEnterFlag: (window as any).__ccSuppressJourneyV700AutoWorldEnter === true,
+        awaitingVisibleScreenOwner: !isVisibleHubToWorldOpen,
       }, container);
       return;
     }
 
     try {
-      this.playJourneyV700WorldEnter(container, worldId);
+      this.playJourneyV700WorldEnter(container, worldId, {
+        source: 'hub-world-open',
+        waitForImages: false,
+      });
     } catch (error) {
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
     }
@@ -6099,7 +6138,7 @@ class JourneyBoardsManager {
     });
   }
 
-	  public playJourneyV700HubExit(reason = 'hub-exit'): Promise<void> {
+	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
 	    const worldCards = Array.from(
@@ -6185,10 +6224,36 @@ class JourneyBoardsManager {
         }
       }
 
-      worldCards.slice().reverse().forEach((card, index) => {
-        try {
-          gsap.killTweensOf(card);
-          gsap.to(card, {
+	      worldCards.slice().reverse().forEach((card, index) => {
+	        try {
+	          gsap.killTweensOf(card);
+	          if (card === selectedWorldCard) {
+	            gsap.set(card, {
+	              y: 0,
+	              scale: 1,
+	              opacity: 1,
+	              visibility: 'visible',
+	              transformOrigin: '50% 50%',
+	              force3D: true,
+	            });
+	            gsap.timeline({
+	              defaults: { force3D: true, transformOrigin: '50% 50%' },
+	              onComplete: finishTarget,
+	              onInterrupt: finishTarget,
+	            })
+	              .to(card, {
+	                y: 0,
+	                scale: 0,
+	                opacity: 1,
+	                duration: BOARD_AREA_CARD_TAP_EXIT_DURATION,
+	                ease: BOARD_AREA_CARD_TAP_EXIT_EASE,
+	                onComplete: () => {
+	                  gsap.set(card, { opacity: 0, visibility: 'hidden' });
+	                },
+	              });
+	            return;
+	          }
+	          gsap.to(card, {
             y: motion.exit.y,
             scale: motion.exit.scale,
             opacity: 0,
@@ -7420,7 +7485,7 @@ class JourneyBoardsManager {
       const image = document.createElement('img');
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = cardImagePath;
-      image.alt = board.name || `Board ${board.id}`;
+      image.alt = board.name || formatGameplayProgressLabel('journey', board.id);
       image.className = 'journey-board-image journey-board-image-preload';
       // WKWebView can skip lazy images inside Journey's animated/fixed layout on
       // the first open. Load DOM-visible Journey cards immediately, while keeping
@@ -7633,7 +7698,7 @@ class JourneyBoardsManager {
       const image = document.createElement('img');
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = './assets/colelctibles/common back.png';
-      image.alt = `Board ${board.id} (interim)`;
+      image.alt = `${formatGameplayProgressLabel('journey', board.id)} (interim)`;
       image.className = 'journey-board-image';
       // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
       image.loading = 'eager';
@@ -7836,7 +7901,7 @@ class JourneyBoardsManager {
         // Boards 21-30 reuse existing collectible art instead of rendering as empty number-only cards.
         const image = document.createElement('img');
         image.src = lockedBoardImagePath;
-        image.alt = `Board ${board.id} (locked)`;
+        image.alt = `${formatGameplayProgressLabel('journey', board.id)} (locked)`;
         image.className = 'journey-board-image journey-board-locked-replica-image';
         image.loading = 'eager';
         (image as any).fetchPriority = 'high';
@@ -8296,7 +8361,7 @@ class JourneyBoardsManager {
             child.style.transition = 'none';
           }
 
-          child.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+          child.classList.remove('detail-stat-exiting');
           child.style.removeProperty('animation');
           child.style.removeProperty('animation-delay');
           child.style.animationDelay = `${contentStartDelay + 0.05 + i * 0.05}s`;
@@ -9529,7 +9594,7 @@ class JourneyBoardsManager {
             }
             
             // Show feedback
-            alert(`Board ${board.id} stats reset to 0`);
+            alert(`${formatGameplayProgressLabel('journey', board.id)} stats reset to 0`);
           } catch (error) {
             logger.error(`❌ Failed to reset board ${board.id} stats:`, error);
             alert('Error resetting stats');
@@ -9551,7 +9616,7 @@ class JourneyBoardsManager {
         motionEl.className = 'detail-image-motion';
         const img = document.createElement('img');
         img.src = board.interim ? './assets/colelctibles/common back.png' : (board.imagePath || '');
-        img.alt = board.name || `Board ${board.id}`;
+        img.alt = board.name || formatGameplayProgressLabel('journey', board.id);
         img.loading = 'eager';
         (img as any).decoding = 'async';
         (img as any).fetchPriority = 'high';
@@ -9592,8 +9657,8 @@ class JourneyBoardsManager {
       const titleEl = detailModal.querySelector('#detail-title');
       if (titleEl) {
         const boardNumberStr = board.id.toString().padStart(2, '0');
-        titleEl.textContent = `Board ${boardNumberStr}`;
-        logger.info(`✅ Detail modal title set to: Board ${boardNumberStr}`);
+        titleEl.textContent = formatGameplayProgressLabel('journey', boardNumberStr);
+        logger.info(`✅ Detail modal title set to: ${formatGameplayProgressLabel('journey', boardNumberStr)}`);
       }
 
       // Set rarity badge to "COMMON"
@@ -9637,7 +9702,7 @@ class JourneyBoardsManager {
           `;
         } else {
           descEl.removeAttribute('aria-hidden');
-          descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+          descEl.textContent = "The stage waits.\nA single move appears.\nEverything begins.";
           descEl.style.cssText = `
             display: block !important;
             visibility: visible !important;
@@ -9815,7 +9880,7 @@ class JourneyBoardsManager {
               `;
             } else {
               if (!descElAfterInit.textContent || descElAfterInit.textContent.trim() === '') {
-                descElAfterInit.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+                descElAfterInit.textContent = "The stage waits.\nA single move appears.\nEverything begins.";
               }
               descElAfterInit.removeAttribute('aria-hidden');
               descElAfterInit.style.marginLeft = '80px';
@@ -9930,7 +9995,7 @@ class JourneyBoardsManager {
         // correctly returns to Play without another UI-specific flag.
         const boardHasSavedState = hasResumableSavedStateForBoard(board.id, { clearInvalid: true });
         const buttonText = boardHasSavedState ? 'Continue' : 'Play';
-        const ariaLabel = boardHasSavedState ? 'Continue Board' : 'Play Board';
+        const ariaLabel = boardHasSavedState ? 'Continue Stage' : 'Play Stage';
         
         logger.debug(`🎮 Board ${board.id} button will show: "${buttonText}"`, { hasSavedState: boardHasSavedState });
         
@@ -10087,7 +10152,7 @@ class JourneyBoardsManager {
           newContinueBtn.style.setProperty('display', 'block', 'important');
           
           const handleContinueInterim = async (source: string) => {
-            logger.info(`🔄 Continue Board ${source} for board ${board.id}`);
+            logger.info(`🔄 Continue Stage ${source} for board ${board.id}`);
             try {
               if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
                 JOURNEY_CARD_IDLE_BOUNCE.stop();
@@ -10139,7 +10204,7 @@ class JourneyBoardsManager {
             await handleContinueInterim('touchend');
           }, { capture: true, passive: false });
           
-          logger.info(`✅ Continue Board button listener attached for board ${board.id}`);
+          logger.info(`✅ Continue Stage button listener attached for board ${board.id}`);
         }
       }
       // 🔥 NEW LOGIC: All other boards (including last unlocked) have NO CTA buttons
@@ -10581,7 +10646,7 @@ class JourneyBoardsManager {
               gsap.fromTo(
                 detailImage,
                 {
-                  scale: 0.65,
+                  scale: BOARD_AREA_MODAL_ENTER_SCALE,
                   opacity: 0,
                   visibility: 'hidden',
                   force3D: true,
@@ -10591,9 +10656,9 @@ class JourneyBoardsManager {
                   scale: 1,
                   opacity: 1,
                   visibility: 'visible',
-                  duration: 0.5,
-                  ease: 'back.out(1.8)',
-                  delay: 0.05,
+                  duration: BOARD_AREA_MODAL_ENTER_DURATION,
+                  ease: BOARD_AREA_MODAL_ENTER_EASE,
+                  delay: BOARD_AREA_MODAL_ENTER_BASE_DELAY,
                   force3D: true,
                   overwrite: true,
                   onStart: () => {
@@ -10848,7 +10913,7 @@ class JourneyBoardsManager {
             }
             statElements.forEach((el) => {
               const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
-              el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+              el.classList.remove('detail-stat-exiting');
               el.style.removeProperty('animation');
               el.style.removeProperty('animation-delay');
               el.style.setProperty('display', el.dataset.statOriginalDisplay || defaultDisplay, 'important');
@@ -10922,6 +10987,17 @@ class JourneyBoardsManager {
               });
             }
 
+            const statsEnterTimeline = trackTimeline({
+              defaults: { overwrite: 'auto' },
+              onComplete: () => {
+                if ((detailModal as any).__detailStatsEnterTimeline === statsEnterTimeline) {
+                  (detailModal as any).__detailStatsEnterTimeline = null;
+                }
+                restoreStatsVisibility();
+              },
+            });
+            (detailModal as any).__detailStatsEnterTimeline = statsEnterTimeline;
+
             statElements.forEach((element, elementIndex) => {
               if (!element) return;
               
@@ -10938,12 +11014,12 @@ class JourneyBoardsManager {
               if (elementLabel) gsap.killTweensOf(elementLabel);
               if (elementContent) gsap.killTweensOf(elementContent);
               
-              element.classList.remove('detail-stat-entering', 'detail-stat-exiting');
+              element.classList.remove('detail-stat-exiting');
               element.style.removeProperty('animation');
               element.style.removeProperty('animation-delay');
               element.style.opacity = '0';
               element.style.visibility = 'hidden';
-              element.style.transform = 'scale(0)';
+              element.style.transform = `scale(${BOARD_AREA_MODAL_ENTER_SCALE})`;
               element.style.transformOrigin = 'center center';
               element.style.transition = 'none';
               element.style.willChange = 'transform, opacity';
@@ -10975,47 +11051,33 @@ class JourneyBoardsManager {
                 elementContent.style.visibility = 'visible';
               }
 
-              const handleStatEnterEnd = () => {
-                element.removeEventListener('animationend', handleStatEnterEnd);
-                element.classList.remove('detail-stat-entering');
-                element.style.removeProperty('animation');
-                element.style.removeProperty('animation-delay');
-                element.style.visibility = 'visible';
-                element.style.opacity = '1';
-                element.style.transform = 'none';
-                element.style.willChange = 'auto';
-                if (elementIcon) {
-                  elementIcon.style.visibility = 'visible';
-                  elementIcon.style.opacity = '1';
-                }
-                if (elementValue) {
-                  elementValue.style.visibility = 'visible';
-                  elementValue.style.opacity = '1';
-                }
-                if (elementLabel) {
-                  elementLabel.style.visibility = 'visible';
-                  elementLabel.style.opacity = '1';
-                }
-                if (elementContent) {
-                  elementContent.style.visibility = 'visible';
-                  elementContent.style.opacity = '1';
-                }
-              };
-
-              element.addEventListener('animationend', handleStatEnterEnd, { once: true });
-              element.style.animationDelay = `${delay}s`;
-              void element.offsetHeight;
-              element.classList.add('detail-stat-entering');
+              statsEnterTimeline.fromTo(
+                element,
+                {
+                  scale: BOARD_AREA_MODAL_ENTER_SCALE,
+                  opacity: 0,
+                  visibility: 'hidden',
+                  transformOrigin: 'center center',
+                  force3D: true,
+                  immediateRender: true,
+                },
+                {
+                  scale: 1,
+                  opacity: 1,
+                  visibility: 'visible',
+                  duration: BOARD_AREA_MODAL_ENTER_DURATION,
+                  ease: BOARD_AREA_MODAL_ENTER_EASE,
+                  force3D: true,
+                  immediateRender: false,
+                  onStart: () => {
+                    element.style.visibility = 'visible';
+                  },
+                },
+                delay,
+              );
             });
-            
-            // 🔒 Safety net: after animations finish, force stats visible in final state
-            const totalDelay = statBaseDelay + (statElements.length * statStagger) + 0.6;
-            (detailModal as any).__detailStatsRestoreTimer = window.setTimeout(() => {
-              (detailModal as any).__detailStatsRestoreTimer = null;
-              (detailModal as any).__detailStatsEnterTweens = null;
-              restoreStatsVisibility();
-            }, totalDelay * 1000);
-            logger.info(`📊 Detail stats enter animation using CSS per-item flow (${statElements.length} elements)`);
+
+            logger.info(`📊 Detail stats enter animation using one GSAP timeline (${statElements.length} elements)`);
           } else {
             logger.error(`❌ No stat elements found to animate!`);
             // Fallback: show stats container so content is visible even without animation
@@ -11872,10 +11934,10 @@ class JourneyBoardsManager {
     // Title
     const title = document.createElement('h3');
     title.textContent = action === 'show'
-      ? 'Show Boards'
+      ? 'Show Stages'
       : action === 'hide'
-        ? 'Hide Boards'
-        : 'Reset Board';
+        ? 'Hide Stages'
+        : 'Reset Stage';
     title.style.cssText = `
       font-size: 24px;
       font-weight: 800;

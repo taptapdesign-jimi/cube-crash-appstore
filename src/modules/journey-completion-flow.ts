@@ -1,3 +1,5 @@
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+
 type JourneyCompletionLogger = {
   info?: (...args: any[]) => void;
   warn?: (...args: any[]) => void;
@@ -50,7 +52,7 @@ export async function runJourneyCompletionFlow({
         await showJourneyNewCardScreen({
           boardNumber,
           cardImagePath: boardCard?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
-          cardName: boardCard?.name || `Board ${boardNumber}`,
+          cardName: boardCard?.name || formatGameplayProgressLabel('journey', boardNumber),
         });
         logger?.info?.(`🎁 Journey new card screen completed for board ${boardNumber}`);
 

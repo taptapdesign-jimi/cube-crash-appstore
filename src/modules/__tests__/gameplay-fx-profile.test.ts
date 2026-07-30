@@ -1,6 +1,7 @@
 import {
   getRegularMerge6FxProfile,
   getRegularStackSmokeProfile,
+  getSmokeCloudParticleAlpha,
 } from '../gameplay-fx-profile.js';
 
 describe('gameplay FX profile', () => {
@@ -26,5 +27,12 @@ describe('gameplay FX profile', () => {
     expect(full.smokeDistanceScale).toBeGreaterThan(1.1);
     expect(full.smokeCountScale).toBeLessThanOrEqual(0.9);
     expect(full.smokeUpwardBias).toBeGreaterThan(0);
+  });
+
+  it('keeps the merge smoke core strong while softening randomized cloud edges', () => {
+    expect(getSmokeCloudParticleAlpha(1, 0.5)).toBeGreaterThanOrEqual(0.95);
+    expect(getSmokeCloudParticleAlpha(0, 0.5)).toBeLessThan(0.4);
+    expect(getSmokeCloudParticleAlpha(0, 0)).toBeGreaterThanOrEqual(0.3);
+    expect(getSmokeCloudParticleAlpha(1, 1)).toBeLessThanOrEqual(1);
   });
 });

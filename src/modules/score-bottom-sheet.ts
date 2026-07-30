@@ -179,7 +179,7 @@ function getScoreSheetStats(boardNumber: number, mode: ScoreSheetMode = activeMo
       primaryLabel: 'High score',
       primaryIcon: './assets/highscore-icon.png',
       secondaryValue: highestStageOpened.toString().padStart(2, '0'),
-      secondaryLabel: 'Stages opened',
+      secondaryLabel: 'Rounds opened',
       secondaryIcon: './assets/clean-board.png',
       subtitle: 'Your best score so far.'
     };

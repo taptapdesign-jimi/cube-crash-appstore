@@ -60,7 +60,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                text: 'Merge dice, clear boards',
+                text: 'Merge dice, clear stages',
               },
               {
                 tag: 'button',

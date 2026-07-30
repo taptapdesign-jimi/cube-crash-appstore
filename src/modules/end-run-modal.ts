@@ -9,6 +9,7 @@ import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { resolveJourneyReturnTarget } from './journey-origin-state.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 
 let modal: HTMLElement | null = null;
 let endRunTransitionInProgress = false;
@@ -296,12 +297,14 @@ function createModal(): HTMLElement {
 
   const isArcadeRun = isArcadeHomeRunMode();
   const currentBoardNum = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-  const boardNumStr = String(currentBoardNum).padStart(2, '0');
-  const titleText = isArcadeRun ? 'Exit Game?' : 'Exit Board?';
-  const subtitleText = isArcadeRun
-    ? `Come back anytime.<br>Stage ${boardNumStr} is safe.`
-    : `Come back anytime.<br>Board ${boardNumStr} is safe.`;
-  const exitBtnLabel = isArcadeRun ? 'Exit Game' : 'Exit Board';
+  const progressLabel = formatGameplayProgressLabel(
+    isArcadeRun ? 'arcade' : 'journey',
+    currentBoardNum,
+    { padTo: 2 },
+  );
+  const titleText = isArcadeRun ? 'Exit Game?' : 'Exit Stage?';
+  const subtitleText = `Come back anytime.<br>${progressLabel} is safe.`;
+  const exitBtnLabel = isArcadeRun ? 'Exit Game' : 'Exit Stage';
 
   modal = document.createElement('div');
   modal.className = 'simple-bottom-sheet';
@@ -359,7 +362,7 @@ function createModal(): HTMLElement {
             delete (window as any).__ccArcadeStageWildMeterCarryover;
             delete (window as any).__ccFailScreenPending;
             (window as any).__ccForceArcadeRestartStage01 = true;
-            console.log('✅ end-run-modal: Arcade New Run will restart from Stage 01');
+            console.log('✅ end-run-modal: Arcade New Run will restart from Round 01');
           } else {
             const saveKey = getBoardSaveKey(currentBoardNumber);
             localStorage.removeItem(saveKey);
@@ -411,7 +414,7 @@ function createModal(): HTMLElement {
           await showJourneyNewCardScreen({
             boardNumber: safeBoardNumber,
             cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
-            cardName: board?.name || `Board ${safeBoardNumber}`,
+            cardName: board?.name || formatGameplayProgressLabel('journey', safeBoardNumber),
           });
           console.log(`✅ New Card dev screen completed for board ${safeBoardNumber}`);
         } catch (error) {

@@ -43,7 +43,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 
 - First-frame markup and fallback assets: `index.html`.
 - Launch animation/lifecycle owner: `src/modules/launch-screen.ts`.
-- Shared paper surface owner: `src/utils/app-paper-background.ts`; screen code should call the shared helper rather than introduce another paper-background string.
+- Shared paper definition and lifecycle owner: `src/utils/app-paper-background.ts`. `body` is the single visible viewport-relative paper owner; HTML is only a solid fallback, `#global-bg` and the launch container stay transparent. Full-screen gameplay-occluding surfaces such as Fail/Clear Board must use `applyAppPaperSurfaceToElement()` so they match the same canonical opacity, texture position, and gradient without introducing another background recipe.
 - Studio logo: `assets/logo addons/taplogo.png`.
 - Random character source: non-`@2x` files matching `assets/logo addons/lik-*.png`.
 - Current character set: `lik-board`, `lik-game`, `lik-gitara`, `lik-kauc`, `lik-klizanje`, `lik-lajna`, `lik-pas`, and `lik-vrt`.
@@ -55,13 +55,15 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - App/game orchestration: `src/modules/app-core.ts` and extracted `app-core-*` modules.
 - Gameplay decisions/final merge: `gameplay-resolution-engine.ts`, `final-merge-rules.ts`, `endgame-checker.ts`.
 - Merge/FX: `merge-animations.ts`, `fx.ts`, `fx-*`, `wild-stars.ts`, and `stars-collector.ts`.
+- Regular cube stack-contact and no-input board-idle stretch/squash tuning: `src/modules/gameplay-tile-cartoon-motion.ts`. Both Journey and Arcade consume this one profile; retune its `stack.strength` and `idle.strength` rather than introducing mode-specific motion copies.
 - Run origin: `run-mode.ts`; Arcade is `arcade_home`, Journey is `journey`.
+- Player-facing progression terminology is centralized in `src/modules/gameplay-terminology.ts`: Journey boards are shown as **Stage / Stages**, while Arcade stages are shown as **Round / Rounds**. Keep internal `board` state/save identifiers and Pixi `stage` identifiers unchanged for compatibility.
 - Homepage slider/navigation: `slider-manager.ts`, `navigation-control.ts`, `utils/animations.ts`, and `independent-navigation.css`.
 - Journey hub/world screens: `collectibles-manager.ts` and `journey-boards-manager.ts`.
 - Journey motion contract: [`JOURNEY_ANIMATION_CONTRACT.md`](JOURNEY_ANIMATION_CONTRACT.md).
 - Physical iOS performance workflow: [`IOS_LIVE_PERFORMANCE_INVESTIGATION.md`](IOS_LIVE_PERFORMANCE_INVESTIGATION.md).
 
-Journey Worlds hub and an individual Journey world are different surfaces. Every Journey Worlds hub entry starts at the absolute top, including returns from Forest/Beach/Area 51; the user scrolls the hub manually from there. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 51 screens.
+Journey Worlds hub and an individual Journey world are different surfaces. Every Journey Worlds hub entry starts at the absolute top, including returns from Forest/Beach/Area 55; the user scrolls the hub manually from there. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 55 screens.
 
 ## Engineering guardrails
 

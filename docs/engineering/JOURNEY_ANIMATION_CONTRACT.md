@@ -15,7 +15,7 @@ Project/context:
 
 Primary files:
 
-- `src/modules/journey-boards-manager.ts` — Journey hub/world rendering, world-screen content, Forest/Beach/Area 51 Units, card modal flow, board-game return flow, Journey-specific nav.
+- `src/modules/journey-boards-manager.ts` — Journey hub/world rendering, world-screen content, Forest/Beach/Area 55 Units, card modal flow, board-game return flow, Journey-specific nav.
 - `src/collectibles-manager.ts` — Journey screen show/hide, Homepage handoff, Journey hub back flow, generic collectibles/detail integration.
 - `src/ui/collectibles-animations.ts` — Journey viewport enter/exit animation, cleanup locks, Homepage transition coordination.
 - `src/collectibles-screen.css` — Journey hub/world/nav/modal styles and positions.
@@ -46,7 +46,7 @@ Do not regress these rules:
 - No opacity fade-out before card scale-in visually completes. The tapped card should read as scaling into itself; opacity can be finalized at the end for cleanup.
 - No clouds in front of Journey worlds. World clouds belong behind the world and should follow the same active/inactive state as their world.
 - No drag-to-open bug. Vertical dragging over a Journey world must scroll/overshoot, not open the world.
-- Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 51 world screens.
+- Preserve springy drag/overshoot on Journey Worlds and Forest/Beach/Area 55 world screens.
 - Preserve scroll interactivity after returning from card modal or board game.
 - Avoid old/new animation conflicts. Before adding a helper, search existing helpers/classes/listeners and remove or reuse stale paths.
 
@@ -54,12 +54,12 @@ Journey hub layout notes:
 
 - Hub world positions are controlled in `src/collectibles-screen.css` by `.journey-v700-world-forest`, `.journey-v700-world-beach`, and `.journey-v700-world-robo`.
 - Hub clouds are created near `renderJourneyV700Hub` in `src/modules/journey-boards-manager.ts`.
-- Current cloud-to-world mapping is by Y position: top clouds belong to Forest, middle to Beach, bottom to Area 51. Locked/inactive clouds use `.journey-v700-world-cloud.is-locked`.
+- Current cloud-to-world mapping is by Y position: top clouds belong to Forest, middle to Beach, bottom to Area 55. Locked/inactive clouds use `.journey-v700-world-cloud.is-locked`.
 
 Navigation rules:
 
 - Every Journey X/back/nav tap should call `playNavIconCartoonBounce(...)` from `src/utils/nav-icon-bounce.ts`.
-- Forest/Beach/Area 51 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
+- Forest/Beach/Area 55 screen nav, Journey Worlds nav, and card-modal nav should use the same cartoon tap feeling.
 - Nav/header exit starts immediately with the relevant content exit. Do not leave header/nav visible while content waits to begin exit.
 - Card modal X/header exit should begin immediately on X tap, not after the card/stat content has mostly finished exiting.
 
@@ -67,7 +67,7 @@ Navigation rules:
 
 Context: **Homepage slider → Journey Worlds hub**.
 
-Order: **Forest → Beach → Area 51** (top to bottom).
+Order: **Forest → Beach → Area 55** (top to bottom).
 
 Each World Unit starts at:
 
@@ -104,7 +104,7 @@ Lifecycle requirement: background preparation may render the Hub, but it must no
 
 Context: **Journey Worlds hub → Homepage slider**.
 
-Order: **Area 51 → Beach → Forest** (bottom to top).
+Order: **Area 55 → Beach → Forest** (bottom to top).
 
 Each World Unit animates from its idle/base state to:
 
@@ -133,7 +133,7 @@ A **cjelina** is one logical visual object whose internal pieces animate togethe
 
 For a Journey World hub item, the World image and its clouds form one Unit.
 
-For a Forest, Beach, or Area 51 board-area item, one Unit includes:
+For a Forest, Beach, or Area 55 board-area item, one Unit includes:
 
 - the floating-island PNG;
 - stump;
@@ -145,7 +145,7 @@ There is no stagger between pieces inside one Unit. They share the same enter st
 
 ## Standard Journey Card Tap Exit
 
-Context: tapping either a regular unlocked card or the interim card inside Forest, Beach, or Area 51.
+Context: tapping either a regular unlocked card or the interim card inside Forest, Beach, or Area 55.
 
 Both card types use the same shared V625-style animation before modal/game navigation:
 

@@ -17,6 +17,8 @@ import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-origin-state.js';
+import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
+import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -383,12 +385,12 @@ export async function showCleanBoardModal({
       'display:flex',
       'align-items:center',
       'justify-content:center',
-      'background:linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)), url("./assets/paper-bg.png") center / 100% 100% no-repeat, #f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity .2s ease',
       'overflow:visible' // Allow particles to float freely
     ].join(';');
+    applyAppPaperSurfaceToElement(el);
 
     // Card
     const card = document.createElement('div');
@@ -628,12 +630,12 @@ export async function showCleanBoardModal({
 
     // Board cleared text (initially hidden)
     const boardCleared = document.createElement('div');
-    const boardNumberLabel = boardNumber.toString().padStart(2, '0');
-    boardCleared.textContent = arcadeRunReached
-      ? `Stage ${boardNumberLabel} reached`
-      : isArcadeHomeRun
-      ? `Stage ${boardNumberLabel} cleared`
-      : `Board ${boardNumberLabel} cleared`;
+    const progressLabel = formatGameplayProgressLabel(
+      isArcadeHomeRun ? 'arcade' : 'journey',
+      boardNumber,
+      { padTo: 2 },
+    );
+    boardCleared.textContent = `${progressLabel} ${arcadeRunReached ? 'reached' : 'cleared'}`;
     // SIMPLE: Just text, no transforms, no animations
     boardCleared.style.position = 'absolute';
     boardCleared.style.color = '#b69077';

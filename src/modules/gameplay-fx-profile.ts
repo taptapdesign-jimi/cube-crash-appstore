@@ -23,3 +23,9 @@ export function getRegularMerge6FxProfile(reducedFx: boolean) {
     smokeUpwardBias: reducedFx ? 0.2 : 0.28,
   };
 }
+
+export function getSmokeCloudParticleAlpha(centerStrength: number, randomValue = Math.random()): number {
+  const center = Math.max(0, Math.min(1, Number.isFinite(centerStrength) ? centerStrength : 0));
+  const random = Math.max(0, Math.min(1, Number.isFinite(randomValue) ? randomValue : 0.5));
+  return Math.max(0.3, Math.min(1, 0.34 + center * 0.64 + (random - 0.5) * 0.16));
+}

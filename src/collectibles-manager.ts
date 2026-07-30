@@ -552,20 +552,20 @@ class CollectiblesManager {
         { id: 'common02', name: 'Quick Start', description: 'Start your first game', rarity: 'Common', event: 'game_start', unlocked: false },
         { id: 'common03', name: 'Score Hunter', description: 'Reach 100 points', rarity: 'Common', event: 'score_100', unlocked: false },
         { id: 'common04', name: 'Merge Master', description: 'Complete 10 merges', rarity: 'Common', event: 'merge_10', unlocked: false },
-        { id: 'common05', name: 'Peaceful', description: 'Clean a board in less than 2 minutes', rarity: 'Rare', event: 'quick_clean', unlocked: false },
+        { id: 'common05', name: 'Peaceful', description: 'Clean a stage in less than 2 minutes', rarity: 'Rare', event: 'quick_clean', unlocked: false },
         { id: 'common06', name: 'Wild User', description: 'Use a wild cube', rarity: 'Common', event: 'use_wild', unlocked: false },
         { id: 'common07', name: 'Combo King', description: 'Get a 3x combo', rarity: 'Common', event: 'combo_3', unlocked: false },
-        { id: 'common08', name: 'Board Cleaner', description: 'Clean 5 boards', rarity: 'Common', event: 'clean_5', unlocked: false },
+        { id: 'common08', name: 'Stage Cleaner', description: 'Clean 5 stages', rarity: 'Common', event: 'clean_5', unlocked: false },
         { id: 'common09', name: 'Speed Demon', description: 'Complete a level in 30 seconds', rarity: 'Rare', event: 'speed_level', unlocked: false },
         { id: 'common10', name: 'Point Collector', description: 'Reach 500 points', rarity: 'Common', event: 'score_500', unlocked: false },
         { id: 'common11', name: 'Wild Master', description: 'Use 5 wild cubes', rarity: 'Common', event: 'wild_5', unlocked: false },
         { id: 'common12', name: 'Combo Master', description: 'Get a 5x combo', rarity: 'Rare', event: 'combo_5', unlocked: false },
-        { id: 'common13', name: 'Board Master', description: 'Clean 10 boards', rarity: 'Common', event: 'clean_10', unlocked: false },
+        { id: 'common13', name: 'Stage Master', description: 'Clean 10 stages', rarity: 'Common', event: 'clean_10', unlocked: false },
         { id: 'common14', name: 'Score Master', description: 'Reach 1000 points', rarity: 'Common', event: 'score_1000', unlocked: false },
         { id: 'common15', name: 'Merge Legend', description: 'Complete 50 merges', rarity: 'Rare', event: 'merge_50', unlocked: false },
         { id: 'common16', name: 'Wild Legend', description: 'Use 10 wild cubes', rarity: 'Rare', event: 'wild_10', unlocked: false },
         { id: 'common17', name: 'Combo Legend', description: 'Get a 10x combo', rarity: 'Rare', event: 'combo_10', unlocked: false },
-        { id: 'common18', name: 'Board Legend', description: 'Clean 20 boards', rarity: 'Rare', event: 'clean_20', unlocked: false },
+        { id: 'common18', name: 'Stage Legend', description: 'Clean 20 stages', rarity: 'Rare', event: 'clean_20', unlocked: false },
         { id: 'common19', name: 'Score Legend', description: 'Reach 2000 points', rarity: 'Rare', event: 'score_2000', unlocked: false },
         { id: 'common20', name: 'Ultimate Player', description: 'Complete 100 merges', rarity: 'Epic', event: 'merge_100', unlocked: false }
       ],
@@ -573,7 +573,7 @@ class CollectiblesManager {
         { id: 'legendary01', name: 'Phoenix Rising', description: 'Achieve a score of 5000 in a single game', rarity: 'Legendary', event: 'score_5000', unlocked: false },
         { id: 'legendary02', name: 'Wild Storm', description: 'Use 25 wild cubes in a single game', rarity: 'Legendary', event: 'wild_25', unlocked: false },
         { id: 'legendary03', name: 'Combo Storm', description: 'Get a 20x combo', rarity: 'Legendary', event: 'combo_20', unlocked: false },
-        { id: 'legendary04', name: 'Board Storm', description: 'Clean 50 boards', rarity: 'Legendary', event: 'clean_50', unlocked: false },
+        { id: 'legendary04', name: 'Stage Storm', description: 'Clean 50 stages', rarity: 'Legendary', event: 'clean_50', unlocked: false },
         { id: 'legendary05', name: 'Ultimate Master', description: 'Complete 500 merges', rarity: 'Legendary', event: 'merge_500', unlocked: false },
         { id: 'legendary06', name: 'Legendary Cube', description: 'Find me if you can', rarity: 'Legendary', event: 'legendary_all', unlocked: false }
       ]
@@ -1358,7 +1358,7 @@ class CollectiblesManager {
                 }
                 if (!shouldPlayActiveBoardAreaEnter) {
                   if (!shouldUseV700WorldReturnEnter) {
-                    activeJourneyBoardsManager.playJourneyV700HubEnterFromHomepage?.();
+                    activeJourneyBoardsManager.playJourneyV700VisibleEnterFromHomepage?.();
                   }
                 }
                 let activeAreaEnterStarted = false;
