@@ -1,12 +1,12 @@
 import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
+import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 
 type WildSkinDeps = {
   Assets: { get: (key: string) => any };
   Texture: any;
   Rectangle: any;
-  SCALE_MODES: any;
   ASSET_WILD: string;
   ASSET_WILD_MAGNET: string;
   ASSET_WILD_JUICE: string;
@@ -27,7 +27,6 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     Assets,
     Texture,
     Rectangle,
-    SCALE_MODES,
     ASSET_WILD,
     ASSET_WILD_MAGNET,
     ASSET_WILD_JUICE,
@@ -102,9 +101,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       base.tint = 0xFFFFFF; 
       base.alpha = 1;
       base.visible = true;
-      // Optimize texture for pixel-perfect rendering (Pixi v8: use source + 'nearest')
-      const texSrc = base.texture && ((base.texture as { source?: { scaleMode?: any } }).source ?? (base.texture as { baseTexture?: { scaleMode?: any } }).baseTexture);
-      if (texSrc) texSrc.scaleMode = 'nearest';
+      applyGameplayTextureFiltering(base.texture);
     }
     
     // 🔥 CRITICAL: Hide pips and num for wild tiles

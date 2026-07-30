@@ -1,5 +1,5 @@
 // src/modules/board.ts
-import { Container, Sprite, Assets, Graphics, SCALE_MODES, Texture, Rectangle } from 'pixi.js';
+import { Container, Sprite, Assets, Graphics, Texture, Rectangle } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import {
   TILE, COLS, ROWS, GAP,
@@ -16,6 +16,7 @@ import {
 } from './special-dice-registry.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isTileTransientlySpawning, isVisibleGameplayResolvingSpecialPresence } from './tile-state-utils.ts';
+import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
@@ -29,6 +30,7 @@ interface Tile extends Container {
   locked?: boolean;
   shadow?: Graphics;
   rotG?: Container;
+  _ccSpatialG?: Container;
   overlay?: Sprite;
   stackG?: Container | null;
   pips?: Graphics;
@@ -94,9 +96,16 @@ function isUsableTexture(tex: any): boolean {
 
 function getBoardTexture(assetPath: string): Texture {
   const cached = Assets.get(assetPath);
-  if (isUsableTexture(cached)) return cached;
+  if (isUsableTexture(cached)) {
+    applyGameplayTextureFiltering(cached);
+    return cached;
+  }
   const fallback = Texture.from(assetPath);
-  return isUsableTexture(fallback) ? fallback : Texture.EMPTY;
+  if (isUsableTexture(fallback)) {
+    applyGameplayTextureFiltering(fallback);
+    return fallback;
+  }
+  return Texture.EMPTY;
 }
 
 function pickNumbersSkin() {
@@ -426,9 +435,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
         (t.base as any).tint = 0xFFFFFF;
         (t.base as any).alpha = 1;
         t.base.visible = true;
-        // Optimize texture for pixel-perfect rendering
-        const bt = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-        if (bt) bt.scaleMode = 'nearest';
+        applyGameplayTextureFiltering(t.base.texture);
       }
       
       // 🔥 CRITICAL: Hide pips and num for wild tiles
@@ -450,8 +457,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       t.base.texture = pickNumbersSkin();
       t.base.width = TILE;
       t.base.height = TILE;
-      const bt2 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-      if (bt2) bt2.scaleMode = 'nearest';
+      applyGameplayTextureFiltering(t.base.texture);
     }
     if (t.overlay) t.overlay.visible = false;
   } else {
@@ -460,8 +466,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       t.base.texture = getBoardTexture(ASSET_TILE);
       t.base.width = TILE;
       t.base.height = TILE;
-      const bt3 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
-      if (bt3) bt3.scaleMode = 'nearest';
+      applyGameplayTextureFiltering(t.base.texture);
     }
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
@@ -773,13 +778,16 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   // tilt grupa — pivot na VRHU pločice za "teži" osjećaj nagiba
   t.rotG = new Container();
   t.rotG.sortableChildren = true;
+  t._ccSpatialG = new Container();
+  t._ccSpatialG.label = 'tileSpatialG';
+  t.addChild(t._ccSpatialG);
   // postavi pivot na top-center (0, -TILE/2) i poziciju jednaku pivotu
   // kako bi centar pločice ostao u istom mjestu pri rotation=0
   try {
     t.rotG.pivot.set(0, -TILE / 2);
     t.rotG.position.set(0, -TILE / 2);
   } catch {}
-  t.addChild(t.rotG);
+  t._ccSpatialG.addChild(t.rotG);
   t.rotG.rotation = (Math.random() * 0.12) - 0.06;
 
   // drvena pločica (base)
@@ -787,8 +795,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   face.anchor.set(0.5);
   face.width = TILE;
   face.height = TILE;
-  const faceSrc = face.texture && ((face.texture as { source?: { scaleMode?: string } }).source ?? face.texture.baseTexture);
-  if (faceSrc) faceSrc.scaleMode = 'nearest';
+  applyGameplayTextureFiltering(face.texture);
   t.rotG.addChild(face);
   t.base = face;
 
@@ -798,8 +805,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   ov.width = TILE;
   ov.height = TILE;
   ov.alpha = 0.55;
-  const ovSrc = ov.texture && ((ov.texture as { source?: { scaleMode?: string } }).source ?? ov.texture.baseTexture);
-  if (ovSrc) ovSrc.scaleMode = 'nearest';
+  applyGameplayTextureFiltering(ov.texture);
   ov.visible = false;
   t.rotG.addChild(ov);
   t.overlay = ov;

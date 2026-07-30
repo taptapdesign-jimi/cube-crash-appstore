@@ -16,6 +16,7 @@ import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from '.
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -886,6 +887,7 @@ class UIManager {
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
+    sliderManager.refreshHomepageSpatialMotion();
     // Dev test/log buttons removed
     
     // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
@@ -1397,6 +1399,7 @@ class UIManager {
       this.elements.home.style.transition = 'none';
       logger.info('✅ Homepage shown, ready for slider enter animation');
     }
+    sliderManager.refreshHomepageSpatialMotion();
     
     applyPaperBackground();
   }
@@ -1410,6 +1413,7 @@ class UIManager {
       this.elements.home.style.visibility = 'visible';
       this.elements.home.style.opacity = '1';
       this.elements.home.style.pointerEvents = 'auto';
+      sliderManager.refreshHomepageSpatialMotion();
       // Dev test/log buttons removed
       
       // 🔥 CRITICAL FIX: Explicitly ensure slider container is visible
@@ -2278,6 +2282,7 @@ class UIManager {
     const gameSoundsToggle = document.getElementById('toggle-game-sounds') as HTMLInputElement;
     const musicToggle = document.getElementById('toggle-music') as HTMLInputElement;
     const vibrationToggle = document.getElementById('toggle-vibration') as HTMLInputElement;
+    const spatialMotionToggle = document.getElementById('toggle-spatial-motion') as HTMLInputElement;
     const footerHapticText =
       (document.getElementById('settings-footer-haptic') as HTMLElement | null) ||
       (settingsScreen.querySelector('.settings-footer-text') as HTMLElement | null);
@@ -2320,10 +2325,14 @@ class UIManager {
     const gameSoundsOldHandler = (gameSoundsToggle as any).__ccToggleHandler;
     const musicOldHandler = musicToggle ? (musicToggle as any).__ccToggleHandler : null;
     const vibrationOldHandler = (vibrationToggle as any).__ccToggleHandler;
+    const spatialMotionOldHandler = spatialMotionToggle ? (spatialMotionToggle as any).__ccToggleHandler : null;
     
     if (gameSoundsOldHandler) gameSoundsToggle.removeEventListener('change', gameSoundsOldHandler);
     if (musicToggle && musicOldHandler) musicToggle.removeEventListener('change', musicOldHandler);
     if (vibrationOldHandler) vibrationToggle.removeEventListener('change', vibrationOldHandler);
+    if (spatialMotionToggle && spatialMotionOldHandler) {
+      spatialMotionToggle.removeEventListener('change', spatialMotionOldHandler);
+    }
     
     // 🔥 CRITICAL: Create handler functions that update status text immediately
     const gameSoundsHandler = (e: Event) => {
@@ -2421,6 +2430,46 @@ class UIManager {
       
       console.log('✅ Haptic feedback triggered (vibration toggle changed, ON/OFF path)');
     };
+
+    const spatialMotionHandler = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const enabled = target.checked;
+      const statusEl = document.getElementById('status-spatial-motion');
+      const persist = (nextEnabled: boolean) => {
+        (window as any)._settings = (window as any)._settings || {};
+        (window as any)._settings.spatialMotionEnabled = nextEnabled;
+        if (typeof (window as any).saveSettings === 'function') {
+          (window as any).saveSettings((window as any)._settings);
+        }
+      };
+      const applyVisualState = (nextEnabled: boolean) => {
+        target.checked = nextEnabled;
+        if (statusEl) {
+          statusEl.textContent = nextEnabled ? 'ON' : 'OFF';
+          void statusEl.offsetHeight;
+        }
+      };
+
+      console.log('🧊 3D Motion toggle changed:', enabled);
+      playSettingsToggleBounce(target);
+      if (typeof (window as any).triggerHapticImpact === 'function') {
+        (window as any).triggerHapticImpact('light');
+      }
+
+      applyVisualState(enabled);
+      persist(enabled);
+      journeySpatialMotion.setEnabled(enabled);
+
+      if (enabled && journeySpatialMotion.requiresPermissionGesture()) {
+        // Start synchronously from the checkbox gesture so WebKit accepts the request.
+        void journeySpatialMotion.requestPermissionFromGesture().then((granted) => {
+          if (granted || !target.checked) return;
+          applyVisualState(false);
+          persist(false);
+          journeySpatialMotion.setEnabled(false);
+        });
+      }
+    };
     
     // Store handlers on elements for cleanup
     (gameSoundsToggle as any).__ccToggleHandler = gameSoundsHandler;
@@ -2431,6 +2480,10 @@ class UIManager {
     if (musicToggle) {
       (musicToggle as any).__ccToggleHandler = musicHandler;
       musicToggle.addEventListener('change', musicHandler);
+    }
+    if (spatialMotionToggle) {
+      (spatialMotionToggle as any).__ccToggleHandler = spatialMotionHandler;
+      spatialMotionToggle.addEventListener('change', spatialMotionHandler);
     }
 
     // Footer "Made with ❤️..." haptic (attach every Settings open; resilient to cleanup/rebuild)
@@ -2475,14 +2528,18 @@ class UIManager {
     const gameSoundsStatus = document.getElementById('status-game-sounds');
     const musicStatus = document.getElementById('status-music');
     const vibrationStatus = document.getElementById('status-vibration');
+    const spatialMotionStatus = document.getElementById('status-spatial-motion');
     
     console.log('🔍 Settings toggle elements verified:', {
       gameSoundsToggle: !!gameSoundsToggle,
       musicToggle: !!musicToggle,
       vibrationToggle: !!vibrationToggle,
+      spatialMotionToggle: !!spatialMotionToggle,
       gameSoundsChecked: gameSoundsToggle.checked,
       musicChecked: musicToggle?.checked,
-      vibrationChecked: vibrationToggle.checked
+      vibrationChecked: vibrationToggle.checked,
+      spatialMotionChecked: spatialMotionToggle?.checked,
+      spatialMotionStatus: spatialMotionStatus?.textContent,
     });
   }
   

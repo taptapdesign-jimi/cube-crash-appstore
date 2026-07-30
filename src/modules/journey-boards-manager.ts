@@ -52,6 +52,16 @@ import {
   createJourneyInterimBounceVariant,
   JOURNEY_INTERIM_IDLE_MOTION,
 } from './journey-interim-idle-policy.js';
+import {
+  createDetailModalStatsEnterDelays,
+  getDetailModalStatsEnterTotalDuration,
+} from './detail-modal-stats-enter-motion.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
+import {
+  cancelJourneySpatialPermissionModal,
+  shouldShowJourneySpatialPermissionForVisibleHub,
+  showJourneySpatialPermissionModal,
+} from './journey-spatial-permission-modal.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -200,7 +210,7 @@ function cleanupDetailStatsEnterAnimation(modal: HTMLElement | null | undefined)
       try { (node as HTMLElement).style.removeProperty('will-change'); } catch {}
       try {
         const el = node as HTMLElement;
-        el.classList.remove('detail-stat-exiting');
+        el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
         el.style.removeProperty('animation');
         el.style.removeProperty('animation-delay');
       } catch {}
@@ -254,7 +264,7 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
   statsContainers.forEach((el) => {
     try { gsap.killTweensOf(el); } catch {}
     el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
-    el.classList.remove('detail-stat-exiting');
+    el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
     el.style.removeProperty('transform');
     el.style.removeProperty('opacity');
     el.style.removeProperty('visibility');
@@ -272,6 +282,7 @@ function resetDetailStatsDomForOpen(modal: HTMLElement | null | undefined): void
     const el = node as HTMLElement;
     try { gsap.killTweensOf(el); } catch {}
     el.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+    el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
     el.style.removeProperty('transform');
     el.style.removeProperty('opacity');
     el.style.removeProperty('visibility');
@@ -4740,6 +4751,8 @@ class JourneyBoardsManager {
     this.cleanupInProgress = true;
     this.renderDisposed = true;
     try {
+    cancelJourneySpatialPermissionModal();
+    journeySpatialMotion.deactivate();
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
     this.releaseJourneyV700HubTopGuard('cleanup');
@@ -5382,6 +5395,8 @@ class JourneyBoardsManager {
 
     this.container = container;
     this.renderDisposed = false;
+    cancelJourneySpatialPermissionModal();
+    journeySpatialMotion.deactivate();
     this.resetJourneyBoardVisualResidue('renderBoards-before-dom-replace');
     try {
       const staleHubTargets = Array.from(container.querySelectorAll<HTMLElement>(
@@ -5694,6 +5709,7 @@ class JourneyBoardsManager {
           return;
         }
         (button as any).__ccJourneyV700LastTap = now;
+        journeySpatialMotion.suspend();
         this.openJourneyV700World(worldId, button);
       };
 
@@ -5741,6 +5757,8 @@ class JourneyBoardsManager {
         worldCards.forEach((card) => card.classList.add('journey-v700-idle-ready'));
         hub.classList.add('journey-v700-idle-ready');
         this.journeyV700Phase = 'idle';
+        journeySpatialMotion.activateJourneyHub(container);
+        this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-enter-skipped-recent-duplicate');
         this.logJourneyV700Flow('hub-enter-skipped-recent-duplicate', {
           worldCount: worldCards.length,
           cooldownRemainingMs: Math.round(this.journeyV700HubEnterCooldownUntil - now),
@@ -5760,6 +5778,8 @@ class JourneyBoardsManager {
           }
           hub.classList.add('journey-v700-idle-ready');
           this.journeyV700Phase = 'idle';
+          journeySpatialMotion.activateJourneyHub(container);
+          this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-enter-complete');
           this.logJourneyV700Flow('hub-enter-complete', {}, container);
         }
       };
@@ -5865,6 +5885,8 @@ class JourneyBoardsManager {
       }
       hub?.classList.add('journey-v700-idle-ready');
       this.journeyV700Phase = 'idle';
+      journeySpatialMotion.activateJourneyHub(container);
+      this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-visible-enter-complete');
       this.logJourneyV700Flow('hub-visible-enter-complete', { source: 'homepage' }, container);
     };
     if (hubCloudLayer) {
@@ -5893,6 +5915,22 @@ class JourneyBoardsManager {
         overwrite: true,
         onComplete: finishEnterTarget,
       });
+    });
+  }
+
+  private showJourneySpatialPermissionAfterVisibleHubEnter(container: HTMLElement, source: string): void {
+    const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+    if (!shouldShowJourneySpatialPermissionForVisibleHub(
+      journeyScreen,
+      container,
+      journeySpatialMotion.isEnabled(),
+      journeySpatialMotion.requiresPermissionGesture(),
+    )) return;
+
+    void showJourneySpatialPermissionModal(
+      () => journeySpatialMotion.requestPermissionFromGesture(),
+    ).then((choice) => {
+      this.logJourneyV700Flow('journey-spatial-intro-choice', { source, choice }, container);
     });
   }
 
@@ -6139,6 +6177,7 @@ class JourneyBoardsManager {
   }
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
+	    journeySpatialMotion.suspend();
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
 	    const worldCards = Array.from(
@@ -6658,6 +6697,7 @@ class JourneyBoardsManager {
       finishWorldEnterAudit('complete');
       emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       this.journeyV700Phase = 'idle';
+      journeySpatialMotion.activateJourneyWorld(container, worldId);
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art')) {
           target.style.removeProperty('opacity');
@@ -6690,6 +6730,7 @@ class JourneyBoardsManager {
     onComplete: () => void,
     options: { excludeBoardId?: number | null } = {}
   ): void {
+    journeySpatialMotion.suspend();
     this.journeyV700PreparedWorldEnter = null;
     ++this.journeyV700WorldMotionEpoch;
     const units = this.getJourneyV700AnimationUnits(container, this.journeyV700WorldId, {
@@ -6906,6 +6947,7 @@ class JourneyBoardsManager {
       return;
     }
     this.logJourneyV700Flow('close-world-start', {}, container);
+    journeySpatialMotion.suspend();
     if (this.journeyV700View !== 'world') {
       this.logJourneyV700Flow('close-world-ignored-not-world', {}, container);
       return;
@@ -10708,8 +10750,7 @@ class JourneyBoardsManager {
             }
           }
 
-          // STEP 4: Other content elements sequentially (staggered, after card)
-          // 🔥 USER REQUEST: Start at 0.2s and animate stat-items one by one with better stagger
+          // STEP 4: Other content elements and stats enter as one coordinated content beat.
           const baseDelay = 0.2; // Start after card image begins animating
           const regularStagger = 0.08; // Stagger for non-stat elements
           
@@ -10880,10 +10921,9 @@ class JourneyBoardsManager {
           
           logger.info(`🔍 Created statElements array with ${statElements.length} elements (stat-items + dividers)`);
           
-          // 🔥 OPTIMIZATION: Animate each stat element (stat-item or divider) one by one
-          // 🔥 USER REQUEST: Better stagger for fluid enter animation (more time between elements)
-          const statStagger = 0.08; // v300 timing: visible bounce, but full group stays near 1s total.
-          const statBaseDelay = baseDelay + (currentIndex * regularStagger); // v300 timing: start after non-stat elements.
+          // One shared contract owns both directions: this is the accepted five-beat
+          // CSS exit played backwards with the same DOM order and 50ms spacing.
+          const statEnterDelays = createDetailModalStatsEnterDelays(statElements.length);
           
           const restoreStatsVisibility = () => {
             if (!detailModal || detailModal.hidden || detailModal.style.display === 'none' || (detailModal as any).__detailModalExiting === true) {
@@ -10913,7 +10953,7 @@ class JourneyBoardsManager {
             }
             statElements.forEach((el) => {
               const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
-              el.classList.remove('detail-stat-exiting');
+              el.classList.remove('detail-stat-entering', 'detail-stat-exiting');
               el.style.removeProperty('animation');
               el.style.removeProperty('animation-delay');
               el.style.setProperty('display', el.dataset.statOriginalDisplay || defaultDisplay, 'important');
@@ -10987,21 +11027,11 @@ class JourneyBoardsManager {
               });
             }
 
-            const statsEnterTimeline = trackTimeline({
-              defaults: { overwrite: 'auto' },
-              onComplete: () => {
-                if ((detailModal as any).__detailStatsEnterTimeline === statsEnterTimeline) {
-                  (detailModal as any).__detailStatsEnterTimeline = null;
-                }
-                restoreStatsVisibility();
-              },
-            });
-            (detailModal as any).__detailStatsEnterTimeline = statsEnterTimeline;
-
             statElements.forEach((element, elementIndex) => {
               if (!element) return;
               
-              const delay = statBaseDelay + (elementIndex * statStagger); // Use consistent stagger for all elements
+              const delay = statEnterDelays[elementIndex] ?? 0;
+              const isDivider = element.classList.contains('detail-stat-divider');
 
               gsap.killTweensOf(element);
               const elementIcon = element.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
@@ -11014,17 +11044,17 @@ class JourneyBoardsManager {
               if (elementLabel) gsap.killTweensOf(elementLabel);
               if (elementContent) gsap.killTweensOf(elementContent);
               
-              element.classList.remove('detail-stat-exiting');
+              element.classList.remove('detail-stat-entering', 'detail-stat-exiting');
               element.style.removeProperty('animation');
               element.style.removeProperty('animation-delay');
               element.style.opacity = '0';
               element.style.visibility = 'hidden';
-              element.style.transform = `scale(${BOARD_AREA_MODAL_ENTER_SCALE})`;
+              element.style.transform = 'scale(0)';
               element.style.transformOrigin = 'center center';
               element.style.transition = 'none';
               element.style.willChange = 'transform, opacity';
+              element.style.animationDelay = `${delay}s`;
 
-              const isDivider = element.classList.contains('detail-stat-divider');
               const elementDefaultDisplay = isDivider ? 'block' : 'flex';
               element.style.setProperty('display', elementDefaultDisplay, 'important');
               
@@ -11051,33 +11081,22 @@ class JourneyBoardsManager {
                 elementContent.style.visibility = 'visible';
               }
 
-              statsEnterTimeline.fromTo(
-                element,
-                {
-                  scale: BOARD_AREA_MODAL_ENTER_SCALE,
-                  opacity: 0,
-                  visibility: 'hidden',
-                  transformOrigin: 'center center',
-                  force3D: true,
-                  immediateRender: true,
-                },
-                {
-                  scale: 1,
-                  opacity: 1,
-                  visibility: 'visible',
-                  duration: BOARD_AREA_MODAL_ENTER_DURATION,
-                  ease: BOARD_AREA_MODAL_ENTER_EASE,
-                  force3D: true,
-                  immediateRender: false,
-                  onStart: () => {
-                    element.style.visibility = 'visible';
-                  },
-                },
-                delay,
-              );
             });
 
-            logger.info(`📊 Detail stats enter animation using one GSAP timeline (${statElements.length} elements)`);
+            // Prime every item first, then start the CSS cascade in one layout flush.
+            void detailStatsListResolved?.offsetHeight;
+            if ((detailModal as any).__detailModalExiting !== true) {
+              statElements.forEach((element) => element.classList.add('detail-stat-entering'));
+              const restoreDelayMs = Math.ceil(
+                getDetailModalStatsEnterTotalDuration(statElements.length) * 1000,
+              ) + 34;
+              (detailModal as any).__detailStatsRestoreTimer = window.setTimeout(() => {
+                (detailModal as any).__detailStatsRestoreTimer = null;
+                restoreStatsVisibility();
+              }, restoreDelayMs);
+            }
+
+            logger.info(`📊 Detail stats enter is the exact CSS reverse of exit (${statElements.length} elements)`);
           } else {
             logger.error(`❌ No stat elements found to animate!`);
             // Fallback: show stats container so content is visible even without animation

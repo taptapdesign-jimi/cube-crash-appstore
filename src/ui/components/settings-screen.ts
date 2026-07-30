@@ -22,6 +22,10 @@ export interface SettingToggle {
 
 const SETTINGS_BACK_TAP_BOUNCE_EXIT_DELAY_MS = 0;
 
+// Single App Store release switch: set to false to remove the entry point and
+// developer panel from the rendered Settings tree.
+export const SETTINGS_DEVELOPER_TOOLS_ENABLED = true;
+
 type LastMergeWildChoice = {
   id: string;
   label: string;
@@ -635,6 +639,7 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
   const gameSoundsEnabled = savedSettings.gameSoundsEnabled || false;
   const hapticsEnabled = savedSettings.hapticsEnabled !== undefined ? savedSettings.hapticsEnabled : true;
   const musicEnabled = savedSettings.musicEnabled !== false;
+  const spatialMotionEnabled = savedSettings.spatialMotionEnabled !== false;
 
   const gameSoundsToggle: SettingToggle = {
     id: 'game-sounds',
@@ -658,6 +663,13 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
     label: 'Vibration',
     description: 'Vibration',
     onToggle: onToggleVibration,
+  };
+
+  const spatialMotionToggle: SettingToggle = {
+    id: 'spatial-motion',
+    status: spatialMotionEnabled ? 'ON' : 'OFF',
+    label: '3D Motion',
+    description: '3D Motion',
   };
 
   return {
@@ -695,17 +707,32 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
                         },
                       },
                     ],
-                    eventListeners: onBack ? { click: onBack } : undefined,
                   },
                   {
                     tag: 'h1',
                     className: 'settings-title',
                     text: 'Settings',
                   },
-                  {
+                  ...(SETTINGS_DEVELOPER_TOOLS_ENABLED ? [{
+                    tag: 'button',
+                    id: 'settings-dev-open-btn',
+                    className: 'settings-dev-open-button tap-scale',
+                    attributes: {
+                      type: 'button',
+                      'aria-label': 'Open developer settings',
+                    },
+                    children: [{
+                      tag: 'img',
+                      attributes: {
+                        src: './assets/nav/settings-nav.png',
+                        alt: '',
+                        'aria-hidden': 'true',
+                      },
+                    }],
+                  }] : [{
                     tag: 'div',
                     className: 'settings-header-spacer',
-                  },
+                  }]),
                 ],
               },
               {
@@ -727,17 +754,26 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
           },
           {
             tag: 'div',
-            className: 'settings-scrollable',
+            className: 'settings-scrollable settings-main-scrollable',
             children: [
               createSettingsToggle(gameSoundsToggle),
               { tag: 'div', className: 'settings-divider' },
               createSettingsToggle(musicToggle),
               { tag: 'div', className: 'settings-divider' },
               createSettingsToggle(vibrationToggle),
-              { tag: 'div', className: 'settings-divider settings-dev-divider' },
-              createSettingsDevArea(),
+              { tag: 'div', className: 'settings-divider' },
+              createSettingsToggle(spatialMotionToggle),
             ],
           },
+          ...(SETTINGS_DEVELOPER_TOOLS_ENABLED ? [{
+            tag: 'div',
+            className: 'settings-scrollable settings-developer-scrollable',
+            attributes: {
+              hidden: 'true',
+              'aria-hidden': 'true',
+            },
+            children: [createSettingsDevArea()],
+          }] : []),
           {
             tag: 'div',
             className: 'settings-footer',
@@ -763,6 +799,33 @@ export function renderSettingsScreen(
   const settingsConfig = createSettingsScreen(config);
   const element = HTMLBuilder.createElement(settingsConfig);
   container.appendChild(element);
+
+  const setSettingsView = (view: 'main' | 'developer') => {
+    const developerView = view === 'developer' && SETTINGS_DEVELOPER_TOOLS_ENABLED;
+    const mainPanel = element.querySelector('.settings-main-scrollable') as HTMLElement | null;
+    const developerPanel = element.querySelector('.settings-developer-scrollable') as HTMLElement | null;
+    const title = element.querySelector('.settings-title') as HTMLElement | null;
+    const devOpenButton = element.querySelector('#settings-dev-open-btn') as HTMLButtonElement | null;
+    const backButton = element.querySelector('#settings-back-btn') as HTMLButtonElement | null;
+
+    element.dataset.settingsView = developerView ? 'developer' : 'main';
+    element.classList.toggle('settings-developer-view-active', developerView);
+    if (mainPanel) {
+      mainPanel.hidden = developerView;
+      mainPanel.setAttribute('aria-hidden', developerView ? 'true' : 'false');
+    }
+    if (developerPanel) {
+      developerPanel.hidden = !developerView;
+      developerPanel.setAttribute('aria-hidden', developerView ? 'false' : 'true');
+      if (developerView) developerPanel.scrollTop = 0;
+    }
+    if (title) title.textContent = developerView ? 'Developer' : 'Settings';
+    if (devOpenButton) devOpenButton.hidden = developerView;
+    if (backButton) {
+      backButton.setAttribute('aria-label', developerView ? 'Back to settings' : 'Go back to home');
+    }
+  };
+  setSettingsView('main');
   
   // 🔥 DIFFERENT APPROACH: Use event delegation on settings screen container
   // This ensures back button works even if element is recreated or not found during init
@@ -772,11 +835,25 @@ export function renderSettingsScreen(
       ? (targetNode as Element)
       : targetNode?.parentElement) as Element | null;
     if (!target) return;
+    const devOpenButton = target.closest('#settings-dev-open-btn, .settings-dev-open-button');
+    if (devOpenButton && SETTINGS_DEVELOPER_TOOLS_ENABLED) {
+      e.preventDefault();
+      e.stopPropagation();
+      playSoftCartoonBounce((devOpenButton.querySelector('img') as HTMLElement | null) || (devOpenButton as HTMLElement));
+      setSettingsView('developer');
+      return;
+    }
     const backBtn = target.closest('#settings-back-btn, .settings-back-button');
     if (backBtn) {
       e.preventDefault();
       e.stopPropagation();
       (e as any).stopImmediatePropagation?.();
+
+      if (element.dataset.settingsView === 'developer') {
+        playSoftCartoonBounce((backBtn.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement));
+        setSettingsView('main');
+        return;
+      }
       
       console.log('🔙 Settings back button clicked via event delegation');
       playSoftCartoonBounce((backBtn.querySelector('img') as HTMLElement | null) || (backBtn as HTMLElement));
@@ -888,11 +965,12 @@ export function renderSettingsScreen(
   element.addEventListener('touchstart', toggleBounceHandler, { capture: true, passive: true });
   element.addEventListener('click', toggleBounceHandler, true);
 
-  // Safety: cleanup on in-app navigation
-  const navCleanupHandler = () => {
-    try { (element as any)._settingsCleanup?.(); } catch {}
+  // Settings stays mounted for the app lifetime. Navigation may reset its local
+  // sub-view, but must not dispose the persistent click/change ownership.
+  const navigationResetHandler = () => {
+    setSettingsView('main');
   };
-  window.addEventListener('cc-navigation', navCleanupHandler);
+  window.addEventListener('cc-navigation', navigationResetHandler);
 
   console.log('✅ Settings back button and Music toggle handlers attached via event delegation');
 
@@ -930,12 +1008,13 @@ export function renderSettingsScreen(
 
   // 🔥 FIX: Store cleanup function on element for proper memory management
   (element as any)._settingsCleanup = () => {
+    setSettingsView('main');
     element.removeEventListener('click', clickHandler);
     element.removeEventListener('change', changeHandler);
     element.removeEventListener('pointerdown', toggleBounceHandler, true);
     element.removeEventListener('touchstart', toggleBounceHandler, true);
     element.removeEventListener('click', toggleBounceHandler, true);
-    window.removeEventListener('cc-navigation', navCleanupHandler);
+    window.removeEventListener('cc-navigation', navigationResetHandler);
     if (footerText) {
       footerText.removeEventListener('touchstart', footerHapticHandler);
       footerText.removeEventListener('pointerdown', footerHapticHandler);

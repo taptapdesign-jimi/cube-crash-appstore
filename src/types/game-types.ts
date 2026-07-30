@@ -35,6 +35,7 @@ export type Tile = Container & {
   // Visual elements
   shadow?: Graphics;
   rotG?: Container;
+  _ccSpatialG?: Container;
   base?: Sprite;
   overlay?: Sprite;
   stackG?: Container | null;

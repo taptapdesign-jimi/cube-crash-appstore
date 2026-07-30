@@ -9,7 +9,7 @@ import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { getSpecialDiceTrailColors } from './special-dice-registry.ts';
-import { getSmokeCloudParticleAlpha } from './gameplay-fx-profile.ts';
+import { getOrganicRadialSmokeLayout, getSmokeCloudParticleAlpha } from './gameplay-fx-profile.ts';
 import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
@@ -4962,6 +4962,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const upwardBias     = Math.max(0, options.upwardBias ?? 0);
   const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
   const spawnShape     = options.spawnShape ?? 'box';
+  const ellipseChance  = Math.max(0, Math.min(1, options.ellipseChance ?? 0.35));
+  const ellipseAspectMin = Math.max(0.35, Math.min(1, options.ellipseAspectMin ?? 0.85));
+  const ellipseAspectMax = Math.max(1, Math.min(2, options.ellipseAspectMax ?? 1.15));
 
   const { x, y } = centerInBoard(board, tile, size);
   const layer = new Container();
@@ -5024,8 +5027,10 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       r0 = Math.min(r0, maxRadius);
       
       // Random shape: circle or ellipse
-      const isEllipse = Math.random() > 0.65;
-      const aspectRatio = isEllipse ? (0.85 + Math.random() * 0.3) : 1; // 0.85-1.15 for ellipse
+      const isEllipse = Math.random() < ellipseChance;
+      const aspectRatio = isEllipse
+        ? ellipseAspectMin + Math.random() * (ellipseAspectMax - ellipseAspectMin)
+        : 1;
       const rx = r0;
       const ry = r0 * aspectRatio;
       
@@ -5059,7 +5064,13 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       let sy = 0;
       let dx = 0;
       let dy = 0;
-      if (spawnShape === 'box') {
+      if (spawnShape === 'organic-radial') {
+        const layout = getOrganicRadialSmokeLayout(size, distanceScale);
+        sx = layout.sx;
+        sy = layout.sy;
+        dx = layout.dx;
+        dy = layout.dy;
+      } else if (spawnShape === 'box') {
         // Random within a square/rectangle region for a more organic, non-circular puff
         const half = size * 0.5;
         sx = (Math.random() - 0.5) * (size - INSET * 2);

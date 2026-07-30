@@ -10,6 +10,7 @@ import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -1163,6 +1164,7 @@ class SliderManager {
       this.elements.slides.forEach((slide, index) => {
         slide.classList.toggle('active', index === this.currentSlide);
       });
+      this.refreshHomepageSpatialMotion();
     } else {
       logger.debug('updateSlider: slides missing or empty');
     }
@@ -1178,6 +1180,12 @@ class SliderManager {
   // Get current slide
   getCurrentSlide(): number {
     return this.currentSlide;
+  }
+
+  public refreshHomepageSpatialMotion(): void {
+    const container = this.elements.container ?? document.getElementById('slider-container');
+    if (!container) return;
+    journeySpatialMotion.activateHomepage(container, this.currentSlide);
   }
   
   // 🔥 DEBUG: Getter for isDragging (for diagnostics)
@@ -1268,6 +1276,7 @@ class SliderManager {
       const buttonSlideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
       this.setNavButtonVisualState(button as HTMLElement, buttonSlideIndex === slideIndex, false, false);
     });
+    this.refreshHomepageSpatialMotion();
     
     logger.info(`✅ setSlideInstant: All states synced to slide ${slideIndex}`);
   }
@@ -1488,12 +1497,14 @@ class SliderManager {
       const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
       this.setNavButtonVisualState(button as HTMLElement, slideIndex === this.currentSlide, false, false);
     });
+    this.refreshHomepageSpatialMotion();
     
     logger.info('✅ FORCE READY: Slider nuclear reset complete - should be fully interactive');
   }
   
   // Cleanup
   destroy(): void {
+    journeySpatialMotion.deactivateHomepage();
     // 🔥 FIX: Clear all active intervals first
     this.activeIntervals.forEach(interval => {
       clearInterval(interval);

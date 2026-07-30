@@ -4797,6 +4797,36 @@ body:has(:root) .tile.wild-3d-glow {
   margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to match Journey screen (was 40px) */
 }
 
+.settings-dev-open-button {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  padding: 9px;
+  margin-right: var(--pad-right, 24px);
+  flex: 0 0 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-dev-open-button[hidden] {
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.settings-dev-open-button img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+}
+
 .settings-title {
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 32px;
@@ -4856,6 +4886,22 @@ body:has(:root) .tile.wild-3d-glow {
   overscroll-behavior-y: contain;
   overflow-anchor: none;
   padding-top: 20px; /* 🔥 FIX: Match Journey screen padding-top (was 24px) */
+}
+
+.settings-scrollable[hidden] {
+  display: none !important;
+}
+
+.settings-main-scrollable {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 132px);
+}
+
+.settings-developer-scrollable {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+}
+
+.settings-developer-view-active .settings-footer {
+  display: none;
 }
 
 .settings-scrollable::-webkit-scrollbar {

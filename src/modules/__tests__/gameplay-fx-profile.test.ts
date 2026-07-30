@@ -1,4 +1,5 @@
 import {
+  getOrganicRadialSmokeLayout,
   getRegularMerge6FxProfile,
   getRegularStackSmokeProfile,
   getSmokeCloudParticleAlpha,
@@ -15,7 +16,7 @@ describe('gameplay FX profile', () => {
     expect(reduced.durationScale).toBeLessThan(full.durationScale);
   });
 
-  it('makes merge-6 shards larger and wider without increasing their density', () => {
+  it('makes merge-6 shards larger and wider while keeping smoke organically distributed', () => {
     const full = getRegularMerge6FxProfile(false);
     const reduced = getRegularMerge6FxProfile(true);
 
@@ -26,7 +27,28 @@ describe('gameplay FX profile', () => {
     expect(full.smokeSizeScale).toBeGreaterThan(1.3);
     expect(full.smokeDistanceScale).toBeGreaterThan(1.1);
     expect(full.smokeCountScale).toBeLessThanOrEqual(0.9);
-    expect(full.smokeUpwardBias).toBeGreaterThan(0);
+    expect(full.smokeSpawnShape).toBe('organic-radial');
+    expect(reduced.smokeSpawnShape).toBe('organic-radial');
+    expect(full.smokeEllipseChance).toBeGreaterThan(0.5);
+    expect(full.smokeEllipseAspectMin).toBeLessThan(0.7);
+    expect(full.smokeEllipseAspectMax).toBeGreaterThan(1.3);
+  });
+
+  it('varies merge-6 smoke starts from the core to beyond the cube edge without a fixed ring', () => {
+    let seed = 0x51f15e;
+    const seededRandom = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0x100000000;
+    };
+    const layouts = Array.from({ length: 80 }, () => getOrganicRadialSmokeLayout(100, 1, seededRandom));
+    const startRadii = layouts.map(({ sx, sy }) => Math.hypot(sx, sy));
+    const travelDistances = layouts.map(({ sx, sy, dx, dy }) => Math.hypot(dx - sx, dy - sy));
+
+    expect(Math.min(...startRadii)).toBeLessThan(8);
+    expect(Math.max(...startRadii)).toBeGreaterThan(50);
+    expect(startRadii.filter((radius) => radius < 25).length).toBeGreaterThan(10);
+    expect(startRadii.filter((radius) => radius > 45).length).toBeGreaterThan(8);
+    expect(Math.max(...travelDistances) - Math.min(...travelDistances)).toBeGreaterThan(30);
   });
 
   it('keeps the merge smoke core strong while softening randomized cloud edges', () => {

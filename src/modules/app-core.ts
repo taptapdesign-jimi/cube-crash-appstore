@@ -2,7 +2,7 @@
 // ✅ mobile-first, cache-busted celebration & prize flow
 // TODO: Remove @ts-nocheck after incremental typing cleanup
 
-import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite, SCALE_MODES } from 'pixi.js';
+import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
 import {
@@ -85,6 +85,7 @@ import {
 import { createReplayRecorder } from './app-core-replay.ts';
 import { getJourneyBottomDecorIndexForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -128,6 +129,7 @@ import { clearComboIdleTimer } from './app-core-startlevel-combo.ts';
 import { resetWildAndEndgameState } from './app-core-startlevel-wild.ts';
 import { ensureStartLevelLayout } from './app-core-startlevel-layout.ts';
 import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
+import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
 import { handleStartLevelHudDrop } from './app-core-startlevel-huddrop.ts';
 import { shouldShowJourneyBottomDecor } from './journey-bottom-decor-decision.ts';
@@ -606,10 +608,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
             base.cursor = 'default';
           } catch {}
         }
-        try {
-          const src = base.texture && ((base.texture as { source?: { scaleMode?: string } }).source ?? base.texture.baseTexture);
-          if (src) src.scaleMode = 'nearest';
-        } catch {}
+        applyGameplayTextureFiltering(base.texture);
       }
     });
     if (repaired > 0) devWarn('🛟 Board tile visuals repaired after FX pressure', { reason, repaired });
@@ -1425,11 +1424,8 @@ function isUsableGameTexture(tex: any): boolean {
   return width > 1 && height > 1;
 }
 
-function optimizeGameTexture(tex: any): void {
-  try {
-    const src = getTextureSource(tex);
-    if (src) src.scaleMode = 'nearest';
-  } catch {}
+function configureGameTextureSampling(tex: any): void {
+  applyGameplayTextureFiltering(tex);
 }
 
 function removeStaleGameTexture(assetPath: string): void {
@@ -1466,7 +1462,7 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
     let tex: any = null;
     try { tex = Assets.get(assetPath); } catch {}
     if (isUsableGameTexture(tex)) {
-      if (shouldOptimizeAsGameTexture(assetPath)) optimizeGameTexture(tex);
+      if (shouldOptimizeAsGameTexture(assetPath)) configureGameTextureSampling(tex);
       continue;
     }
     staleAssets.push(assetPath);
@@ -1505,7 +1501,7 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
       }
 
       if (isUsableGameTexture(tex)) {
-        if (shouldOptimizeAsGameTexture(assetPath)) optimizeGameTexture(tex);
+        if (shouldOptimizeAsGameTexture(assetPath)) configureGameTextureSampling(tex);
         usable = true;
         break;
       }
@@ -1747,6 +1743,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
  */
 function destroyOldBoardForTransition(reason: string = 'unknown'): void {
   try {
+    journeySpatialMotion.deactivateGameplay();
     devLog('🧹 destroyOldBoardForTransition:', reason);
     const tileList = (STATE?.tiles && STATE.tiles.length) ? STATE.tiles : tiles;
     if (!tileList || tileList.length === 0) {
@@ -2099,6 +2096,7 @@ function logBoardExitStats(label: string) {
 
 function softResetBoardView(reason: string = 'unknown') {
   devLog('♻️ softResetBoardView:', reason);
+  journeySpatialMotion.deactivateGameplay();
   _hudInitDone = false; // 🔥 CRITICAL: Force layoutBoard to re-init HUD after board transition
   // Kill tweens on board/hud containers
   try { if (board) gsap.killTweensOf(board); } catch {}
@@ -3897,6 +3895,7 @@ export async function layoutBoard(){
       devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
   }
+  journeySpatialMotion.activateGameplay(() => tiles);
   markBoardLifecycle('layout-complete');
 }
 
@@ -4937,6 +4936,7 @@ function rebuildBoard(){
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
+  journeySpatialMotion.deactivateGameplay();
   setJourneyGameBottomDecorVisible(false);
   
   // 🔥 NUCLEAR BAILOUT: If app or stage are destroyed/null, skip animation entirely
@@ -5426,7 +5426,6 @@ function applyWildSkinLocal(tile){
     Assets,
     Texture,
     Rectangle,
-    SCALE_MODES,
     ASSET_WILD,
     ASSET_WILD_MAGNET,
     ASSET_WILD_JUICE,
@@ -9560,7 +9559,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
           smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, {
-            spawnShape: 'box',
+            spawnShape: regularMerge6Fx.smokeSpawnShape,
             sizeBoostChance: 0.2,
             sizeBoostScale: 1.3,
             sizeScale: regularMerge6Fx.smokeSizeScale,
@@ -9568,7 +9567,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             instantFadeOut: false,
             durationScale: 0.9,
             distanceScale: regularMerge6Fx.smokeDistanceScale,
-            upwardBias: regularMerge6Fx.smokeUpwardBias,
+            ellipseChance: regularMerge6Fx.smokeEllipseChance,
+            ellipseAspectMin: regularMerge6Fx.smokeEllipseAspectMin,
+            ellipseAspectMax: regularMerge6Fx.smokeEllipseAspectMax,
             color: 0xFFFFFF,
             haloColor: 0xFFFFFF,
             baseAlpha: 1,
@@ -13535,6 +13536,7 @@ export function restart() {
 // Clean up game when exiting
 export function cleanupGame() {
   devLog('🧹 Cleaning up game state');
+  journeySpatialMotion.deactivateGameplay();
   stopBoardFrameBudgetMonitor();
   
   // 🔥 CRITICAL FIX: Stop PIXI ticker FIRST to prevent render errors during cleanup

@@ -244,7 +244,8 @@
       return {
         hapticsEnabled: true,
         gameSoundsEnabled: false,
-        musicEnabled: true
+        musicEnabled: true,
+        spatialMotionEnabled: true
       };
     }
     
@@ -421,10 +422,6 @@
     // Lock orientation to portrait
     if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
       window.screen.orientation.lock('portrait').catch(function() {});
-    } else if (window.DeviceOrientationEvent && window.DeviceOrientationEvent.requestPermission) {
-      window.DeviceOrientationEvent.requestPermission()
-        .then(function() {})
-        .catch(function() {});
     }
     
     // Prevent landscape orientation by detecting and warning

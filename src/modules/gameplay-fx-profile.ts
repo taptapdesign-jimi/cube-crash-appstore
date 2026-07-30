@@ -20,7 +20,51 @@ export function getRegularMerge6FxProfile(reducedFx: boolean) {
     smokeSizeScale: reducedFx ? 1.25 : 1.36,
     smokeDistanceScale: reducedFx ? 1.08 : 1.2,
     smokeCountScale: reducedFx ? 0.72 : 0.9,
-    smokeUpwardBias: reducedFx ? 0.2 : 0.28,
+    // A merge-6 is a cube break, not rising ambient smoke. An organic radial
+    // field avoids both upward bias and the four-sided "flower" silhouette.
+    smokeSpawnShape: 'organic-radial',
+    smokeEllipseChance: 0.62,
+    smokeEllipseAspectMin: 0.58,
+    smokeEllipseAspectMax: 1.42,
+  };
+}
+
+export type OrganicRadialSmokeLayout = {
+  sx: number;
+  sy: number;
+  dx: number;
+  dy: number;
+};
+
+export function getOrganicRadialSmokeLayout(
+  size: number,
+  distanceScale: number,
+  randomValue = Math.random,
+): OrganicRadialSmokeLayout {
+  const safeSize = Math.max(1, Number.isFinite(size) ? size : 96);
+  const safeDistanceScale = Math.max(0.1, Number.isFinite(distanceScale) ? distanceScale : 1);
+  const nextRandom = (): number => {
+    const value = randomValue();
+    return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0.5));
+  };
+
+  const startAngle = nextRandom() * Math.PI * 2;
+  // Bias some particles toward the core while still allowing starts beyond a
+  // cube face (0.5 * size). This breaks the appearance of one perfect ring.
+  const startRadius = Math.pow(nextRandom(), 1.35) * safeSize * 0.62;
+  const travelAngle = startAngle + (nextRandom() - 0.5) * 1.35;
+  const travelDistance = safeSize * (0.06 + nextRandom() * 0.4) * safeDistanceScale;
+  const lateralOffset = (nextRandom() - 0.5) * safeSize * 0.16 * safeDistanceScale;
+
+  const sx = Math.cos(startAngle) * startRadius;
+  const sy = Math.sin(startAngle) * startRadius;
+  const tangentAngle = travelAngle + Math.PI * 0.5;
+
+  return {
+    sx,
+    sy,
+    dx: sx + Math.cos(travelAngle) * travelDistance + Math.cos(tangentAngle) * lateralOffset,
+    dy: sy + Math.sin(travelAngle) * travelDistance + Math.sin(tangentAngle) * lateralOffset,
   };
 }
 
