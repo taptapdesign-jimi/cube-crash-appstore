@@ -131,6 +131,7 @@ import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
 import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
 import { handleStartLevelHudDrop } from './app-core-startlevel-huddrop.ts';
 import { shouldShowJourneyBottomDecor } from './journey-bottom-decor-decision.ts';
+import { JOURNEY_BOTTOM_DECOR_MOTION } from './journey-bottom-decor-motion.ts';
 import { createGameplayTileCartoonVariant } from './gameplay-tile-cartoon-motion.ts';
 import { resolveFinalMergeSpawnGuard, resolvePreSpawnFinalMergeCompletion } from './final-merge-spawn-guard.ts';
 import { resolveMagnetPullProgressDecision } from './magnet-pull-progress-decision.ts';
@@ -5023,7 +5024,7 @@ async function animateBoardExit(){
 // Imported: randVal
 let journeyGameBottomDecorRunKey = 0;
 let journeyGameBottomDecorLifecycleToken = 0;
-let journeyGameBottomDecorTween: gsap.core.Tween | null = null;
+let journeyGameBottomDecorTween: gsap.core.Animation | null = null;
 
 async function waitForJourneyGameBottomDecorReady(
   img: HTMLImageElement,
@@ -5122,9 +5123,9 @@ function primeJourneyGameBottomDecor(img: HTMLImageElement): void {
   img.classList.remove('is-visible', 'is-entering', 'is-exiting');
   img.classList.add('is-prepared');
   gsap.set(img, {
-    y: 84,
-    scaleX: 0.94,
-    scaleY: 0.82,
+    y: JOURNEY_BOTTOM_DECOR_MOTION.start.y,
+    scaleX: JOURNEY_BOTTOM_DECOR_MOTION.start.scaleX,
+    scaleY: JOURNEY_BOTTOM_DECOR_MOTION.start.scaleY,
     opacity: 0,
     transformOrigin: '50% 100%',
     force3D: true,
@@ -5179,15 +5180,7 @@ function setJourneyGameBottomDecorVisible(visible: boolean): void {
         !host.classList.contains('journey-board-game-active')
       ) return;
 
-      journeyGameBottomDecorTween = trackTween(img, {
-        y: 0,
-        scaleX: 1,
-        scaleY: 1,
-        opacity: 1,
-        duration: 0.62,
-        ease: 'back.out(1.9)',
-        force3D: true,
-        overwrite: 'auto',
+      const enterTimeline = trackTimeline({
         onComplete: () => {
           if (lifecycleToken !== journeyGameBottomDecorLifecycleToken) return;
           journeyGameBottomDecorTween = null;
@@ -5196,6 +5189,25 @@ function setJourneyGameBottomDecorVisible(visible: boolean): void {
           gsap.set(img, { clearProps: 'transform,opacity,willChange' });
         },
       });
+      journeyGameBottomDecorTween = enterTimeline;
+      enterTimeline
+        .to(img, {
+          y: 0,
+          scaleX: JOURNEY_BOTTOM_DECOR_MOTION.enter.arrivalScaleX,
+          scaleY: JOURNEY_BOTTOM_DECOR_MOTION.enter.arrivalScaleY,
+          opacity: 1,
+          duration: JOURNEY_BOTTOM_DECOR_MOTION.enter.travelDurationSeconds,
+          ease: JOURNEY_BOTTOM_DECOR_MOTION.enter.travelEase,
+          force3D: true,
+          overwrite: 'auto',
+        })
+        .to(img, {
+          scaleX: 1,
+          scaleY: 1,
+          duration: JOURNEY_BOTTOM_DECOR_MOTION.enter.settleDurationSeconds,
+          ease: JOURNEY_BOTTOM_DECOR_MOTION.enter.settleEase,
+          force3D: true,
+        });
     });
     return;
   }
@@ -5226,12 +5238,12 @@ function setJourneyGameBottomDecorVisible(visible: boolean): void {
   };
 
   journeyGameBottomDecorTween = trackTween(img, {
-    y: 70,
-    scaleX: 0.96,
-    scaleY: 0.88,
+    y: JOURNEY_BOTTOM_DECOR_MOTION.exit.y,
+    scaleX: JOURNEY_BOTTOM_DECOR_MOTION.exit.scaleX,
+    scaleY: JOURNEY_BOTTOM_DECOR_MOTION.exit.scaleY,
     opacity: 0,
-    duration: 0.44,
-    ease: 'back.in(1.45)',
+    duration: JOURNEY_BOTTOM_DECOR_MOTION.exit.durationSeconds,
+    ease: JOURNEY_BOTTOM_DECOR_MOTION.exit.ease,
     force3D: true,
     overwrite: 'auto',
     onComplete: finishHide,

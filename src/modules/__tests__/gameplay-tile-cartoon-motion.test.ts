@@ -11,13 +11,20 @@ describe('gameplay tile cartoon motion profile', () => {
     }
   });
 
-  test('keeps the stack response visible but bounded', () => {
+  test('keeps the stack response 30 percent stronger with a readable rebound tail', () => {
     const stretch = createGameplayTileCartoonVariant('stack', 0);
     const squash = createGameplayTileCartoonVariant('stack', 1);
+    const activeDuration =
+      stretch.anticipation.durationSeconds +
+      stretch.peak.durationSeconds +
+      stretch.rebound.durationSeconds +
+      stretch.settleDurationSeconds;
 
-    expect(stretch.peak.scaleY).toBeGreaterThanOrEqual(1.09);
-    expect(squash.peak.scaleX).toBeGreaterThanOrEqual(1.09);
-    expect(Math.max(stretch.peak.scaleY, squash.peak.scaleX)).toBeLessThanOrEqual(1.11);
+    expect(stretch.peak.scaleY).toBeCloseTo(1.13, 5);
+    expect(squash.peak.scaleX).toBeCloseTo(1.13, 5);
+    expect(stretch.rebound.durationSeconds + stretch.settleDurationSeconds).toBeCloseTo(0.31, 5);
+    expect(activeDuration).toBeGreaterThan(0.45);
+    expect(activeDuration).toBeLessThan(0.5);
   });
 
   test('keeps idle gentler and exposes one central tuning surface', () => {
@@ -32,7 +39,7 @@ describe('gameplay tile cartoon motion profile', () => {
     expect(idleStretch.peak.scaleY).toBeGreaterThan(1.07);
     expect(idleSquash.peak.scaleX).toBeGreaterThan(1.07);
     expect(activeDuration).toBeLessThan(0.6);
-    expect(GAMEPLAY_TILE_CARTOON_MOTION.stack.strength).toBe(1);
+    expect(GAMEPLAY_TILE_CARTOON_MOTION.stack.strength).toBe(1.3);
     expect(GAMEPLAY_TILE_CARTOON_MOTION.idle.strength).toBe(1);
   });
 });

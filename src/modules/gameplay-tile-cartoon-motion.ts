@@ -26,11 +26,11 @@ export type GameplayTileCartoonMotionVariant = Readonly<{
  */
 export const GAMEPLAY_TILE_CARTOON_MOTION = Object.freeze({
   stack: Object.freeze({
-    strength: 1,
+    strength: 1.3,
     anticipationDurationSeconds: 0.065,
     peakDurationSeconds: 0.09,
-    reboundDurationSeconds: 0.1,
-    settleDurationSeconds: 0.14,
+    reboundDurationSeconds: 0.13,
+    settleDurationSeconds: 0.18,
     tiltDegrees: 0,
   }),
   idle: Object.freeze({

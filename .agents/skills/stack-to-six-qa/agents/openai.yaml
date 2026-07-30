@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stack to Six QA"
+  short_description: "Run safe web, visual, and iOS QA gates"
+  default_prompt: "Use $stack-to-six-qa to validate the current Stack to Six changes and return a PASS, FAIL, or NEEDS PHYSICAL TEST verdict."

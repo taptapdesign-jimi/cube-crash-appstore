@@ -1959,11 +1959,12 @@
 
 .journey-v700-hub-cloud-layer {
   position: absolute;
-  left: 0;
+  /* Match the proven Forest decor canvas: escape the shared Journey content
+     padding so clipping happens only at the physical screen edge. */
+  left: calc(-1 * var(--pad-left, 24px));
+  right: calc(-1 * var(--pad-right, 24px));
   top: calc(env(safe-area-inset-top, 0px) + 82px);
-  /* The Journey map canvas is edge-to-edge, so both cloud banks share the
-     physical viewport clip instead of an inset content-box seam. */
-  width: 100%;
+  width: calc(100% + var(--pad-left, 24px) + var(--pad-right, 24px));
   height: calc(920px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim));
   overflow: hidden;
   pointer-events: none;
@@ -2054,6 +2055,13 @@
   animation-play-state: paused;
   will-change: transform;
   z-index: 0;
+}
+
+/* Expanding the Hub clip canvas must not move the carefully tuned cloud/world
+   relationship. Re-apply the escaped left padding to each cloud coordinate so
+   only the clip boundary changes, never the visual placement. */
+.journey-v700-hub-cloud {
+  left: calc(var(--cloud-x, 0px) + var(--pad-left, 24px));
 }
 
 .journey-v700-world-cloud.is-locked {

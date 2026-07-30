@@ -39,6 +39,15 @@ Read [`dev-production-modes.md`](dev-production-modes.md) before every native bu
 
 Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code without changing the native bundle. `npm run build` normally invokes `scripts/postbuild.mjs`, whose only allowed native destination is Stack to Six.
 
+## Automated QA workflow
+
+- Repository QA instructions live in `.agents/skills/stack-to-six-qa/SKILL.md`; `AGENTS.md` requires them for validation and release work.
+- Use `npm run qa:fast` during implementation and `npm run qa:full` before handoff, commit, push, or release preparation.
+- Use `npm run qa:ios` before a native build/install. It is read-only and verifies the authoritative Stack to Six project, scheme, bundle ID, bundled-mode flag, complete raw assets, and `dist`/`Web.bundle` freshness.
+- The generic Capacitor `ios:sync`/`ios:build` scripts are intentionally absent because the repository Capacitor shell is not the visible Stack to Six app.
+- GitHub Actions runs `qa:full` on pull requests and pushes to `main` or `feature/**`.
+- Deterministic QA does not replace physical verification of animation feel, clipping at real safe areas, haptics, sustained FPS/memory, touch, or WebView lifecycle on `iPhone 13 blue`.
+
 ## Current launch/preloader design
 
 - First-frame markup and fallback assets: `index.html`.

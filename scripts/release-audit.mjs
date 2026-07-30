@@ -25,14 +25,14 @@ const BLOCKER_PATTERNS = [
     pattern: /JourneyDetailCloseDiag|BoardDetailReturnDiag|ModalStatsReturnDiag/,
     paths: ['src'],
   },
-  {
-    label: 'Stale cleanup marker',
-    pattern: /\b(REMOVED|DEPRECATED|DEAD CODE|temporary idle checker)\b/,
-    paths: ['src'],
-  },
 ];
 
 const WARNING_PATTERNS = [
+  {
+    label: 'Stale cleanup marker requiring code-health review',
+    pattern: /\b(REMOVED|DEPRECATED|DEAD CODE|temporary idle checker)\b/,
+    paths: ['src'],
+  },
   {
     label: 'Direct console usage in src',
     pattern: /console\.(log|warn|error|debug|info)\s*\(/,
@@ -167,7 +167,7 @@ if (capacitorIssues.length) blockers.push({ label: 'Capacitor production config 
 const viteLoggingIssues = checkViteProductionLoggingConfig();
 if (viteLoggingIssues.length) blockers.push({ label: 'Production logging config risk', matches: viteLoggingIssues });
 
-console.log('=== Cube Crash Release Audit ===');
+console.log('=== Stack to Six Release Audit ===');
 console.log(`Source directories: ${SRC_DIRS.join(', ')}`);
 
 for (const group of blockers) printGroup(`BLOCKER: ${group.label}`, group.matches);

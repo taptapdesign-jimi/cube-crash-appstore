@@ -10,8 +10,9 @@ This checklist is written to be followed top to bottom. Each item should be chec
 - [ ] Type check passes: `npm run type-check`.
 - [ ] Lint passes with zero warnings: `npm run lint`.
 - [ ] Tests pass: `npm run test:ci`.
-- [ ] App Store build command passes: `npm run build:app-store`.
-- [ ] iOS sync completes with no warnings: `npm run ios:sync:prod`.
+- [ ] Deterministic web/release QA passes: `npm run qa:full`.
+- [ ] The complete `dist/` tree is explicitly synced only to the Stack to Six `Web.bundle`, following `docs/engineering/dev-production-modes.md`.
+- [ ] Read-only native audit passes after that sync: `npm run qa:ios`.
 - [ ] Xcode archive succeeds with no warnings or errors.
 - [ ] No debug flags, dev servers, or mock data in production build.
 
@@ -99,4 +100,3 @@ This checklist is written to be followed top to bottom. Each item should be chec
 - [ ] Performance sign-off on iPhone low/mid/high tiers.
 - [ ] App Store reviewer test plan prepared.
 - [ ] Release candidate tagged in git.
-

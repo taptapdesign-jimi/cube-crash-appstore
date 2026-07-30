@@ -1,6 +1,6 @@
 # Release Readiness Center
 
-This is the working release gate for Cube Crash. Use it before TestFlight, before App Store submission, and before large stability refactors.
+This is the working release gate for Stack to Six. Use it before TestFlight, before App Store submission, and before large stability refactors.
 
 ## Daily Gate
 
@@ -24,17 +24,17 @@ The gate covers:
 
 Run this before creating an iOS archive:
 
-```bash
-npm run build:app-store
-```
+1. Run `npm run app-store:preflight`.
+2. If it reports `NEEDS SYNC`, follow `docs/engineering/dev-production-modes.md` to sync only `dist/` into `/Users/user/Stack to Six/Stack to Six/Web.bundle`.
+3. Run `npm run qa:ios` again and require `PASS` before building.
 
-This also runs `release:native-audit` after Capacitor sync to verify the native bundle.
+Never use the repository Capacitor shell or a generic `cap sync ios`; it is not the visible Stack to Six app.
 
 Then verify in Xcode:
 
 - archive builds with the intended bundle identifier, version, and build number
 - signing team and provisioning profile are correct
-- no dev server URL is active in the production Capacitor config
+- `GameViewController.useDevServer` is `false` and the app loads its bundled `Web.bundle`
 - app launches from a fresh install and from an upgrade install
 
 ## Manual iOS Smoke Flow
