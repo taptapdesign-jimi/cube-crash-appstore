@@ -223,6 +223,7 @@ class SliderManager {
 
   private playHeroSoftCartoonBounce(heroContainer: HTMLElement): void {
     if (
+      document.getElementById('home')?.dataset.journeyExit === 'true' ||
       heroContainer.classList.contains('animate-enter') ||
       heroContainer.classList.contains('animate-enter-initial') ||
       heroContainer.classList.contains('animate-exit')
@@ -273,6 +274,14 @@ class SliderManager {
         duration: 0.255,
         ease: 'back.out(1.35)'
       });
+  }
+
+  public freezeHomepageHeroBounceForExit(): void {
+    const activeHero = document.querySelector<HTMLElement>('.slider-slide.active .hero-container');
+    if (!activeHero) return;
+    gsap.killTweensOf(activeHero);
+    activeHero.classList.remove('soft-cartoon-bounce');
+    activeHero.style.removeProperty('will-change');
   }
 
   private getSlideStep(direction: 1 | -1): number | null {
@@ -1185,6 +1194,15 @@ class SliderManager {
   public refreshHomepageSpatialMotion(): void {
     const container = this.elements.container ?? document.getElementById('slider-container');
     if (!container) return;
+    const home = document.getElementById('home');
+    const homeStyle = home ? window.getComputedStyle(home) : null;
+    const homepageHidden = !home || home.hidden || home.hasAttribute('hidden') ||
+      homeStyle?.display === 'none' || homeStyle?.visibility === 'hidden' ||
+      Number.parseFloat(homeStyle?.opacity || '1') <= 0.01;
+    if (homepageHidden || (window as any).__ccUiJourneyTransitioning === true) {
+      journeySpatialMotion.deactivateHomepage();
+      return;
+    }
     journeySpatialMotion.activateHomepage(container, this.currentSlide);
   }
   
@@ -1213,7 +1231,7 @@ class SliderManager {
    * Updates ALL 4 states atomically: GSAP wrapper, CSS classes, gameState, internal state
    * Use this when showing homepage at specific slide to avoid visual glitches
    */
-  setSlideInstant(slideIndex: number): void {
+  setSlideInstant(slideIndex: number, refreshSpatialMotion = true): void {
     slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     if (slideIndex < 0 || slideIndex >= this.totalSlides) {
       logger.warn(`⚠️ Invalid slide index: ${slideIndex}`);
@@ -1276,9 +1294,38 @@ class SliderManager {
       const buttonSlideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
       this.setNavButtonVisualState(button as HTMLElement, buttonSlideIndex === slideIndex, false, false);
     });
-    this.refreshHomepageSpatialMotion();
+    if (refreshSpatialMotion) {
+      this.refreshHomepageSpatialMotion();
+    }
     
     logger.info(`✅ setSlideInstant: All states synced to slide ${slideIndex}`);
+  }
+
+  /** Synchronize hidden Homepage state without initialization or animation side effects. */
+  syncHiddenSlideState(slideIndex: number): void {
+    slideIndex = this.resolveHiddenSlideTarget(slideIndex);
+    if (slideIndex < 0 || slideIndex >= this.totalSlides) return;
+
+    this.currentSlide = slideIndex;
+    gameState.set('currentSlide', slideIndex);
+
+    const container = this.elements.container ?? document.getElementById('slider-container');
+    const wrapper = this.elements.wrapper ?? document.getElementById('slider-wrapper');
+    if (container && wrapper) {
+      gsap.set(wrapper, {
+        x: -slideIndex * container.offsetWidth,
+        immediateRender: true,
+        force3D: true,
+      });
+    }
+
+    document.querySelectorAll<HTMLElement>('.slider-slide').forEach((slide) => {
+      slide.classList.toggle('active', Number(slide.dataset.slide) === slideIndex);
+    });
+    document.querySelectorAll<HTMLElement>('.independent-nav-button').forEach((button) => {
+      button.classList.toggle('active', Number(button.dataset.slide) === slideIndex);
+    });
+    logger.info(`✅ Hidden slider state synchronized to slide ${slideIndex}`);
   }
   
   /**

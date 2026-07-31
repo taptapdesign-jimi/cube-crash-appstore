@@ -184,6 +184,7 @@ function _drawStackInternal(tile: Tile): void {
     let spriteOrGraphics;
     if (tex) {
       const sprite = new Sprite(tex);
+      sprite.roundPixels = true;
       sprite.anchor.set(baseAnchorX, baseAnchorY);
       sprite.scale.set(baseScaleX * scExtra, baseScaleY * scExtra);
       sprite.x = 0;
@@ -384,6 +385,7 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
         if (!t.base && host) {
           // Create base sprite if it doesn't exist
           t.base = new Sprite(Texture.from(ASSET_TILE));
+          t.base.roundPixels = true;
           t.base.anchor.set(0.5);
           t.base.width = TILE;
           t.base.height = TILE;
@@ -792,6 +794,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
   // drvena pločica (base)
   const face = new Sprite(getBoardTexture(ASSET_TILE));
+  face.roundPixels = true;
   face.anchor.set(0.5);
   face.width = TILE;
   face.height = TILE;
@@ -801,6 +804,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
   // poluprozirni "numbers" overlay – (PATCH) gasimo ga defaultno; ne koristimo kao ghost
   const ov = new Sprite(getBoardTexture(ASSET_NUMBERS));
+  ov.roundPixels = true;
   ov.anchor.set(0.5);
   ov.width = TILE;
   ov.height = TILE;

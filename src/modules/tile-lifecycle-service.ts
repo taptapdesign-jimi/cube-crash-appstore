@@ -117,6 +117,7 @@ export function clearTileTransientFlags(tile: any): void {
     delete tile._cleanupQueued;
     delete tile._ccWildSpawnDropping;
     delete tile._ccWildSpawnHandoffLock;
+    delete tile._ccMerge6CleanupToken;
   } catch {}
 }
 

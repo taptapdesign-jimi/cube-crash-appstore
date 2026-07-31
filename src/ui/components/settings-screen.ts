@@ -4,6 +4,7 @@ import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../../modules/first-play-tutorial.js';
 import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
 import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
+import { scheduleSpatialMotionPermissionIntroForNextLaunch } from '../../modules/spatial-motion-permission-modal.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -519,6 +520,29 @@ function createFirstPlayDevButton(): HTMLElementConfig {
   };
 }
 
+function createSpatialIntroResetButton(): HTMLElementConfig {
+  const applyReadyState = (button: HTMLElement) => {
+    button.textContent = '3D Intro Ready';
+    button.classList.add('is-active');
+    button.setAttribute('aria-label', '3D intro will show on next relaunch');
+  };
+
+  return createSettingsDevActionButton(
+    'settings-dev-reset-spatial-intro-btn',
+    'Reset 3D Intro',
+    'spatial-intro',
+    () => {
+      triggerSettingsDevHaptic();
+      const button = document.getElementById('settings-dev-reset-spatial-intro-btn');
+      if (scheduleSpatialMotionPermissionIntroForNextLaunch()) {
+        if (button) applyReadyState(button);
+        return;
+      }
+      alert('3D intro could not be prepared.');
+    },
+  );
+}
+
 function createSettingsDevArea(): HTMLElementConfig {
   return {
     tag: 'section',
@@ -551,6 +575,7 @@ function createSettingsDevArea(): HTMLElementConfig {
           createSettingsDevActionButton('settings-dev-new-dice-btn', 'New Dice', 'new-dice', showNewDiceDevScreen),
           createSettingsDevActionButton('settings-dev-clean-board-btn', 'Clean Stage', 'clean-board', showCleanBoardDevFlow),
           createSettingsDevActionButton('settings-dev-last-merge-btn', 'LAST MERGE', 'last-merge', showLastMergeDevPicker),
+          createSpatialIntroResetButton(),
           createFirstPlayDevButton(),
         ],
       },

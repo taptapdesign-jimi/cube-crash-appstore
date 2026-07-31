@@ -46,7 +46,10 @@ export type JourneySpatialDirectionMap = Record<JourneySpatialWorldId, JourneySp
 export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
   homepageHero: Object.freeze({ x: 14, y: 10 }),
   homepageCta: Object.freeze({ x: 6, y: 4.5 }),
-  gameplayTile: Object.freeze({ x: 10, y: 10 }),
+  // Gameplay cubes use half the previous travel; stable per-cell direction
+  // variety supplies depth without adding listeners or per-frame randomness.
+  gameplayTile: Object.freeze({ x: 8.125, y: 12.2 }),
+  gameplayHudPreload: Object.freeze({ x: 6.4, y: 5.6 }),
   hubWorld: Object.freeze({ x: 16.8, y: 16.8 }),
   hubCloud: Object.freeze({ x: -14.4, y: -14.4 }),
   worldMain: Object.freeze({ x: 17.6, y: 17.6 }),
@@ -58,6 +61,11 @@ export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
     accent: Object.freeze({ x: 7.2, y: 7.2 }),
     cloud: Object.freeze({ x: -11.5, y: -11.5 }),
   }),
+});
+
+export const JOURNEY_SPATIAL_SURFACE_GAIN = Object.freeze({
+  journeyHub: 0.7,
+  forestUnit: 1.35,
 });
 
 export const JOURNEY_SPATIAL_SENSOR_RANGE = Object.freeze({
@@ -74,6 +82,21 @@ const WORLD_DIRECTION_PATTERNS = Object.freeze([
   Object.freeze({ x: 1, y: 0.78 }),
   Object.freeze({ x: -0.92, y: 1 }),
   Object.freeze({ x: 0.82, y: -1 }),
+]);
+const FOREST_UNIT_DIRECTION_PATTERNS = Object.freeze([
+  Object.freeze({ x: 1, y: 0.84 }),
+  Object.freeze({ x: -0.78, y: 1 }),
+  Object.freeze({ x: 0.88, y: -0.82 }),
+  Object.freeze({ x: -1, y: -0.74 }),
+  Object.freeze({ x: 0.72, y: 1 }),
+]);
+const GAMEPLAY_TILE_DIRECTION_PATTERNS = Object.freeze([
+  Object.freeze({ x: 1, y: 0.88 }),
+  Object.freeze({ x: -0.9, y: 1 }),
+  Object.freeze({ x: 0.84, y: -0.92 }),
+  Object.freeze({ x: -1, y: -0.82 }),
+  Object.freeze({ x: 0.76, y: 1 }),
+  Object.freeze({ x: -0.8, y: 0.86 }),
 ]);
 
 export function getJourneySpatialDepthScale(index: number): number {
@@ -97,7 +120,29 @@ export function createJourneySpatialDirectionMap(randomValue = Math.random()): J
   };
 }
 
+export function getForestUnitSpatialDirection(boardId: number): JourneySpatialTilt {
+  const normalizedIndex = Math.abs(Math.trunc(boardId) - 1) % FOREST_UNIT_DIRECTION_PATTERNS.length;
+  const direction = FOREST_UNIT_DIRECTION_PATTERNS[normalizedIndex];
+  return { x: direction.x, y: direction.y };
+}
+
+export function getGameplayTileSpatialDirection(cellIndex: number, sessionOffset = 0): JourneySpatialTilt {
+  const normalizedIndex = Math.abs(Math.trunc(cellIndex) + Math.trunc(sessionOffset))
+    % GAMEPLAY_TILE_DIRECTION_PATTERNS.length;
+  const direction = GAMEPLAY_TILE_DIRECTION_PATTERNS[normalizedIndex];
+  return { x: direction.x, y: direction.y };
+}
+
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+
+export function mixJourneyHubTilt(tilt: JourneySpatialTilt): JourneySpatialTilt {
+  return {
+    x: tilt.x,
+    // A little roll feeds the vertical axis so Hub worlds visibly travel in
+    // both dimensions even during the user's natural one-handed tilt.
+    y: clamp((tilt.y * 0.86) + (tilt.x * 0.34), -1, 1),
+  };
+}
 
 const shortestAngleDelta = (value: number, baseline: number): number => {
   const delta = ((value - baseline + 540) % 360) - 180;
@@ -136,9 +181,10 @@ export function createJourneySpatialOffset(
   };
 }
 
-class JourneySpatialMotionController {
+class AppSpatialMotionController {
   private readonly worldDirections = createJourneySpatialDirectionMap();
   private readonly sessionDepthOffset = Math.floor(Math.random() * ORGANIC_DEPTH_SCALES.length);
+  private readonly gameplayDirectionOffset = Math.floor(Math.random() * GAMEPLAY_TILE_DIRECTION_PATTERNS.length);
   private permissionState: MotionPermissionState = 'unknown';
   private activeSurface: JourneySpatialSurface | null = null;
   private targets: SpatialTarget[] = [];
@@ -153,7 +199,14 @@ class JourneySpatialMotionController {
   private visibleElements = new Set<HTMLElement>();
   private originalWillChange = new Map<HTMLElement, string>();
   private gameplayTileProvider: (() => GameplaySpatialTile[]) | null = null;
+  private gameplayHudProvider: (() => GameplaySpatialWrapper | null) | null = null;
   private gameplayWrappers = new Set<GameplaySpatialWrapper>();
+  private gameplayHudWrapper: GameplaySpatialWrapper | null = null;
+  private activationHoldReason: string | null = null;
+  private pendingActivation: (() => void) | null = null;
+  private profileFrameId: number | null = null;
+  private orientationEvents = 0;
+  private spatialRenderFrames = 0;
 
   private readonly handleOrientation = (event: DeviceOrientationEvent): void => {
     if (!this.activeSurface || document.hidden) return;
@@ -167,6 +220,7 @@ class JourneySpatialMotionController {
       return;
     }
     if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
+    this.orientationEvents += 1;
 
     const beta = event.beta as number;
     const gamma = event.gamma as number;
@@ -227,7 +281,85 @@ class JourneySpatialMotionController {
   }
 
   public setEnabled(enabled: boolean): void {
-    if (!enabled) this.deactivate();
+    if (!enabled) {
+      this.pendingActivation = null;
+      this.deactivate();
+    }
+  }
+
+  /**
+   * Prevent sensor ownership from restarting while an app transition is still
+   * composing its own transforms. Activation requests made during the hold are
+   * coalesced so only the latest visible surface starts after the handoff.
+   */
+  public holdActivations(reason: string): void {
+    this.activationHoldReason = reason;
+    this.pendingActivation = null;
+    this.deactivate();
+    this.emitDiagnostic('activation-held', { reason });
+  }
+
+  public releaseActivations(reason: string): void {
+    const heldReason = this.activationHoldReason;
+    const pendingActivation = this.pendingActivation;
+    this.activationHoldReason = null;
+    this.pendingActivation = null;
+    this.emitDiagnostic('activation-released', {
+      reason,
+      heldReason,
+      hadPendingActivation: pendingActivation !== null,
+    });
+    pendingActivation?.();
+  }
+
+  /** Read-only, bounded physical-iPhone audit. It owns one temporary RAF and
+   * reports once; it never changes motion state or surface ownership. */
+  public profileFrameWindow(label: string, durationMs = 6000): void {
+    if (this.profileFrameId !== null || typeof window.requestAnimationFrame !== 'function') return;
+    const startedAt = performance.now();
+    let previousFrameAt = startedAt;
+    let frameCount = 0;
+    let totalFrameMs = 0;
+    let worstFrameMs = 0;
+    let over20 = 0;
+    let over34 = 0;
+    let over50 = 0;
+    const orientationStart = this.orientationEvents;
+    const spatialRenderStart = this.spatialRenderFrames;
+
+    const sample = (now: number): void => {
+      const frameMs = now - previousFrameAt;
+      previousFrameAt = now;
+      if (frameCount > 0) {
+        totalFrameMs += frameMs;
+        worstFrameMs = Math.max(worstFrameMs, frameMs);
+        if (frameMs > 20) over20 += 1;
+        if (frameMs > 34) over34 += 1;
+        if (frameMs > 50) over50 += 1;
+      }
+      frameCount += 1;
+      if ((now - startedAt) < durationMs) {
+        this.profileFrameId = window.requestAnimationFrame(sample);
+        return;
+      }
+      this.profileFrameId = null;
+      const measuredFrames = Math.max(0, frameCount - 1);
+      this.emitDiagnostic('frame-window', {
+        label,
+        durationMs: Math.round(now - startedAt),
+        frameCount: measuredFrames,
+        averageFrameMs: measuredFrames > 0
+          ? Number((totalFrameMs / measuredFrames).toFixed(2))
+          : 0,
+        worstFrameMs: Math.round(worstFrameMs),
+        over20,
+        over34,
+        over50,
+        orientationEvents: this.orientationEvents - orientationStart,
+        spatialRenderFrames: this.spatialRenderFrames - spatialRenderStart,
+      });
+    };
+    this.profileFrameId = window.requestAnimationFrame(sample);
   }
 
   public requiresPermissionGesture(): boolean {
@@ -237,6 +369,7 @@ class JourneySpatialMotionController {
   }
 
   public activateHomepage(container: HTMLElement, slideIndex: number): void {
+    if (this.deferActivation(() => this.activateHomepage(container, slideIndex), 'homepage')) return;
     const activeSlide = container.querySelector<HTMLElement>('.slider-slide.active')
       ?? container.querySelector<HTMLElement>(`.slider-slide[data-slide="${slideIndex}"]`);
     if (!activeSlide) {
@@ -264,6 +397,7 @@ class JourneySpatialMotionController {
   }
 
   public activateJourneyHub(container: HTMLElement): void {
+    if (this.deferActivation(() => this.activateJourneyHub(container), 'journey-hub')) return;
     const targets: SpatialTarget[] = [];
     container.querySelectorAll<HTMLElement>('.journey-v700-world-card').forEach((worldCard, index) => {
       const image = worldCard.querySelector<HTMLElement>('.journey-v700-world-image');
@@ -288,10 +422,18 @@ class JourneySpatialMotionController {
         yDepth: depth.y * depthScale,
       });
     });
+    if (this.matchesActiveTargets('journey-hub', targets)) {
+      this.emitDiagnostic('surface-activation-reused', {
+        surface: 'journey-hub',
+        targetCount: targets.length,
+      });
+      return;
+    }
     this.activate('journey-hub', targets, container);
   }
 
   public activateJourneyWorld(container: HTMLElement, worldId: number): void {
+    if (this.deferActivation(() => this.activateJourneyWorld(container, worldId), 'journey-world')) return;
     const spatialWorldId = this.asWorldId(worldId);
     const worldRange = worldId === 1 ? { start: 1, end: 10 } : worldId === 2
       ? { start: 11, end: 20 }
@@ -312,10 +454,19 @@ class JourneySpatialMotionController {
       container.querySelectorAll<HTMLElement>(mainCloudClass)
     ).filter((element) => element.style.display !== 'none');
     const targets: SpatialTarget[] = [];
-    const addTarget = (element: HTMLElement | null, depth: { x: number; y: number }, scale = 1): void => {
+    const addTarget = (
+      element: HTMLElement | null,
+      depth: { x: number; y: number },
+      scale = 1,
+      layerDirection: JourneySpatialTilt = { x: 1, y: 1 },
+    ): void => {
       if (!element || element.style.display === 'none') return;
       const orientedDepth = this.orientDepth(spatialWorldId, depth);
-      targets.push({ element, xDepth: orientedDepth.x * scale, yDepth: orientedDepth.y * scale });
+      targets.push({
+        element,
+        xDepth: orientedDepth.x * scale * layerDirection.x,
+        yDepth: orientedDepth.y * scale * layerDirection.y,
+      });
     };
 
     addTarget(worldMain, JOURNEY_SPATIAL_DEPTH.worldMain, this.getSessionDepthScale(worldId + 1));
@@ -324,15 +475,21 @@ class JourneySpatialMotionController {
     });
 
     for (let boardId = worldRange.start; boardId <= worldRange.end; boardId += 1) {
+      const unitDirection = worldId === 1
+        ? getForestUnitSpatialDirection(boardId)
+        : { x: 1, y: 1 };
+      const unitGain = worldId === 1 ? JOURNEY_SPATIAL_SURFACE_GAIN.forestUnit : 1;
       addTarget(
         container.querySelector<HTMLElement>(`.journey-forest-island-${boardId}`),
         JOURNEY_SPATIAL_DEPTH.worldUnit.island,
-        this.getSessionDepthScale(boardId + 1),
+        this.getSessionDepthScale(boardId + 1) * unitGain,
+        unitDirection,
       );
       addTarget(
         container.querySelector<HTMLElement>(`.journey-forest-stump-${boardId}`),
         JOURNEY_SPATIAL_DEPTH.worldUnit.prop,
-        this.getSessionDepthScale(boardId + 3),
+        this.getSessionDepthScale(boardId + 3) * unitGain,
+        unitDirection,
       );
 
       const card = container.querySelector<HTMLElement>(
@@ -341,31 +498,49 @@ class JourneySpatialMotionController {
       addTarget(
         card?.closest<HTMLElement>('.journey-board-card-wrapper') ?? null,
         JOURNEY_SPATIAL_DEPTH.worldUnit.card,
-        this.getSessionDepthScale(boardId + 5),
+        this.getSessionDepthScale(boardId + 5) * unitGain,
+        unitDirection,
       );
 
       container.querySelectorAll<HTMLElement>(`.journey-forest-star-board-${boardId}`).forEach((element, index) => {
         addTarget(
           element,
           JOURNEY_SPATIAL_DEPTH.worldUnit.accent,
-          this.getSessionDepthScale((boardId * 3) + index),
+          this.getSessionDepthScale((boardId * 3) + index) * unitGain,
+          unitDirection,
         );
       });
       container.querySelectorAll<HTMLElement>(`.journey-forest-cloud-board-${boardId}`).forEach((element, index) => {
         addTarget(
           element,
           JOURNEY_SPATIAL_DEPTH.worldUnit.cloud,
-          this.getSessionDepthScale((boardId * 4) + index),
+          this.getSessionDepthScale((boardId * 4) + index) * unitGain,
+          unitDirection,
         );
       });
     }
 
+    if (this.matchesActiveTargets('journey-world', targets)) {
+      this.emitDiagnostic('surface-activation-reused', {
+        surface: 'journey-world',
+        targetCount: targets.length,
+      });
+      return;
+    }
     this.activate('journey-world', targets, container);
   }
 
-  public activateGameplay(getTiles: () => GameplaySpatialTile[]): void {
+  public activateGameplay(
+    getTiles: () => GameplaySpatialTile[],
+    getHudPreloadBar: (() => GameplaySpatialWrapper | null) | null = null,
+  ): void {
+    if (this.deferActivation(
+      () => this.activateGameplay(getTiles, getHudPreloadBar),
+      'gameplay',
+    )) return;
     if (this.activeSurface === 'gameplay' && !this.suspended) {
       this.gameplayTileProvider = getTiles;
+      this.gameplayHudProvider = getHudPreloadBar;
       this.ensureFrame();
       return;
     }
@@ -375,6 +550,7 @@ class JourneySpatialMotionController {
 
     this.activeSurface = 'gameplay';
     this.gameplayTileProvider = getTiles;
+    this.gameplayHudProvider = getHudPreloadBar;
     this.suspended = false;
     this.resetBaseline();
 
@@ -383,6 +559,11 @@ class JourneySpatialMotionController {
       this.permissionState = 'granted';
     }
     if (this.permissionState === 'granted') this.startListening();
+    this.emitDiagnostic('surface-activated', {
+      surface: 'gameplay',
+      targetCount: 0,
+      listening: this.listening,
+    });
   }
 
   public suspend(): void {
@@ -391,6 +572,10 @@ class JourneySpatialMotionController {
     this.cancelFrame();
     this.stopVisibilityTracking();
     this.removeCompositorHints();
+  }
+
+  public suspendHomepage(): void {
+    if (this.activeSurface === 'homepage') this.suspend();
   }
 
   public deactivateHomepage(): void {
@@ -409,6 +594,8 @@ class JourneySpatialMotionController {
     if (reset) this.resetGameplayStyles();
     this.targets = [];
     this.gameplayTileProvider = null;
+    this.gameplayHudProvider = null;
+    this.pendingActivation = null;
     this.activeSurface = null;
     this.suspended = false;
     this.targetTilt = { x: 0, y: 0 };
@@ -435,6 +622,39 @@ class JourneySpatialMotionController {
       this.permissionState = 'granted';
     }
     if (this.permissionState === 'granted') this.startListening();
+    this.emitDiagnostic('surface-activated', {
+      surface,
+      targetCount: this.targets.length,
+      listening: this.listening,
+    });
+  }
+
+  private deferActivation(activation: () => void, surface: JourneySpatialSurface): boolean {
+    if (!this.activationHoldReason) return false;
+    this.pendingActivation = activation;
+    this.emitDiagnostic('activation-deferred', {
+      surface,
+      heldReason: this.activationHoldReason,
+    });
+    return true;
+  }
+
+  private emitDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
+    try {
+      const handler = (window as any).webkit?.messageHandlers?.consoleLog;
+      if (!handler?.postMessage) return;
+      handler.postMessage({
+        level: 'info',
+        message: `[CC_SPATIAL_PERF] ${event} ${JSON.stringify({
+          at: Math.round(performance.now()),
+          activeSurface: this.activeSurface,
+          listening: this.listening,
+          framePending: this.frameId !== null,
+          activationHoldReason: this.activationHoldReason,
+          ...detail,
+        })}`,
+      });
+    } catch {}
   }
 
   private prefersReducedMotion(): boolean {
@@ -483,6 +703,7 @@ class JourneySpatialMotionController {
     window.addEventListener('deviceorientation', this.handleOrientation, { passive: true });
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
     this.listening = true;
+    this.emitDiagnostic('listener-started');
   }
 
   private stopListening(): void {
@@ -490,6 +711,7 @@ class JourneySpatialMotionController {
     window.removeEventListener('deviceorientation', this.handleOrientation);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.listening = false;
+    this.emitDiagnostic('listener-stopped');
   }
 
   private ensureFrame(): void {
@@ -500,6 +722,7 @@ class JourneySpatialMotionController {
   private renderFrame(): void {
     this.frameId = null;
     if (this.suspended || !this.activeSurface || document.hidden) return;
+    this.spatialRenderFrames += 1;
 
     const smoothing = 0.105;
     this.currentTilt.x += (this.targetTilt.x - this.currentTilt.x) * smoothing;
@@ -517,9 +740,19 @@ class JourneySpatialMotionController {
       return;
     }
     this.targets = this.targets.filter(({ element }) => document.body.contains(element));
+    const activeTilt = this.activeSurface === 'journey-hub'
+      ? mixJourneyHubTilt(this.currentTilt)
+      : this.currentTilt;
+    const surfaceGain = this.activeSurface === 'journey-hub'
+      ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub
+      : 1;
     this.targets.forEach(({ element, xDepth, yDepth }) => {
       if (this.visibilityObserver && !this.visibleElements.has(element)) return;
-      const offset = createJourneySpatialOffset(this.currentTilt, xDepth, yDepth);
+      const offset = createJourneySpatialOffset(
+        activeTilt,
+        xDepth * surfaceGain,
+        yDepth * surfaceGain,
+      );
       element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
     });
   }
@@ -537,12 +770,17 @@ class JourneySpatialMotionController {
         ? ((tile.gridY as number) * 7) + (tile.gridX as number)
         : index;
       const depthScale = this.getSessionDepthScale(depthIndex + 4);
+      const direction = getGameplayTileSpatialDirection(depthIndex, this.gameplayDirectionOffset);
       const offset = createJourneySpatialOffset(
         this.currentTilt,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.x * depthScale,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.y * depthScale,
+        JOURNEY_SPATIAL_DEPTH.gameplayTile.x * depthScale * direction.x,
+        JOURNEY_SPATIAL_DEPTH.gameplayTile.y * depthScale * direction.y,
       );
-      this.setGameplayWrapperPosition(wrapper, offset.x, offset.y);
+      this.setGameplayWrapperPosition(
+        wrapper,
+        this.snapGameplayOffset(offset.x),
+        this.snapGameplayOffset(offset.y),
+      );
       activeWrappers.add(wrapper);
     });
     this.gameplayWrappers.forEach((wrapper) => {
@@ -551,6 +789,26 @@ class JourneySpatialMotionController {
       }
     });
     this.gameplayWrappers = activeWrappers;
+
+    const hudWrapper = this.gameplayHudProvider?.() ?? null;
+    if (this.gameplayHudWrapper && this.gameplayHudWrapper !== hudWrapper && !this.gameplayHudWrapper.destroyed) {
+      this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0);
+    }
+    if (hudWrapper && !hudWrapper.destroyed) {
+      const hudOffset = createJourneySpatialOffset(
+        this.currentTilt,
+        JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.x,
+        JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.y,
+      );
+      this.setGameplayWrapperPosition(
+        hudWrapper,
+        this.snapGameplayOffset(hudOffset.x),
+        this.snapGameplayOffset(hudOffset.y),
+      );
+      this.gameplayHudWrapper = hudWrapper;
+    } else {
+      this.gameplayHudWrapper = null;
+    }
   }
 
   private startVisibilityTracking(container: HTMLElement): void {
@@ -599,6 +857,16 @@ class JourneySpatialMotionController {
       this.setGameplayWrapperPosition(wrapper, 0, 0);
     });
     this.gameplayWrappers.clear();
+    if (this.gameplayHudWrapper && !this.gameplayHudWrapper.destroyed) {
+      this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0);
+    }
+    this.gameplayHudWrapper = null;
+  }
+
+  private snapGameplayOffset(value: number): number {
+    // The physical iPhone renderer runs at 2x. Half-point snapping keeps
+    // transparent cube edges aligned to device pixels during gyro movement.
+    return Math.round(value * 2) / 2;
   }
 
   private setGameplayWrapperPosition(wrapper: GameplaySpatialWrapper, x: number, y: number): void {
@@ -652,4 +920,7 @@ class JourneySpatialMotionController {
   }
 }
 
-export const journeySpatialMotion = new JourneySpatialMotionController();
+// App-level owner. Keep the historical export while call sites migrate; both
+// names intentionally reference the same controller, listener, and RAF loop.
+export const appSpatialMotion = new AppSpatialMotionController();
+export const journeySpatialMotion = appSpatialMotion;

@@ -1986,6 +1986,7 @@
   height: min(46.8vw, 190px);
   padding: 0;
   border: 0;
+  outline: none;
   border-radius: 8px;
   background: transparent;
   overflow: visible;
@@ -2045,6 +2046,23 @@
   animation-delay: -2.35s;
 }
 
+/* The first idle frame must be pixel-identical to the completed Hub enter.
+   WebKit otherwise resolves negative animation delays at handoff and makes the
+   world/cloud artwork visibly jump as if the enter ran twice. Organic variety
+   still comes from each cloud's duration/distance and from spatial motion. */
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-image,
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-cloud {
+  animation-delay: 0s;
+}
+
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-beach .journey-v700-world-image {
+  animation-duration: 4.85s;
+}
+
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-robo .journey-v700-world-image {
+  animation-duration: 5.2s;
+}
+
 .journey-v700-world-cloud {
   position: absolute;
   left: var(--cloud-x, 0px);
@@ -2101,7 +2119,7 @@
 
 @keyframes journey-v700-world-idle {
   0%, 100% {
-    transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(1) rotate(-0.5deg);
+    transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(1) rotate(0deg);
   }
   50% {
     transform: translate(-50%, -50%) translate3d(0, -8px, 0) scale(1.018) rotate(0.7deg);
@@ -3107,16 +3125,16 @@
 #collectibles-detail-content {
   padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
-/* Journey gyro explainer: branded consent before the one-time iOS system prompt. */
+/* Launch gyro explainer: a true paper bottom sheet over the studio preloader. */
 .journey-spatial-permission-overlay {
   position: fixed;
   inset: 0;
   z-index: 10000000000020;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   box-sizing: border-box;
-  padding: max(24px, env(safe-area-inset-top)) 22px max(24px, env(safe-area-inset-bottom));
+  padding: max(20px, env(safe-area-inset-top)) 0 0;
   background: rgba(83, 57, 45, 0.34);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
@@ -3135,101 +3153,161 @@
 }
 
 .journey-spatial-permission-card {
-  width: min(360px, 90vw);
+  width: min(390px, 100vw);
+  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)));
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   border: 0;
-  border-radius: 40px;
-  padding: 16px 28px 30px;
+  outline: none;
+  border-radius: 40px 40px 0 0;
+  padding: 16px 40px calc(32px + env(safe-area-inset-bottom, 0px));
   color: #9f7765;
   text-align: center;
   font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
-  box-shadow: 0 18px 50px rgba(83, 57, 45, 0.24);
+  box-shadow: 0 -18px 68px rgba(233, 209, 198, 0.88);
   opacity: 0;
-  transform: translateY(26px) scale(0.72);
+  transform: translate3d(0, 104%, 0) scale(0.985);
+  transform-origin: 50% 100%;
   transition:
-    transform 0.54s cubic-bezier(0.18, 1.48, 0.35, 1),
+    transform 0.58s cubic-bezier(0.16, 1, 0.3, 1),
     opacity 0.18s ease;
+}
+
+.journey-spatial-permission-card:focus,
+.journey-spatial-permission-card:focus-visible {
+  outline: none;
 }
 
 .journey-spatial-permission-overlay.is-visible .journey-spatial-permission-card {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .journey-spatial-permission-overlay.is-exiting .journey-spatial-permission-card {
   opacity: 0;
-  transform: translateY(10px) scale(0.82);
-  transition-duration: 0.22s;
+  transform: translate3d(0, 102%, 0) scale(0.99);
+  transition-duration: 0.28s;
   transition-timing-function: cubic-bezier(0.55, 0, 0.9, 0.35);
 }
 
 .journey-spatial-permission-handle {
-  margin: 0 auto 14px;
+  margin: 0 auto 18px;
   pointer-events: none;
   cursor: default;
 }
 
 .journey-spatial-permission-art {
   position: relative;
-  width: 250px;
-  height: 232px;
-  margin: 5px auto 8px;
+  width: 280px;
+  height: 285px;
+  margin: 28px auto 32px;
   pointer-events: none;
 }
 
-.journey-spatial-permission-world {
+.journey-spatial-permission-tilt-frames {
+  position: absolute;
+  z-index: 2;
+  left: 30px;
+  top: 2px;
+  width: 220px;
+  height: 277px;
+  animation: journey-spatial-modal-tilt-breathe 2.4s ease-in-out infinite;
+}
+
+.journey-spatial-permission-tilt {
+  position: absolute;
+  inset: 0;
+  width: 220px;
+  height: 277px;
+  object-fit: contain;
+  backface-visibility: hidden;
+  -webkit-user-drag: none;
+}
+
+.journey-spatial-permission-tilt-1 {
+  opacity: 1;
+  animation: journey-spatial-modal-tilt-frame-1 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.journey-spatial-permission-tilt-2 {
+  opacity: 0.2;
+  animation: journey-spatial-modal-tilt-frame-2 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.journey-spatial-permission-star {
   position: absolute;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 8px 8px rgba(93, 65, 51, 0.13));
+  filter: drop-shadow(0 6px 5px rgba(173, 135, 117, 0.16));
   transform-origin: 50% 55%;
   backface-visibility: hidden;
   -webkit-user-drag: none;
 }
 
-.journey-spatial-permission-world-1 {
-  z-index: 2;
-  left: 42px;
-  top: 0;
-  width: 169px;
-  animation: journey-spatial-modal-robo-top-idle 4.4s cubic-bezier(0.45, 0.05, 0.3, 0.96) infinite;
+.journey-spatial-permission-star-1 {
+  z-index: 3;
+  left: 4px;
+  top: 42px;
+  width: 31px;
+  animation:
+    journey-spatial-modal-star-left 1.85s cubic-bezier(0.34, 1.45, 0.64, 1) infinite,
+    journey-spatial-modal-star-scale 1.55s ease-in-out -0.2s infinite;
 }
 
-.journey-spatial-permission-world-2 {
-  z-index: 1;
-  right: 39px;
-  top: 104px;
-  width: 164px;
-  animation: journey-spatial-modal-robo-idle 5.1s cubic-bezier(0.45, 0.05, 0.3, 0.96) -1.35s infinite;
+.journey-spatial-permission-star-2 {
+  z-index: 3;
+  right: 0;
+  top: 112px;
+  width: 42px;
+  animation:
+    journey-spatial-modal-star-right 2.1s cubic-bezier(0.34, 1.45, 0.64, 1) -0.65s infinite,
+    journey-spatial-modal-star-scale 1.75s ease-in-out -0.8s infinite;
+}
+
+.journey-spatial-permission-star-3 {
+  z-index: 3;
+  left: 12px;
+  bottom: 24px;
+  width: 25px;
+  animation:
+    journey-spatial-modal-star-small 1.65s cubic-bezier(0.34, 1.45, 0.64, 1) -0.35s infinite,
+    journey-spatial-modal-star-scale 1.4s ease-in-out -0.55s infinite;
 }
 
 .journey-spatial-permission-card h2 {
-  margin: 0;
+  margin: 0 auto;
+  max-width: 310px;
   color: #ad8775;
-  font-size: 32px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .journey-spatial-permission-card h2 span {
-  color: #ee7045;
+  color: #e8744a;
 }
 
-.journey-spatial-permission-card p {
-  max-width: 300px;
-  margin: 0 auto 24px;
-  color: #cba89a;
+.journey-spatial-permission-copy {
+  max-width: 310px;
+  margin: 0 auto 28px;
+  color: #cba89a !important;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  font-weight: 500;
+  font-style: normal;
+  font-weight: 500 !important;
   line-height: 1.3;
+  text-align: center;
 }
 
 .journey-spatial-permission-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  width: 100%;
+  gap: 22px;
 }
 
 .journey-spatial-permission-actions button {
@@ -3240,24 +3318,41 @@
   opacity: 0.62;
 }
 
-.journey-spatial-permission-enable {
-  max-width: 250px !important;
+@keyframes journey-spatial-modal-tilt-frame-1 {
+  0%, 30%, 100% { opacity: 1; }
+  50%, 80% { opacity: 0.2; }
 }
 
-.journey-spatial-permission-dismiss {
-  max-width: 250px !important;
+@keyframes journey-spatial-modal-tilt-frame-2 {
+  0%, 30%, 100% { opacity: 0.2; }
+  50%, 80% { opacity: 1; }
 }
 
-@keyframes journey-spatial-modal-robo-top-idle {
-  0%, 100% { transform: translate3d(-7px, -3px, 0) rotate(-2.2deg) scale(1); }
-  48% { transform: translate3d(9px, 5px, 0) rotate(2.2deg) scale(1.045); }
-  72% { transform: translate3d(3px, 8px, 0) rotate(0.7deg) scale(1.018); }
+@keyframes journey-spatial-modal-tilt-breathe {
+  0%, 100% { transform: translate3d(-3px, 1px, 0) rotate(-1deg) scale(1); }
+  50% { transform: translate3d(3px, -2px, 0) rotate(1deg) scale(1.025); }
 }
 
-@keyframes journey-spatial-modal-robo-idle {
-  0%, 100% { transform: translate3d(8px, 4px, 0) rotate(2.4deg) scale(1.025); }
-  42% { transform: translate3d(-9px, -5px, 0) rotate(-2deg) scale(0.985); }
-  76% { transform: translate3d(-2px, 7px, 0) rotate(-0.5deg) scale(1.04); }
+@keyframes journey-spatial-modal-star-left {
+  0%, 100% { transform: translate3d(0, 4px, 0) rotate(-8deg) scale(0.92); }
+  48% { transform: translate3d(-3px, -7px, 0) rotate(7deg) scale(1.12); }
+  68% { transform: translate3d(1px, -3px, 0) rotate(2deg) scale(1.02); }
+}
+
+@keyframes journey-spatial-modal-star-right {
+  0%, 100% { transform: translate3d(0, -2px, 0) rotate(8deg) scale(1); }
+  44% { transform: translate3d(4px, 8px, 0) rotate(-7deg) scale(1.14); }
+  70% { transform: translate3d(1px, 3px, 0) rotate(-2deg) scale(1.04); }
+}
+
+@keyframes journey-spatial-modal-star-small {
+  0%, 100% { transform: translate3d(2px, 2px, 0) rotate(5deg) scale(0.9); }
+  52% { transform: translate3d(-2px, -6px, 0) rotate(-6deg) scale(1.13); }
+}
+
+@keyframes journey-spatial-modal-star-scale {
+  0%, 100% { scale: 0.96; }
+  50% { scale: 1.04; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3267,7 +3362,55 @@
     transition-duration: 0.01ms !important;
   }
 
-  .journey-spatial-permission-world {
+  .journey-spatial-permission-tilt-frames,
+  .journey-spatial-permission-tilt,
+  .journey-spatial-permission-star {
     animation: none !important;
+  }
+
+  .journey-spatial-permission-tilt-1 { opacity: 1; }
+  .journey-spatial-permission-tilt-2 { opacity: 0; }
+}
+
+@media (max-height: 720px) {
+  .journey-spatial-permission-card {
+    padding: 12px 40px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .journey-spatial-permission-handle {
+    margin-bottom: 10px;
+  }
+
+  .journey-spatial-permission-art {
+    width: 234px;
+    height: 224px;
+    margin-top: 26px;
+    margin-bottom: 28px;
+  }
+
+  .journey-spatial-permission-tilt-frames {
+    left: 28px;
+    top: -24px;
+    scale: 0.8;
+    transform-origin: 50% 50%;
+  }
+
+  .journey-spatial-permission-star-1 {
+    left: 0;
+    top: 36px;
+  }
+
+  .journey-spatial-permission-star-2 {
+    right: 0;
+    top: 88px;
+  }
+
+  .journey-spatial-permission-star-3 {
+    bottom: 20px;
+  }
+
+  .journey-spatial-permission-copy {
+    margin-bottom: 20px;
+    font-size: 18px;
   }
 }

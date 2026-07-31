@@ -9,6 +9,7 @@
 
 :root{
   --app-gradient: linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%);
+  --bottom-sheet-paper-texture: url('../assets/modals/paper.png');
   --board-perspective: 1200px;
   --tile-3d-depth: 20px;
   --board-tilt: 20deg;
@@ -2561,14 +2562,19 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 /* ===== END THIS RUN BOTTOM SHEET STYLES ===== */
+.simple-bottom-sheet,
+.bottom-sheet-paper-surface {
+  background: var(--bottom-sheet-paper-texture);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .simple-bottom-sheet {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  background: url('../assets/modals/paper.png');
-  background-size: cover;
-  background-position: center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
   box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7); /* Extended 50% further upward */
   max-height: 60vh;

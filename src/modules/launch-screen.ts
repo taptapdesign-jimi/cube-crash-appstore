@@ -8,6 +8,13 @@ import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
+import {
+  cancelSpatialMotionPermissionModal,
+  preloadSpatialMotionPermissionArt,
+  shouldShowSpatialMotionPermissionModal,
+  showSpatialMotionPermissionModal,
+} from './spatial-motion-permission-modal.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -42,6 +49,7 @@ interface LaunchScreenElements {
 class LaunchScreen {
   private elements: LaunchScreenElements;
   private isActive: boolean = false;
+  private isAwaitingSpatialPermission: boolean = false;
   private runAbortController: AbortController | null = null;
   // 🔥 FIX: Track event listener cleanup functions
   private eventCleanups: Array<() => void> = [];
@@ -49,6 +57,10 @@ class LaunchScreen {
   // Public getter for isActive
   get active(): boolean {
     return this.isActive;
+  }
+
+  get awaitingSpatialPermission(): boolean {
+    return this.isAwaitingSpatialPermission;
   }
 
   constructor() {
@@ -505,6 +517,26 @@ class LaunchScreen {
     }), runSignal);
     if (!readinessCompleted || !this.isCurrentRun(container)) return;
 
+    // The branded iOS permission explainer intentionally pauses launch while
+    // the TapTap logo and selected character are still visible. Homepage stays
+    // hidden until the user's direct gesture resolves the native prompt.
+    if (shouldShowSpatialMotionPermissionModal(
+      journeySpatialMotion.isEnabled(),
+      journeySpatialMotion.requiresPermissionGesture(),
+    )) {
+      await this.waitForRun(preloadSpatialMotionPermissionArt(), runSignal);
+      if (!this.isCurrentRun(container)) return;
+      this.isAwaitingSpatialPermission = true;
+      try {
+        await showSpatialMotionPermissionModal(
+          () => journeySpatialMotion.requestPermissionFromGesture(),
+        );
+      } finally {
+        this.isAwaitingSpatialPermission = false;
+      }
+      if (!this.isCurrentRun(container)) return;
+    }
+
     studioLogoSheen.classList.remove('is-idle-active');
     characterIdleTween?.kill?.();
     logger.info('✅ Studio intro preload complete - homepage readiness satisfied');
@@ -562,6 +594,7 @@ class LaunchScreen {
     logger.info('✅ Launch screen container removed from DOM');
 
     this.isActive = false;
+    this.isAwaitingSpatialPermission = false;
     if (this.runAbortController === runAbortController) {
       this.runAbortController = null;
     }
@@ -610,6 +643,8 @@ class LaunchScreen {
   dispose(reason = 'launch-dispose'): void {
     logger.warn('🧹 Disposing launch screen', 'launch-screen', { reason });
     this.isActive = false;
+    this.isAwaitingSpatialPermission = false;
+    cancelSpatialMotionPermissionModal();
     this.runAbortController?.abort();
     this.runAbortController = null;
     try {

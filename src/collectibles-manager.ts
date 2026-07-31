@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { logger } from './core/logger.js';
 import {
+  isJourneyViewStructurallyPrepared,
   isJourneyBackgroundPreparationAllowed,
   readJourneyPreparationRuntimeState,
 } from './modules/journey-background-preparation.js';
@@ -940,8 +941,7 @@ class CollectiblesManager {
     // Render boards in background
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
-      const hasBoards = journeyContainer.querySelector('.journey-board-card');
-      if (hasBoards) {
+      if (isJourneyViewStructurallyPrepared(journeyContainer)) {
         logger.info('🗺️ Journey boards already prepared - skipping rerender');
         return;
       }
@@ -1043,23 +1043,15 @@ class CollectiblesManager {
       logger.info('✅ Slider container hidden - Journey screen is active');
     }
 
-    // Reset slider manager state
+    // Forward navigation only synchronizes the hidden Homepage position.
+    // forceReady() is a return/recovery API: it clears the transition lock,
+    // reveals Homepage layers, and reacquires Homepage gyro mid-handoff.
     const sliderManager = (window as any).sliderManager;
     if (sliderManager) {
       try {
-        // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
-        // This resets ALL animation flags, unlocks slider, and reinitializes if needed
-        if (typeof sliderManager.forceReady === 'function') {
-          sliderManager.forceReady();
-          logger.info('✅ Slider forceReady() called - nuclear reset for Journey');
-        } else if (typeof sliderManager.ensureReady === 'function') {
-          sliderManager.ensureReady();
-          logger.info('✅ Slider ensureReady() called (fallback)');
-        }
-        // Position slider at Journey slide (index 1)
-        if (typeof sliderManager.setSlideInstant === 'function') {
-          sliderManager.setSlideInstant(1);
-          logger.info('✅ Slider positioned at Journey slide (1) for swipe gestures');
+        if (typeof sliderManager.syncHiddenSlideState === 'function') {
+          sliderManager.syncHiddenSlideState(1);
+          logger.info('✅ Hidden slider state synchronized without Homepage recovery lifecycle');
         }
       } catch (err) {
         logger.warn('⚠️ Failed to position slider for Journey:', err);
@@ -1177,8 +1169,8 @@ class CollectiblesManager {
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
     // If not, render them now (non-blocking - don't await)
     if (journeyContainer) {
-      const hasBoards = journeyContainer.querySelector('.journey-board-card');
-      if (!hasBoards) {
+      const journeyViewPrepared = isJourneyViewStructurallyPrepared(journeyContainer);
+      if (!journeyViewPrepared) {
         // Boards not yet rendered - prepare in background (deduped)
         logger.info('🗺️ Boards not yet rendered - preparing now (non-blocking)');
         journeyBoardsReadyPromise = this.prepareJourneyScreen().catch((error) => {
@@ -1274,7 +1266,7 @@ class CollectiblesManager {
           });
           await journeyBoardsReadyPromise;
           logger.info('🧭 JourneyForestAnim pre-reveal-boards-ready', {
-            hasCards: !!journeyContainer.querySelector('.journey-board-card'),
+            journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
           });
         }
         const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
@@ -1335,7 +1327,7 @@ class CollectiblesManager {
                   });
                   await journeyBoardsReadyPromise;
                   logger.info('🧭 JourneyForestAnim collectibles-boards-ready', {
-                    hasCards: !!journeyContainer.querySelector('.journey-board-card'),
+                    journeyViewPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
                   });
                 }
                 if (shouldPlayActiveBoardAreaEnter && !activeBoardAreaPreparedBeforeReveal) {

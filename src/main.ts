@@ -59,6 +59,7 @@ import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js'
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { SLIDER_CONFIG } from './constants/animations.js';
+import { appSpatialMotion } from './modules/journey-spatial-motion.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -440,6 +441,10 @@ async function playHomepageSliderEnterHandoff(
       nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
     });
   }
+  // Homepage enter owns transforms until its safety-finalize boundary. Any
+  // refresh calls during forceReady/setSlide are coalesced by the app-level
+  // motion owner instead of repeatedly restarting gyro baselines mid-enter.
+  appSpatialMotion.holdActivations(`homepage-enter:${reason}`);
   animateSliderEnter();
   window.setTimeout(() => {
     {
@@ -464,6 +469,11 @@ async function playHomepageSliderEnterHandoff(
       uiManager.reattachHomepageButtonListeners();
     } catch (error) {
       console.warn('⚠️ Homepage enter: failed to restore interaction after finalize', error);
+    }
+    appSpatialMotion.releaseActivations(`homepage-enter-complete:${reason}`);
+    sliderManager.refreshHomepageSpatialMotion();
+    if (reason === 'settings-exit-homepage-slide') {
+      appSpatialMotion.profileFrameWindow('settings-exit-homepage', 6000);
     }
     window.setTimeout(() => {
       restoreHomepageNavigationTree(`${reason}:post-finalize-safety`);
@@ -1008,6 +1018,10 @@ async function startAssetPreloading(): Promise<void> {
 
     // Fallback: force-hide loader if something stalls (safety net)
     const forceHideTimeout = setTimeout(() => {
+      if (launchScreen.awaitingSpatialPermission) {
+        logger.info('⏸️ Loader safety timeout paused for intentional 3D Motion permission choice');
+        return;
+      }
       logger.warn('⚠️ Loader safety timeout reached - forcing complete disposal');
       launchScreen.dispose('main-safety-timeout');
     }, 12000);
@@ -1081,12 +1095,25 @@ async function startAssetPreloading(): Promise<void> {
         }
       }, 50); // Check every 50ms for faster response
       
-      // Safety timeout (fallback if launch screen never completes)
-      setTimeout(() => {
+      // Safety timeout (fallback if launch screen never completes). An open
+      // permission modal is an intentional user wait, not a stalled loader.
+      let permissionWaitWasObserved = false;
+      const resolveSafetyTimeout = () => {
+        if (launchScreen.awaitingSpatialPermission) {
+          permissionWaitWasObserved = true;
+          window.setTimeout(resolveSafetyTimeout, 1000);
+          return;
+        }
+        if (permissionWaitWasObserved) {
+          permissionWaitWasObserved = false;
+          window.setTimeout(resolveSafetyTimeout, 15000);
+          return;
+        }
         clearInterval(checkInterval);
         logger.debug('Launch screen timeout - forcing resolve', 'main');
         resolve();
-      }, 15000);
+      };
+      window.setTimeout(resolveSafetyTimeout, 15000);
     });
     
     // Wait ONLY for launch screen (not preloading)

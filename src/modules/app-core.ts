@@ -141,6 +141,8 @@ import { resolveMerge6SpawnMode } from './merge6-spawn-mode-decision.ts';
 import { resolveWildMergeSpawnBonus } from './wild-merge-spawn-bonus-decision.ts';
 import { getLockedSpawnCandidates } from './locked-spawn-candidates.ts';
 import { resolveRegularMerge6SpawnCount } from './regular-merge6-spawn-count.ts';
+import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owner.ts';
+import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
 import { resolvePostSpawnEndgameDelayMs } from './post-spawn-endgame-delay.ts';
 import { resolveWildEndgameSpawnMult } from './wild-endgame-spawn-mult-decision.ts';
 import {
@@ -684,6 +686,7 @@ let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/juice are used rapidly
 let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
+const merge6DestinationCleanupOwner = new Merge6DestinationCleanupOwner();
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -708,7 +711,7 @@ export function isTerminalEndgameInteractionLocked(): boolean {
 }
 let failScreenFlowInProgress = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
-let activeDragEndgameSkipStartedAt: number | null = null; // Track stale drag blocks separately from spawn guards
+let activeDragEndgameDeferredAt: number | null = null; // Telemetry only; drag runtime owns stale-pointer recovery
 let stuckWildDeferralStartedAt: number | null = null; // Guard against infinite stuck->wild defer loop
 let tutorialFinalChanceSpawnCount = 0;
 const MAX_STUCK_WILD_DEFERRAL_MS = 2200;
@@ -778,7 +781,7 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   try { (window as any).__ccActiveMagnetPullCleanup?.(); } catch {}
   try { (window as any).__ccActiveMagnetPullCleanup = null; } catch {}
   checkLevelEndSkipStartedAt = null;
-  activeDragEndgameSkipStartedAt = null;
+  activeDragEndgameDeferredAt = null;
   stuckWildDeferralStartedAt = null;
   resetTransientEndgameRuntimeState(`transient-guards:${reason}`);
 }
@@ -3895,7 +3898,10 @@ export async function layoutBoard(){
       devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
   }
-  journeySpatialMotion.activateGameplay(() => tiles);
+  journeySpatialMotion.activateGameplay(
+    () => tiles,
+    () => HUD.getWildMeterSpatialWrapper?.() ?? null,
+  );
   markBoardLifecycle('layout-complete');
 }
 
@@ -7092,6 +7098,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    let regularMerge6CleanupToken: number | null = null;
     // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
     // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
     // The saved values from outer scope (line 3653-3654) are already available in this closure
@@ -7469,6 +7476,32 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       if (!isFinalMergeByResolver) {
         (dst as any)._ccNonFinalMerge6 = true;
         (dst as any)._ccNonFinalMerge6At = Date.now();
+        if (!wildActive) {
+          regularMerge6CleanupToken = merge6DestinationCleanupOwner.claim(dst);
+          if (regularMerge6CleanupToken !== null) {
+            const watchdogToken = regularMerge6CleanupToken;
+            trackAppTimeout(() => {
+              if (!merge6DestinationCleanupOwner.owns(dst, watchdogToken)) return;
+              if ((dst as any)?._isLastMerge === true || (dst as any)?._ccFinalMergeAllowedByResolver === true) {
+                merge6DestinationCleanupOwner.release(dst, watchdogToken);
+                return;
+              }
+              if ((dst?.value | 0) !== 6 || dst?.special) {
+                merge6DestinationCleanupOwner.release(dst, watchdogToken);
+                return;
+              }
+              devWarn('🧹 MERGE-6 CLEANUP WATCHDOG: removing an unfinished regular destination', {
+                token: watchdogToken,
+                gridX: dst?.gridX,
+                gridY: dst?.gridY,
+                value: dst?.value,
+              });
+              merge6DestinationCleanupOwner.release(dst, watchdogToken);
+              try { detachTileFromGrid(dst, grid); } catch {}
+              try { removeTile(dst); } catch {}
+            }, 1200);
+          }
+        }
         (window as any).__ccNonFinalMerge6GuardUntil = Math.max(
           Number((window as any).__ccNonFinalMerge6GuardUntil || 0),
           Date.now() + 2500,
@@ -7741,6 +7774,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       dst.isWildFace = false;
     }
     makeBoard.setValue(dst, 6, 0);
+    if (regularMerge6CleanupToken !== null) {
+      // setValue refreshes visual/input bindings; immediately restore the
+      // transaction lock before the 80ms absorb tween can yield to another tap.
+      merge6DestinationCleanupOwner.protect(dst, regularMerge6CleanupToken);
+    }
     // 🔥 CRITICAL: After setValue (which uses requestAnimationFrame), double-check pips are drawn
     // This ensures pips are visible even if there was a race condition
     if (wildActive) {
@@ -9752,9 +9790,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
             dst.visible = true;
             dst.alpha = 1;
-            dst.eventMode = 'static';
-            dst.cursor = 'pointer';
-            devLog('🎯 Regular merge-6: keeping merge result tile visible and active (no placeholder swap)');
+            // Cleanup ownership keeps the impact visible, but never draggable.
+            // A queued rapid touch must not rebind this destination before removal.
+            dst.eventMode = 'none';
+            dst.interactive = false;
+            dst.interactiveChildren = false;
+            dst.cursor = 'default';
+            devLog('🎯 Regular merge-6: keeping impact visible under cleanup ownership (non-interactive)');
           } else if (!isMagnetPullMerge) {
             // Wild non-magnet flow keeps legacy behavior (placeholder helper for spawn choreography).
             dst.visible = false;
@@ -11299,20 +11341,26 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // Normal mode: remove merge-6 destination tile immediately
             devLog('🗑️ Removing dst tile IMMEDIATELY (merge 6, not magnet pull)');
             
-            // 🔥 BUG FIX: Grid may have placeholder (not dst) at (gx, gy) – always clear whatever is there.
-            // Keeping a locked placeholder here can leak into gameplay and appear as "locked tile instead of merge result".
+            // Never delete an arbitrary current cell owner: a newer merge/spawn may
+            // already have claimed this coordinate. Only this dst or its own wild
+            // placeholder belongs to the current cleanup transaction.
             if (grid && grid[gy] && grid[gy][gx]) {
               const atCell = grid[gy][gx];
-              grid[gy][gx] = null;
-              if (atCell && atCell !== dst && !atCell.destroyed && tiles.includes(atCell)) {
+              if (atCell === dst) {
+                grid[gy][gx] = null;
+              } else if (wasWild && isLockedEmptyPlaceholder(atCell)) {
+                grid[gy][gx] = null;
                 removeTile(atCell);
-                devLog('🧹 Removed placeholder/leftover from merge 6 cell (normal path)');
+                devLog('🧹 Removed owned wild placeholder from merge 6 cell (normal path)');
               }
             }
             if (clearTileFromGridSafe(dst)) {
               devLog('🧹 Explicitly cleared grid position before removeTile');
             }
             
+            if (regularMerge6CleanupToken !== null) {
+              merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            }
             dst.visible = false;
             dst.alpha = 0;
             dst.eventMode = 'none';
@@ -11945,82 +11993,25 @@ function checkLevelEnd(){
       }
     }
     
-    const forceClearStaleEndgameDrag = (tile: any, reason: string) => {
-      try {
-        const dragState = ((STATE as any)?.drag) || (drag as any);
-        const startGX = Number.isFinite(dragState?.startGX) ? dragState.startGX | 0 : tile?.gridX | 0;
-        const startGY = Number.isFinite(dragState?.startGY) ? dragState.startGY | 0 : tile?.gridY | 0;
-        const startX = Number.isFinite(dragState?.startX) ? dragState.startX : tile?.x;
-        const startY = Number.isFinite(dragState?.startY) ? dragState.startY : tile?.y;
-
-        if (tile && !tile.destroyed) {
-          if (grid?.[startGY] && !grid[startGY][startGX]) {
-            grid[startGY][startGX] = tile;
-          }
-          if (Number.isFinite(startGX)) tile.gridX = startGX;
-          if (Number.isFinite(startGY)) tile.gridY = startGY;
-          if (Number.isFinite(startX)) tile.x = startX;
-          if (Number.isFinite(startY)) tile.y = startY;
-          if (tile.scale) {
-            tile.scale.x = 1;
-            tile.scale.y = 1;
-          }
-          tile.rotation = 0;
-          tile.eventMode = tile.locked ? 'none' : 'static';
-          tile.cursor = tile.locked ? 'default' : 'pointer';
-          tile.interactiveChildren = true;
-          try { makeBoard?.syncTileZIndex?.(tile, board); } catch {}
-          try { resetTileToNormalState?.(tile); } catch {}
-        }
-
-        try { dragState?.clearHover?.({ immediateMagnet: true }); } catch {}
-        try { dragState?.cleanup?.(); } catch {}
-        try { if (dragState) dragState.t = null; } catch {}
-        try { if ((drag as any)) (drag as any).t = null; } catch {}
-        try { (STATE as any).drag = dragState; } catch {}
-        try {
-          if (tile && !tile.destroyed && dragState?.bindToTile && !tile.locked) {
-            dragState.bindToTile(tile);
-          }
-        } catch {}
-        try { drawBoardBG?.(); } catch {}
-        try { (window as any).updateGhostVisibility?.(); } catch {}
-        devWarn('🧹 checkLevelEnd: Cleared stale drag state that was blocking endgame flow', {
-          reason,
-          value: tile?.value,
-          special: tile?.special,
-          gridX: tile?.gridX,
-          gridY: tile?.gridY,
-        });
-      } catch (err) {
-        devWarn('⚠️ checkLevelEnd: Failed to clear stale drag state', err);
-      }
-      activeDragEndgameSkipStartedAt = null;
-    };
-
     // Do not evaluate endgame while user is actively dragging a tile.
     // Drag temporarily mutates board/grid state and can produce transient false "stuck".
-    // If the pointerup is lost on iOS, force-release the stale drag after a hard timeout.
+    // Never cancel it from this observer: drag-core owns pointer lifecycle and its
+    // activity-refreshed watchdog handles a genuinely lost iOS pointer.
     const activeDragTile = ((STATE as any)?.drag?.t) || ((drag as any)?.t);
-    if (activeDragTile && !activeDragTile.destroyed) {
+    if (shouldDeferEndgameForActiveDrag(activeDragTile)) {
       const dragNow = Date.now();
-      if (activeDragEndgameSkipStartedAt === null) activeDragEndgameSkipStartedAt = dragNow;
-      const activeDragSkipExceeded = (dragNow - activeDragEndgameSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
-      if (activeDragSkipExceeded) {
-        forceClearStaleEndgameDrag(activeDragTile, 'pre-endgame-check-timeout');
-      } else {
-        logger.debug('⏳ checkLevelEnd skipped - active drag in progress', 'app-core', {
-          value: activeDragTile.value,
-          special: activeDragTile.special,
-          gridX: activeDragTile.gridX,
-          gridY: activeDragTile.gridY,
-          msActive: dragNow - activeDragEndgameSkipStartedAt
-        });
-        scheduleCheckLevelEnd(0.25, 'active-drag-in-progress');
-        return;
-      }
+      if (activeDragEndgameDeferredAt === null) activeDragEndgameDeferredAt = dragNow;
+      logger.debug('⏳ checkLevelEnd skipped - active drag owns pointer lifecycle', 'app-core', {
+        value: activeDragTile.value,
+        special: activeDragTile.special,
+        gridX: activeDragTile.gridX,
+        gridY: activeDragTile.gridY,
+        msDeferred: dragNow - activeDragEndgameDeferredAt
+      });
+      scheduleCheckLevelEnd(0.25, 'active-drag-in-progress');
+      return;
     }
-    activeDragEndgameSkipStartedAt = null;
+    activeDragEndgameDeferredAt = null;
 
     // 🔥 v38: Reset retry counter after successful reschedule bypass (tiles no longer locked/spawn done)
     checkLevelEndRetryCount = 0;
@@ -12762,6 +12753,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
 }
 
 function removeTile(t){
+  merge6DestinationCleanupOwner.forget(t);
   removeTileFully(t, {
     board,
     grid,

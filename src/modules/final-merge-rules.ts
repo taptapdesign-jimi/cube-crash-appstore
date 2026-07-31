@@ -120,6 +120,9 @@ export function getPlayableMagnetPullCandidates({
   const safeTiles = Array.isArray(tiles) ? tiles.filter(Boolean) : [];
   return safeTiles.filter((tile: any) => {
     if (!tile || tile === src || tile === dst || tile === magnetTile) return false;
+    // A visible regular merge-6 destination can briefly remain on stage while
+    // its spawn choreography finishes. It is cleanup-owned, not magnet food.
+    if (typeof tile._ccMerge6CleanupToken === 'number') return false;
     if (!tileCountsAsFinalMergeActive(tile)) return false;
     if (tile._wildMagnetAffected === true) return false;
     if (tile._noTilesPulled === true || tile._wildMagnetPulledTilesMerge === true) return false;

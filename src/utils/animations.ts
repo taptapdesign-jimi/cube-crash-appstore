@@ -270,6 +270,9 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
 // 🔥 REFACTOR: Use local flags that sync with sliderState module
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
+let journeySliderExitPromise: Promise<void> | null = null;
+let journeySliderExitAnimations: Animation[] = [];
+let journeySliderExitFallback: ReturnType<typeof setTimeout> | null = null;
 
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -599,6 +602,137 @@ export const cleanupAnimations = (): void => {
   sliderState.reset();
   
   logger.info('✅ Animation cleanup complete (timeouts, cache, and flags cleared)');
+};
+
+const getJourneySliderExitTargets = (): Array<{ element: HTMLElement; delay: number }> => {
+  const activeSlide = document.querySelector<HTMLElement>('.slider-slide.active');
+  const targetGroups: Array<{ elements: Array<HTMLElement | null>; delay: number }> = [
+    { elements: [activeSlide?.querySelector<HTMLElement>('.hero-container') ?? null], delay: 0 },
+    {
+      elements: [
+        activeSlide?.querySelector<HTMLElement>('.slide-button') ?? null,
+        activeSlide?.querySelector<HTMLElement>('.slide-text') ?? null,
+        activeSlide?.querySelector<HTMLElement>('.slide-tagline') ?? null,
+      ],
+      delay: 0.03,
+    },
+    {
+      elements: [
+        document.getElementById('home-logo'),
+        document.getElementById('logo-shards-gore-ljevo'),
+        document.getElementById('logo-shards-gore-desno'),
+        document.getElementById('logo-shards-dole-ljevi'),
+        document.getElementById('logo-shards-dole-desni'),
+      ],
+      delay: 0.06,
+    },
+    {
+      elements: [
+        document.getElementById('independent-nav'),
+        document.getElementById('home-fixed-shadow-bottom'),
+      ],
+      delay: 0.09,
+    },
+  ];
+
+  const seen = new Set<HTMLElement>();
+  return targetGroups.flatMap(({ elements, delay }) => elements
+    .filter((element): element is HTMLElement => !!element && element.isConnected)
+    .filter((element) => {
+      if (seen.has(element)) return false;
+      seen.add(element);
+      return true;
+    })
+    .map((element) => ({ element, delay })));
+};
+
+/**
+ * Homepage → Journey owns one monotonic exit. Unlike the legacy global
+ * `.animate-exit` curve, progress never crosses scale zero and cannot visually
+ * flip/reappear as a second "bom".
+ */
+export const animateJourneySliderExit = (): Promise<void> => {
+  if (journeySliderExitPromise) return journeySliderExitPromise;
+
+  isAnimatingExit = true;
+  sliderState.setAnimatingExit(true);
+  gameState.set('sliderLocked', true);
+  const targets = getJourneySliderExitTargets();
+
+  journeySliderExitPromise = new Promise<void>((resolve) => {
+    let finished = false;
+    let remaining = targets.length;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (journeySliderExitFallback) {
+        clearTimeout(journeySliderExitFallback);
+        journeySliderExitFallback = null;
+      }
+      resolve();
+    };
+    const finishTarget = () => {
+      remaining -= 1;
+      if (remaining <= 0) finish();
+    };
+
+    targets.forEach(({ element, delay }) => {
+      gsap.killTweensOf(element);
+      element.classList.remove(
+        'animate-exit', 'animate-enter', 'animate-enter-initial',
+        'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce',
+      );
+      element.style.willChange = 'scale';
+      // Animate the independent CSS `scale` longhand so every established
+      // responsive translate/transform rule remains untouched.
+      const animation = element.animate([
+        { scale: '1' },
+        { scale: '0' },
+      ], {
+        duration: 460,
+        delay: delay * 1000,
+        easing: 'cubic-bezier(0.32, 0, 0.67, 0)',
+        fill: 'forwards',
+      });
+      animation.onfinish = finishTarget;
+      journeySliderExitAnimations.push(animation);
+    });
+
+    journeySliderExitFallback = setTimeout(finish, 700);
+    if (targets.length === 0) finish();
+    logger.info('🎬 Journey Homepage exit started with one monotonic owner');
+  });
+
+  return journeySliderExitPromise;
+};
+
+/** Call only after Homepage is hidden so normalization cannot flash on screen. */
+export const finalizeJourneySliderExit = (): void => {
+  journeySliderExitAnimations.splice(0).forEach((animation) => {
+    try { animation.cancel(); } catch {}
+  });
+  if (journeySliderExitFallback) {
+    clearTimeout(journeySliderExitFallback);
+    journeySliderExitFallback = null;
+  }
+  getJourneySliderExitTargets().forEach(({ element }) => {
+    element.classList.remove('animate-exit', 'soft-cartoon-bounce');
+    element.style.removeProperty('scale');
+    element.style.removeProperty('transition');
+    element.style.removeProperty('-webkit-transition');
+    element.style.removeProperty('will-change');
+  });
+  document.querySelectorAll<HTMLElement>('.nav-badge.animate-exit').forEach((badge) => {
+    badge.classList.remove('animate-exit');
+    badge.style.removeProperty('opacity');
+    badge.style.removeProperty('will-change');
+  });
+  document.getElementById('home')?.removeAttribute('data-journey-exit');
+  journeySliderExitPromise = null;
+  isAnimatingExit = false;
+  sliderState.setAnimatingExit(false);
+  gameState.set('sliderLocked', false);
+  logger.info('✅ Journey Homepage exit finalized after Homepage hide');
 };
 
 export const animateSliderExit = (): void => {

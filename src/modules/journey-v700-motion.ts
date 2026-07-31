@@ -64,6 +64,15 @@ export function getJourneyV700HubEnterStagger(reducedMotion: boolean): number {
   return reducedMotion ? 0.02 : 0.09;
 }
 
+export function shouldIgnoreJourneyV700HubVisibleEnterRequest(state: {
+  phase: 'hidden' | 'entering' | 'idle' | 'exiting';
+  timelineActive: boolean;
+  idleReady: boolean;
+}): boolean {
+  return (state.phase === 'entering' && state.timelineActive) ||
+    (state.phase === 'idle' && state.idleReady);
+}
+
 export function shouldRestoreJourneyInterimWrapperForIdle(state: {
   opacity: number;
   scale: number;

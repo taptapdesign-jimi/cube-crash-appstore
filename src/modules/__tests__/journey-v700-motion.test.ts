@@ -8,6 +8,7 @@ import {
   isJourneyInterimIdleOwnedByEnter,
   shouldRestoreJourneyInterimWrapperForIdle,
   shouldCorrectJourneyHubAutomaticScroll,
+  shouldIgnoreJourneyV700HubVisibleEnterRequest,
 } from '../journey-v700-motion.js';
 
 describe('Journey V700 motion contract', () => {
@@ -43,6 +44,18 @@ describe('Journey V700 motion contract', () => {
     expect(stagger).toBeGreaterThanOrEqual(0.08);
     expect(stagger * 2).toBeLessThanOrEqual(0.2);
     expect(getJourneyV700HubEnterStagger(true)).toBeLessThan(stagger);
+  });
+
+  it('makes repeated visible Hub enter requests idempotent', () => {
+    expect(shouldIgnoreJourneyV700HubVisibleEnterRequest({
+      phase: 'entering', timelineActive: true, idleReady: false,
+    })).toBe(true);
+    expect(shouldIgnoreJourneyV700HubVisibleEnterRequest({
+      phase: 'idle', timelineActive: false, idleReady: true,
+    })).toBe(true);
+    expect(shouldIgnoreJourneyV700HubVisibleEnterRequest({
+      phase: 'hidden', timelineActive: false, idleReady: false,
+    })).toBe(false);
   });
 
   it('keeps main first and gives Units stable irregular enter offsets', () => {

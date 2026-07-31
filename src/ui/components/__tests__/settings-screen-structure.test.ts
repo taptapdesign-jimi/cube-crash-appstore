@@ -44,6 +44,7 @@ describe('Settings screen structure', () => {
     expect(developerPanel?.hidden).toBe(true);
     expect(developerPanel?.querySelector('.settings-dev-area')).not.toBeNull();
     expect(developerPanel?.querySelector('#settings-dev-last-merge-btn')).not.toBeNull();
+    expect(developerPanel?.querySelector('#settings-dev-reset-spatial-intro-btn')).not.toBeNull();
   });
 
   it('keeps the developer navigation handler alive after app navigation resets the view', () => {

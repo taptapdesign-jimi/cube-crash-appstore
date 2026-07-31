@@ -3,7 +3,14 @@
 // Handles all UI interactions and animations
 
 import gameState from './game-state.js';
-import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter } from '../utils/animations.js';
+import {
+  fadeOutHome,
+  fadeInHome,
+  animateSliderExit,
+  animateSliderEnter,
+  animateJourneySliderExit,
+  finalizeJourneySliderExit,
+} from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
@@ -1612,45 +1619,24 @@ class UIManager {
     // 🔥 CRITICAL: Play exit animation FIRST (gradient stays with !important during exit)
     console.log('🎬 Step 1: Playing exit animation for Journey slide (gradient preserved with !important)');
     
-    let journeyPreparePromise: Promise<void> | null = null;
+    // Freeze the current gyro offset so exit begins without a snap, then give
+    // one Promise-based owner all Homepage exit targets.
+    const homeElement = document.getElementById('home');
+    homeElement?.setAttribute('data-journey-exit', 'true');
+    journeySpatialMotion.suspendHomepage();
+    sliderManager.freezeHomepageHeroBounceForExit();
+    const exitCompletePromise = animateJourneySliderExit();
 
-    // Step 1: Play exit animation for Journey slide
-    // 🔥 CRITICAL: Small delay to ensure DOM is updated and slide is marked as active
-    setTimeout(() => {
-      console.log('🎬 Step 1: Playing exit animation for Journey slide');
-      const activeSlide = document.querySelector('.slider-slide.active');
-      console.log('🔍 Active slide found:', !!activeSlide, 'Slide index:', activeSlide?.getAttribute('data-slide'));
-      if (activeSlide) {
-        const heroContainer = activeSlide.querySelector('.hero-container');
-        const slideButton = activeSlide.querySelector('.slide-button');
-        const slideTagline = activeSlide.querySelector('.slide-tagline');
-        console.log('🔍 Journey slide elements:', {
-          heroContainer: !!heroContainer,
-          slideButton: !!slideButton,
-          slideTagline: !!slideTagline
-        });
-      }
-      animateSliderExit();
-      
-      // 🔥 CRITICAL FIX: Start loading Journey boards AFTER exit animation starts
-      // This ensures badge animates out BEFORE any badge reset logic runs
-      console.log('🗺️ Step 0: Starting Journey boards rendering in background (after exit animation started)...');
-      const collectiblesManager = (window as any).collectiblesManager;
-      if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
-        // Use prepareJourneyScreen to render boards without showing screen.
-        // Keep the promise so we can wait briefly before opening Journey.
-        journeyPreparePromise = collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
-          logger.warn('⚠️ Failed to prepare Journey screen:', error);
-        });
-        console.log('✅ Journey boards rendering started in background');
-      }
-    }, 10);
-    
-    // Step 2: Wait for exit animation to complete, then show Journey screen
-    // Exit animation: 770ms
-    setTimeout(async () => {
-      console.log('🗺️ Step 2: Exit animation complete, showing Journey screen');
-      
+    const collectiblesManager = (window as any).collectiblesManager;
+    const journeyPreparePromise: Promise<void> =
+      collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function'
+        ? collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
+            logger.warn('⚠️ Failed to prepare Journey screen:', error);
+          })
+        : Promise.resolve();
+    // Exit and preparation run concurrently and join at one exact handoff.
+    Promise.all([exitCompletePromise, journeyPreparePromise]).then(() => {
+      console.log('🗺️ Homepage exit and Journey preparation complete - revealing Journey once');
       // The shared paper surface is already active.
       // No need to change it - it stays at 60% throughout
       // Just ensure app element is transparent
@@ -1660,27 +1646,21 @@ class UIManager {
       }
       console.log('✅ [Journey ENTER] Paper background with 60% opacity already set - no changes needed');
 
-      // Wait briefly for board preparation so screen doesn't open empty.
-      // Timeout keeps navigation responsive when preparation is slower than expected.
-      if (journeyPreparePromise) {
-        try {
-          await Promise.race([
-            journeyPreparePromise,
-            new Promise<void>(resolve => setTimeout(resolve, 900))
-          ]);
-        } catch (error) {
-          logger.warn('⚠️ Journey preparation wait failed/timed out:', error);
-        }
-      }
-
-      // Show Journey screen immediately after brief prep wait.
-      // Any remaining work continues with in-screen fallback reveal (no blank hold).
       try {
         this.showCollectiblesScreen();
       } finally {
+        // showCollectibles hides Homepage synchronously before its first await.
+        // Only now is it safe to clear scale/transition ownership without flash.
+        finalizeJourneySliderExit();
+        journeySpatialMotion.deactivateHomepage();
+        (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
       }
-    }, 770);
+    }).catch((error) => {
+      logger.error('❌ Homepage → Journey handoff failed:', error);
+      (window as any).__ccUiJourneyTransitioning = false;
+      gameState.set('sliderLocked', false);
+    });
   }
   
   // Hide Journey screen with enter animation
@@ -1985,6 +1965,10 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
+    // Settings owns the transition now. Keep gyro translation from composing
+    // against the slider exit/Settings enter transforms; Homepage will resume
+    // once its return handoff has fully finalized.
+    journeySpatialMotion.holdActivations('settings-enter');
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     try { (window as any).CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}

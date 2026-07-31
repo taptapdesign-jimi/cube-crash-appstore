@@ -38,6 +38,7 @@ import {
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
   isJourneyInterimIdleOwnedByEnter,
+  shouldIgnoreJourneyV700HubVisibleEnterRequest,
   shouldRestoreJourneyInterimWrapperForIdle,
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
@@ -57,11 +58,6 @@ import {
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
-import {
-  cancelJourneySpatialPermissionModal,
-  shouldShowJourneySpatialPermissionForVisibleHub,
-  showJourneySpatialPermissionModal,
-} from './journey-spatial-permission-modal.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -733,8 +729,9 @@ class JourneyBoardsManager {
   private journeyDetailCloseGuardUntil = 0;
   private journeyDetailCloseInProgress = false;
   private journeyV700WorldOpenInProgress = false;
-  private journeyV700HubEnterCooldownUntil = 0;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
+  private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
+  private journeyV700HubEnterEpoch = 0;
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
@@ -2788,7 +2785,7 @@ class JourneyBoardsManager {
     };
 
     addForestMainClouds();
-    mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -16, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
+    mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
     addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [6, 3, 4]);
     addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [6]);
     addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [5, 7, 2]);
@@ -4751,8 +4748,8 @@ class JourneyBoardsManager {
     this.cleanupInProgress = true;
     this.renderDisposed = true;
     try {
-    cancelJourneySpatialPermissionModal();
     journeySpatialMotion.deactivate();
+    this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
     this.releaseJourneyV700HubTopGuard('cleanup');
@@ -5395,8 +5392,8 @@ class JourneyBoardsManager {
 
     this.container = container;
     this.renderDisposed = false;
-    cancelJourneySpatialPermissionModal();
     journeySpatialMotion.deactivate();
+    this.cancelJourneyV700HubEnter('render-before-dom-replace');
     this.resetJourneyBoardVisualResidue('renderBoards-before-dom-replace');
     try {
       const staleHubTargets = Array.from(container.querySelectorAll<HTMLElement>(
@@ -5727,108 +5724,37 @@ class JourneyBoardsManager {
         : 'hub-render'
     );
 
-    try {
-      const worldCards = Array.from(hub.querySelectorAll('.journey-v700-world-card')) as HTMLElement[];
-      const hubCloudLayer = hub.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
-      hub.classList.remove('journey-v700-idle-ready');
-      worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
-      const now = Date.now();
-      const returningFromWorld = (container as any).__ccJourneyV700ReturningFromWorld === true;
-      if (returningFromWorld) {
-        delete (container as any).__ccJourneyV700ReturningFromWorld;
-      }
-      const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
-      const motion = getJourneyV700MotionProfile(reducedMotion);
-      const baseDelay = motion.enter.baseDelay;
-      const stagger = returningFromWorld
-        ? motion.enter.groupStagger
-        : getJourneyV700HubEnterStagger(reducedMotion);
-      const duration = motion.enter.duration;
+    const returningFromWorld = (container as any).__ccJourneyV700ReturningFromWorld === true;
+    delete (container as any).__ccJourneyV700ReturningFromWorld;
+    this.journeyV700Phase = 'hidden';
+    this.logJourneyV700Flow('hub-render-complete-dom-only', {
+      worldCount: hub.querySelectorAll('.journey-v700-world-card').length,
+      returningFromWorld,
+    }, container);
 
-      if (now < this.journeyV700HubEnterCooldownUntil) {
-        try {
-          gsap.killTweensOf(worldCards);
-          if (hubCloudLayer) gsap.killTweensOf(hubCloudLayer);
-          gsap.set(worldCards, { y: 0, scale: 1, opacity: 1, clearProps: 'transform,opacity,visibility,willChange' });
-          if (hubCloudLayer) {
-            gsap.set(hubCloudLayer, { y: 0, scale: 1, opacity: 1, clearProps: 'transform,opacity,visibility,willChange' });
-          }
-        } catch {}
-        worldCards.forEach((card) => card.classList.add('journey-v700-idle-ready'));
-        hub.classList.add('journey-v700-idle-ready');
-        this.journeyV700Phase = 'idle';
-        journeySpatialMotion.activateJourneyHub(container);
-        this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-enter-skipped-recent-duplicate');
-        this.logJourneyV700Flow('hub-enter-skipped-recent-duplicate', {
-          worldCount: worldCards.length,
-          cooldownRemainingMs: Math.round(this.journeyV700HubEnterCooldownUntil - now),
-        }, container);
-        return;
-      }
-
-      this.journeyV700HubEnterCooldownUntil = now + Math.ceil(((baseDelay + (worldCards.length * stagger) + duration) * 1000) + 180);
-      this.logJourneyV700Flow('hub-enter-start', { worldCount: worldCards.length, cloudLayer: !!hubCloudLayer, returningFromWorld, baseDelay, stagger, duration }, container);
-      let remainingEnterTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
-      const finishEnterTarget = () => {
-        remainingEnterTargets -= 1;
-        if (remainingEnterTargets <= 0) {
-          worldCards.forEach((card) => card.classList.add('journey-v700-idle-ready'));
-          if (hubCloudLayer) {
-            gsap.set(hubCloudLayer, { y: 0, scale: 1, opacity: 1, clearProps: 'transform,opacity,visibility,willChange' });
-          }
-          hub.classList.add('journey-v700-idle-ready');
-          this.journeyV700Phase = 'idle';
-          journeySpatialMotion.activateJourneyHub(container);
-          this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-enter-complete');
-          this.logJourneyV700Flow('hub-enter-complete', {}, container);
-        }
-      };
-      if (hubCloudLayer) {
-        gsap.killTweensOf(hubCloudLayer);
-        gsap.fromTo(
-          hubCloudLayer,
-          { y: motion.enter.y * 0.55, scale: 0.82, opacity: 0 },
-          {
-            y: 0,
-            scale: 1,
-            opacity: 1,
-            duration: duration + 0.08,
-            delay: Math.max(0, baseDelay - 0.025),
-            ease: motion.enter.ease,
-            force3D: true,
-            overwrite: true,
-            clearProps: 'willChange',
-            onComplete: finishEnterTarget,
-          }
-        );
-      }
-      worldCards.forEach((card, index) => {
-        gsap.fromTo(
-          card,
-          { y: motion.enter.y, scale: motion.enter.scale, opacity: 0 },
-          {
-            y: 0,
-            scale: 1,
-            opacity: 1,
-            duration,
-            delay: baseDelay + (index * stagger),
-            ease: motion.enter.ease,
-            force3D: true,
-            clearProps: 'willChange',
-            onComplete: finishEnterTarget,
-          }
-        );
-      });
-    } catch (error) {
-      this.logJourneyV700Flow('hub-enter-error', { error: error instanceof Error ? error.message : String(error) }, container);
+    // Rendering only creates stable DOM. Presentation is always delegated to
+    // the single tracked Hub-enter coordinator, regardless of navigation source.
+    if (returningFromWorld) {
+      this.playJourneyV700HubEnter('world-return');
     }
   }
 
-  /**
-   * Background preparation renders the Hub while the Homepage exit is still visible.
-   * Replay the three World Units only when the Journey viewport actually starts entering.
-   */
-  public playJourneyV700HubEnterFromHomepage(): void {
+  private cancelJourneyV700HubEnter(reason: string): void {
+    this.journeyV700HubEnterEpoch += 1;
+    const activeTweens = this.journeyV700HubEnterTweens.splice(0);
+    activeTweens.forEach((tween) => {
+      try { tween.kill(); } catch {}
+    });
+    if (activeTweens.length > 0) {
+      this.logJourneyV700Flow('hub-enter-owner-cancelled', {
+        reason,
+        tweenCount: activeTweens.length,
+      });
+    }
+  }
+
+  /** One coordinator owns every visible Hub presentation source. */
+  private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     if (!container || container.dataset.journeyV700View !== 'hub') return;
 
@@ -5839,12 +5765,47 @@ class JourneyBoardsManager {
     const hub = container.querySelector<HTMLElement>('.journey-v700-hub');
     const hubCloudLayer = container.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
 
+    // Tween existence is the owner signal. GSAP reports delayed tweens inactive
+    // during baseDelay, which previously allowed a second enter to reset them.
+    const timelineActive = this.journeyV700HubEnterTweens.length > 0;
+    const idleReady = hub?.classList.contains('journey-v700-idle-ready') === true &&
+      worldCards.every((card) => card.classList.contains('journey-v700-idle-ready'));
+    emitIOSNativeDiagnostic('hub-visible-enter-request', {
+      phase: this.journeyV700Phase,
+      timelineActive,
+      idleReady,
+      worldCount: worldCards.length,
+    });
+    if (shouldIgnoreJourneyV700HubVisibleEnterRequest({
+      phase: this.journeyV700Phase,
+      timelineActive,
+      idleReady,
+    })) {
+      this.logJourneyV700Flow('hub-visible-enter-ignored-duplicate', {
+        phase: this.journeyV700Phase,
+        timelineActive,
+        idleReady,
+      }, container);
+      emitIOSNativeDiagnostic('hub-visible-enter-ignored-duplicate', {
+        phase: this.journeyV700Phase,
+        timelineActive,
+        idleReady,
+      });
+      return;
+    }
+
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700HubEnterStagger(reducedMotion);
+    this.cancelJourneyV700HubEnter(`new-${source}-enter`);
+    // A background-prepared Hub may still own gyro from an earlier lifecycle.
+    // Release it before GSAP takes transform ownership so spatial translation
+    // cannot appear halfway through the visible enter.
+    journeySpatialMotion.deactivate();
     this.journeyV700Phase = 'entering';
-    this.journeyV700HubEnterCooldownUntil = 0;
-    hub?.classList.remove('journey-v700-idle-ready');
+    const enterEpoch = ++this.journeyV700HubEnterEpoch;
+    const enterStartedAt = performance.now();
+    hub?.classList.remove('journey-v700-idle-ready', 'journey-v700-idle-seamless-start');
     worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
 
     try {
@@ -5869,28 +5830,40 @@ class JourneyBoardsManager {
     } catch {}
 
     this.logJourneyV700Flow('hub-visible-enter-start', {
-      source: 'homepage',
+      source,
       worldCount: worldCards.length,
       cloudLayer: !!hubCloudLayer,
       stagger,
+      duration: motion.enter.duration,
+      expectedTotalMs: Math.round((motion.enter.baseDelay + motion.enter.duration + ((worldCards.length - 1) * stagger)) * 1000),
     }, container);
 
-    let remainingEnterTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
-    const finishEnterTarget = () => {
-      remainingEnterTargets -= 1;
-      if (remainingEnterTargets > 0) return;
+    let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
+    const finishVisibleEnterTarget = () => {
+      if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
+      remainingTargets -= 1;
+      if (remainingTargets > 0) return;
+      this.journeyV700HubEnterTweens = [];
+      // Remove the identity GSAP matrix atomically before CSS idle and gyro
+      // take over separate layers.
+      gsap.set(worldCards, { clearProps: 'transform,opacity,visibility,willChange' });
       worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
       if (hubCloudLayer) {
-        gsap.set(hubCloudLayer, { y: 0, scale: 1, opacity: 1, clearProps: 'transform,opacity,visibility,willChange' });
+        gsap.set(hubCloudLayer, { clearProps: 'transform,opacity,visibility,willChange' });
       }
-      hub?.classList.add('journey-v700-idle-ready');
+      hub?.classList.add('journey-v700-idle-seamless-start', 'journey-v700-idle-ready');
       this.journeyV700Phase = 'idle';
       journeySpatialMotion.activateJourneyHub(container);
-      this.showJourneySpatialPermissionAfterVisibleHubEnter(container, 'hub-visible-enter-complete');
-      this.logJourneyV700Flow('hub-visible-enter-complete', { source: 'homepage' }, container);
+      emitIOSNativeDiagnostic('hub-visible-enter-complete', {
+        source,
+        worldCount: worldCards.length,
+        expectedTotalMs: Math.round((motion.enter.baseDelay + motion.enter.duration + ((worldCards.length - 1) * stagger)) * 1000),
+        actualTotalMs: Math.round(performance.now() - enterStartedAt),
+      });
+      this.logJourneyV700Flow('hub-visible-enter-complete', { source, owner: 'tracked-per-unit' }, container);
     };
     if (hubCloudLayer) {
-      gsap.to(hubCloudLayer, {
+      const cloudTween = trackTween(hubCloudLayer, {
         y: 0,
         scale: 1,
         opacity: 1,
@@ -5899,12 +5872,12 @@ class JourneyBoardsManager {
         ease: motion.enter.ease,
         force3D: true,
         overwrite: true,
-        clearProps: 'willChange',
-        onComplete: finishEnterTarget,
+        onComplete: finishVisibleEnterTarget,
       });
+      this.journeyV700HubEnterTweens.push(cloudTween);
     }
-    worldCards.forEach((card, index) => {
-      gsap.to(card, {
+    worldCards.forEach((worldCard, index) => {
+      const worldTween = trackTween(worldCard, {
         y: 0,
         scale: 1,
         opacity: 1,
@@ -5913,25 +5886,14 @@ class JourneyBoardsManager {
         ease: motion.enter.ease,
         force3D: true,
         overwrite: true,
-        onComplete: finishEnterTarget,
+        onComplete: finishVisibleEnterTarget,
       });
+      this.journeyV700HubEnterTweens.push(worldTween);
     });
   }
 
-  private showJourneySpatialPermissionAfterVisibleHubEnter(container: HTMLElement, source: string): void {
-    const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
-    if (!shouldShowJourneySpatialPermissionForVisibleHub(
-      journeyScreen,
-      container,
-      journeySpatialMotion.isEnabled(),
-      journeySpatialMotion.requiresPermissionGesture(),
-    )) return;
-
-    void showJourneySpatialPermissionModal(
-      () => journeySpatialMotion.requestPermissionFromGesture(),
-    ).then((choice) => {
-      this.logJourneyV700Flow('journey-spatial-intro-choice', { source, choice }, container);
-    });
+  public playJourneyV700HubEnterFromHomepage(): void {
+    this.playJourneyV700HubEnter('homepage');
   }
 
   /**
@@ -6177,6 +6139,7 @@ class JourneyBoardsManager {
   }
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
+	    this.cancelJourneyV700HubEnter(reason);
 	    journeySpatialMotion.suspend();
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;

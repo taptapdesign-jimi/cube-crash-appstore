@@ -240,6 +240,20 @@ test('final merge tile-set helper returns active tiles and blockers from one sou
   });
 });
 
+test('magnet candidates reject a cleanup-owned regular merge-6 destination', () => {
+  const src = makeTile({ value: 0, special: 'wild-magnet' });
+  const dst = makeTile({ value: 2 });
+  const orphanedMerge6 = makeTile({ value: 6, eventMode: 'none', _ccMerge6CleanupToken: 17 });
+  const playable = makeTile({ value: 4 });
+
+  expect(getPlayableMagnetPullCandidates({
+    tiles: [src, dst, orphanedMerge6, playable],
+    src,
+    dst,
+    magnetTile: src,
+  })).toEqual([playable]);
+});
+
 test('magnet last pair is not final when it has tiles to pull', () => {
   const src = makeTile({ value: 0, special: 'wild-magnet' });
   const dst = makeTile({ value: 5 });

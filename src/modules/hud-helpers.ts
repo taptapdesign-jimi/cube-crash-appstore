@@ -285,6 +285,7 @@ function boardSize(): { w: number; h: number } {
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 export let HUD_ROOT: Container | null = null;
+let wildMeterSpatialWrapper: Container | null = null;
 let boardText: Text | null = null;
 let scoreText: Text | null = null;
 let comboText: Text | null = null;
@@ -1098,6 +1099,11 @@ export function isHUDDestroyed(): boolean {
   return !!(HUD_ROOT && (HUD_ROOT as { destroyed?: boolean }).destroyed);
 }
 
+export function getWildMeterSpatialWrapper(): Container | null {
+  if (!wildMeterSpatialWrapper || wildMeterSpatialWrapper.destroyed) return null;
+  return wildMeterSpatialWrapper;
+}
+
 let __comboJitterTl: gsap.core.Timeline | null = null;
 let __comboBumpTl: gsap.core.Timeline | null = null;
 let __shakeTl: gsap.core.Timeline | null = null;        // drives shake amplitude during bump/deflate
@@ -1547,6 +1553,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   comboText = null;
   comboWrap = null;
   wild = null;
+  wildMeterSpatialWrapper = null;
   
   HUD_ROOT = new Container();
   HUD_ROOT.label = 'HUD_ROOT';
@@ -2187,7 +2194,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   console.log('🎯 Creating PIXI wild meter...');
   wild = makeWildLoader();
   if (wild && wild.view) {
-    HUD_ROOT.addChild(wild.view);
+    wildMeterSpatialWrapper = new Container();
+    wildMeterSpatialWrapper.label = 'wildMeterSpatialWrapper';
+    wildMeterSpatialWrapper.zIndex = wild.view.zIndex;
+    wild.view.zIndex = 0;
+    wildMeterSpatialWrapper.addChild(wild.view);
+    HUD_ROOT.addChild(wildMeterSpatialWrapper);
     wild.setProgress(0, false); // Start at 0%
     console.log('✅ PIXI wild meter created and added to HUD');
   } else {
