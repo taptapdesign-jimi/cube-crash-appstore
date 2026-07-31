@@ -50,7 +50,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
@@ -60,6 +60,7 @@ import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { SLIDER_CONFIG } from './constants/animations.js';
 import { appSpatialMotion } from './modules/journey-spatial-motion.js';
+import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -156,6 +157,22 @@ function forceHomepageSlideTarget(
     sliderContainer: getHomeEnterDiagSnapshot(sliderContainer),
     sliderWrapper: getHomeEnterDiagSnapshot(sliderWrapper),
     activeSlide: getHomeEnterDiagSnapshot(document.querySelector('.slider-slide.active') as HTMLElement | null),
+  });
+}
+
+function emitHomepageEnterOwnerSnapshot(phase: string, targetSlideIndex: number): void {
+  const container = document.getElementById('slider-container') as HTMLElement | null;
+  const wrapper = document.getElementById('slider-wrapper') as HTMLElement | null;
+  const wrapperX = wrapper ? Number(gsap.getProperty(wrapper, 'x')) : null;
+  emitIOSNativeDiagnostic('homepage-enter-owner', {
+    phase,
+    targetSlideIndex,
+    containerWidth: container?.offsetWidth ?? null,
+    viewportWidth: window.innerWidth,
+    wrapperX: Number.isFinite(wrapperX) ? wrapperX : null,
+    activeSlides: Array.from(document.querySelectorAll<HTMLElement>('.slider-slide.active'))
+      .map((slide) => Number(slide.dataset.slide)),
+    homeHidden: document.getElementById('home')?.hasAttribute('hidden') ?? true,
   });
 }
 
@@ -274,6 +291,21 @@ function restoreHomepageNavigationTree(reason: string, options: { preserveNavSca
   });
 }
 
+function lockHomepageEnterInteraction(): void {
+  [
+    document.getElementById('home'),
+    document.getElementById('slider-container'),
+    document.getElementById('slider-wrapper'),
+    document.getElementById('independent-nav'),
+    document.querySelector('.slider-slide.active .slide-button'),
+  ].forEach((target) => {
+    if (target instanceof HTMLElement) target.style.pointerEvents = 'none';
+  });
+  document.querySelectorAll<HTMLElement>('.independent-nav-button').forEach((button) => {
+    button.style.pointerEvents = 'none';
+  });
+}
+
 async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex = 0): Promise<void> {
   const home = document.getElementById('home') as HTMLElement | null;
   if (!home) {
@@ -351,8 +383,11 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
   await waitForHomepageEnterPrime();
 
   home.style.opacity = '1';
-  home.style.pointerEvents = 'auto';
+  // The enter owner unlocks Homepage only after every delayed visual callback
+  // has completed. This prevents a fast CTA tap from overlapping two routes.
+  home.style.pointerEvents = 'none';
   restoreHomepageNavigationTree(`${reason}:before-enter-animation`, { preserveNavScale: true });
+  lockHomepageEnterInteraction();
 
   try {
     uiManager.reattachHomepageButtonListeners();
@@ -373,29 +408,27 @@ async function playHomepageSliderEnterHandoff(
 ): Promise<void> {
   const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? 0) || 0);
   const skipFirstPaintReady = options.skipFirstPaintReady === true;
+  const lease = homepageEnterTransitionOwner.begin(reason, targetSlideIndex);
+  const motionHoldReason = `homepage-enter:${reason}`;
   console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex, skipFirstPaintReady });
+  appSpatialMotion.holdActivations(motionHoldReason);
+  lease.onCancel((cancelReason) => {
+    cancelSliderEnterAnimation(`${reason}:${cancelReason}`);
+    appSpatialMotion.discardHeldActivations(`homepage-enter-cancelled:${reason}`);
+  });
   resetAnimationFlags();
 
   applyPaperBackground();
-  forceHomepageSlideTarget(`${reason}:pre-prime-hidden`, targetSlideIndex, { revealActiveSlide: false });
+  // One side-effect-limited state sync replaces forceReady + repeated manual
+  // positioning. Spatial motion remains held until the enter is complete.
+  sliderManager.syncHiddenSlideState(targetSlideIndex);
+  emitHomepageEnterOwnerSnapshot('hidden-sync', targetSlideIndex);
   await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);
-
-  try {
-    if (sliderManager && typeof (sliderManager as any).forceReady === 'function') {
-      (sliderManager as any).forceReady();
-    }
-    if (sliderManager && typeof (sliderManager as any).setSlideInstant === 'function') {
-      (sliderManager as any).setSlideInstant(targetSlideIndex);
-    }
-  } catch (error) {
-    console.warn('⚠️ Homepage enter handoff: slider reset failed:', error);
-  }
-
-  forceHomepageSlideTarget(`${reason}:after-slider-reset`, targetSlideIndex, { revealActiveSlide: false });
+  if (!lease.isCurrent()) return;
 
   try {
     if (gameState && typeof (gameState as any).set === 'function') {
-      (gameState as any).set('sliderLocked', false);
+      (gameState as any).set('sliderLocked', true);
       (gameState as any).set('currentSlide', targetSlideIndex);
     }
   } catch {}
@@ -411,6 +444,7 @@ async function playHomepageSliderEnterHandoff(
       targetSlideIndex,
     });
   }
+  if (!lease.isCurrent()) return;
   prepareSliderEnter();
   try {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -426,8 +460,8 @@ async function playHomepageSliderEnterHandoff(
     });
   } catch {}
   await waitForHomepageEnterPrime();
-  forceHomepageSlideTarget(`${reason}:before-enter`, targetSlideIndex, { revealActiveSlide: false });
-  prepareSliderEnter();
+  if (!lease.isCurrent()) return;
+  emitHomepageEnterOwnerSnapshot('before-animation', targetSlideIndex);
   {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
     console.log(HOME_ENTER_DIAG_PREFIX, 'main:before-animateSliderEnter', {
@@ -441,12 +475,9 @@ async function playHomepageSliderEnterHandoff(
       nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
     });
   }
-  // Homepage enter owns transforms until its safety-finalize boundary. Any
-  // refresh calls during forceReady/setSlide are coalesced by the app-level
-  // motion owner instead of repeatedly restarting gyro baselines mid-enter.
-  appSpatialMotion.holdActivations(`homepage-enter:${reason}`);
   animateSliderEnter();
-  window.setTimeout(() => {
+  const completionTimer = window.setTimeout(() => {
+    if (!lease.isCurrent()) return;
     {
       const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
       console.log(HOME_ENTER_DIAG_PREFIX, 'main:safety-finalize-before', {
@@ -458,11 +489,16 @@ async function playHomepageSliderEnterHandoff(
       });
     }
     forceHomepageSlideTarget(`${reason}:safety-finalize`, targetSlideIndex);
+    emitHomepageEnterOwnerSnapshot('finalized-position', targetSlideIndex);
     finalizeSliderEnterVisibility(`${reason}:safety-finalize`);
     uiManager.hideApp();
     uiManager.showNavigation();
     restoreHomepageNavigationTree(`${reason}:safety-finalize`);
     try {
+      // Entering gameplay intentionally destroys SliderManager and its input
+      // listeners. Restore them only after this owner has finished its visual
+      // enter so init cannot reposition or reanimate the visible slide.
+      sliderManager.ensureReady();
       if (gameState && typeof (gameState as any).set === 'function') {
         (gameState as any).set('sliderLocked', false);
       }
@@ -475,12 +511,6 @@ async function playHomepageSliderEnterHandoff(
     if (reason === 'settings-exit-homepage-slide') {
       appSpatialMotion.profileFrameWindow('settings-exit-homepage', 6000);
     }
-    window.setTimeout(() => {
-      restoreHomepageNavigationTree(`${reason}:post-finalize-safety`);
-      try {
-        uiManager.reattachHomepageButtonListeners();
-      } catch {}
-    }, 120);
     {
       const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
       console.log(HOME_ENTER_DIAG_PREFIX, 'main:safety-finalize-after', {
@@ -491,7 +521,10 @@ async function playHomepageSliderEnterHandoff(
         nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
       });
     }
+    lease.complete();
   }, 1120);
+  lease.onCancel(() => window.clearTimeout(completionTimer));
+  await lease.settled;
 }
 
 (window as any).__ccPlayHomepageSliderEnterHandoff = playHomepageSliderEnterHandoff;
@@ -2855,13 +2888,16 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🎯🎯🎯 TARGET SLIDE = ${targetSlide} 🎯🎯🎯`);
     if (targetSlide === 0) {
       console.log('🏠 HOMEPAGE PATH: returning through app zone router');
+      // Homepage is the absolute clean product boundary. Clear gameplay-owned
+      // overlays for normal, fast-clean, and already-started handoffs alike.
+      await appZoneManager.cleanupTransientVisuals('exitToMenu:homepage-single-owner');
       if (earlyHomepageHandoffDone) {
         console.log('⚡ Fast arcade clean exit: homepage shell already visible, preserving active enter animation');
       } else if (isFastArcadeCleanExit) {
         console.log('⚡ Fast arcade clean exit: deferring homepage shell show until prepared enter handoff');
       } else {
-        await appZoneManager.showHomepageShell('exitToMenu:homepage');
-        console.log('✅ Navigation and homepage shown through app zone router');
+        appZoneManager.markHomeMenu('exitToMenu:homepage-single-owner');
+        console.log('✅ Homepage route prepared; shared enter owner will reveal it once');
       }
     } else {
       console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, returning through app zone router`);

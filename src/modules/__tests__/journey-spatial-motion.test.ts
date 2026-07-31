@@ -198,6 +198,26 @@ describe('Journey spatial motion', () => {
       .toBe('homepage');
   });
 
+  it('discards a cancelled Homepage handoff without activating its pending surface', () => {
+    document.body.innerHTML = `
+      <div id="home">
+        <div id="slider-container">
+          <div class="slider-slide active" data-slide="1">
+            <img class="hero-image" />
+            <button class="slide-button">Journey</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const container = document.getElementById('slider-container') as HTMLElement;
+
+    journeySpatialMotion.holdActivations('homepage-enter');
+    journeySpatialMotion.activateHomepage(container, 1);
+    journeySpatialMotion.discardHeldActivations('homepage-to-journey');
+
+    expect(container.querySelector('[data-journey-spatial-target]')).toBeNull();
+  });
+
   it('reuses identical Journey Hub targets without resetting their live gyro offset', () => {
     document.body.innerHTML = `
       <div id="journey-boards-container">

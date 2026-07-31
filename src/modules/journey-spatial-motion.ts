@@ -312,6 +312,19 @@ class AppSpatialMotionController {
     pendingActivation?.();
   }
 
+  /** End a transition hold without briefly activating a surface that is no longer visible. */
+  public discardHeldActivations(reason: string): void {
+    const heldReason = this.activationHoldReason;
+    const hadPendingActivation = this.pendingActivation !== null;
+    this.activationHoldReason = null;
+    this.pendingActivation = null;
+    this.emitDiagnostic('activation-discarded', {
+      reason,
+      heldReason,
+      hadPendingActivation,
+    });
+  }
+
   /** Read-only, bounded physical-iPhone audit. It owns one temporary RAF and
    * reports once; it never changes motion state or surface ownership. */
   public profileFrameWindow(label: string, durationMs = 6000): void {

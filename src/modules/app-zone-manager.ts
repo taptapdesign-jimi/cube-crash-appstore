@@ -334,6 +334,10 @@ class AppZoneManager {
 
   async cleanupTransientVisuals(reason = 'zone-handoff'): Promise<void> {
     try {
+      const { forceClearEndgameHint } = await import('./endgame-hint.js');
+      forceClearEndgameHint?.();
+    } catch {}
+    try {
       const { cleanupJourneySmokeEffects } = await import('./journey-card-idle-bounce.js');
       cleanupJourneySmokeEffects?.();
     } catch {}

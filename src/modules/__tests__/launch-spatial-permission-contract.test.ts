@@ -81,7 +81,8 @@ describe('launch 3D Motion permission ownership', () => {
 
   it('holds the single app motion owner across Settings and Homepage enter transforms', () => {
     expect(uiManagerSource).toContain("journeySpatialMotion.holdActivations('settings-enter')");
-    expect(mainSource).toContain('appSpatialMotion.holdActivations(`homepage-enter:${reason}`)');
+    expect(mainSource).toContain('const motionHoldReason = `homepage-enter:${reason}`');
+    expect(mainSource).toContain('appSpatialMotion.holdActivations(motionHoldReason)');
     expect(mainSource).toContain('appSpatialMotion.releaseActivations(`homepage-enter-complete:${reason}`)');
     expect(mainSource).toContain('sliderManager.refreshHomepageSpatialMotion();');
   });

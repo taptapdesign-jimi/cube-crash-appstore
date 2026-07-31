@@ -14,6 +14,9 @@ const uiManagerSource = fs.readFileSync(
   path.join(root, 'src/modules/ui-manager.ts'),
   'utf8',
 );
+const mainSource = fs.readFileSync(path.join(root, 'src/main.ts'), 'utf8');
+const sliderManagerSource = fs.readFileSync(path.join(root, 'src/modules/slider-manager.ts'), 'utf8');
+const appZoneSource = fs.readFileSync(path.join(root, 'src/modules/app-zone-manager.ts'), 'utf8');
 
 describe('Journey Hub transition ownership', () => {
   test('Hub renderer is DOM-only and delegates visible motion to the coordinator', () => {
@@ -47,6 +50,37 @@ describe('Journey Hub transition ownership', () => {
     expect(handoffSource).not.toContain('new Promise<void>(resolve => setTimeout(resolve, 900))');
   });
 
+  test('fast Back to Enter cancels the Homepage owner before Journey starts', () => {
+    const journeyHandoffSource = uiManagerSource.split(
+      'private showCollectiblesScreenWithAnimation(): void',
+    )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
+    const homepageEnterSource = mainSource.split(
+      'async function playHomepageSliderEnterHandoff(',
+    )[1]?.split('(window as any).__ccPlayHomepageSliderEnterHandoff')[0] ?? '';
+
+    expect(journeyHandoffSource).toContain("homepageEnterTransitionOwner.cancel('homepage-to-journey')");
+    expect(homepageEnterSource).toContain('const lease = homepageEnterTransitionOwner.begin(reason, targetSlideIndex)');
+    expect(homepageEnterSource).toContain('await lease.settled');
+    expect(homepageEnterSource).not.toContain('.forceReady(');
+    expect(homepageEnterSource).toContain('sliderManager.syncHiddenSlideState(targetSlideIndex)');
+    expect(homepageEnterSource).toContain('sliderManager.ensureReady()');
+    expect(homepageEnterSource.match(/prepareSliderEnter\(\)/g)).toHaveLength(1);
+  });
+
+  test('hidden return targets stay exact and game overlays belong to zone cleanup', () => {
+    const hiddenSyncSource = sliderManagerSource.split(
+      'syncHiddenSlideState(slideIndex: number): void',
+    )[1]?.split('ensureReady(): void')[0] ?? '';
+    const gameExitRoutingSource = mainSource.split(
+      '// 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage',
+    )[1]?.split('// Reset game state')[0] ?? '';
+
+    expect(hiddenSyncSource).not.toContain('resolveHiddenSlideTarget');
+    expect(gameExitRoutingSource).not.toContain("showHomepageShell('exitToMenu:homepage')");
+    expect(gameExitRoutingSource).toContain("cleanupTransientVisuals('exitToMenu:homepage-single-owner')");
+    expect(appZoneSource).toContain('forceClearEndgameHint?.()');
+  });
+
   test('Journey Homepage exit has one Promise owner and never uses the negative-scale CSS curve', () => {
     const animationsSource = fs.readFileSync(
       path.join(root, 'src/utils/animations.ts'),
@@ -56,7 +90,7 @@ describe('Journey Hub transition ownership', () => {
       'export const animateJourneySliderExit = (): Promise<void>',
     )[1]?.split('export const finalizeJourneySliderExit')[0] ?? '';
 
-    expect(journeyExitSource).toContain("easing: 'cubic-bezier(0.32, 0, 0.67, 0)'");
+    expect(journeyExitSource).toContain("easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)'");
     expect(journeyExitSource).not.toContain('cubic-bezier(0.68, -0.6, 0.32, 1.6)');
     expect(journeyExitSource).not.toContain("classList.add('animate-exit')");
   });

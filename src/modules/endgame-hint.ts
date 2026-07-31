@@ -2,6 +2,7 @@
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 import { attachPuffyClouds } from './text-clouds.js';
+import { isEndgameHintSurfaceAllowed } from './endgame-hint-surface-policy.js';
 
 const HINT_MESSAGES = [
   'Stack it!',
@@ -68,6 +69,18 @@ let letterRotations: number[] = [];
 let bounceTweens: gsap.core.Tween[] = [];
 let bottomSheetObserver: MutationObserver | null = null;
 let lastMessageIndex = -1;
+
+function isGameplayHintSurfaceActive(): boolean {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false;
+  const app = document.getElementById('app');
+  const appSurfaceVisible = !!app &&
+    !app.hidden &&
+    !app.hasAttribute('hidden') &&
+    app.style.display !== 'none' &&
+    app.style.visibility !== 'hidden' &&
+    app.style.pointerEvents !== 'none';
+  return isEndgameHintSurfaceAllowed((window as any).__ccAppZone, appSurfaceVisible);
+}
 
 function chooseNextMessageIndex(): number {
   if (HINT_MESSAGES.length <= 1) return 0;
@@ -441,6 +454,15 @@ function stopRotate(): void {
 
 function showHint(): void {
   if (!shouldShow) return;
+  // A delayed board callback must never place gameplay UI over Homepage,
+  // Journey menus, Settings, or another non-board surface.
+  if (!isGameplayHintSurfaceActive()) {
+    shouldShow = false;
+    clearScheduledTimers();
+    hideHint();
+    stopBottomSheetObserver();
+    return;
+  }
   if (isBottomSheetActive()) {
     scheduleRepeatShow();
     return;
@@ -493,7 +515,7 @@ function scheduleShow(): void {
 }
 
 export function updateEndgameHint(shouldShowNow: boolean): void {
-  shouldShow = shouldShowNow;
+  shouldShow = shouldShowNow && isGameplayHintSurfaceActive();
   if (!shouldShow) {
     clearScheduledTimers();
     hideHint();

@@ -11,6 +11,7 @@ import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
+import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -1303,7 +1304,9 @@ class SliderManager {
 
   /** Synchronize hidden Homepage state without initialization or animation side effects. */
   syncHiddenSlideState(slideIndex: number): void {
-    slideIndex = this.resolveHiddenSlideTarget(slideIndex);
+    const numericSlideIndex = Number(slideIndex);
+    if (!Number.isFinite(numericSlideIndex)) return;
+    slideIndex = Math.floor(numericSlideIndex);
     if (slideIndex < 0 || slideIndex >= this.totalSlides) return;
 
     this.currentSlide = slideIndex;
@@ -1312,8 +1315,9 @@ class SliderManager {
     const container = this.elements.container ?? document.getElementById('slider-container');
     const wrapper = this.elements.wrapper ?? document.getElementById('slider-wrapper');
     if (container && wrapper) {
+      const slideWidth = resolveHomepageSliderViewportWidth(container.offsetWidth, window.innerWidth);
       gsap.set(wrapper, {
-        x: -slideIndex * container.offsetWidth,
+        x: -slideIndex * slideWidth,
         immediateRender: true,
         force3D: true,
       });

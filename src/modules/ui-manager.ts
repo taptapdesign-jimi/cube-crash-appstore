@@ -9,6 +9,7 @@ import {
   animateSliderExit,
   animateSliderEnter,
   animateJourneySliderExit,
+  cancelSliderEnterAnimation,
   finalizeJourneySliderExit,
 } from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
@@ -24,6 +25,7 @@ import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
+import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -1553,6 +1555,10 @@ class UIManager {
     }
     (window as any).__ccUiJourneyTransitioning = true;
     gameState.set('sliderLocked', true);
+    // Revoke any still-running Homepage return before Journey takes ownership.
+    // Otherwise its delayed hero/CTA/nav finalize can reveal Homepage again.
+    homepageEnterTransitionOwner.cancel('homepage-to-journey');
+    cancelSliderEnterAnimation('homepage-to-journey');
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.

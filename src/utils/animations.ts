@@ -404,6 +404,7 @@ export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'
     target.style.removeProperty('opacity');
     target.style.removeProperty('visibility');
     target.style.removeProperty('display');
+    target.style.removeProperty('pointer-events');
     target.style.removeProperty('transition');
     target.style.removeProperty('-webkit-transition');
     target.style.removeProperty('will-change');
@@ -585,6 +586,16 @@ export const resetAnimationFlags = (): void => {
   logger.info('✅ Animation flags reset (isAnimatingExit, isAnimatingEnter, sliderState)');
 };
 
+/** Cancel delayed Homepage-enter work before another route owns the screen. */
+export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
+  activeTimeouts.forEach((timeout) => clearTimeout(timeout));
+  activeTimeouts.clear();
+  isAnimatingEnter = false;
+  sliderState.setAnimatingEnter(false);
+  (window as any).__ccIsAnimatingSliderEnter = false;
+  logger.info('🛑 Homepage enter animation cancelled', 'animations', { reason });
+};
+
 // Cleanup function to cancel all pending animations
 export const cleanupAnimations = (): void => {
   logger.info('🧹 Cleaning up all animation timeouts...');
@@ -647,9 +658,9 @@ const getJourneySliderExitTargets = (): Array<{ element: HTMLElement; delay: num
 };
 
 /**
- * Homepage → Journey owns one monotonic exit. Unlike the legacy global
- * `.animate-exit` curve, progress never crosses scale zero and cannot visually
- * flip/reappear as a second "bom".
+ * Homepage → Journey owns one continuous cartoony back-in exit. Unlike the
+ * legacy global `.animate-exit` curve, the endpoint never crosses scale zero,
+ * so the initial punch resolves into one shrink instead of a second "bom".
  */
 export const animateJourneySliderExit = (): Promise<void> => {
   if (journeySliderExitPromise) return journeySliderExitPromise;
@@ -691,7 +702,9 @@ export const animateJourneySliderExit = (): Promise<void> => {
       ], {
         duration: 460,
         delay: delay * 1000,
-        easing: 'cubic-bezier(0.32, 0, 0.67, 0)',
+        // CSS approximation of GSAP back.in(1.25), matching the Journey
+        // contract: a small outward anticipation followed by one clean exit.
+        easing: 'cubic-bezier(0.60, -0.28, 0.735, 0.045)',
         fill: 'forwards',
       });
       animation.onfinish = finishTarget;
