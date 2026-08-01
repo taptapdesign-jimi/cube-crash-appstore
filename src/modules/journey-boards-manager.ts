@@ -129,6 +129,24 @@ function waitForImageReady(img: HTMLImageElement, timeoutMs = 1200): Promise<voi
   });
 }
 
+function setJourneyAlienBeamIdleReady(target: HTMLElement, ready: boolean): void {
+  const beams = target.classList.contains('journey-robo-alien-beam-art')
+    ? [target]
+    : Array.from(target.querySelectorAll<HTMLElement>('.journey-robo-alien-beam-art'));
+  beams.forEach((beam) => {
+    beam.classList.toggle('journey-robo-alien-beam-idle-ready', ready);
+    if (!ready) beam.style.removeProperty('opacity');
+  });
+}
+
+function getJourneyAreaTransformOrigin(target: HTMLElement): string {
+  return target.dataset.journeyMotionTransformOrigin || '50% 50%';
+}
+
+function restoreJourneyAreaTransformOrigin(target: HTMLElement): void {
+  target.style.transformOrigin = getJourneyAreaTransformOrigin(target);
+}
+
 /** True for iPad / iPadOS (any logical width) or desktop window sizes that use the iPad detail CSS column. */
 export function isTabletDetailModalViewport(): boolean {
   if (typeof window === 'undefined') return false;
@@ -876,8 +894,8 @@ class JourneyBoardsManager {
         if ((el as any).__ccJourneyToGameExitTween) return;
         if (this.isJourneyCardTapExitProtectedTarget(el)) return;
         try { gsap.killTweensOf(el); } catch {}
-        if (el.classList.contains('journey-robo-alien-beam-art')) {
-          el.classList.remove('journey-robo-alien-beam-idle-ready');
+        if (el.classList.contains('journey-robo-alien-beam-art') || el.querySelector('.journey-robo-alien-beam-art')) {
+          setJourneyAlienBeamIdleReady(el, false);
           try { gsap.set(el, { clearProps: 'opacity' }); } catch {}
           el.style.removeProperty('opacity');
         }
@@ -972,11 +990,11 @@ class JourneyBoardsManager {
         target.dataset.journeyAreaId = areaId;
       }
       if (
-        target.classList.contains('journey-robo-alien-beam-art') &&
+        (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) &&
         this.journeyV700Phase === 'idle' &&
         !this.activeBoardAreaEnterInProgress
       ) {
-        target.classList.add('journey-robo-alien-beam-idle-ready');
+        setJourneyAlienBeamIdleReady(target, true);
       }
       target.style.willChange = target.classList.contains('journey-robo-alien-beam-art')
         ? 'transform, opacity'
@@ -1564,7 +1582,7 @@ class JourneyBoardsManager {
       allTargets.forEach((target) => {
         try { gsap.killTweensOf(target); } catch {}
         target.classList.add('journey-area-idle-target');
-        target.style.transformOrigin = '50% 50%';
+        restoreJourneyAreaTransformOrigin(target);
         target.style.willChange = 'auto';
       });
 
@@ -1679,6 +1697,7 @@ class JourneyBoardsManager {
   } {
     const livePreparedTargets = preparedTargets.filter((target) => target && document.body.contains(target));
     const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
+    const resolveMotionOwner = (target: HTMLElement | null): HTMLElement | null => target;
 
     return {
       cardWrapper:
@@ -1689,26 +1708,32 @@ class JourneyBoardsManager {
         const queried = Array.from(
           document.querySelectorAll(`.journey-forest-cloud-board-${boardId}`)
         ) as HTMLElement[];
-        return queried.length
+        const resolved = queried.length
           ? queried
           : livePreparedTargets.filter((target) => target.classList.contains('journey-forest-board-cloud'));
+        return Array.from(new Set(resolved.map((target) => resolveMotionOwner(target)).filter(Boolean))) as HTMLElement[];
       })(),
       stump:
-        (document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null) ||
-        livePreparedTargets.find((target) => target.classList.contains('journey-forest-stump-art')) ||
-        null,
+        resolveMotionOwner(
+          (document.querySelector(`.journey-forest-stump-${boardId}`) as HTMLElement | null) ||
+          livePreparedTargets.find((target) => target.classList.contains('journey-forest-stump-art')) ||
+          null
+        ),
       stars: (() => {
         const queried = Array.from(
           document.querySelectorAll(`.journey-forest-star-board-${boardId}`)
         ) as HTMLElement[];
-        return queried.length
+        const resolved = queried.length
           ? queried
           : livePreparedTargets.filter((target) => target.classList.contains('journey-forest-star-art'));
+        return Array.from(new Set(resolved.map((target) => resolveMotionOwner(target)).filter(Boolean))) as HTMLElement[];
       })(),
       island:
-        (document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null) ||
-        livePreparedTargets.find((target) => target.classList.contains('journey-forest-island-art')) ||
-        null,
+        resolveMotionOwner(
+          (document.querySelector(`.journey-forest-island-${boardId}`) as HTMLElement | null) ||
+          livePreparedTargets.find((target) => target.classList.contains('journey-forest-island-art')) ||
+          null
+        ),
     };
   }
 
@@ -1739,8 +1764,13 @@ class JourneyBoardsManager {
       { role: 'card', target: parts.cardWrapper },
     ];
 
+    const seenTargets = new Set<HTMLElement>();
     const liveItems = rawItems
-      .filter((item) => item.target && document.body.contains(item.target))
+      .filter((item) => {
+        if (!item.target || !document.body.contains(item.target) || seenTargets.has(item.target)) return false;
+        seenTargets.add(item.target);
+        return true;
+      })
       .map((item, enterOrder) => ({
         ...item,
         target: item.target as HTMLElement,
@@ -1811,9 +1841,9 @@ class JourneyBoardsManager {
       this.activeBoardAreaEnterPreparedTargets = targets;
       targets.forEach((target) => {
         try { gsap.killTweensOf(target); } catch {}
-        target.classList.remove('journey-robo-alien-beam-idle-ready');
+        setJourneyAlienBeamIdleReady(target, false);
         rememberJourneyBoardCardBaseTransform(target);
-        target.style.transformOrigin = '50% 50%';
+        restoreJourneyAreaTransformOrigin(target);
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
         target.style.transition = 'none';
@@ -1826,7 +1856,7 @@ class JourneyBoardsManager {
             y: 0,
             visibility: 'hidden',
             clearProps: 'scale,y',
-            transformOrigin: '50% 50%',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             force3D: false,
             immediateRender: true,
           });
@@ -1834,7 +1864,7 @@ class JourneyBoardsManager {
             scale: BOARD_AREA_MODAL_ENTER_SCALE,
             opacity: 0,
             visibility: 'visible',
-            transformOrigin: '50% 50%',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             force3D: true,
             immediateRender: true,
           });
@@ -1844,7 +1874,7 @@ class JourneyBoardsManager {
             opacity: 0,
             y: 0,
             visibility: 'hidden',
-            transformOrigin: '50% 50%',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             force3D: true,
             immediateRender: true,
           });
@@ -1950,9 +1980,9 @@ class JourneyBoardsManager {
               restoreVars.y = 0;
             }
             gsap.set(target, restoreVars);
-            if (target.classList.contains('journey-robo-alien-beam-art')) {
+            if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
               target.style.removeProperty('opacity');
-              target.classList.add('journey-robo-alien-beam-idle-ready');
+              setJourneyAlienBeamIdleReady(target, true);
             }
             restoreJourneyBoardCardBaseTransform(target);
             this.restoreJourneyBoardCardVisualTarget(target);
@@ -2012,7 +2042,7 @@ class JourneyBoardsManager {
         const animTarget = visualTarget;
         target.style.opacity = visualTarget === target ? '0' : '1';
         target.style.visibility = 'hidden';
-        target.style.transformOrigin = 'center center';
+        restoreJourneyAreaTransformOrigin(target);
         target.style.transition = 'none';
         target.style.willChange = 'transform, opacity';
         target.style.pointerEvents = 'none';
@@ -2025,7 +2055,7 @@ class JourneyBoardsManager {
             visibility: 'hidden',
             clearProps: 'scale,y',
             force3D: false,
-            transformOrigin: 'center center',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             immediateRender: true,
           });
           gsap.set(visualTarget, {
@@ -2033,7 +2063,7 @@ class JourneyBoardsManager {
             opacity: 0,
             visibility: 'visible',
             force3D: true,
-            transformOrigin: 'center center',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             immediateRender: true,
           });
         } else {
@@ -2042,7 +2072,7 @@ class JourneyBoardsManager {
             opacity: 0,
             visibility: 'hidden',
             force3D: true,
-            transformOrigin: 'center center',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             immediateRender: true,
           });
         }
@@ -2104,7 +2134,7 @@ class JourneyBoardsManager {
             scale: item.fromScale,
             opacity: 0,
             visibility: 'visible',
-            transformOrigin: 'center center',
+            transformOrigin: getJourneyAreaTransformOrigin(target),
             immediateRender: true,
           }, enterTweenVars);
         } else {
@@ -2752,19 +2782,38 @@ class JourneyBoardsManager {
 
       if (shouldRenderLevelStars) {
         const beamSrc = `${ROBO_WORLD_ASSET_BASE}/alien beam.png`;
-        const beam = addImage(
-          beamSrc,
-          islandX + craterLayout.x + 13,
-          islandY + craterLayout.y - 60,
-          54,
-          `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`,
-          5,
-          0,
-          areaId,
-          decorContainer
-        );
-        applyBeach2xSrcSet(beam, beamSrc);
-        targets.push(beam);
+        // The outer beam is a normal Area 55 Unit target, exactly like a
+        // Forest/Beach star or prop. Its child owns only the idle opacity pulse
+        // so CSS never competes with the shared GSAP enter/exit lifecycle.
+        const beamUnit = document.createElement('div');
+        beamUnit.className = `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`;
+        beamUnit.style.position = 'absolute';
+        beamUnit.style.left = `${((islandX + craterLayout.x + 13) / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+        beamUnit.style.top = `${((islandY + craterLayout.y - 60) / FOREST_MAP_DESIGN_HEIGHT) * 100}%`;
+        beamUnit.style.width = `${(54 / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+        beamUnit.style.height = 'auto';
+        beamUnit.style.zIndex = '5';
+        beamUnit.style.pointerEvents = 'none';
+        beamUnit.style.userSelect = 'none';
+        beamUnit.style.transformOrigin = '50% 50%';
+        beamUnit.dataset.journeyAreaId = areaId;
+
+        const beamVisual = document.createElement('img');
+        beamVisual.className = 'journey-robo-alien-beam-visual';
+        beamVisual.src = beamSrc;
+        beamVisual.alt = '';
+        beamVisual.draggable = false;
+        beamVisual.setAttribute('aria-hidden', 'true');
+        beamVisual.style.display = 'block';
+        beamVisual.style.width = '100%';
+        beamVisual.style.height = 'auto';
+        beamVisual.style.pointerEvents = 'none';
+        beamVisual.style.userSelect = 'none';
+        beamVisual.style.webkitUserDrag = 'none';
+        applyBeach2xSrcSet(beamVisual, beamSrc);
+        beamUnit.appendChild(beamVisual);
+        decorContainer.appendChild(beamUnit);
+        targets.push(beamUnit);
 
         boardLayoutOffsets.stars.forEach((star, index) => {
           const shouldShowFilledStar = index < earnedStars;
@@ -2831,6 +2880,7 @@ class JourneyBoardsManager {
   }
 
   private cleanupDetailModalRuntimeState(): void {
+    journeySpatialMotion.deactivateJourneyDetailModal();
     try {
       const floatingPlay = document.getElementById('board-detail-play-button') as HTMLElement | null;
       if (floatingPlay) {
@@ -3705,7 +3755,8 @@ class JourneyBoardsManager {
     document.querySelectorAll(
       `.journey-forest-island-${boardId}, .journey-forest-stump-${boardId}, .journey-forest-star-board-${boardId}, .journey-forest-cloud-board-${boardId}`
     ).forEach((element) => {
-      elements.add(element as HTMLElement);
+      const target = element as HTMLElement;
+      elements.add(target);
     });
 
     const card = document.querySelector(`.journey-board-card[data-board-id="${boardId}"]`) as HTMLElement | null;
@@ -3781,11 +3832,11 @@ class JourneyBoardsManager {
         });
         transitionTargets.forEach((target) => {
           try { gsap.killTweensOf(target); } catch {}
-          target.classList.remove('journey-robo-alien-beam-idle-ready');
+          setJourneyAlienBeamIdleReady(target, false);
           rememberJourneyBoardCardBaseTransform(target);
           (target as any).__ccJourneyToGameExitTween = true;
           const visualTarget = this.prepareJourneyBoardCardVisualTarget(target);
-          target.style.transformOrigin = '50% 50%';
+          restoreJourneyAreaTransformOrigin(target);
           target.style.willChange = 'transform, opacity';
           target.style.pointerEvents = 'none';
           target.style.transition = 'none';
@@ -5506,6 +5557,40 @@ class JourneyBoardsManager {
     } catch {}
   }
 
+  private emitJourneyV700HubGeometryDiagnostic(event: string, container: HTMLElement): void {
+    const nativeConsole = (window as any).webkit?.messageHandlers?.consoleLog;
+    if (!nativeConsole?.postMessage || container.dataset.journeyV700View !== 'hub') return;
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      const worlds = Array.from(container.querySelectorAll<HTMLElement>('.journey-v700-world-card')).map((card) => {
+        const image = card.querySelector<HTMLElement>('.journey-v700-world-image');
+        const cardRect = card.getBoundingClientRect();
+        const imageRect = image?.getBoundingClientRect();
+        const cardStyle = getComputedStyle(card);
+        const imageStyle = image ? getComputedStyle(image) : null;
+        return {
+          worldId: Number(card.dataset.worldId || 0),
+          cardTop: Math.round(cardRect.top * 10) / 10,
+          cardLeft: Math.round(cardRect.left * 10) / 10,
+          cardTransform: cardStyle.transform,
+          cardTranslate: cardStyle.translate,
+          imageTop: imageRect ? Math.round(imageRect.top * 10) / 10 : null,
+          imageLeft: imageRect ? Math.round(imageRect.left * 10) / 10 : null,
+          imageTransform: imageStyle?.transform ?? null,
+          imageTranslate: imageStyle?.translate ?? null,
+          animationName: imageStyle?.animationName ?? null,
+          animationDelay: imageStyle?.animationDelay ?? null,
+          animationPlayState: imageStyle?.animationPlayState ?? null,
+        };
+      });
+      emitIOSNativeDiagnostic(`hub-geometry-${event}`, {
+        phase: this.journeyV700Phase,
+        scrollTop: Math.round((scrollable?.scrollTop || 0) * 10) / 10,
+        worlds,
+      });
+    } catch {}
+  }
+
   private resetJourneyV700HubScrollToTop(reason: string): void {
     const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
     if (!scrollable) return;
@@ -5805,7 +5890,12 @@ class JourneyBoardsManager {
     this.journeyV700Phase = 'entering';
     const enterEpoch = ++this.journeyV700HubEnterEpoch;
     const enterStartedAt = performance.now();
-    hub?.classList.remove('journey-v700-idle-ready', 'journey-v700-idle-seamless-start');
+    hub?.classList.remove('journey-v700-idle-ready');
+    // Prime the neutral CSS idle phase before the first GSAP enter frame.
+    // A paused animation with a negative delay still renders that delayed
+    // keyframe in WebKit, so waiting until completion made Beach/Area 55 fall
+    // 7–12px when their delay changed to zero at the idle handoff.
+    hub?.classList.add('journey-v700-idle-seamless-start');
     worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
 
     try {
@@ -5844,16 +5934,38 @@ class JourneyBoardsManager {
       remainingTargets -= 1;
       if (remainingTargets > 0) return;
       this.journeyV700HubEnterTweens = [];
+      if (source === 'world-return') {
+        this.emitJourneyV700HubGeometryDiagnostic('before-handoff', container);
+      }
       // Remove the identity GSAP matrix atomically before CSS idle and gyro
       // take over separate layers.
       gsap.set(worldCards, { clearProps: 'transform,opacity,visibility,willChange' });
+      // The Hub root is the sole visual idle owner. Prime its zero-delay phase
+      // before marking child cards ready, then start every world/cloud from one
+      // root mutation. This prevents Beach/Area 55 from exposing one WebKit
+      // frame at their negative animation-delay phase after a World return.
+      hub?.classList.add('journey-v700-idle-seamless-start');
       worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
       if (hubCloudLayer) {
         gsap.set(hubCloudLayer, { clearProps: 'transform,opacity,visibility,willChange' });
       }
-      hub?.classList.add('journey-v700-idle-seamless-start', 'journey-v700-idle-ready');
+      hub?.classList.add('journey-v700-idle-ready');
       this.journeyV700Phase = 'idle';
+      if (source === 'world-return') {
+        this.emitJourneyV700HubGeometryDiagnostic('idle-ready', container);
+      }
       journeySpatialMotion.activateJourneyHub(container);
+      if (source === 'world-return') {
+        this.emitJourneyV700HubGeometryDiagnostic('spatial-activated', container);
+        this.trackRAF(() => {
+          if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
+          this.emitJourneyV700HubGeometryDiagnostic('frame-1', container);
+          this.trackRAF(() => {
+            if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
+            this.emitJourneyV700HubGeometryDiagnostic('frame-2', container);
+          });
+        });
+      }
       emitIOSNativeDiagnostic('hub-visible-enter-complete', {
         source,
         worldCount: worldCards.length,
@@ -5973,12 +6085,32 @@ class JourneyBoardsManager {
         this.renderBoards();
         if (scrollable) {
           scrollable.scrollTop = 0;
-          requestAnimationFrame(() => {
+          this.trackRAF(() => {
             if (this.journeyV700View !== 'world' || this.journeyV700WorldId !== worldId) return;
             scrollable.scrollTop = 0;
           });
         }
-        this.playJourneyV700NavEnter();
+        // renderBoards primes every Unit synchronously. Start the visible World
+        // and nav enter from a fresh animation-frame clock so expensive DOM
+        // construction cannot consume the first ~100ms before the first paint.
+        this.trackRAF(() => {
+          if (
+            this.renderDisposed ||
+            this.journeyV700View !== 'world' ||
+            this.journeyV700WorldId !== worldId ||
+            !document.body.contains(container)
+          ) return;
+          emitIOSNativeDiagnostic('world-enter-visible-frame-start', {
+            worldId,
+            source: 'hub-world-open',
+          });
+          this.playJourneyV700WorldEnter(container, worldId, {
+            source: 'hub-world-open',
+            lastBoardId: 0,
+            waitForImages: false,
+          });
+          this.playJourneyV700NavEnter();
+        });
         this.logJourneyV700Flow('open-world-rendered', { requestedWorldId: worldId }, document.getElementById('journey-boards-container') as HTMLElement | null);
       } finally {
         this.journeyV700WorldOpenInProgress = false;
@@ -6071,12 +6203,12 @@ class JourneyBoardsManager {
       const targets = this.getJourneyV700WorldTargets(container);
       try {
         gsap.killTweensOf(targets);
+        targets.forEach((target) => restoreJourneyAreaTransformOrigin(target));
         gsap.set(targets, {
           y: motion.enter.y,
           scale: motion.enter.scale,
           opacity: 0,
           visibility: 'visible',
-          transformOrigin: '50% 50%',
           force3D: true,
           overwrite: true,
         });
@@ -6091,14 +6223,13 @@ class JourneyBoardsManager {
       return;
     }
 
-    try {
-      this.playJourneyV700WorldEnter(container, worldId, {
-        source: 'hub-world-open',
-        waitForImages: false,
-      });
-    } catch (error) {
-      this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
-    }
+    // Manual Hub → World navigation primes during render and starts from the
+    // tracked frame owner in openJourneyV700World. Never begin a timeline from
+    // inside the potentially expensive synchronous render pass.
+    this.primeJourneyV700WorldEnter(container, worldId, {
+      source: 'hub-world-open-render-prime',
+      lastBoardId: 0,
+    });
   }
 
   private getJourneyV700WorldTargets(container: HTMLElement): HTMLElement[] {
@@ -6379,24 +6510,20 @@ class JourneyBoardsManager {
       const boardId = this.getJourneyV700BoardIdForTarget(
         targets.find((target) => this.getJourneyV700BoardIdForTarget(target) > 0) || targets[0]
       );
-      const clouds = targets.filter((target) => target.classList.contains('journey-forest-cloud-art'));
-      const islands = targets.filter((target) => target.classList.contains('journey-forest-island-art'));
-      const stumps = targets.filter((target) => target.classList.contains('journey-forest-stump-art'));
-      const stars = targets.filter((target) => target.classList.contains('journey-forest-star-art'));
-      const cardsOrNumbers = targets.filter((target) => target.classList.contains('journey-board-card-wrapper'));
-      const remaining = targets.filter((target) => (
-        !clouds.includes(target) &&
-        !islands.includes(target) &&
-        !stumps.includes(target) &&
-        !stars.includes(target) &&
-        !cardsOrNumbers.includes(target)
-      ));
-
+      const clouds = Array.from(new Set(targets.flatMap((target) => {
+        const descendants = Array.from(
+          target.querySelectorAll<HTMLElement>('.journey-forest-cloud-art')
+        );
+        return target.classList.contains('journey-forest-cloud-art')
+          ? [target, ...descendants]
+          : descendants;
+      })));
       return {
         id,
-        // Deterministic Unit composition. GSAP receives this complete array in one call,
-        // so there is no internal stagger between island/stump/stars/card/number/clouds.
-        targets: [...clouds, ...islands, ...stumps, ...stars, ...cardsOrNumbers, ...remaining],
+        // Lifecycle targets are exactly the canonical area owners returned by
+        // the renderer. Descendant clouds are idle-only layers; including both
+        // a parent Unit and its child here would compound enter/exit transforms.
+        targets: Array.from(new Set(targets)),
         clouds,
         enterDelayOffset: Number.isFinite(lastBoardId) && lastBoardId > 0 && boardId === lastBoardId
           ? (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true ? 0.075 : 0.24)
@@ -6427,16 +6554,16 @@ class JourneyBoardsManager {
     try {
       gsap.killTweensOf(allTargets);
       allTargets.forEach((target) => {
-        target.classList.remove('journey-robo-alien-beam-idle-ready');
+        setJourneyAlienBeamIdleReady(target, false);
         target.style.visibility = 'visible';
         target.style.pointerEvents = 'none';
+        restoreJourneyAreaTransformOrigin(target);
       });
       gsap.set(allTargets, {
         y: motion.enter.y,
         scale: motion.enter.scale,
         opacity: 0,
         visibility: 'visible',
-        transformOrigin: '50% 50%',
         force3D: true,
         overwrite: true,
       });
@@ -6574,16 +6701,16 @@ class JourneyBoardsManager {
       if (!canReusePreparedTargets) {
         gsap.killTweensOf(allTargets);
         allTargets.forEach((target) => {
-          target.classList.remove('journey-robo-alien-beam-idle-ready');
+          setJourneyAlienBeamIdleReady(target, false);
           target.style.visibility = 'visible';
           target.style.pointerEvents = 'none';
+          restoreJourneyAreaTransformOrigin(target);
         });
         gsap.set(allTargets, {
           y: motion.enter.y,
           scale: motion.enter.scale,
           opacity: 0,
           visibility: 'visible',
-          transformOrigin: '50% 50%',
           force3D: true,
         });
         targetsPrimed = true;
@@ -6609,7 +6736,11 @@ class JourneyBoardsManager {
       ? startIOSJourneyWorldEnterAudit({ worldId, source, unitCount: units.length, targetCount: allTargets.length })
       : () => {};
 
-    const images = allTargets.filter((target): target is HTMLImageElement => target instanceof HTMLImageElement);
+    const images = Array.from(new Set(allTargets.flatMap((target) => (
+      target instanceof HTMLImageElement
+        ? [target]
+        : Array.from(target.querySelectorAll<HTMLImageElement>('img'))
+    ))));
     const imageReadiness = options.waitForImages === false
       ? Promise.resolve()
       : Promise.all(images.map((image) => waitForImageReady(image))).then(() => undefined);
@@ -6662,9 +6793,9 @@ class JourneyBoardsManager {
       this.journeyV700Phase = 'idle';
       journeySpatialMotion.activateJourneyWorld(container, worldId);
       allTargets.forEach((target) => {
-        if (target.classList.contains('journey-robo-alien-beam-art')) {
+        if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
           target.style.removeProperty('opacity');
-          target.classList.add('journey-robo-alien-beam-idle-ready');
+          setJourneyAlienBeamIdleReady(target, true);
         }
       });
       if (source.includes('game-return')) {
@@ -6732,7 +6863,7 @@ class JourneyBoardsManager {
     this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
     units.flatMap((unit) => unit.targets).forEach((target) => {
-      target.classList.remove('journey-robo-alien-beam-idle-ready');
+      setJourneyAlienBeamIdleReady(target, false);
     });
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     void this.journeyWorldAnimation.exit(units, reducedMotion).then(() => {
@@ -8065,6 +8196,7 @@ class JourneyBoardsManager {
       
       // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
       (modal as any).__detailModalExiting = true;
+      journeySpatialMotion.deactivateJourneyDetailModal();
       cleanupDetailStatsEnterAnimation(modal);
       
       // 🔥 FIX: Safety cleanup function to ensure flag is always reset
@@ -9443,6 +9575,7 @@ class JourneyBoardsManager {
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
+      journeySpatialMotion.deactivateJourneyDetailModal();
       // 🔥 SAFETY: Ensure modal is interactive even after previous exit
       (detailModal as any).__detailModalExiting = false;
       (detailModal as HTMLElement).style.pointerEvents = 'auto';
@@ -10223,6 +10356,7 @@ class JourneyBoardsManager {
         detailModal.removeAttribute('hidden');
         detailModal.setAttribute('aria-hidden', 'false');
         detailModal.style.display = 'flex';
+        journeySpatialMotion.activateJourneyDetailModal(detailModal as HTMLElement, board.id);
         return;
       }
 
@@ -11085,6 +11219,8 @@ class JourneyBoardsManager {
           }
         }); // End detail modal enter start frame
       });
+
+      journeySpatialMotion.activateJourneyDetailModal(detailModal as HTMLElement, board.id);
 
       // 🔥 CRITICAL: Replace collectibles-manager event listener with journey boards exit animation
       // This ensures X button uses GSAP exit animation (header as group) instead of CSS animation (child elements separately)

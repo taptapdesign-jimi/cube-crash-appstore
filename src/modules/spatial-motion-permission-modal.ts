@@ -1,5 +1,7 @@
 export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled';
 
+const SPATIAL_MODAL_EXIT_DURATION_MS = 650;
+
 const INTRO_DISMISSED_SESSION_KEY = 'cc_spatial_motion_intro_dismissed_session_v4';
 const INTRO_FORCE_NEXT_LAUNCH_KEY = 'cc_spatial_motion_intro_force_next_launch_v1';
 const SPATIAL_MOTION_ART_URLS = [
@@ -14,6 +16,8 @@ const SPATIAL_MOTION_ART_URLS = [
 
 let activeOverlay: HTMLElement | null = null;
 let activeResolve: ((choice: SpatialMotionPermissionChoice) => void) | null = null;
+let activeExitTimeout: number | null = null;
+let activeFinishNow: (() => void) | null = null;
 let spatialMotionArtPreloadPromise: Promise<void> | null = null;
 
 function emitSpatialIntroDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
@@ -98,11 +102,15 @@ export function shouldShowSpatialMotionPermissionModal(
   } else if (reducedMotion) {
     reason = 'reduced-motion';
     shouldShow = false;
+  } else if (storage.forced) {
+    // Developer preview must also work on localhost/desktop, where Apple's
+    // requestPermission API does not exist. Normal launches remain iOS-only.
+    reason = requestPermissionAvailable
+      ? 'developer-forced'
+      : 'developer-forced-web-preview';
   } else if (!requestPermissionAvailable) {
     reason = 'native-permission-unavailable';
     shouldShow = false;
-  } else if (storage.forced) {
-    reason = 'developer-forced';
   } else if (!spatialMotionEnabled) {
     reason = 'spatial-motion-disabled';
     shouldShow = false;
@@ -146,12 +154,11 @@ export function showSpatialMotionPermissionModal(
     overlay.setAttribute('aria-describedby', 'spatial-motion-permission-copy');
 
     const card = document.createElement('div');
-    card.className = 'journey-spatial-permission-card bottom-sheet-paper-surface';
+    card.className = 'journey-spatial-permission-card';
     card.tabIndex = -1;
 
-    const handle = document.createElement('div');
-    handle.className = 'journey-spatial-permission-handle modal-handle';
-    handle.setAttribute('aria-hidden', 'true');
+    const paperSurface = document.createElement('div');
+    paperSurface.className = 'journey-spatial-permission-paper bottom-sheet-paper-surface';
 
     const title = document.createElement('h2');
     title.id = 'spatial-motion-permission-title';
@@ -204,7 +211,8 @@ export function showSpatialMotionPermissionModal(
     const actions = document.createElement('div');
     actions.className = 'journey-spatial-permission-actions';
     actions.append(enableButton, dismissButton);
-    card.append(handle, title, art, copy, actions);
+    paperSurface.append(title, art, copy, actions);
+    card.appendChild(paperSurface);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     activeOverlay = overlay;
@@ -232,17 +240,23 @@ export function showSpatialMotionPermissionModal(
       document.removeEventListener('keydown', onKeyDown);
     };
 
+    // Two distinct frames guarantee that the off-screen start state is painted
+    // before is-visible starts the spring transition. A single RAF can be
+    // coalesced with DOM insertion on Chrome/WebKit and look instantaneous.
     requestAnimationFrame(() => {
       if (!document.body.contains(overlay)) return;
-      overlay.classList.add('is-visible');
-      card.focus({ preventScroll: true });
-      const cardStyle = getComputedStyle(card);
-      emitSpatialIntroDiagnostic('presented', {
-        activeElementIsCard: document.activeElement === card,
-        outlineStyle: cardStyle.outlineStyle,
-        outlineWidth: cardStyle.outlineWidth,
-        outlineColor: cardStyle.outlineColor,
-        overlayOpacity: getComputedStyle(overlay).opacity,
+      requestAnimationFrame(() => {
+        if (!document.body.contains(overlay)) return;
+        overlay.classList.add('is-visible');
+        card.focus({ preventScroll: true });
+        const cardStyle = getComputedStyle(card);
+        emitSpatialIntroDiagnostic('presented', {
+          activeElementIsCard: document.activeElement === card,
+          outlineStyle: cardStyle.outlineStyle,
+          outlineWidth: cardStyle.outlineWidth,
+          outlineColor: cardStyle.outlineColor,
+          overlayOpacity: getComputedStyle(overlay).opacity,
+        });
       });
     });
   });
@@ -251,16 +265,43 @@ export function showSpatialMotionPermissionModal(
 function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
   const overlay = activeOverlay;
   const resolve = activeResolve;
-  activeOverlay = null;
-  activeResolve = null;
   if (!overlay) {
     resolve?.(choice);
     return;
   }
 
+  // A launch abort must be able to finish an already-closing sheet at once.
+  // Normal user choices retain one owner until the visual exit is complete so
+  // launch cannot start its own exit/Homepage handoff underneath this overlay.
+  if (activeFinishNow) {
+    if (choice === 'cancelled') activeFinishNow();
+    return;
+  }
+
   (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup?.();
+  const card = overlay.querySelector('.journey-spatial-permission-card') as (HTMLElement & { _closing?: boolean }) | null;
+  if (card) {
+    card._closing = true;
+    card.style.removeProperty('transition');
+  }
   overlay.classList.remove('is-visible');
   overlay.classList.add('is-exiting');
-  window.setTimeout(() => overlay.remove(), 260);
-  resolve?.(choice);
+  const complete = () => {
+    if (activeExitTimeout !== null) {
+      window.clearTimeout(activeExitTimeout);
+      activeExitTimeout = null;
+    }
+    overlay.remove();
+    if (activeOverlay === overlay) activeOverlay = null;
+    if (activeResolve === resolve) activeResolve = null;
+    activeFinishNow = null;
+    resolve?.(choice);
+  };
+  activeFinishNow = complete;
+
+  if (choice === 'cancelled') {
+    complete();
+    return;
+  }
+  activeExitTimeout = window.setTimeout(complete, SPATIAL_MODAL_EXIT_DURATION_MS);
 }

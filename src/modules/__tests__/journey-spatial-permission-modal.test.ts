@@ -23,7 +23,7 @@ describe('Spatial Motion permission modal', () => {
     Object.defineProperty(window, 'requestAnimationFrame', {
       configurable: true,
       value: (callback: FrameRequestCallback) => {
-        callback(0);
+        callback(performance.now() + 1000);
         return 1;
       },
     });
@@ -31,6 +31,7 @@ describe('Spatial Motion permission modal', () => {
 
   afterEach(() => {
     cancelSpatialMotionPermissionModal();
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -41,6 +42,17 @@ describe('Spatial Motion permission modal', () => {
       value: {},
     });
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
+  });
+
+  it('allows a one-shot Developer preview on localhost without the iOS permission API', () => {
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: {},
+    });
+
+    expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
+    expect(scheduleSpatialMotionPermissionIntroForNextLaunch()).toBe(true);
+    expect(shouldShowSpatialMotionPermissionModal()).toBe(true);
   });
 
   it('requests permission directly from the launch CTA gesture', async () => {
@@ -54,6 +66,10 @@ describe('Spatial Motion permission modal', () => {
     expect(enableButton?.classList.contains('bottom-sheet-cta')).toBe(true);
     expect(enableButton?.textContent).toBe('Let’s Move');
     expect(document.querySelector('.journey-spatial-permission-dismiss')?.textContent).toBe('Later');
+    expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('bottom-sheet-cta'))
+      .toBe(true);
+    expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('exit-btn'))
+      .toBe(true);
     expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('3D Motion');
     expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('3D');
     expect(document.querySelector('.journey-spatial-permission-copy')?.textContent)
@@ -61,8 +77,13 @@ describe('Spatial Motion permission modal', () => {
     expect(document.querySelector('.journey-spatial-permission-divider')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-settings-copy')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-shell')).toBeNull();
+    expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-card')?.classList.contains('bottom-sheet-paper-surface'))
+      .toBe(false);
+    expect(document.querySelector('.journey-spatial-permission-paper')?.classList.contains('bottom-sheet-paper-surface'))
       .toBe(true);
+    expect(document.querySelector('.journey-spatial-permission-card')?.classList.contains('bottom-sheet-shadow-surface'))
+      .toBe(false);
     expect(document.querySelector<HTMLElement>('.journey-spatial-permission-card')?.style.backgroundImage)
       .toBe('');
     const images = Array.from(document.querySelectorAll<HTMLImageElement>('.journey-spatial-permission-tilt'));
@@ -80,6 +101,32 @@ describe('Spatial Motion permission modal', () => {
     expect(shouldShowSpatialMotionPermissionModal()).toBe(true);
   });
 
+  it('paints the below-viewport start state before beginning the spring enter', async () => {
+    const frameCallbacks: FrameRequestCallback[] = [];
+    Object.defineProperty(window, 'requestAnimationFrame', {
+      configurable: true,
+      value: (callback: FrameRequestCallback) => {
+        frameCallbacks.push(callback);
+        return frameCallbacks.length;
+      },
+    });
+
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    const overlay = document.querySelector('.journey-spatial-permission-overlay');
+    expect(overlay?.classList.contains('is-visible')).toBe(false);
+    expect(frameCallbacks).toHaveLength(1);
+
+    frameCallbacks.shift()?.(0);
+    expect(overlay?.classList.contains('is-visible')).toBe(false);
+    expect(frameCallbacks).toHaveLength(1);
+
+    frameCallbacks.shift()?.(16.67);
+    expect(overlay?.classList.contains('is-visible')).toBe(true);
+
+    cancelSpatialMotionPermissionModal();
+    await expect(result).resolves.toBe('cancelled');
+  });
+
   it('treats Not now as a session-only dismissal', async () => {
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
@@ -87,6 +134,28 @@ describe('Spatial Motion permission modal', () => {
     await expect(result).resolves.toBe('dismissed');
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
     expect(localStorage.getItem('cc_journey_spatial_intro_seen_v3')).toBeNull();
+  });
+
+  it('keeps launch ownership until the Later sheet exit is actually complete', async () => {
+    jest.useFakeTimers();
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    let settled = false;
+    void result.then(() => { settled = true; });
+
+    document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
+    await Promise.resolve();
+
+    expect(settled).toBe(false);
+    expect(isSpatialMotionPermissionModalActive()).toBe(true);
+
+    jest.advanceTimersByTime(649);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    expect(isSpatialMotionPermissionModalActive()).toBe(true);
+
+    jest.advanceTimersByTime(1);
+    await expect(result).resolves.toBe('dismissed');
+    expect(isSpatialMotionPermissionModalActive()).toBe(false);
   });
 
   it('lets Developer Settings force exactly the next launch intro', async () => {

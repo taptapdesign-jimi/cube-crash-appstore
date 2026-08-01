@@ -55,6 +55,15 @@ export class JourneyWorldAnimationCoordinator {
     this.stop();
     this.phase = 'entering';
     const motion = getJourneyV700MotionProfile(reducedMotion);
+    const liveClouds = Array.from(new Set(liveUnits.flatMap((unit) => unit.clouds)));
+
+    // Idle cloud drift owns GSAP x while the World is settled. An interrupted
+    // or completed exit can leave that last horizontal value inline. Reset it
+    // while the return enter is still at opacity 0, so the first idle frame
+    // continues from x=0 instead of visibly snapping there after enter.
+    if (liveClouds.length) {
+      gsap.set(liveClouds, { x: 0, overwrite: true });
+    }
 
     await new Promise<void>((resolve) => {
       const timeline = gsap.timeline({

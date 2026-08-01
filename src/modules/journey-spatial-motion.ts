@@ -1,4 +1,4 @@
-type JourneySpatialSurface = 'homepage' | 'journey-hub' | 'journey-world' | 'gameplay';
+type JourneySpatialSurface = 'homepage' | 'journey-hub' | 'journey-world' | 'journey-detail-modal' | 'board-transition' | 'gameplay';
 
 type SpatialTarget = {
   element: HTMLElement;
@@ -44,12 +44,13 @@ export type JourneySpatialWorldId = 1 | 2 | 3;
 export type JourneySpatialDirectionMap = Record<JourneySpatialWorldId, JourneySpatialTilt>;
 
 export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
-  homepageHero: Object.freeze({ x: 14, y: 10 }),
-  homepageCta: Object.freeze({ x: 6, y: 4.5 }),
-  // Gameplay cubes use half the previous travel; stable per-cell direction
-  // variety supplies depth without adding listeners or per-frame randomness.
-  gameplayTile: Object.freeze({ x: 8.125, y: 12.2 }),
-  gameplayHudPreload: Object.freeze({ x: 6.4, y: 5.6 }),
+  homepageHero: Object.freeze({ x: 26, y: 20 }),
+  homepageCta: Object.freeze({ x: 12, y: 9 }),
+  // Cubes retain the stronger gameplay profile. The preload HUD stays at half
+  // of its preceding travel, while Journey bottom decor derives per-axis gain
+  // from the cube profile without extra listeners or per-frame RNG.
+  gameplayTile: Object.freeze({ x: 14.625, y: 21.96 }),
+  gameplayHudPreload: Object.freeze({ x: 5.76, y: 5.04 }),
   hubWorld: Object.freeze({ x: 16.8, y: 16.8 }),
   hubCloud: Object.freeze({ x: -14.4, y: -14.4 }),
   worldMain: Object.freeze({ x: 17.6, y: 17.6 }),
@@ -61,11 +62,41 @@ export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
     accent: Object.freeze({ x: 7.2, y: 7.2 }),
     cloud: Object.freeze({ x: -11.5, y: -11.5 }),
   }),
+  boardTransition: Object.freeze({
+    number: Object.freeze({ x: 18, y: 14 }),
+    mountain: Object.freeze({ x: 18, y: 14 }),
+    scene: Object.freeze({ x: 16, y: 12 }),
+    cloud: Object.freeze({ x: -18, y: -14 }),
+  }),
 });
 
+// Single product-facing lever for every Journey menu scene. Keep layer ratios
+// below relative: changing this value retunes Hub + Forest/Beach/Area 55 as one
+// system without touching Homepage, gameplay cubes, preload HUD, or modals.
+export const JOURNEY_SCENE_MOVEMENT_MASTER = 2.2;
+
+const scaleJourneySceneGain = (baseGain: number): number => (
+  Number((baseGain * JOURNEY_SCENE_MOVEMENT_MASTER).toFixed(3))
+);
+
 export const JOURNEY_SPATIAL_SURFACE_GAIN = Object.freeze({
-  journeyHub: 0.7,
-  forestUnit: 1.35,
+  // Hub keeps its established 70% X ratio. Y is intentionally deeper so a
+  // natural phone pitch reads clearly; both axes follow the one master lever.
+  journeyHub: Object.freeze({
+    x: scaleJourneySceneGain(0.7),
+    y: scaleJourneySceneGain(0.875),
+  }),
+  journeyWorld: Object.freeze({
+    x: scaleJourneySceneGain(1),
+    y: scaleJourneySceneGain(1),
+  }),
+  journeyUnit: 1.35,
+  hubCloudSeparation: 1.3,
+  worldCloudSeparation: 1.3,
+  gameplayJourneyBottomDecor: Object.freeze({ x: 0.6, y: 0.2 }),
+  journeyDetailCard: 0.23,
+  journeyDetailStat: 0.2,
+  boardTransitionHill: 0.3,
 });
 
 export const JOURNEY_SPATIAL_SENSOR_RANGE = Object.freeze({
@@ -73,11 +104,12 @@ export const JOURNEY_SPATIAL_SENSOR_RANGE = Object.freeze({
   verticalDegrees: 9,
 });
 
-// One shared output gain keeps Hub, World, Unit, and cloud motion in the same family.
-// Retune this value instead of weakening individual layers or surfaces independently.
+// Low-level device response shared by the whole app. Journey product tuning
+// belongs to JOURNEY_SCENE_MOVEMENT_MASTER so unrelated surfaces stay stable.
 export const JOURNEY_SPATIAL_STRENGTH = 0.6;
 
 const ORGANIC_DEPTH_SCALES = Object.freeze([0.82, 1.08, 0.93, 1.19, 0.87, 1.13, 0.98]);
+const CLOUD_DEPTH_SCALES = Object.freeze([0.68, 1.24, 0.86, 1.38, 0.76, 1.16, 0.96]);
 const WORLD_DIRECTION_PATTERNS = Object.freeze([
   Object.freeze({ x: 1, y: 0.78 }),
   Object.freeze({ x: -0.92, y: 1 }),
@@ -104,6 +136,11 @@ export function getJourneySpatialDepthScale(index: number): number {
   return ORGANIC_DEPTH_SCALES[normalizedIndex];
 }
 
+export function getJourneyCloudDepthScale(index: number): number {
+  const normalizedIndex = Math.abs(Math.trunc(index)) % CLOUD_DEPTH_SCALES.length;
+  return CLOUD_DEPTH_SCALES[normalizedIndex];
+}
+
 export function createJourneySpatialDirectionMap(randomValue = Math.random()): JourneySpatialDirectionMap {
   const normalizedRandom = Number.isFinite(randomValue)
     ? Math.max(0, Math.min(0.999999, randomValue))
@@ -121,7 +158,16 @@ export function createJourneySpatialDirectionMap(randomValue = Math.random()): J
 }
 
 export function getForestUnitSpatialDirection(boardId: number): JourneySpatialTilt {
-  const normalizedIndex = Math.abs(Math.trunc(boardId) - 1) % FOREST_UNIT_DIRECTION_PATTERNS.length;
+  return getJourneyUnitSpatialDirection(boardId, 1);
+}
+
+export function getJourneyUnitSpatialDirection(
+  boardId: number,
+  worldId: JourneySpatialWorldId,
+): JourneySpatialTilt {
+  const worldOffset = (worldId - 1) * 2;
+  const normalizedIndex = Math.abs(Math.trunc(boardId) - 1 + worldOffset)
+    % FOREST_UNIT_DIRECTION_PATTERNS.length;
   const direction = FOREST_UNIT_DIRECTION_PATTERNS[normalizedIndex];
   return { x: direction.x, y: direction.y };
 }
@@ -200,8 +246,10 @@ class AppSpatialMotionController {
   private originalWillChange = new Map<HTMLElement, string>();
   private gameplayTileProvider: (() => GameplaySpatialTile[]) | null = null;
   private gameplayHudProvider: (() => GameplaySpatialWrapper | null) | null = null;
+  private gameplayJourneyDecorProvider: (() => HTMLElement | null) | null = null;
   private gameplayWrappers = new Set<GameplaySpatialWrapper>();
   private gameplayHudWrapper: GameplaySpatialWrapper | null = null;
+  private gameplayJourneyDecorElement: HTMLElement | null = null;
   private activationHoldReason: string | null = null;
   private pendingActivation: (() => void) | null = null;
   private profileFrameId: number | null = null;
@@ -427,7 +475,8 @@ class AppSpatialMotionController {
     });
     container.querySelectorAll<HTMLElement>('.journey-v700-hub-cloud').forEach((element, index) => {
       const worldId = this.asWorldId(Number(element.dataset.worldId)) ?? 1;
-      const depthScale = this.getSessionDepthScale(index + (worldId * 2));
+      const depthScale = getJourneyCloudDepthScale(index + (worldId * 2) + this.sessionDepthOffset)
+        * JOURNEY_SPATIAL_SURFACE_GAIN.hubCloudSeparation;
       const depth = this.orientDepth(worldId, JOURNEY_SPATIAL_DEPTH.hubCloud);
       targets.push({
         element,
@@ -467,13 +516,19 @@ class AppSpatialMotionController {
       container.querySelectorAll<HTMLElement>(mainCloudClass)
     ).filter((element) => element.style.display !== 'none');
     const targets: SpatialTarget[] = [];
+    const registeredElements = new Set<HTMLElement>();
     const addTarget = (
       element: HTMLElement | null,
       depth: { x: number; y: number },
       scale = 1,
       layerDirection: JourneySpatialTilt = { x: 1, y: 1 },
     ): void => {
-      if (!element || element.style.display === 'none') return;
+      if (
+        !element ||
+        element.style.display === 'none' ||
+        registeredElements.has(element)
+      ) return;
+      registeredElements.add(element);
       const orientedDepth = this.orientDepth(spatialWorldId, depth);
       targets.push({
         element,
@@ -484,14 +539,17 @@ class AppSpatialMotionController {
 
     addTarget(worldMain, JOURNEY_SPATIAL_DEPTH.worldMain, this.getSessionDepthScale(worldId + 1));
     worldClouds.forEach((element, index) => {
-      addTarget(element, JOURNEY_SPATIAL_DEPTH.worldMainCloud, this.getSessionDepthScale(index + worldId));
+      addTarget(
+        element,
+        JOURNEY_SPATIAL_DEPTH.worldMainCloud,
+        getJourneyCloudDepthScale(index + worldId + this.sessionDepthOffset)
+          * JOURNEY_SPATIAL_SURFACE_GAIN.worldCloudSeparation,
+      );
     });
 
     for (let boardId = worldRange.start; boardId <= worldRange.end; boardId += 1) {
-      const unitDirection = worldId === 1
-        ? getForestUnitSpatialDirection(boardId)
-        : { x: 1, y: 1 };
-      const unitGain = worldId === 1 ? JOURNEY_SPATIAL_SURFACE_GAIN.forestUnit : 1;
+      const unitDirection = getJourneyUnitSpatialDirection(boardId, spatialWorldId);
+      const unitGain = JOURNEY_SPATIAL_SURFACE_GAIN.journeyUnit;
       addTarget(
         container.querySelector<HTMLElement>(`.journey-forest-island-${boardId}`),
         JOURNEY_SPATIAL_DEPTH.worldUnit.island,
@@ -543,17 +601,124 @@ class AppSpatialMotionController {
     this.activate('journey-world', targets, container);
   }
 
+  public activateJourneyDetailModal(modal: HTMLElement, boardId: number): void {
+    if (this.deferActivation(
+      () => this.activateJourneyDetailModal(modal, boardId),
+      'journey-detail-modal',
+    )) return;
+    if (
+      !modal.isConnected ||
+      modal.hidden ||
+      modal.style.display === 'none' ||
+      modal.getAttribute('data-journey-board-id') !== String(boardId)
+    ) {
+      this.deactivate();
+      return;
+    }
+
+    const targets: SpatialTarget[] = [];
+    const stableBaseIndex = Math.max(1, Math.trunc(boardId)) * 5;
+    const addTarget = (element: HTMLElement | null, stableIndex: number, gain: number): void => {
+      if (!element) return;
+      const direction = getGameplayTileSpatialDirection(stableIndex, this.gameplayDirectionOffset);
+      const depthScale = this.getSessionDepthScale(stableIndex + 4) * gain;
+      targets.push({
+        element,
+        xDepth: JOURNEY_SPATIAL_DEPTH.gameplayTile.x * depthScale * direction.x,
+        yDepth: JOURNEY_SPATIAL_DEPTH.gameplayTile.y * depthScale * direction.y,
+      });
+    };
+
+    addTarget(
+      modal.querySelector<HTMLElement>('#detail-card-image'),
+      stableBaseIndex,
+      JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailCard,
+    );
+    modal.querySelectorAll<HTMLElement>('.detail-stats-list > .detail-stat-item').forEach((element, index) => {
+      addTarget(
+        element,
+        stableBaseIndex + index + 1,
+        JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailStat,
+      );
+    });
+
+    if (this.matchesActiveTargets('journey-detail-modal', targets)) return;
+    this.activate('journey-detail-modal', targets, modal);
+  }
+
+  public deactivateJourneyDetailModal(): void {
+    if (this.activeSurface === 'journey-detail-modal') this.deactivate();
+  }
+
+  public activateBoardTransition(overlay: HTMLElement, boardNumber: number): void {
+    if (this.deferActivation(
+      () => this.activateBoardTransition(overlay, boardNumber),
+      'board-transition',
+    )) return;
+    if (!overlay.isConnected || overlay.style.display === 'none') {
+      this.deactivate();
+      return;
+    }
+
+    const targets: SpatialTarget[] = [];
+    const stableBase = Math.max(1, Math.trunc(boardNumber)) * 17;
+    const addTarget = (
+      element: HTMLElement | null,
+      depth: JourneySpatialTilt,
+      stableIndex: number,
+      gain = 1,
+    ): void => {
+      if (!element) return;
+      const direction = getGameplayTileSpatialDirection(stableIndex, this.gameplayDirectionOffset);
+      const depthScale = this.getSessionDepthScale(stableIndex + 2) * gain;
+      targets.push({
+        element,
+        xDepth: depth.x * depthScale * direction.x,
+        yDepth: depth.y * depthScale * direction.y,
+      });
+    };
+
+    overlay.querySelectorAll<HTMLElement>('.cc-board-transition-digit').forEach((element, index) => {
+      addTarget(element, JOURNEY_SPATIAL_DEPTH.boardTransition.number, stableBase + index);
+    });
+    overlay.querySelectorAll<HTMLElement>('[data-scene-layer]').forEach((element, index) => {
+      const layerKey = element.dataset.sceneLayer ?? '';
+      const isMountain = layerKey === 'mountain';
+      const isHill = layerKey === 'hill1' || layerKey === 'hill2';
+      addTarget(
+        element,
+        isMountain
+          ? JOURNEY_SPATIAL_DEPTH.boardTransition.mountain
+          : JOURNEY_SPATIAL_DEPTH.boardTransition.scene,
+        stableBase + 10 + index,
+        isHill ? JOURNEY_SPATIAL_SURFACE_GAIN.boardTransitionHill : 1,
+      );
+    });
+    overlay.querySelectorAll<HTMLElement>('.cc-board-transition-cloud').forEach((element, index) => {
+      addTarget(element, JOURNEY_SPATIAL_DEPTH.boardTransition.cloud, stableBase + 40 + index);
+    });
+
+    if (this.matchesActiveTargets('board-transition', targets)) return;
+    this.activate('board-transition', targets, overlay);
+  }
+
+  public deactivateBoardTransition(): void {
+    if (this.activeSurface === 'board-transition') this.deactivate();
+  }
+
   public activateGameplay(
     getTiles: () => GameplaySpatialTile[],
     getHudPreloadBar: (() => GameplaySpatialWrapper | null) | null = null,
+    getJourneyBottomDecor: (() => HTMLElement | null) | null = null,
   ): void {
     if (this.deferActivation(
-      () => this.activateGameplay(getTiles, getHudPreloadBar),
+      () => this.activateGameplay(getTiles, getHudPreloadBar, getJourneyBottomDecor),
       'gameplay',
     )) return;
     if (this.activeSurface === 'gameplay' && !this.suspended) {
       this.gameplayTileProvider = getTiles;
       this.gameplayHudProvider = getHudPreloadBar;
+      this.gameplayJourneyDecorProvider = getJourneyBottomDecor;
       this.ensureFrame();
       return;
     }
@@ -564,6 +729,7 @@ class AppSpatialMotionController {
     this.activeSurface = 'gameplay';
     this.gameplayTileProvider = getTiles;
     this.gameplayHudProvider = getHudPreloadBar;
+    this.gameplayJourneyDecorProvider = getJourneyBottomDecor;
     this.suspended = false;
     this.resetBaseline();
 
@@ -608,6 +774,7 @@ class AppSpatialMotionController {
     this.targets = [];
     this.gameplayTileProvider = null;
     this.gameplayHudProvider = null;
+    this.gameplayJourneyDecorProvider = null;
     this.pendingActivation = null;
     this.activeSurface = null;
     this.suspended = false;
@@ -758,13 +925,15 @@ class AppSpatialMotionController {
       : this.currentTilt;
     const surfaceGain = this.activeSurface === 'journey-hub'
       ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub
-      : 1;
+      : this.activeSurface === 'journey-world'
+        ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld
+        : { x: 1, y: 1 };
     this.targets.forEach(({ element, xDepth, yDepth }) => {
       if (this.visibilityObserver && !this.visibleElements.has(element)) return;
       const offset = createJourneySpatialOffset(
         activeTilt,
-        xDepth * surfaceGain,
-        yDepth * surfaceGain,
+        xDepth * surfaceGain.x,
+        yDepth * surfaceGain.y,
       );
       element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
     });
@@ -822,6 +991,28 @@ class AppSpatialMotionController {
     } else {
       this.gameplayHudWrapper = null;
     }
+
+    const journeyDecor = this.gameplayJourneyDecorProvider?.() ?? null;
+    if (this.gameplayJourneyDecorElement && this.gameplayJourneyDecorElement !== journeyDecor) {
+      this.gameplayJourneyDecorElement.style.removeProperty('translate');
+    }
+    if (journeyDecor?.isConnected && !journeyDecor.hidden) {
+      const decorGain = JOURNEY_SPATIAL_SURFACE_GAIN.gameplayJourneyBottomDecor;
+      const decorOffset = createJourneySpatialOffset(
+        this.currentTilt,
+        JOURNEY_SPATIAL_DEPTH.gameplayTile.x * decorGain.x,
+        JOURNEY_SPATIAL_DEPTH.gameplayTile.y * decorGain.y,
+      );
+      const x = this.snapGameplayOffset(decorOffset.x);
+      const y = this.snapGameplayOffset(decorOffset.y);
+      journeyDecor.style.setProperty('translate', `${x.toFixed(2)}px ${y.toFixed(2)}px`);
+      this.gameplayJourneyDecorElement = journeyDecor;
+    } else {
+      if (this.gameplayJourneyDecorElement) {
+        this.gameplayJourneyDecorElement.style.removeProperty('translate');
+      }
+      this.gameplayJourneyDecorElement = null;
+    }
   }
 
   private startVisibilityTracking(container: HTMLElement): void {
@@ -874,6 +1065,10 @@ class AppSpatialMotionController {
       this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0);
     }
     this.gameplayHudWrapper = null;
+    if (this.gameplayJourneyDecorElement) {
+      this.gameplayJourneyDecorElement.style.removeProperty('translate');
+    }
+    this.gameplayJourneyDecorElement = null;
   }
 
   private snapGameplayOffset(value: number): number {

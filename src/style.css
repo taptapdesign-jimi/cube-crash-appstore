@@ -2562,7 +2562,6 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 /* ===== END THIS RUN BOTTOM SHEET STYLES ===== */
-.simple-bottom-sheet,
 .bottom-sheet-paper-surface {
   background: var(--bottom-sheet-paper-texture);
   background-size: cover;
@@ -2576,7 +2575,9 @@ body.journey-board-game-active #hud-board-indicator {
   left: 0;
   right: 0;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7); /* Extended 50% further upward */
+  background: transparent;
+  box-shadow: none;
+  isolation: isolate;
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.3s ease-out;
@@ -2601,13 +2602,15 @@ body.journey-board-game-active #hud-board-indicator {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(100% - 1px);
-  height: max(96px, env(safe-area-inset-bottom, 0px) + 72px);
-  background: inherit;
-  background-size: inherit;
-  background-position: inherit;
+  top: 0;
+  bottom: min(-96px, calc(-72px - env(safe-area-inset-bottom, 0px)));
+  background: var(--bottom-sheet-paper-texture);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  border-radius: 40px 40px 0 0;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 .simple-bottom-sheet:not(.score-bottom-sheet) {
@@ -2622,7 +2625,8 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet:not(.score-bottom-sheet)::before,
-.score-bottom-sheet::before {
+.score-bottom-sheet::before,
+.bottom-sheet-shadow-surface::before {
   content: "";
   position: absolute;
   left: 0;
@@ -2645,7 +2649,8 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet.end-run-shadow-active:not(.score-bottom-sheet)::before,
-.score-bottom-sheet.score-sheet-shadow-active::before {
+.score-bottom-sheet.score-sheet-shadow-active::before,
+.bottom-sheet-shadow-surface.bottom-sheet-shadow-active::before {
   opacity: 1;
 }
 
@@ -2885,16 +2890,15 @@ body.journey-board-game-active #hud-board-indicator {
   position: relative;
   width: 100%;
   max-width: 390px;
-  background: url('../assets/modals/paper.png');
-  background-size: cover;
-  background-position: center;
+  background: transparent;
   border-radius: 40px 40px 0 0;
-  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7);
+  box-shadow: none;
   padding: 32px 32px 40px;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   will-change: transform;
   overflow: visible;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3795,12 +3799,11 @@ html.collectible-reward-open body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: url('../assets/modals/paper.png');
-  background-size: cover;
-  background-position: center;
+  background: transparent;
   border-radius: 40px 40px 0 0;
   box-shadow: none;
   overflow: visible;
+  isolation: isolate;
   max-height: 60vh;
   z-index: 10000000000001;
   transition: transform 0.3s ease-out;

@@ -33,14 +33,16 @@ function lerp(from: number, to: number, progress: number): number {
   return from + (to - from) * progress;
 }
 
-function getEntranceYPercent(progress: number): number {
+function getEntranceYPercent(progress: number, overshootScale = 1): number {
+  const firstOvershoot = -5.5 * overshootScale;
+  const rebound = 2 * overshootScale;
   if (progress < 0.58) {
-    return lerp(100, -5.5, easeOutCubic(progress / 0.58));
+    return lerp(100, firstOvershoot, easeOutCubic(progress / 0.58));
   }
   if (progress < 0.75) {
-    return lerp(-5.5, 2, easeOutQuad((progress - 0.58) / 0.17));
+    return lerp(firstOvershoot, rebound, easeOutQuad((progress - 0.58) / 0.17));
   }
-  return lerp(2, 0, easeOutBack((progress - 0.75) / 0.25));
+  return lerp(rebound, 0, easeOutBack((progress - 0.75) / 0.25));
 }
 
 function setSheetY(modal: HTMLElement, yPercent: number): void {
@@ -53,7 +55,17 @@ function setSheetY(modal: HTMLElement, yPercent: number): void {
  * Animate bottom sheet entrance
  * Uses a local RAF driver instead of GSAP so app/global timeline pauses cannot flatten the sheet bounce.
  */
-export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
+export interface BottomSheetEntranceOptions {
+  durationMs?: number;
+  overshootScale?: number;
+  shadowActiveClass?: string;
+  restoreCssTransition?: boolean;
+}
+
+export function animateBottomSheetEntrance(
+  modal: HTMLElement,
+  options: BottomSheetEntranceOptions = {},
+): Promise<void> {
   return new Promise((resolve) => {
     console.log('🎬 Starting entrance animation...');
     
@@ -70,11 +82,16 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
     // Step 2: Force reflow
     void modal.offsetHeight;
 
-    if (modal.classList.contains('simple-bottom-sheet') && !modal.classList.contains('score-bottom-sheet')) {
-      modal.classList.add('end-run-shadow-active');
+    const shadowActiveClass = options.shadowActiveClass
+      ?? (modal.classList.contains('simple-bottom-sheet') && !modal.classList.contains('score-bottom-sheet')
+        ? 'end-run-shadow-active'
+        : null);
+    if (shadowActiveClass) {
+      modal.classList.add(shadowActiveClass);
     }
     
-    const durationMs = 550;
+    const durationMs = options.durationMs ?? 550;
+    const overshootScale = options.overshootScale ?? 1;
     const startedAt = performance.now();
 
     const complete = () => {
@@ -86,6 +103,7 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
       setSheetY(modal, 0);
       modal.classList.add('visible');
       modal.style.removeProperty('will-change');
+      if (options.restoreCssTransition) modal.style.removeProperty('transition');
       console.log('✅ Animation complete');
       resolve();
     };
@@ -98,7 +116,7 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
       }
 
       const progress = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
-      setSheetY(modal, getEntranceYPercent(progress));
+      setSheetY(modal, getEntranceYPercent(progress, overshootScale));
 
       if (progress >= 1) {
         complete();

@@ -997,11 +997,12 @@ async function initializeApp(): Promise<void> {
     // Initialize navigation control
     initNavigationControl();
     
-    // Start asset preloading
-    await startAssetPreloading();
-    
-    // Initialize game
+    // Initialize the state while the launch surface still owns the viewport.
+    // The launch handoff below is then the sole visible Homepage enter owner.
     await initializeGame();
+
+    // Start asset preloading and perform the one visible launch → Homepage handoff.
+    await startAssetPreloading();
     
     logger.info('✅ App initialized successfully');
     startPerfMonitorIfEnabled();
@@ -1381,6 +1382,7 @@ async function startAssetPreloading(): Promise<void> {
     // No delay - animation will make elements visible
     console.log('🎬 Starting homepage enter animation...');
     try {
+      appZoneManager.markHomeMenu('startup-homepage-enter');
       animateSliderEnter();
       schedulePostHomePerformanceWarmup();
       console.log('✅ Homepage enter animation started');
@@ -1410,15 +1412,12 @@ async function initializeGame(): Promise<void> {
     // DON'T initialize boot/layout here - wait for user to click Play
     // boot() and layout() will be called from ui-manager.ts when starting a game
     
-    // Set initial state
-    gameState.setState({
-      homepageReady: true,
-      isGameActive: false,
-      isPaused: false
-    });
-    
-    // Show homepage
-    uiManager.showHomepage();
+    // Set each value only when it changes. UIManager owns the homepageReady
+    // subscription, so this produces one hidden-behind-launch preparation and
+    // never a second showHomepage()/forceReady() after the visible enter began.
+    if (gameState.get('homepageReady') !== true) gameState.set('homepageReady', true);
+    if (gameState.get('isGameActive') !== false) gameState.set('isGameActive', false);
+    if (gameState.get('isPaused') !== false) gameState.set('isPaused', false);
     
     logger.info('✅ Game initialized successfully');
     

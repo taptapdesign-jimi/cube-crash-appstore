@@ -11,6 +11,7 @@ import { domElementPool } from './dom-element-pool.js';
 import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
 import { beginBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.js';
 import { startIOSJourneyPerformanceAudit } from '../utils/ios-journey-performance-audit.js';
+import { appSpatialMotion } from './journey-spatial-motion.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -981,6 +982,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     document.body.appendChild(overlay);
 
     currentOverlay = overlay;
+    if (!hideForest) appSpatialMotion.activateBoardTransition(overlay, boardNumber);
     try { sampleMemorySpike('3_transition_overlay_shown'); } catch {}
     
     logger.info(`🎯 board-transition-screen: Overlay added to DOM`);
@@ -1651,6 +1653,7 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
   isCleaningUp = true;
   const preserveDom = options.preserveDom === true;
   try {
+    appSpatialMotion.deactivateBoardTransition();
     lifecycle.cleanup();
     // 🔥 CRITICAL: Kill all active tweens
     activeTweens.forEach(tween => {

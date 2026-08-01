@@ -3,7 +3,10 @@ import {
   createJourneySpatialOffset,
   getForestUnitSpatialDirection,
   getGameplayTileSpatialDirection,
+  getJourneyCloudDepthScale,
   getJourneySpatialDepthScale,
+  getJourneyUnitSpatialDirection,
+  JOURNEY_SCENE_MOVEMENT_MASTER,
   JOURNEY_SPATIAL_DEPTH,
   JOURNEY_SPATIAL_SENSOR_RANGE,
   JOURNEY_SPATIAL_STRENGTH,
@@ -59,29 +62,66 @@ describe('Journey spatial motion', () => {
   });
 
   it('keeps every Journey world on the stronger shared depth profile', () => {
-    expect(JOURNEY_SPATIAL_DEPTH.homepageHero).toEqual({ x: 14, y: 10 });
-    expect(JOURNEY_SPATIAL_DEPTH.homepageCta).toEqual({ x: 6, y: 4.5 });
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile).toEqual({ x: 8.125, y: 12.2 });
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 6.4, y: 5.6 });
+    expect(JOURNEY_SPATIAL_DEPTH.homepageHero).toEqual({ x: 26, y: 20 });
+    expect(JOURNEY_SPATIAL_DEPTH.homepageCta).toEqual({ x: 12, y: 9 });
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile).toEqual({ x: 14.625, y: 21.96 });
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 5.76, y: 5.04 });
     expect(JOURNEY_SPATIAL_DEPTH.hubWorld).toEqual({ x: 16.8, y: 16.8 });
     expect(JOURNEY_SPATIAL_DEPTH.hubCloud).toEqual({ x: -14.4, y: -14.4 });
     expect(JOURNEY_SPATIAL_DEPTH.worldMain).toEqual({ x: 17.6, y: 17.6 });
     expect(JOURNEY_SPATIAL_DEPTH.worldMainCloud).toEqual({ x: -16, y: -16 });
   });
 
-  it('reduces only the Journey Hub by 30 percent while retaining visible vertical travel', () => {
-    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub).toBe(0.7);
+  it('makes the Journey Hub 60 percent stronger on X with extra vertical travel', () => {
+    expect(JOURNEY_SCENE_MOVEMENT_MASTER).toBe(2.2);
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub).toEqual({ x: 1.54, y: 1.925 });
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld).toEqual({ x: 2.2, y: 2.2 });
     expect(mixJourneyHubTilt({ x: 1, y: 0 })).toEqual({ x: 1, y: 0.34 });
     expect(mixJourneyHubTilt({ x: 0, y: 1 }).y).toBeCloseTo(0.86);
   });
 
   it('gives Forest Units stronger session-stable two-axis direction variety', () => {
-    expect(JOURNEY_SPATIAL_SURFACE_GAIN.forestUnit).toBe(1.35);
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyUnit).toBe(1.35);
     const directions = Array.from({ length: 5 }, (_, index) => getForestUnitSpatialDirection(index + 1));
     expect(new Set(directions.map(({ x, y }) => `${x}:${y}`)).size).toBe(5);
     expect(getForestUnitSpatialDirection(1)).toEqual(getForestUnitSpatialDirection(6));
     expect(directions.some(({ x }) => x < 0)).toBe(true);
     expect(directions.some(({ y }) => y < 0)).toBe(true);
+  });
+
+  it('uses the same stable randomized two-axis Unit principle in every Journey world', () => {
+    ([1, 2, 3] as const).forEach((worldId) => {
+      const startBoardId = ((worldId - 1) * 10) + 1;
+      const directions = Array.from(
+        { length: 5 },
+        (_, index) => getJourneyUnitSpatialDirection(startBoardId + index, worldId),
+      );
+      expect(new Set(directions.map(({ x, y }) => `${x}:${y}`)).size).toBe(5);
+      expect(directions.some(({ x }) => x < 0)).toBe(true);
+      expect(directions.some(({ y }) => y < 0)).toBe(true);
+    });
+  });
+
+  it('keeps Area 55 crater and beam on the same standard sibling target model', () => {
+    document.body.innerHTML = `
+      <section id="journey-area55-world">
+        <img class="journey-robo-main-art" />
+        <img class="journey-robo-crater-art journey-forest-stump-21" />
+        <div class="journey-robo-alien-beam-art journey-forest-star-board-21"></div>
+        <div class="journey-board-card-wrapper">
+          <button class="journey-board-card" data-board-id="21"></button>
+        </div>
+      </section>
+    `;
+    const container = document.getElementById('journey-area55-world') as HTMLElement;
+    const crater = container.querySelector<HTMLElement>('.journey-robo-crater-art') as HTMLElement;
+    const beam = container.querySelector<HTMLElement>('.journey-robo-alien-beam-art') as HTMLElement;
+
+    journeySpatialMotion.activateJourneyWorld(container, 3);
+
+    expect(crater.dataset.journeySpatialTarget).toBe('journey-world');
+    expect(beam.dataset.journeySpatialTarget).toBe('journey-world');
+    expect(container.querySelectorAll('[data-journey-spatial-target="journey-world"]')).toHaveLength(4);
   });
 
   it('gives the physical pitch axis extra sensitivity for balanced vertical travel', () => {
@@ -111,6 +151,15 @@ describe('Journey spatial motion', () => {
     expect(new Set(scales).size).toBe(7);
     expect(Math.min(...scales)).toBeGreaterThanOrEqual(0.82);
     expect(Math.max(...scales)).toBeLessThanOrEqual(1.19);
+  });
+
+  it('separates cloud layers more strongly than regular organic layers', () => {
+    const cloudScales = Array.from({ length: 7 }, (_, index) => getJourneyCloudDepthScale(index));
+    expect(new Set(cloudScales).size).toBe(7);
+    expect(Math.min(...cloudScales)).toBe(0.68);
+    expect(Math.max(...cloudScales)).toBe(1.38);
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.hubCloudSeparation).toBe(1.3);
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.worldCloudSeparation).toBe(1.3);
   });
 
   it('owns the active Homepage hero and CTA across all three sliders and cleans the previous slide', () => {
@@ -278,6 +327,9 @@ describe('Journey spatial motion', () => {
         },
       },
     };
+    const journeyDecor = document.createElement('img');
+    journeyDecor.id = 'journey-game-bottom-decor';
+    document.body.appendChild(journeyDecor);
 
     Object.defineProperty(window, 'DeviceOrientationEvent', {
       configurable: true,
@@ -289,7 +341,7 @@ describe('Journey spatial motion', () => {
       return 1;
     });
 
-    journeySpatialMotion.activateGameplay(() => [tile], () => hudWrapper);
+    journeySpatialMotion.activateGameplay(() => [tile], () => hudWrapper, () => journeyDecor);
     const emitOrientation = (beta: number, gamma: number) => {
       const event = new Event('deviceorientation') as DeviceOrientationEvent;
       Object.defineProperties(event, {
@@ -306,6 +358,7 @@ describe('Journey spatial motion', () => {
     expect(Math.abs(wrapper.y)).toBeGreaterThan(0);
     expect(Math.abs(hudWrapper.x)).toBeGreaterThan(0);
     expect(Math.abs(hudWrapper.y)).toBeGreaterThan(0);
+    expect(journeyDecor.style.translate).not.toBe('');
     expect(Math.abs((wrapper.x * 2) % 1)).toBe(0);
     expect(Math.abs((wrapper.y * 2) % 1)).toBe(0);
 
@@ -319,12 +372,104 @@ describe('Journey spatial motion', () => {
     expect(wrapper.y).toBe(0);
     expect(hudWrapper.x).toBe(0);
     expect(hudWrapper.y).toBe(0);
+    expect(journeyDecor.style.translate).toBe('');
   });
 
-  it('halves both gameplay movement axes while preserving the 1.5x vertical balance', () => {
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.x).toBe(8.125);
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBe(12.2);
+  it('keeps stronger cubes while halving preload motion and scaling Journey decor by axis', () => {
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.x).toBe(14.625);
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBe(21.96);
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 5.76, y: 5.04 });
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.gameplayJourneyBottomDecor).toEqual({ x: 0.6, y: 0.2 });
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBeCloseTo(JOURNEY_SPATIAL_DEPTH.gameplayTile.x * 1.5, 1);
+  });
+
+  it('keeps the Journey detail modal at only 20 percent of its former gyro travel', () => {
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailCard).toBe(0.23);
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailStat).toBe(0.2);
+  });
+
+  it('moves the Journey detail card and each stat in stable cube-like directions and cleans them', () => {
+    document.body.innerHTML = `
+      <section id="collectibles-detail-modal" data-journey-board-id="4">
+        <div id="detail-card-image"></div>
+        <div class="detail-stats-list">
+          <div class="detail-stat-item"></div>
+          <div class="detail-stat-divider"></div>
+          <div class="detail-stat-item"></div>
+          <div class="detail-stat-divider"></div>
+          <div class="detail-stat-item"></div>
+        </div>
+      </section>
+    `;
+    const modal = document.getElementById('collectibles-detail-modal') as HTMLElement;
+    const card = modal.querySelector<HTMLElement>('#detail-card-image') as HTMLElement;
+    const stats = Array.from(modal.querySelectorAll<HTMLElement>('.detail-stat-item'));
+
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: class DeviceOrientationEventWithoutPermission {},
+    });
+    let pendingFrame: FrameRequestCallback | null = null;
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      pendingFrame = callback;
+      return 1;
+    });
+
+    journeySpatialMotion.activateJourneyDetailModal(modal, 4);
+    const emitOrientation = (beta: number, gamma: number) => {
+      const event = new Event('deviceorientation') as DeviceOrientationEvent;
+      Object.defineProperties(event, {
+        beta: { value: beta },
+        gamma: { value: gamma },
+      });
+      window.dispatchEvent(event);
+    };
+    emitOrientation(20, 0);
+    emitOrientation(29, 14);
+    pendingFrame?.(16);
+
+    expect(card.dataset.journeySpatialTarget).toBe('journey-detail-modal');
+    expect(stats.every((element) => element.dataset.journeySpatialTarget === 'journey-detail-modal')).toBe(true);
+    expect(card.style.translate).not.toBe('');
+    expect(stats.every((element) => element.style.translate !== '')).toBe(true);
+    expect(new Set(stats.map((element) => element.style.translate)).size).toBeGreaterThan(1);
+
+    journeySpatialMotion.deactivateJourneyDetailModal();
+    expect(card.style.translate).toBe('');
+    expect(stats.every((element) => element.style.translate === '')).toBe(true);
+    expect(stats.every((element) => element.dataset.journeySpatialTarget === undefined)).toBe(true);
+  });
+
+  it('owns every Journey board-transition depth layer and keeps hills at 30 percent', () => {
+    document.body.innerHTML = `
+      <section id="cc-board-transition-overlay">
+        <span class="cc-board-transition-digit"></span>
+        <span class="cc-board-transition-digit"></span>
+        <img data-scene-layer="mountain" />
+        <img data-scene-layer="hill1" />
+        <img data-scene-layer="hill2" />
+        <img data-scene-layer="pine1" />
+        <img class="cc-board-transition-cloud" />
+      </section>
+    `;
+    const overlay = document.getElementById('cc-board-transition-overlay') as HTMLElement;
+
+    journeySpatialMotion.activateBoardTransition(overlay, 4);
+
+    expect(JOURNEY_SPATIAL_DEPTH.boardTransition).toEqual({
+      number: { x: 18, y: 14 },
+      mountain: { x: 18, y: 14 },
+      scene: { x: 16, y: 12 },
+      cloud: { x: -18, y: -14 },
+    });
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.boardTransitionHill).toBe(0.3);
+    expect(overlay.querySelectorAll('[data-journey-spatial-target="board-transition"]')).toHaveLength(7);
+
+    journeySpatialMotion.deactivateBoardTransition();
+    expect(overlay.querySelector('[data-journey-spatial-target]')).toBeNull();
+    expect(Array.from(overlay.querySelectorAll<HTMLElement>('*')).every((element) => (
+      element.style.translate === ''
+    ))).toBe(true);
   });
 
   it('assigns session-stable inverted directions across gameplay cells', () => {

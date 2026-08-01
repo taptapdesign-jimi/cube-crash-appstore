@@ -389,7 +389,7 @@ class LaunchScreen {
       background: launchStyle.background,
       backgroundColor: launchStyle.backgroundColor,
       backgroundImage: launchStyle.backgroundImage,
-      paperComplete: priorityPaperLoadPromise !== null,
+      paperComplete: priorityPaperBgLoadPromise !== null,
       logoComplete: studioLogo.complete,
       logoNaturalWidth: studioLogo.naturalWidth,
       characterComplete: studioCharacter.complete,
@@ -517,25 +517,16 @@ class LaunchScreen {
     }), runSignal);
     if (!readinessCompleted || !this.isCurrentRun(container)) return;
 
-    // The branded iOS permission explainer intentionally pauses launch while
-    // the TapTap logo and selected character are still visible. Homepage stays
-    // hidden until the user's direct gesture resolves the native prompt.
-    if (shouldShowSpatialMotionPermissionModal(
+    // Decide once while launch still owns the viewport and warm the modal art
+    // in parallel with the studio exit. Presentation itself belongs strictly
+    // after both studio units have completed their exit.
+    const shouldPresentSpatialPermission = shouldShowSpatialMotionPermissionModal(
       journeySpatialMotion.isEnabled(),
       journeySpatialMotion.requiresPermissionGesture(),
-    )) {
-      await this.waitForRun(preloadSpatialMotionPermissionArt(), runSignal);
-      if (!this.isCurrentRun(container)) return;
-      this.isAwaitingSpatialPermission = true;
-      try {
-        await showSpatialMotionPermissionModal(
-          () => journeySpatialMotion.requestPermissionFromGesture(),
-        );
-      } finally {
-        this.isAwaitingSpatialPermission = false;
-      }
-      if (!this.isCurrentRun(container)) return;
-    }
+    );
+    const spatialPermissionArtReady = shouldPresentSpatialPermission
+      ? preloadSpatialMotionPermissionArt()
+      : Promise.resolve();
 
     studioLogoSheen.classList.remove('is-idle-active');
     characterIdleTween?.kill?.();
@@ -588,6 +579,23 @@ class LaunchScreen {
     if (!exitCompleted || !this.isCurrentRun(container)) return;
     studioPresentsContainer.style.display = 'none';
 
+    // Sequence contract: studio preload exits completely, then the 3D modal
+    // owns the still-occluded launch viewport, then its complete comic exit
+    // resolves before launch removal allows Homepage to start.
+    if (shouldPresentSpatialPermission) {
+      const modalArtReady = await this.waitForRun(spatialPermissionArtReady, runSignal);
+      if (!modalArtReady || !this.isCurrentRun(container)) return;
+      this.isAwaitingSpatialPermission = true;
+      try {
+        await showSpatialMotionPermissionModal(
+          () => journeySpatialMotion.requestPermissionFromGesture(),
+        );
+      } finally {
+        this.isAwaitingSpatialPermission = false;
+      }
+      if (!this.isCurrentRun(container)) return;
+    }
+
     this.hide();
     this.remove();
     console.log('✅ Launch screen container removed from DOM');
@@ -617,6 +625,7 @@ class LaunchScreen {
       }
       if (document.body) {
         document.body.classList.remove('boot');
+        document.body.classList.remove('cc-launch-boot-active');
       }
       logger.info('✅ Boot class removed after launch screen completion');
     } catch(e) {
@@ -654,6 +663,7 @@ class LaunchScreen {
     try {
       document.documentElement?.classList.remove('boot');
       document.body?.classList.remove('boot');
+      document.body?.classList.remove('cc-launch-boot-active');
     } catch {}
   }
 

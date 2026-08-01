@@ -113,6 +113,18 @@
     }
     
     /* launch-screen.ts preserves this same surface throughout startup. */
+
+    /* The launch surface is intentionally transparent so body owns one paper
+       texture. Occlude every deeper app root from the first parsed frame until
+       launch-screen.ts performs the sole visible Homepage handoff. */
+    body.cc-launch-boot-active > #ui-root,
+    body.cc-launch-boot-active > #nav-root,
+    body.cc-launch-boot-active > #app,
+    body.cc-launch-boot-active > canvas {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
     
     #ui-root {
       position: relative;
@@ -181,7 +193,7 @@
     /* No extra margin needed - navigation is separate */
   </style>
 </head>
-<body style="overflow: hidden;">
+<body class="cc-launch-boot-active" style="overflow: hidden;">
   <!-- Inline launch content shares body's single viewport-relative paper surface. -->
   <div id="launch-screen" class="launch-screen" style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; background: transparent !important; opacity: 1 !important; visibility: visible !important;">
     <div class="launch-content" style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">

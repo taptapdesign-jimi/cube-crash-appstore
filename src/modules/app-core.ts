@@ -3901,6 +3901,12 @@ export async function layoutBoard(){
   journeySpatialMotion.activateGameplay(
     () => tiles,
     () => HUD.getWildMeterSpatialWrapper?.() ?? null,
+    () => {
+      const host = document.getElementById('app');
+      if (!host?.classList.contains('journey-board-game-active')) return null;
+      const decor = host.querySelector<HTMLElement>('#journey-game-bottom-decor');
+      return decor && !decor.hidden ? decor : null;
+    },
   );
   markBoardLifecycle('layout-complete');
 }
