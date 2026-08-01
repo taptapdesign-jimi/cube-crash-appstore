@@ -3745,6 +3745,32 @@ class JourneyBoardsManager {
     return this.journeyViewportExitPromise;
   }
 
+  /**
+   * The V700 coordinator has already animated every World Unit and the shared
+   * nav out. Do not run the legacy viewport target cascade over the same DOM a
+   * second time before presenting the detail modal; only commit the hidden
+   * screen state that cascade would otherwise leave behind.
+   */
+  private finalizeJourneyViewportAfterCoordinatedWorldExit(boardId: number): void {
+    const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
+    if (!journeyScreen) return;
+
+    journeyScreen.style.visibility = 'hidden';
+    journeyScreen.style.pointerEvents = 'none';
+    journeyScreen.style.willChange = 'auto';
+    try {
+      gsap.set(journeyScreen, {
+        opacity: 0,
+        clearProps: 'transform,scale,y',
+        overwrite: true,
+      });
+    } catch {
+      journeyScreen.style.opacity = '0';
+      journeyScreen.style.removeProperty('transform');
+    }
+    emitIOSNativeDiagnostic('coordinated-world-exit-viewport-finalized', { boardId });
+  }
+
   private getJourneyAreaElements(boardId: number): HTMLElement[] {
     const elements = new Set<HTMLElement>();
     const areaId = `board-${boardId}`;
@@ -4334,7 +4360,14 @@ class JourneyBoardsManager {
           boardId,
           coordinatedWorldExit: !!contentExitPromise,
         });
-        await this.startJourneyExitAnimation();
+        if (contentExitPromise) {
+          // World Units and nav have already completed the canonical V700 exit.
+          // Replaying the generic viewport cascade here adds a visually empty
+          // ~0.5 s tail before the detail modal and re-owns the same targets.
+          this.finalizeJourneyViewportAfterCoordinatedWorldExit(boardId);
+        } else {
+          await this.startJourneyExitAnimation();
+        }
         logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
       } finally {
         this.journeyExitPromise = null;

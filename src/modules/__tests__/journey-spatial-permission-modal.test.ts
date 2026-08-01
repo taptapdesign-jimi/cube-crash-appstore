@@ -4,6 +4,7 @@ import {
   scheduleSpatialMotionPermissionIntroForNextLaunch,
   shouldShowSpatialMotionPermissionModal,
   showSpatialMotionPermissionModal,
+  SPATIAL_MOTION_INTRO_COOLDOWN_MS,
 } from '../spatial-motion-permission-modal.js';
 
 describe('Spatial Motion permission modal', () => {
@@ -77,7 +78,8 @@ describe('Spatial Motion permission modal', () => {
     expect(document.querySelector('.journey-spatial-permission-divider')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-settings-copy')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-shell')).toBeNull();
-    expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
+    expect(document.querySelector('.journey-spatial-permission-handle')).not.toBeNull();
+    expect(document.querySelector('.journey-spatial-permission-content')?.children).toHaveLength(4);
     expect(document.querySelector('.journey-spatial-permission-card')?.classList.contains('bottom-sheet-paper-surface'))
       .toBe(false);
     expect(document.querySelector('.journey-spatial-permission-paper')?.classList.contains('bottom-sheet-paper-surface'))
@@ -127,12 +129,19 @@ describe('Spatial Motion permission modal', () => {
     await expect(result).resolves.toBe('cancelled');
   });
 
-  it('treats Not now as a session-only dismissal', async () => {
+  it('keeps Later dismissed across launches for seven days', async () => {
+    const now = 2_000_000_000_000;
+    jest.spyOn(Date, 'now').mockReturnValue(now);
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
 
     await expect(result).resolves.toBe('dismissed');
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
+    expect(localStorage.getItem('cc_spatial_motion_intro_dismissed_at_v1')).toBe(String(now));
+    sessionStorage.clear();
+    expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
+    jest.spyOn(Date, 'now').mockReturnValue(now + SPATIAL_MOTION_INTRO_COOLDOWN_MS);
+    expect(shouldShowSpatialMotionPermissionModal()).toBe(true);
     expect(localStorage.getItem('cc_journey_spatial_intro_seen_v3')).toBeNull();
   });
 
@@ -158,7 +167,78 @@ describe('Spatial Motion permission modal', () => {
     expect(isSpatialMotionPermissionModalActive()).toBe(false);
   });
 
+  it('routes a downward handle swipe through the same Later dismissal owner', async () => {
+    jest.useFakeTimers();
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    const handle = document.querySelector<HTMLElement>('.journey-spatial-permission-handle');
+    const pointerEvent = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerId: { value: 7 },
+        clientY: { value: clientY },
+      });
+      return event;
+    };
+
+    handle?.dispatchEvent(pointerEvent('pointerdown', 100));
+    handle?.dispatchEvent(pointerEvent('pointermove', 180));
+    handle?.dispatchEvent(pointerEvent('pointerup', 180));
+
+    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
+      .toBe(true);
+    expect(sessionStorage.getItem('cc_spatial_motion_intro_dismissed_session_v4')).toBe('1');
+    jest.advanceTimersByTime(650);
+    await expect(result).resolves.toBe('dismissed');
+  });
+
+  it('uses the pointer release coordinate when WebKit omits the final move event', async () => {
+    jest.useFakeTimers();
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    const paper = document.querySelector<HTMLElement>('.journey-spatial-permission-paper');
+    const pointerEvent = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerId: { value: 8 },
+        clientY: { value: clientY },
+      });
+      return event;
+    };
+
+    paper?.dispatchEvent(pointerEvent('pointerdown', 100));
+    paper?.dispatchEvent(pointerEvent('pointerup', 150));
+
+    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
+      .toBe(true);
+    jest.advanceTimersByTime(650);
+    await expect(result).resolves.toBe('dismissed');
+  });
+
+  it('does not turn a CTA drag gesture into a sheet dismissal', async () => {
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    const cta = document.querySelector<HTMLElement>('.journey-spatial-permission-enable');
+    const pointerEvent = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperties(event, {
+        pointerId: { value: 9 },
+        clientY: { value: clientY },
+      });
+      return event;
+    };
+
+    cta?.dispatchEvent(pointerEvent('pointerdown', 100));
+    cta?.dispatchEvent(pointerEvent('pointermove', 220));
+    cta?.dispatchEvent(pointerEvent('pointerup', 220));
+
+    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
+      .toBe(false);
+    cancelSpatialMotionPermissionModal();
+    await expect(result).resolves.toBe('cancelled');
+  });
+
   it('lets Developer Settings force exactly the next launch intro', async () => {
+    const dismissedAt = 2_100_000_000_000;
+    jest.spyOn(Date, 'now').mockReturnValue(dismissedAt);
+    localStorage.setItem('cc_spatial_motion_intro_dismissed_at_v1', String(dismissedAt));
     const firstResult = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
     await firstResult;
@@ -174,6 +254,7 @@ describe('Spatial Motion permission modal', () => {
     dismissButtons[dismissButtons.length - 1]?.click();
     await forcedResult;
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
+    expect(localStorage.getItem('cc_spatial_motion_intro_dismissed_at_v1')).toBe(String(dismissedAt));
   });
 
   it('does not offer permission while 3D motion is disabled or no gesture is required', () => {

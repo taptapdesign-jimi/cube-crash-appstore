@@ -58,9 +58,14 @@ import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
 import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
-import { SLIDER_CONFIG } from './constants/animations.js';
+import { SLIDER_ANIMATION, SLIDER_CONFIG } from './constants/animations.js';
 import { appSpatialMotion } from './modules/journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
+import {
+  preloadSpatialMotionPermissionArt,
+  shouldShowSpatialMotionPermissionModal,
+  showSpatialMotionPermissionModal,
+} from './modules/spatial-motion-permission-modal.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
 
@@ -1021,6 +1026,15 @@ async function startAssetPreloading(): Promise<void> {
     
     // The inline index bootstrap owns the launch screen; wait for that lifecycle.
     const { launchScreen } = await import('./modules/launch-screen.ts');
+    // Decide once during launch and warm the art in parallel, but presentation
+    // belongs to the fully entered Homepage below.
+    const shouldPresentSpatialPermission = shouldShowSpatialMotionPermissionModal(
+      appSpatialMotion.isEnabled(),
+      appSpatialMotion.requiresPermissionGesture(),
+    );
+    const spatialPermissionArtReady = shouldPresentSpatialPermission
+      ? preloadSpatialMotionPermissionArt()
+      : Promise.resolve();
     
     // Check if launch screen is already running (started in index.html inline script).
     const launchContainer = document.getElementById('launch-screen');
@@ -1052,10 +1066,6 @@ async function startAssetPreloading(): Promise<void> {
 
     // Fallback: force-hide loader if something stalls (safety net)
     const forceHideTimeout = setTimeout(() => {
-      if (launchScreen.awaitingSpatialPermission) {
-        logger.info('⏸️ Loader safety timeout paused for intentional 3D Motion permission choice');
-        return;
-      }
       logger.warn('⚠️ Loader safety timeout reached - forcing complete disposal');
       launchScreen.dispose('main-safety-timeout');
     }, 12000);
@@ -1129,20 +1139,8 @@ async function startAssetPreloading(): Promise<void> {
         }
       }, 50); // Check every 50ms for faster response
       
-      // Safety timeout (fallback if launch screen never completes). An open
-      // permission modal is an intentional user wait, not a stalled loader.
-      let permissionWaitWasObserved = false;
+      // Safety timeout (fallback if launch screen never completes).
       const resolveSafetyTimeout = () => {
-        if (launchScreen.awaitingSpatialPermission) {
-          permissionWaitWasObserved = true;
-          window.setTimeout(resolveSafetyTimeout, 1000);
-          return;
-        }
-        if (permissionWaitWasObserved) {
-          permissionWaitWasObserved = false;
-          window.setTimeout(resolveSafetyTimeout, 15000);
-          return;
-        }
         clearInterval(checkInterval);
         logger.debug('Launch screen timeout - forcing resolve', 'main');
         resolve();
@@ -1381,14 +1379,36 @@ async function startAssetPreloading(): Promise<void> {
     // 🔥 CRITICAL: Start enter animation IMMEDIATELY in the same frame
     // No delay - animation will make elements visible
     console.log('🎬 Starting homepage enter animation...');
+    const startupPermissionHoldReason = 'startup-spatial-permission';
     try {
       appZoneManager.markHomeMenu('startup-homepage-enter');
+      gameState.set('sliderLocked', true);
+      lockHomepageEnterInteraction();
+      appSpatialMotion.holdActivations(startupPermissionHoldReason);
       animateSliderEnter();
-      schedulePostHomePerformanceWarmup();
       console.log('✅ Homepage enter animation started');
+
+      // Let the complete Homepage composition settle first. The permission
+      // modal then owns input while the visible Homepage remains frozen.
+      await new Promise<void>((resolve) => window.setTimeout(resolve, SLIDER_ANIMATION.TOTAL_SEQUENCE));
+      if (shouldPresentSpatialPermission) {
+        document.body.classList.add('cc-spatial-permission-home-frozen');
+        await spatialPermissionArtReady;
+        await showSpatialMotionPermissionModal(
+          () => appSpatialMotion.requestPermissionFromGesture(),
+        );
+      }
     } catch (error) {
-      console.error('❌ Error starting homepage enter animation:', error);
-      logger.error('❌ Error starting homepage enter animation:', String(error));
+      console.error('❌ Error during Homepage enter / 3D Motion handoff:', error);
+      logger.error('❌ Error during Homepage enter / 3D Motion handoff:', String(error));
+    } finally {
+      document.body.classList.remove('cc-spatial-permission-home-frozen');
+      gameState.set('sliderLocked', false);
+      restoreHomepageNavigationTree('startup-spatial-permission-complete');
+      finalizeSliderEnterVisibility('startup-spatial-permission-complete');
+      appSpatialMotion.releaseActivations('startup-spatial-permission-complete');
+      sliderManager.refreshHomepageSpatialMotion();
+      schedulePostHomePerformanceWarmup();
     }
     
     logger.info('✅ Assets preloaded successfully');
