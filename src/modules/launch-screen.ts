@@ -8,6 +8,13 @@ import { logger } from '../core/logger.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { waitForCriticalStartupReadiness } from '../utils/startup-readiness.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
+import { journeySpatialMotion } from './journey-spatial-motion.js';
+import {
+  cancelSpatialMotionPermissionModal,
+  preloadSpatialMotionPermissionArt,
+  shouldShowSpatialMotionPermissionModal,
+  showSpatialMotionPermissionModal,
+} from './spatial-motion-permission-modal.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -42,6 +49,7 @@ interface LaunchScreenElements {
 class LaunchScreen {
   private elements: LaunchScreenElements;
   private isActive: boolean = false;
+  private isAwaitingSpatialPermission: boolean = false;
   private runAbortController: AbortController | null = null;
   // 🔥 FIX: Track event listener cleanup functions
   private eventCleanups: Array<() => void> = [];
@@ -49,6 +57,10 @@ class LaunchScreen {
   // Public getter for isActive
   get active(): boolean {
     return this.isActive;
+  }
+
+  get awaitingSpatialPermission(): boolean {
+    return this.isAwaitingSpatialPermission;
   }
 
   constructor() {
@@ -505,6 +517,17 @@ class LaunchScreen {
     }), runSignal);
     if (!readinessCompleted || !this.isCurrentRun(container)) return;
 
+    // Decide while launch still owns the viewport and warm modal art in
+    // parallel with the studio exit. The modal appears only after TapTap and
+    // the character have completely bounced out.
+    const shouldPresentSpatialPermission = shouldShowSpatialMotionPermissionModal(
+      journeySpatialMotion.isEnabled(),
+      journeySpatialMotion.requiresPermissionGesture(),
+    );
+    const spatialPermissionArtReady = shouldPresentSpatialPermission
+      ? preloadSpatialMotionPermissionArt()
+      : Promise.resolve();
+
     studioLogoSheen.classList.remove('is-idle-active');
     characterIdleTween?.kill?.();
     logger.info('✅ Studio intro preload complete - homepage readiness satisfied');
@@ -556,12 +579,27 @@ class LaunchScreen {
     if (!exitCompleted || !this.isCurrentRun(container)) return;
     studioPresentsContainer.style.display = 'none';
 
+    if (shouldPresentSpatialPermission) {
+      const modalArtReady = await this.waitForRun(spatialPermissionArtReady, runSignal);
+      if (!modalArtReady || !this.isCurrentRun(container)) return;
+      this.isAwaitingSpatialPermission = true;
+      try {
+        await showSpatialMotionPermissionModal(
+          () => journeySpatialMotion.requestPermissionFromGesture(),
+        );
+      } finally {
+        this.isAwaitingSpatialPermission = false;
+      }
+      if (!this.isCurrentRun(container)) return;
+    }
+
     this.hide();
     this.remove();
     console.log('✅ Launch screen container removed from DOM');
     logger.info('✅ Launch screen container removed from DOM');
 
     this.isActive = false;
+    this.isAwaitingSpatialPermission = false;
     if (this.runAbortController === runAbortController) {
       this.runAbortController = null;
     }
@@ -611,6 +649,8 @@ class LaunchScreen {
   dispose(reason = 'launch-dispose'): void {
     logger.warn('🧹 Disposing launch screen', 'launch-screen', { reason });
     this.isActive = false;
+    this.isAwaitingSpatialPermission = false;
+    cancelSpatialMotionPermissionModal();
     this.runAbortController?.abort();
     this.runAbortController = null;
     try {

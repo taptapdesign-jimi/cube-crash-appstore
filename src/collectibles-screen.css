@@ -2021,35 +2021,44 @@
 }
 
 .journey-v700-world-card.is-locked {
-  opacity: 0.48;
-  filter: saturate(0.45);
+  opacity: 1;
+  filter: none;
 }
 
-.journey-v700-world-image {
+.journey-v700-world-visual {
   position: absolute;
   left: 50%;
   top: 48%;
   width: min(65vw, 254px);
-  height: auto;
+  aspect-ratio: 1;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  user-select: none;
-  -webkit-user-drag: none;
   z-index: 2;
   animation: journey-v700-world-idle 4.4s ease-in-out infinite;
   animation-play-state: paused;
 }
 
-.journey-v700-hub.journey-v700-idle-ready .journey-v700-world-image,
+.journey-v700-world-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  z-index: 2;
+}
+
+.journey-v700-hub.journey-v700-idle-ready .journey-v700-world-visual,
 .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-cloud {
   animation-play-state: running;
 }
 
-.journey-v700-world-beach .journey-v700-world-image {
+.journey-v700-world-beach .journey-v700-world-visual {
   animation-delay: -1.25s;
 }
 
-.journey-v700-world-robo .journey-v700-world-image {
+.journey-v700-world-robo .journey-v700-world-visual {
   animation-delay: -2.35s;
 }
 
@@ -2057,17 +2066,252 @@
    WebKit otherwise resolves negative animation delays at handoff and makes the
    world/cloud artwork visibly jump as if the enter ran twice. Organic variety
    still comes from each cloud's duration/distance and from spatial motion. */
-.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-image,
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-visual,
 .journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-cloud {
   animation-delay: 0s;
 }
 
-.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-beach .journey-v700-world-image {
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-beach .journey-v700-world-visual {
   animation-duration: 4.85s;
 }
 
-.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-robo .journey-v700-world-image {
+.journey-v700-hub.journey-v700-idle-seamless-start .journey-v700-world-robo .journey-v700-world-visual {
   animation-duration: 5.2s;
+}
+
+.journey-v700-world-banner {
+  --journey-world-banner-rotation: 0deg;
+  --journey-world-banner-reveal-x: -64%;
+  --journey-world-banner-reveal-delay: 0s;
+  --journey-world-banner-idle-duration: 7.6s;
+  position: absolute;
+  top: 50%;
+  width: min(38.5vw, 150px);
+  aspect-ratio: 105 / 49;
+  pointer-events: none;
+  z-index: 1;
+  translate: var(--journey-world-banner-reveal-x) 0;
+  transform: rotate(var(--journey-world-banner-rotation));
+  transition: translate 0.72s cubic-bezier(0.2, 0.88, 0.32, 1.08);
+  transition-delay: var(--journey-world-banner-reveal-delay);
+  animation: journey-world-banner-special-idle var(--journey-world-banner-idle-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) calc(var(--journey-world-banner-reveal-delay) + 0.72s) infinite;
+  animation-play-state: paused;
+}
+
+.journey-v700-world-banner-right {
+  right: calc(max(-12.8vw, -50px) - 14px);
+  transform-origin: 0% 18%;
+}
+
+.journey-v700-world-banner-left {
+  --journey-world-banner-reveal-x: 64%;
+  left: calc(max(-12.8vw, -50px) - 14px);
+  transform-origin: 100% 18%;
+}
+
+.journey-v700-hub.journey-v700-banners-presented .journey-v700-world-banner {
+  translate: 0 0;
+  animation-play-state: running;
+}
+
+.journey-v700-hub.journey-v700-banners-retracting .journey-v700-world-banner {
+  transition-duration: 0.44s;
+  transition-delay: 0s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.72, 0.62);
+}
+
+.journey-v700-world-forest .journey-v700-world-banner {
+  --journey-world-banner-rotation: -15deg;
+  top: calc(50% - 14px);
+  right: calc(max(-12.8vw, -50px) - 30px);
+}
+
+.journey-v700-world-beach .journey-v700-world-banner {
+  --journey-world-banner-rotation: 8deg;
+  --journey-world-banner-reveal-delay: 0.11s;
+  --journey-world-banner-idle-duration: 8.35s;
+  top: calc(50% - 20px);
+  left: calc(max(-12.8vw, -50px) - 30px);
+}
+
+.journey-v700-world-robo .journey-v700-world-banner {
+  --journey-world-banner-rotation: -6deg;
+  --journey-world-banner-reveal-delay: 0.22s;
+  --journey-world-banner-idle-duration: 7.9s;
+  top: calc(50% - 26px);
+  right: calc(max(-12.8vw, -50px) - 38px);
+}
+
+.journey-v700-world-banner-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.journey-v700-world-banner-left .journey-v700-world-banner-image {
+  transform: scaleX(-1);
+}
+
+.journey-v700-world-banner-flag-fx {
+  position: absolute;
+  top: 20%;
+  bottom: 2%;
+  width: 48%;
+  overflow: hidden;
+  clip-path: polygon(2% 0, 98% 0, 94% 100%, 50% 92%, 6% 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.journey-v700-world-banner-right .journey-v700-world-banner-flag-fx {
+  right: 0;
+}
+
+.journey-v700-world-banner-left .journey-v700-world-banner-flag-fx {
+  left: 0;
+}
+
+.journey-v700-world-banner-flag-fx::before,
+.journey-v700-world-banner-flag-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.journey-v700-world-banner-flag-fx::before {
+  background:
+    linear-gradient(180deg, rgba(205, 105, 57, 0) 42%, rgba(205, 105, 57, 0.13) 78%, rgba(152, 70, 39, 0.22) 100%),
+    linear-gradient(102deg, rgba(255, 247, 216, 0) 28%, rgba(255, 247, 216, 0.2) 48%, rgba(255, 247, 216, 0) 68%);
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  transform: translateZ(0);
+  animation: journey-world-flag-ember 6.8s ease-in-out infinite;
+}
+
+.journey-v700-world-banner-flag-fx::after {
+  background: rgba(255, 255, 255, 0.68);
+  opacity: 0;
+  transform: translateZ(0);
+  -webkit-mask-image: linear-gradient(110deg, transparent 36%, #000 47%, #000 53%, transparent 64%);
+  mask-image: linear-gradient(110deg, transparent 36%, #000 47%, #000 53%, transparent 64%);
+  -webkit-mask-size: 260% 100%;
+  mask-size: 260% 100%;
+  -webkit-mask-position: 145% 0;
+  mask-position: 145% 0;
+  animation: journey-world-flag-shine 6.8s ease-in-out infinite;
+}
+
+@keyframes journey-world-flag-ember {
+  0%, 8%, 28%, 44%, 69%, 100% { opacity: 0; }
+  14%, 52% { opacity: 0.32; }
+  22%, 62% { opacity: 0.12; }
+}
+
+@keyframes journey-world-flag-shine {
+  0%, 6% {
+    opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
+  }
+  10%, 22% { opacity: 0.46; }
+  30% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+  31%, 49% {
+    opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
+  }
+  53%, 65% { opacity: 0.4; }
+  73% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+  74%, 100% { opacity: 0; }
+}
+
+@keyframes journey-world-banner-special-idle {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(var(--journey-world-banner-rotation));
+  }
+  14% {
+    transform: translate3d(0, -1.3px, 0) rotate(calc(var(--journey-world-banner-rotation) + 1deg));
+  }
+  29% {
+    transform: translate3d(0, 1.7px, 0) rotate(calc(var(--journey-world-banner-rotation) - 1.7deg));
+  }
+  46% {
+    transform: translate3d(0, -2.1px, 0) rotate(calc(var(--journey-world-banner-rotation) + 2.5deg));
+  }
+  61% {
+    transform: translate3d(0, 0.8px, 0) rotate(calc(var(--journey-world-banner-rotation) - 0.65deg));
+  }
+  76% {
+    transform: translate3d(0, 1.9px, 0) rotate(calc(var(--journey-world-banner-rotation) - 2.1deg));
+  }
+  90% {
+    transform: translate3d(0, -1.45px, 0) rotate(calc(var(--journey-world-banner-rotation) + 1.25deg));
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(var(--journey-world-banner-rotation));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey-v700-world-banner,
+  .journey-v700-world-banner-flag-fx::before,
+  .journey-v700-world-banner-flag-fx::after {
+    animation: none;
+  }
+
+  .journey-v700-world-banner {
+    translate: 0 0;
+    transition: none;
+    transform: rotate(var(--journey-world-banner-rotation));
+  }
+
+  .journey-v700-world-banner-flag-fx::before,
+  .journey-v700-world-banner-flag-fx::after {
+    opacity: 0;
+  }
+
+}
+
+.journey-v700-world-banner-count {
+  position: absolute;
+  top: 57%;
+  width: 48%;
+  transform: translateY(-50%);
+  color: var(--collectibles-orange, #e8734a);
+  font: 800 min(5vw, 19px)/1 'Baloo2', system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.journey-v700-world-banner-right .journey-v700-world-banner-count {
+  top: calc(57% + 5px);
+  right: 3px;
+}
+
+.journey-v700-world-banner-left .journey-v700-world-banner-count {
+  top: calc(57% + 5px);
+  left: 3px;
+}
+
+.journey-v700-world-card:not(.has-interim-card) .journey-v700-world-banner {
+  display: none;
 }
 
 .journey-v700-world-cloud {
@@ -2096,27 +2340,8 @@
 }
 
 .journey-v700-world-cloud.is-locked {
-  opacity: calc(var(--cloud-opacity, 0.82) * 0.48);
-  filter: saturate(0.45);
-}
-
-.journey-v700-world-badge {
-  position: absolute;
-  right: 0;
-  top: 0;
-  min-width: 54px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
-  color: #b86a4d;
-  font: 800 16px/1 'Baloo2', system-ui, sans-serif;
-  box-shadow: 0 8px 18px rgba(173, 135, 117, 0.16);
-  pointer-events: none;
-  z-index: 3;
+  opacity: var(--cloud-opacity, 0.82);
+  filter: none;
 }
 
 #journey-screen .collectibles-back-button.journey-v700-nav-close img {
@@ -3132,19 +3357,19 @@
 #collectibles-detail-content {
   padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
-/* Launch gyro explainer: centered comic paper modal over the Homepage. */
+/* Launch gyro explainer: centered comic paper modal over the preloader. */
 .journey-spatial-permission-overlay {
   position: fixed;
   inset: 0;
   z-index: 10000000000020;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   box-sizing: border-box;
   padding:
     max(24px, env(safe-area-inset-top, 0px))
-    0
-    0;
+    24px
+    max(24px, env(safe-area-inset-bottom, 0px));
   background: transparent;
   opacity: 0;
   pointer-events: auto;
@@ -3153,13 +3378,6 @@
 
 .journey-spatial-permission-overlay.is-visible {
   opacity: 1;
-}
-
-/* Homepage has completed its enter and remains visible behind the permission
-   modal, but no CSS idle motion may continue until the choice fully exits. */
-body.cc-spatial-permission-home-frozen #home,
-body.cc-spatial-permission-home-frozen #home * {
-  animation-play-state: paused !important;
 }
 
 .journey-spatial-permission-overlay.is-exiting {
@@ -3175,26 +3393,23 @@ body.cc-spatial-permission-home-frozen #home * {
   width: 100%;
   max-width: 390px;
   height: auto;
-  max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   overflow: visible;
   border: 0;
   outline: none;
-  border-radius: 40px 40px 0 0;
+  border-radius: 40px;
   margin: 0 auto;
   isolation: isolate;
   color: #9f7765;
   text-align: center;
   font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
-  box-shadow:
-    0 24px 72px rgba(108, 70, 57, 0.36),
-    0 10px 28px rgba(128, 88, 72, 0.28);
+  box-shadow: none;
   opacity: 0;
-  transform: translate3d(0, 110%, 0) scale(0.98);
-  transform-origin: 50% 100%;
-  touch-action: none;
+  transform: translate3d(0, 88px, 0) scale(0.72) rotate(-2deg);
+  transform-origin: 50% 55%;
   transition:
-    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.78s cubic-bezier(0.34, 1.56, 0.64, 1),
     opacity 0.28s ease;
 }
 
@@ -3232,25 +3447,6 @@ body.cc-spatial-permission-home-frozen #home * {
   transition-duration: 0.2s;
 }
 
-/* One paint layer fills the complete sheet container. Keeping it on the outer
-   geometry owner prevents any transparent band between the sheet top and the
-   formerly separate rounded inner paper surface. */
-.journey-spatial-permission-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  border-radius: 40px 40px 0 0;
-  background-color: #fbf0e9;
-  background-image: var(--bottom-sheet-paper-texture);
-  background-repeat: no-repeat;
-  /* Crop away the PNG's own transparent/rounded outer margin so its textured
-     paper reaches the physical sheet edges instead of exposing a smooth band. */
-  background-size: calc(100% + 48px) calc(100% + 96px);
-  background-position: center -32px;
-}
-
 /* The outer card owns the comic enter/exit. The paper owns only paint and
    bounded scrolling, so there is no competing transform timeline. */
 .journey-spatial-permission-paper {
@@ -3267,46 +3463,10 @@ body.cc-spatial-permission-home-frozen #home * {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  background: none;
-  border-radius: 40px 40px 0 0;
-  box-shadow: none;
-  padding: 32px 24px max(36px, calc(20px + env(safe-area-inset-bottom, 0px)));
-}
-
-.journey-spatial-permission-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
-.journey-spatial-permission-handle {
-  position: absolute;
-  z-index: 5;
-  inset: 0 0 auto;
-  width: 100%;
-  height: 44px;
-  background: transparent;
-  touch-action: none;
-  cursor: grab;
-}
-
-.journey-spatial-permission-handle::before {
-  content: "";
-  position: absolute;
-  top: 13px;
-  left: 50%;
-  width: 48px;
-  height: 6px;
-  border-radius: 999px;
-  background: rgba(159, 119, 101, 0.32);
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.journey-spatial-permission-handle.is-dragging {
-  cursor: grabbing;
+  background-position: center top;
+  border-radius: 40px;
+  box-shadow: 0 18px 52px rgba(128, 88, 72, 0.18);
+  padding: 32px 24px 36px;
 }
 
 .journey-spatial-permission-card:focus,
@@ -3316,21 +3476,16 @@ body.cc-spatial-permission-home-frozen #home * {
 
 .journey-spatial-permission-overlay.is-visible .journey-spatial-permission-card {
   opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-}
-
-.journey-spatial-permission-overlay.is-visible .journey-spatial-permission-content {
-  transform-origin: 50% 100%;
-  animation: journey-spatial-sheet-bottom-landing 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
 }
 
 .journey-spatial-permission-overlay.is-exiting .journey-spatial-permission-card {
   opacity: 0;
-  transform: translate3d(0, 110%, 0) scale(0.98);
-  /* Match the End Game sheet direction while preserving the established
-     650ms ownership wait before Homepage unlock. */
+  transform: translate3d(0, 20px, 0) scale(0) rotate(2deg);
+  /* Exact V79 game-wide cartoon pop-out curve/duration from .animate-exit.
+     Opacity waits until the visible scale exit is essentially complete. */
   transition:
-    transform 0.65s cubic-bezier(0.64, 0, 0.78, 0),
+    transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6),
     opacity 0.01s linear 0.64s;
 }
 
@@ -3503,12 +3658,6 @@ body.cc-spatial-permission-home-frozen #home * {
   }
 }
 
-@keyframes journey-spatial-sheet-bottom-landing {
-  0% { transform: scale3d(0.98, 0.96, 1); }
-  72% { transform: scale3d(1.012, 1.018, 1); }
-  100% { transform: scale3d(1, 1, 1); }
-}
-
 @keyframes journey-spatial-modal-tilt-frame-2 {
   0%, 44% {
     opacity: 0;
@@ -3588,8 +3737,7 @@ body.cc-spatial-permission-home-frozen #home * {
 
   .journey-spatial-permission-tilt-frames,
   .journey-spatial-permission-tilt,
-  .journey-spatial-permission-star,
-  .journey-spatial-permission-content {
+  .journey-spatial-permission-star {
     animation: none !important;
   }
 
@@ -3599,7 +3747,7 @@ body.cc-spatial-permission-home-frozen #home * {
 
 @media (max-height: 720px) {
   .journey-spatial-permission-paper {
-    padding: 24px 20px max(28px, calc(16px + env(safe-area-inset-bottom, 0px)));
+    padding: 24px 20px 28px;
   }
 
   .journey-spatial-permission-art {

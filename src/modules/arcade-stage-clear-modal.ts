@@ -2,6 +2,7 @@
 
 import { gsap } from 'gsap';
 import { formatGameplayProgressLabel, getGameplayProgressTerm } from './gameplay-terminology.ts';
+import { appSpatialMotion } from './journey-spatial-motion.js';
 
 const HEADLINES = [
   'Sweet Win',
@@ -710,6 +711,7 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
   const nextStage = Math.max(1, (nextStageNumber ?? clearedStage + 1) | 0);
   const parts = createOverlay(clearedStage, nextStage);
   activeOverlay = parts.overlay;
+  appSpatialMotion.activateArcadeStageClear(parts.overlay, clearedStage);
 
   return new Promise((resolve) => {
     activeResolve = () => resolve({ action: 'continue' });
@@ -729,6 +731,7 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
 }
 
 export function cleanupArcadeStageClearModal(resolveActive: boolean = true): void {
+  appSpatialMotion.deactivateArcadeStageClear();
   activeTweens.forEach((tween) => {
     try { tween.kill(); } catch {}
   });

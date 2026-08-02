@@ -457,7 +457,23 @@ const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHI
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
 const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach';
 const ROBO_WORLD_ASSET_BASE = './assets/journey assets/robo';
+const JOURNEY_WORLD_BANNER_ASSET = './assets/journey assets/natpis.png';
+const JOURNEY_WORLD_BANNER_ASSET_2X = './assets/journey assets/natpis@2x.png';
 const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
+const JOURNEY_LEVEL_STAR_ASSETS = Object.freeze({
+  left: Object.freeze({
+    filled: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-left.png`,
+    empty: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-left.png`,
+  }),
+  center: Object.freeze({
+    filled: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-center-1.png`,
+    empty: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-center.png`,
+  }),
+  right: Object.freeze({
+    filled: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-right.png`,
+    empty: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-right-1.png`,
+  }),
+});
 const BOARD_TRANSITION_ASSET_BASE = './assets/board transition';
 const FOREST_MAP_DESIGN_WIDTH = 390;
 const FOREST_MAP_DESIGN_HEIGHT = 760;
@@ -2181,24 +2197,24 @@ class JourneyBoardsManager {
           x: 76,
           y: 82,
           width: 23,
-          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-left.png`,
-          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-left.png`,
+          filledSrc: JOURNEY_LEVEL_STAR_ASSETS.left.filled,
+          emptySrc: JOURNEY_LEVEL_STAR_ASSETS.left.empty,
           role: 'left'
         },
         {
           x: 93,
           y: 82,
           width: 29,
-          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-center-1.png`,
-          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-center.png`,
+          filledSrc: JOURNEY_LEVEL_STAR_ASSETS.center.filled,
+          emptySrc: JOURNEY_LEVEL_STAR_ASSETS.center.empty,
           role: 'center'
         },
         {
           x: 116,
           y: 82,
           width: 23,
-          filledSrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-filled-right.png`,
-          emptySrc: `${FOREST_LEVEL_STARS_ASSET_BASE}/star-empty-right-1.png`,
+          filledSrc: JOURNEY_LEVEL_STAR_ASSETS.right.filled,
+          emptySrc: JOURNEY_LEVEL_STAR_ASSETS.right.empty,
           role: 'right'
         },
       ],
@@ -2369,16 +2385,18 @@ class JourneyBoardsManager {
       ];
       const boardCloudSlotsByBoard: Record<number, BoardCloudSlot[]> = {
         1: [
-          { ref: 6, x: -18, y: 92, width: 164 },
-          { ref: 3, x: 48, y: 6, width: 150 },
-          { ref: 6, x: 104, y: 94, width: 172 },
-          { ref: 4, x: 76, y: -20, width: 118 },
+          { ref: 4, x: -34, y: 54, width: 92 },
+          { ref: 3, x: 56, y: 116, width: 132 },
+          { ref: 6, x: 118, y: 82, width: 146 },
         ],
-        2: [],
+        2: [
+          { ref: 4, x: -46, y: 40, width: 88 },
+          { ref: 5, x: 94, y: 54, width: 90 },
+          { ref: 6, x: -10, y: 126, width: 156 },
+        ],
         3: [
-          { ref: 5, x: -20, y: 36, width: 126 },
-          { ref: 7, x: 48, y: 96, width: 139 },
-          { ref: 2, x: 76, y: 28, width: 98 },
+          { ref: 7, x: -38, y: 112, width: 136 },
+          { ref: 6, x: 54, y: 126, width: 166 },
         ],
         4: [
           { ref: 5, x: 6, y: 26, width: 126 },
@@ -2835,9 +2853,9 @@ class JourneyBoardsManager {
 
     addForestMainClouds();
     mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
-    addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [6, 3, 4]);
-    addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [6]);
-    addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [5, 7, 2]);
+    addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [4, 3, 6]);
+    addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [4, 5, 6]);
+    addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [7, 6]);
     addForestBoardGroup(4, 204, 572, 200, -12, -6, 0, 0, [5, 7, 2, 4, 6]);
     addForestBoardGroup(5, 52, 702, 262, -10, -4, -62, -76, [6, 3]);
     addForestBoardGroup(6, 194, 806, 200, -12, -6, 0, 0, [3, 6]);
@@ -3144,6 +3162,80 @@ class JourneyBoardsManager {
     } catch (error) {
       logger.warn('⚠️ Failed to install Journey screen elastic overscroll:', error);
     }
+  }
+
+  /**
+   * Transfer the live iOS elastic offset to the Hub exit without letting the
+   * outgoing touchend/release timeline keep moving the complete screen.
+   */
+  private freezeJourneyV700HubElasticOffsetForExit(container: HTMLElement, reason: string): void {
+    const scrollable = container.closest('.collectibles-scrollable') as HTMLElement | null;
+    const handlers = scrollable && (scrollable as any).__journeyScreenElasticHandlers;
+    if (!scrollable || !handlers) return;
+
+    try { scrollable.removeEventListener('touchstart', handlers.start); } catch {}
+    try { scrollable.removeEventListener('touchmove', handlers.move); } catch {}
+    try { scrollable.removeEventListener('touchend', handlers.end); } catch {}
+    try { scrollable.removeEventListener('touchcancel', handlers.end); } catch {}
+    try { scrollable.removeEventListener('scroll', handlers.lockX); } catch {}
+    try {
+      if (handlers.releaseTimer) window.clearTimeout(handlers.releaseTimer);
+      handlers.releaseTween?.kill?.();
+    } catch {}
+    delete (scrollable as any).__journeyScreenElasticHandlers;
+
+    // Do not clear the container transform here. It is the exact visual frame
+    // the player tapped; renderBoards() clears it only after the Hub is gone.
+    container.style.pointerEvents = 'none';
+    emitIOSNativeDiagnostic('hub-elastic-offset-frozen-for-exit', {
+      reason,
+      scrollTop: scrollable.scrollTop,
+      containerTransform: getComputedStyle(container).transform,
+      hadReleaseTween: !!handlers.releaseTween,
+    });
+  }
+
+  /** Pin the Hub to its exact screen coordinates while iOS momentum is active. */
+  private pinJourneyV700HubViewportForExit(container: HTMLElement, reason: string): () => void {
+    const scrollable = container.closest('.collectibles-scrollable') as HTMLElement | null;
+    const hub = container.querySelector<HTMLElement>('.journey-v700-hub');
+    if (!scrollable || !hub) return () => {};
+
+    const frozenScrollTop = scrollable.scrollTop;
+    const beforeRect = hub.getBoundingClientRect();
+    const previous = {
+      hubTransform: hub.style.transform,
+      overflowY: scrollable.style.overflowY,
+      touchAction: scrollable.style.touchAction,
+      webkitOverflowScrolling: scrollable.style.webkitOverflowScrolling,
+    };
+    let released = false;
+
+    // Both writes happen in one JS task. Moving the Hub up by the captured
+    // scroll amount exactly cancels resetting the native scroll owner to zero,
+    // so no intermediate geometry can be painted and momentum is eliminated.
+    hub.style.transform = `translate3d(0, ${-frozenScrollTop}px, 0)`;
+    scrollable.scrollTop = 0;
+    scrollable.style.overflowY = 'hidden';
+    scrollable.style.touchAction = 'none';
+    scrollable.style.webkitOverflowScrolling = 'auto';
+
+    const afterRect = hub.getBoundingClientRect();
+    emitIOSNativeDiagnostic('hub-viewport-pinned-for-exit', {
+      reason,
+      frozenScrollTop,
+      topDelta: Math.round((afterRect.top - beforeRect.top) * 1000) / 1000,
+      leftDelta: Math.round((afterRect.left - beforeRect.left) * 1000) / 1000,
+    });
+
+    return () => {
+      if (released) return;
+      released = true;
+      hub.style.transform = previous.hubTransform;
+      scrollable.style.overflowY = previous.overflowY;
+      scrollable.style.touchAction = previous.touchAction;
+      scrollable.style.webkitOverflowScrolling = previous.webkitOverflowScrolling;
+    };
   }
 
   private hideHomeAndJourneyScreens(
@@ -3667,11 +3759,14 @@ class JourneyBoardsManager {
           && journeyScreen.style.display !== 'none'
           && getComputedStyle(journeyScreen).display !== 'none';
 
-        if (board?.unlocked === true && board?.interim !== true && journeyIsVisible && !this.renderDisposed) {
-          this.renderBoards();
-          logger.info(`🏆 Journey map refreshed for board ${boardId} high score update`);
-        } else if (board?.unlocked === true && board?.interim !== true) {
-          logger.info(`⏭️ Journey map refresh deferred while hidden for board ${boardId}`);
+        if (board?.unlocked === true && board?.interim !== true) {
+          const refreshed = this.refreshJourneyBoardStarVisuals(boardId, 'high-score-event');
+          logger.info(refreshed
+            ? `🏆 Journey stars refreshed in place for board ${boardId}`
+            : `⏭️ Journey star refresh deferred until board ${boardId} DOM exists`, {
+            journeyIsVisible,
+            renderDisposed: this.renderDisposed,
+          });
         }
         
         const modal = document.getElementById('collectibles-detail-modal');
@@ -5596,7 +5691,7 @@ class JourneyBoardsManager {
     try {
       const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
       const worlds = Array.from(container.querySelectorAll<HTMLElement>('.journey-v700-world-card')).map((card) => {
-        const image = card.querySelector<HTMLElement>('.journey-v700-world-image');
+        const image = card.querySelector<HTMLElement>('.journey-v700-world-visual');
         const cardRect = card.getBoundingClientRect();
         const imageRect = image?.getBoundingClientRect();
         const cardStyle = getComputedStyle(card);
@@ -5757,15 +5852,42 @@ class JourneyBoardsManager {
       if (!meta || !range) return;
 
       const worldBoards = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
-      const unlockedCount = worldBoards.filter((board) => board.unlocked || board.interim).length;
+      const unlockedCount = worldBoards.filter((board) => board.unlocked && !board.interim).length;
+      const hasInterimCard = worldBoards.some((board) => board.interim);
       const locked = worldId > activeWorldId && unlockedCount === 0;
 
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}`;
+      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''}`;
       button.dataset.worldId = String(worldId);
-      button.disabled = locked;
       button.setAttribute('aria-label', `${meta.name} world`);
+
+      const visual = document.createElement('div');
+      visual.className = 'journey-v700-world-visual';
+      visual.setAttribute('aria-hidden', 'true');
+
+      const banner = document.createElement('span');
+      banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldId === 2 ? 'left' : 'right'}`;
+      banner.setAttribute('aria-hidden', 'true');
+
+      const bannerImage = document.createElement('img');
+      bannerImage.src = JOURNEY_WORLD_BANNER_ASSET;
+      bannerImage.srcset = `${encodeURI(JOURNEY_WORLD_BANNER_ASSET_2X)} 2x`;
+      bannerImage.alt = '';
+      bannerImage.draggable = false;
+      bannerImage.className = 'journey-v700-world-banner-image';
+      banner.appendChild(bannerImage);
+
+      const bannerFlagFx = document.createElement('span');
+      bannerFlagFx.className = 'journey-v700-world-banner-flag-fx';
+      bannerFlagFx.setAttribute('aria-hidden', 'true');
+      banner.appendChild(bannerFlagFx);
+
+      const bannerCount = document.createElement('span');
+      bannerCount.className = 'journey-v700-world-banner-count';
+      bannerCount.textContent = `${unlockedCount}/${worldBoards.length}`;
+      banner.appendChild(bannerCount);
+      visual.appendChild(banner);
 
       const image = document.createElement('img');
       image.src = meta.asset;
@@ -5773,12 +5895,8 @@ class JourneyBoardsManager {
       image.draggable = false;
       image.setAttribute('aria-hidden', 'true');
       image.className = 'journey-v700-world-image';
-      button.appendChild(image);
-
-      const badge = document.createElement('span');
-      badge.className = 'journey-v700-world-badge';
-      badge.textContent = `${unlockedCount}/${worldBoards.length}`;
-      button.appendChild(badge);
+      visual.appendChild(image);
+      button.appendChild(visual);
 
 	      let worldCardTouchStartX = 0;
 	      let worldCardTouchStartY = 0;
@@ -5816,7 +5934,6 @@ class JourneyBoardsManager {
 	        event.preventDefault();
 	        event.stopPropagation();
 	        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, container);
-        if (locked) return;
         const now = Date.now();
         const lastTap = Number((button as any).__ccJourneyV700LastTap || 0);
         if (now - lastTap < 350) {
@@ -5915,6 +6032,12 @@ class JourneyBoardsManager {
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const stagger = getJourneyV700HubEnterStagger(reducedMotion);
+    const worldFinalOpacity = new Map<HTMLElement, number>(
+      worldCards.map((card) => {
+        const cssOpacity = Number.parseFloat(getComputedStyle(card).opacity);
+        return [card, card.classList.contains('is-locked') && Number.isFinite(cssOpacity) ? cssOpacity : 1];
+      }),
+    );
     this.cancelJourneyV700HubEnter(`new-${source}-enter`);
     // A background-prepared Hub may still own gyro from an earlier lifecycle.
     // Release it before GSAP takes transform ownership so spatial translation
@@ -5924,6 +6047,8 @@ class JourneyBoardsManager {
     const enterEpoch = ++this.journeyV700HubEnterEpoch;
     const enterStartedAt = performance.now();
     hub?.classList.remove('journey-v700-idle-ready');
+    hub?.classList.remove('journey-v700-banners-presented');
+    hub?.classList.remove('journey-v700-banners-retracting');
     // Prime the neutral CSS idle phase before the first GSAP enter frame.
     // A paused animation with a negative delay still renders that delayed
     // keyframe in WebKit, so waiting until completion made Beach/Area 55 fall
@@ -5961,6 +6086,14 @@ class JourneyBoardsManager {
       expectedTotalMs: Math.round((motion.enter.baseDelay + motion.enter.duration + ((worldCards.length - 1) * stagger)) * 1000),
     }, container);
 
+    let bannerEnterStarted = false;
+    const startBannerEnter = () => {
+      if (bannerEnterStarted || enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
+      bannerEnterStarted = true;
+      // Start local banner reveal on the first real GSAP enter tick so it runs
+      // with the Worlds, while preserving a painted tucked-behind start state.
+      hub?.classList.add('journey-v700-banners-presented');
+    };
     let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
     const finishVisibleEnterTarget = () => {
       if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
@@ -6017,6 +6150,7 @@ class JourneyBoardsManager {
         ease: motion.enter.ease,
         force3D: true,
         overwrite: true,
+        onStart: startBannerEnter,
         onComplete: finishVisibleEnterTarget,
       });
       this.journeyV700HubEnterTweens.push(cloudTween);
@@ -6025,12 +6159,15 @@ class JourneyBoardsManager {
       const worldTween = trackTween(worldCard, {
         y: 0,
         scale: 1,
-        opacity: 1,
+        // Locked Worlds retain their full CSS opacity throughout enter. Their
+        // inactive hierarchy comes only from saturation, never a second fade.
+        opacity: worldFinalOpacity.get(worldCard) ?? 1,
         duration: motion.enter.duration,
         delay: motion.enter.baseDelay + (index * stagger),
         ease: motion.enter.ease,
         force3D: true,
         overwrite: true,
+        onStart: startBannerEnter,
         onComplete: finishVisibleEnterTarget,
       });
       this.journeyV700HubEnterTweens.push(worldTween);
@@ -6086,6 +6223,8 @@ class JourneyBoardsManager {
     delete (window as any).__ccReturningFromDetailModal;
     delete (window as any).__ccReturningFromInterimBoard;
     localStorage.removeItem('__ccReturningFromInterimBoard');
+    this.freezeJourneyV700HubElasticOffsetForExit(container, `open-world-${worldId}`);
+    const releaseHubViewportPin = this.pinJourneyV700HubViewportForExit(container, `open-world-${worldId}`);
     this.logJourneyV700Flow('open-world-start', { requestedWorldId: worldId, hasSource: !!source }, container);
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
@@ -6100,6 +6239,7 @@ class JourneyBoardsManager {
           !journeyScreen.classList.contains('hidden') &&
           getComputedStyle(journeyScreen).display !== 'none';
         if (!journeyStillOwnsScreen) {
+          releaseHubViewportPin();
           this.logJourneyV700Flow('open-world-render-cancelled-after-exit', {
             requestedWorldId: worldId,
             renderDisposed: this.renderDisposed,
@@ -6115,6 +6255,9 @@ class JourneyBoardsManager {
         }
         this.setJourneyV700View('world', worldId);
         this.updateJourneyV700Nav('world', worldId);
+        // Release and replace occur synchronously, so the outgoing Hub cannot
+        // paint without its compensation transform.
+        releaseHubViewportPin();
         this.renderBoards();
         if (scrollable) {
           scrollable.scrollTop = 0;
@@ -6146,6 +6289,7 @@ class JourneyBoardsManager {
         });
         this.logJourneyV700Flow('open-world-rendered', { requestedWorldId: worldId }, document.getElementById('journey-boards-container') as HTMLElement | null);
       } finally {
+        releaseHubViewportPin();
         this.journeyV700WorldOpenInProgress = false;
         delete (container as any).__ccJourneyV700Opening;
       }
@@ -6314,6 +6458,11 @@ class JourneyBoardsManager {
 	    const hubCloudLayer = container?.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer') || null;
 	    const includeNavExit = reason === 'back-to-home';
 	    const navTargets = includeNavExit ? this.getJourneyV700NavTargets() : [];
+	    let releaseBackToHomeViewportPin: (() => void) | null = null;
+	    if (includeNavExit && container) {
+	      this.freezeJourneyV700HubElasticOffsetForExit(container, reason);
+	      releaseBackToHomeViewportPin = this.pinJourneyV700HubViewportForExit(container, reason);
+	    }
 
 	    this.logJourneyV700Flow('hub-exit-start', {
 	      reason,
@@ -6324,12 +6473,17 @@ class JourneyBoardsManager {
 	    }, container);
 	    if (!worldCards.length && !hubCloudLayer && !navTargets.length) {
 	      this.logJourneyV700Flow('hub-exit-no-worlds', { reason }, container);
+	      releaseBackToHomeViewportPin?.();
 	      return Promise.resolve();
 	    }
 
     this.journeyV700Phase = 'exiting';
     worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
     hub?.classList.remove('journey-v700-idle-ready');
+    // Retract banners behind their World PNGs in parallel with the canonical
+    // World exit. Pausing local idle preserves its live angle without a snap.
+    hub?.classList.add('journey-v700-banners-retracting');
+    hub?.classList.remove('journey-v700-banners-presented');
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
 
@@ -6340,6 +6494,12 @@ class JourneyBoardsManager {
 	        if (remaining > 0) return;
 	        this.logJourneyV700Flow('hub-exit-complete', { reason }, container);
 	        resolve();
+	        // Resolving queues the caller's await continuation first. It hides the
+	        // Journey screen synchronously; release the compensating pin only after
+	        // that handoff so iOS cannot paint a final momentum-scroll frame.
+	        if (releaseBackToHomeViewportPin) {
+	          queueMicrotask(releaseBackToHomeViewportPin);
+	        }
 	      };
 
 	      navTargets.forEach((target) => {
@@ -11494,6 +11654,40 @@ class JourneyBoardsManager {
     }
   }
 
+  private refreshJourneyBoardStarVisuals(boardId: number, reason: string): boolean {
+    const board = this.boards.find((item) => item.id === boardId);
+    if (!board?.unlocked || board.interim) return false;
+
+    const earnedStars = getJourneyEarnedLevelStars(
+      boardStatsService.getBoardStats(boardId).highScore,
+    );
+    const roleOrder = ['left', 'center', 'right'] as const;
+    const stars = roleOrder.map((role) => document.querySelector<HTMLImageElement>(
+      `.journey-forest-star-board-${boardId}.journey-forest-star-${role}`,
+    ));
+    if (stars.every((star) => !star)) return false;
+
+    stars.forEach((star, index) => {
+      if (!star) return;
+      const role = roleOrder[index];
+      const filled = index < earnedStars;
+      const nextSrc = filled
+        ? JOURNEY_LEVEL_STAR_ASSETS[role].filled
+        : JOURNEY_LEVEL_STAR_ASSETS[role].empty;
+      if (star.getAttribute('src') !== nextSrc) star.src = nextSrc;
+      star.classList.toggle('journey-forest-star-filled', filled);
+      star.classList.toggle('journey-forest-star-empty', !filled);
+    });
+
+    emitIOSNativeDiagnostic('journey-board-stars-refreshed', {
+      boardId,
+      reason,
+      earnedStars,
+      mountedStars: stars.filter(Boolean).length,
+    });
+    return true;
+  }
+
   // 🔥 CRITICAL FIX: Method to refresh background position after screen animation completes
   // This ensures consistent positioning when screen is shown again
   public refreshBackgroundPosition(): void {
@@ -11814,6 +12008,10 @@ class JourneyBoardsManager {
       // Unlock the board (remove interim status, set unlocked)
       board.unlocked = true;
       board.interim = false;
+      // The preserved World DOM can remain mounted behind gameplay. Refresh
+      // only this Unit's star images so its return enter uses the newly saved
+      // score without replacing the complete World and its animation owner.
+      this.refreshJourneyBoardStarVisuals(boardNumber, 'board-completion');
       
       // 🔥 PRODUCTION READY: Preload and cache this board's card image immediately
       // This ensures the card image is always available, even after hard exit

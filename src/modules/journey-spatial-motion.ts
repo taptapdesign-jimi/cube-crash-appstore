@@ -1,4 +1,4 @@
-type JourneySpatialSurface = 'homepage' | 'journey-hub' | 'journey-world' | 'journey-detail-modal' | 'board-transition' | 'gameplay';
+type JourneySpatialSurface = 'homepage' | 'journey-hub' | 'journey-world' | 'journey-detail-modal' | 'arcade-stage-clear' | 'board-transition' | 'gameplay';
 
 type SpatialTarget = {
   element: HTMLElement;
@@ -67,6 +67,13 @@ export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
     mountain: Object.freeze({ x: 18, y: 14 }),
     scene: Object.freeze({ x: 16, y: 12 }),
     cloud: Object.freeze({ x: -18, y: -14 }),
+  }),
+  arcadeStageClear: Object.freeze({
+    title: Object.freeze({ x: 9, y: 7 }),
+    subtitle: Object.freeze({ x: 6, y: 5 }),
+    thumb: Object.freeze({ x: 12, y: 9 }),
+    nextLabel: Object.freeze({ x: 7, y: 5 }),
+    nextDigit: Object.freeze({ x: 14, y: 11 }),
   }),
 });
 
@@ -461,7 +468,7 @@ class AppSpatialMotionController {
     if (this.deferActivation(() => this.activateJourneyHub(container), 'journey-hub')) return;
     const targets: SpatialTarget[] = [];
     container.querySelectorAll<HTMLElement>('.journey-v700-world-card').forEach((worldCard, index) => {
-      const image = worldCard.querySelector<HTMLElement>('.journey-v700-world-image');
+      const image = worldCard.querySelector<HTMLElement>('.journey-v700-world-visual');
       if (!image) return;
       const worldId = this.asWorldId(Number(worldCard.dataset.worldId)) ?? this.asWorldId(index + 1);
       if (!worldId) return;
@@ -648,6 +655,69 @@ class AppSpatialMotionController {
 
   public deactivateJourneyDetailModal(): void {
     if (this.activeSurface === 'journey-detail-modal') this.deactivate();
+  }
+
+  public activateArcadeStageClear(overlay: HTMLElement, clearedStage: number): void {
+    if (this.deferActivation(
+      () => this.activateArcadeStageClear(overlay, clearedStage),
+      'arcade-stage-clear',
+    )) return;
+    if (!overlay.isConnected || overlay.style.display === 'none') {
+      this.deactivate();
+      return;
+    }
+
+    const targets: SpatialTarget[] = [];
+    const stableBase = Math.max(1, Math.trunc(clearedStage)) * 19;
+    const addTarget = (
+      element: HTMLElement | null,
+      depth: JourneySpatialTilt,
+      stableIndex: number,
+    ): void => {
+      if (!element) return;
+      const direction = getGameplayTileSpatialDirection(stableIndex, this.gameplayDirectionOffset);
+      const depthScale = this.getSessionDepthScale(stableIndex + 3);
+      targets.push({
+        element,
+        xDepth: depth.x * depthScale * direction.x,
+        yDepth: depth.y * depthScale * direction.y,
+      });
+    };
+
+    addTarget(
+      overlay.querySelector<HTMLElement>('.cc-arcade-stage-title'),
+      JOURNEY_SPATIAL_DEPTH.arcadeStageClear.title,
+      stableBase,
+    );
+    addTarget(
+      overlay.querySelector<HTMLElement>('.cc-arcade-stage-subtitle'),
+      JOURNEY_SPATIAL_DEPTH.arcadeStageClear.subtitle,
+      stableBase + 1,
+    );
+    addTarget(
+      overlay.querySelector<HTMLElement>('.cc-arcade-stage-thumb-wrap'),
+      JOURNEY_SPATIAL_DEPTH.arcadeStageClear.thumb,
+      stableBase + 2,
+    );
+    addTarget(
+      overlay.querySelector<HTMLElement>('.cc-arcade-next-label'),
+      JOURNEY_SPATIAL_DEPTH.arcadeStageClear.nextLabel,
+      stableBase + 3,
+    );
+    overlay.querySelectorAll<HTMLElement>('.cc-arcade-next-digit-wrap').forEach((element, index) => {
+      addTarget(
+        element,
+        JOURNEY_SPATIAL_DEPTH.arcadeStageClear.nextDigit,
+        stableBase + 4 + index,
+      );
+    });
+
+    if (this.matchesActiveTargets('arcade-stage-clear', targets)) return;
+    this.activate('arcade-stage-clear', targets, overlay);
+  }
+
+  public deactivateArcadeStageClear(): void {
+    if (this.activeSurface === 'arcade-stage-clear') this.deactivate();
   }
 
   public activateBoardTransition(overlay: HTMLElement, boardNumber: number): void {

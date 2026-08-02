@@ -65,21 +65,22 @@ describe('Spatial Motion permission modal', () => {
     expect(enableButton).not.toBeNull();
     expect(enableButton?.classList.contains('primary-button')).toBe(true);
     expect(enableButton?.classList.contains('bottom-sheet-cta')).toBe(true);
-    expect(enableButton?.textContent).toBe('Let’s Move');
+    expect(enableButton?.textContent).toBe('Try It');
     expect(document.querySelector('.journey-spatial-permission-dismiss')?.textContent).toBe('Later');
     expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('bottom-sheet-cta'))
       .toBe(true);
     expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('exit-btn'))
       .toBe(true);
-    expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('3D Motion');
-    expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('3D');
+    expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('Tilt Motion');
+    expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('Tilt');
     expect(document.querySelector('.journey-spatial-permission-copy')?.textContent)
-      .toBe('Tilt your phone and watch the game move with you.');
+      .toBe('Tilt your phone to add a little motion.');
     expect(document.querySelector('.journey-spatial-permission-divider')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-settings-copy')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-shell')).toBeNull();
-    expect(document.querySelector('.journey-spatial-permission-handle')).not.toBeNull();
-    expect(document.querySelector('.journey-spatial-permission-content')?.children).toHaveLength(4);
+    expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
+    expect(document.querySelector('.journey-spatial-permission-content')).toBeNull();
+    expect(document.querySelector('.journey-spatial-permission-paper')?.children).toHaveLength(4);
     expect(document.querySelector('.journey-spatial-permission-card')?.classList.contains('bottom-sheet-paper-surface'))
       .toBe(false);
     expect(document.querySelector('.journey-spatial-permission-paper')?.classList.contains('bottom-sheet-paper-surface'))
@@ -145,7 +146,7 @@ describe('Spatial Motion permission modal', () => {
     expect(localStorage.getItem('cc_journey_spatial_intro_seen_v3')).toBeNull();
   });
 
-  it('keeps launch ownership until the Later sheet exit is actually complete', async () => {
+  it('keeps launch ownership until the Later modal exit is actually complete', async () => {
     jest.useFakeTimers();
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     let settled = false;
@@ -167,68 +168,9 @@ describe('Spatial Motion permission modal', () => {
     expect(isSpatialMotionPermissionModalActive()).toBe(false);
   });
 
-  it('routes a downward handle swipe through the same Later dismissal owner', async () => {
-    jest.useFakeTimers();
+  it('does not install bottom-sheet drag dismissal on the centered modal', async () => {
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    const handle = document.querySelector<HTMLElement>('.journey-spatial-permission-handle');
-    const pointerEvent = (type: string, clientY: number) => {
-      const event = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperties(event, {
-        pointerId: { value: 7 },
-        clientY: { value: clientY },
-      });
-      return event;
-    };
-
-    handle?.dispatchEvent(pointerEvent('pointerdown', 100));
-    handle?.dispatchEvent(pointerEvent('pointermove', 180));
-    handle?.dispatchEvent(pointerEvent('pointerup', 180));
-
-    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
-      .toBe(true);
-    expect(sessionStorage.getItem('cc_spatial_motion_intro_dismissed_session_v4')).toBe('1');
-    jest.advanceTimersByTime(650);
-    await expect(result).resolves.toBe('dismissed');
-  });
-
-  it('uses the pointer release coordinate when WebKit omits the final move event', async () => {
-    jest.useFakeTimers();
-    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    const paper = document.querySelector<HTMLElement>('.journey-spatial-permission-paper');
-    const pointerEvent = (type: string, clientY: number) => {
-      const event = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperties(event, {
-        pointerId: { value: 8 },
-        clientY: { value: clientY },
-      });
-      return event;
-    };
-
-    paper?.dispatchEvent(pointerEvent('pointerdown', 100));
-    paper?.dispatchEvent(pointerEvent('pointerup', 150));
-
-    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
-      .toBe(true);
-    jest.advanceTimersByTime(650);
-    await expect(result).resolves.toBe('dismissed');
-  });
-
-  it('does not turn a CTA drag gesture into a sheet dismissal', async () => {
-    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    const cta = document.querySelector<HTMLElement>('.journey-spatial-permission-enable');
-    const pointerEvent = (type: string, clientY: number) => {
-      const event = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperties(event, {
-        pointerId: { value: 9 },
-        clientY: { value: clientY },
-      });
-      return event;
-    };
-
-    cta?.dispatchEvent(pointerEvent('pointerdown', 100));
-    cta?.dispatchEvent(pointerEvent('pointermove', 220));
-    cta?.dispatchEvent(pointerEvent('pointerup', 220));
-
+    expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
       .toBe(false);
     cancelSpatialMotionPermissionModal();

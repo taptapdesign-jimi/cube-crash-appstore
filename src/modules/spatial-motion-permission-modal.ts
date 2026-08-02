@@ -175,14 +175,10 @@ export function showSpatialMotionPermissionModal(
     const paperSurface = document.createElement('div');
     paperSurface.className = 'journey-spatial-permission-paper bottom-sheet-paper-surface';
 
-    const dragHandle = document.createElement('div');
-    dragHandle.className = 'journey-spatial-permission-handle';
-    dragHandle.setAttribute('aria-hidden', 'true');
-
     const title = document.createElement('h2');
     title.id = 'spatial-motion-permission-title';
     const titleAccent = document.createElement('span');
-    titleAccent.textContent = '3D';
+    titleAccent.textContent = 'Tilt';
     title.append(titleAccent, ' Motion');
 
     const art = document.createElement('div');
@@ -215,12 +211,12 @@ export function showSpatialMotionPermissionModal(
     const copy = document.createElement('p');
     copy.id = 'spatial-motion-permission-copy';
     copy.className = 'journey-spatial-permission-copy';
-    copy.textContent = 'Tilt your phone and watch the game move with you.';
+    copy.textContent = 'Tilt your phone to add a little motion.';
 
     const enableButton = document.createElement('button');
     enableButton.type = 'button';
     enableButton.className = 'journey-spatial-permission-enable restart-btn primary-button bottom-sheet-cta';
-    enableButton.textContent = 'Let’s Move';
+    enableButton.textContent = 'Try It';
 
     const dismissButton = document.createElement('button');
     dismissButton.type = 'button';
@@ -230,10 +226,7 @@ export function showSpatialMotionPermissionModal(
     const actions = document.createElement('div');
     actions.className = 'journey-spatial-permission-actions';
     actions.append(enableButton, dismissButton);
-    const content = document.createElement('div');
-    content.className = 'journey-spatial-permission-content';
-    content.append(title, art, copy, actions);
-    paperSurface.append(dragHandle, content);
+    paperSurface.append(title, art, copy, actions);
     card.appendChild(paperSurface);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -252,79 +245,16 @@ export function showSpatialMotionPermissionModal(
       }
       finishActiveModal('dismissed');
     };
-    let dragPointerId: number | null = null;
-    let dragStartY = 0;
-    let dragStartedAt = 0;
-    let dragDistance = 0;
-    const resetDrag = () => {
-      dragPointerId = null;
-      dragDistance = 0;
-      card.style.removeProperty('transform');
-      card.style.removeProperty('transition');
-    };
-    const onHandlePointerDown = (event: PointerEvent) => {
-      if ((card as HTMLElement & { _closing?: boolean })._closing) return;
-      const target = event.target as Element | null;
-      if (target?.closest('button, a, input, select, textarea, [role="button"]')) return;
-      dragPointerId = event.pointerId;
-      dragStartY = event.clientY;
-      dragStartedAt = performance.now();
-      dragDistance = 0;
-      card.setPointerCapture?.(event.pointerId);
-      card.style.transition = 'none';
-      dragHandle.classList.add('is-dragging');
-    };
-    const onHandlePointerMove = (event: PointerEvent) => {
-      if (event.pointerId !== dragPointerId) return;
-      dragDistance = Math.max(0, event.clientY - dragStartY);
-      card.style.transform = `translate3d(0, ${dragDistance}px, 0) scale(1)`;
-      event.preventDefault();
-    };
-    const finishHandleDrag = (event: PointerEvent) => {
-      if (event.pointerId !== dragPointerId) return;
-      // WebKit may coalesce or omit the last pointermove. Re-read the release
-      // coordinate so a real downward pull cannot be misclassified as short.
-      dragDistance = Math.max(dragDistance, Math.max(0, event.clientY - dragStartY));
-      const elapsedMs = Math.max(1, performance.now() - dragStartedAt);
-      const velocity = dragDistance / elapsedMs;
-      const shouldDismiss = dragDistance >= 44 || (dragDistance >= 20 && velocity >= 0.25);
-      try { card.releasePointerCapture?.(event.pointerId); } catch {}
-      dragHandle.classList.remove('is-dragging');
-      if (shouldDismiss) {
-        dragPointerId = null;
-        dragDistance = 0;
-        onDismiss();
-        return;
-      }
-      resetDrag();
-    };
-    const cancelHandleDrag = (event: PointerEvent) => {
-      if (event.pointerId !== dragPointerId) return;
-      try { card.releasePointerCapture?.(event.pointerId); } catch {}
-      dragHandle.classList.remove('is-dragging');
-      resetDrag();
-    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onDismiss();
     };
 
     enableButton.addEventListener('click', onEnable, { once: true });
     dismissButton.addEventListener('click', onDismiss, { once: true });
-    card.addEventListener('pointerdown', onHandlePointerDown);
-    card.addEventListener('pointermove', onHandlePointerMove);
-    card.addEventListener('pointerup', finishHandleDrag);
-    card.addEventListener('pointercancel', cancelHandleDrag);
     document.addEventListener('keydown', onKeyDown);
     (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup = () => {
       enableButton.removeEventListener('click', onEnable);
       dismissButton.removeEventListener('click', onDismiss);
-      card.removeEventListener('pointerdown', onHandlePointerDown);
-      card.removeEventListener('pointermove', onHandlePointerMove);
-      card.removeEventListener('pointerup', finishHandleDrag);
-      card.removeEventListener('pointercancel', cancelHandleDrag);
-      dragPointerId = null;
-      dragDistance = 0;
-      dragHandle.classList.remove('is-dragging');
       document.removeEventListener('keydown', onKeyDown);
     };
 
@@ -358,7 +288,7 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
     return;
   }
 
-  // A launch abort must be able to finish an already-closing sheet at once.
+  // A launch abort must be able to finish an already-closing modal at once.
   // Normal user choices retain one owner until the visual exit is complete so
   // launch cannot start its own exit/Homepage handoff underneath this overlay.
   if (activeFinishNow) {
@@ -370,24 +300,10 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
   const card = overlay.querySelector('.journey-spatial-permission-card') as (HTMLElement & { _closing?: boolean }) | null;
   if (card) {
     card._closing = true;
+    card.style.removeProperty('transition');
   }
   overlay.classList.remove('is-visible');
   overlay.classList.add('is-exiting');
-  if (card) {
-    // If dismissal started from a drag, preserve the finger-owned position for
-    // one layout sample, then let the normal sheet exit continue from there.
-    const hadDragTransform = card.style.getPropertyValue('transform') !== '';
-        if (hadDragTransform) {
-          card.style.transition = 'none';
-          void card.offsetHeight;
-          card.style.removeProperty('transition');
-          // Sample the stylesheet exit transition while the finger-owned
-          // transform is still active, then release it to the 110% endpoint.
-          void card.offsetHeight;
-        }
-        else card.style.removeProperty('transition');
-        card.style.removeProperty('transform');
-  }
   const complete = () => {
     if (activeExitTimeout !== null) {
       window.clearTimeout(activeExitTimeout);

@@ -271,16 +271,16 @@ describe('Journey spatial motion', () => {
     document.body.innerHTML = `
       <div id="journey-boards-container">
         <article class="journey-v700-world-card" data-world-id="1">
-          <img class="journey-v700-world-image" />
+          <div class="journey-v700-world-visual"><img class="journey-v700-world-image" /></div>
         </article>
         <article class="journey-v700-world-card" data-world-id="2">
-          <img class="journey-v700-world-image" />
+          <div class="journey-v700-world-visual"><img class="journey-v700-world-image" /></div>
         </article>
         <div class="journey-v700-hub-cloud" data-world-id="1"></div>
       </div>
     `;
     const container = document.getElementById('journey-boards-container') as HTMLElement;
-    const firstWorld = container.querySelector<HTMLElement>('.journey-v700-world-image')!;
+    const firstWorld = container.querySelector<HTMLElement>('.journey-v700-world-visual')!;
 
     journeySpatialMotion.activateJourneyHub(container);
     firstWorld.style.setProperty('translate', '4px -3px');
@@ -466,6 +466,37 @@ describe('Journey spatial motion', () => {
     expect(overlay.querySelectorAll('[data-journey-spatial-target="board-transition"]')).toHaveLength(7);
 
     journeySpatialMotion.deactivateBoardTransition();
+    expect(overlay.querySelector('[data-journey-spatial-target]')).toBeNull();
+    expect(Array.from(overlay.querySelectorAll<HTMLElement>('*')).every((element) => (
+      element.style.translate === ''
+    ))).toBe(true);
+  });
+
+  it('owns both Arcade Round Complete phases with one shared gyro controller', () => {
+    document.body.innerHTML = `
+      <section id="cc-arcade-stage-clear-overlay">
+        <h1 class="cc-arcade-stage-title"></h1>
+        <p class="cc-arcade-stage-subtitle"></p>
+        <div class="cc-arcade-stage-thumb-wrap"></div>
+        <div class="cc-arcade-next-label"></div>
+        <span class="cc-arcade-next-digit-wrap"></span>
+        <span class="cc-arcade-next-digit-wrap"></span>
+      </section>
+    `;
+    const overlay = document.getElementById('cc-arcade-stage-clear-overlay') as HTMLElement;
+
+    journeySpatialMotion.activateArcadeStageClear(overlay, 3);
+
+    expect(JOURNEY_SPATIAL_DEPTH.arcadeStageClear).toEqual({
+      title: { x: 9, y: 7 },
+      subtitle: { x: 6, y: 5 },
+      thumb: { x: 12, y: 9 },
+      nextLabel: { x: 7, y: 5 },
+      nextDigit: { x: 14, y: 11 },
+    });
+    expect(overlay.querySelectorAll('[data-journey-spatial-target="arcade-stage-clear"]')).toHaveLength(6);
+
+    journeySpatialMotion.deactivateArcadeStageClear();
     expect(overlay.querySelector('[data-journey-spatial-target]')).toBeNull();
     expect(Array.from(overlay.querySelectorAll<HTMLElement>('*')).every((element) => (
       element.style.translate === ''
