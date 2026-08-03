@@ -58,6 +58,7 @@ import {
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
+import { getJourneyEarnedStars } from './journey-stage-balance.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -637,12 +638,8 @@ function forestTopPercent(px: number): number {
   return (px / FOREST_MAP_DESIGN_HEIGHT) * 100;
 }
 
-function getJourneyEarnedLevelStars(score: number): number {
-  const safeScore = Number.isFinite(score) ? Math.max(0, score) : 0;
-  if (safeScore <= 0) return 0;
-  if (safeScore < 2000) return 1;
-  if (safeScore < 6000) return 2;
-  return 3;
+function getJourneyEarnedLevelStars(score: number, boardNumber: number): number {
+  return getJourneyEarnedStars(score, boardNumber);
 }
 
 // Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
@@ -2484,7 +2481,7 @@ class JourneyBoardsManager {
       ));
       const board = this.boards.find((item) => item.id === boardId);
       const earnedStars = board?.unlocked === true && board?.interim !== true
-        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore, boardId)
         : 0;
       const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
 
@@ -2598,7 +2595,7 @@ class JourneyBoardsManager {
 
       const board = this.boards.find((item) => item.id === boardId);
       const earnedStars = board?.unlocked === true && board?.interim !== true
-        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore, boardId)
         : 0;
       const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
 
@@ -2794,7 +2791,7 @@ class JourneyBoardsManager {
 
       const board = this.boards.find((item) => item.id === boardId);
       const earnedStars = board?.unlocked === true && board?.interim !== true
-        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore)
+        ? getJourneyEarnedLevelStars(boardStatsService.getBoardStats(boardId).highScore, boardId)
         : 0;
       const shouldRenderLevelStars = board?.unlocked === true || board?.interim === true;
 
@@ -11660,6 +11657,7 @@ class JourneyBoardsManager {
 
     const earnedStars = getJourneyEarnedLevelStars(
       boardStatsService.getBoardStats(boardId).highScore,
+      boardId,
     );
     const roleOrder = ['left', 'center', 'right'] as const;
     const stars = roleOrder.map((role) => document.querySelector<HTMLImageElement>(

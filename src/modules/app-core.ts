@@ -163,6 +163,7 @@ import { openAtCellCore } from './app-core-open-cell.ts';
 import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
 import { resolveWildSpawnPermission } from './wild-spawn-permission.ts';
+import { resolveWildMeterProgressDecision } from './wild-meter-progress-decision.ts';
 import {
   isWildContinuationPending,
   resolveStuckWildDeferralDecision,
@@ -2324,7 +2325,7 @@ function setWildProgress(ratio, animate=false){
   }
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
-function addWildProgress(amount){
+function addWildProgress(amount, { confirmedNonFinal = false }: { confirmedNonFinal?: boolean } = {}){
   logger.debug('🔥🔥🔥 addWildProgress CALLED', 'app-core', { amount, wildMeter, boardNumber });
 
   const permissionBeforeFill = resolveWildSpawnPermission({
@@ -2338,13 +2339,17 @@ function addWildProgress(amount){
     activeAnimationBlockReason: null,
     devLog,
   });
+  const progressDecision = resolveWildMeterProgressDecision({
+    permission: permissionBeforeFill,
+    confirmedNonFinal,
+  });
 
-  if (permissionBeforeFill.reason === 'wild-meter-disabled') {
+  if (progressDecision.action === 'skip' && progressDecision.reason === 'wild-meter-disabled') {
     devLog(`🎯 Board ${boardNumber}: Wild meter disabled - skipping addWildProgress`);
     return;
   }
 
-  if (permissionBeforeFill.reason === 'last-merge') {
+  if (progressDecision.action === 'reset') {
     devLog('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in addWildProgress) - last merge detected');
     // Reset wild meter to ensure it's empty
     wildMeter = 0;
@@ -2360,9 +2365,13 @@ function addWildProgress(amount){
     return;
   }
 
-  if (permissionBeforeFill.action === 'block' && permissionBeforeFill.reason !== 'wild-spawn-disabled') {
-    devLog('⏸️ addWildProgress skipped:', permissionBeforeFill.reason);
+  if (progressDecision.action === 'skip') {
+    devLog('⏸️ addWildProgress skipped:', progressDecision.reason);
     return;
+  }
+
+  if (progressDecision.reason === 'confirmed-non-final-merge') {
+    devLog('✅ Preserving wild progress from confirmed non-final merge despite transient live-board last-pair view');
   }
   
   // Kill any existing animations and smoke interval first
@@ -6592,7 +6601,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     if (!lastMergeResult.isActuallyLastMerge) {
       // Normal merge - add wild progress
       const wildMeterBeforeStackFill = Number.isFinite(wildMeter) ? wildMeter : 0;
-      addWildProgress(WILD_INC_SMALL);
+      addWildProgress(WILD_INC_SMALL, { confirmedNonFinal: true });
       stackMergeFilledWildMeter = wildMeterBeforeStackFill < 1 && wildMeter >= 1;
       if (stackMergeFilledWildMeter) {
         devLog('🛡️ Stack merge filled wild preloader - fail/no-moves must wait for wild drop', {
@@ -8316,7 +8325,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // 🔥 ANIMATION TIMING: Add progress IMMEDIATELY (before pull animation) so progress bar animates during pull
                 if (shouldAddWildProgress) {
                   devLog(`🧲 Magnet pulling ${validTiles.length} tiles - adding wild progress IMMEDIATELY (treating as merge 6, NOT last merge)`);
-                  addWildProgress(WILD_INC_BIG); // Same as regular merge 6 - animates during pull
+                  addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true }); // Same as regular merge 6 - animates during pull
                 } else if (isLastMergeBeforePull) {
                   devLog(`🚨🚨🚨 LAST MERGE DETECTED (magnet pull) - ${activeTilesBeforePull.length} tiles before pull, skipping wild progress`);
                   resetWildMeterState('last-merge-before-magnet-pull');
@@ -10110,7 +10119,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         } else {
           // Normal merge-6 - add wild progress
           devLog('✅ Normal merge-6 (NOT last merge) - adding wild progress');
-          addWildProgress(WILD_INC_BIG);
+          addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true });
         }
         
         // Game continues - check moves and proceed with spawn

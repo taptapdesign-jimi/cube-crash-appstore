@@ -236,7 +236,9 @@ export function showSpatialMotionPermissionModal(
       enableButton.disabled = true;
       dismissButton.disabled = true;
       // Keep this call synchronous inside the button gesture; WebKit requires it.
-      void requestPermission().finally(() => finishActiveModal('enabled'));
+      void requestPermission()
+        .then((granted) => finishActiveModal(granted ? 'enabled' : 'cancelled'))
+        .catch(() => finishActiveModal('cancelled'));
     };
     const onDismiss = () => {
       if (!forcedDeveloperPreview) {

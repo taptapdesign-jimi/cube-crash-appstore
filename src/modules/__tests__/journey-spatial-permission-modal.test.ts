@@ -104,6 +104,15 @@ describe('Spatial Motion permission modal', () => {
     expect(shouldShowSpatialMotionPermissionModal()).toBe(true);
   });
 
+  it('does not report Try It as enabled when permission fails', async () => {
+    const requestPermission = jest.fn().mockResolvedValue(false);
+    const result = showSpatialMotionPermissionModal(requestPermission);
+    document.querySelector<HTMLButtonElement>('.journey-spatial-permission-enable')?.click();
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    await expect(result).resolves.toBe('cancelled');
+    expect(isSpatialMotionPermissionModalActive()).toBe(false);
+  });
+
   it('paints the below-viewport start state before beginning the spring enter', async () => {
     const frameCallbacks: FrameRequestCallback[] = [];
     Object.defineProperty(window, 'requestAnimationFrame', {

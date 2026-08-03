@@ -21,29 +21,22 @@ describe('app-core-utils regular value bias', () => {
     Math.random = jest.fn(() => values[Math.min(index++, values.length - 1)]);
   }
 
-  test('journey boards 1-5 force small values 70 percent of the time', () => {
-    (window as any).STATE.boardNumber = 5;
-    mockRandomSequence([0.69, 0.99]);
+  test('the first three stages of every Journey world strongly prefer small values', () => {
+    (window as any).STATE.boardNumber = 21;
+    mockRandomSequence([0.74, 0.99]);
 
     expect(randomRegularTileValue()).toBe(3);
   });
 
-  test('journey boards 6-10 force small values 50 percent of the time', () => {
-    (window as any).STATE.boardNumber = 10;
-    mockRandomSequence([0.49, 0.99]);
-
-    expect(randomRegularTileValue()).toBe(3);
-  });
-
-  test('journey boards 11-15 force small values 25 percent of the time', () => {
+  test('stages four through six of every Journey world use medium assistance', () => {
     (window as any).STATE.boardNumber = 15;
-    mockRandomSequence([0.24, 0.99]);
+    mockRandomSequence([0.39, 0.99]);
 
     expect(randomRegularTileValue()).toBe(3);
   });
 
-  test('journey boards 16+ use normal regular pool', () => {
-    (window as any).STATE.boardNumber = 16;
+  test('stages seven through ten of every Journey world use the normal pool', () => {
+    (window as any).STATE.boardNumber = 27;
     mockRandomSequence([0.99]);
 
     expect(randomRegularTileValue()).toBe(5);

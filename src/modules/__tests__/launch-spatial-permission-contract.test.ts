@@ -71,6 +71,15 @@ describe('launch 3D Motion permission ownership', () => {
     expect(permissionAwait).toBeLessThan(launchHide);
   });
 
+  it('turns on and persists 3D Motion inside Try It before requesting permission', () => {
+    const enableIndex = launchSource.indexOf('settingsOwner._settings.spatialMotionEnabled = true');
+    const requestIndex = launchSource.indexOf('journeySpatialMotion.requestPermissionFromGesture()', enableIndex);
+    const persistIndex = launchSource.indexOf('settingsOwner.saveSettings?.(settingsOwner._settings)', requestIndex);
+    expect(enableIndex).toBeGreaterThan(-1);
+    expect(requestIndex).toBeGreaterThan(enableIndex);
+    expect(persistIndex).toBeGreaterThan(requestIndex);
+  });
+
   it('never aborts the studio intro from a stale priority-paper diagnostic identifier', () => {
     expect(launchSource).toContain('paperComplete: priorityPaperBgLoadPromise !== null');
     expect(launchSource).not.toContain('priorityPaperLoadPromise');

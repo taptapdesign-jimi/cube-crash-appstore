@@ -2,6 +2,7 @@
 import { gsap } from 'gsap';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -51,10 +52,6 @@ function ensureJourneyNewCardStyles(): void {
       justify-content: flex-start;
       box-sizing: border-box;
       padding: clamp(84px, 13.5vh, 132px) 24px max(42px, env(safe-area-inset-bottom));
-      background:
-        linear-gradient(rgba(243,238,232,0.65), rgba(243,238,232,0.65)),
-        url('./assets/paper-bg.png') center / 100% 100% no-repeat,
-        #f3eee8;
       font-family: "Baloo2", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color: #b58a78;
       overflow: hidden;
@@ -504,6 +501,7 @@ export async function showJourneyNewCardScreen({
 
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
+    applyAppPaperSurfaceToElement(overlay);
     overlay.innerHTML = `
       <h1 class="cc-journey-new-card-title" style="opacity:0;transform:scale(0) translateY(-28px);">New Reward</h1>
       <p class="cc-journey-new-card-subtitle" style="opacity:0;transform:scale(0) translateY(-22px);">Tap the card to reveal</p>

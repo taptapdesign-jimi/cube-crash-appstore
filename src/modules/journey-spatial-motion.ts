@@ -4,6 +4,7 @@ type SpatialTarget = {
   element: HTMLElement;
   xDepth: number;
   yDepth: number;
+  hubWorldId?: JourneySpatialWorldId;
 };
 
 type GameplaySpatialWrapper = {
@@ -94,8 +95,8 @@ export const JOURNEY_SPATIAL_SURFACE_GAIN = Object.freeze({
     y: scaleJourneySceneGain(0.875),
   }),
   journeyWorld: Object.freeze({
-    x: scaleJourneySceneGain(1),
-    y: scaleJourneySceneGain(1),
+    x: scaleJourneySceneGain(0.82),
+    y: scaleJourneySceneGain(0.82),
   }),
   journeyUnit: 1.35,
   hubCloudSeparation: 1.3,
@@ -117,6 +118,15 @@ export const JOURNEY_SPATIAL_STRENGTH = 0.6;
 
 const ORGANIC_DEPTH_SCALES = Object.freeze([0.82, 1.08, 0.93, 1.19, 0.87, 1.13, 0.98]);
 const CLOUD_DEPTH_SCALES = Object.freeze([0.68, 1.24, 0.86, 1.38, 0.76, 1.16, 0.96]);
+const HUB_CLOUD_DIRECTION_PATTERNS = Object.freeze([
+  Object.freeze({ x: -1, y: 0.72 }),
+  Object.freeze({ x: 0.84, y: -1 }),
+  Object.freeze({ x: -0.68, y: -0.82 }),
+  Object.freeze({ x: 1, y: 0.64 }),
+  Object.freeze({ x: 0.72, y: 1 }),
+  Object.freeze({ x: -0.9, y: 0.58 }),
+  Object.freeze({ x: 0.62, y: -0.76 }),
+]);
 const WORLD_DIRECTION_PATTERNS = Object.freeze([
   Object.freeze({ x: 1, y: 0.78 }),
   Object.freeze({ x: -0.92, y: 1 }),
@@ -146,6 +156,13 @@ export function getJourneySpatialDepthScale(index: number): number {
 export function getJourneyCloudDepthScale(index: number): number {
   const normalizedIndex = Math.abs(Math.trunc(index)) % CLOUD_DEPTH_SCALES.length;
   return CLOUD_DEPTH_SCALES[normalizedIndex];
+}
+
+export function getJourneyHubCloudDirection(index: number, sessionOffset = 0): JourneySpatialTilt {
+  const normalizedIndex = Math.abs(Math.trunc(index) + Math.trunc(sessionOffset))
+    % HUB_CLOUD_DIRECTION_PATTERNS.length;
+  const direction = HUB_CLOUD_DIRECTION_PATTERNS[normalizedIndex];
+  return { x: direction.x, y: direction.y };
 }
 
 export function createJourneySpatialDirectionMap(randomValue = Math.random()): JourneySpatialDirectionMap {
@@ -197,16 +214,58 @@ export function mixJourneyHubTilt(tilt: JourneySpatialTilt): JourneySpatialTilt 
   };
 }
 
+export function createJourneyHubWorldTilt(
+  worldId: JourneySpatialWorldId,
+  tilt: JourneySpatialTilt,
+  pathRotation = 0,
+): JourneySpatialTilt {
+  const rawMagnitude = Math.min(1, Math.hypot(tilt.x, tilt.y));
+  // Suppress the radial cusp/noise around neutral without introducing another
+  // hard dead-zone. Directional wander still reacts to gentle wrist motion.
+  const magnitude = rawMagnitude * (0.74 + (rawMagnitude * 0.26));
+  const inwardX = worldId === 2 ? -1 : 1;
+  const pathIndex = ((worldId - 1 + Math.abs(Math.trunc(pathRotation))) % 3) + 1;
+  const wander = pathIndex === 1
+    ? { x: (tilt.x * 0.32) + (tilt.y * 0.22), y: (tilt.y * 0.62) - (tilt.x * 0.18) }
+    : pathIndex === 2
+      ? { x: (tilt.x * -0.25) + (tilt.y * 0.28), y: (tilt.y * 0.45) + (tilt.x * 0.30) }
+      : { x: (tilt.x * 0.20) - (tilt.y * 0.34), y: (tilt.y * 0.58) + (tilt.x * 0.16) };
+
+  return {
+    // Most horizontal travel converges toward the screen centre. A smaller
+    // per-World axis mix keeps all three paths visibly independent.
+    x: clamp((inwardX * magnitude * 0.62) + (wander.x * 0.38), -1, 1),
+    y: clamp(wander.y, -1, 1),
+  };
+}
+
 const shortestAngleDelta = (value: number, baseline: number): number => {
   const delta = ((value - baseline + 540) % 360) - 180;
   return Number.isFinite(delta) ? delta : 0;
 };
 
-const applyDeadZone = (value: number, deadZone = 0.055): number => {
+const applyDeadZone = (value: number, deadZone = 0.035): number => {
   const magnitude = Math.abs(value);
   if (magnitude <= deadZone) return 0;
   return Math.sign(value) * ((magnitude - deadZone) / (1 - deadZone));
 };
+
+/**
+ * Journey scenes should react to relaxed wrist movement without increasing
+ * their maximum travel. This ease-out response expands the low/mid sensor
+ * range and converges back to exactly 1 at the existing clamp boundary.
+ */
+export function applyJourneySceneTiltResponse(tilt: JourneySpatialTilt): JourneySpatialTilt {
+  const shapeAxis = (value: number): number => {
+    const magnitude = clamp(Math.abs(value), 0, 1);
+    const shaped = 1 - Math.pow(1 - magnitude, 1.8);
+    return Math.sign(value) * shaped;
+  };
+  return {
+    x: shapeAxis(tilt.x),
+    y: shapeAxis(tilt.y),
+  };
+}
 
 export function normalizeJourneySpatialTilt(
   beta: number,
@@ -238,6 +297,9 @@ class AppSpatialMotionController {
   private readonly worldDirections = createJourneySpatialDirectionMap();
   private readonly sessionDepthOffset = Math.floor(Math.random() * ORGANIC_DEPTH_SCALES.length);
   private readonly gameplayDirectionOffset = Math.floor(Math.random() * GAMEPLAY_TILE_DIRECTION_PATTERNS.length);
+  private hubEntryDepthOffset = 0;
+  private hubEntryCloudDirectionOffset = 0;
+  private hubEntryWorldPathRotation = 0;
   private permissionState: MotionPermissionState = 'unknown';
   private activeSurface: JourneySpatialSurface | null = null;
   private targets: SpatialTarget[] = [];
@@ -246,6 +308,7 @@ class AppSpatialMotionController {
   private targetTilt: JourneySpatialTilt = { x: 0, y: 0 };
   private currentTilt: JourneySpatialTilt = { x: 0, y: 0 };
   private frameId: number | null = null;
+  private lastRenderAt: number | null = null;
   private listening = false;
   private suspended = false;
   private visibilityObserver: IntersectionObserver | null = null;
@@ -466,29 +529,48 @@ class AppSpatialMotionController {
 
   public activateJourneyHub(container: HTMLElement): void {
     if (this.deferActivation(() => this.activateJourneyHub(container), 'journey-hub')) return;
+    const isNewHubEntry = this.activeSurface !== 'journey-hub';
+    if (isNewHubEntry) {
+      this.hubEntryDepthOffset = Math.floor(Math.random() * ORGANIC_DEPTH_SCALES.length);
+      this.hubEntryCloudDirectionOffset = Math.floor(Math.random() * HUB_CLOUD_DIRECTION_PATTERNS.length);
+      this.hubEntryWorldPathRotation = Math.floor(Math.random() * WORLD_DIRECTION_PATTERNS.length);
+      this.emitDiagnostic('hub-entry-profile', {
+        depthOffset: this.hubEntryDepthOffset,
+        cloudDirectionOffset: this.hubEntryCloudDirectionOffset,
+        worldPathRotation: this.hubEntryWorldPathRotation,
+      });
+    }
     const targets: SpatialTarget[] = [];
     container.querySelectorAll<HTMLElement>('.journey-v700-world-card').forEach((worldCard, index) => {
       const image = worldCard.querySelector<HTMLElement>('.journey-v700-world-visual');
       if (!image) return;
       const worldId = this.asWorldId(Number(worldCard.dataset.worldId)) ?? this.asWorldId(index + 1);
       if (!worldId) return;
-      const depthScale = this.getSessionDepthScale(index + 2);
-      const depth = this.orientDepth(worldId, JOURNEY_SPATIAL_DEPTH.hubWorld);
+      const depthScale = getJourneySpatialDepthScale(index + 2 + this.hubEntryDepthOffset);
+      const verticalDirection = this.worldDirections[worldId].y;
+      // Forest and Area 55 sit left of the visual centre; Beach sits right.
+      // Their positive sensor travel therefore begins inward, with outward
+      // travel attenuated later in applyCurrentTilt().
+      const inwardX: -1 | 1 = worldId === 2 ? -1 : 1;
       targets.push({
         element: image,
-        xDepth: depth.x * depthScale,
-        yDepth: depth.y * depthScale,
+        xDepth: JOURNEY_SPATIAL_DEPTH.hubWorld.x * depthScale,
+        yDepth: JOURNEY_SPATIAL_DEPTH.hubWorld.y * depthScale * Math.abs(verticalDirection),
+        hubWorldId: worldId,
       });
     });
     container.querySelectorAll<HTMLElement>('.journey-v700-hub-cloud').forEach((element, index) => {
       const worldId = this.asWorldId(Number(element.dataset.worldId)) ?? 1;
-      const depthScale = getJourneyCloudDepthScale(index + (worldId * 2) + this.sessionDepthOffset)
+      const depthScale = getJourneyCloudDepthScale(index + (worldId * 2) + this.hubEntryDepthOffset)
         * JOURNEY_SPATIAL_SURFACE_GAIN.hubCloudSeparation;
-      const depth = this.orientDepth(worldId, JOURNEY_SPATIAL_DEPTH.hubCloud);
+      const direction = getJourneyHubCloudDirection(
+        index + (worldId * 3),
+        this.hubEntryCloudDirectionOffset,
+      );
       targets.push({
         element,
-        xDepth: depth.x * depthScale,
-        yDepth: depth.y * depthScale,
+        xDepth: Math.abs(JOURNEY_SPATIAL_DEPTH.hubCloud.x) * depthScale * direction.x,
+        yDepth: Math.abs(JOURNEY_SPATIAL_DEPTH.hubCloud.y) * depthScale * direction.y,
       });
     });
     if (this.matchesActiveTargets('journey-hub', targets)) {
@@ -924,7 +1006,8 @@ class AppSpatialMotionController {
       const activeTarget = this.targets[index];
       return activeTarget?.element === target.element
         && activeTarget.xDepth === target.xDepth
-        && activeTarget.yDepth === target.yDepth;
+        && activeTarget.yDepth === target.yDepth
+        && activeTarget.hubWorldId === target.hubWorldId;
     });
   }
 
@@ -966,15 +1049,25 @@ class AppSpatialMotionController {
 
   private ensureFrame(): void {
     if (this.frameId != null || this.suspended || !this.activeSurface) return;
-    this.frameId = window.requestAnimationFrame(() => this.renderFrame());
+    this.frameId = window.requestAnimationFrame((now) => this.renderFrame(now));
   }
 
-  private renderFrame(): void {
+  private renderFrame(now: number): void {
     this.frameId = null;
     if (this.suspended || !this.activeSurface || document.hidden) return;
     this.spatialRenderFrames += 1;
 
-    const smoothing = 0.105;
+    const isJourneyScene = this.activeSurface === 'journey-hub'
+      || this.activeSurface === 'journey-world';
+    const frameMs = this.lastRenderAt == null
+      ? (1000 / 60)
+      : clamp(now - this.lastRenderAt, 8, 34);
+    this.lastRenderAt = now;
+    // Time-based exponential smoothing is stable across 60/120Hz and isolated
+    // iOS frame variation. Journey catches intention cleanly, then returns with
+    // a slightly longer natural tail instead of following sensor noise.
+    const responseMs = isJourneyScene ? 270 : 150;
+    const smoothing = 1 - Math.exp(-frameMs / responseMs);
     this.currentTilt.x += (this.targetTilt.x - this.currentTilt.x) * smoothing;
     this.currentTilt.y += (this.targetTilt.y - this.currentTilt.y) * smoothing;
     this.applyCurrentTilt();
@@ -990,18 +1083,30 @@ class AppSpatialMotionController {
       return;
     }
     this.targets = this.targets.filter(({ element }) => document.body.contains(element));
-    const activeTilt = this.activeSurface === 'journey-hub'
-      ? mixJourneyHubTilt(this.currentTilt)
+    const journeyResponsiveTilt = (
+      this.activeSurface === 'journey-hub' || this.activeSurface === 'journey-world'
+    )
+      ? applyJourneySceneTiltResponse(this.currentTilt)
       : this.currentTilt;
+    const activeTilt = this.activeSurface === 'journey-hub'
+      ? mixJourneyHubTilt(journeyResponsiveTilt)
+      : journeyResponsiveTilt;
     const surfaceGain = this.activeSurface === 'journey-hub'
       ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub
       : this.activeSurface === 'journey-world'
         ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld
         : { x: 1, y: 1 };
-    this.targets.forEach(({ element, xDepth, yDepth }) => {
+    this.targets.forEach(({ element, xDepth, yDepth, hubWorldId }) => {
       if (this.visibilityObserver && !this.visibleElements.has(element)) return;
+      const targetTilt = this.activeSurface === 'journey-hub' && hubWorldId
+        ? createJourneyHubWorldTilt(
+          hubWorldId,
+          journeyResponsiveTilt,
+          this.hubEntryWorldPathRotation,
+        )
+        : activeTilt;
       const offset = createJourneySpatialOffset(
-        activeTilt,
+        targetTilt,
         xDepth * surfaceGain.x,
         yDepth * surfaceGain.y,
       );
@@ -1189,12 +1294,13 @@ class AppSpatialMotionController {
   private resetBaseline(): void {
     this.baselineBeta = null;
     this.baselineGamma = null;
+    this.lastRenderAt = null;
   }
 
   private cancelFrame(): void {
-    if (this.frameId == null) return;
-    window.cancelAnimationFrame(this.frameId);
+    if (this.frameId != null) window.cancelAnimationFrame(this.frameId);
     this.frameId = null;
+    this.lastRenderAt = null;
   }
 }
 

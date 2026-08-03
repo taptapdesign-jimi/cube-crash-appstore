@@ -585,7 +585,28 @@ class LaunchScreen {
       this.isAwaitingSpatialPermission = true;
       try {
         await showSpatialMotionPermissionModal(
-          () => journeySpatialMotion.requestPermissionFromGesture(),
+          async () => {
+            const settingsOwner = window as Window & {
+              _settings?: { spatialMotionEnabled?: boolean; [key: string]: unknown };
+              saveSettings?: (settings: Record<string, unknown>) => void;
+            };
+            const previousEnabled = settingsOwner._settings?.spatialMotionEnabled !== false;
+            settingsOwner._settings = settingsOwner._settings || {};
+            // This assignment must happen before the permission call: the
+            // controller intentionally refuses permission while its setting is
+            // OFF, and Developer preview may show this modal in that state.
+            settingsOwner._settings.spatialMotionEnabled = true;
+            journeySpatialMotion.setEnabled(true);
+            const granted = await journeySpatialMotion.requestPermissionFromGesture();
+            if (granted) {
+              settingsOwner.saveSettings?.(settingsOwner._settings);
+              return true;
+            }
+            settingsOwner._settings.spatialMotionEnabled = previousEnabled;
+            journeySpatialMotion.setEnabled(previousEnabled);
+            settingsOwner.saveSettings?.(settingsOwner._settings);
+            return false;
+          },
         );
       } finally {
         this.isAwaitingSpatialPermission = false;

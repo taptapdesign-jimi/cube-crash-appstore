@@ -15,10 +15,11 @@ import { formatScoreSimple } from './hud-utils.js';
 import { clearPendingCleanBoard } from './board-recovery.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
-import { isArcadeHomeRunMode } from './run-mode.js';
+import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-origin-state.js';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -424,9 +425,11 @@ export async function showCleanBoardModal({
       'overflow:visible' // Allow particles to float outside container
     ].join(';');
     
-    // 🌟 NEW: Calculate number of stars based on FINAL score (after BOTH bonuses!)
-    // Targets: 1★ up to 2000, 2★ up to 4000, 3★ at 6000+ (linear thresholds)
-    const computedStars = finalScore < 2000 ? 1 : finalScore < 6000 ? 2 : 3;
+    // Journey thresholds follow the local 1-10 difficulty arc in every world.
+    // Keep the established fixed thresholds outside Journey.
+    const computedStars = getRunMode() === RUN_MODE_JOURNEY
+      ? getJourneyEarnedStars(finalScore, boardNumber)
+      : finalScore < 2000 ? 1 : finalScore < 6000 ? 2 : 3;
     const numStars = Number.isFinite(forcedStars)
       ? Math.min(3, Math.max(1, forcedStars as number))
       : computedStars;

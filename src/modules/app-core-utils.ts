@@ -8,6 +8,7 @@
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import { logger } from '../core/logger.js';
 import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
+import { getJourneySmallValueBias } from './journey-stage-balance.js';
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
 const _appTimeouts: Set<NodeJS.Timeout> = new Set();
@@ -164,11 +165,7 @@ function getCurrentJourneyBoardNumber(): number {
 
 function getJourneyBoardSmallValueBias(): number {
   if (typeof window === 'undefined' || getRunMode() !== RUN_MODE_JOURNEY) return 0;
-  const board = getCurrentJourneyBoardNumber();
-  if (board <= 5) return 0.7;
-  if (board <= 10) return 0.5;
-  if (board <= 15) return 0.25;
-  return 0;
+  return getJourneySmallValueBias(getCurrentJourneyBoardNumber());
 }
 
 function pickSmallValueFromPool(pool: number[]): number | null {

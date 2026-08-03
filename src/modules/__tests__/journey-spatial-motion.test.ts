@@ -1,9 +1,12 @@
 import {
+  applyJourneySceneTiltResponse,
   createJourneySpatialDirectionMap,
+  createJourneyHubWorldTilt,
   createJourneySpatialOffset,
   getForestUnitSpatialDirection,
   getGameplayTileSpatialDirection,
   getJourneyCloudDepthScale,
+  getJourneyHubCloudDirection,
   getJourneySpatialDepthScale,
   getJourneyUnitSpatialDirection,
   JOURNEY_SCENE_MOVEMENT_MASTER,
@@ -25,7 +28,15 @@ describe('Journey spatial motion', () => {
   });
 
   it('keeps tiny hand jitter inside the dead zone', () => {
-    expect(normalizeJourneySpatialTilt(20.3, -4.4, 20, -4)).toEqual({ x: 0, y: 0 });
+    expect(normalizeJourneySpatialTilt(20.2, -4.3, 20, -4)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('amplifies relaxed Journey movement without increasing maximum travel', () => {
+    const shaped = applyJourneySceneTiltResponse({ x: 0.1, y: -0.25 });
+    expect(shaped.x).toBeGreaterThan(0.17);
+    expect(shaped.y).toBeLessThan(-0.4);
+    expect(applyJourneySceneTiltResponse({ x: 1, y: -1 })).toEqual({ x: 1, y: -1 });
+    expect(applyJourneySceneTiltResponse({ x: 0, y: 0 })).toEqual({ x: 0, y: 0 });
   });
 
   it('clamps larger tilt and preserves both movement axes', () => {
@@ -75,7 +86,7 @@ describe('Journey spatial motion', () => {
   it('makes the Journey Hub 60 percent stronger on X with extra vertical travel', () => {
     expect(JOURNEY_SCENE_MOVEMENT_MASTER).toBe(2.2);
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyHub).toEqual({ x: 1.54, y: 1.925 });
-    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld).toEqual({ x: 2.2, y: 2.2 });
+    expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld).toEqual({ x: 1.804, y: 1.804 });
     expect(mixJourneyHubTilt({ x: 1, y: 0 })).toEqual({ x: 1, y: 0.34 });
     expect(mixJourneyHubTilt({ x: 0, y: 1 }).y).toBeCloseTo(0.86);
   });
@@ -160,6 +171,51 @@ describe('Journey spatial motion', () => {
     expect(Math.max(...cloudScales)).toBe(1.38);
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.hubCloudSeparation).toBe(1.3);
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.worldCloudSeparation).toBe(1.3);
+  });
+
+  it('gives every Hub cloud an independent session-stable direction', () => {
+    const directions = Array.from({ length: 7 }, (_, index) => getJourneyHubCloudDirection(index, 3));
+    expect(new Set(directions.map(({ x, y }) => `${x}:${y}`)).size).toBe(7);
+    expect(directions.some(({ x }) => x < 0)).toBe(true);
+    expect(directions.some(({ x }) => x > 0)).toBe(true);
+    expect(directions.some(({ y }) => y < 0)).toBe(true);
+    expect(directions.some(({ y }) => y > 0)).toBe(true);
+    expect(getJourneyHubCloudDirection(2, 3)).toEqual(getJourneyHubCloudDirection(2, 3));
+  });
+
+  it('moves all three Hub Worlds independently while biasing each one toward centre', () => {
+    const input = { x: 0.35, y: -0.42 };
+    const forest = createJourneyHubWorldTilt(1, input);
+    const beach = createJourneyHubWorldTilt(2, input);
+    const robo = createJourneyHubWorldTilt(3, input);
+    expect(forest.x).toBeGreaterThan(0);
+    expect(beach.x).toBeLessThan(0);
+    expect(robo.x).toBeGreaterThan(0);
+    expect(new Set([forest, beach, robo].map(({ x, y }) => `${x}:${y}`)).size).toBe(3);
+    expect(forest.y).not.toBeCloseTo(beach.y);
+    expect(beach.y).not.toBeCloseTo(robo.y);
+  });
+
+  it('keeps the Hub centre response continuous and directional at tiny input', () => {
+    const neutral = createJourneyHubWorldTilt(1, { x: 0, y: 0 });
+    const tiny = createJourneyHubWorldTilt(1, { x: 0.01, y: -0.01 });
+    expect(neutral).toEqual({ x: 0, y: 0 });
+    expect(Math.abs(tiny.x)).toBeLessThan(0.02);
+    expect(Math.abs(tiny.y)).toBeLessThan(0.02);
+  });
+
+  it('rotates Hub World paths per entry without changing each World inward side', () => {
+    const input = { x: 0.42, y: 0.28 };
+    const firstEntry = ([1, 2, 3] as const).map((worldId) => (
+      createJourneyHubWorldTilt(worldId, input, 0)
+    ));
+    const nextEntry = ([1, 2, 3] as const).map((worldId) => (
+      createJourneyHubWorldTilt(worldId, input, 1)
+    ));
+    expect(nextEntry).not.toEqual(firstEntry);
+    expect(nextEntry[0].x).toBeGreaterThan(0);
+    expect(nextEntry[1].x).toBeLessThan(0);
+    expect(nextEntry[2].x).toBeGreaterThan(0);
   });
 
   it('owns the active Homepage hero and CTA across all three sliders and cleans the previous slide', () => {
