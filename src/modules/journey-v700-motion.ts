@@ -13,6 +13,8 @@ export interface JourneyV700MotionProfile {
     scale: number;
     y: number;
     groupStagger: number;
+    anticipationScale: number;
+    anticipationDuration: number;
   };
   cascadeWindow: number;
 }
@@ -32,6 +34,8 @@ const DEFAULT_PROFILE: JourneyV700MotionProfile = {
     scale: 0.65,
     y: 28,
     groupStagger: 0.065,
+    anticipationScale: 1.06,
+    anticipationDuration: 0.12,
   },
   cascadeWindow: 0.13,
 };
@@ -51,6 +55,8 @@ const REDUCED_PROFILE: JourneyV700MotionProfile = {
     scale: 0.96,
     y: 8,
     groupStagger: 0.012,
+    anticipationScale: 1,
+    anticipationDuration: 0,
   },
   cascadeWindow: 0.06,
 };

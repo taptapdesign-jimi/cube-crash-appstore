@@ -775,6 +775,13 @@ class SliderManager {
       logger.debug('TOUCH BLOCKED', undefined, { isLocked, isAnimating });
       return;
     }
+
+    if (event.target instanceof Element && event.target.closest('.cc-cta')) {
+      this.isDragging = false;
+      this.elements.container?.classList.remove('dragging');
+      logger.debug('TOUCH BLOCKED BY CTA OWNER');
+      return;
+    }
     
     this.isDragging = true;
     const touch = event.touches[0];
@@ -833,6 +840,13 @@ class SliderManager {
     
     if (isLocked || isAnimating) {
       logger.debug('MOUSE BLOCKED', undefined, { isLocked, isAnimating });
+      return;
+    }
+
+    if (event.target instanceof Element && event.target.closest('.cc-cta')) {
+      this.isDragging = false;
+      this.elements.container?.classList.remove('dragging');
+      logger.debug('MOUSE BLOCKED BY CTA OWNER');
       return;
     }
     

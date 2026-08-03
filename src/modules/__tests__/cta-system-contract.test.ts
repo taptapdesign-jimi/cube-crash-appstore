@@ -42,6 +42,10 @@ describe('shared CTA system contract', () => {
     path.resolve(process.cwd(), 'src/modules/ui-manager.ts'),
     'utf8',
   );
+  const sliderManagerSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/slider-manager.ts'),
+    'utf8',
+  );
   const animationsSource = fs.readFileSync(
     path.resolve(process.cwd(), 'src/utils/animations.ts'),
     'utf8',
@@ -67,7 +71,16 @@ describe('shared CTA system contract', () => {
     expect(moduleSource).toContain("export type CtaVariant = 'primary' | 'secondary'");
     expect(moduleSource).toContain("enterEase: 'back.out(1.8)'");
     expect(moduleSource).toContain("exitEase: 'back.in(1.75)'");
-    expect(moduleSource).toContain("element.addEventListener('pointercancel'");
+    expect(moduleSource).toContain('exitDuration: 0.31');
+    expect(moduleSource).toContain('pressDuration: 0.12');
+    expect(moduleSource).toContain('releaseDuration: 0.26');
+    expect(moduleSource).toContain('pressScale: 0.84');
+    expect(moduleSource).toContain('pressOffsetY: 4');
+    expect(moduleSource).toContain('y: ctaMotion.pressOffsetY');
+    expect(moduleSource).toContain("element.addEventListener('pointercancel', onPointerCancel");
+    expect(moduleSource).toContain("window.addEventListener('pointerup', onPointerUp");
+    expect(moduleSource).toContain("window.addEventListener('pointercancel', onPointerCancel");
+    expect(moduleSource).not.toContain("element.addEventListener('lostpointercapture'");
     expect(moduleSource).toContain('abortController.abort()');
     expect(moduleSource).toContain('gsap.killTweensOf(visual)');
     expect(moduleSource).toContain('await release()');
@@ -89,12 +102,17 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('transform: none !important');
     expect(cssSource).toContain('.cc-cta::before');
     expect(cssSource).toContain('content: none !important');
+    expect(cssSource).toContain('button.cc-cta:active');
+    expect(cssSource).toContain('button.cc-cta:focus-visible');
+    expect(cssSource).toContain('background: transparent !important');
+    expect(cssSource).toContain('box-shadow: none !important');
   });
 
   test('migrates Clean Board and Fail away from legacy CTA class collisions', () => {
     for (const source of [cleanSource, failSource]) {
       expect(source).toContain("from './cta-system.ts'");
       expect(source).toContain('registerCta(');
+      expect(source).toContain("activationTiming: 'immediate'");
     }
     expect(cleanSource).not.toContain("primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
     expect(failSource).not.toContain("continueBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
@@ -116,6 +134,7 @@ describe('shared CTA system contract', () => {
     expect(firstPlayTutorialSource).toContain("import { registerCta, type CtaController } from './cta-system.ts'");
     expect(firstPlayTutorialSource).toContain('tutorialCtaController = registerCta(cta');
     expect(firstPlayTutorialSource).toContain("variant: 'primary'");
+    expect(firstPlayTutorialSource).toContain("activationTiming: 'immediate'");
     expect(firstPlayTutorialSource).toContain('await tutorialCtaController?.exit()');
     expect(firstPlayTutorialSource.indexOf('await tutorialCtaController?.exit()'))
       .toBeLessThan(firstPlayTutorialSource.indexOf("gsap.to(sheet, {\n      y: '100%'", firstPlayTutorialSource.indexOf('async function dismissThirdStepAndWaitForWild')));
@@ -147,16 +166,31 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('overflow: visible !important');
     expect(cssSource).toContain('.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"])');
     expect(cssSource).toContain('.cc-cta[data-cta-state="exiting"] .cc-cta__visual');
+    expect(cssSource).toContain('animation: cc-cta-shimmer 10s ease-in-out infinite');
+    expect(cssSource).toContain('-webkit-mask-size: 280% 100%');
+    expect(cssSource).toContain('42%, 53% { opacity: 0.52; }');
   });
 
   test('migrates every Homepage slider CTA onto shared input and motion ownership', () => {
     expect(uiManagerSource).toContain('private registerHomepageCtaButtons()');
     expect(uiManagerSource).toContain("button.classList.remove('tap-scale', 'menu-btn-primary')");
-    expect(uiManagerSource).toContain('this.homepageCtaControllers.push(registerCta(button');
+    expect(uiManagerSource).toContain('private homepageCtaControllers = new Map<HTMLButtonElement, CtaController>()');
+    expect(uiManagerSource).toContain('if (this.homepageCtaControllers.has(button)) return');
+    expect(uiManagerSource).toContain('this.homepageCtaControllers.set(button, registerCta(button');
+    expect(uiManagerSource).toContain("activationTiming: 'immediate'");
+    expect(uiManagerSource).toContain('activateOnCapturedRelease: true');
+    expect(moduleSource).toContain('!inside && !options.activateOnCapturedRelease');
+    expect(sliderManagerSource).toContain("event.target.closest('.cc-cta')");
+    expect(uiManagerSource).not.toContain('this.homepageCtaControllers.splice(0)');
     expect(animationsSource).toContain('getRegisteredCta(activeCta)?.prime(\'hidden\')');
+    expect(animationsSource).toContain('const getPhysicallyVisibleHomepageSlides = (): HTMLElement[] =>');
+    expect(animationsSource).toContain('const exitSlides = visibleSlides.length > 0 ? visibleSlides');
+    expect(animationsSource).toContain('slideParts.forEach(({ heroContainer }) =>');
     expect(animationsSource).toContain('void ctaController.enter()');
     expect(animationsSource).toContain('void ctaController.exit()');
     expect(cssSource).toContain('.cc-homepage-cta');
+    expect(cssSource).toContain('touch-action: none');
+    expect(cssSource).not.toContain('top: 2.25vh');
   });
 
   test('migrates Spatial Motion actions while preserving synchronous iOS permission activation', () => {
@@ -175,10 +209,16 @@ describe('shared CTA system contract', () => {
     expect(endRunSource).toContain('registerCta(newCardBtn');
     expect(endRunSource).toContain('registerCta(exitBtn');
     expect(endRunSource).toContain("variant: 'secondary'");
+    expect(endRunSource).toContain("activationTiming: 'immediate'");
     expect(endRunSource).toContain('exitCtaGroup(first, buttons.filter(button => button !== first))');
     expect(endRunSource).toContain('await hideModalAfterCtas(exitBtn)');
     expect(endRunSource).toContain('hideModal(null, true)');
     expect(endRunSource).toContain('disposeEndRunCtas()');
+    expect(endRunSource).toContain('data-end-run-action="restart"');
+    expect(endRunSource).toContain("closest('[data-end-run-action]')");
+    expect(endRunSource).not.toContain('class="restart-btn"');
+    expect(endRunSource).not.toContain('class="new-card-btn"');
+    expect(endRunSource).not.toContain('class="exit-btn"');
     expect(endRunSource).not.toContain("trackEndRunEventListener(restartBtn, 'touchend'");
     expect(endRunSource).not.toContain("trackEndRunEventListener(exitBtn, 'touchend'");
     expect(cssSource).toContain('.simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta');
@@ -187,6 +227,7 @@ describe('shared CTA system contract', () => {
   test('makes every active CTA bottom sheet finish button exit before its surface exit', () => {
     expect(collectibleRewardSheetSource).toContain('registerCta(viewCollectionButton');
     expect(collectibleRewardSheetSource).toContain('registerCta(continueButton');
+    expect(collectibleRewardSheetSource).toContain("activationTiming: 'immediate'");
     expect(collectibleRewardSheetSource).toContain('await exitCtaPair(clicked, buttons.find(button => button !== clicked))');
     expect(collectibleRewardSheetSource.indexOf('await exitCtaPair(clicked'))
       .toBeLessThan(collectibleRewardSheetSource.indexOf('await hideSheetAnimation(sheet)'));

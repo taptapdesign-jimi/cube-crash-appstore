@@ -127,7 +127,7 @@ class UIManager {
   private animations: Map<string, any>;
   private isInitialized: boolean;
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
-  private homepageCtaControllers: CtaController[] = [];
+  private homepageCtaControllers = new Map<HTMLButtonElement, CtaController>();
 
   constructor() {
     this.elements = {} as UIManagerElements;
@@ -137,7 +137,6 @@ class UIManager {
   }
 
   private registerHomepageCtaButtons(): void {
-    this.homepageCtaControllers.splice(0).forEach(controller => controller.dispose());
     const registrations: Array<[HTMLButtonElement | null, (event: Event) => unknown]> = [
       [this.elements.playButton, this.handlePlayClick.bind(this)],
       [this.elements.journeyButton, this.handleStatsClick.bind(this)],
@@ -145,17 +144,34 @@ class UIManager {
       [this.elements.settingsButton, this.handleSettingsClick.bind(this)],
     ];
 
+    const liveButtons = new Set<HTMLButtonElement>();
     registrations.forEach(([button, handler]) => {
       if (!button) return;
+      liveButtons.add(button);
       button.classList.remove('tap-scale', 'menu-btn-primary');
       button.classList.add('cc-homepage-cta');
+      // Startup and Homepage restore paths can both request listener attachment.
+      // Preserve the active controller so a late reattach cannot interrupt the
+      // first pointer release or the CTA's route-exit animation.
+      if (this.homepageCtaControllers.has(button)) return;
       const activeSlide = button.closest('.slider-slide')?.classList.contains('active') === true;
       const initialState = activeSlide && button.classList.contains('animate-enter-initial') ? 'hidden' : 'idle';
-      this.homepageCtaControllers.push(registerCta(button, {
+      this.homepageCtaControllers.set(button, registerCta(button, {
         variant: 'primary',
         initialState,
+        // Homepage navigation must hand off on the actual pointer release.
+        // Waiting for the full shared release bounce makes a quick tap feel
+        // ignored before the route-owned CTA exit can begin.
+        activationTiming: 'immediate',
+        activateOnCapturedRelease: true,
         onActivate: () => handler(new Event('cta-activate')),
       }));
+    });
+
+    this.homepageCtaControllers.forEach((controller, button) => {
+      if (liveButtons.has(button) && button.isConnected) return;
+      controller.dispose();
+      this.homepageCtaControllers.delete(button);
     });
   }
 
@@ -2461,7 +2477,8 @@ class UIManager {
   
   // Cleanup
   destroy(): void {
-    this.homepageCtaControllers.splice(0).forEach(controller => controller.dispose());
+    this.homepageCtaControllers.forEach(controller => controller.dispose());
+    this.homepageCtaControllers.clear();
     this.animations.clear();
     this.elements = {} as UIManagerElements;
     this.isInitialized = false;

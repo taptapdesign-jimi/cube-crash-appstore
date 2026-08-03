@@ -14,6 +14,8 @@ import {
 describe('Journey V700 motion contract', () => {
   it('uses matching cartoon bounce easing for standard enter and exit', () => {
     const motion = getJourneyV700MotionProfile(false);
+    expect(motion.exit.anticipationScale).toBeGreaterThan(1);
+    expect(motion.exit.anticipationDuration).toBeGreaterThan(0);
 
     expect(motion.enter.ease).toMatch(/^back\.out/);
     expect(motion.exit.ease).toMatch(/^back\.in/);
@@ -24,6 +26,8 @@ describe('Journey V700 motion contract', () => {
 
   it('keeps lifecycle sequencing but removes bounce for reduced motion', () => {
     const motion = getJourneyV700MotionProfile(true);
+    expect(motion.exit.anticipationScale).toBe(1);
+    expect(motion.exit.anticipationDuration).toBe(0);
 
     expect(motion.enter.ease).toBe('power1.out');
     expect(motion.exit.ease).toBe('power1.in');

@@ -105,11 +105,13 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
         registerCta(viewCollectionButton, {
           variant: 'primary',
           initialState: 'hidden',
+          activationTiming: 'immediate',
           onActivate: () => handleClose('view-collection', viewCollectionButton),
         }),
         registerCta(continueButton, {
           variant: 'secondary',
           initialState: 'hidden',
+          activationTiming: 'immediate',
           onActivate: () => handleClose('continue', continueButton),
         }),
       ];

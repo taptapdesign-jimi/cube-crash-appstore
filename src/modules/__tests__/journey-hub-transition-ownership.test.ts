@@ -292,6 +292,8 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('--journey-world-banner-reveal-x: -64%;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-reveal-x: 64%;');
     expect(collectiblesCssSource).toContain('.journey-v700-hub.journey-v700-banners-retracting .journey-v700-world-banner {');
+    expect(collectiblesCssSource).toContain('transition-duration: 0.32s;');
+    expect(collectiblesCssSource).toContain('transition-timing-function: cubic-bezier(0.56, -0.22, 0.78, 0.34);');
     expect(journeyManagerSource).toContain("hub?.classList.add('journey-v700-banners-retracting')");
     expect(collectiblesCssSource).toContain('--journey-world-banner-idle-duration: 7.6s;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-idle-duration: 8.35s;');
@@ -320,6 +322,22 @@ describe('Journey Hub transition ownership', () => {
     expect(completionSource).toContain(
       "this.refreshJourneyBoardStarVisuals(boardNumber, 'board-completion')",
     );
+  });
+
+  test('keeps the three Hub Worlds in the compact approved vertical composition', () => {
+    expect(collectiblesCssSource).toContain(
+      '.journey-v700-world-forest {\n  left: -2px;\n  top: calc(env(safe-area-inset-top, 0px) + 118px);',
+    );
+    expect(collectiblesCssSource).toContain(
+      '.journey-v700-world-beach {\n  right: -8px;\n  top: calc(env(safe-area-inset-top, 0px) + 334px);',
+    );
+    expect(collectiblesCssSource).toContain(
+      '.journey-v700-world-robo {\n  left: -6px;\n  top: calc(env(safe-area-inset-top, 0px) + 580px);',
+    );
+    expect(collectiblesCssSource).toContain('height: calc(892px - var(--journey-v700-hub-bottom-trim)');
+    expect(journeyManagerSource).toContain('x: 24, y: 222, width: 214');
+    expect(journeyManagerSource).toContain('x: 32, y: 576, width: 214');
+    expect(journeyManagerSource).toContain('x: -10, y: 632, width: 198');
   });
 
   test('Forest Units 1, 2, and 3 own separate balanced cloud groups below Forest main', () => {

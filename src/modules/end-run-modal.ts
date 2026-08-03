@@ -342,9 +342,9 @@ function createModal(): HTMLElement {
         </div>
         <div class="simple-buttons">
           <div class="simple-button-row">
-            <button type="button" class="restart-btn">${isArcadeRun ? 'New Game' : 'Restart'}</button>
-            ${isArcadeRun ? '' : '<button type="button" class="new-card-btn">New Card</button>'}
-            <button type="button" class="exit-btn">${exitBtnLabel}</button>
+            <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
+            ${isArcadeRun ? '' : '<button type="button" data-end-run-action="new-card">New Card</button>'}
+            <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
           </div>
         </div>
       </div>
@@ -352,9 +352,9 @@ function createModal(): HTMLElement {
   `;
   
   // Add event listeners
-  const restartBtn = modal.querySelector('.restart-btn') as HTMLButtonElement;
-  const newCardBtn = modal.querySelector('.new-card-btn') as HTMLButtonElement;
-  const exitBtn = modal.querySelector('.exit-btn') as HTMLButtonElement;
+  const restartBtn = modal.querySelector('[data-end-run-action="restart"]') as HTMLButtonElement;
+  const newCardBtn = modal.querySelector('[data-end-run-action="new-card"]') as HTMLButtonElement;
+  const exitBtn = modal.querySelector('[data-end-run-action="exit"]') as HTMLButtonElement;
   
   if (restartBtn) {
     const restartClickHandler = async () => {
@@ -400,6 +400,7 @@ function createModal(): HTMLElement {
     endRunCtaControllers.push(registerCta(restartBtn, {
       variant: 'primary',
       initialState: 'hidden',
+      activationTiming: 'immediate',
       onActivate: restartClickHandler,
     }));
   }
@@ -443,6 +444,7 @@ function createModal(): HTMLElement {
     endRunCtaControllers.push(registerCta(newCardBtn, {
       variant: 'primary',
       initialState: 'hidden',
+      activationTiming: 'immediate',
       onActivate: newCardClickHandler,
     }));
   }
@@ -549,6 +551,7 @@ function createModal(): HTMLElement {
     endRunCtaControllers.push(registerCta(exitBtn, {
       variant: 'secondary',
       initialState: 'hidden',
+      activationTiming: 'immediate',
       onActivate: exitClickHandler,
     }));
   }
@@ -797,9 +800,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   // Touch events on entire modal
   trackOnEventHandler(modalEl, 'ontouchstart', (e: TouchEvent) => {
     // Don't start drag if clicking on buttons
-    if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.new-card-btn'))) {
+    if (e.target && (e.target as HTMLElement).closest('[data-end-run-action]')) {
       console.log('🎯 CLICK ON BUTTON - NO DRAG');
       return;
     }
@@ -819,9 +820,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
 
   trackOnEventHandler(modalEl, 'ontouchmove', (e: TouchEvent) => {
     // Handle button touch move for cancel on drag off
-    if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.new-card-btn'))) {
+    if (e.target && (e.target as HTMLElement).closest('[data-end-run-action]')) {
       // Let button handle its own touch move
       return;
     }
@@ -902,9 +901,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   // Mouse events on entire modal
   trackOnEventHandler(modalEl, 'onmousedown', (e: MouseEvent) => {
     // Don't start drag if clicking on buttons
-    if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
-        (e.target as HTMLElement).closest('.exit-btn') ||
-        (e.target as HTMLElement).closest('.new-card-btn'))) {
+    if (e.target && (e.target as HTMLElement).closest('[data-end-run-action]')) {
       console.log('🎯 MOUSE CLICK ON BUTTON - NO DRAG');
       return;
     }

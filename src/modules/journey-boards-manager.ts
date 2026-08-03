@@ -579,13 +579,13 @@ const JOURNEY_V700_HUB_CLOUDS: JourneyV700WorldCloudSpec[] = [
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 200, y: 138, width: 166, opacity: 0.72, dx: -7, dy: 5, duration: 6.7, delay: -1.9, scale: 1.02, worldId: 1 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -34, y: 76, width: 286, opacity: 0.8, dx: 8, dy: -5, duration: 6.4, delay: -0.8, scale: 1.02 },
   { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 214, y: 58, width: 184, opacity: 0.72, dx: -7, dy: 6, duration: 5.8, delay: -2.1, scale: 1.04 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 24, y: 246, width: 214, opacity: 0.78, dx: -9, dy: 5, duration: 7.2, delay: -1.5, scale: 1.02 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 168, y: 264, width: 198, opacity: 0.76, dx: 7, dy: -5, duration: 6.9, delay: -3.4, scale: 1.03 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[3], x: -22, y: 424, width: 176, opacity: 0.68, dx: 8, dy: 5, duration: 6.1, delay: -4.4, scale: 1.05 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 136, y: 442, width: 236, opacity: 0.78, dx: -8, dy: 6, duration: 6.6, delay: -1.2, scale: 1.03 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 32, y: 604, width: 214, opacity: 0.72, dx: 7, dy: -5, duration: 5.9, delay: -2.7, scale: 1.04 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 198, y: 626, width: 184, opacity: 0.68, dx: -7, dy: 5, duration: 7.1, delay: -0.4, scale: 1.03 },
-  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 660, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04, worldId: 3 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 24, y: 222, width: 214, opacity: 0.78, dx: -9, dy: 5, duration: 7.2, delay: -1.5, scale: 1.02 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 168, y: 240, width: 198, opacity: 0.76, dx: 7, dy: -5, duration: 6.9, delay: -3.4, scale: 1.03 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[3], x: -22, y: 400, width: 176, opacity: 0.68, dx: 8, dy: 5, duration: 6.1, delay: -4.4, scale: 1.05 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: 136, y: 418, width: 236, opacity: 0.78, dx: -8, dy: 6, duration: 6.6, delay: -1.2, scale: 1.03 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[0], x: 32, y: 576, width: 214, opacity: 0.72, dx: 7, dy: -5, duration: 5.9, delay: -2.7, scale: 1.04 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[5], x: 198, y: 598, width: 184, opacity: 0.68, dx: -7, dy: 5, duration: 7.1, delay: -0.4, scale: 1.03 },
+  { src: JOURNEY_V700_WORLD_CLOUD_ASSETS[2], x: -10, y: 632, width: 198, opacity: 0.62, dx: -6, dy: 4, duration: 7.6, delay: -6.1, scale: 1.04, worldId: 3 },
 ];
 
 // Helper to convert pixels to viewport width units (vw)
@@ -6582,17 +6582,48 @@ class JourneyBoardsManager {
 	              });
 	            return;
 	          }
+	          const delay = BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * motion.exit.groupStagger);
+	          if (includeNavExit && motion.exit.anticipationDuration > 0) {
+	            gsap.set(card, {
+	              y: 0,
+	              scale: 1,
+	              opacity: 1,
+	              visibility: 'visible',
+	              transformOrigin: '50% 50%',
+	              force3D: true,
+	              overwrite: true,
+	            });
+	            gsap.timeline({
+	              delay,
+	              defaults: { force3D: true, transformOrigin: '50% 50%' },
+	              onComplete: finishTarget,
+	              onInterrupt: finishTarget,
+	            })
+	              .to(card, {
+	                scale: motion.exit.anticipationScale,
+	                duration: motion.exit.anticipationDuration,
+	                ease: 'power2.out',
+	              })
+	              .to(card, {
+	                y: motion.exit.y,
+	                scale: motion.exit.scale,
+	                opacity: 0,
+	                duration: Math.max(0.01, motion.exit.duration - motion.exit.anticipationDuration),
+	                ease: 'power2.in',
+	              });
+	            return;
+	          }
 	          gsap.to(card, {
-            y: motion.exit.y,
-            scale: motion.exit.scale,
-            opacity: 0,
-            duration: motion.exit.duration,
-            delay: BOARD_AREA_MODAL_EXIT_BASE_DELAY + (index * motion.exit.groupStagger),
-            ease: motion.exit.ease,
-            force3D: true,
-            overwrite: true,
-            onComplete: finishTarget,
-          });
+              y: motion.exit.y,
+              scale: motion.exit.scale,
+              opacity: 0,
+              duration: motion.exit.duration,
+              delay,
+              ease: motion.exit.ease,
+              force3D: true,
+              overwrite: true,
+              onComplete: finishTarget,
+            });
         } catch {
           finishTarget();
         }

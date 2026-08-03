@@ -1253,6 +1253,7 @@ export async function showCleanBoardModal({
       const controller = registerCta(button, {
         variant,
         initialState: 'hidden',
+        activationTiming: 'immediate',
         onActivate: action,
       });
       ctaControllers.push(controller);

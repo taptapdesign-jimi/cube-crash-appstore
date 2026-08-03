@@ -1260,6 +1260,7 @@ function renderOverlay(): void {
   if (cta) {
     tutorialCtaController = registerCta(cta, {
       variant: 'primary',
+      activationTiming: 'immediate',
       initialState: 'hidden',
       onActivate: dismissThirdStepAndWaitForWild,
     });

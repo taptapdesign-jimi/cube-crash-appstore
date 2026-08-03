@@ -629,16 +629,31 @@ export const cleanupAnimations = (): void => {
   logger.info('✅ Animation cleanup complete (timeouts, cache, and flags cleared)');
 };
 
+const getPhysicallyVisibleHomepageSlides = (): HTMLElement[] => {
+  const viewport = document.getElementById('slider-container')?.getBoundingClientRect();
+  const left = viewport?.left ?? 0;
+  const right = viewport?.right ?? window.innerWidth;
+
+  return Array.from(document.querySelectorAll<HTMLElement>('.slider-slide')).filter((slide) => {
+    const style = window.getComputedStyle(slide);
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) <= 0.01) return false;
+    const rect = slide.getBoundingClientRect();
+    return rect.width > 1 && rect.right > left + 1 && rect.left < right - 1;
+  });
+};
+
 const getJourneySliderExitTargets = (): Array<{ element: HTMLElement; delay: number }> => {
   const activeSlide = document.querySelector<HTMLElement>('.slider-slide.active');
+  const visibleSlides = getPhysicallyVisibleHomepageSlides();
+  const exitSlides = visibleSlides.length > 0 ? visibleSlides : (activeSlide ? [activeSlide] : []);
   const targetGroups: Array<{ elements: Array<HTMLElement | null>; delay: number }> = [
-    { elements: [activeSlide?.querySelector<HTMLElement>('.hero-container') ?? null], delay: 0 },
+    { elements: exitSlides.map(slide => slide.querySelector<HTMLElement>('.hero-container')), delay: 0 },
     {
-      elements: [
-        activeSlide?.querySelector<HTMLElement>('.slide-button') ?? null,
-        activeSlide?.querySelector<HTMLElement>('.slide-text') ?? null,
-        activeSlide?.querySelector<HTMLElement>('.slide-tagline') ?? null,
-      ],
+      elements: exitSlides.flatMap(slide => [
+        slide.querySelector<HTMLElement>('.slide-button'),
+        slide.querySelector<HTMLElement>('.slide-text'),
+        slide.querySelector<HTMLElement>('.slide-tagline'),
+      ]),
       delay: 0.03,
     },
     {
@@ -831,20 +846,17 @@ function startExitAnimationSequence(): void {
       return;
     }
     
-    const slideIndex = activeSlide.getAttribute('data-slide');
-    logger.info(`🎬 Starting exit animation for slide ${slideIndex}`);
-    
-    // Find elements within the active slide ONLY
-    const heroContainer = activeSlide.querySelector('.hero-container');
-    const slideButton = activeSlide.querySelector('.slide-button');
-    const slideText = activeSlide.querySelector('.slide-text');
-    const slideTagline = activeSlide.querySelector('.slide-tagline');
-    
-    logger.info(`🔍 Found elements in slide ${slideIndex}:`, 'animations', {
-      heroContainer: !!heroContainer,
-      slideButton: !!slideButton,
-      slideText: !!slideText,
-      slideTagline: !!slideTagline
+    const visibleSlides = getPhysicallyVisibleHomepageSlides();
+    const exitSlides = visibleSlides.length > 0 ? visibleSlides : [activeSlide as HTMLElement];
+    const slideParts = exitSlides.map(slide => ({
+      slide,
+      heroContainer: slide.querySelector<HTMLElement>('.hero-container'),
+      slideButton: slide.querySelector<HTMLButtonElement>('.slide-button'),
+      slideText: slide.querySelector<HTMLElement>('.slide-text'),
+      slideTagline: slide.querySelector<HTMLElement>('.slide-tagline'),
+    }));
+    logger.info('🎬 Starting exit animation for physically visible slides', 'animations', {
+      slides: exitSlides.map(slide => slide.dataset.slide),
     });
     
     // Use cached elements or query them once and cache
@@ -861,12 +873,10 @@ function startExitAnimationSequence(): void {
     // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
     
     // STEP 1: Hero image FIRST (0ms delay)
-    if (heroContainer) {
-      cartoonishBounce(heroContainer as HTMLElement, 0);
-      logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
-    } else {
-      logger.warn('⚠️ Hero container not found in active slide');
-    }
+    slideParts.forEach(({ heroContainer }) => {
+      if (heroContainer) cartoonishBounce(heroContainer, 0);
+    });
+    logger.info('🖼️ Step 1: Visible hero images cartoonish bounce - FIRST');
     
     // STEP 2: CTA button, Slide text, and Tagline TOGETHER (30ms delay - right after Hero)
     // Animate all at exactly the same time using the same timeout
@@ -877,7 +887,8 @@ function startExitAnimationSequence(): void {
       // 🔥 iPad FIX: Detect iPad to preserve transform positions during exit animation
       const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
       
-    if (slideButton) {
+      slideParts.forEach(({ slideButton, slideText, slideTagline }) => {
+      if (slideButton) {
         const ctaController = getRegisteredCta(slideButton as HTMLButtonElement);
         slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         void slideButton.offsetHeight;
@@ -892,10 +903,8 @@ function startExitAnimationSequence(): void {
           (slideButton as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
         }
         
-      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
-    } else {
-      logger.warn('⚠️ CTA button not found in active slide');
-    }
+        logger.info('🔘 Step 2: Visible CTA button cartoonish bounce - SECOND');
+      }
     
     if (slideText) {
         slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
@@ -911,9 +920,7 @@ function startExitAnimationSequence(): void {
         }
         
         logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA');
-    } else {
-      logger.warn('⚠️ Slide text not found in active slide');
-    }
+      }
       
       // Animate tagline together with text and CTA
       if (slideTagline) {
@@ -931,6 +938,7 @@ function startExitAnimationSequence(): void {
         
         logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
+      });
     }, 30);
     activeTimeouts.add(timeout);
     

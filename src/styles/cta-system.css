@@ -36,6 +36,27 @@
   -webkit-transition: none !important;
 }
 
+/* Screen-local legacy button selectors often include :active/:focus and
+   therefore outrank a single-class root rule. Keep every registered CTA root
+   paintless in all interaction states; only .cc-cta__visual may draw/move. */
+button.cc-cta,
+button.cc-cta:hover,
+button.cc-cta:active,
+button.cc-cta:focus,
+button.cc-cta:focus-visible,
+button.cc-cta:disabled {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  text-shadow: none !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+  overflow: visible !important;
+}
+
 .cc-cta__visual {
   width: 100%;
   min-height: 64px;
@@ -76,13 +97,18 @@
 .cc-cta__visual::after {
   content: "";
   position: absolute;
-  inset: -12px;
+  inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.16) 28%, rgba(255,255,255,.62) 50%, rgba(255,255,255,.16) 72%, transparent 100%);
-  transform: translateX(-160%) skewX(-12deg);
+  background: linear-gradient(180deg, rgba(255, 248, 232, 0.38), rgba(255, 232, 203, 0.2));
   opacity: 0;
-  animation: cc-cta-shimmer 5s ease-in-out infinite;
+  -webkit-mask-image: linear-gradient(110deg, transparent 37%, #000 47%, #000 53%, transparent 63%);
+  mask-image: linear-gradient(110deg, transparent 37%, #000 47%, #000 53%, transparent 63%);
+  -webkit-mask-size: 280% 100%;
+  mask-size: 280% 100%;
+  -webkit-mask-position: 145% 0;
+  mask-position: 145% 0;
+  animation: cc-cta-shimmer 10s ease-in-out infinite;
 }
 
 /* Registered roots never paint legacy button pseudo-elements. The shared
@@ -115,10 +141,29 @@
 }
 
 @keyframes cc-cta-shimmer {
-  0%, 82% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
-  84% { opacity: 1; }
-  91% { transform: translateX(160%) skewX(-12deg); opacity: 1; }
-  92%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+  0%, 12% {
+    opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
+  }
+  16%, 27% { opacity: 0.62; }
+  32% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+  33%, 38% {
+    opacity: 0;
+    -webkit-mask-position: 145% 0;
+    mask-position: 145% 0;
+  }
+  42%, 53% { opacity: 0.52; }
+  58% {
+    opacity: 0;
+    -webkit-mask-position: -145% 0;
+    mask-position: -145% 0;
+  }
+  59%, 100% { opacity: 0; }
 }
 
 @media (max-width: 767px) {
@@ -146,6 +191,7 @@
 .cc-homepage-cta {
   width: 250px !important;
   max-width: 250px !important;
+  touch-action: none;
 }
 
 .journey-spatial-permission-actions .cc-cta {
@@ -171,7 +217,6 @@
   .cc-homepage-cta {
     width: 226px !important;
     max-width: 226px !important;
-    top: 2.25vh;
   }
 
   .cc-journey-detail-cta {

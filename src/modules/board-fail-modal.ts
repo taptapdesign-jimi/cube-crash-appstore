@@ -727,11 +727,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       registerCta(continueBtn, {
         variant: 'primary',
         initialState: 'hidden',
+        activationTiming: 'immediate',
         onActivate: () => resolveAndCleanup('retry'),
       }),
       registerCta(exitBtn, {
         variant: 'secondary',
         initialState: 'hidden',
+        activationTiming: 'immediate',
         onActivate: () => resolveAndCleanup('menu'),
       }),
     );

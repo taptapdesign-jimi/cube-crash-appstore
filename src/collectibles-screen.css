@@ -1908,7 +1908,7 @@
   --journey-v700-hub-bottom-trim: min(8svh, 68px);
   /* Remove another 40% of the remaining measured tail without moving the worlds. */
   --journey-v700-hub-extra-bottom-trim: min(6.2svh, 53px);
-  min-height: calc(env(safe-area-inset-top, 0px) + 608px + min(22.464vw, 91px) + min(32.5vw, 127px) + 100px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim) + env(safe-area-inset-bottom, 0px));
+  min-height: calc(env(safe-area-inset-top, 0px) + 580px + min(22.464vw, 91px) + min(32.5vw, 127px) + 100px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim) + env(safe-area-inset-bottom, 0px));
   padding: calc(env(safe-area-inset-top, 0px) + 84px) 18px calc(env(safe-area-inset-bottom, 0px) + 34px);
   box-sizing: border-box;
   pointer-events: auto;
@@ -1922,7 +1922,7 @@
   right: calc(-1 * var(--pad-right, 24px));
   top: calc(env(safe-area-inset-top, 0px) + 82px);
   width: calc(100% + var(--pad-left, 24px) + var(--pad-right, 24px));
-  height: calc(920px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim));
+  height: calc(892px - var(--journey-v700-hub-bottom-trim) - var(--journey-v700-hub-extra-bottom-trim));
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
@@ -1956,12 +1956,12 @@
 
 .journey-v700-world-beach {
   right: -8px;
-  top: calc(env(safe-area-inset-top, 0px) + 358px);
+  top: calc(env(safe-area-inset-top, 0px) + 334px);
 }
 
 .journey-v700-world-robo {
   left: -6px;
-  top: calc(env(safe-area-inset-top, 0px) + 608px);
+  top: calc(env(safe-area-inset-top, 0px) + 580px);
 }
 
 .journey-v700-world-card.is-locked {
@@ -2059,9 +2059,9 @@
 }
 
 .journey-v700-hub.journey-v700-banners-retracting .journey-v700-world-banner {
-  transition-duration: 0.44s;
+  transition-duration: 0.32s;
   transition-delay: 0s;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.72, 0.62);
+  transition-timing-function: cubic-bezier(0.56, -0.22, 0.78, 0.34);
 }
 
 .journey-v700-world-forest .journey-v700-world-banner {

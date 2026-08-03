@@ -18,6 +18,7 @@ interface RegisterCtaOptions {
   onActivate?: () => void | Promise<void>;
   initialState?: 'hidden' | 'idle';
   activationTiming?: 'after-release' | 'immediate';
+  activateOnCapturedRelease?: boolean;
 }
 
 export interface CtaMotionProfile {
@@ -30,18 +31,20 @@ export interface CtaMotionProfile {
   exitEase: string;
   releaseEase: string;
   pressScale: number;
+  pressOffsetY: number;
 }
 
 export const CTA_MOTION_DEFAULTS: Readonly<CtaMotionProfile> = Object.freeze({
   enterDuration: 0.34,
-  exitDuration: 0.24,
-  pressDuration: 0.09,
-  releaseDuration: 0.22,
+  exitDuration: 0.31,
+  pressDuration: 0.12,
+  releaseDuration: 0.26,
   companionExitStaggerMs: 70,
   enterEase: 'back.out(1.8)',
   exitEase: 'back.in(1.75)',
   releaseEase: 'back.out(2.1)',
-  pressScale: 0.88,
+  pressScale: 0.84,
+  pressOffsetY: 4,
 });
 
 export const ctaMotion: CtaMotionProfile = { ...CTA_MOTION_DEFAULTS };
@@ -141,7 +144,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
       }
       if (withKeyboardPress) {
         element.dataset.ctaState = 'pressed';
-        await animateTo({ scale: ctaMotion.pressScale, y: 3, duration: ctaMotion.pressDuration, ease: 'power2.out' });
+        await animateTo({ scale: ctaMotion.pressScale, y: ctaMotion.pressOffsetY, duration: ctaMotion.pressDuration, ease: 'power2.out' });
       }
       await release();
       if (options.activationTiming === 'immediate') {
@@ -160,7 +163,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
     pointerId = event.pointerId;
     try { element.setPointerCapture(event.pointerId); } catch {}
     element.dataset.ctaState = 'pressed';
-    void animateTo({ scale: ctaMotion.pressScale, y: 3, duration: ctaMotion.pressDuration, ease: 'power2.out' });
+    void animateTo({ scale: ctaMotion.pressScale, y: ctaMotion.pressOffsetY, duration: ctaMotion.pressDuration, ease: 'power2.out' });
   };
 
   const onPointerUp = (event: PointerEvent) => {
@@ -169,11 +172,16 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
     const rect = element.getBoundingClientRect();
     const inside = event.clientX >= rect.left && event.clientX <= rect.right &&
       event.clientY >= rect.top && event.clientY <= rect.bottom;
-    if (!inside) {
+    if (!inside && !options.activateOnCapturedRelease) {
       void release();
       return;
     }
     void activateAfterRelease();
+  };
+
+  const onPointerCancel = (event: PointerEvent) => {
+    if (pointerId !== event.pointerId) return;
+    void release();
   };
 
   const onClick = (event: MouseEvent) => {
@@ -184,8 +192,12 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
 
   element.addEventListener('pointerdown', onPointerDown, { signal: abortController.signal });
   element.addEventListener('pointerup', onPointerUp, { signal: abortController.signal });
-  element.addEventListener('pointercancel', () => { void release(); }, { signal: abortController.signal });
-  element.addEventListener('lostpointercapture', () => { void release(); }, { signal: abortController.signal });
+  element.addEventListener('pointercancel', onPointerCancel, { signal: abortController.signal });
+  // WKWebView may emit lostpointercapture while the finger is still down.
+  // Treat only a real pointerup/pointercancel as release, and observe both at
+  // window level so the gesture still settles if capture is lost off-element.
+  window.addEventListener('pointerup', onPointerUp, { signal: abortController.signal });
+  window.addEventListener('pointercancel', onPointerCancel, { signal: abortController.signal });
   element.addEventListener('click', onClick, { signal: abortController.signal });
 
   if ((options.initialState ?? 'idle') === 'hidden') {
