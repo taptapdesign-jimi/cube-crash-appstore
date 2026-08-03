@@ -19,8 +19,6 @@ import {
   restoreJourneyBoardCardBaseTransform,
 } from './modules/journey-card-base-transform.js';
 import { playNavIconCartoonBounce } from './utils/nav-icon-bounce.js';
-import { showHeartsModal } from './modules/hearts-bottom-sheet.js';
-import { isHeartsFeatureEnabled } from './modules/hearts-system.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
@@ -1208,54 +1206,6 @@ class CollectiblesManager {
       this.initDevButtons();
     }, 100);
 
-    // 💚 Initialize hearts system and attach click handler
-    setTimeout(async () => {
-      if (!isHeartsFeatureEnabled()) {
-        const heartsContainer = document.getElementById('journey-lives-container');
-        if (heartsContainer) {
-          heartsContainer.style.display = 'none';
-          heartsContainer.setAttribute('hidden', '');
-          heartsContainer.setAttribute('aria-hidden', 'true');
-        }
-        return;
-      }
-
-      try {
-        const { heartsSystem } = await import('./modules/hearts-system.js');
-        heartsSystem.init();
-        heartsSystem.refreshUI();
-
-        // Attach click handler to hearts container
-        const heartsContainer = document.getElementById('journey-lives-container');
-        if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
-	          heartsContainer.style.cursor = 'pointer';
-	          heartsContainer.addEventListener('click', () => {
-	            const heartIcon = document.getElementById('journey-lives-icon') as HTMLElement | null;
-	            playNavIconCartoonBounce(heartIcon || heartsContainer);
-
-            // Haptic on Journey top-nav hearts icon tap.
-            try { (window as any).triggerHapticImpact?.('light'); } catch {}
-
-            if (heartsContainer.getAttribute('data-heart-modal-opening') === 'true') {
-              return;
-            }
-
-            heartsContainer.setAttribute('data-heart-modal-opening', 'true');
-            try {
-              logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
-              showHeartsModal();
-            } finally {
-              heartsContainer.removeAttribute('data-heart-modal-opening');
-            }
-          });
-          heartsContainer.setAttribute('data-hearts-listener-attached', 'true');
-          logger.info('💚 Hearts click handler attached');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to initialize hearts system:', String(error));
-      }
-    }, 150);
-
     let journeyBoardsManagerPreparedForEnter: any = null;
     let activeBoardAreaPreparedBeforeReveal = false;
     if (journeyContainer) {
@@ -1448,13 +1398,6 @@ class CollectiblesManager {
           (screen as HTMLElement).style.willChange = 'auto';
           restoreJourneyScrollableInteractivity('journey-enter-import-fallback');
         });
-      });
-
-      // 🔥 NEW: Initialize lives manager and update UI (non-blocking)
-      import('./modules/lives-manager.js').then(({ livesManager }) => {
-        livesManager.refreshUI();
-      }).catch((error) => {
-        logger.warn('⚠️ Failed to initialize lives manager:', String(error));
       });
 
           // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes

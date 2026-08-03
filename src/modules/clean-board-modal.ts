@@ -20,6 +20,7 @@ import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-o
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { getJourneyEarnedStars } from './journey-stage-balance.ts';
+import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -669,14 +670,9 @@ export async function showCleanBoardModal({
       __ccFromInterimBoardLS: localStorage.getItem('__ccFromInterimBoard')
     });
     
-    // Responsive width logic
-    const isMobile = window.innerWidth <= 428;
-    const isIPad = window.innerWidth >= 768 && window.innerWidth <= 1024;
-    const buttonWidth = (isMobile || isIPad) ? '249px' : '310px';
-    
     // 🔥 NEW: Create button container (for 1 or 2 buttons)
     const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = `width:${buttonWidth};max-width:80vw;display:flex;flex-direction:column;gap:16px;`;
+    buttonContainer.className = 'cc-cta-stack';
     
     // 🔥 NEW: Primary button (Continue for interim Journey, Play Again otherwise including Arcade)
     const primaryBtn = document.createElement('button');
@@ -685,20 +681,14 @@ export async function showCleanBoardModal({
     // Journey/interim keeps "Continue" behavior (and dev override for testing).
     const shouldShowContinue = !isArcadeHomeRun && (devMode || isFromInterimBoard);
     primaryBtn.textContent = shouldShowContinue ? 'Continue' : 'Play Again';
-    primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
-    primaryBtn.style.width = '100%';
-    primaryBtn.style.maxWidth = buttonWidth;
-    primaryBtn.style.whiteSpace = 'nowrap';
+    primaryBtn.className = 'cc-clean-board-cta';
     
     // 🔥 NEW: Secondary button ("Exit" for regular boards, "Back to Journey" for interim)
     let secondaryBtn: HTMLButtonElement | null = null;
     secondaryBtn = document.createElement('button');
     secondaryBtn.type = 'button';
     secondaryBtn.textContent = 'Exit';
-    secondaryBtn.className = 'exit-btn bottom-sheet-cta';
-    secondaryBtn.style.width = '100%';
-    secondaryBtn.style.maxWidth = buttonWidth;
-    secondaryBtn.style.whiteSpace = 'nowrap';
+    secondaryBtn.className = 'cc-clean-board-cta';
     
     // Add buttons to container
     buttonContainer.appendChild(primaryBtn);
@@ -729,60 +719,20 @@ export async function showCleanBoardModal({
     const triggerEfficiencyCounterHaptic = createCounterLightHapticTrigger();
 
     // Set button to hidden state (before animation)
+    const ctaControllers: CtaController[] = [];
     const setButtonInitialState = (button: HTMLButtonElement) => {
-      button.classList.add('clean-board-button-hidden');
+      button.style.visibility = 'hidden';
+      button.style.pointerEvents = 'none';
     };
 
     // Animate button in (bounce entrance)
     const animateButtonIn = (button: HTMLButtonElement) => {
-      button.removeAttribute('data-clean-board-exiting');
-      button.classList.remove('clean-board-button-hidden');
-      button.classList.add('clean-board-button-visible');
+      void getRegisteredCta(button)?.enter();
       // CTA appearing on screen should feel confirmatory.
       triggerHapticImpactSafe('medium');
     };
 
-    const buttonExitDurationMs = 650; // Keep downstream timing compatible with the CTA pop-out.
-
-    // Animate button out (scale to 0 exit)
-    const animateButtonExit = (button: HTMLButtonElement) => {
-      button.disabled = true;
-      button.blur(); // Remove focus to prevent :active/:focus states
-      button.setAttribute('data-clean-board-exiting', 'true');
-      
-      button.classList.remove(
-        'clean-board-button-hidden',
-        'clean-board-button-visible',
-        'clean-board-button-exit',
-        'animate-exit',
-        'animate-enter'
-      );
-
-      button.style.removeProperty('transition');
-      button.style.removeProperty('-webkit-transition');
-      gsap.killTweensOf(button);
-      gsap.set(button, {
-        opacity: 1,
-        visibility: 'visible',
-        y: 0,
-        scale: 1,
-        transformOrigin: '50% 50%',
-        force3D: true,
-      });
-      trackTween(button, {
-        scale: 0,
-        opacity: 0,
-        y: 20,
-        duration: 0.22,
-        ease: 'back.in(1.7)',
-        overwrite: 'auto',
-        force3D: true,
-        onComplete: () => {
-          button.style.visibility = 'hidden';
-        },
-      });
-    };
-
+    const buttonExitDurationMs = ctaMotion.exitDuration * 1000;
 
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
@@ -1026,7 +976,7 @@ export async function showCleanBoardModal({
           }
           console.log('🌟 Hero styles set:', { opacity: hero.style.opacity, transform: hero.style.transform });
           
-          // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
+          // Animate earned stars filling in with the established staggered bounce.
           // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
           setTimeout(() => {
             starElements.forEach((star, index) => {
@@ -1295,107 +1245,17 @@ export async function showCleanBoardModal({
       }
     };
 
-    // Add button press handling for proper UX
-    const addButtonPressHandling = (button: HTMLButtonElement, action: () => void | Promise<void>): void => {
-      let touchStarted = false;
-      let touchStartedOnButton = false;
-      let actionTriggered = false;
-      const triggerActionOnce = () => {
-        if (actionTriggered || button.disabled) return;
-        actionTriggered = true;
-        const recoverFailedAction = (error: unknown) => {
-          console.error('❌ clean-board-modal: CTA action failed; restoring modal input', error);
-          actionTriggered = false;
-          primaryBtn.disabled = false;
-          if (secondaryBtn) secondaryBtn.disabled = false;
-          el.removeAttribute('data-clean-board-exiting');
-          el.style.pointerEvents = 'auto';
-        };
-        try {
-          const result = action();
-          if (result && typeof result.then === 'function') {
-            void result.catch(recoverFailedAction);
-          }
-        } catch (error) {
-          recoverFailedAction(error);
-        }
-      };
-      
-      const handleTouchStart = (e: TouchEvent) => {
-        touchStarted = true;
-        touchStartedOnButton = button.contains(e.target as Node);
-        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
-      };
-      
-      const handleTouchMove = (e: TouchEvent) => {
-        if (touchStarted && touchStartedOnButton) {
-          // Check if touch moved outside button
-          const touch = e.touches[0];
-          const rect = button.getBoundingClientRect();
-          const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
-                           touch.clientY < rect.top || touch.clientY > rect.bottom;
-          
-          if (isOutside) {
-            // Cancel the touch
-            touchStartedOnButton = false;
-            // 🔥 REMOVED inline style reset - CSS handles it
-          }
-        }
-      };
-      
-      const handleTouchEnd = (e: TouchEvent) => {
-        if (touchStarted && touchStartedOnButton) {
-          // Only trigger if touch ended on button
-          const touch = e.changedTouches[0];
-          const rect = button.getBoundingClientRect();
-          const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
-                            touch.clientY >= rect.top && touch.clientY <= rect.bottom;
-          
-          if (isOnButton) triggerActionOnce();
-        }
-        
-        // 🔥 REMOVED inline style reset - CSS handles it
-        touchStarted = false;
-        touchStartedOnButton = false;
-      };
-      
-      const handleMouseDown = () => {
-        touchStartedOnButton = true;
-        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
-      };
-      
-      const handleMouseUp = (e: MouseEvent) => {
-        if (touchStartedOnButton && button.contains(e.target as Node)) triggerActionOnce();
-        
-        // 🔥 REMOVED inline style reset - CSS handles it
-        touchStartedOnButton = false;
-      };
-      
-      const handleMouseLeave = () => {
-        // 🔥 REMOVED inline style reset - CSS handles it
-        touchStartedOnButton = false;
-      };
-      
-      // Add event listeners
-      button.addEventListener('touchstart', handleTouchStart, { passive: true });
-      button.addEventListener('touchmove', handleTouchMove, { passive: true });
-      button.addEventListener('touchend', handleTouchEnd, { passive: true });
-      button.addEventListener('mousedown', handleMouseDown);
-      button.addEventListener('mouseup', handleMouseUp);
-      button.addEventListener('mouseleave', handleMouseLeave);
-      
-      // 🔥 MEMORY LEAK FIX: Track listeners for cleanup
-      buttonEventListeners.push({
-        button,
-        handlers: [
-          { event: 'touchstart', handler: handleTouchStart as EventListener, options: { passive: true } },
-          { event: 'touchmove', handler: handleTouchMove as EventListener, options: { passive: true } },
-          { event: 'touchend', handler: handleTouchEnd as EventListener, options: { passive: true } },
-          { event: 'mousedown', handler: handleMouseDown as EventListener },
-          { event: 'mouseup', handler: handleMouseUp as EventListener },
-          { event: 'mouseleave', handler: handleMouseLeave as EventListener }
-        ]
+    const addButtonPressHandling = (
+      button: HTMLButtonElement,
+      action: () => void | Promise<void>,
+      variant: 'primary' | 'secondary',
+    ): void => {
+      const controller = registerCta(button, {
+        variant,
+        initialState: 'hidden',
+        onActivate: action,
       });
+      ctaControllers.push(controller);
     };
     
     // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
@@ -1411,6 +1271,9 @@ export async function showCleanBoardModal({
       });
       buttonEventListeners.length = 0;
       console.log('✅ All button event listeners removed');
+    };
+    const disposeCtas = () => {
+      ctaControllers.splice(0).forEach(controller => controller.dispose());
     };
 
     // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
@@ -1477,15 +1340,9 @@ export async function showCleanBoardModal({
       hero.style.transition = exitTrans;
 
       // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
-      // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
+      // The clicked CTA exits first; its companion follows by one tiny visual beat.
       // Primary button (Play Again/Continue) was clicked - animate it FIRST
-      animateButtonExit(primaryBtn);
-        
-      if (secondaryBtn) {
-        setTimeout(() => {
-          animateButtonExit(secondaryBtn);
-        }, 200);
-      }
+      await exitCtaPair(primaryBtn, secondaryBtn);
 
       requestAnimationFrame(() => {
         // Hero: fade + scale in place only (no translate); stars already exiting in place
@@ -1514,7 +1371,7 @@ export async function showCleanBoardModal({
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
       const buttonExitDuration = buttonExitDurationMs;
       const extraBuffer = 200;
-      const buttonDelay = 200; // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
+      const buttonDelay = ctaMotion.companionExitStaggerMs;
       const collapseDuration = secondaryBtn 
         ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
         : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
@@ -1588,6 +1445,7 @@ export async function showCleanBoardModal({
         // Cleanup modal first (non-blocking - cleanup happens in background)
         cleanupButtonListeners();
         trackTimeout(() => { 
+          disposeCtas();
           try { el.remove(); } catch {}
           removeStyleTag();
         }, collapseDuration + 220);
@@ -1646,6 +1504,7 @@ export async function showCleanBoardModal({
       // 🔥 NOTE: FX cleanup handled centrally in endgame-flow before startLevel
       
       trackTimeout(() => { 
+        disposeCtas();
         try { el.remove(); } catch {}
         removeStyleTag(); // Remove CSS style tag
         
@@ -1665,7 +1524,7 @@ export async function showCleanBoardModal({
         console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
         resolve({ action }); 
       }, collapseDuration + 220);
-    });
+    }, 'primary');
     
     // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
@@ -1730,10 +1589,7 @@ export async function showCleanBoardModal({
         nodes.forEach((node) => { node.style.transition = exitTrans; });
         hero.style.transition = exitTrans;
 
-        animateButtonExit(secondaryBtn);
-        setTimeout(() => {
-          animateButtonExit(primaryBtn);
-        }, 200);
+        await exitCtaPair(secondaryBtn, primaryBtn);
 
         requestAnimationFrame(() => {
           setTimeout(() => {
@@ -1792,7 +1648,7 @@ export async function showCleanBoardModal({
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
         const buttonExitDuration = buttonExitDurationMs;
         const extraBuffer = 200;
-        const buttonDelay = 200; // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
+        const buttonDelay = ctaMotion.companionExitStaggerMs;
         const collapseDuration = secondaryBtn 
           ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
           : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
@@ -1868,6 +1724,7 @@ export async function showCleanBoardModal({
           trackTimeout(() => {
             clearAllModalTimeouts(); // clear collapse timeout so no refs to el/card linger
             // 🔥 CRITICAL: Remove overlay BEFORE resolve so it doesn't block detail modal clicks
+            disposeCtas();
             try { el.remove(); } catch {}
             removeStyleTag();
             stopConfettiSpawnsSafe();
@@ -1878,6 +1735,7 @@ export async function showCleanBoardModal({
         }).catch(() => {
           trackTimeout(() => {
             clearAllModalTimeouts();
+            disposeCtas();
             try { el.remove(); } catch {}
             removeStyleTag();
             stopConfettiSpawnsSafe();
@@ -1886,7 +1744,7 @@ export async function showCleanBoardModal({
             resolve({ action: exitAction });
           }, boardExitAnimationDuration);
         });
-      });
+      }, 'secondary');
     }
       } catch (error) {
         console.error('❌ clean-board-modal: Unhandled error - falling back to continue', error);

@@ -3,6 +3,7 @@ import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION, S
 import { logger } from '../core/logger.js';
 import gameState from '../modules/game-state.js';
 import { sliderState } from '../modules/slider-state.js';
+import { getRegisteredCta } from '../modules/cta-system.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -231,6 +232,13 @@ const setHomepageCtaEnterTransform = (button: Element, scale: number, withTransi
 
 export const primeHomepageCtaEnterTransform = (button: Element | null | undefined): void => {
   if (!button) return;
+  if (button instanceof HTMLButtonElement) {
+    const controller = getRegisteredCta(button);
+    if (controller) {
+      controller.prime('hidden');
+      return;
+    }
+  }
   setHomepageCtaEnterTransform(button, 0, false);
 };
 
@@ -312,6 +320,8 @@ export const prepareSliderEnter = (): void => {
       target.style.removeProperty('will-change');
       restoredInactiveTargets += 1;
     });
+    const inactiveCta = slide.querySelector<HTMLButtonElement>('.slide-button');
+    if (inactiveCta) getRegisteredCta(inactiveCta)?.prime('idle');
   });
 
   const targets = [
@@ -336,6 +346,8 @@ export const prepareSliderEnter = (): void => {
     target.style.removeProperty('visibility');
     target.style.transition = 'none';
   });
+  const activeCta = activeSlide?.querySelector<HTMLButtonElement>('.slide-button');
+  if (activeCta) getRegisteredCta(activeCta)?.prime('hidden');
 
   logger.info('🏠 Homepage enter primed', 'animations', {
     activeSlide: activeSlide?.getAttribute('data-slide') || null,
@@ -409,6 +421,8 @@ export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'
     target.style.removeProperty('-webkit-transition');
     target.style.removeProperty('will-change');
   });
+  const activeCta = activeSlide?.querySelector<HTMLButtonElement>('.slide-button');
+  if (activeCta) getRegisteredCta(activeCta)?.prime('idle');
 
   const independentNav = document.getElementById('independent-nav');
   if (independentNav) {
@@ -693,6 +707,11 @@ export const animateJourneySliderExit = (): Promise<void> => {
         'animate-exit', 'animate-enter', 'animate-enter-initial',
         'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce',
       );
+      const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
+      if (ctaController) {
+        void ctaController.exit({ delay }).then(finishTarget);
+        return;
+      }
       element.style.willChange = 'scale';
       // Animate the independent CSS `scale` longhand so every established
       // responsive translate/transform rule remains untouched.
@@ -859,12 +878,14 @@ function startExitAnimationSequence(): void {
       const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
       
     if (slideButton) {
+        const ctaController = getRegisteredCta(slideButton as HTMLButtonElement);
         slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
         void slideButton.offsetHeight;
-        slideButton.classList.add('animate-exit');
+        if (ctaController) void ctaController.exit();
+        else slideButton.classList.add('animate-exit');
         
         // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
-        if (isIPad) {
+        if (isIPad && !ctaController) {
           (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(0)';
           (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(0)';
           (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
@@ -1073,12 +1094,14 @@ function startExitAnimationSequenceLegacy(): void {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
   if (slideButton) {
+      const ctaController = getRegisteredCta(slideButton as HTMLButtonElement);
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
       void slideButton.offsetHeight;
-      slideButton.classList.add('animate-exit');
+      if (ctaController) void ctaController.exit();
+      else slideButton.classList.add('animate-exit');
       
       // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
-      if (isIPad) {
+      if (isIPad && !ctaController) {
         (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(0)';
         (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(0)';
         (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
@@ -1505,9 +1528,9 @@ function startEnterAnimationSequence(): void {
       // Reset CTA animation classes to ensure scale pop-in (not fade)
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset', 'animate-enter-initial');
       slideButton.classList.add('animate-enter-initial');
-      // CTA has multiple global/menu/tap-scale transform rules. Own the enter
-      // transform inline so every homepage slide gets the same visible bounce.
-      setHomepageCtaEnterTransform(slideButton, 0, false);
+      const ctaController = getRegisteredCta(slideButton as HTMLButtonElement);
+      if (ctaController) ctaController.prime('hidden');
+      else setHomepageCtaEnterTransform(slideButton, 0, false);
       // 🔥 CRITICAL: Keep button hidden until animation starts (from main.ts)
       // Don't remove opacity/visibility here - animation will make it visible
       void slideButton.offsetHeight; // Force reflow
@@ -1552,7 +1575,9 @@ function startEnterAnimationSequence(): void {
         void slideButton.offsetHeight;
         slideButton.classList.remove('animate-enter-initial');
         slideButton.classList.add('animate-enter');
-        setHomepageCtaEnterTransform(slideButton, 1, true);
+        const ctaController = getRegisteredCta(slideButton as HTMLButtonElement);
+        if (ctaController) void ctaController.enter();
+        else setHomepageCtaEnterTransform(slideButton, 1, true);
         // 🔥 CRITICAL: Make button visible when animation starts
         // Button was hidden by main.ts, now make it visible for animation
         slideButton.style.removeProperty('opacity');

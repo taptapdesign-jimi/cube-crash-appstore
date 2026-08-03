@@ -21,11 +21,15 @@ describe('Spatial Motion permission modal', () => {
       configurable: true,
       value: jest.fn().mockReturnValue({ matches: false }),
     });
+    let synchronousFrameCount = 0;
     Object.defineProperty(window, 'requestAnimationFrame', {
       configurable: true,
       value: (callback: FrameRequestCallback) => {
-        callback(performance.now() + 1000);
-        return 1;
+        synchronousFrameCount += 1;
+        // Paint the modal's two-frame presentation deterministically without
+        // recursively driving GSAP's self-scheduling ticker in the test DOM.
+        if (synchronousFrameCount <= 2) callback(1000 + synchronousFrameCount * 16.67);
+        return synchronousFrameCount;
       },
     });
   });
@@ -63,14 +67,12 @@ describe('Spatial Motion permission modal', () => {
 
     expect(isSpatialMotionPermissionModalActive()).toBe(true);
     expect(enableButton).not.toBeNull();
-    expect(enableButton?.classList.contains('primary-button')).toBe(true);
-    expect(enableButton?.classList.contains('bottom-sheet-cta')).toBe(true);
+    expect(enableButton?.classList.contains('cc-cta')).toBe(true);
+    expect(enableButton?.dataset.ctaVariant).toBe('primary');
     expect(enableButton?.textContent).toBe('Try It');
     expect(document.querySelector('.journey-spatial-permission-dismiss')?.textContent).toBe('Later');
-    expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('bottom-sheet-cta'))
-      .toBe(true);
-    expect(document.querySelector('.journey-spatial-permission-dismiss')?.classList.contains('exit-btn'))
-      .toBe(true);
+    expect((document.querySelector('.journey-spatial-permission-dismiss') as HTMLElement | null)?.dataset.ctaVariant)
+      .toBe('secondary');
     expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('Tilt Motion');
     expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('Tilt');
     expect(document.querySelector('.journey-spatial-permission-copy')?.textContent)

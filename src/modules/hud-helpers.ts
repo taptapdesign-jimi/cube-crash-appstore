@@ -4,7 +4,6 @@ import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stag
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { isTerminalEndgameInteractionLocked, pauseGame, resumeGame, restart } from './app-core.ts';
-// import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.ts';
@@ -1280,7 +1279,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   // 🔥 USER REQUEST: 24px padding from right edge (calculated as percentage of screen width)
   // For iPhone 13 (390px width): 24px = 6.15% of screen width
   // We'll use fixed 24px but calculate it relative to screen width for consistency
-  const comboRightPadding = 24; // 24px from right edge (like journey hearts margin-right)
+  const comboRightPadding = 24; // 24px from the safe right edge.
   
   // Position close icon (left, existing position) - aligned with other HUD elements
   boardText.x = leftCenter;
@@ -1295,8 +1294,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   if (HUD_ROOT._hudElements) {
     const { star, coin, combo } = HUD_ROOT._hudElements;
     
-    // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
-    // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+    // Keep 24px from the safe right edge.
     // We'll use the same approach: rightEdge = vw - 24px padding
     const rightEdge = vw - comboRightPadding; // 24px padding from right edge
     
@@ -3043,8 +3041,7 @@ export function updateHUD({ score, board, moves, combo }) {
         // Get screen width from app renderer or window
         const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
         const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
-        // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
-        // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+        // Keep 24px from the safe right edge.
         // We'll use the same approach: rightEdge = screenWidth - 24px padding
         const comboRightPadding = 24; // 24px from right edge
         const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
@@ -3390,8 +3387,7 @@ export function setCombo(v){
       // Get screen width from app renderer or window
       const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
       const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
-      // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
-      // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+      // Keep 24px from the safe right edge.
       // We'll use the same approach: rightEdge = screenWidth - 24px padding
       const comboRightPadding = 24; // 24px from right edge
       const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge

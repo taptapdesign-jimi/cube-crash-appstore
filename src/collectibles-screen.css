@@ -312,62 +312,6 @@
   margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to account for safe-area-inset-right */
 }
 
-/* 🔥 NEW: Lives counter in journey header (heart icon + number) */
-.journey-lives-container {
-  display: none !important;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 0; /* 🔥 FIX: Remove horizontal padding to maintain exact 24px spacing from edge */
-  border-radius: 8px;
-  /* 🔥 FIX: Remove iOS dark tap-highlight residue when tapping hearts */
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  touch-action: pan-y;
-  /* 🔥 FIX: Grid positioning - align to end of third column */
-  grid-column: 3;
-  justify-self: end;
-  margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to account for safe-area-inset-right */
-  /* Similar to HUD design - icon + number */
-  transform-origin: center center;
-  will-change: transform;
-}
-
-.journey-lives-container[hidden] {
-  display: none !important;
-}
-
-/* Sweet fast tap bounce (Journey hearts) */
-.journey-lives-container.tap-bounce {
-  animation: journeyHeartsTapBounce 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes journeyHeartsTapBounce {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(0.92); }
-  70%  { transform: scale(1.06); }
-  100% { transform: scale(1); }
-}
-
-.journey-lives-icon {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  flex-shrink: 0;
-  display: block;
-}
-
-.journey-lives-count {
-  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--collectibles-brown); /* #ad8775 - same as title */
-  line-height: 1;
-  min-width: 20px;
-  text-align: left;
-}
-
 .collectibles-title-underline {
   position: relative; /* Potrebno za absolute positioning shadow-a */
   height: 2px;
@@ -3281,9 +3225,8 @@
   /* Fixed positioning at bottom */
   position: fixed !important;
   bottom: calc(40px + env(safe-area-inset-bottom, 0px)) !important;
-  left: 50% !important;
-  /* 🔥 CRITICAL: Base transform for centering - !important so it persists unless overridden by animation classes */
-  transform: translateX(-50%) !important;
+  left: calc(50% - 124.5px) !important;
+  transform: none !important;
   
   /* Same width as homepage slider CTA */
   width: 249px !important;
@@ -3304,22 +3247,22 @@
 }
 
 /* 🔥 CRITICAL: Tap scale animation - MOST SPECIFIC, overrides everything */
-#board-detail-play-button.tap-scale:active,
-#board-detail-play-button:active {
+#board-detail-play-button:not(.cc-cta).tap-scale:active,
+#board-detail-play-button:not(.cc-cta):active {
   transform: translateX(-50%) scale(0.95) !important;
   transition: transform 0.15s ease-in-out !important;
 }
 
 /* 🔥 USER REQUEST: Preserve translateX(-50%) during animate-enter-initial and animate-enter */
 /* Same animation timing as homepage CTA: 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) */
-#board-detail-play-button.animate-enter-initial {
+#board-detail-play-button:not(.cc-cta).animate-enter-initial {
   transition: none !important;
   transform: translateX(-50%) scale(0) !important;
   opacity: 0 !important;
   visibility: hidden !important;
 }
 
-#board-detail-play-button.animate-enter {
+#board-detail-play-button:not(.cc-cta).animate-enter {
   will-change: transform, opacity !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.3s ease, visibility 0.3s ease !important;
   transform: translateX(-50%) scale(1) !important;
@@ -3327,7 +3270,7 @@
   visibility: visible !important;
 }
 
-#board-detail-play-button.animate-exit {
+#board-detail-play-button:not(.cc-cta).animate-exit {
   will-change: transform !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateX(-50%) translateY(20px) scale(0) !important;
@@ -3339,10 +3282,11 @@
 }
 
 /* Responsive - same as mobile homepage CTA */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   #board-detail-play-button {
     width: 220px !important;
     max-width: 220px !important;
+    left: calc(50% - 110px) !important;
   }
 }
 

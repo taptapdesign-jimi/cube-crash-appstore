@@ -146,13 +146,6 @@ export function unlockSlider(): void {
 }
 
 /**
- * Generate unique ID
- */
-export function generateId(): string {
-  return `end-run-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
  * Debounce function
  */
 export function debounce<T extends (...args: any[]) => any>(

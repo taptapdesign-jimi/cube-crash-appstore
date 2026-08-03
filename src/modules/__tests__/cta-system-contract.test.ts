@@ -1,0 +1,197 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+describe('shared CTA system contract', () => {
+  const moduleSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/cta-system.ts'),
+    'utf8',
+  );
+  const cssSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/styles/cta-system.css'),
+    'utf8',
+  );
+  const cleanSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/clean-board-modal.ts'),
+    'utf8',
+  );
+  const failSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/board-fail-modal.ts'),
+    'utf8',
+  );
+  const tutorialSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/tutorial-complete-modal.ts'),
+    'utf8',
+  );
+  const firstPlayTutorialSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/first-play-tutorial.ts'),
+    'utf8',
+  );
+  const newRewardSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/journey-new-card-screen.ts'),
+    'utf8',
+  );
+  const specialDiceSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/journey-special-dice-screen.ts'),
+    'utf8',
+  );
+  const journeyBoardsSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'),
+    'utf8',
+  );
+  const uiManagerSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/ui-manager.ts'),
+    'utf8',
+  );
+  const animationsSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/utils/animations.ts'),
+    'utf8',
+  );
+  const spatialPermissionSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/spatial-motion-permission-modal.ts'),
+    'utf8',
+  );
+  const endRunSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/end-run-modal.ts'),
+    'utf8',
+  );
+  const collectibleRewardSheetSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/collectible-reward-bottom-sheet.ts'),
+    'utf8',
+  );
+  const collectibleRewardUiSource = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/modules/collectible-reward-ui.ts'),
+    'utf8',
+  );
+
+  test('owns one shared primary/secondary motion lifecycle with cleanup', () => {
+    expect(moduleSource).toContain("export type CtaVariant = 'primary' | 'secondary'");
+    expect(moduleSource).toContain("enterEase: 'back.out(1.8)'");
+    expect(moduleSource).toContain("exitEase: 'back.in(1.75)'");
+    expect(moduleSource).toContain("element.addEventListener('pointercancel'");
+    expect(moduleSource).toContain('abortController.abort()');
+    expect(moduleSource).toContain('gsap.killTweensOf(visual)');
+    expect(moduleSource).toContain('await release()');
+    expect(moduleSource).toContain('await options.onActivate()');
+    expect(moduleSource).toContain('export function configureCtaMotion(');
+    expect(moduleSource).toContain('export async function exitCtaPair(');
+    expect(moduleSource).toContain('export async function exitCtaGroup(');
+    expect(moduleSource).toContain('companionExitStaggerMs: 70');
+    expect(moduleSource).toContain("prime(state: 'hidden' | 'idle')");
+    expect(moduleSource).toContain("activationTiming?: 'after-release' | 'immediate'");
+  });
+
+  test('keeps phone and iPad width tokens separate without changing motion', () => {
+    expect(cssSource).toContain('@media (max-width: 767px)');
+    expect(cssSource).toContain('@media (min-width: 768px) and (max-width: 1024px)');
+    expect(cssSource.match(/--cc-cta-stack-width: 249px/g)).toHaveLength(2);
+    expect(cssSource).not.toContain('transition: transform');
+    expect(cssSource).toContain('opacity: 1 !important');
+    expect(cssSource).toContain('transform: none !important');
+    expect(cssSource).toContain('.cc-cta::before');
+    expect(cssSource).toContain('content: none !important');
+  });
+
+  test('migrates Clean Board and Fail away from legacy CTA class collisions', () => {
+    for (const source of [cleanSource, failSource]) {
+      expect(source).toContain("from './cta-system.ts'");
+      expect(source).toContain('registerCta(');
+    }
+    expect(cleanSource).not.toContain("primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
+    expect(failSource).not.toContain("continueBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
+    expect(cleanSource).toContain('await exitCtaPair(primaryBtn, secondaryBtn)');
+    expect(cleanSource).toContain('await exitCtaPair(secondaryBtn, primaryBtn)');
+    expect(failSource).toContain('await exitCtaPair(primaryButton, secondaryButton)');
+  });
+
+  test('migrates Tutorial Complete onto the same primary lifecycle', () => {
+    expect(tutorialSource).toContain("import { registerCta } from './cta-system.ts'");
+    expect(tutorialSource).toContain("variant: 'primary'");
+    expect(tutorialSource).toContain('await ctaController?.exit()');
+    expect(tutorialSource).toContain('void ctaController?.enter()');
+    expect(tutorialSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
+    expect(tutorialSource).not.toContain("cta?.addEventListener('click'");
+  });
+
+  test('migrates the active First Play Got it sheet with CTA-before-sheet exit ordering', () => {
+    expect(firstPlayTutorialSource).toContain("import { registerCta, type CtaController } from './cta-system.ts'");
+    expect(firstPlayTutorialSource).toContain('tutorialCtaController = registerCta(cta');
+    expect(firstPlayTutorialSource).toContain("variant: 'primary'");
+    expect(firstPlayTutorialSource).toContain('await tutorialCtaController?.exit()');
+    expect(firstPlayTutorialSource.indexOf('await tutorialCtaController?.exit()'))
+      .toBeLessThan(firstPlayTutorialSource.indexOf("gsap.to(sheet, {\n      y: '100%'", firstPlayTutorialSource.indexOf('async function dismissThirdStepAndWaitForWild')));
+    expect(firstPlayTutorialSource).not.toContain("cta?.addEventListener('click'");
+    expect(cssSource).toContain('.first-play-tutorial-sheet .first-play-tutorial-cta.cc-cta');
+  });
+
+  test('migrates New Reward and Special Dice onto the same primary lifecycle', () => {
+    for (const source of [newRewardSource, specialDiceSource]) {
+      expect(source).toContain("import { registerCta } from './cta-system.ts'");
+      expect(source).toContain("variant: 'primary'");
+      expect(source).toContain('await ctaController?.exit()');
+      expect(source).toContain('void ctaController?.enter()');
+      expect(source).not.toContain('restart-btn primary-button bottom-sheet-cta');
+      expect(source).not.toContain("cta?.addEventListener('click'");
+      expect(source).not.toContain('.to(cta,');
+    }
+  });
+
+  test('migrates regular and interim Journey detail CTAs without dual touch/click activation', () => {
+    expect(journeyBoardsSource).toContain("floatingPlayButton.className = 'cc-journey-detail-cta'");
+    expect(journeyBoardsSource).toContain("newContinueBtn.className = 'detail-continue-board-button cc-journey-detail-cta'");
+    expect(journeyBoardsSource).toContain('registerCta(floatingPlayButton');
+    expect(journeyBoardsSource).toContain('registerCta(newContinueBtn as HTMLButtonElement');
+    expect(journeyBoardsSource).toContain('getRegisteredCta(playButton as HTMLButtonElement)?.exit()');
+    expect(journeyBoardsSource).not.toContain("floatingPlayButton.addEventListener('touchend'");
+    expect(journeyBoardsSource).not.toContain("floatingPlayButton.addEventListener('click'");
+    expect(cssSource).toContain('#board-detail-play-button.cc-cta');
+    expect(cssSource).toContain('overflow: visible !important');
+    expect(cssSource).toContain('.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"])');
+    expect(cssSource).toContain('.cc-cta[data-cta-state="exiting"] .cc-cta__visual');
+  });
+
+  test('migrates every Homepage slider CTA onto shared input and motion ownership', () => {
+    expect(uiManagerSource).toContain('private registerHomepageCtaButtons()');
+    expect(uiManagerSource).toContain("button.classList.remove('tap-scale', 'menu-btn-primary')");
+    expect(uiManagerSource).toContain('this.homepageCtaControllers.push(registerCta(button');
+    expect(animationsSource).toContain('getRegisteredCta(activeCta)?.prime(\'hidden\')');
+    expect(animationsSource).toContain('void ctaController.enter()');
+    expect(animationsSource).toContain('void ctaController.exit()');
+    expect(cssSource).toContain('.cc-homepage-cta');
+  });
+
+  test('migrates Spatial Motion actions while preserving synchronous iOS permission activation', () => {
+    expect(spatialPermissionSource).toContain('registerCta(enableButton');
+    expect(spatialPermissionSource).toContain("activationTiming: 'immediate'");
+    expect(spatialPermissionSource).toContain("variant: 'secondary'");
+    expect(spatialPermissionSource).toContain('exitCtaPair(clicked, companion)');
+    expect(spatialPermissionSource).not.toContain("enableButton.addEventListener('click'");
+    expect(spatialPermissionSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
+    expect(spatialPermissionSource).not.toContain('exit-btn bottom-sheet-cta');
+  });
+
+  test('migrates the active End Run sheet and exits every visible action as one CTA group', () => {
+    expect(endRunSource).toContain("import { ctaMotion, exitCtaGroup, registerCta, type CtaController } from './cta-system.ts'");
+    expect(endRunSource).toContain('registerCta(restartBtn');
+    expect(endRunSource).toContain('registerCta(newCardBtn');
+    expect(endRunSource).toContain('registerCta(exitBtn');
+    expect(endRunSource).toContain("variant: 'secondary'");
+    expect(endRunSource).toContain('exitCtaGroup(first, buttons.filter(button => button !== first))');
+    expect(endRunSource).toContain('await hideModalAfterCtas(exitBtn)');
+    expect(endRunSource).toContain('hideModal(null, true)');
+    expect(endRunSource).toContain('disposeEndRunCtas()');
+    expect(endRunSource).not.toContain("trackEndRunEventListener(restartBtn, 'touchend'");
+    expect(endRunSource).not.toContain("trackEndRunEventListener(exitBtn, 'touchend'");
+    expect(cssSource).toContain('.simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta');
+  });
+
+  test('makes every active CTA bottom sheet finish button exit before its surface exit', () => {
+    expect(collectibleRewardSheetSource).toContain('registerCta(viewCollectionButton');
+    expect(collectibleRewardSheetSource).toContain('registerCta(continueButton');
+    expect(collectibleRewardSheetSource).toContain('await exitCtaPair(clicked, buttons.find(button => button !== clicked))');
+    expect(collectibleRewardSheetSource.indexOf('await exitCtaPair(clicked'))
+      .toBeLessThan(collectibleRewardSheetSource.indexOf('await hideSheetAnimation(sheet)'));
+    expect(collectibleRewardUiSource).not.toContain("continueButton.addEventListener('click'");
+    expect(collectibleRewardUiSource).not.toContain("viewCollectionButton.addEventListener('click'");
+  });
+
+});

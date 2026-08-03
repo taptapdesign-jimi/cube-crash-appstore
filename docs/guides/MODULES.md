@@ -198,20 +198,6 @@ This document describes all modules in the refactored CubeCrash codebase.
 - `showEndRunModal()` - Show modal
 - `hideModal()` - Hide modal
 
-### **pause-modal.ts** (200 linija)
-**Purpose:** Pause modal
-**Exports:**
-- `showPauseModal()` - Show modal
-- `hidePauseModal()` - Hide modal
-
-### **resume-game-bottom-sheet.ts** (200 linija)
-**Purpose:** Resume game bottom sheet
-**Exports:**
-- `showResumeGameBottomSheet()` - Show sheet
-- `hideResumeModal()` - Hide sheet
-
----
-
 ## **📈 STATISTICS**
 
 ### **Before Refactor:**

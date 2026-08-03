@@ -1,0 +1,186 @@
+.cc-cta-stack {
+  --cc-cta-stack-width: 310px;
+  width: min(var(--cc-cta-stack-width), 80vw);
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cc-cta {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 64px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 40px;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit;
+  font: inherit;
+  position: relative;
+  display: block !important;
+  overflow: visible !important;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Registered CTA roots own layout only. Legacy screen animation selectors
+     must never hide or transform the root while the inner visual is active. */
+  opacity: 1 !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+}
+
+.cc-cta__visual {
+  width: 100%;
+  min-height: 64px;
+  padding: 0 28px;
+  border-radius: inherit;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  color: #fffbf2;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+
+.cc-cta[data-cta-variant="primary"] .cc-cta__visual {
+  background: #e97a55;
+  color: #fffbf2;
+  box-shadow: 0 8px 0 #c24921, 0 13px 22px rgba(112, 55, 34, 0.16);
+  text-shadow: 0 2px 0 #c24921;
+}
+
+.cc-cta[data-cta-variant="secondary"] .cc-cta__visual {
+  background: #fff;
+  color: #ad8675;
+  border: 1px solid #eaded7;
+  box-shadow: 0 8px 0 #d8c7bb, 0 13px 22px rgba(112, 85, 73, 0.12);
+  text-shadow: none;
+}
+
+.cc-cta__visual::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.16) 28%, rgba(255,255,255,.62) 50%, rgba(255,255,255,.16) 72%, transparent 100%);
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  animation: cc-cta-shimmer 5s ease-in-out infinite;
+}
+
+/* Registered roots never paint legacy button pseudo-elements. The shared
+   shimmer belongs exclusively to the inner visual. */
+.cc-cta::before,
+.cc-cta::after {
+  content: none !important;
+  display: none !important;
+}
+
+.cc-cta:focus-visible {
+  outline: none;
+}
+
+.cc-cta:focus-visible .cc-cta__visual {
+  box-shadow: 0 0 0 4px rgba(233,122,85,.24), 0 8px 0 #c24921, 0 13px 22px rgba(112,55,34,.16);
+}
+
+.cc-cta[data-cta-variant="secondary"]:focus-visible .cc-cta__visual {
+  box-shadow: 0 0 0 4px rgba(173,134,117,.2), 0 8px 0 #d8c7bb, 0 13px 22px rgba(112,85,73,.12);
+}
+
+.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"]) .cc-cta__visual {
+  filter: saturate(.72) brightness(.98);
+}
+
+.cc-cta[data-cta-state="exiting"] .cc-cta__visual,
+.cc-cta[data-cta-state="hidden"] .cc-cta__visual {
+  filter: none;
+}
+
+@keyframes cc-cta-shimmer {
+  0%, 82% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
+  84% { opacity: 1; }
+  91% { transform: translateX(160%) skewX(-12deg); opacity: 1; }
+  92%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+}
+
+@media (max-width: 767px) {
+  .cc-cta-stack { --cc-cta-stack-width: 249px; }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .cc-cta-stack { --cc-cta-stack-width: 249px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-cta__visual::after { animation: none; opacity: 0; }
+}
+
+.cc-cta-stack--reward {
+  --cc-cta-stack-width: min(68vw, 408px);
+  align-items: center;
+}
+
+.cc-journey-detail-cta {
+  width: 249px !important;
+  max-width: 249px !important;
+}
+
+.cc-homepage-cta {
+  width: 250px !important;
+  max-width: 250px !important;
+}
+
+.journey-spatial-permission-actions .cc-cta {
+  width: 249px !important;
+  max-width: 249px !important;
+}
+
+.simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta {
+  width: 249px !important;
+  max-width: 249px !important;
+}
+
+.first-play-tutorial-sheet .first-play-tutorial-cta.cc-cta {
+  width: min(310px, 100%) !important;
+  max-width: 310px !important;
+}
+
+#board-detail-play-button.cc-cta {
+  overflow: visible !important;
+}
+
+@media (max-width: 767px) {
+  .cc-homepage-cta {
+    width: 226px !important;
+    max-width: 226px !important;
+    top: 2.25vh;
+  }
+
+  .cc-journey-detail-cta {
+    width: 220px !important;
+    max-width: 220px !important;
+  }
+
+  .first-play-tutorial-sheet .first-play-tutorial-cta.cc-cta {
+    width: 249px !important;
+    max-width: 249px !important;
+  }
+}

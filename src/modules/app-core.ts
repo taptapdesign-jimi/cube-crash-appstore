@@ -24,8 +24,6 @@ import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
-import { heartsSystem } from './hearts-system.ts';
-import { cleanupAllHeartsResources } from './hearts-bottom-sheet.ts';
 import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
@@ -13139,10 +13137,6 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     devLog('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
   } else if (result?.action === '__navigation-abort__') {
     devLog('⏭️ Fail modal invalidated by navigation - stopping stale fail flow');
-  } else if (result?.action === 'no-hearts') {
-    // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
-    devLog('💔 No hearts action - hearts bottom sheet shown, staying out of game');
-    // App element is already hidden in board-fail-modal
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
     devLog('🎮 Play Again action received - functions called directly from modal');
@@ -13747,15 +13741,6 @@ export function cleanupGame() {
     } catch {}
   }
   
-  // 🔥 FIX: Cleanup hearts system (timer and resources)
-  try {
-    heartsSystem.cleanup();
-    cleanupAllHeartsResources();
-    devLog('✅ Hearts system cleaned up in cleanupGame()');
-  } catch (e) {
-    devWarn('⚠️ Failed to cleanup hearts system:', e);
-  }
-  
   // 🔥 FIX: Cleanup level flow timeouts
   try {
     FLOW.cleanupLevelFlowTimeouts();
@@ -14276,177 +14261,6 @@ async function loadGameState(overrideBoardNumber?: number) {
   return false;
 }
 
-// Resume Game Modal
-async function showResumeGameModal(): Promise<void> {
-  return new Promise<void>(resolve => {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = [
-      'position: fixed',
-      'top: 0',
-      'left: 0',
-      'width: 100%',
-      'height: 100%',
-      'background: rgba(0, 0, 0, 0.8)',
-      'display: flex',
-      'align-items: center',
-      'justify-content: center',
-      'z-index: 1000000',
-      'font-family: Arial, sans-serif'
-    ].join(';');
-
-    const modal = document.createElement('div');
-    modal.style.cssText = [
-      'background: url(\'../../assets/modals/paper.png\')',
-      'background-size: cover',
-      'background-position: center',
-      'border-radius: 32px',
-      'padding: 48px 42px 44px',
-      'text-align: center',
-      'max-width: 420px',
-      'width: min(92%, 420px)',
-      'box-shadow: 0 26px 68px rgba(0, 0, 0, 0.18)',
-      'display: flex',
-      'flex-direction: column',
-      'align-items: center',
-      'gap: 28px'
-    ].join(';');
-
-    // Time icon (240px converted to percentage)
-    const icon = document.createElement('img');
-    icon.src = 'assets/time-icon.png';
-    icon.style.cssText = [
-      'width: 240px',
-      'max-width: 64%',
-      'height: auto',
-      'margin: 0 auto 12px'
-    ].join(';');
-
-    // Title
-    const title = document.createElement('h2');
-    title.textContent = 'Resume game?';
-    title.style.cssText = [
-      'margin: 0',
-      'font-size: 30px',
-      'font-weight: 700',
-      'color: #B36A3C',
-      'letter-spacing: 0.4px'
-    ].join(';');
-
-    // Subtitle
-    const subtitle = document.createElement('p');
-    subtitle.textContent = 'Resume your last stage.';
-    subtitle.style.cssText = [
-      'margin: 0',
-      'font-size: 18px',
-      'color: #8E7A6A',
-      'letter-spacing: 0.2px'
-    ].join(';');
-
-    // Buttons container
-    const buttonsContainer = document.createElement('div');
-    buttonsContainer.style.cssText = [
-      'display: flex',
-      'flex-direction: column',
-      'gap: 18px',
-      'width: 100%'
-    ].join(';');
-
-    // Continue button
-    const continueBtn = document.createElement('button');
-    continueBtn.textContent = 'Play Again';
-    continueBtn.style.cssText = [
-      'background: #E97A55',
-      'color: white',
-      'border: none',
-      'padding: 18px 32px',
-      'border-radius: 40px',
-      'font-size: 28px',
-      'font-weight: 700',
-      'text-shadow: 0 2px 0 #C24921',
-      'cursor: pointer',
-      'box-shadow: 0 8px 0 0 #C24921',
-      'transition: transform 0.15s ease'
-    ].join(';');
-    continueBtn.onmouseenter = () => {
-      continueBtn.style.transform = 'translateY(3px)';
-      continueBtn.style.boxShadow = '0 4px 0 0 #C24921';
-    };
-    continueBtn.onmouseleave = () => {
-      continueBtn.style.transform = 'none';
-      continueBtn.style.boxShadow = '0 8px 0 0 #C24921';
-    };
-    continueBtn.onmousedown = () => {
-      continueBtn.style.transform = 'translateY(4px)';
-      continueBtn.style.boxShadow = '0 3px 0 0 #C24921';
-    };
-    continueBtn.onmouseup = () => {
-      continueBtn.style.transform = 'translateY(3px)';
-      continueBtn.style.boxShadow = '0 4px 0 0 #C24921';
-    };
-
-    // Exit to menu button
-    const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Exit';
-    exitBtn.style.cssText = [
-      'background: white',
-      'color: #AD8675',
-      'border: 1px solid #E9DCD6',
-      'padding: 18px 32px',
-      'border-radius: 40px',
-      'font-size: 28px',
-      'font-weight: 700',
-      'cursor: pointer',
-      'box-shadow: 0 8px 0 0 #E9DCD6',
-      'transition: transform 0.15s ease'
-    ].join(';');
-    exitBtn.onmouseenter = () => {
-      exitBtn.style.transform = 'translateY(3px)';
-      exitBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
-    };
-    exitBtn.onmouseleave = () => {
-      exitBtn.style.transform = 'none';
-      exitBtn.style.boxShadow = '0 8px 0 0 #E9DCD6';
-    };
-    exitBtn.onmousedown = () => {
-      exitBtn.style.transform = 'translateY(4px)';
-      exitBtn.style.boxShadow = '0 3px 0 0 #E9DCD6';
-    };
-    exitBtn.onmouseup = () => {
-      exitBtn.style.transform = 'translateY(3px)';
-      exitBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
-    };
-
-    // Event handlers
-    continueBtn.onclick = async () => {
-      document.body.removeChild(overlay);
-      const loaded = await loadGameState();
-      if (!loaded) {
-        alert('Failed to load game, starting new game.');
-        await restartGame();
-      }
-      resolve();
-    };
-
-    exitBtn.onclick = () => {
-      document.body.removeChild(overlay);
-      localStorage.removeItem('cc_saved_game');
-      restartGame();
-      // Homepage image is static - no randomization needed
-      resolve();
-    };
-
-    // Assemble modal
-    buttonsContainer.appendChild(continueBtn);
-    buttonsContainer.appendChild(exitBtn);
-    modal.appendChild(icon);
-    modal.appendChild(title);
-    modal.appendChild(subtitle);
-    modal.appendChild(buttonsContainer);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-  });
-}
-
 // 🔥 CRITICAL: Function to stop PIXI ticker immediately - prevents _x null errors during cleanup
 function stopPixiTicker(): boolean {
   try {
@@ -14467,7 +14281,6 @@ function stopPixiTicker(): boolean {
 // Expose functions globally
 window.saveGameState = saveGameState;
 window.loadGameState = loadGameState;
-window.showResumeGameModal = showResumeGameModal;
 window.drawBoardBG = drawBoardBG;
 window.animateBoardExit = animateBoardExit; // Export for exitToMenu
 (window as any).stopPixiTicker = stopPixiTicker; // Export for exit cleanup

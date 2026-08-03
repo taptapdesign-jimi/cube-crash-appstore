@@ -17,7 +17,6 @@ declare global {
     exitToMenu: () => void;
     
     // Modals
-    showResumeGameModal?: () => Promise<void>;
     unlockSlider?: () => void;
     
     // iOS Optimizer

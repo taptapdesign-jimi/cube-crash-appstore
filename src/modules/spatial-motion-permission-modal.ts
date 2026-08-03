@@ -1,3 +1,5 @@
+import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.js';
+
 export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled';
 
 const SPATIAL_MODAL_EXIT_DURATION_MS = 650;
@@ -20,6 +22,7 @@ let activeOverlay: HTMLElement | null = null;
 let activeResolve: ((choice: SpatialMotionPermissionChoice) => void) | null = null;
 let activeExitTimeout: number | null = null;
 let activeFinishNow: (() => void) | null = null;
+let activeCtaControllers: CtaController[] = [];
 let spatialMotionArtPreloadPromise: Promise<void> | null = null;
 
 function emitSpatialIntroDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
@@ -29,7 +32,7 @@ function emitSpatialIntroDiagnostic(event: string, detail: Record<string, unknow
     handler.postMessage({
       level: 'info',
       message: `[CC_SPATIAL_INTRO] ${event} ${JSON.stringify({
-        at: Math.round(performance.now()),
+        at: Math.round(window.performance.now()),
         ...detail,
       })}`,
     });
@@ -215,12 +218,12 @@ export function showSpatialMotionPermissionModal(
 
     const enableButton = document.createElement('button');
     enableButton.type = 'button';
-    enableButton.className = 'journey-spatial-permission-enable restart-btn primary-button bottom-sheet-cta';
+    enableButton.className = 'journey-spatial-permission-enable';
     enableButton.textContent = 'Try It';
 
     const dismissButton = document.createElement('button');
     dismissButton.type = 'button';
-    dismissButton.className = 'journey-spatial-permission-dismiss exit-btn bottom-sheet-cta';
+    dismissButton.className = 'journey-spatial-permission-dismiss';
     dismissButton.textContent = 'Later';
 
     const actions = document.createElement('div');
@@ -232,12 +235,20 @@ export function showSpatialMotionPermissionModal(
     document.body.appendChild(overlay);
     activeOverlay = overlay;
 
-    const onEnable = () => {
+    const beginChoiceExit = (
+      choice: SpatialMotionPermissionChoice,
+      clicked: HTMLButtonElement,
+      companion: HTMLButtonElement,
+    ) => {
       enableButton.disabled = true;
       dismissButton.disabled = true;
+      void exitCtaPair(clicked, companion);
+      finishActiveModal(choice);
+    };
+    const onEnable = () => {
       // Keep this call synchronous inside the button gesture; WebKit requires it.
-      void requestPermission()
-        .then((granted) => finishActiveModal(granted ? 'enabled' : 'cancelled'))
+      return requestPermission()
+        .then((granted) => beginChoiceExit(granted ? 'enabled' : 'cancelled', enableButton, dismissButton))
         .catch(() => finishActiveModal('cancelled'));
     };
     const onDismiss = () => {
@@ -245,18 +256,28 @@ export function showSpatialMotionPermissionModal(
         try { sessionStorage.setItem(INTRO_DISMISSED_SESSION_KEY, '1'); } catch {}
         try { localStorage.setItem(INTRO_DISMISSED_AT_KEY, String(Date.now())); } catch {}
       }
-      finishActiveModal('dismissed');
+      beginChoiceExit('dismissed', dismissButton, enableButton);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onDismiss();
     };
 
-    enableButton.addEventListener('click', onEnable, { once: true });
-    dismissButton.addEventListener('click', onDismiss, { once: true });
+    activeCtaControllers = [
+      registerCta(enableButton, {
+        variant: 'primary',
+        initialState: 'hidden',
+        activationTiming: 'immediate',
+        onActivate: onEnable,
+      }),
+      registerCta(dismissButton, {
+        variant: 'secondary',
+        initialState: 'hidden',
+        activationTiming: 'immediate',
+        onActivate: onDismiss,
+      }),
+    ];
     document.addEventListener('keydown', onKeyDown);
     (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup = () => {
-      enableButton.removeEventListener('click', onEnable);
-      dismissButton.removeEventListener('click', onDismiss);
       document.removeEventListener('keydown', onKeyDown);
     };
 
@@ -268,6 +289,8 @@ export function showSpatialMotionPermissionModal(
       requestAnimationFrame(() => {
         if (!document.body.contains(overlay)) return;
         overlay.classList.add('is-visible');
+        void activeCtaControllers[0]?.enter();
+        void activeCtaControllers[1]?.enter({ delay: ctaMotion.companionExitStaggerMs / 1000 });
         card.focus({ preventScroll: true });
         const cardStyle = getComputedStyle(card);
         emitSpatialIntroDiagnostic('presented', {
@@ -312,6 +335,7 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
       activeExitTimeout = null;
     }
     overlay.remove();
+    activeCtaControllers.splice(0).forEach(controller => controller.dispose());
     if (activeOverlay === overlay) activeOverlay = null;
     if (activeResolve === resolve) activeResolve = null;
     activeFinishNow = null;

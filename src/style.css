@@ -432,7 +432,6 @@ body{
 .new-card-btn,
 .new-game-btn,
 .exit-btn,
-.pause-modal-btn,
 .modal-button,
 .collectible-reward-cta,
 .bottom-sheet-cta,
@@ -899,172 +898,6 @@ body.journey-board-game-active #hud-board-indicator {
 
 /* Fonts are loaded from src/styles/fonts.css - All Baloo2 weights (Regular, Medium, SemiBold, Bold, ExtraBold) */
 
-/* Pause Modal - Mobile First */
-#pause-overlay{
-  position: fixed; 
-  top: 0; left: 0; right: 0; bottom: 0;
-  width: 100vw; height: 100vh;
-  z-index: 99999999;
-  display: flex; 
-  align-items: center; 
-  justify-content: center;
-  opacity: 1; 
-  visibility: visible;
-  background: transparent;
-}
-.pause-backdrop{
-  position: absolute; 
-  top: 0; left: 0; right: 0; bottom: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.pause-card{
-  position: relative; 
-  background: #fff; 
-  border-radius: 40px; 
-  padding: 40px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-  max-width: 342px; 
-  width: 90vw;
-  max-height: 80vh;
-  transform: scale(1);
-  z-index: 100000000;
-}
-.pause-actions{ 
-  display: flex; 
-  flex-direction: column; 
-  gap: 24px; 
-  align-items: center;
-}
-/* Pause Modal Buttons */
-.pause-modal-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 16px 56px;
-  border-radius: 40px;
-  border: none;
-  cursor: pointer;
-  font-family: 'Baloo2', system-ui, -apple-system, sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 0.2px;
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
-  -webkit-tap-highlight-color: transparent;
-  outline: none;
-}
-
-.pause-modal-btn-white {
-  background: #fff;
-  color: #818181;
-  border: 1px solid #DDDDDD;
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.8),
-    0 2px 0 0 #DDDDDD,
-    0 6px 0 0 #D5D5D5,
-    0 10px 0 0 #CDCDCD;
-}
-
-.pause-modal-btn-white:hover {
-  transform: translateY(3px);
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.8),
-    0 1px 0 0 #DDDDDD,
-    0 4px 0 0 #D5D5D5,
-    0 6px 0 0 #CDCDCD;
-}
-
-.pause-modal-btn-white:active {
-  transform: translateY(4px) scale(0.99);
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.8),
-    0 1px 0 0 #DDDDDD,
-    0 3px 0 0 #D5D5D5,
-    0 4px 0 0 #CDCDCD;
-}
-
-.pause-modal-btn-orange {
-  background: #D87A53;
-  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
-  border: none;
-  box-shadow: 0 8px 0 0 #C24921;
-  overflow: hidden; /* clip shimmer */
-}
-
-.pause-modal-btn-orange::after{
-  content: "";
-  position: absolute;
-  inset: -12px;
-  pointer-events: none;
-  border-radius: inherit;
-  /* White sweep */
-  background: linear-gradient(110deg,
-    rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.18) 22%,
-    rgba(255,255,255,0.66) 44%,
-    rgba(255,255,255,0.66) 56%,
-    rgba(255,255,255,0.18) 78%,
-    rgba(255,255,255,0.00) 100%
-  );
-  transform: translateX(-160%) skewX(-12deg);
-  opacity: 0;
-  will-change: transform, opacity;
-  animation: working-shimmer 5s linear infinite;
-  filter: blur(0.56px);
-}
-
-.pause-modal-btn-orange::before{ content: none; }
-
-/* Shimmer keyframes — most of the time idle, brief sweep left→right */
-@keyframes cta-shimmer{
-  0%, 85%{
-    transform: translateX(-160%) skewX(-12deg);
-    opacity: 0;
-  }
-  86%{
-    transform: translateX(-160%) skewX(-12deg);
-    opacity: 0;
-  }
-  87%{
-    transform: translateX(-80%) skewX(-12deg);
-    opacity: 1;
-  }
-  88%{
-    transform: translateX(0%) skewX(-12deg);
-    opacity: 1;
-  }
-  89%{
-    transform: translateX(80%) skewX(-12deg);
-    opacity: 1;
-  }
-  90%{
-    transform: translateX(160%) skewX(-12deg);
-    opacity: 0;
-  }
-  91%, 100%{
-    transform: translateX(160%) skewX(-12deg);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce){
-  .pause-modal-btn-orange::after{
-    animation: none !important;
-    opacity: 0 !important;
-  }
-}
-
-.pause-modal-btn-orange:hover {
-  transform: translateY(3px);
-  box-shadow: 0 4px 0 0 #C24921;
-}
-
-/* Removed flip-shimmer animation - using simple orange button now */
-
 /* Override slide buttons with liquid fill effect - ULTRA SPECIFIC */
 .slide-button.tap-scale.menu-btn-primary::before,
 .slider-slide .slide-button.tap-scale.menu-btn-primary::before {
@@ -1459,16 +1292,6 @@ body.journey-board-game-active #hud-board-indicator {
 /* Remove duplicate hover - using springy bounce above */
 
 /* DISABLED: Active state springy bounce removed */
-
-.pause-modal-btn-orange:active {
-  transform: translateY(4px) scale(0.99);
-  box-shadow: 0 3px 0 0 #C24921;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pause-modal-btn { transition: none; }
-  .pause-modal-btn:hover, .pause-modal-btn:active { transform: none; }
-}
 
 /* ===== MENU SCREEN STYLES ===== */
 #menu-screen {
@@ -2319,45 +2142,6 @@ body.journey-board-game-active #hud-board-indicator {
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* ===== RESUME GAME BOTTOM SHEET STYLES ===== */
-.resume-bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: url('../assets/modals/paper.png');
-  background-size: cover;
-  background-position: center;
-  border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -36px 72px rgba(233, 210, 200, 0.7); /* Extended 50% further upward */
-  max-height: 60vh;
-  z-index: 9999999999; /* Higher than navigation (999999999) */
-  /* NO DEFAULT TRANSITION - CSS classes control transitions */
-  padding: 28px 10% 40px 10%; /* 28px top padding (20px + 8px), 40px bottom, 10% left/right for responsive */
-  
-  /* RESPONSIVE WIDTH */
-  width: 100%;
-  max-width: 390px; /* Max width from Figma */
-  margin: 0 auto; /* Center horizontally */
-  
-  transform: translateY(100%);
-  
-  /* iOS touch optimizations for smoother animations */
-  -webkit-overflow-scrolling: touch;
-  -webkit-backface-visibility: hidden;
-  -webkit-perspective: 1000;
-  will-change: transform;
-  backface-visibility: hidden;
-  perspective: 1000;
-}
-
-.resume-bottom-sheet.visible {
-  transform: translateY(0);
-  transition: transform 2s ease-in-out;
-}
-
-/* Resume modal buttons - Using global primary-button styles above */
-
 .new-game-btn {
   background: white; /* .white from SwiftUI */
   color: #AD8675; /* Updated font color */
@@ -2505,15 +2289,6 @@ body.journey-board-game-active #hud-board-indicator {
     font-weight: 800 !important;   /* 700 → 800 */
   }
   
-  .resume-bottom-sheet {
-    max-width: none; /* Full width edge to edge on iPad */
-    width: 100%;
-    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right */
-    left: 0;
-    right: 0;
-    margin: 0;
-  }
-  
   .continue-btn, .new-game-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
   }
@@ -2535,11 +2310,6 @@ body.journey-board-game-active #hud-board-indicator {
 
 /* Mobile responsive */
 @media screen and (max-width: 428px) {
-  .resume-bottom-sheet {
-    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right on mobile */
-    max-width: 100%;
-  }
-  
   .continue-btn, .new-game-btn {
     font-size: 28px;
     padding: 0 56px;
@@ -2596,7 +2366,6 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet::after,
-.hearts-bottom-sheet::after,
 .collectible-reward-bottom-sheet::after {
   content: "";
   position: absolute;
@@ -3700,90 +3469,8 @@ html.collectible-reward-open body {
   }
 }
 
-/* Mobile responsive positioning */
-@media screen and (max-width: 428px) {
-  .end-run-bottom-sheet {
-    border-radius: 20px 20px 0 0;
-    max-height: 50vh;
-  }
-}
-
-/* Removed unused .end-run-handle styles - using .modal-handle instead */
-
-.end-run-content {
-  display: flex;
-  flex-direction: column;
-  padding: 32px 24px 40px; /* 40px bottom padding */
-  gap: 40px; /* VStack(spacing: 40) from Figma */
-}
-
-.end-run-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 8px; /* VStack(spacing: 8) from Figma */
-}
-
-.end-run-header h2 {
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
-  font-weight: 900; /* heavy weight */
-  color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) */
-  margin: 0;
-  line-height: 1.2;
-}
-
-.end-run-warning {
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 20px;
-  color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) */
-  margin: 0;
-  line-height: 1.4;
-  max-width: 280px;
-  text-align: center;
-}
-
-.end-run-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 24px; /* VStack(spacing: 24) from Figma */
-  width: 100%;
-  max-width: 250px; /* .frame(width: 310) from Figma */
-  margin: 0 auto;
-  align-items: center; /* Center buttons horizontally */
-}
-
-/* End Run Modal Buttons - Using pause modal styles */
-/* The buttons now use pause-modal-btn classes from existing pause modal styles */
-
-
-/* Handle drag gesture for bottom sheet */
-.end-run-bottom-sheet {
-  /* Enable smooth drag-to-dismiss */
-  transition: transform 0.3s ease-out;
-}
-
-.end-run-bottom-sheet.dragging {
-  transition: none;
-}
-
 /* iPhone 13 Optimizations */
 @media screen and (max-width: 428px) {
-  .end-run-header h2 {
-    font-size: 32px;
-  }
-  
-  .end-run-warning {
-    font-size: 18px;
-  }
-  
-  .end-run-actions .pause-modal-btn {
-    font-size: 28px;
-    padding: 14px 48px;
-    width: 240px; /* Slightly smaller on mobile */
-  }
-  
   .score-bottom-sheet .simple-title-section h2 {
     font-size: 32px;
   }
@@ -3793,235 +3480,23 @@ html.collectible-reward-open body {
   }
 }
 
-/* ===== HEARTS BOTTOM SHEET ===== */
-.hearts-bottom-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: transparent;
-  border-radius: 40px 40px 0 0;
-  box-shadow: none;
-  overflow: visible;
-  isolation: isolate;
-  max-height: 60vh;
-  z-index: 10000000000001;
-  transition: transform 0.3s ease-out;
-  padding: 28px 10% 40px 10%;
-  
-  /* RESPONSIVE WIDTH */
-  width: 100%;
-  max-width: 390px;
-  margin: 0 auto;
-  
-  transform: translateY(100%);
-  
-  /* iOS touch optimizations */
-  -webkit-overflow-scrolling: touch;
-  will-change: transform;
-}
-
-.hearts-bottom-sheet::after {
-  z-index: 0;
-}
-
-.hearts-bottom-sheet::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -100vh;
-  height: 100vh;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.28s ease-out;
-  background: linear-gradient(
-    to top,
-    rgba(233, 210, 200, 0.42) 0%,
-    rgba(233, 210, 200, 0.30) 38%,
-    rgba(233, 210, 200, 0.14) 72%,
-    rgba(233, 210, 200, 0) 100%
-  );
-  box-shadow:
-    0 -36px 72px rgba(233, 210, 200, 0.7),
-    0 -42vh 120px 36vh rgba(233, 210, 200, 0.38);
-}
-
-.hearts-bottom-sheet.hearts-shadow-active::before {
-  opacity: 1;
-}
-
-.hearts-bottom-sheet.hearts-shadow-fade-out::before {
-  opacity: 0;
-  transition-duration: 0.2s;
-}
-
-.hearts-bottom-sheet.visible {
-  transform: translateY(0);
-}
-
-@media screen and (min-width: 768px) and (max-width: 1400px) {
-  .hearts-bottom-sheet {
-    max-width: none;
-    width: 100%;
-    left: 0;
-    right: 0;
-    margin: 0;
-    padding-left: 8%;
-    padding-right: 8%;
-  }
-}
-
 /* iPad: use a simple fixed tint behind bottom sheets.
    The sheet-level ::before is 100vh tall and moves with the sheet transform,
    which can look like a faint ghost layer sliding upward before the sheet appears.
    Avoid a separate "shadow event" here; keep the bounce animation on the sheet itself. */
 @media screen and (min-width: 768px) and (max-width: 1400px) {
   .simple-bottom-sheet:not(.score-bottom-sheet)::before,
-  .score-bottom-sheet::before,
-  .hearts-bottom-sheet::before {
+  .score-bottom-sheet::before {
     content: none !important;
     display: none !important;
   }
 
   #end-run-overlay,
-  .score-bottom-sheet-backdrop,
-  #hearts-overlay {
+  .score-bottom-sheet-backdrop {
     background: rgba(233, 210, 200, 0.24) !important;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: auto;
-  }
-}
-
-.hearts-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  width: 100%;
-  max-width: 310px;
-  margin: 20px auto 0 auto; /* 20px top margin (same as resume game modal) */
-}
-
-.hearts-title {
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
-  font-weight: 800;
-  line-height: 1.2;
-  margin: 0;
-  text-align: center;
-}
-
-.hearts-title-text {
-  color: #AD8675;
-}
-
-.hearts-title-accent {
-  color: #E77449;
-}
-
-.hearts-display {
-  display: flex;
-  gap: 24px;
-  align-items: center;
-  justify-content: center;
-}
-
-.heart-icon {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-}
-
-.hearts-timer {
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.4;
-  text-align: center;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.hearts-timer-text {
-  color: #AD8675;
-}
-
-.hearts-timer-value {
-  color: #E77449;
-}
-
-.hearts-description {
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 1.4;
-  color: #CBA89A;
-  text-align: center;
-  margin: 0;
-}
-
-.hearts-cta {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.get-heart-btn {
-  width: 100%;
-  max-width: 320px;
-  font-size: 18px;
-  font-weight: 400;
-  white-space: nowrap;
-  position: relative;
-  padding-right: 78px !important; /* room for TV icon overlap */
-  padding-left: 40px !important; /* keep text slightly left */
-  display: flex;
-  align-items: center;
-  justify-content: flex-start !important;
-  overflow: visible !important;
-}
-.get-heart-text {
-  display: inline-block;
-  width: 100%;
-  text-align: left;
-  margin-left: -16px;
-}
-.get-heart-tv {
-  position: absolute;
-  right: 14px;
-  top: -2px;
-  width: 60px;
-  height: auto;
-  transform: none;
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Mobile adjustments */
-@media screen and (max-width: 768px) {
-  .hearts-bottom-sheet {
-    padding: 28px 8% 40px 8%;
-  }
-  
-  .hearts-content {
-    gap: 20px;
-  }
-  
-  .hearts-title {
-    font-size: 32px;
-  }
-  
-  .heart-icon {
-    width: 56px;
-    height: 56px;
-  }
-  
-  .hearts-display {
-    gap: 20px;
   }
 }
 

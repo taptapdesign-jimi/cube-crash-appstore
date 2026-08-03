@@ -10,11 +10,30 @@ import { resolveJourneyReturnTarget } from './journey-origin-state.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { ctaMotion, exitCtaGroup, registerCta, type CtaController } from './cta-system.ts';
 
 let modal: HTMLElement | null = null;
 let endRunTransitionInProgress = false;
 let endRunLifecycleId = 0;
 let endRunOpenStartedAt = 0;
+let endRunCtaControllers: CtaController[] = [];
+
+function disposeEndRunCtas(): void {
+  endRunCtaControllers.forEach(controller => controller.dispose());
+  endRunCtaControllers = [];
+}
+
+async function exitEndRunCtas(clicked?: HTMLButtonElement | null): Promise<void> {
+  const buttons = endRunCtaControllers.map(controller => controller.element);
+  const first = clicked ?? buttons[0];
+  if (!first) return;
+  await exitCtaGroup(first, buttons.filter(button => button !== first));
+}
+
+async function hideModalAfterCtas(clicked: HTMLButtonElement): Promise<void> {
+  await exitEndRunCtas(clicked);
+  hideModal(null, true);
+}
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -136,6 +155,7 @@ function getEndRunSheetElements(): HTMLElement[] {
 }
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
+  disposeEndRunCtas();
   const sheets = getEndRunSheetElements();
   if (sheets.length > 0) {
     console.log(`🧯 Removing ${sheets.length} end-run sheet element(s) (${reason})`);
@@ -337,7 +357,7 @@ function createModal(): HTMLElement {
   const exitBtn = modal.querySelector('.exit-btn') as HTMLButtonElement;
   
   if (restartBtn) {
-    const restartClickHandler = () => {
+    const restartClickHandler = async () => {
       console.log('🔄 Restart button clicked - starting restart sequence');
       
       // Haptic for Restart button
@@ -346,7 +366,7 @@ function createModal(): HTMLElement {
       }
       
       // Step 1: Animate modal exit
-      hideModal();
+      await hideModalAfterCtas(restartBtn);
       
       // Step 2: Wait for modal animation to complete (400ms), then restart
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
@@ -377,13 +397,11 @@ function createModal(): HTMLElement {
         }
       }, 400); // Wait for modal close animation to complete
     };
-    trackEndRunEventListener(restartBtn, 'click', restartClickHandler);
-    const restartTouchHandler = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-      restartClickHandler();
-    };
-    trackEndRunEventListener(restartBtn, 'touchend', restartTouchHandler, { passive: false });
+    endRunCtaControllers.push(registerCta(restartBtn, {
+      variant: 'primary',
+      initialState: 'hidden',
+      onActivate: restartClickHandler,
+    }));
   }
   
   if (newCardBtn) {
@@ -403,7 +421,7 @@ function createModal(): HTMLElement {
         ? currentBoardNumber
         : 1;
 
-      hideModal();
+      await hideModalAfterCtas(newCardBtn);
 
       setTimeout(async () => {
         try {
@@ -422,8 +440,11 @@ function createModal(): HTMLElement {
         }
       }, 420);
     };
-    trackEndRunEventListener(newCardBtn, 'click', newCardClickHandler);
-    trackEndRunEventListener(newCardBtn, 'touchend', newCardClickHandler, { passive: false });
+    endRunCtaControllers.push(registerCta(newCardBtn, {
+      variant: 'primary',
+      initialState: 'hidden',
+      onActivate: newCardClickHandler,
+    }));
   }
   
   if (exitBtn) {
@@ -443,17 +464,20 @@ function createModal(): HTMLElement {
       
       // 🔥 CRITICAL FIX: Get current board number FIRST (before checking existing flag)
       const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-      const returnDecision = await resolveJourneyReturnTarget(currentBoardNumber);
+      const returnDecisionPromise = resolveJourneyReturnTarget(currentBoardNumber);
+
+      // CTA group owns the first exit phase. Only after every button has
+      // disappeared may the bottom sheet begin its downward close.
+      await hideModalAfterCtas(exitBtn);
+
+      const returnDecision = await returnDecisionPromise;
       console.log('🎯 end-run-modal: Journey return target prepared:', returnDecision);
 
       // Do not kill tile/merge tweens here. exitToMenu owns ordered gameplay
       // shutdown; cancelling a magnet/wild merge early can strand its value-6
       // visual outside the normal tile lifecycle.
       
-      // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
-      hideModal();
-      
-      // Step 2: Wait for modal animation to complete, then own the complete
+      // Wait for modal animation to complete, then own the complete
       // board-to-menu/detail handoff. This delay is intentionally not tracked by
       // modal cleanup, but the async handler itself remains the single owner.
       await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
@@ -522,13 +546,11 @@ function createModal(): HTMLElement {
         exitActionInProgress = false;
       }
     };
-    trackEndRunEventListener(exitBtn, 'click', exitClickHandler);
-    const exitTouchHandler = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-      exitClickHandler();
-    };
-    trackEndRunEventListener(exitBtn, 'touchend', exitTouchHandler, { passive: false });
+    endRunCtaControllers.push(registerCta(exitBtn, {
+      variant: 'secondary',
+      initialState: 'hidden',
+      onActivate: exitClickHandler,
+    }));
   }
 
   // Add drag functionality
@@ -721,6 +743,9 @@ export function showEndRunModal(): void {
     // Import and run animation - same as resume modal
     trackEndRunAnimationFrame(() => {
       if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
+      endRunCtaControllers.forEach((controller, index) => {
+        void controller.enter({ delay: (index * ctaMotion.companionExitStaggerMs) / 1000 });
+      });
       import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
         return animateBottomSheetEntrance(el).then(() => {
           if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
@@ -1035,8 +1060,12 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   }, 200);
 }
 
-export function hideModal(): void {
+export function hideModal(
+  clickedCta?: HTMLButtonElement | null,
+  ctasAlreadyExited = false,
+): void {
   let modalEl = modal;
+  if (!ctasAlreadyExited) void exitEndRunCtas(clickedCta);
   
   // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
   if (!modalEl) {

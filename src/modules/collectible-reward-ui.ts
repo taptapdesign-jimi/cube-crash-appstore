@@ -374,10 +374,8 @@ export function attachDragHandlers(sheet: HTMLElement): void {
 /**
  * Attach button handlers
  */
-export function attachButtonHandlers(sheet: HTMLElement): void {
+export function attachCloseButtonHandler(sheet: HTMLElement): void {
   const closeButton = sheet.querySelector('.collectible-reward-close');
-  const continueButton = sheet.querySelector('[data-action="close"]');
-  const viewCollectionButton = sheet.querySelector('[data-action="view-collection"]');
   
   const handleClose = (reason: string) => {
     const closeEvent = new CustomEvent('collectible-reward-close', {
@@ -388,36 +386,14 @@ export function attachButtonHandlers(sheet: HTMLElement): void {
   
   // 🔥 FIX: Store handler references so they can be properly removed
   const closeHandler = () => handleClose('close-button');
-  const continueHandler = () => handleClose('continue');
-  const viewCollectionHandler = () => {
-    // Open collectibles screen
-    const windowWithCollectibles = window as WindowWithCollectibles;
-    if (windowWithCollectibles.showCollectiblesScreen) {
-      windowWithCollectibles.showCollectiblesScreen({
-        scrollToCard: 'new',
-        animateCard: true
-      });
-    }
-    handleClose('view-collection');
-  };
   
   if (closeButton) {
     closeButton.addEventListener('click', closeHandler);
   }
   
-  if (continueButton) {
-    continueButton.addEventListener('click', continueHandler);
-  }
-  
-  if (viewCollectionButton) {
-    viewCollectionButton.addEventListener('click', viewCollectionHandler);
-  }
-  
   // Register cleanup with same handler references
   registerCleanup(() => {
     if (closeButton) closeButton.removeEventListener('click', closeHandler);
-    if (continueButton) continueButton.removeEventListener('click', continueHandler);
-    if (viewCollectionButton) viewCollectionButton.removeEventListener('click', viewCollectionHandler);
   });
 }
 

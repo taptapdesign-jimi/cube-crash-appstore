@@ -203,7 +203,7 @@ describe('launch 3D Motion permission ownership', () => {
       '.journey-spatial-permission-star-3 {\n    left: 18px;\n    top: 137px;',
     );
     expect(permissionModalSource).toContain(
-      "dismissButton.className = 'journey-spatial-permission-dismiss exit-btn bottom-sheet-cta'",
+      "dismissButton.className = 'journey-spatial-permission-dismiss'",
     );
   });
 

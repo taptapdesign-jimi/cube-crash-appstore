@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
+import { registerCta } from './cta-system.ts';
 
 type SpecialDiceType = 'juice';
 
@@ -323,7 +324,9 @@ export async function showJourneySpecialDiceScreen({
             <div class="cc-journey-special-dice-light" aria-hidden="true"></div>
           </div>
         </div>
-        <button class="cc-journey-special-dice-cta restart-btn primary-button bottom-sheet-cta" type="button">Continue</button>
+        <div class="cc-cta-stack cc-cta-stack--reward">
+          <button class="cc-journey-special-dice-cta" type="button">Continue</button>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -337,6 +340,15 @@ export async function showJourneySpecialDiceScreen({
     const light = overlay.querySelector('.cc-journey-special-dice-light') as HTMLElement | null;
     const shadow = overlay.querySelector('.cc-journey-special-dice-shadow') as HTMLElement | null;
     const cta = overlay.querySelector('.cc-journey-special-dice-cta') as HTMLButtonElement | null;
+    let finish: () => void = () => {};
+    const ctaController = cta ? registerCta(cta, {
+      variant: 'primary',
+      initialState: 'hidden',
+      onActivate: () => {
+        try { (window as any).triggerHapticSelection?.(); } catch {}
+        finish();
+      },
+    }) : null;
 
     const stopShineLoop = () => {
       if (shineIntervalId === null) return;
@@ -348,6 +360,7 @@ export async function showJourneySpecialDiceScreen({
       disposed = true;
       stopShineLoop();
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, backpack, finalImg, light, shadow, cta]); } catch {}
+      try { ctaController?.dispose(); } catch {}
     });
 
     const playScreenShake = (strength = 12, duration = 0.36) => {
@@ -382,30 +395,29 @@ export async function showJourneySpecialDiceScreen({
       shineIntervalId = window.setInterval(play, 3000);
     };
 
-    const finish = () => {
+    finish = () => {
       if (resolved) return;
       resolved = true;
       stopShineLoop();
-      try { cta?.removeEventListener('click', onContinue); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, backpack, finalImg, light, shadow, cta]); } catch {}
-      if (cta) cta.disabled = true;
-      gsap.timeline({
-        onComplete: () => {
-          cleanupJourneySpecialDiceScreen();
-          resolve({ action: 'continue' });
-        },
-      })
-        .to(cta, { scale: 0, opacity: 0, y: 20, duration: 0.22, ease: 'back.in(1.7)', force3D: true })
-        .set(cta, { visibility: 'hidden' })
-        .to(hero, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.24, ease: 'back.in(1.65)', force3D: true })
-        .set(hero, { visibility: 'hidden' })
-        .to(title, { scale: 0, opacity: 0, y: -34, duration: 0.18, ease: 'back.in(1.55)', force3D: true })
-        .set(title, { visibility: 'hidden' })
-        .to(subtitle, { scale: 0, opacity: 0, y: -28, duration: 0.18, ease: 'back.in(1.55)', force3D: true })
-        .set(subtitle, { visibility: 'hidden' })
-        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
+      void (async () => {
+        await ctaController?.exit();
+        gsap.timeline({
+          onComplete: () => {
+            cleanupJourneySpecialDiceScreen();
+            resolve({ action: 'continue' });
+          },
+        })
+          .to(hero, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.24, ease: 'back.in(1.65)', force3D: true })
+          .set(hero, { visibility: 'hidden' })
+          .to(title, { scale: 0, opacity: 0, y: -34, duration: 0.18, ease: 'back.in(1.55)', force3D: true })
+          .set(title, { visibility: 'hidden' })
+          .to(subtitle, { scale: 0, opacity: 0, y: -28, duration: 0.18, ease: 'back.in(1.55)', force3D: true })
+          .set(subtitle, { visibility: 'hidden' })
+          .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
+      })();
     };
 
     const reveal = async () => {
@@ -441,7 +453,7 @@ export async function showJourneySpecialDiceScreen({
             .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: 0.24, ease: 'power2.out' }, 0.02)
             .to(title, { opacity: 1, y: 0, scale: 1, duration: 0.24, ease: 'back.out(1.65)' }, 0.02)
             .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: 0.24, ease: 'back.out(1.65)' }, 0.02)
-            .to(cta, { opacity: 1, visibility: 'visible', y: 0, scale: 1, duration: 0.34, ease: 'back.out(1.8)', force3D: true }, 0.22)
+            .call(() => { void ctaController?.enter(); }, undefined, 0.22)
             .call(() => {
               if (resolved || disposed) return;
               gsap.set(light, { opacity: 0.92, scale: 0.56, transformOrigin: '50% 50%', force3D: true });
@@ -471,27 +483,17 @@ export async function showJourneySpecialDiceScreen({
       if (event.key !== 'Enter' && event.key !== ' ') return;
       onReveal(event);
     };
-    const onContinue = (event: Event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      try { (window as any).triggerHapticSelection?.(); } catch {}
-      finish();
-    };
-
     hero?.addEventListener('click', onReveal);
     hero?.addEventListener('keydown', onHeroKeyDown);
-    cta?.addEventListener('click', onContinue);
     cleanupFns.push(() => {
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
-      try { cta?.removeEventListener('click', onContinue); } catch {}
     });
 
     gsap.set(title, { opacity: 0, y: -28, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(subtitle, { opacity: 0, y: -22, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(hero, { opacity: 0, y: -30, scale: 0, rotate: -8, transformOrigin: '50% 50%' });
     gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.42, scaleY: 0.54 });
-    gsap.set(cta, { opacity: 0, scale: 0, visibility: 'hidden', y: 18, transformOrigin: '50% 50%' });
     gsap.set(light, { opacity: 0, scale: 1, transformOrigin: '50% 50%' });
     setLightMask(light, getBackpackFramePath(1));
 

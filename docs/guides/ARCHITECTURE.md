@@ -26,7 +26,7 @@ CubeCrash je refaktoriran u modularnu arhitekturu s čistim odvajanjem odgovorno
 ### Animations Module (`ui/animations.js`)
 - **Odgovornost:** Clean visual effects
 - **Nezavisan:** Bez poslovne logike
-- **API:** homePopIn(), homePopOut(), gamePopIn(), showPauseModal()
+- **API:** homePopIn(), homePopOut(), gamePopIn()
 - **Graceful fallbacks:** Ako animacija ne radi, app radi
 
 ## Communication

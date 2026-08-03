@@ -7,6 +7,8 @@ import { startWildStars } from './fx.ts';
 import { cleanupSmokeBubbles } from './hud-helpers.ts';
 import { isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 import { shouldLockFirstPlayTutorialHud } from './first-play-tutorial-hud-lock.ts';
+import { clearFirstPlayTutorialResumeBlockers } from './first-play-tutorial-dev-reset.ts';
+import { registerCta, type CtaController } from './cta-system.ts';
 
 const FORCE_NEXT_KEY = 'cc_first_play_tutorial_force_next';
 const DONE_KEY = 'cc_first_play_tutorial_done';
@@ -50,6 +52,12 @@ let stepThreeBackgroundLayer: any | null = null;
 let stepThreeBackgroundLayerOriginalVisible: boolean | null = null;
 let scheduledTimeouts: number[] = [];
 let scheduledAnimationFrames: number[] = [];
+let tutorialCtaController: CtaController | null = null;
+
+function disposeTutorialCta(): void {
+  tutorialCtaController?.dispose();
+  tutorialCtaController = null;
+}
 
 const stepCopy: Record<TutorialStep, { title: string; subtitle: string }> = {
   1: {
@@ -185,6 +193,7 @@ export function resetFirstPlayTutorialRequest(): void {
 
 export function setFirstPlayTutorialDevEnabled(enabled: boolean): void {
   if (enabled) {
+    clearFirstPlayTutorialResumeBlockers();
     armFirstPlayTutorial();
   } else {
     resetFirstPlayTutorialRequest();
@@ -339,18 +348,8 @@ function ensureStyles(): void {
     .first-play-tutorial-cta.is-visible {
       display: flex;
     }
-    .first-play-tutorial-cta:hover {
-      transform: scale(1);
-      box-shadow: 0 8px 0 0 #C24921;
-      background: #E97A55;
-      color: #FFFBF2;
-    }
-    .first-play-tutorial-cta:active,
-    .first-play-tutorial-cta:focus,
-    .first-play-tutorial-cta:focus-visible {
-      transform: scale(0.80);
-      transition: transform 0.35s ease;
-      outline: none;
+    .first-play-tutorial-cta.cc-cta:not(.is-visible) {
+      display: none !important;
     }
     @media screen and (min-width: 768px) and (max-width: 1400px) {
       .first-play-tutorial-cta {
@@ -811,10 +810,15 @@ function updateSheet(step: TutorialStep): void {
   if (!overlay) return;
   const title = overlay.querySelector('.first-play-tutorial-title') as HTMLElement | null;
   const subtitle = overlay.querySelector('.first-play-tutorial-subtitle') as HTMLElement | null;
-  const cta = overlay.querySelector('.first-play-tutorial-cta') as HTMLElement | null;
+  const cta = overlay.querySelector('.first-play-tutorial-cta') as HTMLButtonElement | null;
   if (title) title.innerHTML = titleHtml(step);
   if (subtitle) subtitle.textContent = stepCopy[step].subtitle;
-  if (cta) cta.classList.toggle('is-visible', step === 3);
+  if (cta) {
+    const visible = step === 3;
+    cta.classList.toggle('is-visible', visible);
+    if (visible) void tutorialCtaController?.enter();
+    else tutorialCtaController?.prime('hidden');
+  }
 }
 
 function getSheetElement(): HTMLElement | null {
@@ -1252,14 +1256,14 @@ function renderOverlay(): void {
   }
   if (pointerImage) gsap.set(pointerImage, { opacity: 0, scale: 0 });
   if (sheet) gsap.set(sheet, { y: '100%' });
-  const cta = overlay.querySelector('.first-play-tutorial-cta') as HTMLElement | null;
-  cta?.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (currentStep === 3) {
-      dismissThirdStepAndWaitForWild();
-    }
-  });
+  const cta = overlay.querySelector('.first-play-tutorial-cta') as HTMLButtonElement | null;
+  if (cta) {
+    tutorialCtaController = registerCta(cta, {
+      variant: 'primary',
+      initialState: 'hidden',
+      onActivate: dismissThirdStepAndWaitForWild,
+    });
+  }
 
   clearIntroTimers();
   introTimers.push(scheduleTimeout(() => {
@@ -1667,8 +1671,9 @@ function setOverlayDimVisible(visible: boolean): void {
   });
 }
 
-function dismissThirdStepAndWaitForWild(): void {
+async function dismissThirdStepAndWaitForWild(): Promise<void> {
   if (!active || currentStep !== 3) return;
+  await tutorialCtaController?.exit();
   stopStepThreePointerHint();
   popOutPointer();
   setWildMeterSmokeFrozen(false);
@@ -1955,6 +1960,7 @@ function completeFourthStep(): void {
 function removeOverlay(): void {
   const existing = document.querySelector('.first-play-tutorial-overlay') as HTMLElement | null;
   if (!existing) return;
+  disposeTutorialCta();
   stopStepThreePointerHint();
   stopStepFourPointerHint();
   clearIntroTimers();

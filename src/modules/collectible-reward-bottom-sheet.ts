@@ -20,7 +20,7 @@ import {
   createBottomSheet, 
   addStyles, 
   attachDragHandlers, 
-  attachButtonHandlers, 
+  attachCloseButtonHandler,
   attachKeyboardHandlers, 
   attachOutsideClickHandlers 
 } from './collectible-reward-ui.js';
@@ -32,6 +32,13 @@ import {
   hideSheetAnimation, 
   revealCollectibleCardAnimation 
 } from './collectible-reward-animations.js';
+import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.ts';
+
+let rewardCtaControllers: CtaController[] = [];
+
+function disposeRewardCtas(): void {
+  rewardCtaControllers.splice(0).forEach(controller => controller.dispose());
+}
 
 // Types
 interface CollectibleDetail {
@@ -45,6 +52,7 @@ interface HideOptions {
   onAfterClose?: () => void;
   duration?: number;
   easing?: string;
+  clickedCta?: HTMLButtonElement;
 }
 
 /**
@@ -75,15 +83,38 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     
     // Attach handlers
     attachDragHandlers(sheet);
-    attachButtonHandlers(sheet);
+    attachCloseButtonHandler(sheet);
     attachKeyboardHandlers(sheet);
     attachOutsideClickHandlers(overlay);
     
     // Set up close handler
-    const handleClose = (reason: string) => {
-      hideCollectibleRewardBottomSheet(reason);
+    const handleClose = (reason: string, clickedCta?: HTMLButtonElement) => {
+      void hideCollectibleRewardBottomSheet(reason, {
+        clickedCta,
+        onAfterClose: reason === 'view-collection'
+          ? () => (window as any).showCollectiblesScreen?.({ scrollToCard: 'new', animateCard: true })
+          : undefined,
+      });
       resolve(reason);
     };
+
+    const continueButton = sheet.querySelector<HTMLButtonElement>('[data-action="close"]');
+    const viewCollectionButton = sheet.querySelector<HTMLButtonElement>('[data-action="view-collection"]');
+    if (continueButton && viewCollectionButton) {
+      rewardCtaControllers = [
+        registerCta(viewCollectionButton, {
+          variant: 'primary',
+          initialState: 'hidden',
+          onActivate: () => handleClose('view-collection', viewCollectionButton),
+        }),
+        registerCta(continueButton, {
+          variant: 'secondary',
+          initialState: 'hidden',
+          onActivate: () => handleClose('continue', continueButton),
+        }),
+      ];
+      registerCleanup(disposeRewardCtas);
+    }
     
     // 🔥 FIX: Store handler for proper cleanup
     const closeHandler = (e: any) => {
@@ -99,6 +130,9 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     // Animate in
     showOverlayAnimation(overlay).then(() => {
       showSheetAnimation(sheet).then(() => {
+        rewardCtaControllers.forEach((controller, index) => {
+          void controller.enter({ delay: (index * ctaMotion.companionExitStaggerMs) / 1000 });
+        });
         revealCollectibleCardAnimation(sheet, validatedDetail);
       });
     });
@@ -111,7 +145,7 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
 /**
  * Hide collectible reward bottom sheet
  */
-export function hideCollectibleRewardBottomSheet(reason: string = 'dismiss', options: HideOptions = {}): void {
+export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss', options: HideOptions = {}): Promise<void> {
   const overlay = getActiveOverlay();
   if (!overlay) return;
 
@@ -120,16 +154,14 @@ export function hideCollectibleRewardBottomSheet(reason: string = 'dismiss', opt
   const sheet = overlay.querySelector('.collectible-reward-sheet') as HTMLElement;
   if (!sheet) return;
 
-  // Animate out
-  hideSheetAnimation(sheet).then(() => {
-    hideOverlayAnimation(overlay).then(() => {
-      // Cleanup
-      executeCleanup();
-      
-      // Call onAfterClose if provided
-      if (options.onAfterClose) {
-        options.onAfterClose();
-      }
-    });
-  });
+  const buttons = rewardCtaControllers.map(controller => controller.element);
+  const clicked = options.clickedCta ?? buttons[0];
+  if (clicked) {
+    await exitCtaPair(clicked, buttons.find(button => button !== clicked));
+  }
+
+  await hideSheetAnimation(sheet);
+  await hideOverlayAnimation(overlay);
+  executeCleanup();
+  options.onAfterClose?.();
 }

@@ -4,11 +4,11 @@ import { logger } from '../core/logger.js';
 import { pickRandom } from './clean-board-utils.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
-import { isHeartsFeatureEnabled } from './hearts-system.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './journey-origin-state.js';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -150,7 +150,7 @@ function playFailModalExitAnimation(params: {
   const animatedTargets = [starsHero, ...emptyStars, ...nodes, continueBtn, exitBtn, card, overlay].filter(Boolean);
 
   return new Promise(resolve => {
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       try {
         continueBtn.disabled = true;
         exitBtn.disabled = true;
@@ -164,42 +164,6 @@ function playFailModalExitAnimation(params: {
         gsap.killTweensOf(animatedTargets);
 
         const exitEase = 'back.in(1.7)';
-
-        const animateButtonExit = (button: HTMLButtonElement) => {
-          button.disabled = true;
-          button.blur();
-          button.setAttribute('data-clean-board-exiting', 'true');
-          button.classList.remove(
-            'clean-board-button-hidden',
-            'clean-board-button-visible',
-            'clean-board-button-exit',
-            'animate-exit',
-            'animate-enter'
-          );
-          button.style.removeProperty('transition');
-          button.style.removeProperty('-webkit-transition');
-          gsap.killTweensOf(button);
-          gsap.set(button, {
-            opacity: 1,
-            visibility: 'visible',
-            y: 0,
-            scale: 1,
-            transformOrigin: '50% 50%',
-            force3D: true,
-          });
-          gsap.to(button, {
-            scale: 0,
-            opacity: 0,
-            y: 20,
-            duration: 0.22,
-            ease: 'back.in(1.7)',
-            overwrite: 'auto',
-            force3D: true,
-            onComplete: () => {
-              button.style.visibility = 'hidden';
-            },
-          });
-        };
 
         const popOut = (
           target: HTMLElement,
@@ -230,15 +194,12 @@ function playFailModalExitAnimation(params: {
           });
         };
 
+        await exitCtaPair(primaryButton, secondaryButton);
+
         popOut(starsHero, { y: -8, duration: 0.28 });
         emptyStars.forEach((star, index) => {
           popOut(star, { y: -4, delay: index * 0.035, duration: 0.24 });
         });
-
-        animateButtonExit(primaryButton);
-        setTimeout(() => {
-          animateButtonExit(secondaryButton);
-        }, 70);
 
         nodes.forEach((node, index) => {
           popOut(node, {
@@ -395,25 +356,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
       
-      // 💚 Lose one heart only in Journey when hearts are enabled.
-      if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
-        try {
-          const { heartsSystem } = await import('./hearts-system.js');
-          const heartLost = heartsSystem.loseHeart();
-          if (heartLost) {
-            logger.info('💔 Lost 1 heart due to board failure, remaining:', heartsSystem.getCurrentHearts());
-          } else {
-            logger.warn('⚠️ No hearts available to lose - player has 0 hearts');
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to lose heart on board failure:', error);
-        }
-      } else if (isArcadeHomeRunMode()) {
-        logger.info('🎮 Arcade failure - hearts are not consumed');
-      } else {
-        logger.info('💚 Hearts disabled - Journey failure does not consume hearts');
-      }
-      
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
       try {
@@ -565,30 +507,18 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     infoStack.appendChild(starsHero);
     infoStack.appendChild(textCluster);
 
-    // Responsive width logic
-    const isMobile = window.innerWidth <= 428;
-    const isIPad = window.innerWidth >= 768 && window.innerWidth <= 1024;
-    const buttonWidth = (isMobile || isIPad) ? '249px' : '310px';
-    const containerWidth = (isMobile || isIPad) ? '249px' : '310px';
-
     const buttons = document.createElement('div');
-    buttons.style.cssText = `width:${containerWidth};max-width:80vw;display:flex;flex-direction:column;gap:16px;`;
+    buttons.className = 'cc-cta-stack';
 
     const continueBtn = document.createElement('button');
     continueBtn.type = 'button';
     continueBtn.textContent = 'Play Again';
-    continueBtn.className = 'restart-btn primary-button bottom-sheet-cta';
-    continueBtn.style.width = '100%';
-    continueBtn.style.maxWidth = buttonWidth;
-    continueBtn.style.whiteSpace = 'nowrap';
+    continueBtn.className = 'cc-board-fail-cta';
 
     const exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.textContent = 'Exit';
-    exitBtn.className = 'exit-btn bottom-sheet-cta';
-    exitBtn.style.width = '100%';
-    exitBtn.style.maxWidth = buttonWidth;
-    exitBtn.style.whiteSpace = 'nowrap';
+    exitBtn.className = 'cc-board-fail-cta';
 
     buttons.appendChild(continueBtn);
     buttons.appendChild(exitBtn);
@@ -611,6 +541,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     document.body.appendChild(overlay);
 
     // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
+    const ctaControllers: CtaController[] = [];
     const cleanupButtonListeners = (): void => {
       buttonEventListeners.forEach(({ button, handlers }) => {
         handlers.forEach(({ event, handler, options }) => {
@@ -623,6 +554,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       });
       buttonEventListeners.length = 0;
       console.log('✅ board-fail-modal: All button event listeners removed');
+    };
+    const disposeCtas = (): void => {
+      ctaControllers.splice(0).forEach(controller => controller.dispose());
     };
 
     const cleanupFailModalLifecycle = (): void => {
@@ -666,31 +600,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
-        // Check hearts only in Journey. Arcade Play Again should restart freely.
         (async () => {
           try {
-            if (isHeartsFeatureEnabled() && !isArcadeHomeRunMode()) {
-              const { heartsSystem } = await import('./hearts-system.js');
-              if (!heartsSystem.hasHearts()) {
-                logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
-                // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
-                // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
-                // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
-                // 🔥 CRITICAL FIX: Reset isResolving flag so user can click Play Again again after closing hearts bottom sheet
-                isResolving = false;
-                const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-                showHeartsModal();
-                // Don't resolve or close modal - just show bottom sheet over it
-                return; // Don't continue to restart
-              }
-            } else {
-              logger.info('🎮 Arcade Play Again - skipping hearts check');
-            }
-            
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
             cleanupFailModalLifecycle();
             
-            // Has hearts - proceed with restart
+            // Proceed with restart.
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
             if (isArcadeHomeRunMode()) {
               resetArcadeFailedRunForFreshStart();
@@ -711,11 +626,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.error('❌ window.CC.restart not available!');
             }
             
+            disposeCtas();
             try { overlay.remove(); } catch {} 
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             safeResolve(action);
           } catch (error) {
-            logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
+            logger.warn('⚠️ Failed to restart after board fail, using fallback restart path:', error);
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
             cleanupFailModalLifecycle();
@@ -738,6 +654,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.error('❌ window.CC.restart not available (fallback)!');
             }
             
+            disposeCtas();
             try { overlay.remove(); } catch {} 
             _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
             safeResolve(action);
@@ -778,6 +695,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           logger.warn('⚠️ menu exit handoff failed:', error);
         }
         
+        disposeCtas();
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
         safeResolve(action);
@@ -790,6 +708,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         cleanupFailModalLifecycle();
         
         await runExitAnimation(action);
+        disposeCtas();
         try { overlay.remove(); } catch {} 
         _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
         safeResolve(action);
@@ -804,99 +723,18 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     };
     window.addEventListener('keydown', onKey);
 
-    // Add button press handling for proper UX with "cancel on drag off" logic
-    const addButtonPressHandling = (btn: HTMLButtonElement, action: () => void): void => {
-      let touchStarted = false;
-      let touchStartedOnButton = false;
-      
-      const handleTouchStart = (e: TouchEventWithTouches): void => {
-        touchStarted = true;
-        touchStartedOnButton = btn.contains(e.target as Node);
-        if (touchStartedOnButton) {
-          btn.style.transform = 'scale(0.80)';
-          btn.style.transition = 'transform 0.35s ease';
-        }
-      };
-      
-      const handleTouchMove = (e: TouchEventWithTouches): void => {
-        if (touchStarted && touchStartedOnButton) {
-          // Check if touch moved outside button
-          const touch = e.touches[0];
-          const rect = btn.getBoundingClientRect();
-          const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
-                           touch.clientY < rect.top || touch.clientY > rect.bottom;
-          
-          if (isOutside) {
-            // Cancel the touch - reset button
-            btn.style.transform = 'scale(1)';
-            btn.style.transition = 'transform 0.35s ease';
-            touchStartedOnButton = false;
-          }
-        }
-      };
-      
-      const handleTouchEnd = (e: TouchEventWithTouches): void => {
-        if (touchStarted && touchStartedOnButton) {
-          // Only trigger if touch ended on button
-          const touch = e.changedTouches[0];
-          const rect = btn.getBoundingClientRect();
-          const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
-                            touch.clientY >= rect.top && touch.clientY <= rect.bottom;
-          
-          if (isOnButton) {
-            action();
-          }
-        }
-        
-        // Reset button
-        if (!isResolving && !btn.hasAttribute('data-clean-board-exiting')) {
-          btn.style.transform = 'scale(1)';
-          btn.style.transition = 'transform 0.35s ease';
-        }
-        touchStarted = false;
-        touchStartedOnButton = false;
-      };
-      
-      const handleMouseDown = (e: MouseEventWithTarget): void => {
-        if (btn.contains(e.target as Node)) {
-          btn.style.transform = 'scale(0.80)';
-          btn.style.transition = 'transform 0.35s ease';
-        }
-      };
-      
-      const handleMouseUp = (e: MouseEventWithTarget): void => {
-        if (btn.contains(e.target as Node) && !isResolving && !btn.hasAttribute('data-clean-board-exiting')) {
-          btn.style.transform = 'scale(1)';
-          btn.style.transition = 'transform 0.35s ease';
-        }
-      };
-      
-      const handleMouseLeave = (): void => {
-        if (isResolving || btn.hasAttribute('data-clean-board-exiting')) return;
-        btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.35s ease';
-      };
-      
-      // 🔥 MEMORY LEAK FIX: Track all event listeners
-      const handlers = [
-        { event: 'touchstart', handler: handleTouchStart as EventListener, options: { passive: true } },
-        { event: 'touchmove', handler: handleTouchMove as EventListener, options: { passive: true } },
-        { event: 'touchend', handler: handleTouchEnd as EventListener, options: { passive: true } },
-        { event: 'mousedown', handler: handleMouseDown as EventListener },
-        { event: 'mouseup', handler: handleMouseUp as EventListener },
-        { event: 'mouseleave', handler: handleMouseLeave as EventListener }
-      ];
-      
-      // Add event listeners and track them
-      handlers.forEach(({ event, handler, options }) => {
-        btn.addEventListener(event, handler, options);
-      });
-      
-      buttonEventListeners.push({ button: btn, handlers });
-    };
-
-    addButtonPressHandling(continueBtn, () => { void resolveAndCleanup('retry'); });
-    addButtonPressHandling(exitBtn, () => { void resolveAndCleanup('menu'); });
+    ctaControllers.push(
+      registerCta(continueBtn, {
+        variant: 'primary',
+        initialState: 'hidden',
+        onActivate: () => resolveAndCleanup('retry'),
+      }),
+      registerCta(exitBtn, {
+        variant: 'secondary',
+        initialState: 'hidden',
+        onActivate: () => resolveAndCleanup('menu'),
+      }),
+    );
 
     const animatedNodes: HTMLElement[] = [];
     const prep = (el: HTMLElement, dy: number = 0, scale: number = 0.72): void => {
@@ -910,8 +748,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     emptyStars.forEach((star, index) => prep(star as unknown as HTMLElement, -8 + index * 3, 0.82));
     prep(title, -20, 0.75);
     prep(boardStatus, -10, 0.82);
-    prep(continueBtn, 16, 0.7);
-    prep(exitBtn, 20, 0.7);
 
     overlay.style.opacity = '1';
     card.style.opacity = '1';
@@ -919,7 +755,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     requestAnimationFrame(() => {
       const trans = 'opacity 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4), transform 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4)';
-      [starsHero, ...emptyStars, title, boardStatus, continueBtn, exitBtn].forEach(el => {
+      [starsHero, ...emptyStars, title, boardStatus].forEach(el => {
         el.style.transition = trans;
       });
 
@@ -936,8 +772,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       });
       schedule(title, 240);
       schedule(boardStatus, 420);
-      schedule(continueBtn, 640);
-      schedule(exitBtn, 820);
+      trackFailTimeout(() => { void getRegisteredCta(continueBtn)?.enter(); }, 640);
+      trackFailTimeout(() => { void getRegisteredCta(exitBtn)?.enter(); }, 820);
 
       emptyStars.forEach((star, index) => {
         trackFailTimeout(() => {

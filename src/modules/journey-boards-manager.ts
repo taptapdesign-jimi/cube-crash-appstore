@@ -59,6 +59,7 @@ import {
 } from './detail-modal-stats-enter-motion.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
+import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -2899,6 +2900,7 @@ class JourneyBoardsManager {
     try {
       const floatingPlay = document.getElementById('board-detail-play-button') as HTMLElement | null;
       if (floatingPlay) {
+        try { getRegisteredCta(floatingPlay as HTMLButtonElement)?.dispose(); } catch {}
         try { gsap.killTweensOf(floatingPlay); } catch {}
         floatingPlay.remove();
       }
@@ -2907,6 +2909,10 @@ class JourneyBoardsManager {
     try {
       const modal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       if (!modal) return;
+
+      modal.querySelectorAll<HTMLButtonElement>('.cc-journey-detail-cta').forEach(button => {
+        try { getRegisteredCta(button)?.dispose(); } catch {}
+      });
 
       cleanupDetailStatsEnterAnimation(modal);
 
@@ -8503,7 +8509,10 @@ class JourneyBoardsManager {
       const detailStatsListExit = modal.querySelector('.detail-stats-list') as HTMLElement | null;
       // 🔥 CRITICAL: Find PLAY button directly (not from contentElements array)
       // PLAY button is created dynamically and added to modal, so find it directly
-      const playButton = modal.querySelector('#board-detail-play-button') as HTMLElement || document.getElementById('board-detail-play-button') as HTMLElement;
+      const playButton = (
+        modal.querySelector('#board-detail-play-button, #detail-continue-board-btn.cc-cta') ||
+        document.getElementById('board-detail-play-button')
+      ) as HTMLElement | null;
       
       // 🔥 USER REQUEST: Add animations for stats section, icons, and description text
       const detailStatsSection = modal.querySelector('.detail-section-stats') as HTMLElement;
@@ -8518,6 +8527,7 @@ class JourneyBoardsManager {
       
       // 🔥 DEBUG: Log PLAY button state
       if (playButton) {
+        const isFloatingPlayButton = playButton.id === 'board-detail-play-button';
         logger.info(`✅ PLAY button found for exit animation: id=${playButton.id}, parent=${playButton.parentNode?.nodeName}`);
       } else {
         logger.warn(`⚠️ PLAY button NOT found for exit animation!`);
@@ -8526,8 +8536,8 @@ class JourneyBoardsManager {
       // 🔥 USER REQUEST: STEP 1: PLAY button exits FIRST (immediately, no delay)
       // This gives instant feedback when user clicks Play
       // 🔥 USER REQUEST: Use EXACT SAME animation as homepage slider CTA button
-      let playButtonExitDelay = 0; // Start immediately (FIRST)
-      let playButtonExitDuration = 0.65; // CSS animation duration (same as homepage)
+      let playButtonExitDelay = 0;
+      let playButtonExitDuration = ctaMotion.exitDuration;
       let cleanupFloatingPlayButton: () => void = () => {};
       
       if (playButton) {
@@ -8541,29 +8551,25 @@ class JourneyBoardsManager {
         cleanupFloatingPlayButton = () => {
           try {
             this._floatingDetailPlayButtons.delete(playButton);
-            if (playButton.parentNode) {
+            getRegisteredCta(playButton as HTMLButtonElement)?.dispose();
+            if (isFloatingPlayButton && playButton.parentNode) {
               playButton.remove();
               logger.info('🎮 PLAY button removed after CSS exit animation');
+            } else {
+              playButton.style.setProperty('display', 'none', 'important');
+              playButton.style.visibility = 'hidden';
+              playButton.style.pointerEvents = 'none';
             }
           } catch {}
         };
         
-        // 🔥 USER REQUEST: Copy EXACT animation from homepage slider CTA button
-        // Homepage uses CSS: .animate-exit { transform: translateY(20px) scale(0); transition: 0.65s cubic-bezier(...); }
-        // We use same CSS class for consistency!
-        playButton.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-        playButton.style.removeProperty('transform');
-        playButton.style.removeProperty('transition');
-        void playButton.offsetHeight; // Force reflow
-        
-        // Add animate-exit class (same as homepage slider CTA)
-        playButton.classList.add('animate-exit');
+        void getRegisteredCta(playButton as HTMLButtonElement)?.exit();
         
         // Cleanup is repeated at modal-exit completion below; this local timer must not
         // depend on Journey screen lifecycle because detail close can happen after game return.
-        window.setTimeout(cleanupFloatingPlayButton, 650); // 0.65s animation duration
+        window.setTimeout(cleanupFloatingPlayButton, ctaMotion.exitDuration * 1000);
         
-        logger.info(`🎮 PLAY button CSS exit animation started at 0ms (FIRST, duration: 0.65s, EXACT same as homepage CTA)`);
+        logger.info(`🎮 PLAY button master CTA exit started at 0ms (duration: ${ctaMotion.exitDuration}s)`);
       }
       
       // STEP 2: Other content elements AFTER Play button starts (container with stats + card)
@@ -10305,7 +10311,10 @@ class JourneyBoardsManager {
       // 🔥 JOURNEY BOARDS: Create/update floating Play button (non-interim)
       // Remove any floating play button remnants
       const floatingPlay = document.getElementById('board-detail-play-button');
-      if (floatingPlay) floatingPlay.remove();
+      if (floatingPlay) {
+        try { getRegisteredCta(floatingPlay as HTMLButtonElement)?.dispose(); } catch {}
+        floatingPlay.remove();
+      }
       const previousCardPlayHandler = (detailModal as any).__ccJourneyDetailCardPlayHandler as EventListener | undefined;
       if (previousCardPlayHandler) {
         try {
@@ -10330,19 +10339,12 @@ class JourneyBoardsManager {
         // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
-        floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
+        floatingPlayButton.className = 'cc-journey-detail-cta';
         floatingPlayButton.textContent = buttonText;
         floatingPlayButton.setAttribute('type', 'button');
         floatingPlayButton.setAttribute('aria-label', ariaLabel);
         
         // Prevent dragging/moving the button (but keep :active working for tap-scale)
-        floatingPlayButton.addEventListener('mousedown', (e) => {
-          e.stopPropagation();
-        });
-        floatingPlayButton.addEventListener('touchstart', (e) => {
-          e.stopPropagation();
-        });
-        
         // Add to modal - append to modal (fixed positioning)
         detailModal.appendChild(floatingPlayButton);
         
@@ -10351,7 +10353,7 @@ class JourneyBoardsManager {
         // This allows tap-scale :active and animate-enter classes to work correctly
         floatingPlayButton.style.position = 'fixed';
         floatingPlayButton.style.bottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
-        floatingPlayButton.style.left = '50%';
+        floatingPlayButton.style.left = 'calc(50% - 124.5px)';
         floatingPlayButton.style.width = '249px';
         floatingPlayButton.style.maxWidth = '249px';
         // 🔥 CTA FIX: z-index must be HIGHER than detail modal (1000000) since button is position: fixed
@@ -10460,9 +10462,11 @@ class JourneyBoardsManager {
           }
         };
         
-        // Add both click and touchend for better mobile support
-        floatingPlayButton.addEventListener('click', handlePlayClick, { capture: false });
-        floatingPlayButton.addEventListener('touchend', handlePlayClick, { capture: false, passive: false });
+        registerCta(floatingPlayButton, {
+          variant: 'primary',
+          initialState: 'hidden',
+          onActivate: () => handlePlayClick(new Event('cta-activate')),
+        });
         detailModal.addEventListener('cc:journey-detail-card-play', handlePlayClick as EventListener, { capture: false });
         (detailModal as any).__ccJourneyDetailCardPlayHandler = handlePlayClick as EventListener;
         
@@ -10475,6 +10479,7 @@ class JourneyBoardsManager {
           // Remove existing listeners to prevent duplicates
           const newContinueBtn = continueBoardBtn.cloneNode(true) as HTMLElement;
           continueBoardBtn.parentNode?.replaceChild(newContinueBtn, continueBoardBtn);
+          newContinueBtn.className = 'detail-continue-board-button cc-journey-detail-cta';
           
           // Set display on cloned element
           newContinueBtn.style.setProperty('display', 'block', 'important');
@@ -10520,17 +10525,12 @@ class JourneyBoardsManager {
             }
           };
           
-          (newContinueBtn as HTMLElement).addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await handleContinueInterim('button click');
+          registerCta(newContinueBtn as HTMLButtonElement, {
+            variant: 'primary',
+            initialState: 'hidden',
+            onActivate: () => handleContinueInterim('master CTA'),
           });
-          
-          (newContinueBtn as HTMLElement).addEventListener('touchend', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await handleContinueInterim('touchend');
-          }, { capture: true, passive: false });
+          playButtonForAnimation = newContinueBtn;
           
           logger.info(`✅ Continue Stage button listener attached for board ${board.id}`);
         }
@@ -10598,7 +10598,7 @@ class JourneyBoardsManager {
         detailModal.querySelector('.detail-section-stats')
       ) as HTMLElement | null;
       // 🔥 CRITICAL: Use #board-detail-play-button (floating button created above) instead of #detail-play-board-btn
-      const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
+      const playButton = playButtonForAnimation;
       
       // 🔥 DEBUG: Log button state
       if (playButton) {
@@ -10753,13 +10753,8 @@ class JourneyBoardsManager {
       
       // PLAY button: use CSS classes (same as homepage CTA)
       if (playButtonForInit) {
-        playButtonForInit.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
-        // 🔥 CRITICAL: Remove ALL inline transform/transition/opacity to let CSS handle everything
-        playButtonForInit.style.removeProperty('transform');
-        playButtonForInit.style.removeProperty('transition');
-        playButtonForInit.style.removeProperty('opacity');
-        playButtonForInit.style.removeProperty('visibility');
-        // 🔥 CSS will handle base transform (translateX(-50%)) and all animations
+        playButtonForInit.style.visibility = 'hidden';
+        playButtonForInit.style.pointerEvents = 'none';
       }
       
       // Other elements: use GSAP
@@ -10921,23 +10916,7 @@ class JourneyBoardsManager {
           const otherContentElements = contentElements.filter(el => el && el.id !== 'board-detail-play-button');
           
           if (playButtonForEnter) {
-            // 🔥 CRITICAL: Use CSS animate-enter class (same as homepage slider)
-            // Remove all inline styles that could conflict with CSS
-            playButtonForEnter.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
-            playButtonForEnter.style.removeProperty('transition');
-            playButtonForEnter.style.removeProperty('opacity');
-            playButtonForEnter.style.removeProperty('visibility');
-            playButtonForEnter.style.removeProperty('transform'); // 🔥 Let CSS handle transform completely
-            
-            // Add CSS class for enter animation (same as homepage)
-            playButtonForEnter.classList.add('animate-enter-initial');
-            void playButtonForEnter.offsetHeight; // Force reflow
-            
-            // Trigger animation by adding animate-enter class
-            setTimeout(() => {
-              playButtonForEnter.classList.remove('animate-enter-initial');
-              playButtonForEnter.classList.add('animate-enter');
-            }, 0);
+            void getRegisteredCta(playButtonForEnter as HTMLButtonElement)?.enter();
           }
 
           // STEP 3: Card image animation (after PLAY button, before other content elements)

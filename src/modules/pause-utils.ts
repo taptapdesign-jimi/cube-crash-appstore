@@ -1,6 +1,5 @@
 // @ts-nocheck
 
-import { logger } from '../core/logger.js';
 import { container } from '../core/dependency-injection.js';
 import { gsap } from 'gsap';
 import { Container } from 'pixi.js';
@@ -9,13 +8,6 @@ import { Container } from 'pixi.js';
 
 // Note: pauseGame, resumeGame, restart functions should be imported from appropriate modules
 // For now, we'll define them locally or import from the correct module
-
-// Type definitions
-interface PauseModalOptions {
-  onUnpause?: () => void | Promise<void>;
-  onRestart?: () => void | Promise<void>;
-  onExit?: () => void | Promise<void>;
-}
 
 type WindowWithCC = {
   CC?: {
@@ -31,54 +23,6 @@ type WindowWithCC = {
 
 declare global {
   interface Window extends WindowWithCC {}
-}
-
-// Global state
-let overlay: HTMLElement | null = null;
-// 🔥 FIX: Rename variable to avoid conflict with function name
-let pauseModalVisibleState: boolean = false;
-let modalOptions: PauseModalOptions = {};
-
-/**
- * Get active overlay
- */
-export function getActiveOverlay(): HTMLElement | null {
-  return overlay;
-}
-
-/**
- * Set active overlay
- */
-export function setActiveOverlay(overlayEl: HTMLElement | null): void {
-  overlay = overlayEl;
-}
-
-/**
- * Check if modal is visible
- */
-export function isModalVisible(): boolean {
-  return pauseModalVisibleState;
-}
-
-/**
- * Set modal visibility
- */
-export function setModalVisible(visible: boolean): void {
-  pauseModalVisibleState = visible;
-}
-
-/**
- * Get modal options
- */
-export function getModalOptions(): PauseModalOptions {
-  return modalOptions;
-}
-
-/**
- * Set modal options
- */
-export function setModalOptions(options: PauseModalOptions): void {
-  modalOptions = options;
 }
 
 /**
@@ -225,13 +169,6 @@ export function nextLevel(): void {
 }
 
 /**
- * Generate unique ID
- */
-export function generateId(): string {
-  return `pause-modal-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
-
-/**
  * Debounce function
  */
 export function debounce<T extends (...args: any[]) => any>(
@@ -308,53 +245,6 @@ export function lerp(a: number, b: number, t: number): number {
 export function smoothStep(edge0: number, edge1: number, x: number): number {
   const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
   return t * t * (3 - 2 * t);
-}
-
-/**
- * Get modal button options
- */
-export function getModalButtonOptions(): { 
-  resume: () => void;
-  restart: () => void;
-  exit: () => void;
-} {
-  return {
-    resume: resumeGame,
-    restart: restartGame,
-    exit: () => {
-      // Handle exit logic
-      logger.info('🚪 Exiting game');
-    }
-  };
-}
-
-/**
- * Execute modal option callback
- */
-export function executeModalCallback(callback: (() => void | Promise<void>) | undefined): void {
-  if (callback) {
-    try {
-      const result = callback();
-      if (result instanceof Promise) {
-        result.catch(error => {
-          logger.error('❌ Modal callback error:', error);
-        });
-      }
-    } catch (error) {
-      logger.error('❌ Modal callback error:', error);
-    }
-  }
-}
-
-/**
- * Cleanup overlay
- */
-export function cleanupOverlay(): void {
-  if (overlay && overlay.parentNode) {
-    overlay.parentNode.removeChild(overlay);
-  }
-  overlay = null;
-  setModalVisible(false);
 }
 
 // All functions are already exported individually above

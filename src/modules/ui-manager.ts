@@ -12,7 +12,6 @@ import {
   cancelSliderEnterAnimation,
   finalizeJourneySliderExit,
 } from '../utils/animations.js';
-import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
@@ -26,6 +25,7 @@ import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-u
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
+import { registerCta, type CtaController } from './cta-system.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -127,12 +127,36 @@ class UIManager {
   private animations: Map<string, any>;
   private isInitialized: boolean;
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
+  private homepageCtaControllers: CtaController[] = [];
 
   constructor() {
     this.elements = {} as UIManagerElements;
     this.animations = new Map();
     this.isInitialized = false;
     this.logoFadeInStarted = false;
+  }
+
+  private registerHomepageCtaButtons(): void {
+    this.homepageCtaControllers.splice(0).forEach(controller => controller.dispose());
+    const registrations: Array<[HTMLButtonElement | null, (event: Event) => unknown]> = [
+      [this.elements.playButton, this.handlePlayClick.bind(this)],
+      [this.elements.journeyButton, this.handleStatsClick.bind(this)],
+      [this.elements.collectiblesButton, this.handleCollectiblesClick.bind(this)],
+      [this.elements.settingsButton, this.handleSettingsClick.bind(this)],
+    ];
+
+    registrations.forEach(([button, handler]) => {
+      if (!button) return;
+      button.classList.remove('tap-scale', 'menu-btn-primary');
+      button.classList.add('cc-homepage-cta');
+      const activeSlide = button.closest('.slider-slide')?.classList.contains('active') === true;
+      const initialState = activeSlide && button.classList.contains('animate-enter-initial') ? 'hidden' : 'idle';
+      this.homepageCtaControllers.push(registerCta(button, {
+        variant: 'primary',
+        initialState,
+        onActivate: () => handler(new Event('cta-activate')),
+      }));
+    });
   }
 
   // Initialize UI elements
@@ -207,59 +231,7 @@ class UIManager {
         this.boundEventHandlers.get(element)!.push({ event, handler });
       };
       
-      // Always reattach - buttons might have been recreated or listeners cleared
-      if (this.elements.playButton) {
-        // Remove old listeners first if any
-        if (this.boundEventHandlers.has(this.elements.playButton)) {
-          const oldHandlers = this.boundEventHandlers.get(this.elements.playButton)!;
-          oldHandlers.forEach(({ event, handler }) => {
-            this.elements.playButton!.removeEventListener(event, handler);
-          });
-          this.boundEventHandlers.delete(this.elements.playButton);
-        }
-        const handler = this.handlePlayClick.bind(this);
-        addTrackedListener(this.elements.playButton, 'click', handler);
-        logger.info('✅ Play button event listener reattached');
-      }
-      
-      if (this.elements.journeyButton) {
-        if (this.boundEventHandlers.has(this.elements.journeyButton)) {
-          const oldHandlers = this.boundEventHandlers.get(this.elements.journeyButton)!;
-          oldHandlers.forEach(({ event, handler }) => {
-            this.elements.journeyButton!.removeEventListener(event, handler);
-          });
-          this.boundEventHandlers.delete(this.elements.journeyButton);
-        }
-        const handler = this.handleStatsClick.bind(this);
-        addTrackedListener(this.elements.journeyButton, 'click', handler);
-        logger.info('✅ Journey button event listener reattached');
-      }
-      
-      if (this.elements.collectiblesButton) {
-        if (this.boundEventHandlers.has(this.elements.collectiblesButton)) {
-          const oldHandlers = this.boundEventHandlers.get(this.elements.collectiblesButton)!;
-          oldHandlers.forEach(({ event, handler }) => {
-            this.elements.collectiblesButton!.removeEventListener(event, handler);
-          });
-          this.boundEventHandlers.delete(this.elements.collectiblesButton);
-        }
-        const handler = this.handleCollectiblesClick.bind(this);
-        addTrackedListener(this.elements.collectiblesButton, 'click', handler);
-        logger.info('✅ Collectibles button event listener reattached');
-      }
-      
-      if (this.elements.settingsButton) {
-        if (this.boundEventHandlers.has(this.elements.settingsButton)) {
-          const oldHandlers = this.boundEventHandlers.get(this.elements.settingsButton)!;
-          oldHandlers.forEach(({ event, handler }) => {
-            this.elements.settingsButton!.removeEventListener(event, handler);
-          });
-          this.boundEventHandlers.delete(this.elements.settingsButton);
-        }
-        const handler = this.handleSettingsClick.bind(this);
-        addTrackedListener(this.elements.settingsButton, 'click', handler);
-        logger.info('✅ Settings button event listener reattached');
-      }
+      this.registerHomepageCtaButtons();
 
       this.attachSliderHeroCtaListeners(addTrackedListener);
 
@@ -293,31 +265,7 @@ class UIManager {
       this.boundEventHandlers.get(element)!.push({ event, handler });
     };
     
-    // Play button
-    if (this.elements.playButton) {
-      const handler = this.handlePlayClick.bind(this);
-      addTrackedListener(this.elements.playButton, 'click', handler);
-    }
-    
-    // Journey button (was stats)
-    if (this.elements.journeyButton) {
-      const handler = this.handleStatsClick.bind(this);
-      addTrackedListener(this.elements.journeyButton, 'click', handler);
-    }
-    
-    // Collectibles button
-    if (this.elements.collectiblesButton) {
-      const handler = this.handleCollectiblesClick.bind(this);
-      addTrackedListener(this.elements.collectiblesButton, 'click', handler);
-    } else {
-      logger.debug('Collectibles button not present in current UI; Journey CTA is handled by the slider button.');
-    }
-    
-    // Settings button
-    if (this.elements.settingsButton) {
-      const handler = this.handleSettingsClick.bind(this);
-      addTrackedListener(this.elements.settingsButton, 'click', handler);
-    }
+    this.registerHomepageCtaButtons();
     
     if (this.elements.statsBackButton) {
       const handler = this.handleStatsBackClick.bind(this);
@@ -569,53 +517,6 @@ class UIManager {
     
     // Show settings screen with animation
     this.showSettingsScreenWithAnimation();
-  }
-  
-  // Check for saved game
-  private async checkForSavedGame(): Promise<void> {
-    try {
-      logger.info('🔍 Checking for saved game...');
-      const savedGame = localStorage.getItem('cc_saved_game');
-      const completionState = localStorage.getItem('cc_board_completed');
-      let hasFreshCompletion = false;
-      if (completionState) {
-        try {
-          const state = JSON.parse(completionState);
-          const ageMs = Date.now() - (Number(state.timestamp) || 0);
-          hasFreshCompletion = Number.isFinite(ageMs) && ageMs < 60 * 60 * 1000;
-          if (!hasFreshCompletion) {
-            localStorage.removeItem('cc_board_completed');
-          }
-        } catch (error) {
-          localStorage.removeItem('cc_board_completed');
-        }
-      }
-      logger.info('🔍 Saved game found:', !!savedGame, 'Completion pending:', hasFreshCompletion);
-      
-      // Show resume sheet if saved game exists OR a fresh clean-board completion exists
-      if (savedGame || hasFreshCompletion) {
-        logger.info('📱 Showing resume game bottom sheet...');
-        // Show resume game modal IMMEDIATELY - no async import delay
-        showResumeGameBottomSheet();
-      } else {
-        logger.info('🎮 No saved game, starting new game with animation...');
-        // Start new game with animation via triggerGameStartSequence
-        if ((window as any).triggerGameStartSequence) {
-          (window as any).triggerGameStartSequence();
-        } else {
-          // Fallback: direct start if trigger not available
-          this.startNewGame();
-        }
-      }
-    } catch (error) {
-      logger.error('❌ Failed to check for saved game:', error);
-      // Fallback to new game with animation
-      if ((window as any).triggerGameStartSequence) {
-        (window as any).triggerGameStartSequence();
-      } else {
-        this.startNewGame();
-      }
-    }
   }
   
   // Start new game (public method) - ALWAYS starts from Board 1
@@ -2560,6 +2461,7 @@ class UIManager {
   
   // Cleanup
   destroy(): void {
+    this.homepageCtaControllers.splice(0).forEach(controller => controller.dispose());
     this.animations.clear();
     this.elements = {} as UIManagerElements;
     this.isInitialized = false;

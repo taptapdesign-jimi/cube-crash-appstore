@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
+import { registerCta } from './cta-system.ts';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -514,7 +515,9 @@ export async function showJourneyNewCardScreen({
             <div class="cc-journey-new-card-light" aria-hidden="true"></div>
           </div>
         </div>
-        <button class="cc-journey-new-card-cta restart-btn primary-button bottom-sheet-cta" type="button">Continue</button>
+        <div class="cc-cta-stack cc-cta-stack--reward">
+          <button class="cc-journey-new-card-cta" type="button">Continue</button>
+        </div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -528,6 +531,15 @@ export async function showJourneyNewCardScreen({
     const light = overlay.querySelector('.cc-journey-new-card-light') as HTMLElement | null;
     const shadow = overlay.querySelector('.cc-journey-new-card-shadow') as HTMLElement | null;
     const cta = overlay.querySelector('.cc-journey-new-card-cta') as HTMLButtonElement | null;
+    let finish: () => void = () => {};
+    const ctaController = cta ? registerCta(cta, {
+      variant: 'primary',
+      initialState: 'hidden',
+      onActivate: () => {
+        try { (window as any).triggerHapticSelection?.(); } catch {}
+        finish();
+      },
+    }) : null;
 
     cleanupFns.push(() => {
       disposed = true;
@@ -553,6 +565,7 @@ export async function showJourneyNewCardScreen({
       try { if (frameImg) frameImg.removeAttribute('src'); } catch {}
       try { if (finalImg) finalImg.removeAttribute('src'); } catch {}
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, frameImg, finalImg, light, shadow, cta]); } catch {}
+      try { ctaController?.dispose(); } catch {}
     });
 
     const triggerHaptic = (style: 'light' | 'medium' = 'medium') => {
@@ -690,51 +703,25 @@ export async function showJourneyNewCardScreen({
       finalCardShineIntervalId = window.setInterval(play, 3000);
     };
 
-    const finish = () => {
+    finish = () => {
       if (resolved) return;
       resolved = true;
       stopSprite9ShineLoop();
       stopFinalCardShineLoop();
       clearPendingShineWork();
       ++framePlaybackId;
-      try { cta?.removeEventListener('click', onContinue); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
       try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, frameImg, finalImg, light, shadow, cta]); } catch {}
-      if (cta) {
-        cta.disabled = true;
-        cta.classList.remove('animate-enter', 'animate-enter-initial', 'animate-exit');
-        cta.style.removeProperty('transition');
-        cta.style.removeProperty('-webkit-transition');
-        gsap.set(cta, {
-          opacity: 1,
-          visibility: 'visible',
-          y: 0,
-          scale: 1,
-          transformOrigin: '50% 50%',
-          force3D: true,
-        });
-      }
-      const tl = trackNewCardTimeline(gsap.timeline({
-        onComplete: () => {
-          cleanupJourneyNewCardScreen();
-          resolve({ action: 'continue' });
-        },
-      }));
-      tl
-        // 1. Continue button exits alone.
-        .to(cta, {
-          scale: 0,
-          opacity: 0,
-          y: 20,
-          duration: 0.24,
-          ease: 'back.in(1.9)',
-          overwrite: 'auto',
-          force3D: true,
-        })
-        .set(cta, { visibility: 'hidden' })
-        // 2. Card exits immediately after CTA, with its shine/shadow.
-        .to(hero, {
+      void (async () => {
+        await ctaController?.exit();
+        const tl = trackNewCardTimeline(gsap.timeline({
+          onComplete: () => {
+            cleanupJourneyNewCardScreen();
+            resolve({ action: 'continue' });
+          },
+        }));
+        tl.to(hero, {
           scale: 0,
           opacity: 0,
           y: -30,
@@ -763,7 +750,8 @@ export async function showJourneyNewCardScreen({
           force3D: true,
         })
         .set(subtitle, { visibility: 'hidden' })
-        .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
+          .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' });
+      })();
     };
 
     const reveal = async () => {
@@ -799,20 +787,6 @@ export async function showJourneyNewCardScreen({
         }
 
         await new Promise<void>((revealDone) => {
-          if (cta) {
-            cta.style.marginTop = '24px';
-            cta.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit');
-            cta.style.removeProperty('transition');
-            cta.style.removeProperty('-webkit-transition');
-            gsap.set(cta, {
-              opacity: 0,
-              visibility: 'visible',
-              y: 18,
-              scale: 0,
-              transformOrigin: '50% 50%',
-              force3D: true,
-            });
-          }
           const coverExitDuration = rd(0.32);
           const cardEnterStart = Math.max(0, coverExitDuration - 0.5);
           const cardEnterDuration = rd(0.52);
@@ -876,14 +850,7 @@ export async function showJourneyNewCardScreen({
             .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
             .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, titleStart)
             .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, subtitleStart)
-            .to(cta, {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: rd(0.34),
-              ease: 'back.out(1.8)',
-              force3D: true,
-            }, ctaStart)
+            .call(() => { void ctaController?.enter(); }, undefined, ctaStart)
             .call(() => triggerHaptic('light'), undefined, titleStart)
             .call(() => triggerHaptic('light'), undefined, ctaStart)
             .call(() => {
@@ -949,8 +916,7 @@ export async function showJourneyNewCardScreen({
           finalImg.style.visibility = 'visible';
           finalImg.style.opacity = '1';
         }
-        cta?.classList.remove('animate-enter-initial', 'animate-exit');
-        cta?.classList.add('animate-enter');
+        void ctaController?.enter();
         revealRunning = false;
       }
     };
@@ -969,20 +935,11 @@ export async function showJourneyNewCardScreen({
       if (event.key !== 'Enter' && event.key !== ' ') return;
       onReveal(event);
     };
-    const onContinue = (event: Event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      try { (window as any).triggerHapticSelection?.(); } catch {}
-      finish();
-    };
-
     hero?.addEventListener('click', onReveal);
     hero?.addEventListener('keydown', onHeroKeyDown);
-    cta?.addEventListener('click', onContinue);
     cleanupFns.push(() => {
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
-      try { cta?.removeEventListener('click', onContinue); } catch {}
     });
 
     const d = (sec: number) => sec * FAST_20;
@@ -993,11 +950,6 @@ export async function showJourneyNewCardScreen({
     gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.42, scaleY: 0.54 });
     gsap.set(light, { scale: 1, transformOrigin: '50% 50%' });
     setLightFrameScale(light, 1);
-    gsap.set(cta, { opacity: 0, scale: 0, visibility: 'hidden', transformOrigin: '50% 50%' });
-    if (cta) {
-      cta.classList.remove('animate-exit', 'animate-enter');
-      cta.classList.add('animate-enter-initial');
-    }
     setLightMask(light, getCrumbleFramePath(1));
 
     const enter = trackNewCardTimeline(gsap.timeline({
