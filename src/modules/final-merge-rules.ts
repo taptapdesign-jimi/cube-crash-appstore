@@ -106,6 +106,20 @@ export function tileBlocksFinalMerge(tile: any, srcTile: any, dstTile: any): boo
   return (tile.value | 0) > 0;
 }
 
+export function isPlayableMagnetPullCandidate(tile: any, options: { allowMagnetOwned?: boolean } = {}): boolean {
+  if (!tile || tile.destroyed === true || tile._ccWildSpawnDropping === true) return false;
+  // Once Magnet owns a candidate it is intentionally locked and detached from
+  // the grid. Commit validation must accept that owned state, while retaining
+  // the same hard rejection for a tile that became a dropping spawn.
+  if (options.allowMagnetOwned && tile._wildMagnetAffected === true) {
+    return isWildLikeTile(tile) || (tile.value | 0) > 0;
+  }
+  if (!tileCountsAsFinalMergeActive(tile)) return false;
+  if (tile._wildMagnetAffected === true) return false;
+  if (tile._noTilesPulled === true || tile._wildMagnetPulledTilesMerge === true) return false;
+  return isWildLikeTile(tile) || (tile.value | 0) > 0;
+}
+
 export function getPlayableMagnetPullCandidates({
   tiles,
   src,
@@ -123,10 +137,9 @@ export function getPlayableMagnetPullCandidates({
     // A visible regular merge-6 destination can briefly remain on stage while
     // its spawn choreography finishes. It is cleanup-owned, not magnet food.
     if (typeof tile._ccMerge6CleanupToken === 'number') return false;
-    if (!tileCountsAsFinalMergeActive(tile)) return false;
-    if (tile._wildMagnetAffected === true) return false;
-    if (tile._noTilesPulled === true || tile._wildMagnetPulledTilesMerge === true) return false;
-    return isWildLikeTile(tile) || (tile.value | 0) > 0;
+    // Dropping wilds still block false clean-board detection, but Magnet cannot
+    // own them until their spawn transaction has settled.
+    return isPlayableMagnetPullCandidate(tile);
   });
 }
 

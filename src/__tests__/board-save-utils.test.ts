@@ -1,8 +1,30 @@
 import {
+  ARCADE_SAVE_KEY,
+  getArcadeSavedRound,
   getBoardSaveKey,
   hasResumableSavedStateForBoard,
   isBoardSaveStateResumable,
 } from '../utils/board-save-utils.ts';
+
+describe('Arcade saved-round continuation', () => {
+  afterEach(() => localStorage.clear());
+
+  test('reads the persisted Arcade board number as the continuation round', () => {
+    localStorage.setItem(ARCADE_SAVE_KEY, JSON.stringify({ boardNumber: 12, level: 3 }));
+    expect(getArcadeSavedRound()).toBe(12);
+  });
+
+  test('falls back to level and rejects missing or malformed saves', () => {
+    localStorage.setItem(ARCADE_SAVE_KEY, JSON.stringify({ level: 2 }));
+    expect(getArcadeSavedRound()).toBe(2);
+
+    localStorage.setItem(ARCADE_SAVE_KEY, '{bad json');
+    expect(getArcadeSavedRound()).toBeNull();
+
+    localStorage.removeItem(ARCADE_SAVE_KEY);
+    expect(getArcadeSavedRound()).toBeNull();
+  });
+});
 
 describe('Journey resumable board saves', () => {
   test('accepts a matching board with at least two playable tiles', () => {

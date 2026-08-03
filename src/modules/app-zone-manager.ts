@@ -346,8 +346,8 @@ class AppZoneManager {
       cleanupJourneyNewCardScreen?.();
     } catch {}
     try {
-      const { cleanupArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
-      cleanupArcadeStageClearModal?.(false);
+      const { cancelArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
+      cancelArcadeStageClearModal?.();
     } catch {}
     try {
       const fx = await import('./fx.js');

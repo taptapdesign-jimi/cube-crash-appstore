@@ -5328,11 +5328,11 @@ async function startLevel(n){
     score = next.score;
   }
   
-  // 🔥 JOURNEY PROGRESSION: Update currentRunState when starting a level
-  updateJourneyRunState({ n, score, devLog, devWarn });
   if (isArcadeHomeRunMode()) {
     setJourneyGameBottomDecorVisible(false);
   } else {
+    // Journey progression must never receive Arcade Round numbers or scores.
+    updateJourneyRunState({ n, score, devLog, devWarn });
     // Prime/decode behind the board transition. The visible HUD/board enter
     // callback starts the actual cartoon pop-in so it cannot finish offscreen.
     journeyGameBottomDecorRunKey += 1;
@@ -5350,7 +5350,9 @@ async function startLevel(n){
   }
   
   incrementBoardTimesPlayed({ n, devLog });
-  syncJourneyBoards({ n, devLog, devWarn });
+  if (!isArcadeHomeRunMode()) {
+    syncJourneyBoards({ n, devLog, devWarn });
+  }
   
   moves = MOVES_MAX;
   // Track best stack depth achieved in this run (for clean board efficiency)
@@ -8318,20 +8320,43 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 });
                 const { shouldAddWildProgress, isLastMergeBeforePull } = magnetPullProgressDecision;
                 
-                // 🔥 USER REQUEST: Add wild progress when magnet pulls tiles (1-4 tiles, treat as merge 6)
-                // BUT: Skip if this is last merge (would result in clean board)
-                // 🔥 ANIMATION TIMING: Add progress IMMEDIATELY (before pull animation) so progress bar animates during pull
+                // Do not mutate the meter before downstream commit validation.
+                // A rejected pull must have no spawn/progress side effects to roll back.
+                devLog('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
+                const magnetMergeCommitted = await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
+                if (!magnetMergeCommitted) {
+                  devWarn('⚠️ Wild-magnet transaction aborted during commit validation - rolling back pulled tiles');
+                  if (dst && !dst.destroyed) {
+                    (dst as any)._willPullTiles = false;
+                    (dst as any)._noTilesPulled = true;
+                    delete (dst as any)._wildMagnetPulledTilesMerge;
+                    delete (dst as any)._wildMagnetPulledTilesScoring;
+                  }
+                  nearestTiles.forEach((tile: any) => {
+                    if (!tile || tile.destroyed) return;
+                    cleanupPulledTile(
+                      tile,
+                      tile._wildMagnetOriginalX ?? tile.x,
+                      tile._wildMagnetOriginalY ?? tile.y,
+                      0,
+                      1,
+                      1,
+                    );
+                  });
+                  cleanupAllPullAnimations();
+                  mergeStarted = false;
+                  setWildMagnetPullInProgress(false, 'commit-validation-abort');
+                  scheduleCheckLevelEnd(0.18, 'wild-magnet-commit-validation-abort');
+                  return;
+                }
+                devLog('✅ Pulled tiles merge committed - merge 6 created with 4x multiplier');
                 if (shouldAddWildProgress) {
-                  devLog(`🧲 Magnet pulling ${validTiles.length} tiles - adding wild progress IMMEDIATELY (treating as merge 6, NOT last merge)`);
-                  addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true }); // Same as regular merge 6 - animates during pull
+                  devLog(`🧲 Magnet pull committed for ${validTiles.length} tiles - adding merge-6 wild progress`);
+                  addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true });
                 } else if (isLastMergeBeforePull) {
-                  devLog(`🚨🚨🚨 LAST MERGE DETECTED (magnet pull) - ${activeTilesBeforePull.length} tiles before pull, skipping wild progress`);
+                  devLog(`🚨🚨🚨 LAST MERGE COMMITTED (magnet pull) - ${activeTilesBeforePull.length} tiles before pull, resetting wild progress`);
                   resetWildMeterState('last-merge-before-magnet-pull');
                 }
-                
-                devLog('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
-                await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
-                devLog('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
@@ -14031,6 +14056,9 @@ function saveGameState() {
 
 async function loadGameState(overrideBoardNumber?: number) {
   const boardToLoad = Number.isFinite(overrideBoardNumber) ? overrideBoardNumber! : boardNumber;
+  const arcadeContinuationCueRound = isArcadeHomeRunMode()
+    ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
+    : 0;
   devLog('🔄 loadGameState called...', overrideBoardNumber != null ? `(override: board ${boardToLoad})` : '');
   
   try {
@@ -14216,6 +14244,13 @@ async function loadGameState(overrideBoardNumber?: number) {
       tiles,
       backgroundLayer,
       sweetPopIn,
+      beforePopIn: arcadeContinuationCueRound > 1
+        ? async () => {
+            const { showArcadeContinuationRoundCue } = await import('./arcade-stage-clear-modal.js');
+            await showArcadeContinuationRoundCue(arcadeContinuationCueRound);
+            devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
+          }
+        : undefined,
       onHalf: () => {
         // 🔥 CRITICAL FIX: Ensure HUD drop is triggered even if it wasn't triggered above
         // This is a fallback in case HUD drop wasn't triggered earlier
@@ -14236,21 +14271,22 @@ async function loadGameState(overrideBoardNumber?: number) {
           devLog,
           devWarn,
         });
+        // Start the existing settle/recovery delay only after the continuation
+        // cue and saved-board pop-in have finished. Hidden entrance tiles must
+        // never be interpreted as a clean Arcade board.
+        schedulePostLoadRecoveryCheck({
+          tiles,
+          boardNumber,
+          checkAndRecoverBoard,
+          triggerCleanBoardFlow,
+          checkLevelEnd,
+          trackAppTimeout,
+          devLog,
+          devWarn,
+        });
       },
       devLog,
     });
-    
-    // 🔥 BOARD RECOVERY: Schedule recovery check after UI settles
-    schedulePostLoadRecoveryCheck({
-      tiles,
-      boardNumber,
-      checkAndRecoverBoard,
-      triggerCleanBoardFlow,
-      checkLevelEnd,
-      trackAppTimeout,
-      devLog,
-      devWarn,
-    }); // Wait 1s for UI to fully settle before recovery check
     
     return true;
   } catch (error) {

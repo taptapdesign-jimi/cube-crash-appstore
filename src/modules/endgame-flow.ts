@@ -979,7 +979,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
 
       try {
         const { showArcadeStageClearModal } = await import('./arcade-stage-clear-modal.js');
-        await showArcadeStageClearModal(clearedStage, nextStage);
+        const stageClearResult = await showArcadeStageClearModal(clearedStage, nextStage);
+        if (stageClearResult.action !== 'continue') {
+          logger.info(`🎮 endgame-flow: Arcade stage ${clearedStage} continuation was cancelled; progression remains unchanged`);
+          return;
+        }
       } catch (modalError) {
         logger.warn('⚠️ endgame-flow: Arcade stage clear modal failed, continuing to next stage:', modalError);
       }

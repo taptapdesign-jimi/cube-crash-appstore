@@ -29,6 +29,22 @@ export function hasArcadeSavedState(): boolean {
   return localStorage.getItem(ARCADE_SAVE_KEY) !== null;
 }
 
+export function getArcadeSavedRound(): number | null {
+  const serialized = localStorage.getItem(ARCADE_SAVE_KEY);
+  if (!serialized) return null;
+
+  try {
+    const state = JSON.parse(serialized) as { boardNumber?: unknown; level?: unknown };
+    const candidate = Number.isFinite(Number(state.boardNumber))
+      ? Number(state.boardNumber)
+      : Number(state.level);
+    if (!Number.isFinite(candidate)) return null;
+    return Math.max(1, Math.trunc(candidate));
+  } catch {
+    return null;
+  }
+}
+
 export function clearArcadeSaveState(): void {
   localStorage.removeItem(ARCADE_SAVE_KEY);
   console.log(`🗑️ Cleared Arcade save state (${ARCADE_SAVE_KEY})`);

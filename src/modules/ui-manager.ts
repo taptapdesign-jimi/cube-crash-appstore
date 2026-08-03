@@ -21,7 +21,7 @@ import { gsap } from 'gsap';
 import { markArcadeHomeRunOrigin } from './run-mode.js';
 import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
-import { clearArcadeSaveState, hasArcadeSavedState } from '../utils/board-save-utils.js';
+import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
@@ -663,6 +663,12 @@ class UIManager {
       logger.info('🔄 Starting new game WITH saved state...');
       markArcadeHomeRunOrigin();
       (window as any).__ccTriggerHudDrop = true;
+      const continuationRound = getArcadeSavedRound();
+      if (continuationRound !== null && continuationRound > 1) {
+        (window as any).__ccArcadeContinuationCueRound = continuationRound;
+      } else {
+        delete (window as any).__ccArcadeContinuationCueRound;
+      }
       
       // Check if a clean-board completion was pending (hard-exit case)
       const completedState = localStorage.getItem('cc_board_completed');
@@ -717,6 +723,7 @@ class UIManager {
           console.log('🔄 ====================================');
           console.log('🔄 NEXT BOARD STARTED (clean-board resume)');
           console.log('🔄 ====================================');
+          delete (window as any).__ccArcadeContinuationCueRound;
           
           return;
         } catch (error) {
@@ -775,6 +782,8 @@ class UIManager {
         } else {
           console.error('❌ loadGameState function not found');
         }
+        // loadGameState captures this one-shot value in its pop-in owner.
+        delete (window as any).__ccArcadeContinuationCueRound;
         delete (window as any).__ccSkipRebuildBoard;
         
         // Show app element AFTER loading saved state
@@ -782,7 +791,7 @@ class UIManager {
         this.showApp();
         delete (window as any).__ccTriggerHudDrop;
         console.log('✅ App element shown');
-        
+
         console.log('🔄 ====================================');
         console.log('🔄 GAME WITH SAVED STATE STARTED');
         console.log('🔄 ====================================');
@@ -797,6 +806,7 @@ class UIManager {
     } catch (error) {
       delete (window as any).__ccSkipRebuildBoard;
       delete (window as any).__ccTriggerHudDrop;
+      delete (window as any).__ccArcadeContinuationCueRound;
       logger.error('❌ Failed to start new game with saved state:', error);
     }
   }

@@ -26,7 +26,9 @@ const HEADLINES = [
 let activeOverlay: HTMLElement | null = null;
 let activeTweens: gsap.core.Tween[] = [];
 let activeTimelines: gsap.core.Timeline[] = [];
-let activeResolve: (() => void) | null = null;
+export type ArcadeStageClearResult = { action: 'continue' | 'cancel' };
+
+let activeResolve: ((result: ArcadeStageClearResult) => void) | null = null;
 
 const TEXT_ENTER_BOUNCE_SCALE = 1.2;
 const TEXT_ENTER_DURATION = 0.24;
@@ -581,9 +583,9 @@ function animateBottomHudStageIndicator(nextStage: number): void {
   } catch {}
 }
 
-async function playNextStagePhase(parts: ReturnType<typeof createOverlay>, nextStage: number): Promise<void> {
+async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, displayedStage: number): Promise<void> {
   const { overlay, nextCard, letters, digits } = parts;
-  animateBottomHudStageIndicator(nextStage);
+  animateBottomHudStageIndicator(displayedStage);
   gsap.set(nextCard, { opacity: 1, xPercent: -50, yPercent: -50, scale: 1 });
   prepareBubblyLetters(letters);
   digits.forEach((digit, index) => {
@@ -703,8 +705,8 @@ async function playNextStagePhase(parts: ReturnType<typeof createOverlay>, nextS
   gsap.set(nextCard, { opacity: 0 });
 }
 
-export async function showArcadeStageClearModal(stageNumber: number, nextStageNumber?: number): Promise<{ action: 'continue' }> {
-  cleanupArcadeStageClearModal();
+export async function showArcadeStageClearModal(stageNumber: number, nextStageNumber?: number): Promise<ArcadeStageClearResult> {
+  cancelArcadeStageClearModal();
   ensureStyles();
 
   const clearedStage = Math.max(1, stageNumber | 0);
@@ -714,20 +716,54 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
   appSpatialMotion.activateArcadeStageClear(parts.overlay, clearedStage);
 
   return new Promise((resolve) => {
-    activeResolve = () => resolve({ action: 'continue' });
+    activeResolve = resolve;
     (async () => {
       try {
         await decodeThumb(parts.thumb);
         await playClearPhase(parts);
-        await playNextStagePhase(parts, nextStage);
+        await playRoundNumberPhase(parts, nextStage);
       } finally {
         cleanupArcadeStageClearModal(false);
         const finish = activeResolve;
         activeResolve = null;
-        finish?.();
+        finish?.({ action: 'continue' });
       }
     })();
   });
+}
+
+/**
+ * Shows only the pure Round-number visual when an existing Arcade run is
+ * resumed from Homepage. It never resolves a stage-clear continuation and
+ * therefore cannot advance, reset, close, or rebuild gameplay.
+ */
+export async function showArcadeContinuationRoundCue(stageNumber: number): Promise<void> {
+  cancelArcadeStageClearModal();
+  ensureStyles();
+
+  const resumedStage = Math.max(2, stageNumber | 0);
+  const parts = createOverlay(resumedStage - 1, resumedStage);
+  activeOverlay = parts.overlay;
+  appSpatialMotion.activateArcadeStageClear(parts.overlay, resumedStage - 1);
+  gsap.set(parts.clearCard, { opacity: 0 });
+
+  try {
+    await playRoundNumberPhase(parts, resumedStage);
+  } finally {
+    cleanupArcadeStageClearModal(false);
+  }
+}
+
+/**
+ * Cancels an abandoned stage-clear owner without translating that teardown
+ * into a gameplay "continue" action. This prevents a later overlay cleanup
+ * from accidentally advancing the old run.
+ */
+export function cancelArcadeStageClearModal(): void {
+  const cancel = activeResolve;
+  activeResolve = null;
+  cleanupArcadeStageClearModal(false);
+  cancel?.({ action: 'cancel' });
 }
 
 export function cleanupArcadeStageClearModal(resolveActive: boolean = true): void {
@@ -750,6 +786,6 @@ export function cleanupArcadeStageClearModal(resolveActive: boolean = true): voi
   if (resolveActive && activeResolve) {
     const finish = activeResolve;
     activeResolve = null;
-    finish();
+    finish({ action: 'continue' });
   }
 }

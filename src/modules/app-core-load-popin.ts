@@ -4,6 +4,7 @@ type LoadPopInDeps = {
   sweetPopIn: (tiles: any[], opts?: any) => Promise<void>;
   onHalf: () => void;
   onComplete: () => void;
+  beforePopIn?: () => Promise<void>;
   devLog: (...args: any[]) => void;
 };
 
@@ -13,6 +14,7 @@ export function playLoadPopInAnimation({
   sweetPopIn,
   onHalf,
   onComplete,
+  beforePopIn,
   devLog,
 }: LoadPopInDeps): void {
   // Ensure background layer is visible from the start
@@ -48,20 +50,32 @@ export function playLoadPopInAnimation({
   // Hide the complete board until its shared entrance begins.
   enterTiles.forEach(t => { if (t) t.visible = false; });
 
-  const runPopIn = () => sweetPopIn(enterTiles, { onHalf }).then(() => {
-    delete (window as any).__ccGameStartInProgress;
-    delete (window as any).__ccGameStartInProgressSince;
-    (window as any).__ccEnterAnimationActive = false;
-    if (typeof (window as any).updateGhostVisibility === 'function') {
-      (window as any).updateGhostVisibility();
+  const runPopIn = async () => {
+    if (beforePopIn) {
+      try {
+        await beforePopIn();
+      } catch (error) {
+        devLog('⚠️ Deferred load pre-pop-in cue failed; continuing with board entrance:', error);
+      }
     }
-    devLog('✅ Continue animation completed');
-    onComplete();
-  }).catch((error) => {
-    delete (window as any).__ccGameStartInProgress;
-    delete (window as any).__ccGameStartInProgressSince;
-    devLog('⚠️ Continue animation failed:', error);
-  });
+    try {
+      await sweetPopIn(enterTiles, { onHalf });
+      devLog('✅ Continue animation completed');
+    } catch (error) {
+      devLog('⚠️ Continue animation failed:', error);
+    } finally {
+      delete (window as any).__ccGameStartInProgress;
+      delete (window as any).__ccGameStartInProgressSince;
+      (window as any).__ccEnterAnimationActive = false;
+      if (typeof (window as any).updateGhostVisibility === 'function') {
+        (window as any).updateGhostVisibility();
+      }
+      // Recovery/endgame validation belongs after the complete visual entrance.
+      // While the cue runs, every restored tile is intentionally hidden and a
+      // parallel check could falsely classify the saved board as completed.
+      onComplete();
+    }
+  };
 
   // ui-manager keeps #app hidden while restoring state. Starting GSAP now
   // would spend the entrance off-screen and make active tiles appear instant.

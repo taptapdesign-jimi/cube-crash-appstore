@@ -28,6 +28,12 @@ export async function waitForGameOverAnimationHandoff({
 }: GameOverAnimationHandoffOptions): Promise<void> {
   if (confirmedFailFlow) {
     await sleep(isArcade ? 40 : 60);
+    // Terminal board exit owns all remaining star-flight visuals. Protected
+    // sprites must not survive after their timelines are killed by that exit.
+    try {
+      const fxModule = await import('./fx.js');
+      fxModule.forceCleanupAllStarAnimations?.();
+    } catch {}
     return;
   }
 

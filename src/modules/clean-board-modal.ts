@@ -1557,16 +1557,20 @@ export async function showCleanBoardModal({
         // 🔥 CRITICAL: DO NOT kill GSAP tweens or hide board yet - let exit animation play first
         // Start board exit animation (don't await yet - let it run in parallel with modal exit)
         let boardExitPromise: Promise<void> = Promise.resolve();
-        try {
-          const { STATE } = await import('./app-state.js');
-          if (STATE && typeof (window as any).animateBoardExit === 'function') {
-            console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
-            boardExitPromise = (window as any).animateBoardExit();
-          } else {
-            console.warn('⚠️ clean-board-modal: animateBoardExit not available, skipping board exit animation');
+        if (arcadeRunReached && (window as any).__ccGameOverBoardExitComplete === true) {
+          console.log('⏭️ clean-board-modal: Arcade summary board exit already completed - skipping duplicate exit');
+        } else {
+          try {
+            const { STATE } = await import('./app-state.js');
+            if (STATE && typeof (window as any).animateBoardExit === 'function') {
+              console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
+              boardExitPromise = (window as any).animateBoardExit();
+            } else {
+              console.warn('⚠️ clean-board-modal: animateBoardExit not available, skipping board exit animation');
+            }
+          } catch (error) {
+            console.error('❌ clean-board-modal: Failed to start board exit animation:', error);
           }
-        } catch (error) {
-          console.error('❌ clean-board-modal: Failed to start board exit animation:', error);
         }
         
         // 🔥 Start modal exit animation IMMEDIATELY (in parallel with board exit animation)

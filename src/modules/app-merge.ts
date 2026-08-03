@@ -17,7 +17,7 @@ import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
-import { isWildLikeTile } from './final-merge-rules.ts';
+import { isPlayableMagnetPullCandidate, isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceDirectWildLikeTile, isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
@@ -125,8 +125,7 @@ function tileIsActive(tile: any): boolean {
 }
 
 function tileIsTransientForMagnetPull(tile: any): boolean {
-  if (!tile || tile.destroyed) return true;
-  return tile._ccWildSpawnDropping === true;
+  return !isPlayableMagnetPullCandidate(tile, { allowMagnetOwned: true });
 }
 
 function removeTile(t){

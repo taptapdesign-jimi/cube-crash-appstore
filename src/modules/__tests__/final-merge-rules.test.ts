@@ -2,11 +2,34 @@ import {
   getFinalMergeSnapshot,
   getFinalMergeTileSets,
   getPlayableMagnetPullCandidates,
+  isPlayableMagnetPullCandidate,
   isTilePendingGameplayRemoval,
   isWildLikeTile,
   tileBlocksFinalMerge,
   tileCountsAsFinalMergeActive,
 } from '../final-merge-rules';
+
+test('dropping wild blocks completion but cannot be selected or committed by Magnet', () => {
+  const droppingWild = makeTile({
+    value: 6,
+    special: 'wild',
+    _ccWildSpawnDropping: true,
+  });
+  const src = makeTile({ value: 1 });
+  const dst = makeTile({ value: 5, special: 'wild-magnet' });
+
+  expect(tileCountsAsFinalMergeActive(droppingWild)).toBe(true);
+  expect(isPlayableMagnetPullCandidate(droppingWild)).toBe(false);
+  (droppingWild as any)._wildMagnetAffected = true;
+  expect(isPlayableMagnetPullCandidate(droppingWild, { allowMagnetOwned: true })).toBe(false);
+  expect(getPlayableMagnetPullCandidates({ tiles: [src, dst, droppingWild], src, dst })).toEqual([]);
+});
+
+test('stable Magnet-owned tile remains commit-valid after intentional lock and grid detach', () => {
+  const ownedTile = makeTile({ value: 4, locked: true, _wildMagnetAffected: true });
+  expect(isPlayableMagnetPullCandidate(ownedTile)).toBe(false);
+  expect(isPlayableMagnetPullCandidate(ownedTile, { allowMagnetOwned: true })).toBe(true);
+});
 
 const makeTile = (overrides: Partial<any> = {}) => ({
   value: 0,
