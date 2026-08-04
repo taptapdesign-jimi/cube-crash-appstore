@@ -543,6 +543,9 @@ class UIManager {
     markArcadeHomeRunOrigin();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
     (window as any).__ccTriggerHudDrop = true;
+    // Fresh Arcade uses the same pure current-Round intro as a saved resume.
+    // rebuildBoard captures and clears this one-shot before cubes can paint.
+    (window as any).__ccArcadeContinuationCueRound = 1;
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
       console.log('🎮 ====================================');
@@ -649,6 +652,7 @@ class UIManager {
       
     } catch (error) {
       delete (window as any).__ccTriggerHudDrop;
+      delete (window as any).__ccArcadeContinuationCueRound;
       console.error('❌ Failed to start new game:', error);
       logger.error('❌ Failed to start new game:', error);
     }
@@ -664,7 +668,7 @@ class UIManager {
       markArcadeHomeRunOrigin();
       (window as any).__ccTriggerHudDrop = true;
       const continuationRound = getArcadeSavedRound();
-      if (continuationRound !== null && continuationRound > 1) {
+      if (continuationRound !== null && continuationRound > 0) {
         (window as any).__ccArcadeContinuationCueRound = continuationRound;
       } else {
         delete (window as any).__ccArcadeContinuationCueRound;

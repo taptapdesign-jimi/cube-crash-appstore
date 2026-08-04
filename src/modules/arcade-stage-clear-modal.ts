@@ -741,7 +741,7 @@ export async function showArcadeContinuationRoundCue(stageNumber: number): Promi
   cancelArcadeStageClearModal();
   ensureStyles();
 
-  const resumedStage = Math.max(2, stageNumber | 0);
+  const resumedStage = Math.max(1, stageNumber | 0);
   const parts = createOverlay(resumedStage - 1, resumedStage);
   activeOverlay = parts.overlay;
   appSpatialMotion.activateArcadeStageClear(parts.overlay, resumedStage - 1);

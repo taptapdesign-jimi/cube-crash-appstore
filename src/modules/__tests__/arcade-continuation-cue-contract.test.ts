@@ -29,15 +29,30 @@ describe('Arcade continuation Round cue contract', () => {
     expect(zoneSource).not.toContain('cleanupArcadeStageClearModal?.(false)');
   });
 
-  test('Homepage Arcade resume shows the cue only for saved rounds above 01', () => {
+  test('Homepage Arcade resume shows the current-Round cue for every valid saved Round including 01', () => {
     const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
     const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
 
     expect(uiSource).toContain('const continuationRound = getArcadeSavedRound();');
-    expect(uiSource).toContain('continuationRound !== null && continuationRound > 1');
+    expect(uiSource).toContain('continuationRound !== null && continuationRound > 0');
     expect(uiSource).toContain('__ccArcadeContinuationCueRound = continuationRound');
-    expect(coreSource).toContain('beforePopIn: arcadeContinuationCueRound > 1');
+    expect(coreSource).toContain('beforePopIn: arcadeContinuationCueRound > 0');
     expect(coreSource).toContain('await showArcadeContinuationRoundCue(arcadeContinuationCueRound)');
+  });
+
+  test('fresh Arcade shows Round 01 before its first board entrance', () => {
+    const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
+    const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const modalSource = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+
+    const freshStart = uiSource.slice(
+      uiSource.indexOf('async startNewGame(): Promise<void>'),
+      uiSource.indexOf('// Start new game with saved state'),
+    );
+    expect(freshStart).toContain('__ccArcadeContinuationCueRound = 1');
+    expect(coreSource).toContain('beforePopIn: arcadeEntryCueRound > 0');
+    expect(coreSource).toContain('tiles.forEach((tile: any) => { if (tile) tile.visible = false; });');
+    expect(modalSource).toContain('const resumedStage = Math.max(1, stageNumber | 0);');
   });
 
   test('post-load recovery cannot inspect the board while continuation tiles are hidden', () => {

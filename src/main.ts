@@ -2117,28 +2117,43 @@ async function startNewRun(boardId: number): Promise<void> {
 
 // New sequence handler: bottom sheet close → exit anim → game start
 (window as any).triggerGameStartSequence = async (options: { resumeArcade?: boolean } = {}) => {
-  logger.info('🎬 Starting game start sequence...');
-  appZoneManager.prepareArcadeRunOrigin(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
-  resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
-  
-  // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
-  // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
-  console.log('🏠 Marked as coming from homepage');
-  
-  // Step 1: Play exit animation FIRST
-  console.log('🎬 Step 1: Playing exit animation');
-  animateSliderExit();
-  
-  // Step 2: Wait for exit animation to complete, then hide homepage and start game
-  setTimeout(async () => {
+  if ((window as any).__ccUiArcadeTransitioning === true) {
+    logger.warn('⚠️ Arcade Homepage transition already owns this gesture; ignoring duplicate trigger');
+    return;
+  }
+  (window as any).__ccUiArcadeTransitioning = true;
+
+  try {
+    logger.info('🎬 Starting game start sequence...');
+    // A cold-launch hero tap is allowed before Homepage enter settles. Revoke
+    // that owner before exit starts so no delayed enter callback can reveal or
+    // duplicate Slide 1 while Arcade already owns navigation.
+    homepageEnterTransitionOwner.cancel('homepage-to-arcade');
+    cancelSliderEnterAnimation('homepage-to-arcade');
+
+    appZoneManager.prepareArcadeRunOrigin(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
+    resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
+
+    // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
+    // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+    console.log('🏠 Marked as coming from homepage');
+
+    // Step 1: Play exit animation FIRST
+    console.log('🎬 Step 1: Playing exit animation');
+    animateSliderExit();
+
+    // Step 2: Wait for exit animation to complete, then hide homepage and start game.
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 770));
     console.log('🎮 Step 2: Starting game after exit animation');
-    await appZoneManager.hideHomepageForGame('triggerGameStartSequence:start-game'); // Hide homepage AFTER animation
+    await appZoneManager.hideHomepageForGame('triggerGameStartSequence:start-game');
     if (options?.resumeArcade) {
-      uiManager.startNewGameWithSavedState();
+      await uiManager.startNewGameWithSavedState();
     } else {
-      uiManager.startNewGame(); // Start game boot (fresh Arcade run)
+      await uiManager.startNewGame();
     }
-  }, 770); // 120ms delay + 650ms animation = 770ms total
+  } finally {
+    delete (window as any).__ccUiArcadeTransitioning;
+  }
 };
 
 // Export exitToMenu function for End This Run modal

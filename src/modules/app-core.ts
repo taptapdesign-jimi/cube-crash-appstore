@@ -4823,6 +4823,12 @@ function resetBoardContainer(){
   });
 }
 function rebuildBoard(){
+  const arcadeEntryCueRound = isArcadeHomeRunMode()
+    ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
+    : 0;
+  if (arcadeEntryCueRound > 0) {
+    delete (window as any).__ccArcadeContinuationCueRound;
+  }
   stopTileIdleBounce({ TILE_IDLE_BOUNCE, devLog, devWarn });
   tutorialFinalChanceSpawnCount = 0;
   
@@ -4863,6 +4869,11 @@ function rebuildBoard(){
   });
 
   finalizeBoardVisibility({ tiles, drawBoardBG });
+  if (arcadeEntryCueRound > 0) {
+    // The current-Round cue owns the empty visual stage. Prevent the freshly
+    // constructed board from painting before its normal sweetPopIn begins.
+    tiles.forEach((tile: any) => { if (tile) tile.visible = false; });
+  }
   try { hideGhostPlaceholders(); } catch {}
   
   // 🔥 CRITICAL FIX: Ensure background layer exists and is visible
@@ -4900,6 +4911,13 @@ function rebuildBoard(){
         }
       } catch {}
     },
+    beforePopIn: arcadeEntryCueRound > 0
+      ? async () => {
+          const { showArcadeContinuationRoundCue } = await import('./arcade-stage-clear-modal.js');
+          await showArcadeContinuationRoundCue(arcadeEntryCueRound);
+          devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
+        }
+      : undefined,
     devLog,
   });
   
@@ -14244,7 +14262,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       tiles,
       backgroundLayer,
       sweetPopIn,
-      beforePopIn: arcadeContinuationCueRound > 1
+      beforePopIn: arcadeContinuationCueRound > 0
         ? async () => {
             const { showArcadeContinuationRoundCue } = await import('./arcade-stage-clear-modal.js');
             await showArcadeContinuationRoundCue(arcadeContinuationCueRound);
