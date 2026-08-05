@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { isSpecialDiceResolutionOwned, releaseSpecialDiceResolution } from './special-dice-registry.ts';
 
 export type TileLifecycleGrid = any[][] | null | undefined;
 
@@ -140,6 +141,7 @@ export function removeTileFully(tile: any, options: TileLifecycleRemoveOptions =
   } catch {}
 
   clearTileTransientFlags(tile);
+  releaseSpecialDiceResolution(tile);
 
   try { options.board?.removeChild?.(tile); } catch {}
   if (idx !== -1 && tiles) {
@@ -157,6 +159,7 @@ export function removeTileFully(tile: any, options: TileLifecycleRemoveOptions =
 
 export function isGameplayTileCandidate(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
+  if (isSpecialDiceResolutionOwned(tile)) return false;
   if (tile._pendingRemoval === true || tile._beingRemoved === true || tile._cleanupQueued === true) return false;
   if (tile.visible === false) return false;
   if (typeof tile.alpha === 'number' && tile.alpha <= 0.01) return false;

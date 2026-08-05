@@ -18,9 +18,15 @@ import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
 import { isPlayableMagnetPullCandidate, isWildLikeTile } from './final-merge-rules.ts';
-import { isSpecialDiceDirectWildLikeTile, isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
+import {
+  clearSpecialDiceIdentity,
+  isSpecialDiceDirectWildLikeTile,
+  isSpecialDiceStarLikeTile,
+  releaseSpecialDiceResolution,
+} from './special-dice-registry.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
+import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
 import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
@@ -1816,30 +1822,28 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       }
     }
     
-    // 🔥 USER REQUEST: Create locked placeholders for null cells (like regular merge-6 does)
-    // When spawnLockedTilesWithPop was used, we already have 9 locked (3 opened → 6 locked). Skip fill.
-    // Otherwise use fillNullCellsWithLockedPlaceholders for 6 locked.
-    if (!usedSpawnLockedTilesWithPop) {
-      try {
-        const board = STATE.board;
-        const grid = STATE.grid;
-        const tiles = STATE.tiles;
-        const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
-        if (board && grid && tiles && makeBoardForFill) {
-          fillNullCellsWithLockedPlaceholders({
-            ROWS,
-            COLS,
-            board,
-            grid,
-            tiles,
-            makeBoard: makeBoardForFill,
-            fixHoverAnchor,
-          }, { cells: reservedForLocked });
-          try { drawBoardBG?.(); } catch {}
-        }
-      } catch (err) {
-        console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed:', err);
+    // Keep the six reserved placeholder cells synchronized after every Magnet/Honey
+    // respawn. This path no longer calls spawnLockedTilesWithPop, so there is no
+    // alternate ownership flag to branch on here.
+    try {
+      const board = STATE.board;
+      const grid = STATE.grid;
+      const tiles = STATE.tiles;
+      const makeBoardForFill = helpers?.makeBoard ?? (await import('./board.js'));
+      if (board && grid && tiles && makeBoardForFill) {
+        fillNullCellsWithLockedPlaceholders({
+          ROWS,
+          COLS,
+          board,
+          grid,
+          tiles,
+          makeBoard: makeBoardForFill,
+          fixHoverAnchor,
+        }, { cells: reservedForLocked });
+        try { drawBoardBG?.(); } catch {}
       }
+    } catch (err) {
+      console.warn('⚠️ fillNullCellsWithLockedPlaceholders failed:', err);
     }
   } else if (spawnCount > 0) {
     console.warn('⚠️ No spawn targets found!', {
@@ -1937,9 +1941,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         delete (dst as any)._wildMagnetPulledTilesMerge;
         delete (dst as any)._wildMagnetMergeCallback;
 
-        dst.special = null;
-        dst.isWild = false;
-        dst.isWildFace = false;
+        // Atomically consume the complete special identity before setValue.
+        // Clearing only `special` leaves `_ccWildSpecial`/variant metadata behind,
+        // allowing canDrop or a late async texture decode to resurrect Honey.
+        clearSpecialDiceIdentity(dst);
         dst.locked = false;
         makeBoard.syncTileZIndex(dst, STATE.board);
         dst.visible = true;
@@ -1952,6 +1957,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         } catch (e) {
           dst.value = freshVal;
         }
+        releaseSpecialDiceResolution(dst);
         if (dst.overlay) {
           dst.overlay.visible = false;
           dst.overlay.alpha = 1;
@@ -2008,6 +2014,26 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     } catch (err) {
       console.warn('⚠️ fillNullCellsWithLockedPlaceholders (post-merge6-removal) failed:', err);
     }
+  }
+
+  // This is the transaction boundary: replacement tiles are committed, the
+  // consumed Magnet/Honey is now a fresh regular cube, and placeholders are in
+  // sync. Everything below is endgame verification or visual settle time and
+  // must not continue owning gameplay input.
+  try {
+    emitIOSSpecialTransactionTrace('magnet-board-commit-ready', {
+      successfulSpawns,
+      spawnCount,
+      dstValue: dst?.value ?? null,
+      dstSpecial: dst?.special ?? null,
+      dstLocked: dst?.locked === true,
+    });
+    helpers?.onMagnetBoardCommit?.();
+  } catch (error) {
+    emitIOSSpecialTransactionTrace('magnet-board-commit-callback-error', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+    console.warn('⚠️ Magnet board-commit release callback failed:', error);
   }
   
   // 🔥 USER BUG FIX: Wait LONGER for spawn animations to complete before checking endgame

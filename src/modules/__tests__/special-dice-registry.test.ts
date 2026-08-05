@@ -10,6 +10,7 @@ import {
   getSpecialDiceSplashOptions,
   getSpecialDiceTrailColors,
   getSpecialDiceVariant,
+  getSpecialDiceVariantForTile,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceGameplayResolvingLikeTile,
   isSpecialDiceJuiceLikeTile,
@@ -18,6 +19,10 @@ import {
   isSpecialDiceTntLikeTile,
   pickSpecialDiceVariantForWildSpawn,
   applySpecialDiceVariantToTile,
+  clearSpecialDiceIdentity,
+  isSpecialDiceResolutionOwned,
+  markSpecialDiceResolutionOwned,
+  releaseSpecialDiceResolution,
 } from '../special-dice-registry';
 
 const makeTile = (overrides: Partial<any> = {}) => ({
@@ -25,6 +30,30 @@ const makeTile = (overrides: Partial<any> = {}) => ({
   _ccSpecialDiceVariant: null,
   specialDiceVariant: null,
   ...overrides,
+});
+
+test('consumed Honey cannot retain or resurrect special identity', () => {
+  const honey: any = makeTile({
+    special: 'wild-magnet',
+    isWild: true,
+    isWildFace: true,
+    _ccWildSpecial: 'wild-magnet',
+  });
+  applySpecialDiceVariantToTile(honey, getSpecialDiceVariant('honey'));
+  markSpecialDiceResolutionOwned(honey);
+
+  expect(isSpecialDiceResolutionOwned(honey)).toBe(true);
+  clearSpecialDiceIdentity(honey);
+
+  expect(honey).toMatchObject({ special: null, isWild: false, isWildFace: false });
+  expect(honey._ccWildSpecial).toBeUndefined();
+  expect(honey._ccSpecialDiceVariant).toBeUndefined();
+  expect(honey.specialDiceVariant).toBeUndefined();
+  expect(honey._ccSpecialDiceArchetype).toBeUndefined();
+  expect(getSpecialDiceVariantForTile(honey)).toBeNull();
+
+  releaseSpecialDiceResolution(honey);
+  expect(isSpecialDiceResolutionOwned(honey)).toBe(false);
 });
 
 test('variant archetype drives final merge FX for future special dice', () => {

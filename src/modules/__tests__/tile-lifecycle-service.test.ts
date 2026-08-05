@@ -72,6 +72,7 @@ test('isGameplayTileCandidate rejects invisible, pending, locked, passive, and e
   expect(isGameplayTileCandidate({ value: 2, eventMode: 'static', visible: true, alpha: 1, locked: true })).toBe(false);
   expect(isGameplayTileCandidate({ value: 2, eventMode: 'none', visible: true, alpha: 1 })).toBe(false);
   expect(isGameplayTileCandidate({ value: 2, eventMode: 'static', visible: true, alpha: 1, _pendingRemoval: true })).toBe(false);
+  expect(isGameplayTileCandidate({ value: 6, special: 'wild-magnet', eventMode: 'static', visible: true, alpha: 1, _ccSpecialDiceResolving: true })).toBe(false);
   expect(isGameplayTileCandidate({ value: 0, eventMode: 'static', visible: true, alpha: 1 })).toBe(false);
 });
 

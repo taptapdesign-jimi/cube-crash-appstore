@@ -18,7 +18,7 @@ import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
-import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive } from './tnt-animation.ts';
+import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -103,6 +103,7 @@ import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMon
 import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
 import { markMergePerformance } from '../utils/merge-performance.ts';
 import { emitIOSArcadeGameplayTrace } from '../utils/ios-arcade-gameplay-trace.ts';
+import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
@@ -175,6 +176,8 @@ import { decideWildType } from './app-core-wild-type.ts';
 import { detachTileFromGrid, isLockedEmptyPlaceholder, normalizePlayableTileAfterMutation, normalizeSpawnedTileVisual, removeTileFully } from './tile-lifecycle-service.ts';
 import {
   applySpecialDiceVariantToTile,
+  isSpecialDiceResolutionOwned,
+  markSpecialDiceResolutionOwned,
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceExplosionSpriteSources,
   getSpecialDiceFinaleFlagsForMerge,
@@ -199,6 +202,7 @@ import {
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
+import { SpecialDiceTransactionOwner, type SpecialDiceTransactionKind } from './special-dice-transaction-owner.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -695,6 +699,7 @@ let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns whe
 let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 const merge6DestinationCleanupOwner = new Merge6DestinationCleanupOwner();
+const specialDiceTransactionOwner = new SpecialDiceTransactionOwner();
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -741,6 +746,7 @@ function setWildMagnetPullInProgress(active: boolean, reason: string = 'unknown'
     }
   } catch {}
   devLog(`🧲 Wild-magnet pull interaction guard ${active ? 'ON' : 'OFF'} (${reason})`);
+  emitIOSSpecialTransactionTrace('magnet-pull-gate', { active, reason });
   if (wasActive && !active) {
     queueWildSpawnAfterGuardRelease(`wild-magnet-pull-reset:${reason}`);
   }
@@ -755,14 +761,68 @@ function clearMerge6SpawnResetTimer(): void {
   } catch {}
 }
 
-function resetMerge6SpawnState(_reason: string = 'unknown'): void {
+function resetMerge6SpawnState(
+  _reason: string = 'unknown',
+  options: {
+    releaseSpecialTransaction?: boolean;
+    specialTransactionToken?: number | null;
+  } = {},
+): void {
   const wasInProgress = merge6SpawnInProgress;
   merge6SpawnInProgress = false;
   merge6SpawnInProgressIsWild = false;
   clearMerge6SpawnResetTimer();
+  if (options.releaseSpecialTransaction !== false) {
+    releaseSpecialDiceTransaction(
+      options.specialTransactionToken ?? null,
+      `merge6-spawn-reset:${_reason}`,
+    );
+  }
   if (wasInProgress) {
     queueWildSpawnAfterGuardRelease(`merge6-spawn-reset:${_reason}`);
   }
+}
+
+function beginSpecialDiceTransaction(kind: SpecialDiceTransactionKind): number | null {
+  const token = specialDiceTransactionOwner.claim(kind);
+  if (token === null) {
+    emitIOSSpecialTransactionTrace('claim-rejected', {
+      kind,
+      active: specialDiceTransactionOwner.snapshot(),
+    });
+    return null;
+  }
+  setInputGateLock('special-transaction', true, { ttlMs: 15000, scope: 'all' });
+  devLog('🛡️ Special transaction claimed', { token, kind });
+  emitIOSSpecialTransactionTrace('claimed', { token, kind });
+  return token;
+}
+
+function releaseSpecialDiceTransaction(token: number | null, reason: string): boolean {
+  const active = specialDiceTransactionOwner.snapshot();
+  emitIOSSpecialTransactionTrace('release-request', { token, reason, active });
+  if (!active) {
+    setInputGateLock('special-transaction', false);
+    emitIOSSpecialTransactionTrace('release-no-active-owner', { token, reason });
+    return false;
+  }
+  if (active.token !== token) {
+    devWarn('🛡️ Ignoring stale special transaction release', {
+      requestedToken: token,
+      activeToken: active.token,
+      activeKind: active.kind,
+      reason,
+    });
+    emitIOSSpecialTransactionTrace('release-stale-token', { token, reason, active });
+    return false;
+  }
+  const released = specialDiceTransactionOwner.release(token);
+  if (released) {
+    setInputGateLock('special-transaction', false);
+    devLog('🛡️ Special transaction released', { ...active, reason });
+    emitIOSSpecialTransactionTrace('released', { token, reason, kind: active.kind });
+  }
+  return released;
 }
 
 function resetTransientRunGuards(reason: string = 'unknown'): void {
@@ -782,6 +842,8 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   wildSpawnInProgress = false;
   wildSpawnCancelToken++;
   resetMerge6SpawnState(`transient-guards:${reason}`);
+  specialDiceTransactionOwner.reset();
+  try { setInputGateLock('special-transaction', false); } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
   try { clearInputGateLocks(); } catch {}
@@ -3158,6 +3220,23 @@ export async function boot(){
         }
         return null;
       };
+      const isInternalPulledTilesMerge =
+        (s as any)?._wildMagnetAffected === true &&
+        (d as any)?._wildMagnetAffected === true;
+      if (specialDiceTransactionOwner.isActive() && !isInternalPulledTilesMerge) {
+        devLog('🛡️ canDrop (app-core): Another special transaction owns the board');
+        return false;
+      }
+      const touchesSpecialDice = isWildLikeTile(s) || isWildLikeTile(d) ||
+        !!getSpecialDiceVariantForTile(s) || !!getSpecialDiceVariantForTile(d);
+      if (merge6SpawnInProgress && touchesSpecialDice) {
+        devLog('🛡️ canDrop (app-core): Special dice waits for current merge-6 spawn');
+        return false;
+      }
+      if (isSpecialDiceResolutionOwned(s) || isSpecialDiceResolutionOwned(d)) {
+        devLog('🛡️ canDrop (app-core): Special dice resolution owns this tile');
+        return false;
+      }
       if ((s as any)?._ccWildSpawnDropping === true || (d as any)?._ccWildSpawnDropping === true) {
         devLog('🛡️ canDrop (app-core): Incoming wild drop is not mergeable yet');
         return false;
@@ -6179,9 +6258,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   });
   
   if (busyEnding) { helpers.snapBack?.(src); return; }
+  const isInternalPulledTilesMerge =
+    (src as any)?._wildMagnetAffected === true &&
+    (dst as any)?._wildMagnetAffected === true;
   // 🔥 BUG FIX: Prevent duplicate spawns when wild star/juice are used rapidly
   // If spawn is in progress from previous merge, block new merge to prevent duplicate spawns
-  if (merge6SpawnInProgress && merge6SpawnInProgressIsWild) {
+  if (merge6SpawnInProgress && merge6SpawnInProgressIsWild && !isInternalPulledTilesMerge) {
     devWarn('🚨🚨🚨 MERGE BLOCKED: Wild merge-6 spawn in progress - preventing rapid duplicate');
     helpers.snapBack?.(src);
     return;
@@ -6194,11 +6276,21 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     if (src && !src.destroyed) helpers.snapBack?.(src);
     return;
   }
+  if (isSpecialDiceResolutionOwned(src) || isSpecialDiceResolutionOwned(dst)) {
+    devWarn('🛡️ MERGE BLOCKED: A gameplay-resolving special still owns this tile');
+    helpers.snapBack?.(src);
+    return;
+  }
+  if (specialDiceTransactionOwner.isActive() && !isInternalPulledTilesMerge) {
+    devWarn('🛡️ MERGE BLOCKED: Another special transaction still owns the board');
+    helpers.snapBack?.(src);
+    return;
+  }
   
   // 🔥 CRITICAL: Check if both tiles are wild-magnet affected (pulled tiles merge)
   const srcIsWildMagnetAffected = (src as any)?._wildMagnetAffected === true;
   const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
-  const isPulledTilesMerge = srcIsWildMagnetAffected && dstIsWildMagnetAffected;
+  const isPulledTilesMerge = isInternalPulledTilesMerge;
   
   // 🛡️ CRITICAL: Block merge if only ONE tile is wild-magnet affected (protected tile cannot merge with others)
   // Protected tiles can only merge with other protected tiles (pulled tiles merge)
@@ -6260,6 +6352,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   // NOTE: srcIsWildMagnetAffected and dstIsWildMagnetAffected are already declared above
   const wildActive = isWildLikeTile(src) || isWildLikeTile(dst) ||
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
+  const specialTransactionKind = wildActive
+    ? getSpecialDiceFinaleFxForMerge({ src, dst, srcSpecial: src?.special, dstSpecial: dst?.special })
+    : null;
+  let specialTransactionToken: number | null = null;
+  if (specialTransactionKind && !isInternalPulledTilesMerge) {
+    specialTransactionToken = beginSpecialDiceTransaction(specialTransactionKind);
+    if (specialTransactionToken === null) {
+      devWarn('🛡️ MERGE BLOCKED: Failed to claim special transaction owner');
+      helpers.snapBack?.(src);
+      return;
+    }
+  }
+  if (srcIsMagnetLike) markSpecialDiceResolutionOwned(src);
+  if (dstIsMagnetLike) markSpecialDiceResolutionOwned(dst);
   const wildTargetValue = wildActive ? ((isWildLikeTile(src) || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
   
@@ -8360,6 +8466,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   TILE,
                   fixHoverAnchor,
                   SPAWN,
+                  // Magnet/Honey board ownership ends when app-merge has
+                  // committed every replacement, converted the consumed die,
+                  // and synchronized placeholders. Its later endgame/visual
+                  // settle waits must not freeze player input.
+                  onMagnetBoardCommit: () => {
+                    emitIOSSpecialTransactionTrace('magnet-board-commit-callback', {
+                      token: specialTransactionToken,
+                    });
+                    setWildMagnetPullInProgress(false, 'board-commit');
+                    releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-board-commit');
+                  },
                 };
                 
                 // Use dst if still valid, otherwise use merge location from first tile (with gridX/gridY for mergePulledTilesIntoMerge6)
@@ -8411,6 +8528,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   cleanupAllPullAnimations();
                   mergeStarted = false;
                   setWildMagnetPullInProgress(false, 'commit-validation-abort');
+                  releaseSpecialDiceTransaction(
+                    specialTransactionToken,
+                    'wild-magnet-commit-validation-abort',
+                  );
                   scheduleCheckLevelEnd(0.18, 'wild-magnet-commit-validation-abort');
                   return;
                 }
@@ -8426,8 +8547,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
                 
-                // 🔥 CRITICAL: Reset wildMagnetPullInProgress after successful merge
-                setWildMagnetPullInProgress(false, 'merge-completed');
+                // Idempotent fallback only: the normal path releases at the
+                // board-commit callback before app-merge's settle/endgame tail.
+                setWildMagnetPullInProgress(false, 'merge-completed-fallback');
+                releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-handler-complete-fallback');
                 devLog('✅ Wild-magnet pull animation guard reset (merge completed)');
                 
                 // 🔥 CRITICAL: DON'T clean up flags immediately - they need to stay until onComplete callback checks them
@@ -8455,10 +8578,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 });
                 // Reset guard after cleanup (redundant but safe - cleanupAllPullAnimations also resets)
                 setWildMagnetPullInProgress(false, 'not-enough-valid-tiles');
+                releaseSpecialDiceTransaction(
+                  specialTransactionToken,
+                  'wild-magnet-not-enough-valid-tiles',
+                );
               }
             } catch (err) {
               devError('❌ Error merging pulled tiles:', err);
               devError('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+              emitIOSSpecialTransactionTrace('magnet-merge-error', {
+                token: specialTransactionToken,
+                message: err instanceof Error ? err.message : String(err),
+                stack: err instanceof Error ? err.stack?.split('\n').slice(0, 4).join('\n') : undefined,
+              });
               // Cleanup all timelines (MEMORY LEAK FIX)
               cleanupAllPullAnimations();
               // Cleanup all pulled tiles on error
@@ -8474,6 +8606,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               });
               // Reset guard after error
               setWildMagnetPullInProgress(false, 'merge-error');
+              releaseSpecialDiceTransaction(
+                specialTransactionToken,
+                'wild-magnet-merge-error-rollback',
+              );
             }
           }
         };
@@ -8710,10 +8846,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             await tryMergePulledTiles();
           } catch (error) {
             devError('❌ Error in tryMergePulledTiles (from multiplier callback):', error);
+            emitIOSSpecialTransactionTrace('magnet-multiplier-callback-error', {
+              token: specialTransactionToken,
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack?.split('\n').slice(0, 4).join('\n') : undefined,
+            });
             // Cleanup all timelines (MEMORY LEAK FIX)
             cleanupAllPullAnimations();
             // Reset guard on error
             setWildMagnetPullInProgress(false, 'multiplier-callback-error');
+            releaseSpecialDiceTransaction(
+              specialTransactionToken,
+              'wild-magnet-multiplier-callback-error-rollback',
+            );
           }
         };
       }
@@ -8742,6 +8887,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             });
             
             setWildMagnetPullInProgress(false, 'timeout-fallback-cleanup');
+            releaseSpecialDiceTransaction(
+              specialTransactionToken,
+              'wild-magnet-timeout-fallback-rollback',
+            );
             devLog('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
             scheduleCheckLevelEnd(0.12, 'wild-magnet-timeout-fallback-cleanup');
           }
@@ -9377,6 +9526,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	              // Start tile separation immediately on TNT merge-6.
 	              startTntBoardBlast();
 	              let tntBonusTriggered = false;
+	              let tntBonusGameplayComplete = false;
+	              let tntVisibleSequenceComplete = false;
+	              let tntGameplayGateReleased = false;
+	              const releaseTntGateWhenSettled = (reason: string) => {
+	                if (tntGameplayGateReleased) return;
+	                if (!tntBonusGameplayComplete || !tntVisibleSequenceComplete) return;
+	                tntGameplayGateReleased = true;
+	                releaseTntGameplayInputGate();
+	                releaseSpecialDiceTransaction(specialTransactionToken, `tnt-gameplay-settled:${reason}`);
+	                devLog('🌸 TNT/Flower input released at real gameplay boundary:', reason);
+	              };
 	              const triggerTntBonusBreak = (reason: string) => {
 	                if (tntBonusTriggered) return;
 	                tntBonusTriggered = true;
@@ -9402,7 +9562,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        ? tntVisualOptionsForMerge?.burstSources
 	                        : undefined,
 	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
-	                      skipFx: false
+	                      skipFx: false,
+	                      onComplete: () => {
+	                        tntBonusGameplayComplete = true;
+	                        releaseTntGateWhenSettled('bonus-gameplay-complete');
+	                      },
 	                    });
 	                  }, 0);
 	                });
@@ -9413,7 +9577,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                  triggerTntBonusBreak('sprite-10-exit-minus-300ms');
 	                },
 	                onSpriteSequenceComplete: () => {
+	                  tntVisibleSequenceComplete = true;
 	                  triggerTntBonusBreak('sequence-complete-fallback');
+	                  releaseTntGateWhenSettled('visible-sequence-complete');
 	                }
 	              });
               if (tntOverlay) alsoShakeTargets.push(tntOverlay);
@@ -10400,7 +10566,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
         if (!spawnMult || spawnMult <= 0) {
           devWarn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
-          resetMerge6SpawnState('invalid-spawn-mult');
+          resetMerge6SpawnState('invalid-spawn-mult', { specialTransactionToken });
           return;
         }
         
@@ -10429,7 +10595,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           merge6SpawnResetTimer = trackDelayedCall(2.5, () => {
             if (merge6SpawnInProgress) {
               devWarn('⚠️ merge6SpawnInProgress timed out - forcing reset');
-              resetMerge6SpawnState('timeout');
+              // Reset the legacy spawn flag so recovery can proceed, but keep
+              // the special transaction owner until the real async finally or
+              // its independent 15s watchdog. A 2.5s visual timeout must never
+              // authorize a second special over a still-running first one.
+              resetMerge6SpawnState('timeout', { releaseSpecialTransaction: false });
             }
             merge6SpawnResetTimer = null;
           });
@@ -10944,7 +11114,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             scheduleSpawnOpacitySafetySweep();
           };
             doEndgameSpawns().catch((err) => devWarn('⚠️ END-GAME SPAWN: Error:', err)).finally(() => {
-              resetMerge6SpawnState('endgame-spawn-finally');
+              resetMerge6SpawnState('endgame-spawn-finally', {
+                releaseSpecialTransaction: specialTransactionKind !== 'tnt',
+                specialTransactionToken,
+              });
             });
           }, 50);
         } else {
@@ -11122,7 +11295,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 .then(spawnFromLocked)
                 .catch((err) => devWarn('⚠️ NORMAL SPAWN: Error:', err))
                 .finally(() => {
-                  resetMerge6SpawnState('regular-spawn-finally');
+                  resetMerge6SpawnState('regular-spawn-finally', { specialTransactionToken });
                 });
             }, 50);
           } else {
@@ -11333,7 +11506,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               } catch (err) {
                 devWarn('⚠️ WILD SPAWN error:', err);
               } finally {
-                resetMerge6SpawnState('wild-spawn-finally');
+                resetMerge6SpawnState('wild-spawn-finally', {
+                  releaseSpecialTransaction: specialTransactionKind !== 'tnt',
+                  specialTransactionToken,
+                });
               }
             })();
           }

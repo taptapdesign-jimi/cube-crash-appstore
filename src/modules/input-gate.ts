@@ -3,7 +3,7 @@
 
 import { STATE } from './app-state.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
-import { isSpecialDiceMagnetLikeTile } from './special-dice-registry.ts';
+import { isSpecialDiceMagnetLikeTile, isSpecialDiceResolutionOwned } from './special-dice-registry.ts';
 
 export type InputGateLockReason =
   | 'juice-bubbles'
@@ -46,6 +46,10 @@ function isWildOrSpecialTile(tile: any): boolean {
 
 function canRebindAfterVisualTail(tile: any): boolean {
   if (!isWildOrSpecialTile(tile)) return false;
+  // A visual-tail timer may expire while a different special still owns the
+  // board mutation. Never let that timer bypass the central transaction gate.
+  if (!canStartTileDrag({ tile, isWildTile: true }).allowed) return false;
+  if (isSpecialDiceResolutionOwned(tile)) return false;
   if (tile._ccWildSpawnDropping === true) return false;
   if (tile._ccWildSpawnHandoffLock === true) return false;
   if (tile._wildMagnetAffected === true) return false;
@@ -224,6 +228,7 @@ function getLegacyRuntimeReasons(input: CanStartTileDragInput): string[] {
   }
 
   const tile = input.tile;
+  if (isSpecialDiceResolutionOwned(tile)) reasons.push('special-dice-resolving');
   if (tile?._ccWildSpawnDropping === true) reasons.push('wild-spawn-dropping');
   if (tile?._ccWildSpawnHandoffLock === true) reasons.push('wild-spawn-handoff');
   if (tile?._wildMagnetAffected === true) reasons.push('magnet-affected-tile');

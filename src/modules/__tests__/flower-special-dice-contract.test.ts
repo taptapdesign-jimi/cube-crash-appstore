@@ -86,4 +86,18 @@ describe('Flower special-die visual contract', () => {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/bush/flowr${flower}@2x.png`))).toBe(true);
     }
   });
+
+  test('keeps gameplay input locked through the complete Flower transaction', () => {
+    expect(tntSource).toContain('export function releaseTntGameplayInputGate(): void');
+    const visualTailSection = tntSource.slice(
+      tntSource.indexOf('const sprite10ExitLeadTime'),
+      tntSource.indexOf('// Cleanup after all animations'),
+    );
+    expect(visualTailSection).not.toContain('releaseTntInputGate()');
+
+    const appCoreSource = read('src/modules/app-core.ts');
+    expect(appCoreSource).toContain('if (!tntBonusGameplayComplete || !tntVisibleSequenceComplete) return;');
+    expect(appCoreSource).toContain('releaseTntGameplayInputGate();');
+    expect(appCoreSource).toContain('releaseSpecialDiceTransaction(specialTransactionToken');
+  });
 });

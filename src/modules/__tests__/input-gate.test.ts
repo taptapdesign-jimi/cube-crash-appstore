@@ -114,6 +114,10 @@ describe('input gate', () => {
     expect(canStartTileDrag({ tile: { _ccWildSpawnDropping: true }, isWildTile: true }).reasons).toContain('wild-spawn-dropping');
     expect(canStartTileDrag({ tile: { _ccWildSpawnHandoffLock: true }, isWildTile: true }).reasons).toContain('wild-spawn-handoff');
     expect(canStartTileDrag({ tile: { _wildMagnetAffected: true }, isWildTile: false }).reasons).toContain('magnet-affected-tile');
+    expect(canStartTileDrag({
+      tile: { special: 'wild-magnet', _ccSpecialDiceVariant: 'honey', _ccSpecialDiceResolving: true },
+      isWildTile: true,
+    }).reasons).toContain('special-dice-resolving');
   });
 
   test('visual-tail lock can be released independently after gameplay resolves', () => {
@@ -132,5 +136,21 @@ describe('input gate', () => {
       allowed: true,
       reasons: [],
     });
+  });
+
+  test('a visual-tail release cannot bypass the shared special transaction lock', () => {
+    jest.useFakeTimers();
+    try {
+      setInputGateLock('special-transaction', true, { ttlMs: 5000, scope: 'all' });
+      startInputGateLockForAnimation('sparkle-text', 1000, { releaseAtRatio: 0.25, scope: 'wild-only' });
+
+      jest.advanceTimersByTime(250);
+      expect(canStartTileDrag({ tile: { special: 'wild' }, isWildTile: true })).toMatchObject({
+        allowed: false,
+        reasons: ['special-transaction'],
+      });
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

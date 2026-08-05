@@ -378,6 +378,35 @@ export function applySpecialDiceVariantToTile(tile: any, variant?: SpecialDiceVa
   tile._ccSpecialDiceArchetype = variant.archetype;
 }
 
+// Gameplay-resolving specials (currently magnet/TNT archetypes) own their tile
+// until their board mutation has completed. Visual-tail input release may unlock
+// the rest of the board, but it must never make this consumed tile draggable or
+// selectable as a drop target again.
+export function markSpecialDiceResolutionOwned(tile: any): void {
+  if (!tile || tile.destroyed) return;
+  tile._ccSpecialDiceResolving = true;
+}
+
+export function isSpecialDiceResolutionOwned(tile: any): boolean {
+  return !!tile && !tile.destroyed && tile._ccSpecialDiceResolving === true;
+}
+
+export function clearSpecialDiceIdentity(tile: any): void {
+  if (!tile) return;
+  delete tile._ccSpecialDiceVariant;
+  delete tile.specialDiceVariant;
+  delete tile._ccSpecialDiceArchetype;
+  delete tile._ccWildSpecial;
+  tile.special = null;
+  tile.isWild = false;
+  tile.isWildFace = false;
+}
+
+export function releaseSpecialDiceResolution(tile: any): void {
+  if (!tile) return;
+  delete tile._ccSpecialDiceResolving;
+}
+
 export function getSpecialDiceTexturePath(tile: any, fallback: string): string {
   return getSpecialDiceVariantForTile(tile)?.texture || fallback;
 }

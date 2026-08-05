@@ -143,6 +143,13 @@ function releaseTntInputGate(): void {
   try { setInputGateLock('tnt-boom', false); } catch {}
 }
 
+// App-core owns the gameplay mutation boundary. It may release input as soon as
+// both the visible sprite sequence and the TNT/Flower bonus board mutation are
+// complete, without waiting for this overlay's longer cleanup-only tail.
+export function releaseTntGameplayInputGate(): void {
+  releaseTntInputGate();
+}
+
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -1011,7 +1018,6 @@ export function showTntAnimation(options: {
     if (sprite10ExitLeadTriggered) return;
     sprite10ExitLeadTriggered = true;
     try { onSprite10ExitLeadStart?.(); } catch {}
-    releaseTntInputGate();
   }, [], sprite10ExitLeadTime);
   tntMemSample('tnt_2_timelines_created');
   const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
@@ -1028,7 +1034,9 @@ export function showTntAnimation(options: {
     boomBounceTimelines.forEach((tl) => {
       try { tl.kill(); } catch {}
     });
-    // Allow drag after BOOM letters finish exit
+    // Notify visual-tail listeners after BOOM letters finish exit, but do not
+    // release gameplay here. App-core releases at its dual board boundary
+    // (visible sequence + bonus replacement spawns); cleanup remains fallback.
     try {
       if (dragBlockTimeout) dragBlockTimeout.kill();
       const exitTotal =
@@ -1037,7 +1045,6 @@ export function showTntAnimation(options: {
         (EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8) +
         0.05;
       dragBlockTimeout = trackDelayedCall(exitTotal, () => {
-        releaseTntInputGate();
         try {
           boomExitListeners.forEach((fn) => {
             try { fn(); } catch {}

@@ -32,6 +32,7 @@ import {
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
 import { completeBoardLifecycleTrace } from '../utils/board-lifecycle-performance.ts';
 import { beginMergePerformanceTrace } from '../utils/merge-performance.ts';
+import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
 import {
   consumeWildDragTrailPoints,
   createWildDragTrailCadenceState,
@@ -766,6 +767,17 @@ export function initDrag(cfg) {
       isWildTile: isAnyWildTile(t),
     });
     if (!inputGateDecision.allowed) {
+      emitIOSSpecialTransactionTrace('drag-blocked', {
+        reasons: inputGateDecision.reasons,
+        value: t?.value ?? null,
+        special: t?.special ?? null,
+        gridX: t?.gridX ?? null,
+        gridY: t?.gridY ?? null,
+        locked: t?.locked === true,
+        eventMode: t?.eventMode ?? null,
+        resolutionOwned: t?._ccSpecialDiceResolving === true,
+        magnetAffected: t?._wildMagnetAffected === true,
+      });
       console.log('🛡️ DRAG BLOCKED: Input gate', inputGateDecision.reasons, {
         value: t?.value,
         special: t?.special,
