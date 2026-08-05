@@ -50,7 +50,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
-import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeJourneySliderExit, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
@@ -475,9 +475,9 @@ async function playHomepageSliderEnterHandoff(
       nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
     });
   }
-  animateSliderEnter();
-  const completionTimer = window.setTimeout(() => {
-    if (!lease.isCurrent()) return;
+  await animateSliderEnter();
+  if (!lease.isCurrent()) return;
+  {
     {
       const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
       console.log(HOME_ENTER_DIAG_PREFIX, 'main:safety-finalize-before', {
@@ -522,8 +522,7 @@ async function playHomepageSliderEnterHandoff(
       });
     }
     lease.complete();
-  }, 1120);
-  lease.onCancel(() => window.clearTimeout(completionTimer));
+  }
   await lease.settled;
 }
 
@@ -1554,6 +1553,7 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
   const cameFromJourney = startedFromJourney;
+  let homepageExitPromise: Promise<void> | null = null;
   
   // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
   // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -1564,7 +1564,7 @@ async function startNewRun(boardId: number): Promise<void> {
     localStorage.removeItem('__ccCameFromJourney');
     console.log('🏠 Marked as coming from homepage (startNewRun from bottom sheet)');
     // Only play slider exit animation if we came from homepage
-    animateSliderExit();
+    homepageExitPromise = animateSliderExit();
   } else {
     // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
     // DO NOT play slider exit animation - just hide homepage
@@ -1616,9 +1616,10 @@ async function startNewRun(boardId: number): Promise<void> {
       delete (window as any).__ccTriggerHudDrop;
     }
   } else {
-    // Wait for exit animation (770ms), then start game
-    setTimeout(async () => {
+    // Continue only after the shared Homepage exit owner has completed.
+    void (homepageExitPromise ?? Promise.resolve()).then(async () => {
       uiManager.hideHomepage();
+      finalizeJourneySliderExit();
       uiManager.showApp();
       
       try {
@@ -1641,7 +1642,7 @@ async function startNewRun(boardId: number): Promise<void> {
         logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
         delete (window as any).__ccStartAtLevel;
       }
-    }, 770);
+    });
   }
 }
 
@@ -1704,6 +1705,7 @@ async function startNewRun(boardId: number): Promise<void> {
         
         // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
         const cameFromJourney = (window as any).__ccCameFromJourney === true;
+        let homepageExitPromise: Promise<void> | null = null;
         
         // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
         // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -1714,7 +1716,7 @@ async function startNewRun(boardId: number): Promise<void> {
           localStorage.removeItem('__ccCameFromJourney');
           console.log('🏠 Marked as coming from homepage (Continue from bottom sheet)');
           // Only play slider exit animation if we came from homepage
-          animateSliderExit();
+          homepageExitPromise = animateSliderExit();
         } else {
           // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
           // DO NOT play slider exit animation - just hide homepage
@@ -1887,9 +1889,10 @@ async function startNewRun(boardId: number): Promise<void> {
           await recoverJourneyStartFailure(`continueGameWithSavedState:${boardToLoad}`, error);
         }
       } else {
-        // Wait for exit animation (770ms), then load saved game
-        setTimeout(async () => {
+        // Resume only after the shared Homepage exit owner has completed.
+        void (homepageExitPromise ?? Promise.resolve()).then(async () => {
           uiManager.hideHomepage();
+          finalizeJourneySliderExit();
           uiManager.showApp();
           
           try {
@@ -1978,7 +1981,7 @@ async function startNewRun(boardId: number): Promise<void> {
             logger.error('❌ Failed to resume active run:', String(error));
             delete (window as any).__ccStartAtLevel;
           }
-        }, 770);
+        });
       }
       
       return; // Exit early
@@ -2140,12 +2143,12 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // Step 1: Play exit animation FIRST
     console.log('🎬 Step 1: Playing exit animation');
-    animateSliderExit();
+    await animateSliderExit();
 
-    // Step 2: Wait for exit animation to complete, then hide homepage and start game.
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 770));
+    // Step 2: Route only after every Homepage target has completed its exit.
     console.log('🎮 Step 2: Starting game after exit animation');
     await appZoneManager.hideHomepageForGame('triggerGameStartSequence:start-game');
+    finalizeJourneySliderExit();
     if (options?.resumeArcade) {
       await uiManager.startNewGameWithSavedState();
     } else {

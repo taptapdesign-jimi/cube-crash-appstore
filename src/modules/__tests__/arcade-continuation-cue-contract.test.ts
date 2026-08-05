@@ -37,7 +37,7 @@ describe('Arcade continuation Round cue contract', () => {
     expect(uiSource).toContain('continuationRound !== null && continuationRound > 0');
     expect(uiSource).toContain('__ccArcadeContinuationCueRound = continuationRound');
     expect(coreSource).toContain('beforePopIn: arcadeContinuationCueRound > 0');
-    expect(coreSource).toContain('await showArcadeContinuationRoundCue(arcadeContinuationCueRound)');
+    expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeContinuationCueRound)');
   });
 
   test('fresh Arcade shows Round 01 before its first board entrance', () => {
@@ -50,9 +50,26 @@ describe('Arcade continuation Round cue contract', () => {
       uiSource.indexOf('// Start new game with saved state'),
     );
     expect(freshStart).toContain('__ccArcadeContinuationCueRound = 1');
+    expect(freshStart).not.toContain('void beginArcadeEntryCue(1)');
     expect(coreSource).toContain('beforePopIn: arcadeEntryCueRound > 0');
     expect(coreSource).toContain('tiles.forEach((tile: any) => { if (tile) tile.visible = false; });');
     expect(modalSource).toContain('const resumedStage = Math.max(1, stageNumber | 0);');
+  });
+
+  test('boot starts the saved Round cue after destructive cleanup and before cold renderer warmup', () => {
+    const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
+    const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const boot = coreSource.slice(
+      coreSource.indexOf('export async function boot()'),
+      coreSource.indexOf('export async function layoutBoard'),
+    );
+    const cueStart = boot.indexOf('void beginArcadeEntryCue(pendingArcadeEntryRound)');
+    expect(cueStart).toBeGreaterThan(boot.indexOf("gsap.globalTimeline.clear()"));
+    expect(cueStart).toBeLessThan(boot.indexOf('await app.init(initOptions)'));
+    expect(boot).toContain('shouldOverlapArcadeEntryCueWithColdBoot()');
+    expect(uiSource).toContain('!shouldOverlapArcadeEntryCueWithColdBoot()');
+    expect(uiSource).toContain('void beginArcadeEntryCue(continuationRound)');
+    expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeContinuationCueRound)');
   });
 
   test('post-load recovery cannot inspect the board while continuation tiles are hidden', () => {

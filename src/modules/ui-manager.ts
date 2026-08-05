@@ -25,6 +25,12 @@ import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
+import {
+  beginArcadeEntryCue,
+  cancelArcadeEntryCueOwner,
+  resetArcadeEntryCueOwner,
+  shouldOverlapArcadeEntryCueWithColdBoot,
+} from './arcade-entry-cue-owner.js';
 import { registerCta, type CtaController } from './cta-system.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
@@ -546,6 +552,7 @@ class UIManager {
     // Fresh Arcade uses the same pure current-Round intro as a saved resume.
     // rebuildBoard captures and clears this one-shot before cubes can paint.
     (window as any).__ccArcadeContinuationCueRound = 1;
+    resetArcadeEntryCueOwner();
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
       console.log('🎮 ====================================');
@@ -653,6 +660,7 @@ class UIManager {
     } catch (error) {
       delete (window as any).__ccTriggerHudDrop;
       delete (window as any).__ccArcadeContinuationCueRound;
+      cancelArcadeEntryCueOwner();
       console.error('❌ Failed to start new game:', error);
       logger.error('❌ Failed to start new game:', error);
     }
@@ -736,6 +744,8 @@ class UIManager {
           localStorage.removeItem('cc_board_completed');
         }
       }
+
+      resetArcadeEntryCueOwner();
       
       // Set game state
       gameState.setState({
@@ -769,6 +779,19 @@ class UIManager {
         
         await bootGame();
         console.log('✅ boot() complete');
+
+        // Desktop browsers can block GSAP while creating a cold WebGL renderer.
+        // Native app:// keeps the earlier safe overlap; web starts only after
+        // boot so the Round cue remains fluid instead of freezing mid-letter.
+        if (
+          continuationRound !== null &&
+          continuationRound > 0 &&
+          !shouldOverlapArcadeEntryCueWithColdBoot()
+        ) {
+          void beginArcadeEntryCue(continuationRound).catch((error) => {
+            logger.warn('⚠️ Web Arcade entry cue failed; board entrance will continue safely:', error);
+          });
+        }
         
         await layoutGame();
         console.log('✅ layout() complete');
@@ -811,6 +834,7 @@ class UIManager {
       delete (window as any).__ccSkipRebuildBoard;
       delete (window as any).__ccTriggerHudDrop;
       delete (window as any).__ccArcadeContinuationCueRound;
+      cancelArcadeEntryCueOwner();
       logger.error('❌ Failed to start new game with saved state:', error);
     }
   }
@@ -1973,13 +1997,13 @@ class UIManager {
     }
     
     console.log('🎬 Step 1: Playing exit animation for Settings slide (gradient preserved with !important)');
-    animateSliderExit();
+    const homepageExitPromise = animateSliderExit();
     
     // Step 2: Wait for exit animation to complete, then show Settings screen IMMEDIATELY (optimized)
     // Exit animation: 770ms
     // 🔥 OPTIMIZATION: Show Settings screen immediately after exit animation, don't wait for fade
     // Fade animation can happen in parallel - no need to block Settings screen display
-    setTimeout(() => {
+    void homepageExitPromise.then(() => {
       console.log('⚙️ Step 2: Exit animation complete, showing Settings screen IMMEDIATELY');
         
         const settingsScreen = this.elements.settingsScreen;
@@ -1987,6 +2011,7 @@ class UIManager {
         
       // Show settings screen IMMEDIATELY after exit animation (don't wait for fade)
         this.hideHomepage();
+        finalizeJourneySliderExit();
         this.setNavigationVisibility(false);
       
       // 🔥 CRITICAL: Refresh back button reference and ensure handler is attached
@@ -2061,7 +2086,7 @@ class UIManager {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    }, 770); // Exit animation delay only - Settings screen shows immediately after
+    });
   }
   
   // Hide settings screen with enter animation

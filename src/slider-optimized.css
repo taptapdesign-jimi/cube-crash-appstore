@@ -21,6 +21,22 @@
   /* NO OPACITY TRANSITION - only scale animations */
 }
 
+/*
+ * Homepage lifecycle contract. Enter may overshoot around scale(1), while
+ * exit may anticipate above scale(1) only at its start. Neither curve crosses
+ * through scale(0), so there is no mirrored tail or second micro-bounce.
+ * Kept Homepage-scoped because legacy overlays still consume .animate-*.
+ */
+#home .animate-enter {
+  transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+  -webkit-transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+#home .animate-exit {
+  transition-timing-function: cubic-bezier(0.60, -0.28, 0.735, 0.045) !important;
+  -webkit-transition-timing-function: cubic-bezier(0.60, -0.28, 0.735, 0.045) !important;
+}
+
 /* Removed gradient-fade-out rules - gradient stays visible */
 
 .slider-viewport{

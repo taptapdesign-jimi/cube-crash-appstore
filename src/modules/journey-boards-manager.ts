@@ -5857,11 +5857,14 @@ class JourneyBoardsManager {
       const worldBoards = this.boards.filter((board) => board.id >= range.start && board.id <= range.end);
       const unlockedCount = worldBoards.filter((board) => board.unlocked && !board.interim).length;
       const hasInterimCard = worldBoards.some((board) => board.interim);
+      // The banner is both current-progress and completed-world history. Keep
+      // 10/10 visible after progression moves to the next World's 0/10 card.
+      const hasProgressBanner = hasInterimCard || unlockedCount === worldBoards.length;
       const locked = worldId > activeWorldId && unlockedCount === 0;
 
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''}`;
+      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''}${hasProgressBanner ? ' has-progress-banner' : ''}`;
       button.dataset.worldId = String(worldId);
       button.setAttribute('aria-label', `${meta.name} world`);
 

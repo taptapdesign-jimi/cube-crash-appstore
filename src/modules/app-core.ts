@@ -233,6 +233,11 @@ import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
 import { restoreTilesFromSave } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
+import {
+  beginArcadeEntryCue,
+  consumeArcadeEntryCue,
+  shouldOverlapArcadeEntryCueWithColdBoot,
+} from './arcade-entry-cue-owner.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import {
   tintLocked,
@@ -2682,6 +2687,20 @@ export async function boot(){
       devWarn('⚠️ Error removing existing canvas elements:', e);
     }
   }
+
+  // The global GSAP/runtime cleanup above is the last destructive animation
+  // boundary in boot. Start the one-shot Arcade entry cue now so a cold PIXI
+  // renderer, HUD cache, and board texture warmup happen behind Round 0N
+  // instead of delaying the first visible feedback. The board entrance later
+  // consumes this exact owner and therefore cannot replay or overtake it.
+  const pendingArcadeEntryRound = isArcadeHomeRunMode()
+    ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
+    : 0;
+  if (pendingArcadeEntryRound > 0 && shouldOverlapArcadeEntryCueWithColdBoot()) {
+    void beginArcadeEntryCue(pendingArcadeEntryRound).catch((error) => {
+      devWarn('⚠️ Arcade entry cue failed during post-cleanup boot warmup; board entrance will continue safely', error);
+    });
+  }
   
   if (!reuseApp) {
     devLog('🎮 Creating fresh PIXI app');
@@ -4913,8 +4932,7 @@ function rebuildBoard(){
     },
     beforePopIn: arcadeEntryCueRound > 0
       ? async () => {
-          const { showArcadeContinuationRoundCue } = await import('./arcade-stage-clear-modal.js');
-          await showArcadeContinuationRoundCue(arcadeEntryCueRound);
+          await consumeArcadeEntryCue(arcadeEntryCueRound);
           devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
         }
       : undefined,
@@ -13083,16 +13101,6 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     (window as any).triggerHapticNotification('error');
   }
   
-  // 🔥 USER BUG FIX: Show navigation BEFORE showing board fail modal
-  // This ensures X button is visible when fail modal appears
-  try {
-    const { updateNavigationVisibility } = await import('./navigation-control.js');
-    updateNavigationVisibility();
-    devLog('✅ Navigation visibility updated before showing board fail modal');
-  } catch (error) {
-    devWarn('⚠️ Failed to update navigation visibility:', error);
-  }
-  
   let result = null;
   try {
     if (isArcadeRunReachedSummary) {
@@ -14264,8 +14272,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       sweetPopIn,
       beforePopIn: arcadeContinuationCueRound > 0
         ? async () => {
-            const { showArcadeContinuationRoundCue } = await import('./arcade-stage-clear-modal.js');
-            await showArcadeContinuationRoundCue(arcadeContinuationCueRound);
+            await consumeArcadeEntryCue(arcadeContinuationCueRound);
             devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
           }
         : undefined,

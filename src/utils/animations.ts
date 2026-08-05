@@ -222,8 +222,8 @@ const setHomepageCtaEnterTransform = (button: Element, scale: number, withTransi
   element.style.setProperty('-webkit-transform-origin', '50% 50%', 'important');
   element.style.setProperty('will-change', 'transform', 'important');
   if (withTransition) {
-    element.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-    element.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+    element.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
+    element.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
   } else {
     element.style.setProperty('transition', 'none', 'important');
     element.style.setProperty('-webkit-transition', 'none', 'important');
@@ -243,7 +243,7 @@ export const primeHomepageCtaEnterTransform = (button: Element | null | undefine
 };
 
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
-const reverseBounce = (element: HTMLElement, delay: number) => {
+const reverseBounce = (element: HTMLElement, delay: number, durationMs?: number) => {
   // v700-style enter: let CSS own the whole bounce curve. The manual RAF
   // interpolator caused visible mid-cycle stalls when Journey cleanup/reflow
   // ran on the same frames as Homepage enter.
@@ -267,6 +267,12 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
     element.style.removeProperty('transition');
     element.style.removeProperty('-webkit-transition');
 
+    if (durationMs !== undefined) {
+      const transition = `transform ${durationMs}ms cubic-bezier(0.175, 0.885, 0.32, 1.275)`;
+      element.style.setProperty('transition', transition, 'important');
+      element.style.setProperty('-webkit-transition', transition, 'important');
+    }
+
     // Add enter before removing initial to avoid a full-scale flash.
     element.classList.add('animate-enter');
     element.classList.remove('animate-enter-initial');
@@ -278,6 +284,9 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
 // 🔥 REFACTOR: Use local flags that sync with sliderState module
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
+let sliderEnterPromise: Promise<void> | null = null;
+let resolveSliderEnter: (() => void) | null = null;
+let sliderEnterFallback: ReturnType<typeof setTimeout> | null = null;
 let journeySliderExitPromise: Promise<void> | null = null;
 let journeySliderExitAnimations: Animation[] = [];
 let journeySliderExitFallback: ReturnType<typeof setTimeout> | null = null;
@@ -289,8 +298,26 @@ const HOMEPAGE_ENTER_HAPTIC_FIRST_PAIR_GAP_MS = 155;
 const HOMEPAGE_ENTER_HAPTIC_THIRD_GAP_MS = 130;
 const HOMEPAGE_ENTER_FIRST_VISUAL_DELAY_MS = 45;
 const HOMEPAGE_ENTER_CONTENT_DELAY_MS = 95;
-const HOMEPAGE_ENTER_NAV_DELAY_MS = 155;
+// Navigation icons and their owned divider should establish almost alongside
+// the hero/logo, rather than reading as a late final phase.
+const HOMEPAGE_ENTER_NAV_DELAY_MS = 0;
+const HOMEPAGE_ENTER_NAV_DURATION_MS = 430;
 const HOMEPAGE_ENTER_FINALIZE_DELAY_MS = 1060;
+
+const settleSliderEnter = (reason: string): void => {
+  if (sliderEnterFallback) {
+    clearTimeout(sliderEnterFallback);
+    activeTimeouts.delete(sliderEnterFallback);
+    sliderEnterFallback = null;
+  }
+  isAnimatingEnter = false;
+  sliderState.setAnimatingEnter(false);
+  const resolve = resolveSliderEnter;
+  resolveSliderEnter = null;
+  sliderEnterPromise = null;
+  resolve?.();
+  logger.info('✅ Homepage enter owner settled', 'animations', { reason });
+};
 
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
@@ -595,7 +622,8 @@ let cachedElements: {
 // This is a fast synchronous function that can be called to unblock animations
 export const resetAnimationFlags = (): void => {
   isAnimatingExit = false;
-  isAnimatingEnter = false;
+  if (sliderEnterPromise) settleSliderEnter('reset-flags');
+  else isAnimatingEnter = false;
   sliderState.reset();
   logger.info('✅ Animation flags reset (isAnimatingExit, isAnimatingEnter, sliderState)');
 };
@@ -604,8 +632,7 @@ export const resetAnimationFlags = (): void => {
 export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
   activeTimeouts.forEach((timeout) => clearTimeout(timeout));
   activeTimeouts.clear();
-  isAnimatingEnter = false;
-  sliderState.setAnimatingEnter(false);
+  settleSliderEnter(`cancel:${reason}`);
   (window as any).__ccIsAnimatingSliderEnter = false;
   logger.info('🛑 Homepage enter animation cancelled', 'animations', { reason });
 };
@@ -618,7 +645,8 @@ export const cleanupAnimations = (): void => {
   });
   activeTimeouts.clear();
   isAnimatingExit = false;
-  isAnimatingEnter = false;
+  if (sliderEnterPromise) settleSliderEnter('cleanup');
+  else isAnimatingEnter = false;
   
   // 🔥 FIX: Clear cached DOM elements to prevent stale references
   cachedElements = {};
@@ -718,11 +746,23 @@ export const animateJourneySliderExit = (): Promise<void> => {
 
     targets.forEach(({ element, delay }) => {
       gsap.killTweensOf(element);
+      const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
+      if (!ctaController) {
+        // If exit interrupts Homepage enter, freeze the exact painted transform
+        // before removing enter classes. The independent `scale` animation can
+        // then shrink that frame without snapping to the responsive base pose.
+        const paintedTransform = window.getComputedStyle(element).transform;
+        element.style.setProperty('transition', 'none', 'important');
+        element.style.setProperty('-webkit-transition', 'none', 'important');
+        if (paintedTransform && paintedTransform !== 'none') {
+          element.style.setProperty('transform', paintedTransform, 'important');
+          element.style.setProperty('-webkit-transform', paintedTransform, 'important');
+        }
+      }
       element.classList.remove(
         'animate-exit', 'animate-enter', 'animate-enter-initial',
         'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce',
       );
-      const ctaController = element instanceof HTMLButtonElement ? getRegisteredCta(element) : null;
       if (ctaController) {
         void ctaController.exit({ delay }).then(finishTarget);
         return;
@@ -767,6 +807,8 @@ export const finalizeJourneySliderExit = (): void => {
     element.style.removeProperty('scale');
     element.style.removeProperty('transition');
     element.style.removeProperty('-webkit-transition');
+    element.style.removeProperty('transform');
+    element.style.removeProperty('-webkit-transform');
     element.style.removeProperty('will-change');
   });
   document.querySelectorAll<HTMLElement>('.nav-badge.animate-exit').forEach((badge) => {
@@ -782,7 +824,8 @@ export const finalizeJourneySliderExit = (): void => {
   logger.info('✅ Journey Homepage exit finalized after Homepage hide');
 };
 
-export const animateSliderExit = (): void => {
+/** Legacy CSS implementation used only when Web Animations is unavailable. */
+const animateSliderExitLegacy = (): void => {
   // 🔥 FIX: Check guard flag before try block to avoid early return issues
   if (isAnimatingExit) {
     logger.warn('⚠️ Exit animation already in progress, ignoring duplicate call');
@@ -985,8 +1028,8 @@ function startExitAnimationSequence(): void {
                 // Preserve translateY(-24px) and add scale(0) for exit animation
                 addonEl.style.setProperty('transform', 'translateY(-24px) scale(0)', 'important');
                 addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(0)', 'important');
-                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.60, -0.28, 0.735, 0.045)', 'important');
+                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.60, -0.28, 0.735, 0.045)', 'important');
                 addonEl.style.setProperty('will-change', 'transform', 'important');
               });
             });
@@ -1193,8 +1236,8 @@ function startExitAnimationSequenceLegacy(): void {
               // Preserve translateY(-24px) and add scale(0) for exit animation
               addonEl.style.setProperty('transform', 'translateY(-24px) scale(0)', 'important');
               addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(0)', 'important');
-              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.60, -0.28, 0.735, 0.045)', 'important');
+              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.60, -0.28, 0.735, 0.045)', 'important');
               addonEl.style.setProperty('will-change', 'transform', 'important');
             });
           });
@@ -1223,8 +1266,28 @@ function startExitAnimationSequenceLegacy(): void {
   }
 };
 
+/**
+ * Canonical Homepage exit for Arcade, Journey, Settings, and future routes.
+ * The returned Promise settles from the real target completions; callers hide
+ * Homepage only afterwards and then normalize with finalizeJourneySliderExit().
+ */
+export const animateSliderExit = (): Promise<void> => {
+  if (typeof Element !== 'undefined' && typeof Element.prototype.animate === 'function') {
+    return animateJourneySliderExit();
+  }
+
+  animateSliderExitLegacy();
+  return new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      activeTimeouts.delete(timeout);
+      resolve();
+    }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
+    activeTimeouts.add(timeout);
+  });
+};
+
 // Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
-export const animateSliderEnter = (): void => {
+export const animateSliderEnter = (): Promise<void> => {
   // 🔥 FIX: Sync local flag with sliderState - if sliderState says not animating,
   // reset local flag (forceReady() might have reset sliderState but not local flag)
   if (!sliderState.isAnimatingEnter && isAnimatingEnter) {
@@ -1235,13 +1298,16 @@ export const animateSliderEnter = (): void => {
   // 🔥 FIX: Check guard flag before try block to avoid early return issues
   if (isAnimatingEnter) {
     logger.warn('⚠️ Enter animation already in progress, ignoring duplicate call');
-    return;
+    return sliderEnterPromise ?? Promise.resolve();
   }
   
   // Set flags immediately
   // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingEnter = true;
   sliderState.setAnimatingEnter(true);
+  sliderEnterPromise = new Promise<void>((resolve) => {
+    resolveSliderEnter = resolve;
+  });
   
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
@@ -1249,21 +1315,19 @@ export const animateSliderEnter = (): void => {
     // Start the actual enter animation sequence
     startEnterAnimationSequence();
     
-    // 🔥 FIX: Use constant for timeout duration
-    const timeout = setTimeout(() => {
-      activeTimeouts.delete(timeout);
-      isAnimatingEnter = false;
-      sliderState.setAnimatingEnter(false);
-      logger.info('✅ Enter animation guard reset');
-    }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
-    activeTimeouts.add(timeout);
+    // Completion is normally signalled by the final cleanup below. This is a
+    // deadlock guard only, not the lifecycle authority.
+    sliderEnterFallback = setTimeout(() => {
+      settleSliderEnter('fallback');
+    }, HOMEPAGE_ENTER_FINALIZE_DELAY_MS + 220);
+    activeTimeouts.add(sliderEnterFallback);
     
   } catch (error) {
     // 🔥 FIX: Always reset flags on error
-    isAnimatingEnter = false;
-    sliderState.setAnimatingEnter(false);
+    settleSliderEnter('error');
     logger.error('❌ Failed to animate slider enter:', error);
   }
+  return sliderEnterPromise ?? Promise.resolve();
 };
 
 // Separate function for the actual enter animation sequence
@@ -1438,18 +1502,26 @@ function startEnterAnimationSequence(): void {
     // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
     // Last element that exits is first to enter!
     
-    // STEP 1: Main visual and logo first; navigation follows after the content is established.
+    // Navigation and its divider establish almost alongside the main visual.
     if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
-      logger.info('🎯 Step 3: Navigation cartoonish bounce - LAST');
+      reverseBounce(
+        independentNav as HTMLElement,
+        HOMEPAGE_ENTER_NAV_DELAY_MS,
+        HOMEPAGE_ENTER_NAV_DURATION_MS,
+      );
+      logger.info('🎯 Navigation and divider cartoonish bounce - EARLY');
     } else {
       logger.warn('⚠️ Navigation not found');
     }
     
     // Shadow animates together with navigation
     if (fixedShadowBottom) {
-      reverseBounce(fixedShadowBottom as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
-      logger.info('🌑 Step 3: Shadow cartoonish bounce - LAST (with navigation)');
+      reverseBounce(
+        fixedShadowBottom as HTMLElement,
+        HOMEPAGE_ENTER_NAV_DELAY_MS,
+        HOMEPAGE_ENTER_NAV_DURATION_MS,
+      );
+      logger.info('🌑 Shadow cartoonish bounce - EARLY (with navigation)');
     }
     
     // Logo and shards enter with the hero.
@@ -1495,8 +1567,8 @@ function startEnterAnimationSequence(): void {
                 // Preserve translateY(-24px) and add scale(1) for enter animation
                 addonEl.style.setProperty('transform', 'translateY(-24px) scale(1)', 'important');
                 addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(1)', 'important');
-                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
+                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
                 addonEl.style.setProperty('will-change', 'transform', 'important');
               });
             });
@@ -1724,6 +1796,7 @@ function startEnterAnimationSequence(): void {
       logHomeEnterElementState('sequence:final-cleanup-hero-after', activeSlide?.querySelector('.hero-container') as HTMLElement | null);
       logHomeEnterElementState('sequence:final-cleanup-logo-after', document.querySelector('#home-logo') as HTMLElement | null);
       logHomeEnterElementState('sequence:final-cleanup-nav-after', document.querySelector('#independent-nav') as HTMLElement | null);
+      settleSliderEnter('complete');
     }, HOMEPAGE_ENTER_FINALIZE_DELAY_MS);
     activeTimeouts.add(finalTimeout);
     
@@ -1738,18 +1811,26 @@ function startEnterAnimationSequenceLegacy(): void {
   scheduleHomepageEnterPatternHaptics();
   // Fallback keeps the same canonical order: hero/logo → content → navigation.
   
-  // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
+  // Navigation owns its divider and enters early with the primary visual.
   const independentNav = document.getElementById('independent-nav');
   if (independentNav) {
-    reverseBounce(independentNav as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
-    logger.info('🎯 Step 3: Navigation cartoonish bounce - LAST (legacy)');
+    reverseBounce(
+      independentNav as HTMLElement,
+      HOMEPAGE_ENTER_NAV_DELAY_MS,
+      HOMEPAGE_ENTER_NAV_DURATION_MS,
+    );
+    logger.info('🎯 Navigation and divider cartoonish bounce - EARLY (legacy)');
   }
   
   // Shadow animates together with navigation
   const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
   if (fixedShadowBottom) {
-    reverseBounce(fixedShadowBottom as HTMLElement, HOMEPAGE_ENTER_NAV_DELAY_MS);
-    logger.info('🌑 Step 3: Shadow cartoonish bounce - LAST (legacy, with navigation)');
+    reverseBounce(
+      fixedShadowBottom as HTMLElement,
+      HOMEPAGE_ENTER_NAV_DELAY_MS,
+      HOMEPAGE_ENTER_NAV_DURATION_MS,
+    );
+    logger.info('🌑 Shadow cartoonish bounce - EARLY (legacy, with navigation)');
   }
   
   // STEP 2: Home logo and shards SECOND (30ms delay)
@@ -1795,8 +1876,8 @@ function startEnterAnimationSequenceLegacy(): void {
               // Preserve translateY(-24px) and add scale(1) for enter animation
               addonEl.style.setProperty('transform', 'translateY(-24px) scale(1)', 'important');
               addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(1)', 'important');
-              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
+              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.175, 0.885, 0.32, 1.275)', 'important');
               addonEl.style.setProperty('will-change', 'transform', 'important');
             });
           });

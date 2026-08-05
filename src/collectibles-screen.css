@@ -2254,7 +2254,7 @@
   left: 3px;
 }
 
-.journey-v700-world-card:not(.has-interim-card) .journey-v700-world-banner {
+.journey-v700-world-card:not(.has-progress-banner) .journey-v700-world-banner {
   display: none;
 }
 
