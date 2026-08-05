@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { registerCta } from './cta-system.ts';
 
-type SpecialDiceType = 'juice';
+type SpecialDiceType = 'juice' | 'flower';
 
 type JourneySpecialDiceScreenOptions = {
   diceType: SpecialDiceType;
@@ -11,22 +11,25 @@ type JourneySpecialDiceScreenOptions = {
 const STYLE_ID = 'cc-journey-special-dice-style';
 const OVERLAY_ID = 'cc-journey-special-dice-overlay';
 const JUICE_UNLOCK_KEY = 'cc_special_dice_unlocked_juice';
+const FLOWER_UNLOCK_KEY = 'cc_special_dice_unlocked_flower';
+
+function getSpecialDiceUnlockKey(diceType: SpecialDiceType): string {
+  return diceType === 'flower' ? FLOWER_UNLOCK_KEY : JUICE_UNLOCK_KEY;
+}
 
 let cleanupFns: Array<() => void> = [];
 
 export function isJourneySpecialDiceUnlocked(diceType: SpecialDiceType): boolean {
-  if (diceType !== 'juice') return false;
   try {
-    return localStorage.getItem(JUICE_UNLOCK_KEY) === 'true';
+    return localStorage.getItem(getSpecialDiceUnlockKey(diceType)) === 'true';
   } catch {
     return false;
   }
 }
 
 export function markJourneySpecialDiceUnlocked(diceType: SpecialDiceType): void {
-  if (diceType !== 'juice') return;
   try {
-    localStorage.setItem(JUICE_UNLOCK_KEY, 'true');
+    localStorage.setItem(getSpecialDiceUnlockKey(diceType), 'true');
   } catch {}
 }
 
@@ -296,7 +299,10 @@ export async function showJourneySpecialDiceScreen({
   cleanupJourneySpecialDiceScreen();
   ensureStyles();
 
-  const finalAsset = diceType === 'juice' ? './assets/wild-juice.png' : './assets/wild.png';
+  const finalAsset = diceType === 'flower'
+    ? './assets/shop/bush/flower.png'
+    : './assets/wild-juice.png';
+  const diceLabel = diceType === 'flower' ? 'Flower' : 'Juice';
 
   await Promise.all([
     ...Array.from({ length: 20 }, (_, i) => preloadImage(getBackpackFramePath(i + 1))),
@@ -320,7 +326,7 @@ export async function showJourneySpecialDiceScreen({
           <div class="cc-journey-special-dice-shadow" style="opacity:0;transform:translateX(-50%) scale(0.68, 0.72);"></div>
           <div class="cc-journey-special-dice-motion">
             <img class="cc-journey-special-dice-backpack" src="${getBackpackFramePath(1)}" alt="">
-            <img class="cc-journey-special-dice-final" src="${finalAsset}" alt="Wild juice">
+            <img class="cc-journey-special-dice-final" src="${finalAsset}" alt="${diceLabel} special dice">
             <div class="cc-journey-special-dice-light" aria-hidden="true"></div>
           </div>
         </div>
@@ -441,7 +447,7 @@ export async function showJourneySpecialDiceScreen({
         await new Promise<void>((done) => {
           gsap.timeline({ onComplete: done })
             .set(title, { textContent: 'Unlocked!', opacity: 0, y: -16, scale: 0.72 }, 0)
-            .set(subtitle, { textContent: 'Special dice unlocked "juice"', opacity: 0, y: -12, scale: 0.78 }, 0)
+            .set(subtitle, { textContent: `Special dice unlocked "${diceLabel}"`, opacity: 0, y: -12, scale: 0.78 }, 0)
             .to(backpack, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)', force3D: true }, 0)
             .set(backpack, { visibility: 'hidden' }, 0.32)
             .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, 0.02)

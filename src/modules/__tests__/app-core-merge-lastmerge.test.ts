@@ -32,6 +32,24 @@ function createDeps(overrides: Partial<Parameters<typeof handleLastMergeEarly>[0
 }
 
 describe('app-core-merge-lastmerge', () => {
+  it('keeps 3 + 2 non-final when another 5 remains so meter continuation can spawn', () => {
+    const src = { value: 3, stackDepth: 1, visible: true };
+    const dst = { value: 2, stackDepth: 1, visible: true };
+    const remainingFive = { value: 5, stackDepth: 1, visible: true };
+
+    expect(resolveLastMergeEarlyState({
+      tiles: [src, dst, remainingFive],
+      src,
+      dst,
+      effSum: 5,
+      isWildMagnetMerge: false,
+      mode: 'arcade',
+    })).toMatchObject({
+      isActuallyLastMerge: false,
+      visibleTilesCountBeforeWildProgress: 3,
+    });
+  });
+
   it('resolves early final merge state without side effects', () => {
     const src = { value: 0, special: 'wild-beach-ball', stackDepth: 1 };
     const dst = { value: 5, stackDepth: 1 };

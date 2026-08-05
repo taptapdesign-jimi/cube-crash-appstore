@@ -139,6 +139,7 @@ import { resolveMerge6SpawnMode } from './merge6-spawn-mode-decision.ts';
 import { resolveWildMergeSpawnBonus } from './wild-merge-spawn-bonus-decision.ts';
 import { getLockedSpawnCandidates } from './locked-spawn-candidates.ts';
 import { resolveRegularMerge6SpawnCount } from './regular-merge6-spawn-count.ts';
+import { resolveMerge6MovesDepletedStuckAction } from './merge6-terminal-handoff-decision.ts';
 import { Merge6DestinationCleanupOwner } from './merge6-destination-cleanup-owner.ts';
 import { shouldDeferEndgameForActiveDrag } from './active-drag-endgame-policy.ts';
 import { resolvePostSpawnEndgameDelayMs } from './post-spawn-endgame-delay.ts';
@@ -164,6 +165,7 @@ import { resolveWildSpawnPermission } from './wild-spawn-permission.ts';
 import { resolveWildMeterProgressDecision } from './wild-meter-progress-decision.ts';
 import {
   isWildContinuationPending,
+  isWildMeterReady,
   resolveStuckWildDeferralDecision,
   resolveWildSpawnGuardReleaseContinuation,
   shouldScheduleWildSpawnRetry,
@@ -180,6 +182,8 @@ import {
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceShardColor,
   getSpecialDiceShardColors,
+  getSpecialDiceSplashLetterColors,
+  getSpecialDiceJuiceDropProfile,
   getSpecialDiceSplashOptions,
   getSpecialDiceTexturePath,
   getSpecialDiceVisualConfig,
@@ -1317,6 +1321,12 @@ async function runNoMovesFailFlow({
   exitTimeoutMs,
   persistStuckState = false,
 }: NoMovesFailFlowOptions): Promise<void> {
+  // Terminal owner must re-check immediately before locking the game. A wild
+  // charge/drop may become ready while an earlier caller awaits tutorial or FX.
+  if (deferFailForWildContinuation(`no-moves-preflight:${reason}`)) {
+    devLog('🛡️ No-moves preflight cancelled terminal fail because wild continuation became ready', { reason, wildMeter });
+    return;
+  }
   devLog('⏳ Running no-moves fail flow before fail screen', { reason, waitMs, extraWaitMs });
   failScreenFlowInProgress = true;
   busyEnding = true;
@@ -2146,6 +2156,13 @@ function getWildSpawnAnimationBlockReason(): string | null {
     const guard = getEndgameGuardState();
     if (guard.active) return `endgame-guard:${guard.sources.join(',') || 'ttl'}`;
     if (merge6SpawnInProgress) return 'merge6-spawn-in-progress';
+    // A regular merge-6 owns its visible destination until the merge-cell
+    // cleanup and replacement spawn have been scheduled. If the same merge
+    // fills the wild meter, letting the reward drop start in this window races
+    // the special FX against the still-locked value-6 tile.
+    const hasRegularMerge6Handoff = Array.isArray(STATE?.tiles) &&
+      STATE.tiles.some((tile: any) => merge6DestinationCleanupOwner.hasClaim(tile));
+    if (hasRegularMerge6Handoff) return 'regular-merge6-handoff';
     if (wildMagnetPullInProgress) return 'wild-magnet-pull';
     const sinceBoardMutation = lastEndgameBoardMutationAt ? Date.now() - lastEndgameBoardMutationAt : Infinity;
     if (sinceBoardMutation < WILD_SPAWN_BOARD_SETTLE_MS) return 'board-settling';
@@ -2256,7 +2273,7 @@ function queueWildSpawnIfNeeded(){
 
   spawnWildFromMeter()
     .then((spawned) => {
-      if (!spawned && wildMeter >= 1 && !wildSpawnRetryTimer) {
+      if (!spawned && isWildMeterReady(wildMeter) && !wildSpawnRetryTimer) {
         wildSpawnRetryTimer = trackAppTimeout(() => {
           wildSpawnRetryTimer = null;
           queueWildSpawnAfterGuardRelease('wild-spawn-not-spawned');
@@ -2268,7 +2285,7 @@ function queueWildSpawnIfNeeded(){
     })
     .finally(() => {
       wildSpawnInProgress = false;
-      if (wildMeter >= 1 && !wildSpawnRetryTimer) {
+      if (isWildMeterReady(wildMeter) && !wildSpawnRetryTimer) {
         queueWildSpawnAfterGuardRelease('wild-spawn-finished');
       }
       
@@ -2309,7 +2326,8 @@ function deferFailForWildContinuation(reason: string): boolean {
 function setWildProgress(ratio, animate=false){
   devLog('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
 
-  const target = Math.max(0, Number.isFinite(ratio) ? ratio : 0);
+  const rawTarget = Math.max(0, Number.isFinite(ratio) ? ratio : 0);
+  const target = isWildMeterReady(rawTarget) ? Math.max(1, rawTarget) : rawTarget;
   wildMeter = target;
   STATE.wildMeter = target; // raw value (may exceed 1)
 
@@ -2323,7 +2341,7 @@ function setWildProgress(ratio, animate=false){
     logger.error('❌ DRAMATIC: Error calling HUD.updateProgressBar', 'app-core', error);
   }
 
-  if (wildMeter >= 1) {
+  if (isWildMeterReady(wildMeter)) {
     queueWildSpawnIfNeeded();
   }
 }
@@ -5872,6 +5890,7 @@ async function spawnWildFromMeter(){
         isArcade: isArcadeHomeRunMode(),
         wildSpawnCount,
         arcadeStage: boardNumber,
+        journeyBoard: boardNumber,
       });
       if (specialDiceVariant) {
         const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);
@@ -5879,6 +5898,15 @@ async function spawnWildFromMeter(){
         spawnMagnet = coreWildType === 'wild-magnet';
         spawnTnt = coreWildType === 'wild-tnt';
         wildType = (coreWildType || 'wild') as any;
+        if (spawnTnt) {
+          const variantFrames = getSpecialDiceExplosionSpriteSources(specialDiceVariant);
+          void preloadTntFrames({
+            frameSources: variantFrames || undefined,
+            ...getSpecialDiceSplashOptions(specialDiceVariant),
+          }).catch((error) => {
+            devWarn('⚠️ TNT-archetype special frame warmup failed; merge-time preload will retry:', error);
+          });
+        }
       }
       let wildAssetPath = spawnTnt
         ? ASSET_WILD_TNT
@@ -6045,6 +6073,8 @@ async function spawnWildFromMeter(){
               startTntIdleShake(spawnedTile);
             } else if (spawnedTile.special === 'wild') {
               startWildStars(spawnedTile, { introBounce: true });
+            } else if (spawnedTile.special === 'wild-magnet') {
+              startMagnetIdleParticles(spawnedTile);
             }
             startSpecialDiceIdleMotion(spawnedTile);
           }
@@ -6283,10 +6313,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	        showText: true,
 	        text: variant?.splashText,
 	        textColor: variant?.splashColor,
-	        textColors: variant?.id === 'beach-ball'
-	          ? ['#DD94EB', '#DD94EB', '#FDEB8C', '#FDEB8C', '#4BC9FC', '#4BC9FC', '#FD979D']
-	          : undefined,
-	        direction: variant?.id === 'beach-ball' ? 'down' : 'up',
+	        textColors: getSpecialDiceSplashLetterColors(variant),
+	        direction: getSpecialDiceJuiceDropProfile(variant) ? 'down' : 'up',
+	        dropProfile: getSpecialDiceJuiceDropProfile(variant),
 	        spritePaths: getSpecialDiceExplosionSpriteSources(variant),
 	        inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
 	      });
@@ -6638,7 +6667,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // Normal merge - add wild progress
       const wildMeterBeforeStackFill = Number.isFinite(wildMeter) ? wildMeter : 0;
       addWildProgress(WILD_INC_SMALL, { confirmedNonFinal: true });
-      stackMergeFilledWildMeter = wildMeterBeforeStackFill < 1 && wildMeter >= 1;
+      stackMergeFilledWildMeter = !isWildMeterReady(wildMeterBeforeStackFill) && isWildMeterReady(wildMeter);
       if (stackMergeFilledWildMeter) {
         devLog('🛡️ Stack merge filled wild preloader - fail/no-moves must wait for wild drop', {
           wildMeterBeforeStackFill,
@@ -8752,9 +8781,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // merge completion handoff wait for the actual Pixi textures. Previously
     // this was fire-and-forget inside the FX branch, so BOOM DOM text could
     // appear while the sprite cache still contained zero renderable frames.
+    const tntVariantForMerge = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
+    const tntVisualOptionsForMerge = tntVariantForMerge?.archetype === 'wild-tnt'
+      ? {
+          frameSources: getSpecialDiceExplosionSpriteSources(tntVariantForMerge) || undefined,
+          ...getSpecialDiceSplashOptions(tntVariantForMerge),
+        }
+      : undefined;
     const tntFramesReadyForMerge =
       srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt'
-        ? preloadTntFrames()
+        ? preloadTntFrames(tntVisualOptionsForMerge)
             .then(() => true)
             .catch((error) => {
               devWarn('⚠️ TNT merge frame preload failed before the sprite finale:', error);
@@ -9362,12 +9398,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                      TILE,
 	                      devLog,
 	                      devWarn,
+	                      bonusParticleSources: tntVariantForMerge?.id === 'flower'
+	                        ? tntVisualOptionsForMerge?.burstSources
+	                        : undefined,
+	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
 	                      skipFx: false
 	                    });
 	                  }, 0);
 	                });
 	              };
 	              const tntOverlay = showTntAnimation({
+	                ...tntVisualOptionsForMerge,
 	                onSprite10ExitLeadStart: () => {
 	                  triggerTntBonusBreak('sprite-10-exit-minus-300ms');
 	                },
@@ -9478,11 +9519,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // NO STARS for wild-magnet merge
             devLog('🔥 Wild-magnet merge 6 - using template-based pooling with red shards (NO STARS)');
             const mergePos = centerInBoard(board, dst, TILE);
-            wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
-              zIndex: dstZIndex
+            const wildMagnetVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
+            const wildMagnetShardColors = getSpecialDiceShardColors(wildMagnetVariant);
+            wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, {
+              zIndex: dstZIndex,
+              color: getSpecialDiceShardColor(wildMagnetVariant),
+              colors: wildMagnetShardColors,
             });
-            showMagneticText({
-              inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)),
+            showMagneticText(getSpecialDiceSplashOptions(wildMagnetVariant) || {
+              inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildMagnetVariant),
             });
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow shards for wild star, orange for wild juice
@@ -9527,8 +9572,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 colors: wildJuiceShardColors
               });
             } else if (isWildTntMerge) {
-              // 💥 Wild-TNT merge: skip shards when TNT animation starts
-              devLog('💥 Wild-TNT merge 6 - TNT anim active, skipping shards');
+              const wildTntVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
+              const wildTntShardColors = getSpecialDiceShardColors(wildTntVariant);
+              if (wildTntShardColors?.length) {
+                wildTntMerge6ShardsTemplated(board, dst, {
+                  zIndex: 9993,
+                  color: getSpecialDiceShardColor(wildTntVariant),
+                  colors: wildTntShardColors,
+                });
+                devLog('💥 Wild-TNT special merge 6 - using variant shard palette', {
+                  variant: wildTntVariant?.id,
+                  colors: wildTntShardColors,
+                });
+              } else {
+                // Core TNT owns its complete explosion art and keeps the established no-extra-shards profile.
+                devLog('💥 Core Wild-TNT merge 6 - TNT anim active, skipping shards');
+              }
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               const wildStarVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
@@ -9606,10 +9665,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   showText: true,
                   text: wildJuiceVariantForExplosion?.splashText,
                   textColor: wildJuiceVariantForExplosion?.splashColor,
-                  textColors: wildJuiceVariantForExplosion?.id === 'beach-ball'
-                    ? ['#DD94EB', '#DD94EB', '#FDEB8C', '#FDEB8C', '#4BC9FC', '#4BC9FC', '#FD979D']
-                    : undefined,
-                  direction: wildJuiceVariantForExplosion?.id === 'beach-ball' ? 'down' : 'up',
+                  textColors: getSpecialDiceSplashLetterColors(wildJuiceVariantForExplosion),
+                  direction: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion) ? 'down' : 'up',
+                  dropProfile: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion),
                   spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
                   inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildJuiceVariantForExplosion),
                 });
@@ -10203,12 +10261,21 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (movesDepletedResult.type === 'stuck') {
             devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             try { resetEndgameHint(); } catch {}
-            if (deferFailForWildContinuation('merge_moves_depleted_stuck')) return;
-            if (await preventTutorialFailWithFinalChance('merge_moves_depleted_stuck')) return;
-            if (!busyEnding) {
-              await runNoMovesFailFlow({ reason: 'merge_moves_depleted_stuck', resetHint: false });
+            const wildContinuationDeferred = deferFailForWildContinuation('merge_moves_depleted_stuck');
+            const terminalHandoffAction = resolveMerge6MovesDepletedStuckAction({ wildContinuationDeferred });
+            if (terminalHandoffAction === 'continue-merge6') {
+              // Do not return from the merge transaction here. The regular
+              // merge-6 still owns its destination cleanup and replacement
+              // spawn. Returning used to strand a locked value-6 until the
+              // watchdog while the newly earned special started concurrently.
+              devLog('🛡️ Wild continuation deferred No Moves; completing regular merge-6 cleanup/spawn first');
+            } else {
+              if (await preventTutorialFailWithFinalChance('merge_moves_depleted_stuck')) return;
+              if (!busyEnding) {
+                await runNoMovesFailFlow({ reason: 'merge_moves_depleted_stuck', resetHint: false });
+              }
+              return;
             }
-            return;
           }
         } else if (moves === 0 && isActuallyLastMerge) {
           devLog('🏁 Moves depleted, but final merge-6 already won the board - skipping fail check');
@@ -12264,7 +12331,7 @@ function checkLevelEnd(){
         scheduleCheckLevelEnd(0.25, 'clean-detected-wild-drop-in-progress');
         return;
       }
-      if (wildMeter >= 1 || wildSpawnRetryTimer !== null) {
+      if (isWildMeterReady(wildMeter) || wildSpawnRetryTimer !== null) {
         devLog('🧹 checkLevelEnd: Clean board detected with pending wild meter charge - cancelling spawn and clearing board');
         cancelPendingWildContinuation('checkLevelEnd-clean');
       }
@@ -12676,10 +12743,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
   TILE: number;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
+  bonusParticleSources?: string[];
+  bonusParticleScale?: number;
   skipFx?: boolean;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx, onComplete } = deps;
+  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, skipFx, onComplete } = deps;
   try {
     const getScreenPos = (tileForCenter: any) => {
       const local = centerInBoard(board, tileForCenter, TILE);
@@ -12693,7 +12762,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
       } catch {}
       return local;
     };
-    const tntStarTexture = Texture.from('./assets/small-star.png');
+    const bonusParticleTextures = Array.isArray(bonusParticleSources) && bonusParticleSources.length
+      ? bonusParticleSources.map((source) => Texture.from(source))
+      : [Texture.from('./assets/small-star.png')];
     let hudStarPos: { x: number; y: number } | null = null;
     try {
       if (typeof HUD.getStarHudPosition === 'function') {
@@ -12776,11 +12847,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
         removeTile(tile);
         // ⭐ Wild TNT: 1 star per broken tile → HUD (ignore merge-6 1-3)
         try {
+          const bonusParticleTexture = bonusParticleTextures[(Math.random() * bonusParticleTextures.length) | 0];
           const starPositions = [{
-            texture: tntStarTexture,
+            texture: bonusParticleTexture,
             globalX: basePos.x,
             globalY: basePos.y,
-            scale: { x: 0.55, y: 0.55 }
+            scale: { x: 0.55 * bonusParticleScale, y: 0.55 * bonusParticleScale }
           }];
           // Fire-and-forget; use board/stage/app like other HUD star animations
           const appForAnimation = STATE.app || (STATE.stage as any)?.app;

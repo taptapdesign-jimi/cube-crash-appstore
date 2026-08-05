@@ -5,7 +5,10 @@ import {
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceInputReleaseAtRatioForFx,
   getSpecialDiceInputReleaseModeForFx,
+  getSpecialDiceIdleBubbleColors,
+  getSpecialDiceShardColors,
   getSpecialDiceSplashOptions,
+  getSpecialDiceTrailColors,
   getSpecialDiceVariant,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceGameplayResolvingLikeTile,
@@ -13,6 +16,7 @@ import {
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
+  pickSpecialDiceVariantForWildSpawn,
   applySpecialDiceVariantToTile,
 } from '../special-dice-registry';
 
@@ -165,4 +169,76 @@ test('archetype preserves TNT finale when generic special field is missing', () 
 
   expect(getSpecialDiceFinaleFxForTile(tnt)).toBe('tnt');
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
+});
+
+test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay archetype', () => {
+  localStorage.removeItem('cc_special_dice_unlocked_flower');
+  const flower = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 2,
+    wildSpawnCount: 0,
+  });
+
+  expect(flower).toMatchObject({
+    id: 'flower',
+    archetype: 'wild-tnt',
+    texture: './assets/shop/bush/flower.png',
+    splashText: 'BLOOMING!',
+    splashColors: ['#FFFEFA', '#FEF8EA'],
+    splashSplitIndex: 3.5,
+  });
+  expect(flower?.explosionSpriteSources).toHaveLength(9);
+  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10.png');
+  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10@2x.png');
+  expect(getSpecialDiceTrailColors(flower)).toEqual([0xFFE4D4, 0xFFBBAD, 0xF9999F, 0xFFD257]);
+  expect(getSpecialDiceShardColors(flower)).toEqual([0xFFCDC7, 0xFC8C75]);
+  const honey = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 2,
+    wildSpawnCount: 1,
+  });
+  expect(honey).toMatchObject({
+    id: 'honey',
+    archetype: 'wild-magnet',
+    texture: './assets/shop/honey/honey.png',
+    splashText: 'BUZZING!',
+    splashColors: ['#FFC14F', '#D0784D'],
+    splashSplitIndex: 4,
+  });
+  expect(getSpecialDiceIdleBubbleColors(honey)).toEqual([0xF7D58A, 0xF2BB4F]);
+  expect(getSpecialDiceTrailColors(honey)).toEqual([0xFBD099, 0xFEE4B8, 0xFDCD55, 0xF9AF3A]);
+  expect(getSpecialDiceShardColors(honey)).toEqual([0xF1BA79, 0xFDCF58]);
+  expect(honey?.burstParticleSources).toHaveLength(7);
+  const mushroom = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 2,
+    wildSpawnCount: 2,
+  });
+  expect(mushroom).toMatchObject({
+    id: 'mushroom',
+    archetype: 'wild-juice',
+    texture: './assets/shop/mushroom/mushroom.png',
+    splashText: 'SHROOMY',
+    splashColors: ['#FD7D5F'],
+    idleMotion: 'mushroom-pop',
+    juiceDropProfile: 'mushroom',
+  });
+  expect(getSpecialDiceTrailColors(mushroom)).toEqual([0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61]);
+  expect(getSpecialDiceShardColors(mushroom)).toEqual([0xE7B392, 0xFF7B60]);
+  expect(mushroom?.explosionSpriteSources).toHaveLength(6);
+});
+
+test('Flower remains available as the first Forest special after its Stage 2 unlock', () => {
+  localStorage.setItem('cc_special_dice_unlocked_flower', 'true');
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 3,
+    wildSpawnCount: 0,
+  })?.id).toBe('flower');
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 11,
+    wildSpawnCount: 0,
+  })).toBeNull();
+  localStorage.removeItem('cc_special_dice_unlocked_flower');
 });

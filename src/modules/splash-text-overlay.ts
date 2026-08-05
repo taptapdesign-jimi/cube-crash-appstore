@@ -165,7 +165,12 @@ export function showMagneticText(options: any = {}): void {
     ].join(';');
     swoopOverlay = overlay;
     // Wild-magnet SWOOP uses only pooled bolt sprites.
-    const boltCleanup = attachBoltSprites(overlay, { count: 16, zIndex: 1 });
+    const boltCleanup = attachBoltSprites(overlay, {
+      count: Number(options?.burstMotion?.count) || 16,
+      zIndex: 1,
+      sources: options?.burstSources,
+      motion: options?.burstMotion,
+    });
     swoopFxCleanup = () => {
       try { boltCleanup?.(); } catch {}
     };
@@ -198,7 +203,7 @@ export function showMagneticText(options: any = {}): void {
     const containerTilt = (Math.random() - 0.5) * (MAX_TEXT_CONTAINER_TILT_DEG * 2);
     container.style.transform = `translate(-50%, -50%) rotate(${containerTilt}deg)`;
 
-    const letters = ['S', 'W', 'O', 'O', 'P'];
+    const letters = Array.from(String(options?.text || 'SWOOP'));
     const letterFontSizes = createRandomTextLetterSizes(letters.length);
     const letterScales: number[] = [];
     const letterRotations: number[] = [];
@@ -210,13 +215,21 @@ export function showMagneticText(options: any = {}): void {
       const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
+      const splitIndex = Number.isFinite(options?.splitIndex) ? Number(options.splitIndex) : -1;
+      const lightColor = options?.colors?.[0] || options?.color || '#FF9472';
+      const darkColor = options?.colors?.[1] || options?.color || lightColor;
+      const isSplitLetter = index === Math.floor(splitIndex) && splitIndex % 1 !== 0;
+      const letterColor = index < splitIndex ? lightColor : darkColor;
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        'color: #FF9472',
-        '-webkit-text-fill-color: #FF9472',
+        `color: ${letterColor}`,
+        `-webkit-text-fill-color: ${isSplitLetter ? 'transparent' : letterColor}`,
+        isSplitLetter ? `background: linear-gradient(90deg, ${lightColor} 0 50%, ${darkColor} 50% 100%)` : 'background: none',
+        isSplitLetter ? '-webkit-background-clip: text' : '-webkit-background-clip: border-box',
+        isSplitLetter ? 'background-clip: text' : 'background-clip: border-box',
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -297,7 +310,10 @@ export function showMagneticText(options: any = {}): void {
         EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
         EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
         0.05;
-      const exitCleanupCall = trackDelayedCall(exitTotal, () => cleanupBuzzzOverlay());
+      // Honey exits in eight uneven pairs; leave enough lifecycle tail for the
+      // final pair to complete its own edge bounce-out before pooled cleanup.
+      const beeFlightTail = options?.burstMotion?.beeFlight === true ? 0.9 : 0;
+      const exitCleanupCall = trackDelayedCall(exitTotal + beeFlightTail, () => cleanupBuzzzOverlay());
       swoopDelayedCallsRef.push(exitCleanupCall);
     };
 

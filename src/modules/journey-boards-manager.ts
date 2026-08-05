@@ -6099,6 +6099,12 @@ class JourneyBoardsManager {
       // Start local banner reveal on the first real GSAP enter tick so it runs
       // with the Worlds, while preserving a painted tucked-behind start state.
       hub?.classList.add('journey-v700-banners-presented');
+      // The outer World cards own standard enter transforms; the nested visual
+      // and cloud layers own idle transforms. Start those independent owners
+      // on the first visible enter tick so the Hub is alive throughout enter,
+      // without competing for the same transform or creating a handoff gap.
+      worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
+      hub?.classList.add('journey-v700-idle-ready');
     };
     let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
     const finishVisibleEnterTarget = () => {

@@ -19,6 +19,12 @@ export type StuckWildDeferralDecision =
   | { action: 'force-fail'; reason: 'wild-continuation-timeout'; startedAt: number; deferMs: number }
   | { action: 'continue-fail'; reason: 'no-wild-continuation'; startedAt: null; deferMs: 0 };
 
+export const WILD_METER_READY_EPSILON = 1e-6;
+
+export function isWildMeterReady(wildMeter: number): boolean {
+  return Number.isFinite(wildMeter) && wildMeter >= 1 - WILD_METER_READY_EPSILON;
+}
+
 const NON_RETRYABLE_WILD_SPAWN_REASONS = new Set([
   'busyEnding',
   'fail-screen-pending',
@@ -32,7 +38,7 @@ export function shouldScheduleWildSpawnRetry(reason: string): boolean {
 export function resolveWildSpawnGuardReleaseContinuation(
   input: WildSpawnContinuationInput,
 ): WildSpawnContinuationDecision {
-  if (!Number.isFinite(input.wildMeter) || input.wildMeter < 1) {
+  if (!isWildMeterReady(input.wildMeter)) {
     return { action: 'skip', reason: 'wild-meter-not-ready' };
   }
   if (input.busyEnding) {
@@ -42,7 +48,7 @@ export function resolveWildSpawnGuardReleaseContinuation(
 }
 
 export function isWildContinuationPending(input: WildContinuationPendingInput): boolean {
-  return input.wildMeter >= 1 ||
+  return isWildMeterReady(input.wildMeter) ||
     input.wildSpawnInProgress === true ||
     input.wildSpawnRetryPending === true ||
     input.wildSpawnDropInProgress === true;

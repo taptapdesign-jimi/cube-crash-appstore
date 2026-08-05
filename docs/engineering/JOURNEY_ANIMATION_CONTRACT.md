@@ -98,7 +98,7 @@ baseDelay = 0.08;
 stagger = 0.09;
 ```
 
-Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. Idle may begin only after all three World Units complete.
+Lifecycle requirement: background preparation may render the Hub, but it must not consume the visible enter animation. Immediately before the Journey viewport begins its real visible enter, prime all three World Units into the hidden start state. Start the World cascade in that same visible-enter lifecycle. The outer World cards own the standard enter transform while their nested World/cloud visuals own idle, so nested idle starts on the first real visible enter tick and remains alive throughout the cascade without transform contention. For an individual Forest/Beach/Area 55 screen, each complete Unit starts its idle as soon as that Unit's own enter settles; later Units must not hold already-visible motion hostage. Idle uses a short seamless ramp and must not introduce a post-enter dead pause.
 
 ## Standard Journey Worlds Exit
 
@@ -179,7 +179,7 @@ When the user says **replicate the standard enter/exit**, preserve all of the fo
 - short stagger timing;
 - Unit grouping with no internal stagger;
 - correct visible-screen lifecycle trigger;
-- idle only after enter completes;
+- idle begins at the earliest transform-safe handoff: nested Hub visuals during parent enter, and each individual World Unit immediately after its own enter settles;
 - navigation only after exit completes;
 - identical tapped-card exit for regular and interim cards;
 - tween cleanup and no duplicate lifecycle runs.

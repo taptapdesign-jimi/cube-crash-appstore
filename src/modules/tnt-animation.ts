@@ -7,6 +7,7 @@ import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
 import { setInputGateLock } from './input-gate.ts';
+import { attachSmallStarCenterBurst } from './text-sparkles.ts';
 
 const BASE = './assets/shop/explosion pack/animation/';
 const TNT_ANIM_FRAMES_1X: string[] = [
@@ -41,17 +42,49 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const TNT_ANIM_FRAMES_FALLBACK: string[] = TNT_ANIM_FRAMES_1X;
 export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_FALLBACK;
 
-let preloadPromise: Promise<void> | null = null;
+export type TntAnimationVisualOptions = {
+  frameSources?: string[];
+  text?: string;
+  color?: string;
+  colors?: string[];
+  splitIndex?: number;
+  lastFrameOnExitOnly?: boolean;
+  frameScale?: number;
+  frameHorizontalScale?: number;
+  frameVerticalStretch?: number;
+  hideFrameIndicesAtExitStart?: number[];
+  burstSources?: string[];
+  burstMotion?: Record<string, unknown>;
+};
 
-export function preloadTntFrames(): Promise<void> {
-  if (preloadPromise) return preloadPromise;
+const preloadPromises = new Map<string, Promise<void>>();
 
-  preloadPromise = (async () => {
+function resolveFrameSources(options?: TntAnimationVisualOptions): { preferred: string[]; fallback: string[] } {
+  const custom = Array.isArray(options?.frameSources)
+    ? options.frameSources.filter((source): source is string => typeof source === 'string' && source.length > 0)
+    : [];
+  if (!custom.length) {
+    return { preferred: TNT_ANIM_FRAMES, fallback: TNT_ANIM_FRAMES_FALLBACK };
+  }
+  return {
+    preferred: custom,
+    fallback: custom.map((source) => source.replace('@2x.png', '.png')),
+  };
+}
+
+export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promise<void> {
+  const { preferred, fallback } = resolveFrameSources(options);
+  const burstSources = Array.isArray(options.burstSources) ? options.burstSources.filter(Boolean) : [];
+  const cacheKey = [...preferred, ...burstSources].join('|');
+  const existing = preloadPromises.get(cacheKey);
+  if (existing) return existing;
+
+  const preloadPromise = (async () => {
     await Promise.all(
-      Array.from({ length: 12 }, async (_, index) => {
+      preferred.map(async (_, index) => {
         const candidates = Array.from(new Set([
-          TNT_ANIM_FRAMES[index],
-          TNT_ANIM_FRAMES_FALLBACK[index],
+          preferred[index],
+          fallback[index],
         ].filter(Boolean)));
 
         for (const src of candidates) {
@@ -63,15 +96,21 @@ export function preloadTntFrames(): Promise<void> {
           } catch {}
         }
 
-        throw new Error(`TNT frame ${index + 1} could not be loaded into the Pixi asset cache`);
+        throw new Error(`TNT-archetype frame ${index + 1} could not be loaded into the Pixi asset cache`);
       })
     );
+    await Promise.all(burstSources.map(async (source) => {
+      const cached = Assets.get(source) as Texture | undefined;
+      if (isRenderableTexture(cached)) return;
+      await Assets.load<Texture>(source);
+    }));
   })().catch((error) => {
     // A transient local WebView/asset-cache failure must remain retryable.
-    preloadPromise = null;
+    preloadPromises.delete(cacheKey);
     throw error;
   });
 
+  preloadPromises.set(cacheKey, preloadPromise);
   return preloadPromise;
 }
 
@@ -94,9 +133,10 @@ let cleanupInProgress = false;
 let lastTntStartMs = 0;
 const TNT_DEBOUNCE_MS = 200;
 const TNT_STUCK_RESET_MS = 1500;
-const MAX_TNT_SPRITE_POOL = 24;
+const MAX_TNT_SPRITE_POOL = 40;
 let pooledFrameSprites: Sprite[] = [];
 let pooledFrameContainer: Container | null = null;
+let foregroundBurstCleanups: Array<() => void> = [];
 
 function releaseTntInputGate(): void {
   try { (window as any).__ccTntDragBlocked = false; } catch {}
@@ -260,6 +300,123 @@ function releaseFrameSprite(sprite: Sprite): void {
   } catch {}
 }
 
+function attachDepthLayeredFlowerBurst(
+  container: Container,
+  sources: string[],
+  motion: Record<string, unknown>,
+  centerX: number,
+  centerY: number,
+): () => void {
+  const waveTimes = Array.isArray(motion.waveTimes)
+    ? motion.waveTimes.map(Number).filter((time) => Number.isFinite(time) && time >= 0)
+    : [0.12, 0.96, 1.78];
+  const particlesPerWave = Math.max(4, Math.min(12, Number(motion.count) || 9));
+  const sizeScale = Number.isFinite(motion.baseSizeScale) ? Number(motion.baseSizeScale) : 1;
+  const speedScale = Number.isFinite(motion.speedScale) ? Number(motion.speedScale) : 1;
+  // Frame sprites use zIndex 0...8 for bush1...bush9. These profiles
+  // distribute flowers behind bush2...bush9, weighted toward the denser late
+  // canopy. The final wave deliberately starts behind bush4 (zIndex 2.5).
+  const depthProfiles = [
+    [0.5, 2.5, 4.5, 6.5, 7.5, 3.5, 5.5, 1.5, 4.5],
+    [1.5, 3.5, 5.5, 7.5, 6.5, 4.5, 2.5, 5.5, 3.5],
+    [2.5, 4.5, 6.5, 7.5, 5.5, 3.5, 1.5, 6.5, 4.5],
+  ];
+  const originSlots = [
+    { x: -34, y: 12 },
+    { x: 28, y: -18 },
+    { x: -22, y: -32 },
+    { x: 38, y: 20 },
+    { x: -42, y: -6 },
+    { x: 18, y: 30 },
+    { x: 6, y: -38 },
+    { x: 44, y: -10 },
+  ];
+  const particles: Sprite[] = [];
+  const timelines: gsap.core.Timeline[] = [];
+  let disposed = false;
+
+  try { container.sortableChildren = true; } catch {}
+
+  waveTimes.forEach((waveTime, waveIndex) => {
+    for (let particleIndex = 0; particleIndex < particlesPerWave; particleIndex += 1) {
+      const source = sources[Math.floor(Math.random() * sources.length)];
+      const texture = Assets.get(source) as Texture | undefined;
+      if (!isRenderableTexture(texture)) continue;
+      const depthProfile = depthProfiles[waveIndex % depthProfiles.length];
+      const depthSlot = depthProfile[particleIndex % depthProfile.length];
+      const originIndex = Math.max(0, Math.min(originSlots.length - 1, Math.round(depthSlot - 0.5)));
+      const origin = originSlots[originIndex];
+      const sprite = acquireFrameSprite(texture, depthSlot, centerX, centerY);
+      const textureExtent = Math.max(1, Number(texture.width) || 1, Number(texture.height) || 1);
+      const desiredSize = (26 + Math.random() * 42) * sizeScale;
+      const settledScale = desiredSize / textureExtent;
+      const angle = (Math.PI * 2 * particleIndex) / particlesPerWave + (Math.random() - 0.5) * 0.9;
+      const distance = 190 + Math.random() * 260;
+      const curve = (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 58);
+      const perpendicularX = -Math.sin(angle);
+      const perpendicularY = Math.cos(angle);
+      const startX = centerX + origin.x + (Math.random() - 0.5) * 30;
+      const startY = centerY + origin.y + (Math.random() - 0.5) * 24;
+      const startRotation = (Math.random() - 0.5) * 0.48;
+      const rotationTravel = (Math.random() - 0.5) * 1.05;
+      const swirlTurns = 1.15 + Math.random() * 0.85;
+      const swirlPhase = Math.random() * Math.PI * 2;
+      const swirlAmplitude = 13 + Math.random() * 24;
+      sprite.x = startX;
+      sprite.y = startY;
+      sprite.rotation = startRotation;
+      container.addChild(sprite);
+      particles.push(sprite);
+
+      const delay = waveTime + particleIndex * (0.035 + Math.random() * 0.01);
+      const flight = { progress: 0 };
+      let promotedToForeground = false;
+      const timeline = trackTimeline({ delay });
+      timeline.to(flight, {
+        progress: 1,
+        duration: 1.12 * speedScale,
+        ease: 'none',
+        onUpdate: () => {
+          if (disposed || sprite.destroyed) return;
+          const progress = flight.progress;
+          const windEnvelope = Math.sin(Math.PI * progress);
+          const broadWind = Math.sin(Math.PI * progress) * curve;
+          const swirl = Math.sin((progress * Math.PI * 2 * swirlTurns) + swirlPhase)
+            * swirlAmplitude * windEnvelope;
+          const forwardDistance = distance * progress;
+          sprite.x = startX + Math.cos(angle) * forwardDistance + perpendicularX * (broadWind + swirl);
+          sprite.y = startY + Math.sin(angle) * forwardDistance + perpendicularY * (broadWind + swirl);
+          sprite.rotation = startRotation + rotationTravel * progress
+            + Math.sin((progress * Math.PI * 2 * swirlTurns) + swirlPhase) * 0.16;
+
+          const enterProgress = Math.min(1, progress / 0.14);
+          const exitProgress = Math.max(0, (progress - 0.78) / 0.22);
+          const scale = settledScale * (0.82 + enterProgress * 0.36) * (1 - exitProgress * 0.36);
+          sprite.scale.set(scale, scale);
+          sprite.alpha = Math.min(1, progress / 0.1) * (1 - exitProgress);
+
+          if (!promotedToForeground && progress >= 0.28) {
+            promotedToForeground = true;
+            sprite.zIndex = 8.5;
+            try { container.sortChildren?.(); } catch {}
+          }
+        },
+      });
+      timelines.push(timeline);
+    }
+  });
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    timelines.forEach((timeline) => {
+      try { timeline.kill(); } catch {}
+    });
+    particles.forEach((particle) => releaseFrameSprite(particle));
+    try { container.sortChildren?.(); } catch {}
+  };
+}
+
 function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
@@ -330,6 +487,10 @@ function cleanup(): void {
       } catch {}
     });
     activeFrameWrappers = [];
+    foregroundBurstCleanups.forEach((dispose) => {
+      try { dispose(); } catch {}
+    });
+    foregroundBurstCleanups = [];
     if (overlay) {
       try {
         gsap.killTweensOf(overlay);
@@ -376,7 +537,6 @@ export function getTntAnimationOverlay(): HTMLElement | null {
 }
 
 // TNT sprite sekvenca - 12 frameova, sve u centru viewporta
-const NUM_FRAMES = 12;
 const ENTER_BOUNCE_SCALE = 1.2;
 /** Vertikalno rastezanje spriteova za 40% (manje plosnato) */
 const VERTICAL_STRETCH = 1.4;
@@ -408,6 +568,18 @@ export function showTntAnimation(options: {
   onSprite10ExitLeadStart?: () => void;
   onSpriteSequenceComplete?: () => void;
   onNinthSpriteStart?: () => void;
+  frameSources?: string[];
+  text?: string;
+  color?: string;
+  colors?: string[];
+  splitIndex?: number;
+  lastFrameOnExitOnly?: boolean;
+  frameScale?: number;
+  frameHorizontalScale?: number;
+  frameVerticalStretch?: number;
+  hideFrameIndicesAtExitStart?: number[];
+  burstSources?: string[];
+  burstMotion?: Record<string, unknown>;
 } = {}): HTMLElement | null {
   tntMemInit();
   const now = Date.now();
@@ -427,6 +599,23 @@ export function showTntAnimation(options: {
     setInputGateLock('tnt-boom', true, { ttlMs: 5200, scope: 'all' });
   } catch {}
   const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSprite10ExitLeadStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
+  const { preferred: activeFrames, fallback: activeFallbackFrames } = resolveFrameSources(options);
+  const numFrames = activeFrames.length;
+  const lastFrameOnExitOnly = options.lastFrameOnExitOnly === true && numFrames > 1;
+  const frameScale = Number.isFinite(options.frameScale)
+    ? Math.max(0.5, Math.min(1.5, Number(options.frameScale)))
+    : 1;
+  const frameHorizontalScale = Number.isFinite(options.frameHorizontalScale)
+    ? Math.max(0.75, Math.min(1.25, Number(options.frameHorizontalScale)))
+    : 1;
+  const frameVerticalStretch = Number.isFinite(options.frameVerticalStretch)
+    ? Math.max(0.75, Math.min(1.5, Number(options.frameVerticalStretch)))
+    : VERTICAL_STRETCH;
+  const hiddenAtExitStart = new Set(
+    Array.isArray(options.hideFrameIndicesAtExitStart)
+      ? options.hideFrameIndicesAtExitStart.filter((index) => Number.isInteger(index) && index >= 0 && index < numFrames)
+      : [],
+  );
 
   overlay = document.createElement('div');
   overlay.id = 'cc-tnt-animation-overlay';
@@ -456,25 +645,27 @@ export function showTntAnimation(options: {
     pixiFrameContainer.visible = true;
     pixiFrameContainer.alpha = 1;
     pixiFrameContainer.renderable = true;
+    pixiFrameContainer.sortableChildren = true;
     pixiFrameContainer.removeChildren();
     try { pixiFrameContainer.interactiveChildren = false; } catch {}
     pixiHost.addChild(pixiFrameContainer);
     pixiHost.sortChildren?.();
 
-    for (let i = 0; i < NUM_FRAMES; i++) {
-      const frameSrc = TNT_ANIM_FRAMES[i] || TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
-      const tex = (Assets.get(frameSrc) as Texture | undefined) || (Assets.get(TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0]) as Texture | undefined);
+    for (let i = 0; i < numFrames; i++) {
+      const frameSrc = activeFrames[i] || activeFallbackFrames[i] || activeFallbackFrames[0];
+      const tex = (Assets.get(frameSrc) as Texture | undefined) || (Assets.get(activeFallbackFrames[i] || activeFallbackFrames[0]) as Texture | undefined);
       if (!isRenderableTexture(tex)) continue;
       const frameEl = acquireFrameSprite(tex, i, centerX, centerY);
       pixiFrameContainer.addChild(frameEl);
       frameEls.push(frameEl);
       activeFrameSprites.push(frameEl);
     }
+    try { pixiFrameContainer.sortChildren?.(); } catch {}
     tntMemSample('tnt_1_frames_created');
   }
-  if (frameEls.length !== NUM_FRAMES) {
+  if (frameEls.length !== numFrames) {
     logger.warn('⚠️ TNT sprite sequence started without every renderable frame', 'tnt-animation', {
-      expected: NUM_FRAMES,
+      expected: numFrames,
       actual: frameEls.length,
       hasPixiHost: !!pixiHost,
     });
@@ -510,7 +701,7 @@ export function showTntAnimation(options: {
   const boomLetterScales: number[] = [];
   const boomLetterRotations: number[] = [];
   const boomBounceTimelines: gsap.core.Timeline[] = [];
-  const boomText = ['B', 'O', 'O', 'M'];
+  const boomText = Array.from(options.text || 'BOOM');
   const boomFontSizes = createRandomTextLetterSizes(boomText.length);
   boomText.forEach((letter, idx) => {
     const letterScale = 1;
@@ -518,13 +709,21 @@ export function showTntAnimation(options: {
     const rotation = 0; // tilt is now applied to whole BOOM container
     const letterEl = document.createElement('span');
     letterEl.textContent = letter;
+    const splitIndex = Number.isFinite(options.splitIndex) ? Number(options.splitIndex) : -1;
+    const lightColor = options.colors?.[0] || options.color || '#F18453';
+    const darkColor = options.colors?.[1] || options.color || lightColor;
+    const isSplitLetter = idx === Math.floor(splitIndex) && splitIndex % 1 !== 0;
+    const letterColor = idx < splitIndex ? lightColor : darkColor;
     letterEl.style.cssText = [
       'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
       `font-size: ${letterFontSize.toFixed(1)}px`,
       'line-height: 1',
-      'color: #F18453',
-      '-webkit-text-fill-color: #F18453',
+      `color: ${letterColor}`,
+      `-webkit-text-fill-color: ${isSplitLetter ? 'transparent' : letterColor}`,
+      isSplitLetter ? `background: linear-gradient(90deg, ${lightColor} 0 50%, ${darkColor} 50% 100%)` : 'background: none',
+      isSplitLetter ? '-webkit-background-clip: text' : '-webkit-background-clip: border-box',
+      isSplitLetter ? 'background-clip: text' : 'background-clip: border-box',
       'text-align: center',
       'opacity: 0',
       'transform: scale(0) perspective(1000px) translateZ(0)',
@@ -582,19 +781,66 @@ export function showTntAnimation(options: {
     },
   });
 
+  if (Array.isArray(options.burstSources) && options.burstSources.length) {
+    const configuredWaveTimes = Array.isArray(options.burstMotion?.waveTimes)
+      ? options.burstMotion.waveTimes
+          .map(Number)
+          .filter((at) => Number.isFinite(at) && at >= 0 && at <= 4)
+      : [];
+    const burstWaveTimes = configuredWaveTimes.length ? configuredWaveTimes : [0.12, 0.96, 1.78];
+    if (options.burstMotion?.depthLayered === true && pixiFrameContainer) {
+      const dispose = attachDepthLayeredFlowerBurst(
+        pixiFrameContainer,
+        options.burstSources,
+        options.burstMotion,
+        centerX,
+        centerY,
+      );
+      foregroundBurstCleanups.push(dispose);
+    } else {
+      burstWaveTimes.forEach((at) => {
+        timeline?.call(() => {
+          if (!overlay) return;
+          const dispose = attachSmallStarCenterBurst(overlay, {
+            count: Number(options.burstMotion?.count) || 9,
+            zIndex: 4,
+            sources: options.burstSources,
+            motion: options.burstMotion,
+          });
+          foregroundBurstCleanups.push(dispose);
+        }, [], at);
+      });
+    }
+  }
+
   // Frame 6 timing helpers:
   // - enter end: used to start board blast right after sprite enter animation
   // - settle end: used for TNT internal hold/exit choreography
   const sprite5EnterEndTime = 0.07 + 5 * 0.04 + ENTER_DURATION;
   const sprite5SettleTime = sprite5EnterEndTime + SETTLE_DURATION;
   const exitStartTime = sprite5SettleTime + HOLD_AT_FRAME_6 + SPRITE_EXTRA_DURATION - 0.2;
+  if (hiddenAtExitStart.size) {
+    timeline.call(() => {
+      hiddenAtExitStart.forEach((index) => {
+        const frame = frameEls[index];
+        if (!frame) return;
+        try {
+          gsap.killTweensOf(frame);
+          gsap.killTweensOf(frame.scale);
+          frame.alpha = 0;
+          frame.scale.set(0, 0);
+        } catch {}
+      });
+    }, [], exitStartTime);
+  }
   spriteBounceTweensRef = [];
 
   let sprite10ExitTriggered = false;
   let spriteSequenceCompleteTriggered = false;
   frameEls.forEach((frameEl, i) => {
+    const isExitOnlyFinalFrame = lastFrameOnExitOnly && i === numFrames - 1;
     const randomRotation = (Math.random() - 0.5) * 20;
-    const randomSize = 1 + Math.random() * 0.52;
+    const randomSize = (1 + Math.random() * 0.52) * frameScale;
     const enterDelay = 0.07 + i * 0.04;
     const dEnter = ENTER_DURATION;
     const dSettle = SETTLE_DURATION;
@@ -609,6 +855,53 @@ export function showTntAnimation(options: {
     frameEl.alpha = 0;
     frameEl.rotation = rotRad;
 
+    if (isExitOnlyFinalFrame) {
+      frameEl.rotation = 0;
+      const priorExitEnd = exitStartTime
+        + Math.max(0, numFrames - 2) * SPRITE_EXIT_STAGGER
+        + EXIT_BOUNCE_DURATION
+        + EXIT_FADE_DURATION;
+      const finalFrameTl = trackTimeline({ delay: Math.max(0, priorExitEnd - 0.04) });
+      extraTimelines.push(finalFrameTl);
+      finalFrameTl
+        .to(frameEl, {
+          alpha: 1,
+          duration: 0.12,
+          ease: 'sine.out',
+        })
+        .to(frameEl.scale, {
+          x: frameHorizontalScale,
+          y: frameVerticalStretch,
+          duration: 0.18,
+          ease: 'back.out(1.55)',
+        }, '<')
+        .to({}, { duration: 0.12 })
+        .call(() => {
+          if (!sprite10ExitTriggered) {
+            sprite10ExitTriggered = true;
+            try { onSprite10ExitStart?.(); } catch {}
+          }
+        })
+        .to(frameEl, {
+          alpha: 0,
+          duration: EXIT_FADE_DURATION,
+          ease: 'sine.in',
+        })
+        .to(frameEl.scale, {
+          x: 0,
+          y: 0,
+          duration: EXIT_FADE_DURATION,
+          ease: 'back.in(1.6)',
+          onComplete: () => {
+            if (!spriteSequenceCompleteTriggered) {
+              spriteSequenceCompleteTriggered = true;
+              try { onSpriteSequenceComplete?.(); } catch {}
+            }
+          },
+        }, '<');
+      return;
+    }
+
     const tl = trackTimeline({ delay: enterDelay });
     extraTimelines.push(tl);
     tl.to(frameEl, {
@@ -617,8 +910,8 @@ export function showTntAnimation(options: {
       ease: 'back.out(2.0)'
     });
     tl.to(frameEl.scale, {
-      x: randomSize * ENTER_BOUNCE_SCALE,
-      y: randomSize * ENTER_BOUNCE_SCALE * VERTICAL_STRETCH,
+      x: randomSize * ENTER_BOUNCE_SCALE * frameHorizontalScale,
+      y: randomSize * ENTER_BOUNCE_SCALE * frameVerticalStretch,
       duration: dEnter,
       ease: 'back.out(2.0)'
     }, '<');
@@ -627,8 +920,8 @@ export function showTntAnimation(options: {
       ease: 'power2.out'
     }, '>0');
     tl.to(frameEl.scale, {
-      x: randomSize,
-      y: randomSize * VERTICAL_STRETCH,
+      x: randomSize * frameHorizontalScale,
+      y: randomSize * frameVerticalStretch,
       duration: dSettle,
       ease: 'power2.out'
     }, '<');
@@ -643,8 +936,8 @@ export function showTntAnimation(options: {
       });
       spriteBounceTweensRef.push(bounce);
       const bounceScale = gsap.to(frameEl.scale, {
-        x: bounceS,
-        y: bounceS * VERTICAL_STRETCH,
+        x: bounceS * frameHorizontalScale,
+        y: bounceS * frameVerticalStretch,
         duration: 0.4,
         ease: 'elastic.inOut(1, 0.25)',
         repeat: -1,
@@ -654,6 +947,7 @@ export function showTntAnimation(options: {
     }, [], '+=0');
     tl.to({}, { duration: holdDuration }, '>0');
     tl.call(() => {
+      if (hiddenAtExitStart.has(i)) return;
       if (i === 9 && !sprite10ExitTriggered) {
         sprite10ExitTriggered = true;
         try { onSprite10ExitStart?.(); } catch {}
@@ -669,8 +963,8 @@ export function showTntAnimation(options: {
         ease: 'power2.out',
         onComplete: () => {
           gsap.to(frameEl.scale, {
-            x: exitS,
-            y: exitS * VERTICAL_STRETCH,
+            x: exitS * frameHorizontalScale,
+            y: exitS * frameVerticalStretch,
             duration: EXIT_BOUNCE_DURATION,
             ease: 'power2.out'
           });
@@ -679,7 +973,8 @@ export function showTntAnimation(options: {
             duration: EXIT_FADE_DURATION,
             ease: 'back.in(2.0)',
             onComplete: () => {
-              if (i === NUM_FRAMES - 1 && !spriteSequenceCompleteTriggered) {
+              const isLastStandardFrame = i === numFrames - 1 || (lastFrameOnExitOnly && i === numFrames - 2);
+              if (isLastStandardFrame && !lastFrameOnExitOnly && !spriteSequenceCompleteTriggered) {
                 spriteSequenceCompleteTriggered = true;
                 try { onSpriteSequenceComplete?.(); } catch {}
               }

@@ -17,6 +17,13 @@ test('allows wild spawn when meter is ready and no blockers exist', () => {
   })).toEqual({ action: 'allow', reason: 'ready' });
 });
 
+test('allows wild spawn when accumulated decimal progress is effectively full', () => {
+  expect(resolveWildSpawnPermission({
+    tiles: [makeTile({ value: 5 }), makeTile({ value: 5 })],
+    wildMeter: 0.9999999999999999,
+  })).toEqual({ action: 'allow', reason: 'ready' });
+});
+
 test('blocks wild spawn during final merge flag', () => {
   expect(resolveWildSpawnPermission({
     tiles: [makeTile({ value: 6, _isLastMerge: true })],

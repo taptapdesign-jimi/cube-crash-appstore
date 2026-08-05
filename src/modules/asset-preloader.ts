@@ -150,6 +150,19 @@ const ALL_ASSETS: string[] = [
   './assets/shop/ball/ball4.png',
   './assets/shop/ball/ball5.png',
   './assets/shop/ball/ball6.png',
+  './assets/shop/bush/flower.png',
+  './assets/shop/bush/flower@2x.png',
+  ...Array.from({ length: 10 }, (_, index) => `./assets/shop/bush/bush${index + 1}.png`),
+  ...Array.from({ length: 10 }, (_, index) => `./assets/shop/bush/bush${index + 1}@2x.png`),
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bush/flowr${index + 1}.png`),
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bush/flowr${index + 1}@2x.png`),
+  './assets/shop/honey/honey.png',
+  './assets/shop/honey/honey@2x.png',
+  ...Array.from({ length: 7 }, (_, index) => `./assets/shop/honey/bee${index + 1}.png`),
+  ...Array.from({ length: 7 }, (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`),
+  './assets/shop/mushroom/mushroom.png',
+  './assets/shop/mushroom/mushroom@2x.png',
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/mushroom/part${index + 1}@2x.png`),
   
   // Wild star assets
   './assets/small-star.png',
@@ -160,6 +173,8 @@ const ALL_ASSETS: string[] = [
   './assets/journey-map-homepage.png',
   './assets/journey-map-homepage@2x.png',
   './assets/journey-map-homepage@3x.png',
+  './assets/journey assets/natpis.png',
+  './assets/journey assets/natpis@2x.png',
   './assets/collectibles-box.png',
   './assets/collectibles-box@2x.png',
   './assets/collectibles-box@3x.png',
@@ -254,6 +269,8 @@ const CRITICAL_ASSETS: string[] = [
   './assets/journey-map-homepage.png',
   './assets/journey-map-homepage@2x.png',
   './assets/journey-map-homepage@3x.png',
+  './assets/journey assets/natpis.png',
+  './assets/journey assets/natpis@2x.png',
   './assets/collectibles-box.png',
   './assets/collectibles-box@2x.png',
   './assets/collectibles-box@3x.png',
@@ -270,6 +287,9 @@ const CRITICAL_ASSETS: string[] = [
   './assets/wild.png',
   './assets/shop/cubero/cubero.png',
   './assets/shop/ball/ball.png',
+  './assets/shop/bush/flower.png',
+  './assets/shop/honey/honey.png',
+  './assets/shop/mushroom/mushroom.png',
   
   // Wild star assets (needed immediately when wild cubes spawn)
   './assets/small-star.png',
@@ -281,6 +301,13 @@ const CRITICAL_ASSETS: string[] = [
   './assets/shop/cubero/krpa6.png',
   './assets/shop/cubero/krpa7.png',
   './assets/shop/ball/ball@2x.png',
+  './assets/shop/bush/flower@2x.png',
+  ...Array.from({ length: 10 }, (_, index) => `./assets/shop/bush/bush${index + 1}@2x.png`),
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bush/flowr${index + 1}@2x.png`),
+  './assets/shop/honey/honey@2x.png',
+  ...Array.from({ length: 7 }, (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`),
+  './assets/shop/mushroom/mushroom@2x.png',
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/mushroom/part${index + 1}@2x.png`),
   './assets/small-star@2x.png',
   './assets/small-star@3x.png',
   
@@ -446,6 +473,8 @@ export class AssetPreloader {
       './assets/journey-map-homepage.png',
       './assets/journey-map-homepage@2x.png',
       './assets/journey-map-homepage@3x.png',
+      './assets/journey assets/natpis.png',
+      './assets/journey assets/natpis@2x.png',
       // Collectibles slide
       './assets/collectibles-box.png',
       './assets/collectibles-box@2x.png',
@@ -592,6 +621,8 @@ export class AssetPreloader {
       const criticalImages = [
         './assets/journey assets/1-17bg.png',
         ...JOURNEY_BOTTOM_DECOR_IMAGES,
+        './assets/journey assets/natpis.png',
+        './assets/journey assets/natpis@2x.png',
         './assets/colelctibles/journey-card-empty.png'
       ];
       await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
@@ -603,6 +634,8 @@ export class AssetPreloader {
     // Journey background and UI elements
     journeyImages.push('./assets/journey assets/1-17bg.png');
     journeyImages.push(...JOURNEY_BOTTOM_DECOR_IMAGES);
+    journeyImages.push('./assets/journey assets/natpis.png');
+    journeyImages.push('./assets/journey assets/natpis@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@2x.png');
     journeyImages.push('./assets/journey assets/orange-ribbon@3x.png');

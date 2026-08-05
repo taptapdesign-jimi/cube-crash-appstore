@@ -18,8 +18,20 @@ const mainSource = fs.readFileSync(path.join(root, 'src/main.ts'), 'utf8');
 const sliderManagerSource = fs.readFileSync(path.join(root, 'src/modules/slider-manager.ts'), 'utf8');
 const appZoneSource = fs.readFileSync(path.join(root, 'src/modules/app-zone-manager.ts'), 'utf8');
 const collectiblesCssSource = fs.readFileSync(path.join(root, 'src/collectibles-screen.css'), 'utf8');
+const assetPreloaderSource = fs.readFileSync(path.join(root, 'src/modules/asset-preloader.ts'), 'utf8');
+const worldAnimationCoordinatorSource = fs.readFileSync(
+  path.join(root, 'src/modules/journey-world-animation-coordinator.ts'),
+  'utf8',
+);
 
 describe('Journey Hub transition ownership', () => {
+  test('preloads both Journey progress-banner resolutions before the first visible Hub enter', () => {
+    const criticalAssetsSource = assetPreloaderSource.split('const CRITICAL_ASSETS: string[] = [')[1]
+      ?.split('];')[0] ?? '';
+    expect(criticalAssetsSource).toContain("'./assets/journey assets/natpis.png'");
+    expect(criticalAssetsSource).toContain("'./assets/journey assets/natpis@2x.png'");
+  });
+
   test('Hub renderer is DOM-only and delegates visible motion to the coordinator', () => {
     const renderSource = journeyManagerSource.split(
       'private renderJourneyV700Hub(container: HTMLElement): void',
@@ -28,6 +40,27 @@ describe('Journey Hub transition ownership', () => {
     expect(renderSource).toContain("this.playJourneyV700HubEnter('world-return')");
     expect(renderSource).not.toContain('gsap.fromTo(');
     expect(renderSource).not.toContain('journeySpatialMotion.activateJourneyHub');
+  });
+
+  test('cold Homepage to Hub entry starts from the manager prepared before reveal', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const releaseIndex = showSource.indexOf('releaseJourneyScreenHiddenPrime(screen as HTMLElement)');
+    const preparedEnterIndex = showSource.indexOf(
+      'journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.()',
+    );
+    const fallbackImportIndex = showSource.indexOf("import('./modules/journey-boards-manager.js').then(async");
+
+    expect(releaseIndex).toBeGreaterThanOrEqual(0);
+    expect(preparedEnterIndex).toBeGreaterThan(releaseIndex);
+    expect(preparedEnterIndex).toBeLessThan(fallbackImportIndex);
+    expect(showSource).toContain('homepageHubEnterStartedFromPreparedManager = true');
+    expect(showSource).toContain(
+      "if (!shouldUseV700WorldReturnEnter && !homepageHubEnterStartedFromPreparedManager)",
+    );
+    expect(showSource).toContain("emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager')");
+    expect(showSource).toContain("emitIOSNativeDiagnostic('hub-enter-started-from-import-fallback')");
   });
 
   test('forward navigation never invokes the Homepage recovery reset', () => {
@@ -207,6 +240,34 @@ describe('Journey Hub transition ownership', () => {
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('spatial-activated'");
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('frame-1'");
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('frame-2'");
+  });
+
+  test('visible Journey surfaces become alive without a post-enter idle pause', () => {
+    const hubEnterSource = journeyManagerSource.split(
+      "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
+    )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
+    const visibleStartSource = hubEnterSource.split('const startBannerEnter = () => {')[1]
+      ?.split('let remainingTargets')[0] ?? '';
+    const perUnitCompleteIndex = worldAnimationCoordinatorSource.indexOf(
+      "tween.eventCallback('onComplete', () => {",
+    );
+    const perUnitIdleIndex = worldAnimationCoordinatorSource.indexOf(
+      'this.startIdle([unit], reducedMotion, index)',
+    );
+
+    expect(visibleStartSource).toContain(
+      "worldCard.classList.add('journey-v700-idle-ready')",
+    );
+    expect(visibleStartSource).toContain("hub?.classList.add('journey-v700-idle-ready')");
+    expect(perUnitCompleteIndex).toBeGreaterThanOrEqual(0);
+    expect(perUnitIdleIndex).toBeGreaterThan(perUnitCompleteIndex);
+    expect(worldAnimationCoordinatorSource).toContain(
+      "if (this.phase !== 'entering' && this.phase !== 'idle') return",
+    );
+    expect(worldAnimationCoordinatorSource).toContain(
+      'const ramp = Math.min(1, elapsed / 0.18)',
+    );
+    expect(worldAnimationCoordinatorSource).not.toContain('elapsed / 0.8');
   });
 
   test('locked Worlds keep full opacity through enter cleanup without a second fade', () => {

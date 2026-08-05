@@ -4,7 +4,7 @@ import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 
 type WildSkinDeps = {
-  Assets: { get: (key: string) => any };
+  Assets: { get: (key: string) => any; load?: (key: string) => Promise<any> };
   Texture: any;
   Rectangle: any;
   ASSET_WILD: string;
@@ -56,32 +56,30 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       assetPath = ASSET_WILD_TNT;
     }
     assetPath = getSpecialDiceTexturePath(tile, assetPath);
-    
-    const tex = Assets.get(assetPath) || Texture.from(assetPath);
-    if (!tex || !tile) return;
+    const requestedAssetPath = assetPath;
+
+    if (!tile) return;
     const host = tile.rotG || tile;
     let base = tile.base;
     if (!base){
       base = host.children?.find((c: any) => c.texture instanceof (Texture as any)) || null;
       if (base) tile.base = base;
     }
-    
-    // 🔥 CRITICAL: Always set wild-juice texture and ensure it's visible
-    // This MUST be called every time to ensure texture is never lost
-    if (base && tex && tex !== Texture.EMPTY){ 
+    const specialVisual = getSpecialDiceVisualConfig(tile);
+    const applyResolvedTexture = (resolvedTexture: any): boolean => {
+      if (!base || !resolvedTexture || resolvedTexture === Texture.EMPTY || tile.destroyed) return false;
       // Force set texture even if it's already set (prevents texture loss)
-      base.texture = tex; 
+      base.texture = resolvedTexture;
       const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
-      const specialVisual = getSpecialDiceVisualConfig(tile);
       if (specialVisual?.visualWidth && specialVisual?.visualHeight) {
         base.width = specialVisual.visualWidth;
         base.height = specialVisual.visualHeight;
       } else if (specialVisual?.visualFit === 'height') {
-        const textureHeight = tex?.orig?.height || tex?.height || faceSize;
+        const textureHeight = resolvedTexture?.orig?.height || resolvedTexture?.height || faceSize;
         const uniformScale = faceSize / Math.max(1, textureHeight);
         base.scale.set(uniformScale);
       } else if (specialVisual?.visualWidth) {
-        const textureWidth = tex?.orig?.width || tex?.width || faceSize;
+        const textureWidth = resolvedTexture?.orig?.width || resolvedTexture?.width || faceSize;
         const uniformScale = specialVisual.visualWidth / Math.max(1, textureWidth);
         base.scale.set(uniformScale);
       } else {
@@ -102,6 +100,22 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       base.alpha = 1;
       base.visible = true;
       applyGameplayTextureFiltering(base.texture);
+      return true;
+    };
+
+    // Apply a cached/placeholder texture immediately, then confirm the decoded
+    // custom texture asynchronously. iOS cold starts can expose Texture.from()
+    // before the underlying image has completed decoding.
+    const tex = Assets.get(requestedAssetPath) || Texture.from(requestedAssetPath);
+    applyResolvedTexture(tex);
+    if (specialVisual && typeof Assets.load === 'function') {
+      void Assets.load(requestedAssetPath).then((loadedTexture: any) => {
+        if (tile.destroyed) return;
+        if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return;
+        applyResolvedTexture(loadedTexture || Assets.get(requestedAssetPath));
+      }).catch((error: unknown) => {
+        devWarn('⚠️ Special dice texture decode retry failed', { requestedAssetPath, error });
+      });
     }
     
     // 🔥 CRITICAL: Hide pips and num for wild tiles

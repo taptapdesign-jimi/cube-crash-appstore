@@ -1,4 +1,5 @@
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
+import { isWildMeterReady } from './wild-spawn-continuation.ts';
 
 export type WildSpawnPermissionAction = 'allow' | 'block' | 'retry';
 
@@ -34,7 +35,7 @@ function retry(reason: string, retryDelayMs: number): WildSpawnPermission {
 export function resolveWildSpawnPermission(input: WildSpawnPermissionInput): WildSpawnPermission {
   if (input.boardWildMeterEnabled === false) return block('wild-meter-disabled');
   if (input.boardWildSpawnEnabled === false) return block('wild-spawn-disabled');
-  if (!Number.isFinite(input.wildMeter) || input.wildMeter < 1) return block('wild-meter-not-ready');
+  if (!isWildMeterReady(input.wildMeter)) return block('wild-meter-not-ready');
   if (input.wildSpawnInProgress) return block('wild-spawn-in-progress');
   if (input.busyEnding) return block('busyEnding');
   if (input.boardTransitionActive) return block('board-transition');

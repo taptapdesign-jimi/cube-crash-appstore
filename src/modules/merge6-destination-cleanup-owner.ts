@@ -40,6 +40,12 @@ export class Merge6DestinationCleanupOwner {
       tile[MERGE6_CLEANUP_TOKEN_KEY] === token;
   }
 
+  hasClaim(tile: any): boolean {
+    return !!tile &&
+      !tile.destroyed &&
+      typeof tile[MERGE6_CLEANUP_TOKEN_KEY] === 'number';
+  }
+
   release(tile: any, token: number | null | undefined): boolean {
     if (!this.owns(tile, token)) return false;
     delete tile[MERGE6_CLEANUP_TOKEN_KEY];

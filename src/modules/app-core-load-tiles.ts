@@ -96,6 +96,7 @@ export function restoreTilesFromSave({
         open: typeof t.open === 'boolean' ? t.open : !t.locked,
         isWild: !!t.isWild,
         isWildFace: !!t.isWildFace,
+        specialDiceVariant: t._ccSpecialDiceVariant || t.specialDiceVariant || null,
         gridX: c,
         gridY: r,
       };

@@ -23,7 +23,6 @@ export class JourneyWorldAnimationCoordinator {
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
   private idleTickers: Array<() => void> = [];
-  private idleStartFrame: number | null = null;
 
   public getPhase(): JourneyWorldAnimationPhase {
     return this.phase;
@@ -32,10 +31,6 @@ export class JourneyWorldAnimationCoordinator {
   public stop(resetTransforms = false): void {
     this.activeTimeline?.kill();
     this.activeTimeline = null;
-    if (this.idleStartFrame !== null) {
-      cancelAnimationFrame(this.idleStartFrame);
-      this.idleStartFrame = null;
-    }
     this.idleTickers.forEach((ticker) => gsap.ticker.remove(ticker));
     this.idleTickers = [];
     if (resetTransforms) this.phase = 'hidden';
@@ -114,20 +109,20 @@ export class JourneyWorldAnimationCoordinator {
             scheduledAt: motion.enter.baseDelay + irregularOffset,
           });
         });
+        tween.eventCallback('onComplete', () => {
+          if (this.phase !== 'entering') return;
+          unit.targets.forEach((target) => this.finalizeEnterTarget(target));
+          // Each Unit becomes alive as soon as its own enter settles. Its idle
+          // never competes with that Unit's enter transform, and later Units
+          // do not hold the already-visible scene motion hostage.
+          this.startIdle([unit], reducedMotion, index);
+        });
         timeline.add(tween, motion.enter.baseDelay + irregularOffset);
       });
     });
 
     if (this.phase !== 'entering') return;
-    liveUnits.forEach((unit) => {
-      unit.targets.forEach((target) => this.finalizeEnterTarget(target));
-    });
     this.phase = 'idle';
-    this.idleStartFrame = requestAnimationFrame(() => {
-      this.idleStartFrame = null;
-      if (this.phase !== 'idle') return;
-      this.startIdle(liveUnits, reducedMotion);
-    });
   }
 
   public async exit(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): Promise<void> {
@@ -171,10 +166,15 @@ export class JourneyWorldAnimationCoordinator {
     if (this.phase === 'exiting') this.phase = 'hidden';
   }
 
-  private startIdle(units: JourneyWorldAnimationUnit[], reducedMotion: boolean): void {
+  private startIdle(
+    units: JourneyWorldAnimationUnit[],
+    reducedMotion: boolean,
+    unitIndexOffset = 0,
+  ): void {
     if (reducedMotion) return;
 
-    units.forEach((unit, unitIndex) => {
+    units.forEach((unit, localUnitIndex) => {
+      const unitIndex = unitIndexOffset + localUnitIndex;
       const startTime = gsap.ticker.time;
       const duration = 3.15 + ((unitIndex % 3) * 0.28);
       const speed = (Math.PI * 2) / duration;
@@ -185,9 +185,9 @@ export class JourneyWorldAnimationCoordinator {
         y: gsap.quickSetter(cloud, 'y', 'px') as (value: number) => void,
       }));
       const ticker = () => {
-        if (this.phase !== 'idle') return;
+        if (this.phase !== 'entering' && this.phase !== 'idle') return;
         const elapsed = gsap.ticker.time - startTime;
-        const ramp = Math.min(1, elapsed / 0.8);
+        const ramp = Math.min(1, elapsed / 0.18);
         const easedRamp = ramp * ramp * (3 - (2 * ramp));
         const y = Math.sin((elapsed * speed) + phaseOffset) * 7 * easedRamp;
         ySetters.forEach((setY) => setY(y));

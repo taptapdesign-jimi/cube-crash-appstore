@@ -1,9 +1,15 @@
 import {
   isWildContinuationPending,
+  isWildMeterReady,
   resolveStuckWildDeferralDecision,
   resolveWildSpawnGuardReleaseContinuation,
   shouldScheduleWildSpawnRetry,
 } from '../wild-spawn-continuation';
+
+test('treats floating-point full meter as ready without widening gameplay balance', () => {
+  expect(isWildMeterReady(0.9999999999999999)).toBe(true);
+  expect(isWildMeterReady(0.999)).toBe(false);
+});
 
 test('queues wild continuation after guard release when meter is ready', () => {
   expect(resolveWildSpawnGuardReleaseContinuation({
@@ -32,6 +38,7 @@ test('does not retry terminal wild spawn blockers', () => {
 
 test('retries transient wild spawn blockers', () => {
   expect(shouldScheduleWildSpawnRetry('merge6-spawn-in-progress')).toBe(true);
+  expect(shouldScheduleWildSpawnRetry('regular-merge6-handoff')).toBe(true);
   expect(shouldScheduleWildSpawnRetry('wild-magnet-pull')).toBe(true);
 });
 
@@ -41,6 +48,7 @@ test('detects pending wild continuation from meter, spawn, retry, or drop state'
   expect(isWildContinuationPending({ wildMeter: 0, wildSpawnRetryPending: true })).toBe(true);
   expect(isWildContinuationPending({ wildMeter: 0, wildSpawnDropInProgress: true })).toBe(true);
   expect(isWildContinuationPending({ wildMeter: 0 })).toBe(false);
+  expect(isWildContinuationPending({ wildMeter: 0.9999999999999999 })).toBe(true);
 });
 
 test('defers stuck fail while wild continuation is still within timeout', () => {

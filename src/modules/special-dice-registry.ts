@@ -21,16 +21,26 @@ export type SpecialDiceVariantDefinition = {
   texture: string;
   splashText: string;
   splashColor: string;
+  splashColors?: string[];
+  splashLetterColors?: string[];
+  splashSplitIndex?: number;
   shardColor?: number;
   shardColors?: number[];
   trailColors?: number[];
+  idleBubbleColors?: number[];
   explosionSpriteSources?: string[];
+  explosionScale?: number;
+  explosionHorizontalScale?: number;
+  explosionVerticalStretch?: number;
+  lastExplosionFrameOnExitOnly?: boolean;
+  hideExplosionFrameIndicesAtExitStart?: number[];
   visualWidth?: number;
   visualHeight?: number;
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'cubero-hop';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'cubero-hop' | 'mushroom-pop';
+  juiceDropProfile?: 'beach-ball' | 'mushroom';
   orbitParticleSources?: string[];
   burstParticleSources?: string[];
   burstMotion?: {
@@ -39,9 +49,14 @@ export type SpecialDiceVariantDefinition = {
     flagWave?: boolean;
     sizeBoostChance?: number;
     sizeBoostMax?: number;
+    baseSizeScale?: number;
+    staggerSpanScale?: number;
+    waveTimes?: number[];
     waveStrength?: number;
     waveDurationScale?: number;
     mixBlendMode?: string;
+    beeFlight?: boolean;
+    depthLayered?: boolean;
   };
   arcadeTestOrder?: number;
   inputReleaseAtRatio?: number;
@@ -82,7 +97,114 @@ const beachBallExplosionSources = [
   './assets/shop/ball/ball6.png',
 ];
 
+const mushroomDropSources = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/mushroom/part${index + 1}@2x.png`,
+);
+
+const flowerExplosionSources1x = Array.from(
+  { length: 9 },
+  (_, index) => `./assets/shop/bush/bush${index + 1}.png`,
+);
+const flowerExplosionSources2x = Array.from(
+  { length: 9 },
+  (_, index) => `./assets/shop/bush/bush${index + 1}@2x.png`,
+);
+const flowerBurstSources1x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/bush/flowr${index + 1}.png`,
+);
+const flowerBurstSources2x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/bush/flowr${index + 1}@2x.png`,
+);
+const honeyBeeSources1x = Array.from(
+  { length: 7 },
+  (_, index) => `./assets/shop/honey/bee${index + 1}.png`,
+);
+const honeyBeeSources2x = Array.from(
+  { length: 7 },
+  (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`,
+);
+const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
+  && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  honey: {
+    id: 'honey',
+    archetype: 'wild-magnet',
+    texture: './assets/shop/honey/honey.png',
+    splashText: 'BUZZING!',
+    splashColor: '#FFC14F',
+    splashColors: ['#FFC14F', '#D0784D'],
+    splashSplitIndex: 4,
+    shardColor: 0xF1BA79,
+    shardColors: [0xF1BA79, 0xFDCF58],
+    trailColors: [0xFBD099, 0xFEE4B8, 0xFDCD55, 0xF9AF3A],
+    idleBubbleColors: [0xF7D58A, 0xF2BB4F],
+    burstParticleSources: useHighResolutionSpecialDiceFx
+      ? honeyBeeSources2x
+      : honeyBeeSources1x,
+    burstMotion: {
+      count: 16,
+      beeFlight: true,
+      mixBlendMode: 'normal',
+    },
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    inputReleaseAtRatio: 0.25,
+  },
+  flower: {
+    id: 'flower',
+    archetype: 'wild-tnt',
+    texture: './assets/shop/bush/flower.png',
+    splashText: 'BLOOMING!',
+    splashColor: '#FEF8EA',
+    splashColors: ['#FFFEFA', '#FEF8EA'],
+    splashSplitIndex: 3.5,
+    shardColor: 0xFC8C75,
+    shardColors: [0xFFCDC7, 0xFC8C75],
+    trailColors: [0xFFE4D4, 0xFFBBAD, 0xF9999F, 0xFFD257],
+    explosionSpriteSources: useHighResolutionSpecialDiceFx
+      ? flowerExplosionSources2x
+      : flowerExplosionSources1x,
+    explosionScale: 0.9775,
+    explosionHorizontalScale: 0.84,
+    explosionVerticalStretch: 1,
+    hideExplosionFrameIndicesAtExitStart: [0, 1],
+    burstParticleSources: useHighResolutionSpecialDiceFx
+      ? flowerBurstSources2x
+      : flowerBurstSources1x,
+    burstMotion: {
+      count: 9,
+      speedScale: 0.92,
+      baseSizeScale: 1.428,
+      staggerSpanScale: 1,
+      waveTimes: [0.1, 0.905, 1.71],
+      mixBlendMode: 'normal',
+      depthLayered: true,
+    },
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    inputReleaseAtRatio: 0.7,
+  },
+  mushroom: {
+    id: 'mushroom',
+    archetype: 'wild-juice',
+    texture: './assets/shop/mushroom/mushroom.png',
+    splashText: 'SHROOMY',
+    splashColor: '#FD7D5F',
+    splashColors: ['#FD7D5F'],
+    shardColor: 0xE7B392,
+    shardColors: [0xE7B392, 0xFF7B60],
+    trailColors: [0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61],
+    explosionSpriteSources: mushroomDropSources,
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'mushroom-pop',
+    juiceDropProfile: 'mushroom',
+    inputReleaseAtRatio: 0.30,
+  },
   cubero: {
     id: 'cubero',
     archetype: 'wild-star',
@@ -116,6 +238,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     texture: './assets/shop/ball/ball.png',
     splashText: 'Boooing',
     splashColor: '#E09FEF',
+    splashLetterColors: ['#DD94EB', '#DD94EB', '#FDEB8C', '#FDEB8C', '#4BC9FC', '#4BC9FC', '#FD979D'],
     shardColor: 0xE09FEF,
     shardColors: [0xDD94EB, 0x4BC9FC, 0xFDEB8C, 0xFD979D],
     trailColors: [0x4BC9FC, 0xDD94EB, 0xFDA4A7, 0xFDEB8C],
@@ -278,10 +401,38 @@ export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
   return {
     text: variant.splashText,
     color: variant.splashColor,
+    colors: variant.splashColors,
+    splitIndex: variant.splashSplitIndex,
+    lastFrameOnExitOnly: variant.lastExplosionFrameOnExitOnly,
+    frameScale: variant.explosionScale,
+    frameHorizontalScale: variant.explosionHorizontalScale,
+    frameVerticalStretch: variant.explosionVerticalStretch,
+    hideFrameIndicesAtExitStart: variant.hideExplosionFrameIndicesAtExitStart,
     burstSources: variant.burstParticleSources,
     burstMotion: variant.burstMotion,
     inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
   };
+}
+
+export function getSpecialDiceSplashLetterColors(tileOrVariant: any): string[] | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  if (Array.isArray(variant?.splashLetterColors) && variant.splashLetterColors.length) {
+    return variant.splashLetterColors;
+  }
+  const options = getSpecialDiceSplashOptions(tileOrVariant);
+  if (!Array.isArray(options?.colors) || options.colors.length < 2) return undefined;
+  const text = Array.from(String(options.text || ''));
+  const splitIndex = Number.isFinite(options.splitIndex) ? Number(options.splitIndex) : text.length;
+  return text.map((_, index) => index < splitIndex ? options.colors[0] : options.colors[1]);
+}
+
+export function getSpecialDiceJuiceDropProfile(tileOrVariant: any): 'beach-ball' | 'mushroom' | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return variant?.juiceDropProfile;
 }
 
 export function getSpecialDiceInputReleaseAtRatio(tileOrVariant: any): number | undefined {
@@ -336,6 +487,15 @@ export function getSpecialDiceTrailColors(tileOrVariant: any): number[] | null {
     : null;
 }
 
+export function getSpecialDiceIdleBubbleColors(tileOrVariant: any): number[] | null {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return Array.isArray(variant?.idleBubbleColors) && variant.idleBubbleColors.length
+    ? variant.idleBubbleColors
+    : null;
+}
+
 export function getSpecialDiceExplosionSpriteSources(tileOrVariant: any): string[] | null {
   const variant = tileOrVariant?.texture && tileOrVariant?.splashText
     ? tileOrVariant
@@ -349,12 +509,28 @@ export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
   arcadeStage,
+  journeyBoard,
 }: {
   isArcade: boolean;
   wildSpawnCount: number;
   arcadeStage?: number;
+  journeyBoard?: number;
 }): SpecialDiceVariantDefinition | null {
-  if (!isArcade) return null;
+  if (!isArcade) {
+    const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
+    if (board < 2 || board > 10) return null;
+    if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS.honey;
+    if (wildSpawnCount === 2) return SPECIAL_DICE_VARIANTS.mushroom;
+    if (wildSpawnCount !== 0) return null;
+    if (board === 2) return SPECIAL_DICE_VARIANTS.flower;
+    try {
+      return localStorage.getItem('cc_special_dice_unlocked_flower') === 'true'
+        ? SPECIAL_DICE_VARIANTS.flower
+        : null;
+    } catch {
+      return null;
+    }
+  }
   if (Number.isFinite(arcadeStage) && (arcadeStage as number) > 1) return null;
   const testVariants = Object.values(SPECIAL_DICE_VARIANTS)
     .filter((variant) => Number.isFinite(variant.arcadeTestOrder))

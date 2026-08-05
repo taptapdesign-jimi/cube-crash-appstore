@@ -1268,6 +1268,19 @@ class CollectiblesManager {
           // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
           // Use RAF to ensure browser is ready to render animation on mobile
           requestAnimationFrame(() => {
+            const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
+            emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
+            let homepageHubEnterStartedFromPreparedManager = false;
+            if (
+              journeyContainer &&
+              journeyBoardsManagerPreparedForEnter &&
+              !shouldPlayActiveBoardAreaEnter &&
+              !shouldUseV700WorldReturnEnter
+            ) {
+              homepageHubEnterStartedFromPreparedManager = true;
+              emitIOSNativeDiagnostic('hub-enter-started-from-prepared-manager');
+              journeyBoardsManagerPreparedForEnter.playJourneyV700VisibleEnterFromHomepage?.();
+            }
             if (journeyContainer) {
               import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
                 const activeJourneyBoardsManager = journeyBoardsManagerPreparedForEnter || journeyBoardsManager;
@@ -1284,8 +1297,6 @@ class CollectiblesManager {
                   hideLastActiveJourneyBoardAreaBeforeEnter();
                   activeJourneyBoardsManager.prepareActiveJourneyBoardAreaEnterAnimation?.();
                 }
-                const enterPromise = Promise.resolve(animateCollectiblesScreenEnter());
-                emitIOSNativeDiagnostic('viewport-enter-started', { shouldPlayActiveBoardAreaEnter });
                 let v700WorldReturnEnterStarted = false;
                 if (shouldUseV700WorldReturnEnter) {
                   v700WorldReturnEnterStarted = true;
@@ -1299,7 +1310,8 @@ class CollectiblesManager {
                   );
                 }
                 if (!shouldPlayActiveBoardAreaEnter) {
-                  if (!shouldUseV700WorldReturnEnter) {
+                  if (!shouldUseV700WorldReturnEnter && !homepageHubEnterStartedFromPreparedManager) {
+                    emitIOSNativeDiagnostic('hub-enter-started-from-import-fallback');
                     activeJourneyBoardsManager.playJourneyV700VisibleEnterFromHomepage?.();
                   }
                 }
@@ -1377,7 +1389,7 @@ class CollectiblesManager {
                   restoreScrollAfterEnter('journey-enter-error');
                 });
               }).catch((error) => {
-                Promise.resolve(animateCollectiblesScreenEnter()).finally(() => {
+                enterPromise.finally(() => {
                   restoreJourneyScrollableInteractivity('journey-manager-import-error');
                 });
                 logger.warn('⚠️ Failed to start Journey forest scene enter animation:', String(error));

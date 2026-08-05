@@ -24,6 +24,7 @@ describe('Merge6DestinationCleanupOwner', () => {
     expect(tile.interactiveChildren).toBe(false);
     expect(tile.cursor).toBe('default');
     expect(owner.owns(tile, token)).toBe(true);
+    expect(owner.hasClaim(tile)).toBe(true);
   });
 
   test('a superseded callback cannot release a newer owner', () => {
@@ -35,6 +36,7 @@ describe('Merge6DestinationCleanupOwner', () => {
     expect(owner.release(tile, firstToken)).toBe(false);
     expect(owner.owns(tile, secondToken)).toBe(true);
     expect(owner.release(tile, secondToken)).toBe(true);
+    expect(owner.hasClaim(tile)).toBe(false);
     expect(tile[MERGE6_CLEANUP_TOKEN_KEY]).toBeUndefined();
   });
 

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { gsap } from 'gsap';
+import { Container, Graphics } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 
@@ -7,6 +8,18 @@ const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
   try {
+    const smokeTimelines = Array.isArray(tile?._ccMushroomSmokeTimelines)
+      ? tile._ccMushroomSmokeTimelines
+      : [];
+    smokeTimelines.forEach((timeline: any) => {
+      try { timeline.kill(); } catch {}
+    });
+    if (tile?._ccMushroomSmokeContainer) {
+      try {
+        tile._ccMushroomSmokeContainer.parent?.removeChild(tile._ccMushroomSmokeContainer);
+        tile._ccMushroomSmokeContainer.destroy?.({ children: true });
+      } catch {}
+    }
     const tl = tile?._ccSpecialDiceIdleTl;
     if (tl) {
       try { tl.kill(); } catch {}
@@ -23,6 +36,8 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
       host.scale?.set?.(base.scaleX, base.scaleY);
     }
     if (tile) {
+      delete tile._ccMushroomSmokeTimelines;
+      delete tile._ccMushroomSmokeContainer;
       delete tile._ccSpecialDiceIdleHost;
       delete tile._ccSpecialDiceIdleBase;
     }
@@ -49,7 +64,63 @@ export function startSpecialDiceIdleMotion(tile: any): void {
     tile._ccSpecialDiceIdleHost = host;
     tile._ccSpecialDiceIdleBase = base;
 
-    const tl = trackTimeline({ repeat: -1, repeatDelay: variant.idleMotion === 'beach-ball-bounce' ? 0 : 0.12 });
+    if (variant.idleMotion === 'mushroom-pop') {
+      const smokeContainer = new Container();
+      smokeContainer.label = 'mushroom-idle-smoke';
+      smokeContainer.zIndex = -1;
+      smokeContainer.eventMode = 'none';
+      smokeContainer.sortableChildren = false;
+      try { host.sortableChildren = true; } catch {}
+      host.addChild(smokeContainer);
+      try { host.sortChildren?.(); } catch {}
+      const smokeTimelines: any[] = [];
+      const smokeColors = [0xFFF1E5, 0xFFE1D2, 0xF7C8B7];
+      for (let index = 0; index < 3; index += 1) {
+        const puff = new Graphics();
+        const radius = 3.4 + index * 0.75;
+        puff
+          .circle(-radius * 0.7, 0, radius * 0.72)
+          .circle(0, -radius * 0.28, radius)
+          .circle(radius * 0.78, radius * 0.04, radius * 0.66)
+          .fill({ color: smokeColors[index], alpha: 1 });
+        puff.x = (index - 1) * 8;
+        puff.y = 11 + index * 1.5;
+        puff.alpha = 0;
+        puff.scale.set(0.35);
+        puff.eventMode = 'none';
+        smokeContainer.addChild(puff);
+        const drift = (index - 1) * 4 + (index === 1 ? 2 : 0);
+        const smokeTl = trackTimeline({ repeat: -1, delay: index * 0.24, repeatDelay: 0.66 });
+        smokeTl.set(puff, { x: (index - 1) * 8, y: 11 + index * 1.5, alpha: 0 });
+        smokeTl.set(puff.scale, { x: 0.35, y: 0.35 }, '<');
+        smokeTl.to(puff, {
+          x: puff.x + drift,
+          y: puff.y - 5,
+          alpha: 0.30,
+          duration: 0.22,
+          ease: 'power1.out',
+        });
+        smokeTl.to(puff.scale, { x: 0.82, y: 0.66, duration: 0.22, ease: 'power1.out' }, '<');
+        smokeTl.to(puff, {
+          x: puff.x + drift * 1.5,
+          y: puff.y - 11,
+          alpha: 0,
+          duration: 0.48,
+          ease: 'sine.out',
+        });
+        smokeTl.to(puff.scale, { x: 1.16, y: 0.90, duration: 0.48, ease: 'sine.out' }, '<');
+        smokeTimelines.push(smokeTl);
+      }
+      tile._ccMushroomSmokeContainer = smokeContainer;
+      tile._ccMushroomSmokeTimelines = smokeTimelines;
+    }
+
+    const repeatDelay = variant.idleMotion === 'beach-ball-bounce'
+      ? 0
+      : variant.idleMotion === 'mushroom-pop'
+        ? 0.72
+        : 0.12;
+    const tl = trackTimeline({ repeat: -1, repeatDelay });
     if (variant.idleMotion === 'beach-ball-bounce') {
       tl.to(host, {
         y: base.y - 8,
@@ -69,6 +140,47 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         duration: 0.34,
         ease: 'sine.inOut',
       });
+    } else if (variant.idleMotion === 'mushroom-pop') {
+      tl.to(host, {
+        y: base.y - 2,
+        duration: 0.10,
+        ease: 'power2.out',
+      });
+      tl.to(host.scale, {
+        x: base.scaleX * 0.94,
+        y: base.scaleY * 1.06,
+        duration: 0.10,
+        ease: 'power2.out',
+      }, '<');
+      tl.to(host, {
+        y: base.y - 7,
+        duration: 0.20,
+        ease: 'sine.out',
+      });
+      tl.to(host.scale, {
+        x: base.scaleX * 1.02,
+        y: base.scaleY * 0.98,
+        duration: 0.20,
+        ease: 'sine.out',
+      }, '<');
+      tl.to(host, {
+        y: base.y + 1,
+        duration: 0.16,
+        ease: 'power2.in',
+      });
+      tl.to(host.scale, {
+        x: base.scaleX * 1.07,
+        y: base.scaleY * 0.91,
+        duration: 0.16,
+        ease: 'power2.in',
+      }, '<');
+      tl.to(host, { y: base.y, duration: 0.22, ease: 'back.out(2.1)' });
+      tl.to(host.scale, {
+        x: base.scaleX,
+        y: base.scaleY,
+        duration: 0.22,
+        ease: 'back.out(2.1)',
+      }, '<');
     } else if (variant.idleMotion === 'cubero-hop') {
       tl.to(host, {
         x: base.x - 2,

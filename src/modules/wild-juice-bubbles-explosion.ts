@@ -256,6 +256,7 @@ type WildJuiceBubblesExplosionOptions = {
   textColor?: string;
   textColors?: string[];
   direction?: 'up' | 'down';
+  dropProfile?: 'beach-ball' | 'mushroom';
   spritePaths?: string[] | null;
   inputReleaseAtRatio?: number;
 };
@@ -473,13 +474,14 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
 
   const direction = options.direction === 'down' ? 'down' : 'up';
   const isCustomDownDrop = direction === 'down' && !usesDefaultBubbleSprites;
+  const isMushroomDrop = isCustomDownDrop && options.dropProfile === 'mushroom';
 
   // iOS stability: keep the premium feel, but avoid saturating the renderer during repeated wild merges.
-  const totalBubbles = isCustomDownDrop ? 29 : 48;
+  const totalBubbles = isMushroomDrop ? 24 : isCustomDownDrop ? 29 : 48;
   const lateBurstCount = isCustomDownDrop ? 0 : 18;
-  const spawnDuration = isCustomDownDrop ? 1300 : 1500;
-  const spawnBatchSize = isCustomDownDrop ? 2 : 3;
-  const maxActive = isCustomDownDrop ? 21 : 34;
+  const spawnDuration = isMushroomDrop ? 520 : isCustomDownDrop ? 1300 : 1500;
+  const spawnBatchSize = isMushroomDrop ? 1 : isCustomDownDrop ? 2 : 3;
+  const maxActive = isMushroomDrop ? 24 : isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
@@ -585,7 +587,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     // - 15% in range 0.80-0.90
     const useFullOpacity = Math.random() < 0.85;
     bubble.alpha = useFullOpacity ? 1 : (0.8 + Math.random() * 0.1);
-    const bubbleScale = (0.5 + Math.random() * 0.4) * sizeRatio;
+    const mushroomScale = 0.70 + Math.random() * 0.26;
+    const bubbleScale = isMushroomDrop
+      ? mushroomScale * 0.5
+      : (0.5 + Math.random() * 0.4) * sizeRatio;
     bubble.scale.set(bubbleScale);
     bubble.renderable = true;
     bubble.visible = true;
@@ -614,7 +619,44 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       maybeCompleteExplosion();
     };
 
-    if (isCustomDownDrop) {
+    if (isMushroomDrop) {
+      const rotationDirection = Math.random() < 0.5 ? -1 : 1;
+      const initialRotation = Math.random() * Math.PI * 2;
+      const mushroomBirthSpreadX = screenW * 0.5;
+      const mushroomStartX = screenW * 0.5 + (Math.random() - 0.5) * mushroomBirthSpreadX;
+      const mushroomStartY = screenH * 0.48 + (Math.random() - 0.5) * 18;
+      const horizontalSpeed = (Math.random() < 0.5 ? -1 : 1) * screenW * (0.16 + Math.random() * 0.25);
+      const upwardSpeed = -screenH * (0.22 + Math.random() * 0.28);
+      const gravity = screenH * (0.72 + Math.random() * 0.20);
+      const exitY = screenH * (1.12 + Math.random() * 0.08);
+      const totalDuration = (-upwardSpeed + Math.sqrt(
+        upwardSpeed * upwardSpeed + 2 * gravity * (exitY - mushroomStartY)
+      )) / gravity;
+      const rotationTurns = 0.75 + Math.random();
+      const angularSpeed = rotationDirection * (Math.PI * 2 * rotationTurns) / totalDuration;
+      const motion = { time: 0 };
+      bubble.x = mushroomStartX;
+      bubble.y = mushroomStartY;
+      bubble.rotation = initialRotation;
+      const physicsTween = trackTween(motion, {
+        time: totalDuration,
+        duration: totalDuration,
+        ease: 'none',
+        immediateRender: true,
+        onUpdate: () => {
+          const time = motion.time;
+          const progress = Math.max(0, Math.min(1, time / totalDuration));
+          bubble.x = mushroomStartX + horizontalSpeed * time * (1 - progress * 0.24);
+          bubble.y = mushroomStartY + upwardSpeed * time + 0.5 * gravity * time * time;
+          bubble.rotation = initialRotation + angularSpeed * time;
+          const lifecycleScale = mushroomScale * (0.5 + progress);
+          bubble.scale.set(lifecycleScale);
+          bubble.alpha = 1;
+        },
+        onComplete: onBubbleComplete,
+      });
+      bubbleTweens.push(physicsTween);
+    } else if (isCustomDownDrop) {
       const floorY = screenH * (0.93 + Math.random() * 0.07);
       const bounceY = Math.max(screenH * 0.38, floorY - screenH * (0.18 + Math.random() * 0.20));
       const exitY = screenH * (1.18 + Math.random() * 0.18);
@@ -880,6 +922,24 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     }
   };
 
+  // Text belongs to the shared finale lifecycle and must start before any
+  // profile-specific spawn branch can return (Mushroom owns scheduled waves).
+  if (options.showText !== false) {
+    createAndShowBubblyText({ text: options.text, color: options.textColor, colors: options.textColors });
+  }
+
+  if (isMushroomDrop) {
+    const mushroomPartStaggerMs = 22;
+    for (let i = 0; i < totalBubbles; i++) {
+      lifecycle.trackTimeout(() => {
+        if (!isExplosionActive || cleanupInProgress) return;
+        try { makeBubble(); } catch {}
+        maybeCompleteExplosion();
+      }, i * mushroomPartStaggerMs);
+    }
+    return;
+  }
+
   // Initial burst stays visible, but avoids a 20-sprite spike on mobile GPUs.
   const initialBurst = spawnBatchSize * 3;
   for (let i = 0; i < initialBurst; i++) {
@@ -904,11 +964,6 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     console.error('❌ Failed to call initial spawnTicker():', e);
   }
 
-  // BUBBLY text overlay – centar viewporta (kao BOOM za TNT)
-  if (options.showText !== false) {
-    createAndShowBubblyText({ text: options.text, color: options.textColor, colors: options.textColors });
-  }
-  
   // 🔥 CRITICAL FIX: Force render again after initial burst to ensure bubbles are visible
   // This ensures bubbles are rendered immediately after creation (same pattern as fx.ts for wild stars)
   lifecycle.trackTimeout(() => {

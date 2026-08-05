@@ -62,9 +62,9 @@ export async function runJourneyCompletionFlow({
               showJourneySpecialDiceScreen,
               isJourneySpecialDiceUnlocked,
             } = await import('./journey-special-dice-screen.js');
-            if (!isJourneySpecialDiceUnlocked('juice')) {
-              await showJourneySpecialDiceScreen({ diceType: 'juice' });
-              logger?.info?.('🎲 Journey special dice unlock screen completed for juice');
+            if (!isJourneySpecialDiceUnlocked('flower')) {
+              await showJourneySpecialDiceScreen({ diceType: 'flower' });
+              logger?.info?.('🎲 Journey special dice unlock screen completed for flower');
             }
           } catch (specialDiceError) {
             logger?.warn?.('⚠️ Journey special dice screen failed, continuing to clean board:', specialDiceError);

@@ -8,7 +8,7 @@ import animationManager from './animation-manager.js';
 import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
-import { getSpecialDiceTrailColors } from './special-dice-registry.ts';
+import { getSpecialDiceIdleBubbleColors, getSpecialDiceTrailColors, getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { getOrganicRadialSmokeLayout, getSmokeCloudParticleAlpha } from './gameplay-fx-profile.ts';
 import { TILE } from './constants.js';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
@@ -127,7 +127,15 @@ function getDynamicBubbleCount(baseCount: number): number {
  * TNT uses its own explosion animation on merge 6 (no idle bubbles).
  */
 export function startWildJuiceBubbles(tile) {
-  if (!tile || tile.special !== 'wild-juice') return;
+  const idleBubbleColors = getSpecialDiceIdleBubbleColors(tile);
+  const specialVariantId = getSpecialDiceVariantForTile(tile)?.id;
+  const isHoney = specialVariantId === 'honey';
+  const bubbleMotionScale = isHoney ? 1.3 : 1;
+  if (specialVariantId === 'mushroom') {
+    stopWildJuiceBubbles(tile);
+    return;
+  }
+  if (!tile || (tile.special !== 'wild-juice' && !isHoney)) return;
   
   // Stop existing bubble system if any
   stopWildJuiceBubbles(tile);
@@ -191,16 +199,17 @@ export function startWildJuiceBubbles(tile) {
     
     // Draw bubble as circle with highlight (sparkling water bubble effect)
     bubble.circle(0, 0, radius);
-    bubble.fill({ color: 0xFFFFFF, alpha: 0.6 }); // White/transparent (sparkling water)
+    const bubbleColor = idleBubbleColors?.[Math.floor(Math.random() * idleBubbleColors.length)] ?? 0xFFFFFF;
+    bubble.fill({ color: bubbleColor, alpha: 0.6 });
     
     // Add highlight (smaller circle at top-left) for 3D sparkling effect
     const highlightRadius = radius * 0.3;
     bubble.circle(-radius * 0.2, -radius * 0.2, highlightRadius);
-    bubble.fill({ color: 0xFFFFFF, alpha: 0.8 });
+    bubble.fill({ color: bubbleColor, alpha: 0.8 });
     
     // Add subtle border for definition
     bubble.circle(0, 0, radius);
-    bubble.stroke({ color: 0xFFFFFF, alpha: 0.4, width: 1 });
+    bubble.stroke({ color: bubbleColor, alpha: 0.4, width: 1 });
     
     // Start position: bottom of tile (relative to container, which is centered on tile)
     // Random horizontal position within tile width (±50% of tile width)
@@ -228,7 +237,7 @@ export function startWildJuiceBubbles(tile) {
     const endX = startX + horizontalDrift;
     
     // Random duration for each bubble (0.8-1.5s)
-    const duration = 0.8 + Math.random() * 0.7;
+    const duration = (0.8 + Math.random() * 0.7) * bubbleMotionScale;
     
     // Grow slightly as it rises (like bubbles expanding)
     trackTween(bubble.scale, {
@@ -271,7 +280,7 @@ export function startWildJuiceBubbles(tile) {
   const spawnBubble = () => {
     if (system.disposed || !container.parent) return;
     createBubble();
-    const nextDelay = 0.3 + Math.random() * 0.3; // 0.3-0.6s between bubbles
+    const nextDelay = (0.3 + Math.random() * 0.3) * bubbleMotionScale;
     system.spawnInterval = trackDelayedCall(nextDelay, spawnBubble);
   };
   
@@ -1877,6 +1886,8 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
     return;
   }
 
+  const customShardColors = Array.isArray(opts.colors) && opts.colors.length ? opts.colors : null;
+
   // 🔥 FIX: Use pull-specific patterns for pull animations, regular patterns for main merge
   const mergeType = opts.isPullAnimation ? 'wildMagnetPull' : 'wildMagnet';
   const patternInfo = selectPattern(mergeType);
@@ -1896,15 +1907,17 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
       size: 1.5,
       speed: 0.85,
       vanishDelay: 0.0,
-      vanishJitter: 0.02
+      vanishJitter: 0.02,
+      color: customShardColors?.[0] ?? opts.color,
+      colors: customShardColors,
     });
     return;
   }
   
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildMagnet');
-  const redColor = getColor('wildMagnet'); // Red for wild magnet
-  const brownColor = getColor('regular');   // Brown for regular merge 6
+  const redColor = customShardColors?.[0] ?? opts.color ?? getColor('wildMagnet');
+  const brownColor = customShardColors?.[1] ?? customShardColors?.[0] ?? getColor('regular');
   
   console.log(`🎨 wildMagnetMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
     redColor: `0x${redColor.toString(16)}`,
@@ -2838,7 +2851,10 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
 
   const { patternName, patternData, pool, template } = patternInfo;
   const params = getParams('wildTnt');
-  const tntColor = getColor('wildTnt'); // Orange-red (#E85C3A)
+  const tntColor = opts.color ?? getColor('wildTnt'); // Variant override or core orange-red.
+  const shardColors = Array.isArray(opts.colors) && opts.colors.length
+    ? opts.colors.filter((color) => Number.isFinite(color))
+    : null;
 
   let x, y;
   if (tile.x !== undefined && tile.y !== undefined) {
@@ -2879,11 +2895,13 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
       points.push(Math.cos(angle) * radius, Math.sin(angle) * radius);
     }
     try {
-      shard.poly(points).fill({ color: tntColor, alpha: params.lineAlpha || 0.9 });
+      const shardColor = shardColors?.[index % shardColors.length] ?? tntColor;
+      shard.poly(points).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     } catch (e) {
       shard.clear();
       const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
-      shard.rect(-size/2, -size/2, size, size).fill({ color: tntColor, alpha: params.lineAlpha || 0.9 });
+      const shardColor = shardColors?.[index % shardColors.length] ?? tntColor;
+      shard.rect(-size/2, -size/2, size, size).fill({ color: shardColor, alpha: params.lineAlpha || 0.9 });
     }
     try { if (typeof shard.updateBounds === 'function') shard.updateBounds(); } catch (e) {}
     shard.visible = true;
@@ -5531,12 +5549,26 @@ export function createWildShimmer(tile) {
   const shimmerContainer = new Container();
   shimmerContainer.alpha = 0;
   
-  // Create mask for shimmer (exactly tile size)
-  const mask = new Graphics();
-  mask.rect(-baseW/2, -baseH/2, baseW, baseH);
-  mask.fill(0xFFFFFF);
+  // Every wild/special artwork can contain transparent space inside the tile
+  // bounds. Reuse its texture alpha so shimmer touches only the visible art,
+  // never the surrounding cube wall. The rectangle is a texture-missing guard.
+  const usesArtworkAlphaMask = Boolean(tile.base?.texture && tile.base.texture !== Texture.EMPTY);
+  let mask;
+  if (usesArtworkAlphaMask) {
+    mask = new Sprite(tile.base.texture);
+    mask.anchor.set(tile.base.anchor?.x ?? 0.5, tile.base.anchor?.y ?? 0.5);
+    mask.position.set(tile.base.x ?? 0, tile.base.y ?? 0);
+    mask.width = tile.base.width;
+    mask.height = tile.base.height;
+    mask.rotation = tile.base.rotation ?? 0;
+  } else {
+    mask = new Graphics();
+    mask.rect(-baseW/2, -baseH/2, baseW, baseH);
+    mask.fill(0xFFFFFF);
+  }
   shimmerContainer.mask = mask;
   shimmerContainer.addChild(mask);
+  tile._wildShimmerMask = mask;
   
   // Create shimmer sprite with diagonal gradient
   const shimmerTexture = makeLinearGradientTexture(baseW * 2, baseH * 2, [
@@ -5818,6 +5850,10 @@ export function stopWildShimmer(tile) {
       
       // Clean up shimmer elements
       if (tile._wildShimmer.mask) tile._wildShimmer.mask = null;
+      if (tile._wildShimmerMask) {
+        tile._wildShimmerMask.parent?.removeChild(tile._wildShimmerMask);
+        tile._wildShimmerMask.destroy?.({ texture: false, textureSource: false });
+      }
       tile._wildShimmer.parent?.removeChild(tile._wildShimmer);
       tile._wildShimmer.destroy?.();
     }
@@ -5830,6 +5866,7 @@ export function stopWildShimmer(tile) {
   
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
+  tile._wildShimmerMask = null;
   try { tile._wildShimmerTexture?.destroy?.(true); } catch {}
   tile._wildShimmerTexture = null;
 }
@@ -5845,6 +5882,11 @@ export function startMagnetIdleParticles(tile) {
   // Bug: Callers sometimes pass merge 6; we used to set tile.special='wild-magnet' → merge 6 became stuck magnet.
   if (!tile.special || tile.special !== 'wild-magnet') {
     return; // Do NOT mutate tile.special - would corrupt merge 6 into fake magnet
+  }
+  if (getSpecialDiceVariantForTile(tile)?.id === 'honey') {
+    stopMagnetIdleParticles(tile);
+    startWildJuiceBubbles(tile);
+    return;
   }
   
   // Stop existing particles animation if any
@@ -5902,6 +5944,7 @@ export function startMagnetIdleParticles(tile) {
  */
 export function stopMagnetIdleParticles(tile) {
   if (!tile) return;
+  stopWildJuiceBubbles(tile);
   
   // 🔥 CRITICAL: Clear interval first to stop generating new particles
   if (tile._magnetIdleParticlesInterval) {
@@ -5947,6 +5990,12 @@ export function stopMagnetIdleParticles(tile) {
  */
 export function startTntIdleParticles(tile) {
   if (!tile || tile.special !== 'wild-tnt') return;
+
+  if (getSpecialDiceVariantForTile(tile)?.id === 'flower') {
+    stopTntIdleParticles(tile);
+    startFlowerPollenIdle(tile);
+    return;
+  }
 
   if (tile._tntIdleParticlesInterval) {
     clearAppInterval(tile._tntIdleParticlesInterval);
@@ -6001,6 +6050,8 @@ export function startTntIdleParticles(tile) {
 export function stopTntIdleParticles(tile) {
   if (!tile) return;
 
+  stopFlowerPollenIdle(tile);
+
   if (tile._tntIdleParticlesInterval) {
     clearAppInterval(tile._tntIdleParticlesInterval);
     tile._tntIdleParticlesInterval = null;
@@ -6035,6 +6086,128 @@ export function stopTntIdleParticles(tile) {
       }
     });
   }
+}
+
+const FLOWER_POLLEN_COLORS = [0xFFF16B, 0xFFE246, 0xFFCE34];
+const FLOWER_POLLEN_SIZE_SCALE = 1.625;
+
+function releaseFlowerPollenParticle(tile, particle) {
+  if (!particle || particle.destroyed || graphicsPool.isInPool(particle)) return;
+  if (particle._flowerPollenReleasing === true) return;
+  particle._flowerPollenReleasing = true;
+  try {
+    gsap.killTweensOf(particle);
+    gsap.killTweensOf(particle.scale);
+    if (particle.parent) particle.parent.removeChild(particle);
+    __globalGraphicsObjects.delete(particle);
+    const owned = tile?._flowerPollenParticles;
+    if (owned instanceof Set) owned.delete(particle);
+    graphicsPool.release(particle);
+  } catch {}
+}
+
+function stopFlowerPollenIdle(tile) {
+  if (!tile) return;
+  if (tile._flowerPollenInterval) {
+    clearAppInterval(tile._flowerPollenInterval);
+    tile._flowerPollenInterval = null;
+  }
+  const owned = tile._flowerPollenParticles;
+  if (owned instanceof Set) {
+    Array.from(owned).forEach((particle) => releaseFlowerPollenParticle(tile, particle));
+    owned.clear();
+  }
+  tile._flowerPollenParticles = null;
+}
+
+function startFlowerPollenIdle(tile) {
+  stopFlowerPollenIdle(tile);
+  const board = (typeof window !== 'undefined' && window.STATE) ? window.STATE.board : null;
+  if (!board || !tile || tile.destroyed) return;
+
+  const owned = new Set();
+  tile._flowerPollenParticles = owned;
+  const emit = () => {
+    if (!tile || tile.destroyed || tile._ccWildSpawnDropping === true) return;
+    const center = centerInBoard(board, tile, 96);
+    const count = Math.random() < 0.3 ? 6 : 4;
+    for (let index = 0; index < count; index++) {
+      const particle = graphicsPool.acquire();
+      if (!particle || particle.destroyed || typeof particle.clear !== 'function') continue;
+      particle.clear();
+      const radius = (2 + Math.random() * 1.45) * FLOWER_POLLEN_SIZE_SCALE;
+      const color = FLOWER_POLLEN_COLORS[Math.floor(Math.random() * FLOWER_POLLEN_COLORS.length)];
+      const peakAlpha = 0.6 + Math.random() * 0.35;
+      const grainShape = Math.random();
+      if (grainShape < 0.42) {
+        const width = radius * (1.15 + Math.random() * 0.65);
+        const height = radius * (0.38 + Math.random() * 0.42);
+        particle.ellipse(0, 0, width, height).fill({ color, alpha: peakAlpha });
+      } else if (grainShape < 0.82) {
+        const points = [];
+        const sides = 5 + Math.floor(Math.random() * 3);
+        for (let point = 0; point < sides; point++) {
+          const angle = (point / sides) * Math.PI * 2;
+          const irregularRadius = radius * (0.55 + Math.random() * 0.55);
+          points.push(Math.cos(angle) * irregularRadius, Math.sin(angle) * irregularRadius * 0.72);
+        }
+        particle.poly(points).fill({ color, alpha: peakAlpha });
+      } else {
+        particle
+          .ellipse(-radius * 0.3, 0, radius * 0.72, radius * 0.42)
+          .ellipse(radius * 0.5, radius * 0.12, radius * 0.4, radius * 0.25)
+          .fill({ color, alpha: peakAlpha });
+      }
+      particle.x = center.x + (Math.random() - 0.5) * 9;
+      particle.y = center.y - 2 + (Math.random() - 0.5) * 5;
+      particle.alpha = 0;
+      particle.scale.set(0.82 + Math.random() * 0.18);
+      particle.rotation = (Math.random() - 0.5) * 1.2;
+      particle._flowerPollenProgress = 0;
+      particle._flowerPollenReleasing = false;
+      particle.zIndex = (tile.zIndex ?? 0) + 5;
+      particle.eventMode = 'none';
+      particle.visible = true;
+      __globalGraphicsObjects.add(particle);
+      owned.add(particle);
+      board.addChild(particle);
+
+      const startX = particle.x;
+      const startY = particle.y;
+      const driftX = (Math.random() - 0.5) * 76;
+      const verticalTravel = -22 + Math.random() * 35;
+      const liftArc = 5 + Math.random() * 17;
+      const sideWander = (Math.random() - 0.5) * 17;
+      const waveCount = 0.55 + Math.random() * 0.85;
+      const wavePhase = Math.random() * Math.PI * 2;
+      const startRotation = particle.rotation;
+      const rotationTravel = (Math.random() - 0.5) * 2.1;
+      const duration = 1.55 + Math.random() * 0.65;
+      const tl = trackTimeline({
+        onComplete: () => releaseFlowerPollenParticle(tile, particle),
+        onInterrupt: () => releaseFlowerPollenParticle(tile, particle),
+      });
+      tl.to(particle, {
+        _flowerPollenProgress: 1,
+        duration,
+        ease: 'none',
+        onUpdate: () => {
+          const progress = particle._flowerPollenProgress;
+          const wind = Math.sin((progress * Math.PI * 2 * waveCount) + wavePhase) * sideWander;
+          particle.x = startX + driftX * progress + wind * Math.sin(Math.PI * progress);
+          particle.y = startY + verticalTravel * progress - liftArc * Math.sin(Math.PI * progress);
+          particle.rotation = startRotation + rotationTravel * progress;
+          const fadeIn = Math.min(1, progress / 0.16);
+          const fadeOut = Math.min(1, (1 - progress) / 0.28);
+          particle.alpha = peakAlpha * fadeIn * fadeOut;
+        },
+      });
+    }
+    try { board.sortChildren?.(); } catch {}
+  };
+
+  emit();
+  tile._flowerPollenInterval = trackAppInterval(emit, 760);
 }
 
 function releaseTntIdleParticle(particle) {
@@ -6236,6 +6409,11 @@ export function stopMagnetShake(tile) {
 export function startTntIdleShake(tile) {
   if (!tile || tile.special !== 'wild-tnt') return;
 
+  if (getSpecialDiceVariantForTile(tile)?.id === 'flower') {
+    stopTntIdleShake(tile);
+    return;
+  }
+
   stopTntIdleShake(tile);
 
   const g = tile.rotG || tile;
@@ -6375,6 +6553,10 @@ export function stopWildIdle(tile){
       
       // Clean up shimmer elements
       if (tile._wildShimmer.mask) tile._wildShimmer.mask = null;
+      if (tile._wildShimmerMask) {
+        tile._wildShimmerMask.parent?.removeChild(tile._wildShimmerMask);
+        tile._wildShimmerMask.destroy?.({ texture: false, textureSource: false });
+      }
       tile._wildShimmer.parent?.removeChild(tile._wildShimmer);
       tile._wildShimmer.destroy?.();
     }
@@ -6388,5 +6570,6 @@ export function stopWildIdle(tile){
   
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
+  tile._wildShimmerMask = null;
   tile._wildMask = null;
 }

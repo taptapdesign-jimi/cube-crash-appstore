@@ -29,6 +29,10 @@ interface SmallStarBurstOptions {
     flagWave?: boolean;
     sizeBoostChance?: number;
     sizeBoostMax?: number;
+    baseSizeScale?: number;
+    staggerSpanScale?: number;
+    waveTimes?: number[];
+    depthLayered?: boolean;
     waveStrength?: number;
     waveDurationScale?: number;
     mixBlendMode?: string;
@@ -225,6 +229,12 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
   const sizeBoostMax = Number.isFinite(motion.sizeBoostMax)
     ? Math.max(1, Math.min(1.6, Number(motion.sizeBoostMax)))
     : 1;
+  const baseSizeScale = Number.isFinite(motion.baseSizeScale)
+    ? Math.max(0.5, Math.min(2, Number(motion.baseSizeScale)))
+    : 1;
+  const staggerSpanScale = Number.isFinite(motion.staggerSpanScale)
+    ? Math.max(0.05, Math.min(2, Number(motion.staggerSpanScale)))
+    : 1;
   const waveStrength = Number.isFinite(motion.waveStrength)
     ? Math.max(0.5, Math.min(1.8, Number(motion.waveStrength)))
     : 1;
@@ -277,13 +287,16 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     const sizeBoost = boostRoll < sizeBoostChance
       ? 1 + Math.random() * (sizeBoostMax - 1)
       : 1;
-    const size = (26 + Math.random() * 42) * lateSizeScale * sizeBoost;
+    const size = (26 + Math.random() * 42) * lateSizeScale * sizeBoost * baseSizeScale;
     const baseScale = 0.85 + Math.random() * 0.5;
     const baseOpacity = 0.42 + Math.random() * 0.58;
     const blinkOpacity = Math.min(1, baseOpacity + 0.22 + Math.random() * 0.28);
     const rotateStart = (Math.random() * 360) - 180;
     const rotateOut = rotateStart + (Math.random() - 0.5) * 28;
-    const delay = Math.min(1.35, i * (1.3 / Math.max(1, count - 1)) + Math.random() * 0.05);
+    const delay = Math.min(
+      1.35 * staggerSpanScale,
+      (i * (1.3 / Math.max(1, count - 1)) + Math.random() * 0.05) * staggerSpanScale,
+    );
     const isFastStar = Math.random() < 0.55;
     const launchDuration = isFastStar ? 0.04 + Math.random() * 0.02 : 0.06 + Math.random() * 0.025;
     const travelDuration = isFastStar ? 0.58 + Math.random() * 0.18 : 0.78 + Math.random() * 0.24;
