@@ -94,7 +94,7 @@ button.cc-cta:disabled {
   text-shadow: none;
 }
 
-.cc-cta__visual::after {
+.cc-cta[data-cta-variant="primary"] .cc-cta__visual::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -109,6 +109,17 @@ button.cc-cta:disabled {
   -webkit-mask-position: 145% 0;
   mask-position: 145% 0;
   animation: cc-cta-shimmer 10s ease-in-out infinite;
+}
+
+/* White/secondary CTAs are deliberately matte. Keep both the shared visual
+   shimmer and any legacy root pseudo-element from painting over white. */
+.cc-cta[data-cta-variant="secondary"] .cc-cta__visual::after,
+button.cc-cta[data-cta-variant="secondary"]::before,
+button.cc-cta[data-cta-variant="secondary"]::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+  opacity: 0 !important;
 }
 
 /* Registered roots never paint legacy button pseudo-elements. The shared
@@ -175,7 +186,7 @@ button.cc-cta:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cc-cta__visual::after { animation: none; opacity: 0; }
+  .cc-cta[data-cta-variant="primary"] .cc-cta__visual::after { animation: none; opacity: 0; }
 }
 
 .cc-cta-stack--reward {

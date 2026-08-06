@@ -2403,6 +2403,122 @@ body.journey-board-game-active #hud-board-indicator {
   transform-origin: 50% 100%;
 }
 
+/* Shared board-game sheet close. This is intentionally scoped to gameplay
+   sheets and is not inherited by launch/Journey modals such as 3D Motion. */
+.simple-bottom-sheet .gameplay-sheet-close,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 52px;
+  height: 52px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  z-index: 12;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0) scale(1);
+  transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 150ms ease;
+}
+
+.simple-bottom-sheet .gameplay-sheet-close::before,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close::before,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  background-color: #fffaf4;
+  background-image: var(--bottom-sheet-paper-texture);
+  background-size: 390px auto;
+  background-position: right -10px top -8px;
+  background-repeat: no-repeat;
+  border-radius: 50%;
+  filter: drop-shadow(0 4px 6px rgba(185, 145, 119, 0.12));
+  pointer-events: none;
+}
+
+.simple-bottom-sheet .gameplay-sheet-close::after,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close::after,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 18% 34%, rgba(220, 185, 164, 0.18) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 76% 18%, rgba(220, 185, 164, 0.13) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 83% 71%, rgba(220, 185, 164, 0.12) 0 0.9px, transparent 1.7px),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 247, 239, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(222, 193, 176, 0.1);
+  pointer-events: none;
+}
+
+.simple-bottom-sheet .gameplay-sheet-close img,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close img,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close img {
+  position: relative;
+  z-index: 2;
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+  opacity: 0.92;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing {
+  animation: gameplay-sheet-close-comic-bounce 380ms both;
+}
+
+@keyframes gameplay-sheet-close-comic-bounce {
+  0% {
+    transform: translateZ(0) scale(1);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  32% {
+    transform: translateZ(0) scale(1.18);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  55% {
+    transform: translateZ(0) scale(0.93);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  100% {
+    transform: translateZ(0) scale(1);
+  }
+}
+
+.simple-bottom-sheet .gameplay-sheet-close:focus-visible,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close:focus-visible,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close:focus-visible {
+  outline: 3px solid rgba(231, 116, 73, 0.34);
+  outline-offset: 3px;
+}
+
+.simple-bottom-sheet .gameplay-sheet-close:disabled,
+.cc-gameplay-modal-flip-shell > .gameplay-sheet-close:disabled,
+.cc-gameplay-modal-idle-shell > .gameplay-sheet-close:disabled {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
+  .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
+  .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing {
+    animation: none !important;
+  }
+}
+
 .simple-bottom-sheet:not(.score-bottom-sheet)::before,
 .score-bottom-sheet::before,
 .bottom-sheet-shadow-surface::before {
@@ -2639,6 +2755,535 @@ body.journey-board-game-active #hud-board-indicator {
     margin: 4px auto 0; /* 4px from top of bottom sheet (closer to top) */
     background: #EFE7E3; /* Same color as desktop */
     border-radius: 40px; /* Same rounded corners */
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reversible End Run 3D flip experiment
+
+   The outer .simple-bottom-sheet keeps exclusive ownership of its translateY
+   entrance, drag, and exit. Only this nested paper shell owns 3D transforms.
+   Disable END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED to restore the accepted
+   bottom-sheet presentation without changing its interaction lifecycle.
+   -------------------------------------------------------------------------- */
+.simple-bottom-sheet.is-end-run-3d-flip-test {
+  padding: 0;
+  perspective: 920px;
+  -webkit-perspective: 920px;
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-test::after {
+  content: none;
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-test .end-run-sheet-flip-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  box-sizing: border-box;
+  isolation: isolate;
+  transform-origin: 50% 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  -webkit-transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-test .end-run-paper-clip-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  box-sizing: border-box;
+  isolation: isolate;
+  padding: 28px 10% 40px;
+  border-radius: 40px 40px 0 0;
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-test .end-run-paper-clip-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 min(-96px, calc(-72px - env(safe-area-inset-bottom, 0px)));
+  z-index: -1;
+  border-radius: 40px 40px 0 0;
+  background: var(--bottom-sheet-paper-texture);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-entering .end-run-sheet-flip-shell {
+  animation: end-run-sheet-flip-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.simple-bottom-sheet.is-end-run-3d-flip-exiting .end-run-sheet-flip-shell {
+  animation: end-run-sheet-flip-out 0.4s cubic-bezier(0.68, -0.2, 0.32, 1.12) both;
+}
+
+@keyframes end-run-sheet-flip-in {
+  0% { transform: translate3d(0, 14px, -180px) rotateX(17deg) rotateY(-88deg) scale(0.85); }
+  100% { transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1); }
+}
+
+@keyframes end-run-sheet-flip-out {
+  0% { transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1); }
+  18% { transform: translate3d(0, -2px, 24px) rotateX(2.25deg) rotateY(-10.5deg) scale(1.018); }
+  100% { transform: translate3d(0, 20px, -188px) rotateX(-15deg) rotateY(112deg) scale(0.84); }
+}
+
+@media screen and (min-width: 768px) and (max-width: 1400px) {
+  .simple-bottom-sheet.is-end-run-3d-flip-test .end-run-paper-clip-shell {
+    padding-right: 8%;
+    padding-left: 8%;
+  }
+}
+
+@media screen and (max-width: 428px) {
+  .simple-bottom-sheet.is-end-run-3d-flip-test .end-run-paper-clip-shell {
+    padding-right: 8%;
+    padding-left: 8%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-bottom-sheet.is-end-run-3d-flip-test .end-run-sheet-flip-shell {
+    animation: none !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+  }
+}
+
+/* Centered End Run modal experiment. The full-viewport outer element is only
+   a positioning/lifecycle stage; the nested paper shell is the visible modal. */
+.simple-bottom-sheet.is-end-run-centered-modal-test {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding:
+    max(24px, env(safe-area-inset-top, 0px))
+    24px
+    max(24px, env(safe-area-inset-bottom, 0px));
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: none;
+  will-change: auto;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.visible {
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test::after {
+  content: none;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  z-index: 0;
+  background: rgba(233, 210, 200, 0.24);
+  box-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-backdrop-visible::before {
+  opacity: 1;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-exiting::before {
+  opacity: 0;
+  transition-duration: 0.2s;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .end-run-modal-bounce-shell {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  transform-origin: 50% 55%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  -webkit-transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .end-run-sheet-flip-shell {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+  pointer-events: auto;
+  z-index: 1;
+  isolation: isolate;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .end-run-paper-clip-shell {
+  position: relative;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding: 32px 24px 36px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  pointer-events: auto;
+  z-index: 1;
+  isolation: isolate;
+  border-radius: 40px;
+  box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8);
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .gameplay-sheet-close {
+  top: -10px;
+  right: -10px;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .end-run-paper-clip-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 40px;
+  background: var(--bottom-sheet-paper-texture);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test .modal-handle {
+  display: none;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-entering .end-run-sheet-flip-shell {
+  animation: end-run-centered-modal-flip-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-entering .end-run-modal-bounce-shell {
+  animation: end-run-centered-modal-bounce-in 0.65s cubic-bezier(0.22, 1.18, 0.36, 1) both;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-exiting .end-run-sheet-flip-shell {
+  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  pointer-events: none;
+}
+
+.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-exiting .end-run-modal-bounce-shell {
+  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  pointer-events: none;
+}
+
+@keyframes end-run-centered-modal-flip-in {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 88px, -180px) rotateX(17deg) rotateY(-88deg) scale(0.72);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes end-run-centered-modal-bounce-in {
+  0% { transform: translate3d(0, 88px, 0) scale(0.72) rotate(-2deg); }
+  55% { transform: translate3d(0, -10px, 0) scale(1.07) rotate(0.8deg); }
+  76% { transform: translate3d(0, 4px, 0) scale(0.98) rotate(-0.35deg); }
+  100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+}
+
+@keyframes end-run-centered-modal-bounce-out {
+  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  18% { transform: translate3d(0, -4px, 0) scale(1.055) rotate(-0.5deg); }
+  100% { transform: translate3d(0, 24px, 0) scale(0) rotate(2deg); }
+}
+
+@keyframes end-run-centered-modal-flip-out {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  }
+  18% {
+    opacity: 1;
+    transform: translate3d(0, -2px, 24px) rotateX(2.25deg) rotateY(-10.5deg) scale(1.018);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 20px, -188px) rotateX(-15deg) rotateY(112deg) scale(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .simple-bottom-sheet.is-end-run-centered-modal-test .end-run-sheet-flip-shell,
+  .simple-bottom-sheet.is-end-run-centered-modal-test .end-run-modal-bounce-shell {
+    animation: none !important;
+    transform: none !important;
+    -webkit-transform: none !important;
+  }
+}
+
+/* Shared centered gameplay-modal benchmark.
+   End Run defines the accepted motion; active sheet families consume these
+   structural owners instead of independently animating their root surface. */
+.simple-bottom-sheet.cc-gameplay-modal-stage {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding:
+    max(24px, env(safe-area-inset-top, 0px))
+    24px
+    max(24px, env(safe-area-inset-bottom, 0px));
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+  transform: none !important;
+  -webkit-transform: none !important;
+  transition: none;
+  perspective: 920px;
+  -webkit-perspective: 920px;
+  will-change: auto;
+}
+
+.simple-bottom-sheet.cc-gameplay-modal-stage.visible {
+  display: flex;
+  transform: none !important;
+  -webkit-transform: none !important;
+}
+
+.simple-bottom-sheet.cc-gameplay-modal-stage::before,
+.simple-bottom-sheet.cc-gameplay-modal-stage::after {
+  content: none !important;
+}
+
+.cc-gameplay-modal-bounce-shell {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  transform-origin: 50% 55%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  -webkit-transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  pointer-events: auto;
+}
+
+.cc-gameplay-modal-flip-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  overflow: visible;
+  isolation: isolate;
+  transform-origin: 50% 46%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  -webkit-transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Dedicated post-enter motion owner. Keeping this nested below the flip shell
+   lets idle motion continue naturally during exit without replacing either
+   benchmark animation or snapping back to an identity transform. */
+.cc-gameplay-modal-idle-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  transform-origin: 50% 52%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: translate3d(0, 0, 0) scale(1);
+  -webkit-transform: translate3d(0, 0, 0) scale(1);
+  isolation: isolate;
+}
+
+.cc-gameplay-modal-idle-shell::before {
+  content: "";
+  position: absolute;
+  inset: 4px 8px -2px;
+  z-index: -1;
+  border-radius: 40px;
+  box-shadow: 0 18px 34px rgba(185, 145, 119, 0.34);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cc-gameplay-modal-idle .cc-gameplay-modal-idle-shell {
+  animation: cc-gameplay-modal-idle-float 6.8s linear infinite both;
+}
+
+.cc-gameplay-modal-idle .cc-gameplay-modal-idle-shell::before {
+  animation: cc-gameplay-modal-idle-shadow 6.8s ease-in-out infinite both;
+}
+
+.cc-gameplay-modal-idle:has(.cc-cta[data-cta-state="pressed"]) .cc-gameplay-modal-idle-shell,
+.cc-gameplay-modal-idle:has(.gameplay-sheet-close:active) .cc-gameplay-modal-idle-shell {
+  animation-play-state: paused;
+}
+
+@keyframes cc-gameplay-modal-idle-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  18% {
+    transform: translate3d(0, -2px, 2px) scale(1.002);
+  }
+  38% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  58% {
+    transform: translate3d(0, -2.5px, 3px) scale(1.003);
+  }
+  76% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  84% {
+    transform: translate3d(0, -4px, 8px) scale(1.015);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  89% {
+    transform: translate3d(0, 1px, 0) scale(0.995);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  94% {
+    transform: translate3d(0, -1px, 3px) scale(1.006);
+  }
+}
+
+@keyframes cc-gameplay-modal-idle-shadow {
+  0%, 38%, 76%, 100% { opacity: 0.08; }
+  18%, 58% { opacity: 0.28; }
+  84% { opacity: 0.42; }
+  89% { opacity: 0.14; }
+  94% { opacity: 0.24; }
+}
+
+.cc-gameplay-modal-idle:has(.cc-cta[data-cta-state="pressed"]) .cc-gameplay-modal-idle-shell::before,
+.cc-gameplay-modal-idle:has(.gameplay-sheet-close:active) .cc-gameplay-modal-idle-shell::before {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-gameplay-modal-idle-shell::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
+.cc-gameplay-modal-paper-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  padding: 32px 24px 36px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  isolation: isolate;
+  border-radius: 40px;
+  box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8);
+}
+
+.cc-gameplay-modal-paper-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 40px;
+  background: var(--bottom-sheet-paper-texture);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.simple-bottom-sheet.cc-gameplay-modal-stage .gameplay-sheet-close {
+  top: -10px;
+  right: -10px;
+}
+
+.collectible-reward-sheet .gameplay-sheet-close {
+  top: -10px;
+  right: -10px;
+}
+
+.cc-gameplay-modal-stage.cc-gameplay-modal-entering .cc-gameplay-modal-flip-shell {
+  animation: cc-gameplay-modal-flip-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.cc-gameplay-modal-stage.cc-gameplay-modal-entering .cc-gameplay-modal-bounce-shell {
+  animation: end-run-centered-modal-bounce-in 0.65s cubic-bezier(0.22, 1.18, 0.36, 1) both;
+}
+
+.cc-gameplay-modal-stage.cc-gameplay-modal-exiting .cc-gameplay-modal-flip-shell {
+  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  pointer-events: none;
+}
+
+.cc-gameplay-modal-stage.cc-gameplay-modal-exiting .cc-gameplay-modal-bounce-shell {
+  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  pointer-events: none;
+}
+
+@keyframes cc-gameplay-modal-flip-in {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 88px, -180px) rotateX(17deg) rotateY(-88deg) scale(0.72);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+  }
+}
+
+.score-bottom-sheet-backdrop {
+  background: rgba(233, 210, 200, 0.24) !important;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.score-bottom-sheet-backdrop.cc-gameplay-modal-backdrop-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-gameplay-modal-flip-shell,
+  .cc-gameplay-modal-bounce-shell,
+  .cc-gameplay-modal-idle-shell {
+    animation: none !important;
+    transform: none !important;
+    -webkit-transform: none !important;
   }
 }
 

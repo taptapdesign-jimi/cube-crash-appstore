@@ -4,6 +4,11 @@ export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled
 
 const SPATIAL_MODAL_EXIT_DURATION_MS = 650;
 
+// Reversible visual experiment. This flag owns only the nested 3D presentation
+// layer; setting it to false restores the accepted modal DOM/CSS behavior
+// without touching permission, CTA, cooldown, focus, or launch ownership.
+export const SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED = true;
+
 const INTRO_DISMISSED_SESSION_KEY = 'cc_spatial_motion_intro_dismissed_session_v4';
 const INTRO_DISMISSED_AT_KEY = 'cc_spatial_motion_intro_dismissed_at_v1';
 const INTRO_FORCE_NEXT_LAUNCH_KEY = 'cc_spatial_motion_intro_force_next_launch_v1';
@@ -166,6 +171,9 @@ export function showSpatialMotionPermissionModal(
     activeResolve = resolve;
     const overlay = document.createElement('div');
     overlay.className = 'journey-spatial-permission-overlay';
+    if (SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED) {
+      overlay.classList.add('is-3d-flip-test');
+    }
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'spatial-motion-permission-title');
@@ -177,6 +185,9 @@ export function showSpatialMotionPermissionModal(
 
     const paperSurface = document.createElement('div');
     paperSurface.className = 'journey-spatial-permission-paper bottom-sheet-paper-surface';
+
+    const flipShell = document.createElement('div');
+    flipShell.className = 'journey-spatial-permission-flip-shell';
 
     const title = document.createElement('h2');
     title.id = 'spatial-motion-permission-title';
@@ -230,7 +241,8 @@ export function showSpatialMotionPermissionModal(
     actions.className = 'journey-spatial-permission-actions';
     actions.append(enableButton, dismissButton);
     paperSurface.append(title, art, copy, actions);
-    card.appendChild(paperSurface);
+    flipShell.appendChild(paperSurface);
+    card.appendChild(flipShell);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     activeOverlay = overlay;
@@ -289,6 +301,10 @@ export function showSpatialMotionPermissionModal(
       requestAnimationFrame(() => {
         if (!document.body.contains(overlay)) return;
         overlay.classList.add('is-visible');
+        requestAnimationFrame(() => {
+          if (!document.body.contains(overlay) || overlay.classList.contains('is-exiting')) return;
+          overlay.classList.add('is-backdrop-visible');
+        });
         void activeCtaControllers[0]?.enter();
         void activeCtaControllers[1]?.enter({ delay: ctaMotion.companionExitStaggerMs / 1000 });
         card.focus({ preventScroll: true });
@@ -327,6 +343,7 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
     card._closing = true;
     card.style.removeProperty('transition');
   }
+  overlay.classList.remove('is-backdrop-visible');
   overlay.classList.remove('is-visible');
   overlay.classList.add('is-exiting');
   const complete = () => {

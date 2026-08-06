@@ -167,6 +167,15 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('.cc-cta:disabled:not([data-cta-state="exiting"]):not([data-cta-state="hidden"])');
     expect(cssSource).toContain('.cc-cta[data-cta-state="exiting"] .cc-cta__visual');
     expect(cssSource).toContain('animation: cc-cta-shimmer 10s ease-in-out infinite');
+    expect(cssSource).toContain(
+      '.cc-cta[data-cta-variant="primary"] .cc-cta__visual::after',
+    );
+    expect(cssSource).toContain(
+      '.cc-cta[data-cta-variant="secondary"] .cc-cta__visual::after',
+    );
+    expect(cssSource).toContain(
+      'button.cc-cta[data-cta-variant="secondary"]::after',
+    );
     expect(cssSource).toContain('-webkit-mask-size: 280% 100%');
     expect(cssSource).toContain('42%, 53% { opacity: 0.52; }');
   });
@@ -206,7 +215,6 @@ describe('shared CTA system contract', () => {
   test('migrates the active End Run sheet and exits every visible action as one CTA group', () => {
     expect(endRunSource).toContain("import { ctaMotion, exitCtaGroup, registerCta, type CtaController } from './cta-system.ts'");
     expect(endRunSource).toContain('registerCta(restartBtn');
-    expect(endRunSource).toContain('registerCta(newCardBtn');
     expect(endRunSource).toContain('registerCta(exitBtn');
     expect(endRunSource).toContain("variant: 'secondary'");
     expect(endRunSource).toContain("activationTiming: 'immediate'");
@@ -215,6 +223,8 @@ describe('shared CTA system contract', () => {
     expect(endRunSource).toContain('hideModal(null, true)');
     expect(endRunSource).toContain('disposeEndRunCtas()');
     expect(endRunSource).toContain('data-end-run-action="restart"');
+    expect(endRunSource).not.toContain('data-end-run-action="new-card"');
+    expect(endRunSource).not.toContain('showJourneyNewCardScreen');
     expect(endRunSource).toContain("closest('[data-end-run-action]')");
     expect(endRunSource).not.toContain('class="restart-btn"');
     expect(endRunSource).not.toContain('class="new-card-btn"');

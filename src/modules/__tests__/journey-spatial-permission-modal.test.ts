@@ -4,6 +4,7 @@ import {
   scheduleSpatialMotionPermissionIntroForNextLaunch,
   shouldShowSpatialMotionPermissionModal,
   showSpatialMotionPermissionModal,
+  SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED,
   SPATIAL_MOTION_INTRO_COOLDOWN_MS,
 } from '../spatial-motion-permission-modal.js';
 
@@ -139,6 +140,24 @@ describe('Spatial Motion permission modal', () => {
 
     cancelSpatialMotionPermissionModal();
     await expect(result).resolves.toBe('cancelled');
+  });
+
+  it('isolates the reversible 3D flip test from modal content and lifecycle ownership', async () => {
+    const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
+    const overlay = document.querySelector('.journey-spatial-permission-overlay');
+    const card = document.querySelector('.journey-spatial-permission-card');
+    const flipShell = document.querySelector('.journey-spatial-permission-flip-shell');
+    const paper = document.querySelector('.journey-spatial-permission-paper');
+
+    expect(SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED).toBe(true);
+    expect(overlay?.classList.contains('is-3d-flip-test')).toBe(true);
+    expect(flipShell?.parentElement).toBe(card);
+    expect(paper?.parentElement).toBe(flipShell);
+    expect(paper?.children).toHaveLength(4);
+
+    cancelSpatialMotionPermissionModal();
+    await expect(result).resolves.toBe('cancelled');
+    expect(document.querySelector('.journey-spatial-permission-overlay')).toBeNull();
   });
 
   it('keeps Later dismissed across launches for seven days', async () => {

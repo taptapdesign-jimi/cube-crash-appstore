@@ -2,7 +2,7 @@
 // collectible-reward-ui.ts
 // UI components for collectible reward bottom sheet
 
-import { buildMarkup, getDefaultCollectibleDetail, validateCollectibleDetail, registerCleanup, generateId } from './collectible-reward-utils.js';
+import { buildMarkup, validateCollectibleDetail, registerCleanup } from './collectible-reward-utils.js';
 
 // Types
 interface CollectibleDetail {
@@ -25,20 +25,19 @@ interface WindowWithCollectibles extends Window {
  */
 export function createOverlay(): HTMLElement {
   const overlay = document.createElement('div');
-  overlay.className = 'collectible-reward-overlay';
+  overlay.className = 'collectible-reward-overlay cc-gameplay-modal-overlay cc-gameplay-modal-stage';
   overlay.style.cssText = `
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    inset: 0;
+    background: rgba(233, 210, 200, 0.24);
     z-index: 10000;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
+    perspective: 920px;
+    transition: opacity 0.5s ease-in-out;
   `;
   
   return overlay;
@@ -52,20 +51,25 @@ export function createBottomSheet(detail: CollectibleDetail): HTMLElement {
   const markup = buildMarkup(validatedDetail);
   
   const sheet = document.createElement('div');
-  sheet.innerHTML = markup;
-  sheet.className = 'collectible-reward-sheet';
+  sheet.className = 'collectible-reward-sheet cc-gameplay-modal-bounce-shell';
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  sheet.setAttribute('aria-labelledby', 'collectible-reward-title');
+  sheet.innerHTML = `
+    <div class="cc-gameplay-modal-flip-shell">
+      <div class="cc-gameplay-modal-idle-shell">
+        <div class="cc-gameplay-modal-paper-shell collectible-reward-content">
+          ${markup}
+        </div>
+      </div>
+    </div>
+  `;
   sheet.style.cssText = `
-    background: url('../../assets/modals/paper.png');
-    background-size: cover;
-    background-position: center;
-    border-radius: 20px 20px 0 0;
-    max-width: 500px;
     width: 100%;
-    max-height: 80vh;
-    overflow: hidden;
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
-    box-shadow: none;
+    max-width: 390px;
+    background: transparent;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+    transition: none;
   `;
   
   return sheet;
@@ -86,13 +90,13 @@ export function addStyles(): void {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(233, 210, 200, 0.24);
       z-index: 10000;
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
       opacity: 0;
-      transition: opacity 0.3s ease;
+      transition: opacity 0.5s ease-in-out;
     }
     
     .collectible-reward-overlay.show {
@@ -100,25 +104,15 @@ export function addStyles(): void {
     }
     
     .collectible-reward-sheet {
-      background: url('./assets/modals/paper.png');
-      background-size: cover;
-      background-position: center;
-      border-radius: 20px 20px 0 0;
-      max-width: 500px;
+      background: transparent;
+      max-width: 390px;
       width: 100%;
-      max-height: 80vh;
-      overflow: hidden;
-      transform: translateY(100%);
-      transition: transform 0.3s ease;
-      box-shadow: none;
-    }
-    
-    .collectible-reward-sheet.show {
-      transform: translateY(0);
+      transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+      transition: none;
     }
     
     .collectible-reward-content {
-      padding: 20px;
+      padding: 32px 24px 36px;
     }
     
     .collectible-reward-header {
@@ -272,8 +266,7 @@ export function addStyles(): void {
     
     @media (max-width: 480px) {
       .collectible-reward-sheet {
-        max-width: 100%;
-        border-radius: 0;
+        max-width: 390px;
       }
       
       .collectible-reward-actions {

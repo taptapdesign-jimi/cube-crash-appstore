@@ -1,7 +1,7 @@
 // collectible-reward-animations.ts
 // Animations for collectible reward bottom sheet
 
-import { executeCleanup, setClosing } from './collectible-reward-utils.js';
+import { GAMEPLAY_MODAL_BENCHMARK } from './gameplay-modal-benchmark.ts';
 
 // 🔥 FIX: Track animation timeouts for cleanup
 const activeAnimTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -13,6 +13,10 @@ function trackAnimTimeout(callback: () => void, delay: number): ReturnType<typeo
   }, delay);
   activeAnimTimeouts.add(timeout);
   return timeout;
+}
+
+export function scheduleCollectibleRewardAnimation(callback: () => void, delay: number): void {
+  trackAnimTimeout(callback, delay);
 }
 
 /**
@@ -38,7 +42,7 @@ interface AnimationOptions {
  * Show overlay animation
  */
 export function showOverlayAnimation(overlay: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 300, easing = 'ease-out' } = options;
+  const { duration = 500, easing = 'ease-in-out' } = options;
   
   return new Promise((resolve) => {
     overlay.style.opacity = '0';
@@ -65,7 +69,7 @@ export function showOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
  * Hide overlay animation
  */
 export function hideOverlayAnimation(overlay: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 300, easing = 'ease-in' } = options;
+  const { duration = 200, easing = 'ease-in' } = options;
   
   return new Promise((resolve) => {
     overlay.style.transition = `opacity ${duration}ms ${easing}`;
@@ -73,9 +77,7 @@ export function hideOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
     
     // 🔥 FIX: Track timeout for cleanup
     trackAnimTimeout(() => {
-      // 🔥 FIX: Check if element still exists before modifying
       if (overlay && overlay.isConnected) {
-        overlay.style.display = 'none';
         overlay.classList.remove('show');
       }
       resolve();
@@ -87,22 +89,19 @@ export function hideOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
  * Show sheet animation
  */
 export function showSheetAnimation(sheet: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 300, easing = 'ease-out' } = options;
+  const { duration = GAMEPLAY_MODAL_BENCHMARK.enterDurationMs } = options;
   
   return new Promise((resolve) => {
-    sheet.style.transform = 'translateY(100%)';
-    sheet.style.transition = `transform ${duration}ms ${easing}`;
-    
-    // Force reflow
-    sheet.offsetHeight;
-    
-    sheet.style.transform = 'translateY(0)';
-    sheet.classList.add('show');
+    const stage = sheet.closest<HTMLElement>('.cc-gameplay-modal-stage');
+    stage?.classList.remove('cc-gameplay-modal-exiting');
+    stage?.classList.remove('cc-gameplay-modal-idle');
+    stage?.classList.add('cc-gameplay-modal-entering');
     
     trackAnimTimeout(() => {
-      // 🔥 FIX: Always resolve, element check not needed for resolve
+      stage?.classList.remove('cc-gameplay-modal-entering');
+      stage?.classList.add('cc-gameplay-modal-idle');
       resolve();
-    }, duration);
+    }, duration + GAMEPLAY_MODAL_BENCHMARK.enterCleanupBufferMs);
   });
 }
 
@@ -110,12 +109,12 @@ export function showSheetAnimation(sheet: HTMLElement, options: AnimationOptions
  * Hide sheet animation
  */
 export function hideSheetAnimation(sheet: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 300, easing = 'ease-in' } = options;
+  const { duration = GAMEPLAY_MODAL_BENCHMARK.exitDurationMs } = options;
   
   return new Promise((resolve) => {
-    sheet.style.transition = `transform ${duration}ms ${easing}`;
-    sheet.style.transform = 'translateY(100%)';
-    sheet.classList.remove('show');
+    const stage = sheet.closest<HTMLElement>('.cc-gameplay-modal-stage');
+    stage?.classList.remove('cc-gameplay-modal-entering');
+    stage?.classList.add('cc-gameplay-modal-exiting');
     
     trackAnimTimeout(() => {
       resolve();

@@ -108,7 +108,7 @@ describe('launch 3D Motion permission ownership', () => {
   });
 
   it('matches the End Run subtitle typography and independently pulses the stars', () => {
-    const copyRule = collectiblesCss.match(/\.journey-spatial-permission-copy\s*\{([^}]*)\}/)?.[1] ?? '';
+    const copyRule = collectiblesCss.match(/(?:^|\n)\.journey-spatial-permission-copy\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(copyRule).toContain('font-family: "Baloo2", system-ui, -apple-system, sans-serif');
     expect(copyRule).toContain('font-size: 20px');
     expect(copyRule).toContain('font-weight: 500 !important');
@@ -128,7 +128,7 @@ describe('launch 3D Motion permission ownership', () => {
     const overlayRule = collectiblesCss.match(/\.journey-spatial-permission-overlay\s*\{([^}]*)\}/)?.[1] ?? '';
     const cardRule = collectiblesCss.match(/\.journey-spatial-permission-card\s*\{([^}]*)\}/)?.[1] ?? '';
     const paperRule = collectiblesCss.match(/\.journey-spatial-permission-paper\s*\{([^}]*)\}/)?.[1] ?? '';
-    const artRule = collectiblesCss.match(/\.journey-spatial-permission-art\s*\{([^}]*)\}/)?.[1] ?? '';
+    const artRule = collectiblesCss.match(/(?:^|\n)\.journey-spatial-permission-art\s*\{([^}]*)\}/)?.[1] ?? '';
     const tiltRule = collectiblesCss.match(/\.journey-spatial-permission-tilt-frames\s*\{([^}]*)\}/)?.[1] ?? '';
     const lowerStarRule = collectiblesCss.match(/\.journey-spatial-permission-star-3\s*\{([^}]*)\}/)?.[1] ?? '';
 
@@ -204,6 +204,66 @@ describe('launch 3D Motion permission ownership', () => {
     );
     expect(permissionModalSource).toContain(
       "dismissButton.className = 'journey-spatial-permission-dismiss'",
+    );
+  });
+
+  it('keeps the 3D flip experiment nested, reversible, and reduced-motion safe', () => {
+    expect(permissionModalSource).toContain(
+      'export const SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED = true',
+    );
+    expect(permissionModalSource).toContain("overlay.classList.add('is-3d-flip-test')");
+    expect(permissionModalSource).toContain(
+      "flipShell.className = 'journey-spatial-permission-flip-shell'",
+    );
+    expect(permissionModalSource).toContain('flipShell.appendChild(paperSurface)');
+    expect(permissionModalSource).toContain('card.appendChild(flipShell)');
+    expect(collectiblesCss).toContain('perspective: 920px');
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-flip-shell {\n  position: relative;\n  display: flex;\n  width: 100%;\n  max-height: inherit;\n  border-radius: 40px;\n  overflow: hidden;',
+    );
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-flip-in');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-flip-out');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-card-bounce-in');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-card-bounce-out');
+    expect(collectiblesCss).toContain('scale(1.045) rotate(0.6deg)');
+    expect(collectiblesCss).toContain('scale(1.055) rotate(-0.5deg)');
+    expect(collectiblesCss).toContain('rotateX(17deg) rotateY(-88deg)');
+    expect(collectiblesCss).toContain('rotateX(-15deg) rotateY(112deg)');
+    expect(collectiblesCss).toContain('rotateX(-1deg) rotateY(7deg)');
+    expect(collectiblesCss).toContain('rotateX(0deg) rotateY(-3deg) scale(1)');
+    expect(collectiblesCss).toContain('rotateX(0deg) rotateY(1.2deg) scale(1)');
+    expect(collectiblesCss).toContain('rotateX(0deg) rotateY(-0.35deg) scale(1)');
+    expect(collectiblesCss).toContain('backface-visibility: hidden');
+    expect(collectiblesCss).toContain('margin-bottom: -18px');
+    expect(collectiblesCss).toContain('padding-bottom: 54px');
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test .journey-spatial-permission-card::before {\n  content: none;',
+    );
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-layer-title-in');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-layer-art-in');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-layer-copy-in');
+    expect(collectiblesCss).toContain('@keyframes journey-spatial-layer-actions-in');
+    expect(collectiblesCss).toContain('translate3d(0, 42px, 280px)');
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test {\n  transition: none;',
+    );
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test::before {',
+    );
+    expect(permissionModalSource).toContain("overlay.classList.add('is-backdrop-visible')");
+    expect(permissionModalSource).toContain("overlay.classList.remove('is-backdrop-visible')");
+    expect(collectiblesCss).toContain('transition: opacity 0.5s ease-in-out');
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test.is-backdrop-visible::before',
+    );
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test:not(.is-exiting) .journey-spatial-permission-card {',
+    );
+    expect(collectiblesCss).toContain(
+      '0% { opacity: 1; transform: translate3d(-10px, -26px, 180px)',
+    );
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-3d-flip-test .journey-spatial-permission-flip-shell {\n    transform: none !important;',
     );
   });
 

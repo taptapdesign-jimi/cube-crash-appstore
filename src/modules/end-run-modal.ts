@@ -11,12 +11,43 @@ import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { ctaMotion, exitCtaGroup, registerCta, type CtaController } from './cta-system.ts';
+import {
+  mountGameplaySheetClose,
+  type GameplaySheetCloseController,
+} from './gameplay-sheet-close.ts';
+import {
+  GAMEPLAY_MODAL_BENCHMARK,
+  getGameplayModalCtaEnterDelayMs,
+} from './gameplay-modal-benchmark.ts';
+
+// Reversible visual experiment. The outer sheet remains the sole owner of
+// translateY, drag, CTA, pause, and cleanup; only the nested paper shell flips.
+export const END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED = true;
+export const END_RUN_CENTERED_MODAL_TEST_ENABLED = true;
+
+const END_RUN_SHEET_EXIT_DURATION_MS = 400;
+const END_RUN_CENTERED_MODAL_ENTER_DURATION_MS = GAMEPLAY_MODAL_BENCHMARK.enterDurationMs;
+const END_RUN_CENTERED_MODAL_ENTER_CLEANUP_BUFFER_MS = GAMEPLAY_MODAL_BENCHMARK.enterCleanupBufferMs;
+const END_RUN_CENTERED_MODAL_EXIT_DURATION_MS = GAMEPLAY_MODAL_BENCHMARK.exitDurationMs;
+const END_RUN_CTA_ENTER_DELAY_MS = getGameplayModalCtaEnterDelayMs();
+
+function getEndRunSurfaceExitDurationMs(): number {
+  return END_RUN_CENTERED_MODAL_TEST_ENABLED
+    ? END_RUN_CENTERED_MODAL_EXIT_DURATION_MS
+    : END_RUN_SHEET_EXIT_DURATION_MS;
+}
 
 let modal: HTMLElement | null = null;
 let endRunTransitionInProgress = false;
 let endRunLifecycleId = 0;
 let endRunOpenStartedAt = 0;
 let endRunCtaControllers: CtaController[] = [];
+let endRunCloseController: GameplaySheetCloseController | null = null;
+
+function disposeEndRunClose(): void {
+  endRunCloseController?.dispose();
+  endRunCloseController = null;
+}
 
 function disposeEndRunCtas(): void {
   endRunCtaControllers.forEach(controller => controller.dispose());
@@ -134,6 +165,7 @@ function trackOnEventHandler(element: HTMLElement | Document, property: string, 
 }
 
 function cleanupAllEndRunResources(): void {
+  disposeEndRunClose();
   clearAllEndRunTimeouts();
   clearAllEndRunIntervals();
   clearAllEndRunAnimationFrames();
@@ -155,6 +187,7 @@ function getEndRunSheetElements(): HTMLElement[] {
 }
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
+  disposeEndRunClose();
   disposeEndRunCtas();
   const sheets = getEndRunSheetElements();
   if (sheets.length > 0) {
@@ -328,32 +361,55 @@ function createModal(): HTMLElement {
 
   modal = document.createElement('div');
   modal.className = 'simple-bottom-sheet';
+  if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {
+    modal.classList.add('is-end-run-3d-flip-test');
+  }
+  if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+    modal.classList.add('is-end-run-centered-modal-test');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'end-run-modal-title');
+  }
   
   // CRITICAL: Start with display: none to prevent flash
   modal.style.display = 'none';
   
   modal.innerHTML = `
-    <div class="modal-handle"></div>
-    <div class="simple-content">
-      <div class="simple-header">
-        <div class="simple-title-section">
-          <h2>${titleText}</h2>
-          <p>${subtitleText}</p>
-        </div>
-        <div class="simple-buttons">
-          <div class="simple-button-row">
-            <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
-            ${isArcadeRun ? '' : '<button type="button" data-end-run-action="new-card">New Card</button>'}
-            <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+    <div class="end-run-modal-bounce-shell">
+      <div class="end-run-sheet-flip-shell">
+        <div class="cc-gameplay-modal-idle-shell">
+          <div class="end-run-paper-clip-shell">
+            <div class="modal-handle"></div>
+            <div class="simple-content">
+              <div class="simple-header">
+                <div class="simple-title-section">
+                  <h2 id="end-run-modal-title">${titleText}</h2>
+                  <p>${subtitleText}</p>
+                </div>
+                <div class="simple-buttons">
+                  <div class="simple-button-row">
+                    <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
+                    <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   `;
+
+  const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-idle-shell') as HTMLElement | null;
+  if (endRunCloseHost) {
+    endRunCloseController = mountGameplaySheetClose(endRunCloseHost, () => {
+      console.log('✕ End Run modal close control activated');
+      hideModal();
+    }, `Close ${titleText}`);
+  }
   
   // Add event listeners
   const restartBtn = modal.querySelector('[data-end-run-action="restart"]') as HTMLButtonElement;
-  const newCardBtn = modal.querySelector('[data-end-run-action="new-card"]') as HTMLButtonElement;
   const exitBtn = modal.querySelector('[data-end-run-action="exit"]') as HTMLButtonElement;
   
   if (restartBtn) {
@@ -368,7 +424,7 @@ function createModal(): HTMLElement {
       // Step 1: Animate modal exit
       await hideModalAfterCtas(restartBtn);
       
-      // Step 2: Wait for modal animation to complete (400ms), then restart
+      // Step 2: Wait for the active surface animation to complete, then restart.
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
       // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
       setTimeout(() => {
@@ -395,57 +451,13 @@ function createModal(): HTMLElement {
         if ((window as any).CC && (window as any).CC.restart) {
           (window as any).CC.restart();
         }
-      }, 400); // Wait for modal close animation to complete
+      }, getEndRunSurfaceExitDurationMs());
     };
     endRunCtaControllers.push(registerCta(restartBtn, {
       variant: 'primary',
       initialState: 'hidden',
       activationTiming: 'immediate',
       onActivate: restartClickHandler,
-    }));
-  }
-  
-  if (newCardBtn) {
-    const newCardClickHandler = async (e?: Event) => {
-      try {
-        e?.preventDefault();
-        e?.stopPropagation();
-      } catch {}
-      console.log('🎁 New Card dev button clicked');
-
-      if (typeof (window as any).triggerHapticSelection === 'function') {
-        (window as any).triggerHapticSelection();
-      }
-
-      const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-      const safeBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16
-        ? currentBoardNumber
-        : 1;
-
-      await hideModalAfterCtas(newCardBtn);
-
-      setTimeout(async () => {
-        try {
-          const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-          const board = journeyBoardsManager.getBoardById?.(safeBoardNumber);
-          const paddedBoardNumber = String(safeBoardNumber).padStart(2, '0');
-          const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
-          await showJourneyNewCardScreen({
-            boardNumber: safeBoardNumber,
-            cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
-            cardName: board?.name || formatGameplayProgressLabel('journey', safeBoardNumber),
-          });
-          console.log(`✅ New Card dev screen completed for board ${safeBoardNumber}`);
-        } catch (error) {
-          console.error('❌ Failed to show New Card dev screen:', error);
-        }
-      }, 420);
-    };
-    endRunCtaControllers.push(registerCta(newCardBtn, {
-      variant: 'primary',
-      initialState: 'hidden',
-      activationTiming: 'immediate',
-      onActivate: newCardClickHandler,
     }));
   }
   
@@ -482,7 +494,7 @@ function createModal(): HTMLElement {
       // Wait for modal animation to complete, then own the complete
       // board-to-menu/detail handoff. This delay is intentionally not tracked by
       // modal cleanup, but the async handler itself remains the single owner.
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
+      await new Promise<void>((resolve) => window.setTimeout(resolve, getEndRunSurfaceExitDurationMs()));
       try {
         console.log('🎯 Modal hidden, starting board exit...');
         
@@ -557,7 +569,9 @@ function createModal(): HTMLElement {
   }
 
   // Add drag functionality
-  addDragFunctionality(modal);
+  if (!END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+    addDragFunctionality(modal);
+  }
   
   // Add outside click functionality
   addOutsideClickFunctionality(modal);
@@ -746,12 +760,46 @@ export function showEndRunModal(): void {
     // Import and run animation - same as resume modal
     trackEndRunAnimationFrame(() => {
       if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
-      endRunCtaControllers.forEach((controller, index) => {
-        void controller.enter({ delay: (index * ctaMotion.companionExitStaggerMs) / 1000 });
-      });
+      trackEndRunTimeout(() => {
+        if (openLifecycleId !== endRunLifecycleId || el !== modal || (el as any)._closing) return;
+        endRunCtaControllers.forEach((controller, index) => {
+          void controller.enter({ delay: (index * ctaMotion.companionExitStaggerMs) / 1000 });
+        });
+      }, END_RUN_CTA_ENTER_DELAY_MS);
+      if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+        el.style.display = 'flex';
+        el.style.visibility = 'visible';
+        el.style.transform = 'none';
+        el.style.webkitTransform = 'none';
+        el.classList.add('end-run-shadow-active', 'visible');
+        trackEndRunAnimationFrame(() => {
+          if (openLifecycleId !== endRunLifecycleId || el !== modal || (el as any)._closing) return;
+          el.classList.add('is-end-run-backdrop-visible');
+        });
+        if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {
+          el.classList.remove('is-end-run-3d-flip-exiting');
+          el.classList.add('is-end-run-3d-flip-entering');
+        }
+        el.classList.remove('cc-gameplay-modal-idle');
+        trackEndRunTimeout(() => {
+          if (openLifecycleId !== endRunLifecycleId || el !== modal || (el as any)._closing) return;
+          el.classList.remove('is-end-run-3d-flip-entering');
+          el.classList.add('cc-gameplay-modal-idle');
+          endRunTransitionInProgress = false;
+          console.log('✅ End run centered modal entrance complete');
+        }, END_RUN_CENTERED_MODAL_ENTER_DURATION_MS + END_RUN_CENTERED_MODAL_ENTER_CLEANUP_BUFFER_MS);
+        return;
+      }
+
       import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
-        return animateBottomSheetEntrance(el).then(() => {
+        const entrance = animateBottomSheetEntrance(el);
+        if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {
+          el.classList.remove('is-end-run-3d-flip-exiting');
+          el.classList.add('is-end-run-3d-flip-entering');
+        }
+        return entrance.then(() => {
           if (openLifecycleId !== endRunLifecycleId || el !== modal) return;
+          el.classList.remove('is-end-run-3d-flip-entering');
           endRunTransitionInProgress = false;
           console.log('✅ End run modal entrance complete');
         });
@@ -1112,6 +1160,10 @@ export function hideModal(
   endRunTransitionInProgress = true;
   const closeLifecycleId = ++endRunLifecycleId;
   (modalEl as any)._closing = true;
+  if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {
+    modalEl.classList.remove('is-end-run-3d-flip-entering');
+    modalEl.classList.add('is-end-run-3d-flip-exiting');
+  }
   
   // 🔥 CRITICAL FIX: Clean up outside click handlers immediately
   if (outsideClickHandler) {
@@ -1148,9 +1200,16 @@ export function hideModal(
     console.log('📊 hideModal called - visibility already reset (from drag handler)');
   }
   
-  // Animate out with 0.4s duration (same as resume modal)
-  modalEl.style.transition = 'transform 0.4s ease-in-out';
-  modalEl.style.transform = 'translateY(100%)';
+  if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+    modalEl.classList.remove('is-end-run-backdrop-visible');
+    modalEl.style.transition = 'none';
+    modalEl.style.transform = 'none';
+    modalEl.style.webkitTransform = 'none';
+  } else {
+    // Legacy bottom-sheet close remains intact behind the centered-modal flag.
+    modalEl.style.transition = 'transform 0.4s ease-in-out';
+    modalEl.style.transform = 'translateY(100%)';
+  }
   
   // CRITICAL: Remove overlay protection first
   removeEndRunOverlay();
@@ -1229,7 +1288,7 @@ export function hideModal(
     }
     
     console.log('✅ End Run modal cleanup complete - game resumed');
-  }, 400);
+  }, getEndRunSurfaceExitDurationMs());
 }
 
 export function forceHideEndRunModal(reason = 'force-hide'): void {

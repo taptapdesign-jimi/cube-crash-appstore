@@ -1,8 +1,7 @@
 // Collectible Reward Bottom Sheet
 // Displays a bottom sheet when a new collectible card is unlocked.
 
-import { 
-  getDefaultCollectibleDetail, 
+import {
   validateCollectibleDetail, 
   setActiveOverlay, 
   setActiveResolve, 
@@ -11,16 +10,14 @@ import {
   registerCleanup,
   isOverlayActive,
   getActiveOverlay,
-  getActiveResolve,
-  getIsClosing
+  getIsClosing,
+  cleanupOverlay,
 } from './collectible-reward-utils.js';
 
 import { 
   createOverlay, 
   createBottomSheet, 
   addStyles, 
-  attachDragHandlers, 
-  attachCloseButtonHandler,
   attachKeyboardHandlers, 
   attachOutsideClickHandlers 
 } from './collectible-reward-ui.js';
@@ -30,9 +27,16 @@ import {
   hideOverlayAnimation, 
   showSheetAnimation, 
   hideSheetAnimation, 
-  revealCollectibleCardAnimation 
+  revealCollectibleCardAnimation,
+  scheduleCollectibleRewardAnimation,
+  cleanupCollectibleRewardAnimationTimeouts,
 } from './collectible-reward-animations.js';
-import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.ts';
+import { exitCtaPair, registerCta, type CtaController } from './cta-system.ts';
+import {
+  GAMEPLAY_MODAL_BENCHMARK,
+  getGameplayModalCtaEnterDelayMs,
+} from './gameplay-modal-benchmark.ts';
+import { mountGameplaySheetClose } from './gameplay-sheet-close.ts';
 
 let rewardCtaControllers: CtaController[] = [];
 
@@ -81,12 +85,6 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     const sheet = createBottomSheet(validatedDetail);
     overlay.appendChild(sheet);
     
-    // Attach handlers
-    attachDragHandlers(sheet);
-    attachCloseButtonHandler(sheet);
-    attachKeyboardHandlers(sheet);
-    attachOutsideClickHandlers(overlay);
-    
     // Set up close handler
     const handleClose = (reason: string, clickedCta?: HTMLButtonElement) => {
       void hideCollectibleRewardBottomSheet(reason, {
@@ -97,6 +95,18 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
       });
       resolve(reason);
     };
+
+    // The centered modal benchmark dismisses through close, Escape, or
+    // backdrop tap. It does not inherit the legacy translateY drag owner.
+    const closeHost = sheet.querySelector<HTMLElement>('.cc-gameplay-modal-idle-shell') ?? sheet;
+    const closeController = mountGameplaySheetClose(
+      closeHost,
+      () => handleClose('close-button'),
+      'Close collectible reward',
+    );
+    registerCleanup(() => closeController.dispose());
+    attachKeyboardHandlers(sheet);
+    attachOutsideClickHandlers(overlay);
 
     const continueButton = sheet.querySelector<HTMLButtonElement>('[data-action="close"]');
     const viewCollectionButton = sheet.querySelector<HTMLButtonElement>('[data-action="view-collection"]');
@@ -123,20 +133,27 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
       handleClose(e.detail.reason);
     };
     sheet.addEventListener('collectible-reward-close', closeHandler);
+    overlay.addEventListener('collectible-reward-close', closeHandler);
     
     // 🔥 FIX: Register cleanup to remove event listener
     registerCleanup(() => {
       sheet.removeEventListener('collectible-reward-close', closeHandler);
+      overlay.removeEventListener('collectible-reward-close', closeHandler);
     });
+    registerCleanup(cleanupCollectibleRewardAnimationTimeouts);
     
     // Animate in
-    showOverlayAnimation(overlay).then(() => {
-      showSheetAnimation(sheet).then(() => {
-        rewardCtaControllers.forEach((controller, index) => {
-          void controller.enter({ delay: (index * ctaMotion.companionExitStaggerMs) / 1000 });
-        });
-        revealCollectibleCardAnimation(sheet, validatedDetail);
-      });
+    void showOverlayAnimation(overlay);
+    void showSheetAnimation(sheet).then(() => {
+      revealCollectibleCardAnimation(sheet, validatedDetail);
+    });
+
+    const ctaStartMs = getGameplayModalCtaEnterDelayMs();
+    rewardCtaControllers.forEach((controller, index) => {
+      scheduleCollectibleRewardAnimation(
+        () => void controller.enter(),
+        ctaStartMs + index * GAMEPLAY_MODAL_BENCHMARK.companionCtaStaggerMs,
+      );
     });
     
     // Set resolve function
@@ -149,9 +166,10 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
  */
 export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss', options: HideOptions = {}): Promise<void> {
   const overlay = getActiveOverlay();
-  if (!overlay) return;
+  if (!overlay || getIsClosing()) return;
 
   setClosing(true);
+  cleanupCollectibleRewardAnimationTimeouts();
 
   const sheet = overlay.querySelector('.collectible-reward-sheet') as HTMLElement;
   if (!sheet) return;
@@ -162,8 +180,10 @@ export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss
     await exitCtaPair(clicked, buttons.find(button => button !== clicked));
   }
 
+  const overlayExit = hideOverlayAnimation(overlay);
   await hideSheetAnimation(sheet);
-  await hideOverlayAnimation(overlay);
+  await overlayExit;
   executeCleanup();
+  cleanupOverlay();
   options.onAfterClose?.();
 }

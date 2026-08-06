@@ -79,12 +79,9 @@ export function buildMarkup(detail: CollectibleDetail): string {
   const rarity = detail.rarity || 'common';
   
   return `
-    <div class="collectible-reward-sheet">
-      <div class="collectible-reward-content">
-        <div class="collectible-reward-header">
-          <h2 class="collectible-reward-title">New Collectible Unlocked!</h2>
-          <button class="collectible-reward-close" aria-label="Close">×</button>
-        </div>
+    <div class="collectible-reward-header">
+      <h2 id="collectible-reward-title" class="collectible-reward-title">New Collectible Unlocked!</h2>
+    </div>
         
         <div class="collectible-reward-body">
           <div class="collectible-reward-card">
@@ -110,8 +107,6 @@ export function buildMarkup(detail: CollectibleDetail): string {
             </button>
           </div>
         </div>
-      </div>
-    </div>
   `;
 }
 
