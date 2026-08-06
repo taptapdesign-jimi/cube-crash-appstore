@@ -4,6 +4,11 @@ import { logger } from '../core/logger.js';
 import gameState from '../modules/game-state.js';
 import { sliderState } from '../modules/slider-state.js';
 import { getRegisteredCta } from '../modules/cta-system.js';
+import {
+  commitHomepageNavigation,
+  markHomepageNavigationEntering,
+  primeHomepageNavigation,
+} from '../modules/navigation-control.js';
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -287,6 +292,7 @@ let isAnimatingEnter = false;
 let sliderEnterPromise: Promise<void> | null = null;
 let resolveSliderEnter: (() => void) | null = null;
 let sliderEnterFallback: ReturnType<typeof setTimeout> | null = null;
+let sliderEnterNavigationGeneration: number | null = null;
 let journeySliderExitPromise: Promise<void> | null = null;
 let journeySliderExitAnimations: Animation[] = [];
 let journeySliderExitFallback: ReturnType<typeof setTimeout> | null = null;
@@ -315,6 +321,7 @@ const settleSliderEnter = (reason: string): void => {
   const resolve = resolveSliderEnter;
   resolveSliderEnter = null;
   sliderEnterPromise = null;
+  sliderEnterNavigationGeneration = null;
   resolve?.();
   logger.info('✅ Homepage enter owner settled', 'animations', { reason });
 };
@@ -324,6 +331,7 @@ const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
 
 /** Prime the complete active Homepage slide while its shell is still hidden. */
 export const prepareSliderEnter = (): void => {
+  sliderEnterNavigationGeneration = primeHomepageNavigation('animations:prepare-slider-enter');
   cachedElements = {};
   const activeSlide = document.querySelector('.slider-slide.active') ||
     document.querySelector('.slider-slide[data-slide="0"]');
@@ -369,8 +377,10 @@ export const prepareSliderEnter = (): void => {
   targets.forEach((target) => {
     target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset');
     target.classList.add('animate-enter-initial');
-    target.style.removeProperty('opacity');
-    target.style.removeProperty('visibility');
+    if (target.id !== 'independent-nav') {
+      target.style.removeProperty('opacity');
+      target.style.removeProperty('visibility');
+    }
     target.style.transition = 'none';
   });
   const activeCta = activeSlide?.querySelector<HTMLButtonElement>('.slide-button');
@@ -440,86 +450,18 @@ export const finalizeSliderEnterVisibility = (reason = 'homepage-enter-finalize'
 
   targets.forEach((target) => {
     target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce');
-    target.style.removeProperty('opacity');
-    target.style.removeProperty('visibility');
-    target.style.removeProperty('display');
-    target.style.removeProperty('pointer-events');
+    if (target.id !== 'independent-nav') {
+      target.style.removeProperty('opacity');
+      target.style.removeProperty('visibility');
+      target.style.removeProperty('display');
+      target.style.removeProperty('pointer-events');
+    }
     target.style.removeProperty('transition');
     target.style.removeProperty('-webkit-transition');
     target.style.removeProperty('will-change');
   });
   const activeCta = activeSlide?.querySelector<HTMLButtonElement>('.slide-button');
   if (activeCta) getRegisteredCta(activeCta)?.prime('idle');
-
-  const independentNav = document.getElementById('independent-nav');
-  if (independentNav) {
-    independentNav.style.display = 'block';
-    independentNav.style.visibility = 'visible';
-    independentNav.style.opacity = '1';
-    independentNav.style.pointerEvents = 'none';
-    independentNav.style.zIndex = '100';
-    independentNav.style.removeProperty('transform');
-    independentNav.style.removeProperty('-webkit-transform');
-    independentNav.style.removeProperty('transition');
-    independentNav.style.removeProperty('-webkit-transition');
-    independentNav.style.removeProperty('will-change');
-    independentNav.setAttribute('aria-hidden', 'false');
-    independentNav.removeAttribute('hidden');
-    const content = independentNav.querySelector('.independent-nav-content') as HTMLElement | null;
-    if (content) {
-      content.style.display = 'flex';
-      content.style.visibility = 'visible';
-      content.style.opacity = '1';
-      content.style.pointerEvents = 'none';
-    }
-    const buttonsWrap = independentNav.querySelector('.independent-nav-buttons') as HTMLElement | null;
-    if (buttonsWrap) {
-      buttonsWrap.style.display = 'flex';
-      buttonsWrap.style.visibility = 'visible';
-      buttonsWrap.style.opacity = '1';
-      buttonsWrap.style.pointerEvents = 'auto';
-    }
-    independentNav.querySelectorAll('.independent-nav-button').forEach((button) => {
-      const btn = button as HTMLElement;
-      btn.style.display = 'flex';
-      btn.style.visibility = 'visible';
-      btn.style.opacity = '1';
-      btn.style.pointerEvents = 'auto';
-      btn.style.cursor = 'pointer';
-      btn.style.removeProperty('transition');
-      btn.style.removeProperty('-webkit-transition');
-      btn.style.transform = btn.classList.contains('active') ? 'scale(1)' : 'translateZ(0)';
-      btn.style.webkitTransform = btn.classList.contains('active') ? 'translateZ(0) scale(1)' : 'translateZ(0)';
-    });
-    independentNav.querySelectorAll('.independent-nav-button').forEach((button) => {
-      const navButton = button as HTMLElement;
-      const isActive = navButton.classList.contains('active');
-      const motion = navButton.querySelector('.nav-icon-motion') as HTMLElement | null;
-      const visual = navButton.querySelector('.nav-icon-visual') as HTMLElement | null;
-      const image = navButton.querySelector('img') as HTMLElement | null;
-
-      [motion, visual, image].filter(Boolean).forEach((node) => {
-        const element = node as HTMLElement;
-        element.style.display = element.tagName === 'IMG' ? 'block' : 'flex';
-        element.style.visibility = 'visible';
-        element.style.opacity = '1';
-        element.style.pointerEvents = 'none';
-      });
-      if (motion) {
-        gsap.set(motion, {
-          y: isActive ? SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
-          transformOrigin: '50% 70%',
-          force3D: true,
-        });
-      }
-      if (visual) {
-        gsap.set(visual, { scaleX: 1, scaleY: 1, transformOrigin: '50% 70%', force3D: true });
-      }
-      if (image) {
-        gsap.set(image, { clearProps: 'transform' });
-      }
-    });
-  }
 
   logger.info('🏠 Homepage enter visibility finalized', 'animations', {
     reason,
@@ -633,6 +575,7 @@ export const cancelSliderEnterAnimation = (reason = 'route-change'): void => {
   activeTimeouts.forEach((timeout) => clearTimeout(timeout));
   activeTimeouts.clear();
   settleSliderEnter(`cancel:${reason}`);
+  sliderEnterNavigationGeneration = null;
   (window as any).__ccIsAnimatingSliderEnter = false;
   logger.info('🛑 Homepage enter animation cancelled', 'animations', { reason });
 };
@@ -1305,6 +1248,10 @@ export const animateSliderEnter = (): Promise<void> => {
   // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingEnter = true;
   sliderState.setAnimatingEnter(true);
+  sliderEnterNavigationGeneration = markHomepageNavigationEntering(
+    'animations:slider-enter-start',
+    sliderEnterNavigationGeneration ?? undefined,
+  );
   sliderEnterPromise = new Promise<void>((resolve) => {
     resolveSliderEnter = resolve;
   });
@@ -1318,6 +1265,10 @@ export const animateSliderEnter = (): Promise<void> => {
     // Completion is normally signalled by the final cleanup below. This is a
     // deadlock guard only, not the lifecycle authority.
     sliderEnterFallback = setTimeout(() => {
+      commitHomepageNavigation(
+        'animations:slider-enter-fallback',
+        sliderEnterNavigationGeneration ?? undefined,
+      );
       settleSliderEnter('fallback');
     }, HOMEPAGE_ENTER_FINALIZE_DELAY_MS + 220);
     activeTimeouts.add(sliderEnterFallback);
@@ -1779,9 +1730,11 @@ function startEnterAnimationSequence(): void {
         if (element) {
           const el = element as HTMLElement;
           removeHomeEnterClassesWithoutTransition(el);
-          el.style.visibility = '';
-          el.style.opacity = '';
-          el.style.display = '';
+          if (el.id !== 'independent-nav') {
+            el.style.visibility = '';
+            el.style.opacity = '';
+            el.style.display = '';
+          }
           el.style.removeProperty('transform');
           el.style.removeProperty('-webkit-transform');
           el.style.removeProperty('transition');
@@ -1793,6 +1746,10 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
+      commitHomepageNavigation(
+        'animations:slider-enter-complete',
+        sliderEnterNavigationGeneration ?? undefined,
+      );
       logHomeEnterElementState('sequence:final-cleanup-hero-after', activeSlide?.querySelector('.hero-container') as HTMLElement | null);
       logHomeEnterElementState('sequence:final-cleanup-logo-after', document.querySelector('#home-logo') as HTMLElement | null);
       logHomeEnterElementState('sequence:final-cleanup-nav-after', document.querySelector('#independent-nav') as HTMLElement | null);

@@ -663,6 +663,16 @@ body{
   z-index: 1 !important;
 }
 
+/* Mushroom finale grows in front of the lower HUD/decor only while its
+   bounded FX owner is active. Top DOM HUD remains above the canvas. */
+#app.cc-mushroom-finale-foreground canvas {
+  z-index: 3 !important;
+}
+
+body.cc-mushroom-finale-foreground #hud-board-indicator {
+  z-index: 998 !important;
+}
+
 .journey-game-bottom-decor {
   position: absolute;
   left: 0;

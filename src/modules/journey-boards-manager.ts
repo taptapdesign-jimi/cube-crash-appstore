@@ -60,6 +60,7 @@ import {
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
+import { hideHomepageNavigation } from './navigation-control.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -3541,7 +3542,6 @@ class JourneyBoardsManager {
       const scrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement | null;
       const homeElement = document.getElementById('home') as HTMLElement | null;
       const sliderContainer = document.getElementById('slider-container') as HTMLElement | null;
-      const navElement = document.getElementById('independent-nav') as HTMLElement | null;
       const worldId = resolvedReturnWorldId;
       const activeBoardId = this.getLastActiveJourneyBoardAreaId();
 
@@ -3558,7 +3558,8 @@ class JourneyBoardsManager {
         lastBoardId: activeBoardId,
       });
 
-      [homeElement, sliderContainer, navElement].forEach((element) => {
+      hideHomepageNavigation('journey-detail-modal-return');
+      [homeElement, sliderContainer].forEach((element) => {
         if (!element) return;
         element.style.display = 'none';
         element.style.visibility = 'hidden';

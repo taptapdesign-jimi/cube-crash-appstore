@@ -41,6 +41,65 @@
   overscroll-behavior: none;
 }
 
+/* Lifecycle invariant: this DOM tree belongs exclusively to Homepage.
+   Inline styles and delayed animation callbacks cannot override the owner. */
+#independent-nav[data-homepage-owner='inactive'] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+#independent-nav[data-homepage-owner='inactive'] * {
+  pointer-events: none !important;
+}
+
+/* The lifecycle owner is authoritative in both directions. Legacy route or
+   animation callbacks cannot hide an actively owned Homepage navigation tree. */
+#independent-nav[data-homepage-owner='active'] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#independent-nav[data-homepage-owner='active'] .independent-nav-content,
+#independent-nav[data-homepage-owner='active'] .independent-nav-buttons,
+#independent-nav[data-homepage-owner='active'] .independent-nav-button,
+#independent-nav[data-homepage-owner='active'] .nav-icon-motion,
+#independent-nav[data-homepage-owner='active'] .nav-icon-visual {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#independent-nav[data-homepage-owner='active'] .independent-nav-button img {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#independent-nav[data-homepage-navigation-phase='primed'],
+#independent-nav[data-homepage-navigation-phase='entering'] {
+  pointer-events: none !important;
+}
+
+#independent-nav[data-homepage-navigation-phase='primed'] .independent-nav-buttons,
+#independent-nav[data-homepage-navigation-phase='primed'] .independent-nav-button,
+#independent-nav[data-homepage-navigation-phase='entering'] .independent-nav-buttons,
+#independent-nav[data-homepage-navigation-phase='entering'] .independent-nav-button {
+  pointer-events: none !important;
+}
+
+#independent-nav[data-homepage-navigation-phase='interactive'] {
+  pointer-events: auto !important;
+}
+
+#independent-nav[data-homepage-navigation-phase='interactive'] .independent-nav-buttons,
+#independent-nav[data-homepage-navigation-phase='interactive'] .independent-nav-button {
+  pointer-events: auto !important;
+}
+
 
 .independent-nav-content {
   position: relative;

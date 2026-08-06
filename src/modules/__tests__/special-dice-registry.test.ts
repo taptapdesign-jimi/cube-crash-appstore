@@ -6,6 +6,7 @@ import {
   getSpecialDiceInputReleaseAtRatioForFx,
   getSpecialDiceInputReleaseModeForFx,
   getSpecialDiceIdleBubbleColors,
+  getSpecialDiceJuiceDropProfile,
   getSpecialDiceShardColors,
   getSpecialDiceSplashOptions,
   getSpecialDiceTrailColors,
@@ -163,6 +164,7 @@ test('special dice input release policy is archetype-driven', () => {
 
   expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.25);
   expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.30);
+  expect(getSpecialDiceJuiceDropProfile(beachBall)).toBe('beach-ball');
   expect(getSpecialDiceInputReleaseAtRatioForFx('magnet')).toBe(0.25);
   expect(getSpecialDiceInputReleaseAtRatioForFx('tnt')).toBe(0.7);
   expect(getSpecialDiceInputReleaseModeForFx('magnet')).toBe('after-gameplay-resolve');
@@ -201,7 +203,6 @@ test('archetype preserves TNT finale when generic special field is missing', () 
 });
 
 test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay archetype', () => {
-  localStorage.removeItem('cc_special_dice_unlocked_flower');
   const flower = pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 2,
@@ -254,20 +255,24 @@ test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay arc
   });
   expect(getSpecialDiceTrailColors(mushroom)).toEqual([0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61]);
   expect(getSpecialDiceShardColors(mushroom)).toEqual([0xE7B392, 0xFF7B60]);
-  expect(mushroom?.explosionSpriteSources).toHaveLength(6);
+  expect(mushroom?.explosionSpriteSources).toEqual([
+    './assets/shop/mushroom/mushroom@2x.png',
+    './assets/shop/mushroom/mushroom1.png',
+    './assets/shop/mushroom/mushroom2.png',
+    './assets/shop/mushroom/mushroom3.png',
+    './assets/shop/mushroom/mushroom4.png',
+    './assets/shop/mushroom/mushroom5.png',
+  ]);
 });
 
-test('Flower remains available as the first Forest special after its Stage 2 unlock', () => {
-  localStorage.setItem('cc_special_dice_unlocked_flower', 'true');
-  expect(pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 3,
-    wildSpawnCount: 0,
-  })?.id).toBe('flower');
-  expect(pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 11,
-    wildSpawnCount: 0,
-  })).toBeNull();
-  localStorage.removeItem('cc_special_dice_unlocked_flower');
+test('Forest Stage 2 test sequence never leaks into another Journey board', () => {
+  for (const journeyBoard of [1, 3, 4, 10, 11, 20, 21, 30]) {
+    for (const wildSpawnCount of [0, 1, 2]) {
+      expect(pickSpecialDiceVariantForWildSpawn({
+        isArcade: false,
+        journeyBoard,
+        wildSpawnCount,
+      })).toBeNull();
+    }
+  }
 });

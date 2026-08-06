@@ -1448,26 +1448,8 @@ class SliderManager {
       logger.debug('ensureInteractive: wrapper pointerEvents set to auto');
     }
     
-    // 🔥 FIX: Ensure independent navigation is also interactive
-    const independentNav = document.getElementById('independent-nav');
-    if (independentNav) {
-      independentNav.style.pointerEvents = 'auto';
-      independentNav.style.display = 'block';
-      independentNav.style.visibility = 'visible';
-      independentNav.style.opacity = '1';
-      logger.debug('✅ Independent navigation pointer events enabled and visibility ensured');
-    }
-    
-    // 🔥 FIX: Ensure all navigation buttons are interactive
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    navButtons.forEach((button) => {
-      const btn = button as HTMLElement;
-      btn.style.pointerEvents = 'auto';
-      btn.style.cursor = 'pointer';
-    });
-    if (navButtons.length > 0) {
-      logger.debug(`✅ ${navButtons.length} navigation buttons pointer events enabled`);
-    }
+    // Homepage navigation input/visibility is owned exclusively by
+    // navigation-control. Slider readiness must never reveal that surface.
     
     // 🔥 FIX: Ensure slider wrapper is interactive for drag
     if (this.elements.wrapper) {

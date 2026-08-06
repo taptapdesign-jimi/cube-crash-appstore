@@ -97,10 +97,15 @@ const beachBallExplosionSources = [
   './assets/shop/ball/ball6.png',
 ];
 
-const mushroomDropSources = Array.from(
-  { length: 6 },
-  (_, index) => `./assets/shop/mushroom/part${index + 1}@2x.png`,
-);
+const mushroomGrowthSources = [
+  // Same original Mushroom die art, using its 2x source so a 160–200px finale
+  // sprite stays crisp beside the supplied 1024px growth variants.
+  './assets/shop/mushroom/mushroom@2x.png',
+  ...Array.from(
+    { length: 5 },
+    (_, index) => `./assets/shop/mushroom/mushroom${index + 1}.png`,
+  ),
+];
 
 const flowerExplosionSources1x = Array.from(
   { length: 9 },
@@ -198,7 +203,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     shardColor: 0xE7B392,
     shardColors: [0xE7B392, 0xFF7B60],
     trailColors: [0xFFE1C8, 0xFFEDD9, 0xFF9A80, 0xFF7D61],
-    explosionSpriteSources: mushroomDropSources,
+    explosionSpriteSources: mushroomGrowthSources,
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'mushroom-pop',
@@ -246,6 +251,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'beach-ball-bounce',
+    juiceDropProfile: 'beach-ball',
     arcadeTestOrder: 1,
     inputReleaseAtRatio: 0.30,
   },
@@ -547,18 +553,13 @@ export function pickSpecialDiceVariantForWildSpawn({
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
-    if (board < 2 || board > 10) return null;
+    // Temporary Forest test profile belongs only to Cjelina 02. Do not let
+    // its per-run spawn order leak into any other Forest/Beach/Area 55 board.
+    if (board !== 2) return null;
+    if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS.flower;
     if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS.honey;
     if (wildSpawnCount === 2) return SPECIAL_DICE_VARIANTS.mushroom;
-    if (wildSpawnCount !== 0) return null;
-    if (board === 2) return SPECIAL_DICE_VARIANTS.flower;
-    try {
-      return localStorage.getItem('cc_special_dice_unlocked_flower') === 'true'
-        ? SPECIAL_DICE_VARIANTS.flower
-        : null;
-    } catch {
-      return null;
-    }
+    return null;
   }
   if (Number.isFinite(arcadeStage) && (arcadeStage as number) > 1) return null;
   const testVariants = Object.values(SPECIAL_DICE_VARIANTS)

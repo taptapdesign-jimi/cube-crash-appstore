@@ -4,7 +4,7 @@
 // Uses custom bubble sprites (bubble 1-8) instead of runtime Graphics - lighter on memory
 
 import { Assets, Container, Sprite, Texture } from 'pixi.js';
-import { getBubbleSpritePool, clearBubbleSpritePool } from './object-pool.ts';
+import { getBubbleSpritePool, clearBubbleSpritePool, graphicsPool } from './object-pool.ts';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
@@ -65,6 +65,70 @@ const WILD_JUICE_HAPTIC_TAIL_COUNT = 2;
 const WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS = 180;
 const WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT = 2;
 const WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS = 140;
+const MUSHROOM_GROWTH_COUNT = 30;
+const MUSHROOM_GROWTH_MIN_SIZE_PX = 160;
+const MUSHROOM_GROWTH_MAX_SIZE_PX = 200;
+const MUSHROOM_GROWTH_MIN_ROTATION_DEG = 8;
+const MUSHROOM_GROWTH_MAX_ROTATION_DEG = 15;
+// 40% faster than the accepted 70ms cadence. Count and pooling stay fixed;
+// only the pile's sequential pop-in rhythm is tightened.
+const MUSHROOM_GROWTH_STAGGER_MS = 42;
+const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50;
+const MUSHROOM_POLLEN_COUNT = 72;
+const MUSHROOM_POLLEN_MIN_RADIUS = 3.2;
+const MUSHROOM_POLLEN_MAX_RADIUS = MUSHROOM_POLLEN_MIN_RADIUS * 1.4;
+const MUSHROOM_POLLEN_COLORS = [0xFFBB9F, 0xFFD0A5, 0xFFEDC6, 0xFFF7E7, 0xFFEBE8] as const;
+const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 7;
+const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
+const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
+
+function setMushroomForegroundOwnership(active: boolean): void {
+  if (typeof document === 'undefined') return;
+  document.body?.classList.toggle(MUSHROOM_FOREGROUND_CLASS, active);
+  document.getElementById('app')?.classList.toggle(MUSHROOM_FOREGROUND_CLASS, active);
+}
+
+type MushroomPileSlot = { x: number; y: number; sizeBias: number; rotation: -1 | 1; depth: number };
+const MUSHROOM_PILE_SLOTS: MushroomPileSlot[] = [
+  // Four heavily interlocked rows occupy only the lower ~30% of the screen.
+  // Birth order remains front-to-back: every later row sorts behind the first.
+  { x: -0.08, y: 1.085, sizeBias: 1.00, rotation: -1, depth: 94 },
+  { x: 0.08, y: 1.075, sizeBias: 0.98, rotation: 1, depth: 97 },
+  { x: 0.24, y: 1.085, sizeBias: 1.00, rotation: -1, depth: 99 },
+  { x: 0.40, y: 1.075, sizeBias: 0.97, rotation: 1, depth: 101 },
+  { x: 0.57, y: 1.085, sizeBias: 1.00, rotation: -1, depth: 102 },
+  { x: 0.74, y: 1.075, sizeBias: 0.98, rotation: 1, depth: 100 },
+  { x: 0.90, y: 1.085, sizeBias: 1.00, rotation: -1, depth: 98 },
+  { x: 1.06, y: 1.075, sizeBias: 0.98, rotation: 1, depth: 95 },
+
+  { x: -0.02, y: 1.025, sizeBias: 0.98, rotation: 1, depth: 74 },
+  { x: 0.13, y: 1.015, sizeBias: 1.00, rotation: -1, depth: 77 },
+  { x: 0.28, y: 1.025, sizeBias: 0.97, rotation: 1, depth: 79 },
+  { x: 0.43, y: 1.015, sizeBias: 1.00, rotation: -1, depth: 81 },
+  { x: 0.58, y: 1.025, sizeBias: 0.98, rotation: 1, depth: 82 },
+  { x: 0.73, y: 1.015, sizeBias: 1.00, rotation: -1, depth: 80 },
+  { x: 0.88, y: 1.025, sizeBias: 0.97, rotation: 1, depth: 78 },
+  { x: 1.03, y: 1.015, sizeBias: 0.99, rotation: -1, depth: 75 },
+
+  { x: 0.02, y: 0.965, sizeBias: 0.95, rotation: -1, depth: 55 },
+  { x: 0.18, y: 0.955, sizeBias: 0.98, rotation: 1, depth: 58 },
+  { x: 0.34, y: 0.945, sizeBias: 1.00, rotation: -1, depth: 60 },
+  { x: 0.50, y: 0.940, sizeBias: 0.98, rotation: 1, depth: 62 },
+  { x: 0.66, y: 0.945, sizeBias: 1.00, rotation: -1, depth: 61 },
+  { x: 0.82, y: 0.955, sizeBias: 0.97, rotation: 1, depth: 59 },
+  { x: 0.98, y: 0.965, sizeBias: 0.96, rotation: -1, depth: 56 },
+
+  // A shallow inverted-V cap closes the top without climbing toward mid-screen.
+  // Lift the cap row by only 2% of viewport height so a small amount of stem
+  // reads between layers while the dense overlap still hides the board paper.
+  { x: 0.04, y: 0.925, sizeBias: 0.93, rotation: 1, depth: 36 },
+  { x: 0.19, y: 0.905, sizeBias: 0.96, rotation: -1, depth: 39 },
+  { x: 0.34, y: 0.885, sizeBias: 0.99, rotation: 1, depth: 41 },
+  { x: 0.50, y: 0.875, sizeBias: 1.00, rotation: -1, depth: 43 },
+  { x: 0.66, y: 0.885, sizeBias: 0.99, rotation: 1, depth: 42 },
+  { x: 0.81, y: 0.905, sizeBias: 0.96, rotation: -1, depth: 40 },
+  { x: 0.96, y: 0.925, sizeBias: 0.93, rotation: 1, depth: 37 },
+];
 
 function scheduleHapticPulseTrain(startMs: number, count: number, intervalMs: number): void {
   for (let i = 0; i < count; i++) {
@@ -369,6 +433,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   explosionContainer.visible = true;
   explosionContainer.alpha = 1.0;
   explosionContainer.renderable = true;
+  explosionContainer.sortableChildren = true;
   try { explosionContainer.interactiveChildren = false; } catch {}
 
   // Position at stage origin
@@ -475,15 +540,25 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   const direction = options.direction === 'down' ? 'down' : 'up';
   const isCustomDownDrop = direction === 'down' && !usesDefaultBubbleSprites;
   const isMushroomDrop = isCustomDownDrop && options.dropProfile === 'mushroom';
+  if (isMushroomDrop) {
+    // Mushroom grows from below the physical viewport, so its canvas must own
+    // the foreground over the DOM Round indicator and Journey bottom decor.
+    // The class changes stacking only for this bounded finale lifecycle.
+    setMushroomForegroundOwnership(true);
+  }
 
   // iOS stability: keep the premium feel, but avoid saturating the renderer during repeated wild merges.
-  const totalBubbles = isMushroomDrop ? 24 : isCustomDownDrop ? 29 : 48;
+  const totalBubbles = isMushroomDrop ? MUSHROOM_GROWTH_COUNT : isCustomDownDrop ? 29 : 48;
   const lateBurstCount = isCustomDownDrop ? 0 : 18;
-  const spawnDuration = isMushroomDrop ? 520 : isCustomDownDrop ? 1300 : 1500;
+  const spawnDuration = isMushroomDrop
+    ? (MUSHROOM_GROWTH_COUNT - 1) * MUSHROOM_GROWTH_STAGGER_MS
+    : isCustomDownDrop ? 1300 : 1500;
   const spawnBatchSize = isMushroomDrop ? 1 : isCustomDownDrop ? 2 : 3;
-  const maxActive = isMushroomDrop ? 24 : isCustomDownDrop ? 21 : 34;
+  const maxActive = isMushroomDrop ? MUSHROOM_GROWTH_COUNT + MUSHROOM_POLLEN_COUNT : isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
-  const safetyTimeoutMs = spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
+  const safetyTimeoutMs = isMushroomDrop
+    ? 7200
+    : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
   let spawned = 0;
@@ -515,7 +590,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }, safetyTimeoutMs);
 
   // Create bubble function
-  const makeBubble = () => {
+  const makeBubble = (scheduledIndex?: number) => {
     if (!explosionContainer || explosionContainer.destroyed) return;
     
     try {
@@ -555,6 +630,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       else if (r < 0.6) idx = 6;    // bubble 7
       else if (r < 0.7) idx = 7;    // bubble 8
       else idx = Math.floor(Math.random() * 3); // bubble 1/2/3
+    } else if (isMushroomDrop && Number.isFinite(scheduledIndex)) {
+      // Thirty pile slots cycle evenly through the original icon plus the five
+      // supplied variants: five appearances of every texture per finale.
+      idx = Math.max(0, scheduledIndex as number) % bubbleTextures.length;
     } else {
       idx = Math.floor(Math.random() * bubbleTextures.length);
     }
@@ -608,54 +687,104 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     const driftX = (Math.random() - 0.5) * 100; // ±50px horizontal drift
 
     const bubbleTweens: gsap.core.Tween[] = [];
+    let releaseScheduled = false;
 
     const onBubbleComplete = () => {
-      try {
-        bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
-        if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-        bubblePool.release(bubble);
-      } catch {}
-      active = Math.max(0, active - 1);
-      maybeCompleteExplosion();
+      if (releaseScheduled) return;
+      releaseScheduled = true;
+
+      // Never reset/repool a Pixi target from inside GSAP's render stack.
+      // Mushroom owns parallel Sprite + ObservablePoint tracks; releasing from
+      // either track's onComplete can null Pixi transforms while GSAP is still
+      // initializing/rendering the sibling track in the same ticker frame.
+      lifecycle.trackTimeout(() => {
+        if (!isExplosionActive || cleanupInProgress) return;
+        try {
+          (bubble as any)._bubbleTweens = null;
+          bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
+          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
+          bubblePool.release(bubble);
+        } catch {}
+        active = Math.max(0, active - 1);
+        maybeCompleteExplosion();
+      }, 0);
     };
 
     if (isMushroomDrop) {
-      const rotationDirection = Math.random() < 0.5 ? -1 : 1;
-      const initialRotation = Math.random() * Math.PI * 2;
-      const mushroomBirthSpreadX = screenW * 0.5;
-      const mushroomStartX = screenW * 0.5 + (Math.random() - 0.5) * mushroomBirthSpreadX;
-      const mushroomStartY = screenH * 0.48 + (Math.random() - 0.5) * 18;
-      const horizontalSpeed = (Math.random() < 0.5 ? -1 : 1) * screenW * (0.16 + Math.random() * 0.25);
-      const upwardSpeed = -screenH * (0.22 + Math.random() * 0.28);
-      const gravity = screenH * (0.72 + Math.random() * 0.20);
-      const exitY = screenH * (1.12 + Math.random() * 0.08);
-      const totalDuration = (-upwardSpeed + Math.sqrt(
-        upwardSpeed * upwardSpeed + 2 * gravity * (exitY - mushroomStartY)
-      )) / gravity;
-      const rotationTurns = 0.75 + Math.random();
-      const angularSpeed = rotationDirection * (Math.PI * 2 * rotationTurns) / totalDuration;
-      const motion = { time: 0 };
-      bubble.x = mushroomStartX;
-      bubble.y = mushroomStartY;
-      bubble.rotation = initialRotation;
-      const physicsTween = trackTween(motion, {
-        time: totalDuration,
-        duration: totalDuration,
-        ease: 'none',
-        immediateRender: true,
-        onUpdate: () => {
-          const time = motion.time;
-          const progress = Math.max(0, Math.min(1, time / totalDuration));
-          bubble.x = mushroomStartX + horizontalSpeed * time * (1 - progress * 0.24);
-          bubble.y = mushroomStartY + upwardSpeed * time + 0.5 * gravity * time * time;
-          bubble.rotation = initialRotation + angularSpeed * time;
-          const lifecycleScale = mushroomScale * (0.5 + progress);
-          bubble.scale.set(lifecycleScale);
-          bubble.alpha = 1;
-        },
-        onComplete: onBubbleComplete,
+      const growthIndex = Math.max(0, scheduledIndex ?? (spawned - 1));
+      const slot = MUSHROOM_PILE_SLOTS[growthIndex % MUSHROOM_PILE_SLOTS.length];
+      const targetX = screenW * slot.x + (Math.random() - 0.5) * 12;
+      const targetY = screenH * slot.y + (Math.random() - 0.5) * 8;
+      const randomSize = MUSHROOM_GROWTH_MIN_SIZE_PX
+        + Math.random() * (MUSHROOM_GROWTH_MAX_SIZE_PX - MUSHROOM_GROWTH_MIN_SIZE_PX);
+      const targetPixelSize = MUSHROOM_GROWTH_MIN_SIZE_PX
+        + (randomSize - MUSHROOM_GROWTH_MIN_SIZE_PX) * slot.sizeBias;
+      const targetScale = targetPixelSize / Math.max(1, tex.width);
+      const rotationDirection = Math.random() < 0.5 ? slot.rotation : -slot.rotation;
+      const rotationMagnitude = MUSHROOM_GROWTH_MIN_ROTATION_DEG
+        + Math.random() * (MUSHROOM_GROWTH_MAX_ROTATION_DEG - MUSHROOM_GROWTH_MIN_ROTATION_DEG);
+      const targetRotation = rotationDirection * rotationMagnitude * (Math.PI / 180);
+      bubble.anchor.set(0.5, 1);
+      bubble.x = targetX;
+      bubble.y = screenH + tex.height * targetScale * 0.45;
+      bubble.rotation = targetRotation * 0.25;
+      bubble.alpha = 0;
+      bubble.scale.set(targetScale * 0.08);
+      bubble.zIndex = slot.depth;
+
+      const tl = trackTimeline();
+      tl.to(bubble, {
+        y: targetY,
+        alpha: 1,
+        rotation: targetRotation,
+        duration: 0.34,
+        ease: 'back.out(2.5)',
       });
-      bubbleTweens.push(physicsTween);
+      tl.to(bubble.scale, {
+        x: targetScale * 1.14,
+        y: targetScale * 0.88,
+        duration: 0.21,
+        ease: 'power2.out',
+      }, 0);
+      tl.to(bubble.scale, {
+        x: targetScale * 0.94,
+        y: targetScale * 1.08,
+        duration: 0.13,
+        ease: 'power2.out',
+      });
+      tl.to(bubble.scale, {
+        x: targetScale,
+        y: targetScale,
+        duration: 0.16,
+        ease: 'back.out(2.1)',
+      });
+      const revealDelaySeconds = growthIndex * MUSHROOM_GROWTH_STAGGER_MS / 1000;
+      const fullWorldRevealSeconds = (MUSHROOM_GROWTH_COUNT - 1) * MUSHROOM_GROWTH_STAGGER_MS / 1000;
+      const reverseExitDelaySeconds = (MUSHROOM_GROWTH_COUNT - 1 - growthIndex)
+        * MUSHROOM_EXIT_REVERSE_STAGGER_MS / 1000;
+      tl.to(bubble, {
+        duration: 0.62 + Math.max(0, fullWorldRevealSeconds - revealDelaySeconds) + reverseExitDelaySeconds,
+      });
+      tl.to(bubble.scale, {
+        x: targetScale * 1.08,
+        y: targetScale * 0.92,
+        duration: 0.12,
+        ease: 'power1.out',
+      });
+      tl.to(bubble, {
+        y: screenH + tex.height * targetScale,
+        rotation: targetRotation * 0.35,
+        duration: 0.32,
+        ease: 'back.in(1.7)',
+      });
+      tl.to(bubble.scale, {
+        x: targetScale * 0.06,
+        y: targetScale * 0.06,
+        duration: 0.32,
+        ease: 'back.in(1.9)',
+      }, '<');
+      tl.call(onBubbleComplete);
+      bubbleTweens.push(tl as any);
     } else if (isCustomDownDrop) {
       const floorY = screenH * (0.93 + Math.random() * 0.07);
       const bounceY = Math.max(screenH * 0.38, floorY - screenH * (0.18 + Math.random() * 0.20));
@@ -929,14 +1058,203 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   if (isMushroomDrop) {
-    const mushroomPartStaggerMs = 22;
+    const pollenStates: Array<{
+      particle: any;
+      originX: number;
+      originY: number;
+      radius: number;
+      phase: number;
+      twinkleSpeed: number;
+      baseAlpha: number;
+      birthDelay: number;
+      riseSpeed: number;
+      targetY: number;
+      driftDirection: -1 | 1;
+      driftSpeed: number;
+      swayAmplitude: number;
+      swaySpeed: number;
+      depthBand: number;
+      arrivalStartTime: number | null;
+      arrivalStartAlpha: number;
+      arrivalStartScale: number;
+      arrivalDuration: number;
+      finished: boolean;
+    }> = [];
+    let pollenFlockTween: gsap.core.Tween | null = null;
+    let pollenReleaseScheduled = false;
+    const clampPollenX = (x: number) => Math.max(-8, Math.min(screenW + 8, x));
+
+    const releasePollenFlock = () => {
+      if (pollenReleaseScheduled) return;
+      pollenReleaseScheduled = true;
+      // Pool work stays outside GSAP's render stack. The whole flock has one
+      // owner and is returned as one transaction, preventing orphan tweens.
+      lifecycle.trackTimeout(() => {
+        if (!isExplosionActive || cleanupInProgress) return;
+        try { pollenFlockTween?.kill(); } catch {}
+        let released = 0;
+        pollenStates.forEach(({ particle }) => {
+          try {
+            if (particle.parent) particle.parent.removeChild(particle);
+            (particle as any)._mushroomPollen = false;
+            (particle as any)._bubbleTweens = null;
+            graphicsPool.release(particle);
+            released += 1;
+          } catch {}
+        });
+        pollenStates.length = 0;
+        active = Math.max(0, active - released);
+        maybeCompleteExplosion();
+      }, 0);
+    };
+
+    const startMushroomPollenFlock = () => {
+      if (!explosionContainer || explosionContainer.destroyed || cleanupInProgress) return;
+
+      for (let index = 0; index < MUSHROOM_POLLEN_COUNT; index += 1) {
+        const particle = graphicsPool.acquire();
+        if (!particle || particle.destroyed || typeof particle.clear !== 'function') continue;
+        const radius = MUSHROOM_POLLEN_MIN_RADIUS
+          + Math.random() * (MUSHROOM_POLLEN_MAX_RADIUS - MUSHROOM_POLLEN_MIN_RADIUS);
+        const color = MUSHROOM_POLLEN_COLORS[index % MUSHROOM_POLLEN_COLORS.length];
+        const depthBand = index % MUSHROOM_POLLEN_DEPTHS.length;
+        particle.clear();
+        // A soft same-palette halo keeps the pastel core readable against the
+        // paper without introducing another Sprite, texture, or draw owner.
+        particle.circle(0, 0, radius * 1.65).fill({ color, alpha: 0.24 });
+        particle.circle(0, 0, radius).fill({ color, alpha: 1 });
+        particle.circle(-radius * 0.30, -radius * 0.30, radius * 0.32)
+          .fill({ color: 0xFFF7E7, alpha: 0.92 });
+        particle.x = screenW * (0.03 + Math.random() * 0.94);
+        // Every spore is born below the physical viewport and must visibly
+        // travel upward before the final Mushroom birth releases the exit.
+        particle.y = screenH * (1.03 + Math.random() * 0.10);
+        particle.alpha = 0;
+        particle.scale.set(0.88);
+        particle.rotation = 0;
+        particle.eventMode = 'none';
+        // Five ~20% depth bands: foreground, behind row 1, behind row 2,
+        // behind row 3, and behind the rear Mushroom row.
+        particle.zIndex = MUSHROOM_POLLEN_DEPTHS[depthBand];
+        (particle as any)._mushroomPollen = true;
+        explosionContainer.addChild(particle);
+        active += 1;
+        pollenStates.push({
+          particle,
+          originX: particle.x,
+          originY: particle.y,
+          radius,
+          phase: Math.random() * Math.PI * 2,
+          twinkleSpeed: 7.2 + Math.random() * 4.8,
+          baseAlpha: 0.82 + Math.random() * 0.18,
+          // Rear depth bands enter progressively later than the foreground.
+          birthDelay: Math.floor(index / 6) * 0.050 + (index % 6) * 0.010 + depthBand * 0.105,
+          riseSpeed: screenH * (0.25 + Math.random() * 0.07),
+          // Each spore owns a different arrival height across a 20% band.
+          targetY: screenH * (0.50 + Math.random() * 0.20),
+          driftDirection: Math.random() < 0.5 ? -1 : 1,
+          driftSpeed: screenW * (0.020 + Math.random() * 0.025),
+          swayAmplitude: screenW * (0.018 + Math.random() * 0.027),
+          swaySpeed: 2.5 + Math.random() * 1.9,
+          depthBand,
+          arrivalStartTime: null,
+          arrivalStartAlpha: 0,
+          arrivalStartScale: 1,
+          arrivalDuration: 0.30 + Math.random() * 0.22,
+          finished: false,
+        });
+      }
+
+      // One update owner still moves every spore, but each owns a randomized
+      // magic-rise profile. Birth delays create small rolling groups without
+      // creating per-particle GSAP timelines.
+      const flockMotion = { time: 0 };
+      pollenFlockTween = trackTween(flockMotion, {
+        time: MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS,
+        duration: MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS,
+        ease: 'none',
+        onUpdate: () => {
+          const time = flockMotion.time;
+          pollenStates.forEach((state) => {
+            const { particle, phase, originX, originY } = state;
+            if (!particle || particle.destroyed || !particle.parent) return;
+            const age = time - state.birthDelay;
+            if (age <= 0) {
+              particle.alpha = 0;
+              return;
+            }
+            const fadeIn = Math.min(1, age / 0.16);
+            const primarySway = Math.sin(age * state.swaySpeed + phase) * state.swayAmplitude;
+            const secondarySway = Math.sin(age * (state.swaySpeed * 1.83) + phase * 0.61)
+              * state.swayAmplitude * 0.38;
+            const directionalDrift = state.driftDirection * state.driftSpeed * age;
+            const verticalMagic = Math.sin(age * 3.4 + phase) * screenH * 0.012;
+            const sparkleWave = 0.5
+              + 0.34 * Math.sin(age * state.twinkleSpeed + phase)
+              + 0.16 * Math.sin(age * state.twinkleSpeed * 1.71 + phase * 1.37);
+            const sparkle = Math.max(0, Math.min(1, sparkleWave));
+            particle.x = clampPollenX(originX + directionalDrift + primarySway + secondarySway);
+            const risingY = originY - state.riseSpeed * age + verticalMagic;
+            particle.y = Math.max(state.targetY, risingY);
+
+            if (risingY <= state.targetY) {
+              if (state.arrivalStartTime === null) {
+                state.arrivalStartTime = time;
+                state.arrivalStartAlpha = particle.alpha;
+                state.arrivalStartScale = particle.scale.x;
+              }
+              const arrivalProgress = Math.max(0, Math.min(1,
+                (time - state.arrivalStartTime) / state.arrivalDuration,
+              ));
+              const arrivalEnvelope = 1 - arrivalProgress;
+              const arrivalPulse = 0.22 + 0.78
+                * (0.5 + 0.5 * Math.sin(arrivalProgress * Math.PI * 4 + phase));
+              const arrivalFlash = Math.exp(-Math.pow((arrivalProgress - 0.24) / 0.105, 2));
+              particle.alpha = Math.max(0, Math.min(1,
+                (state.arrivalStartAlpha * (0.42 + arrivalPulse * 0.58) + arrivalFlash * 0.52)
+                * arrivalEnvelope,
+              ));
+              particle.scale.set(state.arrivalStartScale * (0.96 + arrivalPulse * 0.08 + arrivalFlash * 0.34));
+              if (arrivalProgress >= 1 && !state.finished) {
+                state.finished = true;
+                particle.alpha = 0;
+                particle.visible = false;
+                if (pollenStates.every((candidate) => candidate.finished)) {
+                  releasePollenFlock();
+                }
+              }
+              return;
+            }
+
+            // Deep continuous fade-in/fade-out is the magical pulse, not a
+            // one-time entrance opacity ramp.
+            particle.alpha = fadeIn * state.baseAlpha * (0.24 + sparkle * 0.76);
+            const sparkleScale = 0.80 + sparkle * 0.50;
+            particle.scale.set(sparkleScale);
+          });
+        },
+        onComplete: releasePollenFlock,
+      });
+      pollenStates.forEach(({ particle }) => {
+        (particle as any)._bubbleTweens = [pollenFlockTween];
+      });
+    };
+
+    lifecycle.trackCleanup(() => {
+      try { pollenFlockTween?.kill(); } catch {}
+      pollenFlockTween = null;
+      pollenStates.length = 0;
+    });
+
     for (let i = 0; i < totalBubbles; i++) {
       lifecycle.trackTimeout(() => {
         if (!isExplosionActive || cleanupInProgress) return;
-        try { makeBubble(); } catch {}
+        try { makeBubble(i); } catch {}
         maybeCompleteExplosion();
-      }, i * mushroomPartStaggerMs);
+      }, i * MUSHROOM_GROWTH_STAGGER_MS);
     }
+    // Spawn together so the spores read as one flock, not independent dots.
+    lifecycle.trackTimeout(startMushroomPollenFlock, 55);
     return;
   }
 
@@ -1390,6 +1708,7 @@ function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
   try {
+    setMushroomForegroundOwnership(false);
     cleanupBubblyOverlay();
     lifecycle.cleanup();
     isExplosionActive = false;
@@ -1462,7 +1781,12 @@ function cleanup(): void {
             gsap.killTweensOf(bubble);
             gsap.killTweensOf(bubble.scale);
             if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-            pool.release(bubble as Sprite);
+            if ((bubble as any)._mushroomPollen === true) {
+              (bubble as any)._mushroomPollen = false;
+              graphicsPool.release(bubble as any);
+            } else {
+              pool.release(bubble as Sprite);
+            }
           } catch (e) {
             // Silently fail
           }
@@ -1480,10 +1804,12 @@ function cleanup(): void {
         console.warn('⚠️ cleanup: Failed to remove container from parent:', e);
       }
       
-      // Destroy container
+      // Destroy only the owner container. Every Sprite/Graphics child above was
+      // explicitly detached and returned to its pool; `children:true` can race
+      // a GSAP render and destroy a pooled Pixi target, nulling its transforms.
       try {
         if (!container.destroyed) {
-          container.destroy?.({ children: true });
+          container.destroy?.({ children: false });
         }
       } catch (e) {
         console.warn('⚠️ cleanup: Failed to destroy container:', e);

@@ -65,6 +65,7 @@ const CRITICAL_IMAGES: string[] = [
   ...Array.from({ length: 7 }, (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`),
   './assets/shop/mushroom/mushroom.png',
   './assets/shop/mushroom/mushroom@2x.png',
+  ...Array.from({ length: 5 }, (_, index) => `./assets/shop/mushroom/mushroom${index + 1}.png`),
   ...Array.from({ length: 6 }, (_, index) => `./assets/shop/mushroom/part${index + 1}@2x.png`),
   './assets/journey assets/natpis.png',
   './assets/journey assets/natpis@2x.png',

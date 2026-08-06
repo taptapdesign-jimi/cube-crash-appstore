@@ -1057,13 +1057,7 @@ class CollectiblesManager {
     }
 
     // Hide navigation (Journey has its own back button)
-    const navElement = document.getElementById('independent-nav');
-    if (navElement) {
-      navElement.style.display = 'none';
-      navElement.style.visibility = 'hidden';
-      navElement.style.opacity = '0';
-      logger.info('✅ Navigation hidden - Journey has own back button');
-    }
+    uiManager.hideNavigation();
 
     // Preload already happens in constructor, skip await to show screen immediately
     // Images will load progressively in the background
@@ -1977,22 +1971,6 @@ class CollectiblesManager {
             else slide.classList.remove('active');
           });
         }
-      }
-
-      // 🔥 BUG FIX: Final navigation visibility enforcement BEFORE animation
-      // This ensures navigation is definitely visible even if there were race conditions earlier
-      const navElementFinal = document.getElementById('independent-nav');
-      if (navElementFinal) {
-        navElementFinal.style.removeProperty('display');
-        navElementFinal.style.removeProperty('visibility');
-        navElementFinal.style.removeProperty('opacity');
-        navElementFinal.style.removeProperty('pointer-events');
-        navElementFinal.style.display = 'block';
-        navElementFinal.style.visibility = 'visible';
-        navElementFinal.style.opacity = '1';
-        navElementFinal.style.pointerEvents = 'auto';
-        navElementFinal.setAttribute('aria-hidden', 'false');
-        logger.info('✅ Final navigation visibility enforcement - navigation guaranteed visible');
       }
 
       // 🔥 CRITICAL FIX: Ensure #app element is DISABLED when returning to homepage

@@ -32,6 +32,11 @@ import {
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import { registerCta, type CtaController } from './cta-system.js';
+import {
+  commitHomepageNavigation,
+  hideHomepageNavigation,
+  primeHomepageNavigation,
+} from './navigation-control.js';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
@@ -871,8 +876,7 @@ class UIManager {
       // 🔥 CRITICAL: Add animate-enter-initial class to keep at scale(0)
       // This matches what reverseBounce expects and prevents flash
       independentNav.classList.add('animate-enter-initial');
-      independentNav.style.display = 'block'; // Must be block for animation to work
-      independentNav.style.pointerEvents = 'none'; // Disable interaction until animation
+      primeHomepageNavigation('ui-manager:showHomepage-prime');
       logger.info('✅ Navigation prepared for enter animation (animate-enter-initial class)');
     }
 
@@ -1168,51 +1172,13 @@ class UIManager {
   
   // Hide navigation
   hideNavigation(): void {
-    const navElement = document.querySelector('nav');
-    if (navElement) {
-      navElement.style.display = 'none';
-      logger.info('✅ Navigation hidden');
-    }
+    hideHomepageNavigation('ui-manager:hideNavigation');
+    logger.info('✅ Homepage navigation hidden');
   }
   
   // Show navigation
   showNavigation(): void {
-    const navElement = document.getElementById('independent-nav');
-    if (navElement) {
-      // Remove !important styles that might have been set
-      navElement.style.removeProperty('display');
-      navElement.style.removeProperty('visibility');
-      navElement.style.removeProperty('opacity');
-      navElement.style.removeProperty('pointer-events');
-      navElement.style.removeProperty('z-index');
-      // 🔥 CRITICAL: Explicitly make visible and on top
-      navElement.style.display = 'flex';
-      navElement.style.visibility = 'visible';
-      navElement.style.opacity = '1';
-      navElement.style.pointerEvents = 'auto';
-      navElement.style.zIndex = '100';
-      navElement.setAttribute('aria-hidden', 'false');
-      navElement.removeAttribute('hidden');
-      logger.info('✅ Navigation container shown');
-      
-      // 🔥 CRITICAL: Also show all navigation buttons inside
-      const navButtons = navElement.querySelectorAll('.independent-nav-button');
-      navButtons.forEach((button) => {
-        const btn = button as HTMLElement;
-        btn.style.removeProperty('display');
-        btn.style.removeProperty('visibility');
-        btn.style.removeProperty('opacity');
-        btn.style.removeProperty('pointer-events');
-        btn.style.display = 'flex';
-        btn.style.visibility = 'visible';
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-        btn.style.cursor = 'pointer';
-      });
-      if (navButtons.length > 0) {
-        logger.info(`✅ ${navButtons.length} navigation buttons shown`);
-      }
-    }
+    commitHomepageNavigation('ui-manager:showNavigation');
   }
   
   // Hide app element
@@ -1414,30 +1380,7 @@ class UIManager {
       
       // 🔥 FIX: Explicitly show and enable navigation (independent-nav)
       // Navigation might have been hidden or pointer-events disabled during game
-      const independentNav = document.getElementById('independent-nav');
-      if (independentNav) {
-        independentNav.style.removeProperty('display');
-        independentNav.style.removeProperty('visibility');
-        independentNav.style.removeProperty('opacity');
-        independentNav.style.removeProperty('pointer-events');
-        independentNav.style.display = 'block';
-        independentNav.style.visibility = 'visible';
-        independentNav.style.opacity = '1';
-        independentNav.style.pointerEvents = 'auto';
-        independentNav.setAttribute('aria-hidden', 'false');
-        logger.info('✅ Independent navigation shown and enabled in showHomepageQuietly');
-      }
-      
-      // 🔥 FIX: Ensure all navigation buttons are clickable
-      const navButtons = document.querySelectorAll('.independent-nav-button');
-      navButtons.forEach((button) => {
-        const btn = button as HTMLElement;
-        btn.style.pointerEvents = 'auto';
-        btn.style.cursor = 'pointer';
-      });
-      if (navButtons.length > 0) {
-        logger.info(`✅ ${navButtons.length} navigation buttons enabled in showHomepageQuietly`);
-      }
+      primeHomepageNavigation('ui-manager:showHomepageQuietly-prime');
       
       // 🔥 V140 STYLE: Don't manipulate animation classes here!
       // animateSliderEnter() handles all animation
@@ -2493,20 +2436,8 @@ class UIManager {
   // Having dual lock state management caused desynchronization issues
 
   private setNavigationVisibility(visible: boolean): void {
-    if (!this.elements.independentNav) return;
-    if (visible) {
-      // 🔥 CRITICAL: Explicitly set all properties to ensure visibility
-      this.elements.independentNav.style.display = 'block';
-      this.elements.independentNav.style.visibility = 'visible';
-      this.elements.independentNav.style.opacity = '1';
-      this.elements.independentNav.removeAttribute('hidden');
-      this.elements.independentNav.setAttribute('aria-hidden', 'false');
-    } else {
-      this.elements.independentNav.style.display = 'none';
-      this.elements.independentNav.style.visibility = 'hidden';
-      this.elements.independentNav.style.opacity = '0';
-      this.elements.independentNav.setAttribute('aria-hidden', 'true');
-    }
+    if (visible) commitHomepageNavigation('ui-manager:setNavigationVisibility');
+    else hideHomepageNavigation('ui-manager:setNavigationVisibility');
   }
   
   // Get element by ID

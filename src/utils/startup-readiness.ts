@@ -16,6 +16,7 @@ const STARTUP_IMAGE_SELECTOR = [
   '#home-logo',
   '.logo-addon',
   '#home-fixed-shadow-bottom',
+  '#independent-nav .independent-nav-button img',
   '#launch-studio-logo',
   '#launch-studio-character',
 ].join(', ');
@@ -166,7 +167,7 @@ export async function waitForHomepageFirstPaintReady(options: StartupReadinessOp
 
   const readiness = (async () => {
     const images = await waitForStartupImagesDecoded(
-      '#slider-wrapper .hero-image, #home-logo, .logo-addon, #home-fixed-shadow-bottom'
+      '#slider-wrapper .hero-image, #home-logo, .logo-addon, #home-fixed-shadow-bottom, #independent-nav .independent-nav-button img'
     );
     await waitFrames(2);
     logger.info('✅ Homepage first paint readiness complete', undefined, {

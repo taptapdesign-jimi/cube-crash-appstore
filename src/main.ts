@@ -47,7 +47,10 @@ import { PerformanceMonitor } from './utils/performance-monitor.js';
 import { AccessibilityManager } from './utils/accessibility.js';
 import { AppStoreCompliance } from './utils/app-store-compliance.js';
 import { appManager } from './ui/app-manager.js';
-import { initNavigationControl } from './modules/navigation-control.js';
+import {
+  initNavigationControl,
+  primeHomepageNavigation,
+} from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, finalizeJourneySliderExit, finalizeSliderEnterVisibility, prepareSliderEnter, primeHomepageCtaEnterTransform, resetAnimationFlags } from './utils/animations.js';
@@ -58,7 +61,6 @@ import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
 import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
-import { SLIDER_CONFIG } from './constants/animations.js';
 import { appSpatialMotion } from './modules/journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
 
@@ -176,133 +178,14 @@ function emitHomepageEnterOwnerSnapshot(phase: string, targetSlideIndex: number)
   });
 }
 
-function restoreHomepageNavigationTree(reason: string, options: { preserveNavScale?: boolean } = {}): void {
-  const { preserveNavScale = false } = options;
-  const nav = document.getElementById('independent-nav') as HTMLElement | null;
-  if (!nav) {
-    console.warn('⚠️ Homepage nav restore: #independent-nav missing', { reason });
-    return;
-  }
-
-  nav.classList.remove('animate-exit', 'animate-enter', 'animate-enter-complete', 'animate-reset', 'exit-animation', 'animation-complete');
-  if (preserveNavScale) {
-    // Pre-enter restore must rebuild the nav child tree without revealing the
-    // nav for a single frame. The actual visible scale-up is owned by
-    // animateSliderEnter()/reverseBounce.
-    nav.classList.add('animate-enter-initial');
-  } else {
-    nav.classList.remove('animate-enter-initial');
-  }
-  nav.removeAttribute('hidden');
-  nav.setAttribute('aria-hidden', 'false');
-  nav.style.display = 'block';
-  nav.style.visibility = 'visible';
-  nav.style.opacity = '1';
-  nav.style.pointerEvents = 'none';
-  nav.style.zIndex = '100';
-  nav.style.removeProperty('transform');
-  nav.style.removeProperty('-webkit-transform');
-  nav.style.removeProperty('transition');
-  nav.style.removeProperty('-webkit-transition');
-  nav.style.removeProperty('will-change');
-
-  const content = nav.querySelector('.independent-nav-content') as HTMLElement | null;
-  if (content) {
-    content.style.display = 'flex';
-    content.style.visibility = 'visible';
-    content.style.opacity = '1';
-    content.style.pointerEvents = 'none';
-    content.style.removeProperty('transition');
-    content.style.removeProperty('-webkit-transition');
-  }
-
-  const buttonsWrap = nav.querySelector('.independent-nav-buttons') as HTMLElement | null;
-  if (buttonsWrap) {
-    buttonsWrap.style.display = 'flex';
-    buttonsWrap.style.visibility = 'visible';
-    buttonsWrap.style.opacity = '1';
-    buttonsWrap.style.pointerEvents = 'auto';
-    buttonsWrap.style.removeProperty('transition');
-    buttonsWrap.style.removeProperty('-webkit-transition');
-  }
-
-  const navButtons = Array.from(nav.querySelectorAll('.independent-nav-button')) as HTMLElement[];
-  navButtons.forEach((button) => {
-    button.style.display = 'flex';
-    button.style.visibility = 'visible';
-    button.style.opacity = '1';
-    button.style.pointerEvents = 'auto';
-    button.style.cursor = 'pointer';
-    button.style.removeProperty('transition');
-    button.style.removeProperty('-webkit-transition');
-    button.style.removeProperty('filter');
-    button.style.removeProperty('-webkit-filter');
-    if (button.classList.contains('active')) {
-      button.style.transform = 'scale(1)';
-      button.style.webkitTransform = 'translateZ(0) scale(1)';
-    } else {
-      button.style.transform = 'translateZ(0)';
-      button.style.webkitTransform = 'translateZ(0)';
-    }
-  });
-
-  const iconNodes = Array.from(nav.querySelectorAll('.nav-icon-motion, .nav-icon-visual, .independent-nav-button img')) as HTMLElement[];
-  navButtons.forEach((button) => {
-    const isActive = button.classList.contains('active');
-    const motion = button.querySelector('.nav-icon-motion') as HTMLElement | null;
-    const visual = button.querySelector('.nav-icon-visual') as HTMLElement | null;
-    const image = button.querySelector('img') as HTMLElement | null;
-
-    [motion, visual, image].filter(Boolean).forEach((node) => {
-      const element = node as HTMLElement;
-      element.style.display = element.tagName === 'IMG' ? 'block' : 'flex';
-      element.style.visibility = 'visible';
-      element.style.opacity = '1';
-      element.style.pointerEvents = 'none';
-      element.style.removeProperty('transition');
-      element.style.removeProperty('-webkit-transition');
-      element.style.removeProperty('filter');
-      element.style.removeProperty('-webkit-filter');
-    });
-
-    if (motion) {
-      gsap.killTweensOf(motion);
-      gsap.set(motion, {
-        y: isActive ? SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
-        transformOrigin: '50% 70%',
-        force3D: true,
-      });
-    }
-    if (visual) {
-      gsap.killTweensOf(visual);
-      gsap.set(visual, { scaleX: 1, scaleY: 1, transformOrigin: '50% 70%', force3D: true });
-    }
-    if (image) {
-      gsap.killTweensOf(image);
-      gsap.set(image, { clearProps: 'transform' });
-    }
-  });
-
-  console.log('🏠 Homepage navigation tree restored', {
-    reason,
-    preserveNavScale,
-    buttonCount: navButtons.length,
-    iconNodeCount: iconNodes.length,
-  });
-}
-
 function lockHomepageEnterInteraction(): void {
   [
     document.getElementById('home'),
     document.getElementById('slider-container'),
     document.getElementById('slider-wrapper'),
-    document.getElementById('independent-nav'),
     document.querySelector('.slider-slide.active .slide-button'),
   ].forEach((target) => {
     if (target instanceof HTMLElement) target.style.pointerEvents = 'none';
-  });
-  document.querySelectorAll<HTMLElement>('.independent-nav-button').forEach((button) => {
-    button.style.pointerEvents = 'none';
   });
 }
 
@@ -342,9 +225,11 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
   targets.forEach((target) => {
     target.classList.remove('animate-exit', 'animate-enter', 'animate-enter-complete', 'animate-reset', 'soft-cartoon-bounce');
     target.classList.add('animate-enter-initial');
-    target.style.display = target.id === 'independent-nav' ? 'block' : '';
-    target.style.removeProperty('visibility');
-    target.style.removeProperty('opacity');
+    if (target.id !== 'independent-nav') {
+      target.style.removeProperty('display');
+      target.style.removeProperty('visibility');
+      target.style.removeProperty('opacity');
+    }
     target.style.removeProperty('transition');
     target.style.removeProperty('-webkit-transition');
     target.style.removeProperty('transform');
@@ -386,7 +271,7 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
   // The enter owner unlocks Homepage only after every delayed visual callback
   // has completed. This prevents a fast CTA tap from overlapping two routes.
   home.style.pointerEvents = 'none';
-  restoreHomepageNavigationTree(`${reason}:before-enter-animation`, { preserveNavScale: true });
+  primeHomepageNavigation(`${reason}:before-enter-animation`);
   lockHomepageEnterInteraction();
 
   try {
@@ -492,8 +377,6 @@ async function playHomepageSliderEnterHandoff(
     emitHomepageEnterOwnerSnapshot('finalized-position', targetSlideIndex);
     finalizeSliderEnterVisibility(`${reason}:safety-finalize`);
     uiManager.hideApp();
-    uiManager.showNavigation();
-    restoreHomepageNavigationTree(`${reason}:safety-finalize`);
     try {
       // Entering gameplay intentionally destroys SliderManager and its input
       // listeners. Restore them only after this owner has finished its visual
@@ -1262,6 +1145,16 @@ async function startAssetPreloading(): Promise<void> {
     // 🔥 CRITICAL: NOW remove hidden attribute - all styles are already set
     // CSS rule #home:not([hidden]) will match, but opacity is 0 so it won't be visible
     homeElementAfter.removeAttribute('hidden');
+
+    // Acquire the Homepage-owned navigation while the Homepage shell is still
+    // transparent. Cold start previously kept the nav tree under the inactive
+    // owner (display:none!important) through forceReady and first-paint
+    // readiness, then acquired it in the same task that started its scale
+    // transition. Warm returns prepare this owner earlier, which is why the
+    // exact same navigation appeared only after visiting Journey. Owning it
+    // here gives the browser real layout/decode frames without exposing a
+    // pre-enter flash because #home is still opacity:0.
+    appZoneManager.markHomeMenu('startup-homepage-enter');
     
     // 🔥 CRITICAL: Hide ALL homepage elements BEFORE making homepage visible
     // This prevents blink effect where elements are visible before animation starts
@@ -1288,7 +1181,9 @@ async function startAssetPreloading(): Promise<void> {
     elementsToHide.forEach(el => {
       if (el) {
         (el as HTMLElement).classList.add('animate-enter-initial');
-        (el as HTMLElement).style.display = 'block'; // Must be visible for animation
+        if ((el as HTMLElement).id !== 'independent-nav') {
+          (el as HTMLElement).style.display = 'block';
+        }
       }
     });
     
@@ -1380,7 +1275,6 @@ async function startAssetPreloading(): Promise<void> {
     // No delay - animation will make elements visible
     console.log('🎬 Starting homepage enter animation...');
     try {
-      appZoneManager.markHomeMenu('startup-homepage-enter');
       animateSliderEnter();
       schedulePostHomePerformanceWarmup();
       console.log('✅ Homepage enter animation started');
@@ -3033,13 +2927,7 @@ async function startNewRun(boardId: number): Promise<void> {
       }
       
       // Ensure navigation stays hidden (Journey has its own back button)
-      const navElement = document.getElementById('independent-nav');
-      if (navElement) {
-        navElement.style.display = 'none';
-        navElement.style.visibility = 'hidden';
-        navElement.style.opacity = '0';
-        navElement.setAttribute('aria-hidden', 'true');
-      }
+      uiManager.hideNavigation();
       
       // 🔥 CRITICAL FIX: Hide app element AFTER detail modal is shown
       // This ensures the #app element doesn't block clicks on the slider/homepage below
@@ -3117,13 +3005,7 @@ async function startNewRun(boardId: number): Promise<void> {
       (window as any).__ccSoundtrackResumedThisExit = true;
 
       // Ensure navigation stays hidden (Journey has its own back button)
-      const navElement = document.getElementById('independent-nav');
-      if (navElement) {
-        navElement.style.display = 'none';
-        navElement.style.visibility = 'hidden';
-        navElement.style.opacity = '0';
-        navElement.setAttribute('aria-hidden', 'true');
-      }
+      uiManager.hideNavigation();
       
       // 🔥 CRITICAL FIX: Hide app element AFTER Journey screen is shown
       // This ensures exit animation was fully visible before hiding app
