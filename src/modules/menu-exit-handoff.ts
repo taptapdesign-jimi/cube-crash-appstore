@@ -141,12 +141,6 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
   try {
     if (options.skipBoardExit) (window as any).__skipBoardExitAnimation = true;
     if (options.fastArcadeCleanExit) (window as any).__ccFastArcadeCleanExit = true;
-    if (options.target === 'homepage') {
-      try {
-        const { appZoneManager } = await import('./app-zone-manager.js');
-        appZoneManager.markHomeMenu(`requestExitToMenu:${options.reason}`);
-      } catch {}
-    }
   } catch {}
 
   const startedAt = Date.now();

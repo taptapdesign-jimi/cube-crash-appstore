@@ -7,6 +7,22 @@ import {
   SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED,
   SPATIAL_MOTION_INTRO_COOLDOWN_MS,
 } from '../spatial-motion-permission-modal.js';
+import { gsap } from 'gsap';
+
+async function finishActiveCtaMotion(): Promise<void> {
+  // The suite intentionally caps requestAnimationFrame so GSAP cannot install
+  // a recursive test-DOM ticker. Drive only the currently owned CTA tweens to
+  // completion when a test needs to cross the CTA-before-modal handoff.
+  await Promise.resolve();
+  await Promise.resolve();
+  gsap.globalTimeline.getChildren().forEach(animation => animation.progress(1));
+  // Flush the controller exit, group Promise.all, and modal handoff layers so
+  // fake-timer assertions begin after the 650ms surface timer is scheduled.
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 describe('Spatial Motion permission modal', () => {
   beforeEach(() => {
@@ -101,6 +117,7 @@ describe('Spatial Motion permission modal', () => {
     expect(document.activeElement).toBe(document.querySelector('.journey-spatial-permission-card'));
     enableButton?.click();
     expect(requestPermission).toHaveBeenCalledTimes(1);
+    await finishActiveCtaMotion();
     await expect(result).resolves.toBe('enabled');
     expect(isSpatialMotionPermissionModalActive()).toBe(false);
     expect(localStorage.getItem('cc_journey_spatial_intro_seen_v3')).toBeNull();
@@ -112,6 +129,7 @@ describe('Spatial Motion permission modal', () => {
     const result = showSpatialMotionPermissionModal(requestPermission);
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-enable')?.click();
     expect(requestPermission).toHaveBeenCalledTimes(1);
+    await finishActiveCtaMotion();
     await expect(result).resolves.toBe('cancelled');
     expect(isSpatialMotionPermissionModalActive()).toBe(false);
   });
@@ -166,6 +184,7 @@ describe('Spatial Motion permission modal', () => {
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
 
+    await finishActiveCtaMotion();
     await expect(result).resolves.toBe('dismissed');
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
     expect(localStorage.getItem('cc_spatial_motion_intro_dismissed_at_v1')).toBe(String(now));
@@ -183,7 +202,7 @@ describe('Spatial Motion permission modal', () => {
     void result.then(() => { settled = true; });
 
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
-    await Promise.resolve();
+    await finishActiveCtaMotion();
 
     expect(settled).toBe(false);
     expect(isSpatialMotionPermissionModalActive()).toBe(true);
@@ -213,6 +232,7 @@ describe('Spatial Motion permission modal', () => {
     localStorage.setItem('cc_spatial_motion_intro_dismissed_at_v1', String(dismissedAt));
     const firstResult = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
+    await finishActiveCtaMotion();
     await firstResult;
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
 
@@ -224,6 +244,7 @@ describe('Spatial Motion permission modal', () => {
     const forcedResult = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     const dismissButtons = document.querySelectorAll<HTMLButtonElement>('.journey-spatial-permission-dismiss');
     dismissButtons[dismissButtons.length - 1]?.click();
+    await finishActiveCtaMotion();
     await forcedResult;
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
     expect(localStorage.getItem('cc_spatial_motion_intro_dismissed_at_v1')).toBe(String(dismissedAt));

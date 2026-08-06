@@ -1,3 +1,5 @@
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+
 type HudDropDeps = {
   app?: { canvas?: HTMLCanvasElement | null } | null;
   HUD: { HUD_ROOT?: any; playHudDrop?: (opts?: any) => void };
@@ -19,6 +21,11 @@ export function handleHudDropOnHalf({
   hudDropPending,
   setHudDropPending,
 }: HudDropDeps & { hudDropPending: boolean; setHudDropPending: (v: boolean) => void }){
+  if (!isGameplayHudRevealAllowed()) {
+    setHudDropPending(false);
+    devLog('⏭️ HUD onHalf reveal cancelled because gameplay no longer owns visibility');
+    return;
+  }
   // 🔥 CRITICAL FIX: Ensure HUD drop is triggered for new games
   if (hudDropPending){
     devLog('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
@@ -31,6 +38,7 @@ export function handleHudDropOnHalf({
       if (typeof HUD.playHudDrop === 'function') {
         // Start on next paint so user definitely sees the drop (especially iPhone)
         trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
+          if (!isGameplayHudRevealAllowed()) return;
           // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
           if (app && app.canvas) {
             app.canvas.style.opacity = '1';

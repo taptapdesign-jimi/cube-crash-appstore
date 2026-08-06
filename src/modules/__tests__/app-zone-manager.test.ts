@@ -1,5 +1,11 @@
 import { appZoneManager } from '../app-zone-manager';
 import { getRunMode, RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
+import {
+  cleanupNavigationControl,
+  getHomepageNavigationLifecycleSnapshot,
+  initNavigationControl,
+  primeHomepageNavigation,
+} from '../navigation-control';
 
 jest.mock('../../core/logger.js', () => ({
   logger: {
@@ -18,6 +24,8 @@ jest.mock('../journey-boards-manager.js', () => ({
 
 describe('app-zone-manager', () => {
   beforeEach(() => {
+    cleanupNavigationControl();
+    document.body.innerHTML = '';
     localStorage.clear();
     delete (global as any).__ccAppZone;
     delete (global as any).__ccRunMode;
@@ -28,6 +36,11 @@ describe('app-zone-manager', () => {
     delete (global as any).__ccReturningFromInterimBoard;
     delete (global as any).__ccCameFromDetailModal;
     delete (global as any).__ccDetailModalBoardId;
+  });
+
+  afterEach(() => {
+    cleanupNavigationControl();
+    document.body.innerHTML = '';
   });
 
   it('prepares arcade as a clean home-origin board zone', () => {
@@ -47,6 +60,43 @@ describe('app-zone-manager', () => {
     expect((global as any).__ccCameFromDetailModal).toBeUndefined();
     expect(localStorage.getItem('__ccCameFromHomepage')).toBe('true');
     expect(localStorage.getItem('__ccCameFromJourney')).toBeNull();
+  });
+
+  it('acquires a prepared Homepage enter without painting navigation before scale-zero prime', () => {
+    document.body.innerHTML = `
+      <div id="independent-nav">
+        <div class="independent-nav-content">
+          <div class="independent-nav-buttons">
+            <button class="independent-nav-button"><img alt="" /></button>
+          </div>
+        </div>
+      </div>
+    `;
+    initNavigationControl();
+    appZoneManager.enterArcadeBoardZone('test-gameplay');
+
+    appZoneManager.prepareHomeMenuEnter('test-prepared-return');
+
+    expect(appZoneManager.getCurrentZone()).toBe('home');
+    expect(getHomepageNavigationLifecycleSnapshot()).toMatchObject({
+      phase: 'inactive',
+      owner: 'inactive',
+      hidden: true,
+      display: 'none',
+    });
+
+    const nav = document.getElementById('independent-nav') as HTMLElement;
+    nav.classList.add('animate-enter-initial');
+    nav.style.transform = 'scale(0)';
+    primeHomepageNavigation('test:after-scale-zero');
+
+    expect(getHomepageNavigationLifecycleSnapshot()).toMatchObject({
+      phase: 'primed',
+      owner: 'active',
+      hidden: false,
+      display: 'block',
+      transform: 'scale(0)',
+    });
   });
 
   it('prepares journey as a journey-origin board zone', () => {

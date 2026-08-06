@@ -296,6 +296,15 @@ async function playHomepageSliderEnterHandoff(
   const lease = homepageEnterTransitionOwner.begin(reason, targetSlideIndex);
   const motionHoldReason = `homepage-enter:${reason}`;
   console.log(`🏠 Homepage enter handoff: ${reason}`, { targetSlideIndex, skipFirstPaintReady });
+  // Acquire the route without painting navigation. The prime step below first
+  // gives the nav its deterministic scale(0) state, then makes it visible so
+  // Arcade return cannot flash full-size icons before their bounce begins.
+  appZoneManager.prepareHomeMenuEnter(`homepage-enter-owner:${reason}`);
+  gameState.setState({
+    homepageReady: true,
+    isGameActive: false,
+    isPaused: false,
+  });
   appSpatialMotion.holdActivations(motionHoldReason);
   lease.onCancel((cancelReason) => {
     cancelSliderEnterAnimation(`${reason}:${cancelReason}`);
@@ -2028,8 +2037,14 @@ async function startNewRun(boardId: number): Promise<void> {
     homepageEnterTransitionOwner.cancel('homepage-to-arcade');
     cancelSliderEnterAnimation('homepage-to-arcade');
 
-    appZoneManager.prepareArcadeRunOrigin(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
-    resetEndgameRuntimeFlags(options?.resumeArcade ? 'triggerGameStartSequence:resumeArcade' : 'triggerGameStartSequence:newArcade');
+    const arcadeStartReason = options?.resumeArcade
+      ? 'triggerGameStartSequence:resumeArcade'
+      : 'triggerGameStartSequence:newArcade';
+    // Preserve Homepage ownership until its standard exit finishes. Moving to
+    // board-arcade earlier hides the navigation synchronously, so it cannot
+    // participate in the same bounce-out that Journey already uses.
+    appZoneManager.markArcadeRunOrigin();
+    resetEndgameRuntimeFlags(arcadeStartReason);
 
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
     // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
@@ -2041,6 +2056,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // Step 2: Route only after every Homepage target has completed its exit.
     console.log('🎮 Step 2: Starting game after exit animation');
+    appZoneManager.enterArcadeBoardZone(arcadeStartReason);
     await appZoneManager.hideHomepageForGame('triggerGameStartSequence:start-game');
     finalizeJourneySliderExit();
     if (options?.resumeArcade) {
@@ -2533,17 +2549,6 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to run cleanupGame:', error);
     }
     
-    // Step 4b: Clean up navigation control (MutationObserver)
-    try {
-      const { cleanupNavigationControl } = await import('./modules/navigation-control.js');
-      if (typeof cleanupNavigationControl === 'function') {
-        cleanupNavigationControl();
-        console.log('✅ Navigation control cleaned up');
-      }
-    } catch (navError) {
-      console.warn('⚠️ Failed to cleanup navigation control:', navError);
-    }
-    
     // Step 5: Clean up Journey Boards Manager (event listeners, animations)
     // Direct detail-modal returns reuse the Journey detail DOM immediately. Full cleanup here can
     // remove/reset stats internals before openBoardDetailsById repopulates the modal.
@@ -2806,8 +2811,7 @@ async function startNewRun(boardId: number): Promise<void> {
       } else if (isFastArcadeCleanExit) {
         console.log('⚡ Fast arcade clean exit: deferring homepage shell show until prepared enter handoff');
       } else {
-        appZoneManager.markHomeMenu('exitToMenu:homepage-single-owner');
-        console.log('✅ Homepage route prepared; shared enter owner will reveal it once');
+        console.log('✅ Homepage route resolved; shared enter owner will acquire and reveal it once');
       }
     } else {
       console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, returning through app zone router`);
@@ -2815,12 +2819,18 @@ async function startNewRun(boardId: number): Promise<void> {
       console.log('✅ Homepage shell hidden through app zone router');
     }
     
-    // Reset game state
-    gameState.setState({
-      homepageReady: true,
-      isGameActive: false,
-      isPaused: false
-    });
+    // Homepage state is published by playHomepageSliderEnterHandoff while its
+    // lease is active, so UIManager subscribers cannot perform a competing
+    // showHomepage()/forceReady(). Non-home routes keep the existing reset.
+    if (targetSlide !== 0) {
+      gameState.setState({
+        homepageReady: true,
+        isGameActive: false,
+        isPaused: false,
+      });
+    } else if (gameState.get('isPaused') !== false) {
+      gameState.set('isPaused', false);
+    }
     
     if (exitRoute.target === 'journey') {
       // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
@@ -3025,7 +3035,10 @@ async function startNewRun(boardId: number): Promise<void> {
           await waitForHomepageEnterPrime();
           await new Promise(resolve => setTimeout(resolve, 120));
         }
-        await playHomepageSliderEnterHandoff('exitToMenu:homepage-final');
+        await playHomepageSliderEnterHandoff('exitToMenu:homepage-final', {
+          targetSlideIndex: 0,
+          skipFirstPaintReady: true,
+        });
         // Resume menu soundtrack with fade in when homepage is shown
         try {
           const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');

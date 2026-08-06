@@ -115,8 +115,16 @@ class AppZoneManager {
   }
 
   prepareArcadeRunOrigin(reason = 'arcade-run'): void {
+    this.markArcadeRunOrigin();
+    this.enterArcadeBoardZone(reason);
+  }
+
+  markArcadeRunOrigin(): void {
     markArcadeHomeRunOrigin();
     this.lastMenuTarget = 'home';
+  }
+
+  enterArcadeBoardZone(reason = 'arcade-run'): void {
     this.setZone('board-arcade', reason);
   }
 
@@ -133,9 +141,18 @@ class AppZoneManager {
   }
 
   markHomeMenu(reason = 'home-menu'): void {
+    this.prepareHomeMenuEnter(reason);
+    primeHomepageNavigation(`app-zone:${reason}`);
+  }
+
+  /**
+   * Acquire the Homepage route without painting navigation. Prepared enter
+   * owners call this while the nav is still inactive, apply scale(0), and
+   * only then prime the nav tree for its visible bounce.
+   */
+  prepareHomeMenuEnter(reason = 'home-menu-enter'): void {
     this.lastMenuTarget = 'home';
     this.setZone('home', reason);
-    primeHomepageNavigation(`app-zone:${reason}`);
     try {
       (window as any).__ccCameFromHomepage = true;
       (window as any).__ccCameFromJourney = false;

@@ -65,14 +65,15 @@ const WILD_JUICE_HAPTIC_TAIL_COUNT = 2;
 const WILD_JUICE_HAPTIC_TAIL_INTERVAL_MS = 180;
 const WILD_JUICE_HAPTIC_FINAL_TAIL_COUNT = 2;
 const WILD_JUICE_HAPTIC_FINAL_TAIL_INTERVAL_MS = 140;
-const MUSHROOM_GROWTH_COUNT = 30;
+const MUSHROOM_GROWTH_COUNT = 21;
 const MUSHROOM_GROWTH_MIN_SIZE_PX = 160;
 const MUSHROOM_GROWTH_MAX_SIZE_PX = 200;
 const MUSHROOM_GROWTH_MIN_ROTATION_DEG = 8;
 const MUSHROOM_GROWTH_MAX_ROTATION_DEG = 15;
-// 40% faster than the accepted 70ms cadence. Count and pooling stay fixed;
-// only the pile's sequential pop-in rhythm is tightened.
-const MUSHROOM_GROWTH_STAGGER_MS = 42;
+// The reduced 21-sprite pile samples the complete 30-slot silhouette. Its
+// complete birth motion runs at 60% of the previous duration (40% shorter).
+const MUSHROOM_GROWTH_SPEED_SCALE = 0.6;
+const MUSHROOM_GROWTH_STAGGER_MS = 25;
 const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50;
 const MUSHROOM_POLLEN_COUNT = 72;
 const MUSHROOM_POLLEN_MIN_RADIUS = 3.2;
@@ -631,8 +632,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       else if (r < 0.7) idx = 7;    // bubble 8
       else idx = Math.floor(Math.random() * 3); // bubble 1/2/3
     } else if (isMushroomDrop && Number.isFinite(scheduledIndex)) {
-      // Thirty pile slots cycle evenly through the original icon plus the five
-      // supplied variants: five appearances of every texture per finale.
+      // Cycle the original icon plus all five supplied variants through the
+      // reduced pile without allocating any additional Sprite owner.
       idx = Math.max(0, scheduledIndex as number) % bubbleTextures.length;
     } else {
       idx = Math.floor(Math.random() * bubbleTextures.length);
@@ -712,7 +713,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
 
     if (isMushroomDrop) {
       const growthIndex = Math.max(0, scheduledIndex ?? (spawned - 1));
-      const slot = MUSHROOM_PILE_SLOTS[growthIndex % MUSHROOM_PILE_SLOTS.length];
+      const pileSlotIndex = Math.round(
+        growthIndex * (MUSHROOM_PILE_SLOTS.length - 1) / Math.max(1, MUSHROOM_GROWTH_COUNT - 1),
+      );
+      const slot = MUSHROOM_PILE_SLOTS[pileSlotIndex];
       const targetX = screenW * slot.x + (Math.random() - 0.5) * 12;
       const targetY = screenH * slot.y + (Math.random() - 0.5) * 8;
       const randomSize = MUSHROOM_GROWTH_MIN_SIZE_PX
@@ -737,25 +741,25 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         y: targetY,
         alpha: 1,
         rotation: targetRotation,
-        duration: 0.34,
+        duration: 0.34 * MUSHROOM_GROWTH_SPEED_SCALE,
         ease: 'back.out(2.5)',
       });
       tl.to(bubble.scale, {
         x: targetScale * 1.14,
         y: targetScale * 0.88,
-        duration: 0.21,
+        duration: 0.21 * MUSHROOM_GROWTH_SPEED_SCALE,
         ease: 'power2.out',
       }, 0);
       tl.to(bubble.scale, {
         x: targetScale * 0.94,
         y: targetScale * 1.08,
-        duration: 0.13,
+        duration: 0.13 * MUSHROOM_GROWTH_SPEED_SCALE,
         ease: 'power2.out',
       });
       tl.to(bubble.scale, {
         x: targetScale,
         y: targetScale,
-        duration: 0.16,
+        duration: 0.16 * MUSHROOM_GROWTH_SPEED_SCALE,
         ease: 'back.out(2.1)',
       });
       const revealDelaySeconds = growthIndex * MUSHROOM_GROWTH_STAGGER_MS / 1000;

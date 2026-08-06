@@ -18,3 +18,17 @@ export function getGameplayModalCtaEnterDelayMs(): number {
     GAMEPLAY_MODAL_BENCHMARK.enterDurationMs * GAMEPLAY_MODAL_BENCHMARK.ctaEnterProgress,
   );
 }
+
+/**
+ * Starts CTA and modal-surface exits in the same JavaScript turn, then keeps
+ * cleanup behind both owners. Surface modules retain their own animation and
+ * routing logic while sharing one explicit parallel-exit contract.
+ */
+export async function runGameplayModalParallelExit(
+  startCtaExit: () => Promise<void>,
+  startSurfaceExit: () => void | Promise<void>,
+): Promise<void> {
+  const ctaExit = startCtaExit();
+  const surfaceExit = Promise.resolve(startSurfaceExit());
+  await Promise.all([ctaExit, surfaceExit]);
+}

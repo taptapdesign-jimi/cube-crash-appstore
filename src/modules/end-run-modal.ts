@@ -18,6 +18,7 @@ import {
 import {
   GAMEPLAY_MODAL_BENCHMARK,
   getGameplayModalCtaEnterDelayMs,
+  runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
@@ -61,9 +62,11 @@ async function exitEndRunCtas(clicked?: HTMLButtonElement | null): Promise<void>
   await exitCtaGroup(first, buttons.filter(button => button !== first));
 }
 
-async function hideModalAfterCtas(clicked: HTMLButtonElement): Promise<void> {
-  await exitEndRunCtas(clicked);
-  hideModal(null, true);
+function hideModalWithCtas(clicked: HTMLButtonElement): void {
+  void runGameplayModalParallelExit(
+    () => exitEndRunCtas(clicked),
+    () => hideModal(null, true),
+  );
 }
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
@@ -421,8 +424,8 @@ function createModal(): HTMLElement {
         (window as any).triggerHapticSelection();
       }
       
-      // Step 1: Animate modal exit
-      await hideModalAfterCtas(restartBtn);
+      // Step 1: Start CTA group and modal surface exit together.
+      hideModalWithCtas(restartBtn);
       
       // Step 2: Wait for the active surface animation to complete, then restart.
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
@@ -480,9 +483,12 @@ function createModal(): HTMLElement {
       const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
       const returnDecisionPromise = resolveJourneyReturnTarget(currentBoardNumber);
 
-      // CTA group owns the first exit phase. Only after every button has
-      // disappeared may the bottom sheet begin its downward close.
-      await hideModalAfterCtas(exitBtn);
+      // CTA group and modal surface start together. Begin the completion clock
+      // in the same turn so async route resolution cannot add a blank gap.
+      hideModalWithCtas(exitBtn);
+      const modalExitComplete = new Promise<void>((resolve) => {
+        window.setTimeout(resolve, getEndRunSurfaceExitDurationMs());
+      });
 
       const returnDecision = await returnDecisionPromise;
       console.log('🎯 end-run-modal: Journey return target prepared:', returnDecision);
@@ -491,10 +497,8 @@ function createModal(): HTMLElement {
       // shutdown; cancelling a magnet/wild merge early can strand its value-6
       // visual outside the normal tile lifecycle.
       
-      // Wait for modal animation to complete, then own the complete
-      // board-to-menu/detail handoff. This delay is intentionally not tracked by
-      // modal cleanup, but the async handler itself remains the single owner.
-      await new Promise<void>((resolve) => window.setTimeout(resolve, getEndRunSurfaceExitDurationMs()));
+      // Wait for the already-running modal animation before handing off.
+      await modalExitComplete;
       try {
         console.log('🎯 Modal hidden, starting board exit...');
         

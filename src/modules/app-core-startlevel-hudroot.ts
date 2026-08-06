@@ -1,3 +1,5 @@
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+
 type StartLevelHudRootDeps = {
   HUD: { HUD_ROOT?: any };
   getHudRootFromWindow: () => any;
@@ -9,6 +11,7 @@ export function syncHudRootVisibility({
   getHudRootFromWindow,
   isHudDropPending,
 }: StartLevelHudRootDeps){
+  if (!isGameplayHudRevealAllowed()) return;
   try {
     const hudRoot = getHudRootFromWindow() ?? HUD.HUD_ROOT ?? null;
     if (hudRoot && !(hudRoot as { destroyed?: boolean }).destroyed) {

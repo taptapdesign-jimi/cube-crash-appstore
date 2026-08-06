@@ -1,3 +1,5 @@
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+
 type PopInFinalDeps = {
   app?: { canvas?: HTMLCanvasElement | null } | null;
   board?: { alpha?: number; visible?: boolean; renderable?: boolean } | null;
@@ -23,12 +25,18 @@ export function handleSweetPopInComplete({
   hudDropPending,
   setHudDropPending,
 }: PopInFinalDeps & { hudDropPending: boolean; setHudDropPending: (v: boolean) => void }){
+  if (!isGameplayHudRevealAllowed()) {
+    setHudDropPending(false);
+    devLog('⏭️ sweetPopIn final reveal cancelled because gameplay no longer owns visibility');
+    return;
+  }
   // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
   if (hudDropPending) {
     devLog('🎯 HUD drop still pending after sweetPopIn - triggering now');
     try {
       if (typeof HUD.playHudDrop === 'function') {
         trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
+          if (!isGameplayHudRevealAllowed()) return;
           // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
           if (app && app.canvas) {
             app.canvas.style.opacity = '1';

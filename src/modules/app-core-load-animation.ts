@@ -1,3 +1,5 @@
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+
 type HudDropDeps = {
   HUD: { playHudDrop?: (opts?: any) => void };
   app?: { canvas?: HTMLCanvasElement | null } | null;
@@ -23,11 +25,16 @@ export function triggerHudDropIfPending({
   isHudDropPending,
   setHudDropPending,
 }: HudDropDeps){
+  if (!isGameplayHudRevealAllowed()) {
+    setHudDropPending(false);
+    return;
+  }
   if (!isHudDropPending()) return;
   devLog('🎯 HUD drop still pending in onHalf - triggering now');
   try {
     if (typeof HUD.playHudDrop === 'function') {
       trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
+        if (!isGameplayHudRevealAllowed()) return;
         if (app && app.canvas) {
           app.canvas.style.opacity = '1';
           app.canvas.style.transition = 'opacity 0.3s ease';
@@ -43,6 +50,7 @@ export function triggerHudDropIfPending({
 }
 
 export function ensureHudFinalPosition({ getHudRoot, devLog, devWarn }: HudFinalDeps){
+  if (!isGameplayHudRevealAllowed()) return;
   try {
     const hudRoot = getHudRoot();
     if (hudRoot) {

@@ -379,7 +379,7 @@ class UIManager {
     // 🔥 MEMORY LEAK FIX: Store unsubscribe functions
     // Homepage visibility
     const unsubscribeHomepageReady = gameState.subscribe('homepageReady', (isReady: boolean) => {
-      if (isReady) {
+      if (isReady && !homepageEnterTransitionOwner.isActive()) {
         this.showHomepage();
       }
     });
@@ -389,7 +389,7 @@ class UIManager {
     const unsubscribeGameActive = gameState.subscribe('isGameActive', (isActive: boolean) => {
       if (isActive) {
         this.hideHomepage();
-      } else {
+      } else if (!homepageEnterTransitionOwner.isActive()) {
         this.showHomepage();
       }
     });
@@ -931,11 +931,16 @@ class UIManager {
   
   // Hide homepage
   hideHomepage(): void {
+    const cleanupZone = (window as any).__ccAppZone;
+    const cleanupStillOwned = (): boolean =>
+      (window as any).__ccAppZone === cleanupZone && !homepageEnterTransitionOwner.isActive();
+
     // 🔥 MEMORY LEAK FIX: Cleanup all animations before hiding homepage
     (async () => {
       // 1. Cleanup animation timeouts
       try {
         const { cleanupAnimations } = await import('../utils/animations.js');
+        if (!cleanupStillOwned()) return;
         if (cleanupAnimations) {
           cleanupAnimations();
           logger.info('🧹 Homepage animation timeouts cleaned up');
@@ -946,6 +951,7 @@ class UIManager {
       
       // 2. Kill GSAP animations on homepage elements
       try {
+        if (!cleanupStillOwned()) return;
         const gsap = (window as any).gsap;
         if (gsap && this.elements.home) {
           // Kill animations on all homepage elements
@@ -977,6 +983,7 @@ class UIManager {
       }
       
       // 3. Stop CSS infinite animations (working-shimmer, cta-shimmer)
+      if (!cleanupStillOwned()) return;
       if (this.elements.home) {
         const shimmerElements = this.elements.home.querySelectorAll('[class*="::after"], .slide-button, .continue-btn, .new-game-btn, .restart-btn, .exit-btn, .menu-btn-primary');
         shimmerElements.forEach((el: Element) => {
@@ -1004,6 +1011,7 @@ class UIManager {
       // 4. Destroy slider manager (cleanup event listeners and animations)
       try {
         const { default: sliderManager } = await import('./slider-manager.js');
+        if (!cleanupStillOwned()) return;
         if (sliderManager && typeof sliderManager.destroy === 'function') {
           sliderManager.destroy();
           logger.info('🧹 Slider manager destroyed');
@@ -1014,6 +1022,7 @@ class UIManager {
       
       // 5. Unsubscribe from gameState subscriptions
       try {
+        if (!cleanupStillOwned()) return;
         this.unsubscribeFunctions.forEach(unsubscribe => {
           try {
             unsubscribe();
@@ -1027,6 +1036,7 @@ class UIManager {
       
       // 6. Remove event listeners
       try {
+        if (!cleanupStillOwned()) return;
         this.boundEventHandlers.forEach((handlers, element) => {
           handlers.forEach(({ event, handler }) => {
             try {
@@ -1042,6 +1052,7 @@ class UIManager {
       
       // 6b. Remove settings toggle handlers
       try {
+        if (!cleanupStillOwned()) return;
         this.settingsToggleHandlers.forEach((handlers, element) => {
           handlers.forEach(({ event, handler }) => {
             try {
@@ -1058,6 +1069,7 @@ class UIManager {
       // 7. Cleanup animation manager
       try {
         const { default: animationManager } = await import('./animation-manager.js');
+        if (!cleanupStillOwned()) return;
         if (animationManager && typeof animationManager.destroy === 'function') {
           animationManager.destroy();
           logger.info('🧹 Animation manager destroyed');

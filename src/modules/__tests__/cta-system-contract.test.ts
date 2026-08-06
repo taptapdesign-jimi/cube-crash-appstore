@@ -206,7 +206,9 @@ describe('shared CTA system contract', () => {
     expect(spatialPermissionSource).toContain('registerCta(enableButton');
     expect(spatialPermissionSource).toContain("activationTiming: 'immediate'");
     expect(spatialPermissionSource).toContain("variant: 'secondary'");
-    expect(spatialPermissionSource).toContain('exitCtaPair(clicked, companion)');
+    expect(spatialPermissionSource).toContain('let choiceExitInProgress = false');
+    expect(spatialPermissionSource).toContain('runGameplayModalParallelExit(');
+    expect(spatialPermissionSource).toContain('() => exitCtaPair(clicked, companion)');
     expect(spatialPermissionSource).not.toContain("enableButton.addEventListener('click'");
     expect(spatialPermissionSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
     expect(spatialPermissionSource).not.toContain('exit-btn bottom-sheet-cta');
@@ -219,7 +221,8 @@ describe('shared CTA system contract', () => {
     expect(endRunSource).toContain("variant: 'secondary'");
     expect(endRunSource).toContain("activationTiming: 'immediate'");
     expect(endRunSource).toContain('exitCtaGroup(first, buttons.filter(button => button !== first))');
-    expect(endRunSource).toContain('await hideModalAfterCtas(exitBtn)');
+    expect(endRunSource).toContain('hideModalWithCtas(exitBtn)');
+    expect(endRunSource).toContain('const modalExitComplete = new Promise<void>');
     expect(endRunSource).toContain('hideModal(null, true)');
     expect(endRunSource).toContain('disposeEndRunCtas()');
     expect(endRunSource).toContain('data-end-run-action="restart"');
@@ -234,13 +237,13 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('.simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta');
   });
 
-  test('makes every active CTA bottom sheet finish button exit before its surface exit', () => {
+  test('starts active CTA and modal exits together while awaiting both owners', () => {
     expect(collectibleRewardSheetSource).toContain('registerCta(viewCollectionButton');
     expect(collectibleRewardSheetSource).toContain('registerCta(continueButton');
     expect(collectibleRewardSheetSource).toContain("activationTiming: 'immediate'");
-    expect(collectibleRewardSheetSource).toContain('await exitCtaPair(clicked, buttons.find(button => button !== clicked))');
-    expect(collectibleRewardSheetSource.indexOf('await exitCtaPair(clicked'))
-      .toBeLessThan(collectibleRewardSheetSource.indexOf('await hideSheetAnimation(sheet)'));
+    expect(collectibleRewardSheetSource).toContain('await runGameplayModalParallelExit(');
+    expect(collectibleRewardSheetSource).toContain('exitCtaPair(clicked, buttons.find(button => button !== clicked))');
+    expect(collectibleRewardSheetSource).toContain('Promise.all([hideSheetAnimation(sheet), overlayExit])');
     expect(collectibleRewardUiSource).not.toContain("continueButton.addEventListener('click'");
     expect(collectibleRewardUiSource).not.toContain("viewCollectionButton.addEventListener('click'");
   });

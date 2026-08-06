@@ -35,6 +35,7 @@ import { exitCtaPair, registerCta, type CtaController } from './cta-system.ts';
 import {
   GAMEPLAY_MODAL_BENCHMARK,
   getGameplayModalCtaEnterDelayMs,
+  runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 import { mountGameplaySheetClose } from './gameplay-sheet-close.ts';
 
@@ -176,13 +177,15 @@ export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss
 
   const buttons = rewardCtaControllers.map(controller => controller.element);
   const clicked = options.clickedCta ?? buttons[0];
-  if (clicked) {
-    await exitCtaPair(clicked, buttons.find(button => button !== clicked));
-  }
-
-  const overlayExit = hideOverlayAnimation(overlay);
-  await hideSheetAnimation(sheet);
-  await overlayExit;
+  await runGameplayModalParallelExit(
+    () => clicked
+      ? exitCtaPair(clicked, buttons.find(button => button !== clicked))
+      : Promise.resolve(),
+    async () => {
+      const overlayExit = hideOverlayAnimation(overlay);
+      await Promise.all([hideSheetAnimation(sheet), overlayExit]);
+    },
+  );
   executeCleanup();
   cleanupOverlay();
   options.onAfterClose?.();

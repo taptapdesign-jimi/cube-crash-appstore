@@ -3157,13 +3157,13 @@ body.journey-board-game-active #hud-board-indicator {
     transform: translate3d(0, 0, 0) scale(1);
   }
   18% {
-    transform: translate3d(0, -2px, 2px) scale(1.002);
+    transform: translate3d(0, -3px, 3px) scale(1.003);
   }
   38% {
     transform: translate3d(0, 0, 0) scale(1);
   }
   58% {
-    transform: translate3d(0, -2.5px, 3px) scale(1.003);
+    transform: translate3d(0, -3.75px, 4px) scale(1.004);
   }
   76% {
     transform: translate3d(0, 0, 0) scale(1);

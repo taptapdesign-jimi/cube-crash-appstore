@@ -18,6 +18,10 @@ describe('shared gameplay modal benchmark', () => {
     expect(benchmark).toContain('enterCleanupBufferMs: 34');
     expect(benchmark).toContain('ctaEnterProgress: 0.2');
     expect(benchmark).toContain('companionCtaStaggerMs: 70');
+    expect(benchmark).toContain('export async function runGameplayModalParallelExit(');
+    expect(benchmark).toContain('const ctaExit = startCtaExit();');
+    expect(benchmark).toContain('const surfaceExit = Promise.resolve(startSurfaceExit());');
+    expect(benchmark).toContain('await Promise.all([ctaExit, surfaceExit]);');
   });
 
   test('migrates score and collectible reward to the same structural motion owners', () => {
@@ -46,6 +50,8 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('background: var(--bottom-sheet-paper-texture)');
     expect(css).toContain('animation: cc-gameplay-modal-idle-float 6.8s linear infinite both;');
     expect(css).toContain('@keyframes cc-gameplay-modal-idle-float');
+    expect(css).toContain('translate3d(0, -3px, 3px) scale(1.003)');
+    expect(css).toContain('translate3d(0, -3.75px, 4px) scale(1.004)');
     expect(css).toContain('translate3d(0, -4px, 8px) scale(1.015)');
     expect(css).toContain('translate3d(0, 1px, 0) scale(0.995)');
     expect(css).toContain('animation: cc-gameplay-modal-idle-shadow 6.8s ease-in-out infinite both;');

@@ -33,12 +33,13 @@ describe('Mushroom special-die visual contract', () => {
     expect(registrySource).not.toContain('mushroomDropSources');
     expect(registrySource).not.toContain('part${index + 1}@2x.png');
     expect(juiceSource).toContain("const isMushroomDrop = isCustomDownDrop && options.dropProfile === 'mushroom'");
-    expect(juiceSource).toContain('const MUSHROOM_GROWTH_COUNT = 30');
+    expect(juiceSource).toContain('const MUSHROOM_GROWTH_COUNT = 21');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MIN_SIZE_PX = 160');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MAX_SIZE_PX = 200');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MIN_ROTATION_DEG = 8');
     expect(juiceSource).toContain('const MUSHROOM_GROWTH_MAX_ROTATION_DEG = 15');
-    expect(juiceSource).toContain('const MUSHROOM_GROWTH_STAGGER_MS = 42');
+    expect(juiceSource).toContain('const MUSHROOM_GROWTH_SPEED_SCALE = 0.6');
+    expect(juiceSource).toContain('const MUSHROOM_GROWTH_STAGGER_MS = 25');
     expect(juiceSource).toContain('const MUSHROOM_EXIT_REVERSE_STAGGER_MS = 50');
     expect(juiceSource).toContain('const MUSHROOM_PILE_SLOTS: MushroomPileSlot[] = [');
     expect(juiceSource).toContain('Four heavily interlocked rows occupy only the lower ~30%');
@@ -48,6 +49,8 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain('{ x: 0.50, y: 0.875');
     expect(juiceSource).toContain('{ x: 0.96, y: 0.925');
     expect(juiceSource).toContain('const targetY = screenH * slot.y');
+    expect(juiceSource).toContain('growthIndex * (MUSHROOM_PILE_SLOTS.length - 1)');
+    expect(juiceSource).toContain('Math.max(1, MUSHROOM_GROWTH_COUNT - 1)');
     expect(juiceSource).toContain('const targetScale = targetPixelSize / Math.max(1, tex.width)');
     expect(juiceSource).toContain('const rotationDirection = Math.random() < 0.5');
     expect(juiceSource).toContain('const rotationMagnitude = MUSHROOM_GROWTH_MIN_ROTATION_DEG');
@@ -59,6 +62,10 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain("ease: 'back.in(1.9)'");
     expect(juiceSource).toContain('bubble.anchor.set(0.5, 1)');
     expect(juiceSource).toContain("ease: 'back.out(2.5)'");
+    expect(juiceSource).toContain('duration: 0.34 * MUSHROOM_GROWTH_SPEED_SCALE');
+    expect(juiceSource).toContain('duration: 0.21 * MUSHROOM_GROWTH_SPEED_SCALE');
+    expect(juiceSource).toContain('duration: 0.13 * MUSHROOM_GROWTH_SPEED_SCALE');
+    expect(juiceSource).toContain('duration: 0.16 * MUSHROOM_GROWTH_SPEED_SCALE');
     expect(juiceSource).toContain('}, i * MUSHROOM_GROWTH_STAGGER_MS)');
     expect(juiceSource).toContain('idx = Math.max(0, scheduledIndex as number) % bubbleTextures.length');
     expect(juiceSource).toContain('let releaseScheduled = false');

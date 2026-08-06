@@ -11,6 +11,7 @@ import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -1440,7 +1441,7 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     HUD_ROOT.zIndex = 10_000;
     HUD_ROOT.sortableChildren = true;
     // If drop not yet played, don't force y to top — only update the stored drop target.
-    if (HUD_ROOT._dropped) {
+    if (HUD_ROOT._dropped && HUD_ROOT._exitInProgress !== true && isGameplayHudRevealAllowed()) {
       HUD_ROOT.y = top;      // pin to final top when already dropped
       HUD_ROOT.alpha = 1;
     } else {
@@ -2795,6 +2796,11 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
   const hudRoot = HUD_ROOT || (window as any).HUD_ROOT || null;
   if (!hudRoot) return;
   if (!HUD_ROOT) HUD_ROOT = hudRoot;
+  if (!isGameplayHudRevealAllowed()) {
+    console.log('⏭️ HUD drop ignored because gameplay no longer owns visibility');
+    return;
+  }
+  HUD_ROOT._exitInProgress = false;
 
   // 🔥 CRITICAL FIX: Add HUD_ROOT to stage NOW if it wasn't added yet (initialHide path)
   if (!HUD_ROOT.parent && HUD_ROOT._stage) {
@@ -2936,6 +2942,12 @@ export function playHudRise({ duration = 0.3 } = {}){
   // Safety: double-check HUD_ROOT is still valid
   try {
     const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+
+    // Exit owns the HUD immediately, not only after the tween completes.
+    // layout() otherwise sees `_dropped=true` during the rise and can restore
+    // y/alpha to the visible position for one physical iOS frame.
+    HUD_ROOT._dropped = false;
+    HUD_ROOT._exitInProgress = true;
     
     // CRITICAL: Kill all smoke bubbles and intervals before exit
     cleanupSmokeBubbles();
@@ -2958,8 +2970,11 @@ export function playHudRise({ duration = 0.3 } = {}){
       onComplete: () => { 
         // Safety check in callback - HUD_ROOT might be destroyed during animation
         if (HUD_ROOT) {
-          HUD_ROOT._dropped = false; 
-          HUD_ROOT.y = -top * 2; 
+          HUD_ROOT._dropped = false;
+          HUD_ROOT._exitInProgress = false;
+          HUD_ROOT.y = -top * 2;
+          HUD_ROOT.alpha = 0;
+          HUD_ROOT.visible = false;
         }
       },
       onUpdate: function() {

@@ -1,3 +1,5 @@
+import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+
 type StartLevelHudDropDeps = {
   HUD: { HUD_ROOT?: any };
   gsap: { killTweensOf: (target: any) => void };
@@ -19,6 +21,7 @@ export function handleStartLevelHudDrop({
   setHudDropPending,
   setHudInitDone,
 }: StartLevelHudDropDeps){
+  if (!isGameplayHudRevealAllowed()) return;
   // 🔥 JOURNEY PROGRESSION: Check if HUD drop should be triggered (from Journey Play Board)
   if (!isTriggerHudDrop()) return;
   setHudDropPending(true);

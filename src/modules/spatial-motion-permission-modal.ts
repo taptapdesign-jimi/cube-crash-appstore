@@ -1,4 +1,5 @@
 import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.js';
+import { runGameplayModalParallelExit } from './gameplay-modal-benchmark.js';
 
 export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled';
 
@@ -247,15 +248,22 @@ export function showSpatialMotionPermissionModal(
     document.body.appendChild(overlay);
     activeOverlay = overlay;
 
-    const beginChoiceExit = (
+    let choiceExitInProgress = false;
+    const beginChoiceExit = async (
       choice: SpatialMotionPermissionChoice,
       clicked: HTMLButtonElement,
       companion: HTMLButtonElement,
-    ) => {
+    ): Promise<void> => {
+      if (choiceExitInProgress) return;
+      choiceExitInProgress = true;
       enableButton.disabled = true;
       dismissButton.disabled = true;
-      void exitCtaPair(clicked, companion);
-      finishActiveModal(choice);
+      await runGameplayModalParallelExit(
+        () => exitCtaPair(clicked, companion),
+        () => {
+          if (activeOverlay === overlay) finishActiveModal(choice);
+        },
+      );
     };
     const onEnable = () => {
       // Keep this call synchronous inside the button gesture; WebKit requires it.
@@ -268,7 +276,7 @@ export function showSpatialMotionPermissionModal(
         try { sessionStorage.setItem(INTRO_DISMISSED_SESSION_KEY, '1'); } catch {}
         try { localStorage.setItem(INTRO_DISMISSED_AT_KEY, String(Date.now())); } catch {}
       }
-      beginChoiceExit('dismissed', dismissButton, enableButton);
+      void beginChoiceExit('dismissed', dismissButton, enableButton);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onDismiss();
