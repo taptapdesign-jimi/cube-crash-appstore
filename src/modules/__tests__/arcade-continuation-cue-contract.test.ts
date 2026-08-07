@@ -40,7 +40,7 @@ describe('Arcade continuation Round cue contract', () => {
     expect(coreSource).toContain('await consumeArcadeEntryCue(arcadeContinuationCueRound)');
   });
 
-  test('fresh Arcade shows Round 01 before its first board entrance', () => {
+  test('fresh Arcade shows Round 01 before its first non-tutorial board entrance', () => {
     const uiSource = fs.readFileSync(path.join(repoRoot, 'src/modules/ui-manager.ts'), 'utf8');
     const coreSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
     const modalSource = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
@@ -49,7 +49,11 @@ describe('Arcade continuation Round cue contract', () => {
       uiSource.indexOf('async startNewGame(): Promise<void>'),
       uiSource.indexOf('// Start new game with saved state'),
     );
-    expect(freshStart).toContain('__ccArcadeContinuationCueRound = 1');
+    expect(freshStart).toContain('if (shouldStartFirstPlayTutorial)');
+    expect(freshStart).toContain('delete (window as any).__ccArcadeContinuationCueRound;');
+    expect(freshStart).toContain('(window as any).__ccArcadeContinuationCueRound = 1;');
+    expect(freshStart.indexOf('delete (window as any).__ccArcadeContinuationCueRound;'))
+      .toBeLessThan(freshStart.indexOf('(window as any).__ccArcadeContinuationCueRound = 1;'));
     expect(freshStart).not.toContain('void beginArcadeEntryCue(1)');
     expect(coreSource).toContain('beforePopIn: arcadeEntryCueRound > 0');
     expect(coreSource).toContain('tiles.forEach((tile: any) => { if (tile) tile.visible = false; });');

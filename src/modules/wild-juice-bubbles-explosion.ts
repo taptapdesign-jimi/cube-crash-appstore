@@ -79,9 +79,21 @@ const MUSHROOM_POLLEN_COUNT = 72;
 const MUSHROOM_POLLEN_MIN_RADIUS = 3.2;
 const MUSHROOM_POLLEN_MAX_RADIUS = MUSHROOM_POLLEN_MIN_RADIUS * 1.4;
 const MUSHROOM_POLLEN_COLORS = [0xFFBB9F, 0xFFD0A5, 0xFFEDC6, 0xFFF7E7, 0xFFEBE8] as const;
-const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 7;
+const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 6;
+const MUSHROOM_POLLEN_GROUP_SIZE = 6;
+const MUSHROOM_POLLEN_START_BAND_TOP_RATIO = 0.70;
+const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30;
 const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
 const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
+
+function createShuffledIndices(count: number): number[] {
+  const values = Array.from({ length: Math.max(0, count) }, (_, index) => index);
+  for (let index = values.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
+  }
+  return values;
+}
 
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
@@ -558,7 +570,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   const maxActive = isMushroomDrop ? MUSHROOM_GROWTH_COUNT + MUSHROOM_POLLEN_COUNT : isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = isMushroomDrop
-    ? 7200
+    ? 6200
     : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
@@ -1115,6 +1127,25 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     const startMushroomPollenFlock = () => {
       if (!explosionContainer || explosionContainer.destroyed || cleanupInProgress) return;
 
+      const pollenGroupCount = Math.ceil(MUSHROOM_POLLEN_COUNT / MUSHROOM_POLLEN_GROUP_SIZE);
+      const pollenStartSlots = createShuffledIndices(MUSHROOM_POLLEN_COUNT);
+      const pollenGroupAssignments = createShuffledIndices(MUSHROOM_POLLEN_COUNT)
+        .map((slot) => slot % pollenGroupCount);
+      const birthRankByGroup = new Array<number>(pollenGroupCount);
+      const arrivalRankByGroup = new Array<number>(pollenGroupCount);
+      createShuffledIndices(pollenGroupCount).forEach((group, rank) => {
+        birthRankByGroup[group] = rank;
+      });
+      createShuffledIndices(pollenGroupCount).forEach((group, rank) => {
+        arrivalRankByGroup[group] = rank;
+      });
+      const groupBirthDelays = birthRankByGroup.map((rank) => rank * 0.055 + Math.random() * 0.025);
+      const groupArrivalTimes = arrivalRankByGroup.map((rank) => 1.45 + rank * 0.095 + Math.random() * 0.045);
+      const groupFadeDurations = Array.from(
+        { length: pollenGroupCount },
+        () => 0.24 + Math.random() * 0.18,
+      );
+
       for (let index = 0; index < MUSHROOM_POLLEN_COUNT; index += 1) {
         const particle = graphicsPool.acquire();
         if (!particle || particle.destroyed || typeof particle.clear !== 'function') continue;
@@ -1130,10 +1161,18 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         particle.circle(-radius * 0.30, -radius * 0.30, radius * 0.32)
           .fill({ color: 0xFFF7E7, alpha: 0.92 });
         particle.x = screenW * (0.03 + Math.random() * 0.94);
-        // Every spore is born below the physical viewport and must visibly
-        // travel upward before the final Mushroom birth releases the exit.
-        particle.y = screenH * (1.03 + Math.random() * 0.10);
+        // Stratified random slots fill the complete lower 30% immediately;
+        // shuffling prevents either spatial order or depth from reading as a
+        // mechanical row while still avoiding sparse holes.
+        const startBandProgress = (
+          pollenStartSlots[index] + Math.random()
+        ) / MUSHROOM_POLLEN_COUNT;
+        particle.y = screenH * (
+          MUSHROOM_POLLEN_START_BAND_TOP_RATIO
+          + startBandProgress * MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO
+        );
         particle.alpha = 0;
+        particle.visible = true;
         particle.scale.set(0.88);
         particle.rotation = 0;
         particle.eventMode = 'none';
@@ -1143,6 +1182,13 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         (particle as any)._mushroomPollen = true;
         explosionContainer.addChild(particle);
         active += 1;
+        const pollenGroup = pollenGroupAssignments[index];
+        const birthDelay = groupBirthDelays[pollenGroup] + Math.random() * 0.040;
+        const targetY = screenH * (0.46 + Math.random() * 0.18);
+        // Members of a random six-particle group converge within a small
+        // window, then each begins fading on the exact frame it arrives.
+        const arrivalTime = groupArrivalTimes[pollenGroup] + Math.random() * 0.080;
+        const riseDuration = Math.max(0.42, arrivalTime - birthDelay);
         pollenStates.push({
           particle,
           originX: particle.x,
@@ -1151,11 +1197,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           phase: Math.random() * Math.PI * 2,
           twinkleSpeed: 7.2 + Math.random() * 4.8,
           baseAlpha: 0.82 + Math.random() * 0.18,
-          // Rear depth bands enter progressively later than the foreground.
-          birthDelay: Math.floor(index / 6) * 0.050 + (index % 6) * 0.010 + depthBand * 0.105,
-          riseSpeed: screenH * (0.25 + Math.random() * 0.07),
-          // Each spore owns a different arrival height across a 20% band.
-          targetY: screenH * (0.50 + Math.random() * 0.20),
+          birthDelay,
+          riseSpeed: Math.max(1, (particle.y - targetY) / riseDuration),
+          targetY,
           driftDirection: Math.random() < 0.5 ? -1 : 1,
           driftSpeed: screenW * (0.020 + Math.random() * 0.025),
           swayAmplitude: screenW * (0.018 + Math.random() * 0.027),
@@ -1164,7 +1208,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           arrivalStartTime: null,
           arrivalStartAlpha: 0,
           arrivalStartScale: 1,
-          arrivalDuration: 0.30 + Math.random() * 0.22,
+          arrivalDuration: groupFadeDurations[pollenGroup] + Math.random() * 0.050,
           finished: false,
         });
       }
@@ -1187,6 +1231,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
               particle.alpha = 0;
               return;
             }
+            particle.visible = true;
             const fadeIn = Math.min(1, age / 0.16);
             const primarySway = Math.sin(age * state.swaySpeed + phase) * state.swayAmplitude;
             const secondarySway = Math.sin(age * (state.swaySpeed * 1.83) + phase * 0.61)
@@ -1257,7 +1302,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         maybeCompleteExplosion();
       }, i * MUSHROOM_GROWTH_STAGGER_MS);
     }
-    // Spawn together so the spores read as one flock, not independent dots.
+    // One pooled flock owner creates the bounded field; randomized group birth
+    // delays make its visible motion roll through the lower 30% instead of
+    // launching every spore on the same frame.
     lifecycle.trackTimeout(startMushroomPollenFlock, 55);
     return;
   }

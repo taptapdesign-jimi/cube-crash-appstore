@@ -199,9 +199,13 @@ button.cc-cta[data-cta-variant="secondary"]::after {
   max-width: 249px !important;
 }
 
-.cc-homepage-cta {
+.cc-homepage-cta,
+.cc-cta--standard-width {
   width: 250px !important;
   max-width: 250px !important;
+}
+
+.cc-homepage-cta {
   touch-action: none;
 }
 
@@ -225,7 +229,8 @@ button.cc-cta[data-cta-variant="secondary"]::after {
 }
 
 @media (max-width: 767px) {
-  .cc-homepage-cta {
+  .cc-homepage-cta,
+  .cc-cta--standard-width {
     width: 226px !important;
     max-width: 226px !important;
   }

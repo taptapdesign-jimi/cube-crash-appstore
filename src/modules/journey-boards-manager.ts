@@ -16,11 +16,16 @@ import { clearArcadeSaveState, getBoardSaveKey, hasResumableSavedStateForBoard }
 import { playNavIconCartoonBounce } from '../utils/nav-icon-bounce.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
-import { clearJourneyInterimOrigin, markJourneyGameOrigin } from './journey-origin-state.js';
+import {
+  cancelJourneyCardOverlayReturn,
+  clearJourneyInterimOrigin,
+  completeJourneyCardOverlayReturn,
+  getJourneyCardOverlayReturnBoardId,
+  markJourneyCardOverlayReturn,
+  markJourneyGameOrigin,
+} from './journey-origin-state.js';
 import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import {
-  getJourneyBoardCardBaseRotationDegrees,
-  getJourneyBoardCardBaseScale,
   getJourneyBoardCardBaseTransform,
   rememberJourneyBoardCardBaseTransform,
   restoreJourneyBoardCardBaseTransform,
@@ -37,6 +42,8 @@ import {
   shouldCorrectJourneyHubAutomaticScroll,
   getJourneyV700HubEnterStagger,
   getJourneyV700MotionProfile,
+  JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
+  JOURNEY_V700_UNIT_CARD_EXIT_EASE,
   isJourneyInterimIdleOwnedByEnter,
   shouldIgnoreJourneyV700HubVisibleEnterRequest,
   shouldRestoreJourneyInterimWrapperForIdle,
@@ -61,6 +68,14 @@ import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
 import { hideHomepageNavigation } from './navigation-control.js';
+import {
+  presentJourneyCardOverlayModal,
+  type JourneyCardOverlayModalController,
+} from './journey-card-overlay-modal.js';
+import {
+  acquireJourneyCardOriginLease,
+  type JourneyCardOriginLease,
+} from './journey-card-portal-transition.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -498,6 +513,7 @@ const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 680;
 /** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 55 intentionally stay unchanged. */
 const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
+export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
 const BOARD_AREA_MODAL_ENTER_DURATION = 0.5;
 const BOARD_AREA_MODAL_ENTER_EASE = 'back.out(1.8)';
@@ -509,8 +525,10 @@ const BOARD_AREA_MODAL_STAGGER = 0.05;
 const BOARD_AREA_MODAL_EXIT_GROUP_STAGGER = 0.035;
 const BOARD_AREA_MODAL_EXIT_MIN_SCALE = 0.04;
 /** Match the Board detail modal large-card close pop-out timing/ease. */
-const BOARD_AREA_CARD_TAP_EXIT_DURATION = 0.4;
-const BOARD_AREA_CARD_TAP_EXIT_EASE = 'back.in(1.7)';
+const BOARD_AREA_CARD_TAP_EXIT_PUNCH_DURATION = 0.12;
+const BOARD_AREA_CARD_TAP_EXIT_PUNCH_SCALE = 1.14;
+const BOARD_AREA_CARD_TAP_EXIT_DURATION = JOURNEY_V700_UNIT_CARD_EXIT_DURATION;
+const BOARD_AREA_CARD_TAP_EXIT_EASE = JOURNEY_V700_UNIT_CARD_EXIT_EASE;
 const BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS = 100;
 const JOURNEY_AREA_IDLE_RAMP_IN_SECONDS = 0.52;
 const ACTIVE_BOARD_AREA_STORAGE_KEY = '__ccLastActiveJourneyBoardAreaId';
@@ -762,6 +780,8 @@ class JourneyBoardsManager {
   private journeyDetailCloseGuardUntil = 0;
   private journeyDetailCloseInProgress = false;
   private journeyV700WorldOpenInProgress = false;
+  private journeyCardOverlayModal: JourneyCardOverlayModalController | null = null;
+  private journeyOverlayReturnInFlight: { boardId: number; promise: Promise<void> } | null = null;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
   private journeyV700HubEnterEpoch = 0;
@@ -880,7 +900,10 @@ class JourneyBoardsManager {
     const wrapper = target.classList.contains('journey-board-card-wrapper')
       ? target
       : target.closest('.journey-board-card-wrapper') as HTMLElement | null;
-    return !!wrapper && (wrapper as any).__ccJourneyCardTapExitActive === true;
+    return !!wrapper && (
+      (wrapper as any).__ccJourneyCardTapExitActive === true
+      || (wrapper as any).__ccJourneyToGameExitTween === true
+    );
   }
 
   private cleanupJourneyAreaIdleAnimations(resetTransforms = true): void {
@@ -1240,6 +1263,10 @@ class JourneyBoardsManager {
   }
 
   private restoreJourneyBoardCardVisualTarget(target: HTMLElement): void {
+    // A late World-enter completion must never reset the card while the
+    // selected Unit owns its Play/Continue exit. This protection belongs in
+    // the shared restore helper because several async paths call it.
+    if (this.isJourneyCardTapExitProtectedTarget(target)) return;
     const visualTarget = this.getJourneyBoardCardVisualTarget(target);
     if (visualTarget === target) return;
     try {
@@ -1258,6 +1285,10 @@ class JourneyBoardsManager {
   }
 
   private restoreJourneyBoardCardInnerVisual(target: HTMLElement): void {
+    // The active card-exit owner is authoritative until its timeline finishes.
+    // Without this guard, a stale World-enter cleanup kills the new tween and
+    // makes the restored card appear to disappear without a bounce.
+    if (this.isJourneyCardTapExitProtectedTarget(target)) return;
     if (!target.classList.contains('journey-board-card-wrapper')) return;
     const card = target.querySelector('.journey-board-card') as HTMLElement | null;
     if (!card) return;
@@ -2897,6 +2928,8 @@ class JourneyBoardsManager {
   }
 
   private cleanupDetailModalRuntimeState(): void {
+    this.journeyCardOverlayModal?.dispose();
+    this.journeyCardOverlayModal = null;
     journeySpatialMotion.deactivateJourneyDetailModal();
     try {
       const floatingPlay = document.getElementById('board-detail-play-button') as HTMLElement | null;
@@ -4151,6 +4184,7 @@ class JourneyBoardsManager {
         });
         try {
           delete (cardWrapper as any).__ccJourneyCardTapExitActive;
+          card.classList.remove('journey-card-tapping');
           cardWrapper.style.willChange = 'auto';
           card.style.willChange = 'auto';
         } catch {}
@@ -4166,6 +4200,7 @@ class JourneyBoardsManager {
         cardWrapper.style.willChange = 'auto';
         cardWrapper.style.transformOrigin = '50% 50%';
         card.style.pointerEvents = 'none';
+        card.classList.add('journey-card-tapping');
         card.style.visibility = 'visible';
         card.style.opacity = '1';
         card.style.setProperty('transition', 'none', 'important');
@@ -4222,10 +4257,16 @@ class JourneyBoardsManager {
           },
         });
         timeline.to(card, {
+          scale: BOARD_AREA_CARD_TAP_EXIT_PUNCH_SCALE,
+          duration: BOARD_AREA_CARD_TAP_EXIT_PUNCH_DURATION,
+          ease: 'back.out(2.4)',
+          overwrite: 'auto',
+        });
+        timeline.to(card, {
           scale: 0,
           duration: BOARD_AREA_CARD_TAP_EXIT_DURATION,
           ease: BOARD_AREA_CARD_TAP_EXIT_EASE,
-          overwrite: false,
+          overwrite: 'auto',
           onStart: () => {
             console.log('🧩 JourneyUnitExit card-exit-shrink-start', {
               boardId,
@@ -4468,6 +4509,44 @@ class JourneyBoardsManager {
           await this.startJourneyExitAnimation();
         }
         logger.info('🧭 JourneyForestAnim journey-exit-flow-complete', { boardId });
+      } finally {
+        this.journeyExitPromise = null;
+        this.journeyViewportExitPromise = null;
+        this.journeyToGameExitActive = false;
+        this.journeyToGameExitBoardId = null;
+      }
+    })();
+
+    return this.journeyExitPromise;
+  }
+
+  private startOverlayPortaledCardJourneyExit(
+    boardId: number,
+    cardExitComplete: Promise<void>,
+  ): Promise<void> {
+    if (this.journeyExitPromise) return this.journeyExitPromise;
+
+    this.setLastActiveJourneyBoardAreaId(boardId);
+    this.activeBoardAreaEnterPreparedTargets = [];
+    this.journeyToGameExitActive = true;
+    this.journeyToGameExitBoardId = boardId;
+    lockJourneyViewportTransition(`journey-overlay-card-exit-${boardId}`);
+
+    this.journeyExitPromise = (async () => {
+      try {
+        // The exact card remains in the overlay portal through its complete
+        // landing punch/collapse. Journey owns only Unit/World/nav targets, so
+        // no reparent, selector, or stale enter cleanup can interrupt pixels.
+        this.cleanupJourneyTapTransientFx(boardId);
+        const selectedUnitExit = this.animateBoardAreaExit(boardId, { skipCard: true });
+        const contentExit = this.startJourneyWorldContentExitExcludingBoard(boardId);
+        const navExit = this.playJourneyV700NavExit();
+        await Promise.all([selectedUnitExit, contentExit, navExit, cardExitComplete]);
+        // Unit/card/nav owners have already completed. The legacy viewport
+        // cascade uses includeHiddenPrepared and can resurrect an already
+        // exited card for one final stagger frame. Commit only the viewport
+        // shell state here; never re-own child Journey cards a second time.
+        this.finalizeJourneyViewportAfterCoordinatedWorldExit(boardId);
       } finally {
         this.journeyExitPromise = null;
         this.journeyViewportExitPromise = null;
@@ -6430,6 +6509,9 @@ class JourneyBoardsManager {
   }
 
   private getJourneyV700BoardIdForTarget(target: HTMLElement): number {
+    const directBoardId = Number(target.dataset.boardId || 0);
+    if (Number.isFinite(directBoardId) && directBoardId > 0) return directBoardId;
+
     const card = target.classList.contains('journey-board-card-wrapper')
       ? target.querySelector('.journey-board-card') as HTMLElement | null
       : null;
@@ -6446,8 +6528,14 @@ class JourneyBoardsManager {
     const areaTargets = Array.from(
       container.querySelectorAll<HTMLElement>(`[data-journey-area-id="${areaId}"]`)
     );
-    const card = container.querySelector<HTMLElement>(`.journey-board-card[data-board-id="${boardId}"]`);
-    const cardWrapper = card?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    const canonicalCardWrapper = container.querySelector<HTMLElement>(
+      `.journey-board-card-wrapper[data-board-id="${boardId}"]`,
+    );
+    const legacyCard = container.querySelector<HTMLElement>(
+      `.journey-board-card[data-board-id="${boardId}"]`,
+    );
+    const cardWrapper = canonicalCardWrapper
+      || legacyCard?.closest('.journey-board-card-wrapper') as HTMLElement | null;
     const targets = cardWrapper && !areaTargets.includes(cardWrapper)
       ? [...areaTargets, cardWrapper]
       : areaTargets;
@@ -6689,6 +6777,44 @@ class JourneyBoardsManager {
       for (let boardId = worldRange.start; boardId <= worldRange.end; boardId += 1) {
         const group = this.getJourneyV700VisibleBoardAreaTargets(container, boardId);
         pushGroup(group);
+      }
+
+      // A card wrapper is a first-class part of its Unit. Repair any legacy or
+      // transient DOM that reached this snapshot without canonical grouping,
+      // instead of letting the final viewport hide cut an orphan card off.
+      const visibleCardWrappers = Array.from(
+        container.querySelectorAll<HTMLElement>('.journey-board-card-wrapper'),
+      ).filter((wrapper) => {
+        if (!document.body.contains(wrapper) || wrapper.style.display === 'none') return false;
+        const boardId = this.getJourneyV700BoardIdForTarget(wrapper);
+        return boardId >= worldRange.start && boardId <= worldRange.end && boardId !== excludeBoardId;
+      });
+      const repairedBoardIds: number[] = [];
+      visibleCardWrappers.forEach((wrapper) => {
+        const boardId = this.getJourneyV700BoardIdForTarget(wrapper);
+        const memberships = groups
+          .map((group, groupIndex) => group.includes(wrapper) ? groupIndex : -1)
+          .filter((groupIndex) => groupIndex >= 0);
+        if (memberships.length === 1) return;
+
+        memberships.slice(1).forEach((groupIndex) => {
+          groups[groupIndex] = groups[groupIndex].filter((target) => target !== wrapper);
+        });
+        if (!memberships.length) {
+          const boardGroup = groups.find((group) => group.some(
+            (target) => this.getJourneyV700BoardIdForTarget(target) === boardId,
+          ));
+          if (boardGroup) boardGroup.push(wrapper);
+          else pushGroup(this.getJourneyV700VisibleBoardAreaTargets(container, boardId));
+        }
+        repairedBoardIds.push(boardId);
+      });
+      if (repairedBoardIds.length) {
+        console.warn('🧩 JourneyUnitExit world-card-membership-repaired', {
+          worldId,
+          excludeBoardId: excludeBoardId || null,
+          boardIds: Array.from(new Set(repairedBoardIds)),
+        });
       }
     } else {
       const boardGroups = new Map<number, HTMLElement[]>();
@@ -7640,6 +7766,8 @@ class JourneyBoardsManager {
     const position = CARD_POSITIONS[index] || { x: pxToPercent(24), top: pxToPercentTop(24), rotation: 5, width: STANDARD_CARD_WIDTH, height: STANDARD_CARD_HEIGHT };
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'journey-board-card-wrapper';
+    cardWrapper.dataset.boardId = String(board.id);
+    cardWrapper.dataset.journeyAreaId = `board-${board.id}`;
     
     // Calculate background height in pixels
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
@@ -7813,7 +7941,7 @@ class JourneyBoardsManager {
     card.className = `journey-board-card ${isInterim ? 'interim' : isUnlocked ? 'unlocked' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
-    
+
     // 🔥 USER REQUEST: Check if this board was already viewed (from localStorage)
     // Mark it as viewed so animations don't start for it
     let isViewed = false;
@@ -7973,11 +8101,6 @@ class JourneyBoardsManager {
           interim: board.interim,
           unlocked: board.unlocked
         });
-        // Notify interaction to stop idle animations
-        if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
-          JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
-        }
-
         const cardEl = card as HTMLElement;
         if (!cardEl) {
           const fallbackJourneyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
@@ -7993,13 +8116,44 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingDetail = true;
 
+        // Capture before idle ownership is paused or any GSAP tween is killed.
+        // This is the exact on-screen pose the user's finger selected.
+        const originLease = JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED
+          ? acquireJourneyCardOriginLease(board.id, cardEl)
+          : null;
+        if (JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED && !originLease) {
+          (cardEl as any)._openingDetail = false;
+          logger.warn('⚠️ Journey card portal could not capture the live Unit pose', {
+            boardId: board.id,
+          });
+          return;
+        }
+
+        // Notify interaction only after the portal has sampled the live pose.
+        if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
+        }
+
         try {
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);
           }
           cardEl.classList.remove('idle-shimmer-trigger');
           try { gsap.killTweensOf(cardEl); } catch {}
+          originLease?.captureLandingGeometry();
         } catch {}
+
+        if (JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED) {
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
+          void this.openJourneyCardOverlayExperiment(board, cardEl, originLease!)
+            .catch((error) => {
+              logger.error('❌ Failed to open Journey card overlay experiment:', error);
+            })
+            .finally(() => {
+              (cardEl as any)._openingDetail = false;
+            });
+          return;
+        }
 
         const journeyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
         console.log('🧩 JourneyUnitExit regular-card-exit-promise-created', {
@@ -8370,6 +8524,339 @@ class JourneyBoardsManager {
   /**
    * 🔥 JOURNEY PROGRESSION: Handle Journey board tap - start game from this board
    */
+  private async openJourneyCardOverlayExperiment(
+    board: JourneyBoard,
+    cardElement: HTMLElement,
+    origin: JourneyCardOriginLease,
+  ): Promise<void> {
+    try {
+      const scrollOwner = document.querySelector(
+        '#journey-screen .collectibles-scrollable',
+      ) as HTMLElement | null;
+      if (scrollOwner) {
+        (window as any).__ccJourneyScrollTop = scrollOwner.scrollTop;
+        try { localStorage.setItem('__ccJourneyScrollTop', String(scrollOwner.scrollTop)); } catch {}
+      }
+      (window as any).__ccJourneyReturnBoardId = board.id;
+      try { localStorage.setItem(JOURNEY_RETURN_BOARD_ID_KEY, String(board.id)); } catch {}
+
+      clearJourneyInterimOrigin();
+      this.rememberLastActiveJourneyWorld(board.id);
+
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
+      }
+      this.markBoardAsViewed(board.id);
+
+      this.journeyCardOverlayModal?.dispose();
+      let earlyJourneyExitPromise: Promise<void> | null = null;
+      let resolveOverlayCardExit!: () => void;
+      const overlayCardExit = new Promise<void>((resolve) => {
+        resolveOverlayCardExit = resolve;
+      });
+      const controller = presentJourneyCardOverlayModal({
+        boardId: board.id,
+        imagePath: board.imagePath || './assets/colelctibles/common back.png',
+        origin,
+        hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true }),
+        scrollOwner,
+        onCardEntrySettled: () => {
+          cardElement.querySelector('.journey-card-ribbon')?.remove();
+        },
+        onPlayCardReturnStart: () => {
+          this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
+        },
+        onPlayCardExitStart: () => {
+          if (this.renderDisposed || earlyJourneyExitPromise) return;
+          earlyJourneyExitPromise = this.startOverlayPortaledCardJourneyExit(
+            board.id,
+            overlayCardExit,
+          );
+          logger.info('🧪 Journey overlay portaled card collapse started linked Journey exit', {
+            boardId: board.id,
+          });
+        },
+        onPlayCardExitComplete: () => {
+          resolveOverlayCardExit();
+          logger.info('🧪 Journey overlay portaled card exit completed', {
+            boardId: board.id,
+          });
+        },
+      });
+      this.journeyCardOverlayModal = controller;
+
+      logger.info('🧪 Journey card overlay experiment opened over live World', {
+        boardId: board.id,
+        worldId: this.journeyV700WorldId,
+      });
+
+      const result = await controller.result;
+      if (this.journeyCardOverlayModal === controller) {
+        this.journeyCardOverlayModal = null;
+      }
+      if (result !== 'play' || this.renderDisposed) return;
+
+      await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);
+    } catch (error) {
+      logger.error('❌ Journey card overlay experiment failed:', error);
+      this.journeyCardOverlayModal?.dispose();
+      this.journeyCardOverlayModal = null;
+      origin.restoreNow();
+      throw error;
+    }
+  }
+
+  private async startJourneyBoardFromOverlay(
+    board: JourneyBoard,
+    earlyJourneyExitPromise: Promise<void> | null = null,
+  ): Promise<void> {
+    const boardId = board.id;
+    delete (window as any).__ccSuppressJourneyShowForDirectDetailReturn;
+    delete (window as any).__ccDirectDetailModalReturnActive;
+
+    if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+      JOURNEY_CARD_IDLE_BOUNCE.stop();
+    }
+
+    this.rememberLastActiveJourneyWorld(boardId);
+    const { journeyProgressionState } = await import('./journey-progression-state.js');
+    journeyProgressionState.setLastOpenedBoardId(boardId);
+    markJourneyCardOverlayReturn(boardId);
+    markJourneyGameOrigin({ fromInterim: false });
+
+    const hasSavedState = hasResumableSavedStateForBoard(boardId, { clearInvalid: true });
+    logger.info('🧪 Journey overlay CTA starting existing World-to-game handoff', {
+      boardId,
+      hasSavedState,
+    });
+
+    await (earlyJourneyExitPromise ?? this.startBoardAreaThenJourneyExit(boardId));
+    this.hideHomeAndJourneyScreens('Journey overlay play after World exit', {
+      setJourneyZIndex: true,
+      cleanup: false,
+    });
+
+    const collectiblesManager = (window as any).collectiblesManager;
+    if (typeof collectiblesManager?.hideCollectibles === 'function') {
+      (window as any).__ccJourneyExitMode = 'toGame';
+      await collectiblesManager.hideCollectibles();
+    }
+    this.cleanup();
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    let didStart = false;
+    const startBoard = async () => {
+      if (didStart) return;
+      didStart = true;
+      if (hasSavedState) {
+        (window as any).__ccStartAtLevel = boardId;
+        (window as any).__ccTriggerHudDrop = true;
+        if (typeof (window as any).continueGameWithSavedState === 'function') {
+          await (window as any).continueGameWithSavedState();
+        } else {
+          logger.error('❌ continueGameWithSavedState function not found');
+        }
+        return;
+      }
+
+      if (typeof (window as any).startNewRunFromJourney === 'function') {
+        await (window as any).startNewRunFromJourney(boardId);
+      } else {
+        logger.error('❌ startNewRunFromJourney function not found');
+      }
+    };
+
+    try {
+      const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+      await showBoardTransitionScreen({ boardNumber: boardId, onComplete: startBoard });
+      await startBoard();
+    } catch (error) {
+      logger.warn('⚠️ Journey overlay board transition failed; starting board directly:', error);
+      await startBoard();
+    }
+  }
+
+  private waitForJourneyOverlayReturnReady(
+    boardId: number,
+    timeoutMs = 5200,
+  ): Promise<HTMLElement | null> {
+    const expectedWorldId = this.getJourneyWorldIdForBoard(boardId);
+    const startedAt = performance.now();
+
+    return new Promise((resolve) => {
+      const sample = () => {
+        if (this.renderDisposed || performance.now() - startedAt >= timeoutMs) {
+          resolve(null);
+          return;
+        }
+        const container = document.getElementById('journey-boards-container');
+        const target = container?.querySelector<HTMLElement>(
+          `.journey-board-card[data-board-id="${boardId}"]`,
+        ) ?? null;
+        const wrapper = target?.closest<HTMLElement>('.journey-board-card-wrapper');
+        const journeyScreen = document.getElementById('journey-screen');
+        const phaseCanLaunch = this.journeyV700Phase === 'entering'
+          || this.journeyV700Phase === 'idle';
+        const ready = !!target
+          && !!wrapper
+          && target.isConnected
+          && wrapper.isConnected
+          && this.journeyV700View === 'world'
+          && phaseCanLaunch
+          && this.journeyV700WorldId === expectedWorldId
+          && container?.dataset.journeyV700View === 'world'
+          && !journeyScreen?.hasAttribute('hidden');
+
+        if (!ready) {
+          requestAnimationFrame(sample);
+          return;
+        }
+
+        const rect = wrapper.getBoundingClientRect();
+        const wrapperOpacity = Number.parseFloat(getComputedStyle(wrapper).opacity);
+        const screenOpacity = journeyScreen
+          ? Number.parseFloat(getComputedStyle(journeyScreen).opacity)
+          : 0;
+        const hasVisibleFlightOrigin = rect.width > 1
+          && rect.height > 1
+          && wrapperOpacity >= 0.08
+          && screenOpacity >= 0.04;
+        if (hasVisibleFlightOrigin) {
+          resolve(target!);
+          return;
+        }
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+  }
+
+  public playJourneyOverlayReturnCard(boardId: number): Promise<void> {
+    const active = this.journeyOverlayReturnInFlight;
+    if (active) {
+      if (active.boardId === boardId) return active.promise;
+      return active.promise.then(() => this.playJourneyOverlayReturnCard(boardId));
+    }
+    const promise = this.runJourneyOverlayReturnCard(boardId).finally(() => {
+      if (this.journeyOverlayReturnInFlight?.promise === promise) {
+        this.journeyOverlayReturnInFlight = null;
+      }
+    });
+    this.journeyOverlayReturnInFlight = { boardId, promise };
+    return promise;
+  }
+
+  private async runJourneyOverlayReturnCard(boardId: number): Promise<void> {
+    const board = this.getBoardById(boardId);
+    if (!board?.unlocked || getJourneyCardOverlayReturnBoardId() !== boardId) return;
+    const targetElement = await this.waitForJourneyOverlayReturnReady(boardId);
+    if (getJourneyCardOverlayReturnBoardId() !== boardId) return;
+    if (!targetElement) {
+      logger.warn('⚠️ Journey overlay return stayed pending because its live Unit was not stable', {
+        boardId,
+        phase: this.journeyV700Phase,
+        worldId: this.journeyV700WorldId,
+      });
+      cancelJourneyCardOverlayReturn(boardId);
+      return;
+    }
+    const origin = acquireJourneyCardOriginLease(boardId, targetElement);
+    if (!origin) {
+      logger.warn('⚠️ Journey overlay return could not lease the exact live card', { boardId });
+      cancelJourneyCardOverlayReturn(boardId);
+      return;
+    }
+
+    const scrollOwner = document.querySelector<HTMLElement>(
+      '#journey-screen .collectibles-scrollable',
+    );
+    (targetElement as any)._openingDetail = true;
+    try {
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
+      }
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(targetElement);
+      }
+      targetElement.classList.remove('idle-shimmer-trigger');
+      try { gsap.killTweensOf(targetElement); } catch {}
+      origin.captureLandingGeometry();
+      const targetWrapper = targetElement.closest<HTMLElement>('.journey-board-card-wrapper');
+      const journeyScreen = document.getElementById('journey-screen');
+      const returnWrapperOpacity = Number.parseFloat(
+        targetWrapper ? getComputedStyle(targetWrapper).opacity : '1',
+      );
+      const returnScreenOpacity = Number.parseFloat(
+        journeyScreen ? getComputedStyle(journeyScreen).opacity : '1',
+      );
+      const entryInitialOpacity = Math.max(0, Math.min(1,
+        (Number.isFinite(returnWrapperOpacity) ? returnWrapperOpacity : 1)
+        * (Number.isFinite(returnScreenOpacity) ? returnScreenOpacity : 1),
+      ));
+
+      this.journeyCardOverlayModal?.dispose();
+      let earlyJourneyExitPromise: Promise<void> | null = null;
+      let resolveOverlayCardExit!: () => void;
+      const overlayCardExit = new Promise<void>((resolve) => {
+        resolveOverlayCardExit = resolve;
+      });
+      const controller = presentJourneyCardOverlayModal({
+        boardId,
+        imagePath: board.imagePath || './assets/colelctibles/common back.png',
+        origin,
+        hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
+        scrollOwner,
+        entryInitialOpacity,
+        onPlayCardReturnStart: () => {
+          this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
+        },
+        onPlayCardExitStart: () => {
+          if (this.renderDisposed || earlyJourneyExitPromise) return;
+          earlyJourneyExitPromise = this.startOverlayPortaledCardJourneyExit(
+            board.id,
+            overlayCardExit,
+          );
+          logger.info('🧪 Journey return overlay portaled card collapse started linked Journey exit', {
+            boardId: board.id,
+          });
+        },
+        onPlayCardExitComplete: () => {
+          resolveOverlayCardExit();
+          logger.info('🧪 Journey return overlay portaled card exit completed', {
+            boardId: board.id,
+          });
+        },
+      });
+      this.journeyCardOverlayModal = controller;
+      logger.info('🧪 Journey gameplay return replayed the exact card-to-modal enter', {
+        boardId,
+        worldId: this.journeyV700WorldId,
+      });
+      const result = await controller.result;
+      if (this.journeyCardOverlayModal === controller) this.journeyCardOverlayModal = null;
+      if (result === 'dismiss') {
+        if (controller.didLandAtOrigin) completeJourneyCardOverlayReturn(boardId);
+        else cancelJourneyCardOverlayReturn(boardId);
+        return;
+      }
+      if (!this.renderDisposed) {
+        await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);
+      }
+    } catch (error) {
+      origin.restoreNow();
+      cancelJourneyCardOverlayReturn(boardId);
+      logger.warn('⚠️ Journey gameplay return overlay failed safely', {
+        boardId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      (targetElement as any)._openingDetail = false;
+    }
+  }
+
   private async onJourneyBoardTap(boardId: number): Promise<void> {
     logger.info(`🗺️ Journey board ${boardId} tapped - starting game`);
     

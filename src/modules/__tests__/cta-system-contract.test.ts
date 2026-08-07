@@ -116,6 +116,10 @@ describe('shared CTA system contract', () => {
     }
     expect(cleanSource).not.toContain("primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
     expect(failSource).not.toContain("continueBtn.className = 'restart-btn primary-button bottom-sheet-cta'");
+    expect(failSource).not.toContain('emptyStars.forEach((star, index) => prep(');
+    expect(failSource).not.toContain("star.style.opacity = '0'");
+    expect(failSource).toContain("star.style.transform = 'scale(1.12)'");
+    expect(failSource).toContain("star.style.transform = 'scale(0.98)'");
     expect(cleanSource).toContain('await exitCtaPair(primaryBtn, secondaryBtn)');
     expect(cleanSource).toContain('await exitCtaPair(secondaryBtn, primaryBtn)');
     expect(failSource).toContain('await exitCtaPair(primaryButton, secondaryButton)');
@@ -198,6 +202,9 @@ describe('shared CTA system contract', () => {
     expect(animationsSource).toContain('void ctaController.enter()');
     expect(animationsSource).toContain('void ctaController.exit()');
     expect(cssSource).toContain('.cc-homepage-cta');
+    expect(cssSource).toContain('.cc-cta--standard-width');
+    expect(cssSource).toContain('.cc-homepage-cta,\n.cc-cta--standard-width {\n  width: 250px !important;');
+    expect(cssSource).toContain('.cc-homepage-cta,\n  .cc-cta--standard-width {\n    width: 226px !important;');
     expect(cssSource).toContain('touch-action: none');
     expect(cssSource).not.toContain('top: 2.25vh');
   });

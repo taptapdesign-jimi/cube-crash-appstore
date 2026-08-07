@@ -2574,7 +2574,6 @@ body.journey-board-game-active #hud-board-indicator {
 
 .score-bottom-sheet .simple-title-section h2 {
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
   font-weight: 900; /* heavy weight - same as End This Run */
   color: #AD8775; /* Same color as End This Run */
   margin: 0;
@@ -2599,6 +2598,30 @@ body.journey-board-game-active #hud-board-indicator {
   width: 100%;
   margin-top: -16px; /* Približiti stats prema subtitle za 16px (gap iz simple-header je 40px, sada je efektivno 24px) */
   align-items: flex-start;
+}
+
+/* Board HUD High Score/Combo consumes the same stats motion contract as the
+   Journey Stage modal: direct children enter in DOM order and exit through
+   the identical shared detailStatPopOut keyframe. */
+.score-bottom-sheet.score-sheet-stats-enter-primed
+  .score-stats-container > :is(.stat-item, .score-stat-divider) {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0);
+}
+
+.score-bottom-sheet .score-sheet-stat-entering,
+.score-bottom-sheet .score-sheet-stat-exiting {
+  animation-name: detailStatPopOut;
+  animation-duration: 0.4s;
+  animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  animation-fill-mode: both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.score-bottom-sheet .score-sheet-stat-entering {
+  animation-direction: reverse;
 }
 
 /* Score bottom sheet stats: High score + Cubes cracked (v130 design) */
@@ -2898,7 +2921,7 @@ body.journey-board-game-active #hud-board-indicator {
   width: auto;
   height: auto;
   z-index: 0;
-  background: rgba(233, 210, 200, 0.24);
+  background: var(--cc-gameplay-modal-overlay-color);
   box-shadow: none;
   opacity: 0;
   pointer-events: none;
@@ -2986,13 +3009,15 @@ body.journey-board-game-active #hud-board-indicator {
   animation: end-run-centered-modal-bounce-in 0.65s cubic-bezier(0.22, 1.18, 0.36, 1) both;
 }
 
+/* Exit owns two nested transforms. Keep their combined anticipation at about
+   1.02x so the paper and protruding close control stay inside phone safe areas. */
 .simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-exiting .end-run-sheet-flip-shell {
-  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;
   pointer-events: none;
 }
 
 .simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-3d-flip-exiting .end-run-modal-bounce-shell {
-  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;
   pointer-events: none;
 }
 
@@ -3016,7 +3041,7 @@ body.journey-board-game-active #hud-board-indicator {
 
 @keyframes end-run-centered-modal-bounce-out {
   0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  18% { transform: translate3d(0, -4px, 0) scale(1.055) rotate(-0.5deg); }
+  18% { transform: translate3d(0, -1px, 0) scale(1.012) rotate(-0.25deg); }
   100% { transform: translate3d(0, 24px, 0) scale(0) rotate(2deg); }
 }
 
@@ -3027,7 +3052,7 @@ body.journey-board-game-active #hud-board-indicator {
   }
   18% {
     opacity: 1;
-    transform: translate3d(0, -2px, 24px) rotateX(2.25deg) rotateY(-10.5deg) scale(1.018);
+    transform: translate3d(0, -0.5px, 12px) rotateX(1.25deg) rotateY(-7deg) scale(1.008);
   }
   100% {
     opacity: 0;
@@ -3228,6 +3253,19 @@ body.journey-board-game-active #hud-board-indicator {
   pointer-events: none;
 }
 
+/* One typography contract for every centered paper/gameplay modal headline.
+   Modal-specific selectors may own color, weight, spacing, and animation, but
+   title size must never diverge between End Run, Score, Collectible Reward,
+   3D Motion, and Journey Stage. */
+:root {
+  --cc-gameplay-modal-title-size: 32px;
+  --cc-gameplay-modal-overlay-color: rgba(230, 196, 177, 0.56);
+}
+
+.cc-gameplay-modal-title {
+  font-size: var(--cc-gameplay-modal-title-size);
+}
+
 .simple-bottom-sheet.cc-gameplay-modal-stage .gameplay-sheet-close {
   top: -10px;
   right: -10px;
@@ -3246,13 +3284,14 @@ body.journey-board-game-active #hud-board-indicator {
   animation: end-run-centered-modal-bounce-in 0.65s cubic-bezier(0.22, 1.18, 0.36, 1) both;
 }
 
+/* Reuse the same viewport-bounded exit owners as centered End Run. */
 .cc-gameplay-modal-stage.cc-gameplay-modal-exiting .cc-gameplay-modal-flip-shell {
-  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;
   pointer-events: none;
 }
 
 .cc-gameplay-modal-stage.cc-gameplay-modal-exiting .cc-gameplay-modal-bounce-shell {
-  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) both;
+  animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;
   pointer-events: none;
 }
 
@@ -3268,7 +3307,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .score-bottom-sheet-backdrop {
-  background: rgba(233, 210, 200, 0.24) !important;
+  background: var(--cc-gameplay-modal-overlay-color) !important;
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
 }
@@ -3284,6 +3323,18 @@ body.journey-board-game-active #hud-board-indicator {
     animation: none !important;
     transform: none !important;
     -webkit-transform: none !important;
+  }
+
+  .score-bottom-sheet.score-sheet-stats-enter-primed
+    .score-stats-container > :is(.stat-item, .score-stat-divider) {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+
+  .score-bottom-sheet .score-sheet-stat-entering,
+  .score-bottom-sheet .score-sheet-stat-exiting {
+    animation: none !important;
   }
 }
 
@@ -3348,7 +3399,6 @@ body.journey-board-game-active #hud-board-indicator {
   gap: 8px;
   margin: 0 0 8px;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
   line-height: 1.2;
   letter-spacing: 0;
 }
@@ -3969,7 +4019,6 @@ html.collectible-reward-open body {
 
 .simple-content h2 {
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 40px; /* Font.custom("Baloo2", size: 40) from Figma */
   font-weight: 900; /* .weight(.heavy) from Figma */
   color: #AD8675; /* Original color for h2 titles */
   margin: 0;
@@ -4093,10 +4142,6 @@ html.collectible-reward-open body {
     max-width: 100%;
   }
   
-  .simple-content h2 {
-    font-size: 32px;
-  }
-  
   .simple-content p {
     font-size: 20px; /* Match slider subtitle font size */
     color: #CBA89A !important;
@@ -4126,10 +4171,6 @@ html.collectible-reward-open body {
 
 /* iPhone 13 Optimizations */
 @media screen and (max-width: 428px) {
-  .score-bottom-sheet .simple-title-section h2 {
-    font-size: 32px;
-  }
-  
   .score-bottom-sheet .simple-title-section p {
     font-size: 20px; /* Same as End This Run subtitle on mobile */
   }
@@ -4148,7 +4189,7 @@ html.collectible-reward-open body {
 
   #end-run-overlay,
   .score-bottom-sheet-backdrop {
-    background: rgba(233, 210, 200, 0.24) !important;
+    background: var(--cc-gameplay-modal-overlay-color) !important;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     will-change: auto;

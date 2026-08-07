@@ -1,8 +1,11 @@
 import {
   clearJourneyDetailReturn,
   clearJourneyInterimOrigin,
+  completeJourneyCardOverlayReturn,
+  getJourneyCardOverlayReturnBoardId,
   isJourneyOriginActive,
   markJourneyDetailReturn,
+  markJourneyCardOverlayReturn,
   markJourneyGameOrigin,
   prepareJourneyFailReturnTarget,
   resolveJourneyReturnTarget,
@@ -48,6 +51,8 @@ describe('journey-origin-state', () => {
     delete (global as any).__ccReturningFromDetailModal;
     delete (global as any).__ccJourneyReturnBoardId;
     delete (global as any).__ccLastActiveJourneyBoardAreaId;
+    delete (global as any).__ccJourneyCardOverlayReturnBoardId;
+    document.body.innerHTML = '';
   });
 
   it('marks journey origin without leaving homepage flag active', () => {
@@ -79,6 +84,37 @@ describe('journey-origin-state', () => {
       isUnlockedBoard: true,
       isInterim: false,
     });
+  });
+
+  it('keeps an overlay return pending until the exact card landing is acknowledged', async () => {
+    document.body.innerHTML = '<div class="journey-board-card" data-board-id="4"></div>';
+    markJourneyGameOrigin({ fromInterim: false });
+    markJourneyCardOverlayReturn(4);
+
+    expect(getJourneyCardOverlayReturnBoardId()).toBe(4);
+    expect(document.querySelector('.journey-board-card')?.classList)
+      .toContain('journey-board-card-return-placeholder');
+
+    await expect(resolveJourneyReturnTarget(4)).resolves.toEqual({
+      target: 'journey',
+      boardId: 4,
+      isUnlockedBoard: true,
+      isInterim: false,
+    });
+    expect(getJourneyCardOverlayReturnBoardId()).toBe(4);
+    expect(completeJourneyCardOverlayReturn(5)).toBe(false);
+    expect(getJourneyCardOverlayReturnBoardId()).toBe(4);
+    expect(completeJourneyCardOverlayReturn(4)).toBe(true);
+    expect(getJourneyCardOverlayReturnBoardId()).toBeNull();
+    expect(document.querySelector('.journey-board-card')?.classList)
+      .not.toContain('journey-board-card-return-placeholder');
+  });
+
+  it('supports every current Journey stage, including Area 55 stages 26 through 30', () => {
+    expect(markJourneyCardOverlayReturn(30)).toBe(30);
+    expect(getJourneyCardOverlayReturnBoardId()).toBe(30);
+    expect(completeJourneyCardOverlayReturn(30)).toBe(true);
+    expect(markJourneyCardOverlayReturn(31)).toBeNull();
   });
 
   it('falls back to journey screen for locked regular journey boards', async () => {

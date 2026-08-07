@@ -137,6 +137,7 @@ describe('launch 3D Motion permission ownership', () => {
     expect(permissionModalSource).toContain(
       "paperSurface.className = 'journey-spatial-permission-paper bottom-sheet-paper-surface'",
     );
+    expect(permissionModalSource).toContain("title.className = 'cc-gameplay-modal-title'");
     expect(permissionModalSource).not.toContain('applyAppPaperSurfaceToElement');
     expect(permissionModalSource).not.toContain('bottom-sheet-shadow-surface');
     expect(permissionModalSource).not.toContain('animateBottomSheetEntrance');
@@ -226,7 +227,17 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-card-bounce-in');
     expect(collectiblesCss).toContain('@keyframes journey-spatial-modal-card-bounce-out');
     expect(collectiblesCss).toContain('scale(1.045) rotate(0.6deg)');
-    expect(collectiblesCss).toContain('scale(1.055) rotate(-0.5deg)');
+    expect(collectiblesCss).toContain(
+      'animation: journey-spatial-modal-flip-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;',
+    );
+    expect(collectiblesCss).toContain(
+      'animation: journey-spatial-modal-card-bounce-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;',
+    );
+    expect(collectiblesCss).toContain('scale(1.012) rotate(-0.25deg)');
+    expect(collectiblesCss).toContain(
+      'translate3d(0, -0.5px, 12px) rotateX(1.25deg) rotateY(-7deg) scale(1.008)',
+    );
+    expect(collectiblesCss).not.toContain('scale(1.055) rotate(-0.5deg)');
     expect(collectiblesCss).toContain('rotateX(17deg) rotateY(-88deg)');
     expect(collectiblesCss).toContain('rotateX(-15deg) rotateY(112deg)');
     expect(collectiblesCss).toContain('rotateX(-1deg) rotateY(7deg)');

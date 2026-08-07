@@ -6,12 +6,22 @@ import {
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
   isJourneyInterimIdleOwnedByEnter,
+  JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
+  JOURNEY_V700_UNIT_CARD_EXIT_EASE,
   shouldRestoreJourneyInterimWrapperForIdle,
   shouldCorrectJourneyHubAutomaticScroll,
   shouldIgnoreJourneyV700HubVisibleEnterRequest,
 } from '../journey-v700-motion.js';
 
 describe('Journey V700 motion contract', () => {
+  it('keeps ordinary Unit-card bounce-out inside the structural Unit exit', () => {
+    const motion = getJourneyV700MotionProfile(false);
+
+    expect(JOURNEY_V700_UNIT_CARD_EXIT_DURATION).toBe(0.4);
+    expect(JOURNEY_V700_UNIT_CARD_EXIT_DURATION).toBeLessThan(motion.exit.duration);
+    expect(JOURNEY_V700_UNIT_CARD_EXIT_EASE).toBe('back.in(1.7)');
+  });
+
   it('uses matching cartoon bounce easing for standard enter and exit', () => {
     const motion = getJourneyV700MotionProfile(false);
     expect(motion.exit.anticipationScale).toBeGreaterThan(1);

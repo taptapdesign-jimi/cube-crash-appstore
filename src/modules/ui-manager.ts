@@ -554,9 +554,14 @@ class UIManager {
     markArcadeHomeRunOrigin();
     // Ensure fresh Arcade run always triggers HUD entry/drop initialization.
     (window as any).__ccTriggerHudDrop = true;
-    // Fresh Arcade uses the same pure current-Round intro as a saved resume.
-    // rebuildBoard captures and clears this one-shot before cubes can paint.
-    (window as any).__ccArcadeContinuationCueRound = 1;
+    // The first-play tutorial owns its board introduction, so it must not be
+    // preceded by the regular Round 01 cue. Every later fresh Arcade run keeps
+    // the established current-Round intro.
+    if (shouldStartFirstPlayTutorial) {
+      delete (window as any).__ccArcadeContinuationCueRound;
+    } else {
+      (window as any).__ccArcadeContinuationCueRound = 1;
+    }
     resetArcadeEntryCueOwner();
     logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {

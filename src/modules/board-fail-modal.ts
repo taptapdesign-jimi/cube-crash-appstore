@@ -747,7 +747,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     };
 
     prep(starsHero, -25, 0.7);
-    emptyStars.forEach((star, index) => prep(star as unknown as HTMLElement, -8 + index * 3, 0.82));
     prep(title, -20, 0.75);
     prep(boardStatus, -10, 0.82);
 
@@ -757,7 +756,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
     requestAnimationFrame(() => {
       const trans = 'opacity 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4), transform 0.55s cubic-bezier(0.68, -0.6, 0.32, 1.4)';
-      [starsHero, ...emptyStars, title, boardStatus].forEach(el => {
+      [starsHero, title, boardStatus].forEach(el => {
         el.style.transition = trans;
       });
 
@@ -769,9 +768,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       };
 
       schedule(starsHero, 120);
-      emptyStars.forEach((star, index) => {
-        schedule(star as unknown as HTMLElement, 170 + index * 90);
-      });
       schedule(title, 240);
       schedule(boardStatus, 420);
       trackFailTimeout(() => { void getRegisteredCta(continueBtn)?.enter(); }, 640);
@@ -779,13 +775,19 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
       emptyStars.forEach((star, index) => {
         trackFailTimeout(() => {
-          star.style.transform = 'scale(1.06)';
-          star.style.opacity = '1';
+          // The group owns visibility. Individual stars stay readable and only
+          // perform a compact squash/overshoot, so the stagger can never look
+          // like one star disappeared or failed to render.
+          star.style.transition = 'transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1)';
+          star.style.transform = 'scale(1.12)';
           trackFailTimeout(() => {
-            star.style.transform = 'scale(1)';
-            star.style.opacity = '0.9';
-          }, 220);
-        }, 220 + index * 110);
+            star.style.transition = 'transform 190ms cubic-bezier(0.34, 1.35, 0.64, 1)';
+            star.style.transform = 'scale(0.98)';
+            trackFailTimeout(() => {
+              star.style.transform = 'scale(1)';
+            }, 130);
+          }, 115);
+        }, 360 + index * 95);
       });
     });
     } catch (outerError) {

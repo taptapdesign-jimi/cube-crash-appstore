@@ -80,7 +80,7 @@ export function buildMarkup(detail: CollectibleDetail): string {
   
   return `
     <div class="collectible-reward-header">
-      <h2 id="collectible-reward-title" class="collectible-reward-title">New Collectible Unlocked!</h2>
+      <h2 id="collectible-reward-title" class="collectible-reward-title cc-gameplay-modal-title">New Collectible Unlocked!</h2>
     </div>
         
         <div class="collectible-reward-body">

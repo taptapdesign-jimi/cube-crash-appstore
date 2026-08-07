@@ -19,6 +19,9 @@ export interface JourneyV700MotionProfile {
   cascadeWindow: number;
 }
 
+export const JOURNEY_V700_UNIT_CARD_EXIT_DURATION = 0.4;
+export const JOURNEY_V700_UNIT_CARD_EXIT_EASE = 'back.in(1.7)';
+
 const DEFAULT_PROFILE: JourneyV700MotionProfile = {
   enter: {
     baseDelay: 0.08,

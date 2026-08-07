@@ -192,6 +192,7 @@ export function showSpatialMotionPermissionModal(
 
     const title = document.createElement('h2');
     title.id = 'spatial-motion-permission-title';
+    title.className = 'cc-gameplay-modal-title';
     const titleAccent = document.createElement('span');
     titleAccent.textContent = 'Tilt';
     title.append(titleAccent, ' Motion');

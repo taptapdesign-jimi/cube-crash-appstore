@@ -386,7 +386,7 @@ function createModal(): HTMLElement {
             <div class="simple-content">
               <div class="simple-header">
                 <div class="simple-title-section">
-                  <h2 id="end-run-modal-title">${titleText}</h2>
+                  <h2 id="end-run-modal-title" class="cc-gameplay-modal-title">${titleText}</h2>
                   <p>${subtitleText}</p>
                 </div>
                 <div class="simple-buttons">

@@ -29,7 +29,7 @@ export function createOverlay(): HTMLElement {
   overlay.style.cssText = `
     position: fixed;
     inset: 0;
-    background: rgba(233, 210, 200, 0.24);
+    background: var(--cc-gameplay-modal-overlay-color);
     z-index: 10000;
     display: flex;
     align-items: center;
@@ -90,7 +90,7 @@ export function addStyles(): void {
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(233, 210, 200, 0.24);
+      background: var(--cc-gameplay-modal-overlay-color);
       z-index: 10000;
       display: flex;
       align-items: center;

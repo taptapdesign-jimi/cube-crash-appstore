@@ -15,6 +15,10 @@ import {
   type GameplaySheetCloseController,
 } from './gameplay-sheet-close.ts';
 import { GAMEPLAY_MODAL_BENCHMARK } from './gameplay-modal-benchmark.ts';
+import {
+  createDetailModalStatsEnterDelays,
+  getDetailModalStatsEnterTotalDuration,
+} from './detail-modal-stats-enter-motion.js';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
@@ -24,6 +28,7 @@ let activeMode: ScoreSheetMode = 'score';
 let scoreSheetLifecycleId = 0;
 let scoreSheetTransitionInProgress = false;
 let scoreSheetCloseController: GameplaySheetCloseController | null = null;
+let scoreSheetStatsEnterCleanupTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function disposeScoreSheetClose(): void {
   scoreSheetCloseController?.dispose();
@@ -363,7 +368,96 @@ function clearAllScoreSheetEventListeners(): void {
   _scoreSheetEventListeners.length = 0;
 }
 
+function getScoreSheetStatElements(sheet: HTMLElement): HTMLElement[] {
+  const statsContainer = sheet.querySelector<HTMLElement>('.score-stats-container');
+  if (!statsContainer) return [];
+  return Array.from(statsContainer.children).filter((element): element is HTMLElement => (
+    element instanceof HTMLElement && (
+      element.classList.contains('stat-item') ||
+      element.classList.contains('score-stat-divider')
+    )
+  ));
+}
+
+function clearScoreSheetStatsMotion(sheet: HTMLElement | null): void {
+  if (scoreSheetStatsEnterCleanupTimeout) {
+    clearTimeout(scoreSheetStatsEnterCleanupTimeout);
+    _scoreSheetTimeouts.delete(scoreSheetStatsEnterCleanupTimeout);
+    scoreSheetStatsEnterCleanupTimeout = null;
+  }
+  if (!sheet) return;
+  sheet.classList.remove('score-sheet-stats-enter-primed');
+  getScoreSheetStatElements(sheet).forEach((element) => {
+    element.classList.remove('score-sheet-stat-entering', 'score-sheet-stat-exiting');
+    element.style.removeProperty('animation-delay');
+  });
+}
+
+function prepareScoreSheetStatsEnter(sheet: HTMLElement): void {
+  clearScoreSheetStatsMotion(sheet);
+  sheet.classList.add('score-sheet-stats-enter-primed');
+}
+
+function playScoreSheetStatsEnter(sheet: HTMLElement): void {
+  const statElements = getScoreSheetStatElements(sheet);
+  if (!statElements.length) {
+    sheet.classList.remove('score-sheet-stats-enter-primed');
+    return;
+  }
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) {
+    sheet.classList.remove('score-sheet-stats-enter-primed');
+    return;
+  }
+
+  const delays = createDetailModalStatsEnterDelays(statElements.length);
+  statElements.forEach((element, index) => {
+    element.style.animationDelay = `${delays[index] ?? 0}s`;
+    element.classList.add('score-sheet-stat-entering');
+  });
+  sheet.classList.remove('score-sheet-stats-enter-primed');
+  scoreSheetStatsEnterCleanupTimeout = trackScoreSheetTimeout(() => {
+    scoreSheetStatsEnterCleanupTimeout = null;
+    statElements.forEach((element) => {
+      element.classList.remove('score-sheet-stat-entering');
+      element.style.removeProperty('animation-delay');
+    });
+  }, Math.ceil(getDetailModalStatsEnterTotalDuration(statElements.length) * 1000) + 34);
+}
+
+function replayScoreSheetStatsEnter(sheet: HTMLElement): void {
+  prepareScoreSheetStatsEnter(sheet);
+  trackScoreSheetAnimationFrame(() => {
+    if (sheet !== modal || !sheet.isConnected || (sheet as any)._closing) return;
+    playScoreSheetStatsEnter(sheet);
+  });
+}
+
+function playScoreSheetStatsExit(sheet: HTMLElement): void {
+  const statElements = getScoreSheetStatElements(sheet);
+  if (scoreSheetStatsEnterCleanupTimeout) {
+    clearTimeout(scoreSheetStatsEnterCleanupTimeout);
+    _scoreSheetTimeouts.delete(scoreSheetStatsEnterCleanupTimeout);
+    scoreSheetStatsEnterCleanupTimeout = null;
+  }
+  sheet.classList.remove('score-sheet-stats-enter-primed');
+  statElements.forEach((element) => {
+    element.classList.remove('score-sheet-stat-entering', 'score-sheet-stat-exiting');
+    element.style.removeProperty('animation-delay');
+  });
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) return;
+
+  // Restart the same shared keyframe in its forward direction even when close
+  // interrupts the enter cascade.
+  void sheet.offsetHeight;
+  const delays = createDetailModalStatsEnterDelays(statElements.length);
+  statElements.forEach((element, index) => {
+    element.style.animationDelay = `${delays[index] ?? 0}s`;
+    element.classList.add('score-sheet-stat-exiting');
+  });
+}
+
 function cleanupAllScoreSheetResources(): void {
+  clearScoreSheetStatsMotion(modal);
   disposeScoreSheetClose();
   clearAllScoreSheetTimeouts();
   clearAllScoreSheetAnimationFrames();
@@ -473,7 +567,7 @@ function createModal(): HTMLElement {
             <div class="simple-content">
               <div class="simple-header">
                 <div class="simple-title-section">
-                  <h2 id="score-sheet-title">${titleText}</h2>
+                  <h2 id="score-sheet-title" class="cc-gameplay-modal-title">${titleText}</h2>
                   <p id="score-sheet-subtitle">${subtitleText}</p>
                 </div>
                 <div class="score-stats-container">
@@ -669,6 +763,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     if (modal && modal.parentNode) {
       console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet transition active - refreshing stats`);
       refreshScoreSheetContent(mode);
+      replayScoreSheetStatsEnter(modal);
       return;
     }
   }
@@ -679,6 +774,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
   if (isScoreBottomSheetVisible() && modal) {
     console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet already open - refreshing stats`);
     refreshScoreSheetContent(mode);
+    replayScoreSheetStatsEnter(modal);
     return; // Don't recreate modal, just refresh stats
   }
 
@@ -728,6 +824,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     const currentBoardNumber = getCurrentBoardNumber();
     const scoreSheetStats = getScoreSheetStats(currentBoardNumber, mode);
     refreshScoreSheetContent(mode);
+    prepareScoreSheetStatsEnter(el);
 
     console.log(`📊 ${mode === 'combo' ? 'Combo' : 'Score'} bottom sheet showing board ${currentBoardNumber} stats:`, {
       primaryValue: scoreSheetStats.primaryValue,
@@ -749,6 +846,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
       el.style.webkitTransform = 'none';
       el.classList.add('visible', 'cc-gameplay-modal-entering');
       backdrop?.classList.add('cc-gameplay-modal-backdrop-visible');
+      playScoreSheetStatsEnter(el);
 
       trackScoreSheetTimeout(() => {
         if (openLifecycleId !== scoreSheetLifecycleId || el !== modal) return;
@@ -835,6 +933,7 @@ export function hideScoreBottomSheet(): void {
 
     modalEl.classList.remove('cc-gameplay-modal-entering');
     modalEl.classList.add('cc-gameplay-modal-exiting');
+    playScoreSheetStatsExit(modalEl);
     modalEl.style.transition = 'none';
     modalEl.style.transform = 'none';
   } catch (error) {

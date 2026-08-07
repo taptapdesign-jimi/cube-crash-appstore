@@ -8,6 +8,8 @@ export interface JourneyOriginOptions {
   detailBoardId?: number | null;
 }
 
+const JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY = '__ccJourneyCardOverlayReturnBoardId';
+
 export type JourneyReturnTarget = 'homepage' | 'journey' | 'detail-modal';
 
 export interface JourneyReturnDecision {
@@ -31,7 +33,7 @@ function normalizeBoardId(boardId: unknown): number | null {
   const value = Number(boardId);
   if (!Number.isFinite(value)) return null;
   const normalized = Math.floor(value);
-  return normalized >= 1 && normalized <= 25 ? normalized : null;
+  return normalized >= 1 && normalized <= 30 ? normalized : null;
 }
 
 export function markJourneyGameOrigin(opts: JourneyOriginOptions = {}): void {
@@ -71,6 +73,13 @@ export function markJourneyDetailReturn(boardId: unknown): number | null {
   const normalizedBoardId = normalizeBoardId(boardId);
   if (!normalizedBoardId) return null;
 
+  delete (window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY];
+  if (typeof document !== 'undefined') {
+    document.querySelectorAll('.journey-board-card-return-placeholder').forEach((element) => {
+      element.classList.remove('journey-board-card-return-placeholder');
+    });
+  }
+
   markJourneyGameOrigin({
     fromInterim: false,
     fromDetailModal: true,
@@ -78,6 +87,52 @@ export function markJourneyDetailReturn(boardId: unknown): number | null {
   });
 
   return normalizedBoardId;
+}
+
+export function markJourneyCardOverlayReturn(boardId: unknown): number | null {
+  if (typeof window === 'undefined') return null;
+  const normalizedBoardId = normalizeBoardId(boardId);
+  if (!normalizedBoardId) return null;
+  clearJourneyDetailReturn();
+  (window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY] = normalizedBoardId;
+  if (typeof document !== 'undefined') {
+    document
+      .querySelector(`.journey-board-card[data-board-id="${normalizedBoardId}"]`)
+      ?.classList.add('journey-board-card-return-placeholder');
+  }
+  return normalizedBoardId;
+}
+
+export function getJourneyCardOverlayReturnBoardId(): number | null {
+  if (typeof window === 'undefined') return null;
+  return normalizeBoardId((window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY]);
+}
+
+/**
+ * Acknowledge the overlay return only after the exact card has landed back in
+ * its live Unit. A stale caller cannot clear a newer board's return request.
+ */
+export function completeJourneyCardOverlayReturn(boardId: unknown): boolean {
+  if (typeof window === 'undefined') return false;
+  const normalizedBoardId = normalizeBoardId(boardId);
+  if (!normalizedBoardId || getJourneyCardOverlayReturnBoardId() !== normalizedBoardId) {
+    return false;
+  }
+  delete (window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY];
+  if (typeof document !== 'undefined') {
+    document
+      .querySelectorAll(`.journey-board-card[data-board-id="${normalizedBoardId}"]`)
+      .forEach((element) => element.classList.remove(
+        'journey-board-card-return-placeholder',
+        'journey-board-card-return-landing',
+      ));
+  }
+  return true;
+}
+
+/** Reveal the normal Unit card and retire an intent that cannot safely land. */
+export function cancelJourneyCardOverlayReturn(boardId: unknown): boolean {
+  return completeJourneyCardOverlayReturn(boardId);
 }
 
 export function clearJourneyDetailReturn(): void {
@@ -110,6 +165,19 @@ export async function resolveJourneyReturnTarget(boardId: unknown): Promise<Jour
     clearJourneyDetailReturn();
     markJourneyGameOrigin({ fromInterim: isInterim });
     return { target: 'journey', boardId: normalizedBoardId, isUnlockedBoard: false, isInterim };
+  }
+
+  const overlayReturnBoardId = normalizeBoardId(
+    (window as any)[JOURNEY_CARD_OVERLAY_RETURN_BOARD_KEY],
+  );
+  if (overlayReturnBoardId === normalizedBoardId) {
+    clearJourneyDetailReturn();
+    return {
+      target: 'journey',
+      boardId: normalizedBoardId,
+      isUnlockedBoard: true,
+      isInterim: false,
+    };
   }
 
   try {

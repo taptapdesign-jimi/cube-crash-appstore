@@ -32,7 +32,7 @@ describe('reversible End Run bottom-sheet 3D flip experiment', () => {
     expect(endRunSource).toContain("modal.classList.add('is-end-run-centered-modal-test')");
     expect(endRunSource).toContain("modal.setAttribute('role', 'dialog')");
     expect(endRunSource).toContain("modal.setAttribute('aria-modal', 'true')");
-    expect(endRunSource).toContain('<h2 id="end-run-modal-title">');
+    expect(endRunSource).toContain('<h2 id="end-run-modal-title" class="cc-gameplay-modal-title">');
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(endRunSource).toContain('hideModal();');
     expect(endRunSource).toContain('if (!END_RUN_CENTERED_MODAL_TEST_ENABLED) {\n    addDragFunctionality(modal);');
@@ -55,7 +55,7 @@ describe('reversible End Run bottom-sheet 3D flip experiment', () => {
     expect(appCss).toContain('.simple-bottom-sheet.is-end-run-centered-modal-test {');
     expect(appCss).toContain('align-items: center');
     expect(appCss).toContain('justify-content: center');
-    expect(appCss).toContain('background: rgba(233, 210, 200, 0.24)');
+    expect(appCss).toContain('background: var(--cc-gameplay-modal-overlay-color)');
     expect(appCss).toContain(
       '.simple-bottom-sheet.is-end-run-centered-modal-test.is-end-run-backdrop-visible::before {\n  opacity: 1;',
     );

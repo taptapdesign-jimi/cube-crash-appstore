@@ -58,7 +58,10 @@ import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
 import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
-import { isJourneyInterimOriginActive } from './modules/journey-origin-state.js';
+import {
+  getJourneyCardOverlayReturnBoardId,
+  isJourneyInterimOriginActive,
+} from './modules/journey-origin-state.js';
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { appSpatialMotion } from './modules/journey-spatial-motion.js';
@@ -3002,6 +3005,20 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       }
       emitIOSNativeDiagnostic('main-after-show-scheduled');
+
+      const overlayReturnBoardId = getJourneyCardOverlayReturnBoardId();
+      if (overlayReturnBoardId !== null) {
+        try {
+          const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+          void journeyBoardsManager.playJourneyOverlayReturnCard(overlayReturnBoardId);
+          emitIOSNativeDiagnostic('journey-overlay-return-card-started', {
+            boardId: overlayReturnBoardId,
+            presentation: 'spatial-enter-and-hold',
+          });
+        } catch (error) {
+          console.warn('⚠️ Failed to start Journey overlay return card:', error);
+        }
+      }
 
       // showCollectibles owns the complete visible enter lifecycle and resumes
       // idle effects only after enter completion. Starting them here as well

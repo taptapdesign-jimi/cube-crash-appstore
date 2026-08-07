@@ -3,6 +3,8 @@ import {
   getJourneyV700EnterOffset,
   getJourneyV700MotionProfile,
   getJourneyV700UnitStagger,
+  JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
+  JOURNEY_V700_UNIT_CARD_EXIT_EASE,
 } from './journey-v700-motion.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 
@@ -139,27 +141,112 @@ export class JourneyWorldAnimationCoordinator {
     const exitOrder = liveUnits.slice().reverse();
 
     await new Promise<void>((resolve) => {
+      const cardExitFinalizers: Array<() => void> = [];
+      const finalizeCardExits = () => {
+        cardExitFinalizers.forEach((finalize) => finalize());
+      };
       const timeline = gsap.timeline({
         onComplete: () => {
+          finalizeCardExits();
           if (this.activeTimeline === timeline) this.activeTimeline = null;
           resolve();
         },
-        onInterrupt: resolve,
+        onInterrupt: () => {
+          finalizeCardExits();
+          resolve();
+        },
       });
       this.activeTimeline = timeline;
 
       exitOrder.forEach((unit, index) => {
-        gsap.killTweensOf(unit.targets);
-        const tween = gsap.to(unit.targets, {
+        const position = index * stagger;
+        const cardWrappers = unit.targets.filter((target) => (
+          target.classList.contains('journey-board-card-wrapper')
+        ));
+        const structuralTargets = unit.targets.filter((target) => !cardWrappers.includes(target));
+        const cardVisualTargets = cardWrappers.flatMap((wrapper) => {
+          const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
+          return card ? [card] : [];
+        });
+
+        gsap.killTweensOf([...unit.targets, ...cardVisualTargets]);
+
+        if (reducedMotion || !cardVisualTargets.length) {
+          const tween = gsap.to(unit.targets, {
+            y: motion.exit.y,
+            scale: motion.exit.scale,
+            opacity: 0,
+            duration: motion.exit.duration,
+            ease: motion.exit.ease,
+            force3D: true,
+            overwrite: true,
+          });
+          timeline.add(tween, position);
+          return;
+        }
+
+        // The complete Unit still has one coordinator/timeline and one start
+        // position. Structural art keeps the v910 World exit. The card's
+        // visible face performs the established opaque back.in collapse and
+        // finishes before its island, so a high-contrast card can never appear
+        // alone after the softer island/cloud PNGs have faded.
+        if (structuralTargets.length) {
+          timeline.add(gsap.to(structuralTargets, {
+            y: motion.exit.y,
+            scale: motion.exit.scale,
+            opacity: 0,
+            duration: motion.exit.duration,
+            ease: motion.exit.ease,
+            force3D: true,
+            overwrite: true,
+          }), position);
+        }
+
+        timeline.add(gsap.to(cardWrappers, {
           y: motion.exit.y,
-          scale: motion.exit.scale,
-          opacity: 0,
-          duration: motion.exit.duration,
+          duration: JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
           ease: motion.exit.ease,
           force3D: true,
           overwrite: true,
+        }), position);
+        cardVisualTargets.forEach((card) => {
+          card.classList.add('journey-card-tapping');
+          card.style.visibility = 'visible';
+          card.style.opacity = '1';
+          card.style.willChange = 'transform';
         });
-        timeline.add(tween, index * stagger);
+        let cardExitFinalized = false;
+        const finalizeCardExit = () => {
+          if (cardExitFinalized) return;
+          cardExitFinalized = true;
+          cardWrappers.forEach((wrapper) => {
+            if (!document.body.contains(wrapper)) return;
+            gsap.set(wrapper, { opacity: 0, visibility: 'hidden', overwrite: true });
+          });
+          cardVisualTargets.forEach((card) => {
+            if (!document.body.contains(card)) return;
+            card.classList.remove('journey-card-tapping');
+            card.style.willChange = 'auto';
+            gsap.set(card, {
+              scale: 1,
+              opacity: 1,
+              visibility: 'visible',
+              clearProps: 'transform,opacity,visibility',
+              overwrite: true,
+            });
+          });
+        };
+        cardExitFinalizers.push(finalizeCardExit);
+        timeline.add(gsap.to(cardVisualTargets, {
+          scale: 0,
+          opacity: 1,
+          duration: JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
+          ease: JOURNEY_V700_UNIT_CARD_EXIT_EASE,
+          force3D: true,
+          overwrite: true,
+          onComplete: finalizeCardExit,
+          onInterrupt: finalizeCardExit,
+        }), position);
       });
     });
 
