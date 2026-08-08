@@ -32,4 +32,74 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(handoff).toContain('fxModule.forceCleanupAllStarAnimations?.()');
     expect(modal).toContain("arcadeRunReached && (window as any).__ccGameOverBoardExitComplete === true");
   });
+
+  test('Round 02+ summary keeps the overlay mounted through the complete modal exit', () => {
+    const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/clean-board-modal.ts'), 'utf8');
+    const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const secondaryStart = modal.indexOf('addButtonPressHandling(secondaryBtn, async () =>');
+    const secondaryEnd = modal.indexOf("}, 'secondary');", secondaryStart);
+    const exitOwner = modal.slice(secondaryStart, secondaryEnd);
+
+    expect(exitOwner).toContain('const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);');
+    expect(exitOwner).toContain('const boardExitCompletePromise = boardExitPromise.catch');
+    expect(exitOwner).toContain('const modalExitPromise = Promise.all([');
+    expect(exitOwner).toContain('const cardExitDuration = 400 + 650;');
+    expect(exitOwner).toContain('const collapseDuration = Math.max(');
+    expect(exitOwner.indexOf('const exitsCompleted = await Promise.race(['))
+      .toBeLessThan(exitOwner.indexOf('try { el.remove(); } catch {}'));
+    expect(exitOwner).not.toContain('boardExitPromise.then(() => {\n          trackTimeout(() => {');
+    expect(exitOwner).toContain('trackAnimationFrame(() => {');
+    expect(exitOwner).toContain('trackTimeout(resolveModalExit, collapseDuration + 300);');
+    expect(exitOwner).toContain('const exitsCompleted = await Promise.race([');
+    expect(exitOwner).toContain('navigationAbortPromise.then(() => false)');
+    expect(exitOwner).toContain('if (!exitsCompleted) return;');
+    expect(exitOwner).toContain('safeResolve(exitAction);');
+
+    const visibilityStart = modal.indexOf("lifecycle.trackListener(document, 'visibilitychange'");
+    const visibilityEnd = modal.indexOf("lifecycle.trackListener(window, 'beforeunload'", visibilityStart);
+    const visibilityOwner = modal.slice(visibilityStart, visibilityEnd);
+    expect(visibilityOwner).toContain("overlay?.getAttribute('data-clean-board-exiting') === 'true'");
+    expect(visibilityOwner.indexOf("overlay?.getAttribute('data-clean-board-exiting') === 'true'"))
+      .toBeLessThan(visibilityOwner.indexOf('clearAllModalTimeouts()'));
+
+    // All modal completion branches must detach their per-session navigation
+    // listener through safeResolve; the one raw resolve belongs to that helper.
+    expect(modal.match(/resolve\(\{ action/g)).toHaveLength(1);
+
+    const boardExitStart = appCore.indexOf('async function animateBoardExit()');
+    const boardExitEnd = appCore.indexOf('// 🔥 v112: tintLocked', boardExitStart);
+    expect(appCore.slice(boardExitStart, boardExitEnd)).not.toContain('animationManager.killAll()');
+  });
+
+  test('Arcade Stage continuation has one awaited reset and layout owner', () => {
+    const endgame = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
+    const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const layoutHelper = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core-startlevel-layout.ts'), 'utf8');
+    const stageModal = fs.readFileSync(path.join(repoRoot, 'src/modules/arcade-stage-clear-modal.ts'), 'utf8');
+    const arcadeStart = endgame.indexOf('if (arcadeStageClearMode) {');
+    const arcadeEnd = endgame.indexOf('runJourneyCompletionFlow', arcadeStart);
+    const arcadeOwner = endgame.slice(arcadeStart, arcadeEnd);
+
+    expect(arcadeOwner).toContain('await startLevel(nextStage);');
+    expect(arcadeOwner).not.toContain("softResetBoardView?.('arcade-stage-clear')");
+    expect(arcadeOwner).not.toContain("cleanupFxForBoardReset?.('arcade-stage-clear')");
+    expect(arcadeOwner).not.toContain('layoutBoardFn');
+    expect(arcadeOwner).not.toContain('ctx.updateHUD?.()');
+    expect(arcadeOwner).toContain('delete (window as any).__ccArcadeContinuationCueRound;');
+
+    const startLevelStart = appCore.indexOf('async function startLevel(n)');
+    const startLevelEnd = appCore.indexOf('// --- local Wild skin fallback', startLevelStart);
+    const startLevelOwner = appCore.slice(startLevelStart, startLevelEnd);
+    expect(startLevelOwner).toContain('await ensureStartLevelLayout({');
+    expect(startLevelOwner.indexOf('stage.visible = false'))
+      .toBeLessThan(startLevelOwner.indexOf("await ensureCoreGameTexturesLoaded('startLevel')"));
+    expect(layoutHelper).toContain('export async function ensureStartLevelLayout');
+    expect(layoutHelper).toContain('await layoutBoard();');
+    expect(stageModal).toContain('await wait(300);');
+
+    const bootStart = appCore.indexOf('export async function boot()');
+    const bootEnd = appCore.indexOf('// -------------------- layout + HUD', bootStart);
+    const bootOwner = appCore.slice(bootStart, bootEnd);
+    expect(bootOwner).not.toContain('trackAppAnimationFrame(async () => {\n      await layoutBoard();');
+  });
 });

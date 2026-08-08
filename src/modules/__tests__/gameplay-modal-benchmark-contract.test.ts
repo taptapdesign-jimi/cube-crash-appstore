@@ -14,6 +14,7 @@ describe('shared gameplay modal benchmark', () => {
   const rewardAnimations = read('src/modules/collectible-reward-animations.ts');
   const spatialPermission = read('src/modules/spatial-motion-permission-modal.ts');
   const journeyOverlay = read('src/modules/journey-card-overlay-modal.ts');
+  const modalSpatialMotion = read('src/modules/gameplay-modal-spatial-motion.ts');
   const css = read('src/style.css');
   const collectiblesCss = read('src/collectibles-screen.css');
 
@@ -46,6 +47,17 @@ describe('shared gameplay modal benchmark', () => {
     expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
   });
 
+  test('mounts every gameplay paper modal on the shared gyro owner', () => {
+    expect(modalSpatialMotion).toContain("import { appSpatialMotion } from './journey-spatial-motion.js'");
+    expect(modalSpatialMotion).toContain('appSpatialMotion.registerModalTargets');
+    expect(score).toContain('mountGameplayModalSpatialMotion');
+    expect(reward).toContain('mountGameplayModalSpatialMotion');
+    expect(endRun).toContain('mountGameplayModalSpatialMotion');
+    expect(journeyOverlay).toContain('mountJourneyCardFlipSpatialMotion');
+    expect(modalSpatialMotion).not.toContain("addEventListener('deviceorientation'");
+    expect(css).toContain('.cc-modal-spatial-target {');
+  });
+
   test('owns one 32px headline size across every paper gameplay modal', () => {
     expect(css).toContain('--cc-gameplay-modal-title-size: 32px;');
     expect(css).toContain('.cc-gameplay-modal-title {\n  font-size: var(--cc-gameplay-modal-title-size);');
@@ -63,7 +75,9 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color) !important;');
     expect(rewardUi.match(/background: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);
-    expect(collectiblesCss.match(/background(?:-color)?: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(3);
+    expect(collectiblesCss.match(/background(?:-color)?: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);
+    expect(collectiblesCss).toContain('.journey-card-flip-backdrop {');
+    expect(collectiblesCss).toMatch(/\.journey-card-flip-backdrop \{[\s\S]*?background: var\(--cc-gameplay-modal-overlay-color\);[\s\S]*?opacity: 0;/);
     expect(css).not.toContain('background: rgba(233, 210, 200, 0.24) !important;');
     expect(rewardUi).not.toContain('background: rgba(233, 210, 200, 0.24);');
   });

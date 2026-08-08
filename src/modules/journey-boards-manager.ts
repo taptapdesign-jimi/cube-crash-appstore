@@ -794,31 +794,6 @@ class JourneyBoardsManager {
     onManualIntent: () => void;
   } | null = null;
 
-  private emitJourneyCardGeometryDiagnostic(event: string, tappedBoardId?: number): void {
-    try {
-      const container = document.getElementById('journey-boards-container');
-      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
-      const cards = Array.from(container?.querySelectorAll<HTMLElement>('.journey-board-card-wrapper') || [])
-        .filter((wrapper) => wrapper.style.display !== 'none' && document.body.contains(wrapper))
-        .map((wrapper) => {
-          const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
-          const boardId = Number(card?.dataset.boardId || 0);
-          const rect = wrapper.getBoundingClientRect();
-          return {
-            boardId,
-            top: Math.round(rect.top * 10) / 10,
-            y: Math.round(Number(gsap.getProperty(wrapper, 'y') || 0) * 10) / 10,
-            transform: wrapper.style.transform || null,
-            tapped: boardId === tappedBoardId,
-          };
-        });
-      emitIOSNativeDiagnostic(`card-geometry-${event}`, {
-        tappedBoardId: tappedBoardId || null,
-        scrollTop: Math.round((scrollable?.scrollTop || 0) * 10) / 10,
-        cards,
-      });
-    } catch {}
-  }
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
   
@@ -1004,7 +979,7 @@ class JourneyBoardsManager {
   private createJourneyAreaIdleTimeline(
     areaId: string,
     targets: HTMLElement[],
-    options: { amplitude: number; cycleDuration: number; delay: number; xAmplitude?: number; xPhaseOffset?: number; rampSeconds?: number }
+    options: { amplitude: number; cycleDuration: number; delay: number; xAmplitude?: number; xPhaseOffset?: number; rampSeconds?: number; preserveInitialTransform?: boolean }
   ): void {
     const liveTargets = targets.filter((target) => target && document.body.contains(target));
     if (!liveTargets.length) {
@@ -1013,7 +988,7 @@ class JourneyBoardsManager {
     }
 
     liveTargets.forEach((target) => {
-      if (target.classList.contains('journey-board-card-wrapper')) {
+      if (target.classList.contains('journey-board-card-wrapper') && !options.preserveInitialTransform) {
         restoreJourneyBoardCardBaseTransform(target);
       } else {
         target.style.opacity = '1';
@@ -1463,7 +1438,8 @@ class JourneyBoardsManager {
 
   private startJourneyAreaIdleAnimations(
     forestAreas: { mainTargets: HTMLElement[]; cloudTargets?: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> },
-    cardsContainer: HTMLElement
+    cardsContainer: HTMLElement,
+    preserveCurrentBoardTransforms = false,
   ): void {
     this.journeyAreaIdlePausedForInteraction = false;
     this.cleanupJourneyAreaIdleAnimations(false);
@@ -1512,10 +1488,51 @@ class JourneyBoardsManager {
         amplitude: randomInRange(6.5, 10.5),
         cycleDuration: randomInRange(2.55, 3.45),
         delay: randomInRange(0.08, 0.72),
+        rampSeconds: preserveCurrentBoardTransforms ? 1.8 : undefined,
+        preserveInitialTransform: preserveCurrentBoardTransforms,
       });
     });
 
     this.startVisibleInterimCardIdleEffects(cardsContainer);
+  }
+
+  private suspendJourneyWorldForCardOverlay(reason: string): void {
+    this.clearJourneyAreaIdleStartTimeout();
+    if (this.journeyScrollSettledTimeout) {
+      window.clearTimeout(this.journeyScrollSettledTimeout);
+      this._activeTimeouts.delete(this.journeyScrollSettledTimeout);
+      this.journeyScrollSettledTimeout = null;
+    }
+    this.journeyAreaIdlePausedForInteraction = true;
+    this.cleanupJourneyAreaIdleAnimations(false);
+    journeySpatialMotion.suspend();
+    journeySpatialMotion.profileFrameWindow(`journey-card-overlay:${reason}`, 5000);
+    emitIOSNativeDiagnostic('card-overlay-world-suspended', {
+      reason,
+      worldId: this.journeyV700WorldId,
+    });
+  }
+
+  private resumeJourneyWorldAfterCardOverlay(reason: string): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const cardsContainer = container?.querySelector<HTMLElement>('.journey-cards-container') ?? null;
+    if (
+      !container ||
+      !cardsContainer ||
+      this.renderDisposed ||
+      this.journeyV700View !== 'world' ||
+      !this.journeyV700WorldId
+    ) return;
+    journeySpatialMotion.resumeJourneyWorld(container);
+    this.startJourneyAreaIdleAnimations(
+      this.getCurrentJourneyForestAreas(cardsContainer),
+      cardsContainer,
+      true,
+    );
+    emitIOSNativeDiagnostic('card-overlay-world-resumed', {
+      reason,
+      worldId: this.journeyV700WorldId,
+    });
   }
 
   private scheduleJourneyAreaIdleAnimations(cardsContainer: HTMLElement, delayMs: number): void {
@@ -4396,8 +4413,6 @@ class JourneyBoardsManager {
       view: this.journeyV700View,
       worldId: this.journeyV700WorldId,
     });
-    this.emitJourneyCardGeometryDiagnostic('world-exit-start', boardId);
-
     if (!useCoordinatedWorldExit || !container) {
       return Promise.resolve();
     }
@@ -8091,8 +8106,6 @@ class JourneyBoardsManager {
           currentView: this.journeyV700View,
           currentWorldId: this.journeyV700WorldId,
         });
-        this.emitJourneyCardGeometryDiagnostic('tap', board.id);
-        requestAnimationFrame(() => this.emitJourneyCardGeometryDiagnostic('tap-next-frame', board.id));
         logger.info(`🖱️🖱️🖱️ CARD CLICKED FOR BOARD ${board.id}`);
         logger.info(`🔍 Board data on click:`, {
           id: board.id,
@@ -8140,6 +8153,10 @@ class JourneyBoardsManager {
           }
           cardEl.classList.remove('idle-shimmer-trigger');
           try { gsap.killTweensOf(cardEl); } catch {}
+          // Direct card-modal dismiss and gameplay return must share the same
+          // settled landing presentation. Restoring the captured inline idle
+          // transform after the portal lands produces a one-frame refresh.
+          originLease?.prepareSettledLanding();
           originLease?.captureLandingGeometry();
         } catch {}
 
@@ -8529,7 +8546,10 @@ class JourneyBoardsManager {
     cardElement: HTMLElement,
     origin: JourneyCardOriginLease,
   ): Promise<void> {
+    let worldSuspendedForOverlay = false;
     try {
+      this.suspendJourneyWorldForCardOverlay('direct-card-open');
+      worldSuspendedForOverlay = true;
       const scrollOwner = document.querySelector(
         '#journey-screen .collectibles-scrollable',
       ) as HTMLElement | null;
@@ -8556,7 +8576,6 @@ class JourneyBoardsManager {
       });
       const controller = presentJourneyCardOverlayModal({
         boardId: board.id,
-        imagePath: board.imagePath || './assets/colelctibles/common back.png',
         origin,
         hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true }),
         scrollOwner,
@@ -8594,7 +8613,13 @@ class JourneyBoardsManager {
       if (this.journeyCardOverlayModal === controller) {
         this.journeyCardOverlayModal = null;
       }
-      if (result !== 'play' || this.renderDisposed) return;
+      if (result !== 'play' || this.renderDisposed) {
+        if (result === 'dismiss' && !this.renderDisposed) {
+          this.resumeJourneyWorldAfterCardOverlay('direct-card-dismiss');
+          worldSuspendedForOverlay = false;
+        }
+        return;
+      }
 
       await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);
     } catch (error) {
@@ -8602,6 +8627,9 @@ class JourneyBoardsManager {
       this.journeyCardOverlayModal?.dispose();
       this.journeyCardOverlayModal = null;
       origin.restoreNow();
+      if (worldSuspendedForOverlay && !this.renderDisposed) {
+        this.resumeJourneyWorldAfterCardOverlay('direct-card-error');
+      }
       throw error;
     }
   }
@@ -8685,6 +8713,7 @@ class JourneyBoardsManager {
   ): Promise<HTMLElement | null> {
     const expectedWorldId = this.getJourneyWorldIdForBoard(boardId);
     const startedAt = performance.now();
+    let stablePaintFrames = 0;
 
     return new Promise((resolve) => {
       const sample = () => {
@@ -8698,8 +8727,7 @@ class JourneyBoardsManager {
         ) ?? null;
         const wrapper = target?.closest<HTMLElement>('.journey-board-card-wrapper');
         const journeyScreen = document.getElementById('journey-screen');
-        const phaseCanLaunch = this.journeyV700Phase === 'entering'
-          || this.journeyV700Phase === 'idle';
+        const phaseCanLaunch = this.journeyV700Phase === 'idle';
         const ready = !!target
           && !!wrapper
           && target.isConnected
@@ -8711,6 +8739,7 @@ class JourneyBoardsManager {
           && !journeyScreen?.hasAttribute('hidden');
 
         if (!ready) {
+          stablePaintFrames = 0;
           requestAnimationFrame(sample);
           return;
         }
@@ -8722,12 +8751,18 @@ class JourneyBoardsManager {
           : 0;
         const hasVisibleFlightOrigin = rect.width > 1
           && rect.height > 1
-          && wrapperOpacity >= 0.08
-          && screenOpacity >= 0.04;
+          && wrapperOpacity >= 0.99
+          && screenOpacity >= 0.99;
         if (hasVisibleFlightOrigin) {
-          resolve(target!);
+          stablePaintFrames += 1;
+          if (stablePaintFrames >= 2) {
+            resolve(target!);
+            return;
+          }
+          requestAnimationFrame(sample);
           return;
         }
+        stablePaintFrames = 0;
         requestAnimationFrame(sample);
       };
       requestAnimationFrame(sample);
@@ -8774,6 +8809,7 @@ class JourneyBoardsManager {
       '#journey-screen .collectibles-scrollable',
     );
     (targetElement as any)._openingDetail = true;
+    let worldSuspendedForOverlay = false;
     try {
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
         JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
@@ -8783,20 +8819,10 @@ class JourneyBoardsManager {
       }
       targetElement.classList.remove('idle-shimmer-trigger');
       try { gsap.killTweensOf(targetElement); } catch {}
+      origin.prepareSettledLanding();
       origin.captureLandingGeometry();
-      const targetWrapper = targetElement.closest<HTMLElement>('.journey-board-card-wrapper');
-      const journeyScreen = document.getElementById('journey-screen');
-      const returnWrapperOpacity = Number.parseFloat(
-        targetWrapper ? getComputedStyle(targetWrapper).opacity : '1',
-      );
-      const returnScreenOpacity = Number.parseFloat(
-        journeyScreen ? getComputedStyle(journeyScreen).opacity : '1',
-      );
-      const entryInitialOpacity = Math.max(0, Math.min(1,
-        (Number.isFinite(returnWrapperOpacity) ? returnWrapperOpacity : 1)
-        * (Number.isFinite(returnScreenOpacity) ? returnScreenOpacity : 1),
-      ));
-
+      this.suspendJourneyWorldForCardOverlay('game-return-card-open');
+      worldSuspendedForOverlay = true;
       this.journeyCardOverlayModal?.dispose();
       let earlyJourneyExitPromise: Promise<void> | null = null;
       let resolveOverlayCardExit!: () => void;
@@ -8805,11 +8831,10 @@ class JourneyBoardsManager {
       });
       const controller = presentJourneyCardOverlayModal({
         boardId,
-        imagePath: board.imagePath || './assets/colelctibles/common back.png',
         origin,
         hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
         scrollOwner,
-        entryInitialOpacity,
+        entryInitialOpacity: 1,
         onPlayCardReturnStart: () => {
           this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
         },
@@ -8840,6 +8865,8 @@ class JourneyBoardsManager {
       if (result === 'dismiss') {
         if (controller.didLandAtOrigin) completeJourneyCardOverlayReturn(boardId);
         else cancelJourneyCardOverlayReturn(boardId);
+        this.resumeJourneyWorldAfterCardOverlay('game-return-card-dismiss');
+        worldSuspendedForOverlay = false;
         return;
       }
       if (!this.renderDisposed) {
@@ -8848,6 +8875,9 @@ class JourneyBoardsManager {
     } catch (error) {
       origin.restoreNow();
       cancelJourneyCardOverlayReturn(boardId);
+      if (worldSuspendedForOverlay && !this.renderDisposed) {
+        this.resumeJourneyWorldAfterCardOverlay('game-return-card-error');
+      }
       logger.warn('⚠️ Journey gameplay return overlay failed safely', {
         boardId,
         error: error instanceof Error ? error.message : String(error),

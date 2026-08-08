@@ -645,6 +645,7 @@ class LaunchScreen {
         document.body.classList.remove('boot');
         document.body.classList.remove('cc-launch-boot-active');
       }
+      journeySpatialMotion.armPermissionFromNextGesture();
       logger.info('✅ Boot class removed after launch screen completion');
     } catch(e) {
       logger.warn('⚠️ Failed to remove boot class:', e);
@@ -682,6 +683,7 @@ class LaunchScreen {
       document.documentElement?.classList.remove('boot');
       document.body?.classList.remove('boot');
       document.body?.classList.remove('cc-launch-boot-active');
+      journeySpatialMotion.armPermissionFromNextGesture();
     } catch {}
   }
 

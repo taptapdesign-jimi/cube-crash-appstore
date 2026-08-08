@@ -31,6 +31,7 @@ import {
   resetArcadeEntryCueOwner,
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
+import { enforceArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
 import { registerCta, type CtaController } from './cta-system.js';
 import {
   commitHomepageNavigation,
@@ -615,9 +616,9 @@ class UIManager {
         await bootGame();
         console.log('✅ boot() complete');
         
-        // layout() is synchronous, no await needed
-        layoutGame();
-        console.log('✅ layout() complete');
+        // boot/startLevel owns and awaits the one authoritative board layout.
+        // A second layout here used to race the first visible Arcade frame.
+        console.log('✅ boot/startLevel layout complete');
         
 	        // Clear one-shot flags after boot/layout has consumed them.
 	        delete (window as any).__ccTriggerHudDrop;
@@ -628,25 +629,6 @@ class UIManager {
         if (typeof (window as any).startTimeTracking === 'function') {
           (window as any).startTimeTracking();
           console.log('⏱️ Time tracking started');
-        }
-        
-        // 🔥 CRITICAL FIX: Ensure canvas is visible before showing app element
-        // Canvas should already be in DOM from boot(), but we need to ensure it's visible
-        try {
-          const appElement = document.getElementById('app');
-          if (appElement) {
-            const canvas = appElement.querySelector('canvas');
-            if (canvas) {
-              canvas.style.display = 'block';
-              canvas.style.visibility = 'visible';
-              canvas.style.opacity = '1';
-              console.log('✅ Canvas made visible before showApp()');
-            } else {
-              console.warn('⚠️ Canvas not found in app element before showApp()');
-            }
-          }
-        } catch (e) {
-          console.warn('⚠️ Failed to ensure canvas visibility before showApp():', e);
         }
         
         // Show app element
@@ -1129,15 +1111,18 @@ class UIManager {
       }
       if (canvas) {
         canvas.style.display = 'block';
-        canvas.style.visibility = 'visible';
-        canvas.style.opacity = '1';
+        const surfaceGated = enforceArcadeEntrySurfaceGate(canvas as HTMLCanvasElement);
+        if (!surfaceGated) {
+          canvas.style.visibility = 'visible';
+          canvas.style.opacity = '1';
+        }
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         canvas.style.position = 'absolute';
         canvas.style.top = '0';
         canvas.style.left = '0';
         canvas.style.zIndex = '1';
-        canvas.style.pointerEvents = 'auto';
+        if (!surfaceGated) canvas.style.pointerEvents = 'auto';
       }
     } else {
       logger.error('❌ App element not found!');

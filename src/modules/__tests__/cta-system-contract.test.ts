@@ -121,7 +121,8 @@ describe('shared CTA system contract', () => {
     expect(failSource).toContain("star.style.transform = 'scale(1.12)'");
     expect(failSource).toContain("star.style.transform = 'scale(0.98)'");
     expect(cleanSource).toContain('await exitCtaPair(primaryBtn, secondaryBtn)');
-    expect(cleanSource).toContain('await exitCtaPair(secondaryBtn, primaryBtn)');
+    expect(cleanSource).toContain('const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn)');
+    expect(cleanSource).toContain('const modalExitPromise = Promise.all([\n          ctaExitPromise,');
     expect(failSource).toContain('await exitCtaPair(primaryButton, secondaryButton)');
   });
 

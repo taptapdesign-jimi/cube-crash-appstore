@@ -80,6 +80,17 @@ describe('launch 3D Motion permission ownership', () => {
     expect(persistIndex).toBeGreaterThan(requestIndex);
   });
 
+  it('re-arms the persisted preference for the new WKWebView session after launch', () => {
+    const bootRemoval = launchSource.indexOf("document.body.classList.remove('cc-launch-boot-active')");
+    const sessionRearm = launchSource.indexOf(
+      'journeySpatialMotion.armPermissionFromNextGesture()',
+      bootRemoval,
+    );
+
+    expect(bootRemoval).toBeGreaterThan(-1);
+    expect(sessionRearm).toBeGreaterThan(bootRemoval);
+  });
+
   it('never aborts the studio intro from a stale priority-paper diagnostic identifier', () => {
     expect(launchSource).toContain('paperComplete: priorityPaperBgLoadPromise !== null');
     expect(launchSource).not.toContain('priorityPaperLoadPromise');

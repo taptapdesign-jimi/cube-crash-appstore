@@ -38,8 +38,15 @@ import {
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 import { mountGameplaySheetClose } from './gameplay-sheet-close.ts';
+import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 
 let rewardCtaControllers: CtaController[] = [];
+let disposeRewardSpatialMotion: (() => void) | null = null;
+
+function cleanupRewardSpatialMotion(): void {
+  disposeRewardSpatialMotion?.();
+  disposeRewardSpatialMotion = null;
+}
 
 function disposeRewardCtas(): void {
   rewardCtaControllers.splice(0).forEach(controller => controller.dispose());
@@ -85,6 +92,11 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     // Create sheet
     const sheet = createBottomSheet(validatedDetail);
     overlay.appendChild(sheet);
+    disposeRewardSpatialMotion = mountGameplayModalSpatialMotion(
+      overlay,
+      sheet.querySelector<HTMLElement>('.cc-gameplay-modal-paper-shell'),
+    );
+    registerCleanup(cleanupRewardSpatialMotion);
     
     // Set up close handler
     const handleClose = (reason: string, clickedCta?: HTMLButtonElement) => {
@@ -170,6 +182,7 @@ export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss
   if (!overlay || getIsClosing()) return;
 
   setClosing(true);
+  cleanupRewardSpatialMotion();
   cleanupCollectibleRewardAnimationTimeouts();
 
   const sheet = overlay.querySelector('.collectible-reward-sheet') as HTMLElement;

@@ -56,7 +56,7 @@ describe('Journey exact-card portal transition', () => {
     )).toEqual({ x: 186, y: 158 });
   });
 
-  test('moves and restores the same DOM card without creating a duplicate', () => {
+  test('keeps the live card resident and retires its visual portal clone on restore', () => {
     document.body.innerHTML = `
       <div class="journey-board-card-wrapper">
         <div class="journey-board-card unlocked idle-shimmer-trigger journey-board-card-return-placeholder" data-board-id="26"></div>
@@ -79,13 +79,20 @@ describe('Journey exact-card portal transition', () => {
     const lease = acquireJourneyCardOriginLease(26, card);
     expect(lease).not.toBeNull();
     lease!.mountInto(host);
-    expect(host.firstElementChild).toBe(card);
+    const portalVisual = host.firstElementChild as HTMLElement;
+    expect(wrapper.firstElementChild).toBe(card);
+    expect(portalVisual).not.toBe(card);
     expect(document.querySelectorAll('[data-board-id="26"]')).toHaveLength(1);
-    expect(card).toHaveClass('journey-card-overlay-portaled-card');
-    expect(card).not.toHaveClass('journey-board-card-return-placeholder');
+    expect(portalVisual).toHaveClass('journey-card-overlay-portaled-card');
+    expect(card).toHaveClass('journey-board-card-return-placeholder');
 
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
     expect(lease!.restoreNow()).toBe(true);
     expect(wrapper.firstElementChild).toBe(card);
+    expect(portalVisual.isConnected).toBe(false);
     expect(card).not.toHaveClass('journey-card-overlay-portaled-card');
     expect(card).not.toHaveClass('journey-board-card-return-placeholder');
     expect(card).not.toHaveClass('idle-shimmer-trigger');
@@ -130,5 +137,41 @@ describe('Journey exact-card portal transition', () => {
       height: 300,
       rotationDeg: 0,
     });
+  });
+
+  test('restores a gameplay-return card at its settled presentation instead of flashing a captured enter frame', () => {
+    document.body.innerHTML = `
+      <div class="journey-board-card-wrapper">
+        <div class="journey-board-card unlocked" data-board-id="2" style="--card-tone: warm; transform: scale(0.42); opacity: 0.18; visibility: visible; transition: none; will-change: transform, opacity;"></div>
+      </div>
+      <div class="portal-host"></div>
+    `;
+    const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    const host = document.querySelector<HTMLElement>('.portal-host')!;
+    Object.defineProperties(card, {
+      offsetWidth: { configurable: true, value: 100 },
+      offsetHeight: { configurable: true, value: 150 },
+    });
+    card.getBoundingClientRect = () => ({
+      x: 20, y: 40, left: 20, top: 40, right: 120, bottom: 190,
+      width: 100, height: 150, toJSON: () => ({}),
+    });
+
+    const lease = acquireJourneyCardOriginLease(2, card)!;
+    lease.prepareSettledLanding();
+    expect(card.style.transform).toBe('');
+    expect(card.style.opacity).toBe('');
+    expect(card.style.visibility).toBe('');
+    expect(card.style.getPropertyValue('--card-tone')).toBe('warm');
+
+    lease.captureLandingGeometry();
+    lease.mountInto(host);
+    expect(lease.restoreNow()).toBe(true);
+    expect(card.style.transform).toBe('');
+    expect(card.style.opacity).toBe('');
+    expect(card.style.visibility).toBe('');
+    expect(card.style.transition).toBe('');
+    expect(card.style.willChange).toBe('');
+    expect(card.style.getPropertyValue('--card-tone')).toBe('warm');
   });
 });

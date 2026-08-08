@@ -19,6 +19,7 @@ import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
+import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
@@ -29,6 +30,12 @@ let scoreSheetLifecycleId = 0;
 let scoreSheetTransitionInProgress = false;
 let scoreSheetCloseController: GameplaySheetCloseController | null = null;
 let scoreSheetStatsEnterCleanupTimeout: ReturnType<typeof setTimeout> | null = null;
+let disposeScoreSheetSpatialMotion: (() => void) | null = null;
+
+function cleanupScoreSheetSpatialMotion(): void {
+  disposeScoreSheetSpatialMotion?.();
+  disposeScoreSheetSpatialMotion = null;
+}
 
 function disposeScoreSheetClose(): void {
   scoreSheetCloseController?.dispose();
@@ -67,6 +74,7 @@ function getScoreSheetBackdropElements(): HTMLElement[] {
 }
 
 function hideAndRemoveScoreSheetDom(reason: string): void {
+  cleanupScoreSheetSpatialMotion();
   disposeScoreSheetClose();
   const sheets = getScoreSheetElements();
   const backdrops = getScoreSheetBackdropElements();
@@ -815,6 +823,10 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     }
 
     const el = createModal();
+    disposeScoreSheetSpatialMotion = mountGameplayModalSpatialMotion(
+      el,
+      el.querySelector<HTMLElement>('.cc-gameplay-modal-paper-shell'),
+    );
     ensureScoreStatDividerExists();
     console.log('🎯 SCORE BOTTOM SHEET CREATED');
 
@@ -908,6 +920,7 @@ export function hideScoreBottomSheet(): void {
   }
 
   (modalEl as any)._closing = true;
+  cleanupScoreSheetSpatialMotion();
   const closeLifecycleId = scoreSheetLifecycleId;
   // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when closing starts
   // This ensures isScoreBottomSheetVisible() returns false right away

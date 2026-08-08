@@ -665,6 +665,11 @@ async function playRoundNumberPhase(parts: ReturnType<typeof createOverlay>, dis
 
   await labelEnterPromise;
 
+  // Give the completed Round composition one readable settled beat. Without
+  // this hold, its last enter frame and first exit frame shared the same task
+  // and looked like an interrupted/double transition on physical iPhone.
+  await wait(300);
+
   await Promise.all([
     playBubblyLetterExit(letters),
     new Promise<void>((resolveExit) => {

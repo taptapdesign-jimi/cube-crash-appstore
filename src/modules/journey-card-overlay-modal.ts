@@ -1,14 +1,6 @@
 import { boardStatsService } from '../services/board-stats-service.js';
 import { registerCta, type CtaController } from './cta-system.js';
 import {
-  GAMEPLAY_MODAL_BENCHMARK,
-  runGameplayModalParallelExit,
-} from './gameplay-modal-benchmark.js';
-import {
-  createDetailModalStatsEnterDelays,
-  getDetailModalStatsEnterTotalDuration,
-} from './detail-modal-stats-enter-motion.js';
-import {
   mountGameplaySheetClose,
   type GameplaySheetCloseController,
 } from './gameplay-sheet-close.js';
@@ -20,6 +12,11 @@ import {
   type JourneyCardOriginLease,
   type JourneyCardSpatialFlightController,
 } from './journey-card-portal-transition.js';
+import { mountJourneyCardFlipSpatialMotion } from './gameplay-modal-spatial-motion.js';
+import {
+  createDetailModalStatsEnterDelays,
+  getDetailModalStatsEnterTotalDuration,
+} from './detail-modal-stats-enter-motion.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -33,7 +30,6 @@ export interface JourneyCardOverlayModalController {
 
 interface JourneyCardOverlayModalOptions {
   boardId: number;
-  imagePath: string;
   origin: JourneyCardOriginLease;
   hasSavedState: boolean;
   scrollOwner?: HTMLElement | null;
@@ -42,74 +38,6 @@ interface JourneyCardOverlayModalOptions {
   onPlayCardReturnStart?: () => void;
   onPlayCardExitStart?: () => void;
   onPlayCardExitComplete?: () => void;
-}
-
-let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
-export const JOURNEY_CARD_OVERLAY_ENTER_DURATION_MS = 580;
-export const JOURNEY_CARD_MODAL_ENTER_START_PROGRESS = 0.55;
-export const JOURNEY_CARD_INITIAL_IMPACT_PROGRESS = 0.55;
-export const JOURNEY_CARD_OVERLAY_EXIT_DURATION_MS = 950;
-export const JOURNEY_CARD_MODAL_EXIT_DURATION_MS = 320;
-export const JOURNEY_CARD_STATS_EXIT_DURATION_MS = 240;
-export const JOURNEY_CARD_STATS_EXIT_STAGGER_MS = 30;
-export const JOURNEY_CARD_REAR_EXIT_START_PROGRESS = 0.4;
-export const JOURNEY_CARD_DEPTH_SWAP_SEPARATE_MS = 110;
-export const JOURNEY_CARD_DEPTH_SWAP_SETTLE_MS = 280;
-export const JOURNEY_CARD_DRAG_COMMIT_DISTANCE_PX = 100;
-export const JOURNEY_CARD_FLICK_VELOCITY_PX_PER_MS = 0.35;
-export const JOURNEY_CARD_DRAG_VISUAL_DISTANCE_SCALE_X = 0.216;
-export const JOURNEY_CARD_DRAG_VISUAL_DISTANCE_SCALE_Y = 0.252;
-export const JOURNEY_CARD_SPATIAL_FLIGHT_DURATION_MS = 580;
-export const JOURNEY_CARD_SPATIAL_RETURN_DURATION_MS = 620;
-export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
-export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
-export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
-export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
-export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
-export const JOURNEY_CARD_SWIPE_COACH_IDLE_MS = 5000;
-export const JOURNEY_CARD_SWIPE_COACH_DURATION_MS = 1900;
-const JOURNEY_CARD_DRAG_TAP_SLOP_PX = 6;
-const JOURNEY_CARD_DRAG_SNAPBACK_MS = 320;
-
-export interface JourneyCardOverlayExitTiming {
-  foregroundDurationMs: number;
-  rearStartDelayMs: number;
-  rearDurationMs: number;
-  backdropExitDurationMs: number;
-}
-
-/**
- * Derives the staged exit from the surface that is actually in front. The
- * Stage paper has a deliberately fast close, while the card always uses the
- * exact reverse-FLIP duration needed to land back on its Unit.
- */
-export function getJourneyCardOverlayExitTiming(
-  value: JourneyCardOverlayModalResult,
-  foregroundIsCard: boolean,
-): JourneyCardOverlayExitTiming {
-  const cardDurationMs = value === 'play'
-    ? JOURNEY_CARD_PLAY_RETURN_DURATION_MS
-    : JOURNEY_CARD_SPATIAL_RETURN_DURATION_MS;
-  const foregroundDurationMs = foregroundIsCard
-    ? cardDurationMs
-    : JOURNEY_CARD_MODAL_EXIT_DURATION_MS;
-  const rearDurationMs = foregroundIsCard
-    ? JOURNEY_CARD_MODAL_EXIT_DURATION_MS
-    : cardDurationMs;
-  const rearStartDelayMs = Math.round(
-    foregroundDurationMs * JOURNEY_CARD_REAR_EXIT_START_PROGRESS,
-  );
-  const totalDurationMs = Math.max(
-    foregroundDurationMs,
-    rearStartDelayMs + rearDurationMs,
-  );
-
-  return {
-    foregroundDurationMs,
-    rearStartDelayMs,
-    rearDurationMs,
-    backdropExitDurationMs: Math.max(1, totalDurationMs - rearStartDelayMs),
-  };
 }
 
 export interface JourneyCardOverlayModalViewModel {
@@ -125,30 +53,23 @@ export interface JourneyCardOverlayTiltProfile {
   modalRotationDeg: number;
 }
 
-export interface JourneyCardSwipeCoachCopy {
-  ariaLabel: 'Swipe to view your card' | 'Swipe to view stats';
-  lines: readonly string[];
-}
+let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
 
-export function getJourneyCardSwipeCoachCopy(cardFront: boolean): JourneyCardSwipeCoachCopy {
-  return cardFront
-    ? { ariaLabel: 'Swipe to view stats', lines: ['SWIPE TO VIEW', 'STATS'] }
-    : { ariaLabel: 'Swipe to view your card', lines: ['SWIPE TO VIEW', 'YOUR CARD'] };
-}
-
-function renderJourneyCardSwipeCoachCopy(copy: JourneyCardSwipeCoachCopy): string {
-  let letterIndex = 0;
-  return copy.lines.map((line) => `
-        <span class="journey-card-overlay-swipe-line">
-          ${Array.from(line).map((letter) => {
-            const currentIndex = letterIndex;
-            letterIndex += 1;
-            return letter === ' '
-              ? `<span class="journey-card-overlay-swipe-letter is-space" style="--journey-card-swipe-letter:${currentIndex}">&nbsp;</span>`
-              : `<span class="journey-card-overlay-swipe-letter ${currentIndex < 5 ? 'is-accent' : 'is-secondary'}" style="--journey-card-swipe-letter:${currentIndex}">${letter}</span>`;
-          }).join('')}
-        </span>`).join('');
-}
+export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 680;
+export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = 660;
+export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
+export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
+export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
+export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
+export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
+export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 520;
+export const JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO = 0.2;
+export const JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS = 0.34;
+export const JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS = 5000;
+export const JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS = 2100;
+export const JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG = 36;
+export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
+const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
 
 export function createJourneyCardOverlayTiltProfile(
   random: () => number = Math.random,
@@ -166,14 +87,47 @@ export function createJourneyCardOverlayTiltProfile(
   };
 }
 
-export function shouldCommitJourneyCardDepthDrag(
+function renderIdleCoachLine(line: string, lineOffset: number): string {
+  return `<span class="journey-card-flip-idle-line">${Array.from(line).map((letter, index) => (
+    letter === ' '
+      ? `<span class="journey-card-flip-idle-letter is-space" style="--journey-card-idle-letter:${lineOffset + index}">&nbsp;</span>`
+      : `<span class="journey-card-flip-idle-letter" style="--journey-card-idle-letter:${lineOffset + index}">${letter}</span>`
+  )).join('')}</span>`;
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
+}
+
+function smoothstep(value: number): number {
+  const t = clamp01(value);
+  return t * t * (3 - 2 * t);
+}
+
+/**
+ * Entry keeps the source face readable for the first third of the flight and
+ * crosses the physical edge at exactly 50%. Return starts the same -180 ->
+ * -360 turn 30 timeline points earlier so Close immediately reads as a
+ * physical flip-back instead of a translating stats sheet.
+ */
+export function getJourneyCardFlightFlipAngle(
+  progress: number,
+  direction: 'enter' | 'return',
+): number {
+  const turnStartsAt = direction === 'return' ? 0.02 : 0.32;
+  const turn = smoothstep((clamp01(progress) - turnStartsAt) / 0.36);
+  const signedTurn = turn === 0 ? 0 : turn * -180;
+  return direction === 'enter' ? signedTurn : -180 + signedTurn;
+}
+
+export function shouldCommitJourneyCardFlipDrag(
   deltaX: number,
-  deltaY: number,
   velocityX: number,
-  velocityY: number,
+  cardWidth: number,
 ): boolean {
-  return Math.hypot(deltaX, deltaY) >= JOURNEY_CARD_DRAG_COMMIT_DISTANCE_PX
-    || Math.hypot(velocityX, velocityY) >= JOURNEY_CARD_FLICK_VELOCITY_PX_PER_MS;
+  const commitDistance = Math.max(1, cardWidth) * JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO;
+  return Math.abs(deltaX) >= commitDistance
+    || Math.abs(velocityX) >= JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS;
 }
 
 export function buildJourneyCardOverlayModalViewModel(
@@ -193,6 +147,19 @@ export function buildJourneyCardOverlayModalViewModel(
   };
 }
 
+function waitForPaints(count = 1): Promise<void> {
+  return new Promise((resolve) => {
+    const next = (remaining: number) => {
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(() => next(remaining - 1));
+    };
+    next(count);
+  });
+}
+
 export function presentJourneyCardOverlayModal(
   options: JourneyCardOverlayModalOptions,
 ): JourneyCardOverlayModalController {
@@ -203,123 +170,95 @@ export function presentJourneyCardOverlayModal(
     boardStatsService.getBoardStats(options.boardId),
     options.hasSavedState,
   );
-  const initialSwipeCoachCopy = getJourneyCardSwipeCoachCopy(false);
-
   const stage = document.createElement('div');
   const tiltProfile = createJourneyCardOverlayTiltProfile();
   stage.id = 'journey-card-overlay-modal';
-  stage.className = 'journey-card-overlay-modal cc-gameplay-modal-stage';
+  stage.className = 'journey-card-overlay-modal journey-card-flip-overlay';
   stage.setAttribute('role', 'dialog');
   stage.setAttribute('aria-modal', 'true');
-  stage.setAttribute('aria-labelledby', 'journey-card-overlay-title');
+  stage.setAttribute('aria-labelledby', 'journey-card-flip-title');
   stage.setAttribute('data-board-id', String(options.boardId));
-  stage.style.setProperty('--journey-card-pair-card-rotate', `${tiltProfile.cardRotationDeg}deg`);
-  stage.style.setProperty('--journey-card-pair-modal-rotate', `${tiltProfile.modalRotationDeg}deg`);
+  stage.style.setProperty('--journey-card-origin-aspect', String(options.origin.aspectRatio));
+  stage.style.setProperty('--journey-card-flip-front-tilt', `${tiltProfile.cardRotationDeg}deg`);
+  stage.style.setProperty('--journey-card-flip-back-tilt', `${tiltProfile.modalRotationDeg}deg`);
   stage.innerHTML = `
-    <div class="journey-card-overlay-preview-bounce-shell">
-      <div class="journey-card-overlay-spatial-shell">
-        <div class="journey-card-overlay-preview-flip-shell">
-          <button
-            type="button"
-            class="journey-card-overlay-preview"
-            aria-label="Show ${viewModel.stageLabel} card"
-            aria-pressed="false"
-          >
-            <span class="journey-card-overlay-card-host" aria-hidden="true"></span>
-            <span class="journey-card-overlay-shimmer" aria-hidden="true"></span>
-            <span class="journey-card-overlay-card-burn" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-    </div>
-    <div class="journey-card-overlay-depth-shell">
-      <div class="cc-gameplay-modal-bounce-shell journey-card-overlay-modal-shell">
-        <div class="cc-gameplay-modal-flip-shell">
-          <div class="cc-gameplay-modal-idle-shell">
-            <div class="cc-gameplay-modal-paper-shell journey-card-overlay-paper">
-            <div class="journey-card-overlay-title-section">
-              <h2 id="journey-card-overlay-title" class="cc-gameplay-modal-title">${viewModel.stageLabel}</h2>
-            </div>
-            <div class="journey-card-overlay-stats">
-              <div class="journey-card-overlay-stat">
-                <div class="journey-card-overlay-stat-icon">
-                  <img src="./assets/highscore-icon.png" alt="" aria-hidden="true" draggable="false">
-                </div>
-                <div class="journey-card-overlay-stat-content">
-                  <div class="journey-card-overlay-stat-value">${viewModel.highScore}</div>
-                  <div class="journey-card-overlay-stat-label">High score</div>
-                </div>
+    <div class="journey-card-flip-backdrop" aria-hidden="true"></div>
+    <div class="journey-card-flip-frame">
+      <div class="journey-card-flip-spatial-shell">
+        <div class="journey-card-flip-impact-shell">
+          <div class="journey-card-flip-idle-shell">
+            <div class="journey-card-flip-gyro-shell">
+            <div class="journey-card-flip-rotor">
+              <div class="journey-card-flip-face journey-card-flip-front" role="button" tabindex="0" aria-label="Turn card to view stats" aria-hidden="false">
+                <div class="journey-card-flip-card-host" aria-hidden="true"></div>
+                <div class="journey-card-flip-shine" aria-hidden="true"></div>
               </div>
-              <div class="journey-card-overlay-stat-divider" aria-hidden="true"></div>
-              <div class="journey-card-overlay-stat">
-                <div class="journey-card-overlay-stat-icon">
-                  <img src="./assets/combo-icon.png" alt="" aria-hidden="true" draggable="false">
-                </div>
-                <div class="journey-card-overlay-stat-content">
-                  <div class="journey-card-overlay-stat-value">${viewModel.longestCombo}</div>
-                  <div class="journey-card-overlay-stat-label">Longest combo</div>
+              <div class="journey-card-flip-face journey-card-flip-back" aria-hidden="true">
+                <div class="cc-gameplay-modal-idle-shell journey-card-flip-back-shell">
+                  <div class="cc-gameplay-modal-paper-shell journey-card-flip-paper" data-board-id="${options.boardId}-modal">
+                    <div class="journey-card-flip-title-section">
+                      <h2 id="journey-card-flip-title" class="cc-gameplay-modal-title">${viewModel.stageLabel}</h2>
+                    </div>
+                    <div class="journey-card-flip-stats">
+                      <div class="journey-card-flip-stat">
+                        <div class="journey-card-flip-stat-icon">
+                          <img src="./assets/highscore-icon.png" alt="" aria-hidden="true" draggable="false">
+                        </div>
+                        <div class="journey-card-flip-stat-content">
+                          <strong>${viewModel.highScore}</strong><span>High score</span>
+                        </div>
+                      </div>
+                      <div class="journey-card-flip-divider" aria-hidden="true"></div>
+                      <div class="journey-card-flip-stat">
+                        <div class="journey-card-flip-stat-icon">
+                          <img src="./assets/combo-icon.png" alt="" aria-hidden="true" draggable="false">
+                        </div>
+                        <div class="journey-card-flip-stat-content">
+                          <strong>${viewModel.longestCombo}</strong><span>Longest combo</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" class="journey-card-flip-cta cc-cta--standard-width" aria-label="${viewModel.ctaAriaLabel}">${viewModel.ctaLabel}</button>
+                    <button type="button" class="journey-card-flip-turn-control" aria-label="Turn card to view artwork"></button>
+                  </div>
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              class="journey-card-overlay-cta cc-cta--standard-width"
-              aria-label="${viewModel.ctaAriaLabel}"
-            >${viewModel.ctaLabel}</button>
             </div>
           </div>
         </div>
       </div>
+      <img class="journey-card-flip-idle-hand" src="./assets/hand-pointer.png" alt="" aria-hidden="true" draggable="false">
     </div>
-    <div class="journey-card-overlay-swipe-coach" aria-hidden="true">
-      <div
-        class="journey-card-overlay-swipe-copy"
-        aria-label="${initialSwipeCoachCopy.ariaLabel}"
-        data-swipe-coach-surface="stats"
-      >
-        ${renderJourneyCardSwipeCoachCopy(initialSwipeCoachCopy)}
-      </div>
-      <img
-        class="journey-card-overlay-swipe-hand"
-        src="./assets/hand-pointer.png"
-        alt=""
-        draggable="false"
-      >
+    <div class="journey-card-flip-idle-copy" aria-hidden="true">
+      <span class="journey-card-flip-idle-message is-drag">${renderIdleCoachLine('DRAG TO FLIP', 0)}</span>
+      <span class="journey-card-flip-idle-message is-tap">${renderIdleCoachLine('TAP TO FLIP', 0)}</span>
     </div>
   `;
 
-  const preview = stage.querySelector<HTMLButtonElement>('.journey-card-overlay-preview');
-  const spatialShell = stage.querySelector<HTMLElement>('.journey-card-overlay-spatial-shell');
-  const previewFlipShell = stage.querySelector<HTMLElement>('.journey-card-overlay-preview-flip-shell');
-  const cardHost = preview?.querySelector<HTMLElement>('.journey-card-overlay-card-host');
-  const previewShimmer = preview?.querySelector<HTMLElement>('.journey-card-overlay-shimmer');
-  const previewBurn = preview?.querySelector<HTMLElement>('.journey-card-overlay-card-burn');
-  const depthShell = stage.querySelector<HTMLElement>('.journey-card-overlay-depth-shell');
-  const modalShell = stage.querySelector<HTMLElement>('.journey-card-overlay-modal-shell');
-  const idleShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-idle-shell');
-  const paper = stage.querySelector<HTMLElement>('.journey-card-overlay-paper');
-  const statElements = Array.from(stage.querySelectorAll<HTMLElement>(
-    '.journey-card-overlay-stats > .journey-card-overlay-stat, ' +
-    '.journey-card-overlay-stats > .journey-card-overlay-stat-divider',
-  ));
-  const cta = stage.querySelector<HTMLButtonElement>('.journey-card-overlay-cta');
-  const swipeCoach = stage.querySelector<HTMLElement>('.journey-card-overlay-swipe-coach');
-  const swipeCopy = stage.querySelector<HTMLElement>('.journey-card-overlay-swipe-copy');
-  const swipeHand = stage.querySelector<HTMLImageElement>('.journey-card-overlay-swipe-hand');
-  if (!preview || !spatialShell || !previewFlipShell || !cardHost || !previewShimmer || !previewBurn || !depthShell || !modalShell || !idleShell || !paper || statElements.length !== 3 || !cta || !swipeCoach || !swipeCopy || !swipeHand) {
+  const backdrop = stage.querySelector<HTMLElement>('.journey-card-flip-backdrop');
+  const frame = stage.querySelector<HTMLElement>('.journey-card-flip-frame');
+  const spatialShell = stage.querySelector<HTMLElement>('.journey-card-flip-spatial-shell');
+  const impactShell = stage.querySelector<HTMLElement>('.journey-card-flip-impact-shell');
+  const idleShell = stage.querySelector<HTMLElement>('.journey-card-flip-idle-shell');
+  const gyroShell = stage.querySelector<HTMLElement>('.journey-card-flip-gyro-shell');
+  const rotor = stage.querySelector<HTMLElement>('.journey-card-flip-rotor');
+  const front = stage.querySelector<HTMLElement>('.journey-card-flip-front');
+  const back = stage.querySelector<HTMLElement>('.journey-card-flip-back');
+  const backShell = stage.querySelector<HTMLElement>('.journey-card-flip-back-shell');
+  const cardHost = stage.querySelector<HTMLElement>('.journey-card-flip-card-host');
+  const cta = stage.querySelector<HTMLButtonElement>('.journey-card-flip-cta');
+  const turnControl = stage.querySelector<HTMLButtonElement>('.journey-card-flip-turn-control');
+  const idleHand = stage.querySelector<HTMLImageElement>('.journey-card-flip-idle-hand');
+  const idleCopy = stage.querySelector<HTMLElement>('.journey-card-flip-idle-copy');
+  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !gyroShell || !rotor || !front || !back || !backShell || !cardHost || !cta || !turnControl || !idleHand || !idleCopy) {
     stage.remove();
-    throw new Error('Journey card overlay modal failed to create its required owners');
+    throw new Error('Journey flip card failed to create its required owners');
   }
-  stage.style.setProperty('--journey-card-origin-aspect', String(options.origin.aspectRatio));
-  cardHost.style.setProperty('--journey-card-origin-aspect', String(options.origin.aspectRatio));
+  const backContentElements = Array.from(
+    stage.querySelectorAll<HTMLElement>('.journey-card-flip-stats > .journey-card-flip-stat, .journey-card-flip-stats > .journey-card-flip-divider'),
+  );
   options.origin.mountInto(cardHost);
-  preview.setAttribute('data-board-id', `${options.boardId}-card`);
-  paper.setAttribute('data-board-id', `${options.boardId}-modal`);
-  const escapedMaskPath = options.imagePath.replace(/["\\]/g, '\\$&');
-  previewShimmer.style.setProperty('-webkit-mask-image', `url("${escapedMaskPath}")`);
-  previewShimmer.style.setProperty('mask-image', `url("${escapedMaskPath}")`);
-  previewBurn.style.setProperty('-webkit-mask-image', `url("${escapedMaskPath}")`);
-  previewBurn.style.setProperty('mask-image', `url("${escapedMaskPath}")`);
 
   const scrollOwner = options.scrollOwner ?? null;
   const previousOverflow = scrollOwner?.style.overflow ?? '';
@@ -329,210 +268,328 @@ export function presentJourneyCardOverlayModal(
     scrollOwner.style.touchAction = 'none';
   }
 
+  const journeyScreen = document.getElementById('journey-screen');
+  const journeyWasInert = journeyScreen?.inert ?? false;
+  const previouslyFocused = document.activeElement instanceof HTMLElement
+    ? document.activeElement
+    : null;
+  if (journeyScreen) journeyScreen.inert = true;
+
+  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let resolveResult!: (result: JourneyCardOverlayModalResult) => void;
   const result = new Promise<JourneyCardOverlayModalResult>((resolve) => {
     resolveResult = resolve;
   });
+  let controller!: JourneyCardOverlayModalController;
   let settled = false;
   let closing = false;
-  let closeQueuedForCardLanding = false;
+  let entering = true;
+  let flipping = false;
+  let stableFace: 'front' | 'back' = 'front';
+  let currentAngle = 0;
   let didLandAtOrigin = false;
-  let cardFront = false;
-  let enterRafOne = 0;
-  let enterRafTwo = 0;
-  let cardToModalTimer = 0;
-  let cardImpactTimer = 0;
-  let cardEnterCleanupTimer = 0;
-  let enterCleanupTimer = 0;
-  let statsEnterCleanupTimer = 0;
-  let depthSwapCommitTimer = 0;
-  let depthSwapCleanupTimer = 0;
-  let dragSnapbackTimer = 0;
-  let dragRaf = 0;
-  let swipeCoachIdleTimer = 0;
-  let swipeCoachRaf = 0;
-  let swipeCoachRunning = false;
-  let impactAnimation: Animation | null = null;
-  let cardImpactCleanupTimer = 0;
-  const exitDelayResolvers = new Map<number, () => void>();
   let spatialFlight: JourneyCardSpatialFlightController | null = null;
+  let flipAnimation: Animation | null = null;
+  let impactAnimation: Animation | null = null;
+  let exitNeutralAnimations: Animation[] = [];
+  let idleCoachTimer = 0;
+  let idleCoachRotorAnimation: Animation | null = null;
+  let idleCoachHandAnimation: Animation | null = null;
+  let idleCoachImpactAnimation: Animation | null = null;
+  let idleCoachGeneration = 0;
+  let nextIdleCoachMode: 'drag' | 'tap' = 'drag';
+  let backContentEnterTimer = 0;
+  let backContentRestoreTimer = 0;
+  let backContentEnterScheduled = false;
+  let disposeSpatialMotion: (() => void) | null = null;
   let closeController: GameplaySheetCloseController | null = null;
   let ctaController: CtaController | null = null;
-  const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  const journeyScreen = document.getElementById('journey-screen');
-  const journeyWasInert = journeyScreen?.inert ?? false;
-  let controller!: JourneyCardOverlayModalController;
   let activePointerId: number | null = null;
   let dragStartX = 0;
-  let dragStartY = 0;
-  let dragCurrentX = 0;
-  let dragCurrentY = 0;
   let dragLastX = 0;
-  let dragLastY = 0;
   let dragLastTime = 0;
   let dragVelocityX = 0;
-  let dragVelocityY = 0;
   let dragMoved = false;
-  let dragStartedOnRear = false;
-  let suppressClickUntil = 0;
-  const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-  const enterDelay = (durationMs: number): number => prefersReducedMotion ? 0 : durationMs;
+  let dragStartAngle = 0;
+  let dragCardWidth = 1;
+  let dragDirection = 1;
+  let currentTranslateX = 0;
 
-  if (journeyScreen) journeyScreen.inert = true;
-
-  const restoreScrollOwner = () => {
-    if (!scrollOwner) return;
-    scrollOwner.style.overflow = previousOverflow;
-    scrollOwner.style.touchAction = previousTouchAction;
+  const stopSurfaceIdle = () => stage.classList.remove('is-surface-idle');
+  const startSurfaceIdle = () => {
+    if (!prefersReducedMotion && !entering && !closing && !settled && !flipping && activePointerId === null) {
+      stage.classList.add('is-surface-idle');
+    }
   };
 
-  const clearScheduledWork = () => {
-    if (enterRafOne) cancelAnimationFrame(enterRafOne);
-    if (enterRafTwo) cancelAnimationFrame(enterRafTwo);
-    if (cardToModalTimer) window.clearTimeout(cardToModalTimer);
-    if (cardImpactTimer) window.clearTimeout(cardImpactTimer);
-    if (cardEnterCleanupTimer) window.clearTimeout(cardEnterCleanupTimer);
-    if (enterCleanupTimer) window.clearTimeout(enterCleanupTimer);
-    if (statsEnterCleanupTimer) window.clearTimeout(statsEnterCleanupTimer);
-    if (depthSwapCommitTimer) window.clearTimeout(depthSwapCommitTimer);
-    if (depthSwapCleanupTimer) window.clearTimeout(depthSwapCleanupTimer);
-    if (dragSnapbackTimer) window.clearTimeout(dragSnapbackTimer);
-    if (dragRaf) cancelAnimationFrame(dragRaf);
-    if (swipeCoachIdleTimer) window.clearTimeout(swipeCoachIdleTimer);
-    if (swipeCoachRaf) cancelAnimationFrame(swipeCoachRaf);
-    if (cardImpactCleanupTimer) window.clearTimeout(cardImpactCleanupTimer);
-    impactAnimation?.cancel();
-    impactAnimation = null;
+  const neutralizeExitMotionOwners = () => {
+    const idleTransform = window.getComputedStyle(idleShell).transform || 'none';
+    const gyroStyle = window.getComputedStyle(gyroShell);
+    const gyroTranslate = gyroStyle.translate || 'none';
+    const gyroTransform = gyroStyle.transform || 'none';
+    stopSurfaceIdle();
+    disposeSpatialMotion?.();
+    disposeSpatialMotion = null;
+    exitNeutralAnimations.forEach((animation) => animation.cancel());
+    exitNeutralAnimations = [];
+    if (prefersReducedMotion || typeof idleShell.animate !== 'function') {
+      idleShell.style.transform = 'none';
+      gyroShell.style.translate = 'none';
+      gyroShell.style.transform = 'none';
+      return;
+    }
+    exitNeutralAnimations = [
+      idleShell.animate([
+        { transform: idleTransform },
+        { transform: 'none' },
+      ], { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }),
+      gyroShell.animate([
+        { translate: gyroTranslate, transform: gyroTransform },
+        { translate: 'none', transform: 'none' },
+      ], { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }),
+    ];
+  };
+
+  const setRotorPose = (angle: number, translateX = 0) => {
+    currentAngle = angle;
+    currentTranslateX = translateX;
+    rotor.style.transform = `translate3d(${translateX}px, 0, 0) rotateY(${angle}deg)`;
+  };
+
+  const setRotorAngle = (angle: number) => setRotorPose(angle, 0);
+
+  const setStableFace = (face: 'front' | 'back') => {
+    stableFace = face;
+    const frontActive = face === 'front';
+    front.inert = !frontActive;
+    back.inert = frontActive;
+    front.tabIndex = frontActive ? 0 : -1;
+    front.setAttribute('aria-hidden', String(!frontActive));
+    back.setAttribute('aria-hidden', String(frontActive));
+    stage.dataset.face = face;
+  };
+
+  const stableRotorAngle = () => stableFace === 'front' ? 0 : -180;
+
+  const clearBackContentTimers = () => {
+    if (backContentEnterTimer !== 0) {
+      window.clearTimeout(backContentEnterTimer);
+      backContentEnterTimer = 0;
+    }
+    if (backContentRestoreTimer !== 0) {
+      window.clearTimeout(backContentRestoreTimer);
+      backContentRestoreTimer = 0;
+    }
+  };
+
+  const restoreBackContentVisible = () => {
+    backContentElements.forEach((element) => {
+      element.classList.remove('is-content-entering');
+      element.style.removeProperty('animation-delay');
+      element.style.removeProperty('opacity');
+      element.style.removeProperty('visibility');
+      element.style.removeProperty('transform');
+      element.style.removeProperty('will-change');
+    });
+  };
+
+  const primeBackContentForEnter = () => {
+    clearBackContentTimers();
+    backContentEnterScheduled = false;
+    backContentElements.forEach((element) => {
+      element.classList.remove('is-content-entering');
+      element.style.removeProperty('animation-delay');
+      element.style.opacity = '0';
+      element.style.visibility = 'hidden';
+      element.style.transform = 'scale(0)';
+      element.style.willChange = 'transform, opacity';
+    });
+    ctaController?.prime('hidden');
+  };
+
+  const startBackContentEnter = (delayMs = 0) => {
+    if (backContentEnterScheduled || closing || settled) return;
+    backContentEnterScheduled = true;
+    if (prefersReducedMotion) {
+      restoreBackContentVisible();
+      ctaController?.prime('idle');
+      return;
+    }
+    backContentEnterTimer = window.setTimeout(() => {
+      backContentEnterTimer = 0;
+      if (closing || settled) return;
+      const delays = createDetailModalStatsEnterDelays(backContentElements.length).map((delay) => (
+        delay * JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE
+      ));
+      backContentElements.forEach((element, index) => {
+        element.classList.remove('is-content-entering');
+        element.style.animationDelay = `${delays[index] ?? 0}s`;
+        element.classList.add('is-content-entering');
+      });
+      void ctaController?.enter();
+      backContentRestoreTimer = window.setTimeout(() => {
+        backContentRestoreTimer = 0;
+        if (closing || settled) return;
+        restoreBackContentVisible();
+      }, Math.ceil(
+        getDetailModalStatsEnterTotalDuration(backContentElements.length)
+        * JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE
+        * 1000,
+      ) + 34);
+    }, Math.max(0, delayMs));
+  };
+
+  const stopIdleCoach = (resetRotor = true) => {
+    idleCoachGeneration += 1;
+    if (idleCoachTimer !== 0) {
+      window.clearTimeout(idleCoachTimer);
+      idleCoachTimer = 0;
+    }
+    idleCoachRotorAnimation?.cancel();
+    idleCoachRotorAnimation = null;
+    idleCoachHandAnimation?.cancel();
+    idleCoachHandAnimation = null;
+    idleCoachImpactAnimation?.cancel();
+    idleCoachImpactAnimation = null;
+    stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
+    if (resetRotor && !entering && !closing && !settled && !flipping && activePointerId === null) {
+      setRotorAngle(stableRotorAngle());
+    }
+  };
+
+  const scheduleIdleCoach = () => {
+    stopIdleCoach();
+    if (prefersReducedMotion || entering || closing || settled || flipping || activePointerId !== null) return;
+    const generation = idleCoachGeneration;
+    idleCoachTimer = window.setTimeout(() => {
+      idleCoachTimer = 0;
+      if (generation !== idleCoachGeneration || entering || closing || settled || flipping || activePointerId !== null) return;
+      disposeSpatialMotion?.();
+      disposeSpatialMotion = null;
+      const coachMode = nextIdleCoachMode;
+      nextIdleCoachMode = coachMode === 'drag' ? 'tap' : 'drag';
+      stage.classList.add('is-idle-coach', `is-idle-coach-${coachMode}`);
+      const baseAngle = stableRotorAngle();
+      const rotorAnimation = coachMode === 'drag'
+        ? rotor.animate([
+          { transform: `rotateY(${baseAngle}deg)`, offset: 0 },
+          { transform: `translate3d(-34px, 0, 0) rotateY(${baseAngle - 17}deg)`, offset: 0.28 },
+          { transform: `translate3d(38px, 0, 0) rotateY(${baseAngle + 19}deg)`, offset: 0.68 },
+          { transform: `rotateY(${baseAngle}deg)`, offset: 1 },
+        ], {
+          duration: JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        })
+        : null;
+      const handAnimation = idleHand.animate(coachMode === 'drag' ? [
+          { opacity: 0, transform: 'translate3d(-50%, -32%, 80px) rotate(-10deg) scale(0.78)', offset: 0 },
+          { opacity: 1, transform: 'translate3d(calc(-50% - 34px), -50%, 80px) rotate(-10deg) scale(0.96)', offset: 0.16 },
+          { opacity: 1, transform: 'translate3d(calc(-50% + 38px), -50%, 80px) rotate(-5deg) scale(0.96)', offset: 0.68 },
+          { opacity: 0, transform: 'translate3d(-50%, -32%, 80px) rotate(-7deg) scale(0.84)', offset: 1 },
+        ] : [
+          { opacity: 0, transform: 'translate3d(-50%, -28%, 80px) rotate(-8deg) scale(0.78)', offset: 0 },
+          { opacity: 1, transform: 'translate3d(-50%, -50%, 80px) rotate(-8deg) scale(0.96)', offset: 0.2 },
+          { opacity: 1, transform: 'translate3d(-50%, -38%, 80px) rotate(-6deg) scale(0.84)', offset: 0.42 },
+          { opacity: 1, transform: 'translate3d(-50%, -52%, 80px) rotate(-8deg) scale(1)', offset: 0.58 },
+          { opacity: 0, transform: 'translate3d(-50%, -34%, 80px) rotate(-7deg) scale(0.84)', offset: 1 },
+        ], {
+          duration: JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
+      const impactCoachAnimation = coachMode === 'tap'
+        ? impactShell.animate([
+          { transform: 'scale(1)', offset: 0 },
+          { transform: 'scale(1)', offset: 0.34 },
+          { transform: 'scale(0.965)', offset: 0.43 },
+          { transform: 'scale(1.06)', offset: 0.57 },
+          { transform: 'scale(0.988)', offset: 0.7 },
+          { transform: 'scale(1)', offset: 0.82 },
+          { transform: 'scale(1)', offset: 1 },
+        ], {
+          duration: JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        })
+        : null;
+      idleCoachRotorAnimation = rotorAnimation;
+      idleCoachHandAnimation = handAnimation;
+      idleCoachImpactAnimation = impactCoachAnimation;
+      const coachAnimations = [rotorAnimation, handAnimation, impactCoachAnimation]
+        .filter((animation): animation is Animation => animation !== null);
+      void Promise.allSettled(coachAnimations.map((animation) => animation.finished)).then(() => {
+        if (
+          generation !== idleCoachGeneration
+          || idleCoachRotorAnimation !== rotorAnimation
+          || idleCoachHandAnimation !== handAnimation
+          || idleCoachImpactAnimation !== impactCoachAnimation
+        ) return;
+        idleCoachRotorAnimation = null;
+        idleCoachHandAnimation = null;
+        idleCoachImpactAnimation = null;
+        stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
+        if (closing || settled) return;
+        setRotorAngle(baseAngle);
+        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+        scheduleIdleCoach();
+      });
+    }, JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS);
+  };
+
+  const cancelMotion = () => {
+    stopIdleCoach(false);
+    clearBackContentTimers();
     spatialFlight?.cancel();
     spatialFlight = null;
-    exitDelayResolvers.forEach((resolve, timer) => {
-      window.clearTimeout(timer);
-      resolve();
-    });
-    exitDelayResolvers.clear();
-    enterRafOne = 0;
-    enterRafTwo = 0;
-    cardToModalTimer = 0;
-    cardImpactTimer = 0;
-    cardEnterCleanupTimer = 0;
-    enterCleanupTimer = 0;
-    statsEnterCleanupTimer = 0;
-    depthSwapCommitTimer = 0;
-    depthSwapCleanupTimer = 0;
-    dragSnapbackTimer = 0;
-    dragRaf = 0;
-    swipeCoachIdleTimer = 0;
-    swipeCoachRaf = 0;
-    stage.classList.remove('is-swipe-coach-active');
-    cardImpactCleanupTimer = 0;
+    flipAnimation?.cancel();
+    flipAnimation = null;
+    impactAnimation?.cancel();
+    impactAnimation = null;
+    exitNeutralAnimations.forEach((animation) => animation.cancel());
+    exitNeutralAnimations = [];
+    if (activePointerId !== null) {
+      try { rotor.releasePointerCapture(activePointerId); } catch {}
+      activePointerId = null;
+    }
   };
 
-  const cleanup = (resultValue: JourneyCardOverlayModalResult) => {
-    clearScheduledWork();
-    preview.removeEventListener('click', handleCardTapDepthSwap);
-    preview.removeEventListener('pointerdown', handleDragPointerDown, true);
-    depthShell.removeEventListener('pointerdown', handleDragPointerDown, true);
-    paper.removeEventListener('pointerdown', handleDragPointerDown, true);
-    stage.removeEventListener('pointerdown', handleDragPointerDown, true);
-    stage.removeEventListener('pointermove', handleDragPointerMove, true);
-    stage.removeEventListener('pointerup', handleDragPointerUp, true);
-    stage.removeEventListener('pointercancel', handleDragPointerCancel, true);
-    stage.removeEventListener('click', handleSuppressedDragClick, true);
+  const readFrameGeometry = (): JourneyCardGeometry | null => (
+    captureJourneyCardGeometry(frame, frame)
+  );
+
+  const restoreEnvironment = () => {
+    if (scrollOwner) {
+      scrollOwner.style.overflow = previousOverflow;
+      scrollOwner.style.touchAction = previousTouchAction;
+    }
+    if (journeyScreen) journeyScreen.inert = journeyWasInert;
+    if (previouslyFocused?.isConnected) {
+      try { previouslyFocused.focus({ preventScroll: true }); } catch {}
+    }
+  };
+
+  const cleanup = (value: JourneyCardOverlayModalResult) => {
+    disposeSpatialMotion?.();
+    disposeSpatialMotion = null;
+    cancelMotion();
+    rotor.removeEventListener('pointerdown', handlePointerDown);
+    rotor.removeEventListener('pointermove', handlePointerMove);
+    rotor.removeEventListener('pointerup', handlePointerUp);
+    rotor.removeEventListener('pointercancel', handlePointerCancel);
+    rotor.removeEventListener('keydown', handleRotorKeyDown);
+    turnControl.removeEventListener('click', handleTurnControlClick);
+    stage.removeEventListener('pointerdown', handleAnyPointerInteraction, true);
     stage.removeEventListener('click', handleBackdropClick);
-    stage.removeEventListener('pointerdown', handleSwipeCoachInteraction, true);
-    document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('keydown', handleDocumentKeyDown);
     window.removeEventListener('cc-navigation', handleRouteChange);
     window.removeEventListener('pagehide', handleRouteChange);
     closeController?.dispose();
     closeController = null;
     ctaController?.dispose();
     ctaController = null;
-    restoreScrollOwner();
-    if (resultValue === 'play' && !didLandAtOrigin) options.origin.discard();
+    if (value === 'play' && !didLandAtOrigin) options.origin.discard();
     else options.origin.restoreNow();
+    restoreEnvironment();
     stage.remove();
-    if (journeyScreen) journeyScreen.inert = journeyWasInert;
-    if (previouslyFocused?.isConnected) {
-      try { previouslyFocused.focus({ preventScroll: true }); } catch {}
-    }
     if (activeJourneyCardOverlayModal === controller) activeJourneyCardOverlayModal = null;
-  };
-
-  const playLightScreenImpact = (strength: number) => {
-    if (prefersReducedMotion || closing || settled || typeof stage.animate !== 'function') return;
-    impactAnimation?.cancel();
-    const animation = stage.animate([
-      { transform: 'translate3d(0, 0, 0)' },
-      { transform: `translate3d(${strength}px, ${-strength * 0.35}px, 0)`, offset: 0.18 },
-      { transform: `translate3d(${-strength * 0.72}px, ${strength * 0.28}px, 0)`, offset: 0.38 },
-      { transform: `translate3d(${strength * 0.42}px, ${-strength * 0.16}px, 0)`, offset: 0.58 },
-      { transform: `translate3d(${-strength * 0.18}px, ${strength * 0.08}px, 0)`, offset: 0.78 },
-      { transform: 'translate3d(0, 0, 0)' },
-    ], {
-      duration: 260,
-      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-    });
-    impactAnimation = animation;
-    animation.onfinish = () => {
-      if (impactAnimation === animation) impactAnimation = null;
-    };
-    animation.oncancel = () => {
-      if (impactAnimation === animation) impactAnimation = null;
-    };
-  };
-
-  const playCardSettleImpact = () => {
-    if (closing || settled) return;
-    stage.classList.add('is-card-revealed', 'is-card-impact');
-    playLightScreenImpact(4);
-    try { (window as any).triggerHapticImpact?.('medium'); } catch {}
-    cardImpactCleanupTimer = window.setTimeout(() => {
-      cardImpactCleanupTimer = 0;
-      stage.classList.remove('is-card-impact');
-    }, 560);
-  };
-
-  const playModalSettleImpact = () => {
-    if (closing || settled) return;
-    playLightScreenImpact(3);
-    try { (window as any).triggerHapticImpact?.('light'); } catch {}
-  };
-
-  const playStatsEnter = () => {
-    if (closing || settled) return;
-    const delays = createDetailModalStatsEnterDelays(statElements.length);
-    statElements.forEach((element, index) => {
-      element.style.animationDelay = `${delays[index] ?? 0}s`;
-      element.classList.add('journey-card-overlay-stat-entering');
-    });
-    stage.classList.remove('is-stats-enter-primed');
-    statsEnterCleanupTimer = window.setTimeout(() => {
-      statsEnterCleanupTimer = 0;
-      statElements.forEach((element) => {
-        element.classList.remove('journey-card-overlay-stat-entering');
-        element.style.removeProperty('animation-delay');
-      });
-    }, enterDelay(Math.ceil(
-      getDetailModalStatsEnterTotalDuration(statElements.length) * 1000,
-    ) + 34));
-  };
-
-  const playStatsExit = () => {
-    if (statsEnterCleanupTimer) {
-      window.clearTimeout(statsEnterCleanupTimer);
-      statsEnterCleanupTimer = 0;
-    }
-    statElements.forEach((element) => {
-      element.classList.remove('journey-card-overlay-stat-entering');
-      element.style.removeProperty('animation-delay');
-    });
-    // Restart the shared keyframe in its forward (exit) direction even if the
-    // player closes while the enter cascade is still finishing.
-    void paper.offsetHeight;
-    statElements.forEach((element, index) => {
-      element.style.animationDelay = `${index * JOURNEY_CARD_STATS_EXIT_STAGGER_MS}ms`;
-      element.classList.add('journey-card-overlay-stat-exiting');
-    });
   };
 
   const settle = (value: JourneyCardOverlayModalResult) => {
@@ -542,14 +599,62 @@ export function presentJourneyCardOverlayModal(
     resolveResult(value);
   };
 
-  const readOverlayCardGeometry = (): JourneyCardGeometry | null => (
-    captureJourneyCardGeometry(cardHost, preview, [previewFlipShell])
-  );
+  const animateInteractiveFlip = async (targetFace: 'front' | 'back'): Promise<void> => {
+    if (entering || closing || settled || flipping || targetFace === stableFace) return;
+    flipping = true;
+    stopSurfaceIdle();
+    stage.classList.add('is-flipping');
+    stage.classList.toggle('is-flipping-to-front', targetFace === 'front');
+    stage.classList.toggle('is-flipping-to-back', targetFace === 'back');
+    disposeSpatialMotion?.();
+    disposeSpatialMotion = null;
+    const from = currentAngle;
+    const fromTranslateX = currentTranslateX;
+    const canonical = targetFace === 'back' ? -180 : 0;
+    const candidates = [canonical - 360, canonical, canonical + 360];
+    const to = candidates.reduce((nearest, candidate) => (
+      Math.abs(candidate - from) < Math.abs(nearest - from) ? candidate : nearest
+    ));
+    const direction = Math.sign(to - from) || (targetFace === 'back' ? -1 : 1);
+    const duration = prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_SNAP_DURATION_MS;
+    if (targetFace === 'back') {
+      startBackContentEnter(Math.round(duration * 0.4));
+    }
+    if (typeof rotor.animate === 'function') {
+      const animation = rotor.animate([
+        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)` },
+        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * 0.58}deg)`, offset: 0.48 },
+        { transform: `translate3d(0, 0, 0) rotateY(${to + direction * 7}deg)`, offset: 0.82 },
+        { transform: `translate3d(0, 0, 0) rotateY(${to}deg)` },
+      ], { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+      flipAnimation = animation;
+      try { await animation.finished; } catch {}
+      if (flipAnimation === animation) flipAnimation = null;
+    }
+    if (closing || settled) return;
+    setRotorAngle(targetFace === 'back' ? -180 : 0);
+    setStableFace(targetFace);
+    if (targetFace === 'front') primeBackContentForEnter();
+    flipping = false;
+    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
+    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+    startSurfaceIdle();
+    try { (window as any).triggerHapticImpact?.('light'); } catch {}
+    scheduleIdleCoach();
+  };
 
-  const startSpatialEntry = (): void => {
-    const destination = readOverlayCardGeometry();
+  const startEntry = async () => {
+    const destination = readFrameGeometry();
     if (!destination) {
-      stage.classList.remove('is-spatial-card-entry');
+      setRotorAngle(-180);
+      setStableFace('back');
+      entering = false;
+      stage.classList.remove('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
+      stage.classList.add('is-settled');
+      startBackContentEnter();
+      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+      startSurfaceIdle();
+      scheduleIdleCoach();
       return;
     }
     const initialOpacity = Math.max(0, Math.min(1, options.entryInitialOpacity ?? 1));
@@ -560,29 +665,46 @@ export function presentJourneyCardOverlayModal(
       from: options.origin.origin,
       readTarget: () => destination,
       direction: 'enter',
-      durationMs: prefersReducedMotion ? 1 : JOURNEY_CARD_SPATIAL_FLIGHT_DURATION_MS,
-      onProgress: (rawProgress) => {
-        const revealProgress = Math.min(1, rawProgress / 0.38);
-        spatialShell.style.opacity = String(
-          initialOpacity + (1 - initialOpacity) * revealProgress,
-        );
+      durationMs: prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_ENTER_DURATION_MS,
+      pathOffset: computeJourneyCardArcOffset,
+      onProgress: (progress) => {
+        const angle = prefersReducedMotion ? -180 : getJourneyCardFlightFlipAngle(progress, 'enter');
+        setRotorAngle(angle);
+        if (angle <= -90) startBackContentEnter();
+        const revealProgress = Math.min(1, progress / 0.38);
+        spatialShell.style.opacity = String(initialOpacity + (1 - initialOpacity) * revealProgress);
       },
     });
-    void spatialFlight.result.then(() => {
-      if (closing || settled) return;
-      spatialFlight = null;
-      spatialShell.style.removeProperty('transform');
-      spatialShell.style.removeProperty('will-change');
-      spatialShell.style.removeProperty('opacity');
-      stage.classList.remove('is-spatial-card-entry');
-      options.onCardEntrySettled?.();
-    });
+    await spatialFlight.result;
+    spatialFlight = null;
+    if (closing || settled) return;
+    setRotorAngle(-180);
+    backdrop.style.opacity = '1';
+    setStableFace('back');
+    entering = false;
+    spatialShell.style.removeProperty('transform');
+    spatialShell.style.removeProperty('opacity');
+    spatialShell.style.removeProperty('will-change');
+    stage.classList.remove('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
+    stage.classList.add('is-settled');
+    startBackContentEnter();
+    impactAnimation = impactShell.animate?.([
+      { transform: 'scale(1)' },
+      { transform: 'scale(1.045)', offset: 0.42 },
+      { transform: 'scale(0.988)', offset: 0.72 },
+      { transform: 'scale(1)' },
+    ], { duration: prefersReducedMotion ? 1 : 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }) ?? null;
+    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+    startSurfaceIdle();
+    scheduleIdleCoach();
+    options.onCardEntrySettled?.();
+    try { (window as any).triggerHapticImpact?.('medium'); } catch {}
   };
 
-  const startSpatialReturn = async (hideAfterLanding = false): Promise<void> => {
-    const source = readOverlayCardGeometry();
+  const startReturn = async (play: boolean): Promise<void> => {
+    const source = readFrameGeometry();
     if (!source) {
-      if (hideAfterLanding) {
+      if (play) {
         options.onPlayCardReturnStart?.();
         options.onPlayCardExitStart?.();
         options.origin.discard();
@@ -590,606 +712,211 @@ export function presentJourneyCardOverlayModal(
       } else options.origin.restoreNow();
       return;
     }
-    // Sample the live idle frame first, then disable that animation owner and
-    // sample the stable base. Spatial progress zero recreates the sampled idle
-    // pose exactly, so close cannot snap to the neutral card before flight.
-    stage.classList.remove('is-card-revealed', 'is-card-impact');
-    clearDragStyles();
-    stage.classList.add('is-spatial-card-return');
-    const base = readOverlayCardGeometry() ?? source;
-    // Play uses one uninterrupted, portaled timeline. The target is captured
-    // before the World starts exiting, so the card never chases a moving Unit.
-    if (hideAfterLanding) options.onPlayCardReturnStart?.();
-    const frozenTarget = hideAfterLanding ? options.origin.readLiveGeometry() : null;
-    const playTravelStartsAtMs = JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS;
-    const playLandingAtMs = playTravelStartsAtMs + JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS;
-    const playLandingExitAtMs = playLandingAtMs
-      + JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS;
-    const totalDurationMs = hideAfterLanding
+    const target = play ? options.origin.readLiveGeometry() : null;
+    if (play) options.onPlayCardReturnStart?.();
+    const totalDurationMs = play
       ? JOURNEY_CARD_PLAY_RETURN_DURATION_MS
-      : JOURNEY_CARD_SPATIAL_RETURN_DURATION_MS;
-    let didNotifyPlayCardExitStart = false;
+      : JOURNEY_CARD_FLIP_DISMISS_DURATION_MS;
+    const travelStartsAtMs = play ? JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS : 0;
+    const travelDurationMs = play ? JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS : totalDurationMs;
+    const landingAtMs = travelStartsAtMs + travelDurationMs;
+    const exitAtMs = landingAtMs + JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS;
+    let exitNotified = false;
+    setRotorAngle(stableFace === 'back' ? -180 : 0);
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
-      baseGeometry: base,
+      baseGeometry: source,
       from: source,
-      readTarget: () => frozenTarget ?? options.origin.readLiveGeometry(),
+      readTarget: () => target ?? options.origin.readLiveGeometry(),
       direction: 'return',
       durationMs: prefersReducedMotion ? 1 : totalDurationMs,
-      spatialProgress: hideAfterLanding
+      pathOffset: play ? computeJourneyCardArcOffset : undefined,
+      spatialProgress: play
         ? (rawProgress) => {
           const elapsedMs = rawProgress * totalDurationMs;
-          const flightProgress = Math.min(1, Math.max(0,
-            (elapsedMs - playTravelStartsAtMs) / JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS,
-          ));
-          return flightProgress * flightProgress * (3 - 2 * flightProgress);
+          return smoothstep((elapsedMs - travelStartsAtMs) / travelDurationMs);
         }
         : undefined,
-      pathOffset: hideAfterLanding ? computeJourneyCardArcOffset : undefined,
       onProgress: (rawProgress) => {
-        if (!hideAfterLanding) return;
         const elapsedMs = rawProgress * totalDurationMs;
-        if (!didNotifyPlayCardExitStart && elapsedMs >= playLandingExitAtMs) {
-          didNotifyPlayCardExitStart = true;
+        const travelProgress = play
+          ? clamp01((elapsedMs - travelStartsAtMs) / travelDurationMs)
+          : rawProgress;
+        if (stableFace === 'back') {
+          setRotorAngle(prefersReducedMotion ? -360 : getJourneyCardFlightFlipAngle(travelProgress, 'return'));
+        }
+        if (!play) return;
+        if (!exitNotified && elapsedMs >= exitAtMs) {
+          exitNotified = true;
           options.onPlayCardExitStart?.();
         }
         const launchHalfMs = JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS / 2;
-        let cardScale = elapsedMs <= launchHalfMs
-          ? 1 + 0.06 * (elapsedMs / launchHalfMs)
+        let scale = elapsedMs <= launchHalfMs
+          ? 1 + 0.06 * (elapsedMs / Math.max(1, launchHalfMs))
           : elapsedMs < JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS
-            ? 1.06 - 0.06 * (
-              (elapsedMs - launchHalfMs) / launchHalfMs
-            )
+            ? 1.06 - 0.06 * ((elapsedMs - launchHalfMs) / Math.max(1, launchHalfMs))
             : 1;
-        if (elapsedMs >= playLandingAtMs && elapsedMs < playLandingExitAtMs) {
-          const punchProgress = Math.min(1, Math.max(0,
-            (elapsedMs - playLandingAtMs) / JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS,
-          ));
-          const punchEase = 1 - Math.pow(1 - punchProgress, 3);
-          cardScale = 1 + (0.14 * punchEase);
-        } else if (elapsedMs >= playLandingExitAtMs) {
-          const exitProgress = Math.min(1, Math.max(0,
-            (elapsedMs - playLandingExitAtMs) / JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS,
-          ));
-          const overshoot = 1.7;
-          const backIn = exitProgress * exitProgress
-            * (((overshoot + 1) * exitProgress) - overshoot);
-          cardScale = Math.max(0, 1.14 * (1 - backIn));
+        if (elapsedMs >= landingAtMs && elapsedMs < exitAtMs) {
+          scale = 1 + 0.14 * smoothstep((elapsedMs - landingAtMs) / JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS);
+        } else if (elapsedMs >= exitAtMs) {
+          const p = clamp01((elapsedMs - exitAtMs) / JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS);
+          const backIn = p * p * (((1.7 + 1) * p) - 1.7);
+          scale = Math.max(0, 1.14 * (1 - backIn));
         }
-        previewFlipShell.style.transformOrigin = '50% 50%';
-        previewFlipShell.style.transform = `scale(${cardScale})`;
-        previewFlipShell.style.opacity = elapsedMs >= totalDurationMs ? '0' : '1';
+        impactShell.style.transform = `scale(${scale})`;
+        impactShell.style.opacity = elapsedMs >= totalDurationMs ? '0' : '1';
       },
     });
     const outcome = await spatialFlight.result;
     spatialFlight = null;
-    if (hideAfterLanding && !didNotifyPlayCardExitStart) options.onPlayCardExitStart?.();
-    // Never cross DOM/transform owners while pixels are visible. Play removes
-    // the fully hidden portal node; dismiss restores the visible card at rest.
-    if (hideAfterLanding) {
+    if (play && !exitNotified) options.onPlayCardExitStart?.();
+    if (play) {
       options.origin.discard();
       options.onPlayCardExitComplete?.();
     } else {
       const restored = options.origin.restoreNow();
       didLandAtOrigin = outcome === 'complete' && restored && options.origin.anchor.isConnected;
-    }
-    previewFlipShell.style.removeProperty('transform');
-    previewFlipShell.style.removeProperty('transform-origin');
-    previewFlipShell.style.removeProperty('opacity');
-    spatialShell.style.removeProperty('transform');
-    spatialShell.style.removeProperty('will-change');
-    stage.classList.remove('is-spatial-card-return');
-    if (outcome === 'target-lost') {
-      stage.classList.add('is-backdrop-exiting');
+      if (restored) await waitForPaints(2);
     }
   };
 
-  const waitForExitDelay = (delayMs: number): Promise<void> => new Promise((resolve) => {
-    const timer = window.setTimeout(() => {
-      exitDelayResolvers.delete(timer);
-      resolve();
-    }, prefersReducedMotion ? 0 : delayMs);
-    exitDelayResolvers.set(timer, resolve);
-  });
-
   const beginClose = async (value: JourneyCardOverlayModalResult) => {
-    if (closing || settled || closeQueuedForCardLanding) return;
-    if (stage.classList.contains('is-card-entering') && spatialFlight) {
-      closeQueuedForCardLanding = true;
+    if (closing || settled) return;
+    if (entering && spatialFlight) {
       await spatialFlight.result;
-      closeQueuedForCardLanding = false;
       if (!settled) void beginClose(value);
       return;
     }
     closing = true;
-    clearScheduledWork();
-    stage.classList.remove(
-      'is-card-entering',
-      'cc-gameplay-modal-entering',
-      'cc-gameplay-modal-idle',
-    );
-    stage.classList.add('is-exiting');
+    flipping = false;
+    clearBackContentTimers();
+    neutralizeExitMotionOwners();
+    stopIdleCoach(false);
+    flipAnimation?.cancel();
+    flipAnimation = null;
+    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
+    stage.classList.add('is-flipping-to-front');
+    stage.classList.add('is-exiting', 'is-backdrop-exiting');
     stage.style.pointerEvents = 'none';
-    preview.setAttribute('aria-pressed', 'false');
     closeController?.element.setAttribute('aria-disabled', 'true');
-
-    await runGameplayModalParallelExit(
-      () => ctaController?.exit() ?? Promise.resolve(),
-      async () => {
-        const foregroundIsCard = cardFront;
-        const timing = getJourneyCardOverlayExitTiming(value, foregroundIsCard);
-        stage.style.setProperty(
-          '--journey-card-overlay-backdrop-exit-duration',
-          `${timing.backdropExitDurationMs}ms`,
-        );
-        if (value === 'dismiss') {
-          if (foregroundIsCard) {
-            const cardReturn = startSpatialReturn();
-            stage.classList.add('is-exiting-card-first');
-            await waitForExitDelay(timing.rearStartDelayMs);
-            if (settled) return;
-            stage.classList.add(
-              'is-backdrop-exiting',
-              'cc-gameplay-modal-exiting',
-              'is-exiting-modal-second',
-            );
-            playStatsExit();
-            await Promise.all([
-              cardReturn,
-              waitForExitDelay(timing.rearDurationMs),
-            ]);
-            return;
-          }
-
-          stage.classList.add('cc-gameplay-modal-exiting', 'is-exiting-modal-first');
-          playStatsExit();
-          const modalExit = waitForExitDelay(timing.foregroundDurationMs);
-          await waitForExitDelay(timing.rearStartDelayMs);
-          if (settled) return;
-          const cardReturn = startSpatialReturn();
-          stage.classList.add('is-backdrop-exiting', 'is-exiting-card-second');
-          await Promise.all([modalExit, cardReturn]);
-          return;
-        }
-
-        let foregroundExit: Promise<void>;
-        if (foregroundIsCard) {
-          stage.classList.add('is-exiting-card-first');
-          foregroundExit = startSpatialReturn(true);
-        } else {
-          stage.classList.add('cc-gameplay-modal-exiting', 'is-exiting-modal-first');
-          playStatsExit();
-          foregroundExit = waitForExitDelay(timing.foregroundDurationMs);
-        }
-        await waitForExitDelay(timing.rearStartDelayMs);
-        if (settled) return;
-        stage.classList.add('is-backdrop-exiting');
-        let rearExit: Promise<void>;
-        if (foregroundIsCard) {
-          stage.classList.add('cc-gameplay-modal-exiting', 'is-exiting-modal-second');
-          playStatsExit();
-          rearExit = waitForExitDelay(timing.rearDurationMs);
-        } else {
-          stage.classList.add('is-exiting-card-second');
-          rearExit = startSpatialReturn(true);
-        }
-        await Promise.all([foregroundExit, rearExit]);
-      },
-    );
+    await Promise.all([
+      ctaController?.exit() ?? Promise.resolve(),
+      startReturn(value === 'play'),
+    ]);
     settle(value);
   };
 
-  function clearDragStyles(): void {
-    stage.style.removeProperty('--journey-card-drag-x');
-    stage.style.removeProperty('--journey-card-drag-y');
-    stage.style.removeProperty('--journey-card-drag-rotate');
-    stage.style.removeProperty('--journey-card-drag-tilt-x');
-    stage.style.removeProperty('--journey-card-rear-drag-x');
-    stage.style.removeProperty('--journey-card-rear-drag-y');
-    stage.style.removeProperty('--journey-card-rear-drag-rotate');
-    stage.style.removeProperty('--journey-card-rear-drag-tilt-x');
-    stage.style.removeProperty('--journey-card-swap-front-x');
-    stage.style.removeProperty('--journey-card-swap-front-y');
-    stage.style.removeProperty('--journey-card-swap-front-rotate');
-    stage.style.removeProperty('--journey-card-swap-front-tilt-x');
-    stage.style.removeProperty('--journey-card-swap-rear-x');
-    stage.style.removeProperty('--journey-card-swap-rear-y');
-    stage.style.removeProperty('--journey-card-swap-rear-rotate');
-    stage.style.removeProperty('--journey-card-swap-rear-tilt-x');
+  function isInteractiveControl(target: EventTarget | null): boolean {
+    return target instanceof Element && !!target.closest('button, a, input, select, textarea');
   }
 
-  function stopSwipeCoach(): void {
-    if (swipeCoachIdleTimer) window.clearTimeout(swipeCoachIdleTimer);
-    if (swipeCoachRaf) cancelAnimationFrame(swipeCoachRaf);
-    swipeCoachIdleTimer = 0;
-    swipeCoachRaf = 0;
-    swipeCoachRunning = false;
-    stage.classList.remove('is-swipe-coach-active');
-    swipeHand.style.removeProperty('left');
-    swipeHand.style.removeProperty('top');
-    swipeHand.style.removeProperty('--journey-card-coach-hand-x');
-    clearDragStyles();
-  }
-
-  function updateSwipeCoachCopy(): void {
-    const surface = cardFront ? 'card' : 'stats';
-    if (swipeCopy.dataset.swipeCoachSurface === surface) return;
-    const copy = getJourneyCardSwipeCoachCopy(cardFront);
-    swipeCopy.dataset.swipeCoachSurface = surface;
-    swipeCopy.setAttribute('aria-label', copy.ariaLabel);
-    swipeCopy.innerHTML = renderJourneyCardSwipeCoachCopy(copy);
-  }
-
-  function runSwipeCoach(): void {
-    swipeCoachIdleTimer = 0;
-    if (
-      swipeCoachRunning || prefersReducedMotion || closing || settled || activePointerId !== null
-      || stage.classList.contains('is-card-entering')
-      || stage.classList.contains('is-depth-swapping')
-    ) {
-      scheduleSwipeCoach();
-      return;
-    }
-    swipeCoachRunning = true;
-    updateSwipeCoachCopy();
-    const foreground = cardFront ? preview : paper;
-    const bounds = foreground.getBoundingClientRect();
-    swipeHand.style.left = `${bounds.left + bounds.width * 0.62}px`;
-    swipeHand.style.top = `${bounds.top + bounds.height * 0.56}px`;
-    stage.classList.add('is-swipe-coach-active');
-    const startedAt = performance.now();
-    const direction = Math.random() < 0.5 ? -1 : 1;
-    const amplitude = 1 + Math.random() * 0.4;
-    const keyframes = [
-      { at: 0, x: 0 },
-      { at: 0.18, x: -18 * direction * amplitude },
-      { at: 0.39, x: -34 * direction * amplitude },
-      { at: 0.58, x: 30 * direction * amplitude },
-      { at: 0.76, x: 40 * direction * amplitude },
-      { at: 0.9, x: -7 * direction * amplitude },
-      { at: 1, x: 0 },
-    ];
-    const tick = (now: number) => {
-      const progress = Math.min(1, (now - startedAt) / JOURNEY_CARD_SWIPE_COACH_DURATION_MS);
-      let frameIndex = 0;
-      while (frameIndex < keyframes.length - 2 && progress > keyframes[frameIndex + 1].at) {
-        frameIndex += 1;
-      }
-      const from = keyframes[frameIndex];
-      const to = keyframes[frameIndex + 1];
-      const rawSegment = Math.max(0, Math.min(1, (progress - from.at) / (to.at - from.at)));
-      const easedSegment = 1 - Math.pow(1 - rawSegment, 3);
-      const x = from.x + (to.x - from.x) * easedSegment;
-      const rotation = Math.max(-3.2, Math.min(3.2, x / 12));
-      stage.style.setProperty('--journey-card-drag-x', `${x}px`);
-      stage.style.setProperty('--journey-card-drag-rotate', `${rotation}deg`);
-      stage.style.setProperty('--journey-card-rear-drag-x', `${x * -0.2}px`);
-      stage.style.setProperty('--journey-card-rear-drag-rotate', `${rotation * 0.2}deg`);
-      swipeHand.style.setProperty('--journey-card-coach-hand-x', `${x}px`);
-      if (progress < 1 && !closing && !settled) {
-        swipeCoachRaf = requestAnimationFrame(tick);
-        return;
-      }
-      swipeCoachRaf = 0;
-      swipeCoachRunning = false;
-      stage.classList.remove('is-swipe-coach-active');
-      clearDragStyles();
-      scheduleSwipeCoach();
-    };
-    swipeCoachRaf = requestAnimationFrame(tick);
-  }
-
-  function scheduleSwipeCoach(): void {
-    if (prefersReducedMotion || closing || settled || swipeCoachRunning) return;
-    if (swipeCoachIdleTimer) window.clearTimeout(swipeCoachIdleTimer);
-    swipeCoachIdleTimer = window.setTimeout(runSwipeCoach, JOURNEY_CARD_SWIPE_COACH_IDLE_MS);
-  }
-
-  function handleSwipeCoachInteraction(): void {
-    stopSwipeCoach();
-    scheduleSwipeCoach();
-  }
-
-  function beginDepthSwap(
-    event?: Event,
-    dragVector?: { x: number; y: number; startedOnRear?: boolean },
-  ): void {
-    event?.preventDefault();
-    event?.stopPropagation();
-    if (
-      closing ||
-      settled ||
-      stage.classList.contains('is-card-entering') ||
-      stage.classList.contains('is-depth-swapping') ||
-      (!cardFront && !stage.classList.contains('is-card-peeked'))
-    ) return;
-    const nextCardFront = !cardFront;
-    const directionClass = nextCardFront
-      ? 'is-swapping-card-forward'
-      : 'is-swapping-modal-forward';
-    if (dragVector) {
-      const magnitude = Math.max(1, Math.hypot(dragVector.x, dragVector.y));
-      const directionX = dragVector.x / magnitude;
-      const directionY = dragVector.y / magnitude;
-      const frontDistance = dragVector.startedOnRear ? -26 : 48;
-      const rearDistance = dragVector.startedOnRear ? 48 : -26;
-      const frontRotation = dragVector.startedOnRear ? -6 : 8;
-      const rearRotation = dragVector.startedOnRear ? 8 : -6;
-      const frontTilt = dragVector.startedOnRear ? 3.5 : -5;
-      const rearTilt = dragVector.startedOnRear ? -5 : 3.5;
-      stage.style.setProperty('--journey-card-swap-front-x', `${directionX * frontDistance}px`);
-      stage.style.setProperty('--journey-card-swap-front-y', `${directionY * frontDistance}px`);
-      stage.style.setProperty('--journey-card-swap-front-rotate', `${(directionX + directionY * 0.35) * frontRotation}deg`);
-      stage.style.setProperty('--journey-card-swap-front-tilt-x', `${directionY * frontTilt}deg`);
-      stage.style.setProperty('--journey-card-swap-rear-x', `${directionX * rearDistance}px`);
-      stage.style.setProperty('--journey-card-swap-rear-y', `${directionY * rearDistance}px`);
-      stage.style.setProperty('--journey-card-swap-rear-rotate', `${(directionX + directionY * 0.35) * rearRotation}deg`);
-      stage.style.setProperty('--journey-card-swap-rear-tilt-x', `${directionY * rearTilt}deg`);
-      stage.classList.add('is-gesture-swapping');
-    }
-    stage.classList.remove('is-depth-dragging', 'is-depth-snapback');
-    stage.classList.add('is-depth-swapping', directionClass);
-    try { (window as any).triggerHapticImpact?.('light'); } catch {}
-
-    depthSwapCommitTimer = window.setTimeout(() => {
-      depthSwapCommitTimer = 0;
-      if (closing || settled) return;
-      stage.classList.add('is-depth-swap-settling');
-      stage.classList.remove(directionClass);
-      stage.style.setProperty('--journey-card-drag-x', '0px');
-      stage.style.setProperty('--journey-card-drag-y', '0px');
-      stage.style.setProperty('--journey-card-drag-rotate', '0deg');
-      stage.style.setProperty('--journey-card-drag-tilt-x', '0deg');
-      stage.style.setProperty('--journey-card-rear-drag-x', '0px');
-      stage.style.setProperty('--journey-card-rear-drag-y', '0px');
-      stage.style.setProperty('--journey-card-rear-drag-rotate', '0deg');
-      stage.style.setProperty('--journey-card-rear-drag-tilt-x', '0deg');
-      cardFront = nextCardFront;
-      stage.classList.toggle('is-card-front', cardFront);
-      updateSwipeCoachCopy();
-      modalShell.inert = cardFront;
-      preview.setAttribute('aria-pressed', String(cardFront));
-      preview.setAttribute(
-        'aria-label',
-        cardFront ? `Return to ${viewModel.stageLabel} details` : `Show ${viewModel.stageLabel} card`,
-      );
-      depthShell.removeAttribute('role');
-      depthShell.removeAttribute('tabindex');
-      depthShell.removeAttribute('aria-label');
-      if (!cardFront) {
-        closeController?.element.focus({ preventScroll: true });
-      }
-      depthSwapCleanupTimer = window.setTimeout(() => {
-        depthSwapCleanupTimer = 0;
-        if (closing || settled) return;
-        stage.classList.remove(
-          'is-depth-swapping',
-          'is-depth-swap-settling',
-          'is-gesture-swapping',
-        );
-        clearDragStyles();
-      }, enterDelay(JOURNEY_CARD_DEPTH_SWAP_SETTLE_MS));
-    }, enterDelay(JOURNEY_CARD_DEPTH_SWAP_SEPARATE_MS));
-  }
-
-  function handleCardTapDepthSwap(event: MouseEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    if (
-      closing || settled || performance.now() <= suppressClickUntil
-      || stage.classList.contains('is-card-entering')
-      || stage.classList.contains('is-depth-swapping')
-    ) return;
-    beginDepthSwap(event);
-  }
-
-  function getDragTargetDepth(target: EventTarget | null): 'front' | 'rear' | null {
-    if (!(target instanceof Element)) return null;
-    if (preview.contains(target)) return cardFront ? 'front' : 'rear';
-    if (!depthShell.contains(target)) return null;
-    if (target.closest('button, a, input, select, textarea')) return null;
-    return cardFront ? 'rear' : 'front';
-  }
-
-  function resolveDragTargetDepth(event: PointerEvent): 'front' | 'rear' | null {
-    const directDepth = getDragTargetDepth(event.target);
-    if (directDepth) return directDepth;
-    if (
-      event.target instanceof Element
-      && event.target.closest('button, a, input, select, textarea')
-    ) return null;
-
-    // Transformed 3D shells can leave the visible peekaboo paper/card pixels
-    // targeting the stage itself on iOS. Recover that exposed rear hit area
-    // geometrically, but never steal any pixel owned by the foreground.
-    const foreground = cardFront ? preview : paper;
-    const rear = cardFront ? paper : preview;
-    const foregroundRect = foreground.getBoundingClientRect();
-    const rearRect = rear.getBoundingClientRect();
-    const contains = (rect: DOMRect): boolean => (
-      event.clientX >= rect.left
-      && event.clientX <= rect.right
-      && event.clientY >= rect.top
-      && event.clientY <= rect.bottom
-    );
-    if (contains(foregroundRect)) return 'front';
-    if (contains(rearRect)) return 'rear';
-    return null;
-  }
-
-  function paintDepthDrag(): void {
-    dragRaf = 0;
-    const deltaX = dragCurrentX - dragStartX;
-    const deltaY = dragCurrentY - dragStartY;
-    const visualDeltaX = deltaX * JOURNEY_CARD_DRAG_VISUAL_DISTANCE_SCALE_X;
-    const visualDeltaY = deltaY * JOURNEY_CARD_DRAG_VISUAL_DISTANCE_SCALE_Y;
-    const rotate = Math.max(-8, Math.min(8, visualDeltaX / 16));
-    const tiltX = Math.max(-5, Math.min(5, visualDeltaY / -22));
-    const frontFollow = dragStartedOnRear ? 0.2 : 1;
-    const rearFollow = dragStartedOnRear ? 1 : 0.2;
-    const frontRotation = dragStartedOnRear ? -0.28 : 1;
-    const rearRotation = dragStartedOnRear ? 1 : -0.28;
-    stage.style.setProperty('--journey-card-drag-x', `${visualDeltaX * frontFollow}px`);
-    stage.style.setProperty('--journey-card-drag-y', `${visualDeltaY * frontFollow}px`);
-    stage.style.setProperty('--journey-card-drag-rotate', `${rotate * frontRotation}deg`);
-    stage.style.setProperty('--journey-card-drag-tilt-x', `${tiltX * frontRotation}deg`);
-    stage.style.setProperty('--journey-card-rear-drag-x', `${visualDeltaX * rearFollow}px`);
-    stage.style.setProperty('--journey-card-rear-drag-y', `${visualDeltaY * rearFollow}px`);
-    stage.style.setProperty('--journey-card-rear-drag-rotate', `${rotate * rearRotation}deg`);
-    stage.style.setProperty('--journey-card-rear-drag-tilt-x', `${tiltX * rearRotation}deg`);
-  }
-
-  function handleDragPointerDown(event: PointerEvent): void {
-    const targetDepth = resolveDragTargetDepth(event);
-    if (
-      event.button !== 0 ||
-      activePointerId !== null ||
-      closing ||
-      settled ||
-      stage.classList.contains('is-card-entering') ||
-      stage.classList.contains('is-depth-swapping') ||
-      targetDepth === null
-    ) return;
+  function handlePointerDown(event: PointerEvent): void {
+    if (event.button !== 0 || entering || closing || settled || flipping || activePointerId !== null) return;
+    if (isInteractiveControl(event.target)) return;
     activePointerId = event.pointerId;
-    dragStartX = dragCurrentX = dragLastX = event.clientX;
-    dragStartY = dragCurrentY = dragLastY = event.clientY;
+    dragStartX = dragLastX = event.clientX;
     dragLastTime = event.timeStamp;
     dragVelocityX = 0;
-    dragVelocityY = 0;
     dragMoved = false;
-    dragStartedOnRear = targetDepth === 'rear';
-    stage.classList.remove('is-depth-snapback');
-    stage.classList.add('is-depth-dragging');
-    try { stage.setPointerCapture(event.pointerId); } catch {}
+    dragStartAngle = stableFace === 'front' ? 0 : -180;
+    dragCardWidth = Math.max(1, frame.getBoundingClientRect().width);
+    dragDirection = 1;
+    stopSurfaceIdle();
+    disposeSpatialMotion?.();
+    disposeSpatialMotion = null;
+    stage.classList.add('is-dragging');
+    try { rotor.setPointerCapture(event.pointerId); } catch {}
   }
 
-  function handleDragPointerMove(event: PointerEvent): void {
+  function handleAnyPointerInteraction(): void {
+    stopIdleCoach();
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
+    const deltaX = event.clientX - dragStartX;
     const elapsed = event.timeStamp - dragLastTime;
     if (elapsed > 0) {
-      const sampleVelocityX = (event.clientX - dragLastX) / elapsed;
-      const sampleVelocityY = (event.clientY - dragLastY) / elapsed;
-      dragVelocityX = dragVelocityX * 0.35 + sampleVelocityX * 0.65;
-      dragVelocityY = dragVelocityY * 0.35 + sampleVelocityY * 0.65;
+      const sample = (event.clientX - dragLastX) / elapsed;
+      dragVelocityX = dragVelocityX * 0.35 + sample * 0.65;
     }
-    dragCurrentX = event.clientX;
-    dragCurrentY = event.clientY;
     dragLastX = event.clientX;
-    dragLastY = event.clientY;
     dragLastTime = event.timeStamp;
-    dragMoved ||= Math.hypot(dragCurrentX - dragStartX, dragCurrentY - dragStartY)
-      > JOURNEY_CARD_DRAG_TAP_SLOP_PX;
+    dragMoved ||= Math.abs(deltaX) > JOURNEY_CARD_FLIP_TAP_SLOP_PX;
     if (!dragMoved) return;
     event.preventDefault();
-    if (!dragRaf) dragRaf = requestAnimationFrame(paintDepthDrag);
+    dragDirection = deltaX >= 0 ? 1 : -1;
+    const commitDistance = Math.max(1, dragCardWidth * JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO);
+    const previewProgress = clamp01(Math.abs(deltaX) / commitDistance);
+    const turn = previewProgress * JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG;
+    const translateX = Math.max(-44, Math.min(44, deltaX * 0.35));
+    setRotorPose(dragStartAngle + dragDirection * turn, translateX);
+    if (Math.abs(deltaX) >= commitDistance) {
+      activePointerId = null;
+      try { rotor.releasePointerCapture(event.pointerId); } catch {}
+      stage.classList.remove('is-dragging');
+      event.stopPropagation();
+      const targetFace = stableFace === 'front' ? 'back' : 'front';
+      void animateInteractiveFlip(targetFace);
+    }
   }
 
-  function finishDepthDrag(event: PointerEvent, allowCommit: boolean): void {
+  function finishPointer(event: PointerEvent, allowCommit: boolean): void {
     if (event.pointerId !== activePointerId) return;
-    dragCurrentX = event.clientX;
-    dragCurrentY = event.clientY;
-    if (event.timeStamp - dragLastTime > 80) {
-      dragVelocityX = 0;
-      dragVelocityY = 0;
-    }
-    if (dragRaf) {
-      cancelAnimationFrame(dragRaf);
-      dragRaf = 0;
-      paintDepthDrag();
-    }
-    const deltaX = dragCurrentX - dragStartX;
-    const deltaY = dragCurrentY - dragStartY;
+    const deltaX = event.clientX - dragStartX;
     const moved = dragMoved;
     activePointerId = null;
-    try { stage.releasePointerCapture(event.pointerId); } catch {}
-    if (!moved) {
-      stage.classList.remove('is-depth-dragging');
-      clearDragStyles();
-      // Tap and drag share the same geometry-aware pointer owner. This is
-      // required for the transformed modal/card shells, whose synthetic click
-      // target can be the stage instead of the visible foreground surface.
-      if (allowCommit) {
-        event.preventDefault();
-        event.stopPropagation();
-        suppressClickUntil = performance.now() + JOURNEY_CARD_DEPTH_SWAP_SEPARATE_MS
-          + JOURNEY_CARD_DEPTH_SWAP_SETTLE_MS;
-        beginDepthSwap();
-      }
+    try { rotor.releasePointerCapture(event.pointerId); } catch {}
+    stage.classList.remove('is-dragging');
+    if (!allowCommit) {
+      setRotorAngle(stableFace === 'front' ? 0 : -180);
+      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+      startSurfaceIdle();
+      scheduleIdleCoach();
       return;
     }
     event.preventDefault();
     event.stopPropagation();
-    suppressClickUntil = performance.now() + JOURNEY_CARD_DEPTH_SWAP_SEPARATE_MS
-      + JOURNEY_CARD_DEPTH_SWAP_SETTLE_MS;
-    if (allowCommit && shouldCommitJourneyCardDepthDrag(
-      deltaX,
-      deltaY,
-      dragVelocityX,
-      dragVelocityY,
-    )) {
-      // Commit from the actually painted drag pose so the release cannot snap
-      // before the directional split transition acquires ownership.
-      void preview.getBoundingClientRect();
-      beginDepthSwap(undefined, {
-        x: deltaX || dragVelocityX,
-        y: deltaY || dragVelocityY,
-        startedOnRear: dragStartedOnRear,
-      });
+    if (!moved || shouldCommitJourneyCardFlipDrag(deltaX, dragVelocityX, dragCardWidth)) {
+      const targetFace = stableFace === 'front' ? 'back' : 'front';
+      void animateInteractiveFlip(targetFace);
       return;
     }
-    stage.classList.remove('is-depth-dragging');
-    stage.classList.add('is-depth-snapback');
-    stage.style.setProperty('--journey-card-drag-x', '0px');
-    stage.style.setProperty('--journey-card-drag-y', '0px');
-    stage.style.setProperty('--journey-card-drag-rotate', '0deg');
-    stage.style.setProperty('--journey-card-drag-tilt-x', '0deg');
-    stage.style.setProperty('--journey-card-rear-drag-x', '0px');
-    stage.style.setProperty('--journey-card-rear-drag-y', '0px');
-    stage.style.setProperty('--journey-card-rear-drag-rotate', '0deg');
-    stage.style.setProperty('--journey-card-rear-drag-tilt-x', '0deg');
-    dragSnapbackTimer = window.setTimeout(() => {
-      dragSnapbackTimer = 0;
-      stage.classList.remove('is-depth-snapback');
-      clearDragStyles();
-    }, JOURNEY_CARD_DRAG_SNAPBACK_MS);
+    setRotorAngle(stableFace === 'front' ? 0 : -180);
+    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+    startSurfaceIdle();
+    scheduleIdleCoach();
   }
 
-  function handleDragPointerUp(event: PointerEvent): void {
-    finishDepthDrag(event, true);
+  function handlePointerUp(event: PointerEvent): void {
+    finishPointer(event, true);
   }
 
-  function handleDragPointerCancel(event: PointerEvent): void {
-    finishDepthDrag(event, false);
+  function handlePointerCancel(event: PointerEvent): void {
+    finishPointer(event, false);
   }
 
-  function handleSuppressedDragClick(event: MouseEvent): void {
-    if (performance.now() > suppressClickUntil) return;
+  function handleRotorKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target !== front) return;
+    stopIdleCoach();
+    event.preventDefault();
+    void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
+  }
+
+  function handleTurnControlClick(event: MouseEvent): void {
+    stopIdleCoach();
     event.preventDefault();
     event.stopPropagation();
+    void animateInteractiveFlip('front');
   }
 
   function handleBackdropClick(event: MouseEvent): void {
-    if (event.target !== stage || stage.classList.contains('is-depth-swapping')) return;
-    void beginClose('dismiss');
+    if (event.target === stage || event.target === backdrop) void beginClose('dismiss');
   }
 
-  function handleKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Tab') {
-      const candidates: Array<HTMLElement | undefined> = cardFront
-        ? [preview]
-        : [closeController?.element, preview, cta];
-      const focusable = candidates.filter((element): element is HTMLElement => (
-        !!element && (!(element instanceof HTMLButtonElement) || !element.disabled)
-      ));
-      if (!focusable.length) return;
-      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
-      const nextIndex = event.shiftKey
-        ? (currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1)
-        : (currentIndex < 0 || currentIndex === focusable.length - 1 ? 0 : currentIndex + 1);
-      event.preventDefault();
-      focusable[nextIndex].focus({ preventScroll: true });
-      return;
-    }
+  function handleDocumentKeyDown(event: KeyboardEvent): void {
+    stopIdleCoach();
     if (event.key !== 'Escape') return;
     event.preventDefault();
     void beginClose('dismiss');
@@ -1199,79 +926,40 @@ export function presentJourneyCardOverlayModal(
     if (!settled) settle('dismiss');
   }
 
-  preview.addEventListener('click', handleCardTapDepthSwap);
-  preview.addEventListener('pointerdown', handleDragPointerDown, true);
-  depthShell.addEventListener('pointerdown', handleDragPointerDown, true);
-  paper.addEventListener('pointerdown', handleDragPointerDown, true);
-  stage.addEventListener('pointerdown', handleDragPointerDown, true);
-  stage.addEventListener('pointermove', handleDragPointerMove, true);
-  stage.addEventListener('pointerup', handleDragPointerUp, true);
-  stage.addEventListener('pointercancel', handleDragPointerCancel, true);
-  stage.addEventListener('click', handleSuppressedDragClick, true);
+  rotor.addEventListener('pointerdown', handlePointerDown);
+  rotor.addEventListener('pointermove', handlePointerMove);
+  rotor.addEventListener('pointerup', handlePointerUp);
+  rotor.addEventListener('pointercancel', handlePointerCancel);
+  rotor.addEventListener('keydown', handleRotorKeyDown);
+  turnControl.addEventListener('click', handleTurnControlClick);
+  stage.addEventListener('pointerdown', handleAnyPointerInteraction, true);
   stage.addEventListener('click', handleBackdropClick);
-  stage.addEventListener('pointerdown', handleSwipeCoachInteraction, true);
-  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keydown', handleDocumentKeyDown);
   window.addEventListener('cc-navigation', handleRouteChange);
   window.addEventListener('pagehide', handleRouteChange);
-  closeController = mountGameplaySheetClose(idleShell, () => {
+
+  closeController = mountGameplaySheetClose(backShell, () => {
     void beginClose('dismiss');
   }, 'Close stage details');
   ctaController = registerCta(cta, {
     variant: 'primary',
     initialState: 'hidden',
-    onActivate: () => beginClose('play'),
+    onActivate: () => {
+      try { (window as any).triggerHapticSelection?.(); } catch {}
+      void beginClose('play');
+    },
   });
+  primeBackContentForEnter();
 
+  setStableFace('front');
+  setRotorAngle(0);
   document.body.appendChild(stage);
-  stage.classList.add(
-    'is-visible',
-    'is-card-entering',
-    'is-card-peeked',
-    'is-spatial-card-entry',
-    'is-stats-enter-primed',
-  );
-  startSpatialEntry();
-  enterRafOne = requestAnimationFrame(() => {
-    enterRafOne = 0;
-    stage.classList.add('is-backdrop-visible');
-    enterRafTwo = requestAnimationFrame(() => {
-      enterRafTwo = 0;
-      if (closing || settled) return;
-      cardToModalTimer = window.setTimeout(() => {
-        cardToModalTimer = 0;
-        if (closing || settled) return;
-        stage.classList.add('is-modal-visible', 'cc-gameplay-modal-entering');
-        playStatsEnter();
-        closeController?.element.focus({ preventScroll: true });
-        void ctaController?.enter();
-        enterCleanupTimer = window.setTimeout(() => {
-          enterCleanupTimer = 0;
-          if (closing || settled) return;
-          stage.classList.remove('cc-gameplay-modal-entering');
-          stage.classList.add('cc-gameplay-modal-idle');
-          playModalSettleImpact();
-          scheduleSwipeCoach();
-        }, enterDelay(
-          JOURNEY_CARD_OVERLAY_ENTER_DURATION_MS + GAMEPLAY_MODAL_BENCHMARK.enterCleanupBufferMs,
-        ));
-      }, enterDelay(Math.round(
-        JOURNEY_CARD_OVERLAY_ENTER_DURATION_MS * JOURNEY_CARD_MODAL_ENTER_START_PROGRESS,
-      )));
-      cardEnterCleanupTimer = window.setTimeout(() => {
-        cardEnterCleanupTimer = 0;
-        if (closing || settled) return;
-        stage.classList.remove('is-card-entering');
-      }, enterDelay(
-        JOURNEY_CARD_OVERLAY_ENTER_DURATION_MS + GAMEPLAY_MODAL_BENCHMARK.enterCleanupBufferMs,
-      ));
-      cardImpactTimer = window.setTimeout(() => {
-        cardImpactTimer = 0;
-        if (closing || settled) return;
-        playCardSettleImpact();
-      }, enterDelay(Math.round(
-        JOURNEY_CARD_OVERLAY_ENTER_DURATION_MS * JOURNEY_CARD_INITIAL_IMPACT_PROGRESS,
-      )));
-    });
+  stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
+  void startEntry();
+  requestAnimationFrame(() => {
+    if (settled) return;
+    stage.classList.add('is-visible');
+    backdrop.style.opacity = '1';
   });
 
   controller = {
@@ -1284,8 +972,7 @@ export function presentJourneyCardOverlayModal(
       void beginClose('dismiss');
     },
     dispose() {
-      if (settled) return;
-      settle('dismiss');
+      if (!settled) settle('dismiss');
     },
   };
   activeJourneyCardOverlayModal = controller;

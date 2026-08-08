@@ -2033,6 +2033,12 @@ async function startNewRun(boardId: number): Promise<void> {
   (window as any).__ccUiArcadeTransitioning = true;
 
   try {
+    if ((window as any).exitingToMenu === true) {
+      logger.info('⏳ Arcade Play queued behind the authoritative exitToMenu owner');
+      while ((window as any).exitingToMenu === true) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
     logger.info('🎬 Starting game start sequence...');
     // A cold-launch hero tap is allowed before Homepage enter settles. Revoke
     // that owner before exit starts so no delayed enter callback can reveal or
@@ -2390,7 +2396,6 @@ async function startNewRun(boardId: number): Promise<void> {
       skipBoardExit: shouldSkipBoardExit,
       fastArcadeCleanExit: isFastArcadeCleanExit,
     });
-    let earlyHomepageHandoffDone = false;
     console.log(`🔍 exitToMenu: shouldSkipBoardExit = ${shouldSkipBoardExit}, flag value = ${(window as any).__skipBoardExitAnimation}`);
     if (shouldSkipBoardExit) {
       console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
@@ -2575,8 +2580,10 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     // Step 6: Homepage/Slider cleanup
-    // Fast arcade handoff keeps homepage visible early; destroying slider here causes visible stutter.
-    if (!earlyHomepageHandoffDone) {
+    // The fast Arcade summary path reuses the warm Homepage slider. Destroying
+    // and rebuilding its listeners here adds visible churn before the one
+    // authoritative enter handoff below.
+    if (!isFastArcadeCleanExit) {
       try {
         console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
         
@@ -2809,9 +2816,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // Homepage is the absolute clean product boundary. Clear gameplay-owned
       // overlays for normal, fast-clean, and already-started handoffs alike.
       await appZoneManager.cleanupTransientVisuals('exitToMenu:homepage-single-owner');
-      if (earlyHomepageHandoffDone) {
-        console.log('⚡ Fast arcade clean exit: homepage shell already visible, preserving active enter animation');
-      } else if (isFastArcadeCleanExit) {
+      if (isFastArcadeCleanExit) {
         console.log('⚡ Fast arcade clean exit: deferring homepage shell show until prepared enter handoff');
       } else {
         console.log('✅ Homepage route resolved; shared enter owner will acquire and reveal it once');
@@ -3046,34 +3051,28 @@ async function startNewRun(boardId: number): Promise<void> {
     } else {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
-      if (!earlyHomepageHandoffDone) {
-        if (isFastArcadeCleanExit) {
-          hideGameVisualResidueForHomepage('exitToMenu:fast-arcade-homepage');
-          await waitForHomepageEnterPrime();
-          await new Promise(resolve => setTimeout(resolve, 120));
-        }
-        await playHomepageSliderEnterHandoff('exitToMenu:homepage-final', {
-          targetSlideIndex: 0,
-          skipFirstPaintReady: true,
-        });
-        // Resume menu soundtrack with fade in when homepage is shown
-        try {
-          const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
-          fadeInAndResume();
-        } catch (_) { /* ignore */ }
-        (window as any).__ccSoundtrackResumedThisExit = true;
-        if (!isFastArcadeCleanExit) {
-          // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
-          await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
-          uiManager.hideApp();
-          console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
-        } else {
-          console.log('✅ Fast arcade homepage enter started after game residue was hidden');
-        }
-      } else {
+      if (isFastArcadeCleanExit) {
+        hideGameVisualResidueForHomepage('exitToMenu:fast-arcade-homepage');
+        await waitForHomepageEnterPrime();
+        await new Promise(resolve => setTimeout(resolve, 120));
+      }
+      await playHomepageSliderEnterHandoff('exitToMenu:homepage-final', {
+        targetSlideIndex: 0,
+        skipFirstPaintReady: true,
+      });
+      // Resume menu soundtrack with fade in when homepage is shown
+      try {
+        const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
+        fadeInAndResume();
+      } catch (_) { /* ignore */ }
+      (window as any).__ccSoundtrackResumedThisExit = true;
+      if (!isFastArcadeCleanExit) {
+        // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
         await new Promise(resolve => setTimeout(resolve, exitWaits.uiHandoffMs));
         uiManager.hideApp();
-        console.log('⚡ Homepage already handed off in fast arcade path - app hidden after finalized shell');
+        console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
+      } else {
+        console.log('✅ Fast arcade homepage enter started after game residue was hidden');
       }
     }
     console.log('✅ Exit complete - pathways separated');

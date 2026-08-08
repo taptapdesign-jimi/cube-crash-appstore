@@ -5,6 +5,7 @@ type LoadPopInDeps = {
   onHalf: () => void;
   onComplete: () => void;
   beforePopIn?: () => Promise<void>;
+  onPopInStarted?: () => void;
   devLog: (...args: any[]) => void;
 };
 
@@ -15,6 +16,7 @@ export function playLoadPopInAnimation({
   onHalf,
   onComplete,
   beforePopIn,
+  onPopInStarted,
   devLog,
 }: LoadPopInDeps): void {
   // Ensure background layer is visible from the start
@@ -59,7 +61,9 @@ export function playLoadPopInAnimation({
       }
     }
     try {
-      await sweetPopIn(enterTiles, { onHalf });
+      const popInPromise = sweetPopIn(enterTiles, { onHalf });
+      try { onPopInStarted?.(); } catch {}
+      await popInPromise;
       devLog('✅ Continue animation completed');
     } catch (error) {
       devLog('⚠️ Continue animation failed:', error);

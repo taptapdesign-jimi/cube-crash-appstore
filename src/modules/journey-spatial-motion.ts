@@ -7,6 +7,20 @@ type SpatialTarget = {
   hubWorldId?: JourneySpatialWorldId;
 };
 
+export type ModalSpatialTarget = {
+  element: HTMLElement;
+  xDepth: number;
+  yDepth: number;
+  rotateXDegrees?: number;
+  rotateYDegrees?: number;
+  zDepth?: number;
+};
+
+type ModalSpatialRegistration = {
+  container: HTMLElement;
+  targets: ModalSpatialTarget[];
+};
+
 type GameplaySpatialWrapper = {
   destroyed?: boolean;
   x?: number;
@@ -293,7 +307,7 @@ export function createJourneySpatialOffset(
   };
 }
 
-class AppSpatialMotionController {
+export class AppSpatialMotionController {
   private readonly worldDirections = createJourneySpatialDirectionMap();
   private readonly sessionDepthOffset = Math.floor(Math.random() * ORGANIC_DEPTH_SCALES.length);
   private readonly gameplayDirectionOffset = Math.floor(Math.random() * GAMEPLAY_TILE_DIRECTION_PATTERNS.length);
@@ -301,8 +315,10 @@ class AppSpatialMotionController {
   private hubEntryCloudDirectionOffset = 0;
   private hubEntryWorldPathRotation = 0;
   private permissionState: MotionPermissionState = 'unknown';
+  private permissionGestureCleanup: (() => void) | null = null;
   private activeSurface: JourneySpatialSurface | null = null;
   private targets: SpatialTarget[] = [];
+  private modalTargets = new Map<symbol, ModalSpatialRegistration>();
   private baselineBeta: number | null = null;
   private baselineGamma: number | null = null;
   private targetTilt: JourneySpatialTilt = { x: 0, y: 0 };
@@ -327,7 +343,7 @@ class AppSpatialMotionController {
   private spatialRenderFrames = 0;
 
   private readonly handleOrientation = (event: DeviceOrientationEvent): void => {
-    if (!this.activeSurface || document.hidden) return;
+    if (!this.hasMotionDemand() || document.hidden) return;
     if (this.activeSurface === 'homepage' && !this.isHomepageVisible()) {
       if (this.baselineBeta != null || this.baselineGamma != null || this.currentTilt.x !== 0 || this.currentTilt.y !== 0) {
         this.targetTilt = { x: 0, y: 0 };
@@ -368,6 +384,8 @@ class AppSpatialMotionController {
     if (this.permissionState === 'granted') return true;
     if (this.permissionState === 'denied') return false;
 
+    this.disarmPermissionGesture();
+
     const OrientationEvent = window.DeviceOrientationEvent as DeviceOrientationPermissionConstructor | undefined;
     if (!OrientationEvent) {
       this.permissionState = 'denied';
@@ -383,10 +401,41 @@ class AppSpatialMotionController {
       this.permissionState = 'denied';
     }
 
-    if (this.permissionState === 'granted' && this.activeSurface && !this.suspended) {
+    this.persistNativePermissionDecision(this.permissionState === 'granted');
+
+    if (this.permissionState === 'granted' && this.hasMotionDemand()) {
       this.startListening();
     }
     return this.permissionState === 'granted';
+  }
+
+  /**
+   * iOS scopes DeviceOrientation permission to the current WKWebView document.
+   * The saved 3D Motion preference survives a hard app exit, but the new page
+   * must still re-request access from a fresh user activation. Re-arm that
+   * session permission without replaying the educational launch modal.
+   */
+  public armPermissionFromNextGesture(): void {
+    this.disarmPermissionGesture();
+    if (!this.requiresPermissionGesture()) return;
+
+    const handleGesture = (event: Event): void => {
+      if (!event.isTrusted) return;
+      this.disarmPermissionGesture();
+      this.emitDiagnostic('session-permission-gesture');
+      void this.requestPermissionFromGesture().then((granted) => {
+        this.emitDiagnostic('session-permission-result', { granted });
+      });
+    };
+    const listenerOptions: AddEventListenerOptions = { capture: true, passive: true };
+    window.addEventListener('click', handleGesture, listenerOptions);
+    window.addEventListener('keydown', handleGesture, listenerOptions);
+    this.permissionGestureCleanup = () => {
+      window.removeEventListener('click', handleGesture, true);
+      window.removeEventListener('keydown', handleGesture, true);
+      this.permissionGestureCleanup = null;
+    };
+    this.emitDiagnostic('session-permission-armed');
   }
 
   public isEnabled(): boolean {
@@ -400,7 +449,9 @@ class AppSpatialMotionController {
 
   public setEnabled(enabled: boolean): void {
     if (!enabled) {
+      this.disarmPermissionGesture();
       this.pendingActivation = null;
+      this.clearModalTargets();
       this.deactivate();
     }
   }
@@ -897,12 +948,96 @@ class AppSpatialMotionController {
     });
   }
 
+  /**
+   * Adds transform-isolated modal/card layers to the existing sensor stream.
+   * The base scene keeps its owner and no second deviceorientation listener is
+   * created. Call the returned disposer before the surface starts its exit.
+   */
+  public registerModalTargets(
+    container: HTMLElement,
+    targets: ModalSpatialTarget[],
+  ): () => void {
+    const key = Symbol('modal-spatial-targets');
+    const liveTargets = targets.filter(({ element }) => element.isConnected && container.contains(element));
+    if (
+      !container.isConnected ||
+      liveTargets.length === 0 ||
+      !this.isEnabled() ||
+      this.prefersReducedMotion()
+    ) return () => undefined;
+
+    const isFirstModalRegistration = this.modalTargets.size === 0;
+    this.modalTargets.set(key, { container, targets: liveTargets });
+    if (isFirstModalRegistration) {
+      this.resetBaseline();
+    }
+    liveTargets.forEach(({ element }) => {
+      element.classList.add('cc-modal-spatial-target');
+    });
+    this.emitDiagnostic('modal-targets-registered', {
+      modalTargetCount: liveTargets.length,
+      modalRegistrationCount: this.modalTargets.size,
+      containerId: container.id || null,
+    });
+
+    const OrientationEvent = window.DeviceOrientationEvent as DeviceOrientationPermissionConstructor | undefined;
+    if (OrientationEvent && typeof OrientationEvent.requestPermission !== 'function') {
+      this.permissionState = 'granted';
+    }
+    if (this.permissionState === 'granted') this.startListening();
+    this.ensureFrame();
+
+    let disposed = false;
+    return () => {
+      if (disposed) return;
+      disposed = true;
+      const registration = this.modalTargets.get(key);
+      this.modalTargets.delete(key);
+      registration?.targets.forEach(({ element }) => this.resetModalTargetStyle(element));
+      this.emitDiagnostic('modal-targets-disposed', {
+        modalTargetCount: registration?.targets.length ?? 0,
+        modalRegistrationCount: this.modalTargets.size,
+        containerId: container.id || null,
+      });
+      if (!this.hasMotionDemand()) {
+        this.stopListening();
+        this.cancelFrame();
+        this.targetTilt = { x: 0, y: 0 };
+        this.currentTilt = { x: 0, y: 0 };
+        this.resetBaseline();
+      } else if (this.modalTargets.size === 0) {
+        this.resetBaseline();
+      }
+    };
+  }
+
   public suspend(): void {
     this.suspended = true;
-    this.stopListening();
-    this.cancelFrame();
+    if (this.modalTargets.size === 0) {
+      this.stopListening();
+      this.cancelFrame();
+    }
     this.stopVisibilityTracking();
     this.removeCompositorHints();
+  }
+
+  /** Resume the already-owned Journey World without resetting its live pose. */
+  public resumeJourneyWorld(container: HTMLElement): void {
+    if (
+      this.activeSurface !== 'journey-world' ||
+      !this.suspended ||
+      !container.isConnected ||
+      this.targets.length === 0
+    ) return;
+    this.suspended = false;
+    this.resetBaseline();
+    this.startVisibilityTracking(container);
+    if (this.permissionState === 'granted') this.startListening();
+    this.ensureFrame();
+    this.emitDiagnostic('surface-resumed', {
+      surface: 'journey-world',
+      targetCount: this.targets.length,
+    });
   }
 
   public suspendHomepage(): void {
@@ -919,8 +1054,10 @@ class AppSpatialMotionController {
 
   public deactivate(options: { reset?: boolean } = {}): void {
     const reset = options.reset !== false;
-    this.stopListening();
-    this.cancelFrame();
+    if (this.modalTargets.size === 0) {
+      this.stopListening();
+      this.cancelFrame();
+    }
     if (reset) this.resetTargetStyles();
     if (reset) this.resetGameplayStyles();
     this.targets = [];
@@ -930,9 +1067,11 @@ class AppSpatialMotionController {
     this.pendingActivation = null;
     this.activeSurface = null;
     this.suspended = false;
-    this.targetTilt = { x: 0, y: 0 };
-    this.currentTilt = { x: 0, y: 0 };
-    this.resetBaseline();
+    if (this.modalTargets.size === 0) {
+      this.targetTilt = { x: 0, y: 0 };
+      this.currentTilt = { x: 0, y: 0 };
+      this.resetBaseline();
+    }
     this.stopVisibilityTracking();
   }
 
@@ -989,6 +1128,13 @@ class AppSpatialMotionController {
     } catch {}
   }
 
+  private persistNativePermissionDecision(granted: boolean): void {
+    try {
+      const handler = (window as any).webkit?.messageHandlers?.motionPermissionResult;
+      handler?.postMessage?.({ granted });
+    } catch {}
+  }
+
   private prefersReducedMotion(): boolean {
     return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
   }
@@ -1029,7 +1175,12 @@ class AppSpatialMotionController {
   }
 
   private startListening(): void {
-    if (this.listening || this.suspended || !this.activeSurface || this.prefersReducedMotion()) return;
+    if (
+      this.listening ||
+      !this.hasMotionDemand() ||
+      (this.suspended && this.modalTargets.size === 0) ||
+      this.prefersReducedMotion()
+    ) return;
     this.targets.forEach(({ element }) => {
       if (!this.visibilityObserver || this.visibleElements.has(element)) this.addCompositorHint(element);
     });
@@ -1047,14 +1198,22 @@ class AppSpatialMotionController {
     this.emitDiagnostic('listener-stopped');
   }
 
+  private disarmPermissionGesture(): void {
+    this.permissionGestureCleanup?.();
+  }
+
   private ensureFrame(): void {
-    if (this.frameId != null || this.suspended || !this.activeSurface) return;
+    if (
+      this.frameId != null ||
+      !this.hasMotionDemand() ||
+      (this.suspended && this.modalTargets.size === 0)
+    ) return;
     this.frameId = window.requestAnimationFrame((now) => this.renderFrame(now));
   }
 
   private renderFrame(now: number): void {
     this.frameId = null;
-    if (this.suspended || !this.activeSurface || document.hidden) return;
+    if (!this.hasMotionDemand() || document.hidden) return;
     this.spatialRenderFrames += 1;
 
     const isJourneyScene = this.activeSurface === 'journey-hub'
@@ -1078,11 +1237,14 @@ class AppSpatialMotionController {
   }
 
   private applyCurrentTilt(): void {
-    if (this.activeSurface === 'gameplay') {
+    if (!this.suspended && this.activeSurface === 'gameplay') {
       this.applyGameplayTilt();
+      this.applyModalTilt();
       return;
     }
-    this.targets = this.targets.filter(({ element }) => document.body.contains(element));
+    if (!this.suspended) {
+      this.targets = this.targets.filter(({ element }) => document.body.contains(element));
+    }
     const journeyResponsiveTilt = (
       this.activeSurface === 'journey-hub' || this.activeSurface === 'journey-world'
     )
@@ -1096,7 +1258,7 @@ class AppSpatialMotionController {
       : this.activeSurface === 'journey-world'
         ? JOURNEY_SPATIAL_SURFACE_GAIN.journeyWorld
         : { x: 1, y: 1 };
-    this.targets.forEach(({ element, xDepth, yDepth, hubWorldId }) => {
+    if (!this.suspended) this.targets.forEach(({ element, xDepth, yDepth, hubWorldId }) => {
       if (this.visibilityObserver && !this.visibleElements.has(element)) return;
       const targetTilt = this.activeSurface === 'journey-hub' && hubWorldId
         ? createJourneyHubWorldTilt(
@@ -1112,6 +1274,61 @@ class AppSpatialMotionController {
       );
       element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
     });
+    this.applyModalTilt();
+  }
+
+  private applyModalTilt(): void {
+    // Modal layers need the same relaxed-wrist response as the Journey scene.
+    // Raw beta changes are much smaller than gamma in a natural portrait grip,
+    // which otherwise makes pitch appear absent even while the sensor is live.
+    const modalTilt = applyJourneySceneTiltResponse(this.currentTilt);
+    this.modalTargets.forEach((registration, key) => {
+      if (!registration.container.isConnected) {
+        registration.targets.forEach(({ element }) => this.resetModalTargetStyle(element));
+        this.modalTargets.delete(key);
+        return;
+      }
+      registration.targets = registration.targets.filter(({ element }) => element.isConnected);
+      if (registration.targets.length === 0) {
+        this.modalTargets.delete(key);
+        return;
+      }
+      registration.targets.forEach((target) => {
+        const offset = createJourneySpatialOffset(modalTilt, target.xDepth, target.yDepth);
+        const rotateX = -modalTilt.y * (target.rotateXDegrees ?? 0);
+        const rotateY = modalTilt.x * (target.rotateYDegrees ?? 0);
+        const z = Math.min(1, Math.hypot(modalTilt.x, modalTilt.y)) * (target.zDepth ?? 0);
+        target.element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
+        target.element.style.setProperty('--cc-modal-gyro-rx', `${rotateX.toFixed(2)}deg`);
+        target.element.style.setProperty('--cc-modal-gyro-ry', `${rotateY.toFixed(2)}deg`);
+        target.element.style.setProperty('--cc-modal-gyro-z', `${z.toFixed(2)}px`);
+      });
+    });
+    if (!this.hasMotionDemand()) {
+      this.stopListening();
+      this.targetTilt = { x: 0, y: 0 };
+      this.currentTilt = { x: 0, y: 0 };
+      this.resetBaseline();
+    }
+  }
+
+  private resetModalTargetStyle(element: HTMLElement): void {
+    element.style.removeProperty('translate');
+    element.style.removeProperty('--cc-modal-gyro-rx');
+    element.style.removeProperty('--cc-modal-gyro-ry');
+    element.style.removeProperty('--cc-modal-gyro-z');
+    element.classList.remove('cc-modal-spatial-target');
+  }
+
+  private clearModalTargets(): void {
+    this.modalTargets.forEach(({ targets }) => {
+      targets.forEach(({ element }) => this.resetModalTargetStyle(element));
+    });
+    this.modalTargets.clear();
+  }
+
+  private hasMotionDemand(): boolean {
+    return this.modalTargets.size > 0 || (this.activeSurface !== null && !this.suspended);
   }
 
   private applyGameplayTilt(): void {

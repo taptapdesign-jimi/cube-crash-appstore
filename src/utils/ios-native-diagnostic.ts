@@ -1,13 +1,26 @@
-export function emitIOSNativeDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
+export function emitNativeConsoleDiagnostic(
+  prefix: string,
+  event: string,
+  detail: Record<string, unknown> = {},
+): void {
   try {
     const handler = (window as any).webkit?.messageHandlers?.consoleLog;
     if (!handler?.postMessage) return;
-    const screen = document.getElementById('journey-screen') as HTMLElement | null;
-    const style = screen ? getComputedStyle(screen) : null;
     handler.postMessage({
       level: 'info',
-      message: `🧭 FailJourneyEnter ${event} ${JSON.stringify({
+      message: `${prefix} ${event} ${JSON.stringify({
         at: Math.round(performance.now()),
+        ...detail,
+      })}`,
+    });
+  } catch {}
+}
+
+export function emitIOSNativeDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
+  try {
+    const screen = document.getElementById('journey-screen') as HTMLElement | null;
+    const style = screen ? getComputedStyle(screen) : null;
+    emitNativeConsoleDiagnostic('🧭 FailJourneyEnter', event, {
         returning: (window as any).__ccReturningFromDetailModal === true,
         returnBoardId: (window as any).__ccJourneyReturnBoardId ?? null,
         activeBoardId: (window as any).__ccLastActiveJourneyBoardAreaId ?? null,
@@ -22,7 +35,6 @@ export function emitIOSNativeDiagnostic(event: string, detail: Record<string, un
           primed: screen.dataset.ccJourneyPrimedHidden ?? null,
         } : null,
         ...detail,
-      })}`,
     });
   } catch {}
 }

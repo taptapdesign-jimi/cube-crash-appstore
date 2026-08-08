@@ -9,7 +9,7 @@ type StartLevelLayoutDeps = {
   devError: (...args: any[]) => void;
 };
 
-export function ensureStartLevelLayout({
+export async function ensureStartLevelLayout({
   layoutBoard,
   initializeBackgroundLayer,
   board,
@@ -18,11 +18,10 @@ export function ensureStartLevelLayout({
   updateGhostVisibility,
   hideGhostPlaceholders,
   devError,
-}: StartLevelLayoutDeps){
-  // Ensure layout and background layer are initialized once per startLevel
-  layoutBoard().catch(err => {
-    devError('❌ Error in layoutBoard() during startGame:', err);
-  });
+}: StartLevelLayoutDeps): Promise<void> {
+  // Prepare the background/ghost state before layout yields. A slow iOS layout
+  // may outlive sweetPopIn; hiding ghosts only after that await would erase the
+  // correct placeholders that pop-in completion just revealed.
   let layer = backgroundLayer;
   if (!layer) {
     initializeBackgroundLayer();
@@ -32,6 +31,12 @@ export function ensureStartLevelLayout({
     } catch {
       layer = null;
     }
+  }
+  try { hideGhostPlaceholders(); } catch {}
+  try {
+    await layoutBoard();
+  } catch (err) {
+    devError('❌ Error in layoutBoard() during startGame:', err);
   }
   if (layer) {
     layer.visible = true;
@@ -47,7 +52,11 @@ export function ensureStartLevelLayout({
     } catch {}
   }
   setBackgroundLayer(layer);
-  // Do NOT call updateGhostVisibility here — it would show ghosts for one frame before hide.
-  // Just hide ghosts; they will be shown correctly at the end of enter animation (sweetPopIn/playLoadPopIn).
-  try { hideGhostPlaceholders(); } catch {}
+  if ((window as any).__ccEnterAnimationActive === true) {
+    try { hideGhostPlaceholders(); } catch {}
+  } else {
+    // Pop-in completed while layout was pending; restore the authoritative
+    // empty-cell placeholder state instead of hiding it permanently.
+    try { updateGhostVisibility(); } catch {}
+  }
 }

@@ -13,6 +13,7 @@ export interface JourneyCardOriginLease {
   readonly origin: JourneyCardGeometry;
   readonly aspectRatio: number;
   mountInto(host: HTMLElement): void;
+  prepareSettledLanding(): void;
   captureLandingGeometry(): void;
   readLiveGeometry(): JourneyCardGeometry | null;
   restoreNow(): boolean;
@@ -128,7 +129,6 @@ export function acquireJourneyCardOriginLease(
   const origin = captureJourneyCardGeometry(card, anchor);
   if (!origin) return null;
 
-  const nextSibling = card.nextSibling;
   const anchorOriginRect = anchor.getBoundingClientRect();
   const originalStyle = card.getAttribute('style');
   const originalClassName = Array.from(card.classList)
@@ -141,13 +141,66 @@ export function acquireJourneyCardOriginLease(
     .join(' ');
   let mounted = false;
   let settled = false;
+  let useSettledRestorePresentation = false;
   let landingGeometry = origin;
   let landingAnchorRect = anchorOriginRect;
+  let portalVisual: HTMLElement | null = null;
 
-  const restoreAttributes = () => {
+  const emitLandingDiagnostic = (phase: string) => {
+    const snapshot = (element: HTMLElement | null) => {
+      if (!element) return null;
+      const computed = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      const image = element.querySelector('img');
+      return {
+        connected: element.isConnected,
+        parentClass: element.parentElement?.className || null,
+        className: element.className,
+        inlineStyle: element.getAttribute('style'),
+        display: computed.display,
+        visibility: computed.visibility,
+        opacity: computed.opacity,
+        transform: computed.transform,
+        translate: computed.translate,
+        rect: [rect.x, rect.y, rect.width, rect.height].map((value) => Number(value.toFixed(2))),
+        imageComplete: image?.complete ?? null,
+        imageNaturalWidth: image?.naturalWidth ?? null,
+      };
+    };
+    const detail = {
+      phase,
+      boardId,
+      original: snapshot(card),
+      portal: snapshot(portalVisual),
+    };
+    console.info('[CC_CARD_LANDING]', detail);
+    try {
+      (window as any).webkit?.messageHandlers?.consoleLog?.postMessage?.({
+        level: 'info',
+        message: `[CC_CARD_LANDING] ${JSON.stringify(detail)}`,
+      });
+    } catch {}
+  };
+
+  const restoreAttributes = (settledPresentation = false) => {
     card.className = originalClassName;
     if (originalStyle === null) card.removeAttribute('style');
     else card.setAttribute('style', originalStyle);
+    if (!settledPresentation) return;
+    [
+      'animation',
+      'opacity',
+      'pointer-events',
+      'rotate',
+      'scale',
+      'touch-action',
+      'transform',
+      'transform-origin',
+      'transition',
+      'translate',
+      'visibility',
+      'will-change',
+    ].forEach((property) => card.style.removeProperty(property));
   };
 
   const lease: JourneyCardOriginLease = {
@@ -157,7 +210,7 @@ export function acquireJourneyCardOriginLease(
     origin,
     aspectRatio: origin.width / Math.max(1, origin.height),
     get isMounted() {
-      return mounted && !settled;
+      return mounted && !settled && portalVisual?.isConnected === true;
     },
     mountInto(host: HTMLElement) {
       if (settled || mounted) return;
@@ -166,10 +219,31 @@ export function acquireJourneyCardOriginLease(
         'journey-board-card-return-placeholder',
         'journey-board-card-return-landing',
       );
-      card.classList.add('journey-card-overlay-portaled-card');
-      card.style.pointerEvents = 'none';
-      card.style.touchAction = 'none';
-      host.appendChild(card);
+      // Keep the live card resident in its Journey Unit. Reparenting this
+      // promoted/clipped layer through the modal forces WKWebView to rebuild
+      // its compositor backing and can expose a one-frame blank on return.
+      card.classList.add('journey-board-card-return-placeholder');
+      portalVisual = card.cloneNode(true) as HTMLElement;
+      portalVisual.removeAttribute('id');
+      portalVisual.removeAttribute('data-board-id');
+      portalVisual.classList.remove(
+        'journey-board-card-return-placeholder',
+        'journey-board-card-return-landing',
+      );
+      portalVisual.classList.add('journey-card-overlay-portaled-card');
+      portalVisual.setAttribute('aria-hidden', 'true');
+      portalVisual.style.pointerEvents = 'none';
+      portalVisual.style.touchAction = 'none';
+      host.appendChild(portalVisual);
+    },
+    prepareSettledLanding() {
+      if (settled || mounted) return;
+      // Gameplay return intentionally opens the overlay while the Journey
+      // World is still entering. Preserve the last painted geometry as the
+      // flight source, but never retain that transient GSAP presentation as
+      // the style restored after the card lands back in its live Unit.
+      useSettledRestorePresentation = true;
+      restoreAttributes(true);
     },
     captureLandingGeometry() {
       if (settled || mounted) return;
@@ -210,12 +284,25 @@ export function acquireJourneyCardOriginLease(
       settled = true;
       mounted = false;
       try {
-        if (nextSibling && nextSibling.parentNode === parent) parent.insertBefore(card, nextSibling);
-        else parent.appendChild(card);
-        restoreAttributes();
+        emitLandingDiagnostic('before-restore');
+        // Reveal the already-resident original underneath the still-visible
+        // terminal clone. Keep the clone for two real paint frames so WebKit
+        // can composite the original before the modal layer disappears.
+        restoreAttributes(useSettledRestorePresentation);
+        emitLandingDiagnostic('after-restore-same-task');
+        requestAnimationFrame(() => {
+          emitLandingDiagnostic('after-restore-raf-1');
+          requestAnimationFrame(() => {
+            emitLandingDiagnostic('after-restore-raf-2');
+            portalVisual?.remove();
+            portalVisual = null;
+          });
+        });
         return true;
       } catch {
-        restoreAttributes();
+        restoreAttributes(useSettledRestorePresentation);
+        try { portalVisual?.remove(); } catch {}
+        portalVisual = null;
         return false;
       }
     },
@@ -223,6 +310,8 @@ export function acquireJourneyCardOriginLease(
       if (settled) return;
       settled = true;
       mounted = false;
+      try { portalVisual?.remove(); } catch {}
+      portalVisual = null;
       try { card.remove(); } catch {}
     },
   };

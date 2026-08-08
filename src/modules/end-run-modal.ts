@@ -20,6 +20,7 @@ import {
   getGameplayModalCtaEnterDelayMs,
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
+import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
 // translateY, drag, CTA, pause, and cleanup; only the nested paper shell flips.
@@ -44,6 +45,12 @@ let endRunLifecycleId = 0;
 let endRunOpenStartedAt = 0;
 let endRunCtaControllers: CtaController[] = [];
 let endRunCloseController: GameplaySheetCloseController | null = null;
+let disposeEndRunSpatialMotion: (() => void) | null = null;
+
+function cleanupEndRunSpatialMotion(): void {
+  disposeEndRunSpatialMotion?.();
+  disposeEndRunSpatialMotion = null;
+}
 
 function disposeEndRunClose(): void {
   endRunCloseController?.dispose();
@@ -168,6 +175,7 @@ function trackOnEventHandler(element: HTMLElement | Document, property: string, 
 }
 
 function cleanupAllEndRunResources(): void {
+  cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   clearAllEndRunTimeouts();
   clearAllEndRunIntervals();
@@ -190,6 +198,7 @@ function getEndRunSheetElements(): HTMLElement[] {
 }
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
+  cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   disposeEndRunCtas();
   const sheets = getEndRunSheetElements();
@@ -744,6 +753,10 @@ export function showEndRunModal(): void {
     }
 
     const el = createModal();
+    disposeEndRunSpatialMotion = mountGameplayModalSpatialMotion(
+      el,
+      el.querySelector<HTMLElement>('.end-run-paper-clip-shell'),
+    );
     console.log('🎯 END RUN MODAL CREATED');
 
     // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
@@ -1162,6 +1175,7 @@ export function hideModal(
   }
 
   endRunTransitionInProgress = true;
+  cleanupEndRunSpatialMotion();
   const closeLifecycleId = ++endRunLifecycleId;
   (modalEl as any)._closing = true;
   if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {

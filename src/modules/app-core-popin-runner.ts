@@ -3,6 +3,7 @@ type PopInRunnerDeps = {
   sweetPopIn: (tiles: any[], opts: { onHalf?: () => void }) => Promise<any> | any;
   onHalf: () => void;
   beforePopIn?: () => Promise<void>;
+  onPopInStarted?: () => void;
   devLog: (...args: any[]) => void;
 };
 
@@ -11,6 +12,7 @@ export function createSweetPopInRunner({
   sweetPopIn,
   onHalf,
   beforePopIn,
+  onPopInStarted,
   devLog,
 }: PopInRunnerDeps){
   return async () => {
@@ -25,7 +27,9 @@ export function createSweetPopInRunner({
         devLog('⚠️ Fresh Arcade Round cue failed; continuing with board entrance:', error);
       }
     }
-    return Promise.resolve(sweetPopIn(tiles, { onHalf })).then(() => {
+    const popInPromise = sweetPopIn(tiles, { onHalf });
+    try { onPopInStarted?.(); } catch {}
+    return Promise.resolve(popInPromise).then(() => {
       (window as any).__ccEnterAnimationActive = false;
       if (typeof (window as any).updateGhostVisibility === 'function') {
         (window as any).updateGhostVisibility();

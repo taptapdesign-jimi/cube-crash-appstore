@@ -244,8 +244,15 @@ import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import {
   beginArcadeEntryCue,
   consumeArcadeEntryCue,
+  isArcadeEntryCuePending,
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
+import {
+  engageArcadeEntrySurfaceGate,
+  enforceArcadeEntrySurfaceGate,
+  isArcadeEntrySurfaceGateActive,
+  releaseArcadeEntrySurfaceGateAfterPreparedFrame,
+} from './arcade-entry-surface-gate.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import {
   tintLocked,
@@ -2548,6 +2555,30 @@ export async function boot(){
   ensureBoardLifecycleTrace('direct-board-boot');
   markBoardLifecycle('boot-start');
   devLog('🎮 Initializing PIXI app');
+  const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);
+  const shouldGateArcadeEntrySurface = isArcadeHomeRunMode() &&
+    Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0)) > 0;
+  if (shouldGateArcadeEntrySurface) {
+    engageArcadeEntrySurfaceGate(reuseApp ? app.canvas : null);
+  }
+  // A reused renderer still contains the previous Round until startLevel owns
+  // its reset/rebuild. Occlude that complete PIXI tree synchronously, before
+  // boot's first await, so the DOM Round cue cannot expose stale dice or ghost
+  // placeholders through its transparent areas.
+  if (reuseApp) {
+    // Hiding the PIXI display tree does not clear WebKit's already-presented
+    // canvas framebuffer. Keep the reused canvas compositor-hidden until boot
+    // has rendered the hidden stage once; otherwise Homepage -> Play can expose
+    // one stale frame of dice before the Round cue/new board owns the surface.
+    try {
+      app.canvas.style.opacity = '0';
+      app.canvas.style.visibility = 'hidden';
+    } catch {}
+    try { if (stage) stage.visible = false; } catch {}
+    try { if (board) board.visible = false; } catch {}
+    try { if (hud) hud.visible = false; } catch {}
+    try { hideGhostPlaceholders(); } catch {}
+  }
   // 🔥 CRITICAL: Start loading Baloo2 font early - HUD text shows black boxes if font isn't ready
   ensureFonts().catch(() => {});
   // Fade out menu soundtrack when entering board game without board transition (e.g. direct continue)
@@ -2555,7 +2586,6 @@ export async function boot(){
     const { fadeOutAndPause } = await import('./soundtrack-manager.js');
     fadeOutAndPause(2000);
   } catch (_) { /* ignore */ }
-  const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);
   if (reuseApp) {
     devLog('♻️ Reusing existing PIXI app (soft reset)');
   }
@@ -2873,9 +2903,11 @@ export async function boot(){
   app.canvas.style.opacity = '0';
   app.canvas.style.transition = 'opacity 0.6s ease';
   const cameFromJourney = window.__ccCameFromJourney;
-  if (!cameFromJourney) {
+  if (!cameFromJourney && !reuseApp) {
     trackAppTimeout(() => {
-      app.canvas.style.opacity = '1';
+      if (!enforceArcadeEntrySurfaceGate(app.canvas)) {
+        app.canvas.style.opacity = '1';
+      }
     }, 50);
   } else {
     devLog('🎯 Canvas kept hidden - will show when HUD drop starts');
@@ -2916,7 +2948,7 @@ export async function boot(){
     devLog('✅ Host element made visible before adding canvas');
   }
   
-  if (!reuseApp) {
+  if (!reuseApp && !isArcadeEntrySurfaceGateActive()) {
     host.appendChild(app.canvas);
   }
   app.canvas.style.touchAction = 'none';
@@ -2924,8 +2956,10 @@ export async function boot(){
   
   // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
   app.canvas.style.display = 'block';
-  app.canvas.style.visibility = 'visible';
-  app.canvas.style.opacity = '1';
+  if (!reuseApp) {
+    app.canvas.style.visibility = 'visible';
+    app.canvas.style.opacity = '1';
+  }
   app.canvas.style.width = '100%';
   app.canvas.style.height = '100%';
   app.canvas.style.position = 'absolute';
@@ -2979,8 +3013,8 @@ export async function boot(){
   
   // Basic setup
   stage   = app.stage; stage.sortableChildren = true;
-  // 🔥 CRITICAL: Ensure stage is visible after clean-board modal hides it
-  stage.visible = true;
+  // startLevel is the sole reveal owner after resetting the previous board.
+  stage.visible = !reuseApp;
   stage.alpha = 1;
   stage.renderable = true;
 
@@ -2988,10 +3022,10 @@ export async function boot(){
     // 🔥 CRITICAL FIX: Reuse existing board/hud when app is reused (e.g. interim → clean board → next board)
     // Creating new Container() and stage.addChild() would leave OLD board/hud on stage → duplicate children + memory leak → app reset
     devLog('♻️ boot (reuse): Keeping existing board and hud containers');
-    board.visible = true;
+    board.visible = false;
     board.alpha = 1;
     board.renderable = true;
-    hud.visible = true;
+    hud.visible = false;
     hud.alpha = 1;
     hud.renderable = true;
   } else {
@@ -3124,6 +3158,13 @@ export async function boot(){
   try {
     app.renderer.render(stage);
     devLog('✅ Initial render completed');
+    if (reuseApp && !isArcadeEntrySurfaceGateActive()) {
+      // The stale framebuffer is now replaced by a transparent frame from the
+      // hidden stage, so revealing the canvas cannot flash the previous board.
+      app.canvas.style.visibility = 'visible';
+      app.canvas.style.opacity = '1';
+      devLog('✅ Reused canvas revealed after hidden-stage framebuffer clear');
+    }
   } catch (e) {
     devWarn('⚠️ Failed to perform initial render:', e);
   }
@@ -3644,17 +3685,6 @@ export async function boot(){
   (window as any).destroyAllGraphicsObjects = destroyAllGraphicsObjects;
   window.testCleanAndPrize = () => (window.CC as any).testCleanAndPrize?.();
 
-  // Run layout after viewport/meta/styles are in place to get correct safe-area values
-  try {
-    trackAppAnimationFrame(async () => {
-      await layoutBoard();
-    });
-  } catch {
-    layoutBoard().catch(err => {
-      devError('❌ Error in layoutBoard():', err);
-    });
-  }
-
   syncSharedState();
   
   // Re-assert the single shared paper owner after boot-time DOM setup settles.
@@ -3663,6 +3693,19 @@ export async function boot(){
     devLog('📄 Shared launch paper background re-applied after board boot');
   }, 100);
   markBoardLifecycle('boot-complete');
+}
+
+function activateGameplaySpatialMotionForCurrentBoard(): void {
+  journeySpatialMotion.activateGameplay(
+    () => tiles,
+    () => HUD.getWildMeterSpatialWrapper?.() ?? null,
+    () => {
+      const host = document.getElementById('app');
+      if (!host?.classList.contains('journey-board-game-active')) return null;
+      const decor = host.querySelector<HTMLElement>('#journey-game-bottom-decor');
+      return decor && !decor.hidden ? decor : null;
+    },
+  );
 }
 
 // -------------------- layout + HUD --------------------
@@ -4021,16 +4064,11 @@ export async function layoutBoard(){
       devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
   }
-  journeySpatialMotion.activateGameplay(
-    () => tiles,
-    () => HUD.getWildMeterSpatialWrapper?.() ?? null,
-    () => {
-      const host = document.getElementById('app');
-      if (!host?.classList.contains('journey-board-game-active')) return null;
-      const decor = host.querySelector<HTMLElement>('#journey-game-bottom-decor');
-      return decor && !decor.hidden ? decor : null;
-    },
-  );
+  if (!isArcadeEntryCuePending()) {
+    activateGameplaySpatialMotionForCurrentBoard();
+  } else {
+    devLog('⏭️ layoutBoard: Round cue retains spatial surface ownership until tile pop-in starts');
+  }
   markBoardLifecycle('layout-complete');
 }
 
@@ -4943,6 +4981,7 @@ function rebuildBoard(){
     ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
     : 0;
   if (arcadeEntryCueRound > 0) {
+    engageArcadeEntrySurfaceGate(app?.canvas ?? null);
     delete (window as any).__ccArcadeContinuationCueRound;
   }
   stopTileIdleBounce({ TILE_IDLE_BOUNCE, devLog, devWarn });
@@ -5005,6 +5044,19 @@ function rebuildBoard(){
   
   // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
   const hudReady = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
+  let popInSafetyNetScheduled = false;
+  const scheduleBoardPopInSafetyNet = () => {
+    if (popInSafetyNetScheduled) return;
+    popInSafetyNetScheduled = true;
+    schedulePopInSafetyNet({
+      tiles,
+      gsap,
+      app,
+      updateGhostVisibility,
+      devWarn,
+      trackAppTimeout,
+    });
+  };
   const sweetPopInRunner = createSweetPopInRunner({
     tiles,
     sweetPopIn,
@@ -5029,9 +5081,20 @@ function rebuildBoard(){
     },
     beforePopIn: arcadeEntryCueRound > 0
       ? async () => {
-          await consumeArcadeEntryCue(arcadeEntryCueRound);
-          devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
+          try {
+            await consumeArcadeEntryCue(arcadeEntryCueRound);
+            devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
+          } finally {
+            // The 800ms visibility watchdog must start after the intentional
+            // multi-second Round cue. Starting it at board construction used
+            // to force all hidden dice visible through the cue backdrop.
+            scheduleBoardPopInSafetyNet();
+            activateGameplaySpatialMotionForCurrentBoard();
+          }
         }
+      : undefined,
+    onPopInStarted: arcadeEntryCueRound > 0
+      ? () => releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)
       : undefined,
     devLog,
   });
@@ -5052,15 +5115,10 @@ function rebuildBoard(){
     trackAppTimeout,
   });
   
-  // 🔥 SAFETY NET: If pop-in is stalled or timeline is throttled, force tiles visible
-  schedulePopInSafetyNet({
-    tiles,
-    gsap,
-    app,
-    updateGhostVisibility,
-    devWarn,
-    trackAppTimeout,
-  });
+  // No cue owns the surface, so the regular watchdog begins immediately.
+  if (arcadeEntryCueRound <= 0) {
+    scheduleBoardPopInSafetyNet();
+  }
   
   sweetPopPromise.then(() => {
     (window as any).__ccEnterAnimationActive = false;
@@ -5156,8 +5214,9 @@ async function animateBoardExit(){
     devWarn,
   });
 
-  // 🔥 AGGRESSIVE CLEANUP: Kill lingering tweens + run memory cleanup after exit animation
-  try { animationManager.killAll(); } catch {}
+  // The board exit owner must not globally kill tracked DOM/modal/Homepage
+  // tweens. Route-level cleanup runs after the active surface has completed;
+  // this boundary owns only the board animation awaited above.
   try {
     memoryManager.performCleanup();
     devLog('✅ Board exit: Memory cleanup completed');
@@ -5422,6 +5481,13 @@ async function startLevel(n){
   (window as any).__ccEnterAnimationActive = true;
   startBoardFrameBudgetMonitor();
   try { hideGhostPlaceholders(); } catch {}
+  // Hide the previous surface before the first asynchronous texture boundary.
+  // The new surface is revealed later in this function immediately before its
+  // synchronous reset/rebuild, leaving no stale-board compositor frame.
+  try { if (stage) stage.visible = false; } catch {}
+  try { if (board) board.visible = false; } catch {}
+  try { if (hud) hud.visible = false; } catch {}
+  const deferSurfaceRevealForSavedLoad = (window as any).__ccSkipRebuildBoard === true;
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
@@ -5445,7 +5511,11 @@ async function startLevel(n){
   
   // 🔥 CRITICAL FIX: Ensure board and hud are visible BEFORE anything else
   // This fixes the issue where board is hidden after cleanup and not restored
-  ensureStartLevelVisibility({ stage, board, hud, devLog, devWarn, devError });
+  if (!deferSurfaceRevealForSavedLoad) {
+    ensureStartLevelVisibility({ stage, board, hud, devLog, devWarn, devError });
+  } else {
+    devLog('⏭️ startLevel: Saved-state load owns the next visible board commit');
+  }
   
   // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
   
@@ -5547,7 +5617,7 @@ async function startLevel(n){
 
   runStartLevelPost({ syncSharedState, updateHUD });
   
-  ensureStartLevelLayout({
+  await ensureStartLevelLayout({
     layoutBoard,
     initializeBackgroundLayer,
     board,
@@ -5557,6 +5627,13 @@ async function startLevel(n){
     hideGhostPlaceholders,
     devError,
   });
+  if (deferSurfaceRevealForSavedLoad) {
+    // layoutBoard may prepare child visibility, but the reused stage must stay
+    // paint-proof until loadGameState has replaced it and uiManager commits it.
+    try { if (stage) stage.visible = false; } catch {}
+    try { if (board) board.visible = false; } catch {}
+    try { if (hud) hud.visible = false; } catch {}
+  }
   
   syncHudRootVisibility({
     HUD,
@@ -14520,9 +14597,16 @@ async function loadGameState(overrideBoardNumber?: number) {
       sweetPopIn,
       beforePopIn: arcadeContinuationCueRound > 0
         ? async () => {
-            await consumeArcadeEntryCue(arcadeContinuationCueRound);
-            devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
+            try {
+              await consumeArcadeEntryCue(arcadeContinuationCueRound);
+              devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
+            } finally {
+              activateGameplaySpatialMotionForCurrentBoard();
+            }
           }
+        : undefined,
+      onPopInStarted: arcadeContinuationCueRound > 0
+        ? () => releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)
         : undefined,
       onHalf: () => {
         // 🔥 CRITICAL FIX: Ensure HUD drop is triggered even if it wasn't triggered above

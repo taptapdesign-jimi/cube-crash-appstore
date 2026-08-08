@@ -29,7 +29,7 @@ interface EndgameContext {
   board: any;
   boardBG?: { visible?: boolean };
   level: number;
-  startLevel: (level: number) => void;
+  startLevel: (level: number) => Promise<void>;
   score?: number;
   hideGrid?: () => void;
   showGrid?: () => void;
@@ -586,7 +586,7 @@ async function layoutBoardSafe(): Promise<void> {
 async function startNextBoardAfterClean(options: {
   nextLevel: number;
   shouldUseJourneyStart: boolean;
-  startLevel: (level: number) => void;
+  startLevel: (level: number) => Promise<void>;
   ensureVisible?: boolean;
   sampleMemory?: boolean;
 }): Promise<void> {
@@ -614,12 +614,11 @@ async function startNextBoardAfterClean(options: {
 
     console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
     await showAppOnly();
-    startLevel(nextLevel);
+    await startLevel(nextLevel);
     if (sampleMemory) {
       await sampleTransitionMemory('10_after_startLevel');
     }
     if (ensureVisible) {
-      await layoutBoardSafe();
       await showAppAndRenderBoard();
     }
     return;
@@ -627,13 +626,12 @@ async function startNextBoardAfterClean(options: {
 
   console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
   await showAppOnly();
-  startLevel(nextLevel);
+  await startLevel(nextLevel);
   if (sampleMemory) {
     await sampleTransitionMemory('10_after_startLevel');
   }
   logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
   if (ensureVisible) {
-    await layoutBoardSafe();
     await showAppAndRenderBoard();
   }
   try { delete (window as any).__ccBoardJustCompleted; } catch {}
@@ -642,7 +640,7 @@ async function startNextBoardAfterClean(options: {
 function schedulePostTransitionBoardRecovery(options: {
   nextLevel: number;
   shouldUseJourneyStart: boolean;
-  startLevel: (level: number) => void;
+  startLevel: (level: number) => Promise<void>;
   shouldAbortEndgameFlow: () => boolean;
   delayMs?: number;
 }): void {
@@ -685,7 +683,7 @@ function schedulePostTransitionBoardRecovery(options: {
 async function startNextBoardWithRetry(options: {
   nextLevel: number;
   shouldUseJourneyStart: boolean;
-  startLevel: (level: number) => void;
+  startLevel: (level: number) => Promise<void>;
   ensureVisible?: boolean;
   sampleMemory?: boolean;
   clearTransitionFlagOnError?: boolean;
@@ -1000,23 +998,18 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         (window as any).__ccArcadeStageWildMeterCarryover = 0.25;
         delete (window as any).__ccSkipRebuildBoard;
         delete (window as any).__skipBoardExitAnimation;
-        try { (window as any).CC?.cleanupFxForBoardReset?.('arcade-stage-clear'); } catch {}
-        try { (window as any).CC?.softResetBoardView?.('arcade-stage-clear'); } catch {}
+        // This modal already presented the next Round. Do not replay a stale
+        // Homepage continuation cue while rebuilding it.
+        delete (window as any).__ccArcadeContinuationCueRound;
         try {
           const uiManagerModule = await import('./ui-manager.js');
           uiManagerModule.default?.showApp?.();
         } catch {}
 
-        startLevel(nextStage);
-        try {
-          const layoutBoardFn = (window as any).CC?.layoutBoard;
-          if (typeof layoutBoardFn === 'function') {
-            await layoutBoardFn();
-          }
-        } catch (layoutError) {
-          logger.warn('⚠️ endgame-flow: Arcade stage layout failed after continue:', layoutError);
-        }
-        try { ctx.updateHUD?.(); } catch {}
+        // startLevel is the single reset/rebuild/layout owner. Await it so the
+        // outer finally cannot reveal ghosts, restore input, or clear score and
+        // wild carryover while the next board is still preparing.
+        await startLevel(nextStage);
         logger.info(`🎮 endgame-flow: Arcade continued from stage ${clearedStage} to stage ${nextStage} with score ${currentScore}`);
       } finally {
         delete (window as any).__ccPreserveScore;

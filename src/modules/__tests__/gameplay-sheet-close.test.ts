@@ -50,7 +50,7 @@ describe('shared gameplay sheet close', () => {
     const spatialSource = fs.readFileSync(path.join(root, 'src/modules/spatial-motion-permission-modal.ts'), 'utf8');
     const appCss = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
     const closePaperRule = appCss.match(
-      /\.cc-gameplay-modal-idle-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
+      /\.cc-gameplay-modal-gyro-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
     )?.[1] ?? '';
 
     expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-idle-shell')");
@@ -58,11 +58,13 @@ describe('shared gameplay sheet close', () => {
     expect(scoreSource).toContain('mountGameplaySheetClose(scoreCloseHost');
     expect(rewardSource).toContain('mountGameplaySheetClose(');
     expect(spatialSource).not.toContain('mountGameplaySheetClose');
-    expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close {');
+    expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close,');
+    expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {');
     expect(closePaperRule).not.toContain('clip-path');
     expect(closePaperRule).toContain('background-image: var(--bottom-sheet-paper-texture)');
     expect(closePaperRule).toContain('border-radius: 50%');
-    expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after {');
+    expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after,');
+    expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::after {');
     expect(appCss).toContain('filter: drop-shadow(0 4px 6px rgba(185, 145, 119, 0.12))');
     expect(appCss).toContain('@keyframes gameplay-sheet-close-comic-bounce');
     expect(appCss).toContain('transform: translateZ(0) scale(1.18)');

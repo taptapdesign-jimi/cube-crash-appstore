@@ -57,6 +57,26 @@ describe('Arcade continuation Round cue contract', () => {
     expect(freshStart).not.toContain('void beginArcadeEntryCue(1)');
     expect(coreSource).toContain('beforePopIn: arcadeEntryCueRound > 0');
     expect(coreSource).toContain('tiles.forEach((tile: any) => { if (tile) tile.visible = false; });');
+    const rebuild = coreSource.slice(
+      coreSource.indexOf('function rebuildBoard()'),
+      coreSource.indexOf('// Board exit animation', coreSource.indexOf('function rebuildBoard()')),
+    );
+    const cueOwner = rebuild.slice(
+      rebuild.indexOf('beforePopIn: arcadeEntryCueRound > 0'),
+      rebuild.indexOf(': undefined,', rebuild.indexOf('beforePopIn: arcadeEntryCueRound > 0')),
+    );
+    expect(cueOwner).toContain('await consumeArcadeEntryCue(arcadeEntryCueRound);');
+    expect(cueOwner).toContain('scheduleBoardPopInSafetyNet();');
+    expect(cueOwner).toContain('activateGameplaySpatialMotionForCurrentBoard();');
+    expect(rebuild).toContain('if (arcadeEntryCueRound <= 0) {\n    scheduleBoardPopInSafetyNet();');
+    expect(rebuild.indexOf('scheduleBoardPopInSafetyNet();'))
+      .toBeGreaterThan(rebuild.indexOf('await consumeArcadeEntryCue(arcadeEntryCueRound);'));
+    const layout = coreSource.slice(
+      coreSource.indexOf('export async function layoutBoard()'),
+      coreSource.indexOf('// 🔥 v112: Utility functions', coreSource.indexOf('export async function layoutBoard()')),
+    );
+    expect(layout).toContain('if (!isArcadeEntryCuePending()) {');
+    expect(layout).toContain('Round cue retains spatial surface ownership until tile pop-in starts');
     expect(modalSource).toContain('const resumedStage = Math.max(1, stageNumber | 0);');
   });
 

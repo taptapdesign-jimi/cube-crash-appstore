@@ -1,3 +1,5 @@
+import { cancelArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
+
 type ActiveArcadeEntryCue = {
   round: number;
   promise: Promise<void>;
@@ -50,13 +52,19 @@ export async function consumeArcadeEntryCue(round: number): Promise<void> {
   }
 }
 
+export function isArcadeEntryCuePending(): boolean {
+  return !!activeCue && !activeCue.settled;
+}
+
 export function resetArcadeEntryCueOwner(): void {
   activeCue = null;
+  cancelArcadeEntrySurfaceGate();
 }
 
 /** Abort an entry that can no longer reach board pop-in (for example boot failure). */
 export function cancelArcadeEntryCueOwner(): void {
   activeCue = null;
+  cancelArcadeEntrySurfaceGate();
   void import('./arcade-stage-clear-modal.js')
     .then(({ cancelArcadeStageClearModal }) => cancelArcadeStageClearModal())
     .catch(() => {});

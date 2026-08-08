@@ -21,6 +21,7 @@ import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js'
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -160,6 +161,7 @@ export function cleanupCleanBoardModalLifecycle() {
     clearAllModalAnimationFrames();
   } catch {}
   lifecycle.cleanup();
+  _navigationCleanupAttached = false;
 }
 
 // 🔥 FIX: Add navigation/visibility cleanup to prevent memory leaks
@@ -199,6 +201,13 @@ function attachNavigationCleanup(): void {
   // User may have switched tabs briefly – when they return, modal should still be visible
   lifecycle.trackListener(document, 'visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      const overlay = document.getElementById('cc-clean-board-overlay');
+      if (overlay?.getAttribute('data-clean-board-exiting') === 'true') {
+        // Exit promises are driven by these tracked timers/frames. Cancelling
+        // them while iOS backgrounds the app would strand the sole exit owner
+        // and leave the next foreground session between Arcade and Homepage.
+        return;
+      }
       clearAllModalTimeouts();
       clearAllModalAnimationFrames();
       // Don't remove overlay – user will see modal when they come back
@@ -234,8 +243,13 @@ export async function showCleanBoardModal({
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
+    attachNavigationCleanup();
     let settled = false;
     let navigationAbortHandler: (() => void) | null = null;
+    let resolveNavigationAbort!: () => void;
+    const navigationAbortPromise = new Promise<void>((resolveAbort) => {
+      resolveNavigationAbort = resolveAbort;
+    });
     const safeResolve = (action: string = 'continue') => {
       if (settled) return;
       settled = true;
@@ -249,6 +263,7 @@ export async function showCleanBoardModal({
       // Navigation owns the destination now. Resolve the modal promise as an
       // abort so the suspended endgame flow cannot resume later when the card
       // modal closes and reveal a stale Clean Board final state.
+      resolveNavigationAbort();
       try { cleanupCleanBoardModalLifecycle(); } catch {}
       try { document.getElementById('cc-clean-board-overlay')?.remove(); } catch {}
       safeResolve('__navigation-abort__');
@@ -1481,15 +1496,15 @@ export async function showCleanBoardModal({
                 console.error('❌ DEV MODE: Failed to start new board:', error);
               }
               
-              resolve({ action: 'continue' });
+              safeResolve('continue');
             }
           }).catch((error) => {
             console.error('❌ DEV MODE: Failed to show board transition screen:', error);
-            resolve({ action: 'continue' });
+            safeResolve('continue');
           });
         } catch (error) {
           console.error('❌ DEV MODE: Failed to import board transition screen:', error);
-          resolve({ action: 'continue' });
+          safeResolve('continue');
         }
         return; // Exit early - don't continue with normal flow
       }
@@ -1523,7 +1538,7 @@ export async function showCleanBoardModal({
         // 🔥 NEW: Return action based on which button was clicked
         const action = (!isArcadeHomeRun && isFromInterimBoard) ? 'continue' : 'play-again';
         console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
-        resolve({ action }); 
+        safeResolve(action);
       }, collapseDuration + 220);
     }, 'primary');
     
@@ -1537,6 +1552,12 @@ export async function showCleanBoardModal({
         
         primaryBtn.disabled = true;
         secondaryBtn.disabled = true;
+        const exitStartedAt = performance.now();
+        emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'clean-board-exit-tap', {
+          boardNumber,
+          arcadeRunReached,
+          boardExitAlreadyComplete: (window as any).__ccGameOverBoardExitComplete === true,
+        });
         
         // 🔥 Mark overlay as exiting and stop it blocking clicks (detail modal will show under it)
         el.setAttribute('data-clean-board-exiting', 'true');
@@ -1594,16 +1615,16 @@ export async function showCleanBoardModal({
         nodes.forEach((node) => { node.style.transition = exitTrans; });
         hero.style.transition = exitTrans;
 
-        await exitCtaPair(secondaryBtn, primaryBtn);
+        const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);
 
-        requestAnimationFrame(() => {
-          setTimeout(() => {
+        trackAnimationFrame(() => {
+          trackTimeout(() => {
             hero.style.opacity = '0';
             hero.style.transform = 'scale(0)';
           }, 0);
           nodes.forEach((node, idx) => {
             const delay = (idx + 1) * 60;
-            setTimeout(() => {
+            trackTimeout(() => {
               const extra = exitScale[idx] ?? 0;
               node.style.opacity = '0';
               node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
@@ -1612,18 +1633,19 @@ export async function showCleanBoardModal({
         });
         // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
         // This prevents buttons from moving up with card scale
-        setTimeout(() => {
+        trackTimeout(() => {
           card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          requestAnimationFrame(() => {
+          trackAnimationFrame(() => {
             card.style.transform = 'scale(0.86)';
           });
         }, 400); // Delay card scale until buttons are mid-animation
         
-        // 🔥 Wait for board exit animation to complete, then hide board and cleanup
-        boardExitPromise.then(() => {
-          console.log('✅ clean-board-modal: Board exit animation completed, hiding board...');
-          
-          // 🔥 NOW hide board app/stage AFTER exit animation completes
+        // Board and modal exits are independent owners. Hide gameplay after its
+        // own exit, but do not kill modal GSAP/CSS work from this completion.
+        const boardExitCompletePromise = boardExitPromise.catch((error) => {
+          console.error('❌ clean-board-modal: Board exit animation failed:', error);
+        }).then(() => {
+          console.log('✅ clean-board-modal: Board exit completed, hiding gameplay surface...');
           const canvas = getAppCanvasSafely(app);
           if (canvas?.style) {
             canvas.style.display = 'none';
@@ -1633,36 +1655,46 @@ export async function showCleanBoardModal({
             stage.alpha = 0;
             stage.visible = false;
           }
-          
-          // 🔥 NOW kill GSAP tweens AFTER exit animation completes
-          killAllGSAPTweens();
-        }).catch((error) => {
-          console.error('❌ clean-board-modal: Board exit animation failed:', error);
-          const canvas2 = getAppCanvasSafely(app);
-          if (canvas2?.style) {
-            canvas2.style.display = 'none';
-            canvas2.style.opacity = '0';
-          }
-          if (stage) {
-            stage.alpha = 0;
-            stage.visible = false;
-          }
-          killAllGSAPTweens();
+          emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'board-exit-owner-complete', {
+            boardNumber,
+            elapsedMs: Math.round(performance.now() - exitStartedAt),
+          });
         });
-        // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
-        // Give EXTRA time to ensure button animation completes BEFORE card fadeout
-        const buttonExitDuration = buttonExitDurationMs;
-        const extraBuffer = 200;
-        const buttonDelay = ctaMotion.companionExitStaggerMs;
-        const collapseDuration = secondaryBtn 
-          ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
-          : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
-        trackTimeout(() => {
-          card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
-          card.style.opacity = '0';
-          el.style.transition = 'opacity 0.30s ease';
-          el.style.opacity = '0';
-        }, collapseDuration);
+        // Fade the complete paper only after every parallel visual owner has
+        // reached its endpoint. In particular, do not replace the card's
+        // 650ms transition while it is still settling from the 400ms delay.
+        const contentExitDuration = nodes.length * 60 + 580;
+        const cardExitDuration = 400 + 650;
+        const ctaExitDuration = ctaMotion.companionExitStaggerMs + buttonExitDurationMs;
+        const collapseDuration = Math.max(
+          contentExitDuration,
+          cardExitDuration,
+          ctaExitDuration,
+        );
+        const modalExitPromise = Promise.all([
+          ctaExitPromise,
+          new Promise<void>((resolveModalExit) => {
+            trackTimeout(() => {
+              card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
+              card.style.opacity = '0';
+              el.style.transition = 'opacity 0.30s ease';
+              el.style.opacity = '0';
+            }, collapseDuration);
+            trackTimeout(resolveModalExit, collapseDuration + 300);
+          }),
+        ]).then(() => {
+          emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'modal-exit-owner-complete', {
+            boardNumber,
+            elapsedMs: Math.round(performance.now() - exitStartedAt),
+            collapseDuration,
+          });
+        });
+        emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'exit-owners-started', {
+          boardNumber,
+          collapseDuration,
+          boardExitAlreadyComplete: arcadeRunReached
+            && (window as any).__ccGameOverBoardExitComplete === true,
+        });
         
         // 🔥 EXIT FIX: Clear board save state to show "Play" instead of "Continue" on next entry
         // Also update high score in board-stats-service
@@ -1717,38 +1749,30 @@ export async function showCleanBoardModal({
         (window as any).__ccBoardJustCompleted = true;
         console.log('🎯 clean-board-modal: Set __ccBoardJustCompleted flag to prevent re-saving after clean board');
         
-        // 🔥 CRITICAL FIX: Wait for board exit animation to complete before resolving
-        // Board exit animation duration: ~550ms (sweetPopOut max) + HUD 300ms = ~550ms total
-        // Add small buffer to ensure animation fully completes
-        const boardExitAnimationDuration = 600; // 550ms + 50ms buffer
-        
-        // 🎯 Resolve after board exit animation completes
-        // This ensures board exit animation plays fully before transitioning to detail modal
-        // Use Promise to wait for actual completion, not just a timeout
-        boardExitPromise.then(() => {
-          trackTimeout(() => {
-            clearAllModalTimeouts(); // clear collapse timeout so no refs to el/card linger
-            // 🔥 CRITICAL: Remove overlay BEFORE resolve so it doesn't block detail modal clicks
-            disposeCtas();
-            try { el.remove(); } catch {}
-            removeStyleTag();
-            stopConfettiSpawnsSafe();
+        // Retire the overlay only after both independent owners have completed.
+        // Round 02+ summaries arrive with an already-resolved board exit; that
+        // must never truncate the Clean Board paper/card exit again.
+        const exitsCompleted = await Promise.race([
+          Promise.all([boardExitCompletePromise, modalExitPromise]).then(() => true),
+          navigationAbortPromise.then(() => false),
+        ]);
+        if (!exitsCompleted) return;
+        killAllGSAPTweens();
+        clearAllModalTimeouts();
+        clearAllModalAnimationFrames();
+        disposeCtas();
+        try { el.remove(); } catch {}
+        removeStyleTag();
+        stopConfettiSpawnsSafe();
         const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
-        console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (overlay removed, no click blocking)`);
-        resolve({ action: exitAction });
-          }, 50);
-        }).catch(() => {
-          trackTimeout(() => {
-            clearAllModalTimeouts();
-            disposeCtas();
-            try { el.remove(); } catch {}
-            removeStyleTag();
-            stopConfettiSpawnsSafe();
-            const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
-            console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (animation failed, overlay removed)`);
-            resolve({ action: exitAction });
-          }, boardExitAnimationDuration);
+        emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'overlay-retired', {
+          boardNumber,
+          elapsedMs: Math.round(performance.now() - exitStartedAt),
+          exitAction,
+          overlayConnected: el.isConnected,
         });
+        console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (board + complete modal exit settled)`);
+        safeResolve(exitAction);
       }, 'secondary');
     }
       } catch (error) {

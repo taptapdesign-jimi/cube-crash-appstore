@@ -147,18 +147,32 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
   const timeoutMs = options.timeoutMs ?? (options.skipBoardExit ? 2500 : 4500);
 
   if ((window as any).exitingToMenu === true) {
-    while ((window as any).exitingToMenu === true && Date.now() - startedAt < timeoutMs) {
+    let watchdogReported = false;
+    while ((window as any).exitingToMenu === true) {
       await wait(120);
-      if (isAnyMenuScreenVisible()) return;
+      if (!watchdogReported && Date.now() - startedAt >= timeoutMs) {
+        watchdogReported = true;
+        console.warn('⚠️ menu-exit-handoff: active exit exceeded watchdog; preserving its sole ownership', {
+          reason: options.reason,
+          timeoutMs,
+        });
+      }
     }
   } else if (typeof (window as any).exitToMenu === 'function') {
+    let watchdog: number | undefined;
     try {
-      await Promise.race([
-        Promise.resolve((window as any).exitToMenu()),
-        wait(timeoutMs),
-      ]);
+      const exitPromise = Promise.resolve((window as any).exitToMenu());
+      watchdog = window.setTimeout(() => {
+        console.warn('⚠️ menu-exit-handoff: exit exceeded watchdog; waiting for the authoritative owner', {
+          reason: options.reason,
+          timeoutMs,
+        });
+      }, timeoutMs);
+      await exitPromise;
     } catch (error) {
       console.warn('⚠️ menu-exit-handoff: exitToMenu failed', { reason: options.reason, error });
+    } finally {
+      if (watchdog !== undefined) window.clearTimeout(watchdog);
     }
   } else {
     console.warn('⚠️ menu-exit-handoff: window.exitToMenu not found', options);

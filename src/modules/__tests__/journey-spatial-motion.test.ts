@@ -1,4 +1,5 @@
 import {
+  AppSpatialMotionController,
   applyJourneySceneTiltResponse,
   createJourneySpatialDirectionMap,
   createJourneyHubWorldTilt,
@@ -439,6 +440,118 @@ describe('Journey spatial motion', () => {
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBeCloseTo(JOURNEY_SPATIAL_DEPTH.gameplayTile.x * 1.5, 1);
   });
 
+  it('composes opposing Journey modal/card gyro targets on the shared listener and cleans both', () => {
+    document.body.innerHTML = `
+      <section id="modal-stage">
+        <div id="card-gyro"></div>
+        <div id="paper-gyro"></div>
+      </section>
+    `;
+    const stage = document.getElementById('modal-stage') as HTMLElement;
+    const card = document.getElementById('card-gyro') as HTMLElement;
+    const paper = document.getElementById('paper-gyro') as HTMLElement;
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: class DeviceOrientationEventWithoutPermission {},
+    });
+    let pendingFrame: FrameRequestCallback | null = null;
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      pendingFrame = callback;
+      return 1;
+    });
+
+    const dispose = journeySpatialMotion.registerModalTargets(stage, [
+      { element: card, xDepth: 9, yDepth: 7, rotateXDegrees: 4, rotateYDegrees: 5, zDepth: 10 },
+      { element: paper, xDepth: -7, yDepth: -5, rotateXDegrees: -3, rotateYDegrees: -4, zDepth: 6 },
+    ]);
+    const emitOrientation = (beta: number, gamma: number) => {
+      const event = new Event('deviceorientation') as DeviceOrientationEvent;
+      Object.defineProperties(event, {
+        beta: { value: beta },
+        gamma: { value: gamma },
+      });
+      window.dispatchEvent(event);
+    };
+    emitOrientation(20, 0);
+    emitOrientation(29, 14);
+    pendingFrame?.(16);
+
+    expect(card.classList).toContain('cc-modal-spatial-target');
+    expect(paper.classList).toContain('cc-modal-spatial-target');
+    expect(parseFloat(card.style.translate)).toBeGreaterThan(0);
+    expect(parseFloat(paper.style.translate)).toBeLessThan(0);
+    expect(parseFloat(card.style.translate.split(' ')[1])).not.toBe(0);
+    expect(parseFloat(paper.style.translate.split(' ')[1])).not.toBe(0);
+    expect(card.style.getPropertyValue('--cc-modal-gyro-rx')).not.toBe('0.00deg');
+    expect(paper.style.getPropertyValue('--cc-modal-gyro-rx')).not.toBe('0.00deg');
+    expect(card.style.getPropertyValue('--cc-modal-gyro-ry')).toMatch(/^[^-]/);
+    expect(paper.style.getPropertyValue('--cc-modal-gyro-ry')).toMatch(/^-/);
+
+    dispose();
+    expect(card.style.translate).toBe('');
+    expect(paper.style.translate).toBe('');
+    expect(card.classList).not.toContain('cc-modal-spatial-target');
+    expect(paper.classList).not.toContain('cc-modal-spatial-target');
+    expect(card.style.getPropertyValue('--cc-modal-gyro-rx')).toBe('');
+    expect(paper.style.getPropertyValue('--cc-modal-gyro-ry')).toBe('');
+  });
+
+  it('freezes the Journey World while modal gyro remains live, then resumes the same world pose', () => {
+    document.body.innerHTML = `
+      <section id="journey-world">
+        <img class="journey-forest-main-art" data-journey-area-id="forest-main" />
+        <div class="journey-forest-island-1"></div>
+        <section id="modal-stage">
+          <div id="modal-card"></div>
+          <div id="modal-paper"></div>
+        </section>
+      </section>
+    `;
+    const world = document.getElementById('journey-world') as HTMLElement;
+    const island = world.querySelector<HTMLElement>('.journey-forest-island-1') as HTMLElement;
+    const stage = document.getElementById('modal-stage') as HTMLElement;
+    const card = document.getElementById('modal-card') as HTMLElement;
+    const paper = document.getElementById('modal-paper') as HTMLElement;
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: class DeviceOrientationEventWithoutPermission {},
+    });
+    let pendingFrame: FrameRequestCallback | null = null;
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      pendingFrame = callback;
+      return 1;
+    });
+
+    journeySpatialMotion.activateJourneyWorld(world, 1);
+    island.style.translate = '3px 4px';
+    journeySpatialMotion.suspend();
+    const dispose = journeySpatialMotion.registerModalTargets(stage, [
+      { element: card, xDepth: 9, yDepth: 7 },
+      { element: paper, xDepth: -7, yDepth: -5 },
+    ]);
+    const emitOrientation = (beta: number, gamma: number) => {
+      const event = new Event('deviceorientation') as DeviceOrientationEvent;
+      Object.defineProperties(event, {
+        beta: { value: beta },
+        gamma: { value: gamma },
+      });
+      window.dispatchEvent(event);
+    };
+    emitOrientation(20, 0);
+    emitOrientation(29, 14);
+    pendingFrame?.(16);
+
+    expect(island.style.translate).toBe('3px 4px');
+    expect(card.style.translate).not.toBe('');
+    expect(paper.style.translate).not.toBe('');
+
+    dispose();
+    journeySpatialMotion.resumeJourneyWorld(world);
+    expect(island.style.translate).toBe('3px 4px');
+    expect(card.style.translate).toBe('');
+    expect(paper.style.translate).toBe('');
+  });
+
   it('keeps the Journey detail modal at only 20 percent of its former gyro travel', () => {
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailCard).toBe(0.23);
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.journeyDetailStat).toBe(0.2);
@@ -580,11 +693,84 @@ describe('Journey spatial motion', () => {
       </div>
     `;
     const container = document.getElementById('slider-container') as HTMLElement;
+    const modalTarget = container.querySelector<HTMLElement>('.hero-image') as HTMLElement;
 
     journeySpatialMotion.activateHomepage(container, 0);
+    journeySpatialMotion.registerModalTargets(container, [{
+      element: modalTarget,
+      xDepth: 5,
+      yDepth: 4,
+    }]);
 
     expect(journeySpatialMotion.isEnabled()).toBe(false);
     expect(container.querySelector<HTMLElement>('.hero-image')?.dataset.journeySpatialTarget).toBeUndefined();
     expect(container.querySelector<HTMLElement>('.slide-button')?.dataset.journeySpatialTarget).toBeUndefined();
+    expect(modalTarget.classList).not.toContain('cc-modal-spatial-target');
+  });
+
+  it('re-requests iOS motion permission from the first trusted gesture after a hard relaunch', async () => {
+    (window as Window & { _settings?: { spatialMotionEnabled: boolean } })._settings = {
+      spatialMotionEnabled: true,
+    };
+    const requestPermission = jest.fn().mockResolvedValue('granted');
+    const persistPermission = jest.fn();
+    Object.defineProperty(window, 'webkit', {
+      configurable: true,
+      value: {
+        messageHandlers: {
+          motionPermissionResult: { postMessage: persistPermission },
+        },
+      },
+    });
+    class DeviceOrientationEventWithPermission {}
+    Object.defineProperty(DeviceOrientationEventWithPermission, 'requestPermission', {
+      configurable: true,
+      value: requestPermission,
+    });
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: DeviceOrientationEventWithPermission,
+    });
+    document.body.innerHTML = `
+      <div id="home">
+        <div id="slider-container">
+          <div class="slider-slide active" data-slide="0">
+            <img class="hero-image" />
+            <button class="slide-button">Play</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    let permissionGesture: EventListener | null = null;
+    const listenerTypes: string[] = [];
+    const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+    addEventListenerSpy.mockImplementation((type, listener) => {
+      listenerTypes.push(type);
+      if (type === 'click') permissionGesture = listener as EventListener;
+    });
+    const controller = new AppSpatialMotionController();
+    const container = document.getElementById('slider-container') as HTMLElement;
+
+    controller.activateHomepage(container, 0);
+    controller.armPermissionFromNextGesture();
+    expect(permissionGesture).not.toBeNull();
+    expect(requestPermission).not.toHaveBeenCalled();
+    expect(listenerTypes).not.toContain('deviceorientation');
+
+    permissionGesture?.({ isTrusted: false } as Event);
+    expect(requestPermission).not.toHaveBeenCalled();
+
+    permissionGesture?.({ isTrusted: true } as Event);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    expect(persistPermission).toHaveBeenCalledWith({ granted: true });
+    expect(listenerTypes).toContain('deviceorientation');
+    controller.armPermissionFromNextGesture();
+    expect(requestPermission).toHaveBeenCalledTimes(1);
+    controller.deactivate();
+    addEventListenerSpy.mockRestore();
   });
 });
