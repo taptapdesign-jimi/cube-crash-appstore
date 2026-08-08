@@ -17,6 +17,7 @@ import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
+import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -69,7 +70,22 @@ export const JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS = 5000;
 export const JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS = 2100;
 export const JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG = 36;
 export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
+export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.16;
+export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 56;
+export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 96;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
+
+export function getJourneyCardDismissDragDistance(cardHeight: number): number {
+  const proportionalDistance = Math.max(1, cardHeight) * JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO;
+  return Math.min(
+    JOURNEY_CARD_DISMISS_DRAG_MAX_PX,
+    Math.max(JOURNEY_CARD_DISMISS_DRAG_MIN_PX, proportionalDistance),
+  );
+}
+
+export function isJourneyCardDownwardDismissGesture(deltaX: number, deltaY: number): boolean {
+  return deltaY > JOURNEY_CARD_FLIP_TAP_SLOP_PX && deltaY > Math.abs(deltaX) * 1.15;
+}
 
 export function createJourneyCardOverlayTiltProfile(
   random: () => number = Math.random,
@@ -135,11 +151,10 @@ export function buildJourneyCardOverlayModalViewModel(
   stats: { highScore: number; longestCombo: number },
   hasSavedState: boolean,
 ): JourneyCardOverlayModalViewModel {
-  const safeBoardId = Math.max(1, Math.trunc(Number.isFinite(boardId) ? boardId : 1));
   const highScore = Math.max(0, Math.trunc(Number.isFinite(stats.highScore) ? stats.highScore : 0));
   const longestCombo = Math.max(0, Math.trunc(Number.isFinite(stats.longestCombo) ? stats.longestCombo : 0));
   return {
-    stageLabel: `Stage ${String(safeBoardId).padStart(2, '0')}`,
+    stageLabel: `Stage ${formatJourneyWorldStageNumber(boardId)}`,
     highScore: highScore.toLocaleString(),
     longestCombo: longestCombo.toLocaleString(),
     ctaLabel: hasSavedState ? 'Continue' : 'Play',
@@ -306,14 +321,17 @@ export function presentJourneyCardOverlayModal(
   let ctaController: CtaController | null = null;
   let activePointerId: number | null = null;
   let dragStartX = 0;
+  let dragStartY = 0;
   let dragLastX = 0;
   let dragLastTime = 0;
   let dragVelocityX = 0;
   let dragMoved = false;
   let dragStartAngle = 0;
   let dragCardWidth = 1;
+  let dragCardHeight = 1;
   let dragDirection = 1;
   let currentTranslateX = 0;
+  let dragAxis: 'horizontal' | 'vertical' | null = null;
 
   const stopSurfaceIdle = () => stage.classList.remove('is-surface-idle');
   const startSurfaceIdle = () => {
@@ -815,12 +833,18 @@ export function presentJourneyCardOverlayModal(
     if (isInteractiveControl(event.target)) return;
     activePointerId = event.pointerId;
     dragStartX = dragLastX = event.clientX;
+    dragStartY = event.clientY;
     dragLastTime = event.timeStamp;
     dragVelocityX = 0;
     dragMoved = false;
     dragStartAngle = stableFace === 'front' ? 0 : -180;
     dragCardWidth = Math.max(1, frame.getBoundingClientRect().width);
+    dragCardHeight = Math.max(1, frame.getBoundingClientRect().height);
     dragDirection = 1;
+    dragAxis = null;
+    impactAnimation?.cancel();
+    impactAnimation = null;
+    impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
     stopSurfaceIdle();
     disposeSpatialMotion?.();
     disposeSpatialMotion = null;
@@ -835,6 +859,7 @@ export function presentJourneyCardOverlayModal(
   function handlePointerMove(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
     const deltaX = event.clientX - dragStartX;
+    const deltaY = event.clientY - dragStartY;
     const elapsed = event.timeStamp - dragLastTime;
     if (elapsed > 0) {
       const sample = (event.clientX - dragLastX) / elapsed;
@@ -842,9 +867,30 @@ export function presentJourneyCardOverlayModal(
     }
     dragLastX = event.clientX;
     dragLastTime = event.timeStamp;
-    dragMoved ||= Math.abs(deltaX) > JOURNEY_CARD_FLIP_TAP_SLOP_PX;
+    dragMoved ||= Math.max(Math.abs(deltaX), Math.abs(deltaY)) > JOURNEY_CARD_FLIP_TAP_SLOP_PX;
     if (!dragMoved) return;
     event.preventDefault();
+    if (dragAxis === null) {
+      dragAxis = Math.abs(deltaY) > Math.abs(deltaX) * 1.15 ? 'vertical' : 'horizontal';
+    }
+    if (dragAxis === 'vertical') {
+      const downwardDistance = Math.max(0, deltaY);
+      const commitDistance = getJourneyCardDismissDragDistance(dragCardHeight);
+      const previewProgress = clamp01(downwardDistance / commitDistance);
+      impactShell.style.transform = `translate3d(0, ${downwardDistance * 0.42}px, 0) scale(${1 - previewProgress * 0.035})`;
+      if (downwardDistance >= commitDistance && isJourneyCardDownwardDismissGesture(deltaX, deltaY)) {
+        activePointerId = null;
+        try { rotor.releasePointerCapture(event.pointerId); } catch {}
+        stage.classList.remove('is-dragging');
+        event.stopPropagation();
+        impactAnimation = impactShell.animate?.([
+          { transform: impactShell.style.transform },
+          { transform: 'translate3d(0, 0, 0) scale(1)' },
+        ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
+        void beginClose('dismiss');
+      }
+      return;
+    }
     dragDirection = deltaX >= 0 ? 1 : -1;
     const commitDistance = Math.max(1, dragCardWidth * JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO);
     const previewProgress = clamp01(Math.abs(deltaX) / commitDistance);
@@ -864,10 +910,30 @@ export function presentJourneyCardOverlayModal(
   function finishPointer(event: PointerEvent, allowCommit: boolean): void {
     if (event.pointerId !== activePointerId) return;
     const deltaX = event.clientX - dragStartX;
+    const deltaY = event.clientY - dragStartY;
     const moved = dragMoved;
     activePointerId = null;
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
+    if (dragAxis === 'vertical') {
+      event.preventDefault();
+      event.stopPropagation();
+      const shouldDismiss = allowCommit
+        && deltaY >= getJourneyCardDismissDragDistance(dragCardHeight)
+        && isJourneyCardDownwardDismissGesture(deltaX, deltaY);
+      impactAnimation = impactShell.animate?.([
+        { transform: impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)' },
+        { transform: 'translate3d(0, 0, 0) scale(1)' },
+      ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
+      if (shouldDismiss) {
+        void beginClose('dismiss');
+        return;
+      }
+      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+      startSurfaceIdle();
+      scheduleIdleCoach();
+      return;
+    }
     if (!allowCommit) {
       setRotorAngle(stableFace === 'front' ? 0 : -180);
       disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);

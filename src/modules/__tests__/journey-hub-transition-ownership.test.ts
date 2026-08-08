@@ -298,8 +298,7 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).toContain('board.unlocked && !board.interim');
     expect(hubRenderSource).toContain('const hasInterimCard = worldBoards.some((board) => board.interim)');
     expect(hubRenderSource).toContain("hasInterimCard ? ' has-interim-card' : ''");
-    expect(hubRenderSource).toContain('const hasProgressBanner = hasInterimCard || unlockedCount === worldBoards.length;');
-    expect(hubRenderSource).toContain("hasProgressBanner ? ' has-progress-banner' : ''");
+    expect(hubRenderSource).toContain("hasInterimCard ? ' has-interim-card' : ''} has-progress-banner`");
     expect(hubRenderSource).not.toContain('button.disabled = locked');
     expect(hubRenderSource).not.toContain('if (locked) return');
     expect(hubRenderSource).toContain('this.openJourneyV700World(worldId, button)');
@@ -336,9 +335,7 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).not.toContain(
       '.journey-v700-world-card.is-locked .journey-v700-world-banner-count',
     );
-    expect(collectiblesCssSource).toContain(
-      '.journey-v700-world-card:not(.has-progress-banner) .journey-v700-world-banner {\n  display: none;',
-    );
+    expect(collectiblesCssSource).not.toContain('.journey-v700-world-card:not(.has-progress-banner)');
     expect(collectiblesCssSource).not.toContain('journey-v700-world-locked-dream-ghost');
     expect(collectiblesCssSource).not.toContain('journey-v700-locked-world-dream-haze');
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: -15deg;');

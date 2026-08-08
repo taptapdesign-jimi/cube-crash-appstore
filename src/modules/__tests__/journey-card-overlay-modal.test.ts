@@ -12,11 +12,16 @@ import {
   JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
   JOURNEY_CARD_FLIP_SNAP_DURATION_MS,
   JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE,
+  JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO,
+  JOURNEY_CARD_DISMISS_DRAG_MAX_PX,
+  JOURNEY_CARD_DISMISS_DRAG_MIN_PX,
   JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS,
   JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS,
   JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS,
   JOURNEY_CARD_PLAY_RETURN_DURATION_MS,
   JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS,
+  getJourneyCardDismissDragDistance,
+  isJourneyCardDownwardDismissGesture,
   shouldCommitJourneyCardFlipDrag,
 } from '../journey-card-overlay-modal';
 
@@ -45,6 +50,10 @@ describe('Journey two-sided card overlay prototype', () => {
       ctaLabel: 'Continue',
       ctaAriaLabel: 'Continue Stage',
     });
+    expect(buildJourneyCardOverlayModalViewModel(21, {
+      highScore: 10,
+      longestCombo: 2,
+    }, false).stageLabel).toBe('Stage 01');
   });
 
   test('keeps the entry edge centered and starts the return turn 30% earlier', () => {
@@ -70,6 +79,23 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(shouldCommitJourneyCardFlipDrag(63, 0, 320)).toBe(false);
     expect(shouldCommitJourneyCardFlipDrag(20, -0.35, 320)).toBe(true);
     expect(shouldCommitJourneyCardFlipDrag(40, 0.2, 320)).toBe(false);
+  });
+
+  test('uses a dominant downward-only gesture to run the canonical dismiss', () => {
+    expect(JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO).toBe(0.16);
+    expect(JOURNEY_CARD_DISMISS_DRAG_MIN_PX).toBe(56);
+    expect(JOURNEY_CARD_DISMISS_DRAG_MAX_PX).toBe(96);
+    expect(getJourneyCardDismissDragDistance(300)).toBe(56);
+    expect(getJourneyCardDismissDragDistance(500)).toBe(80);
+    expect(getJourneyCardDismissDragDistance(1000)).toBe(96);
+    expect(isJourneyCardDownwardDismissGesture(10, 60)).toBe(true);
+    expect(isJourneyCardDownwardDismissGesture(60, 10)).toBe(false);
+    expect(isJourneyCardDownwardDismissGesture(10, -60)).toBe(false);
+
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    expect(modal).toContain("dragAxis: 'horizontal' | 'vertical' | null");
+    expect(modal).toContain("dragAxis === 'vertical'");
+    expect(modal).toContain("void beginClose('dismiss')");
   });
 
   test('restores the previous randomized opposing card and modal tilt profile', () => {
@@ -122,7 +148,10 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-flipping-to-front[\s\S]*?\.gameplay-sheet-close \{[\s\S]*?visibility: hidden;[\s\S]*?transition: none;/);
     expect(modal).toContain('class="cc-gameplay-modal-paper-shell journey-card-flip-paper"');
     expect(css).toMatch(/\.journey-card-flip-paper \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/);
-    expect(css).toContain('filter: drop-shadow(0 18px 24px rgba(132, 82, 63, 0.32));');
+    expect(css).toMatch(/\.journey-card-flip-card-host \{[\s\S]*?filter: none;/);
+    expect(css).not.toContain('.journey-card-flip-back-shell::after');
+    expect(css).toMatch(/\.journey-card-flip-paper::after \{[\s\S]*?inset: 0;[\s\S]*?background-size: calc\(100% \+ 12px\) calc\(100% \+ 16px\);/);
+    expect(css).not.toContain('inset: 0 -6px -16px');
     expect(modal).toContain("stage.classList.add('is-visible');\n    backdrop.style.opacity = '1';");
     expect(modal).not.toContain('smoothstep((rotationProgress - 0.5) / 0.5)');
     expect(modal).toContain("stage.classList.add('is-exiting', 'is-backdrop-exiting')");
@@ -183,6 +212,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toContain('-webkit-backface-visibility: hidden;');
     expect(css).toContain('.journey-card-flip-back {');
     expect(css).toContain('rotateY(-180deg) translateZ(0.6px)');
+    expect(css).toMatch(/\.journey-card-flip-overlay\[data-face="front"\]:not\(\.is-flipping-to-back\)[\s\S]*?\.journey-card-flip-back \{[\s\S]*?visibility: hidden;/);
+    expect(css).toMatch(/\.journey-card-flip-card-host > \.journey-card-overlay-portaled-card \{[\s\S]*?border-radius: var\(--journey-card-flip-radius\);[\s\S]*?clip-path: inset\(0 round var\(--journey-card-flip-radius\)\);/);
     expect(modal).toContain('rotor.style.transform = `translate3d(${translateX}px, 0, 0) rotateY(${angle}deg)`;');
     expect(modal).toContain('const deltaX = event.clientX - dragStartX;');
     expect(modal).toContain('const previewProgress = clamp01(Math.abs(deltaX) / commitDistance);');
@@ -190,7 +221,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('dragDirection = deltaX >= 0 ? 1 : -1;');
     expect(modal).toContain('if (Math.abs(deltaX) >= commitDistance) {');
     expect(modal).toContain('rotor.releasePointerCapture(event.pointerId)');
-    expect(modal).not.toContain('const deltaY = event.clientY - dragStartY;');
+    expect(modal).toContain('const deltaY = event.clientY - dragStartY;');
     expect(spatial).toContain('mountJourneyCardFlipSpatialMotion');
     expect(spatial).toContain('registerModalTargets(stage, [');
     expect(spatial).toContain('{ element: target, ...JOURNEY_FLIP_CARD_PROFILE }');

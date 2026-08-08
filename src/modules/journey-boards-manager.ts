@@ -61,6 +61,10 @@ import {
   JOURNEY_INTERIM_IDLE_MOTION,
 } from './journey-interim-idle-policy.js';
 import {
+  formatJourneyWorldStageNumber,
+  reconcileJourneyWorldInterims,
+} from './journey-world-stage.js';
+import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
@@ -554,14 +558,14 @@ const JOURNEY_WORLD_LABELS: Record<number, { id: number; name: string; subtitle:
   2: {
     id: 2,
     name: 'Beach',
-    subtitle: 'Stages 11-20',
+    subtitle: 'Stages 01-10',
     asset: `${BEACH_WORLD_ASSET_BASE}/beach-main.png`,
     className: 'journey-v700-world-beach',
   },
   3: {
     id: 3,
     name: 'Area 55',
-    subtitle: 'Stages 21-30',
+    subtitle: 'Stages 01-10',
     asset: `${ROBO_WORLD_ASSET_BASE}/robo-main.png`,
     className: 'journey-v700-world-robo',
   },
@@ -5243,7 +5247,7 @@ class JourneyBoardsManager {
       return {
         id: boardNumber,
         unlocked: false,
-        interim: boardNumber === 1,
+        interim: boardNumber === 1 || boardNumber === 11 || boardNumber === 21,
         imagePath: this.getBoardImagePath(boardNumber),
         name: this.getBoardName(boardNumber),
       };
@@ -5954,12 +5958,11 @@ class JourneyBoardsManager {
       const hasInterimCard = worldBoards.some((board) => board.interim);
       // The banner is both current-progress and completed-world history. Keep
       // 10/10 visible after progression moves to the next World's 0/10 card.
-      const hasProgressBanner = hasInterimCard || unlockedCount === worldBoards.length;
       const locked = worldId > activeWorldId && unlockedCount === 0;
 
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''}${hasProgressBanner ? ' has-progress-banner' : ''}`;
+      button.className = `journey-v700-world-card ${meta.className}${locked ? ' is-locked' : ''}${hasInterimCard ? ' has-interim-card' : ''} has-progress-banner`;
       button.dataset.worldId = String(worldId);
       button.setAttribute('aria-label', `${meta.name} world`);
 
@@ -7955,7 +7958,7 @@ class JourneyBoardsManager {
     const isUnlocked = board.unlocked === true;
     card.className = `journey-board-card ${isInterim ? 'interim' : isUnlocked ? 'unlocked' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
-    card.dataset.boardNumber = board.id.toString().padStart(2, '0');
+    card.dataset.boardNumber = formatJourneyWorldStageNumber(board.id);
 
     // 🔥 USER REQUEST: Check if this board was already viewed (from localStorage)
     // Mark it as viewed so animations don't start for it
@@ -8022,6 +8025,14 @@ class JourneyBoardsManager {
       image.style.pointerEvents = 'none';
       image.style.visibility = 'hidden';
       card.appendChild(image);
+
+      if (board.id > JOURNEY_WORLD_SIZE) {
+        const localNumber = document.createElement('span');
+        localNumber.className = 'journey-board-local-stage-number';
+        localNumber.textContent = formatJourneyWorldStageNumber(board.id);
+        localNumber.setAttribute('aria-hidden', 'true');
+        card.appendChild(localNumber);
+      }
       
       // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
       if (!isInterim && !isViewed && board.id !== 1) {
@@ -8463,7 +8474,7 @@ class JourneyBoardsManager {
       // Add number overlay on top of image
       const number = document.createElement('div');
       number.className = 'journey-board-number';
-      number.textContent = board.id.toString().padStart(2, '0');
+      number.textContent = formatJourneyWorldStageNumber(board.id);
       const lockedNumberOffset = LOCKED_BOARD_NUMBER_OFFSETS[board.id] || { x: 0, y: 32, rotation: 0 };
       number.style.setProperty('--journey-locked-number-x', `${lockedNumberOffset.x}px`);
       number.style.setProperty('--journey-locked-number-y', `${lockedNumberOffset.y}px`);
@@ -10548,7 +10559,7 @@ class JourneyBoardsManager {
       // Set title in header (Board 01, Board 02, etc.)
       const titleEl = detailModal.querySelector('#detail-title');
       if (titleEl) {
-        const boardNumberStr = board.id.toString().padStart(2, '0');
+        const boardNumberStr = formatJourneyWorldStageNumber(board.id);
         titleEl.textContent = formatGameplayProgressLabel('journey', boardNumberStr);
         logger.info(`✅ Detail modal title set to: ${formatGameplayProgressLabel('journey', boardNumberStr)}`);
       }
@@ -12293,40 +12304,10 @@ class JourneyBoardsManager {
       });
   }
 
-  /**
-   * 🔥 USER REQUEST: Ensure only ONE interim card exists at a time
-   * Clears all interim statuses and sets only the correct one
-   */
-  private ensureSingleInterimCard(): void {
-    // Clear ALL interim statuses first
-    this.boards.forEach(b => {
-      b.interim = false;
-    });
-    
-    // Find highest unlocked board
-    const unlockedBoards = this.boards.filter(b => b.unlocked);
-    if (unlockedBoards.length > 0) {
-      const highestUnlocked = unlockedBoards.reduce((max, b) => b.id > max.id ? b : max);
-      const nextBoardNumber = highestUnlocked.id + 1;
-      
-      // Set ONLY the next board after highest unlocked to interim
-      if (nextBoardNumber <= JOURNEY_MAX_BOARDS) {
-        const nextBoard = this.boards.find(b => b.id === nextBoardNumber);
-        if (nextBoard && !nextBoard.unlocked) {
-          nextBoard.interim = true;
-          logger.debug(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
-        }
-      } else {
-        highestUnlocked.interim = false;
-      }
-    } else {
-      // No unlocked boards - set board 1 to interim
-      const board1 = this.boards.find(b => b.id === 1);
-      if (board1) {
-        board1.interim = true;
-        logger.debug(`🗺️ Ensured single interim card: board 1 (no unlocked boards)`);
-      }
-    }
+  /** Give Forest, Beach and Area 55 independent next-stage markers. */
+  private ensureWorldInterimCards(): void {
+    const interimBoardIds = reconcileJourneyWorldInterims(this.boards);
+    logger.debug('🗺️ Ensured Journey World interim cards', { interimBoardIds });
   }
 
   public unlockBoardByNumber(boardNumber: number): boolean {
@@ -12340,8 +12321,8 @@ class JourneyBoardsManager {
       board.interim = false; // Remove interim status when unlocking
       this.markJourneyDevBoardRefresh(`unlock board ${boardNumber}`);
       
-      // 🔥 USER REQUEST: Ensure only ONE interim card exists
-      this.ensureSingleInterimCard();
+      // Keep the next playable marker independent inside every Journey World.
+      this.ensureWorldInterimCards();
       
       this.saveBoardsState();
       this.renderBoards();
@@ -12375,8 +12356,8 @@ class JourneyBoardsManager {
         logger.warn(`⚠️ Failed to import board stats service:`, error);
       }
       
-      // 🔥 USER REQUEST: Ensure only ONE interim card exists
-      this.ensureSingleInterimCard();
+      // Keep the next playable marker independent inside every Journey World.
+      this.ensureWorldInterimCards();
       
       this.saveBoardsState();
       this.renderBoards();
@@ -12485,7 +12466,7 @@ class JourneyBoardsManager {
    * 🔥 CRITICAL FIX: Public method to save boards state (for external access)
    */
   public saveBoardsStatePublic(): void {
-    this.ensureSingleInterimCard();
+    this.ensureWorldInterimCards();
     this.saveBoardsState();
   }
 
@@ -12508,7 +12489,7 @@ class JourneyBoardsManager {
       }
 
       this.boards = this.boards.slice(0, JOURNEY_MAX_BOARDS);
-      this.ensureSingleInterimCard();
+      this.ensureWorldInterimCards();
       localStorage.setItem('journey_forest_layout_state_version', JOURNEY_FOREST_LAYOUT_STATE_VERSION);
       this.saveBoardsState();
     } catch (error) {
@@ -12522,7 +12503,7 @@ class JourneyBoardsManager {
    * Only unlocks boards that have been completed (won)
    */
   public syncWithGameProgress(_boardNumber?: number): void {
-    this.ensureSingleInterimCard();
+    this.ensureWorldInterimCards();
     this.saveBoardsState();
   }
 
@@ -12560,9 +12541,9 @@ class JourneyBoardsManager {
         });
       }
       
-      // 🔥 USER REQUEST: Ensure only ONE interim card exists after unlocking
-      // This will set the next board to interim (if exists and not already unlocked)
-      this.ensureSingleInterimCard();
+      // Advance only the affected World's next-stage marker while preserving
+      // the first interim card in Worlds that have no completed Stage yet.
+      this.ensureWorldInterimCards();
       
       // 🔥 CRITICAL FIX: Save + render AFTER interim is ensured.
       // Otherwise the Journey screen can keep a stale render (it often skips re-render if boards already exist),
