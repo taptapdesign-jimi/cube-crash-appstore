@@ -57,7 +57,7 @@ describe('shared gameplay sheet close', () => {
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(scoreSource).toContain('mountGameplaySheetClose(scoreCloseHost');
     expect(rewardSource).toContain('mountGameplaySheetClose(');
-    expect(spatialSource).not.toContain('mountGameplaySheetClose');
+    expect(spatialSource).toContain('mountGameplaySheetClose(dragShell, onDismiss)');
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close,');
     expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {');
     expect(closePaperRule).not.toContain('clip-path');

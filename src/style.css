@@ -2403,9 +2403,9 @@ body.journey-board-game-active #hud-board-indicator {
   transform-origin: 50% 100%;
 }
 
-/* Shared board-game sheet close. This is intentionally scoped to gameplay
-   sheets and is not inherited by launch/Journey modals such as 3D Motion. */
+/* Shared textured close used by gameplay sheets and the Tilt Motion intro. */
 .simple-bottom-sheet .gameplay-sheet-close,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {
@@ -2430,6 +2430,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close::before,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close::before,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close::before,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close::before,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::before {
@@ -2447,6 +2448,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close::after,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close::after,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close::after,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::after {
@@ -2464,6 +2466,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close img,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close img,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close img,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close img,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close img {
@@ -2479,6 +2482,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close.is-comic-bouncing,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close.is-comic-bouncing {
@@ -2504,6 +2508,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close:focus-visible,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close:focus-visible {
@@ -2512,6 +2517,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close:disabled,
+.journey-spatial-permission-drag-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close:disabled {
@@ -2520,6 +2526,7 @@ body.journey-board-game-active #hud-board-indicator {
 
 @media (prefers-reduced-motion: reduce) {
   .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
+  .journey-spatial-permission-drag-shell > .gameplay-sheet-close.is-comic-bouncing,
   .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
   .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
   .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close.is-comic-bouncing {

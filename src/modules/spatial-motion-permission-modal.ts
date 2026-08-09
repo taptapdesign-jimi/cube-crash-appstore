@@ -1,6 +1,7 @@
-import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.js';
+import { registerCta, type CtaController } from './cta-system.js';
 import { runGameplayModalParallelExit } from './gameplay-modal-benchmark.js';
-import { installModalVerticalDragDismiss } from './modal-vertical-drag-dismiss.js';
+import { mountGameplaySheetClose } from './gameplay-sheet-close.js';
+import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled';
 
@@ -191,6 +192,9 @@ export function showSpatialMotionPermissionModal(
     const flipShell = document.createElement('div');
     flipShell.className = 'journey-spatial-permission-flip-shell';
 
+    const dragShell = document.createElement('div');
+    dragShell.className = 'journey-spatial-permission-drag-shell';
+
     const title = document.createElement('h2');
     title.id = 'spatial-motion-permission-title';
     title.className = 'cc-gameplay-modal-title';
@@ -235,33 +239,26 @@ export function showSpatialMotionPermissionModal(
     enableButton.className = 'journey-spatial-permission-enable';
     enableButton.textContent = 'Try It';
 
-    const dismissButton = document.createElement('button');
-    dismissButton.type = 'button';
-    dismissButton.className = 'journey-spatial-permission-dismiss';
-    dismissButton.textContent = 'Later';
-
     const actions = document.createElement('div');
     actions.className = 'journey-spatial-permission-actions';
-    actions.append(enableButton, dismissButton);
+    actions.append(enableButton);
     paperSurface.append(title, art, copy, actions);
     flipShell.appendChild(paperSurface);
-    card.appendChild(flipShell);
+    dragShell.appendChild(flipShell);
+    card.appendChild(dragShell);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     activeOverlay = overlay;
 
     let choiceExitInProgress = false;
-    const beginChoiceExit = async (
-      choice: SpatialMotionPermissionChoice,
-      clicked: HTMLButtonElement,
-      companion: HTMLButtonElement,
-    ): Promise<void> => {
+    let closeButton: HTMLButtonElement | null = null;
+    const beginChoiceExit = async (choice: SpatialMotionPermissionChoice): Promise<void> => {
       if (choiceExitInProgress) return;
       choiceExitInProgress = true;
       enableButton.disabled = true;
-      dismissButton.disabled = true;
+      if (closeButton) closeButton.disabled = true;
       await runGameplayModalParallelExit(
-        () => exitCtaPair(clicked, companion),
+        () => activeCtaControllers[0]?.exit() ?? Promise.resolve(),
         () => {
           if (activeOverlay === overlay) finishActiveModal(choice);
         },
@@ -270,7 +267,7 @@ export function showSpatialMotionPermissionModal(
     const onEnable = () => {
       // Keep this call synchronous inside the button gesture; WebKit requires it.
       return requestPermission()
-        .then((granted) => beginChoiceExit(granted ? 'enabled' : 'cancelled', enableButton, dismissButton))
+        .then((granted) => beginChoiceExit(granted ? 'enabled' : 'cancelled'))
         .catch(() => finishActiveModal('cancelled'));
     };
     const onDismiss = () => {
@@ -278,7 +275,7 @@ export function showSpatialMotionPermissionModal(
         try { sessionStorage.setItem(INTRO_DISMISSED_SESSION_KEY, '1'); } catch {}
         try { localStorage.setItem(INTRO_DISMISSED_AT_KEY, String(Date.now())); } catch {}
       }
-      void beginChoiceExit('dismissed', dismissButton, enableButton);
+      void beginChoiceExit('dismissed');
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onDismiss();
@@ -291,23 +288,30 @@ export function showSpatialMotionPermissionModal(
         activationTiming: 'immediate',
         onActivate: onEnable,
       }),
-      registerCta(dismissButton, {
-        variant: 'secondary',
-        initialState: 'hidden',
-        activationTiming: 'immediate',
-        onActivate: onDismiss,
-      }),
     ];
+    const closeController = mountGameplaySheetClose(dragShell, onDismiss);
+    closeButton = closeController.element;
     document.addEventListener('keydown', onKeyDown);
-    const disposeDragDismiss = installModalVerticalDragDismiss(card, {
+    const randomDirection = Math.random() < 0.5 ? -1 : 1;
+    const restTiltDeg = Number((randomDirection * (2 + Math.random() * 1.25)).toFixed(2));
+    const cardHeight = card.getBoundingClientRect().height;
+    const dragCommitDistance = Math.min(140, Math.max(88, Math.max(1, cardHeight) * 0.22));
+    const disposeDragDismiss = installGameplayOverlayModalDragMotion(card, {
       onDismiss,
-      // This launch-only permission surface is intentionally excluded from the
-      // physical gameplay-overlay motion profile and keeps its prior threshold.
-      thresholdPx: 72,
+      motionElement: dragShell,
+      restTiltDeg,
+      thresholdPx: dragCommitDistance,
     });
-    (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup = () => {
+    const overlayLifecycle = overlay as HTMLElement & {
+      __spatialMotionCleanup?: () => void;
+      __spatialMotionFinalCleanup?: () => void;
+    };
+    overlayLifecycle.__spatialMotionCleanup = () => {
       document.removeEventListener('keydown', onKeyDown);
+    };
+    overlayLifecycle.__spatialMotionFinalCleanup = () => {
       disposeDragDismiss();
+      closeController.dispose();
     };
 
     // Two distinct frames guarantee that the off-screen start state is painted
@@ -323,7 +327,6 @@ export function showSpatialMotionPermissionModal(
           overlay.classList.add('is-backdrop-visible');
         });
         void activeCtaControllers[0]?.enter();
-        void activeCtaControllers[1]?.enter({ delay: ctaMotion.companionExitStaggerMs / 1000 });
         card.focus({ preventScroll: true });
         const cardStyle = getComputedStyle(card);
         emitSpatialIntroDiagnostic('presented', {
@@ -354,7 +357,11 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
     return;
   }
 
-  (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup?.();
+  const overlayLifecycle = overlay as HTMLElement & {
+    __spatialMotionCleanup?: () => void;
+    __spatialMotionFinalCleanup?: () => void;
+  };
+  overlayLifecycle.__spatialMotionCleanup?.();
   const card = overlay.querySelector('.journey-spatial-permission-card') as (HTMLElement & { _closing?: boolean }) | null;
   if (card) {
     card._closing = true;
@@ -368,6 +375,7 @@ function finishActiveModal(choice: SpatialMotionPermissionChoice): void {
       window.clearTimeout(activeExitTimeout);
       activeExitTimeout = null;
     }
+    overlayLifecycle.__spatialMotionFinalCleanup?.();
     overlay.remove();
     activeCtaControllers.splice(0).forEach(controller => controller.dispose());
     if (activeOverlay === overlay) activeOverlay = null;

@@ -1500,7 +1500,7 @@ class JourneyBoardsManager {
     this.startVisibleInterimCardIdleEffects(cardsContainer);
   }
 
-  private suspendJourneyWorldForCardOverlay(reason: string): void {
+  private pauseJourneyWorldForCardOverlay(reason: string): void {
     this.clearJourneyAreaIdleStartTimeout();
     if (this.journeyScrollSettledTimeout) {
       window.clearTimeout(this.journeyScrollSettledTimeout);
@@ -1509,9 +1509,8 @@ class JourneyBoardsManager {
     }
     this.journeyAreaIdlePausedForInteraction = true;
     this.cleanupJourneyAreaIdleAnimations(false);
-    journeySpatialMotion.suspend();
     journeySpatialMotion.profileFrameWindow(`journey-card-overlay:${reason}`, 5000);
-    emitIOSNativeDiagnostic('card-overlay-world-suspended', {
+    emitIOSNativeDiagnostic('card-overlay-world-idle-paused', {
       reason,
       worldId: this.journeyV700WorldId,
     });
@@ -1527,13 +1526,12 @@ class JourneyBoardsManager {
       this.journeyV700View !== 'world' ||
       !this.journeyV700WorldId
     ) return;
-    journeySpatialMotion.resumeJourneyWorld(container);
     this.startJourneyAreaIdleAnimations(
       this.getCurrentJourneyForestAreas(cardsContainer),
       cardsContainer,
       true,
     );
-    emitIOSNativeDiagnostic('card-overlay-world-resumed', {
+    emitIOSNativeDiagnostic('card-overlay-world-idle-resumed', {
       reason,
       worldId: this.journeyV700WorldId,
     });
@@ -8146,12 +8144,25 @@ class JourneyBoardsManager {
 
       // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
       if (!isInterim && !isViewed && board.id !== 1) {
-        const ribbon = document.createElement('img');
-        ribbon.src = './assets/journey assets/orange-ribbon.png';
-        ribbon.alt = 'New';
+        const ribbon = document.createElement('div');
         ribbon.className = 'journey-card-ribbon';
-        ribbon.draggable = false;
-        ribbon.setAttribute('draggable', 'false');
+        ribbon.setAttribute('role', 'img');
+        ribbon.setAttribute('aria-label', 'New');
+        const ribbonImage = document.createElement('img');
+        ribbonImage.src = './assets/journey assets/orange-ribbon.png';
+        ribbonImage.alt = '';
+        ribbonImage.className = 'journey-card-ribbon-image';
+        ribbonImage.draggable = false;
+        ribbonImage.setAttribute('draggable', 'false');
+        const ribbonShimmer = ribbonImage.cloneNode(true) as HTMLImageElement;
+        ribbonShimmer.className = 'journey-card-ribbon-shimmer';
+        ribbonShimmer.setAttribute('aria-hidden', 'true');
+        const ribbonLabel = document.createElement('span');
+        ribbonLabel.className = 'journey-card-ribbon-label';
+        ribbonLabel.textContent = 'New';
+        ribbonLabel.setAttribute('aria-hidden', 'true');
+        ribbon.append(ribbonImage, ribbonShimmer, ribbonLabel);
+        card.classList.add('has-new-ribbon');
         card.appendChild(ribbon);
         logger.info(`🎀 Added orange ribbon to newly unlocked board ${board.id}`);
       }
@@ -8676,10 +8687,10 @@ class JourneyBoardsManager {
     cardElement: HTMLElement,
     origin: JourneyCardOriginLease,
   ): Promise<void> {
-    let worldSuspendedForOverlay = false;
+    let worldPausedForOverlay = false;
     try {
-      this.suspendJourneyWorldForCardOverlay('direct-card-open');
-      worldSuspendedForOverlay = true;
+      this.pauseJourneyWorldForCardOverlay('direct-card-open');
+      worldPausedForOverlay = true;
       const scrollOwner = document.querySelector(
         '#journey-screen .collectibles-scrollable',
       ) as HTMLElement | null;
@@ -8749,7 +8760,7 @@ class JourneyBoardsManager {
       if (result !== 'play' || this.renderDisposed) {
         if (result === 'dismiss' && !this.renderDisposed) {
           this.resumeJourneyWorldAfterCardOverlay('direct-card-dismiss');
-          worldSuspendedForOverlay = false;
+          worldPausedForOverlay = false;
         }
         return;
       }
@@ -8760,7 +8771,7 @@ class JourneyBoardsManager {
       this.journeyCardOverlayModal?.dispose();
       this.journeyCardOverlayModal = null;
       origin.restoreNow();
-      if (worldSuspendedForOverlay && !this.renderDisposed) {
+      if (worldPausedForOverlay && !this.renderDisposed) {
         this.resumeJourneyWorldAfterCardOverlay('direct-card-error');
       }
       throw error;
@@ -8937,7 +8948,7 @@ class JourneyBoardsManager {
       '#journey-screen .collectibles-scrollable',
     );
     (targetElement as any)._openingDetail = true;
-    let worldSuspendedForOverlay = false;
+    let worldPausedForOverlay = false;
     try {
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
         JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
@@ -8949,8 +8960,8 @@ class JourneyBoardsManager {
       try { gsap.killTweensOf(targetElement); } catch {}
       origin.prepareSettledLanding();
       origin.captureLandingGeometry();
-      this.suspendJourneyWorldForCardOverlay('game-return-card-open');
-      worldSuspendedForOverlay = true;
+      this.pauseJourneyWorldForCardOverlay('game-return-card-open');
+      worldPausedForOverlay = true;
       this.journeyCardOverlayModal?.dispose();
       let earlyJourneyExitPromise: Promise<void> | null = null;
       let resolveOverlayCardExit!: () => void;
@@ -8997,7 +9008,7 @@ class JourneyBoardsManager {
         if (controller.didLandAtOrigin) completeJourneyCardOverlayReturn(boardId);
         else cancelJourneyCardOverlayReturn(boardId);
         this.resumeJourneyWorldAfterCardOverlay('game-return-card-dismiss');
-        worldSuspendedForOverlay = false;
+        worldPausedForOverlay = false;
         return;
       }
       if (!this.renderDisposed) {
@@ -9006,7 +9017,7 @@ class JourneyBoardsManager {
     } catch (error) {
       origin.restoreNow();
       cancelJourneyCardOverlayReturn(boardId);
-      if (worldSuspendedForOverlay && !this.renderDisposed) {
+      if (worldPausedForOverlay && !this.renderDisposed) {
         this.resumeJourneyWorldAfterCardOverlay('game-return-card-error');
       }
       logger.warn('⚠️ Journey gameplay return overlay failed safely', {
@@ -12640,6 +12651,26 @@ class JourneyBoardsManager {
       
       // Check if board was already unlocked (for Board 1 which starts unlocked)
       const wasAlreadyUnlocked = board.unlocked;
+
+      // An interim win is a fresh unlock even if this Stage ID was viewed in an
+      // older progression/dev cycle. Clear only this board before render so the
+      // resident Unit and automatic return portal both receive the New ribbon.
+      if (!wasAlreadyUnlocked) {
+        try {
+          const viewedBoards: unknown[] = JSON.parse(
+            localStorage.getItem('journey_viewed_boards') || '[]',
+          );
+          const nextViewedBoards = viewedBoards.filter(
+            (viewedBoardId) => Number(viewedBoardId) !== boardNumber,
+          );
+          if (nextViewedBoards.length !== viewedBoards.length) {
+            localStorage.setItem('journey_viewed_boards', JSON.stringify(nextViewedBoards));
+            logger.info(`🎀 Board ${boardNumber} restored to New state after interim completion`);
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to restore completed interim board New state:', error);
+        }
+      }
       
       // Unlock the board (remove interim status, set unlocked)
       board.unlocked = true;

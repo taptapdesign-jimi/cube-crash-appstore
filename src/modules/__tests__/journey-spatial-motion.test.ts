@@ -496,7 +496,7 @@ describe('Journey spatial motion', () => {
     expect(paper.style.getPropertyValue('--cc-modal-gyro-ry')).toBe('');
   });
 
-  it('freezes the Journey World while modal gyro remains live, then resumes the same world pose', () => {
+  it('keeps Journey World and modal gyro continuous on one shared stream', () => {
     document.body.innerHTML = `
       <section id="journey-world">
         <img class="journey-forest-main-art" data-journey-area-id="forest-main" />
@@ -524,7 +524,6 @@ describe('Journey spatial motion', () => {
 
     journeySpatialMotion.activateJourneyWorld(world, 1);
     island.style.translate = '3px 4px';
-    journeySpatialMotion.suspend();
     const dispose = journeySpatialMotion.registerModalTargets(stage, [
       { element: card, xDepth: 9, yDepth: 7 },
       { element: paper, xDepth: -7, yDepth: -5 },
@@ -541,15 +540,21 @@ describe('Journey spatial motion', () => {
     emitOrientation(29, 14);
     pendingFrame?.(16);
 
-    expect(island.style.translate).toBe('3px 4px');
+    expect(island.style.translate).not.toBe('3px 4px');
     expect(card.style.translate).not.toBe('');
     expect(paper.style.translate).not.toBe('');
+    const worldPoseBeforeModalDispose = island.style.translate;
 
     dispose();
-    journeySpatialMotion.resumeJourneyWorld(world);
-    expect(island.style.translate).toBe('3px 4px');
+    expect(island.style.translate).toBe(worldPoseBeforeModalDispose);
     expect(card.style.translate).toBe('');
     expect(paper.style.translate).toBe('');
+    expect(island.dataset.journeySpatialTarget).toBe('journey-world');
+
+    emitOrientation(29, 14);
+    emitOrientation(11, -14);
+    pendingFrame?.(32);
+    expect(island.style.translate).not.toBe(worldPoseBeforeModalDispose);
   });
 
   it('keeps the Journey detail modal at only 20 percent of its former gyro travel', () => {

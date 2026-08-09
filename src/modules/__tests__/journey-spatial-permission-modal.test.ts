@@ -87,9 +87,8 @@ describe('Spatial Motion permission modal', () => {
     expect(enableButton?.classList.contains('cc-cta')).toBe(true);
     expect(enableButton?.dataset.ctaVariant).toBe('primary');
     expect(enableButton?.textContent).toBe('Try It');
-    expect(document.querySelector('.journey-spatial-permission-dismiss')?.textContent).toBe('Later');
-    expect((document.querySelector('.journey-spatial-permission-dismiss') as HTMLElement | null)?.dataset.ctaVariant)
-      .toBe('secondary');
+    expect(document.querySelector('.journey-spatial-permission-dismiss')).toBeNull();
+    expect(document.querySelector('.gameplay-sheet-close')).not.toBeNull();
     expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('Tilt Motion');
     expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('Tilt');
     expect(document.querySelector('.journey-spatial-permission-copy')?.textContent)
@@ -169,7 +168,9 @@ describe('Spatial Motion permission modal', () => {
 
     expect(SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED).toBe(true);
     expect(overlay?.classList.contains('is-3d-flip-test')).toBe(true);
-    expect(flipShell?.parentElement).toBe(card);
+    const dragShell = document.querySelector('.journey-spatial-permission-drag-shell');
+    expect(dragShell?.parentElement).toBe(card);
+    expect(flipShell?.parentElement).toBe(dragShell);
     expect(paper?.parentElement).toBe(flipShell);
     expect(paper?.children).toHaveLength(4);
 
@@ -178,11 +179,11 @@ describe('Spatial Motion permission modal', () => {
     expect(document.querySelector('.journey-spatial-permission-overlay')).toBeNull();
   });
 
-  it('keeps Later dismissed across launches for seven days', async () => {
+  it('keeps close dismissed across launches for seven days', async () => {
     const now = 2_000_000_000_000;
     jest.spyOn(Date, 'now').mockReturnValue(now);
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
+    document.querySelector<HTMLButtonElement>('.gameplay-sheet-close')?.click();
 
     await finishActiveCtaMotion();
     await expect(result).resolves.toBe('dismissed');
@@ -195,13 +196,13 @@ describe('Spatial Motion permission modal', () => {
     expect(localStorage.getItem('cc_journey_spatial_intro_seen_v3')).toBeNull();
   });
 
-  it('keeps launch ownership until the Later modal exit is actually complete', async () => {
+  it('keeps launch ownership until the close modal exit is actually complete', async () => {
     jest.useFakeTimers();
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     let settled = false;
     void result.then(() => { settled = true; });
 
-    document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
+    document.querySelector<HTMLButtonElement>('.gameplay-sheet-close')?.click();
     await finishActiveCtaMotion();
 
     expect(settled).toBe(false);
@@ -221,6 +222,10 @@ describe('Spatial Motion permission modal', () => {
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
     const card = document.querySelector<HTMLElement>('.journey-spatial-permission-card')!;
+    const dragShell = document.querySelector<HTMLElement>('.journey-spatial-permission-drag-shell')!;
+    expect(dragShell.style.transform).toMatch(
+      /^translate3d\(0, 0\.00px, 0\) scale\(1\) rotate\(-?\d+\.\d{2}deg\)$/,
+    );
     const pointerEvent = (type: string, clientY: number) => {
       const event = new Event(type, { bubbles: true }) as PointerEvent;
       Object.defineProperties(event, {
@@ -233,6 +238,7 @@ describe('Spatial Motion permission modal', () => {
     };
     card.dispatchEvent(pointerEvent('pointerdown', 300));
     card.dispatchEvent(pointerEvent('pointermove', 210));
+    expect(dragShell.style.transform).toContain('translate3d(0, -90.00px, 0)');
     card.dispatchEvent(pointerEvent('pointerup', 210));
     await finishActiveCtaMotion();
     jest.advanceTimersByTime(650);
@@ -244,7 +250,7 @@ describe('Spatial Motion permission modal', () => {
     jest.spyOn(Date, 'now').mockReturnValue(dismissedAt);
     localStorage.setItem('cc_spatial_motion_intro_dismissed_at_v1', String(dismissedAt));
     const firstResult = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    document.querySelector<HTMLButtonElement>('.journey-spatial-permission-dismiss')?.click();
+    document.querySelector<HTMLButtonElement>('.gameplay-sheet-close')?.click();
     await finishActiveCtaMotion();
     await firstResult;
     expect(shouldShowSpatialMotionPermissionModal()).toBe(false);
@@ -255,7 +261,7 @@ describe('Spatial Motion permission modal', () => {
     expect(shouldShowSpatialMotionPermissionModal(false, false)).toBe(true);
 
     const forcedResult = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
-    const dismissButtons = document.querySelectorAll<HTMLButtonElement>('.journey-spatial-permission-dismiss');
+    const dismissButtons = document.querySelectorAll<HTMLButtonElement>('.gameplay-sheet-close');
     dismissButtons[dismissButtons.length - 1]?.click();
     await finishActiveCtaMotion();
     await forcedResult;

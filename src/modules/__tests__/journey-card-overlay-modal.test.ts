@@ -178,6 +178,15 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('class="cc-gameplay-modal-paper-shell journey-card-flip-paper"');
     expect(css).toMatch(/\.journey-card-flip-paper \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/);
     expect(css).toMatch(/\.journey-card-flip-card-host \{[\s\S]*?filter: none;/);
+    expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon \{[\s\S]*?top: -8px;[\s\S]*?right: -8px;[\s\S]*?width: 64\.8%;[\s\S]*?max-width: none;/);
+    expect(css).toMatch(/@media \(max-width: 768px\) \{[\s\S]*?\.journey-card-overlay-portaled-card > \.journey-card-ribbon \{[\s\S]*?width: 59\.04%;/);
+    expect(css).toMatch(/@media \(max-width: 768px\) \{[\s\S]*?\.journey-card-ribbon \{[\s\S]*?width: 63px;[\s\S]*?right: -8px;/);
+    expect(css).toMatch(/\.journey-card-ribbon-label \{[\s\S]*?color: #fffbf2;[\s\S]*?opacity: 0\.9;[\s\S]*?font-size: 13cqw;[\s\S]*?font-weight: 800;[\s\S]*?translate3d\(calc\(-50% \+ 8px\), calc\(-50% - 9px\), 0\) rotate\(41deg\);/);
+    expect(css).toMatch(/\.journey-card-ribbon-image \{[\s\S]*?filter: drop-shadow\(0 3px 3px rgba\(161, 91, 54, 0\.24\)\);/);
+    expect(css).not.toContain('.journey-board-card > .journey-card-ribbon > .journey-card-ribbon-label');
+    expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
+    expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;/);
+    expect(css).toMatch(/\.journey-board-card\.has-new-ribbon::after \{[\s\S]*?animation: none !important;[\s\S]*?opacity: 0 !important;/);
     expect(css).not.toContain('.journey-card-flip-back-shell::after');
     expect(css).toMatch(/\.journey-card-flip-paper::after \{[\s\S]*?inset: 0;[\s\S]*?background-size: calc\(100% \+ 12px\) calc\(100% \+ 16px\);/);
     expect(css).not.toContain('inset: 0 -6px -16px');
@@ -235,10 +244,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-stat\.is-content-entering,[\s\S]*?animation-name: detailStatPopOut;[\s\S]*?animation-duration: 0\.2s;[\s\S]*?animation-direction: reverse;/);
   });
 
-  test('keeps one frame owner, one gyro target, and two identical mounted faces', () => {
+  test('keeps one frame owner, two identical faces, and a subtle ribbon gyro layer', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
     const spatial = read('src/modules/gameplay-modal-spatial-motion.ts');
+    const journeySpatial = read('src/modules/journey-spatial-motion.ts');
 
     expect(modal.match(/class="journey-card-flip-rotor"/g)).toHaveLength(1);
     expect(modal.match(/journey-card-flip-face journey-card-flip-(?:front|back)/g)).toHaveLength(2);
@@ -266,7 +276,12 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('const deltaY = event.clientY - dragStartY;');
     expect(spatial).toContain('mountJourneyCardFlipSpatialMotion');
     expect(spatial).toContain('registerModalTargets(stage, [');
+    expect(spatial).toContain('JOURNEY_FLIP_RIBBON_PROFILE');
+    expect(spatial).toContain("'.journey-card-overlay-portaled-card > .journey-card-ribbon'");
+    expect(spatial).toContain('...(ribbon ? [{ element: ribbon, ...JOURNEY_FLIP_RIBBON_PROFILE }] : [])');
     expect(spatial).toContain('{ element: target, ...JOURNEY_FLIP_CARD_PROFILE }');
+    expect(journeySpatial).toContain("card?.querySelector<HTMLElement>(':scope > .journey-card-ribbon')");
+    expect(journeySpatial).toContain('{ x: 0.7, y: 0.7 }');
   });
 
   test('shares flight progress with the flip and preserves Play landing choreography', () => {
@@ -307,12 +322,23 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("window.removeEventListener('pagehide', handleRouteChange)");
   });
 
-  test('retains World suspension, exact origin leasing, and the existing board handoff', () => {
+  test('keeps World gyro live while pausing idle, with exact origin leasing and board handoff', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
     expect(manager).toContain('export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true');
-    expect(manager.match(/this\.suspendJourneyWorldForCardOverlay\(/g)).toHaveLength(2);
+    expect(manager.match(/this\.pauseJourneyWorldForCardOverlay\(/g)).toHaveLength(2);
     expect(manager.match(/this\.resumeJourneyWorldAfterCardOverlay\(/g)).toHaveLength(4);
+    const overlayPause = manager.slice(
+      manager.indexOf('private pauseJourneyWorldForCardOverlay('),
+      manager.indexOf('private resumeJourneyWorldAfterCardOverlay('),
+    );
+    const overlayResume = manager.slice(
+      manager.indexOf('private resumeJourneyWorldAfterCardOverlay('),
+      manager.indexOf('private scheduleJourneyAreaIdleAnimations('),
+    );
+    expect(overlayPause).toContain('this.cleanupJourneyAreaIdleAnimations(false)');
+    expect(overlayPause).not.toContain('journeySpatialMotion.suspend()');
+    expect(overlayResume).not.toContain('journeySpatialMotion.resumeJourneyWorld(');
     expect(manager).toContain('await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);');
     expect(manager).toContain('startOverlayPortaledCardJourneyExit(');
     expect(manager.match(/onPlayCardExitStart: \(\) =>/g)).toHaveLength(2);

@@ -50,4 +50,25 @@ describe('Journey World-local Stage progression', () => {
     expect(reconcileJourneyWorldInterims(boards)).toEqual([13, 21]);
     expect(boards.filter((board) => board.interim).map((board) => board.id)).toEqual([13, 21]);
   });
+
+  test('restores an interim completion to New before rendering its Unit and return modal', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../journey-boards-manager.ts'),
+      'utf8',
+    );
+    const unlockStart = source.indexOf('public unlockBoardOnCompletion(boardNumber: number): void');
+    const renderIndex = source.indexOf('this.renderBoards();', unlockStart);
+    const restoreIndex = source.indexOf(
+      'const nextViewedBoards = viewedBoards.filter(',
+      unlockStart,
+    );
+
+    expect(unlockStart).toBeGreaterThan(-1);
+    expect(source.slice(unlockStart, renderIndex)).toContain(
+      '(viewedBoardId) => Number(viewedBoardId) !== boardNumber',
+    );
+    expect(restoreIndex).toBeGreaterThan(unlockStart);
+    expect(restoreIndex).toBeLessThan(renderIndex);
+    expect(source.slice(unlockStart, renderIndex)).toContain('if (!wasAlreadyUnlocked)');
+  });
 });

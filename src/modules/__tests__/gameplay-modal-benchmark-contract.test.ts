@@ -55,7 +55,8 @@ describe('shared gameplay modal benchmark', () => {
     for (const source of [score, reward, endRun]) {
       expect(source).toContain('installGameplayOverlayModalDragMotion');
     }
-    expect(spatialPermission).not.toContain('installGameplayOverlayModalDragMotion');
+    expect(spatialPermission).toContain('installGameplayOverlayModalDragMotion');
+    expect(spatialPermission).toContain('motionElement: dragShell');
     expect(rewardUi).not.toContain('attachDragHandlers');
   });
 

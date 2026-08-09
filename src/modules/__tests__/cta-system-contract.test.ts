@@ -159,6 +159,16 @@ describe('shared CTA system contract', () => {
     }
   });
 
+  test('reveals the New Reward card before bouncing in its Continue CTA', () => {
+    expect(newRewardSource).not.toContain('const ctaStart = titleStart');
+    const finalCardEnter = newRewardSource.indexOf('.to(finalImg, {');
+    const cardImpact = newRewardSource.indexOf('}, undefined, cardImpactStart)', finalCardEnter);
+    const ctaEnter = newRewardSource.indexOf('void ctaController?.enter()', finalCardEnter);
+    expect(finalCardEnter).toBeGreaterThan(-1);
+    expect(cardImpact).toBeGreaterThan(finalCardEnter);
+    expect(ctaEnter).toBeGreaterThan(cardImpact);
+  });
+
   test('migrates regular and interim Journey detail CTAs without dual touch/click activation', () => {
     expect(journeyBoardsSource).toContain("floatingPlayButton.className = 'cc-journey-detail-cta'");
     expect(journeyBoardsSource).toContain("newContinueBtn.className = 'detail-continue-board-button cc-journey-detail-cta'");
@@ -213,10 +223,10 @@ describe('shared CTA system contract', () => {
   test('migrates Spatial Motion actions while preserving synchronous iOS permission activation', () => {
     expect(spatialPermissionSource).toContain('registerCta(enableButton');
     expect(spatialPermissionSource).toContain("activationTiming: 'immediate'");
-    expect(spatialPermissionSource).toContain("variant: 'secondary'");
+    expect(spatialPermissionSource).not.toContain("variant: 'secondary'");
     expect(spatialPermissionSource).toContain('let choiceExitInProgress = false');
     expect(spatialPermissionSource).toContain('runGameplayModalParallelExit(');
-    expect(spatialPermissionSource).toContain('() => exitCtaPair(clicked, companion)');
+    expect(spatialPermissionSource).toContain('() => activeCtaControllers[0]?.exit() ?? Promise.resolve()');
     expect(spatialPermissionSource).not.toContain("enableButton.addEventListener('click'");
     expect(spatialPermissionSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
     expect(spatialPermissionSource).not.toContain('exit-btn bottom-sheet-cta');

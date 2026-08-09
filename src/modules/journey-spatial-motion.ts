@@ -712,6 +712,12 @@ export class AppSpatialMotionController {
         this.getSessionDepthScale(boardId + 5) * unitGain,
         unitDirection,
       );
+      addTarget(
+        card?.querySelector<HTMLElement>(':scope > .journey-card-ribbon') ?? null,
+        { x: 0.7, y: 0.7 },
+        this.getSessionDepthScale(boardId + 7),
+        unitDirection,
+      );
 
       container.querySelectorAll<HTMLElement>(`.journey-forest-star-board-${boardId}`).forEach((element, index) => {
         addTarget(

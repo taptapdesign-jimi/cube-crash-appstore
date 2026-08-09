@@ -794,7 +794,6 @@ export async function showJourneyNewCardScreen({
           const cardSecondShineStart = cardImpactStart + rd(0.24);
           const titleStart = cardEnterStart;
           const subtitleStart = cardEnterStart;
-          const ctaStart = titleStart + rd(0.2);
           trackNewCardTimeline(gsap.timeline({
             onComplete: () => {
               if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) {
@@ -850,9 +849,7 @@ export async function showJourneyNewCardScreen({
             .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
             .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, titleStart)
             .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, subtitleStart)
-            .call(() => { void ctaController?.enter(); }, undefined, ctaStart)
             .call(() => triggerHaptic('light'), undefined, titleStart)
-            .call(() => triggerHaptic('light'), undefined, ctaStart)
             .call(() => {
               if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
               gsap.set(finalImg, {
@@ -879,6 +876,11 @@ export async function showJourneyNewCardScreen({
               playRevealSmoke();
               playScreenShake(22, 0.42);
               triggerHaptic('medium');
+            }, undefined, cardImpactStart)
+            .call(() => {
+              if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
+              void ctaController?.enter();
+              triggerHaptic('light');
             }, undefined, cardImpactStart)
             .call(() => {
               if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;

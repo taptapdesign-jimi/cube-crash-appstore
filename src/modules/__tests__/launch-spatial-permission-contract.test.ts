@@ -214,9 +214,8 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain(
       '.journey-spatial-permission-star-3 {\n    left: 18px;\n    top: 137px;',
     );
-    expect(permissionModalSource).toContain(
-      "dismissButton.className = 'journey-spatial-permission-dismiss'",
-    );
+    expect(permissionModalSource).not.toContain('journey-spatial-permission-dismiss');
+    expect(permissionModalSource).toContain('mountGameplaySheetClose(dragShell, onDismiss)');
   });
 
   it('keeps the 3D flip experiment nested, reversible, and reduced-motion safe', () => {
@@ -228,7 +227,8 @@ describe('launch 3D Motion permission ownership', () => {
       "flipShell.className = 'journey-spatial-permission-flip-shell'",
     );
     expect(permissionModalSource).toContain('flipShell.appendChild(paperSurface)');
-    expect(permissionModalSource).toContain('card.appendChild(flipShell)');
+    expect(permissionModalSource).toContain('dragShell.appendChild(flipShell)');
+    expect(permissionModalSource).toContain('card.appendChild(dragShell)');
     expect(collectiblesCss).toContain('perspective: 920px');
     expect(collectiblesCss).toContain(
       '.journey-spatial-permission-flip-shell {\n  position: relative;\n  display: flex;\n  width: 100%;\n  max-height: inherit;\n  border-radius: 40px;\n  overflow: hidden;',
