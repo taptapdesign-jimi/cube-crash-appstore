@@ -4,6 +4,7 @@ This repository is the web/game source for the product **Stack to Six**. Before 
 
 - [`docs/engineering/PROJECT_CONTEXT.md`](docs/engineering/PROJECT_CONTEXT.md) for authoritative project identity, ownership, and safety rules.
 - [`docs/engineering/CURRENT_HANDOFF.md`](docs/engineering/CURRENT_HANDOFF.md) for the current branch, uncommitted work, latest installed build, and immediate continuation state.
+- [`docs/engineering/APPROVED_PRODUCTION_BASELINE.md`](docs/engineering/APPROVED_PRODUCTION_BASELINE.md) for the only complete version explicitly approved by the user and the immutable recovery reference for experiments.
 
 When building or installing on iPhone, also read [`docs/engineering/dev-production-modes.md`](docs/engineering/dev-production-modes.md). **Never sync, build, install, launch, uninstall, or otherwise touch the legacy Kockice Crash shell unless the user explicitly asks for Kockice Crash by name.** The normal native target is Stack to Six.
 
