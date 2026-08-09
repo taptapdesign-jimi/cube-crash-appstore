@@ -20,6 +20,7 @@ import {
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
 import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
+import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 let modal: HTMLElement | null = null;
 let backdrop: HTMLElement | null = null;
@@ -31,6 +32,7 @@ let scoreSheetTransitionInProgress = false;
 let scoreSheetCloseController: GameplaySheetCloseController | null = null;
 let scoreSheetStatsEnterCleanupTimeout: ReturnType<typeof setTimeout> | null = null;
 let disposeScoreSheetSpatialMotion: (() => void) | null = null;
+let disposeScoreSheetDragDismiss: (() => void) | null = null;
 
 function cleanupScoreSheetSpatialMotion(): void {
   disposeScoreSheetSpatialMotion?.();
@@ -74,6 +76,8 @@ function getScoreSheetBackdropElements(): HTMLElement[] {
 }
 
 function hideAndRemoveScoreSheetDom(reason: string): void {
+  disposeScoreSheetDragDismiss?.();
+  disposeScoreSheetDragDismiss = null;
   cleanupScoreSheetSpatialMotion();
   disposeScoreSheetClose();
   const sheets = getScoreSheetElements();
@@ -594,8 +598,17 @@ ${renderStatsItems(scoreSheetStats)}
     console.log('✕ Score bottom sheet close control activated');
     hideScoreBottomSheet();
   }, `Close ${titleText}`);
+  const bounceShell = modalEl.querySelector<HTMLElement>('.cc-gameplay-modal-bounce-shell');
+  const restTilt = (Math.random() < 0.5 ? -1 : 1) * (0.7 + Math.random() * 0.65);
+  modalEl.style.setProperty('--score-modal-rest-tilt', `${restTilt.toFixed(2)}deg`);
+  disposeScoreSheetDragDismiss = bounceShell ? installGameplayOverlayModalDragMotion(modalEl, {
+    onDismiss: hideScoreBottomSheet,
+    motionElement: bounceShell,
+    restTiltDeg: restTilt,
+  }) : null;
 
-  // Centered benchmark modals dismiss via close/outside tap, never sheet drag.
+  // Backdrop input remains a separate close path; the paper drag above owns
+  // the shared finger-follow and snapback motion.
   addOutsideClickFunctionality(modalEl);
 
   document.body.appendChild(backdropEl);
@@ -671,7 +684,7 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
         if (!point) return;
 
         const deltaY = point.y - backdropStartY;
-        if (deltaY > 28) {
+        if (Math.abs(deltaY) > 28) {
           backdropDragCloseStarted = true;
           event.preventDefault();
           console.log('📊 Outside downward drag detected - closing score bottom sheet safely');

@@ -158,9 +158,10 @@
   overflow: visible;
 }
 
-.journey-card-flip-overlay[data-paint-face="front"]:not(.is-exiting)
+.journey-card-flip-overlay[data-paint-face="front"]
   .journey-card-flip-front {
   filter: drop-shadow(0 13px 17px rgba(185, 145, 119, 0.8));
+  transition: filter var(--journey-card-exit-neutral-duration, 520ms) linear;
 }
 
 .journey-card-flip-back {
@@ -252,6 +253,7 @@
   user-select: none;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  transition: box-shadow var(--journey-card-exit-neutral-duration, 520ms) linear;
 }
 
 /* Preserve the v917 12px-wide/16px-tall texture overscan without enlarging the
@@ -279,6 +281,7 @@
 
 .journey-card-flip-back-shell::before {
   opacity: 0.28;
+  transition: opacity var(--journey-card-exit-neutral-duration, 520ms) linear;
 }
 
 .journey-card-flip-title-section {
@@ -553,17 +556,20 @@
   pointer-events: none;
 }
 
-/* Exit must shed every depth shadow in its first frame so no detached shadow
-   travels with the fading/flipping card on the way back to its Unit. */
+/* Keep depth attached to the same physical card through the return flight and
+   fade it continuously to zero over the existing exit timeline. */
 .journey-card-flip-overlay.is-exiting .journey-card-flip-card-host {
   filter: none;
   transition: none;
 }
 
+.journey-card-flip-overlay.is-exiting .journey-card-flip-front {
+  filter: drop-shadow(0 13px 17px rgba(185, 145, 119, 0));
+}
+
 .journey-card-flip-overlay.is-exiting .journey-card-flip-paper {
-  box-shadow: none;
+  box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0);
   filter: none;
-  transition: none;
 }
 
 .journey-card-flip-overlay.is-exiting .journey-card-flip-back-shell::before {
@@ -3443,30 +3449,8 @@
   padding: 0; /* 🔥 USER REQUEST: Ensure no padding that could cause overflow */
 }
 
-/* Beach and Area 55 keep their unique collectible artwork while presenting
-   each World's local 01-10 Stage number over the baked global image number. */
 .journey-board-card.unlocked {
   container-type: inline-size;
-}
-
-.journey-board-local-stage-number {
-  position: absolute;
-  top: 5.4%;
-  left: 7.4%;
-  z-index: 4;
-  display: grid;
-  place-items: center;
-  width: 20.5%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(circle, #fffaf3 0 62%, rgba(255, 250, 243, 0.94) 68%, transparent 72%);
-  color: #c97855;
-  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
-  font-size: 16px;
-  font-size: 7cqw;
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: none;
 }
 
 .journey-board-card.locked .journey-board-locked-container {

@@ -21,6 +21,7 @@ import {
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
+import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
 // translateY, drag, CTA, pause, and cleanup; only the nested paper shell flips.
@@ -46,10 +47,16 @@ let endRunOpenStartedAt = 0;
 let endRunCtaControllers: CtaController[] = [];
 let endRunCloseController: GameplaySheetCloseController | null = null;
 let disposeEndRunSpatialMotion: (() => void) | null = null;
+let disposeEndRunDragMotion: (() => void) | null = null;
 
 function cleanupEndRunSpatialMotion(): void {
   disposeEndRunSpatialMotion?.();
   disposeEndRunSpatialMotion = null;
+}
+
+function cleanupEndRunDragMotion(): void {
+  disposeEndRunDragMotion?.();
+  disposeEndRunDragMotion = null;
 }
 
 function disposeEndRunClose(): void {
@@ -175,6 +182,7 @@ function trackOnEventHandler(element: HTMLElement | Document, property: string, 
 }
 
 function cleanupAllEndRunResources(): void {
+  cleanupEndRunDragMotion();
   cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   clearAllEndRunTimeouts();
@@ -198,6 +206,7 @@ function getEndRunSheetElements(): HTMLElement[] {
 }
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
+  cleanupEndRunDragMotion();
   cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   disposeEndRunCtas();
@@ -581,8 +590,17 @@ function createModal(): HTMLElement {
     }));
   }
 
-  // Add drag functionality
-  if (!END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+  // The active centered modal uses the shared physical gameplay-overlay drag
+  // owner. The retired bottom-sheet fallback keeps its legacy drag path.
+  if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {
+    const motionElement = modal.querySelector<HTMLElement>('.end-run-modal-bounce-shell');
+    if (motionElement) {
+      disposeEndRunDragMotion = installGameplayOverlayModalDragMotion(modal, {
+        motionElement,
+        onDismiss: () => hideModal(),
+      });
+    }
+  } else {
     addDragFunctionality(modal);
   }
   
@@ -899,12 +917,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 DRAG MOVE ON MODAL:', { currentY, startY, deltaY });
     console.log('🎯 CURRENT TRANSFORM:', modalEl.style.transform);
     
-    if (deltaY > 0) {
-      // ONLY vertical movement - NO translateX needed
-      const newTransform = `translateY(${deltaY}px)`;
-      modalEl.style.transform = newTransform;
-      console.log('🎯 NEW TRANSFORM:', newTransform);
-    }
+    // ONLY vertical movement - NO translateX needed
+    const newTransform = `translateY(${deltaY}px)`;
+    modalEl.style.transform = newTransform;
+    console.log('🎯 NEW TRANSFORM:', newTransform);
   });
 
   trackOnEventHandler(modalEl, 'ontouchend', (e: TouchEvent) => {
@@ -917,10 +933,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     console.log('🎯 DRAG END ON MODAL:', { deltaY, threshold: 80 });
     
-      if (deltaY > 80) {
+      if (Math.abs(deltaY) > 80) {
         console.log('🎯 CLOSING MODAL');
         modalEl.style.transition = 'transform 0.4s ease-in-out';
-        modalEl.style.transform = 'translateY(100vh)';
+        modalEl.style.transform = `translateY(${deltaY < 0 ? '-100vh' : '100vh'})`;
         // Remove overlay immediately so HUD clicks aren't blocked while waiting for hideModal
         removeEndRunOverlay();
         // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
@@ -993,12 +1009,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 MOUSE MOVE:', { currentY, startY, deltaY });
     console.log('🎯 CURRENT TRANSFORM (MOUSE):', modalEl.style.transform);
     
-    if (deltaY > 0) {
-      // ONLY vertical movement - NO translateX needed
-      const newTransform = `translateY(${deltaY}px)`;
-      modalEl.style.transform = newTransform;
-      console.log('🎯 NEW TRANSFORM (MOUSE):', newTransform);
-    }
+    // ONLY vertical movement - NO translateX needed
+    const newTransform = `translateY(${deltaY}px)`;
+    modalEl.style.transform = newTransform;
+    console.log('🎯 NEW TRANSFORM (MOUSE):', newTransform);
   });
   
   trackOnEventHandler(document, 'onmouseup', () => {
@@ -1010,10 +1024,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     console.log('🎯 MOUSE UP:', { deltaY, threshold: 80 });
     
-      if (deltaY > 80) {
+      if (Math.abs(deltaY) > 80) {
         console.log('🎯 CLOSING MODAL (mouse)');
         modalEl.style.transition = 'transform 0.4s ease-in-out';
-        modalEl.style.transform = 'translateY(100vh)';
+        modalEl.style.transform = `translateY(${deltaY < 0 ? '-100vh' : '100vh'})`;
         // Remove overlay immediately so HUD clicks aren't blocked while waiting for hideModal
         removeEndRunOverlay();
         // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes

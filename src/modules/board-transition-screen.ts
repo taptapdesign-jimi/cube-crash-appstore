@@ -12,6 +12,7 @@ import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
 import { beginBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.js';
 import { startIOSJourneyPerformanceAudit } from '../utils/ios-journey-performance-audit.js';
 import { appSpatialMotion } from './journey-spatial-motion.js';
+import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -545,10 +546,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       ].join(';');
     }
 
-    // Format board number as string (01, 02, etc.)
+    // Board IDs remain global (1-30) for save/progression ownership, while
+    // every Journey World presents its connected Unit as local Stage 01-10.
     const transitionText = (typeof displayText === 'string' && displayText.trim().length > 0)
       ? displayText.trim().toUpperCase()
-      : boardNumber.toString().padStart(2, '0');
+      : formatJourneyWorldStageNumber(boardNumber);
     const digits = Array.from(transitionText);
     
     logger.info(`🎯 board-transition-screen: Formatting transition text "${transitionText}" with ${digits.length} characters`);

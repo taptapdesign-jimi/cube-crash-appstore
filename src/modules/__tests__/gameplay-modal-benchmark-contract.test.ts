@@ -15,6 +15,7 @@ describe('shared gameplay modal benchmark', () => {
   const spatialPermission = read('src/modules/spatial-motion-permission-modal.ts');
   const journeyOverlay = read('src/modules/journey-card-overlay-modal.ts');
   const modalSpatialMotion = read('src/modules/gameplay-modal-spatial-motion.ts');
+  const modalDragMotion = read('src/modules/modal-vertical-drag-dismiss.ts');
   const css = read('src/style.css');
   const collectiblesCss = read('src/collectibles-screen.css');
 
@@ -47,6 +48,17 @@ describe('shared gameplay modal benchmark', () => {
     expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
   });
 
+  test('shares one physical vertical drag owner across backdrop gameplay modals', () => {
+    expect(modalDragMotion).toContain('export function installGameplayOverlayModalDragMotion(');
+    expect(modalDragMotion).toContain('options.onDragMove?.(dy)');
+    expect(modalDragMotion).toContain('cubic-bezier(0.34, 1.56, 0.64, 1)');
+    for (const source of [score, reward, endRun]) {
+      expect(source).toContain('installGameplayOverlayModalDragMotion');
+    }
+    expect(spatialPermission).not.toContain('installGameplayOverlayModalDragMotion');
+    expect(rewardUi).not.toContain('attachDragHandlers');
+  });
+
   test('mounts every gameplay paper modal on the shared gyro owner', () => {
     expect(modalSpatialMotion).toContain("import { appSpatialMotion } from './journey-spatial-motion.js'");
     expect(modalSpatialMotion).toContain('appSpatialMotion.registerModalTargets');
@@ -71,7 +83,7 @@ describe('shared gameplay modal benchmark', () => {
   });
 
   test('owns one Journey-strength backdrop across every paper gameplay modal', () => {
-    expect(css).toContain('--cc-gameplay-modal-overlay-color: rgba(230, 196, 177, 0.56);');
+    expect(css).toContain('--cc-gameplay-modal-overlay-color: rgba(220, 183, 163, 0.52);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color) !important;');
     expect(rewardUi.match(/background: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);

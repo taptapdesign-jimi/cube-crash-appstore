@@ -102,6 +102,28 @@ describe('Journey exact-card portal transition', () => {
     expect(document.querySelectorAll('[data-board-id="26"]')).toHaveLength(1);
   });
 
+  test('keeps the modal aspect intrinsic when the live card is stretched', () => {
+    document.body.innerHTML = `
+      <div class="journey-board-card-wrapper" style="transform: scale(1.25, 0.8)">
+        <div class="journey-board-card unlocked" data-board-id="2"></div>
+      </div>
+    `;
+    const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    Object.defineProperties(card, {
+      offsetWidth: { configurable: true, value: 100 },
+      offsetHeight: { configurable: true, value: 150 },
+    });
+    card.getBoundingClientRect = () => ({
+      x: 20, y: 40, left: 20, top: 40, right: 145, bottom: 160,
+      width: 125, height: 120, toJSON: () => ({}),
+    });
+
+    const lease = acquireJourneyCardOriginLease(2, card)!;
+
+    expect(lease.aspectRatio).toBeCloseTo(2 / 3, 8);
+    expect(lease.aspectRatio).not.toBeCloseTo(125 / 120, 3);
+  });
+
   test('lands on the card visual offset instead of the wrapper center', () => {
     document.body.innerHTML = `
       <div class="journey-board-card-wrapper">

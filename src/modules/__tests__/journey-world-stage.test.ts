@@ -3,6 +3,8 @@ import {
   getJourneyWorldStageNumber,
   reconcileJourneyWorldInterims,
 } from '../journey-world-stage';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('Journey World-local Stage progression', () => {
   test.each([
@@ -15,6 +17,16 @@ describe('Journey World-local Stage progression', () => {
   ])('maps global board %i to local Stage %i (%s)', (boardId, localStage, label) => {
     expect(getJourneyWorldStageNumber(boardId)).toBe(localStage);
     expect(formatJourneyWorldStageNumber(boardId)).toBe(label);
+  });
+
+  test('Board Transition displays the World-local Stage while retaining the global board id', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../board-transition-screen.ts'),
+      'utf8',
+    );
+    expect(source).toContain('beginBoardLifecycleTrace(\'board-transition\', boardNumber)');
+    expect(source).toContain('formatJourneyWorldStageNumber(boardNumber)');
+    expect(source).not.toContain(": boardNumber.toString().padStart(2, '0')");
   });
 
   test('starts an empty Forest, Beach and Area 55 at their first interim card', () => {

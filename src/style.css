@@ -3285,7 +3285,7 @@ body.journey-board-game-active #hud-board-indicator {
    3D Motion, and Journey Stage. */
 :root {
   --cc-gameplay-modal-title-size: 32px;
-  --cc-gameplay-modal-overlay-color: rgba(230, 196, 177, 0.56);
+  --cc-gameplay-modal-overlay-color: rgba(220, 183, 163, 0.52);
 }
 
 .cc-gameplay-modal-title {

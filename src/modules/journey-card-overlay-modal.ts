@@ -18,6 +18,7 @@ import {
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
+import { getIosResistedModalVerticalDelta } from './modal-vertical-drag-dismiss.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -57,23 +58,23 @@ export interface JourneyCardOverlayTiltProfile {
 
 let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
 
-export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 680;
+export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 520;
 export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
 export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
 export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
 export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
 export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
 export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
-export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 520;
+export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
 export const JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO = 0.2;
 export const JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS = 0.34;
 export const JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS = 5000;
 export const JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS = 2100;
 export const JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG = 36;
 export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
-export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.16;
-export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 56;
-export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 96;
+export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
+export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
+export const JOURNEY_CARD_DISMISS_DRAG_MAX_PX = 140;
 const JOURNEY_CARD_FLIP_TAP_SLOP_PX = 7;
 
 export function getJourneyCardDismissDragDistance(cardHeight: number): number {
@@ -84,8 +85,10 @@ export function getJourneyCardDismissDragDistance(cardHeight: number): number {
   );
 }
 
-export function isJourneyCardDownwardDismissGesture(deltaX: number, deltaY: number): boolean {
-  return deltaY > JOURNEY_CARD_FLIP_TAP_SLOP_PX && deltaY > Math.abs(deltaX) * 1.15;
+export function isJourneyCardVerticalDismissGesture(deltaX: number, deltaY: number): boolean {
+  const verticalDistance = Math.abs(deltaY);
+  return verticalDistance > JOURNEY_CARD_FLIP_TAP_SLOP_PX
+    && verticalDistance > Math.abs(deltaX) * 1.15;
 }
 
 export function createJourneyCardOverlayTiltProfile(
@@ -340,6 +343,8 @@ export function presentJourneyCardOverlayModal(
   let dragStartAngle = 0;
   let dragCardWidth = 1;
   let dragCardHeight = 1;
+  let dragCardRect: DOMRect | null = null;
+  let dragViewportHeight = 0;
   let dragDirection = 1;
   let currentTranslateX = 0;
   let dragAxis: 'horizontal' | 'vertical' | null = null;
@@ -684,13 +689,10 @@ export function presentJourneyCardOverlayModal(
     const direction = Math.sign(to - from) || (targetFace === 'back' ? -1 : 1);
     const duration = prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_SNAP_DURATION_MS;
     const edgeProgress = getJourneyCardFlipEdgeProgress(from, to);
-    if (targetFace === 'back') {
-      startBackContentEnter(Math.round(duration * edgeProgress));
-    }
     if (typeof rotor.animate === 'function') {
       const animation = rotor.animate([
-        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)`, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
-        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * edgeProgress}deg)`, offset: edgeProgress, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)` },
+        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * edgeProgress}deg)`, offset: edgeProgress },
         { transform: `translate3d(0, 0, 0) rotateY(${to + direction * 7}deg)`, offset: 0.82 },
         { transform: `translate3d(0, 0, 0) rotateY(${to}deg)` },
       ], { duration, easing: 'linear' });
@@ -706,7 +708,6 @@ export function presentJourneyCardOverlayModal(
     if (closing || settled) return;
     setRotorAngle(targetFace === 'back' ? -180 : 0);
     setStableFace(targetFace);
-    if (targetFace === 'front') primeBackContentForEnter();
     flipping = false;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
     disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
@@ -896,8 +897,10 @@ export function presentJourneyCardOverlayModal(
     dragVelocityX = 0;
     dragMoved = false;
     dragStartAngle = stableFace === 'front' ? 0 : -180;
-    dragCardWidth = Math.max(1, frame.getBoundingClientRect().width);
-    dragCardHeight = Math.max(1, frame.getBoundingClientRect().height);
+    dragCardRect = frame.getBoundingClientRect();
+    dragCardWidth = Math.max(1, dragCardRect.width);
+    dragCardHeight = Math.max(1, dragCardRect.height);
+    dragViewportHeight = window.innerHeight;
     dragDirection = 1;
     dragAxis = null;
     impactAnimation?.cancel();
@@ -932,21 +935,16 @@ export function presentJourneyCardOverlayModal(
       dragAxis = Math.abs(deltaY) > Math.abs(deltaX) * 1.15 ? 'vertical' : 'horizontal';
     }
     if (dragAxis === 'vertical') {
-      const downwardDistance = Math.max(0, deltaY);
+      const verticalDistance = Math.abs(deltaY);
       const commitDistance = getJourneyCardDismissDragDistance(dragCardHeight);
-      const previewProgress = clamp01(downwardDistance / commitDistance);
-      impactShell.style.transform = `translate3d(0, ${downwardDistance * 0.42}px, 0) scale(${1 - previewProgress * 0.035})`;
-      if (downwardDistance >= commitDistance && isJourneyCardDownwardDismissGesture(deltaX, deltaY)) {
-        activePointerId = null;
-        try { rotor.releasePointerCapture(event.pointerId); } catch {}
-        stage.classList.remove('is-dragging');
-        event.stopPropagation();
-        impactAnimation = impactShell.animate?.([
-          { transform: impactShell.style.transform },
-          { transform: 'translate3d(0, 0, 0) scale(1)' },
-        ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
-        void beginClose('dismiss');
-      }
+      const previewProgress = clamp01(verticalDistance / commitDistance);
+      const boundedDeltaY = dragCardRect
+        ? getIosResistedModalVerticalDelta(deltaY, dragCardRect, dragViewportHeight)
+        : deltaY;
+      // Vertical dismiss is release-owned: keep following the live pointer even
+      // after it crosses the commit distance. Returning near the origin before
+      // pointerup therefore cancels the close and runs the normal snapback.
+      impactShell.style.transform = `translate3d(0, ${boundedDeltaY}px, 0) scale(${1 - previewProgress * 0.035})`;
       return;
     }
     dragDirection = deltaX >= 0 ? 1 : -1;
@@ -977,8 +975,8 @@ export function presentJourneyCardOverlayModal(
       event.preventDefault();
       event.stopPropagation();
       const shouldDismiss = allowCommit
-        && deltaY >= getJourneyCardDismissDragDistance(dragCardHeight)
-        && isJourneyCardDownwardDismissGesture(deltaX, deltaY);
+        && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
+        && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
       impactAnimation = impactShell.animate?.([
         { transform: impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)' },
         { transform: 'translate3d(0, 0, 0) scale(1)' },

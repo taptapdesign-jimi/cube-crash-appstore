@@ -217,13 +217,26 @@ describe('Spatial Motion permission modal', () => {
     expect(isSpatialMotionPermissionModalActive()).toBe(false);
   });
 
-  it('does not install bottom-sheet drag dismissal on the centered modal', async () => {
+  it('dismisses the centered modal from either vertical drag direction', async () => {
     const result = showSpatialMotionPermissionModal(jest.fn().mockResolvedValue(true));
     expect(document.querySelector('.journey-spatial-permission-handle')).toBeNull();
-    expect(document.querySelector('.journey-spatial-permission-overlay')?.classList.contains('is-exiting'))
-      .toBe(false);
-    cancelSpatialMotionPermissionModal();
-    await expect(result).resolves.toBe('cancelled');
+    const card = document.querySelector<HTMLElement>('.journey-spatial-permission-card')!;
+    const pointerEvent = (type: string, clientY: number) => {
+      const event = new Event(type, { bubbles: true }) as PointerEvent;
+      Object.defineProperties(event, {
+        pointerId: { value: 1 },
+        button: { value: 0 },
+        clientX: { value: 120 },
+        clientY: { value: clientY },
+      });
+      return event;
+    };
+    card.dispatchEvent(pointerEvent('pointerdown', 300));
+    card.dispatchEvent(pointerEvent('pointermove', 210));
+    card.dispatchEvent(pointerEvent('pointerup', 210));
+    await finishActiveCtaMotion();
+    jest.advanceTimersByTime(650);
+    await expect(result).resolves.toBe('dismissed');
   });
 
   it('lets Developer Settings force exactly the next launch intro', async () => {

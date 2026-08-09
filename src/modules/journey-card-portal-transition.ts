@@ -128,6 +128,11 @@ export function acquireJourneyCardOriginLease(
   if (!anchor || !parent || !card.isConnected) return null;
   const origin = captureJourneyCardGeometry(card, anchor);
   if (!origin) return null;
+  const intrinsicWidth = card.offsetWidth;
+  const intrinsicHeight = card.offsetHeight;
+  const intrinsicAspectRatio = intrinsicWidth > 0 && intrinsicHeight > 0
+    ? intrinsicWidth / intrinsicHeight
+    : origin.width / Math.max(1, origin.height);
 
   const anchorOriginRect = anchor.getBoundingClientRect();
   const originalStyle = card.getAttribute('style');
@@ -208,7 +213,10 @@ export function acquireJourneyCardOriginLease(
     card,
     anchor,
     origin,
-    aspectRatio: origin.width / Math.max(1, origin.height),
+    // The flight starts from live transformed geometry, but the modal surface
+    // must keep the card's settled layout ratio. Sampling a squash/stretch
+    // frame here would otherwise deform the complete stats face.
+    aspectRatio: intrinsicAspectRatio,
     get isMounted() {
       return mounted && !settled && portalVisual?.isConnected === true;
     },

@@ -7271,6 +7271,10 @@ class JourneyBoardsManager {
         imageCount: images.length,
         unitCount: units.length,
       });
+      // Spatial motion owns CSS translate while the enter coordinator owns
+      // transform. Start that independent owner before the cascade so an
+      // already-authorized gyro cannot apply one late all-Unit position jump.
+      journeySpatialMotion.activateJourneyWorld(container, worldId);
       await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed });
       // An early X interrupts the enter timeline. Its promise resolves through
       // onInterrupt, but that does not grant the stale enter continuation
@@ -7284,17 +7288,9 @@ class JourneyBoardsManager {
         finishWorldEnterAudit('stale-after-enter');
         return;
       }
-      allTargets.forEach((target) => {
-        if (target.classList.contains('journey-board-card-wrapper')) {
-          restoreJourneyBoardCardBaseTransform(target);
-          this.restoreJourneyBoardCardVisualTarget(target);
-          this.restoreJourneyBoardCardInnerVisual(target);
-        }
-      });
       finishWorldEnterAudit('complete');
       emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       this.journeyV700Phase = 'idle';
-      journeySpatialMotion.activateJourneyWorld(container, worldId);
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
           target.style.removeProperty('opacity');
@@ -8148,14 +8144,6 @@ class JourneyBoardsManager {
       image.style.visibility = 'hidden';
       card.appendChild(image);
 
-      if (board.id > JOURNEY_WORLD_SIZE) {
-        const localNumber = document.createElement('span');
-        localNumber.className = 'journey-board-local-stage-number';
-        localNumber.textContent = formatJourneyWorldStageNumber(board.id);
-        localNumber.setAttribute('aria-hidden', 'true');
-        card.appendChild(localNumber);
-      }
-      
       // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
       if (!isInterim && !isViewed && board.id !== 1) {
         const ribbon = document.createElement('img');
@@ -8266,9 +8254,18 @@ class JourneyBoardsManager {
         // still owns the card transform. Normalize that transient owner before
         // origin capture so the modal always leases the full settled card.
         this.stopOverlayCardLandingBounce(cardEl);
+        try {
+          if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
+            JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);
+          }
+          cardEl.classList.remove('idle-shimmer-trigger');
+          gsap.killTweensOf(cardEl);
+          gsap.set(cardEl, { clearProps: 'transform' });
+        } catch {}
 
-        // Capture before idle ownership is paused or any GSAP tween is killed.
-        // This is the exact on-screen pose the user's finger selected.
+        // Capture only after card-local squash/stretch owners are normalized.
+        // The Unit wrapper still supplies the canonical settled position, but
+        // transient non-uniform scale can never leak into modal geometry.
         const originLease = JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED
           ? acquireJourneyCardOriginLease(board.id, cardEl)
           : null;
@@ -8286,11 +8283,6 @@ class JourneyBoardsManager {
         }
 
         try {
-          if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap === 'function') {
-            JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);
-          }
-          cardEl.classList.remove('idle-shimmer-trigger');
-          try { gsap.killTweensOf(cardEl); } catch {}
           // Direct card-modal dismiss and gameplay return must share the same
           // settled landing presentation. Restoring the captured inline idle
           // transform after the portal lands produces a one-frame refresh.

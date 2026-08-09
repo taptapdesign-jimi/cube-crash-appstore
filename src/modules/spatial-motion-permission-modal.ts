@@ -1,5 +1,6 @@
 import { ctaMotion, exitCtaPair, registerCta, type CtaController } from './cta-system.js';
 import { runGameplayModalParallelExit } from './gameplay-modal-benchmark.js';
+import { installModalVerticalDragDismiss } from './modal-vertical-drag-dismiss.js';
 
 export type SpatialMotionPermissionChoice = 'enabled' | 'dismissed' | 'cancelled';
 
@@ -298,8 +299,15 @@ export function showSpatialMotionPermissionModal(
       }),
     ];
     document.addEventListener('keydown', onKeyDown);
+    const disposeDragDismiss = installModalVerticalDragDismiss(card, {
+      onDismiss,
+      // This launch-only permission surface is intentionally excluded from the
+      // physical gameplay-overlay motion profile and keeps its prior threshold.
+      thresholdPx: 72,
+    });
     (overlay as HTMLElement & { __spatialMotionCleanup?: () => void }).__spatialMotionCleanup = () => {
       document.removeEventListener('keydown', onKeyDown);
+      disposeDragDismiss();
     };
 
     // Two distinct frames guarantee that the off-screen start state is painted

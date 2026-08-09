@@ -146,6 +146,27 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
+  test('World spatial motion starts before enter completes and never snaps on afterward', () => {
+    const worldEnterSource = journeyManagerSource.split(
+      'private playJourneyV700WorldEnter(',
+    )[1]?.split('private playJourneyV700WorldExit')[0] ?? '';
+    const activateIndex = worldEnterSource.indexOf(
+      'journeySpatialMotion.activateJourneyWorld(container, worldId)',
+    );
+    const enterIndex = worldEnterSource.indexOf(
+      'await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed })',
+    );
+    const completeIndex = worldEnterSource.indexOf(
+      "emitIOSNativeDiagnostic('world-enter-complete'",
+    );
+
+    expect(activateIndex).toBeGreaterThanOrEqual(0);
+    expect(activateIndex).toBeLessThan(enterIndex);
+    expect(worldEnterSource.slice(completeIndex)).not.toContain(
+      'journeySpatialMotion.activateJourneyWorld(container, worldId)',
+    );
+  });
+
   test('Hub to World freezes the live iOS elastic owner before starting exit', () => {
     const openWorldSource = journeyManagerSource.split(
       'private openJourneyV700World(worldId: number, source?: HTMLElement): void',

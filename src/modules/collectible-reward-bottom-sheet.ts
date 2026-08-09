@@ -39,6 +39,7 @@ import {
 } from './gameplay-modal-benchmark.ts';
 import { mountGameplaySheetClose } from './gameplay-sheet-close.ts';
 import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
+import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 let rewardCtaControllers: CtaController[] = [];
 let disposeRewardSpatialMotion: (() => void) | null = null;
@@ -118,6 +119,10 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
       'Close collectible reward',
     );
     registerCleanup(() => closeController.dispose());
+    registerCleanup(installGameplayOverlayModalDragMotion(sheet, {
+      onDismiss: () => handleClose('drag'),
+      motionElement: sheet,
+    }));
     attachKeyboardHandlers(sheet);
     attachOutsideClickHandlers(overlay);
 

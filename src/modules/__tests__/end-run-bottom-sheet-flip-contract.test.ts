@@ -35,7 +35,9 @@ describe('reversible End Run bottom-sheet 3D flip experiment', () => {
     expect(endRunSource).toContain('<h2 id="end-run-modal-title" class="cc-gameplay-modal-title">');
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(endRunSource).toContain('hideModal();');
-    expect(endRunSource).toContain('if (!END_RUN_CENTERED_MODAL_TEST_ENABLED) {\n    addDragFunctionality(modal);');
+    expect(endRunSource).toContain('if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {');
+    expect(endRunSource).toContain('installGameplayOverlayModalDragMotion(modal, {');
+    expect(endRunSource).toContain('} else {\n    addDragFunctionality(modal);');
     expect(endRunSource).toContain("el.style.display = 'flex'");
     expect(endRunSource).toContain(
       '}, END_RUN_CENTERED_MODAL_ENTER_DURATION_MS + END_RUN_CENTERED_MODAL_ENTER_CLEANUP_BUFFER_MS);',
