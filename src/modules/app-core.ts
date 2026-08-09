@@ -239,7 +239,7 @@ import { handleEmptyLoadState } from './app-core-load-empty.ts';
 import { triggerHudDropIfPending, ensureHudFinalPosition } from './app-core-load-animation.ts';
 import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
-import { restoreTilesFromSave } from './app-core-load-tiles.ts';
+import { restoreTilesFromSave, resumeDeferredTntIdleEffects } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import {
   beginArcadeEntryCue,
@@ -14439,7 +14439,7 @@ async function loadGameState(overrideBoardNumber?: number) {
       devLog,
     });
 
-    restoreTilesFromSave({
+    const { deferredTntIdleTiles } = restoreTilesFromSave({
       gameState,
       tiles,
       grid,
@@ -14622,6 +14622,11 @@ async function loadGameState(overrideBoardNumber?: number) {
         });
       },
       onComplete: () => {
+        resumeDeferredTntIdleEffects(
+          deferredTntIdleTiles,
+          startTntIdleParticles,
+          startTntIdleShake,
+        );
         // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
         ensureHudFinalPosition({
           getHudRoot: () => (window as any).HUD_ROOT || HUD.HUD_ROOT || null,

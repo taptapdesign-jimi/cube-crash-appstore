@@ -167,8 +167,10 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       if (tile.special === 'wild-juice') {
         startWildJuiceBubbles(tile);
       } else if (tile.special === 'wild-tnt') {
-        startTntIdleParticles(tile);
-        startTntIdleShake(tile);
+        if ((tile as any)._ccDeferTntIdleFx !== true) {
+          startTntIdleParticles(tile);
+          startTntIdleShake(tile);
+        }
       } else if (tile.special === 'wild') {
         startWildStars(tile);
       }

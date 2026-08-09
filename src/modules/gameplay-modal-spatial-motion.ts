@@ -23,6 +23,11 @@ const JOURNEY_FLIP_RIBBON_PROFILE = Object.freeze({
   yDepth: 1.2,
 });
 
+const JOURNEY_FLIP_RIBBON_LABEL_PROFILE = Object.freeze({
+  xDepth: 2.4,
+  yDepth: 2.4,
+});
+
 /** Mounts a subtle gyro profile on a transform-isolated modal paper surface. */
 export function mountGameplayModalSpatialMotion(
   stage: HTMLElement,
@@ -44,8 +49,10 @@ export function mountJourneyCardFlipSpatialMotion(
   const ribbon = stage.querySelector<HTMLElement>(
     '.journey-card-overlay-portaled-card > .journey-card-ribbon',
   );
+  const ribbonLabel = ribbon?.querySelector<HTMLElement>('.journey-card-ribbon-label') ?? null;
   return appSpatialMotion.registerModalTargets(stage, [
     { element: target, ...JOURNEY_FLIP_CARD_PROFILE },
     ...(ribbon ? [{ element: ribbon, ...JOURNEY_FLIP_RIBBON_PROFILE }] : []),
+    ...(ribbonLabel ? [{ element: ribbonLabel, ...JOURNEY_FLIP_RIBBON_LABEL_PROFILE }] : []),
   ]);
 }

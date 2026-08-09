@@ -1,4 +1,5 @@
 import { playLoadPopInAnimation } from '../app-core-load-popin';
+import { resumeDeferredTntIdleEffects } from '../app-core-load-tiles';
 
 test('saved tiles stay hidden until the continuation cue finishes', async () => {
   document.body.innerHTML = '<main id="app"></main>';
@@ -38,4 +39,26 @@ test('saved tiles stay hidden until the continuation cue finishes', async () => 
     window.requestAnimationFrame = originalRaf;
     document.body.innerHTML = '';
   }
+});
+
+test('restored TNT idle starts only after the board pop-in owner completes', () => {
+  const liveTnt = { special: 'wild-tnt', _ccDeferTntIdleFx: true };
+  const destroyedTnt = { special: 'wild-tnt', destroyed: true, _ccDeferTntIdleFx: true };
+  const changedTile = { special: 'wild-juice', _ccDeferTntIdleFx: true };
+  const startParticles = jest.fn();
+  const startShake = jest.fn();
+
+  resumeDeferredTntIdleEffects(
+    [liveTnt, destroyedTnt, changedTile],
+    startParticles,
+    startShake,
+  );
+
+  expect(startParticles).toHaveBeenCalledTimes(1);
+  expect(startParticles).toHaveBeenCalledWith(liveTnt);
+  expect(startShake).toHaveBeenCalledTimes(1);
+  expect(startShake).toHaveBeenCalledWith(liveTnt);
+  expect(liveTnt).not.toHaveProperty('_ccDeferTntIdleFx');
+  expect(destroyedTnt).not.toHaveProperty('_ccDeferTntIdleFx');
+  expect(changedTile).not.toHaveProperty('_ccDeferTntIdleFx');
 });

@@ -33,7 +33,22 @@ type TileRestoreDeps = {
 
 type TileRestoreResult = {
   tilesToRestoreCount: number;
+  deferredTntIdleTiles: any[];
 };
+
+export function resumeDeferredTntIdleEffects(
+  deferredTiles: any[],
+  startParticles: (tile: any) => void,
+  startShake: (tile: any) => void,
+): void {
+  deferredTiles.forEach((tile) => {
+    if (!tile) return;
+    delete tile._ccDeferTntIdleFx;
+    if (tile.destroyed || tile.special !== 'wild-tnt') return;
+    try { startParticles(tile); } catch {}
+    try { startShake(tile); } catch {}
+  });
+}
 
 export function restoreTilesFromSave({
   gameState,
@@ -109,6 +124,7 @@ export function restoreTilesFromSave({
   const gridToUse = createEmptyGrid();
 
   const tilesToRestore: Array<{ snapshot: any; gridX: number; gridY: number }> = [];
+  const deferredTntIdleTiles: any[] = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const snapshot = savedGrid[r]?.[c];
@@ -179,6 +195,10 @@ export function restoreTilesFromSave({
     tile.isWild = !!isWildSnapshot;
     tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
     tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
+    if (tile.special === 'wild-tnt') {
+      tile._ccDeferTntIdleFx = true;
+      deferredTntIdleTiles.push(tile);
+    }
 
     tile.locked = shouldLock;
     makeBoard.setValue(tile, value, 0);
@@ -223,10 +243,6 @@ export function restoreTilesFromSave({
       if (tile.special === 'wild-magnet') {
         try { startMagnetIdleParticles(tile); } catch {}
       }
-      if (tile.special === 'wild-tnt') {
-        try { startTntIdleParticles?.(tile); } catch {}
-        try { startTntIdleShake?.(tile); } catch {}
-      }
       if (tile.special === 'wild-juice') {
         setWildJuiceSpawned(true);
         try {
@@ -257,5 +273,5 @@ export function restoreTilesFromSave({
     });
   } catch {}
 
-  return { tilesToRestoreCount: tilesToRestore.length };
+  return { tilesToRestoreCount: tilesToRestore.length, deferredTntIdleTiles };
 }

@@ -159,9 +159,8 @@
   overflow: visible;
 }
 
-.journey-card-flip-overlay[data-paint-face="front"]
-  .journey-card-flip-front {
-  filter: drop-shadow(0 13px 17px rgba(185, 145, 119, 0.8));
+.journey-card-flip-front {
+  filter: drop-shadow(0 14px 19px rgba(165, 124, 98, 0.86));
   transition: filter var(--journey-card-exit-neutral-duration, 520ms) linear;
 }
 
@@ -255,6 +254,7 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   transition: box-shadow var(--journey-card-exit-neutral-duration, 520ms) linear;
+  box-shadow: 0 14px 36px 0 rgba(165, 124, 98, 0.86);
 }
 
 /* Preserve the v917 12px-wide/16px-tall texture overscan without enlarging the
@@ -565,11 +565,11 @@
 }
 
 .journey-card-flip-overlay.is-exiting .journey-card-flip-front {
-  filter: drop-shadow(0 13px 17px rgba(185, 145, 119, 0));
+  filter: drop-shadow(0 14px 19px rgba(165, 124, 98, 0));
 }
 
 .journey-card-flip-overlay.is-exiting .journey-card-flip-paper {
-  box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0);
+  box-shadow: 0 14px 36px 0 rgba(165, 124, 98, 0);
   filter: none;
 }
 
@@ -3155,8 +3155,12 @@
   width: 100%;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 3px 3px rgba(161, 91, 54, 0.24));
+  filter: none;
   pointer-events: none;
+}
+
+.journey-card-overlay-portaled-card > .journey-card-ribbon > .journey-card-ribbon-image {
+  filter: drop-shadow(0 5px 5.7px #e2774a);
 }
 
 .journey-card-ribbon-label {
@@ -3164,7 +3168,7 @@
   left: 45%;
   top: 55%;
   z-index: 3;
-  color: #fffbf2;
+  color: #fff3dc;
   opacity: 0.9;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 13cqw;
@@ -3180,6 +3184,11 @@
   transform: translate3d(calc(-50% + 8px), calc(-50% - 9px), 0) rotate(41deg);
   transform-origin: center;
   pointer-events: none;
+}
+
+.journey-board-card > .journey-card-ribbon > .journey-card-ribbon-label {
+  font-weight: 700;
+  transform: translate3d(calc(-50% + 11px), calc(-50% - 10px), 0) rotate(41deg);
 }
 
 /* The enlarged portal needs the same visual placement at its larger scale. */
