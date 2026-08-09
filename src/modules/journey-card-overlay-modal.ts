@@ -36,6 +36,7 @@ interface JourneyCardOverlayModalOptions {
   scrollOwner?: HTMLElement | null;
   entryInitialOpacity?: number;
   onCardEntrySettled?: () => void;
+  onDismissCardLanded?: () => void;
   onPlayCardReturnStart?: () => void;
   onPlayCardExitStart?: () => void;
   onPlayCardExitComplete?: () => void;
@@ -57,7 +58,7 @@ export interface JourneyCardOverlayTiltProfile {
 let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
 
 export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 680;
-export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = 660;
+export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
 export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
 export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
 export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
@@ -121,19 +122,28 @@ function smoothstep(value: number): number {
 }
 
 /**
- * Entry keeps the source face readable for the first third of the flight and
- * crosses the physical edge at exactly 50%. Return starts the same -180 ->
- * -360 turn 30 timeline points earlier so Close immediately reads as a
- * physical flip-back instead of a translating stats sheet.
+ * Entry and return are the same physical turn in opposite spatial directions.
+ * Both keep the source face readable for the first third of the flight and
+ * cross the physical edge at exactly 50%.
  */
 export function getJourneyCardFlightFlipAngle(
   progress: number,
   direction: 'enter' | 'return',
 ): number {
-  const turnStartsAt = direction === 'return' ? 0.02 : 0.32;
+  const turnStartsAt = 0.32;
   const turn = smoothstep((clamp01(progress) - turnStartsAt) / 0.36);
   const signedTurn = turn === 0 ? 0 : turn * -180;
-  return direction === 'enter' ? signedTurn : -180 + signedTurn;
+  return direction === 'enter' ? signedTurn : -180 - signedTurn;
+}
+
+export function getJourneyCardFlipEdgeProgress(fromAngle: number, toAngle: number): number {
+  const distance = toAngle - fromAngle;
+  if (!Number.isFinite(distance) || Math.abs(distance) < 0.001) return 0.5;
+  const direction = Math.sign(distance);
+  const edge = direction < 0
+    ? Math.floor((fromAngle + 90) / 180) * 180 - 90
+    : Math.ceil((fromAngle - 90) / 180) * 180 + 90;
+  return clamp01((edge - fromAngle) / distance);
 }
 
 export function shouldCommitJourneyCardFlipDrag(
@@ -315,6 +325,7 @@ export function presentJourneyCardOverlayModal(
   let nextIdleCoachMode: 'drag' | 'tap' = 'drag';
   let backContentEnterTimer = 0;
   let backContentRestoreTimer = 0;
+  let flipEdgeTimer = 0;
   let backContentEnterScheduled = false;
   let disposeSpatialMotion: (() => void) | null = null;
   let closeController: GameplaySheetCloseController | null = null;
@@ -333,6 +344,13 @@ export function presentJourneyCardOverlayModal(
   let currentTranslateX = 0;
   let dragAxis: 'horizontal' | 'vertical' | null = null;
 
+  const setPaintFaceForAngle = (angle: number) => {
+    const normalized = ((angle % 360) + 360) % 360;
+    const edgeDistance = Math.abs(normalized - 90) < 0.001 || Math.abs(normalized - 270) < 0.001;
+    if (edgeDistance) return;
+    stage.dataset.paintFace = normalized > 90 && normalized < 270 ? 'back' : 'front';
+  };
+
   const stopSurfaceIdle = () => stage.classList.remove('is-surface-idle');
   const startSurfaceIdle = () => {
     if (!prefersReducedMotion && !entering && !closing && !settled && !flipping && activePointerId === null) {
@@ -340,11 +358,13 @@ export function presentJourneyCardOverlayModal(
     }
   };
 
-  const neutralizeExitMotionOwners = () => {
+  const neutralizeExitMotionOwners = (durationMs: number) => {
     const idleTransform = window.getComputedStyle(idleShell).transform || 'none';
     const gyroStyle = window.getComputedStyle(gyroShell);
     const gyroTranslate = gyroStyle.translate || 'none';
     const gyroTransform = gyroStyle.transform || 'none';
+    const safeDurationMs = Math.max(1, Math.round(durationMs));
+    stage.style.setProperty('--journey-card-exit-neutral-duration', `${safeDurationMs}ms`);
     stopSurfaceIdle();
     disposeSpatialMotion?.();
     disposeSpatialMotion = null;
@@ -360,11 +380,11 @@ export function presentJourneyCardOverlayModal(
       idleShell.animate([
         { transform: idleTransform },
         { transform: 'none' },
-      ], { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }),
+      ], { duration: safeDurationMs, easing: 'linear', fill: 'forwards' }),
       gyroShell.animate([
         { translate: gyroTranslate, transform: gyroTransform },
         { translate: 'none', transform: 'none' },
-      ], { duration: 260, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }),
+      ], { duration: safeDurationMs, easing: 'linear', fill: 'forwards' }),
     ];
   };
 
@@ -372,6 +392,7 @@ export function presentJourneyCardOverlayModal(
     currentAngle = angle;
     currentTranslateX = translateX;
     rotor.style.transform = `translate3d(${translateX}px, 0, 0) rotateY(${angle}deg)`;
+    setPaintFaceForAngle(angle);
   };
 
   const setRotorAngle = (angle: number) => setRotorPose(angle, 0);
@@ -398,11 +419,16 @@ export function presentJourneyCardOverlayModal(
       window.clearTimeout(backContentRestoreTimer);
       backContentRestoreTimer = 0;
     }
+    if (flipEdgeTimer !== 0) {
+      window.clearTimeout(flipEdgeTimer);
+      flipEdgeTimer = 0;
+    }
   };
 
   const restoreBackContentVisible = () => {
     backContentElements.forEach((element) => {
       element.classList.remove('is-content-entering');
+      element.classList.remove('is-content-exiting');
       element.style.removeProperty('animation-delay');
       element.style.removeProperty('opacity');
       element.style.removeProperty('visibility');
@@ -416,6 +442,7 @@ export function presentJourneyCardOverlayModal(
     backContentEnterScheduled = false;
     backContentElements.forEach((element) => {
       element.classList.remove('is-content-entering');
+      element.classList.remove('is-content-exiting');
       element.style.removeProperty('animation-delay');
       element.style.opacity = '0';
       element.style.visibility = 'hidden';
@@ -423,6 +450,27 @@ export function presentJourneyCardOverlayModal(
       element.style.willChange = 'transform, opacity';
     });
     ctaController?.prime('hidden');
+  };
+
+  const startBackContentExit = (physicalEdgeAtMs: number) => {
+    const totalMs = Math.ceil(
+      getDetailModalStatsEnterTotalDuration(backContentElements.length)
+      * JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE
+      * 1000,
+    );
+    const delayMs = Math.max(0, physicalEdgeAtMs - totalMs);
+    backContentEnterTimer = window.setTimeout(() => {
+      backContentEnterTimer = 0;
+      if (!closing || settled) return;
+      const delays = createDetailModalStatsEnterDelays(backContentElements.length)
+        .map((delay) => delay * JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE)
+        .reverse();
+      backContentElements.forEach((element, index) => {
+        element.classList.remove('is-content-entering');
+        element.style.animationDelay = `${delays[index] ?? 0}s`;
+        element.classList.add('is-content-exiting');
+      });
+    }, delayMs);
   };
 
   const startBackContentEnter = (delayMs = 0) => {
@@ -635,17 +683,23 @@ export function presentJourneyCardOverlayModal(
     ));
     const direction = Math.sign(to - from) || (targetFace === 'back' ? -1 : 1);
     const duration = prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_SNAP_DURATION_MS;
+    const edgeProgress = getJourneyCardFlipEdgeProgress(from, to);
     if (targetFace === 'back') {
-      startBackContentEnter(Math.round(duration * 0.4));
+      startBackContentEnter(Math.round(duration * edgeProgress));
     }
     if (typeof rotor.animate === 'function') {
       const animation = rotor.animate([
-        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)` },
-        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * 0.58}deg)`, offset: 0.48 },
+        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)`, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * edgeProgress}deg)`, offset: edgeProgress, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
         { transform: `translate3d(0, 0, 0) rotateY(${to + direction * 7}deg)`, offset: 0.82 },
         { transform: `translate3d(0, 0, 0) rotateY(${to}deg)` },
-      ], { duration, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' });
+      ], { duration, easing: 'linear' });
       flipAnimation = animation;
+      flipEdgeTimer = window.setTimeout(() => {
+        flipEdgeTimer = 0;
+        if (closing || settled || flipAnimation !== animation) return;
+        stage.dataset.paintFace = targetFace;
+      }, Math.round(duration * edgeProgress));
       try { await animation.finished; } catch {}
       if (flipAnimation === animation) flipAnimation = null;
     }
@@ -706,12 +760,6 @@ export function presentJourneyCardOverlayModal(
     stage.classList.remove('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
     stage.classList.add('is-settled');
     startBackContentEnter();
-    impactAnimation = impactShell.animate?.([
-      { transform: 'scale(1)' },
-      { transform: 'scale(1.045)', offset: 0.42 },
-      { transform: 'scale(0.988)', offset: 0.72 },
-      { transform: 'scale(1)' },
-    ], { duration: prefersReducedMotion ? 1 : 300, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }) ?? null;
     disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
     startSurfaceIdle();
     scheduleIdleCoach();
@@ -761,7 +809,7 @@ export function presentJourneyCardOverlayModal(
           ? clamp01((elapsedMs - travelStartsAtMs) / travelDurationMs)
           : rawProgress;
         if (stableFace === 'back') {
-          setRotorAngle(prefersReducedMotion ? -360 : getJourneyCardFlightFlipAngle(travelProgress, 'return'));
+          setRotorAngle(prefersReducedMotion ? 0 : getJourneyCardFlightFlipAngle(travelProgress, 'return'));
         }
         if (!play) return;
         if (!exitNotified && elapsedMs >= exitAtMs) {
@@ -794,7 +842,10 @@ export function presentJourneyCardOverlayModal(
     } else {
       const restored = options.origin.restoreNow();
       didLandAtOrigin = outcome === 'complete' && restored && options.origin.anchor.isConnected;
-      if (restored) await waitForPaints(2);
+      if (restored) {
+        await waitForPaints(2);
+        if (didLandAtOrigin) options.onDismissCardLanded?.();
+      }
     }
   };
 
@@ -808,13 +859,20 @@ export function presentJourneyCardOverlayModal(
     closing = true;
     flipping = false;
     clearBackContentTimers();
-    neutralizeExitMotionOwners();
+    const exitNeutralDurationMs = value === 'play'
+      ? JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS + JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS
+      : JOURNEY_CARD_FLIP_DISMISS_DURATION_MS;
+    neutralizeExitMotionOwners(prefersReducedMotion ? 1 : exitNeutralDurationMs);
     stopIdleCoach(false);
     flipAnimation?.cancel();
     flipAnimation = null;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
     stage.classList.add('is-flipping-to-front');
     stage.classList.add('is-exiting', 'is-backdrop-exiting');
+    const returnEdgeAtMs = value === 'play'
+      ? JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS + JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS / 2
+      : JOURNEY_CARD_FLIP_DISMISS_DURATION_MS / 2;
+    startBackContentExit(prefersReducedMotion ? 0 : returnEdgeAtMs);
     stage.style.pointerEvents = 'none';
     closeController?.element.setAttribute('aria-disabled', 'true');
     await Promise.all([

@@ -4805,6 +4805,128 @@ class JourneyBoardsManager {
     
     logger.debug('💚 Started interim bounce animation on card');
   }
+
+  private playOverlayCardLandingBounce(card: HTMLElement): void {
+    const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (this.renderDisposed || !card.isConnected || !cardWrapper) return;
+
+    this.stopOverlayCardLandingBounce(card);
+
+    const variant = createJourneyInterimBounceVariant();
+    const tiltDirection = Math.random() > 0.5 ? 1 : -1;
+    const tiltDegrees = JOURNEY_INTERIM_IDLE_MOTION.tiltDegrees;
+    const previousTransition = card.style.transition;
+    const previousWillChange = card.style.willChange;
+    const previousTransformOrigin = card.style.transformOrigin;
+    (cardWrapper as any)._overlayLandingBounceRestore = {
+      transition: previousTransition,
+      willChange: previousWillChange,
+      transformOrigin: previousTransformOrigin,
+    };
+
+    card.style.transition = 'none';
+    card.style.transformOrigin = '50% 50%';
+    card.style.willChange = 'transform';
+
+    const finish = () => {
+      if ((cardWrapper as any)._overlayLandingBounceTimeline !== timeline) return;
+      delete (cardWrapper as any)._overlayLandingBounceTimeline;
+      delete (cardWrapper as any)._overlayLandingBounceRestore;
+      card.style.transition = previousTransition;
+      card.style.willChange = previousWillChange;
+      card.style.transformOrigin = previousTransformOrigin;
+      gsap.set(card, { clearProps: 'transform' });
+    };
+    const timeline = trackTimeline({
+      defaults: { transformOrigin: 'center center', force3D: true },
+      onComplete: finish,
+      onInterrupt: finish,
+    });
+    (cardWrapper as any)._overlayLandingBounceTimeline = timeline;
+
+    timeline
+      .to(card, {
+        scaleX: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleX,
+        scaleY: JOURNEY_INTERIM_IDLE_MOTION.anticipationScaleY,
+        y: 1.5,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.anticipationDurationSeconds,
+        ease: 'power2.in',
+      })
+      .to(card, {
+        scaleX: variant.peakScaleX,
+        scaleY: variant.peakScaleY,
+        rotation: tiltDegrees * tiltDirection * variant.tiltMultiplier,
+        y: -JOURNEY_INTERIM_IDLE_MOTION.liftPx,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.riseDurationSeconds,
+        ease: 'back.out(2.5)',
+      })
+      .to(card, {
+        scaleX: variant.landScaleX,
+        scaleY: variant.landScaleY,
+        rotation: -tiltDegrees * tiltDirection * variant.tiltMultiplier * 0.22,
+        y: 1,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
+        ease: 'power2.in',
+        onComplete: () => {
+          if (this.renderDisposed || !card.isConnected) return;
+          try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
+          const smokeAlpha = Math.min(1, (0.68 + Math.random() * 0.14) * 1.4);
+          smokeBubblesAtCard(card, {
+            sizeScale: 0.54,
+            distanceScale: 0.58,
+            countScale: 0.28,
+            haloScale: 0.52,
+            strength: 1.55 + Math.random() * 0.2,
+            trailAlpha: smokeAlpha,
+            baseAlpha: smokeAlpha,
+            allowOverlap: false,
+            allowNonInterim: true,
+            activeLockMs: 720,
+            fadeOutTime: 0.46,
+            cleanupTime: 0.92,
+          });
+        },
+      })
+      .to(card, {
+        scaleX: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleX,
+        scaleY: JOURNEY_INTERIM_IDLE_MOTION.reboundScaleY,
+        rotation: tiltDegrees * tiltDirection * 0.12,
+        y: -2.5,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.reboundDurationSeconds,
+        ease: 'power2.out',
+      })
+      .to(card, {
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        y: 0,
+        duration: JOURNEY_INTERIM_IDLE_MOTION.settleDurationSeconds,
+        ease: 'back.out(1.7)',
+      });
+  }
+
+  private stopOverlayCardLandingBounce(card: HTMLElement): void {
+    const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (!cardWrapper) return;
+    const timeline = (cardWrapper as any)._overlayLandingBounceTimeline;
+    const restore = (cardWrapper as any)._overlayLandingBounceRestore as {
+      transition: string;
+      willChange: string;
+      transformOrigin: string;
+    } | undefined;
+    if (timeline) {
+      try { timeline.kill(); } catch {}
+    }
+    delete (cardWrapper as any)._overlayLandingBounceTimeline;
+    delete (cardWrapper as any)._overlayLandingBounceRestore;
+    try { gsap.killTweensOf(card); } catch {}
+    try { gsap.set(card, { clearProps: 'transform' }); } catch {}
+    if (restore) {
+      card.style.transition = restore.transition;
+      card.style.willChange = restore.willChange;
+      card.style.transformOrigin = restore.transformOrigin;
+    }
+  }
   
   /**
    * 🔥 USER REQUEST: Stop bounce animation on interim card
@@ -8140,6 +8262,11 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingDetail = true;
 
+        // A rapid re-open may arrive while the prior dismiss landing bounce
+        // still owns the card transform. Normalize that transient owner before
+        // origin capture so the modal always leases the full settled card.
+        this.stopOverlayCardLandingBounce(cardEl);
+
         // Capture before idle ownership is paused or any GSAP tween is killed.
         // This is the exact on-screen pose the user's finger selected.
         const originLease = JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED
@@ -8593,6 +8720,9 @@ class JourneyBoardsManager {
         onCardEntrySettled: () => {
           cardElement.querySelector('.journey-card-ribbon')?.remove();
         },
+        onDismissCardLanded: () => {
+          this.playOverlayCardLandingBounce(cardElement);
+        },
         onPlayCardReturnStart: () => {
           this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
         },
@@ -8718,17 +8848,13 @@ class JourneyBoardsManager {
     }
   }
 
-  private waitForJourneyOverlayReturnReady(
-    boardId: number,
-    timeoutMs = 5200,
-  ): Promise<HTMLElement | null> {
+  private waitForJourneyOverlayReturnReady(boardId: number): Promise<HTMLElement | null> {
     const expectedWorldId = this.getJourneyWorldIdForBoard(boardId);
-    const startedAt = performance.now();
     let stablePaintFrames = 0;
 
     return new Promise((resolve) => {
       const sample = () => {
-        if (this.renderDisposed || performance.now() - startedAt >= timeoutMs) {
+        if (this.renderDisposed) {
           resolve(null);
           return;
         }
@@ -8806,7 +8932,6 @@ class JourneyBoardsManager {
         phase: this.journeyV700Phase,
         worldId: this.journeyV700WorldId,
       });
-      cancelJourneyCardOverlayReturn(boardId);
       return;
     }
     const origin = acquireJourneyCardOriginLease(boardId, targetElement);
@@ -8846,6 +8971,9 @@ class JourneyBoardsManager {
         hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
         scrollOwner,
         entryInitialOpacity: 1,
+        onDismissCardLanded: () => {
+          this.playOverlayCardLandingBounce(targetElement);
+        },
         onPlayCardReturnStart: () => {
           this.stopJourneyAreaIdleForTargets(this.getJourneyAreaElements(board.id));
         },

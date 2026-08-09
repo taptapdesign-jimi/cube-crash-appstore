@@ -329,9 +329,10 @@ export function getJourneyCardSpatialProgress(
   direction: 'enter' | 'return',
 ): number {
   const progress = Math.min(1, Math.max(0, rawProgress));
-  const frames = direction === 'enter'
-    ? [[0, 0], [0.08, -0.028], [0.58, 1.105], [0.76, 0.965], [0.9, 1.022], [1, 1]]
-    : [[0, 0], [0.08, -0.035], [0.62, 1.055], [0.78, 0.978], [0.9, 1.014], [1, 1]];
+  if (direction === 'return') {
+    return 1 - getJourneyCardSpatialProgress(1 - progress, 'enter');
+  }
+  const frames = [[0, 0], [0.58, 1.105], [0.76, 0.965], [0.9, 1.022], [1, 1]];
   for (let index = 1; index < frames.length; index += 1) {
     const [endAt, endValue] = frames[index];
     if (progress > endAt) continue;

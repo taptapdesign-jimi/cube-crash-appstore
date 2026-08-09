@@ -20,15 +20,18 @@ describe('Journey exact-card portal transition', () => {
 
   test('uses a cartoon overshoot while ending at an exact terminal pose', () => {
     expect(getJourneyCardSpatialProgress(0, 'enter')).toBe(0);
-    expect(getJourneyCardSpatialProgress(0.08, 'enter')).toBeCloseTo(-0.028, 5);
+    expect(getJourneyCardSpatialProgress(0.01, 'enter')).toBeGreaterThan(0);
+    expect(getJourneyCardSpatialProgress(0.08, 'enter')).toBeGreaterThan(0);
     expect(getJourneyCardSpatialProgress(0.58, 'enter')).toBeCloseTo(1.105, 5);
     expect(getJourneyCardSpatialProgress(0.76, 'enter')).toBeCloseTo(0.965, 5);
     expect(getJourneyCardSpatialProgress(0.9, 'enter')).toBeCloseTo(1.022, 5);
     expect(getJourneyCardSpatialProgress(1, 'enter')).toBe(1);
-    expect(getJourneyCardSpatialProgress(0.08, 'return')).toBeCloseTo(-0.035, 5);
-    expect(getJourneyCardSpatialProgress(0.62, 'return')).toBeCloseTo(1.055, 5);
-    expect(getJourneyCardSpatialProgress(0.78, 'return')).toBeCloseTo(0.978, 5);
-    expect(getJourneyCardSpatialProgress(0.9, 'return')).toBeCloseTo(1.014, 5);
+    for (const progress of [0, 0.08, 0.25, 0.5, 0.62, 0.78, 0.9, 1]) {
+      expect(getJourneyCardSpatialProgress(progress, 'return')).toBeCloseTo(
+        1 - getJourneyCardSpatialProgress(1 - progress, 'enter'),
+        8,
+      );
+    }
     expect(getJourneyCardSpatialProgress(1, 'return')).toBe(1);
 
     expect(computeJourneyCardSpatialPose(

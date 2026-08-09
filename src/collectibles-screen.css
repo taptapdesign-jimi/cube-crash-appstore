@@ -92,7 +92,8 @@
 
 .journey-card-flip-overlay.is-exiting .journey-card-flip-idle-shell {
   rotate: 0deg;
-  transition-duration: 260ms;
+  transition-duration: var(--journey-card-exit-neutral-duration, 680ms);
+  transition-timing-function: linear;
 }
 
 .journey-card-flip-overlay.is-surface-idle .journey-card-flip-idle-shell {
@@ -109,6 +110,15 @@
   --cc-modal-gyro-rx: 0deg;
   --cc-modal-gyro-ry: 0deg;
   --cc-modal-gyro-z: 0px;
+}
+
+/* The overlay is the single camera for this two-sided object. A second nested
+   perspective on the live gyro target makes WKWebView face sorting unstable. */
+.journey-card-flip-gyro-shell.cc-modal-spatial-target {
+  transform:
+    translate3d(0, 0, var(--cc-modal-gyro-z))
+    rotateX(var(--cc-modal-gyro-rx))
+    rotateY(var(--cc-modal-gyro-ry));
 }
 
 .journey-card-flip-rotor {
@@ -148,17 +158,21 @@
   overflow: visible;
 }
 
+.journey-card-flip-overlay[data-paint-face="front"]:not(.is-exiting)
+  .journey-card-flip-front {
+  filter: drop-shadow(0 13px 17px rgba(185, 145, 119, 0.8));
+}
+
 .journey-card-flip-back {
   transform: rotateY(-180deg) translateZ(0.6px);
   -webkit-transform: rotateY(-180deg) translateZ(0.6px);
 }
 
-/* WKWebView may keep descendants of the separately composited paper face
-   paintable through transparent pixels of the artwork PNG. Cull the complete
-   rear face while artwork is stable; the direction class restores it before
-   any artwork-to-stats turn starts. */
-.journey-card-flip-overlay[data-face="front"]:not(.is-flipping-to-back)
-  .journey-card-flip-back {
+/* WKWebView may keep descendants of either separately composited face
+   paintable through transparent pixels. The rotor's physical-edge owner culls
+   exactly one face and changes ownership only after the 90deg crossing. */
+.journey-card-flip-overlay[data-paint-face="front"] .journey-card-flip-back,
+.journey-card-flip-overlay[data-paint-face="back"] .journey-card-flip-front {
   visibility: hidden;
 }
 
@@ -372,6 +386,16 @@
   will-change: transform, opacity;
 }
 
+.journey-card-flip-stat.is-content-exiting,
+.journey-card-flip-divider.is-content-exiting {
+  animation-name: detailStatPopOut;
+  animation-duration: 0.2s;
+  animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  animation-fill-mode: both;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
 .journey-card-flip-cta.cc-cta {
   min-height: 64px;
   margin-top: auto;
@@ -511,16 +535,6 @@
   z-index: 5;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
-}
-
-/* When the automatic turn leaves the stats/modal side, Close retires at the
-   start of the turn instead of floating across the rotating card artwork. */
-.journey-card-flip-overlay.is-flipping-to-front
-  .journey-card-flip-back-shell > .gameplay-sheet-close {
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: none;
 }
 
 /* The shared Close button owns its own composited transform. Keep a stable-face
