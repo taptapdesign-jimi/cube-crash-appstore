@@ -53,11 +53,11 @@ describe('shared gameplay sheet close', () => {
       /\.cc-gameplay-modal-gyro-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
     )?.[1] ?? '';
 
-    expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-idle-shell')");
+    expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-gyro-shell')");
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(scoreSource).toContain('mountGameplaySheetClose(scoreCloseHost');
     expect(rewardSource).toContain('mountGameplaySheetClose(');
-    expect(spatialSource).toContain('mountGameplaySheetClose(dragShell, onDismiss)');
+    expect(spatialSource).toContain('mountGameplaySheetClose(gyroShell, onDismiss)');
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close,');
     expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {');
     expect(closePaperRule).not.toContain('clip-path');

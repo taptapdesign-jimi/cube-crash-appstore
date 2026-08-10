@@ -74,7 +74,7 @@ describe('Journey Hub transition ownership', () => {
 
   test('Homepage motion is released before its Journey exit starts', () => {
     const handoffSource = uiManagerSource.split(
-      'private showCollectiblesScreenWithAnimation(): void',
+      'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
     const releaseIndex = handoffSource.indexOf('journeySpatialMotion.suspendHomepage()');
     const exitIndex = handoffSource.indexOf('animateJourneySliderExit()');
@@ -86,7 +86,7 @@ describe('Journey Hub transition ownership', () => {
 
   test('fast Back to Enter cancels the Homepage owner before Journey starts', () => {
     const journeyHandoffSource = uiManagerSource.split(
-      'private showCollectiblesScreenWithAnimation(): void',
+      'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
     const homepageEnterSource = mainSource.split(
       'async function playHomepageSliderEnterHandoff(',

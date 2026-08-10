@@ -1,5 +1,6 @@
 import { registerCta, type CtaController } from './cta-system.js';
 import { runGameplayModalParallelExit } from './gameplay-modal-benchmark.js';
+import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 import { mountGameplaySheetClose } from './gameplay-sheet-close.js';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
@@ -189,6 +190,9 @@ export function showSpatialMotionPermissionModal(
     const paperSurface = document.createElement('div');
     paperSurface.className = 'journey-spatial-permission-paper bottom-sheet-paper-surface';
 
+    const gyroShell = document.createElement('div');
+    gyroShell.className = 'cc-gameplay-modal-gyro-shell';
+
     const flipShell = document.createElement('div');
     flipShell.className = 'journey-spatial-permission-flip-shell';
 
@@ -232,7 +236,7 @@ export function showSpatialMotionPermissionModal(
     const copy = document.createElement('p');
     copy.id = 'spatial-motion-permission-copy';
     copy.className = 'journey-spatial-permission-copy';
-    copy.textContent = 'Tilt your phone to add a little motion.';
+    copy.textContent = 'A playful little extra.';
 
     const enableButton = document.createElement('button');
     enableButton.type = 'button';
@@ -243,12 +247,17 @@ export function showSpatialMotionPermissionModal(
     actions.className = 'journey-spatial-permission-actions';
     actions.append(enableButton);
     paperSurface.append(title, art, copy, actions);
+    // Match the accepted Journey modal ownership: gyro carries the complete
+    // physical object (clipped paper + attached Close), while only the inner
+    // flip shell clips the rounded paper during its 3D turn.
     flipShell.appendChild(paperSurface);
-    dragShell.appendChild(flipShell);
+    gyroShell.appendChild(flipShell);
+    dragShell.appendChild(gyroShell);
     card.appendChild(dragShell);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     activeOverlay = overlay;
+    let disposeSpatialMotion = () => undefined;
 
     let choiceExitInProgress = false;
     let closeButton: HTMLButtonElement | null = null;
@@ -289,11 +298,12 @@ export function showSpatialMotionPermissionModal(
         onActivate: onEnable,
       }),
     ];
-    const closeController = mountGameplaySheetClose(dragShell, onDismiss);
+    const closeController = mountGameplaySheetClose(gyroShell, onDismiss);
     closeButton = closeController.element;
     document.addEventListener('keydown', onKeyDown);
-    const randomDirection = Math.random() < 0.5 ? -1 : 1;
-    const restTiltDeg = Number((randomDirection * (2 + Math.random() * 1.25)).toFixed(2));
+    // The first-run explainer must present square to the viewport. Live gyro
+    // still owns X/Y response after presentation; only the static rest cant is 0.
+    const restTiltDeg = 0;
     const cardHeight = card.getBoundingClientRect().height;
     const dragCommitDistance = Math.min(140, Math.max(88, Math.max(1, cardHeight) * 0.22));
     const disposeDragDismiss = installGameplayOverlayModalDragMotion(card, {
@@ -310,6 +320,7 @@ export function showSpatialMotionPermissionModal(
       document.removeEventListener('keydown', onKeyDown);
     };
     overlayLifecycle.__spatialMotionFinalCleanup = () => {
+      disposeSpatialMotion();
       disposeDragDismiss();
       closeController.dispose();
     };
@@ -328,6 +339,9 @@ export function showSpatialMotionPermissionModal(
         });
         void activeCtaControllers[0]?.enter();
         card.focus({ preventScroll: true });
+        // Enter owns the first two paint barriers. Register gyro only after the
+        // modal is visible so its RAF cannot reorder focus or the primed frame.
+        disposeSpatialMotion = mountGameplayModalSpatialMotion(overlay, gyroShell);
         const cardStyle = getComputedStyle(card);
         emitSpatialIntroDiagnostic('presented', {
           activeElementIsCard: document.activeElement === card,

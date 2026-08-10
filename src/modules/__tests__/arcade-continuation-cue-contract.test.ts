@@ -12,6 +12,7 @@ describe('Arcade continuation Round cue contract', () => {
     );
 
     expect(cue).toContain('await playRoundNumberPhase(parts, resumedStage)');
+    expect(cue).toContain('onPresented?.();');
     expect(cue).toContain('cancelArcadeStageClearModal();');
     expect(cue).not.toContain('gsap.timeline(');
     expect(cue).not.toContain("action: 'continue'");

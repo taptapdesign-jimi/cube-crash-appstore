@@ -1100,6 +1100,12 @@ async function startAssetPreloading(): Promise<void> {
       if (html) html.style.background = targetGradient;
     }
     
+    // The launch modal is allowed to outlive Homepage preparation. Acquire the
+    // canonical first slide again while Homepage is still paint-proof hidden,
+    // so no stale/late iOS navigation gesture can make Journey the startup
+    // truth or leave PLAY offscreen.
+    sliderManager.syncHiddenSlideState(0);
+
     // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
     primeHomeCtaForEnter();
     await startupAssetPreloadPromise;
@@ -2763,6 +2769,7 @@ async function startNewRun(boardId: number): Promise<void> {
     }
 
     if (exitRoute.target === 'journey') {
+      const firstPlayTutorialHubReturn = (window as any).__ccFirstPlayTutorialReturnToJourneyHub === true;
       // AppZoneManager intentionally consumes the broad Journey-origin flags
       // while resolving the route. A direct board -> Journey return still
       // needs an explicit animation handoff, otherwise showCollectibles sees
@@ -2775,8 +2782,25 @@ async function startNewRun(boardId: number): Promise<void> {
         (window as any).__ccJourneyReturnBoardId ||
         0
       );
-      const returningFromInterimBoard = isJourneyInterimOriginActive();
-      if (returningFromInterimBoard) {
+      const returningFromInterimBoard = !firstPlayTutorialHubReturn && isJourneyInterimOriginActive();
+      if (firstPlayTutorialHubReturn) {
+        delete (window as any).__ccReturningFromInterimBoard;
+        delete (window as any).__ccReturningFromDetailModal;
+        delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+        delete (window as any).__ccJourneyReturnBoardId;
+        delete (window as any).__ccLastActiveJourneyBoardAreaId;
+        try {
+          localStorage.removeItem('__ccReturningFromInterimBoard');
+          localStorage.removeItem('__ccJourneyReturnBoardId');
+          localStorage.removeItem('__ccLastActiveJourneyBoardAreaId');
+        } catch {}
+        try {
+          const { journeyBoardsManager } = await journeyManagerPromise;
+          journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();
+        } catch (hubPrepareError) {
+          console.warn('⚠️ Failed to prepare first-play Journey Hub return:', hubPrepareError);
+        }
+      } else if (returningFromInterimBoard) {
         (window as any).__ccReturningFromInterimBoard = true;
         try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
       } else {
@@ -2788,8 +2812,10 @@ async function startNewRun(boardId: number): Promise<void> {
       // Set this before showJourneyShell can scope/render the saved world.
       // showCollectibles will consume the flag when it starts the one visible
       // coordinated return enter.
-      (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
-      if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
+      if (!firstPlayTutorialHubReturn) {
+        (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+      }
+      if (!firstPlayTutorialHubReturn && Number.isFinite(returnBoardId) && returnBoardId > 0) {
         (window as any).__ccJourneyReturnBoardId = returnBoardId;
         (window as any).__ccLastActiveJourneyBoardAreaId = returnBoardId;
         try { localStorage.setItem('__ccJourneyReturnBoardId', String(returnBoardId)); } catch {}
@@ -2798,6 +2824,7 @@ async function startNewRun(boardId: number): Promise<void> {
       emitIOSNativeDiagnostic('main-journey-board-return-prepared', {
         boardId: Number.isFinite(returnBoardId) && returnBoardId > 0 ? returnBoardId : null,
         returningFromInterimBoard,
+        firstPlayTutorialHubReturn,
       });
 
       const detailModal = document.getElementById('collectibles-detail-modal');

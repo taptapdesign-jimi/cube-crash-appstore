@@ -742,7 +742,10 @@ export async function showArcadeStageClearModal(stageNumber: number, nextStageNu
  * resumed from Homepage. It never resolves a stage-clear continuation and
  * therefore cannot advance, reset, close, or rebuild gameplay.
  */
-export async function showArcadeContinuationRoundCue(stageNumber: number): Promise<void> {
+export async function showArcadeContinuationRoundCue(
+  stageNumber: number,
+  onPresented?: () => void,
+): Promise<void> {
   cancelArcadeStageClearModal();
   ensureStyles();
 
@@ -751,6 +754,7 @@ export async function showArcadeContinuationRoundCue(stageNumber: number): Promi
   activeOverlay = parts.overlay;
   appSpatialMotion.activateArcadeStageClear(parts.overlay, resumedStage - 1);
   gsap.set(parts.clearCard, { opacity: 0 });
+  onPresented?.();
 
   try {
     await playRoundNumberPhase(parts, resumedStage);

@@ -66,7 +66,11 @@ describe('shared gameplay modal benchmark', () => {
     expect(score).toContain('mountGameplayModalSpatialMotion');
     expect(reward).toContain('mountGameplayModalSpatialMotion');
     expect(endRun).toContain('mountGameplayModalSpatialMotion');
+    expect(spatialPermission).toContain('mountGameplayModalSpatialMotion');
+    expect(spatialPermission).toContain('disposeSpatialMotion();');
     expect(journeyOverlay).toContain('mountJourneyCardFlipSpatialMotion');
+    expect(modalSpatialMotion).toContain('const OVERLAY_MODAL_PROFILE = Object.freeze({');
+    expect(modalSpatialMotion.match(/\.\.\.OVERLAY_MODAL_PROFILE/g)).toHaveLength(2);
     expect(modalSpatialMotion).not.toContain("addEventListener('deviceorientation'");
     expect(css).toContain('.cc-modal-spatial-target {');
   });
@@ -114,6 +118,17 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('translate3d(0, 1px, 0) scale(0.995)');
     expect(css).toContain('animation: cc-gameplay-modal-idle-shadow 6.8s ease-in-out infinite both;');
     expect(css).not.toContain('@keyframes cc-gameplay-modal-idle-tilt');
+  });
+
+  test('keeps Tilt Motion on Journey modal width, attached Close, and real bottom spacing', () => {
+    expect(spatialPermission).toContain('flipShell.appendChild(paperSurface);');
+    expect(spatialPermission).toContain('gyroShell.appendChild(flipShell);');
+    expect(spatialPermission).toContain('dragShell.appendChild(gyroShell);');
+    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-overlay \{[\s\S]*?32px[\s\S]*?max\(24px, env\(safe-area-inset-bottom/);
+    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-paper \{[\s\S]*?padding: 32px 24px 40px;/);
+    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-flip-shell \{[\s\S]*?overflow: hidden;/);
+    expect(collectiblesCss).toContain('margin-bottom: -16px;');
+    expect(collectiblesCss).toContain('padding-bottom: 56px;');
   });
 
   test('starts idle only after enter and keeps it on a transform-isolated owner', () => {

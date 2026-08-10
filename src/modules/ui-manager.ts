@@ -19,7 +19,11 @@ import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 import { markArcadeHomeRunOrigin } from './run-mode.js';
-import { activateFirstPlayTutorialWhenReady, beginFirstPlayTutorialRun } from './first-play-tutorial.js';
+import {
+  activateFirstPlayTutorialWhenReady,
+  beginFirstPlayTutorialRun,
+  isFirstPlayTutorialForced,
+} from './first-play-tutorial.js';
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
@@ -421,7 +425,10 @@ class UIManager {
       logger.warn('⚠️ Home Play: failed to clear saves before one-time run:', error);
     }
 
-    const shouldResumeArcade = hasArcadeSavedState();
+    // A forced/clean-install first play always owns Board 1 tutorial. Ignore
+    // any migrated or partially-cleared Arcade save until that tutorial has
+    // actually completed.
+    const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState();
     if ((window as any).triggerGameStartSequence) {
       (window as any).triggerGameStartSequence({ resumeArcade: shouldResumeArcade });
     } else {
@@ -494,15 +501,20 @@ class UIManager {
     event.preventDefault();
     logger.info('🗺️ Journey button clicked (opens Journey screen)');
     
-    // Light haptic for Stats button
-    if (typeof (window as any).triggerHapticImpact === 'function') {
+    // The bottom Journey nav icon already emitted its own haptic before it
+    // forwarded a first-play choice here.
+    const journeyNavHapticHandled = (window as any).__ccFirstPlayJourneyNavHapticHandled === true;
+    delete (window as any).__ccFirstPlayJourneyNavHapticHandled;
+    if (!journeyNavHapticHandled && typeof (window as any).triggerHapticImpact === 'function') {
       (window as any).triggerHapticImpact('light');
     }
     
     // NO RESET - let :active work normally like Play button
     
-    // Play exit animation first, then show collectibles screen (swapped)
-    this.showCollectiblesScreenWithAnimation();
+    // On a true first run, Journey itself owns the tutorial choice. The same
+    // Homepage exit leads directly to tutorial gameplay instead of briefly
+    // revealing Journey Worlds first.
+    this.showCollectiblesScreenWithAnimation(isFirstPlayTutorialForced());
   }
 
   // Handle collectibles button click
@@ -1427,7 +1439,7 @@ class UIManager {
   }
   
   // Show Journey screen with exit animation
-  private showCollectiblesScreenWithAnimation(): void {
+  private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void {
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     try { (window as any).CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
@@ -1535,13 +1547,13 @@ class UIManager {
 
     const collectiblesManager = (window as any).collectiblesManager;
     const journeyPreparePromise: Promise<void> =
-      collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function'
+      !launchFirstPlayTutorial && collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function'
         ? collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
             logger.warn('⚠️ Failed to prepare Journey screen:', error);
           })
         : Promise.resolve();
     // Exit and preparation run concurrently and join at one exact handoff.
-    Promise.all([exitCompletePromise, journeyPreparePromise]).then(() => {
+    Promise.all([exitCompletePromise, journeyPreparePromise]).then(async () => {
       console.log('🗺️ Homepage exit and Journey preparation complete - revealing Journey once');
       // The shared paper surface is already active.
       // No need to change it - it stays at 60% throughout
@@ -1551,6 +1563,29 @@ class UIManager {
         appElement.style.setProperty('background-image', 'none', 'important');
       }
       console.log('✅ [Journey ENTER] Paper background with 60% opacity already set - no changes needed');
+
+      if (launchFirstPlayTutorial) {
+        const startJourneyTutorial = (window as any).startNewRunFromJourney;
+        if (typeof startJourneyTutorial !== 'function') {
+          throw new Error('startNewRunFromJourney is unavailable for first-play Journey tutorial');
+        }
+        // Keep the completed Slider 2 exit fill-forwards until the Homepage is
+        // paint-proof hidden. Mark Journey ownership before startNewRun reads
+        // it, preventing a second Homepage exit and an instant reset frame.
+        const { appZoneManager } = await import('./app-zone-manager.js');
+        appZoneManager.prepareJourneyRunOrigin({
+          reason: 'first-play-journey-slider-handoff',
+          boardId: 1,
+        });
+        await appZoneManager.hideHomepageForGame('first-play-journey-slider-handoff');
+        finalizeJourneySliderExit();
+        journeySpatialMotion.deactivateHomepage();
+        (window as any).__ccIsAnimatingSliderExit = () => false;
+        (window as any).__ccUiJourneyTransitioning = false;
+        gameState.set('sliderLocked', false);
+        await startJourneyTutorial(1);
+        return;
+      }
 
       try {
         this.showCollectiblesScreen();

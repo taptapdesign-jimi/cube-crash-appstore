@@ -2,15 +2,10 @@ import { appSpatialMotion } from './journey-spatial-motion.js';
 
 export type GameplayModalSpatialProfile = 'standard' | 'journey-pair';
 
-const STANDARD_MODAL_PROFILE = Object.freeze({
-  xDepth: 5.5,
-  yDepth: 4.5,
-  rotateXDegrees: 1.8,
-  rotateYDegrees: 2.4,
-  zDepth: 5,
-});
-
-const JOURNEY_FLIP_CARD_PROFILE = Object.freeze({
+// Every paper modal shown over the shared backdrop uses the accepted Journey
+// card response. Keeping one profile prevents score/reward/exit surfaces from
+// feeling flatter than the Journey modal while retaining one sensor/RAF owner.
+const OVERLAY_MODAL_PROFILE = Object.freeze({
   xDepth: 9,
   yDepth: 10,
   rotateXDegrees: 4.6,
@@ -34,7 +29,7 @@ export function mountGameplayModalSpatialMotion(
   target: HTMLElement | null,
 ): () => void {
   if (!target) return () => undefined;
-  return appSpatialMotion.registerModalTargets(stage, [{ element: target, ...STANDARD_MODAL_PROFILE }]);
+  return appSpatialMotion.registerModalTargets(stage, [{ element: target, ...OVERLAY_MODAL_PROFILE }]);
 }
 
 /**
@@ -51,7 +46,7 @@ export function mountJourneyCardFlipSpatialMotion(
   );
   const ribbonLabel = ribbon?.querySelector<HTMLElement>('.journey-card-ribbon-label') ?? null;
   return appSpatialMotion.registerModalTargets(stage, [
-    { element: target, ...JOURNEY_FLIP_CARD_PROFILE },
+    { element: target, ...OVERLAY_MODAL_PROFILE },
     ...(ribbon ? [{ element: ribbon, ...JOURNEY_FLIP_RIBBON_PROFILE }] : []),
     ...(ribbonLabel ? [{ element: ribbonLabel, ...JOURNEY_FLIP_RIBBON_LABEL_PROFILE }] : []),
   ]);

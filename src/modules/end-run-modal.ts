@@ -399,18 +399,20 @@ function createModal(): HTMLElement {
     <div class="end-run-modal-bounce-shell">
       <div class="end-run-sheet-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
-          <div class="end-run-paper-clip-shell">
-            <div class="modal-handle"></div>
-            <div class="simple-content">
-              <div class="simple-header">
-                <div class="simple-title-section">
-                  <h2 id="end-run-modal-title" class="cc-gameplay-modal-title">${titleText}</h2>
-                  <p>${subtitleText}</p>
-                </div>
-                <div class="simple-buttons">
-                  <div class="simple-button-row">
-                    <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
-                    <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+          <div class="cc-gameplay-modal-gyro-shell">
+            <div class="end-run-paper-clip-shell">
+              <div class="modal-handle"></div>
+              <div class="simple-content">
+                <div class="simple-header">
+                  <div class="simple-title-section">
+                    <h2 id="end-run-modal-title" class="cc-gameplay-modal-title">${titleText}</h2>
+                    <p>${subtitleText}</p>
+                  </div>
+                  <div class="simple-buttons">
+                    <div class="simple-button-row">
+                      <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
+                      <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -421,7 +423,7 @@ function createModal(): HTMLElement {
     </div>
   `;
 
-  const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-idle-shell') as HTMLElement | null;
+  const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-gyro-shell') as HTMLElement | null;
   if (endRunCloseHost) {
     endRunCloseController = mountGameplaySheetClose(endRunCloseHost, () => {
       console.log('✕ End Run modal close control activated');
@@ -773,7 +775,7 @@ export function showEndRunModal(): void {
     const el = createModal();
     disposeEndRunSpatialMotion = mountGameplayModalSpatialMotion(
       el,
-      el.querySelector<HTMLElement>('.end-run-paper-clip-shell'),
+      el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
     );
     console.log('🎯 END RUN MODAL CREATED');
 

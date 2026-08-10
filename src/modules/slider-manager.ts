@@ -12,6 +12,7 @@ import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
+import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTween = (target: any, vars: any) => {
@@ -64,6 +65,7 @@ class SliderManager {
   private navButtonAnimations: gsap.core.Animation[] = [];
   private pendingNavBounceSlide: number | null = null;
   private pendingHeroBounceSlide: number | null = null;
+  private firstPlayJourneyNavigationPending = false;
   private suppressCurrentSlideSubscription: boolean = false;
   private gestureLastX: number = 0;
   private gestureLastTs: number = 0;
@@ -485,12 +487,32 @@ class SliderManager {
     this.boundHandlers.navButtonClick = new Map();
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button) => {
-      const handler = () => {
+      const handler = async () => {
         // Light haptic for nav buttons
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('light');
         }
         const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
+
+        // On a clean install the Journey nav icon is itself a tutorial choice.
+        // Reuse the canonical Journey CTA handler so the Homepage exit remains
+        // identical and no Journey Worlds frame is exposed before gameplay.
+        if (slideIndex === 1 && isFirstPlayTutorialForced()) {
+          const journeyButton = document.getElementById('btn-journey');
+          if (journeyButton instanceof HTMLButtonElement && !this.firstPlayJourneyNavigationPending) {
+            this.firstPlayJourneyNavigationPending = true;
+            (window as any).__ccFirstPlayJourneyNavHapticHandled = true;
+            try {
+              const settled = await this.goToSlideAndWait(1);
+              if (settled && isFirstPlayTutorialForced()) journeyButton.click();
+            } finally {
+              this.firstPlayJourneyNavigationPending = false;
+              delete (window as any).__ccFirstPlayJourneyNavHapticHandled;
+            }
+            return;
+          }
+        }
+
         this.pendingNavBounceSlide = this.resolveHiddenSlideTarget(slideIndex);
         this.goToSlide(slideIndex);
       };
@@ -1019,6 +1041,42 @@ class SliderManager {
       this.updateSlider(true);
     }
   }
+
+  /** Navigate with the normal slider owner and resolve only at its settled pose. */
+  public goToSlideAndWait(slideIndex: number): Promise<boolean> {
+    const resolvedSlide = this.resolveHiddenSlideTarget(slideIndex);
+    if (gameState.get('sliderLocked') || sliderState.isAnimatingExit) {
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = (settled: boolean) => {
+        if (finished) return;
+        finished = true;
+        window.removeEventListener('cc-slider-settled', onSettled as EventListener);
+        window.clearTimeout(timeout);
+        resolve(settled);
+      };
+      const onSettled = (event: Event) => {
+        const detail = (event as CustomEvent<{ slideIndex?: number }>).detail;
+        if (detail?.slideIndex === resolvedSlide) finish(true);
+      };
+      // The queued-during-enter path can consume FALLBACK_TIMEOUT, one polling
+      // interval, one paint frame, and the complete slide tween before it emits
+      // its authoritative settled event. Keep this only as a fail-safe beyond
+      // that real owner instead of racing it at the same nominal deadline.
+      const timeout = window.setTimeout(
+        () => finish(this.currentSlide === resolvedSlide && !sliderState.isAnimatingEnter),
+        SLIDER_ANIMATION.FALLBACK_TIMEOUT +
+          SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL +
+          (SLIDER_CONFIG.SLIDE_DURATION_S * 1000) +
+          250,
+      );
+      window.addEventListener('cc-slider-settled', onSettled as EventListener);
+      this.goToSlide(resolvedSlide);
+    });
+  }
   
   // Go to next slide
   nextSlide(): void {
@@ -1120,6 +1178,9 @@ class SliderManager {
                 this.elements.wrapper.style.willChange = 'auto';
               }
               logger.info(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
+              window.dispatchEvent(new CustomEvent('cc-slider-settled', {
+                detail: { slideIndex: this.currentSlide },
+              }));
             }
           });
           logger.info(`✅ GSAP animation started: ${offset}px`);
@@ -1132,6 +1193,9 @@ class SliderManager {
         } else {
           this.elements.wrapper.style.transform = `translateX(${offset}px)`;
         }
+        window.dispatchEvent(new CustomEvent('cc-slider-settled', {
+          detail: { slideIndex: this.currentSlide },
+        }));
       }
     } else {
       // During drag, use quickSetter (already handled in updateSliderPosition)

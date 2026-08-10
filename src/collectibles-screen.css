@@ -3193,6 +3193,7 @@
 
 /* The enlarged portal needs the same visual placement at its larger scale. */
 .journey-card-overlay-portaled-card > .journey-card-ribbon > .journey-card-ribbon-label {
+  font-size: 8.3cqw;
   transform: translate3d(calc(-50% + 32px), calc(-50% - 33px), 0) rotate(41deg);
 }
 
@@ -4068,7 +4069,7 @@
   box-sizing: border-box;
   padding:
     max(24px, env(safe-area-inset-top, 0px))
-    24px
+    32px
     max(24px, env(safe-area-inset-bottom, 0px));
   background: transparent;
   opacity: 0;
@@ -4082,9 +4083,11 @@
 
 .journey-spatial-permission-overlay.is-exiting {
   /* Keep the transparent owner visible until the card's standard comic
-     pop-out finishes; an early overlay fade would cut the bounce in half. */
+     pop-out finishes; an early overlay fade would cut the bounce in half.
+     It must also remain input-opaque so iOS cannot retarget a late release
+     to Homepage navigation while the launch handoff is still underneath. */
   opacity: 1;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .journey-spatial-permission-card {
@@ -4165,8 +4168,14 @@
   -webkit-overflow-scrolling: touch;
   background-position: center top;
   border-radius: 40px;
-  box-shadow: 0 18px 52px rgba(128, 88, 72, 0.18);
-  padding: 32px 24px 36px;
+  box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8);
+  padding: 32px 24px 40px;
+}
+
+/* Match the accepted High Score/Combo close overlap on the same gyro surface. */
+.journey-spatial-permission-card .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {
+  top: -10px;
+  right: -10px;
 }
 
 .journey-spatial-permission-card:focus,
@@ -4274,8 +4283,8 @@
 .journey-spatial-permission-overlay.is-3d-flip-test .journey-spatial-permission-paper {
   flex: 1 1 auto;
   min-height: 0;
-  margin-bottom: -18px;
-  padding-bottom: 54px;
+  margin-bottom: -16px;
+  padding-bottom: 56px;
   border-radius: 0;
   box-shadow: none;
   backface-visibility: hidden;
@@ -4432,10 +4441,10 @@
 .journey-spatial-permission-tilt-frames {
   position: absolute;
   z-index: 2;
-  left: 32.6px;
-  top: 2px;
-  width: 184.8px;
-  height: 232.68px;
+  left: 41.84px;
+  top: 13.794px;
+  width: 166.32px;
+  height: 209.412px;
   animation: journey-spatial-modal-tilt-breathe 2.4s ease-in-out infinite;
 }
 
@@ -4708,10 +4717,10 @@
   }
 
   .journey-spatial-permission-tilt-frames {
-    left: 35.32px;
-    top: 0;
-    width: 129.36px;
-    height: 162.876px;
+    left: 41.788px;
+    top: 15.206px;
+    width: 116.424px;
+    height: 146.588px;
   }
 
   .journey-spatial-permission-star-1 {

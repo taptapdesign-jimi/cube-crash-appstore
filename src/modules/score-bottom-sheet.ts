@@ -575,15 +575,17 @@ function createModal(): HTMLElement {
     <div class="cc-gameplay-modal-bounce-shell">
       <div class="cc-gameplay-modal-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
-          <div class="cc-gameplay-modal-paper-shell">
-            <div class="simple-content">
-              <div class="simple-header">
-                <div class="simple-title-section">
-                  <h2 id="score-sheet-title" class="cc-gameplay-modal-title">${titleText}</h2>
-                  <p id="score-sheet-subtitle">${subtitleText}</p>
-                </div>
-                <div class="score-stats-container">
+          <div class="cc-gameplay-modal-gyro-shell">
+            <div class="cc-gameplay-modal-paper-shell">
+              <div class="simple-content">
+                <div class="simple-header">
+                  <div class="simple-title-section">
+                    <h2 id="score-sheet-title" class="cc-gameplay-modal-title">${titleText}</h2>
+                    <p id="score-sheet-subtitle">${subtitleText}</p>
+                  </div>
+                  <div class="score-stats-container">
 ${renderStatsItems(scoreSheetStats)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -593,7 +595,7 @@ ${renderStatsItems(scoreSheetStats)}
     </div>
   `;
 
-  const scoreCloseHost = modalEl.querySelector('.cc-gameplay-modal-idle-shell') as HTMLElement | null;
+  const scoreCloseHost = modalEl.querySelector('.cc-gameplay-modal-gyro-shell') as HTMLElement | null;
   scoreSheetCloseController = mountGameplaySheetClose(scoreCloseHost ?? modalEl, () => {
     console.log('✕ Score bottom sheet close control activated');
     hideScoreBottomSheet();
@@ -838,7 +840,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     const el = createModal();
     disposeScoreSheetSpatialMotion = mountGameplayModalSpatialMotion(
       el,
-      el.querySelector<HTMLElement>('.cc-gameplay-modal-paper-shell'),
+      el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
     );
     ensureScoreStatDividerExists();
     console.log('🎯 SCORE BOTTOM SHEET CREATED');

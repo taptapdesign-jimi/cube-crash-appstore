@@ -185,7 +185,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-ribbon-image \{[\s\S]*?filter: none;/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-image \{[\s\S]*?filter: drop-shadow\(0 5px 5\.7px #e2774a\);/);
     expect(css).toMatch(/\.journey-board-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-weight: 700;[\s\S]*?translate3d\(calc\(-50% \+ 11px\), calc\(-50% - 10px\), 0\) rotate\(41deg\);/);
-    expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
+    expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-size: 8\.3cqw;[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;/);
     expect(css).toMatch(/\.journey-board-card\.has-new-ribbon::after \{[\s\S]*?animation: none !important;[\s\S]*?opacity: 0 !important;/);
     expect(css).not.toContain('.journey-card-flip-back-shell::after');
@@ -283,7 +283,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(spatial).toContain("'.journey-card-overlay-portaled-card > .journey-card-ribbon'");
     expect(spatial).toContain('...(ribbon ? [{ element: ribbon, ...JOURNEY_FLIP_RIBBON_PROFILE }] : [])');
     expect(spatial).toContain('...(ribbonLabel ? [{ element: ribbonLabel, ...JOURNEY_FLIP_RIBBON_LABEL_PROFILE }] : [])');
-    expect(spatial).toContain('{ element: target, ...JOURNEY_FLIP_CARD_PROFILE }');
+    expect(spatial).toContain('{ element: target, ...OVERLAY_MODAL_PROFILE }');
     expect(journeySpatial).toContain("card?.querySelector<HTMLElement>(':scope > .journey-card-ribbon')");
     expect(journeySpatial).toContain('{ x: 0.7, y: 0.7 }');
   });

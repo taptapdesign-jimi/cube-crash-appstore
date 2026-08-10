@@ -10,6 +10,7 @@ import {
   consumeArcadeEntryCue,
   resetArcadeEntryCueOwner,
   shouldOverlapArcadeEntryCueWithColdBoot,
+  waitForArcadeEntryCuePresentation,
 } from '../arcade-entry-cue-owner';
 
 afterEach(() => {
@@ -37,5 +38,27 @@ test('begin and consume share one visual cue instead of replaying it after load'
   await started;
 
   expect(showArcadeContinuationRoundCue).toHaveBeenCalledTimes(1);
-  expect(showArcadeContinuationRoundCue).toHaveBeenCalledWith(1);
+  expect(showArcadeContinuationRoundCue).toHaveBeenCalledWith(1, expect.any(Function));
+});
+
+test('presentation waiter resolves at overlay ownership without waiting for the full cue', async () => {
+  let finishCue!: () => void;
+  (showArcadeContinuationRoundCue as jest.Mock).mockImplementationOnce((_round, onPresented) => {
+    onPresented();
+    return new Promise<void>((resolve) => { finishCue = resolve; });
+  });
+
+  const presented = waitForArcadeEntryCuePresentation(1);
+  const cue = beginArcadeEntryCue(1);
+  await expect(presented).resolves.toBeUndefined();
+  expect(finishCue).toBeDefined();
+
+  finishCue();
+  await cue;
+});
+
+test('cancelling an abandoned cue releases presentation waiters', async () => {
+  const presented = waitForArcadeEntryCuePresentation(1);
+  cancelArcadeEntryCueOwner();
+  await expect(presented).resolves.toBeUndefined();
 });

@@ -13,5 +13,10 @@ describe('Tutorial Complete paper background', () => {
     expect(source).not.toContain('linear-gradient(rgba(243,238,232,0.65)');
     expect(source).not.toContain('radial-gradient(ellipse at center, rgba(255,255,255,0.88)');
   });
-});
 
+  test('keeps the opaque paper mounted until the next surface handoff owns cleanup', () => {
+    expect(source).not.toContain(".to(overlay, { opacity: 0");
+    expect(source).toContain('Keep the opaque paper mounted as the transition cover');
+    expect(source).not.toContain('onComplete: () => {\n            cleanupTutorialCompleteModal();');
+  });
+});

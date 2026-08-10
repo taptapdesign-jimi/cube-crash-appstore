@@ -789,6 +789,7 @@ class JourneyBoardsManager {
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
   private journeyV700HubEnterEpoch = 0;
+  private journeyV700HubPresentationWaiters = new Set<() => void>();
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
@@ -6198,6 +6199,34 @@ class JourneyBoardsManager {
     }
   }
 
+  /** Force the first-play destination to the Hub before its hidden preparation. */
+  public prepareFirstPlayTutorialHubReturn(): void {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    this.cancelJourneyV700HubEnter('first-play-tutorial-hub-return');
+    this.setJourneyV700View('hub');
+    if (container) this.renderBoards();
+  }
+
+  /** Resolve when the canonical Hub enter has begun painting signs and idle. */
+  public waitForJourneyV700HubPresentation(timeoutMs = 2600): Promise<void> {
+    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+    const hub = container?.querySelector<HTMLElement>('.journey-v700-hub');
+    if (hub?.classList.contains('journey-v700-banners-presented')) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        this.journeyV700HubPresentationWaiters.delete(finish);
+        resolve();
+      };
+      const timeout = window.setTimeout(finish, timeoutMs);
+      this.journeyV700HubPresentationWaiters.add(finish);
+    });
+  }
+
   private cancelJourneyV700HubEnter(reason: string): void {
     this.journeyV700HubEnterEpoch += 1;
     const activeTweens = this.journeyV700HubEnterTweens.splice(0);
@@ -6323,6 +6352,9 @@ class JourneyBoardsManager {
       // without competing for the same transform or creating a handoff gap.
       worldCards.forEach((worldCard) => worldCard.classList.add('journey-v700-idle-ready'));
       hub?.classList.add('journey-v700-idle-ready');
+      const presentationWaiters = Array.from(this.journeyV700HubPresentationWaiters);
+      this.journeyV700HubPresentationWaiters.clear();
+      presentationWaiters.forEach((resolve) => resolve());
     };
     let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
     const finishVisibleEnterTarget = () => {

@@ -60,17 +60,18 @@ function clearFirstPlayTutorialCompletionFlags(): void {
     delete (window as any).__ccFirstPlayTutorialForceWildStar;
     delete (window as any).__ccFirstPlayTutorialDisplaceWildSpawnOccupant;
     delete (window as any).__ccFirstPlayTutorialDemoBoardReady;
+    delete (window as any).__ccFirstPlayTutorialRunSource;
   } catch {}
 }
 
-async function returnFirstPlayTutorialToHomepage(): Promise<void> {
+async function clearFirstPlayTutorialRunState(): Promise<void> {
   const tutorialBoardNumber = (window as any).STATE?.boardNumber || 1;
   clearFirstPlayTutorialCompletionFlags();
   try {
-    localStorage.removeItem('cc_board_completed');
-    localStorage.removeItem('cc_saved_game');
-    localStorage.removeItem('cubeCrash_gameState');
-    const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+    const { clearFirstPlayTutorialResumeBlockers } = await import('./first-play-tutorial-dev-reset.js');
+    clearFirstPlayTutorialResumeBlockers();
+    const { clearArcadeSaveState, clearBoardSaveState } = await import('../utils/board-save-utils.js');
+    clearArcadeSaveState();
     clearBoardSaveState(tutorialBoardNumber);
     const { journeyProgressionState } = await import('./journey-progression-state.js');
     journeyProgressionState.clearCurrentRunState();
@@ -79,21 +80,80 @@ async function returnFirstPlayTutorialToHomepage(): Promise<void> {
     const { arcadeStatsService } = await import('../services/arcade-stats-service.js');
     arcadeStatsService.resetStats();
   } catch {}
+  delete (window as any).__ccSuppressTutorialStatsSave;
+  delete (window as any).__ccBoardJustCompleted;
+  delete (window as any).__ccSkipRebuildBoard;
+  delete (window as any).__skipBoardExitAnimation;
+  delete (window as any).__ccFastArcadeCleanExit;
+}
+
+async function prepareFirstPlayTutorialArcadeRestart(): Promise<void> {
+  await clearFirstPlayTutorialRunState();
+  markArcadeHomeRunOrigin();
+  (window as any)._gamePaused = false;
+}
+
+async function continueFirstPlayTutorialIntoJourney(cleanupCover: () => void): Promise<void> {
   try {
+    await clearFirstPlayTutorialRunState();
+    (window as any).__ccFirstPlayTutorialReturnToJourneyHub = true;
     (window as any).__ccBoardJustCompleted = true;
     (window as any).__ccSuppressTutorialStatsSave = true;
-    markArcadeHomeRunOrigin();
+    markJourneyGameOrigin({ fromInterim: false });
     (window as any).__skipBoardExitAnimation = true;
-    (window as any).__ccFastArcadeCleanExit = true;
     await requestExitToMenu({
-      reason: 'first-play-tutorial-complete-home',
-      target: 'homepage',
+      reason: 'first-play-tutorial-complete-journey-worlds',
+      target: 'auto',
       skipBoardExit: true,
-      fastArcadeCleanExit: true,
     });
-  } catch (error) {
-    console.error('❌ endgame-flow: Failed to return home after tutorial clean board:', error);
-    logger.error('❌ endgame-flow: Failed tutorial continue home:', error);
+    try {
+      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+      await journeyBoardsManager.waitForJourneyV700HubPresentation?.();
+    } catch {}
+  } finally {
+    delete window.__ccBoardJustCompleted;
+    delete window.__ccSuppressTutorialStatsSave;
+    delete window.__skipBoardExitAnimation;
+    delete (window as any).__ccFirstPlayTutorialReturnToJourneyHub;
+    cleanupCover();
+  }
+}
+
+async function continueFirstPlayTutorialIntoArcade(
+  startLevel: (level: number) => Promise<void>,
+  cleanupCover: () => void,
+): Promise<void> {
+  let coverReleased = false;
+  const releaseCover = (): void => {
+    if (coverReleased) return;
+    coverReleased = true;
+    cleanupCover();
+  };
+  try {
+    await prepareFirstPlayTutorialArcadeRestart();
+    (window as any).__ccTriggerHudDrop = true;
+    (window as any).__ccArcadeContinuationCueRound = 1;
+    const {
+      resetArcadeEntryCueOwner,
+      waitForArcadeEntryCuePresentation,
+    } = await import('./arcade-entry-cue-owner.js');
+    resetArcadeEntryCueOwner();
+    const cuePresented = waitForArcadeEntryCuePresentation(1);
+    const startPromise = startLevel(1);
+    await Promise.race([cuePresented, startPromise]);
+    releaseCover();
+    await startPromise;
+  } catch (tutorialContinuationError) {
+    delete (window as any).__ccTriggerHudDrop;
+    delete (window as any).__ccArcadeContinuationCueRound;
+    try {
+      const { cancelArcadeEntryCueOwner } = await import('./arcade-entry-cue-owner.js');
+      cancelArcadeEntryCueOwner();
+    } catch {}
+    logger.error('❌ endgame-flow: Failed to continue tutorial into Arcade Round 01:', tutorialContinuationError);
+    throw tutorialContinuationError;
+  } finally {
+    releaseCover();
   }
 }
 
@@ -882,6 +942,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     ? STATE.boardNumber 
     : ctxBoardNumber;
   const firstPlayTutorialCompletion = isFirstPlayTutorialCompletionFlow();
+  const firstPlayTutorialSource = (window as any).__ccFirstPlayTutorialRunSource === 'journey'
+    ? 'journey'
+    : 'arcade';
   console.log(`🎯 endgame-flow: Using boardNumber ${boardNumber} (STATE.boardNumber: ${STATE?.boardNumber}, ctx.boardNumber: ${ctxBoardNumber})`);
 
   // 🔥 CRITICAL FIX: Save score BEFORE clearing saved game state
@@ -914,6 +977,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   // the wait makes final wild merges look like a dead 2-4s pause before New Card.
   const prevBG = boardBG?.visible !== false;
   let cleanupNewCardHandoffCover: (() => void) | null = null;
+  let cleanupTutorialCompleteCover: (() => void) | null = null;
+  let continueTutorialIntoArcade = false;
+  let continueTutorialIntoJourney = false;
 
   try {
     // Clean Board modal (bonus starting at 500, +200 per board) → immediately start next level on Continue
@@ -952,14 +1018,21 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     if (firstPlayTutorialCompletion) {
       await animateBoardIndicatorExitSafe(0.3, 'tutorial-complete');
       try {
-        const { showTutorialCompleteModal } = await import('./tutorial-complete-modal.js');
+        const { showTutorialCompleteModal, cleanupTutorialCompleteModal } = await import('./tutorial-complete-modal.js');
+        cleanupTutorialCompleteCover = cleanupTutorialCompleteModal;
         await showTutorialCompleteModal();
         const { markFirstPlayTutorialDone } = await import('./first-play-tutorial.js');
         markFirstPlayTutorialDone();
       } catch (modalError) {
-        console.warn('⚠️ endgame-flow: Tutorial complete modal failed, returning home:', modalError);
+        console.warn('⚠️ endgame-flow: Tutorial complete modal failed; continuing to selected first-play destination:', modalError);
+        const { markFirstPlayTutorialDone } = await import('./first-play-tutorial.js');
+        markFirstPlayTutorialDone();
       }
-      await returnFirstPlayTutorialToHomepage();
+      if (firstPlayTutorialSource === 'journey') {
+        continueTutorialIntoJourney = true;
+      } else {
+        continueTutorialIntoArcade = true;
+      }
       return;
     }
 
@@ -1303,5 +1376,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     stage.eventMode = prevMode;
     // Clear flag - 🔥 FIX: This ALWAYS runs now, even on error
     (window as any).CC._endgameFlowRunning = false;
+
+    if (continueTutorialIntoArcade) {
+      const cleanupCover = cleanupTutorialCompleteCover || (() => {});
+      cleanupTutorialCompleteCover = null;
+      await continueFirstPlayTutorialIntoArcade(startLevel, cleanupCover);
+    }
+    if (continueTutorialIntoJourney) {
+      const cleanupCover = cleanupTutorialCompleteCover || (() => {});
+      cleanupTutorialCompleteCover = null;
+      await continueFirstPlayTutorialIntoJourney(cleanupCover);
+    }
   }
 }

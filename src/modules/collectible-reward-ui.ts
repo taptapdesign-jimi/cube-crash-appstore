@@ -58,8 +58,10 @@ export function createBottomSheet(detail: CollectibleDetail): HTMLElement {
   sheet.innerHTML = `
     <div class="cc-gameplay-modal-flip-shell">
       <div class="cc-gameplay-modal-idle-shell">
-        <div class="cc-gameplay-modal-paper-shell collectible-reward-content">
-          ${markup}
+        <div class="cc-gameplay-modal-gyro-shell">
+          <div class="cc-gameplay-modal-paper-shell collectible-reward-content">
+            ${markup}
+          </div>
         </div>
       </div>
     </div>

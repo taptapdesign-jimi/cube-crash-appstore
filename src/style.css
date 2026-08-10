@@ -3255,6 +3255,12 @@ body.journey-board-game-active #hud-board-indicator {
   box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8);
 }
 
+.cc-gameplay-modal-gyro-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+}
+
 .cc-gameplay-modal-paper-shell::after {
   content: "";
   position: absolute;

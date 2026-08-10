@@ -250,15 +250,16 @@ export async function showTutorialCompleteModal(options: {
         await ctaController?.exit();
         const tl = gsap.timeline({
           onComplete: () => {
-            cleanupTutorialCompleteModal();
+            // Keep the opaque paper mounted as the transition cover. The caller
+            // removes it only after Homepage has fully acquired the app surface,
+            // preventing the old gameplay HUD from flashing between owners.
             resolve({ action: 'continue' });
           },
         });
         tl.to(title, { scale: 0, opacity: 0, y: -28, duration: 0.3, ease: 'back.in(1.65)' }, 0)
           .to(subtitle, { scale: 0, opacity: 0, y: -22, duration: 0.3, ease: 'back.in(1.65)' }, 0.03)
           .to(thumb, { scale: 0, opacity: 0, y: -30, rotate: -8, duration: 0.32, ease: 'back.in(1.65)' }, 0.06)
-          .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.06)
-          .to(overlay, { opacity: 0, duration: 0.1, ease: 'power2.inOut' }, 0.6);
+          .to(shadow, { opacity: 0, scaleX: 0.42, scaleY: 0.54, duration: 0.32, ease: 'power2.inOut' }, 0.06);
       })();
     };
 

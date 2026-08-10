@@ -71,6 +71,21 @@ describe('launch 3D Motion permission ownership', () => {
     expect(permissionAwait).toBeLessThan(launchHide);
   });
 
+  it('keeps Tilt exit input-opaque and reacquires PLAY before the first Homepage enter', () => {
+    const launchComplete = mainSource.indexOf('await launchPromise;');
+    const slideZeroSync = mainSource.indexOf('sliderManager.syncHiddenSlideState(0);', launchComplete);
+    const ctaPrime = mainSource.indexOf('primeHomeCtaForEnter();', slideZeroSync);
+    const homeReveal = mainSource.indexOf("homeElementAfter.style.display = 'block';", ctaPrime);
+
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-overlay.is-exiting {\n  /* Keep the transparent owner visible until the card\'s standard comic',
+    );
+    expect(collectiblesCss).toContain('to Homepage navigation while the launch handoff is still underneath. */\n  opacity: 1;\n  pointer-events: auto;');
+    expect(slideZeroSync).toBeGreaterThan(launchComplete);
+    expect(slideZeroSync).toBeLessThan(ctaPrime);
+    expect(ctaPrime).toBeLessThan(homeReveal);
+  });
+
   it('turns on and persists 3D Motion inside Try It before requesting permission', () => {
     const enableIndex = launchSource.indexOf('settingsOwner._settings.spatialMotionEnabled = true');
     const requestIndex = launchSource.indexOf('journeySpatialMotion.requestPermissionFromGesture()', enableIndex);
@@ -163,6 +178,10 @@ describe('launch 3D Motion permission ownership', () => {
     expect(cardRule).toContain('max-height: calc(100dvh - 48px');
     expect(cardRule).toContain('border-radius: 40px');
     expect(cardRule).toContain('translate3d(0, 88px, 0) scale(0.72) rotate(-2deg)');
+    expect(paperRule).toContain('box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8)');
+    expect(collectiblesCss).toContain(
+      '.journey-spatial-permission-card .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {\n  top: -10px;\n  right: -10px;',
+    );
     expect(cardRule).toContain('transform 0.78s cubic-bezier(0.34, 1.56, 0.64, 1)');
     expect(cardRule).toContain('overflow: visible');
     expect(cardRule).not.toContain('-webkit-clip-path: polygon(');
@@ -181,7 +200,7 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain('0 -42vh 120px 36vh rgba(233, 210, 200, 0.38)');
     expect(paperRule).not.toContain('clip-path');
     expect(paperRule).toContain('padding:');
-    expect(paperRule).toContain('32px 24px 36px');
+    expect(paperRule).toContain('32px 24px 40px');
     expect(collectiblesCss).toContain(
       '.journey-spatial-permission-overlay.is-exiting .journey-spatial-permission-card {',
     );
@@ -189,7 +208,7 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain('transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)');
     expect(collectiblesCss).toContain('opacity 0.01s linear 0.64s');
     expect(collectiblesCss).toContain(
-      '.journey-spatial-permission-overlay.is-exiting {\n  /* Keep the transparent owner visible until the card\'s standard comic\n     pop-out finishes; an early overlay fade would cut the bounce in half. */\n  opacity: 1;',
+      '.journey-spatial-permission-overlay.is-exiting {\n  /* Keep the transparent owner visible until the card\'s standard comic\n     pop-out finishes; an early overlay fade would cut the bounce in half.\n     It must also remain input-opaque so iOS cannot retarget a late release\n     to Homepage navigation while the launch handoff is still underneath. */\n  opacity: 1;\n  pointer-events: auto;',
     );
     expect(permissionModalSource).toContain('const SPATIAL_MODAL_EXIT_DURATION_MS = 650;');
     expect(collectiblesCss).toContain('.journey-spatial-permission-card h2 {\n  margin: 0 auto;');
@@ -197,9 +216,9 @@ describe('launch 3D Motion permission ownership', () => {
     expect(artRule).toContain('height: 247px');
     expect(artRule).toContain('margin: 24px auto 32px');
     expect(collectiblesCss).toContain('.journey-spatial-permission-copy {\n  max-width: 310px;\n  margin: 0 auto 44px;');
-    expect(tiltRule).toContain('left: 32.6px');
-    expect(tiltRule).toContain('width: 184.8px');
-    expect(tiltRule).toContain('height: 232.68px');
+    expect(tiltRule).toContain('left: 41.84px');
+    expect(tiltRule).toContain('width: 166.32px');
+    expect(tiltRule).toContain('height: 209.412px');
     expect(lowerStarRule).toContain('left: 24px');
     expect(lowerStarRule).toContain('top: 195px');
     expect(lowerStarRule).not.toContain('bottom:');
@@ -209,13 +228,13 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain('filter: blur(0.8px)');
     expect(collectiblesCss).toContain('rotate(3.2deg) scale(1.025)');
     expect(collectiblesCss).toContain(
-      '.journey-spatial-permission-tilt-frames {\n    left: 35.32px;\n    top: 0;\n    width: 129.36px;\n    height: 162.876px;',
+      '.journey-spatial-permission-tilt-frames {\n    left: 41.788px;\n    top: 15.206px;\n    width: 116.424px;\n    height: 146.588px;',
     );
     expect(collectiblesCss).toContain(
       '.journey-spatial-permission-star-3 {\n    left: 18px;\n    top: 137px;',
     );
     expect(permissionModalSource).not.toContain('journey-spatial-permission-dismiss');
-    expect(permissionModalSource).toContain('mountGameplaySheetClose(dragShell, onDismiss)');
+    expect(permissionModalSource).toContain('mountGameplaySheetClose(gyroShell, onDismiss)');
   });
 
   it('keeps the 3D flip experiment nested, reversible, and reduced-motion safe', () => {
@@ -227,7 +246,8 @@ describe('launch 3D Motion permission ownership', () => {
       "flipShell.className = 'journey-spatial-permission-flip-shell'",
     );
     expect(permissionModalSource).toContain('flipShell.appendChild(paperSurface)');
-    expect(permissionModalSource).toContain('dragShell.appendChild(flipShell)');
+    expect(permissionModalSource).toContain('gyroShell.appendChild(flipShell)');
+    expect(permissionModalSource).toContain('dragShell.appendChild(gyroShell)');
     expect(permissionModalSource).toContain('card.appendChild(dragShell)');
     expect(collectiblesCss).toContain('perspective: 920px');
     expect(collectiblesCss).toContain(
@@ -256,8 +276,8 @@ describe('launch 3D Motion permission ownership', () => {
     expect(collectiblesCss).toContain('rotateX(0deg) rotateY(1.2deg) scale(1)');
     expect(collectiblesCss).toContain('rotateX(0deg) rotateY(-0.35deg) scale(1)');
     expect(collectiblesCss).toContain('backface-visibility: hidden');
-    expect(collectiblesCss).toContain('margin-bottom: -18px');
-    expect(collectiblesCss).toContain('padding-bottom: 54px');
+    expect(collectiblesCss).toContain('margin-bottom: -16px');
+    expect(collectiblesCss).toContain('padding-bottom: 56px');
     expect(collectiblesCss).toContain(
       '.journey-spatial-permission-overlay.is-3d-flip-test .journey-spatial-permission-card::before {\n  content: none;',
     );

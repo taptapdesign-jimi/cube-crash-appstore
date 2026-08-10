@@ -92,7 +92,7 @@ describe('Spatial Motion permission modal', () => {
     expect(document.querySelector('#spatial-motion-permission-title')?.textContent).toBe('Tilt Motion');
     expect(document.querySelector('#spatial-motion-permission-title span')?.textContent).toBe('Tilt');
     expect(document.querySelector('.journey-spatial-permission-copy')?.textContent)
-      .toBe('Tilt your phone to add a little motion.');
+      .toBe('A playful little extra.');
     expect(document.querySelector('.journey-spatial-permission-divider')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-settings-copy')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-shell')).toBeNull();
@@ -103,6 +103,12 @@ describe('Spatial Motion permission modal', () => {
       .toBe(false);
     expect(document.querySelector('.journey-spatial-permission-paper')?.classList.contains('bottom-sheet-paper-surface'))
       .toBe(true);
+    const dragShell = document.querySelector('.journey-spatial-permission-drag-shell');
+    const gyroShell = dragShell?.querySelector(':scope > .cc-gameplay-modal-gyro-shell');
+    const flipShell = gyroShell?.querySelector(':scope > .journey-spatial-permission-flip-shell');
+    expect(flipShell?.querySelector(':scope > .journey-spatial-permission-paper')).not.toBeNull();
+    expect(gyroShell?.querySelector(':scope > .gameplay-sheet-close')).not.toBeNull();
+    expect(flipShell?.querySelector('.gameplay-sheet-close')).toBeNull();
     expect(document.querySelector('.journey-spatial-permission-card')?.classList.contains('bottom-sheet-shadow-surface'))
       .toBe(false);
     expect(document.querySelector<HTMLElement>('.journey-spatial-permission-card')?.style.backgroundImage)
@@ -169,9 +175,12 @@ describe('Spatial Motion permission modal', () => {
     expect(SPATIAL_MOTION_MODAL_3D_FLIP_TEST_ENABLED).toBe(true);
     expect(overlay?.classList.contains('is-3d-flip-test')).toBe(true);
     const dragShell = document.querySelector('.journey-spatial-permission-drag-shell');
+    const gyroShell = document.querySelector('.cc-gameplay-modal-gyro-shell');
     expect(dragShell?.parentElement).toBe(card);
-    expect(flipShell?.parentElement).toBe(dragShell);
+    expect(gyroShell?.parentElement).toBe(dragShell);
+    expect(flipShell?.parentElement).toBe(gyroShell);
     expect(paper?.parentElement).toBe(flipShell);
+    expect(document.querySelector('.gameplay-sheet-close')?.parentElement).toBe(gyroShell);
     expect(paper?.children).toHaveLength(4);
 
     cancelSpatialMotionPermissionModal();

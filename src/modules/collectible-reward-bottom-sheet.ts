@@ -95,7 +95,7 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     overlay.appendChild(sheet);
     disposeRewardSpatialMotion = mountGameplayModalSpatialMotion(
       overlay,
-      sheet.querySelector<HTMLElement>('.cc-gameplay-modal-paper-shell'),
+      sheet.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
     );
     registerCleanup(cleanupRewardSpatialMotion);
     
@@ -112,7 +112,7 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
 
     // The centered modal benchmark dismisses through close, Escape, or
     // backdrop tap. It does not inherit the legacy translateY drag owner.
-    const closeHost = sheet.querySelector<HTMLElement>('.cc-gameplay-modal-idle-shell') ?? sheet;
+    const closeHost = sheet.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell') ?? sheet;
     const closeController = mountGameplaySheetClose(
       closeHost,
       () => handleClose('close-button'),

@@ -53,6 +53,7 @@ let stepThreeBackgroundLayerOriginalVisible: boolean | null = null;
 let scheduledTimeouts: number[] = [];
 let scheduledAnimationFrames: number[] = [];
 let tutorialCtaController: CtaController | null = null;
+let activationPending = false;
 
 function disposeTutorialCta(): void {
   tutorialCtaController?.dispose();
@@ -218,6 +219,7 @@ export function beginFirstPlayTutorialRun(source: TutorialRunSource): boolean {
   localStorage.removeItem(DONE_KEY);
   active = true;
   runSource = source;
+  (window as any).__ccFirstPlayTutorialRunSource = source;
   currentStep = 1;
   firstStepUserInteracted = false;
   secondStepUserInteracted = false;
@@ -227,6 +229,7 @@ export function beginFirstPlayTutorialRun(source: TutorialRunSource): boolean {
   stepFourPrepared = false;
   stepFourWildTile = null;
   stepFourTargetTile = null;
+  activationPending = false;
   (window as any).__ccFirstPlayTutorialActive = true;
   (window as any).__ccFirstPlayTutorialCanDrop = isTutorialDropAllowed;
   (window as any).__ccFirstPlayTutorialDisplaceWildSpawnOccupant = displaceFourthStepWildSpawnOccupant;
@@ -667,7 +670,7 @@ function chooseTileForCell(tiles: any[], c: number, r: number, reserved: any[] =
   return tiles.find((tile: any) => tile && !tile.destroyed && !reserved.includes(tile)) || null;
 }
 
-function prepareTutorialBoard(): void {
+function prepareTutorialBoard(): boolean {
   const tiles = (STATE.tiles || [])
     .filter((tile: any) => tile && !tile.destroyed && tile.scale)
     .sort((a: any, b: any) => {
@@ -678,7 +681,7 @@ function prepareTutorialBoard(): void {
       const bx = Number.isFinite(b.gridX) ? b.gridX : 0;
       return ax - bx;
     });
-  if (tiles.length < 2) return;
+  if (tiles.length < 2) return false;
 
   const centerRow = Math.max(0, Math.min(ROWS - 3, Math.floor(ROWS / 2) - 1));
   const lowerRow = Math.max(2, Math.min(ROWS - 1, centerRow + 2));
@@ -689,7 +692,7 @@ function prepareTutorialBoard(): void {
   const tileThree = chooseTileForCell(tiles, leftCol, centerRow) || tiles[0];
   const tileTwo = chooseTileForCell(tiles, rightCol, lowerRow, [tileThree]) || tiles.find((tile: any) => tile !== tileThree) || tiles[1];
   const tileOne = chooseTileForCell(tiles, oneCol, oneRow, [tileThree, tileTwo]);
-  if (!tileThree || !tileTwo) return;
+  if (!tileThree || !tileTwo) return false;
   targetTiles = [tileThree, tileTwo];
   targetCellThree = { c: leftCol, r: centerRow };
   targetCellTwo = { c: rightCol, r: lowerRow };
@@ -765,6 +768,7 @@ function prepareTutorialBoard(): void {
     setTutorialTileFocus(tileOne, false);
   }
   startFirstStepMonitor();
+  return true;
 }
 
 function tileRect(tile: any): DOMRect | null {
@@ -2182,16 +2186,29 @@ function stopHudDim(restore = true, animateRestore = false): void {
 }
 
 export function activateFirstPlayTutorialWhenReady(): void {
-  if (!isBrowser() || !active) return;
-  const start = Date.now();
+  if (!isBrowser() || !active || activationPending) return;
+  activationPending = true;
   const tick = () => {
+    if (!active) {
+      activationPending = false;
+      return;
+    }
     const canvas = document.querySelector('#app canvas');
     if (!canvas || !STATE?.tiles?.length) {
-      if (Date.now() - start < 5000) scheduleAnimationFrame(tick);
+      scheduleAnimationFrame(tick);
       return;
     }
     scheduleTimeout(() => {
-      prepareTutorialBoard();
+      if (!active) {
+        activationPending = false;
+        return;
+      }
+      if (!prepareTutorialBoard()) {
+        activationPending = false;
+        activateFirstPlayTutorialWhenReady();
+        return;
+      }
+      activationPending = false;
       renderOverlay();
       if (!hudDimStarted) startHudDim();
     }, 1250);
@@ -2217,6 +2234,7 @@ export function completeFirstPlayTutorial(): void {
   stepFourWildTile = null;
   stepFourTargetTile = null;
   hudDimStarted = false;
+  activationPending = false;
   stopPolling();
   stopStepThreeBoardDim();
   clearScheduledWork();
