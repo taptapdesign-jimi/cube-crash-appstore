@@ -8,6 +8,7 @@ type ResetTilesDeps = {
   stopMagnetIdleParticles: (...args: any[]) => void;
   stopTntIdleParticles: (...args: any[]) => void;
   stopTntIdleShake: (...args: any[]) => void;
+  stopSpecialDiceIdleMotion: (...args: any[]) => void;
   cleanupTilesForRebuild: (deps: {
     tiles: any[];
     gsap: any;
@@ -18,6 +19,7 @@ type ResetTilesDeps = {
     stopMagnetIdleParticles: (...args: any[]) => void;
     stopTntIdleParticles: (...args: any[]) => void;
     stopTntIdleShake: (...args: any[]) => void;
+    stopSpecialDiceIdleMotion: (...args: any[]) => void;
     devWarn: (...args: any[]) => void;
   }) => void;
   devWarn: (...args: any[]) => void;
@@ -33,6 +35,7 @@ export function resetTilesForRebuild({
   stopMagnetIdleParticles,
   stopTntIdleParticles,
   stopTntIdleShake,
+  stopSpecialDiceIdleMotion,
   cleanupTilesForRebuild,
   devWarn,
 }: ResetTilesDeps){
@@ -46,6 +49,7 @@ export function resetTilesForRebuild({
     stopMagnetIdleParticles,
     stopTntIdleParticles,
     stopTntIdleShake,
+    stopSpecialDiceIdleMotion,
     devWarn,
   });
   tiles.length = 0;

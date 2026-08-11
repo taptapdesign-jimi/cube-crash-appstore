@@ -8,6 +8,7 @@ describe('Homepage slider motion contract', () => {
   const animationsSource = read('src/utils/animations.ts');
   const mainSource = read('src/main.ts');
   const uiManagerSource = read('src/modules/ui-manager.ts');
+  const sliderManagerSource = read('src/modules/slider-manager.ts');
   const sliderCssSource = read('src/slider-optimized.css');
 
   test('all modern Homepage exits delegate to the single completion owner', () => {
@@ -46,6 +47,37 @@ describe('Homepage slider motion contract', () => {
     expect(settingsOwner).toContain('const homepageExitPromise = animateSliderExit();');
     expect(settingsOwner).toContain('void homepageExitPromise.then(() =>');
     expect(settingsOwner).not.toContain('}, 770)');
+  });
+
+  test('Settings owns its app zone and one asynchronous return lifecycle', () => {
+    const settingsEnter = uiManagerSource.split(
+      'private showSettingsScreenWithAnimation(): void',
+    )[1]?.split('private hideSettingsScreenWithAnimation')[0] ?? '';
+    const settingsExit = uiManagerSource.split(
+      'private hideSettingsScreenWithAnimation(): Promise<void>',
+    )[1]?.split('// Handle settings back button click')[0] ?? '';
+
+    expect(settingsEnter).toContain("appZoneManager.setZone('settings', 'settings-enter', {");
+    expect(settingsEnter).toContain('preserveHomepageNavigation: true');
+    expect(settingsEnter).toContain("cancelJourneyScreenPreparation?.('settings-enter')");
+    expect(settingsExit).toContain('if (this.settingsExitPromise) return this.settingsExitPromise');
+    expect(settingsExit).toContain('await animateSettingsScreenExit()');
+    expect(settingsExit).not.toContain('offsetHeight');
+    expect(settingsExit).not.toContain('const fadeDuration = 0.8');
+  });
+
+  test('hidden Settings return slide sync does not emit a competing visible update', () => {
+    const hiddenSync = sliderManagerSource.split(
+      'syncHiddenSlideState(slideIndex: number): void',
+    )[1]?.split('/**\n   * 🔥 NEW API: Ensure slider is ready')[0] ?? '';
+    const enterOwner = mainSource.split(
+      'async function playHomepageSliderEnterHandoff(',
+    )[1]?.split('(window as any).__ccPlayHomepageSliderEnterHandoff')[0] ?? '';
+
+    expect(hiddenSync).toContain('this.suppressCurrentSlideSubscription = true');
+    expect(hiddenSync).toContain("gameState.set('currentSlide', slideIndex)");
+    expect(hiddenSync).toContain('this.suppressCurrentSlideSubscription = false');
+    expect(enterOwner.match(/set\(['"]currentSlide['"]/g) ?? []).toHaveLength(0);
   });
 
   test('Homepage enter has a real Promise completion and direction-specific easing', () => {

@@ -3,12 +3,15 @@ import path from 'node:path';
 import {
   buildJourneyCardOverlayModalViewModel,
   createJourneyCardOverlayTiltProfile,
+  getJourneyCardDragFlipAngle,
   getJourneyCardFlightFlipAngle,
   getJourneyCardFlipEdgeProgress,
-  JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO,
-  JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG,
+  getJourneyCardFlipFaceForAngle,
+  shouldCommitJourneyCardReleasedDrag,
+  JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
+  JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO,
+  JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG,
   JOURNEY_CARD_FLIP_ENTER_DURATION_MS,
-  JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS,
   JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS,
   JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
   JOURNEY_CARD_FLIP_SNAP_DURATION_MS,
@@ -23,7 +26,6 @@ import {
   JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS,
   getJourneyCardDismissDragDistance,
   isJourneyCardVerticalDismissGesture,
-  shouldCommitJourneyCardFlipDrag,
 } from '../journey-card-overlay-modal';
 
 const root = path.resolve(__dirname, '../../..');
@@ -80,22 +82,73 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(getJourneyCardFlipEdgeProgress(-216, -360)).toBeCloseTo(0.375, 8);
   });
 
-  test('uses a horizontal rotateY drag threshold and velocity flick', () => {
+  test('scrubs to the 80-percent handoff then completes exactly one physical flip', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
-    expect(JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO).toBe(0.2);
-    expect(JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG).toBe(36);
-    expect(JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS).toBe(0.34);
-    expect(shouldCommitJourneyCardFlipDrag(64, 0, 320)).toBe(true);
-    expect(shouldCommitJourneyCardFlipDrag(-64, 0, 320)).toBe(true);
-    expect(shouldCommitJourneyCardFlipDrag(63, 0, 320)).toBe(false);
-    expect(shouldCommitJourneyCardFlipDrag(20, -0.35, 320)).toBe(true);
-    expect(shouldCommitJourneyCardFlipDrag(40, 0.2, 320)).toBe(false);
+    expect(JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO).toBe(0.4);
+    expect(JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO).toBe(0.1);
+    expect(shouldCommitJourneyCardReleasedDrag(38.9, 390)).toBe(false);
+    expect(shouldCommitJourneyCardReleasedDrag(39, 390)).toBe(true);
+    expect(shouldCommitJourneyCardReleasedDrag(-39, 390)).toBe(true);
+    expect(shouldCommitJourneyCardReleasedDrag(39, 390, -1)).toBe(false);
+    expect(shouldCommitJourneyCardReleasedDrag(-39, 390, -1)).toBe(true);
+    expect(JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG).toBe(72);
+    expect(getJourneyCardDragFlipAngle(0, -128, 400)).toBeCloseTo(-57.6, 8);
+    expect(getJourneyCardDragFlipAngle(0, -160, 400)).toBe(-72);
+    expect(getJourneyCardDragFlipAngle(0, -240, 400)).toBe(-72);
+    expect(getJourneyCardDragFlipAngle(-180, 128, 400)).toBeCloseTo(-122.4, 8);
+    expect(getJourneyCardDragFlipAngle(-180, 160, 400)).toBe(-108);
     const interactiveFlip = modal.slice(
       modal.indexOf('const animateInteractiveFlip = async'),
       modal.indexOf('const startEntry = async'),
     );
-    expect(interactiveFlip).toContain("], { duration, easing: 'linear' });");
+    expect(interactiveFlip).toContain("rotor.animate(keyframes, { duration, easing: 'linear' })");
     expect(interactiveFlip).not.toContain("easing: 'cubic-bezier(0.22, 1, 0.36, 1)'");
+    expect(interactiveFlip).toContain('if (crossesFaceEdge && edgeProgress < 0.82)');
+    expect(interactiveFlip).toContain('animation.currentTime');
+    expect(interactiveFlip).toContain('requestAnimationFrame(watchPhysicalEdge)');
+    expect(interactiveFlip).not.toContain('setTimeout');
+    expect(getJourneyCardFlipFaceForAngle(0)).toBe('front');
+    expect(getJourneyCardFlipFaceForAngle(-89)).toBe('front');
+    expect(getJourneyCardFlipFaceForAngle(-91)).toBe('back');
+    expect(getJourneyCardFlipFaceForAngle(-180)).toBe('back');
+    expect(getJourneyCardFlipFaceForAngle(-269)).toBe('back');
+    expect(getJourneyCardFlipFaceForAngle(-271)).toBe('front');
+    expect(getJourneyCardFlipFaceForAngle(Number.NaN)).toBe('front');
+    const pointerMove = modal.slice(
+      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('function finishPointer('),
+    );
+    expect(pointerMove).not.toContain('releasePointerCapture');
+    expect(pointerMove).toContain("impactShell.style.translate = `${translateX.toFixed(2)}px 0`");
+    expect(pointerMove).toContain('getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth)');
+    expect(pointerMove).toContain('dragFlipProgress = clamp01(Math.abs(deltaX) / handoffDistance)');
+    expect(pointerMove).toContain('if (dragFlipCommitted) return;');
+    expect(pointerMove).toContain('direction !== dragAllowedDirection');
+    expect(pointerMove).toContain('dragStartX = dragLatestX;');
+    expect(pointerMove).toContain("dragAllowedDirection = committedDirection === -1 ? 1 : -1;");
+    expect(pointerMove).toContain("void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front')");
+    expect(modal).toContain('dragPreviewSettleAnimation?.cancel()');
+    expect(modal).toContain('visibleRotorTransform');
+    expect(modal).toContain('disposeSpatialMotion?.();');
+    expect(modal).not.toContain('currentTranslateX');
+    expect(modal).toContain('if (flipping && flipAnimation)');
+    expect(modal).toContain('if (impactAnimation || dragPreviewSettleAnimation)');
+    expect(interactiveFlip).toContain('impactAnimation || dragPreviewSettleAnimation');
+    expect(modal).toContain('impactAnimation || dragPreviewSettleAnimation');
+    const pointerRelease = modal.slice(
+      modal.indexOf('function finishPointer('),
+      modal.indexOf('function handlePointerUp('),
+    );
+    expect(pointerRelease).toContain('const fromTranslate = impactShell.style.translate');
+    expect(pointerRelease).toContain("{ translate: 'none' }");
+    expect(pointerRelease).toContain('const committedFlipInFlight = allowCommit && dragFlipCommitted;');
+    expect(pointerRelease).toContain('const shouldCommitReleasedDrag = !flipping');
+    expect(pointerRelease).toContain('shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection)');
+    expect(pointerRelease).toContain("if (shouldCommitReleasedDrag) {");
+    expect(pointerRelease).not.toContain('setStableFace(committedFace)');
+    expect(pointerRelease).toContain('Number(previewAnimation.currentTime ?? 0) / settleDuration');
+    expect(pointerRelease).toContain('setPaintFaceForAngle(previewFromAngle + (previewToAngle - previewFromAngle) * progress)');
+    expect(pointerRelease).toContain("if (flipping) {\n        impactShell.style.translate = 'none';\n        return;");
   });
 
   test('uses a dominant up-or-down gesture to run the canonical dismiss', () => {
@@ -268,12 +321,16 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toContain('rotateY(-180deg) translateZ(0.6px)');
     expect(css).toMatch(/\[data-paint-face="front"\] \.journey-card-flip-back,[\s\S]*?\[data-paint-face="back"\] \.journey-card-flip-front \{[\s\S]*?visibility: hidden;/);
     expect(css).toMatch(/\.journey-card-flip-card-host > \.journey-card-overlay-portaled-card \{[\s\S]*?border-radius: var\(--journey-card-flip-radius\);[\s\S]*?clip-path: inset\(0 round var\(--journey-card-flip-radius\)\);/);
-    expect(modal).toContain('rotor.style.transform = `translate3d(${translateX}px, 0, 0) rotateY(${angle}deg)`;');
+    expect(modal).toContain('rotor.style.transform = `rotateY(${angle}deg)`;');
     expect(modal).toContain('const deltaX = event.clientX - dragStartX;');
-    expect(modal).toContain('const previewProgress = clamp01(Math.abs(deltaX) / commitDistance);');
-    expect(modal).toContain('const translateX = Math.max(-44, Math.min(44, deltaX * 0.35));');
-    expect(modal).toContain('dragDirection = deltaX >= 0 ? 1 : -1;');
-    expect(modal).toContain('if (Math.abs(deltaX) >= commitDistance) {');
+    expect(modal).toContain('Math.min(4, dragCardRect.left - horizontalSafeInset)');
+    expect(modal).toContain('Math.min(4, dragViewportWidth - horizontalSafeInset - dragCardRect.right)');
+    expect(modal).toContain('Math.min(dragHorizontalMaxX, deltaX * 0.12)');
+    expect(modal).toContain('let dragStartAngle = 0;');
+    expect(modal).toContain('let dragFlipProgress = 0;');
+    expect(modal).toContain('let dragFlipCommitted = false;');
+    expect(modal).not.toContain('if (Math.abs(deltaX) >= commitDistance) {');
+    expect(modal).not.toContain('dragFlipZone');
     expect(modal).toContain('rotor.releasePointerCapture(event.pointerId)');
     expect(modal).toContain('const deltaY = event.clientY - dragStartY;');
     expect(spatial).toContain('mountJourneyCardFlipSpatialMotion');

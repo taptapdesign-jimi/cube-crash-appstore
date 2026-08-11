@@ -4,20 +4,13 @@ export interface JourneyPreparationRuntimeState {
   boardTransitionActive?: boolean;
 }
 
-const BLOCKED_ZONES = new Set([
-  'board-arcade',
-  'board-journey',
-  'clean-board',
-  'new-card',
-  'stage-complete',
-  'fail-screen',
-]);
+const ALLOWED_PREPARATION_ZONES = new Set(['home', 'journey']);
 
 export function isJourneyBackgroundPreparationAllowed(
   state: JourneyPreparationRuntimeState
 ): boolean {
   if (state.gameStartInProgress || state.boardTransitionActive) return false;
-  return !state.appZone || !BLOCKED_ZONES.has(state.appZone);
+  return !!state.appZone && ALLOWED_PREPARATION_ZONES.has(state.appZone);
 }
 
 export function readJourneyPreparationRuntimeState(): JourneyPreparationRuntimeState {
@@ -31,9 +24,10 @@ export function readJourneyPreparationRuntimeState(): JourneyPreparationRuntimeS
 
 export function shouldBlockHiddenJourneyRender(
   journeyScreenHidden: boolean,
-  boardTransitionVisible: boolean
+  boardTransitionVisible: boolean,
+  activeUiBlocksHiddenRender = false,
 ): boolean {
-  return journeyScreenHidden && boardTransitionVisible;
+  return journeyScreenHidden && (boardTransitionVisible || activeUiBlocksHiddenRender);
 }
 
 /**

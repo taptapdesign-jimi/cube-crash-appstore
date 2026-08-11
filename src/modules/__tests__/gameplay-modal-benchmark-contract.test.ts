@@ -105,7 +105,8 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('animation: end-run-centered-modal-bounce-in 0.65s cubic-bezier(0.22, 1.18, 0.36, 1) both;');
     expect(css).toContain('animation: end-run-centered-modal-flip-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;');
     expect(css).toContain('animation: end-run-centered-modal-bounce-out 0.65s cubic-bezier(0.4, 0, 0.2, 1) both;');
-    expect(css).toContain('translate3d(0, -1px, 0) scale(1.012) rotate(-0.25deg)');
+    expect(css).toContain('translate3d(0, var(--cc-modal-drag-release-y, 0px), 0) scale(1) rotate(var(--cc-modal-drag-release-tilt, 0deg))');
+    expect(css).toContain('translate3d(0, calc(var(--cc-modal-drag-release-y, 0px) - 1px), 0) scale(1.012) rotate(-0.25deg)');
     expect(css).toContain('translate3d(0, -0.5px, 12px) rotateX(1.25deg) rotateY(-7deg) scale(1.008)');
     expect(css).not.toContain('translate3d(0, -4px, 0) scale(1.055) rotate(-0.5deg)');
     expect(css).toContain('0 13px 33.6px 0 rgba(185, 145, 119, 0.8)');

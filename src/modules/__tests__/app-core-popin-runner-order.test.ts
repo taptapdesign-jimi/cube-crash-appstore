@@ -20,3 +20,31 @@ test('fresh board cubes wait for the current-Round cue before sweetPopIn', async
   await result;
   expect(sweetPopIn).toHaveBeenCalledTimes(1);
 });
+
+test('an aborted in-flight pop-in cannot finalize a newer entry', async () => {
+  let finishPopIn!: () => void;
+  const controller = new AbortController();
+  const updateGhostVisibility = jest.fn();
+  (window as any).__ccEnterAnimationActive = true;
+  (window as any).updateGhostVisibility = updateGhostVisibility;
+  const sweetPopIn = jest.fn((_tiles, options) => {
+    expect(options.signal).toBe(controller.signal);
+    return new Promise<void>((resolve) => { finishPopIn = resolve; });
+  });
+  const runner = createSweetPopInRunner({
+    tiles: [{}],
+    sweetPopIn,
+    onHalf: jest.fn(),
+    shouldAbort: () => controller.signal.aborted,
+    getAbortSignal: () => controller.signal,
+    devLog: jest.fn(),
+  });
+
+  const result = runner();
+  controller.abort();
+  finishPopIn();
+  await result;
+
+  expect((window as any).__ccEnterAnimationActive).toBe(true);
+  expect(updateGhostVisibility).not.toHaveBeenCalled();
+});

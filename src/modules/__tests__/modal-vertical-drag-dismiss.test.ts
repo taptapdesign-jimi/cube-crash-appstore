@@ -160,4 +160,39 @@ describe('modal vertical drag dismiss', () => {
     dispose();
     jest.useRealTimers();
   });
+
+  test('hands a committed finger-release pose to the canonical modal exit', () => {
+    const surface = document.createElement('div');
+    const motion = document.createElement('div');
+    surface.appendChild(motion);
+    jest.spyOn(motion, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 600,
+      height: 500,
+      width: 300,
+      left: 50,
+      right: 350,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    document.body.appendChild(surface);
+    const onDismiss = jest.fn();
+    const dispose = installGameplayOverlayModalDragMotion(surface, {
+      motionElement: motion,
+      onDismiss,
+      restTiltDeg: 1,
+    });
+
+    surface.dispatchEvent(pointer('pointerdown', 100, 180));
+    surface.dispatchEvent(pointer('pointermove', 100, 300));
+    const releaseTransform = motion.style.transform;
+    surface.dispatchEvent(pointer('pointerup', 100, 300));
+
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(motion.style.transform).toBe(releaseTransform);
+    expect(motion.style.getPropertyValue('--cc-modal-drag-release-y')).toBe('49.81px');
+    expect(motion.style.getPropertyValue('--cc-modal-drag-release-tilt')).not.toBe('');
+    dispose();
+  });
 });

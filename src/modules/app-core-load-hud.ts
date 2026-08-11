@@ -35,25 +35,33 @@ export function ensureHudAfterLoad({
     hud.alpha = 1;
     devLog('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
   }
+
+  // During a coordinated entry this function only prepares the canonical
+  // hidden HUD pose. The tile pop-in midpoint is the sole reveal owner.
+  if (isHudDropPending()) {
+    try {
+      const existingHUD = document.querySelector('[data-unified-hud]');
+      if (!existingHUD && typeof HUD.createUnifiedHudContainer === 'function') {
+        HUD.createUnifiedHudContainer();
+      }
+      const hudRoot = getHudRootFromWindow() || HUD.HUD_ROOT || null;
+      if (hudRoot) {
+        const top = hudRoot._dropTop ?? 44;
+        hudRoot.visible = true;
+        hudRoot.alpha = 0;
+        hudRoot.y = top - 140;
+        hudRoot._dropped = false;
+      }
+      devLog('✅ Loaded HUD prepared for coordinated entry reveal');
+    } catch (error) {
+      devWarn('⚠️ Failed to prepare loaded HUD hidden pose:', error);
+    }
+    return;
+  }
   
   // Always trigger HUD drop animation when loading saved state
   try {
-    if (isHudDropPending()) {
-      devLog('🎯 HUD drop pending - triggering drop animation');
-      if (typeof HUD.playHudDrop === 'function') {
-        trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-          if (app && app.canvas) {
-            app.canvas.style.opacity = '1';
-            app.canvas.style.transition = 'opacity 0.3s ease';
-            devLog('✅ Canvas shown - HUD drop starting');
-          }
-          try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
-          HUD.playHudDrop({ forceRestart: true });
-          setHudDropPending(false);
-          devLog('✅ HUD drop started (next paint, forceRestart)');
-        }));
-      }
-    } else {
+    if (!isHudDropPending()) {
       devLog('🎯 HUD drop not pending - ensuring HUD is visible');
       const hudRootHere = getHudRootFromWindow() || HUD.HUD_ROOT || null;
       if (hudRootHere) {

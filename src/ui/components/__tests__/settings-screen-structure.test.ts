@@ -64,4 +64,11 @@ describe('Settings screen structure', () => {
 
     (screen as HTMLElement & { _settingsCleanup?: () => void })._settingsCleanup?.();
   });
+
+  it('keeps the footer credit and version visible but non-interactive', () => {
+    const screen = HTMLBuilder.createElement(createSettingsScreen({}));
+    expect(screen.querySelector('#settings-footer-haptic')).toBeNull();
+    expect(screen.querySelector('.settings-footer-text')?.tagName).toBe('DIV');
+    expect(screen.querySelector('.settings-version')?.textContent).toBe('v1.0');
+  });
 });

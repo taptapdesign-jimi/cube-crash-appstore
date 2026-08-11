@@ -268,6 +268,38 @@ describe('Journey spatial motion', () => {
     expect(slides[2].querySelector<HTMLElement>('.slide-button')?.dataset.journeySpatialTarget).toBe('homepage');
   });
 
+  it('replaces Homepage slide targets without restarting the shared sensor listener', () => {
+    (window as Window & { _settings?: { spatialMotionEnabled: boolean } })._settings = {
+      spatialMotionEnabled: true,
+    };
+    class DeviceOrientationEventWithoutPermission {}
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: DeviceOrientationEventWithoutPermission,
+    });
+    document.body.innerHTML = `
+      <div id="home"><div id="slider-container">
+        <div class="slider-slide active" data-slide="0"><img class="hero-image" /><button class="slide-button"></button></div>
+        <div class="slider-slide" data-slide="1"><img class="hero-image" /><button class="slide-button"></button></div>
+      </div></div>`;
+    const adds = jest.spyOn(window, 'addEventListener');
+    const removes = jest.spyOn(window, 'removeEventListener');
+    const controller = new AppSpatialMotionController();
+    const container = document.getElementById('slider-container') as HTMLElement;
+
+    controller.activateHomepage(container, 0);
+    controller.activateHomepage(container, 1);
+
+    expect(adds.mock.calls.filter(([type]) => type === 'deviceorientation')).toHaveLength(1);
+    expect(removes.mock.calls.filter(([type]) => type === 'deviceorientation')).toHaveLength(0);
+    expect(container.querySelector('.slider-slide[data-slide="0"] .hero-image')?.getAttribute('data-journey-spatial-target')).toBeNull();
+    expect(container.querySelector('.slider-slide[data-slide="1"] .hero-image')?.getAttribute('data-journey-spatial-target')).toBe('homepage');
+
+    controller.deactivate();
+    adds.mockRestore();
+    removes.mockRestore();
+  });
+
   it('coalesces Homepage activation during Settings handoff and starts only the latest slide after release', () => {
     document.body.innerHTML = `
       <div id="home">

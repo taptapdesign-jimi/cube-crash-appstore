@@ -10,6 +10,7 @@ type CleanupDeps = {
   stopMagnetIdleParticles?: (t: Tile) => void;
   stopTntIdleParticles?: (t: Tile) => void;
   stopTntIdleShake?: (t: Tile) => void;
+  stopSpecialDiceIdleMotion?: (t: Tile) => void;
   devWarn: (...args: unknown[]) => void;
 };
 
@@ -22,12 +23,14 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     stopWildStars,
     stopWildJuiceBubbles,
     stopMagnetIdleParticles,
-  stopTntIdleParticles,
-  stopTntIdleShake,
+    stopTntIdleParticles,
+    stopTntIdleShake,
+    stopSpecialDiceIdleMotion,
     devWarn,
   } = deps;
 
   tiles.forEach(t => {
+    try { stopSpecialDiceIdleMotion?.(t); } catch {}
     try { stopWildIdle?.(t); } catch {}
     try { stopWildShimmer?.(t); } catch {}
     try { stopWildStars?.(t); } catch {}

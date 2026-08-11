@@ -804,10 +804,9 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
             className: 'settings-footer',
             children: [
               {
-                tag: 'p',
-                id: 'settings-footer-haptic',
+                tag: 'div',
                 className: 'settings-footer-text',
-                html: 'Made with ❤️ in Croatia<br/>by Tap Tap Design',
+                html: 'Made with ❤️ in Croatia<br/>by Tap Tap Design<span class="settings-version">v1.0</span>',
               },
             ],
           },
@@ -999,38 +998,6 @@ export function renderSettingsScreen(
 
   console.log('✅ Settings back button and Music toggle handlers attached via event delegation');
 
-  // Footer text: haptic-only behavior, hard iOS-safe listeners
-  const footerText = element.querySelector('.settings-footer-text') as HTMLElement | null;
-  let lastFooterHapticAt = 0;
-  const footerHapticHandler = () => {
-    const now = Date.now();
-    if (now - lastFooterHapticAt < 120) return; // prevent duplicate trigger from multi events
-    lastFooterHapticAt = now;
-    console.log('📳 Settings footer haptic event fired');
-    triggerSettingsForceHapticImpact('medium');
-  };
-  if (footerText) {
-    footerText.addEventListener('touchstart', footerHapticHandler, { passive: true });
-    footerText.addEventListener('pointerdown', footerHapticHandler);
-    footerText.addEventListener('mousedown', footerHapticHandler);
-    footerText.addEventListener('click', footerHapticHandler);
-  }
-
-  // Extra-safe capture path: if any layer intercepts bubbling, capture still fires.
-  const footerCaptureHandler = (e: Event) => {
-    const targetNode = e.target as Node | null;
-    const target = (targetNode && targetNode.nodeType === Node.ELEMENT_NODE
-      ? (targetNode as Element)
-      : targetNode?.parentElement) as Element | null;
-    if (!target) return;
-    if (target.closest('#settings-footer-haptic, .settings-footer-text')) {
-      footerHapticHandler();
-    }
-  };
-  element.addEventListener('touchstart', footerCaptureHandler, true);
-  element.addEventListener('pointerdown', footerCaptureHandler, true);
-  element.addEventListener('click', footerCaptureHandler, true);
-
   // 🔥 FIX: Store cleanup function on element for proper memory management
   (element as any)._settingsCleanup = () => {
     setSettingsView('main');
@@ -1040,32 +1007,6 @@ export function renderSettingsScreen(
     element.removeEventListener('touchstart', toggleBounceHandler, true);
     element.removeEventListener('click', toggleBounceHandler, true);
     window.removeEventListener('cc-navigation', navigationResetHandler);
-    if (footerText) {
-      footerText.removeEventListener('touchstart', footerHapticHandler);
-      footerText.removeEventListener('pointerdown', footerHapticHandler);
-      footerText.removeEventListener('mousedown', footerHapticHandler);
-      footerText.removeEventListener('click', footerHapticHandler);
-    }
-    element.removeEventListener('touchstart', footerCaptureHandler, true);
-    element.removeEventListener('pointerdown', footerCaptureHandler, true);
-    element.removeEventListener('click', footerCaptureHandler, true);
     console.log('✅ Settings screen event listeners cleaned up');
   };
-}
-
-function triggerSettingsForceHapticImpact(style: 'light' | 'medium' | 'heavy'): void {
-  let triggered = false;
-  try {
-    // Bypass _settings.hapticsEnabled guard intentionally for Settings interactions
-    // so user always gets tactile feedback while configuring haptics.
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact(style);
-      triggered = true;
-    }
-    if (!triggered && navigator.vibrate) {
-      const duration = style === 'heavy' ? 70 : style === 'light' ? 30 : 50;
-      navigator.vibrate(duration);
-      triggered = true;
-    }
-  } catch {}
 }

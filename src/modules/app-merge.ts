@@ -969,65 +969,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
   } catch {}
   
-  // 🔥 USER REQUEST: Animate stars to HUD if magnet pulled wild star
-  if (wildStarTileForAnimation && savedStarSystemEarly && savedStarPositionsEarly.length > 0) {
-    console.log('⭐ MAGNET PULL: Animating stars to HUD from pulled wild star');
-    
-    // Get HUD star position
-    let hudStarPos: { x: number; y: number } | null = null;
-    try {
-      if (typeof HUD.getStarHudPosition === 'function') {
-        hudStarPos = HUD.getStarHudPosition();
-      }
-    } catch (e) {
-      console.warn('⚠️ Failed to get HUD star position:', e);
-    }
-    
-    if (!hudStarPos) {
-      console.warn('⚠️ HUD star position not available, using fallback');
-      hudStarPos = { x: 0, y: 0 };
-    }
-    
-    // Get merge 6 position (dst tile position)
-    let merge6Pos: { x: number; y: number };
-    if (typeof dst.getGlobalPosition === 'function') {
-      merge6Pos = dst.getGlobalPosition();
-    } else {
-      merge6Pos = { x: dst.x || 0, y: dst.y || 0 };
-    }
-    
-    // Animate stars to HUD (same as normal wild star merge 6)
-    trackAppAnimationFrame(() => {
-      trackAppTimeout(async () => {
-        try {
-          const { animateStarsToHudIcon } = await import('./fx.js');
-          if (typeof animateStarsToHudIcon === 'function' && STATE.board && STATE.stage) {
-            console.log('⭐ MAGNET PULL: Calling animateStarsToHudIcon with saved star data');
-            // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
-            const appForAnimation = STATE.app || (STATE.stage as any)?.app;
-            await animateStarsToHudIcon(
-              STATE.board,
-              STATE.stage,
-              savedStarPositionsEarly,
-              savedWildTileScreenPosEarly || { x: 0, y: 0 },
-              merge6Pos,
-              hudStarPos,
-              appForAnimation
-            );
-            console.log('✅ MAGNET PULL: Stars animation to HUD completed');
-          } else {
-            console.warn('⚠️ animateStarsToHudIcon not available or STATE.board/stage missing');
-          }
-        } catch (error) {
-          console.error('❌ MAGNET PULL: Failed to animate stars to HUD:', error);
-        }
-      }, 200); // Small delay to ensure tiles are removed
+  // One Magnet transaction owns at most one Star-to-HUD batch. A pulled wild
+  // Star and the regular pulled-tile bonus used to schedule two protected
+  // animation containers at the same time, doubling the visible merge load and
+  // leaving parallel path timelines alive through interrupted restarts.
+  const magnetStarPayload = [
+    ...(wildStarTileForAnimation && savedStarSystemEarly ? savedStarPositionsEarly : []),
+    ...magnetPullStarPositions,
+  ].filter((star, index, allStars) => {
+    const sprite = star?.sprite;
+    return !sprite || allStars.findIndex((candidate) => candidate?.sprite === sprite) === index;
+  }).slice(0, 3);
+  if (magnetStarPayload.length > 0) {
+    console.log('⭐ MAGNET PULL: Animating one consolidated Star batch to HUD', {
+      starCount: magnetStarPayload.length,
+      includesWildStar: !!wildStarTileForAnimation,
+      includesPullBonus: magnetPullStarPositions.length > 0,
     });
-  }
-
-  // 🔥 USER REQUEST: Animate stars to HUD when magnet pulled tiles (no wild star needed)
-  if (magnetPullStarPositions.length > 0) {
-    console.log('⭐ MAGNET PULL: Animating stars to HUD for pulled tiles');
     let hudStarPos: { x: number; y: number } | null = null;
     try {
       if (typeof HUD.getStarHudPosition === 'function') {
@@ -1055,13 +1013,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             await animateStarsToHudIcon(
               STATE.board,
               STATE.stage,
-              magnetPullStarPositions,
-              magnetPullStarBasePos || { x: 0, y: 0 },
+              magnetStarPayload,
+              (wildStarTileForAnimation ? savedWildTileScreenPosEarly : magnetPullStarBasePos) || { x: 0, y: 0 },
               merge6Pos,
               hudStarPos,
               appForAnimation
             );
-            console.log('✅ MAGNET PULL: Stars animation to HUD completed');
+            console.log('✅ MAGNET PULL: Consolidated Stars animation to HUD completed');
           } else {
             console.warn('⚠️ animateStarsToHudIcon not available or STATE.board/stage missing (magnet pull stars)');
           }

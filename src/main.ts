@@ -10,6 +10,13 @@ import './ui/collectibles-bridge.js';
 import { gsap } from 'gsap';
 import './ios-image-helper.js';
 import { startPerfMonitorIfEnabled } from './utils/perf-monitor.js';
+import {
+  dumpJourneyPlayAgainIncidentRing,
+  recordJourneyPlayAgainIncident,
+} from './utils/journey-play-again-incident-ring.js';
+
+// Persisted diagnostics survive a CoreDevice console disconnect or WebContent restart.
+dumpJourneyPlayAgainIncidentRing();
 
 // Ensure gsap is available globally for any legacy modules
 if (!(window as any).gsap) {
@@ -326,7 +333,6 @@ async function playHomepageSliderEnterHandoff(
   try {
     if (gameState && typeof (gameState as any).set === 'function') {
       (gameState as any).set('sliderLocked', true);
-      (gameState as any).set('currentSlide', targetSlideIndex);
     }
   } catch {}
 
@@ -1934,6 +1940,10 @@ async function startNewRun(boardId: number): Promise<void> {
 
 // 🔥 JOURNEY PROGRESSION: Export startNewRunFromJourney function (with board enter animation)
 (window as any).startNewRunFromJourney = async (boardId: number) => {
+  const isJourneyPlayAgainRestart = (window as any).__ccPlayAgainRestartInProgress === true;
+  if (isJourneyPlayAgainRestart) {
+    recordJourneyPlayAgainIncident('journey-run-start-requested', { boardId });
+  }
   memoryManager.start();
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
@@ -2021,11 +2031,20 @@ async function startNewRun(boardId: number): Promise<void> {
     
     console.log(`✅✅✅ New run started successfully for board ${boardId} with enter animation`);
     logger.info(`✅ New run started for board ${boardId} with enter animation`);
+    if (isJourneyPlayAgainRestart) {
+      recordJourneyPlayAgainIncident('journey-run-boot-settled', { boardId });
+    }
   } catch (error) {
       console.error(`❌❌❌ Failed to start new run for board ${boardId}:`, error);
       logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
       delete (window as any).__ccStartAtLevel;
       delete (window as any).__ccTriggerHudDrop;
+      if (isJourneyPlayAgainRestart) {
+        recordJourneyPlayAgainIncident('journey-run-start-failed', {
+          boardId,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
       await recoverJourneyStartFailure(`startNewRunFromJourney:${boardId}`, error);
     }
 };

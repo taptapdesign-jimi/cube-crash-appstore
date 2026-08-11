@@ -136,8 +136,12 @@ export function installGameplayOverlayModalDragMotion(
   let dragStartRect: DOMRect | null = null;
   let dragViewportHeight = 0;
   let snapbackTimeout: number | null = null;
+  let lastVisualY = 0;
+  let lastDragTiltDeg = 0;
 
   const setPose = (y: number, dragTiltDeg: number) => {
+    lastVisualY = y;
+    lastDragTiltDeg = dragTiltDeg;
     const transform = `translate3d(0, ${y.toFixed(2)}px, 0) scale(1) rotate(${(restTiltDeg + dragTiltDeg).toFixed(2)}deg)`;
     motionElement.style.transform = transform;
     motionElement.style.webkitTransform = transform;
@@ -158,6 +162,8 @@ export function installGameplayOverlayModalDragMotion(
       dragStartRect = motionElement.getBoundingClientRect();
       dragViewportHeight = window.innerHeight;
       motionElement.style.transition = 'none';
+      motionElement.style.removeProperty('--cc-modal-drag-release-y');
+      motionElement.style.removeProperty('--cc-modal-drag-release-tilt');
       if (idleShell) idleShell.style.animationPlayState = 'paused';
     },
     onDragMove: (deltaY) => {
@@ -174,7 +180,16 @@ export function installGameplayOverlayModalDragMotion(
       setPose(boundedY, dragTilt);
     },
     onDragEnd: (committed) => {
-      if (committed) return;
+      if (committed) {
+        // Hand the exact finger-release pose to the canonical exit animation.
+        // This prevents its first keyframe from snapping the modal to center.
+        motionElement.style.setProperty('--cc-modal-drag-release-y', `${lastVisualY.toFixed(2)}px`);
+        motionElement.style.setProperty(
+          '--cc-modal-drag-release-tilt',
+          `${(restTiltDeg + lastDragTiltDeg).toFixed(2)}deg`,
+        );
+        return;
+      }
       motionElement.style.transition = `transform ${snapbackMs}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
       setPose(0, 0);
       snapbackTimeout = window.setTimeout(() => {
@@ -191,6 +206,8 @@ export function installGameplayOverlayModalDragMotion(
     motionElement.style.transform = originalTransform;
     motionElement.style.webkitTransform = originalWebkitTransform;
     motionElement.style.transition = originalTransition;
+    motionElement.style.removeProperty('--cc-modal-drag-release-y');
+    motionElement.style.removeProperty('--cc-modal-drag-release-tilt');
     surface.style.touchAction = originalTouchAction;
     if (idleShell) idleShell.style.removeProperty('animation-play-state');
   };

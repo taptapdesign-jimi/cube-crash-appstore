@@ -246,6 +246,7 @@ export async function showCleanBoardModal({
     attachNavigationCleanup();
     let settled = false;
     let navigationAbortHandler: (() => void) | null = null;
+    let abortStarAnimations: () => void = () => {};
     let resolveNavigationAbort!: () => void;
     const navigationAbortPromise = new Promise<void>((resolveAbort) => {
       resolveNavigationAbort = resolveAbort;
@@ -264,6 +265,7 @@ export async function showCleanBoardModal({
       // abort so the suspended endgame flow cannot resume later when the card
       // modal closes and reveal a stale Clean Board final state.
       resolveNavigationAbort();
+      try { abortStarAnimations(); } catch {}
       try { cleanupCleanBoardModalLifecycle(); } catch {}
       try { document.getElementById('cc-clean-board-overlay')?.remove(); } catch {}
       safeResolve('__navigation-abort__');
@@ -915,7 +917,8 @@ export async function showCleanBoardModal({
         const durationSec = durationMs / 1000;
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
-        setTimeout(() => {
+        trackTimeout(() => {
+          if (!el.isConnected || el.getAttribute('data-clean-board-exiting') === 'true') return;
           mainScore.style.transition = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
@@ -993,11 +996,13 @@ export async function showCleanBoardModal({
           
           // Animate earned stars filling in with the established staggered bounce.
           // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
-          setTimeout(() => {
+          trackTimeout(() => {
+            if (!el.isConnected || el.getAttribute('data-clean-board-exiting') === 'true') return;
             starElements.forEach((star, index) => {
               // Only fill stars that were earned (numStars)
               if (index < numStars) {
-                setTimeout(() => {
+                trackTimeout(() => {
+                  if (!el.isConnected || el.getAttribute('data-clean-board-exiting') === 'true') return;
                   const { filledImg, emptyImg } = star;
                   // One medium haptic per earned (filled) star.
                   triggerHapticImpactSafe('medium');
@@ -1174,6 +1179,88 @@ export async function showCleanBoardModal({
     
     // 🔥 Track all GSAP tweens for cleanup (score, combo, efficiency animations)
     const activeGSAPTweens: Array<gsap.core.Tween> = [];
+    const starExitTimelines = new Set<gsap.core.Timeline>();
+    let starExitPromise: Promise<void> | null = null;
+    let settleStarExit: (() => void) | null = null;
+
+    const cancelStarExit = () => {
+      starExitTimelines.forEach((timeline) => {
+        try { animationManager.killExternalTimeline(timeline); } catch {
+          try { timeline.kill(); } catch {}
+        }
+      });
+      starExitTimelines.clear();
+      settleStarExit?.();
+      settleStarExit = null;
+    };
+    abortStarAnimations = cancelStarExit;
+
+    const playEarnedStarsExit = (earned = numStars): Promise<void> => {
+      if (starExitPromise) return starExitPromise;
+      const numEarned = Math.max(0, earned | 0);
+      starExitPromise = new Promise<void>((resolveExit) => {
+        let remaining = numEarned;
+        let settledExit = false;
+        const finish = () => {
+          if (settledExit) return;
+          remaining -= 1;
+          if (remaining > 0) return;
+          settledExit = true;
+          settleStarExit = null;
+          resolveExit();
+        };
+        settleStarExit = () => {
+          if (settledExit) return;
+          settledExit = true;
+          resolveExit();
+        };
+        if (numEarned === 0) {
+          hero.style.opacity = '0';
+          finish();
+          return;
+        }
+        starBounceTimelines.forEach((timeline) => {
+          try { animationManager.killExternalTimeline(timeline); } catch {
+            try { timeline.kill(); } catch {}
+          }
+        });
+        starBounceTimelines.length = 0;
+        starElements.forEach(({ filledImg, emptyImg }, index) => {
+          emptyImg.style.opacity = '0';
+          if (index >= numEarned) return;
+          filledImg.style.animation = 'none';
+          const timeline = trackTimeline({
+            delay: Math.max(0, numEarned - 1 - index) * 0.07,
+            onComplete: () => {
+              starExitTimelines.delete(timeline);
+              finish();
+            },
+            onInterrupt: () => {
+              starExitTimelines.delete(timeline);
+              finish();
+            },
+          });
+          timeline
+            .to(filledImg, {
+              scale: 1.22,
+              opacity: 1,
+              duration: 0.10,
+              ease: 'back.out(2.7)',
+              overwrite: true,
+            })
+            .to(filledImg, {
+              scale: 0,
+              opacity: 1,
+              duration: 0.40,
+              ease: 'back.in(1.7)',
+              overwrite: true,
+            })
+            .set(filledImg, { opacity: 0 });
+          starExitTimelines.add(timeline);
+        });
+      });
+      return starExitPromise;
+    };
     
     // 🔥 CLEANUP: Kill all GSAP tweens (score, combo, efficiency animations)
     const killAllGSAPTweens = () => {
@@ -1193,10 +1280,14 @@ export async function showCleanBoardModal({
     };
     
     // 🌟 CLEANUP / EXIT: Stop star animations. With exit: true, hide empty stars,
-    // animate filled stars in place to scale(0)+opacity(0), no snap or "return".
+    // animate filled stars with the standard punch + back.in cartoon exit.
     const stopAllStarAnimations = (opts?: { exit?: boolean; numStars?: number }) => {
       const numEarned = Math.max(0, (opts?.numStars ?? numStars) | 0);
       const isExit = opts?.exit === true;
+
+      if (isExit) {
+        return playEarnedStarsExit(numEarned);
+      }
 
       // Kill all star bounce timelines
       starBounceTimelines.forEach(tl => {
@@ -1216,26 +1307,6 @@ export async function showCleanBoardModal({
         }
 
         if (!filledImg) return;
-
-        if (isExit && index < numEarned) {
-          // Animate earned stars in place to exit (no snap, no return to original)
-          try {
-            const ct = getComputedStyle(filledImg).transform;
-            filledImg.style.animation = 'none';
-            if (ct && ct !== 'none') {
-              filledImg.style.transform = ct;
-            }
-            filledImg.style.transformOrigin = 'center center';
-            trackTween(filledImg, {
-              scale: 0,
-              opacity: 0,
-              duration: 0.5,
-              ease: 'power2.in',
-              overwrite: true,
-            });
-          } catch (e) {}
-          return;
-        }
 
         // Non-exit path (e.g. cleanup): just stop breathing, no empty reset
         try {
@@ -1321,7 +1392,7 @@ export async function showCleanBoardModal({
       // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
       // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
       killAllGSAPTweens(); // Kill score/combo/efficiency animations
-      stopAllStarAnimations({ exit: true, numStars }); // Stars exit in place, no empty stars, no snap
+      const earnedStarsExitPromise = playEarnedStarsExit(numStars);
       clearAllModalTimeouts(); // Clear all pending timeouts
       clearAllModalAnimationFrames(); // Clear all animation frames
       
@@ -1350,22 +1421,22 @@ export async function showCleanBoardModal({
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6]; // 5 nodes (no hero)
       const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
-      // 🎯 Hero excluded: stars animate in place via stopAllStarAnimations; hero fades in place (no translate)
+      // Hero remains the stable coordinate owner while earned stars exit
+      // individually. Scaling both parent and children creates a compounded,
+      // visibly incorrect Star exit.
       const nodes = [title, scoreLabel, mainScore, statusSlot, boardCleared];
       nodes.forEach((node) => { node.style.transition = exitTrans; });
-      hero.style.transition = exitTrans;
+      hero.style.transition = 'none';
 
       // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
       // The clicked CTA exits first; its companion follows by one tiny visual beat.
       // Primary button (Play Again/Continue) was clicked - animate it FIRST
-      await exitCtaPair(primaryBtn, secondaryBtn);
+      await Promise.all([
+        exitCtaPair(primaryBtn, secondaryBtn),
+        earnedStarsExitPromise,
+      ]);
 
       requestAnimationFrame(() => {
-        // Hero: fade + scale in place only (no translate); stars already exiting in place
-        setTimeout(() => {
-          hero.style.opacity = '0';
-          hero.style.transform = 'scale(0)';
-        }, 0);
         nodes.forEach((node, idx) => {
           const delay = (idx + 1) * 60;
           setTimeout(() => {
@@ -1442,8 +1513,7 @@ export async function showCleanBoardModal({
         }
       } catch {}
       
-      // 🔥 LESS AGGRESSIVE: Stop stars/confetti immediately before transition
-      try { stopAllStarAnimations({ exit: true, numStars }); } catch {}
+      // Star outro already has one idempotent owner started at exit tap.
       try {
         import('./confetti-system.js').then(confettiModule => {
           if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
@@ -1568,7 +1638,7 @@ export async function showCleanBoardModal({
         console.log('🎬 clean-board-modal: Starting board exit animation before hiding board...');
         
         // Stop only modal-specific animations, but NOT board animations (let exit animation play)
-        stopAllStarAnimations({ exit: true, numStars });
+        const earnedStarsExitPromise = playEarnedStarsExit(numStars);
         // Ensure confetti is fully removed right when Exit is tapped.
         // Keeping existing confetti alive causes visible "waiting on confetti" before homepage.
         stopConfettiSpawnsSafe();
@@ -1613,15 +1683,13 @@ export async function showCleanBoardModal({
         const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
         const nodes = [title, scoreLabel, mainScore, statusSlot, boardCleared];
         nodes.forEach((node) => { node.style.transition = exitTrans; });
-        hero.style.transition = exitTrans;
+        // Keep the parent at identity; stopAllStarAnimations owns the visual
+        // exit for each earned Star.
+        hero.style.transition = 'none';
 
         const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);
 
         trackAnimationFrame(() => {
-          trackTimeout(() => {
-            hero.style.opacity = '0';
-            hero.style.transform = 'scale(0)';
-          }, 0);
           nodes.forEach((node, idx) => {
             const delay = (idx + 1) * 60;
             trackTimeout(() => {
@@ -1633,12 +1701,13 @@ export async function showCleanBoardModal({
         });
         // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
         // This prevents buttons from moving up with card scale
-        trackTimeout(() => {
+        void earnedStarsExitPromise.then(() => {
+          if (!el.isConnected) return;
           card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
           trackAnimationFrame(() => {
             card.style.transform = 'scale(0.86)';
           });
-        }, 400); // Delay card scale until buttons are mid-animation
+        });
         
         // Board and modal exits are independent owners. Hide gameplay after its
         // own exit, but do not kill modal GSAP/CSS work from this completion.
@@ -1664,7 +1733,8 @@ export async function showCleanBoardModal({
         // reached its endpoint. In particular, do not replace the card's
         // 650ms transition while it is still settling from the 400ms delay.
         const contentExitDuration = nodes.length * 60 + 580;
-        const cardExitDuration = 400 + 650;
+        const starExitDuration = 500 + Math.max(0, numStars - 1) * 70;
+        const cardExitDuration = starExitDuration + 650;
         const ctaExitDuration = ctaMotion.companionExitStaggerMs + buttonExitDurationMs;
         const collapseDuration = Math.max(
           contentExitDuration,

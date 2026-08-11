@@ -1,4 +1,11 @@
-import { randomRegularTileValue, randVal, trackAppTimeout } from '../app-core-utils';
+import {
+  clearAllAppListeners,
+  getAppCleanupStats,
+  randomRegularTileValue,
+  randVal,
+  trackAppListener,
+  trackAppTimeout,
+} from '../app-core-utils';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from '../run-mode';
 
 describe('app-core-utils regular value bias', () => {
@@ -82,5 +89,41 @@ describe('app-core-utils tracked timeouts', () => {
       jest.advanceTimersByTime(30);
     }).not.toThrow();
     expect(afterError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('app-core-utils tracked listeners', () => {
+  afterEach(() => {
+    clearAllAppListeners();
+  });
+
+  test('deduplicates a repeated boot listener and permits reinstall after cleanup', () => {
+    const handler = jest.fn();
+
+    trackAppListener(window, 'resize', handler);
+    trackAppListener(window, 'resize', handler);
+    window.dispatchEvent(new Event('resize'));
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(getAppCleanupStats().listeners).toBe(1);
+
+    clearAllAppListeners();
+    window.dispatchEvent(new Event('resize'));
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(getAppCleanupStats().listeners).toBe(0);
+
+    trackAppListener(window, 'resize', handler);
+    window.dispatchEvent(new Event('resize'));
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(getAppCleanupStats().listeners).toBe(1);
+  });
+
+  test('keeps capture variants as distinct browser listeners', () => {
+    const handler = jest.fn();
+
+    trackAppListener(window, 'resize', handler, false);
+    trackAppListener(window, 'resize', handler, true);
+
+    expect(getAppCleanupStats().listeners).toBe(2);
   });
 });

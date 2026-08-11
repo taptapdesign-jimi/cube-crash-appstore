@@ -15,7 +15,9 @@ describe('Fail-screen Homepage navigation isolation', () => {
     const setZone = zoneSource.split('setZone(zone: AppZone')[1]
       ?.split('prepareArcadeRunOrigin')[0] ?? '';
 
-    expect(setZone).toContain("if (zone !== 'home')");
+    expect(setZone).toContain(
+      "if (zone !== 'home' && options.preserveHomepageNavigation !== true)",
+    );
     expect(setZone).toContain('hideHomepageNavigation(`app-zone:set-zone:${zone}:${reason}`)');
     expect(navigationSource).toContain("setAttribute(nav, OWNER_ATTRIBUTE, 'inactive')");
     expect(navigationCss).toContain("#independent-nav[data-homepage-owner='inactive']");

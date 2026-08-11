@@ -92,26 +92,43 @@ let bounceCounter = 0; // Track which bounce number we're on
 
 // 🔥 FIX: Track active timeouts for cleanup
 const activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+let collectorEpoch = 0;
+
+interface ActiveCollectionOperation {
+  container: Container;
+  wildTile: any;
+  animations: Set<gsap.core.Animation>;
+  settleCallbacks: Set<() => void>;
+  cancelled: boolean;
+}
+
+const activeCollectionOperations = new Set<ActiveCollectionOperation>();
 
 // 🔥 FIX: Helper to track timeouts
-function trackTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+function trackTimeout(callback: () => void, delay: number, epoch = collectorEpoch): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
+    if (epoch !== collectorEpoch) return;
     callback();
   }, delay);
   activeTimeouts.add(timeout);
   return timeout;
 }
 
-function triggerBounceWithCallback(onComplete?: () => void) {
+function triggerBounceWithCallback(onComplete?: () => void, epoch = collectorEpoch) {
+  const guardedComplete = onComplete
+    ? () => {
+        if (epoch === collectorEpoch) onComplete();
+      }
+    : undefined;
   if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceScoreIcon === 'function') {
-    window.HUD.bounceScoreIcon(onComplete);
+    window.HUD.bounceScoreIcon(guardedComplete);
   } else if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceStarIcon === 'function') {
     // Call bounce function with callback
-    window.HUD.bounceStarIcon(onComplete);
-  } else if (onComplete) {
+    window.HUD.bounceStarIcon(guardedComplete);
+  } else if (guardedComplete) {
     // If bounce function doesn't exist, call onComplete immediately
-    trackTimeout(() => onComplete(), 250);
+    trackTimeout(guardedComplete, 250, epoch);
   }
 }
 
@@ -137,7 +154,7 @@ function processBounceQueue() {
     console.log('⭐ Scheduling 3 bounces with faster timing');
     
     // Bounce 1: starts immediately (0ms)
-    setTimeout(() => {
+    trackTimeout(() => {
       bounceCounter++;
       console.log('⭐ Triggering HUD bounce 1 (immediate)');
       triggerBounceWithCallback(() => {
@@ -150,7 +167,7 @@ function processBounceQueue() {
     }, 0);
     
     // Bounce 2: starts 50% earlier = after 0.115s (instead of 0.23s)
-    setTimeout(() => {
+    trackTimeout(() => {
       bounceCounter++;
       console.log('⭐ Triggering HUD bounce 2 (50% earlier: 115ms delay)');
       triggerBounceWithCallback(() => {
@@ -164,7 +181,7 @@ function processBounceQueue() {
     
     // Bounce 3: starts 100% earlier = immediately after bounce 2 starts (115ms, same as bounce 2)
     // Instead of waiting for bounce 2 to finish (345ms total), start immediately after bounce 2 starts
-    setTimeout(() => {
+    trackTimeout(() => {
       bounceCounter++;
       console.log('⭐ Triggering HUD bounce 3 (100% earlier: same time as bounce 2, 115ms)');
       triggerBounceWithCallback(() => {
@@ -198,7 +215,7 @@ function processBounceQueue() {
     delay = 0; // 100% earlier (immediate)
   }
   
-  setTimeout(() => {
+  trackTimeout(() => {
     console.log('⭐ Triggering HUD bounce', currentBounceNum, 'with delay', (delay * 1000).toFixed(0), 'ms');
     triggerBounceWithCallback(() => {
       console.log('✅ Bounce', currentBounceNum, 'completed');
@@ -340,6 +357,15 @@ export async function collectStarsFromWildTile(
     return;
   }
   stage.addChild(animationContainer);
+
+  const operation: ActiveCollectionOperation = {
+    container: animationContainer,
+    wildTile,
+    animations: new Set(),
+    settleCallbacks: new Set(),
+    cancelled: false,
+  };
+  activeCollectionOperations.add(operation);
   
   // Animate each star sequentially (one after another)
   const STAR_COUNT = orbitingStars.length;
@@ -394,7 +420,8 @@ export async function collectStarsFromWildTile(
       { x: startX, y: startY },
       { x: hudScreenX, y: hudScreenY },
       delay,
-      i // Star index for sequential bounce
+      i, // Star index for sequential bounce
+      operation,
     );
     
     animations.push(animationPromise);
@@ -410,6 +437,7 @@ export async function collectStarsFromWildTile(
     }
     animationContainer.destroy({ children: true });
   } catch {}
+  activeCollectionOperations.delete(operation);
   
   // Detach wild star halo from tile (cleanup orbiting stars)
   try {
@@ -463,9 +491,22 @@ function animateStarToHUD(
   start: { x: number; y: number },
   end: { x: number; y: number },
   delay: number,
-  starIndex: number
+  starIndex: number,
+  operation: ActiveCollectionOperation,
 ): Promise<void> {
   return new Promise((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      operation.settleCallbacks.delete(settle);
+      resolve();
+    };
+    operation.settleCallbacks.add(settle);
+    if (operation.cancelled) {
+      settle();
+      return;
+    }
     // Calculate distance
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -495,7 +536,7 @@ function animateStarToHUD(
       delay,
       onComplete: () => {
         // Fade out and remove star
-        trackTween(star, {
+        const fadeTween = trackTween(star, {
           alpha: 0,
           scale: 0.5,
           duration: 0.2,
@@ -507,11 +548,13 @@ function animateStarToHUD(
               }
               star.destroy?.();
             } catch {}
-            resolve();
+            settle();
           }
         });
+        operation.animations.add(fadeTween);
       }
     });
+    operation.animations.add(tl);
     
     // Animate along wavy bezier path
     const path = {
@@ -627,11 +670,28 @@ function addScoreFromCollectedStar(): void {
  * 🔥 FIX: Comprehensive cleanup of all resources
  */
 export function cleanupStarsCollector(): void {
+  collectorEpoch += 1;
   // Clear all tracked timeouts
   activeTimeouts.forEach(timeout => {
     clearTimeout(timeout);
   });
   activeTimeouts.clear();
+
+  activeCollectionOperations.forEach((operation) => {
+    operation.cancelled = true;
+    operation.animations.forEach((animation) => {
+      try { animation.kill(); } catch {}
+    });
+    operation.animations.clear();
+    Array.from(operation.settleCallbacks).forEach((settle) => settle());
+    operation.settleCallbacks.clear();
+    try {
+      if (operation.container.parent) operation.container.parent.removeChild(operation.container);
+      if (!operation.container.destroyed) operation.container.destroy({ children: true });
+    } catch {}
+    try { detachWildStarHalo(operation.wildTile); } catch {}
+  });
+  activeCollectionOperations.clear();
   
   // Reset queue state
   bounceQueue = 0;

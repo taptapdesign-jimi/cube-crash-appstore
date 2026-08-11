@@ -66,11 +66,11 @@ export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
 export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
 export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
 export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
-export const JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO = 0.2;
-export const JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS = 0.34;
+export const JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO = 0.4;
+export const JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO = 0.1;
+export const JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG = 72;
 export const JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS = 5000;
 export const JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS = 2100;
-export const JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG = 36;
 export const JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE = 0.5;
 export const JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO = 0.22;
 export const JOURNEY_CARD_DISMISS_DRAG_MIN_PX = 88;
@@ -149,14 +149,38 @@ export function getJourneyCardFlipEdgeProgress(fromAngle: number, toAngle: numbe
   return clamp01((edge - fromAngle) / distance);
 }
 
-export function shouldCommitJourneyCardFlipDrag(
+export function getJourneyCardFlipFaceForAngle(angle: number): 'front' | 'back' {
+  if (!Number.isFinite(angle)) return 'front';
+  const normalized = ((angle % 360) + 360) % 360;
+  return normalized > 90 && normalized < 270 ? 'back' : 'front';
+}
+
+export function getJourneyCardDragFlipAngle(
+  stableAngle: number,
   deltaX: number,
-  velocityX: number,
-  cardWidth: number,
+  viewportWidth: number,
+): number {
+  const handoffDistance = Math.max(
+    1,
+    Math.abs(viewportWidth) * JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
+  );
+  const progress = clamp01(Math.abs(deltaX) / handoffDistance);
+  const direction = Math.sign(deltaX);
+  return stableAngle + direction * JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG * progress;
+}
+
+export function shouldCommitJourneyCardReleasedDrag(
+  deltaX: number,
+  viewportWidth: number,
+  allowedDirection: -1 | 0 | 1 = 0,
 ): boolean {
-  const commitDistance = Math.max(1, cardWidth) * JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO;
-  return Math.abs(deltaX) >= commitDistance
-    || Math.abs(velocityX) >= JOURNEY_CARD_FLIP_FLICK_VELOCITY_PX_PER_MS;
+  const direction = Math.sign(deltaX) as -1 | 0 | 1;
+  const releaseCommitDistance = Math.max(
+    1,
+    Math.abs(viewportWidth) * JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO,
+  );
+  return Math.abs(deltaX) >= releaseCommitDistance
+    && (allowedDirection === 0 || direction === allowedDirection);
 }
 
 export function buildJourneyCardOverlayModalViewModel(
@@ -319,6 +343,7 @@ export function presentJourneyCardOverlayModal(
   let spatialFlight: JourneyCardSpatialFlightController | null = null;
   let flipAnimation: Animation | null = null;
   let impactAnimation: Animation | null = null;
+  let dragPreviewSettleAnimation: Animation | null = null;
   let exitNeutralAnimations: Animation[] = [];
   let idleCoachTimer = 0;
   let idleCoachRotorAnimation: Animation | null = null;
@@ -328,7 +353,7 @@ export function presentJourneyCardOverlayModal(
   let nextIdleCoachMode: 'drag' | 'tap' = 'drag';
   let backContentEnterTimer = 0;
   let backContentRestoreTimer = 0;
-  let flipEdgeTimer = 0;
+  let flipEdgeRaf = 0;
   let backContentEnterScheduled = false;
   let disposeSpatialMotion: (() => void) | null = null;
   let closeController: GameplaySheetCloseController | null = null;
@@ -336,18 +361,22 @@ export function presentJourneyCardOverlayModal(
   let activePointerId: number | null = null;
   let dragStartX = 0;
   let dragStartY = 0;
-  let dragLastX = 0;
-  let dragLastTime = 0;
-  let dragVelocityX = 0;
-  let dragMoved = false;
+  let dragLatestX = 0;
   let dragStartAngle = 0;
+  let dragFlipProgress = 0;
+  let dragFlipCommitted = false;
+  let dragAllowedDirection: -1 | 0 | 1 = 0;
+  let dragMoved = false;
   let dragCardWidth = 1;
   let dragCardHeight = 1;
   let dragCardRect: DOMRect | null = null;
   let dragViewportHeight = 0;
-  let dragDirection = 1;
-  let currentTranslateX = 0;
+  let dragViewportWidth = 0;
+  let dragHorizontalMinX = 0;
+  let dragHorizontalMaxX = 0;
   let dragAxis: 'horizontal' | 'vertical' | null = null;
+  let dismissDragReleaseY = 0;
+  let dismissDragReleaseScale = 1;
 
   const setPaintFaceForAngle = (angle: number) => {
     const normalized = ((angle % 360) + 360) % 360;
@@ -393,14 +422,11 @@ export function presentJourneyCardOverlayModal(
     ];
   };
 
-  const setRotorPose = (angle: number, translateX = 0) => {
+  const setRotorAngle = (angle: number) => {
     currentAngle = angle;
-    currentTranslateX = translateX;
-    rotor.style.transform = `translate3d(${translateX}px, 0, 0) rotateY(${angle}deg)`;
+    rotor.style.transform = `rotateY(${angle}deg)`;
     setPaintFaceForAngle(angle);
   };
-
-  const setRotorAngle = (angle: number) => setRotorPose(angle, 0);
 
   const setStableFace = (face: 'front' | 'back') => {
     stableFace = face;
@@ -424,9 +450,9 @@ export function presentJourneyCardOverlayModal(
       window.clearTimeout(backContentRestoreTimer);
       backContentRestoreTimer = 0;
     }
-    if (flipEdgeTimer !== 0) {
-      window.clearTimeout(flipEdgeTimer);
-      flipEdgeTimer = 0;
+    if (flipEdgeRaf !== 0) {
+      cancelAnimationFrame(flipEdgeRaf);
+      flipEdgeRaf = 0;
     }
   };
 
@@ -614,6 +640,8 @@ export function presentJourneyCardOverlayModal(
     flipAnimation = null;
     impactAnimation?.cancel();
     impactAnimation = null;
+    dragPreviewSettleAnimation?.cancel();
+    dragPreviewSettleAnimation = null;
     exitNeutralAnimations.forEach((animation) => animation.cancel());
     exitNeutralAnimations = [];
     if (activePointerId !== null) {
@@ -671,7 +699,7 @@ export function presentJourneyCardOverlayModal(
   };
 
   const animateInteractiveFlip = async (targetFace: 'front' | 'back'): Promise<void> => {
-    if (entering || closing || settled || flipping || targetFace === stableFace) return;
+    if (entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation) return;
     flipping = true;
     stopSurfaceIdle();
     stage.classList.add('is-flipping');
@@ -680,7 +708,6 @@ export function presentJourneyCardOverlayModal(
     disposeSpatialMotion?.();
     disposeSpatialMotion = null;
     const from = currentAngle;
-    const fromTranslateX = currentTranslateX;
     const canonical = targetFace === 'back' ? -180 : 0;
     const candidates = [canonical - 360, canonical, canonical + 360];
     const to = candidates.reduce((nearest, candidate) => (
@@ -689,19 +716,39 @@ export function presentJourneyCardOverlayModal(
     const direction = Math.sign(to - from) || (targetFace === 'back' ? -1 : 1);
     const duration = prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_SNAP_DURATION_MS;
     const edgeProgress = getJourneyCardFlipEdgeProgress(from, to);
+    const crossesFaceEdge = getJourneyCardFlipFaceForAngle(from) !== targetFace;
     if (typeof rotor.animate === 'function') {
-      const animation = rotor.animate([
-        { transform: `translate3d(${fromTranslateX}px, 0, 0) rotateY(${from}deg)` },
-        { transform: `translate3d(${fromTranslateX * 0.36}px, 0, 0) rotateY(${from + (to - from) * edgeProgress}deg)`, offset: edgeProgress },
-        { transform: `translate3d(0, 0, 0) rotateY(${to + direction * 7}deg)`, offset: 0.82 },
-        { transform: `translate3d(0, 0, 0) rotateY(${to}deg)` },
-      ], { duration, easing: 'linear' });
+      const keyframes: Keyframe[] = [
+        { transform: `rotateY(${from}deg)` },
+      ];
+      if (crossesFaceEdge && edgeProgress < 0.82) {
+        keyframes.push({
+          transform: `rotateY(${from + (to - from) * edgeProgress}deg)`,
+          offset: edgeProgress,
+        });
+      }
+      keyframes.push(
+        { transform: `rotateY(${to + direction * 7}deg)`, offset: 0.82 },
+        { transform: `rotateY(${to}deg)` },
+      );
+      const animation = rotor.animate(keyframes, { duration, easing: 'linear' });
       flipAnimation = animation;
-      flipEdgeTimer = window.setTimeout(() => {
-        flipEdgeTimer = 0;
-        if (closing || settled || flipAnimation !== animation) return;
-        stage.dataset.paintFace = targetFace;
-      }, Math.round(duration * edgeProgress));
+      if (crossesFaceEdge) {
+        const watchPhysicalEdge = () => {
+          if (closing || settled || flipAnimation !== animation) {
+            flipEdgeRaf = 0;
+            return;
+          }
+          const elapsed = Number(animation.currentTime ?? 0);
+          if (elapsed / Math.max(1, duration) >= edgeProgress) {
+            stage.dataset.paintFace = targetFace;
+            flipEdgeRaf = 0;
+            return;
+          }
+          flipEdgeRaf = requestAnimationFrame(watchPhysicalEdge);
+        };
+        flipEdgeRaf = requestAnimationFrame(watchPhysicalEdge);
+      }
       try { await animation.finished; } catch {}
       if (flipAnimation === animation) flipAnimation = null;
     }
@@ -709,11 +756,15 @@ export function presentJourneyCardOverlayModal(
     setRotorAngle(targetFace === 'back' ? -180 : 0);
     setStableFace(targetFace);
     flipping = false;
-    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
-    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
-    startSurfaceIdle();
+    stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
+    if (activePointerId === null) stage.classList.remove('is-dragging');
+    if (activePointerId === null && !impactAnimation && !dragPreviewSettleAnimation) {
+      disposeSpatialMotion?.();
+      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+      startSurfaceIdle();
+      scheduleIdleCoach();
+    }
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
-    scheduleIdleCoach();
   };
 
   const startEntry = async () => {
@@ -812,7 +863,14 @@ export function presentJourneyCardOverlayModal(
         if (stableFace === 'back') {
           setRotorAngle(prefersReducedMotion ? 0 : getJourneyCardFlightFlipAngle(travelProgress, 'return'));
         }
-        if (!play) return;
+        if (!play) {
+          // Compose the release pose into the spatial return and settle it only
+          // while the card is already travelling toward its Unit.
+          const remaining = 1 - smoothstep(rawProgress);
+          const scale = 1 - (1 - dismissDragReleaseScale) * remaining;
+          impactShell.style.transform = `translate3d(0, ${(dismissDragReleaseY * remaining).toFixed(2)}px, 0) scale(${scale})`;
+          return;
+        }
         if (!exitNotified && elapsedMs >= exitAtMs) {
           exitNotified = true;
           options.onPlayCardExitStart?.();
@@ -857,6 +915,22 @@ export function presentJourneyCardOverlayModal(
       if (!settled) void beginClose(value);
       return;
     }
+    if (flipping && flipAnimation) {
+      const activeFlip = flipAnimation;
+      try { await activeFlip.finished; } catch {}
+      if (!settled) void beginClose(value);
+      return;
+    }
+    if (impactAnimation || dragPreviewSettleAnimation) {
+      const activeImpactSettle = impactAnimation;
+      const activePreviewSettle = dragPreviewSettleAnimation;
+      await Promise.allSettled([
+        activeImpactSettle?.finished ?? Promise.resolve(),
+        activePreviewSettle?.finished ?? Promise.resolve(),
+      ]);
+      if (!settled) void beginClose(value);
+      return;
+    }
     closing = true;
     flipping = false;
     clearBackContentTimers();
@@ -867,6 +941,16 @@ export function presentJourneyCardOverlayModal(
     stopIdleCoach(false);
     flipAnimation?.cancel();
     flipAnimation = null;
+    const visibleRotorTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
+    const visibleImpactTransform = window.getComputedStyle(impactShell).transform || impactShell.style.transform;
+    const visibleImpactTranslate = window.getComputedStyle(impactShell).translate || impactShell.style.translate;
+    impactAnimation?.cancel();
+    impactAnimation = null;
+    dragPreviewSettleAnimation?.cancel();
+    dragPreviewSettleAnimation = null;
+    rotor.style.transform = visibleRotorTransform;
+    impactShell.style.transform = visibleImpactTransform;
+    impactShell.style.translate = visibleImpactTranslate;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back', 'is-dragging');
     stage.classList.add('is-flipping-to-front');
     stage.classList.add('is-exiting', 'is-backdrop-exiting');
@@ -888,24 +972,40 @@ export function presentJourneyCardOverlayModal(
   }
 
   function handlePointerDown(event: PointerEvent): void {
-    if (event.button !== 0 || entering || closing || settled || flipping || activePointerId !== null) return;
+    if (event.button !== 0 || entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation || activePointerId !== null) return;
     if (isInteractiveControl(event.target)) return;
     activePointerId = event.pointerId;
-    dragStartX = dragLastX = event.clientX;
+    dragStartX = event.clientX;
     dragStartY = event.clientY;
-    dragLastTime = event.timeStamp;
-    dragVelocityX = 0;
+    dragLatestX = event.clientX;
+    dragStartAngle = stableRotorAngle();
+    dragFlipProgress = 0;
+    dragFlipCommitted = false;
+    dragAllowedDirection = 0;
     dragMoved = false;
-    dragStartAngle = stableFace === 'front' ? 0 : -180;
     dragCardRect = frame.getBoundingClientRect();
     dragCardWidth = Math.max(1, dragCardRect.width);
     dragCardHeight = Math.max(1, dragCardRect.height);
     dragViewportHeight = window.innerHeight;
-    dragDirection = 1;
+    dragViewportWidth = window.innerWidth;
+    const horizontalSafeInset = 8;
+    dragHorizontalMinX = -Math.max(
+      0,
+      Math.min(4, dragCardRect.left - horizontalSafeInset),
+    );
+    dragHorizontalMaxX = Math.max(
+      0,
+      Math.min(4, dragViewportWidth - horizontalSafeInset - dragCardRect.right),
+    );
     dragAxis = null;
+    dismissDragReleaseY = 0;
+    dismissDragReleaseScale = 1;
     impactAnimation?.cancel();
     impactAnimation = null;
+    dragPreviewSettleAnimation?.cancel();
+    dragPreviewSettleAnimation = null;
     impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+    impactShell.style.translate = 'none';
     stopSurfaceIdle();
     disposeSpatialMotion?.();
     disposeSpatialMotion = null;
@@ -919,15 +1019,9 @@ export function presentJourneyCardOverlayModal(
 
   function handlePointerMove(event: PointerEvent): void {
     if (event.pointerId !== activePointerId) return;
+    dragLatestX = event.clientX;
     const deltaX = event.clientX - dragStartX;
     const deltaY = event.clientY - dragStartY;
-    const elapsed = event.timeStamp - dragLastTime;
-    if (elapsed > 0) {
-      const sample = (event.clientX - dragLastX) / elapsed;
-      dragVelocityX = dragVelocityX * 0.35 + sample * 0.65;
-    }
-    dragLastX = event.clientX;
-    dragLastTime = event.timeStamp;
     dragMoved ||= Math.max(Math.abs(deltaX), Math.abs(deltaY)) > JOURNEY_CARD_FLIP_TAP_SLOP_PX;
     if (!dragMoved) return;
     event.preventDefault();
@@ -944,22 +1038,40 @@ export function presentJourneyCardOverlayModal(
       // Vertical dismiss is release-owned: keep following the live pointer even
       // after it crosses the commit distance. Returning near the origin before
       // pointerup therefore cancels the close and runs the normal snapback.
-      impactShell.style.transform = `translate3d(0, ${boundedDeltaY}px, 0) scale(${1 - previewProgress * 0.035})`;
+      dismissDragReleaseY = boundedDeltaY;
+      dismissDragReleaseScale = 1 - previewProgress * 0.035;
+      impactShell.style.transform = `translate3d(0, ${boundedDeltaY}px, 0) scale(${dismissDragReleaseScale})`;
       return;
     }
-    dragDirection = deltaX >= 0 ? 1 : -1;
-    const commitDistance = Math.max(1, dragCardWidth * JOURNEY_CARD_FLIP_DRAG_COMMIT_RATIO);
-    const previewProgress = clamp01(Math.abs(deltaX) / commitDistance);
-    const turn = previewProgress * JOURNEY_CARD_FLIP_DRAG_PREVIEW_MAX_DEG;
-    const translateX = Math.max(-44, Math.min(44, deltaX * 0.35));
-    setRotorPose(dragStartAngle + dragDirection * turn, translateX);
-    if (Math.abs(deltaX) >= commitDistance) {
-      activePointerId = null;
-      try { rotor.releasePointerCapture(event.pointerId); } catch {}
-      stage.classList.remove('is-dragging');
-      event.stopPropagation();
-      const targetFace = stableFace === 'front' ? 'back' : 'front';
-      void animateInteractiveFlip(targetFace);
+    const translateX = Math.max(
+      dragHorizontalMinX,
+      Math.min(dragHorizontalMaxX, deltaX * 0.12),
+    );
+    impactShell.style.translate = `${translateX.toFixed(2)}px 0`;
+    if (dragFlipCommitted) return;
+    const direction = Math.sign(deltaX) as -1 | 0 | 1;
+    if (dragAllowedDirection !== 0 && direction !== 0 && direction !== dragAllowedDirection) {
+      dragFlipProgress = 0;
+      setRotorAngle(dragStartAngle);
+      return;
+    }
+    const handoffDistance = Math.max(
+      1,
+      dragViewportWidth * JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
+    );
+    dragFlipProgress = clamp01(Math.abs(deltaX) / handoffDistance);
+    setRotorAngle(getJourneyCardDragFlipAngle(dragStartAngle, deltaX, dragViewportWidth));
+    if (dragFlipProgress >= 1) {
+      dragFlipCommitted = true;
+      const committedDirection = direction || 1;
+      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front').then(() => {
+        if (activePointerId === null || closing || settled || flipping) return;
+        dragStartX = dragLatestX;
+        dragStartAngle = stableRotorAngle();
+        dragFlipProgress = 0;
+        dragFlipCommitted = false;
+        dragAllowedDirection = committedDirection === -1 ? 1 : -1;
+      });
     }
   }
 
@@ -977,21 +1089,42 @@ export function presentJourneyCardOverlayModal(
       const shouldDismiss = allowCommit
         && Math.abs(deltaY) >= getJourneyCardDismissDragDistance(dragCardHeight)
         && isJourneyCardVerticalDismissGesture(deltaX, deltaY);
-      impactAnimation = impactShell.animate?.([
-        { transform: impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)' },
-        { transform: 'translate3d(0, 0, 0) scale(1)' },
-      ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
       if (shouldDismiss) {
         void beginClose('dismiss');
         return;
       }
-      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
-      startSurfaceIdle();
-      scheduleIdleCoach();
+      const verticalSettle = impactShell.animate?.([
+        { transform: impactShell.style.transform || 'translate3d(0, 0, 0) scale(1)' },
+        { transform: 'translate3d(0, 0, 0) scale(1)' },
+      ], { duration: prefersReducedMotion ? 1 : 180, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'forwards' }) ?? null;
+      impactAnimation = verticalSettle;
+      if (!verticalSettle) {
+        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+        disposeSpatialMotion?.();
+        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+        startSurfaceIdle();
+        scheduleIdleCoach();
+        return;
+      }
+      void verticalSettle.finished.catch(() => undefined).then(() => {
+        if (impactAnimation !== verticalSettle || closing || settled) return;
+        impactAnimation = null;
+        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
+        verticalSettle.cancel();
+        disposeSpatialMotion?.();
+        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+        startSurfaceIdle();
+        scheduleIdleCoach();
+      });
       return;
     }
     if (!allowCommit) {
+      if (flipping) {
+        impactShell.style.translate = 'none';
+        return;
+      }
       setRotorAngle(stableFace === 'front' ? 0 : -180);
+      impactShell.style.translate = 'none';
       disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
       startSurfaceIdle();
       scheduleIdleCoach();
@@ -999,15 +1132,94 @@ export function presentJourneyCardOverlayModal(
     }
     event.preventDefault();
     event.stopPropagation();
-    if (!moved || shouldCommitJourneyCardFlipDrag(deltaX, dragVelocityX, dragCardWidth)) {
-      const targetFace = stableFace === 'front' ? 'back' : 'front';
-      void animateInteractiveFlip(targetFace);
+    if (!moved) {
+      impactShell.style.translate = 'none';
+      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
       return;
     }
-    setRotorAngle(stableFace === 'front' ? 0 : -180);
-    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
-    startSurfaceIdle();
-    scheduleIdleCoach();
+    const shouldCommitReleasedDrag = !flipping
+      && !dragFlipCommitted
+      && shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection);
+    if (shouldCommitReleasedDrag) {
+      impactShell.style.translate = 'none';
+      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
+      return;
+    }
+    const fromTranslate = impactShell.style.translate || 'none';
+    const previewFromAngle = currentAngle;
+    const committedFlipInFlight = allowCommit && dragFlipCommitted;
+    const previewToAngle = committedFlipInFlight ? previewFromAngle : dragStartAngle;
+    const animation = impactShell.animate?.([
+      { translate: fromTranslate },
+      { translate: 'none' },
+    ], {
+      duration: prefersReducedMotion ? 1 : 180,
+      easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      fill: 'forwards',
+    }) ?? null;
+    impactAnimation = animation;
+    dragPreviewSettleAnimation = !flipping && Math.abs(previewFromAngle - previewToAngle) > 0.001
+      ? rotor.animate?.([
+        { transform: `rotateY(${previewFromAngle}deg)` },
+        { transform: `rotateY(${previewToAngle}deg)` },
+      ], {
+        duration: prefersReducedMotion ? 1 : 180,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'forwards',
+      }) ?? null
+      : null;
+    if (!animation) {
+      impactShell.style.translate = 'none';
+      setRotorAngle(previewToAngle);
+      if (!flipping) {
+        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+        startSurfaceIdle();
+        scheduleIdleCoach();
+      }
+      return;
+    }
+    const previewAnimation = dragPreviewSettleAnimation;
+    if (previewAnimation) {
+      const settleDuration = prefersReducedMotion ? 1 : 180;
+      const watchSettlePaintFace = () => {
+        if (closing || settled || dragPreviewSettleAnimation !== previewAnimation) {
+          flipEdgeRaf = 0;
+          return;
+        }
+        const progress = clamp01(Number(previewAnimation.currentTime ?? 0) / settleDuration);
+        setPaintFaceForAngle(previewFromAngle + (previewToAngle - previewFromAngle) * progress);
+        if (progress >= 1) {
+          flipEdgeRaf = 0;
+          return;
+        }
+        flipEdgeRaf = requestAnimationFrame(watchSettlePaintFace);
+      };
+      flipEdgeRaf = requestAnimationFrame(watchSettlePaintFace);
+    }
+    void Promise.allSettled([
+      animation.finished,
+      previewAnimation?.finished ?? Promise.resolve(),
+    ]).then(() => {
+      if (impactAnimation !== animation || closing || settled) return;
+      if (flipEdgeRaf !== 0) {
+        cancelAnimationFrame(flipEdgeRaf);
+        flipEdgeRaf = 0;
+      }
+      impactAnimation = null;
+      if (dragPreviewSettleAnimation === previewAnimation) dragPreviewSettleAnimation = null;
+      impactShell.style.translate = 'none';
+      if (!flipping) {
+        setRotorAngle(previewToAngle);
+      }
+      previewAnimation?.cancel();
+      animation.cancel();
+      if (!flipping) {
+        disposeSpatialMotion?.();
+        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+        startSurfaceIdle();
+        scheduleIdleCoach();
+      }
+    });
   }
 
   function handlePointerUp(event: PointerEvent): void {

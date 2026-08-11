@@ -35,6 +35,7 @@ import { resetTileToNormalState, boardHasPersistentLockedTiles, isTileTransientl
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
+import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isArcadeHomeRunMode, markArcadeHomeRunOrigin, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyOriginActive } from './journey-origin-state.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
@@ -93,11 +94,9 @@ import { createLockedHolders } from './app-core-board-build.ts';
 import { openRandomTiles } from './app-core-open-tiles.ts';
 import { ensureBackgroundLayerVisible } from './app-core-background-layer.ts';
 import { schedulePopInSafetyNet } from './app-core-popin-safety.ts';
-import { createSweetPopPromise } from './app-core-popin-start.ts';
 import { handleHudDropOnHalf } from './app-core-hud-drop.ts';
 import { handleSweetPopInComplete } from './app-core-popin-final.ts';
 import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
-import { createPopInRunner } from './app-core-popin-delay.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
 import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
@@ -127,6 +126,14 @@ import { syncJourneyBoards } from './app-core-startlevel-journey-boards.ts';
 import { clearComboIdleTimer } from './app-core-startlevel-combo.ts';
 import { resetWildAndEndgameState } from './app-core-startlevel-wild.ts';
 import { ensureStartLevelLayout } from './app-core-startlevel-layout.ts';
+import {
+  beginGameplayEntryPreparation,
+  commitPreparedGameplayEntry,
+  hasPreparedGameplayEntry,
+  isGameplayEntryGenerationLatest,
+  isGameplayEntryPending,
+  prepareGameplayEntryCommit,
+} from './gameplay-entry-coordinator.ts';
 import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
@@ -517,6 +524,7 @@ let boardBG: Graphics | null = null;
 let hud: HUDType | null = null;
 let _hudInitDone = false;
 let _hudDropPending = true; // Play-from-slider only; no drop on restarts
+let activeGameplayEntryGeneration = 0;
 let _lastSAT = -1;
 let grid: Grid = Array.isArray(STATE.grid) ? (STATE.grid as Grid) : [];
 const tiles: Tile[] = STATE.tiles as Tile[];
@@ -1720,6 +1728,7 @@ function logRuntimeStats(reason: string = 'unknown'): void {
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
+  const isPlayAgainCleanup = reason.includes('play-again');
   const isNavCleanup =
     typeof reason === 'string' &&
     (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
@@ -1732,7 +1741,13 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupAllFxContainers?.(); } catch {}
-  try { cleanupExistingStarAnimations?.(); } catch {}
+  try {
+    if (isPlayAgainCleanup) {
+      forceCleanupAllStarAnimations?.();
+    } else {
+      cleanupExistingStarAnimations?.();
+    }
+  } catch {}
   try { stopTntAnimation?.(); } catch {}
   try { stopMagneticText?.(); } catch {}
   try { stopSparkleText?.(); } catch {}
@@ -1838,6 +1853,7 @@ function destroyOldBoardForTransition(reason: string = 'unknown'): void {
     }
     const count = tileList.length;
     tileList.forEach((t: any) => {
+      try { stopSpecialDiceIdleMotion(t); } catch {}
       try { stopWildIdle?.(t); } catch {}
       try { stopWildShimmer?.(t); } catch {}
       try { stopWildStars?.(t); } catch {}
@@ -3218,6 +3234,13 @@ export async function boot(){
   // Fonts are already loaded via CSS @font-face in index.html
   // No need to load fonts dynamically - PIXI will use CSS fonts automatically
   
+  // A reused app already has a drag owner from the previous board. Release it
+  // before replacing STATE.drag so no stale pointer owner or stage callback can
+  // survive repeated Play Again boots.
+  if (reuseApp && drag) {
+    try { (drag as any).cleanup?.({ resumeIdle: false }); } catch {}
+  }
+
   // drag
   const ret = installDrag({
     app, board, TILE,
@@ -3418,6 +3441,7 @@ export async function boot(){
   
   // 🔥 CRITICAL FIX: Final check - ensure board and hud are visible after startLevel
   trackAppTimeout(() => {
+    if (isGameplayEntryPending()) return;
     if (board) {
       board.visible = true;
       board.alpha = 1;
@@ -3444,7 +3468,13 @@ export async function boot(){
     })();
     vp.setAttribute('content','width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
 
-    const style = document.createElement('style');
+    const viewportStyleId = 'cc-app-core-viewport-style';
+    let style = document.getElementById(viewportStyleId) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement('style');
+      style.id = viewportStyleId;
+      document.head.appendChild(style);
+    }
     style.textContent = `
       :root{ --sat:env(safe-area-inset-top,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); }
       html,body{ margin:0; padding:0; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); height:auto; }
@@ -3452,7 +3482,6 @@ export async function boot(){
       #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
       canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
     `;
-    document.head.appendChild(style);
   }
 
   // Function to trigger clean board screen for testing
@@ -3514,6 +3543,7 @@ export async function boot(){
         stopMagnetIdleParticles,
         stopTntIdleParticles,
         stopTntIdleShake,
+        stopSpecialDiceIdleMotion,
         cleanupTilesForRebuild,
         devWarn,
       });
@@ -3661,6 +3691,28 @@ export async function boot(){
     addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
     cleanupFxForBoardReset: (reason = 'window') => cleanupFxForBoardReset(reason),
+    getCleanupStats: () => getAppCleanupStats(),
+    getJourneyPlayAgainIncidentState: () => ({
+      boardNumber,
+      tiles: {
+        total: tiles.length,
+        alive: tiles.filter((tile: any) => tile && tile.destroyed !== true).length,
+        destroyed: tiles.filter((tile: any) => tile?.destroyed === true).length,
+        unique: new Set(tiles).size,
+      },
+      grid: (() => {
+        const cells = Array.isArray(grid) ? grid.flat().filter(Boolean) : [];
+        return {
+          occupied: cells.length,
+          unique: new Set(cells).size,
+          destroyedRefs: cells.filter((cell: any) => cell?.destroyed === true).length,
+        };
+      })(),
+      boardChildren: board?.children?.length ?? 0,
+      stageChildren: stage?.children?.length ?? 0,
+      pixiTickerStarted: app?.ticker?.started ?? null,
+      pixiTickerCount: app?.ticker?.count ?? null,
+    }),
     resetTransientRunGuards: (reason = 'window') => resetTransientRunGuards(reason),
     softResetBoardView: (reason = 'window') => softResetBoardView(reason),
     destroyOldBoardForTransition: (reason?: string) => destroyOldBoardForTransition(reason ?? 'unknown'),
@@ -3930,7 +3982,7 @@ export async function layoutBoard(){
         }
         
         // 🔥 CRITICAL: Fallback to trigger HUD drop shortly after init (for slow devices)
-        if (_hudDropPending) {
+        if (_hudDropPending && !isGameplayEntryPending()) {
           trackAppTimeout(() => {
             if (!_hudDropPending) return; // already handled by sweetPopIn
             try {
@@ -4976,7 +5028,28 @@ function resetBoardContainer(){
     devError,
   });
 }
+function revealPreparedGameplaySurface(): void {
+  try {
+    if (stage) {
+      stage.visible = true;
+      stage.alpha = 1;
+      stage.renderable = true;
+    }
+    if (board) {
+      board.visible = true;
+      board.alpha = 1;
+      board.renderable = true;
+    }
+    if (hud) {
+      hud.visible = true;
+      hud.alpha = 1;
+      hud.renderable = true;
+    }
+  } catch {}
+}
 function rebuildBoard(){
+  const gameplayEntryGeneration = activeGameplayEntryGeneration;
+  let gameplayEntrySignal: AbortSignal | null = null;
   const arcadeEntryCueRound = isArcadeHomeRunMode()
     ? Math.max(0, Math.trunc(Number((window as any).__ccArcadeContinuationCueRound) || 0))
     : 0;
@@ -5001,6 +5074,7 @@ function rebuildBoard(){
         stopMagnetIdleParticles,
         stopTntIdleParticles,
         stopTntIdleShake,
+        stopSpecialDiceIdleMotion,
         cleanupTilesForRebuild,
         devWarn,
       });
@@ -5042,8 +5116,7 @@ function rebuildBoard(){
     devWarn,
   });
   
-  // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
-  const hudReady = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
+  // Prepare the single board-entry commit. It will run only after layout/HUD readiness.
   let popInSafetyNetScheduled = false;
   const scheduleBoardPopInSafetyNet = () => {
     if (popInSafetyNetScheduled) return;
@@ -5061,6 +5134,7 @@ function rebuildBoard(){
     tiles,
     sweetPopIn,
     onHalf: () => {
+      if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
       handleHudDropOnHalf({
         app,
         HUD,
@@ -5085,42 +5159,42 @@ function rebuildBoard(){
             await consumeArcadeEntryCue(arcadeEntryCueRound);
             devLog(`🎮 Fresh Arcade Round ${String(arcadeEntryCueRound).padStart(2, '0')} cue completed before tile entrance`);
           } finally {
-            // The 800ms visibility watchdog must start after the intentional
-            // multi-second Round cue. Starting it at board construction used
-            // to force all hidden dice visible through the cue backdrop.
-            scheduleBoardPopInSafetyNet();
-            activateGameplaySpatialMotionForCurrentBoard();
+            if (!gameplayEntrySignal?.aborted && isGameplayEntryGenerationLatest(gameplayEntryGeneration)) {
+              // The 800ms visibility watchdog must start after the intentional
+              // multi-second Round cue. Starting it at board construction used
+              // to force all hidden dice visible through the cue backdrop.
+              scheduleBoardPopInSafetyNet();
+              activateGameplaySpatialMotionForCurrentBoard();
+            }
           }
         }
       : undefined,
     onPopInStarted: arcadeEntryCueRound > 0
-      ? () => releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)
+      ? () => {
+          if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+          releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
+        }
       : undefined,
+    shouldAbort: () => gameplayEntrySignal?.aborted === true ||
+      !isGameplayEntryGenerationLatest(gameplayEntryGeneration),
+    getAbortSignal: () => gameplayEntrySignal,
     devLog,
   });
   
-  const shouldDelayForHUD = _hudDropPending && !hudReady;
-  
   ensureAnimationRunning({ gsap, app });
-  const runPopIn = createPopInRunner({
-    shouldDelayForHUD,
-    trackAppTimeout,
-    sweetPopInRunner,
-  });
-  
-  // 🔥 CRITICAL: If app is hidden during transition, delay pop-in until visible
-  const sweetPopPromise = createSweetPopPromise({
-    appEl: document.getElementById('app'),
-    runPopIn,
-    trackAppTimeout,
-  });
-  
-  // No cue owns the surface, so the regular watchdog begins immediately.
-  if (arcadeEntryCueRound <= 0) {
-    scheduleBoardPopInSafetyNet();
-  }
+  const sweetPopPromise = prepareGameplayEntryCommit(
+    gameplayEntryGeneration,
+    (signal) => {
+      gameplayEntrySignal = signal;
+      if (signal.aborted) return;
+      revealPreparedGameplaySurface();
+      if (arcadeEntryCueRound <= 0) scheduleBoardPopInSafetyNet();
+      return sweetPopInRunner();
+    },
+  );
   
   sweetPopPromise.then(() => {
+    if (!isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
     (window as any).__ccEnterAnimationActive = false;
     try { updateGhostVisibility(); } catch {}
     handleSweetPopInComplete({
@@ -5137,7 +5211,7 @@ function rebuildBoard(){
       setHudDropPending: (v) => { _hudDropPending = v; },
     });
   });
-  devLog('✅ sweetPopIn started immediately - no waiting');
+  devLog('✅ sweetPopIn prepared behind the gameplay-entry readiness barrier');
 
   syncSharedState();
 
@@ -5343,10 +5417,10 @@ function primeJourneyGameBottomDecor(img: HTMLImageElement): void {
   });
 }
 
-function prepareJourneyGameBottomDecor(): void {
+function prepareJourneyGameBottomDecor(): Promise<void> {
   const host = document.getElementById('app');
   const img = ensureJourneyGameBottomDecor();
-  if (!host || !img) return;
+  if (!host || !img) return Promise.resolve();
 
   ++journeyGameBottomDecorLifecycleToken;
   killJourneyGameBottomDecorTween();
@@ -5356,7 +5430,7 @@ function prepareJourneyGameBottomDecor(): void {
   primeJourneyGameBottomDecor(img);
   // Decode while the board transition is still covering gameplay. The visible
   // HUD/board-enter callback owns the animation itself.
-  void waitForJourneyGameBottomDecorReady(img);
+  return waitForJourneyGameBottomDecorReady(img);
 }
 
 function setJourneyGameBottomDecorVisible(visible: boolean): void {
@@ -5475,6 +5549,7 @@ try {
 } catch {}
 
 async function startLevel(n){
+  activeGameplayEntryGeneration = beginGameplayEntryPreparation(`startLevel:${n}`);
   devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   resetTransientRunGuards('startLevel');
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
@@ -5539,7 +5614,7 @@ async function startLevel(n){
     // Prime/decode behind the board transition. The visible HUD/board enter
     // callback starts the actual cartoon pop-in so it cannot finish offscreen.
     journeyGameBottomDecorRunKey += 1;
-    prepareJourneyGameBottomDecor();
+    await prepareJourneyGameBottomDecor();
   }
   
   // STATS TRACKING: Update highest board reached
@@ -5640,6 +5715,19 @@ async function startLevel(n){
     getHudRootFromWindow: () => (window as any).HUD_ROOT,
     isHudDropPending: () => _hudDropPending,
   });
+
+  // Commit one hidden prepared renderer frame after textures, fonts, HUD and
+  // final board layout are ready. If gameplay is already visible (next Round),
+  // start immediately; Homepage/Journey callers commit from showApp().
+  try { app?.renderer?.render?.(stage); } catch {}
+  const appElement = document.getElementById('app');
+  const appIsVisible = !!appElement &&
+    !appElement.hasAttribute('hidden') &&
+    appElement.style.display !== 'none' &&
+    appElement.style.visibility !== 'hidden';
+  if (appIsVisible && hasPreparedGameplayEntry()) {
+    await commitPreparedGameplayEntry();
+  }
   
   // layoutBoard() already called above; avoid duplicate on board 1
   
@@ -7315,7 +7403,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           wildImpactEffect(dst, { squash: 0.24, stretch: 0.20, tilt: 0.14, bounce: 1.18 });
           if (!isWildTntMergeNow) {
-            smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
+            markMergePerformance('wild-smoke-alt-start');
+            smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, {
+              spawnShape: 'box',
+              maxParticles: 72,
+            });
+            markMergePerformance('wild-smoke-alt-created');
           }
         }
 
@@ -10000,13 +10093,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           if (!isMainWildTntMerge) {
             // 🔥 Wild-magnet merge: Reduce smoke intensity by 80% (3.0 * 0.2 = 0.6)
             const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
+            markMergePerformance('wild-smoke-main-start');
             smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
               sizeScale: 0.8 + Math.random() * 0.25,  // Compact size: 0.8-1.05x
               countScale: 0.75 + Math.random() * 0.3, // Rich but contained: 0.75-1.05x
               distanceScale: 0.55,
               trailAlpha: 0.92,
-              spawnShape: 'box'
+              spawnShape: 'box',
+              maxParticles: isMainWildMagnetMerge ? 36 : 72,
             });
+            markMergePerformance('wild-smoke-main-created');
           }
         } else {
           showMultiplierTile(board, dst, mult, TILE, 1.0);
@@ -14591,7 +14687,15 @@ async function loadGameState(overrideBoardNumber?: number) {
     devLog('✅ Game state loaded successfully with', tiles.length, 'tiles (', activeCount, 'active)');
     
     // ANIMATION: Show ghost placeholders FIRST, then animate tiles (only after we know load is valid)
-    playLoadPopInAnimation({
+    const loadedEntryGeneration = activeGameplayEntryGeneration;
+    let loadedEntrySignal: AbortSignal | null = null;
+    const loadedEntryCompletion = prepareGameplayEntryCommit(
+      loadedEntryGeneration,
+      (signal) => {
+        loadedEntrySignal = signal;
+        if (signal.aborted) return;
+        revealPreparedGameplaySurface();
+        return playLoadPopInAnimation({
       tiles,
       backgroundLayer,
       sweetPopIn,
@@ -14601,14 +14705,23 @@ async function loadGameState(overrideBoardNumber?: number) {
               await consumeArcadeEntryCue(arcadeContinuationCueRound);
               devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
             } finally {
-              activateGameplaySpatialMotionForCurrentBoard();
+              if (!loadedEntrySignal?.aborted && isGameplayEntryGenerationLatest(loadedEntryGeneration)) {
+                activateGameplaySpatialMotionForCurrentBoard();
+              }
             }
           }
         : undefined,
       onPopInStarted: arcadeContinuationCueRound > 0
-        ? () => releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)
+        ? () => {
+            if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
+            releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
+          }
         : undefined,
+      shouldAbort: () => loadedEntrySignal?.aborted === true ||
+        !isGameplayEntryGenerationLatest(loadedEntryGeneration),
+      getAbortSignal: () => loadedEntrySignal,
       onHalf: () => {
+        if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
         // 🔥 CRITICAL FIX: Ensure HUD drop is triggered even if it wasn't triggered above
         // This is a fallback in case HUD drop wasn't triggered earlier
         triggerHudDropIfPending({
@@ -14622,6 +14735,7 @@ async function loadGameState(overrideBoardNumber?: number) {
         });
       },
       onComplete: () => {
+        if (!isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
         resumeDeferredTntIdleEffects(
           deferredTntIdleTiles,
           startTntIdleParticles,
@@ -14648,7 +14762,16 @@ async function loadGameState(overrideBoardNumber?: number) {
         });
       },
       devLog,
-    });
+        });
+      },
+    );
+    const appElement = document.getElementById('app');
+    const loadedAppIsVisible = !!appElement &&
+      !appElement.hasAttribute('hidden') &&
+      appElement.style.display !== 'none' &&
+      appElement.style.visibility !== 'hidden';
+    if (loadedAppIsVisible) void commitPreparedGameplayEntry();
+    void loadedEntryCompletion;
     
     return true;
   } catch (error) {

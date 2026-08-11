@@ -67,6 +67,10 @@ describe('first-play tutorial completion Arcade continuation', () => {
     expect(journeyContinuation).toContain('markJourneyGameOrigin({ fromInterim: false });');
     expect(journeyContinuation).toContain("reason: 'first-play-tutorial-complete-journey-worlds'");
     expect(journeyContinuation).toContain("target: 'auto'");
+    expect(journeyContinuation).toContain('if (coverReleased) return;');
+    expect(journeyContinuation).toContain('if (presented) releaseCover();');
+    expect(journeyContinuation.indexOf('if (presented) releaseCover();'))
+      .toBeLessThan(journeyContinuation.indexOf('await requestExitToMenu({'));
     expect(journeyContinuation).not.toContain('__ccArcadeContinuationCueRound');
     expect(journeyContinuation).not.toContain('startLevel(1)');
   });

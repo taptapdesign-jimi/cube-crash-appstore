@@ -1012,10 +1012,28 @@ class CollectiblesManager {
       }
     }
 
-    const isReturningToJourneyWithActiveArea =
-      !!(window as any).__ccReturningFromDetailModal ||
+    const hasConcreteJourneyReturnTargetEarly = getJourneyReturnBoardId() !== null;
+    const returningFromInterimBoardFlagEarly =
       !!(window as any).__ccReturningFromInterimBoard ||
       localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
+    const returningFromDetailModalFlagEarly = !!(window as any).__ccReturningFromDetailModal;
+    const returningFromInterimBoardEarly =
+      returningFromInterimBoardFlagEarly && hasConcreteJourneyReturnTargetEarly;
+    const returningFromDetailModalEarly =
+      returningFromDetailModalFlagEarly && hasConcreteJourneyReturnTargetEarly;
+    if (!hasConcreteJourneyReturnTargetEarly && (returningFromInterimBoardFlagEarly || returningFromDetailModalFlagEarly)) {
+      delete (window as any).__ccReturningFromInterimBoard;
+      delete (window as any).__ccReturningFromDetailModal;
+      delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
+      delete (window as any).__ccJourneyActiveAreaEnterPending;
+      localStorage.removeItem('__ccReturningFromInterimBoard');
+      emitIOSNativeDiagnostic('stale-journey-return-cleared-for-hub', {
+        interim: returningFromInterimBoardFlagEarly,
+        detail: returningFromDetailModalFlagEarly,
+      });
+    }
+    const isReturningToJourneyWithActiveArea =
+      returningFromDetailModalEarly || returningFromInterimBoardEarly;
     if (!isReturningToJourneyWithActiveArea) {
       unlockJourneyViewportTransition('showCollectibles-fresh-enter');
     }
@@ -1100,10 +1118,6 @@ class CollectiblesManager {
     let journeyBoardsReadyPromise: Promise<void> | null = null;
 
     // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board or detail modal
-    const returningFromInterimBoardEarly =
-      (window as any).__ccReturningFromInterimBoard ||
-      localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
-    const returningFromDetailModalEarly = (window as any).__ccReturningFromDetailModal;
     const isV700WorldReturnEarly =
       !!journeyContainer &&
       (
@@ -1111,6 +1125,9 @@ class CollectiblesManager {
         (window as any).__ccJourneyV700View === 'world' ||
         localStorage.getItem('__ccJourneyV700View') === 'world'
       );
+    // A remembered `world` view is presentation state, not proof that a game
+    // is returning to a concrete Unit. It can survive a first-run Hub handoff.
+    // Only an actual board identity may select the active-area/world-return path.
     const shouldUseV700WorldReturnEnter =
       !!journeyContainer &&
       !!(returningFromInterimBoardEarly || returningFromDetailModalEarly) &&
@@ -1126,7 +1143,10 @@ class CollectiblesManager {
       shouldPlayActiveBoardAreaEnter,
       shouldUseV700WorldReturnEnter,
       returningFromInterimBoardEarly: !!returningFromInterimBoardEarly,
+      returningFromInterimBoardFlagEarly: !!returningFromInterimBoardFlagEarly,
+      hasConcreteJourneyReturnTargetEarly,
       returningFromDetailModalEarly: !!returningFromDetailModalEarly,
+      returningFromDetailModalFlagEarly: !!returningFromDetailModalFlagEarly,
     });
     try {
       if (shouldPlayActiveBoardAreaEnter) {

@@ -12,7 +12,9 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
       ? tile._ccMushroomSmokeTimelines
       : [];
     smokeTimelines.forEach((timeline: any) => {
-      try { timeline.kill(); } catch {}
+      try { animationManager.killExternalTimeline(timeline); } catch {
+        try { timeline.kill(); } catch {}
+      }
     });
     if (tile?._ccMushroomSmokeContainer) {
       try {
@@ -22,7 +24,9 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
     }
     const tl = tile?._ccSpecialDiceIdleTl;
     if (tl) {
-      try { tl.kill(); } catch {}
+      try { animationManager.killExternalTimeline(tl); } catch {
+        try { tl.kill(); } catch {}
+      }
       tile._ccSpecialDiceIdleTl = null;
     }
     const host = tile?._ccSpecialDiceIdleHost || tile?.rotG || tile;

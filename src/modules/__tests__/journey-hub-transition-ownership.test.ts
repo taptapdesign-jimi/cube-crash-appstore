@@ -63,6 +63,49 @@ describe('Journey Hub transition ownership', () => {
     expect(showSource).toContain("emitIOSNativeDiagnostic('hub-enter-started-from-import-fallback')");
   });
 
+  test('a stale interim flag without a concrete board target cannot suppress the Hub enter', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const targetGuardIndex = showSource.indexOf('const hasConcreteJourneyReturnTargetEarly =');
+    const normalizedFlagIndex = showSource.indexOf('const returningFromInterimBoardEarly =');
+    const returnModeIndex = showSource.indexOf('const shouldUseV700WorldReturnEnter =');
+
+    expect(targetGuardIndex).toBeGreaterThanOrEqual(0);
+    expect(normalizedFlagIndex).toBeGreaterThan(targetGuardIndex);
+    expect(returnModeIndex).toBeGreaterThan(normalizedFlagIndex);
+    expect(showSource).toContain(
+      'const hasConcreteJourneyReturnTargetEarly = getJourneyReturnBoardId() !== null',
+    );
+    expect(showSource).not.toContain(
+      'isV700WorldReturnEarly || getJourneyReturnBoardId() !== null',
+    );
+    expect(showSource).toContain(
+      'returningFromInterimBoardFlagEarly && hasConcreteJourneyReturnTargetEarly',
+    );
+    expect(showSource).toContain("emitIOSNativeDiagnostic('stale-journey-return-cleared-for-hub'");
+    expect(showSource).toContain("localStorage.removeItem('__ccReturningFromInterimBoard')");
+  });
+
+  test('a stale detail return cannot suppress Hub banners, idle, or gyro', () => {
+    const showSource = collectiblesSource.split(
+      'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
+    )[1]?.split('async hideCollectibles(')[0] ?? '';
+    const normalizationIndex = showSource.indexOf('const returningFromDetailModalEarly =');
+    const viewportDecisionIndex = showSource.indexOf('const isReturningToJourneyWithActiveArea =');
+    const returnModeIndex = showSource.indexOf('const shouldUseV700WorldReturnEnter =');
+
+    expect(normalizationIndex).toBeGreaterThanOrEqual(0);
+    expect(viewportDecisionIndex).toBeGreaterThan(normalizationIndex);
+    expect(returnModeIndex).toBeGreaterThan(viewportDecisionIndex);
+    expect(showSource).toContain(
+      'returningFromDetailModalFlagEarly && hasConcreteJourneyReturnTargetEarly',
+    );
+    expect(showSource).toContain('delete (window as any).__ccReturningFromDetailModal');
+    expect(showSource).toContain('delete (window as any).__ccSuppressJourneyV700AutoWorldEnter');
+    expect(showSource).toContain('delete (window as any).__ccJourneyActiveAreaEnterPending');
+  });
+
   test('forward navigation never invokes the Homepage recovery reset', () => {
     const showSource = collectiblesSource.split(
       'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
@@ -261,6 +304,26 @@ describe('Journey Hub transition ownership', () => {
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('spatial-activated'");
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('frame-1'");
     expect(hubEnterSource).toContain("emitJourneyV700HubGeometryDiagnostic('frame-2'");
+  });
+
+  test('cold Hub images decode before the first visible World tween', () => {
+    const hubEnterSource = journeyManagerSource.split(
+      "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
+    )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
+    const imageBarrierIndex = hubEnterSource.indexOf(
+      "const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []);",
+    );
+    const imageReadyIndex = hubEnterSource.indexOf('void hubImagesReady.then(() => {');
+    const cloudTweenIndex = hubEnterSource.indexOf('const cloudTween = trackTween(hubCloudLayer');
+    const worldTweenIndex = hubEnterSource.indexOf('const worldTween = trackTween(worldCard');
+
+    expect(imageBarrierIndex).toBeGreaterThan(hubEnterSource.indexOf('gsap.set(worldCards'));
+    expect(imageReadyIndex).toBeGreaterThan(imageBarrierIndex);
+    expect(cloudTweenIndex).toBeGreaterThan(imageReadyIndex);
+    expect(worldTweenIndex).toBeGreaterThan(imageReadyIndex);
+    expect(hubEnterSource).toContain("this.journeyV700View !== 'hub'");
+    expect(hubEnterSource).toContain("hub-visible-enter-stale-before-images-ready");
+    expect(hubEnterSource).toContain("hub-visible-enter-images-ready");
   });
 
   test('visible Journey surfaces become alive without a post-enter idle pause', () => {

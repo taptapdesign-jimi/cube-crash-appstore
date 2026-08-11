@@ -5,7 +5,7 @@ describe('post-critical preload lifecycle policy', () => {
     expect(shouldPausePostCriticalPreload({ isIOS: true, appZone: 'home' })).toBe(false);
   });
 
-  test.each(['journey', 'board-journey', 'board-arcade'])(
+  test.each([undefined, 'loader', 'settings', 'journey', 'board-journey', 'board-arcade'])(
     'pauses iOS preload in %s',
     appZone => expect(shouldPausePostCriticalPreload({ isIOS: true, appZone })).toBe(true)
   );

@@ -43,7 +43,8 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(exitOwner).toContain('const ctaExitPromise = exitCtaPair(secondaryBtn, primaryBtn);');
     expect(exitOwner).toContain('const boardExitCompletePromise = boardExitPromise.catch');
     expect(exitOwner).toContain('const modalExitPromise = Promise.all([');
-    expect(exitOwner).toContain('const cardExitDuration = 400 + 650;');
+    expect(exitOwner).toContain('const starExitDuration = 500 + Math.max(0, numStars - 1) * 70;');
+    expect(exitOwner).toContain('const cardExitDuration = starExitDuration + 650;');
     expect(exitOwner).toContain('const collapseDuration = Math.max(');
     expect(exitOwner.indexOf('const exitsCompleted = await Promise.race(['))
       .toBeLessThan(exitOwner.indexOf('try { el.remove(); } catch {}'));

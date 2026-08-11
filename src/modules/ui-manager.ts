@@ -29,6 +29,7 @@ import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
+import { appZoneManager } from './app-zone-manager.js';
 import {
   beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
@@ -36,6 +37,11 @@ import {
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import { enforceArcadeEntrySurfaceGate } from './arcade-entry-surface-gate.js';
+import {
+  cancelGameplayEntryPreparation,
+  commitPreparedGameplayEntry,
+  isGameplayEntryPending,
+} from './gameplay-entry-coordinator.js';
 import { registerCta, type CtaController } from './cta-system.js';
 import {
   commitHomepageNavigation,
@@ -335,6 +341,13 @@ class UIManager {
   // 🔥 MEMORY LEAK FIX: Store unsubscribe functions for cleanup
   private unsubscribeFunctions: (() => void)[] = [];
   private boundEventHandlers: Map<HTMLElement, Array<{ event: string; handler: EventListener }>> = new Map();
+  private settingsEnterTimeouts = new Set<number>();
+  private settingsExitPromise: Promise<void> | null = null;
+
+  private cancelSettingsEnterTimeouts(): void {
+    this.settingsEnterTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    this.settingsEnterTimeouts.clear();
+  }
 
   private detachSliderHeroCtaListeners(): void {
     const selectors = [
@@ -1146,26 +1159,26 @@ class UIManager {
       // Access board and hud from window.CC if available
       const gameState = (window as any).CC;
       if (gameState) {
-        if (gameState.stage) {
+        if (gameState.stage && !isGameplayEntryPending()) {
           gameState.stage.visible = true;
           gameState.stage.alpha = 1;
           gameState.stage.renderable = true;
           logger.info('✅ Stage made visible in showApp()');
         }
-        if (gameState.board) {
+        if (gameState.board && !isGameplayEntryPending()) {
           gameState.board.visible = true;
           gameState.board.alpha = 1;
           gameState.board.renderable = true;
           logger.info('✅ Board made visible in showApp()');
         }
-        if (gameState.hud) {
+        if (gameState.hud && !isGameplayEntryPending()) {
           gameState.hud.visible = true;
           gameState.hud.alpha = 1;
           gameState.hud.renderable = true;
           logger.info('✅ HUD made visible in showApp()');
         }
         // Also call showGameUI if available
-        if (typeof gameState.showGameUI === 'function') {
+        if (!isGameplayEntryPending() && typeof gameState.showGameUI === 'function') {
           gameState.showGameUI();
           logger.info('✅ showGameUI() called in showApp()');
         }
@@ -1182,6 +1195,9 @@ class UIManager {
 
     // Hide navigation when entering game
     this.hideNavigation();
+    // The complete board/HUD surface is already prepared in its hidden pose.
+    // Showing the host is the one authoritative signal that may commit it.
+    void commitPreparedGameplayEntry();
   }
   
   // Hide navigation
@@ -1197,6 +1213,7 @@ class UIManager {
   
   // Hide app element
   hideApp(): void {
+    cancelGameplayEntryPreparation();
     const appElement = document.getElementById('app');
     if (appElement) {
       appElement.setAttribute('hidden', 'true');
@@ -1906,6 +1923,13 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
+    this.cancelSettingsEnterTimeouts();
+    // Settings must own async/preload policy immediately, while the existing
+    // Homepage exit animation retains visual ownership of the nav icons.
+    appZoneManager.setZone('settings', 'settings-enter', {
+      preserveHomepageNavigation: true,
+    });
+    try { (window as any).collectiblesManager?.cancelJourneyScreenPreparation?.('settings-enter'); } catch {}
     // Settings owns the transition now. Keep gyro translation from composing
     // against the slider exit/Settings enter transforms; Homepage will resume
     // once its return handoff has fully finalized.
@@ -2041,13 +2065,16 @@ class UIManager {
       // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid 15s delay
       try {
           // Small delay to ensure DOM is ready, then make screen visible and start animation
-          setTimeout(() => {
+          const enterTimeoutId = window.setTimeout(() => {
+            this.settingsEnterTimeouts.delete(enterTimeoutId);
+            if (appZoneManager.getCurrentZone() !== 'settings' || settingsScreen.hidden) return;
             // Make screen visible so GSAP can animate individual elements
             settingsScreen.style.opacity = '1';
           console.log('🎬 Calling animateSettingsScreenEnter()...');
           // Use statically imported function - no dynamic import delay!
             animateSettingsScreenEnter();
           }, 50);
+          this.settingsEnterTimeouts.add(enterTimeoutId);
       } catch (error) {
         console.error('❌ Failed to trigger settings enter animation:', error);
         // Fallback: just show the screen normally
@@ -2055,10 +2082,13 @@ class UIManager {
       }
       
       // Focus immediately
-      setTimeout(() => {
+      const focusTimeoutId = window.setTimeout(() => {
+        this.settingsEnterTimeouts.delete(focusTimeoutId);
+        if (appZoneManager.getCurrentZone() !== 'settings' || settingsScreen.hidden) return;
         const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
         focusTarget?.focus();
       }, 100);
+      this.settingsEnterTimeouts.add(focusTimeoutId);
       
     // Keep the shared intro paper surface after Settings enters.
     applyPaperBackground();
@@ -2070,7 +2100,17 @@ class UIManager {
   }
   
   // Hide settings screen with enter animation
-  private hideSettingsScreenWithAnimation(): void {
+  private hideSettingsScreenWithAnimation(): Promise<void> {
+    if (this.settingsExitPromise) return this.settingsExitPromise;
+    this.cancelSettingsEnterTimeouts();
+    this.settingsExitPromise = this.runSettingsExit()
+      .finally(() => {
+        this.settingsExitPromise = null;
+      });
+    return this.settingsExitPromise;
+  }
+
+  private async runSettingsExit(): Promise<void> {
     logger.info('⚙️ Hiding settings screen - with enter animation');
 
     // Stability: cleanup settings screen animations
@@ -2086,8 +2126,6 @@ class UIManager {
     logger.info('✅ [Settings EXIT] Paper background set to 60% opacity IMMEDIATELY');
     
     // 🔥 CRITICAL: Fade duration for Settings exit animation timing
-    const fadeDuration = 0.8;
-    
     // 🔥 CRITICAL: Show homepage QUIETLY IMMEDIATELY (before animation completes)
     // This ensures gradient is visible right away, preventing gray color flash
     // Also reset slider to Settings slide BEFORE showing homepage
@@ -2116,14 +2154,11 @@ class UIManager {
     try {
         console.log('🎬 About to call animateSettingsScreenExit()...');
       // Use statically imported function - no dynamic import delay!
-        animateSettingsScreenExit();
+        await animateSettingsScreenExit();
     } catch (error) {
       console.error('❌ Failed to trigger settings exit animation:', error);
     }
-    
-    // Hide settings screen after fade animation completes
-    const fadeDurationMs = fadeDuration * 1000;
-    setTimeout(() => {
+
       const settingsScreen = this.elements.settingsScreen;
       if (settingsScreen) {
         settingsScreen.setAttribute('aria-hidden', 'true');
@@ -2132,26 +2167,20 @@ class UIManager {
         // Shared homepage handoff owns nav visibility and enter animation.
       }
       
-      // Force reflow to ensure DOM is updated before animation
-      void document.querySelector(`.slider-slide[data-slide="${SETTINGS_SLIDE_INDEX}"]`)?.offsetHeight;
-      
-      // Step 2: Play enter animation for Settings slide
-      // Use requestAnimationFrame to ensure DOM is fully updated
-      requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-          console.log(`🎬 Playing shared homepage enter handoff for Settings slide (index ${SETTINGS_SLIDE_INDEX})`);
-          const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
-          if (typeof homepageEnterHandoff === 'function') {
-            await homepageEnterHandoff('settings-exit-homepage-slide', { targetSlideIndex: SETTINGS_SLIDE_INDEX });
-            return;
-          }
-
-          console.warn('⚠️ Shared homepage enter handoff missing; using legacy Settings homepage enter path');
-          this.showHomepageQuietly();
-          animateSliderEnter();
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      console.log(`🎬 Playing shared homepage enter handoff for Settings slide (index ${SETTINGS_SLIDE_INDEX})`);
+      const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
+      if (typeof homepageEnterHandoff === 'function') {
+        await homepageEnterHandoff('settings-exit-homepage-slide', {
+          targetSlideIndex: SETTINGS_SLIDE_INDEX,
+          skipFirstPaintReady: true,
         });
-      });
-    }, fadeDurationMs);
+        return;
+      }
+
+      console.warn('⚠️ Shared homepage enter handoff missing; using legacy Settings homepage enter path');
+      this.showHomepageQuietly();
+      await animateSliderEnter();
   }
   
   // Handle settings back button click
@@ -2176,10 +2205,10 @@ class UIManager {
     }
 
     buttonToAnimate?.setAttribute('data-settings-back-exit-pending', 'true');
-    const runExit = () => {
+    const runExit = async () => {
       try {
         logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
-        this.hideSettingsScreenWithAnimation();
+        await this.hideSettingsScreenWithAnimation();
       } finally {
         buttonToAnimate?.removeAttribute('data-settings-back-exit-pending');
       }
@@ -2209,9 +2238,6 @@ class UIManager {
     const musicToggle = document.getElementById('toggle-music') as HTMLInputElement;
     const vibrationToggle = document.getElementById('toggle-vibration') as HTMLInputElement;
     const spatialMotionToggle = document.getElementById('toggle-spatial-motion') as HTMLInputElement;
-    const footerHapticText =
-      (document.getElementById('settings-footer-haptic') as HTMLElement | null) ||
-      (settingsScreen.querySelector('.settings-footer-text') as HTMLElement | null);
     
     if (!gameSoundsToggle || !vibrationToggle) {
       console.warn('⚠️ Settings toggle checkboxes not found:', {
@@ -2412,43 +2438,6 @@ class UIManager {
       spatialMotionToggle.addEventListener('change', spatialMotionHandler);
     }
 
-    // Footer "Made with ❤️..." haptic (attach every Settings open; resilient to cleanup/rebuild)
-    if (footerHapticText) {
-      const oldTouch = (footerHapticText as any).__ccFooterHapticTouchHandler as EventListener | undefined;
-      const oldClick = (footerHapticText as any).__ccFooterHapticClickHandler as EventListener | undefined;
-      if (oldTouch) footerHapticText.removeEventListener('touchstart', oldTouch);
-      if (oldClick) footerHapticText.removeEventListener('click', oldClick);
-
-      let lastFooterHapticAt = 0;
-      const fireFooterHaptic = () => {
-        const now = Date.now();
-        if (now - lastFooterHapticAt < 120) return;
-        lastFooterHapticAt = now;
-        try {
-        if (
-          typeof (window as any).triggerHapticImpact === 'function'
-        ) {
-            (window as any).triggerHapticImpact('light');
-          } else if (navigator.vibrate) {
-            navigator.vibrate(30);
-          }
-          console.log('📳 Settings footer haptic fired via UIManager');
-        } catch (err) {
-          console.warn('⚠️ Settings footer haptic failed:', err);
-        }
-      };
-
-      const footerTouchHandler = () => fireFooterHaptic();
-      const footerClickHandler = () => fireFooterHaptic();
-      (footerHapticText as any).__ccFooterHapticTouchHandler = footerTouchHandler;
-      (footerHapticText as any).__ccFooterHapticClickHandler = footerClickHandler;
-      footerHapticText.addEventListener('touchstart', footerTouchHandler, { passive: true });
-      footerHapticText.addEventListener('click', footerClickHandler);
-      console.log('✅ Settings footer haptic handlers attached via UIManager');
-    } else {
-      console.warn('⚠️ Settings footer text not found for haptic attach');
-    }
-    
     console.log('✅ Settings toggle event listeners attached directly to checkboxes');
     
     const gameSoundsStatus = document.getElementById('status-game-sounds');
@@ -2484,6 +2473,7 @@ class UIManager {
   
   // Cleanup
   destroy(): void {
+    this.cancelSettingsEnterTimeouts();
     this.homepageCtaControllers.forEach(controller => controller.dispose());
     this.homepageCtaControllers.clear();
     this.animations.clear();

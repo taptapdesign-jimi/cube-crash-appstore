@@ -5,14 +5,14 @@ import {
 } from '../journey-background-preparation';
 
 describe('Journey background preparation ownership', () => {
-  test.each(['loader', 'home', 'journey', 'settings'])(
+  test.each(['home', 'journey'])(
     'allows menu preparation in %s zone',
     appZone => {
       expect(isJourneyBackgroundPreparationAllowed({ appZone })).toBe(true);
     }
   );
 
-  test.each(['board-arcade', 'board-journey', 'clean-board', 'new-card', 'stage-complete', 'fail-screen'])(
+  test.each([undefined, 'loader', 'settings', 'board-arcade', 'board-journey', 'clean-board', 'new-card', 'stage-complete', 'fail-screen'])(
     'blocks late preparation in %s zone',
     appZone => {
       expect(isJourneyBackgroundPreparationAllowed({ appZone })).toBe(false);
@@ -30,6 +30,7 @@ describe('Journey background preparation ownership', () => {
     expect(shouldBlockHiddenJourneyRender(true, true)).toBe(true);
     expect(shouldBlockHiddenJourneyRender(false, true)).toBe(false);
     expect(shouldBlockHiddenJourneyRender(true, false)).toBe(false);
+    expect(shouldBlockHiddenJourneyRender(true, false, true)).toBe(true);
   });
 
   test('recognizes a complete prepared Hub without requiring board cards', () => {

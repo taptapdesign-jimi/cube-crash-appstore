@@ -763,6 +763,7 @@ export class AssetPreloader {
       return this.postCriticalPreloadPromise;
     }
 
+    let completed = false;
     this.postCriticalPreloadPromise = (async () => {
       logger.info('🔄 Starting post-critical asset preloading...');
 
@@ -787,21 +788,8 @@ export class AssetPreloader {
       if (this.shouldPausePostCriticalWork()) return;
       logger.info('✅ Collectibles placeholders preloaded');
 
-      logger.info('🗺️ Preparing Journey screen boards...');
-      try {
-        const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
-        const manager = await ensureCollectiblesManager();
-        if (manager && typeof manager.prepareJourneyScreen === 'function') {
-          await manager.prepareJourneyScreen();
-          logger.info('✅ Journey screen boards prepared');
-        } else {
-          logger.warn('⚠️ prepareJourneyScreen function not found in collectibles-manager');
-        }
-      } catch (err) {
-        logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
-      }
-
       await this.preloadDeferredAssets();
+      if (this.shouldPausePostCriticalWork()) return;
 
       try {
         await this.loadAudioFiles();
@@ -809,10 +797,17 @@ export class AssetPreloader {
         logger.warn('⚠️ Audio loading failed, continuing...', err);
       }
 
+      completed = true;
       logger.info('✅ Post-critical asset preloading completed');
     })();
-
-    return this.postCriticalPreloadPromise;
+    const activePromise = this.postCriticalPreloadPromise;
+    try {
+      await activePromise;
+    } finally {
+      if (!completed && this.postCriticalPreloadPromise === activePromise) {
+        this.postCriticalPreloadPromise = null;
+      }
+    }
   }
 
   // Load deferred assets in background (non-blocking)
@@ -849,6 +844,10 @@ export class AssetPreloader {
       logger.debug(`📦 Loading ${DEFERRED_ASSETS.length} deferred assets in batches of ${batchSize} (mobile: ${isMobile})`);
       
       for (let i = 0; i < DEFERRED_ASSETS.length; i += batchSize) {
+        if (this.shouldPausePostCriticalWork()) {
+          logger.info('⏸️ Deferred asset preload paused for active UI ownership');
+          return;
+        }
         const batch = DEFERRED_ASSETS.slice(i, i + batchSize);
         try {
           await Assets.load(batch);

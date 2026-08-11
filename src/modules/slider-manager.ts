@@ -1388,7 +1388,12 @@ class SliderManager {
     if (slideIndex < 0 || slideIndex >= this.totalSlides) return;
 
     this.currentSlide = slideIndex;
-    gameState.set('currentSlide', slideIndex);
+    this.suppressCurrentSlideSubscription = true;
+    try {
+      gameState.set('currentSlide', slideIndex);
+    } finally {
+      this.suppressCurrentSlideSubscription = false;
+    }
 
     const container = this.elements.container ?? document.getElementById('slider-container');
     const wrapper = this.elements.wrapper ?? document.getElementById('slider-wrapper');

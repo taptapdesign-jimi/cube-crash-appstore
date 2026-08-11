@@ -3055,8 +3055,8 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 @keyframes end-run-centered-modal-bounce-out {
-  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
-  18% { transform: translate3d(0, -1px, 0) scale(1.012) rotate(-0.25deg); }
+  0% { transform: translate3d(0, var(--cc-modal-drag-release-y, 0px), 0) scale(1) rotate(var(--cc-modal-drag-release-tilt, 0deg)); }
+  18% { transform: translate3d(0, calc(var(--cc-modal-drag-release-y, 0px) - 1px), 0) scale(1.012) rotate(-0.25deg); }
   100% { transform: translate3d(0, 24px, 0) scale(0) rotate(2deg); }
 }
 
@@ -5142,7 +5142,7 @@ body:has(:root) .tile.wild-3d-glow {
   padding-left: var(--pad-left);
   padding-right: var(--pad-right);
   z-index: 20;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .settings-footer-text {
@@ -5154,11 +5154,26 @@ body:has(:root) .tile.wild-3d-glow {
   margin: 0;
   padding: 0;
   opacity: 0.85;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-  pointer-events: auto;
+  pointer-events: none;
+  border: 0;
+  background: transparent;
+  text-align: center;
+}
+
+.settings-version {
+  display: block;
+  margin-top: 2px;
+  font-family: "Baloo2", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 14px;
+  color: #9f725b;
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .settings-toggle-container {

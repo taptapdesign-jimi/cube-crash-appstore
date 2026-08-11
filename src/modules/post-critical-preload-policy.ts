@@ -8,5 +8,5 @@ export interface PostCriticalPreloadRuntime {
 export function shouldPausePostCriticalPreload(state: PostCriticalPreloadRuntime): boolean {
   if (!state.isIOS) return false;
   if (state.gameStartInProgress || state.boardTransitionVisible) return true;
-  return state.appZone === 'journey' || state.appZone?.startsWith('board-') === true;
+  return state.appZone !== 'home';
 }

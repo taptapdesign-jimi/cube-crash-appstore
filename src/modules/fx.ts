@@ -3962,6 +3962,21 @@ function createMerge6Stars(board, layer, centerX, centerY) {
 // Track active star animations for cleanup (prevents lag when merging multiple wild stars quickly)
 let activeStarAnimationContainers = new Set();
 
+function killOwnedStarTimelines(container) {
+  const timelines = Array.isArray(container?._starTimelines)
+    ? [...container._starTimelines]
+    : [];
+  timelines.forEach((timeline) => {
+    try { animationManager.killExternalTimeline(timeline); } catch {
+      try { timeline?.kill?.(); } catch {}
+    }
+    try { timeline?.clear?.(); } catch {}
+  });
+  if (Array.isArray(container?._starTimelines)) {
+    container._starTimelines.length = 0;
+  }
+}
+
 /**
  * Force cleanup ALL star animations including protected ones
  * Use this when closing app, restarting game, or when you need to cleanup everything
@@ -3981,6 +3996,10 @@ export function forceCleanupAllStarAnimations() {
               container._cleanupTimeout = null;
             } catch {}
           }
+
+          // Path motion targets a plain object, not the PIXI container. Killing
+          // only container/child tweens leaves those timelines ticking invisibly.
+          killOwnedStarTimelines(container);
           
           // Kill all GSAP animations (including protected ones)
           gsap.killTweensOf(container);
@@ -4062,6 +4081,8 @@ export function cleanupExistingStarAnimations() {
             container._cleanupTimeout = null;
           } catch {}
         }
+
+        killOwnedStarTimelines(container);
         
         // Kill all GSAP animations
         gsap.killTweensOf(container);
@@ -4299,6 +4320,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // Store references for cleanup
   const starSprites = [];
   const timelines = [];
+  // The container is the lifecycle owner even though the main motion tween
+  // targets local path objects. Reset/Play Again can therefore cancel all work.
+  animationContainer._starTimelines = timelines;
   
   const STAR_COUNT = Math.min(3, savedStarPositions.length);
   let maxStarDuration = 0;
@@ -4710,7 +4734,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       timelines.forEach(tl => {
         try { 
           if (tl) {
-            tl.kill();
+            animationManager.killExternalTimeline(tl);
             tl.clear?.();
           }
         } catch (e) {
@@ -4998,7 +5022,14 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const hotFactor = getFxHotFactor();
 
   const baseStrength = Math.max(0.4, power);
-  const COUNT     = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale * hotFactor));
+  const requestedCount = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale * hotFactor));
+  // High-strength wild smoke previously created up to ~174 Graphics objects
+  // and timelines synchronously in the source-absorbed frame. Preserve the
+  // same envelope, size and burst cadence while bounding that one-frame work.
+  const maxParticles = Number.isFinite(options.maxParticles)
+    ? Math.max(6, Math.floor(options.maxParticles))
+    : Number.POSITIVE_INFINITY;
+  const COUNT     = Math.min(requestedCount, maxParticles);
   const BASE_R    = Math.max(6, Math.round(size * 0.051 * sizeScale)); // +50% larger base size
   const MAX_R     = Math.max(18, Math.round(size * 0.24 * sizeScale)); // +50% larger max size
   const INSET     = size * 0.02 * insetScale;

@@ -552,8 +552,8 @@ export class AppSpatialMotionController {
 
   public activateHomepage(container: HTMLElement, slideIndex: number): void {
     if (this.deferActivation(() => this.activateHomepage(container, slideIndex), 'homepage')) return;
-    const activeSlide = container.querySelector<HTMLElement>('.slider-slide.active')
-      ?? container.querySelector<HTMLElement>(`.slider-slide[data-slide="${slideIndex}"]`);
+    const activeSlide = container.querySelector<HTMLElement>(`.slider-slide[data-slide="${slideIndex}"]`)
+      ?? container.querySelector<HTMLElement>('.slider-slide.active');
     if (!activeSlide) {
       this.deactivate();
       return;
@@ -575,6 +575,10 @@ export class AppSpatialMotionController {
     addTarget(activeSlide.querySelector<HTMLElement>('.slide-button'), JOURNEY_SPATIAL_DEPTH.homepageCta);
 
     if (this.matchesActiveTargets('homepage', targets)) return;
+    if (this.activeSurface === 'homepage' && !this.suspended) {
+      this.replaceHomepageTargets(targets, container);
+      return;
+    }
     this.activate('homepage', targets, container);
   }
 
@@ -1101,6 +1105,32 @@ export class AppSpatialMotionController {
     if (this.permissionState === 'granted') this.startListening();
     this.emitDiagnostic('surface-activated', {
       surface,
+      targetCount: this.targets.length,
+      listening: this.listening,
+    });
+  }
+
+  private replaceHomepageTargets(targets: SpatialTarget[], container: HTMLElement): void {
+    const nextTargets = targets.filter(({ element }) => document.body.contains(element));
+    if (nextTargets.length === 0) {
+      this.deactivateHomepage();
+      return;
+    }
+
+    this.targets.forEach(({ element }) => {
+      element.style.removeProperty('translate');
+      delete element.dataset.journeySpatialTarget;
+      this.removeCompositorHint(element);
+    });
+    this.targets = nextTargets;
+    this.targets.forEach(({ element }) => {
+      element.dataset.journeySpatialTarget = 'homepage';
+      if (this.listening) this.addCompositorHint(element);
+    });
+    this.startVisibilityTracking(container);
+    this.ensureFrame();
+    this.emitDiagnostic('surface-targets-replaced', {
+      surface: 'homepage',
       targetCount: this.targets.length,
       listening: this.listening,
     });

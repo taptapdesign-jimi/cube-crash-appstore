@@ -47,6 +47,15 @@ describe('first-play tutorial entry routing', () => {
 
     expect(endgameSource).toContain('__ccFirstPlayTutorialReturnToJourneyHub = true');
     expect(endgameSource).toContain('waitForJourneyV700HubPresentation');
+    const continuation = endgameSource.slice(
+      endgameSource.indexOf('async function continueFirstPlayTutorialIntoJourney'),
+      endgameSource.indexOf('async function continueFirstPlayTutorialIntoArcade'),
+    );
+    expect(continuation).toContain('journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();');
+    expect(continuation).toContain('.waitForJourneyV700HubPresentation?.(6000)');
+    expect(continuation).toContain('if (presented) releaseCover();');
+    expect(continuation.indexOf('.waitForJourneyV700HubPresentation?.(6000)'))
+      .toBeLessThan(continuation.indexOf('await requestExitToMenu({'));
     expect(mainSource).toContain('firstPlayTutorialHubReturn');
     expect(mainSource).toContain('journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();');
     expect(boardsSource).toContain("this.setJourneyV700View('hub');");

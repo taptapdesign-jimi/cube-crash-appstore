@@ -89,12 +89,25 @@ type AppListener = {
 
 const _appListeners: AppListener[] = [];
 
+function listenerCapture(options?: boolean | AddEventListenerOptions): boolean {
+  return typeof options === 'boolean' ? options : options?.capture === true;
+}
+
 export function trackAppListener(
   target: EventTarget,
   event: string,
   handler: EventListenerOrEventListenerObject,
   options?: boolean | AddEventListenerOptions
 ): void {
+  const capture = listenerCapture(options);
+  const alreadyTracked = _appListeners.some(listener =>
+    listener.target === target &&
+    listener.event === event &&
+    listener.handler === handler &&
+    listenerCapture(listener.options) === capture
+  );
+  if (alreadyTracked) return;
+
   target.addEventListener(event, handler, options);
   _appListeners.push({ target, event, handler, options });
 }

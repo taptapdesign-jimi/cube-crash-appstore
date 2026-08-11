@@ -49,6 +49,7 @@ export function animateSettingsScreenEnter(): void {
   const settingsHeader = settingsScreen?.querySelector('.settings-header') as HTMLElement;
   const toggleContainers = Array.from(settingsScreen?.querySelectorAll('.settings-toggle-container') || []) as HTMLElement[];
   const dividers = Array.from(settingsScreen?.querySelectorAll('.settings-divider') || []) as HTMLElement[];
+  const footer = settingsScreen?.querySelector('.settings-footer') as HTMLElement | null;
   
   console.log('🔍 Found elements:', {
     settingsScreen: !!settingsScreen,
@@ -63,7 +64,7 @@ export function animateSettingsScreenEnter(): void {
   }
   
   // 🔥 CRITICAL: Set initial state for ALL elements (scale 0, opacity 0)
-  const allElements = [settingsHeader, ...toggleContainers, ...dividers].filter(Boolean);
+  const allElements = [settingsHeader, ...toggleContainers, ...dividers, footer].filter(Boolean);
   console.log('🎯 Setting initial state for', allElements.length, 'elements...');
   
   try {
@@ -123,6 +124,15 @@ export function animateSettingsScreenEnter(): void {
       animationIndex++;
     }
   }
+  if (footer) {
+    trackTween(footer, {
+      scale: 1,
+      opacity: 1,
+      duration: 0.5,
+      ease: 'back.out(1.7)',
+      delay: 0.05 + (animationIndex * 0.08),
+    });
+  }
   
   console.log('✅ Settings screen enter animation started');
 }
@@ -131,7 +141,7 @@ export function animateSettingsScreenEnter(): void {
  * Animate settings screen EXIT with pop-out effects
  * Toggle containers and dividers first (reverse order), then header
  */
-export function animateSettingsScreenExit(): void {
+export function animateSettingsScreenExit(): Promise<void> {
   console.log('🎬 animateSettingsScreenExit CALLED!');
   
   // 🔥 FIX: Kill any existing animations before starting exit
@@ -141,15 +151,19 @@ export function animateSettingsScreenExit(): void {
   const settingsHeader = settingsScreen?.querySelector('.settings-header') as HTMLElement;
   const toggleContainers = Array.from(settingsScreen?.querySelectorAll('.settings-toggle-container') || []) as HTMLElement[];
   const dividers = Array.from(settingsScreen?.querySelectorAll('.settings-divider') || []) as HTMLElement[];
+  const footer = settingsScreen?.querySelector('.settings-footer') as HTMLElement | null;
   
   if (!settingsScreen) {
     console.error('❌ No settings screen found to animate!');
-    return;
+    return Promise.resolve();
   }
+
+  const exitTweens: gsap.core.Tween[] = [];
   
   // STEP 1: Toggle containers and dividers FIRST (reverse order - bottom to top)
   // Build interleaved array: [toggle1, divider1, toggle2]
   const interleavedElements: HTMLElement[] = [];
+  if (footer) interleavedElements.push(footer);
   for (let i = 0; i < toggleContainers.length; i++) {
     interleavedElements.push(toggleContainers[i]);
     if (dividers[i]) {
@@ -171,6 +185,7 @@ export function animateSettingsScreenExit(): void {
       ease: 'back.in(1.7)',
       delay: delay
     });
+    exitTweens.push(exitTween);
     
     const elementType = element.classList.contains('settings-divider') ? 'Divider' : 'Toggle';
     console.log(`⚙️ Step ${index + 1}: ${elementType} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
@@ -188,8 +203,27 @@ export function animateSettingsScreenExit(): void {
       ease: 'back.in(1.7)',
       delay: lastDelay + 0.05
     });
+    exitTweens.push(headerExitTween);
     console.log('📊 Header pop-out - LAST');
   }
   
   console.log('✅ Settings screen exit animation started');
+  return Promise.all(exitTweens.map((tween) => new Promise<void>((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const originalComplete = tween.eventCallback('onComplete');
+    const originalInterrupt = tween.eventCallback('onInterrupt');
+    tween.eventCallback('onComplete', () => {
+      if (typeof originalComplete === 'function') originalComplete.call(tween);
+      settle();
+    });
+    tween.eventCallback('onInterrupt', () => {
+      if (typeof originalInterrupt === 'function') originalInterrupt.call(tween);
+      settle();
+    });
+  }))).then(() => undefined);
 }

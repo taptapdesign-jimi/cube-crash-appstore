@@ -16,6 +16,10 @@ import {
 import { resolveJourneyStartDecision } from './journey-start-decision.ts';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
+import {
+  beginJourneyPlayAgainIncidentCycle,
+  recordJourneyPlayAgainIncident,
+} from '../utils/journey-play-again-incident-ring.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -94,6 +98,12 @@ async function prepareFirstPlayTutorialArcadeRestart(): Promise<void> {
 }
 
 async function continueFirstPlayTutorialIntoJourney(cleanupCover: () => void): Promise<void> {
+  let coverReleased = false;
+  const releaseCover = (): void => {
+    if (coverReleased) return;
+    coverReleased = true;
+    cleanupCover();
+  };
   try {
     await clearFirstPlayTutorialRunState();
     (window as any).__ccFirstPlayTutorialReturnToJourneyHub = true;
@@ -101,21 +111,31 @@ async function continueFirstPlayTutorialIntoJourney(cleanupCover: () => void): P
     (window as any).__ccSuppressTutorialStatsSave = true;
     markJourneyGameOrigin({ fromInterim: false });
     (window as any).__skipBoardExitAnimation = true;
+
+    // Prime the exact hidden Hub destination and subscribe before routing.
+    // Waiting until requestExitToMenu resolves lets the full Hub cascade play
+    // underneath the opaque Tutorial Complete cover, revealing only its tail.
+    const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+    journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();
+    const hubPresentation = journeyBoardsManager
+      .waitForJourneyV700HubPresentation?.(6000)
+      .then((presented) => {
+        if (presented) releaseCover();
+        return presented;
+      });
+
     await requestExitToMenu({
       reason: 'first-play-tutorial-complete-journey-worlds',
       target: 'auto',
       skipBoardExit: true,
     });
-    try {
-      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-      await journeyBoardsManager.waitForJourneyV700HubPresentation?.();
-    } catch {}
+    await hubPresentation;
   } finally {
     delete window.__ccBoardJustCompleted;
     delete window.__ccSuppressTutorialStatsSave;
     delete window.__skipBoardExitAnimation;
     delete (window as any).__ccFirstPlayTutorialReturnToJourneyHub;
-    cleanupCover();
+    releaseCover();
   }
 }
 
@@ -266,6 +286,7 @@ async function handleCleanBoardPlayAgain(ctx: EndgameContext, boardNumber: numbe
       return;
     }
     (window as any).__ccPlayAgainRestartInProgress = true;
+    beginJourneyPlayAgainIncidentCycle({ boardId: boardNumber });
 
     await clearCompletedBoardSaveState(boardNumber, 'clean-board-play-again');
 
@@ -280,9 +301,15 @@ async function handleCleanBoardPlayAgain(ctx: EndgameContext, boardNumber: numbe
       await uiManagerModule.default.startNewGame();
       console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');
     } else if (typeof (window as any).startNewRunFromJourney === 'function') {
+      recordJourneyPlayAgainIncident('before-play-again-cleanup', { boardId: boardNumber });
       try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
+      recordJourneyPlayAgainIncident('after-play-again-fx-cleanup', { boardId: boardNumber });
       try { (window as any).CC?.resetTransientRunGuards?.('endgame-play-again'); } catch {}
       try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
+      recordJourneyPlayAgainIncident('after-play-again-soft-reset', { boardId: boardNumber });
+      try { (window as any).CC?.destroyOldBoardForTransition?.('endgame-play-again'); } catch {}
+      recordJourneyPlayAgainIncident('after-play-again-old-board-destroy', { boardId: boardNumber });
+      emitIOSNativeDiagnostic('journey-play-again-old-board-destroyed', { boardId: boardNumber });
       await (window as any).startNewRunFromJourney(boardNumber);
       console.log(`✅ endgame-flow: Restarted board ${boardNumber} via startNewRunFromJourney`);
     } else {
@@ -941,6 +968,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   const boardNumber = (STATE?.boardNumber && Number.isFinite(STATE.boardNumber)) 
     ? STATE.boardNumber 
     : ctxBoardNumber;
+  if (!isArcadeHomeRunMode()) {
+    recordJourneyPlayAgainIncident('journey-endgame-flow-start', { boardId: boardNumber });
+  }
   const firstPlayTutorialCompletion = isFirstPlayTutorialCompletionFlow();
   const firstPlayTutorialSource = (window as any).__ccFirstPlayTutorialRunSource === 'journey'
     ? 'journey'

@@ -22,6 +22,7 @@ interface SweetPopOptions {
   jitterMax?: number;
   rate?: number;
   durationScale?: number;
+  signal?: AbortSignal;
 }
 
 function isFirstPlayTutorialDemoBoard(): boolean {
@@ -210,6 +211,19 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     let completed = 0;
     let finished = false;
     let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+    const abortPopIn = () => {
+      if (finished) return;
+      finished = true;
+      if (safetyTimeout) {
+        clearTimeout(safetyTimeout);
+        safetyTimeout = null;
+      }
+      activeTimelines.forEach(timeline => { try { timeline.kill(); } catch {} });
+      activeDelayedCalls.forEach(delayed => { try { delayed.kill(); } catch {} });
+      stopPopInFrameWindow();
+      markBoardLifecycle('popin-aborted');
+      resolve();
+    };
 
     const forceTileFinalState = (t: any) => {
       if (!t || t.destroyed) return;
@@ -242,6 +256,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     const finishPopIn = (forced = false) => {
       if (finished) return;
       finished = true;
+      opts.signal?.removeEventListener('abort', abortPopIn);
       if (safetyTimeout) {
         clearTimeout(safetyTimeout);
         safetyTimeout = null;
@@ -261,6 +276,12 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       finishPopIn(false);
       return;
     }
+
+    if (opts.signal?.aborted) {
+      abortPopIn();
+      return;
+    }
+    opts.signal?.addEventListener('abort', abortPopIn, { once: true });
 
     if (shouldPlayGroupedEntryHaptics) {
       createBoardPopInHapticSchedule(popInPlan).forEach((delaySeconds) => {

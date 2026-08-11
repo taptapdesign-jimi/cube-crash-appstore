@@ -2,6 +2,7 @@ import { appZoneManager } from '../app-zone-manager';
 import { getRunMode, RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
 import {
   cleanupNavigationControl,
+  commitHomepageNavigation,
   getHomepageNavigationLifecycleSnapshot,
   initNavigationControl,
   primeHomepageNavigation,
@@ -113,6 +114,30 @@ describe('app-zone-manager', () => {
     expect((global as any).__ccCameFromHomepage).toBe(false);
     expect((global as any).__ccFromInterimBoard).toBe(true);
     expect(localStorage.getItem('__ccCameFromJourney')).toBe('true');
+  });
+
+  it('lets an animated Settings transition retain nav ownership until its exit owner finishes', () => {
+    document.body.innerHTML = `
+      <div id="independent-nav">
+        <div class="independent-nav-content"><div class="independent-nav-buttons">
+          <button class="independent-nav-button"><img alt="" /></button>
+        </div></div>
+      </div>`;
+    appZoneManager.setZone('home', 'test-settings-home');
+    initNavigationControl();
+    primeHomepageNavigation('test-settings-prime');
+    commitHomepageNavigation('test-settings-interactive');
+
+    appZoneManager.setZone('settings', 'test-settings-enter', {
+      preserveHomepageNavigation: true,
+    });
+
+    expect(appZoneManager.getCurrentZone()).toBe('settings');
+    expect(getHomepageNavigationLifecycleSnapshot()).toMatchObject({
+      phase: 'interactive',
+      hidden: false,
+      display: 'block',
+    });
   });
 
   it('resolves arcade return to home even with stale journey flags', () => {

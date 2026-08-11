@@ -37,6 +37,10 @@ export interface ZoneTransitionOptions {
   fromDetailModal?: boolean;
 }
 
+export interface SetZoneOptions {
+  preserveHomepageNavigation?: boolean;
+}
+
 export interface GameExitRoute {
   target: MenuReturnTarget;
   targetSlide: 0 | 1;
@@ -105,10 +109,10 @@ class AppZoneManager {
     return this.lastMenuTarget;
   }
 
-  setZone(zone: AppZone, reason = 'manual'): void {
+  setZone(zone: AppZone, reason = 'manual', options: SetZoneOptions = {}): void {
     this.currentZone = zone;
     try { (window as any).__ccAppZone = zone; } catch {}
-    if (zone !== 'home') {
+    if (zone !== 'home' && options.preserveHomepageNavigation !== true) {
       hideHomepageNavigation(`app-zone:set-zone:${zone}:${reason}`);
     }
     logger.debug(`🧭 App zone set to ${zone}`, 'app-zone-manager', { reason });

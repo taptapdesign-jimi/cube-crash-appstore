@@ -789,7 +789,7 @@ class JourneyBoardsManager {
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
   private journeyV700HubEnterEpoch = 0;
-  private journeyV700HubPresentationWaiters = new Set<() => void>();
+  private journeyV700HubPresentationWaiters = new Set<(presented?: boolean) => void>();
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
@@ -5763,8 +5763,12 @@ class JourneyBoardsManager {
       journeyScreen.classList.contains('hidden') ||
       getComputedStyle(journeyScreen).display === 'none';
 
-    if (shouldBlockHiddenJourneyRender(journeyScreenHidden, transitionOverlayVisible)) {
-      logger.info('⏭️ Blocked hidden Journey render during board transition');
+    if (shouldBlockHiddenJourneyRender(
+      journeyScreenHidden,
+      transitionOverlayVisible,
+      (window as any).__ccAppZone === 'settings',
+    )) {
+      logger.info('⏭️ Blocked hidden Journey render during active UI ownership');
       return;
     }
     
@@ -6208,22 +6212,23 @@ class JourneyBoardsManager {
   }
 
   /** Resolve when the canonical Hub enter has begun painting signs and idle. */
-  public waitForJourneyV700HubPresentation(timeoutMs = 2600): Promise<void> {
+  public waitForJourneyV700HubPresentation(timeoutMs = 2600): Promise<boolean> {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const hub = container?.querySelector<HTMLElement>('.journey-v700-hub');
-    if (hub?.classList.contains('journey-v700-banners-presented')) return Promise.resolve();
+    if (hub?.classList.contains('journey-v700-banners-presented')) return Promise.resolve(true);
 
     return new Promise((resolve) => {
       let settled = false;
-      const finish = () => {
+      const waiter = () => finish(true);
+      const finish = (presented: boolean) => {
         if (settled) return;
         settled = true;
         window.clearTimeout(timeout);
-        this.journeyV700HubPresentationWaiters.delete(finish);
-        resolve();
+        this.journeyV700HubPresentationWaiters.delete(waiter);
+        resolve(presented);
       };
-      const timeout = window.setTimeout(finish, timeoutMs);
-      this.journeyV700HubPresentationWaiters.add(finish);
+      const timeout = window.setTimeout(() => finish(false), timeoutMs);
+      this.journeyV700HubPresentationWaiters.add(waiter);
     });
   }
 
@@ -6330,17 +6335,41 @@ class JourneyBoardsManager {
       }
     } catch {}
 
-    this.logJourneyV700Flow('hub-visible-enter-start', {
-      source,
-      worldCount: worldCards.length,
-      cloudLayer: !!hubCloudLayer,
-      stagger,
-      duration: motion.enter.duration,
-      expectedTotalMs: Math.round((motion.enter.baseDelay + motion.enter.duration + ((worldCards.length - 1) * stagger)) * 1000),
-    }, container);
+    const hubImages = Array.from(hub?.querySelectorAll<HTMLImageElement>('img') ?? []);
+    const hubImagesReady = Promise.all(hubImages.map((image) => waitForImageReady(image))).then(() => undefined);
+    void hubImagesReady.then(() => {
+      if (
+        enterEpoch !== this.journeyV700HubEnterEpoch ||
+        this.journeyV700Phase !== 'entering' ||
+        this.journeyV700View !== 'hub' ||
+        !container.isConnected
+      ) {
+        this.logJourneyV700Flow('hub-visible-enter-stale-before-images-ready', {
+          source,
+          imageCount: hubImages.length,
+        }, container);
+        return;
+      }
 
-    let bannerEnterStarted = false;
-    const startBannerEnter = () => {
+      this.logJourneyV700Flow('hub-visible-enter-images-ready', {
+        source,
+        imageCount: hubImages.length,
+      }, container);
+      emitIOSNativeDiagnostic('hub-visible-enter-images-ready', {
+        source,
+        imageCount: hubImages.length,
+      });
+      this.logJourneyV700Flow('hub-visible-enter-start', {
+        source,
+        worldCount: worldCards.length,
+        cloudLayer: !!hubCloudLayer,
+        stagger,
+        duration: motion.enter.duration,
+        expectedTotalMs: Math.round((motion.enter.baseDelay + motion.enter.duration + ((worldCards.length - 1) * stagger)) * 1000),
+      }, container);
+
+      let bannerEnterStarted = false;
+      const startBannerEnter = () => {
       if (bannerEnterStarted || enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
       bannerEnterStarted = true;
       // Start local banner reveal on the first real GSAP enter tick so it runs
@@ -6354,10 +6383,10 @@ class JourneyBoardsManager {
       hub?.classList.add('journey-v700-idle-ready');
       const presentationWaiters = Array.from(this.journeyV700HubPresentationWaiters);
       this.journeyV700HubPresentationWaiters.clear();
-      presentationWaiters.forEach((resolve) => resolve());
-    };
-    let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
-    const finishVisibleEnterTarget = () => {
+      presentationWaiters.forEach((resolve) => resolve(true));
+      };
+      let remainingTargets = worldCards.length + (hubCloudLayer ? 1 : 0);
+      const finishVisibleEnterTarget = () => {
       if (enterEpoch !== this.journeyV700HubEnterEpoch || !container.isConnected) return;
       remainingTargets -= 1;
       if (remainingTargets > 0) return;
@@ -6401,9 +6430,9 @@ class JourneyBoardsManager {
         actualTotalMs: Math.round(performance.now() - enterStartedAt),
       });
       this.logJourneyV700Flow('hub-visible-enter-complete', { source, owner: 'tracked-per-unit' }, container);
-    };
-    if (hubCloudLayer) {
-      const cloudTween = trackTween(hubCloudLayer, {
+      };
+      if (hubCloudLayer) {
+        const cloudTween = trackTween(hubCloudLayer, {
         y: 0,
         scale: 1,
         opacity: 1,
@@ -6415,10 +6444,10 @@ class JourneyBoardsManager {
         onStart: startBannerEnter,
         onComplete: finishVisibleEnterTarget,
       });
-      this.journeyV700HubEnterTweens.push(cloudTween);
-    }
-    worldCards.forEach((worldCard, index) => {
-      const worldTween = trackTween(worldCard, {
+        this.journeyV700HubEnterTweens.push(cloudTween);
+      }
+      worldCards.forEach((worldCard, index) => {
+        const worldTween = trackTween(worldCard, {
         y: 0,
         scale: 1,
         // Locked Worlds retain their full CSS opacity throughout enter. Their
@@ -6432,7 +6461,8 @@ class JourneyBoardsManager {
         onStart: startBannerEnter,
         onComplete: finishVisibleEnterTarget,
       });
-      this.journeyV700HubEnterTweens.push(worldTween);
+        this.journeyV700HubEnterTweens.push(worldTween);
+      });
     });
   }
 

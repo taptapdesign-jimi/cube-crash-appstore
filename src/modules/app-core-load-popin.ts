@@ -1,11 +1,13 @@
 type LoadPopInDeps = {
   tiles: any[];
   backgroundLayer: any;
-  sweetPopIn: (tiles: any[], opts?: any) => Promise<void>;
+  sweetPopIn: (tiles: any[], opts?: { onHalf?: () => void; signal?: AbortSignal }) => Promise<void>;
   onHalf: () => void;
   onComplete: () => void;
   beforePopIn?: () => Promise<void>;
   onPopInStarted?: () => void;
+  shouldAbort?: () => boolean;
+  getAbortSignal?: () => AbortSignal | null;
   devLog: (...args: any[]) => void;
 };
 
@@ -17,8 +19,10 @@ export function playLoadPopInAnimation({
   onComplete,
   beforePopIn,
   onPopInStarted,
+  shouldAbort,
+  getAbortSignal,
   devLog,
-}: LoadPopInDeps): void {
+}: LoadPopInDeps): Promise<void> {
   // Ensure background layer is visible from the start
   if (backgroundLayer) {
     backgroundLayer.visible = true;
@@ -53,6 +57,7 @@ export function playLoadPopInAnimation({
   enterTiles.forEach(t => { if (t) t.visible = false; });
 
   const runPopIn = async () => {
+    if (shouldAbort?.()) return;
     if (beforePopIn) {
       try {
         await beforePopIn();
@@ -60,40 +65,31 @@ export function playLoadPopInAnimation({
         devLog('⚠️ Deferred load pre-pop-in cue failed; continuing with board entrance:', error);
       }
     }
+    if (shouldAbort?.()) return;
     try {
-      const popInPromise = sweetPopIn(enterTiles, { onHalf });
+      const popInPromise = sweetPopIn(enterTiles, {
+        onHalf,
+        signal: getAbortSignal?.() ?? undefined,
+      });
       try { onPopInStarted?.(); } catch {}
       await popInPromise;
       devLog('✅ Continue animation completed');
     } catch (error) {
       devLog('⚠️ Continue animation failed:', error);
     } finally {
-      delete (window as any).__ccGameStartInProgress;
-      delete (window as any).__ccGameStartInProgressSince;
-      (window as any).__ccEnterAnimationActive = false;
-      if (typeof (window as any).updateGhostVisibility === 'function') {
-        (window as any).updateGhostVisibility();
+      if (!shouldAbort?.()) {
+        delete (window as any).__ccGameStartInProgress;
+        delete (window as any).__ccGameStartInProgressSince;
+        (window as any).__ccEnterAnimationActive = false;
+        if (typeof (window as any).updateGhostVisibility === 'function') {
+          (window as any).updateGhostVisibility();
+        }
+        // Recovery/endgame validation belongs after the complete visual entrance.
+        // While the cue runs, every restored tile is intentionally hidden and a
+        // parallel check could falsely classify the saved board as completed.
+        onComplete();
       }
-      // Recovery/endgame validation belongs after the complete visual entrance.
-      // While the cue runs, every restored tile is intentionally hidden and a
-      // parallel check could falsely classify the saved board as completed.
-      onComplete();
     }
   };
-
-  // ui-manager keeps #app hidden while restoring state. Starting GSAP now
-  // would spend the entrance off-screen and make active tiles appear instant.
-  // Begin on the first frame where the board host is actually visible.
-  const appElement = document.getElementById('app');
-  let visibilityFrames = 0;
-  const startWhenVisible = () => {
-    const style = appElement ? window.getComputedStyle(appElement) : null;
-    const visible = !appElement || (style?.display !== 'none' && style?.visibility !== 'hidden');
-    if (visible || visibilityFrames++ >= 120) {
-      window.requestAnimationFrame(() => { void runPopIn(); });
-      return;
-    }
-    window.requestAnimationFrame(startWhenVisible);
-  };
-  startWhenVisible();
+  return runPopIn();
 }
