@@ -290,6 +290,12 @@ const TRANSITION_HAPTIC_FIRST_DELAY = 0.1;
 const TRANSITION_HAPTIC_OTHER_DELAY = 0.25;
 const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
+export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4;
+export const BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS = 0.35;
+export const BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS = 0.2;
+export const BOARD_TRANSITION_CLOUD_EXIT_ANTICIPATION_SECONDS = 0.07;
+export const BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS = 0.065;
+export const BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS = 0.46;
 
 function ensureCloudStyles(): void {
   if (document.getElementById('cc-board-transition-cloud-styles')) return;
@@ -1323,7 +1329,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               });
               
               pauseTimeline.to({}, {
-                duration: 0.8,
+                duration: BOARD_TRANSITION_HOLD_DURATION_SECONDS,
                 ease: 'none'
               });
             }
@@ -1384,7 +1390,7 @@ function startExitAnimation(
     }
   });
 
-  const startCloudExit = (): void => {
+  const addCloudExitAt = (startAt: number): void => {
     const cloudExitTargets = Array.from(
       overlay.querySelectorAll('.cc-board-transition-cloud')
     ) as HTMLElement[];
@@ -1392,55 +1398,54 @@ function startExitAnimation(
 
     cloudExitTargets.forEach((cloudImg) => {
       try {
-        gsap.killTweensOf(cloudImg, 'opacity,scale');
-        cloudImg.style.willChange = 'transform, opacity';
+        cloudImg.style.willChange = 'transform';
+        cloudImg.style.transformOrigin = '50% 50%';
       } catch {}
     });
 
-    const cloudPopTween = animationManager.trackExternalTween(gsap.to(cloudExitTargets, {
-      scale: 1.12,
-      duration: 0.08,
-      ease: 'back.out(2.0)',
-      stagger: 0.035,
+    const cloudExitTimeline = trackTimeline();
+    contentTimelines.push(cloudExitTimeline);
+    cloudExitTimeline.to(cloudExitTargets, {
+      scaleX: 0.94,
+      scaleY: 1.07,
+      duration: BOARD_TRANSITION_CLOUD_EXIT_ANTICIPATION_SECONDS,
+      ease: 'power2.in',
+      overwrite: 'auto',
+    });
+    cloudExitTimeline.to(cloudExitTargets, {
+      scaleX: 1.08,
+      scaleY: 0.93,
+      duration: BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS,
+      ease: 'back.out(2.2)',
+      overwrite: 'auto',
+    });
+    cloudExitTimeline.to(cloudExitTargets, {
+      scaleX: 0,
+      scaleY: 0,
+      duration: BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS,
+      ease: 'back.in(1.85)',
       overwrite: 'auto',
       onComplete: () => {
-        const cloudCollapseTween = animationManager.trackExternalTween(gsap.to(cloudExitTargets, {
-          opacity: 0,
-          scale: 0,
-          duration: 0.18,
-          ease: 'back.in(1.85)',
-          stagger: 0.035,
-          overwrite: 'auto',
-          onComplete: () => {
-            cloudTimelines.forEach((timeline) => {
-              try { timeline?.kill?.(); } catch {}
-            });
-            cloudTimelines = [];
-            activeCloudWrappers.forEach((cloudWrap) => {
-              try {
-                gsap.killTweensOf(cloudWrap);
-                cloudWrap.style.willChange = 'auto';
-              } catch {}
-            });
-            cloudExitTargets.forEach((cloudImg) => {
-              try {
-                gsap.killTweensOf(cloudImg);
-                cloudImg.style.willChange = 'auto';
-              } catch {}
-            });
-          },
-        }));
-        activeTweens.push(cloudCollapseTween as any);
+        cloudTimelines.forEach((timeline) => {
+          try { timeline?.kill?.(); } catch {}
+        });
+        cloudTimelines = [];
+        activeCloudWrappers.forEach((cloudWrap) => {
+          try {
+            gsap.killTweensOf(cloudWrap);
+            cloudWrap.style.willChange = 'auto';
+          } catch {}
+        });
+        cloudExitTargets.forEach((cloudImg) => {
+          try { cloudImg.style.willChange = 'auto'; } catch {}
+        });
       },
-    }));
-    activeTweens.push(cloudPopTween as any);
+    });
+    exitTimeline?.add(cloudExitTimeline, startAt);
   };
 
-  const cloudExitCall = trackDelayedCall(0.35, startCloudExit);
-  cloudDelayedCalls.push(cloudExitCall);
-
   // Start parallax first, then let the digits exit after the scene has already begun separating.
-  const sceneParallaxLead = 1.0;
+  const sceneParallaxLead = BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS;
 
   // Replay same two digit haptics on exit (numbers disappearing), aligned with delayed digit exit.
   if (typeof (window as any).triggerHapticImpact === 'function') {
@@ -1557,7 +1562,8 @@ function startExitAnimation(
     });
     const fenceExitStart = Math.max(0, sceneExitStart - 0.4);
     const hillDriftStart = -0.3;
-    const hillExitBaseStart = sceneExitStart + 1.05;
+    const hillExitBaseStart = sceneExitStart + BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS;
+    addCloudExitAt(hillExitBaseStart);
     const orderedExitEntries = [
       ...fenceExitImages.map((sceneImg, index) => ({ sceneImg, start: fenceExitStart + index * 0.06, orderIndex: index })),
       ...firstPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + index * 0.05, orderIndex: fenceExitImages.length + index })),
@@ -1636,6 +1642,8 @@ function startExitAnimation(
       }
       exitTimeline.add(sceneExitTimeline, start);
     });
+  } else {
+    addCloudExitAt(sceneParallaxLead);
   }
 
   // Step 3: Fade out overlay

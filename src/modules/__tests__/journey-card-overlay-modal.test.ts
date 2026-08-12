@@ -364,17 +364,11 @@ describe('Journey two-sided card overlay prototype', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBe(520);
     expect(JOURNEY_CARD_FLIP_SNAP_DURATION_MS).toBe(200);
-    expect(JOURNEY_CARD_FLIP_RECOIL_DURATION_MS).toBe(480);
+    expect(JOURNEY_CARD_FLIP_RECOIL_DURATION_MS).toBe(260);
     expect(JOURNEY_CARD_FLIP_RECOIL_EASE).toBe('cubic-bezier(0.45, 0, 0.55, 1)');
     expect(JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
     expect(JOURNEY_CARD_FLIP_RECOIL_STOPS).toEqual([
-      { offset: 0.16, degrees: 16.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-      { offset: 0.32, degrees: -10.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-      { offset: 0.48, degrees: 6.6, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-      { offset: 0.62, degrees: -3.6, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-      { offset: 0.75, degrees: 1.8, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-      { offset: 0.86, degrees: -0.72, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-      { offset: 0.94, degrees: 0.21, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+      { offset: 0.38, degrees: 12, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
     ]);
     expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBe(100);
     expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBe(500);

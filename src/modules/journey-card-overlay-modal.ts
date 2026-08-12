@@ -66,17 +66,11 @@ export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
 export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
 export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
 export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
-export const JOURNEY_CARD_FLIP_RECOIL_DURATION_MS = 480;
+export const JOURNEY_CARD_FLIP_RECOIL_DURATION_MS = 260;
 export const JOURNEY_CARD_FLIP_RECOIL_EASE = 'cubic-bezier(0.45, 0, 0.55, 1)';
 export const JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 export const JOURNEY_CARD_FLIP_RECOIL_STOPS = Object.freeze([
-  { offset: 0.16, degrees: 16.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-  { offset: 0.32, degrees: -10.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-  { offset: 0.48, degrees: 6.6, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
-  { offset: 0.62, degrees: -3.6, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-  { offset: 0.75, degrees: 1.8, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-  { offset: 0.86, degrees: -0.72, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
-  { offset: 0.94, degrees: 0.21, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+  { offset: 0.38, degrees: 12, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
 ]);
 export const JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO = 0.4;
 export const JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO = 0.1;
