@@ -523,7 +523,7 @@ let board: Board | null = null;
 let boardBG: Graphics | null = null;
 let hud: HUDType | null = null;
 let _hudInitDone = false;
-let _hudDropPending = true; // Play-from-slider only; no drop on restarts
+let _hudDropPending = true; // One-shot fresh gameplay entry, including fail-modal Play Again
 let activeGameplayEntryGeneration = 0;
 let _lastSAT = -1;
 let grid: Grid = Array.isArray(STATE.grid) ? (STATE.grid as Grid) : [];
@@ -3669,7 +3669,7 @@ export async function boot(){
     pauseGame: () => pauseGame(),
     resumeGame: () => resumeGame(),
     resume: () => resumeGame(),
-    restart: () => restart(),
+    restart: (options?: RestartOptions) => restart(options),
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
     devLastMergeTntScene: (options?: {
       coreWildType?: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
@@ -13983,8 +13983,38 @@ export function resumeGame() {
   } catch {}
 }
 
-export function restart() {
+type RestartOptions = {
+  animateHudDrop?: boolean;
+};
+
+export function restart(options: RestartOptions = {}) {
   devLog('🔄 RESTART: Starting restart function');
+
+  if (options.animateHudDrop === true) {
+    // Establish retry HUD ownership before restartGame reaches its fire-and-forget
+    // startLevel call and subsequent updateHUD. startLevel crosses async texture work
+    // before its normal trigger handler, which is too late for a fail retry.
+    (window as any).__ccTriggerHudDrop = true;
+    handleStartLevelHudDrop({
+      HUD,
+      gsap,
+      logger,
+      getHudRootFromWindow: () => (window as any).HUD_ROOT,
+      isTriggerHudDrop: () => !!(window as any).__ccTriggerHudDrop,
+      clearTriggerHudDrop: () => { delete (window as any).__ccTriggerHudDrop; },
+      setHudDropPending: (v) => { _hudDropPending = v; },
+      setHudInitDone: (v) => { _hudInitDone = v; },
+    });
+    const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
+    console.info('[CC_HUD_RETRY_TRACE] restart-armed-before-async', {
+      pending: _hudDropPending,
+      zone: (window as any).__ccAppZone,
+      exitingToMenu: (window as any).exitingToMenu === true,
+      y: hudRoot?.y,
+      alpha: hudRoot?.alpha,
+      dropped: hudRoot?._dropped,
+    });
+  }
   
   // 🔥 JOURNEY PROGRESSION: Update state when restarting (retry after failure)
   // Keep lastOpenedBoardId and set currentRunState for the same board

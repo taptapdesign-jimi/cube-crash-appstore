@@ -2801,6 +2801,15 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
     return;
   }
   HUD_ROOT._exitInProgress = false;
+  HUD_ROOT._ccHudDropScheduled = false;
+  HUD_ROOT._ccHudDropActive = true;
+  console.info('[CC_HUD_RETRY_TRACE] gsap-drop-start', {
+    duration,
+    forceRestart,
+    y: HUD_ROOT.y,
+    alpha: HUD_ROOT.alpha,
+    dropped: HUD_ROOT._dropped,
+  });
 
   // 🔥 CRITICAL FIX: Add HUD_ROOT to stage NOW if it wasn't added yet (initialHide path)
   if (!HUD_ROOT.parent && HUD_ROOT._stage) {
@@ -2849,16 +2858,23 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
     ease: 'elastic.out(1, 0.6)',
     onComplete: () => { 
       if (HUD_ROOT) {
+        HUD_ROOT._ccHudDropActive = false;
         HUD_ROOT._dropped = true; 
         HUD_ROOT.y = top;
         HUD_ROOT.alpha = 1;
         HUD_ROOT.visible = true;
+        console.info('[CC_HUD_RETRY_TRACE] gsap-drop-complete', {
+          y: HUD_ROOT.y,
+          alpha: HUD_ROOT.alpha,
+          dropped: HUD_ROOT._dropped,
+        });
         console.log('✅ HUD drop animation completed');
       }
     },
     onUpdate: function() {
       // Safety check during animation
       if (!HUD_ROOT || !HUD_ROOT.parent) {
+        if (HUD_ROOT) HUD_ROOT._ccHudDropActive = false;
         console.warn('⚠️ playHudDrop: HUD_ROOT destroyed during animation, killing tween');
         this.kill();
       }

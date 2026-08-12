@@ -15,6 +15,10 @@ import {
   JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS,
   JOURNEY_CARD_FLIP_IDLE_COACH_DURATION_MS,
   JOURNEY_CARD_FLIP_SNAP_DURATION_MS,
+  JOURNEY_CARD_FLIP_RECOIL_DURATION_MS,
+  JOURNEY_CARD_FLIP_RECOIL_EASE,
+  JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE,
+  JOURNEY_CARD_FLIP_RECOIL_STOPS,
   JOURNEY_CARD_FLIP_STATS_ENTER_TIME_SCALE,
   JOURNEY_CARD_DISMISS_DRAG_COMMIT_RATIO,
   JOURNEY_CARD_DISMISS_DRAG_MAX_PX,
@@ -102,8 +106,18 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('const startEntry = async'),
     );
     expect(interactiveFlip).toContain("rotor.animate(keyframes, { duration, easing: 'linear' })");
-    expect(interactiveFlip).not.toContain("easing: 'cubic-bezier(0.22, 1, 0.36, 1)'");
-    expect(interactiveFlip).toContain('if (crossesFaceEdge && edgeProgress < 0.82)');
+    expect(interactiveFlip).toContain('easing: JOURNEY_CARD_FLIP_RECOIL_EASE');
+    expect(interactiveFlip).toContain(
+      'if (flipRecoilAnimation) {\n      flipRecoilAnimation.cancel();\n      flipRecoilAnimation = null;\n      setRotorAngle(stableRotorAngle());\n    }',
+    );
+    expect(interactiveFlip).toContain(
+      '...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop): Keyframe => ({',
+    );
+    expect(interactiveFlip).toContain('to + direction * stop.degrees');
+    expect(interactiveFlip).toContain('flipRecoilAnimation = recoil');
+    expect(interactiveFlip).toContain('flipping = false');
+    expect(interactiveFlip).toContain('preferredDirection?: -1 | 1');
+    expect(interactiveFlip).toContain('Math.sign(candidate - from) === preferredDirection');
     expect(interactiveFlip).toContain('animation.currentTime');
     expect(interactiveFlip).toContain('requestAnimationFrame(watchPhysicalEdge)');
     expect(interactiveFlip).not.toContain('setTimeout');
@@ -140,6 +154,7 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function handlePointerUp('),
     );
     expect(pointerRelease).toContain('const fromTranslate = impactShell.style.translate');
+    expect(pointerRelease).toContain("void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1)");
     expect(pointerRelease).toContain("{ translate: 'none' }");
     expect(pointerRelease).toContain('const committedFlipInFlight = allowCommit && dragFlipCommitted;');
     expect(pointerRelease).toContain('const shouldCommitReleasedDrag = !flipping');
@@ -349,6 +364,18 @@ describe('Journey two-sided card overlay prototype', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     expect(JOURNEY_CARD_FLIP_ENTER_DURATION_MS).toBe(520);
     expect(JOURNEY_CARD_FLIP_SNAP_DURATION_MS).toBe(200);
+    expect(JOURNEY_CARD_FLIP_RECOIL_DURATION_MS).toBe(480);
+    expect(JOURNEY_CARD_FLIP_RECOIL_EASE).toBe('cubic-bezier(0.45, 0, 0.55, 1)');
+    expect(JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
+    expect(JOURNEY_CARD_FLIP_RECOIL_STOPS).toEqual([
+      { offset: 0.16, degrees: 16.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+      { offset: 0.32, degrees: -10.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+      { offset: 0.48, degrees: 6.6, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+      { offset: 0.62, degrees: -3.6, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+      { offset: 0.75, degrees: 1.8, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+      { offset: 0.86, degrees: -0.72, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+      { offset: 0.94, degrees: 0.21, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+    ]);
     expect(JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS).toBe(100);
     expect(JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS).toBe(500);
     expect(JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS).toBe(120);

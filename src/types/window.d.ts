@@ -57,7 +57,7 @@ declare global {
     
     // Game Control
     CC?: {
-      restart?: () => void;
+      restart?: (options?: { animateHudDrop?: boolean }) => void;
       app?: any;
       stage?: any;
       pauseGame?: () => void;

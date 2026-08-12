@@ -71,6 +71,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Journey hub/world screens: `collectibles-manager.ts` and `journey-boards-manager.ts`.
 - Journey motion contract: [`JOURNEY_ANIMATION_CONTRACT.md`](JOURNEY_ANIMATION_CONTRACT.md).
 - Physical iOS performance workflow: [`IOS_LIVE_PERFORMANCE_INVESTIGATION.md`](IOS_LIVE_PERFORMANCE_INVESTIGATION.md).
+- Interactive phone-to-web debugging workflow: [`LIVE_DEBUG_WORKFLOW.md`](LIVE_DEBUG_WORKFLOW.md). `http://localhost:5174` is the authoritative Stack to Six web test server. For live captures, say **KRENI** only after the exact app console is connected, retain all user problem markers until **GOTOVO**, validate the fix on web first, and install on the phone only after explicit web approval.
 
 Journey Worlds hub and an individual Journey world are different surfaces. Every Journey Worlds hub entry starts at the absolute top, including returns from Forest/Beach/Area 55; the user scrolls the hub manually from there. Auto-scroll to an active interim card belongs only to individual Forest/Beach/Area 55 screens.
 

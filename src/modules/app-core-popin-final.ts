@@ -31,18 +31,25 @@ export function handleSweetPopInComplete({
     return;
   }
   // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
-  if (hudDropPending) {
+  const shouldRunHudDropFallback = hudDropPending;
+  if (shouldRunHudDropFallback) {
     devLog('🎯 HUD drop still pending after sweetPopIn - triggering now');
     try {
       if (typeof HUD.playHudDrop === 'function') {
+        const hudRoot = hudRootFromWindow || HUD.HUD_ROOT || null;
+        if (hudRoot) hudRoot._ccHudDropScheduled = true;
         trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-          if (!isGameplayHudRevealAllowed()) return;
+          if (!isGameplayHudRevealAllowed()) {
+            if (hudRoot) hudRoot._ccHudDropScheduled = false;
+            return;
+          }
           // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
           if (app && app.canvas) {
             app.canvas.style.opacity = '1';
             app.canvas.style.transition = 'opacity 0.3s ease';
           }
           try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
+          if (hudRoot) hudRoot._ccHudDropScheduled = false;
           HUD.playHudDrop({ forceRestart: true });
         }));
         devLog('✅ HUD drop animation triggered after sweetPopIn');
@@ -53,20 +60,23 @@ export function handleSweetPopInComplete({
     setHudDropPending(false);
   }
   
-  // 🔥 CRITICAL FIX: Ensure HUD is visible even if animation didn't trigger
-  try {
-    const hudRoot = hudRootFromWindow || HUD.HUD_ROOT || null;
-    if (hudRoot) {
-      const top = hudRoot._dropTop ?? 44;
-      hudRoot.y = top;
-      hudRoot.alpha = 1;
-      hudRoot.visible = true;
-      hudRoot._dropped = true;
-      try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
-      devLog('✅ HUD final position set after sweetPopIn');
+  // Only repair the final pose when no drop was pending. A pending drop is deferred
+  // by two paint frames above and must retain its hidden start pose until that tween.
+  if (!shouldRunHudDropFallback) {
+    try {
+      const hudRoot = hudRootFromWindow || HUD.HUD_ROOT || null;
+      if (hudRoot && hudRoot._ccHudDropScheduled !== true && hudRoot._ccHudDropActive !== true) {
+        const top = hudRoot._dropTop ?? 44;
+        hudRoot.y = top;
+        hudRoot.alpha = 1;
+        hudRoot.visible = true;
+        hudRoot._dropped = true;
+        try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
+        devLog('✅ HUD final position set after sweetPopIn');
+      }
+    } catch (e) {
+      devError('❌ Failed to ensure HUD visibility after sweetPopIn:', e);
     }
-  } catch (e) {
-    devError('❌ Failed to ensure HUD visibility after sweetPopIn:', e);
   }
 
   // 🔥 CRITICAL FIX: Ensure tiles are fully visible after sweetPopIn

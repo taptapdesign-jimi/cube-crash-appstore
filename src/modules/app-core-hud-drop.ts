@@ -28,6 +28,11 @@ export function handleHudDropOnHalf({
   }
   // 🔥 CRITICAL FIX: Ensure HUD drop is triggered for new games
   if (hudDropPending){
+    console.info('[CC_HUD_RETRY_TRACE] midpoint-pending', {
+      y: hudRootFromWindow?.y,
+      alpha: hudRootFromWindow?.alpha,
+      dropped: hudRootFromWindow?._dropped,
+    });
     devLog('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
     try { 
       const hudRoot = hudRootFromWindow || HUD.HUD_ROOT || null;
@@ -36,15 +41,25 @@ export function handleHudDropOnHalf({
         return; // keep pending so a later fallback can run
       }
       if (typeof HUD.playHudDrop === 'function') {
+        hudRoot._ccHudDropScheduled = true;
         // Start on next paint so user definitely sees the drop (especially iPhone)
         trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-          if (!isGameplayHudRevealAllowed()) return;
+          if (!isGameplayHudRevealAllowed()) {
+            hudRoot._ccHudDropScheduled = false;
+            return;
+          }
           // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
           if (app && app.canvas) {
             app.canvas.style.opacity = '1';
             app.canvas.style.transition = 'opacity 0.3s ease';
           }
           try { (window as any).__ccShowJourneyGameBottomDecorForHudDrop?.(); } catch {}
+          hudRoot._ccHudDropScheduled = false;
+          console.info('[CC_HUD_RETRY_TRACE] midpoint-play-drop', {
+            y: hudRoot.y,
+            alpha: hudRoot.alpha,
+            dropped: hudRoot._dropped,
+          });
           HUD.playHudDrop({ forceRestart: true });
         }));
         devLog('✅ HUD drop animation triggered in sweetPopIn onHalf');

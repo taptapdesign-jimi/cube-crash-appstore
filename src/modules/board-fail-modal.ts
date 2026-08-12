@@ -36,7 +36,7 @@ interface WindowWithCC extends Window {
   updateHighScore?: (score: number) => void;
   exitToMenu?: () => void;
   CC?: {
-    restart?: () => void;
+    restart?: (options?: { animateHudDrop?: boolean }) => void;
   };
 }
 
@@ -612,12 +612,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               (window as any).__ccForceArcadeRestartStage01 = true;
               logger.info('🎮 Arcade Play Again after fail - forcing fresh Round 01 restart');
             }
-            
             await runExitAnimation(action);
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
-                (window as WindowWithCC).CC!.restart!();
+                console.info('[CC_HUD_RETRY_TRACE] fail-retry-dispatch', {
+                  zone: (window as any).__ccAppZone,
+                  exitingToMenu: (window as any).exitingToMenu === true,
+                });
+                (window as WindowWithCC).CC!.restart!({ animateHudDrop: true });
                 logger.info('✅ window.CC.restart called from board-fail-modal');
               } catch (error) {
                 logger.warn('⚠️ window.CC.restart failed:', error);
@@ -640,12 +643,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               (window as any).__ccForceArcadeRestartStage01 = true;
               logger.info('🎮 Arcade Play Again fallback after fail - forcing fresh Round 01 restart');
             }
-            
             await runExitAnimation(action);
             
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
-                (window as WindowWithCC).CC!.restart!();
+                console.info('[CC_HUD_RETRY_TRACE] fail-retry-fallback-dispatch', {
+                  zone: (window as any).__ccAppZone,
+                  exitingToMenu: (window as any).exitingToMenu === true,
+                });
+                (window as WindowWithCC).CC!.restart!({ animateHudDrop: true });
                 logger.info('✅ window.CC.restart called from board-fail-modal (fallback)');
               } catch (err) {
                 logger.warn('⚠️ window.CC.restart failed:', err);

@@ -66,6 +66,18 @@ export const JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS = 120;
 export const JOURNEY_CARD_PLAY_LANDING_EXIT_DURATION_MS = 400;
 export const JOURNEY_CARD_PLAY_RETURN_DURATION_MS = 1120;
 export const JOURNEY_CARD_FLIP_SNAP_DURATION_MS = 200;
+export const JOURNEY_CARD_FLIP_RECOIL_DURATION_MS = 480;
+export const JOURNEY_CARD_FLIP_RECOIL_EASE = 'cubic-bezier(0.45, 0, 0.55, 1)';
+export const JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+export const JOURNEY_CARD_FLIP_RECOIL_STOPS = Object.freeze([
+  { offset: 0.16, degrees: 16.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+  { offset: 0.32, degrees: -10.8, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+  { offset: 0.48, degrees: 6.6, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+  { offset: 0.62, degrees: -3.6, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+  { offset: 0.75, degrees: 1.8, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+  { offset: 0.86, degrees: -0.72, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+  { offset: 0.94, degrees: 0.21, easing: JOURNEY_CARD_FLIP_FINAL_SETTLE_EASE },
+]);
 export const JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO = 0.4;
 export const JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO = 0.1;
 export const JOURNEY_CARD_FLIP_DRAG_SCRUB_MAX_DEG = 72;
@@ -342,6 +354,7 @@ export function presentJourneyCardOverlayModal(
   let didLandAtOrigin = false;
   let spatialFlight: JourneyCardSpatialFlightController | null = null;
   let flipAnimation: Animation | null = null;
+  let flipRecoilAnimation: Animation | null = null;
   let impactAnimation: Animation | null = null;
   let dragPreviewSettleAnimation: Animation | null = null;
   let exitNeutralAnimations: Animation[] = [];
@@ -638,6 +651,8 @@ export function presentJourneyCardOverlayModal(
     spatialFlight = null;
     flipAnimation?.cancel();
     flipAnimation = null;
+    flipRecoilAnimation?.cancel();
+    flipRecoilAnimation = null;
     impactAnimation?.cancel();
     impactAnimation = null;
     dragPreviewSettleAnimation?.cancel();
@@ -698,8 +713,16 @@ export function presentJourneyCardOverlayModal(
     resolveResult(value);
   };
 
-  const animateInteractiveFlip = async (targetFace: 'front' | 'back'): Promise<void> => {
+  const animateInteractiveFlip = async (
+    targetFace: 'front' | 'back',
+    preferredDirection?: -1 | 1,
+  ): Promise<void> => {
     if (entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation) return;
+    if (flipRecoilAnimation) {
+      flipRecoilAnimation.cancel();
+      flipRecoilAnimation = null;
+      setRotorAngle(stableRotorAngle());
+    }
     flipping = true;
     stopSurfaceIdle();
     stage.classList.add('is-flipping');
@@ -710,7 +733,11 @@ export function presentJourneyCardOverlayModal(
     const from = currentAngle;
     const canonical = targetFace === 'back' ? -180 : 0;
     const candidates = [canonical - 360, canonical, canonical + 360];
-    const to = candidates.reduce((nearest, candidate) => (
+    const directionalCandidates = preferredDirection === undefined
+      ? candidates
+      : candidates.filter((candidate) => Math.sign(candidate - from) === preferredDirection);
+    const candidatesForTurn = directionalCandidates.length > 0 ? directionalCandidates : candidates;
+    const to = candidatesForTurn.reduce((nearest, candidate) => (
       Math.abs(candidate - from) < Math.abs(nearest - from) ? candidate : nearest
     ));
     const direction = Math.sign(to - from) || (targetFace === 'back' ? -1 : 1);
@@ -721,16 +748,13 @@ export function presentJourneyCardOverlayModal(
       const keyframes: Keyframe[] = [
         { transform: `rotateY(${from}deg)` },
       ];
-      if (crossesFaceEdge && edgeProgress < 0.82) {
+      if (crossesFaceEdge && edgeProgress < 1) {
         keyframes.push({
           transform: `rotateY(${from + (to - from) * edgeProgress}deg)`,
           offset: edgeProgress,
         });
       }
-      keyframes.push(
-        { transform: `rotateY(${to + direction * 7}deg)`, offset: 0.82 },
-        { transform: `rotateY(${to}deg)` },
-      );
+      keyframes.push({ transform: `rotateY(${to}deg)` });
       const animation = rotor.animate(keyframes, { duration, easing: 'linear' });
       flipAnimation = animation;
       if (crossesFaceEdge) {
@@ -758,7 +782,30 @@ export function presentJourneyCardOverlayModal(
     flipping = false;
     stage.classList.remove('is-flipping', 'is-flipping-to-front', 'is-flipping-to-back');
     if (activePointerId === null) stage.classList.remove('is-dragging');
-    if (activePointerId === null && !impactAnimation && !dragPreviewSettleAnimation) {
+    if (!prefersReducedMotion && typeof rotor.animate === 'function') {
+      const recoil = rotor.animate([
+        { transform: `rotateY(${to}deg)`, easing: JOURNEY_CARD_FLIP_RECOIL_EASE },
+        ...JOURNEY_CARD_FLIP_RECOIL_STOPS.map((stop): Keyframe => ({
+          transform: `rotateY(${to + direction * stop.degrees}deg)`,
+          offset: stop.offset,
+          easing: stop.easing,
+        })),
+        { transform: `rotateY(${to}deg)` },
+      ], { duration: JOURNEY_CARD_FLIP_RECOIL_DURATION_MS, easing: 'linear' });
+      flipRecoilAnimation = recoil;
+      void recoil.finished.catch(() => undefined).then(() => {
+        if (flipRecoilAnimation !== recoil || closing || settled) return;
+        flipRecoilAnimation = null;
+        recoil.cancel();
+        setRotorAngle(stableRotorAngle());
+        if (activePointerId === null && !flipping && !impactAnimation && !dragPreviewSettleAnimation) {
+          disposeSpatialMotion?.();
+          disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+          startSurfaceIdle();
+          scheduleIdleCoach();
+        }
+      });
+    } else if (activePointerId === null && !impactAnimation && !dragPreviewSettleAnimation) {
       disposeSpatialMotion?.();
       disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
       startSurfaceIdle();
@@ -941,6 +988,9 @@ export function presentJourneyCardOverlayModal(
     stopIdleCoach(false);
     flipAnimation?.cancel();
     flipAnimation = null;
+    flipRecoilAnimation?.cancel();
+    flipRecoilAnimation = null;
+    setRotorAngle(stableRotorAngle());
     const visibleRotorTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
     const visibleImpactTransform = window.getComputedStyle(impactShell).transform || impactShell.style.transform;
     const visibleImpactTranslate = window.getComputedStyle(impactShell).translate || impactShell.style.translate;
@@ -974,6 +1024,9 @@ export function presentJourneyCardOverlayModal(
   function handlePointerDown(event: PointerEvent): void {
     if (event.button !== 0 || entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation || activePointerId !== null) return;
     if (isInteractiveControl(event.target)) return;
+    flipRecoilAnimation?.cancel();
+    flipRecoilAnimation = null;
+    setRotorAngle(stableRotorAngle());
     activePointerId = event.pointerId;
     dragStartX = event.clientX;
     dragStartY = event.clientY;
@@ -1134,7 +1187,8 @@ export function presentJourneyCardOverlayModal(
     event.stopPropagation();
     if (!moved) {
       impactShell.style.translate = 'none';
-      void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
+      const targetFace = stableFace === 'front' ? 'back' : 'front';
+      void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1);
       return;
     }
     const shouldCommitReleasedDrag = !flipping
@@ -1235,14 +1289,15 @@ export function presentJourneyCardOverlayModal(
     if (event.target !== front) return;
     stopIdleCoach();
     event.preventDefault();
-    void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front');
+    const targetFace = stableFace === 'front' ? 'back' : 'front';
+    void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1);
   }
 
   function handleTurnControlClick(event: MouseEvent): void {
     stopIdleCoach();
     event.preventDefault();
     event.stopPropagation();
-    void animateInteractiveFlip('front');
+    void animateInteractiveFlip('front', -1);
   }
 
   function handleBackdropClick(event: MouseEvent): void {
