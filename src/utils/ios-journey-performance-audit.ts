@@ -80,3 +80,7 @@ export function startIOSJourneyPerformanceAudit(boardNumber: number): void {
   audit.frameId = requestAnimationFrame(loop);
   audit.stopTimer = setTimeout(() => finish('diagnostic-window-complete'), 30000);
 }
+
+export function stopIOSJourneyPerformanceAudit(reason = 'transition-cleanup'): void {
+  finish(reason);
+}

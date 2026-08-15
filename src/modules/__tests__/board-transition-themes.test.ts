@@ -1,6 +1,7 @@
 import {
   AREA55_BOARD_TRANSITION_PROFILE,
   BEACH_BOARD_TRANSITION_PROFILE,
+  BEACH_BOARD_TRANSITION_CLOUD_COUNT,
   getJourneyBoardTransitionTheme,
   resolveBoardTransitionTheme,
 } from '../board-transition-themes';
@@ -23,6 +24,10 @@ describe('Board Transition World themes', () => {
     expect(resolveBoardTransitionTheme({ boardNumber: 19, runMode: RUN_MODE_ARCADE_HOME })).toBe('forest');
     expect(resolveBoardTransitionTheme({ boardNumber: 29, runMode: null })).toBe('forest');
     expect(resolveBoardTransitionTheme({ boardNumber: 19, runMode: RUN_MODE_JOURNEY })).toBe('beach');
+  });
+
+  test('caps the Beach transition at six spatially separated clouds', () => {
+    expect(BEACH_BOARD_TRANSITION_CLOUD_COUNT).toBe(6);
   });
 
   test('keeps explicit and legacy compatibility precedence', () => {
@@ -155,10 +160,11 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("img.removeAttribute('data-spatial-role')");
     expect(source).toContain("img.removeAttribute('data-motion-role')");
     expect(source).toContain("img.removeAttribute('data-float-direction')");
-    expect(source).toContain('? [...baseCloudSpawnTops, 8, 18, 29, 38]');
-    expect(source).toContain('const beachSpawnSlot = BEACH_CLOUD_SPAWN_SLOTS[i % BEACH_CLOUD_SPAWN_SLOTS.length]');
+    expect(source).toContain('.slice(0, BEACH_BOARD_TRANSITION_CLOUD_COUNT)');
+    expect(source).toContain('? beachCloudSpawnSlots.map((slot) => slot.top)');
+    expect(source).toContain('const beachSpawnSlot = beachCloudSpawnSlots[i % beachCloudSpawnSlots.length]');
     expect(source).toContain('Math.max(0, Math.min(40, beachSpawnTop))');
-    expect(source).toContain("if (resolvedTheme === 'beach' && i === 2) continue");
+    expect(source).not.toContain("if (resolvedTheme === 'beach' && i === 2) continue");
     expect(source).toContain("const cloudLayerOwner = resolvedTheme === 'beach'");
     expect(source).toContain('? cloudContainer');
     expect(source).toContain("1: Object.freeze({ restScale: 1, restRotation: 12, enterStartYRatio: 0.54 })");
@@ -225,18 +231,20 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('duration: (1.55 + seaIndex * 0.12) / 0.88');
     expect(source).toContain('const boingDuration = 0.2 + Math.random() * 0.35');
     expect(source).toContain('repeatDelay: 0.18 + Math.random() * 0.35');
-    expect(source).toContain('duration: 4.8');
+    expect(source).toContain('function startBeachSharedShoreAmbientMotion');
+    expect(source).toContain('duration: 6.4');
     expect(source).toContain("gsap.set(sceneImg, { transformOrigin: '50% 50%' })");
     expect(source).toContain("const cloudThemeScale = resolvedTheme === 'beach' ? 0.6 * 1.4 : 1");
     expect(source).toContain('const BEACH_CLOUD_SPAWN_SLOTS = Object.freeze([');
+    expect(source).toContain('Object.freeze({ left: 12, top: 22 })');
+    expect(source).toContain('Object.freeze({ left: 55, top: 32 })');
+    expect(source).toContain('Object.freeze({ left: 90, top: 39 })');
     expect(source).toContain("const beachSpawnTop = beachSpawnSlot.top + ((Math.random() * 2 - 1) * 1.25)");
     expect(source).toContain("const beachSpawnLeft = beachSpawnSlot.left + ((Math.random() * 2 - 1) * 1.5)");
     expect(source).toContain("resolvedTheme === 'beach'\n        ? Math.max(2, Math.min(98, beachSpawnLeft))");
-    expect(source).toContain("if (resolvedTheme === 'beach' && i === 2) continue");
-    expect(source).toContain("const isCastle = layerKey === 'beach-castle'");
-    expect(source).toContain("const isBeach = layerKey === 'beach-shore-1' || layerKey === 'beach-shore-2'");
-    expect(source).toContain('const shoreTravelX = isCastle ? 7 : 10');
-    expect(source).toContain('scale: isCastle ? 1.24 : isBeach ? 1.15 : 1');
+    expect(source).toContain("motionRole && motionRole !== 'shore'");
+    expect(source).toContain("target.dataset.sceneLayer === 'beach-castle' ? 1.24 : 1.15");
+    expect(source).toContain('beachShoreAmbientTimeline = timeline');
     expect(source).toContain('ownAmbientTimeline(motionTimeline)');
     expect(source).toContain('forestContainer, resolvedTheme, () =>');
     expect(source).toContain("transitionTheme: BoardTransitionThemeId | 'none'");
@@ -247,6 +255,12 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("const isBeachBallExit = isBeachSceneExit && layerKey === 'beach-ball'");
     expect(source).toContain("? orderIndex % 2 === 0 ? '+=18' : '-=18'");
     expect(source).toContain('beachAmbientTimelines.clear()');
+    expect(source).toContain('beachShoreAmbientTimeline = null');
+    expect(source).toContain("stopIOSJourneyPerformanceAudit(preserveDom ? 'transition-cleanup-preserved' : 'transition-cleanup')");
+    expect(source).toContain('const interruptedSettlement = activeTransitionSettlement');
+    expect(source).toContain('interruptedSettlement?.(false)');
+    expect(source).toContain('const activeGeneration = ++transitionGeneration');
+    expect(source).toContain('if (!isTransitionActive || activeGeneration !== transitionGeneration) return');
     expect(source).toContain('domElementPool.release(cloudImg)');
     expect(source).toContain('domElementPool.release(sceneImg)');
     expect(source).toContain('const latestSceneExitEnd = orderedExitEntries.reduce');

@@ -19,6 +19,8 @@ export interface BoardTransitionThemeProfile {
   enterOrder: readonly string[];
 }
 
+export const BEACH_BOARD_TRANSITION_CLOUD_COUNT = 6;
+
 const islandStyle = (
   left: string,
   bottom: number | string,

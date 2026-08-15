@@ -10,7 +10,10 @@ import { applyPaperBackground } from './ui-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 import { sampleMemorySpike } from '../utils/memory-spike-tracker.js';
 import { beginBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.js';
-import { startIOSJourneyPerformanceAudit } from '../utils/ios-journey-performance-audit.js';
+import {
+  startIOSJourneyPerformanceAudit,
+  stopIOSJourneyPerformanceAudit,
+} from '../utils/ios-journey-performance-audit.js';
 import { appSpatialMotion } from './journey-spatial-motion.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { buildBoardTransitionExitSchedule } from './board-transition-exit-schedule.js';
@@ -22,10 +25,15 @@ import { getRunMode } from './run-mode.js';
 import {
   AREA55_BOARD_TRANSITION_PROFILE,
   BEACH_BOARD_TRANSITION_PROFILE,
+  BEACH_BOARD_TRANSITION_CLOUD_COUNT,
   resolveBoardTransitionTheme,
   type BoardTransitionThemeId,
   type BoardTransitionThemeLayer,
 } from './board-transition-themes.js';
+import {
+  createBoardTransitionSettlement,
+  type BoardTransitionSettlement,
+} from './board-transition-lifecycle.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -49,7 +57,10 @@ let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track sce
 let activeSceneElements: HTMLElement[] = []; // Animated scene layer elements (hill wrappers + regular images)
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
+let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
 let isCleaningUp = false;
+let activeTransitionSettlement: BoardTransitionSettlement | null = null;
+let transitionGeneration = 0;
 const createNextBeachTransitionVariation = createBeachTransitionVariationSequence();
 
 const TRANSITION_CLOUD_IMAGES = [
@@ -320,9 +331,9 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
     return;
   }
 
-  const motionTimeline = trackTimeline({ repeat: -1, yoyo: true });
-  ownAmbientTimeline(motionTimeline);
   if (motionRole === 'sea') {
+    const motionTimeline = trackTimeline({ repeat: -1, yoyo: true });
+    ownAmbientTimeline(motionTimeline);
     const seaIndex = Math.max(1, Number(layerKey.match(/(\d+)$/)?.[1]) || 1);
     motionTimeline.to(sceneImg, {
       x: seaIndex === 2 ? -38 * 1.25 : seaIndex === 1 ? 34 * 1.4 * 1.4 : 42,
@@ -344,23 +355,37 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
     });
     return;
   }
-  if (motionRole === 'shore') {
-    const isCastle = layerKey === 'beach-castle';
-    const isBeach = layerKey === 'beach-shore-1' || layerKey === 'beach-shore-2';
-    const direction = layerKey === 'beach-shore-1' ? -1 : 1;
-    const shoreTravelX = isCastle ? 7 : 10;
-    motionTimeline.to(sceneImg, {
-      x: direction * shoreTravelX,
-      y: isCastle ? -4 : 3,
-      rotation: direction * 0.45,
-      scale: isCastle ? 1.24 : isBeach ? 1.15 : 1,
-      duration: 4.8,
-      ease: 'sine.inOut',
-    });
-  }
+}
+
+function startBeachSharedShoreAmbientMotion(sceneImages: HTMLElement[]): void {
+  try { beachShoreAmbientTimeline?.kill(); } catch {}
+  beachShoreAmbientTimeline = null;
+  if (sceneImages.length === 0) return;
+
+  const timeline = trackTimeline({ repeat: -1, yoyo: true });
+  beachShoreAmbientTimeline = timeline;
+  contentTimelines.push(timeline);
+  timeline.to(sceneImages, {
+    x: (_index: number, target: HTMLElement) => {
+      const layerKey = target.dataset.sceneLayer || '';
+      if (layerKey === 'beach-shore-1') return -7;
+      if (layerKey === 'beach-shore-2') return 7;
+      return 4;
+    },
+    y: (_index: number, target: HTMLElement) => target.dataset.sceneLayer === 'beach-castle' ? -2 : 2,
+    rotation: (_index: number, target: HTMLElement) => target.dataset.sceneLayer === 'beach-shore-1' ? -0.3 : 0.3,
+    scale: (_index: number, target: HTMLElement) => target.dataset.sceneLayer === 'beach-castle' ? 1.24 : 1.15,
+    duration: 6.4,
+    stagger: 0.08,
+    ease: 'sine.inOut',
+  });
 }
 
 function stopBeachAmbientMotion(sceneImg: HTMLElement): void {
+  if (sceneImg.dataset.motionRole === 'shore' && beachShoreAmbientTimeline) {
+    try { beachShoreAmbientTimeline.kill(); } catch {}
+    beachShoreAmbientTimeline = null;
+  }
   const owned = beachAmbientTimelines.get(sceneImg) ?? [];
   owned.forEach((timeline) => {
     try { timeline.kill(); } catch {}
@@ -409,12 +434,12 @@ const BEACH_CURTAIN_PALM_MOTION = Object.freeze({
 });
 const BEACH_CLOUD_SPAWN_SLOTS = Object.freeze([
   Object.freeze({ left: 4, top: 2 }),
-  Object.freeze({ left: 50, top: 5 }),
+  Object.freeze({ left: 52, top: 7 }),
   Object.freeze({ left: 96, top: 2 }), // Slot 2 remains intentionally omitted below.
   Object.freeze({ left: 96, top: 1 }),
-  Object.freeze({ left: 10, top: 15 }),
-  Object.freeze({ left: 50, top: 18 }),
-  Object.freeze({ left: 90, top: 14 }),
+  Object.freeze({ left: 12, top: 22 }),
+  Object.freeze({ left: 55, top: 32 }),
+  Object.freeze({ left: 90, top: 39 }),
   Object.freeze({ left: 3, top: 28 }),
   Object.freeze({ left: 50, top: 25 }),
   Object.freeze({ left: 97, top: 30 }),
@@ -523,7 +548,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     ? createNextBeachTransitionVariation()
     : null;
   beginBoardLifecycleTrace('board-transition', boardNumber);
-  startIOSJourneyPerformanceAudit(boardNumber);
   markBoardLifecycle('transition-start');
 
   // 🔥 CRITICAL FIX: Validate boardNumber
@@ -547,6 +571,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   }
 
   isTransitionActive = true;
+  const activeGeneration = ++transitionGeneration;
   logger.info('✅ board-transition-screen: isTransitionActive set to true, starting transition');
 
             // Defensive cleanup is handled centrally in endgame-flow before transition
@@ -556,6 +581,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const { fadeOutAndPause } = await import('./soundtrack-manager.js');
     fadeOutAndPause(2000);
   } catch (_) { /* ignore */ }
+  if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
 
   // Preload in the background; do not block the transition overlay on image decode.
   preloadTransitionAssets(showScene ? sceneLayers : []).catch((error) => {
@@ -576,25 +602,30 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   
   // Cleanup any existing overlay (preserve DOM for reuse)
   cleanup({ preserveDom: true });
+  startIOSJourneyPerformanceAudit(boardNumber);
   
   // 🔥 USER REQUEST: Reset paper background when transition screen closes
   // This will be called in cleanup() after transition completes
 
   return new Promise((resolve, reject) => {
-    let finished = false;
-    const finishOnce = () => {
-      if (finished) return;
-      finished = true;
-      try { sampleMemorySpike('4_transition_complete'); } catch {}
-      stopMemSampling('finished');
-      markBoardLifecycle('transition-complete');
-      resolve();
-      try {
-        onComplete();
-      } catch (onCompleteError) {
-        logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
-      }
-    };
+    let finishOnce: BoardTransitionSettlement;
+    finishOnce = createBoardTransitionSettlement({
+      resolve,
+      onSettled: () => {
+        if (activeTransitionSettlement === finishOnce) activeTransitionSettlement = null;
+        try { sampleMemorySpike('4_transition_complete'); } catch {}
+        stopMemSampling('finished');
+        markBoardLifecycle('transition-complete');
+      },
+      onComplete: () => {
+        try {
+          onComplete();
+        } catch (onCompleteError) {
+          logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
+        }
+      },
+    });
+    activeTransitionSettlement = finishOnce;
     // 🔥 iOS APP STORE: Wrap in try-catch for error handling
     try {
       startMemSampling();
@@ -867,8 +898,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
     const cloudImages = TRANSITION_CLOUD_IMAGES;
     const baseCloudSpawnTops = [15, 46, 24, 55, 21, 52, 43, 49];
+    const beachCloudSpawnSlots = BEACH_CLOUD_SPAWN_SLOTS
+      .filter((_slot, index) => index !== 2)
+      .slice(0, BEACH_BOARD_TRANSITION_CLOUD_COUNT);
     const cloudSpawnTops = resolvedTheme === 'beach'
-      ? [...baseCloudSpawnTops, 8, 18, 29, 38]
+      ? beachCloudSpawnSlots.map((slot) => slot.top)
       : baseCloudSpawnTops;
     const totalClouds = cloudSpawnTops.length;
     const moveDuration = 9.0;
@@ -882,9 +916,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const CLOUD_ASPECT = 1.15; // width:height - stable dimensions prevent layout jump on image load
 
     for (let i = 0; i < totalClouds; i++) {
-      if (resolvedTheme === 'beach' && i === 2) continue;
       const randomizedSpawnTop = cloudSpawnTops[i] + ((Math.random() * 2 - 1) * (i >= totalClouds - 2 ? 7 : 11));
-      const beachSpawnSlot = BEACH_CLOUD_SPAWN_SLOTS[i % BEACH_CLOUD_SPAWN_SLOTS.length];
+      const beachSpawnSlot = beachCloudSpawnSlots[i % beachCloudSpawnSlots.length] ?? BEACH_CLOUD_SPAWN_SLOTS[0];
       const beachSpawnTop = beachSpawnSlot.top + ((Math.random() * 2 - 1) * 1.25);
       const spawnTop = resolvedTheme === 'beach'
         ? Math.max(0, Math.min(40, beachSpawnTop))
@@ -1280,6 +1313,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const orderedSceneImages = sceneEnterOrder
         .map((key) => sceneImagesByKey.get(key))
         .filter(Boolean) as HTMLImageElement[];
+      const beachShoreAmbientTargets = resolvedTheme === 'beach'
+        ? orderedSceneImages.filter((sceneImg) => sceneImg.dataset.motionRole === 'shore')
+        : [];
 
       const sceneEnterSpeedFactor = 0.945;
       orderedSceneImages.forEach((sceneImg, index) => {
@@ -1417,7 +1453,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             ease: 'back.out(1.5)',
             onComplete: () => {
               try { sceneImg.style.willChange = 'auto'; } catch {}
-              if (resolvedTheme === 'beach' && motionRole) {
+              if (resolvedTheme === 'beach' && motionRole && motionRole !== 'shore') {
                 startBeachAmbientMotion(sceneImg, layerKey, motionRole);
               }
             }
@@ -1428,6 +1464,20 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           isBeachCurtain ? 0.02 + (beachPalmNumber - 1) * 0.045 : sceneEnterStart,
         );
       });
+      if (beachShoreAmbientTargets.length > 0) {
+        const latestShoreEnterIndex = Math.max(
+          ...beachShoreAmbientTargets.map((sceneImg) => orderedSceneImages.indexOf(sceneImg)),
+        );
+        const sharedShoreAmbientStart = 0.05
+          + latestShoreEnterIndex * (0.045 * sceneEnterSpeedFactor)
+          + (0.52 * sceneEnterSpeedFactor)
+          + 0.02;
+        enterTimeline.call(() => {
+          startBeachSharedShoreAmbientMotion(
+            beachShoreAmbientTargets.filter((sceneImg) => sceneImg.isConnected && sceneImg.style.visibility !== 'hidden'),
+          );
+        }, undefined, sharedShoreAmbientStart);
+      }
     }
 
     // Step 3: Animate digits with bounce animation (staggered)
@@ -1949,6 +1999,8 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
   isCleaningUp = true;
   const preserveDom = options.preserveDom === true;
   try {
+    stopMemSampling(preserveDom ? 'cleanup-preserved' : 'cleanup');
+    stopIOSJourneyPerformanceAudit(preserveDom ? 'transition-cleanup-preserved' : 'transition-cleanup');
     appSpatialMotion.deactivateBoardTransition();
     lifecycle.cleanup();
     // 🔥 CRITICAL: Kill all active tweens
@@ -2056,6 +2108,8 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
     }
   });
   contentTimelines = [];
+  try { beachShoreAmbientTimeline?.kill(); } catch {}
+  beachShoreAmbientTimeline = null;
   beachAmbientTimelines.clear();
   
   // Keep the overlay DOM reusable, but always return transient image elements to the pool.
@@ -2197,6 +2251,8 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
  * iOS App Store ready - ensures complete cleanup in case of errors
  */
 export function cleanupBoardTransitionScreen(): void {
+  transitionGeneration += 1;
+  const interruptedSettlement = activeTransitionSettlement;
   try {
     // 🔥 APP STORE: Force cleanup - ensure everything is released
     cleanup();
@@ -2208,5 +2264,7 @@ export function cleanupBoardTransitionScreen(): void {
     // Fallback: at least reset the flags
     isTransitionActive = false;
     currentOverlay = null;
+  } finally {
+    interruptedSettlement?.(false);
   }
 }
