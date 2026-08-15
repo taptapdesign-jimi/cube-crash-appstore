@@ -77,7 +77,7 @@ describe('Journey spatial motion', () => {
     expect(JOURNEY_SPATIAL_DEPTH.homepageHero).toEqual({ x: 26, y: 20 });
     expect(JOURNEY_SPATIAL_DEPTH.homepageCta).toEqual({ x: 12, y: 9 });
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile).toEqual({ x: 14.625, y: 21.96 });
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 5.76, y: 5.04 });
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 7.2, y: 6.3 });
     expect(JOURNEY_SPATIAL_DEPTH.hubWorld).toEqual({ x: 16.8, y: 16.8 });
     expect(JOURNEY_SPATIAL_DEPTH.hubCloud).toEqual({ x: -14.4, y: -14.4 });
     expect(JOURNEY_SPATIAL_DEPTH.worldMain).toEqual({ x: 17.6, y: 17.6 });
@@ -464,10 +464,10 @@ describe('Journey spatial motion', () => {
     expect(journeyDecor.style.translate).toBe('');
   });
 
-  it('keeps stronger cubes while halving preload motion and scaling Journey decor by axis', () => {
+  it('keeps stronger cubes while giving the isolated preload fill subtle extra depth', () => {
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.x).toBe(14.625);
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBe(21.96);
-    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 5.76, y: 5.04 });
+    expect(JOURNEY_SPATIAL_DEPTH.gameplayHudPreload).toEqual({ x: 7.2, y: 6.3 });
     expect(JOURNEY_SPATIAL_SURFACE_GAIN.gameplayJourneyBottomDecor).toEqual({ x: 0.6, y: 0.2 });
     expect(JOURNEY_SPATIAL_DEPTH.gameplayTile.y).toBeCloseTo(JOURNEY_SPATIAL_DEPTH.gameplayTile.x * 1.5, 1);
   });

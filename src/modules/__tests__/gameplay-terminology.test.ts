@@ -1,5 +1,6 @@
 import {
   formatGameplayProgressLabel,
+  formatGameplayResultProgressLabel,
   getGameplayProgressTerm,
 } from '../gameplay-terminology.js';
 
@@ -14,5 +15,22 @@ describe('gameplay terminology', () => {
     expect(getGameplayProgressTerm('arcade')).toBe('Round');
     expect(getGameplayProgressTerm('arcade', { plural: true })).toBe('Rounds');
     expect(formatGameplayProgressLabel('arcade', 12, { padTo: 2 })).toBe('Round 12');
+  });
+
+  it.each([
+    [1, 'Forest 01'],
+    [10, 'Forest 10'],
+    [11, 'Beach 01'],
+    [12, 'Beach 02'],
+    [20, 'Beach 10'],
+    [21, 'Area 55 01'],
+    [22, 'Area 55 02'],
+    [30, 'Area 55 10'],
+  ])('formats Journey result board %i as a World-local stage', (boardNumber, expected) => {
+    expect(formatGameplayResultProgressLabel('journey', boardNumber)).toBe(expected);
+  });
+
+  it('keeps Arcade result numbering global', () => {
+    expect(formatGameplayResultProgressLabel('arcade', 12)).toBe('Round 12');
   });
 });

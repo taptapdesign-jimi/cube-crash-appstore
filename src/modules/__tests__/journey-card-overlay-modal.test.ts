@@ -255,6 +255,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-board-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-weight: 700;[\s\S]*?translate3d\(calc\(-50% \+ 11px\), calc\(-50% - 10px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-label \{[\s\S]*?font-size: 8\.3cqw;[\s\S]*?translate3d\(calc\(-50% \+ 32px\), calc\(-50% - 33px\), 0\) rotate\(41deg\);/);
     expect(css).toMatch(/\.journey-card-ribbon-shimmer \{[\s\S]*?filter: brightness\(1\.32\) saturate\(1\.06\);[\s\S]*?-webkit-mask-image: linear-gradient\(110deg,[\s\S]*?animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;/);
+    expect(modal).toContain("stage.classList.toggle(\n    'has-new-ribbon',\n    cardHost.querySelector('.journey-card-ribbon') !== null");
+    expect(css).toMatch(/\.journey-card-flip-overlay\.has-new-ribbon \.journey-card-flip-shine \{[\s\S]*?display: none;/);
+    expect(css).toMatch(/\.journey-card-overlay-portaled-card > \.journey-card-ribbon > \.journey-card-ribbon-shimmer \{[\s\S]*?animation-duration: 5\.1s;[\s\S]*?animation-iteration-count: 1;/);
     expect(css).toMatch(/\.journey-board-card\.has-new-ribbon::after \{[\s\S]*?animation: none !important;[\s\S]*?opacity: 0 !important;/);
     expect(css).not.toContain('.journey-card-flip-back-shell::after');
     expect(css).toMatch(/\.journey-card-flip-paper::after \{[\s\S]*?inset: 0;[\s\S]*?background-size: calc\(100% \+ 12px\) calc\(100% \+ 16px\);/);

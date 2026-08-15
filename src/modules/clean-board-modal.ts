@@ -18,7 +18,7 @@ import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyInterimOriginActive, markJourneyGameOrigin } from './journey-origin-state.js';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
-import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { formatGameplayResultProgressLabel } from './gameplay-terminology.ts';
 import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
@@ -651,10 +651,9 @@ export async function showCleanBoardModal({
 
     // Board cleared text (initially hidden)
     const boardCleared = document.createElement('div');
-    const progressLabel = formatGameplayProgressLabel(
+    const progressLabel = formatGameplayResultProgressLabel(
       isArcadeHomeRun ? 'arcade' : 'journey',
       boardNumber,
-      { padTo: 2 },
     );
     boardCleared.textContent = `${progressLabel} ${arcadeRunReached ? 'reached' : 'cleared'}`;
     // SIMPLE: Just text, no transforms, no animations

@@ -317,6 +317,10 @@ export function presentJourneyCardOverlayModal(
     stage.querySelectorAll<HTMLElement>('.journey-card-flip-stats > .journey-card-flip-stat, .journey-card-flip-stats > .journey-card-flip-divider'),
   );
   options.origin.mountInto(cardHost);
+  stage.classList.toggle(
+    'has-new-ribbon',
+    cardHost.querySelector('.journey-card-ribbon') !== null,
+  );
 
   const scrollOwner = options.scrollOwner ?? null;
   const previousOverflow = scrollOwner?.style.overflow ?? '';

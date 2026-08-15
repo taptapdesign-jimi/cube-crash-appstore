@@ -820,8 +820,35 @@ function makeWildLoader() {
     fill.endFill();
   }
   fill.zIndex = 5000;
-  
-  container.addChild(bg, fill, dashLine);
+
+  // Keep the orange fill on its own spatial layer. Gameplay gyro moves this
+  // layer slightly farther than the beige track, creating real depth without
+  // introducing another sensor listener or transform owner.
+  const fillSpatialLayer = new Container();
+  fillSpatialLayer.label = 'wildMeterFillSpatialLayer';
+  fillSpatialLayer.zIndex = 5000;
+  fillSpatialLayer.sortableChildren = true;
+  const fillBounceLayer = new Container();
+  fillBounceLayer.label = 'wildMeterFillBounceLayer';
+  fillBounceLayer.sortableChildren = true;
+  fill.zIndex = 0;
+
+  // A masked gold/orange burn is reused for real progress increments.
+  const fillFxLayer = new Container();
+  fillFxLayer.label = 'wildMeterFillFxLayer';
+  fillFxLayer.zIndex = 1;
+  const fillFxMask = new Graphics();
+  fillFxMask.label = 'wildMeterFillFxMask';
+  const fillBurn = new Graphics();
+  fillBurn.label = 'wildMeterFillBurn';
+  fillBurn.alpha = 0;
+  fillBurn.blendMode = 'screen';
+  fillFxLayer.mask = fillFxMask;
+  fillFxLayer.addChild(fillFxMask, fillBurn);
+  fillBounceLayer.addChild(fill, fillFxLayer);
+  fillSpatialLayer.addChild(fillBounceLayer);
+
+  container.addChild(bg, fillSpatialLayer, dashLine);
   
   // Position relative to HUD
   container.x = 24;
@@ -831,6 +858,11 @@ function makeWildLoader() {
   // Store references
   container._bg = bg;
   container._fill = fill;
+  container._fillSpatialWrapper = fillSpatialLayer;
+  container._fillBounceLayer = fillBounceLayer;
+  container._fillFxLayer = fillFxLayer;
+  container._fillFxMask = fillFxMask;
+  container._fillBurn = fillBurn;
   container._dashLine = dashLine;
   container._drawDashLine = drawDashLine;
   container._maxWidth = 200;
@@ -849,7 +881,49 @@ function makeWildLoader() {
       targetFill.drawRoundedRect(0, 0, clampedWidth, 10, 5);
       targetFill.endFill();
     }
+    try {
+      fillFxMask.clear();
+      fillFxMask.roundRect(0, 0, clampedWidth, 10, 5).fill(0xFFFFFF);
+      fillBurn.clear();
+      fillBurn.roundRect(0, 0, clampedWidth, 10, 5).fill({ color: 0xFFB24D, alpha: 0.72 });
+    } catch {}
   };
+
+  const stopFillBurn = () => {
+    try {
+      if (container._fillBurnTimeline) {
+        container._fillBurnTimeline.kill();
+        container._fillBurnTimeline = null;
+      }
+      container._fillBurnTargetWidth = null;
+      gsap.killTweensOf(fillBurn);
+      fillBurn.alpha = 0;
+    } catch {}
+  };
+
+  const playFillBurn = (targetWidth: number) => {
+    if (targetWidth <= 1 || fillFxLayer.destroyed) return;
+    stopFillBurn();
+    container._fillBurnTargetWidth = targetWidth;
+    container._fillBurnTimeline = trackTimeline({
+      onComplete: () => {
+        container._fillBurnTimeline = null;
+        container._fillBurnTargetWidth = null;
+        if (!fillBurn.destroyed) fillBurn.alpha = 0;
+      },
+    })
+      .to(fillBurn, {
+        alpha: 0.58,
+        duration: 0.14,
+        ease: 'power2.out',
+      }, 0)
+      .to(fillBurn, {
+        alpha: 0,
+        duration: 0.5,
+        ease: 'power2.inOut',
+      }, 0.14);
+  };
+  container._stopFillBurn = stopFillBurn;
 
   const playFillVerticalBounce = (targetFill: any) => {
     if (!targetFill || targetFill.destroyed) return;
@@ -890,6 +964,11 @@ function makeWildLoader() {
     if (!fill || (fill as { destroyed?: boolean }).destroyed) return;
     const progress = Math.max(0, Math.min(1, ratio));
     const width = progress * container._maxWidth;
+    const keepsSameFillBurn = Boolean(
+      animate &&
+      container._fillBurnTimeline &&
+      Math.abs((container._fillBurnTargetWidth ?? -1) - width) <= 0.5
+    );
     if (container._currentAnimation) {
       container._currentAnimation.kill();
       container._currentAnimation = null;
@@ -898,8 +977,9 @@ function makeWildLoader() {
       container._springTimeline.kill();
       container._springTimeline = null;
     }
-    gsap.killTweensOf(fill);
-    fill.y = fillRestY;
+    if (!keepsSameFillBurn) container._stopFillBurn?.();
+    gsap.killTweensOf(fillBounceLayer);
+    fillBounceLayer.y = fillRestY;
     if (container._smokeInterval) {
       clearInterval(container._smokeInterval);
       container._smokeInterval = null;
@@ -930,8 +1010,13 @@ function makeWildLoader() {
         const hudStage = container.parent;
         if (!hudStage) return;
         const fillWidth = container._fill?.width || 0;
-        const globalX = container.x + (Math.random() * Math.max(1, fillWidth));
-        const globalY = container.y + 5 + ((Math.random() - 0.5) * 5); // Spread across bar thickness
+        const fillPoint = container._fill.toGlobal({
+          x: Math.random() * Math.max(1, fillWidth),
+          y: 5 + ((Math.random() - 0.5) * 5),
+        });
+        const smokePoint = typeof hudStage.toLocal === 'function' ? hudStage.toLocal(fillPoint) : fillPoint;
+        const globalX = smokePoint.x;
+        const globalY = smokePoint.y;
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
@@ -988,7 +1073,8 @@ function makeWildLoader() {
       };
 
       if (isGrowing) {
-        playFillVerticalBounce(fill);
+        if (!keepsSameFillBurn) playFillBurn(width);
+        playFillVerticalBounce(fillBounceLayer);
         const overshootDistance = Math.max(3.5, width * 0.05);
         const overWidth = width + overshootDistance;
         const underWidth = Math.max(0, width - Math.max(1.5, overshootDistance * 0.36));
@@ -1544,6 +1630,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     wild.view._currentAnimation.kill();
     wild.view._currentAnimation = null;
   }
+  wild?.view?._stopFillBurn?.();
   
   // Clear references
   closeIconSprite = null;
@@ -2193,12 +2280,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   console.log('🎯 Creating PIXI wild meter...');
   wild = makeWildLoader();
   if (wild && wild.view) {
-    wildMeterSpatialWrapper = new Container();
-    wildMeterSpatialWrapper.label = 'wildMeterSpatialWrapper';
-    wildMeterSpatialWrapper.zIndex = wild.view.zIndex;
-    wild.view.zIndex = 0;
-    wildMeterSpatialWrapper.addChild(wild.view);
-    HUD_ROOT.addChild(wildMeterSpatialWrapper);
+    wildMeterSpatialWrapper = wild.view._fillSpatialWrapper ?? null;
+    HUD_ROOT.addChild(wild.view);
     wild.setProgress(0, false); // Start at 0%
     console.log('✅ PIXI wild meter created and added to HUD');
   } else {
@@ -3573,8 +3656,12 @@ export function resetWildMeter(instant = true) {
     }
     gsap.killTweensOf(wild?.view?._fill);
     gsap.killTweensOf(wild?.view?._fill?.scale);
+    gsap.killTweensOf(wild?.view?._fillBounceLayer);
     if (wild?.view?._fill) {
       wild.view._fill.y = 0;
+    }
+    if (wild?.view?._fillBounceLayer) {
+      wild.view._fillBounceLayer.y = 0;
     }
     if (wild?.view?._springTimeline) {
       wild.view._springTimeline.kill();
@@ -3584,6 +3671,7 @@ export function resetWildMeter(instant = true) {
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;
     }
+    wild?.view?._stopFillBurn?.();
     console.log('✅ PIXI RESET: All GSAP animations killed');
   } catch (e) {
     console.warn('⚠️ PIXI RESET: Error killing GSAP animations:', e);

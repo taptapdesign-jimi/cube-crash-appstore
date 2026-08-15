@@ -477,8 +477,9 @@ const JOURNEY_CONTENT_TOP_BASE_PX = 0;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 0;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
-const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach';
-const ROBO_WORLD_ASSET_BASE = './assets/journey assets/robo';
+const FOREST_CARD_ASSET_BASE = './assets/journey assets/forest/cards';
+const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach/Beacj world';
+const ROBO_WORLD_ASSET_BASE = './assets/journey assets/robo/robo world';
 const JOURNEY_WORLD_BANNER_ASSET = './assets/journey assets/natpis.png';
 const JOURNEY_WORLD_BANNER_ASSET_2X = './assets/journey assets/natpis@2x.png';
 const FOREST_LEVEL_STARS_ASSET_BASE = './assets/journey assets/level stars';
@@ -5377,13 +5378,13 @@ class JourneyBoardsManager {
 
   private getBoardImagePath(boardNumber: number): string {
     if (boardNumber === 1) {
-      return `${FOREST_WORLD_ASSET_BASE}/cards/forest-1.png`;
+      return `${FOREST_CARD_ASSET_BASE}/forest-1.png`;
     }
 
     if (boardNumber >= 21 && boardNumber <= 30) {
       const mirroredBoardNumber = boardNumber - 20;
       if (mirroredBoardNumber === 1) {
-        return `${FOREST_WORLD_ASSET_BASE}/cards/forest-1.png`;
+        return `${FOREST_CARD_ASSET_BASE}/forest-1.png`;
       }
 
       return `./assets/colelctibles/common/${mirroredBoardNumber.toString().padStart(2, '0')}.png`;

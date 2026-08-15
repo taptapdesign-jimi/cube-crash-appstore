@@ -3,6 +3,7 @@ import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts'
 type HudDropDeps = {
   HUD: { playHudDrop?: (opts?: any) => void };
   app?: { canvas?: HTMLCanvasElement | null } | null;
+  showJourneyBottomDecor: () => void;
   trackAppAnimationFrame: (fn: () => void) => any;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
@@ -12,6 +13,7 @@ type HudDropDeps = {
 
 type HudFinalDeps = {
   getHudRoot: () => any;
+  showJourneyBottomDecor: () => void;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
 };
@@ -19,6 +21,7 @@ type HudFinalDeps = {
 export function triggerHudDropIfPending({
   HUD,
   app,
+  showJourneyBottomDecor,
   trackAppAnimationFrame,
   devLog,
   devWarn,
@@ -39,6 +42,7 @@ export function triggerHudDropIfPending({
           app.canvas.style.opacity = '1';
           app.canvas.style.transition = 'opacity 0.3s ease';
         }
+        showJourneyBottomDecor();
         HUD.playHudDrop({ forceRestart: true });
       }));
       devLog('✅ HUD drop animation scheduled in onHalf callback (next paint, forceRestart)');
@@ -49,7 +53,12 @@ export function triggerHudDropIfPending({
   setHudDropPending(false);
 }
 
-export function ensureHudFinalPosition({ getHudRoot, devLog, devWarn }: HudFinalDeps){
+export function ensureHudFinalPosition({
+  getHudRoot,
+  showJourneyBottomDecor,
+  devLog,
+  devWarn,
+}: HudFinalDeps){
   if (!isGameplayHudRevealAllowed()) return;
   try {
     const hudRoot = getHudRoot();
@@ -59,6 +68,7 @@ export function ensureHudFinalPosition({ getHudRoot, devLog, devWarn }: HudFinal
       hudRoot.alpha = 1;
       hudRoot.visible = true;
       hudRoot._dropped = true;
+      showJourneyBottomDecor();
       devLog('✅ HUD final position set after animation');
     }
   } catch (e) {

@@ -7,7 +7,7 @@ import { isArcadeHomeRunMode } from './run-mode.js';
 import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { clearJourneyDetailReturn, prepareJourneyFailReturnTarget } from './journey-origin-state.js';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
-import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { formatGameplayResultProgressLabel } from './gameplay-terminology.ts';
 import { exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
@@ -493,10 +493,9 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     title.style.cssText = 'color:#e77449;font-weight:800;font-size:56px;line-height:56px;margin:0;';
 
     const boardStatus = document.createElement('div');
-    const progressLabel = formatGameplayProgressLabel(
+    const progressLabel = formatGameplayResultProgressLabel(
       isArcadeHomeRunMode() ? 'arcade' : 'journey',
       Math.max(1, boardNumber | 0),
-      { padTo: 2 },
     );
     boardStatus.textContent = `${progressLabel} not cleared`;
     boardStatus.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';

@@ -61,11 +61,10 @@ export type JourneySpatialDirectionMap = Record<JourneySpatialWorldId, JourneySp
 export const JOURNEY_SPATIAL_DEPTH = Object.freeze({
   homepageHero: Object.freeze({ x: 26, y: 20 }),
   homepageCta: Object.freeze({ x: 12, y: 9 }),
-  // Cubes retain the stronger gameplay profile. The preload HUD stays at half
-  // of its preceding travel, while Journey bottom decor derives per-axis gain
-  // from the cube profile without extra listeners or per-frame RNG.
+  // Cubes retain the stronger gameplay profile. Only the orange preload fill
+  // owns this slightly deeper HUD parallax; its beige track remains stable.
   gameplayTile: Object.freeze({ x: 14.625, y: 21.96 }),
-  gameplayHudPreload: Object.freeze({ x: 5.76, y: 5.04 }),
+  gameplayHudPreload: Object.freeze({ x: 7.2, y: 6.3 }),
   hubWorld: Object.freeze({ x: 16.8, y: 16.8 }),
   hubCloud: Object.freeze({ x: -14.4, y: -14.4 }),
   worldMain: Object.freeze({ x: 17.6, y: 17.6 }),
@@ -896,8 +895,9 @@ export class AppSpatialMotionController {
     });
     overlay.querySelectorAll<HTMLElement>('[data-scene-layer]').forEach((element, index) => {
       const layerKey = element.dataset.sceneLayer ?? '';
-      const isMountain = layerKey === 'mountain';
-      const isHill = layerKey === 'hill1' || layerKey === 'hill2';
+      const spatialRole = element.dataset.spatialRole ?? '';
+      const isMountain = spatialRole === 'primary' || layerKey === 'mountain';
+      const isHill = spatialRole === 'terrain' || layerKey === 'hill1' || layerKey === 'hill2';
       addTarget(
         element,
         isMountain

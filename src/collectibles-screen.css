@@ -229,6 +229,12 @@
   transform: translateX(115%);
 }
 
+/* A NEW card already owns one ribbon-masked sweep. Do not let the modal's
+   generic full-card shine paint a second pass over the same banner. */
+.journey-card-flip-overlay.has-new-ribbon .journey-card-flip-shine {
+  display: none;
+}
+
 .journey-card-flip-overlay:is(.is-entering, .is-exiting, .is-flipping, .is-dragging)
   .journey-card-flip-shine {
   opacity: 0;
@@ -3217,6 +3223,14 @@
   will-change: opacity, -webkit-mask-position, mask-position;
   animation: journey-card-ribbon-shimmer 3s ease-in-out infinite;
   pointer-events: none;
+}
+
+/* The enlarged modal ribbon gets one deliberately slower sweep. The Unit card
+   keeps its established idle loop; only the portaled modal presentation stops
+   after this single 70%-longer pass. */
+.journey-card-overlay-portaled-card > .journey-card-ribbon > .journey-card-ribbon-shimmer {
+  animation-duration: 5.1s;
+  animation-iteration-count: 1;
 }
 
 @keyframes journey-card-ribbon-shimmer {

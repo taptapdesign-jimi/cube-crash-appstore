@@ -7,6 +7,14 @@ const benchmarkSource = fs.readFileSync(path.join(root, 'src/modules/gameplay-mo
 const appCss = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
 
 describe('reversible End Run bottom-sheet 3D flip experiment', () => {
+  test('uses World-local Journey numbering and shared progress-saved copy', () => {
+    expect(endRunSource).toContain("formatGameplayResultProgressLabel('journey', currentBoardNum)");
+    expect(endRunSource).toContain("formatGameplayProgressLabel('arcade', currentBoardNum, { padTo: 2 })");
+    expect(endRunSource).toContain('`Come back anytime.<br>${progressLabel} progress saved.`');
+    expect(endRunSource).not.toContain('${progressLabel} is safe.');
+    expect(endRunSource).not.toContain("formatGameplayProgressLabel(\n    isArcadeRun ? 'arcade' : 'journey'");
+  });
+
   test('keeps 3D presentation nested under the existing sheet lifecycle owner', () => {
     expect(endRunSource).toContain(
       'export const END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED = true',

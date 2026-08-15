@@ -9,7 +9,10 @@ import { requestExitToMenu } from './menu-exit-handoff.ts';
 import { resolveJourneyReturnTarget } from './journey-origin-state.js';
 import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
-import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import {
+  formatGameplayProgressLabel,
+  formatGameplayResultProgressLabel,
+} from './gameplay-terminology.ts';
 import { ctaMotion, exitCtaGroup, registerCta, type CtaController } from './cta-system.ts';
 import {
   mountGameplaySheetClose,
@@ -371,13 +374,11 @@ function createModal(): HTMLElement {
 
   const isArcadeRun = isArcadeHomeRunMode();
   const currentBoardNum = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-  const progressLabel = formatGameplayProgressLabel(
-    isArcadeRun ? 'arcade' : 'journey',
-    currentBoardNum,
-    { padTo: 2 },
-  );
+  const progressLabel = isArcadeRun
+    ? formatGameplayProgressLabel('arcade', currentBoardNum, { padTo: 2 })
+    : formatGameplayResultProgressLabel('journey', currentBoardNum);
   const titleText = isArcadeRun ? 'Exit Game?' : 'Exit Stage?';
-  const subtitleText = `Come back anytime.<br>${progressLabel} is safe.`;
+  const subtitleText = `Come back anytime.<br>${progressLabel} progress saved.`;
   const exitBtnLabel = isArcadeRun ? 'Exit Game' : 'Exit Stage';
 
   modal = document.createElement('div');

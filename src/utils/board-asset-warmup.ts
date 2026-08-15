@@ -48,6 +48,37 @@ const CORE_HUD_ASSETS = [
 const JOURNEY_BOTTOM_DECOR_COUNT = 12;
 const journeyBottomDecorByBoard = new Map<number, number>();
 
+export type JourneyBottomDecorAsset = Readonly<{
+  key: string;
+  oneX: string;
+  twoX?: string;
+}>;
+
+const BEACH_FIRST_BOARD = 11;
+const BEACH_LAST_BOARD = 20;
+const BEACH_HUD_HIGH_RES_FILE_BY_UNIT: Readonly<Partial<Record<number, string>>> = Object.freeze({
+  1: 'beach-hud1@2x.png',
+  2: 'beach-hud2@2x.png',
+  3: 'beach-hud3@3x.png',
+  4: 'beach-hud4@2x.png',
+  5: 'beach-hud5@2x.png',
+  6: 'beach-hud6@2x.png',
+  7: 'beach-hud7@2x.png',
+  8: 'beach-hud8@2x.png',
+  10: 'beach-hud10@2x.png',
+});
+
+function getBeachHudAsset(unitIndex: number): JourneyBottomDecorAsset {
+  const safeUnitIndex = Math.max(1, Math.min(10, Math.floor(unitIndex)));
+  const assetBase = './assets/journey assets/beach/beach hud';
+  const highResFile = BEACH_HUD_HIGH_RES_FILE_BY_UNIT[safeUnitIndex];
+  return {
+    key: `beach-hud${safeUnitIndex}`,
+    oneX: `${assetBase}/beach-hud${safeUnitIndex}.png`,
+    ...(highResFile ? { twoX: `${assetBase}/${highResFile}` } : {}),
+  };
+}
+
 export function getJourneyBottomDecorIndexForBoard(boardNumber?: number): number {
   const safeBoardNumber = Math.max(1, Math.floor(Number(boardNumber) || 1));
   const existing = journeyBottomDecorByBoard.get(safeBoardNumber);
@@ -57,12 +88,24 @@ export function getJourneyBottomDecorIndexForBoard(boardNumber?: number): number
   return selected;
 }
 
+export function getJourneyBottomDecorAssetForBoard(boardNumber?: number): JourneyBottomDecorAsset {
+  const safeBoardNumber = Math.max(1, Math.floor(Number(boardNumber) || 1));
+  if (safeBoardNumber >= BEACH_FIRST_BOARD && safeBoardNumber <= BEACH_LAST_BOARD) {
+    const unitIndex = safeBoardNumber - BEACH_FIRST_BOARD + 1;
+    return getBeachHudAsset(unitIndex);
+  }
+
+  const decorIndex = getJourneyBottomDecorIndexForBoard(safeBoardNumber);
+  return {
+    key: `forest-bottom${decorIndex}`,
+    oneX: `./assets/journey assets/bottom${decorIndex}.png`,
+    twoX: `./assets/journey assets/bottom${decorIndex}@2x.png`,
+  };
+}
+
 function getJourneyBoardAssets(boardNumber?: number): string[] {
-  const decorIndex = getJourneyBottomDecorIndexForBoard(boardNumber);
-  return [
-    `./assets/journey assets/bottom${decorIndex}.png`,
-    `./assets/journey assets/bottom${decorIndex}@2x.png`,
-  ];
+  const decorAsset = getJourneyBottomDecorAssetForBoard(boardNumber);
+  return [decorAsset.oneX, decorAsset.twoX].filter((asset): asset is string => Boolean(asset));
 }
 
 function unique(values: readonly string[]): string[] {

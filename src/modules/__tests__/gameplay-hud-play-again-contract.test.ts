@@ -2,10 +2,49 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { handleSweetPopInComplete } from '../app-core-popin-final.ts';
 import { handleHudDropOnHalf } from '../app-core-hud-drop.ts';
+import { ensureHudFinalPosition, triggerHudDropIfPending } from '../app-core-load-animation.ts';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
 describe('Play Again HUD drop contract', () => {
+  it('reveals Journey bottom decor on the saved-board HUD drop path', () => {
+    const frames: Array<() => void> = [];
+    const calls: string[] = [];
+
+    triggerHudDropIfPending({
+      HUD: { playHudDrop: () => calls.push('hud') },
+      app: null,
+      showJourneyBottomDecor: () => calls.push('decor'),
+      trackAppAnimationFrame: (callback) => {
+        frames.push(callback);
+        return frames.length;
+      },
+      devLog: jest.fn(),
+      devWarn: jest.fn(),
+      isHudDropPending: () => true,
+      setHudDropPending: jest.fn(),
+    });
+
+    frames.shift()?.();
+    frames.shift()?.();
+    expect(calls).toEqual(['decor', 'hud']);
+  });
+
+  it('repairs Journey bottom decor with the saved-board final HUD pose', () => {
+    const showJourneyBottomDecor = jest.fn();
+    const hudRoot = { _dropTop: 44, y: -96, alpha: 0, visible: false, _dropped: false };
+
+    ensureHudFinalPosition({
+      getHudRoot: () => hudRoot,
+      showJourneyBottomDecor,
+      devLog: jest.fn(),
+      devWarn: jest.fn(),
+    });
+
+    expect(hudRoot).toEqual({ _dropTop: 44, y: 44, alpha: 1, visible: true, _dropped: true });
+    expect(showJourneyBottomDecor).toHaveBeenCalledTimes(1);
+  });
+
   it('arms the one-shot HUD drop before both fail-modal restart paths', () => {
     const source = fs.readFileSync(
       path.join(repoRoot, 'src/modules/board-fail-modal.ts'),
@@ -16,6 +55,21 @@ describe('Play Again HUD drop contract', () => {
     const retryOwner = source.slice(retryStart, retryEnd);
 
     expect(retryOwner.match(/restart!\(\{ animateHudDrop: true \}\)/g)).toHaveLength(2);
+  });
+
+  it('routes the Round 02+ Arcade summary retry through the same HUD-drop owner', () => {
+    const source = fs.readFileSync(
+      path.join(repoRoot, 'src/modules/app-core.ts'),
+      'utf8',
+    );
+    const summaryRetryStart = source.indexOf("if (result?.action === 'play-again'");
+    const summaryRetryEnd = source.indexOf("} else if (result?.action === 'exit'", summaryRetryStart);
+    const summaryRetryOwner = source.slice(summaryRetryStart, summaryRetryEnd);
+
+    expect(summaryRetryStart).toBeGreaterThanOrEqual(0);
+    expect(summaryRetryOwner).toContain('if (isArcadeRunReachedSummary)');
+    expect(summaryRetryOwner).toContain('restart({ animateHudDrop: true });');
+    expect(summaryRetryOwner).not.toContain('restartGame();');
   });
 
   it('does not snap a pending fallback drop to its final pose before deferred paint', () => {

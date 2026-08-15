@@ -669,7 +669,7 @@ export async function preloadJourneyBoardImages(boardIds: number[]): Promise<voi
       const id = String(assetBoardId).padStart(2, '0');
       imagesToPreload.push(`./assets/colelctibles/common/${id}.png`);
       if (boardId === 1 || boardId === 21) {
-        imagesToPreload.push('./assets/journey assets/forest/forest world/cards/forest-1.png');
+        imagesToPreload.push('./assets/journey assets/forest/cards/forest-1.png');
       }
     });
     

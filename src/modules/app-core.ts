@@ -82,7 +82,7 @@ import {
   getAppCleanupStats
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
-import { getJourneyBottomDecorIndexForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
+import { getJourneyBottomDecorAssetForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
@@ -3975,6 +3975,7 @@ export async function layoutBoard(){
             hudRoot.alpha = 1;
             hudRoot.visible = true;
             hudRoot._dropped = true;
+            showJourneyGameBottomDecorForHudDrop();
             devLog('✅ HUD made visible immediately (no drop pending)');
           }
         } catch (e) {
@@ -3999,6 +4000,7 @@ export async function layoutBoard(){
                     app.canvas.style.opacity = '1';
                     app.canvas.style.transition = 'opacity 0.3s ease';
                   }
+                  showJourneyGameBottomDecorForHudDrop();
                   HUD.playHudDrop({ forceRestart: true });
                 }));
                 devLog('✅ HUD drop fallback triggered after initHUD');
@@ -5359,11 +5361,6 @@ function killJourneyGameBottomDecorTween(): void {
   journeyGameBottomDecorTween = null;
 }
 
-function getJourneyGameBottomDecorUrl(decorIndex: number, scale = 1): string {
-  const scaleSuffix = scale === 2 ? '@2x' : '';
-  return `./assets/journey%20assets/bottom${decorIndex}${scaleSuffix}.png`;
-}
-
 function updateJourneyGameBottomDecorSource(img: HTMLImageElement): void {
   const currentBoard =
     STATE?.boardNumber && Number.isFinite(STATE.boardNumber)
@@ -5371,16 +5368,16 @@ function updateJourneyGameBottomDecorSource(img: HTMLImageElement): void {
       : boardNumber;
   const boardKey = String(Math.max(1, Math.floor(Number(currentBoard) || 1)));
   const runKey = String(journeyGameBottomDecorRunKey);
-  const existingDecorIndex = Number(img.dataset.decorIndex);
-  const decorIndex = img.dataset.boardKey === boardKey && img.dataset.runKey === runKey && Number.isFinite(existingDecorIndex)
-    ? existingDecorIndex
-    : getJourneyBottomDecorIndexForBoard(Number(boardKey));
-  const decorKey = String(decorIndex);
-  if (img.dataset.decorIndex === decorKey && img.dataset.boardKey === boardKey && img.dataset.runKey === runKey) return;
+  const decorAsset = getJourneyBottomDecorAssetForBoard(Number(boardKey));
+  if (img.dataset.decorKey === decorAsset.key && img.dataset.boardKey === boardKey && img.dataset.runKey === runKey) return;
 
-  img.src = getJourneyGameBottomDecorUrl(decorIndex);
-  img.srcset = `${getJourneyGameBottomDecorUrl(decorIndex)} 1x, ${getJourneyGameBottomDecorUrl(decorIndex, 2)} 2x`;
-  img.dataset.decorIndex = decorKey;
+  const oneXUrl = encodeURI(decorAsset.oneX);
+  img.src = oneXUrl;
+  img.srcset = decorAsset.twoX
+    ? `${oneXUrl} 1x, ${encodeURI(decorAsset.twoX)} 2x`
+    : `${oneXUrl} 1x`;
+  img.dataset.decorKey = decorAsset.key;
+  img.removeAttribute('data-decor-index');
   img.dataset.boardKey = boardKey;
   img.dataset.runKey = runKey;
 }
@@ -13572,7 +13569,10 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       if (isArcadeRunReachedSummary) {
         try { (window as any).__ccForceArcadeRestartStage01 = true; } catch {}
         devLog('🎮 Arcade run reached Play Again - restarting fresh Round 01');
-        restartGame();
+        // Round 02+ failures resolve through the Arcade run-summary modal rather
+        // than board-fail-modal. Keep both retry owners on the same HUD-entry
+        // contract so the fresh Round 01 HUD is primed and drops at dice midpoint.
+        restart({ animateHudDrop: true });
       } else {
         // Board fail modal already calls window.CC.restart() immediately on Play Again.
         // Calling restartGame() again here causes a visible double board load.
@@ -13692,6 +13692,7 @@ function restartGame(){
         wild.view._currentAnimation.kill();
         wild.view._currentAnimation = null;
       }
+      wild?.view?._stopFillBurn?.();
       // 🔥 CRITICAL: Kill HUD progress bar animations
       try {
         gsap.killTweensOf('[data-wild-loader]');
@@ -14757,6 +14758,7 @@ async function loadGameState(overrideBoardNumber?: number) {
         triggerHudDropIfPending({
           HUD,
           app,
+          showJourneyBottomDecor: showJourneyGameBottomDecorForHudDrop,
           trackAppAnimationFrame,
           devLog,
           devWarn,
@@ -14774,6 +14776,7 @@ async function loadGameState(overrideBoardNumber?: number) {
         // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
         ensureHudFinalPosition({
           getHudRoot: () => (window as any).HUD_ROOT || HUD.HUD_ROOT || null,
+          showJourneyBottomDecor: showJourneyGameBottomDecorForHudDrop,
           devLog,
           devWarn,
         });
