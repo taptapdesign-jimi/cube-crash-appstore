@@ -6397,6 +6397,11 @@ async function spawnWildFromMeter(){
 // Imported: pickWildValue
 function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   markMergePerformance('merge-handler-start');
+  // Capture special-dice provenance before merge cleanup can remove `src` or
+  // clear either tile's variant metadata. Magnet pull callbacks run later and
+  // must not fall back to the core red/brown palette for Honey/Bottle.
+  const srcSpecialVariantAtMergeEntry = getSpecialDiceVariantForTile(src);
+  const dstSpecialVariantAtMergeEntry = getSpecialDiceVariantForTile(dst);
   const __replayToken = replayRecorder.beginStep('merge', {
     src: src ? { gridX: src.gridX, gridY: src.gridY, value: src.value, special: src.special } : null,
     dst: dst ? { gridX: dst.gridX, gridY: dst.gridY, value: dst.value, special: dst.special } : null,
@@ -6772,6 +6777,42 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     devLog('🎯 Wild merge: target was', wildTargetValue, 'will merge to 6, spawn will avoid', avoidValue);
   }
 
+  // Finality must be decided from the untouched board at merge entry. Special
+  // finales (especially TNT) outlive source removal and visual teardown, so a
+  // later live-board read can no longer prove that src + dst were the last pair.
+  // Keep this snapshot for both regular stacks and direct merge-6 paths.
+  const isWildMagnetMergeAtEntry = srcIsMagnetLike || dstIsMagnetLike;
+  (dst as any)._isWildMagnetMerge = isWildMagnetMergeAtEntry;
+  const lastMergeResult = handleLastMergeEarly({
+    tiles,
+    src,
+    dst,
+    effSum,
+    boardNumber,
+    wildMeter,
+    setWildMeter: (v) => { wildMeter = v; },
+    setStateWildMeter: (v) => { STATE.wildMeter = v; },
+    HUD,
+    setPendingCleanBoard,
+    devLog,
+    devWarn,
+    isWildMagnetMerge: isWildMagnetMergeAtEntry,
+    mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
+  });
+  (dst as any)._ccActiveTilesAtMergeEntry = lastMergeResult.activeTilesBeforeWildProgress.slice();
+  (dst as any)._ccFinalMergeSnapshotAtMergeEntry = {
+    ...lastMergeResult.finalMergeSnapshot,
+  };
+  emitIOSArcadeGameplayTrace('last-merge-early', {
+    boardNumber,
+    effSum,
+    isActuallyLastMerge: lastMergeResult.isActuallyLastMerge,
+    activeTileCount: lastMergeResult.visibleTilesCountBeforeWildProgress,
+    activeStackCount: lastMergeResult.activeTilesCountBeforeWildProgress,
+    willPullTiles: lastMergeResult.willPullTiles,
+    snapshot: lastMergeResult.finalMergeSnapshot,
+  });
+
   grid[src.gridY][src.gridX] = null;
   dst.eventMode = 'none';
 
@@ -6870,7 +6911,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
     // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
     // NOTE: hasTilesToPull will be calculated later in merge-6 block, but we need a preliminary check here
-    const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src) || isSpecialDiceMagnetLikeTile(dst);
+    const isWildMagnetMerge = isWildMagnetMergeAtEntry;
     // 🔥 CRITICAL: Store isWildMagnetMerge for later use in last merge check
     (dst as any)._isWildMagnetMerge = isWildMagnetMerge;
     
@@ -6891,44 +6932,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
     // This prevents wild meter from filling and triggering wild spawn on last merge
     // We need to check early (before merge 6 block) to prevent race condition
-    const lastMergeResult = handleLastMergeEarly({
-      tiles,
-      src,
-      dst,
-      effSum,
-      boardNumber,
-      wildMeter,
-      setWildMeter: (v) => { wildMeter = v; },
-      setStateWildMeter: (v) => { STATE.wildMeter = v; },
-      HUD,
-      setPendingCleanBoard,
-      devLog,
-      devWarn,
-      isWildMagnetMerge,
-      mode: isArcadeHomeRunMode() ? 'arcade' : 'journey',
-    });
     const {
       visibleTilesCountBeforeWildProgress,
       activeTilesCountBeforeWildProgress,
       activeTilesBeforeWildProgress,
       wasLastThreeOrMoreStackForCheck,
     } = lastMergeResult;
-    // The merge-6 finale runs from a later callback scope. Preserve the immutable
-    // entry snapshot on its target so special-dice visual teardown cannot change
-    // final-pair classification before spawn resolution.
-    (dst as any)._ccActiveTilesAtMergeEntry = activeTilesBeforeWildProgress.slice();
-    (dst as any)._ccFinalMergeSnapshotAtMergeEntry = {
-      ...lastMergeResult.finalMergeSnapshot,
-    };
-    emitIOSArcadeGameplayTrace('last-merge-early', {
-      boardNumber,
-      effSum,
-      isActuallyLastMerge: lastMergeResult.isActuallyLastMerge,
-      activeTileCount: visibleTilesCountBeforeWildProgress,
-      activeStackCount: activeTilesCountBeforeWildProgress,
-      willPullTiles: lastMergeResult.willPullTiles,
-      snapshot: lastMergeResult.finalMergeSnapshot,
-    });
     let stackMergeFilledWildMeter = false;
     
     if (!lastMergeResult.isActuallyLastMerge) {
@@ -7542,7 +7551,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecialMerge6) || isSpecialDiceMagnetLikeTile(dst, dstSpecialMerge6);
     const magnetVariantAtMergeEntry = isWildMagnetMerge
-      ? getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)
+      ? srcSpecialVariantAtMergeEntry || dstSpecialVariantAtMergeEntry
       : null;
     const magnetShardColorsAtMergeEntry = Object.freeze([
       ...(getSpecialDiceShardColors(magnetVariantAtMergeEntry) || []),
@@ -9721,6 +9730,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                devLog('🔥 TNT bonus break trigger:', reason);
 	                returnTntBlastTiles(() => {
 	                  trackAppTimeout(() => {
+	                    const finalMergeOwnsTntResolution =
+	                      capturedWasFinalMerge ||
+	                      isFinalMergeByResolver ||
+	                      (dst as any)?._isLastMerge === true ||
+	                      (src as any)?._isLastMerge === true;
+	                    if (finalMergeOwnsTntResolution) {
+	                      devLog('🔥 TNT bonus break skipped: immutable final-merge snapshot owns resolution');
+	                      tntBonusGameplayComplete = true;
+	                      releaseTntGateWhenSettled('final-merge-no-bonus');
+	                      return;
+	                    }
 	                    runTntBoomBonusBreak2Tiles({
 	                      board,
 	                      dst,

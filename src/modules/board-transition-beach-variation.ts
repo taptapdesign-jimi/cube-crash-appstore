@@ -10,7 +10,9 @@ export type BeachCurtainLayerKey = typeof BEACH_CURTAIN_LAYER_KEYS[number];
 
 export type BeachPalmPlacement = Readonly<{
   leftPercent: number;
+  horizontalOffsetPx: number;
   bottomPx: number;
+  verticalOffsetPx: number;
   upwardLiftVh: number;
   exitDirection: -1 | 0 | 1;
   restRotationDeg: number | null;
@@ -37,6 +39,17 @@ const BEACH_PALM_LANES: readonly PalmLane[] = Object.freeze([
   Object.freeze({ leftPercent: 98, exitDirection: 1, bottomLiftPx: 0, restRotationDeg: null }),
 ]);
 
+const BEACH_PALM_ART_OFFSETS: Readonly<Record<BeachCurtainLayerKey, Readonly<{
+  horizontalPx: number;
+  verticalPx: number;
+}>>> = Object.freeze({
+  'beach-palm-1': Object.freeze({ horizontalPx: 0, verticalPx: 0 }),
+  'beach-palm-2': Object.freeze({ horizontalPx: 0, verticalPx: -16 }),
+  'beach-palm-3': Object.freeze({ horizontalPx: 16, verticalPx: 20 }),
+  'beach-palm-4': Object.freeze({ horizontalPx: 0, verticalPx: 10 }),
+  'beach-palm-center': Object.freeze({ horizontalPx: 16, verticalPx: 0 }),
+});
+
 function createUnitSampler(random: () => number): () => number {
   return () => {
     const sampled = Number(random());
@@ -62,12 +75,15 @@ export function createBeachTransitionVariation(
 
   const palmEntries = BEACH_CURTAIN_LAYER_KEYS.map((key, index) => {
     const lane = shuffledLanes[index];
+    const artOffset = BEACH_PALM_ART_OFFSETS[key];
     const leftPercent = Number((lane.leftPercent + randomBetween(sampleUnit, -5, 5)).toFixed(2));
     const bottomPx = -Math.round(randomBetween(sampleUnit, 95, 150)) + lane.bottomLiftPx;
     const upwardLiftVh = Number(randomBetween(sampleUnit, 8, 18).toFixed(2));
     return [key, Object.freeze({
       leftPercent,
+      horizontalOffsetPx: artOffset.horizontalPx,
       bottomPx,
+      verticalOffsetPx: artOffset.verticalPx,
       upwardLiftVh,
       exitDirection: lane.exitDirection,
       restRotationDeg: lane.restRotationDeg,

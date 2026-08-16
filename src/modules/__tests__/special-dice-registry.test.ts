@@ -296,9 +296,9 @@ test('Bottle is a Beach-only Magnet special with its authored FX palette', () =>
     expect(getSpecialDiceTrailColors(bottle)).toEqual([0xFDCA89, 0xD8E9CA, 0xC8ECD0, 0xAEE9E6]);
     expect(getSpecialDiceShardColors(bottle)).toEqual([0xB1DCC9, 0xFFCE77]);
     expect(getSpecialDiceIdleBubbleColors(bottle)).toEqual([0xCCF3F1, 0xFFFFFF]);
-    expect(bottle?.burstParticleSources).toHaveLength(17);
+    expect(bottle?.burstParticleSources).toHaveLength(13);
     expect(bottle?.burstMotion).toMatchObject({
-      count: 17,
+      count: 13,
       cuberoFlight: true,
       bottleScatter: true,
       speedScale: 1.15,

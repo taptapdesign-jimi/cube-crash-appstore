@@ -421,6 +421,8 @@ export const BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS = 0.065;
 export const BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS = 0.46;
 export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4;
 const BEACH_CURTAIN_PALM_STILL_SECONDS = 0.1;
+const BEACH_CURTAIN_PALM_EXIT_SECONDS = 0.62;
+const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1;
 const BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS = (
   BEACH_CURTAIN_PALM_DWELL_SECONDS - BEACH_CURTAIN_PALM_STILL_SECONDS
 ) / 2;
@@ -1164,9 +1166,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           ].join(';');
           const palmPlacement = beachVariation?.palms[layer.key as keyof BeachTransitionVariation['palms']];
           if (palmPlacement) {
-            sceneImg.style.left = `${palmPlacement.leftPercent}%`;
+            sceneImg.style.left = palmPlacement.horizontalOffsetPx === 0
+              ? `${palmPlacement.leftPercent}%`
+              : `calc(${palmPlacement.leftPercent}% + ${palmPlacement.horizontalOffsetPx}px)`;
             sceneImg.style.top = 'auto';
-            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx}px + ${palmPlacement.upwardLiftVh}vh)`;
+            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx + palmPlacement.verticalOffsetPx}px + ${palmPlacement.upwardLiftVh}vh)`;
           }
           if (beachVariation && (layer.key === 'beach-bottle' || layer.key === 'beach-ball')) {
             const isBottle = layer.key === 'beach-bottle';
@@ -1347,7 +1351,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const hillBaseX = getTransitionHillBaseX(layerKey);
         const hillStartYOffset = Math.round(Math.min(window.innerHeight || 760, 760) * 0.4);
         gsap.set(sceneImg, {
-          opacity: isBeachFrontShore ? 1 : 0,
+          opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0,
           xPercent: -50,
           yPercent: 0,
           x: isHill ? hillBaseX - hillParallaxX * 0.18 : 0,
@@ -1372,7 +1376,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           );
           const curtainExitDownDistance = Math.max(180, window.innerHeight * 0.3);
           sceneEnterTimeline.to(sceneImg, {
-            opacity: 1,
             y: 0,
             duration: 0.42,
             ease: 'power3.out',
@@ -1391,13 +1394,16 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             duration: BEACH_CURTAIN_PALM_FLOAT_LEG_SECONDS,
             ease: 'sine.inOut',
           });
+          sceneEnterTimeline.to({}, {
+            duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS,
+          });
           sceneEnterTimeline.to(sceneImg, {
             x: exitDirection * curtainExitDistance,
             y: curtainExitDownDistance,
             rotation: beachPalmRestRotation,
             scale: 0,
             opacity: 1,
-            duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS * 1.5,
+            duration: BEACH_CURTAIN_PALM_EXIT_SECONDS,
             ease: 'back.in(1.35)',
             onComplete: () => {
               sceneImg.style.visibility = 'hidden';

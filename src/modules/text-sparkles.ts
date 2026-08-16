@@ -286,12 +286,12 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
       ? 18 + Math.random() * Math.min(52, viewportW * 0.14)
       : 28 + Math.random() * Math.min(105, viewportW * 0.22);
     const birthX = bottleScatter
-      ? originX + dirX * laneOffset
+      ? originX
       : gravityFall
       ? viewportW * (0.07 + Math.random() * 0.86)
       : originX + dirX * laneOffset + (Math.random() - 0.5) * 36;
     const birthY = bottleScatter
-      ? originY + dirY * laneOffset
+      ? originY
       : gravityFall
       ? originY + (Math.random() - 0.5) * Math.min(150, viewportH * 0.18)
       : originY + dirY * laneOffset + (Math.random() - 0.5) * 36;
@@ -314,7 +314,7 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     const rotateStart = (Math.random() * 360) - 180;
     const rotateOut = rotateStart + (Math.random() - 0.5) * 28;
     const delay = bottleScatter
-      ? 0
+      ? isBottleGlass ? i * 0.025 : 0
       : gravityFall
       ? 0
       : Math.min(
@@ -376,8 +376,8 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
       yPercent: -50,
       x: 0,
       y: 0,
-      scale: (gravityFall || bottleScatter) ? 1 : 0,
-      opacity: (gravityFall || bottleScatter) ? 1 : 0,
+      scale: isBottleGlass ? 1.4 : isBottlePaper ? 0.35 : (gravityFall || bottleScatter) ? 1 : 0,
+      opacity: isBottlePaper ? 0 : (gravityFall || bottleScatter) ? 1 : 0,
       rotation: rotateStart,
       visibility: 'visible',
       force3D: true
@@ -411,12 +411,12 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
         const glassLandingDirections = [-1, -0.55, 0, 0.55, 1];
         const launchDirection = glassLaunchDirections[Math.floor(Math.random() * glassLaunchDirections.length)];
         const landingDirection = glassLandingDirections[Math.floor(Math.random() * glassLandingDirections.length)];
-        const horizontalExit = landingDirection * (viewportW * (0.22 + Math.random() * 0.2) + size * 2 + 100)
-          + (Math.random() - 0.5) * viewportW * 0.14;
+        const horizontalExit = landingDirection * (viewportW * (0.14 + Math.random() * 0.12) + size + 50)
+          + (Math.random() - 0.5) * viewportW * 0.08;
         const fallExit = viewportH - birthY + size * 2 + 250;
-        const launchX = launchDirection.x * (55 + Math.random() * 65);
-        const launchY = -(70 + Math.random() * 70);
-        const glassLaunchDuration = (0.16 + Math.random() * 0.22) * speedScale;
+        const launchX = launchDirection.x * (24 + Math.random() * 34);
+        const launchY = -(38 + Math.random() * 38);
+        const glassLaunchDuration = (0.1 + Math.random() * 0.1) * speedScale;
         const glassFallDuration = (0.72 + Math.random() * 0.68) * speedScale;
         maxAnimationTime = Math.max(maxAnimationTime, delay + glassLaunchDuration + glassFallDuration);
         tl.to(wrap, {
@@ -426,18 +426,18 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
               y: launchY,
               opacity: 1,
               rotation: rotateStart + rotationTravel * 0.25,
-              scale: 1.12,
+              scale: 1.4,
               duration: glassLaunchDuration,
-              ease: 'power2.out',
+              ease: 'power1.out',
             },
             {
               x: horizontalExit + launchX * 0.35,
               y: fallExit,
               opacity: 1,
               rotation: rotateStart + rotationTravel,
-              scale: 2,
+              scale: 2.24,
               duration: glassFallDuration,
-              ease: 'power2.in',
+              ease: 'power1.in',
             },
           ],
           onComplete: () => {
@@ -445,22 +445,18 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
           },
         });
       } else {
-        const centrifugalDirection = Math.random() < 0.5 ? -1 : 1;
-        const paperExitAngle = Math.random() * Math.PI * 2;
-        const paperExitRadius = Math.min(viewportW, viewportH) * (0.34 + Math.random() * 0.2);
-        const paperLaunchAngle = paperExitAngle - centrifugalDirection * (0.72 + Math.random() * 0.42);
-        const paperLaunchRadius = 30 + Math.random() * 55;
+        const windDirection = Math.random() < 0.5 ? -1 : 1;
+        const paperLaunchAngle = Math.random() * Math.PI * 2;
+        const paperLaunchRadius = 65 + Math.random() * 85;
         const paperLaunchX = Math.cos(paperLaunchAngle) * paperLaunchRadius;
         const paperLaunchY = Math.sin(paperLaunchAngle) * paperLaunchRadius;
-        const targetX = Math.cos(paperExitAngle) * paperExitRadius;
-        const targetY = Math.sin(paperExitAngle) * paperExitRadius;
-        const paperWindA = centrifugalDirection * (45 + Math.random() * 55);
-        const paperWindB = -centrifugalDirection * (55 + Math.random() * 65);
-        const paperWindC = centrifugalDirection * (40 + Math.random() * 50);
-        const tangentX = -Math.sin(paperExitAngle);
-        const tangentY = Math.cos(paperExitAngle);
-        const paperLaunchTime = (0.1 + Math.random() * 0.18) * speedScale;
-        const paperTravelTime = (1.05 + Math.random() * 0.85) * speedScale;
+        const targetX = (Math.random() - 0.5) * viewportW * 0.82;
+        const targetY = viewportH - birthY + size * (1.4 + Math.random() * 0.8);
+        const paperWindA = windDirection * (34 + Math.random() * 66);
+        const paperWindB = -windDirection * (48 + Math.random() * 82);
+        const paperWindC = windDirection * (28 + Math.random() * 72);
+        const paperLaunchTime = (0.08 + Math.random() * 0.16) * speedScale;
+        const paperTravelTime = (1.35 + Math.random() * 1.15) * speedScale;
         bottlePaperVisualLifetime = paperLaunchTime + paperTravelTime;
         maxAnimationTime = Math.max(maxAnimationTime, delay + paperLaunchTime + paperTravelTime);
         tl.to(wrap, {
@@ -468,19 +464,19 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
           y: paperLaunchY,
           opacity: 1,
           rotation: rotateStart + rotationTravel * 0.16,
-          scale: 1,
+          scale: 1.4,
           duration: paperLaunchTime,
-          ease: 'power2.out',
+          ease: 'back.out(2.1)',
         });
         tl.to(wrap, {
           keyframes: [
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.22 + tangentX * paperWindA, y: paperLaunchY + (targetY - paperLaunchY) * 0.18 + tangentY * paperWindA, opacity: 1, rotation: rotateStart + rotationTravel * 0.26, scale: 1 },
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.48 + tangentX * paperWindB, y: paperLaunchY + (targetY - paperLaunchY) * 0.43 + tangentY * paperWindB, opacity: 1, rotation: rotateStart + rotationTravel * 0.50, scale: 1 },
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.74 + tangentX * paperWindC, y: paperLaunchY + (targetY - paperLaunchY) * 0.72 + tangentY * paperWindC, opacity: 1, rotation: rotateStart + rotationTravel * 0.76, scale: 1 },
-            { x: targetX, y: targetY, opacity: 1, rotation: rotateStart + rotationTravel, scale: 1 },
+            { x: paperLaunchX + (targetX - paperLaunchX) * 0.16 + paperWindA, y: paperLaunchY + (targetY - paperLaunchY) * 0.10, opacity: 1, rotation: rotateStart + rotationTravel * 0.26, scale: 1.4 },
+            { x: paperLaunchX + (targetX - paperLaunchX) * 0.42 + paperWindB, y: paperLaunchY + (targetY - paperLaunchY) * 0.31, opacity: 1, rotation: rotateStart + rotationTravel * 0.50, scale: 1.4 },
+            { x: paperLaunchX + (targetX - paperLaunchX) * 0.72 + paperWindC, y: paperLaunchY + (targetY - paperLaunchY) * 0.62, opacity: 1, rotation: rotateStart + rotationTravel * 0.76, scale: 1.4 },
+            { x: targetX, y: targetY, opacity: 1, rotation: rotateStart + rotationTravel, scale: 1.4 },
           ],
           duration: paperTravelTime,
-          ease: 'sine.inOut',
+          ease: 'sine.in',
           onComplete: () => {
             try { gsap.set(wrap, { visibility: 'hidden' }); } catch {}
           },
@@ -567,7 +563,7 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     // Keep the merge field dispersed: three independently staggered waves,
     // with extra small organic bubbles instead of one circular cluster.
     const bottleBubbleWaveSizes = [8, 11, 9];
-    const bottleBubbleWaveStarts = [0.1, 0.48, 0.96];
+    const bottleBubbleWaveStarts = [0, 0.38, 0.86];
     let bubbleOrdinal = 0;
     let bottleBubbleMaxEnd = 0;
     for (let waveIndex = 0; waveIndex < bottleBubbleWaveSizes.length; waveIndex += 1) {
@@ -588,8 +584,12 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
         const startY = viewportH + bubbleHeight * (1.2 + Math.random() * 1.8);
         const crossDirection = Math.random() < 0.5 ? -1 : 1;
         const crossDistance = 20 + Math.random() * 34;
-        const totalRise = startY + bubbleHeight * 2.2;
-        const bubbleDuration = (2.05 + Math.random() * 0.85) * speedScale;
+        const popRiseRatio = Math.random() < 0.5
+          ? 0.2 + Math.random() * 0.3
+          : 0.5 + Math.random() * 0.4;
+        const popY = Math.max(viewportH * 0.08, startY - viewportH * popRiseRatio);
+        const totalRise = startY - popY;
+        const bubbleDuration = ((1.8 + Math.random() * 0.9) * speedScale) / 1.6;
         const bubbleDelay = bottleBubbleWaveStarts[waveIndex]
           + indexInWave * (0.04 + Math.random() * 0.03)
           + (indexInWave === 0 ? 0 : Math.random() * 0.035);
@@ -617,10 +617,10 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
         const bubbleTl = trackTimeline({ delay: bubbleDelay });
         bubbleTl.to(bubble, {
           keyframes: [
-            { x: crossDirection * crossDistance, y: -totalRise * 0.25, scale: endScale, borderRadius: organicRadiusB, backgroundColor: 'rgba(217,247,245,0.58)' },
-            { x: -crossDirection * crossDistance, y: -totalRise * 0.50, borderRadius: organicRadiusA, backgroundColor: 'rgba(234,251,250,0.52)' },
-            { x: crossDirection * crossDistance * 0.75, y: -totalRise * 0.75, opacity: 0.68, borderRadius: organicRadiusB, backgroundColor: 'rgba(246,254,253,0.45)' },
-            { x: (Math.random() - 0.5) * 20, y: -totalRise, opacity: 0.62, borderRadius: organicRadiusA, backgroundColor: 'rgba(255,255,255,0.36)' },
+            { x: crossDirection * crossDistance, y: -totalRise * 0.25, scale: endScale, borderRadius: organicRadiusB, backgroundColor: 'rgba(217,247,245,0.6)' },
+            { x: -crossDirection * crossDistance, y: -totalRise * 0.50, borderRadius: organicRadiusA, backgroundColor: 'rgba(234,251,250,0.6)' },
+            { x: crossDirection * crossDistance * 0.75, y: -totalRise * 0.75, borderRadius: organicRadiusB, backgroundColor: 'rgba(246,254,253,0.6)' },
+            { x: (Math.random() - 0.5) * 20, y: -totalRise, borderRadius: organicRadiusA, backgroundColor: 'rgba(255,255,255,0.6)' },
           ],
           duration: bubbleDuration,
           ease: 'sine.inOut',
@@ -630,16 +630,14 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
           try { (window as any).triggerHapticImpact?.('light'); } catch {}
         });
         bubbleTl.to(bubble, {
-          scale: endScale * 1.18,
-          opacity: 0.48,
-          duration: 0.065,
+          scale: endScale * 1.2,
+          duration: 0.055,
           ease: 'power2.out',
         });
         bubbleTl.to(bubble, {
           scale: 0,
-          opacity: 0,
-          duration: 0.095,
-          ease: 'back.in(2.4)',
+          duration: 0.075,
+          ease: 'back.in(3)',
           onComplete: () => {
             try { gsap.set(bubble, { visibility: 'hidden' }); } catch {}
           },

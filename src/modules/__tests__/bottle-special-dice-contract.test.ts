@@ -16,7 +16,7 @@ describe('Bottle special-die visual contract', () => {
     expect(bottleDefinition).toContain("splashText: 'S.O.S.'");
     expect(bottleDefinition).toContain('cuberoFlight: true');
     for (const marker of [
-      'count: 17',
+      'count: 13',
       'bottleScatter: true',
       'baseSizeScale: 1',
       "mixBlendMode: 'normal'",
@@ -28,14 +28,14 @@ describe('Bottle special-die visual contract', () => {
     expect(splashSource).toContain(': attachBoltSprites(overlay, {');
     expect(sparkleSource).toContain('const bottleScatter = motion.bottleScatter === true');
     expect(sparkleSource).toContain('const isBottleGlass = bottleScatter');
-    expect(sparkleSource).toContain('scale: (gravityFall || bottleScatter) ? 1 : 0');
-    expect(sparkleSource).toContain('opacity: (gravityFall || bottleScatter) ? 1 : 0');
+    expect(sparkleSource).toContain('scale: isBottleGlass ? 1.4 : isBottlePaper ? 0.35');
+    expect(sparkleSource).toContain('opacity: isBottlePaper ? 0');
     expect(sparkleSource).toContain("{ x: -0.9, y: -1 }");
     expect(sparkleSource).toContain("{ x: 0, y: -1 }");
     expect(sparkleSource).toContain("{ x: 0.9, y: -1 }");
     expect(sparkleSource).toContain('const glassLandingDirections = [-1, -0.55, 0, 0.55, 1]');
-    expect(sparkleSource).toContain('scale: 2');
-    expect(sparkleSource).toContain("ease: 'power2.in'");
+    expect(sparkleSource).toContain('scale: 2.24');
+    expect(sparkleSource).toContain("ease: 'power1.in'");
     expect(sparkleSource).toContain("ease: 'sine.inOut'");
     expect(sparkleSource).toContain("gsap.set(wrap, { visibility: 'hidden' })");
     const bottleBranch = sparkleSource.slice(
@@ -45,7 +45,7 @@ describe('Bottle special-die visual contract', () => {
     expect(bottleBranch).not.toContain('opacity: 0');
   });
 
-  test('duplicates every glass source while keeping one paper set', () => {
+  test('duplicates every glass source while keeping exactly three paper sprites', () => {
     const registrySource = read('src/modules/special-dice-registry.ts');
     const sourceDefinitions = registrySource.slice(
       registrySource.indexOf('const bottleGlassAndPaperSources1x'),
@@ -55,6 +55,7 @@ describe('Bottle special-die visual contract', () => {
     expect(sourceDefinitions.match(/assets\/shop\/bottle\/glass\$\{index \+ 1\}@2x/g)).toHaveLength(2);
     expect(sourceDefinitions.match(/assets\/shop\/bottle\/paper\$\{index \+ 1\}\.png/g)).toHaveLength(1);
     expect(sourceDefinitions.match(/assets\/shop\/bottle\/paper\$\{index \+ 1\}@2x/g)).toHaveLength(1);
+    expect(sourceDefinitions.match(/\{ length: 3 \}/g)).toHaveLength(2);
   });
 
   test('keeps sparse pooled Honey-style idle bubbles separate from the larger organic merge field', () => {
@@ -75,17 +76,21 @@ describe('Bottle special-die visual contract', () => {
     expect(fxSource).toContain('startWildJuiceBubbles(tile);');
     expect(fxSource).not.toContain('gsap.ticker.add(bottleTicker)');
     expect(sparkleSource).toContain('const bottleBubbleWaveSizes = [8, 11, 9]');
-    expect(sparkleSource).toContain('const bottleBubbleWaveStarts = [0.1, 0.48, 0.96]');
+    expect(sparkleSource).toContain('const bottleBubbleWaveStarts = [0, 0.38, 0.86]');
     expect(sparkleSource).toContain("domElementPool.acquire('div')");
     expect(sparkleSource).toContain('const bubbleSize = idleEquivalentSize * (2 + Math.random() * 0.5)');
     expect(sparkleSource).toContain('const bubbleAspect = 0.68 + Math.random() * 0.64');
     expect(sparkleSource).toContain('borderRadius: organicRadiusB');
     expect(sparkleSource).toContain("background: rgba(204,243,241,0.6)");
-    expect(sparkleSource).toContain("backgroundColor: 'rgba(255,255,255,0.36)'");
-    expect(sparkleSource).toContain('const bubbleDuration = (2.05 + Math.random() * 0.85)');
+    expect(sparkleSource).toContain("backgroundColor: 'rgba(255,255,255,0.6)'");
+    expect(sparkleSource).toContain('const popRiseRatio = Math.random() < 0.5');
+    expect(sparkleSource).toContain('? 0.2 + Math.random() * 0.3');
+    expect(sparkleSource).toContain(': 0.5 + Math.random() * 0.4');
+    expect(sparkleSource).toContain('startY - viewportH * popRiseRatio');
+    expect(sparkleSource).toContain('const bubbleDuration = ((1.8 + Math.random() * 0.9) * speedScale) / 1.6');
     expect(sparkleSource).toContain('const bubbleDelay = bottleBubbleWaveStarts[waveIndex]');
     expect(sparkleSource).toContain("triggerHapticImpact?.('light')");
-    expect(sparkleSource).toContain("ease: 'back.in(2.4)'");
+    expect(sparkleSource).toContain("ease: 'back.in(3)'");
     expect(sparkleSource).toContain('(cleanupOwner as any).completionDelaySeconds = autoCleanupDelay');
     expect(read('src/modules/splash-text-overlay.ts')).toContain('const particleRemainingSeconds = Math.max(0, particleCompletionDelaySeconds - particleElapsedSeconds)');
     expect(read('src/modules/splash-text-overlay.ts')).toContain('const cleanupDelay = Math.max(exitTotal + beeFlightTail, particleRemainingSeconds + 0.05)');
@@ -108,12 +113,13 @@ describe('Bottle special-die visual contract', () => {
     const sparkleSource = read('src/modules/text-sparkles.ts');
     expect(sparkleSource).toContain('const isBottlePaper = bottleScatter');
     expect(sparkleSource).toContain('(50 + Math.random() * 120) * 1.6');
-    expect(sparkleSource).toContain('const paperLaunchTime = (0.1 + Math.random() * 0.18)');
-    expect(sparkleSource).toContain('const paperTravelTime = (1.05 + Math.random() * 0.85)');
-    expect(sparkleSource).toContain('const paperExitAngle = Math.random() * Math.PI * 2');
-    expect(sparkleSource).toContain('const paperExitRadius = Math.min(viewportW, viewportH) * (0.34 + Math.random() * 0.2)');
-    expect(sparkleSource).toContain('const paperWindB = -centrifugalDirection');
-    expect(sparkleSource).toContain("ease: 'sine.inOut'");
+    expect(sparkleSource).toContain('const paperLaunchAngle = Math.random() * Math.PI * 2');
+    expect(sparkleSource).toContain('const paperLaunchRadius = 65 + Math.random() * 85');
+    expect(sparkleSource).toContain('const paperLaunchTime = (0.08 + Math.random() * 0.16)');
+    expect(sparkleSource).toContain('const paperTravelTime = (1.35 + Math.random() * 1.15)');
+    expect(sparkleSource).toContain('const targetY = viewportH - birthY');
+    expect(sparkleSource).toContain('const paperWindB = -windDirection');
+    expect(sparkleSource).toContain("ease: 'sine.in'");
     expect(sparkleSource).toContain('if (flagWave || isBottlePaper)');
     expect(sparkleSource).toContain('const bottlePaperRotationBoost = isBottlePaper ? 1.6 : 1');
   });
@@ -124,19 +130,26 @@ describe('Bottle special-die visual contract', () => {
       sparkleSource.indexOf('      if (isBottleGlass) {'),
       sparkleSource.indexOf('      } else {', sparkleSource.indexOf('      if (isBottleGlass) {')),
     );
-    expect(glassBranch).toContain('const glassLaunchDuration = (0.16 + Math.random() * 0.22)');
+    expect(glassBranch).toContain('const glassLaunchDuration = (0.1 + Math.random() * 0.1)');
     expect(glassBranch).toContain('const glassFallDuration = (0.72 + Math.random() * 0.68)');
-    expect(glassBranch).toContain("+ size * 2 + 100");
-    expect(glassBranch).toContain('const launchX = launchDirection.x * (55 + Math.random() * 65)');
+    expect(glassBranch).toContain('+ size + 50');
+    expect(glassBranch).toContain('const launchX = launchDirection.x * (24 + Math.random() * 34)');
     expect(glassBranch).toContain('keyframes: [');
+    expect(glassBranch).toContain('scale: 1.4');
+    expect(glassBranch).toContain('scale: 2.24');
     expect(glassBranch.match(/tl\.to\(wrap/g)).toHaveLength(1);
+    expect(sparkleSource).toContain('const birthX = bottleScatter');
+    expect(sparkleSource).toContain('? originX');
+    expect(sparkleSource).toContain('const birthY = bottleScatter');
+    expect(sparkleSource).toContain('? originY');
+    expect(sparkleSource).toContain('? isBottleGlass ? i * 0.025 : 0');
   });
 
   test('starts Bottle glass and paper immediately without a visible hold', () => {
     const sparkleSource = read('src/modules/text-sparkles.ts');
     expect(sparkleSource).toContain('const delay = bottleScatter');
     expect(sparkleSource).toContain('? 0');
-    expect(sparkleSource).toContain('const bottleBubbleWaveStarts = [0.1, 0.48, 0.96]');
+    expect(sparkleSource).toContain('const bottleBubbleWaveStarts = [0, 0.38, 0.86]');
   });
 
   test('retires every Bottle idle-bubble tween before pooled Pixi teardown on drag', () => {
@@ -153,18 +166,27 @@ describe('Bottle special-die visual contract', () => {
     expect(dragSource).toContain('if (!usesJuiceIdleFx && isSpecialDiceMagnetLikeTile(t))');
   });
 
-  test('consumes the Magnet owner after replacements instead of revealing an addon cube', () => {
+  test('keeps v915 Magnet density while canonically normalizing the reused survivor', () => {
     const mergeSource = read('src/modules/app-merge.ts');
-    expect(mergeSource).toContain("console.log('🧲 Respawn complete — removing consumed magnet merge-6 owner')");
+    const resolutionSource = read('src/modules/magnet-post-spawn-resolution.ts');
+    expect(mergeSource).toContain('v915 Magnet continuation');
     expect(mergeSource.indexOf('stopSpecialDiceIdleMotion(dst)')).toBeLessThan(
-      mergeSource.indexOf('removeTile(dst)'),
+      mergeSource.indexOf('collapseTileToSingleStackVisual(dst)'),
     );
-    expect(mergeSource).toContain("console.log('🧲 Removed consumed magnet merge-6 owner at', c, r)");
-    expect(mergeSource).not.toContain('Converted magnet merge-6 to fresh cube');
-    expect(mergeSource).not.toContain('boardHelpers.setValue(dst, freshVal');
+    expect(mergeSource).toContain('collapseTileToSingleStackVisual(dst)');
+    expect(mergeSource).toContain("console.log('🧲 Converted magnet merge-6 to fresh cube', freshVal, 'at', c, r)");
+    expect(mergeSource).toContain('boardHelpers.setValue(dst, freshVal, 0)');
+    expect(resolutionSource).toContain('const obligatorySpawnCount = hasTilesToRespawn ? 1 : 0');
     expect(read('src/modules/app-core.ts')).not.toContain('magnetVariantId: magnetVariantAtMergeEntry?.id ?? null');
-    expect(mergeSource).not.toContain('isBottleMagnetVariant');
-    expect(mergeSource).not.toContain('const belowCell = { c: merge6GridX, r: merge6GridY + 1 };');
     expect(mergeSource).toContain('if (obligatorySpawnCount > 0 && dst');
+    expect(mergeSource).toContain('Number.isFinite(dst.rotG.pivot?.y) ? dst.rotG.pivot.y : -TILE / 2');
+    expect(mergeSource).not.toContain('gsap.set(dst.rotG, { x: 0, y: 0 })');
+    expect(mergeSource).toContain('dst.base.anchor?.set?.(0.5, 0.5)');
+    expect(mergeSource).toContain('try { dst.refreshShadow?.(); } catch {}');
+    expect(mergeSource).toContain('spawnBounce(dst, () =>');
+    expect(mergeSource).toContain('startScale: 0.30');
+    expect(mergeSource.indexOf('spawnBounce(dst, () =>')).toBeLessThan(
+      mergeSource.indexOf('drag?.bindToTile?.(dst)'),
+    );
   });
 });

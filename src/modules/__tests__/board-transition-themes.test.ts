@@ -141,6 +141,15 @@ describe('Board Transition World themes', () => {
     expect(rightVariation.palms).not.toEqual(leftVariation.palms);
   });
 
+  test('applies the approved per-art Beach palm offsets without changing palm 1', () => {
+    const variation = createBeachTransitionVariation(() => 0.5);
+    expect(variation.palms['beach-palm-1']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: 0 });
+    expect(variation.palms['beach-palm-2']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: -16 });
+    expect(variation.palms['beach-palm-3']).toMatchObject({ horizontalOffsetPx: 16, verticalOffsetPx: 20 });
+    expect(variation.palms['beach-palm-4']).toMatchObject({ horizontalOffsetPx: 0, verticalOffsetPx: 10 });
+    expect(variation.palms['beach-palm-center']).toMatchObject({ horizontalOffsetPx: 16, verticalOffsetPx: 0 });
+  });
+
   test('starts float sides randomly, then alternates them exactly 50/50 across Beach entries', () => {
     const startsSwapped = createBeachTransitionVariationSequence(() => 0.1);
     expect([
@@ -179,7 +188,11 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : 0');
     expect(source).toContain('duration: 0.42');
     expect(source).toContain("ease: 'power3.out'");
-    expect(source).toContain('duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS * 1.5');
+    expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_SECONDS = 0.62');
+    expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1');
+    expect(source).toContain('duration: BEACH_CURTAIN_PALM_EXIT_SECONDS');
+    expect(source).toContain('duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0');
     expect(source).toContain("ease: 'back.in(1.35)'");
     expect(source).toContain('scale: 0');
     expect(source).toContain('export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4');
@@ -190,9 +203,10 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const beachVariation: BeachTransitionVariation | null');
     expect(source).toContain('const createNextBeachTransitionVariation = createBeachTransitionVariationSequence()');
     expect(source).toContain('? createNextBeachTransitionVariation()');
-    expect(source).toContain('sceneImg.style.left = `${palmPlacement.leftPercent}%`');
+    expect(source).toContain('palmPlacement.horizontalOffsetPx === 0');
+    expect(source).toContain('`calc(${palmPlacement.leftPercent}% + ${palmPlacement.horizontalOffsetPx}px)`');
     expect(source).toContain("sceneImg.style.top = 'auto'");
-    expect(source).toContain('sceneImg.style.bottom = `calc(${palmPlacement.bottomPx}px + ${palmPlacement.upwardLiftVh}vh)`');
+    expect(source).toContain('palmPlacement.bottomPx + palmPlacement.verticalOffsetPx');
     expect(source).toContain("sceneImg.dataset.floatDirection = startsRight ? 'left' : 'right'");
     expect(source).toContain("sceneImg.style.left = beachVariation.castleStartsLeft");
     expect(source).toContain("? 'calc(32% - 30px)'");
@@ -206,7 +220,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
     expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
     expect(source).toContain("const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2'");
-    expect(source).toContain('opacity: isBeachFrontShore ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0');
     expect(source).toContain('isBeachFrontShore ? 0.7 : 0');
     expect(source).not.toContain('scale: beachPalmRestScale * 1.28');
     expect(source).not.toContain("}, '<-0.10');");

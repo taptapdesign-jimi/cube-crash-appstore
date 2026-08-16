@@ -70,6 +70,20 @@ describe('Honey special-die visual contract', () => {
     expect(fxSource).toContain('const customShardColors = Array.isArray(opts.colors)');
   });
 
+  test('snapshots the Honey palette before source cleanup for both Magnet shard breaks', () => {
+    const appCoreSource = read('src/modules/app-core.ts');
+    const mergeSource = read('src/modules/app-merge.ts');
+    expect(appCoreSource).toContain('const srcSpecialVariantAtMergeEntry = getSpecialDiceVariantForTile(src)');
+    expect(appCoreSource).toContain('const dstSpecialVariantAtMergeEntry = getSpecialDiceVariantForTile(dst)');
+    expect(appCoreSource).toContain('? srcSpecialVariantAtMergeEntry || dstSpecialVariantAtMergeEntry');
+    expect(appCoreSource.indexOf('const srcSpecialVariantAtMergeEntry')).toBeLessThan(
+      appCoreSource.indexOf('removeTile(src)'),
+    );
+    expect(appCoreSource.match(/magnetShardColors: magnetShardColorsAtMergeEntry/g)).toHaveLength(2);
+    expect(mergeSource).toContain('const pullShardColors = Array.isArray(helpers?.magnetShardColors)');
+    expect(mergeSource).toContain('colors: pullShardColors');
+  });
+
   test('ships every Honey and bee resolution used by web and native displays', () => {
     ['honey.png', 'honey@2x.png'].forEach((asset) => {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/honey/${asset}`))).toBe(true);

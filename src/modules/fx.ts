@@ -131,6 +131,7 @@ export function startWildJuiceBubbles(tile) {
   const specialVariantId = getSpecialDiceVariantForTile(tile)?.id;
   const isHoney = specialVariantId === 'honey';
   const isBottle = specialVariantId === 'bottle';
+  const usesJuiceFizzMotion = !isHoney && !isBottle;
   const bubbleMotionScale = isHoney ? 1.3 : 1;
   if (specialVariantId === 'mushroom') {
     stopWildJuiceBubbles(tile);
@@ -288,7 +289,10 @@ export function startWildJuiceBubbles(tile) {
     
     // Rise up smoothly (like sparkling water bubbles)
     const crossDirection = Math.random() < 0.5 ? -1 : 1;
-    const crossDistance = 10 + Math.random() * 8;
+    const crossDistance = isBottle
+      ? 10 + Math.random() * 8
+      : 12 + Math.random() * 10;
+    const juiceEndX = endX - crossDirection * crossDistance * (0.2 + Math.random() * 0.25);
     ownBubbleTween(bubble, trackTween(bubble, {
       keyframes: isBottle
         ? [
@@ -297,10 +301,18 @@ export function startWildJuiceBubbles(tile) {
           { x: startX + crossDirection * crossDistance * 0.75, y: startY - totalRise * 0.75 },
           { x: endX, y: endY },
         ]
-        : undefined,
-      ...(!isBottle ? { x: endX, y: endY } : {}),
+        : usesJuiceFizzMotion
+          ? [
+            { x: startX + crossDirection * crossDistance * 0.7, y: startY - totalRise * 0.16 },
+            { x: startX - crossDirection * crossDistance, y: startY - totalRise * 0.37 },
+            { x: startX + crossDirection * crossDistance * 0.85, y: startY - totalRise * 0.58 },
+            { x: startX - crossDirection * crossDistance * 0.65, y: startY - totalRise * 0.79 },
+            { x: juiceEndX, y: endY },
+          ]
+          : undefined,
+      ...(!isBottle && !usesJuiceFizzMotion ? { x: endX, y: endY } : {}),
       duration: duration,
-      ease: isBottle ? 'sine.inOut' : 'power1.out',
+      ease: isBottle || usesJuiceFizzMotion ? 'sine.inOut' : 'power1.out',
       onComplete: () => {
         // Finish outside the active GSAP render stack. Destroying/repooling a
         // Pixi target from its own keyframe callback can null its transform

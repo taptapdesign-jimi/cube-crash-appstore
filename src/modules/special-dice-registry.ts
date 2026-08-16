@@ -101,7 +101,7 @@ const bottleGlassAndPaperSources1x = [
     (_, index) => `./assets/shop/bottle/glass${index + 1}.png`,
   ),
   ...Array.from(
-    { length: 7 },
+    { length: 3 },
     (_, index) => `./assets/shop/bottle/paper${index + 1}.png`,
   ),
 ];
@@ -115,7 +115,7 @@ const bottleGlassAndPaperSources2x = [
     (_, index) => `./assets/shop/bottle/glass${index + 1}@2x.png`,
   ),
   ...Array.from(
-    { length: 7 },
+    { length: 3 },
     (_, index) => `./assets/shop/bottle/paper${index + 1}@2x.png`,
   ),
 ];
@@ -184,7 +184,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       ? bottleGlassAndPaperSources2x
       : bottleGlassAndPaperSources1x,
     burstMotion: {
-      count: 17,
+      count: 13,
       cuberoFlight: true,
       bottleScatter: true,
       speedScale: 1.15,
