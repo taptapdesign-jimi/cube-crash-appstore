@@ -38,6 +38,9 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
       host.y = base.y;
       host.rotation = base.rotation;
       host.scale?.set?.(base.scaleX, base.scaleY);
+      if (base.anchorX !== undefined && base.anchorY !== undefined && host.anchor?.set) {
+        host.anchor.set(base.anchorX, base.anchorY);
+      }
     }
     if (tile) {
       delete tile._ccMushroomSmokeTimelines;
@@ -56,7 +59,8 @@ export function startSpecialDiceIdleMotion(tile: any): void {
 
     stopSpecialDiceIdleMotion(tile);
 
-    const host = tile.rotG;
+    const isBottleFloat = variant.idleMotion === 'bottle-float';
+    const host = isBottleFloat && tile.base?.anchor?.set ? tile.base : tile.rotG;
     if (!host || host.destroyed) return;
     const base = {
       x: host.x || 0,
@@ -64,6 +68,24 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       rotation: host.rotation || 0,
       scaleX: host.scale?.x ?? 1,
       scaleY: host.scale?.y ?? 1,
+      anchorX: host.anchor?.x,
+      anchorY: host.anchor?.y,
+    };
+    if (isBottleFloat && host.anchor?.set) {
+      const originalAnchorX = Number.isFinite(base.anchorX) ? base.anchorX : 0.5;
+      const originalAnchorY = Number.isFinite(base.anchorY) ? base.anchorY : 0.5;
+      const displayedWidth = Number.isFinite(host.width) ? host.width : 0;
+      const displayedHeight = Number.isFinite(host.height) ? host.height : 0;
+      host.anchor.set(0.5, 1);
+      // Preserve the exact painted position while moving the pivot to the
+      // Bottle artwork's bottom centre.
+      host.x = base.x + displayedWidth * (0.5 - originalAnchorX);
+      host.y = base.y + displayedHeight * (1 - originalAnchorY);
+    }
+    const motionBase = {
+      ...base,
+      x: host.x || 0,
+      y: host.y || 0,
     };
     tile._ccSpecialDiceIdleHost = host;
     tile._ccSpecialDiceIdleBase = base;
@@ -142,6 +164,28 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         y: base.y,
         rotation: base.rotation,
         duration: 0.34,
+        ease: 'sine.inOut',
+      });
+    } else if (variant.idleMotion === 'bottle-float') {
+      // Keep only 20% of the former ±24° sweep. With the pivot at the bottom
+      // centre this reads as a small grounded rock instead of lateral travel.
+      const bottleRockRadians = 4.8 * Math.PI / 180;
+      tl.to(host, {
+        y: motionBase.y - 3,
+        rotation: motionBase.rotation - bottleRockRadians,
+        duration: 1.8,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: motionBase.y + 2,
+        rotation: motionBase.rotation + bottleRockRadians,
+        duration: 3.6,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        y: motionBase.y,
+        rotation: motionBase.rotation,
+        duration: 1.8,
         ease: 'sine.inOut',
       });
     } else if (variant.idleMotion === 'mushroom-pop') {

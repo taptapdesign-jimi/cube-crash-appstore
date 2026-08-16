@@ -130,12 +130,13 @@ export function startWildJuiceBubbles(tile) {
   const idleBubbleColors = getSpecialDiceIdleBubbleColors(tile);
   const specialVariantId = getSpecialDiceVariantForTile(tile)?.id;
   const isHoney = specialVariantId === 'honey';
+  const isBottle = specialVariantId === 'bottle';
   const bubbleMotionScale = isHoney ? 1.3 : 1;
   if (specialVariantId === 'mushroom') {
     stopWildJuiceBubbles(tile);
     return;
   }
-  if (!tile || (tile.special !== 'wild-juice' && !isHoney)) return;
+  if (!tile || (tile.special !== 'wild-juice' && !isHoney && !isBottle)) return;
   
   // Stop existing bubble system if any
   stopWildJuiceBubbles(tile);
@@ -168,7 +169,41 @@ export function startWildJuiceBubbles(tile) {
     container,
     spawnInterval: null,
     disposed: false,
-    bubbles: []
+    bubbles: [],
+    activeTweens: new Set(),
+    bubbleTweens: new Map(),
+  };
+
+  const ownBubbleTween = (bubble, tween) => {
+    if (!tween) return tween;
+    system.activeTweens.add(tween);
+    let owned = system.bubbleTweens.get(bubble);
+    if (!owned) {
+      owned = new Set();
+      system.bubbleTweens.set(bubble, owned);
+    }
+    owned.add(tween);
+    return tween;
+  };
+
+  const retireBubble = (bubble) => {
+    if (!bubble || graphicsPool.isInPool(bubble)) return;
+    const owned = system.bubbleTweens.get(bubble);
+    if (owned) {
+      owned.forEach((tween) => {
+        system.activeTweens.delete(tween);
+        try { tween.kill(); } catch {}
+      });
+      owned.clear();
+      system.bubbleTweens.delete(bubble);
+    }
+    const idx = system.bubbles.indexOf(bubble);
+    if (idx >= 0) system.bubbles.splice(idx, 1);
+    try {
+      if (bubble.parent) bubble.parent.removeChild(bubble);
+      bubble.tint = 0xFFFFFF;
+      graphicsPool.release(bubble);
+    } catch {}
   };
   
   try {
@@ -183,7 +218,7 @@ export function startWildJuiceBubbles(tile) {
   const TILE_SIZE = 128;
   const tileHeight = TILE_SIZE;
   const maxRiseAbove = tileHeight * 0.30; // 30% above tile
-  
+
   // Function to create and animate a single bubble
   const createBubble = () => {
     if (system.disposed || !container.parent) return;
@@ -192,6 +227,7 @@ export function startWildJuiceBubbles(tile) {
     const bubble = graphicsPool.acquire();
     bubble.eventMode = 'none';
     bubble.cursor = 'default';
+    bubble.tint = 0xFFFFFF;
     
     // Random size, max 40px (15-40px for variation)
     const bubbleSize = 15 + Math.random() * 25; // 15-40px
@@ -199,7 +235,9 @@ export function startWildJuiceBubbles(tile) {
     
     // Draw bubble as circle with highlight (sparkling water bubble effect)
     bubble.circle(0, 0, radius);
-    const bubbleColor = idleBubbleColors?.[Math.floor(Math.random() * idleBubbleColors.length)] ?? 0xFFFFFF;
+    const bubbleColor = isBottle
+      ? 0xFFFFFF
+      : idleBubbleColors?.[Math.floor(Math.random() * idleBubbleColors.length)] ?? 0xFFFFFF;
     bubble.fill({ color: bubbleColor, alpha: 0.6 });
     
     // Add highlight (smaller circle at top-left) for 3D sparkling effect
@@ -210,6 +248,7 @@ export function startWildJuiceBubbles(tile) {
     // Add subtle border for definition
     bubble.circle(0, 0, radius);
     bubble.stroke({ color: bubbleColor, alpha: 0.4, width: 1 });
+    if (isBottle) bubble.tint = idleBubbleColors?.[0] ?? 0xCCF3F1;
     
     // Start position: bottom of tile (relative to container, which is centered on tile)
     // Random horizontal position within tile width (±50% of tile width)
@@ -240,40 +279,62 @@ export function startWildJuiceBubbles(tile) {
     const duration = (0.8 + Math.random() * 0.7) * bubbleMotionScale;
     
     // Grow slightly as it rises (like bubbles expanding)
-    trackTween(bubble.scale, {
+    ownBubbleTween(bubble, trackTween(bubble.scale, {
       x: 0.6 + Math.random() * 0.4, // Grow to 60-100% of size
       y: 0.6 + Math.random() * 0.4,
       duration: duration * 0.3, // Grow in first 30% of animation
       ease: 'power2.out'
-    });
+    }));
     
     // Rise up smoothly (like sparkling water bubbles)
-    trackTween(bubble, {
-      x: endX,
-      y: endY,
+    const crossDirection = Math.random() < 0.5 ? -1 : 1;
+    const crossDistance = 10 + Math.random() * 8;
+    ownBubbleTween(bubble, trackTween(bubble, {
+      keyframes: isBottle
+        ? [
+          { x: startX + crossDirection * crossDistance, y: startY - totalRise * 0.25 },
+          { x: startX - crossDirection * crossDistance, y: startY - totalRise * 0.50 },
+          { x: startX + crossDirection * crossDistance * 0.75, y: startY - totalRise * 0.75 },
+          { x: endX, y: endY },
+        ]
+        : undefined,
+      ...(!isBottle ? { x: endX, y: endY } : {}),
       duration: duration,
-      ease: 'power1.out', // Smooth upward motion
+      ease: isBottle ? 'sine.inOut' : 'power1.out',
       onComplete: () => {
-        // Pop/disappear at the end
-        try {
-          const idx = system.bubbles.indexOf(bubble);
-          if (idx >= 0) system.bubbles.splice(idx, 1);
-          if (container && container.children.includes(bubble)) {
-            container.removeChild(bubble);
-          }
-          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
-          graphicsPool.release(bubble);
-        } catch {}
+        // Finish outside the active GSAP render stack. Destroying/repooling a
+        // Pixi target from its own keyframe callback can null its transform
+        // while GSAP is still rendering the same frame.
+        queueMicrotask(() => {
+          if (system.disposed || bubble.destroyed || graphicsPool.isInPool(bubble)) return;
+          retireBubble(bubble);
+        });
       }
-    });
-    
+    }));
+
+    if (isBottle) {
+      bubble._ccBottleTintProgress = 0;
+      ownBubbleTween(bubble, trackTween(bubble, {
+        _ccBottleTintProgress: 1,
+        duration,
+        ease: 'sine.inOut',
+        onUpdate: () => {
+          const progress = bubble._ccBottleTintProgress;
+          const red = Math.round(204 + 51 * progress);
+          const green = Math.round(243 + 12 * progress);
+          const blue = Math.round(241 + 14 * progress);
+          bubble.tint = (red << 16) | (green << 8) | blue;
+        },
+      }));
+    }
+
     // Fade out as it reaches the top (last 40% of animation)
-    trackTween(bubble, {
+    ownBubbleTween(bubble, trackTween(bubble, {
       alpha: 0,
       duration: duration * 0.4,
       delay: duration * 0.6,
       ease: 'power2.in'
-    });
+    }));
   };
   
   // Spawn bubbles continuously (every 0.3-0.6 seconds)
@@ -308,7 +369,16 @@ export function stopWildJuiceBubbles(tile) {
   if (!system) return;
   
   system.disposed = true;
-  
+
+  // Exact handle ownership is required for GSAP keyframes. Broad target kills
+  // can miss nested PropTweens and let them write into a repooled Pixi object.
+  if (system.activeTweens) {
+    system.activeTweens.forEach((tween) => {
+      try { tween.kill(); } catch {}
+    });
+    system.activeTweens.clear();
+  }
+
   // Kill spawn interval
   if (system.spawnInterval) {
     try {
@@ -321,17 +391,27 @@ export function stopWildJuiceBubbles(tile) {
   if (system.bubbles) {
     system.bubbles.forEach(bubble => {
       try {
-        // Kill all GSAP animations on bubble (position, scale, alpha)
+        const owned = system.bubbleTweens?.get(bubble);
+        owned?.forEach((tween) => {
+          try { tween.kill(); } catch {}
+        });
+        owned?.clear?.();
+        system.bubbleTweens?.delete?.(bubble);
         gsap.killTweensOf(bubble);
         gsap.killTweensOf(bubble.scale);
-        gsap.killTweensOf(bubble.x);
-        gsap.killTweensOf(bubble.y);
-        gsap.killTweensOf(bubble.alpha);
         // Remove from parent before destroying
         if (bubble.parent) {
           bubble.parent.removeChild(bubble);
         }
         // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+        bubble.tint = 0xFFFFFF;
+        delete bubble._ccBottleFlowProgress;
+        delete bubble._ccBottleStartX;
+        delete bubble._ccBottleCrossDistance;
+        delete bubble._ccBottleCrossFrequency;
+        delete bubble._ccBottleCrossPhase;
+        delete bubble._ccBottleRiseSpeed;
+        delete bubble._ccBottleTintProgress;
         graphicsPool.release(bubble);
       } catch {}
     });
@@ -347,7 +427,9 @@ export function stopWildJuiceBubbles(tile) {
   
   if (system.container) {
     try {
-      system.container.destroy({ children: true });
+      // Children are pooled Graphics and have already been detached/released.
+      // Never destroy them through their former container owner.
+      system.container.destroy({ children: false });
     } catch {}
   }
   
@@ -5915,6 +5997,13 @@ export function startMagnetIdleParticles(tile) {
     return; // Do NOT mutate tile.special - would corrupt merge 6 into fake magnet
   }
   if (getSpecialDiceVariantForTile(tile)?.id === 'honey') {
+    stopMagnetIdleParticles(tile);
+    startWildJuiceBubbles(tile);
+    return;
+  }
+  if (getSpecialDiceVariantForTile(tile)?.id === 'bottle') {
+    // Bottle keeps the accepted gentle artwork rock plus the earlier sparse
+    // Honey-style blue-white bubble profile. Merge bubbles are a separate DOM owner.
     stopMagnetIdleParticles(tile);
     startWildJuiceBubbles(tile);
     return;

@@ -266,7 +266,7 @@ test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay arc
 });
 
 test('Forest Stage 2 test sequence never leaks into another Journey board', () => {
-  for (const journeyBoard of [1, 3, 4, 10, 11, 20, 21, 30]) {
+  for (const journeyBoard of [1, 3, 4, 10, 21, 30]) {
     for (const wildSpawnCount of [0, 1, 2]) {
       expect(pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
@@ -274,5 +274,50 @@ test('Forest Stage 2 test sequence never leaks into another Journey board', () =
         wildSpawnCount,
       })).toBeNull();
     }
+  }
+});
+
+test('Bottle is a Beach-only Magnet special with its authored FX palette', () => {
+  for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
+    const bottle = pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard,
+      wildSpawnCount: 0,
+    });
+    expect(bottle).toMatchObject({
+      id: 'bottle',
+      archetype: 'wild-magnet',
+      texture: './assets/shop/bottle/glass bottle.png',
+      idleMotion: 'bottle-float',
+      splashText: 'S.O.S.',
+      splashColor: '#7FD1CA',
+      splashColors: ['#7FD1CA'],
+    });
+    expect(getSpecialDiceTrailColors(bottle)).toEqual([0xFDCA89, 0xD8E9CA, 0xC8ECD0, 0xAEE9E6]);
+    expect(getSpecialDiceShardColors(bottle)).toEqual([0xB1DCC9, 0xFFCE77]);
+    expect(getSpecialDiceIdleBubbleColors(bottle)).toEqual([0xCCF3F1, 0xFFFFFF]);
+    expect(bottle?.burstParticleSources).toHaveLength(17);
+    expect(bottle?.burstMotion).toMatchObject({
+      count: 17,
+      cuberoFlight: true,
+      bottleScatter: true,
+      speedScale: 1.15,
+      baseSizeScale: 1,
+      staggerSpanScale: 0.7,
+      mixBlendMode: 'normal',
+    });
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard,
+      wildSpawnCount: 1,
+    })).toBeNull();
+  }
+
+  for (const journeyBoard of [1, 2, 10, 21, 30]) {
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard,
+      wildSpawnCount: 0,
+    })?.id).not.toBe('bottle');
   }
 });

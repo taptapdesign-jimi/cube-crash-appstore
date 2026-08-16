@@ -1166,7 +1166,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           if (palmPlacement) {
             sceneImg.style.left = `${palmPlacement.leftPercent}%`;
             sceneImg.style.top = 'auto';
-            sceneImg.style.bottom = `${palmPlacement.bottomPx}px`;
+            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx}px + ${palmPlacement.upwardLiftVh}vh)`;
           }
           if (beachVariation && (layer.key === 'beach-bottle' || layer.key === 'beach-ball')) {
             const isBottle = layer.key === 'beach-bottle';
@@ -1178,6 +1178,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             sceneImg.style.left = beachVariation.castleStartsLeft
               ? 'calc(32% - 30px)'
               : 'calc(68% + 30px)';
+          }
+          if (beachVariation?.castleStartsLeft && layer.key === 'beach-shore-1') {
+            sceneImg.style.left = 'calc(34% - 40% + 180px)';
           }
           activeSceneElements.push(sceneImg);
           forestContainer.appendChild(sceneImg);

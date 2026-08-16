@@ -969,10 +969,11 @@ export function initDrag(cfg) {
 
     // Idle FX and drag trail have separate owners. Stop every idle producer
     // synchronously before seeding the distance-based trail cadence.
-    if (isSpecialDiceJuiceLikeTile(t)) {
+    const usesJuiceIdleFx = isSpecialDiceJuiceLikeTile(t);
+    if (usesJuiceIdleFx) {
       try { stopWildJuiceBubbles(t); } catch {}
     }
-    if (isSpecialDiceMagnetLikeTile(t)) {
+    if (!usesJuiceIdleFx && isSpecialDiceMagnetLikeTile(t)) {
       try { stopMagnetIdleParticles(t); } catch {}
     }
     resetWildDragTrailCadence(drag._regularTrailCadence, t.x, t.y, drag.lastTime);

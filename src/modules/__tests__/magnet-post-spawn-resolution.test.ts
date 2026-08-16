@@ -69,17 +69,17 @@ test('post-magnet playable filter ignores locked regular tiles but keeps locked 
   expect(isPlayablePostMagnetTile(tile({ value: 0, locked: true, special: 'wild-juice' }))).toBe(true);
 });
 
-test('magnet respawn plan replaces pulled cells and adds one obligatory tile', () => {
+test('magnet respawn plan replaces only pulled cells while the consumed owner is removed', () => {
   expect(createMagnetRespawnPlan(3, true)).toEqual({
     replacementSpawnCount: 3,
-    obligatorySpawnCount: 1,
-    spawnCount: 4,
+    obligatorySpawnCount: 0,
+    spawnCount: 3,
   });
 
   expect(createMagnetRespawnPlan(0, false)).toEqual({
     replacementSpawnCount: 0,
-    obligatorySpawnCount: 1,
-    spawnCount: 1,
+    obligatorySpawnCount: 0,
+    spawnCount: 0,
   });
 });
 

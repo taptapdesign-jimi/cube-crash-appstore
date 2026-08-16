@@ -202,6 +202,18 @@ export function normalizeSpawnedTileVisual(tile: any): void {
   }
 }
 
+export function collapseTileToSingleStackVisual(tile: any): void {
+  if (!tile || tile.destroyed) return;
+
+  tile.stackDepth = 1;
+  const stackVisual = tile.stackG;
+  tile.stackG = null;
+  if (!stackVisual) return;
+
+  try { stackVisual.parent?.removeChild?.(stackVisual); } catch {}
+  try { stackVisual.destroy?.({ children: true }); } catch {}
+}
+
 export function normalizePlayableTileAfterMutation(tile: any): void {
   if (!tile || tile.destroyed) return;
 

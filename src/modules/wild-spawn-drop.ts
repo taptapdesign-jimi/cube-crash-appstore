@@ -36,6 +36,8 @@ const CRATE_TEXTURE_WIDTH = 290;
 const BACKPACK_BODY_CLASS = 'cc-wild-backpack-active';
 const BACKPACK_DIVIDER_STYLE_ID = 'cc-wild-backpack-divider-mask-style';
 const WILD_DROP_HANDOFF_LOCK_MS = 140;
+const WILD_SPAWN_CONTAINER_Z_INDEX = 2_100_000;
+const WILD_SPAWN_TILE_Z_INDEX = WILD_SPAWN_CONTAINER_Z_INDEX + 1;
 
 let assetsPreloadPromise: Promise<void> | null = null;
 const activeDropCleanups = new Set<() => void>();
@@ -104,6 +106,19 @@ function getBackpackWildExitPoint(backpackPoint: Point, stageScale: number): Poi
   };
 }
 
+function forceSpawnVisualAboveHud(stage: any, displayObject: any, zIndex: number): void {
+  try {
+    if (!stage || !displayObject || displayObject.destroyed) return;
+    if (displayObject.parent !== stage) {
+      try { displayObject.parent?.removeChild?.(displayObject); } catch {}
+      stage.addChild(displayObject);
+    }
+    stage.sortableChildren = true;
+    displayObject.zIndex = zIndex;
+    try { stage.sortChildren?.(); } catch {}
+  } catch {}
+}
+
 function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: number): () => void {
   let cleaned = false;
   let backpack: any = null;
@@ -134,8 +149,11 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
     const backpackScale = ((tileSize * 2.15 * 1.15) / textureWidth) * (useArcadeCrate ? 0.95 : 1);
     backpack.scale.set(backpackScale * 0.82, backpackScale * 0.82);
     stage.addChild(backpack);
+    forceSpawnVisualAboveHud(stage, backpack, baseZ);
 
-    bounceTimeline = trackTimeline();
+    bounceTimeline = trackTimeline({
+      onUpdate: () => forceSpawnVisualAboveHud(stage, backpack, baseZ),
+    });
     bounceTimeline
       .to(backpack, { alpha: 1, duration: 0.08, ease: 'power2.out' }, 0)
       .to(backpack, { y: point.y, duration: BACKPACK_ENTER_DURATION, ease: 'back.out(2.3)' }, 0)
@@ -150,6 +168,7 @@ function createBackpackSpawn(stage: any, point: Point, tileSize: number, baseZ: 
       if (!frameTimeline) return;
       frameTimeline.call(() => {
         if (!backpack || backpack.destroyed) return;
+        forceSpawnVisualAboveHud(stage, backpack, baseZ);
         backpack.texture = Assets.get(source) || Texture.from(source);
       });
       const closingStartIndex = Math.ceil(playbackSources.length / 2);
@@ -261,22 +280,7 @@ function isCuberoDropTile(tile: any): boolean {
 }
 
 function forceDropTileAboveStage(stage: any, tile: any): void {
-  try {
-    if (!stage || !tile || tile.destroyed) return;
-    if (tile.parent !== stage) {
-      try { tile.parent?.removeChild?.(tile); } catch {}
-      stage.addChild(tile);
-    }
-    stage.sortableChildren = true;
-    tile.zIndex = 2_000_000;
-    try { stage.sortChildren?.(); } catch {}
-    try {
-      const lastIndex = Math.max(0, (stage.children?.length || 1) - 1);
-      if (typeof stage.setChildIndex === 'function' && stage.children?.[lastIndex] !== tile) {
-        stage.setChildIndex(tile, lastIndex);
-      }
-    } catch {}
-  } catch {}
+  forceSpawnVisualAboveHud(stage, tile, WILD_SPAWN_TILE_Z_INDEX);
 }
 
 function revealTile(tile: any): void {
@@ -388,7 +392,12 @@ export async function animateWildSpawnDropFromMeter({
     const stageTarget = toParentPoint(stage, targetGlobal);
     const originalZIndex = tile.zIndex;
     const originalRotation = tile.rotation || 0;
-    const cleanupBackpackSpawn = createBackpackSpawn(stage, backpackPoint, tileSize * stageVisualScale, 1_000_002);
+    const cleanupBackpackSpawn = createBackpackSpawn(
+      stage,
+      backpackPoint,
+      tileSize * stageVisualScale,
+      WILD_SPAWN_CONTAINER_Z_INDEX,
+    );
     const launch = {
       x: start.x,
       y: start.y - 14 * stageVisualScale,

@@ -12,26 +12,27 @@ import { openAtCell } from './app-spawn.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
-import { randomRegularTileValue, trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
+import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
 import { getTransientSpawnState } from './tile-state-utils.ts';
 import { isPlayableMagnetPullCandidate, isWildLikeTile } from './final-merge-rules.ts';
 import {
-  clearSpecialDiceIdentity,
+  getSpecialDiceShardColors,
   isSpecialDiceDirectWildLikeTile,
   isSpecialDiceStarLikeTile,
-  releaseSpecialDiceResolution,
 } from './special-dice-registry.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
 import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
 import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
+import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+
 
 // Import updateProgressBar function
 const updateProgressBar = HUD.updateProgressBar;
@@ -471,6 +472,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   let endgameGuardActive = false;
   let shouldRunPostMagnetEndgameCheck = false;
   let pendingPostGuardEndgameCheckSource: string | null = null;
+  const pullShardColors = Array.isArray(helpers?.magnetShardColors) && helpers.magnetShardColors.length
+    ? [...helpers.magnetShardColors]
+    : getSpecialDiceShardColors(dst);
   const requestPostGuardEndgameCheck = (source: string): boolean => {
     const checker = (window as any)?.CC?.checkLevelEnd;
     if (typeof checker !== 'function') return false;
@@ -812,7 +816,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const mergePosForShards = { x: shardX, y: shardY, gridX: dst.gridX, gridY: dst.gridY, zIndex: dst.zIndex || 9993 };
       wildMagnetMerge6ShardsTemplated(STATE.board, mergePosForShards as any, {
         zIndex: dst.zIndex || 9993,
-        isPullAnimation: true  // 🔥 Use pull-specific patterns
+        isPullAnimation: true, // 🔥 Use pull-specific patterns
+        colors: pullShardColors,
       });
     }
   }
@@ -1263,11 +1268,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode A — Tiles exist to attract
   // Magnet attracts tiles (normal or wild). May spawn exactly as many tiles as attracted.
   // Must not spawn extra tiles beyond attraction count.
-  // 🔥 CRITICAL FIX: Spawn count = pulled tiles count (for replacement) + 1 (OBLIGATORY tile below merge 6)
+  // Spawn exactly one replacement for each pulled tile. The surviving merge-6
+  // destination is converted to a fresh playable cube after respawn.
   // When magnet pulls tiles, we need to:
   // 1. Spawn tiles to replace pulled tiles (pulledCells.length)
-  // 2. Spawn ONE OBLIGATORY tile below merge 6 (to anchor it and provide merge target)
-  // 3. Merge 6 tile should remain on board at magnet position (it's already there, don't spawn it)
+  // 2. Convert the surviving merge-6 destination into the continuation cube.
   // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), NO spawns at all (trigger CLEAN BOARD)
   // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
   // 🔥 CRITICAL: Check _isLastMerge flag FIRST - if set, skip ALL spawn logic and trigger clean board
@@ -1301,8 +1306,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     totalSpawnCount: spawnCount,
     merge6StaysVisible: true, // Merge 6 should remain visible on board
     merge6Position: dst ? { gridX: dst.gridX, gridY: dst.gridY } : null,
-    expectedTotalTiles: spawnCount + 1, // Spawned tiles + merge 6
-    note: 'Spawn = pulled tiles count + 1 obligatory tile below merge 6. Merge 6 stays on board.'
+    expectedTotalTiles: spawnCount + 1, // replacements + converted survivor
+    note: 'Spawn exactly one replacement per pulled tile; the survivor becomes a fresh playable cube.'
   });
 
   // 🔒 SAFETY: Merge 6 tile should STAY on board after magnet pull
@@ -1323,74 +1328,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 Cleared some magnet flags from merge 6 tile before spawning (kept _wildMagnetPulledTilesMerge and _wildMagnetMergeCallback)');
   }
   
-  // 🔥 CRITICAL FIX: Find position for OBLIGATORY tile below merge 6
-  // This tile should be positioned below merge 6 (or near center if merge 6 is at edge)
-  let obligatoryCell: { c: number; r: number } | null = null;
-  if (dst && !dst.destroyed) {
-    const merge6GridX = dst.gridX | 0;
-    const merge6GridY = dst.gridY | 0;
-    
-    // Try to find cell below merge 6 (r+1)
-    const belowCell = { c: merge6GridX, r: merge6GridY + 1 };
-    if (belowCell.r < ROWS) {
-      const existingTile = STATE.grid?.[belowCell.r]?.[belowCell.c];
-      const isEmpty = !existingTile || (existingTile.locked && (existingTile.value|0) === 0);
-      if (isEmpty) {
-        obligatoryCell = belowCell;
-        console.log('✅ Found cell below merge 6 for obligatory spawn:', obligatoryCell);
-      } else {
-        console.warn('⚠️ Cell below merge 6 is occupied, finding alternative...');
-        // Try nearby cells (below-left, below-right, or same column but different row)
-        const alternatives = [
-          { c: merge6GridX - 1, r: merge6GridY + 1 }, // Below-left
-          { c: merge6GridX + 1, r: merge6GridY + 1 }, // Below-right
-          { c: merge6GridX, r: merge6GridY + 2 },     // Two rows below
-          { c: merge6GridX, r: merge6GridY - 1 },     // Above (if below is blocked)
-        ];
-        
-        for (const alt of alternatives) {
-          if (alt.r >= 0 && alt.r < ROWS && alt.c >= 0 && alt.c < COLS) {
-            const altTile = STATE.grid?.[alt.r]?.[alt.c];
-            const altIsEmpty = !altTile || (altTile.locked && (altTile.value|0) === 0);
-            if (altIsEmpty) {
-              obligatoryCell = alt;
-              console.log('✅ Found alternative cell for obligatory spawn:', obligatoryCell);
-              break;
-            }
-          }
-        }
-      }
-    } else {
-      // Merge 6 is at bottom row, try above or sides
-      const alternatives = [
-        { c: merge6GridX, r: merge6GridY - 1 }, // Above
-        { c: merge6GridX - 1, r: merge6GridY }, // Left
-        { c: merge6GridX + 1, r: merge6GridY }, // Right
-      ];
-      
-      for (const alt of alternatives) {
-        if (alt.r >= 0 && alt.r < ROWS && alt.c >= 0 && alt.c < COLS) {
-          const altTile = STATE.grid?.[alt.r]?.[alt.c];
-          const altIsEmpty = !altTile || (altTile.locked && (altTile.value|0) === 0);
-          if (altIsEmpty) {
-            obligatoryCell = alt;
-            console.log('✅ Found alternative cell (merge 6 at bottom) for obligatory spawn:', obligatoryCell);
-            break;
-          }
-        }
-      }
-    }
-    
-    // If still no cell found, use findRandomEmptyCells to find one near merge 6
-    if (!obligatoryCell) {
-      console.warn('⚠️ Could not find cell near merge 6, using random empty cell...');
-      const nearCells = findRandomEmptyCells(1);
-      if (nearCells.length > 0) {
-        obligatoryCell = nearCells[0];
-        console.log('✅ Using random cell for obligatory spawn:', obligatoryCell);
-      }
-    }
-  }
+  const obligatoryCell: { c: number; r: number } | null = null;
   
   // Find cells for replacement spawns (excluding obligatory cell)
   const excludeCellsSet = new Set<string>();
@@ -1404,6 +1342,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   if (dst && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
     excludeCellsSet.add(`${dst.gridX | 0},${dst.gridY | 0}`);
   }
+  const isAllowedReplacementCell = (cell: { c: number; r: number }): boolean => {
+    const key = `${cell.c},${cell.r}`;
+    return !excludeCellsSet.has(key);
+  };
   
   // Find replacement spawn targets (excluding obligatory cell and pulled cells)
   // 🔥 USER REQUEST: Reserve 6 cells for locked placeholders (like regular merge-6)
@@ -1413,8 +1355,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   let replacementTargets = findRandomEmptyCells(replacementSpawnCount + LOCKED_RESERVE_COUNT);
   // Filter out excluded cells
   replacementTargets = replacementTargets.filter(cell => {
-    const key = `${cell.c},${cell.r}`;
-    return !excludeCellsSet.has(key);
+    return isAllowedReplacementCell(cell);
   });
   
   // 🔥 USER FIX: Reserve 6 cells for locked placeholders - NEVER spawn in these
@@ -1536,7 +1477,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Filter out excluded cells AND reserved cells (6 locked placeholders)
     const filteredRetryTargets = retryTargets.filter(cell => {
       const key = `${cell.c},${cell.r}`;
-      return !excludeCellsSet.has(key) && !reservedSet.has(key);
+      return isAllowedReplacementCell(cell) && !reservedSet.has(key);
     });
     
     // Add to spawnTargets if we found more
@@ -1682,9 +1623,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Wait a bit for initial spawns to complete, then check if we need more
     await Promise.all(spawnPromises);
     
-    // 🔥 STUCK MERGE 6 FIX: Ensure merge 6 always has at least one adjacent tile
+    // The destination is converted below into a fresh playable cube, so it no
+    // longer needs an extra adjacent spawn to remain usable.
     // Bug: Obligatory spawn at (4,7) can fail or get lost → merge 6 at (4,8) isolated → stuck
-    if (dst && !dst.destroyed && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
+    if (obligatorySpawnCount > 0 && dst && !dst.destroyed && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
       const m6c = dst.gridX | 0;
       const m6r = dst.gridY | 0;
       const adjacentCells = [
@@ -1733,7 +1675,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       // 🔥 CRITICAL: Exclude reserved cells (6 locked placeholders) - never spawn in them!
       const remainingCount = spawnCount - successfulSpawns;
       let additionalTargets = findRandomEmptyCells(remainingCount + LOCKED_RESERVE_COUNT);
-      additionalTargets = additionalTargets.filter(c => !reservedSet.has(`${c.c},${c.r}`)).slice(0, remainingCount);
+      additionalTargets = additionalTargets
+        .filter(c => isAllowedReplacementCell(c) && !reservedSet.has(`${c.c},${c.r}`))
+        .slice(0, remainingCount);
       
       // Generate mergeable values for remaining spawns
       const mergeableValues = [1, 2, 3, 4, 5]; // All can potentially merge
@@ -1859,10 +1803,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // The endgame check will happen automatically in app-core.ts after all animations complete
   // via checkLevelEnd (line 3251) which has proper delays and handles all edge cases
   
-  console.log('🧲 Respawn complete — converting magnet merge-6 cell to fresh playable cube (regular merge-6 parity)');
-  // 🔥 FIX: Do NOT removeTile(merge6) here. Removal left the cell empty or locked, while the
-  // "restore dst" block below never ran (dst.destroyed). Player saw a stuck 6 or locked cell + false fail.
-  // Instead: same as endgame spawn-at-dst — turn merge-6 into a normal 1–5 tile with pips at the same cell.
+  console.log('🧲 Respawn complete — removing consumed magnet merge-6 owner');
   try {
     if (!(dst as any)?._isLastMerge && dst && !dst.destroyed && (dst.value | 0) === 6) {
       const isMagnetMerge6Still =
@@ -1877,76 +1818,20 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const c = dst.gridX | 0;
         const r = dst.gridY | 0;
         try {
-          if (STATE.grid?.[r]?.[c] !== dst) STATE.grid[r][c] = dst;
+          stopSpecialDiceIdleMotion(dst);
         } catch {}
-
-        delete (dst as any)._magnetMerge6Hidden;
         try {
           stopMagnetIdleParticles(dst);
         } catch {}
-
-        const wildT = Number.isFinite((dst as any)._wildMergeTarget)
-          ? (dst as any)._wildMergeTarget
-          : null;
-        const freshVal = randomRegularTileValue(wildT != null && Number.isFinite(wildT) ? wildT : undefined);
-
-        delete (dst as any)._wildMagnetAffected;
-        delete (dst as any)._wildMagnetOriginalX;
-        delete (dst as any)._wildMagnetOriginalY;
-        delete (dst as any)._wildMagnetPulledTilesScoring;
-        delete (dst as any)._hasTilesToPull;
-        delete (dst as any)._isWildMagnetMerge;
-        delete (dst as any)._wildMagnetPulledTilesMerge;
-        delete (dst as any)._wildMagnetMergeCallback;
-
-        // Atomically consume the complete special identity before setValue.
-        // Clearing only `special` leaves `_ccWildSpecial`/variant metadata behind,
-        // allowing canDrop or a late async texture decode to resurrect Honey.
-        clearSpecialDiceIdentity(dst);
-        dst.locked = false;
-        makeBoard.syncTileZIndex(dst, STATE.board);
-        dst.visible = true;
-        dst.alpha = 1;
-        dst.eventMode = 'static';
-        dst.cursor = 'pointer';
-
-        try {
-          makeBoard.setValue(dst, freshVal, 0, { immediate: true });
-        } catch (e) {
-          dst.value = freshVal;
-        }
-        releaseSpecialDiceResolution(dst);
-        if (dst.overlay) {
-          dst.overlay.visible = false;
-          dst.overlay.alpha = 1;
-        }
-        if (dst.pips) {
-          dst.pips.visible = true;
-          dst.pips.alpha = 1;
-        }
-        if (dst.num) dst.num.alpha = 1;
-        if (dst.rotG) dst.rotG.alpha = 1;
-        if (dst.base) dst.base.alpha = 1;
-
-        const drag = STATE.drag as any;
-        trackAppTimeout(() => {
-          if (!dst || dst.destroyed) return;
-          if (drag && typeof drag.bindToTile === 'function') {
-            try {
-              drag.bindToTile(dst);
-            } catch {}
-          }
-        }, 200);
-
-        try {
-          fixHoverAnchor?.(dst);
-        } catch {}
-
-        console.log('🧲 Converted magnet merge-6 to fresh cube', freshVal, 'at', c, r);
+        dst.visible = false;
+        dst.alpha = 0;
+        dst.eventMode = 'none';
+        removeTile(dst);
+        console.log('🧲 Removed consumed magnet merge-6 owner at', c, r);
       }
     }
   } catch (err) {
-    console.warn('⚠️ Magnet merge-6 → fresh cube conversion failed:', err);
+    console.warn('⚠️ Consumed magnet merge-6 removal failed:', err);
   }
   
   // 🔥 USER FIX: After removing merge 6, fill any null cells with locked placeholders (like wild juice/star)

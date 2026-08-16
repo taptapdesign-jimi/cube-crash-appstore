@@ -126,6 +126,8 @@ describe('Board Transition World themes', () => {
       expect(placement.leftPercent).toBeLessThanOrEqual(103);
       expect(placement.bottomPx).toBeGreaterThanOrEqual(-150);
       expect(placement.bottomPx).toBeLessThanOrEqual(-75);
+      expect(placement.upwardLiftVh).toBeGreaterThanOrEqual(8);
+      expect(placement.upwardLiftVh).toBeLessThanOrEqual(18);
     });
     const leftPalmPlacements = Object.values(leftVariation.palms).filter((placement) => placement.exitDirection === -1);
     expect(leftPalmPlacements.map((placement) => placement.restRotationDeg).sort()).toEqual([10, 15]);
@@ -190,11 +192,13 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('? createNextBeachTransitionVariation()');
     expect(source).toContain('sceneImg.style.left = `${palmPlacement.leftPercent}%`');
     expect(source).toContain("sceneImg.style.top = 'auto'");
-    expect(source).toContain('sceneImg.style.bottom = `${palmPlacement.bottomPx}px`');
+    expect(source).toContain('sceneImg.style.bottom = `calc(${palmPlacement.bottomPx}px + ${palmPlacement.upwardLiftVh}vh)`');
     expect(source).toContain("sceneImg.dataset.floatDirection = startsRight ? 'left' : 'right'");
     expect(source).toContain("sceneImg.style.left = beachVariation.castleStartsLeft");
     expect(source).toContain("? 'calc(32% - 30px)'");
     expect(source).toContain(": 'calc(68% + 30px)'");
+    expect(source).toContain("beachVariation?.castleStartsLeft && layer.key === 'beach-shore-1'");
+    expect(source).toContain("sceneImg.style.left = 'calc(34% - 40% + 180px)'");
     expect(source).toContain('const exitDirection = palmPlacement?.exitDirection');
     expect(source).toContain('const beachPalmRestRotation = palmPlacement?.restRotationDeg ?? beachPalmMotion.restRotation');
     expect(source).toContain("const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1");

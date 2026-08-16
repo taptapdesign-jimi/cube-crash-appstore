@@ -35,7 +35,10 @@ export type PreMagnetRespawnDecision = {
 
 export function createMagnetRespawnPlan(pulledCellCount: number, hasTilesToRespawn: boolean): MagnetRespawnPlan {
   const replacementSpawnCount = hasTilesToRespawn ? Math.max(0, pulledCellCount | 0) : 0;
-  const obligatorySpawnCount = 1;
+  // The surviving merge-6 destination is converted into a fresh playable cube,
+  // so it already provides the continuation tile. Spawning another obligatory
+  // cube would create one more tile than the Magnet actually pulled.
+  const obligatorySpawnCount = 0;
   return {
     replacementSpawnCount,
     obligatorySpawnCount,

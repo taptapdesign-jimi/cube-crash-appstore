@@ -11,6 +11,7 @@ export type BeachCurtainLayerKey = typeof BEACH_CURTAIN_LAYER_KEYS[number];
 export type BeachPalmPlacement = Readonly<{
   leftPercent: number;
   bottomPx: number;
+  upwardLiftVh: number;
   exitDirection: -1 | 0 | 1;
   restRotationDeg: number | null;
 }>;
@@ -63,9 +64,11 @@ export function createBeachTransitionVariation(
     const lane = shuffledLanes[index];
     const leftPercent = Number((lane.leftPercent + randomBetween(sampleUnit, -5, 5)).toFixed(2));
     const bottomPx = -Math.round(randomBetween(sampleUnit, 95, 150)) + lane.bottomLiftPx;
+    const upwardLiftVh = Number(randomBetween(sampleUnit, 8, 18).toFixed(2));
     return [key, Object.freeze({
       leftPercent,
       bottomPx,
+      upwardLiftVh,
       exitDirection: lane.exitDirection,
       restRotationDeg: lane.restRotationDeg,
     })] as const;

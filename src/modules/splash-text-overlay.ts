@@ -164,19 +164,30 @@ export function showMagneticText(options: any = {}): void {
       'justify-content: center',
     ].join(';');
     swoopOverlay = overlay;
-    // Wild-magnet SWOOP uses only pooled bolt sprites.
-    const boltCleanup = attachBoltSprites(overlay, {
-      count: Number(options?.burstMotion?.count) || 16,
-      zIndex: 1,
-      sources: options?.burstSources,
-      motion: options?.burstMotion,
-    });
+    // Bottle keeps Magnet gameplay but explicitly reuses the exact Cubero
+    // artwork-flight owner. Other Magnet variants retain their bolt/bee owner.
+    const usesCuberoFlight = options?.burstMotion?.cuberoFlight === true;
+    const particleStartedAt = performance.now();
+    const particleCleanup = usesCuberoFlight
+      ? attachSmallStarCenterBurst(overlay, {
+          count: Number(options?.burstMotion?.count) || 14,
+          zIndex: 1,
+          sources: options?.burstSources,
+          motion: options?.burstMotion,
+        })
+      : attachBoltSprites(overlay, {
+          count: Number(options?.burstMotion?.count) || 16,
+          zIndex: 1,
+          sources: options?.burstSources,
+          motion: options?.burstMotion,
+        });
     swoopFxCleanup = () => {
-      try { boltCleanup?.(); } catch {}
+      try { particleCleanup?.(); } catch {}
     };
     (swoopFxCleanup as any).startExit = () => {
-      try { (boltCleanup as any)?.startExit?.(); } catch {}
+      try { (particleCleanup as any)?.startExit?.(); } catch {}
     };
+    const particleCompletionDelaySeconds = Number((particleCleanup as any)?.completionDelaySeconds) || 0;
 
     const container = document.createElement('div');
     container.style.cssText = [
@@ -313,7 +324,10 @@ export function showMagneticText(options: any = {}): void {
       // Honey exits in eight uneven pairs; leave enough lifecycle tail for the
       // final pair to complete its own edge bounce-out before pooled cleanup.
       const beeFlightTail = options?.burstMotion?.beeFlight === true ? 0.9 : 0;
-      const exitCleanupCall = trackDelayedCall(exitTotal + beeFlightTail, () => cleanupBuzzzOverlay());
+      const particleElapsedSeconds = Math.max(0, (performance.now() - particleStartedAt) / 1000);
+      const particleRemainingSeconds = Math.max(0, particleCompletionDelaySeconds - particleElapsedSeconds);
+      const cleanupDelay = Math.max(exitTotal + beeFlightTail, particleRemainingSeconds + 0.05);
+      const exitCleanupCall = trackDelayedCall(cleanupDelay, () => cleanupBuzzzOverlay());
       swoopDelayedCallsRef.push(exitCleanupCall);
     };
 

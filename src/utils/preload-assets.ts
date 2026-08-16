@@ -77,7 +77,11 @@ const CRITICAL_IMAGES: string[] = [
   './assets/shop/cubero/krpa4.png',
   './assets/shop/cubero/krpa5.png',
   './assets/shop/cubero/krpa6.png',
-  './assets/shop/cubero/krpa7.png'
+  './assets/shop/cubero/krpa7.png',
+  './assets/shop/bottle/glass bottle.png',
+  './assets/shop/bottle/glass bottle@2x.png',
+  ...Array.from({ length: 5 }, (_, index) => `./assets/shop/bottle/glass${index + 1}.png`),
+  ...Array.from({ length: 7 }, (_, index) => `./assets/shop/bottle/paper${index + 1}.png`),
 ];
 
 let preloadPromise: Promise<void> | null = null;

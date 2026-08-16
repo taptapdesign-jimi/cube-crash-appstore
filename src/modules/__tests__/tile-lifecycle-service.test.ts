@@ -1,4 +1,5 @@
 import {
+  collapseTileToSingleStackVisual,
   detachTileFromGrid,
   isGameplayTileCandidate,
   isLockedEmptyPlaceholder,
@@ -6,6 +7,33 @@ import {
   normalizeSpawnedTileVisual,
   removeTileFully,
 } from '../tile-lifecycle-service';
+
+test('collapseTileToSingleStackVisual removes stale stack art without moving the tile', () => {
+  const removeChild = jest.fn();
+  const destroy = jest.fn();
+  const stackG = { parent: { removeChild }, destroy };
+  const tile: any = {
+    gridX: 4,
+    gridY: 4,
+    x: 656,
+    y: 656,
+    stackDepth: 2,
+    stackG,
+  };
+
+  collapseTileToSingleStackVisual(tile);
+
+  expect(tile.stackDepth).toBe(1);
+  expect(tile.stackG).toBeNull();
+  expect(removeChild).toHaveBeenCalledWith(stackG);
+  expect(destroy).toHaveBeenCalledWith({ children: true });
+  expect({ gridX: tile.gridX, gridY: tile.gridY, x: tile.x, y: tile.y }).toEqual({
+    gridX: 4,
+    gridY: 4,
+    x: 656,
+    y: 656,
+  });
+});
 import { isVisibleGameplayResolvingSpecialPresence } from '../tile-state-utils';
 
 test('removeTileFully clears direct grid reference, tile list, runtime flags, and destroys tile', () => {

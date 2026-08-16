@@ -39,13 +39,16 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'cubero-hop' | 'mushroom-pop';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop';
   juiceDropProfile?: 'beach-ball' | 'mushroom';
   orbitParticleSources?: string[];
   burstParticleSources?: string[];
   burstMotion?: {
     count?: number;
     speedScale?: number;
+    cuberoFlight?: boolean;
+    gravityFall?: boolean;
+    bottleScatter?: boolean;
     flagWave?: boolean;
     sizeBoostChance?: number;
     sizeBoostMax?: number;
@@ -86,6 +89,35 @@ const cuberoKrpaSources = [
   './assets/shop/cubero/krpa5.png',
   './assets/shop/cubero/krpa6.png',
   './assets/shop/cubero/krpa7.png',
+];
+
+const bottleGlassAndPaperSources1x = [
+  ...Array.from(
+    { length: 5 },
+    (_, index) => `./assets/shop/bottle/glass${index + 1}.png`,
+  ),
+  ...Array.from(
+    { length: 5 },
+    (_, index) => `./assets/shop/bottle/glass${index + 1}.png`,
+  ),
+  ...Array.from(
+    { length: 7 },
+    (_, index) => `./assets/shop/bottle/paper${index + 1}.png`,
+  ),
+];
+const bottleGlassAndPaperSources2x = [
+  ...Array.from(
+    { length: 5 },
+    (_, index) => `./assets/shop/bottle/glass${index + 1}@2x.png`,
+  ),
+  ...Array.from(
+    { length: 5 },
+    (_, index) => `./assets/shop/bottle/glass${index + 1}@2x.png`,
+  ),
+  ...Array.from(
+    { length: 7 },
+    (_, index) => `./assets/shop/bottle/paper${index + 1}@2x.png`,
+  ),
 ];
 
 const beachBallExplosionSources = [
@@ -135,6 +167,36 @@ const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  bottle: {
+    id: 'bottle',
+    archetype: 'wild-magnet',
+    texture: useHighResolutionSpecialDiceFx
+      ? './assets/shop/bottle/glass bottle@2x.png'
+      : './assets/shop/bottle/glass bottle.png',
+    splashText: 'S.O.S.',
+    splashColor: '#7FD1CA',
+    splashColors: ['#7FD1CA'],
+    shardColor: 0xB1DCC9,
+    shardColors: [0xB1DCC9, 0xFFCE77],
+    trailColors: [0xFDCA89, 0xD8E9CA, 0xC8ECD0, 0xAEE9E6],
+    idleBubbleColors: [0xCCF3F1, 0xFFFFFF],
+    burstParticleSources: useHighResolutionSpecialDiceFx
+      ? bottleGlassAndPaperSources2x
+      : bottleGlassAndPaperSources1x,
+    burstMotion: {
+      count: 17,
+      cuberoFlight: true,
+      bottleScatter: true,
+      speedScale: 1.15,
+      baseSizeScale: 1,
+      staggerSpanScale: 0.7,
+      mixBlendMode: 'normal',
+    },
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'bottle-float',
+    inputReleaseAtRatio: 0.25,
+  },
   honey: {
     id: 'honey',
     archetype: 'wild-magnet',
@@ -553,6 +615,11 @@ export function pickSpecialDiceVariantForWildSpawn({
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
+    // Bottle belongs exclusively to Beach (Stages 11–20) and is the first
+    // special spawned by the meter on each Beach run.
+    if (board >= 11 && board <= 20) {
+      return wildSpawnCount === 0 ? SPECIAL_DICE_VARIANTS.bottle : null;
+    }
     // Temporary Forest test profile belongs only to Cjelina 02. Do not let
     // its per-run spawn order leak into any other Forest/Beach/Area 55 board.
     if (board !== 2) return null;

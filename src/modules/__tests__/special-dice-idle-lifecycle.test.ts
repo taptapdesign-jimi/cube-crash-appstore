@@ -23,4 +23,40 @@ describe('special-dice idle lifecycle', () => {
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
     expect(tile._ccSpecialDiceIdleTl).toBeNull();
   });
+
+  test('Bottle rocks around the artwork bottom centre and restores its original anchor', () => {
+    const anchor = {
+      x: 0.5,
+      y: 0.5,
+      set(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+      },
+    };
+    const base: any = {
+      anchor,
+      destroyed: false,
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 120,
+      rotation: 0,
+      scale: { x: 1, y: 1, set: jest.fn() },
+    };
+    const tile: any = {
+      base,
+      rotG: new Container(),
+      destroyed: false,
+      _ccSpecialDiceVariant: 'bottle',
+    };
+
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccSpecialDiceIdleHost).toBe(base);
+    expect(anchor).toMatchObject({ x: 0.5, y: 1 });
+    expect(base.y).toBe(60);
+
+    stopSpecialDiceIdleMotion(tile);
+    expect(anchor).toMatchObject({ x: 0.5, y: 0.5 });
+    expect(base.y).toBe(0);
+  });
 });

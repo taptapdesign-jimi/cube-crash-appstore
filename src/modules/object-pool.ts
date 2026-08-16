@@ -170,6 +170,7 @@ class GraphicsPool {
       // 🔥 CRITICAL: Reset visibility FIRST (must be visible to be seen!)
       g.visible = true;
       g.alpha = 1.0;
+      g.tint = 0xFFFFFF;
       
       // Reset transform properties
       g.x = 0;

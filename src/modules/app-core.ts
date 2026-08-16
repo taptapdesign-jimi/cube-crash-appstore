@@ -7541,6 +7541,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // If wild-magnet will pull tiles, it's NOT a last merge (unless there are no tiles to pull)
     // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecialMerge6) || isSpecialDiceMagnetLikeTile(dst, dstSpecialMerge6);
+    const magnetVariantAtMergeEntry = isWildMagnetMerge
+      ? getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst)
+      : null;
+    const magnetShardColorsAtMergeEntry = Object.freeze([
+      ...(getSpecialDiceShardColors(magnetVariantAtMergeEntry) || []),
+    ]);
     let hasTilesToPull = false;
     if (isWildMagnetMerge) {
       // 🎯 CRITICAL FIX: Count magnets INCLUDING their stackDepth!
@@ -8583,6 +8589,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
                 const helpersWithMerge = {
                   ...helpers,
+                  magnetShardColors: magnetShardColorsAtMergeEntry,
                   merge: merge,
                   startLevel: startLevel,
                   makeBoard,
@@ -8623,6 +8630,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // 🔥 USER REQUEST: Add spawnLockedTilesWithPop + openLockedBounceParallel so wild magnet gets 6 locked like wild juice/star/TNT
                 const helpersWithMerge = {
                   ...helpers,
+                  magnetShardColors: magnetShardColorsAtMergeEntry,
                   merge: merge, // Add merge function from app-core.ts to helpers
                   startLevel: startLevel, // Add startLevel function to helpers for clean board flow
                   makeBoard, // For fillNullCellsWithLockedPlaceholders (avoids TDZ in app-merge)
@@ -9852,8 +9860,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             // NO STARS for wild-magnet merge
             devLog('🔥 Wild-magnet merge 6 - using template-based pooling with red shards (NO STARS)');
             const mergePos = centerInBoard(board, dst, TILE);
-            const wildMagnetVariant = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
-            const wildMagnetShardColors = getSpecialDiceShardColors(wildMagnetVariant);
+            const wildMagnetVariant = magnetVariantAtMergeEntry;
+            const wildMagnetShardColors = [...magnetShardColorsAtMergeEntry];
             wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, {
               zIndex: dstZIndex,
               color: getSpecialDiceShardColor(wildMagnetVariant),
