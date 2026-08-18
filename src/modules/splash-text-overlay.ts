@@ -12,6 +12,8 @@ import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-dr
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+const killTrackedTimeline = (timeline?: gsap.core.Timeline | null) => animationManager.killExternalTimeline(timeline);
+const killTrackedTween = (tween?: gsap.core.Tween | null) => animationManager.killExternalTween(tween);
 
 let swoopOverlay: HTMLElement | null = null;
 let swoopTimelinesRef: gsap.core.Timeline[] = [];
@@ -108,15 +110,15 @@ function triggerSparkleHapticTrain(): void {
 function cleanupBuzzzOverlay(): void {
   try {
     swoopDelayedCallsRef.forEach((dc) => {
-      try { dc.kill(); } catch {}
+      killTrackedTween(dc);
     });
     swoopDelayedCallsRef = [];
     swoopBounceTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     swoopBounceTimelinesRef = [];
     swoopTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     swoopTimelinesRef = [];
     if (swoopOverlay) {
@@ -292,7 +294,7 @@ export function showMagneticText(options: any = {}): void {
       exitStarted = true;
       try { (swoopFxCleanup as any)?.startExit?.(); } catch {}
       swoopBounceTimelines.forEach((tl) => {
-        try { tl.kill(); } catch {}
+        killTrackedTimeline(tl);
       });
       letters.forEach((_, index) => {
         const el = container.children[index] as HTMLElement;
@@ -427,15 +429,18 @@ export function waitForMagneticTextComplete(timeoutMs = 2200): Promise<void> {
   if (!magneticTextActive) return Promise.resolve();
   return new Promise((resolve) => {
     let done = false;
+    let timeoutId: number | null = null;
     const finish = () => {
       if (done) return;
       done = true;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      magneticTextWaiters = magneticTextWaiters.filter((fn) => fn !== finish);
       resolve();
     };
     magneticTextWaiters.push(finish);
     // Failsafe: never block flow if animation is interrupted.
     try {
-      window.setTimeout(finish, timeoutMs);
+      timeoutId = window.setTimeout(finish, timeoutMs);
     } catch {
       finish();
     }
@@ -445,15 +450,15 @@ export function waitForMagneticTextComplete(timeoutMs = 2200): Promise<void> {
 function cleanupSparkleOverlay(): void {
   try {
     sparkleDelayedCallsRef.forEach((dc) => {
-      try { dc.kill(); } catch {}
+      killTrackedTween(dc);
     });
     sparkleDelayedCallsRef = [];
     sparkleBounceTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     sparkleBounceTimelinesRef = [];
     sparkleTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     sparkleTimelinesRef = [];
     if (sparkleOverlay) {
@@ -607,7 +612,7 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
       if (exitStarted) return;
       exitStarted = true;
       bounceTimelines.forEach((tl) => {
-        try { tl.kill(); } catch {}
+        killTrackedTimeline(tl);
       });
       letters.forEach((_, index) => {
         const el = container.children[index] as HTMLElement;
@@ -736,15 +741,17 @@ export function waitForSparkleTextComplete(timeoutMs = 2200): Promise<void> {
   if (!sparkleTextActive) return Promise.resolve();
   return new Promise((resolve) => {
     let done = false;
+    let timeoutId: number | null = null;
     const finish = () => {
       if (done) return;
       done = true;
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
       sparkleTextWaiters = sparkleTextWaiters.filter((fn) => fn !== finish);
       resolve();
     };
     sparkleTextWaiters.push(finish);
     try {
-      window.setTimeout(finish, timeoutMs);
+      timeoutId = window.setTimeout(finish, timeoutMs);
     } catch {
       finish();
     }
@@ -754,15 +761,15 @@ export function waitForSparkleTextComplete(timeoutMs = 2200): Promise<void> {
 function cleanupNoMovesOverlay(): void {
   try {
     noMovesBounceTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     noMovesBounceTimelinesRef.length = 0;
     noMovesDelayedCallsRef.forEach((dc) => {
-      try { dc.kill(); } catch {}
+      killTrackedTween(dc);
     });
     noMovesDelayedCallsRef.length = 0;
     noMovesTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     noMovesTimelinesRef.length = 0;
     noMovesLetterScales = [];
@@ -1043,15 +1050,15 @@ export function exitNoMovesText(): Promise<void> {
     }
     const letters = ['N', 'O', ' ', 'M', 'O', 'V', 'E', 'S'];
     noMovesBounceTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     noMovesBounceTimelinesRef.length = 0;
     noMovesDelayedCallsRef.forEach((dc) => {
-      try { dc.kill(); } catch {}
+      killTrackedTween(dc);
     });
     noMovesDelayedCallsRef.length = 0;
     noMovesTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      killTrackedTimeline(tl);
     });
     noMovesTimelinesRef.length = 0;
 

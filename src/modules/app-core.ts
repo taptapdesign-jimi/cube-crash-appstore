@@ -204,7 +204,7 @@ import {
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
-  getBeachWildSlotForSpawn,
+  pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
@@ -6129,8 +6129,8 @@ async function spawnWildFromMeter(){
         wildType = 'wild';
       }
       const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 11 && boardNumber <= 20;
+      const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined;
       if (isBeachJourneyBoard) {
-        const beachWildSlot = getBeachWildSlotForSpawn(boardNumber, wildSpawnCount);
         spawnJuice = beachWildSlot === 1 || beachWildSlot === 2;
         spawnMagnet = false;
         spawnTnt = false;
@@ -6141,6 +6141,7 @@ async function spawnWildFromMeter(){
         wildSpawnCount,
         arcadeStage: boardNumber,
         journeyBoard: boardNumber,
+        beachWildSlot,
       });
       if (specialDiceVariant) {
         const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);

@@ -57,71 +57,6 @@ export function stopWildStars(tile: Tile): void {
 // 🔥 WILD-JUICE: Continuous bubble animation system
 const wildJuiceBubbleSystems = new Map<any, any>();
 
-// FPS monitoring for dynamic quality reduction
-let fpsMonitorActive: boolean = false;
-let fpsFrameCount: number = 0;
-let fpsStartTime: number = 0;
-let currentFps: number = 60;
-let lastFpsCheck: number = 0;
-
-/**
- * Start FPS monitoring
- */
-function startFpsMonitoring(): void {
-  if (fpsMonitorActive) return;
-  fpsMonitorActive = true;
-  fpsFrameCount = 0;
-  fpsStartTime = performance.now();
-  lastFpsCheck = fpsStartTime;
-  console.log('🎯 FPS monitoring started');
-}
-
-/**
- * Stop FPS monitoring and return current FPS
- */
-function stopFpsMonitoring(): number {
-  if (!fpsMonitorActive) return currentFps;
-  fpsMonitorActive = false;
-  const elapsed = performance.now() - fpsStartTime;
-  if (elapsed > 0) {
-    currentFps = (fpsFrameCount * 1000) / elapsed;
-  }
-  console.log(`🎯 FPS monitoring stopped - Average FPS: ${currentFps.toFixed(1)}`);
-  return currentFps;
-}
-
-/**
- * Update FPS counter (call this each frame)
- * 🔥 PERFORMANCE FIX: Throttled to every 2nd frame to reduce overhead
- */
-let fpsUpdateCounter: number = 0;
-function updateFpsCounter(): void {
-  // 🔥 PERFORMANCE FIX: Throttle to every 2nd frame (50% reduction in overhead)
-  fpsUpdateCounter++;
-  if (fpsUpdateCounter % 2 !== 0) return; // Skip every other frame
-  if (!fpsMonitorActive) return;
-  fpsFrameCount++;
-  const now = performance.now();
-  // Update current FPS every 500ms for responsiveness
-  if (now - lastFpsCheck >= 500) {
-    const elapsed = now - fpsStartTime;
-    if (elapsed > 0) {
-      currentFps = (fpsFrameCount * 1000) / elapsed;
-    }
-    lastFpsCheck = now;
-  }
-}
-
-/**
- * Get dynamic bubble count based on current FPS (simplified version)
- */
-function getDynamicBubbleCount(baseCount: number): number {
-  if (currentFps >= 40) return baseCount; // Full quality
-  if (currentFps >= 25) return Math.max(20, Math.floor(baseCount * 0.7)); // 70% quality
-  if (currentFps >= 15) return Math.max(15, Math.floor(baseCount * 0.5)); // 50% quality
-  return Math.max(10, Math.floor(baseCount * 0.3)); // 30% quality minimum
-}
-
 /**
  * Start continuous sparkling water bubbles for wild-juice tiles only.
  * TNT uses its own explosion animation on merge 6 (no idle bubbles).
@@ -194,7 +129,7 @@ export function startWildJuiceBubbles(tile) {
     if (owned) {
       owned.forEach((tween) => {
         system.activeTweens.delete(tween);
-        try { tween.kill(); } catch {}
+        animationManager.killExternalTween(tween);
       });
       owned.clear();
       system.bubbleTweens.delete(bubble);
@@ -389,7 +324,7 @@ export function stopWildJuiceBubbles(tile) {
   // can miss nested PropTweens and let them write into a repooled Pixi object.
   if (system.activeTweens) {
     system.activeTweens.forEach((tween) => {
-      try { tween.kill(); } catch {}
+      animationManager.killExternalTween(tween);
     });
     system.activeTweens.clear();
   }
@@ -397,7 +332,7 @@ export function stopWildJuiceBubbles(tile) {
   // Kill spawn interval
   if (system.spawnInterval) {
     try {
-      system.spawnInterval.kill();
+      animationManager.killExternalTween(system.spawnInterval);
       system.spawnInterval = null;
     } catch {}
   }
@@ -408,7 +343,7 @@ export function stopWildJuiceBubbles(tile) {
       try {
         const owned = system.bubbleTweens?.get(bubble);
         owned?.forEach((tween) => {
-          try { tween.kill(); } catch {}
+          animationManager.killExternalTween(tween);
         });
         owned?.clear?.();
         system.bubbleTweens?.delete?.(bubble);
@@ -496,7 +431,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
         if (child._starAnimations && Array.isArray(child._starAnimations)) {
           child._starAnimations.forEach(anim => {
             try {
-              if (anim && anim.kill) anim.kill();
+              animationManager.killExternalAnimation(anim);
             } catch {}
           });
           child._starAnimations = [];
@@ -544,7 +479,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
     if (child && typeof child.on === 'function') {
       const cleanup = () => {
         if (delayedCall) {
-          delayedCall.kill();
+          animationManager.killExternalTween(delayedCall);
           __globalDelayedCalls.delete(delayedCall);
         }
         // 🔥 FIX: Also remove from FX container tracker
@@ -568,7 +503,7 @@ export function killAllDelayedCalls() {
         console.log('🛡️ Skipping protected star animation delayed call');
         return;
       }
-      call.kill();
+      animationManager.killExternalTween(call);
     } catch {}
   });
   __globalDelayedCalls.clear();
@@ -3830,20 +3765,6 @@ export function waitForStarsToHudToComplete(maxWaitMs = 4500) {
 }
 
 /**
- * 🔥 ENDGAME ANIMATION-WAIT: Wait for all ongoing endgame-relevant animations
- * (bubbles explosion + stars to HUD) before showing fail or clean board modal.
- * Resolves when both finish or after maxWaitMs (whichever first, per animation).
- */
-export async function waitForOngoingAnimations(maxWaitMs = 6000) {
-  const bubblesMs = Math.min(maxWaitMs, 6500);
-  const starsMs = Math.min(maxWaitMs, 4500);
-  await Promise.all([
-    waitForBubblesAnimationToComplete(bubblesMs),
-    waitForStarsToHudToComplete(starsMs),
-  ]);
-}
-
-/**
  * 🔥 COMPREHENSIVE CLEANUP: Call this on game state changes (level end, board reset, etc.)
  * Ensures all animations and effects are properly cleaned up to prevent memory leaks
  */
@@ -3880,33 +3801,7 @@ export function cleanupAllEffects() {
   // Destroy all graphics objects
   destroyAllGraphicsObjects();
 
-  // Stop FPS monitoring
-  fpsMonitorActive = false;
-
   console.log('✅ cleanupAllEffects: All effects cleaned up');
-}
-
-// 🔥 DEBUG: Expose bubble stats to window for DevTools console access (redirected to new module)
-if (typeof window !== 'undefined') {
-  window.getBubbleStats = function() {
-    // 🔥 WRAPPER: Redirect to new modular explosion
-    if (_explosionModuleCache && typeof _explosionModuleCache.getBubbleStats === 'function') {
-      return _explosionModuleCache.getBubbleStats();
-    }
-    return { active: 0, spawned: 0, total: 0, fps: currentFps || 60, container: false, texture: 'N/A' };
-  };
-}
-
-// 🔥 REMOVED: createWildJuiceBubblesExplosion - moved to wild-juice-bubbles-explosion.ts module
-// This function is no longer used - use showWildJuiceBubblesExplosion() from wild-juice-bubbles-explosion.ts instead
-export function createWildJuiceBubblesExplosion(board, tile) {
-  // 🔥 WRAPPER: Redirect to new modular explosion
-  import('./wild-juice-bubbles-explosion.js').then(module => {
-    _explosionModuleCache = module;
-    if (typeof module.showWildJuiceBubblesExplosion === 'function') {
-      module.showWildJuiceBubblesExplosion();
-    }
-  }).catch(() => {});
 }
 
 // 🔥 PERFORMANCE OPTIMIZATION: Cache star texture to avoid reloading (seamless, invisible to user)
@@ -5851,6 +5746,10 @@ export function startWildIdle(tile, opts = {}){
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
       const delayedCall = trackDelayedCall(delay, () => {
+        __globalDelayedCalls.delete(delayedCall);
+        if (Array.isArray(tile._shimmerDelayedCalls)) {
+          tile._shimmerDelayedCalls = tile._shimmerDelayedCalls.filter((call) => call !== delayedCall);
+        }
         if (tile._wildIdleTl && !tile._wildIdleTl.isActive()) return; // Don't shimmer if idle stopped
         
         // Check if shimmer sprite still exists before accessing properties
@@ -5873,7 +5772,7 @@ export function startWildIdle(tile, opts = {}){
             onUpdate: () => {
               // Additional safety check during animation
               if (!tile._wildShimmerSprite) {
-                shimmerTl.kill();
+                animationManager.killExternalTimeline(shimmerTl);
                 return;
               }
             }
@@ -5912,6 +5811,10 @@ export function startWildShimmer(tile) {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
       const delayedCall = trackDelayedCall(delay, () => {
+        __globalDelayedCalls.delete(delayedCall);
+        if (Array.isArray(tile._shimmerDelayedCalls)) {
+          tile._shimmerDelayedCalls = tile._shimmerDelayedCalls.filter((call) => call !== delayedCall);
+        }
         // Check if shimmer sprite still exists before accessing properties
         if (!tile._wildShimmerSprite || tile.destroyed) return;
 
@@ -5930,7 +5833,7 @@ export function startWildShimmer(tile) {
             ease: 'power2.inOut',
             onUpdate: () => {
               if (!tile._wildShimmerSprite) {
-                shimmerTl.kill();
+                animationManager.killExternalTimeline(shimmerTl);
                 return;
               }
             }
@@ -5960,7 +5863,7 @@ export function stopWildShimmer(tile) {
     if (tile._shimmerDelayedCalls && Array.isArray(tile._shimmerDelayedCalls)) {
       tile._shimmerDelayedCalls.forEach(call => {
         try { 
-          call.kill(); 
+          animationManager.killExternalTween(call);
           __globalDelayedCalls.delete(call);
         } catch {}
       });
@@ -6393,152 +6296,6 @@ export function cleanupAllTntIdleEffects(reason = 'unknown') {
 
 
 /**
- * Start magnet shake animation - idle shake every 3 seconds
- * Each magnet has random shake parameters (angle, duration)
- * Shakes using rotation only (does NOT modify tile position - keeps tile on board!)
- * Slower animation (80% slower), 6 revolutions per shake, 3 second pause between shakes
- */
-export function startMagnetShake(tile) {
-  if (!tile) return;
-  
-  // Stop existing shake animation
-  if (tile._magnetShakeTl) {
-    tile._magnetShakeTl.kill();
-    tile._magnetShakeTl = null;
-  }
-  
-  const g = tile.rotG || tile;
-  
-  // 🔥 NEW: Random shake parameters for each magnet (makes each magnet unique)
-  // Store random parameters on tile so they persist across shake cycles
-  if (tile._magnetShakeAngle === undefined) {
-    // Random shake angle: 8-12 degrees (base 10.5 with variation)
-    tile._magnetShakeAngle = 10.5 + (Math.random() - 0.5) * 4; // 8.5 to 12.5 degrees
-    // Random duration multiplier: 0.9-1.1x (slight variation in speed)
-    tile._magnetShakeDurationMultiplier = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
-  }
-  
-  const shakeAngle = tile._magnetShakeAngle;
-  const shakeDuration = 0.06 * 1.8 * tile._magnetShakeDurationMultiplier; // 80% slower: 60ms * 1.8 = 108ms base, with random variation
-  const revolutions = 6; // 6 revolutions per shake (left-right-left-right-left-right)
-  
-  // Convert degrees to radians
-  const shakeRad = (shakeAngle * Math.PI) / 180;
-  
-  // Create shake animation function
-  const performShake = () => {
-    if (!tile || tile.destroyed || !g) return;
-    
-    // 🔥 CRITICAL: Don't modify tile position (x, y) - that moves tile off board!
-    // Instead, use only rotation for shake effect
-    // Store original rotation to restore it after shake
-    if (g._originalShakeRotation === undefined) {
-      g._originalShakeRotation = g.rotation || 0;
-    }
-    
-    const originalRotation = g._originalShakeRotation;
-    
-    // Random rotation offset for this shake cycle (adds variation)
-    const randomRotationOffset = (Math.random() - 0.5) * 0.1; // Small random offset: ±0.05 radians (~±3 degrees)
-    
-    // Create shake with 6 revolutions
-    // Shake left-right-left-right-left-right 6 times (slower, looks like shaking)
-    const shakeTl = trackTimeline();
-    
-    // Each revolution is left-right, so 6 revolutions = 12 steps (6 left, 6 right)
-    const stepDuration = shakeDuration / (revolutions * 2);
-    
-    // Start from original rotation with small random offset
-    shakeTl.set(g, { 
-      rotation: originalRotation + randomRotationOffset
-    });
-    
-    for (let i = 0; i < revolutions * 2; i++) {
-      const direction = i % 2 === 0 ? 1 : -1; // Alternate left-right
-      
-      shakeTl.to(g, {
-        rotation: originalRotation + (direction * shakeRad) + randomRotationOffset,
-        duration: stepDuration,
-        ease: 'power1.inOut'
-      });
-    }
-    
-    // Return to original rotation
-    shakeTl.to(g, {
-      rotation: originalRotation,
-      duration: stepDuration,
-      ease: 'power1.inOut'
-    });
-  };
-  
-  // Perform shake immediately
-  performShake();
-  
-  // Schedule shake every 3 seconds (idle shake with pause)
-  const scheduleShake = () => {
-    if (!tile || tile.destroyed) return;
-    
-    const delayedCall = trackDelayedCall(3.0, () => {
-      if (!tile || tile.destroyed) return;
-      performShake();
-      scheduleShake(); // Schedule next shake after 3 seconds
-    });
-    
-    // Store delayed call for cleanup
-    __globalDelayedCalls.add(delayedCall);
-    if (!tile._magnetShakeDelayedCalls) tile._magnetShakeDelayedCalls = [];
-    tile._magnetShakeDelayedCalls.push(delayedCall);
-    tile._magnetShakeTl = delayedCall;
-  };
-  
-  scheduleShake();
-}
-
-/**
- * Stop magnet shake animation
- */
-export function stopMagnetShake(tile) {
-  if (!tile) return;
-  
-  // Kill timeline
-  if (tile._magnetShakeTl) {
-    try {
-      tile._magnetShakeTl.kill();
-    } catch {}
-    tile._magnetShakeTl = null;
-  }
-  
-  // Kill all delayed calls (if any)
-  if (tile._magnetShakeDelayedCalls) {
-    tile._magnetShakeDelayedCalls.forEach(call => {
-      try {
-        call.kill();
-        __globalDelayedCalls.delete(call);
-      } catch {}
-    });
-    tile._magnetShakeDelayedCalls = [];
-  }
-  
-  // Reset rotation only (don't touch position - that would move tile off board!)
-  const g = tile.rotG || tile;
-  if (g) {
-    try {
-      gsap.killTweensOf(g);
-      // Reset to original rotation if stored, otherwise 0
-      const resetRotation = g._originalShakeRotation !== undefined ? g._originalShakeRotation : 0;
-      // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
-      if (typeof g.rotation !== 'undefined') g.rotation = resetRotation;
-      // Clear stored original rotation
-      g._originalShakeRotation = undefined;
-    } catch {}
-  }
-  
-  // Clear random shake parameters
-  tile._magnetShakeAngle = undefined;
-  tile._magnetShakeDurationMultiplier = undefined;
-}
-
-/**
  * Start TNT idle shake - jako spora, nježna rotacija 0–14° svakih ~3s.
  */
 export function startTntIdleShake(tile) {
@@ -6574,7 +6331,7 @@ export function startTntIdleShake(tile) {
 
     const shakeTl = trackTimeline();
     if (tile._tntShakeCurrentTl) {
-      try { tile._tntShakeCurrentTl.kill(); } catch {}
+      animationManager.killExternalTimeline(tile._tntShakeCurrentTl);
     }
     tile._tntShakeCurrentTl = shakeTl;
     shakeTl.set(g, { rotation: originalRotation, y: originalY });
@@ -6600,6 +6357,10 @@ export function startTntIdleShake(tile) {
     if (!tile || tile.destroyed) return;
     const delay = 3 + Math.random() * 0.4; // ~3 sekunde između mrda
     const delayedCall = trackDelayedCall(delay, () => {
+      __globalDelayedCalls.delete(delayedCall);
+      if (Array.isArray(tile._tntShakeDelayedCalls)) {
+        tile._tntShakeDelayedCalls = tile._tntShakeDelayedCalls.filter((call) => call !== delayedCall);
+      }
       if (!tile || tile.destroyed) return;
       performShake();
       scheduleShake();
@@ -6617,18 +6378,18 @@ export function stopTntIdleShake(tile) {
   if (!tile) return;
 
   if (tile._tntShakeCurrentTl) {
-    try { tile._tntShakeCurrentTl.kill(); } catch {}
+    animationManager.killExternalTimeline(tile._tntShakeCurrentTl);
     tile._tntShakeCurrentTl = null;
   }
   if (tile._tntShakeTl) {
-    try { tile._tntShakeTl.kill(); } catch {}
+    animationManager.killExternalTween(tile._tntShakeTl);
     tile._tntShakeTl = null;
   }
 
   if (tile._tntShakeDelayedCalls) {
     tile._tntShakeDelayedCalls.forEach(call => {
       try {
-        call.kill();
+        animationManager.killExternalTween(call);
         __globalDelayedCalls.delete(call);
       } catch {}
     });
@@ -6661,7 +6422,7 @@ export function stopWildIdle(tile){
     }
   } catch {}
   
-  try { tile._wildIdleTl?.kill?.(); } catch {}
+  animationManager.killExternalTimeline(tile._wildIdleTl);
   try { stopWildStars(tile); } catch {}
   tile._wildIdleTl = null;
   
@@ -6670,7 +6431,7 @@ export function stopWildIdle(tile){
     if (tile._shimmerDelayedCalls && Array.isArray(tile._shimmerDelayedCalls)) {
       tile._shimmerDelayedCalls.forEach(call => {
         try { 
-          call.kill(); 
+          animationManager.killExternalTween(call);
           __globalDelayedCalls.delete(call);
         } catch {}
       });

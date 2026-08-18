@@ -52,6 +52,28 @@ describe('Bottle special-die visual contract', () => {
       expect(fs.existsSync(path.join(pack, `bubble${index}.png`))).toBe(true);
       expect(fs.existsSync(path.join(pack, `bubble${index}@2x.png`))).toBe(true);
     }
+
+    const bottleRoot = path.resolve('assets/shop/bottle');
+    for (const name of [
+      ...Array.from({ length: 5 }, (_, index) => `glass${index + 1}`),
+      ...Array.from({ length: 7 }, (_, index) => `paper${index + 1}`),
+    ]) {
+      expect(fs.existsSync(path.join(bottleRoot, `${name}.png`))).toBe(false);
+      expect(fs.existsSync(path.join(bottleRoot, `${name}@2x.png`))).toBe(false);
+    }
+    for (const name of ['sea1', 'sea2', 'sea3', 'splav1', 'splav2', 'splav3']) {
+      expect(fs.existsSync(path.join(pack, `${name}.png`))).toBe(false);
+      expect(fs.existsSync(path.join(pack, `${name}@2x.png`))).toBe(false);
+    }
+  });
+
+  test('does not ship the retired Bottle particle implementation in the shared sparkle helper', () => {
+    const sparkleSource = read('src/modules/text-sparkles.ts');
+    expect(sparkleSource).not.toContain('attachSparkleSprites');
+    expect(sparkleSource).not.toContain('bottleScatter');
+    expect(sparkleSource).not.toContain('cc-bottle-merge-bubble');
+    expect(sparkleSource).not.toContain('isBottleGlass');
+    expect(sparkleSource).not.toContain('isBottlePaper');
   });
 
   test('sinks bottles from above with a bounded trailing-bubble stream, then cleans up idempotently', () => {
@@ -76,7 +98,8 @@ describe('Bottle special-die visual contract', () => {
     expect(scene).toContain('wobbleDirection * (14 + Math.random() * 6)');
     expect(scene).toContain('const wobblePhaseRatios = [0.22, 0.28, 0.23, 0.27] as const');
     expect(scene).toContain("mover.className = `cc-bottle-finale-mover cc-bottle-finale-mover-${layer.key}`");
-    expect(scene).toContain('mover.appendChild(image)');
+    expect(scene).toContain('parent.appendChild(image)');
+    expect(scene).not.toContain('field.appendChild(image)');
     expect(scene).toContain('bottleTimeline.to(mover, {');
     expect(scene).toContain('const wobbleTimeline = own(trackTimeline({ delay: bottleStartDelaySeconds }))');
     expect(scene).toContain('wobbleTimeline.to(image, {');
@@ -117,9 +140,10 @@ describe('Bottle special-die visual contract', () => {
     expect(scene).toContain('y: () => -trailRise');
     expect(scene).toContain('scale: trailEndScale');
     expect(scene).toContain('activeTimelines.splice(0).forEach');
+    expect(scene).toContain('animationManager.killExternalTimeline(timeline)');
     expect(scene).toContain('if (cleaned || exitStarted) return');
     expect(scene).toContain('if (cleaned) return');
-    expect(scene).toContain('activeTimelines.forEach');
+    expect(scene).not.toContain('activeTimelines.forEach');
     expect(scene).toContain('domElementPool.release(image)');
     expect(scene).toContain('cleanup.startExit = startExit');
     expect(scene).toContain('cleanup.completionDelaySeconds = startDelaySeconds + 5.35');
@@ -180,6 +204,7 @@ describe('Bottle special-die visual contract', () => {
     expect(fxSource).toContain('activeTweens: new Set()');
     expect(fxSource).toContain('bubbleTweens: new Map()');
     expect(fxSource).toContain('const ownBubbleTween = (bubble, tween) =>');
+    expect(fxSource).toContain('animationManager.killExternalTween(tween)');
     expect(fxSource).toContain('queueMicrotask(() =>');
     expect(fxSource).toContain('graphicsPool.isInPool(bubble)');
     expect(fxSource).toContain('system.container.destroy({ children: false })');

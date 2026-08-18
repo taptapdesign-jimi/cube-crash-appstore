@@ -277,16 +277,15 @@ test('Forest Stage 2 test sequence never leaks into another Journey board', () =
   }
 });
 
-test('Beach stages cycle Star, Juice, Beach Ball, and Beach-only Bottle', () => {
+test('Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {
   for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
-    const firstCycle = [0, 1, 2, 3].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
+    const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard,
-      wildSpawnCount,
+      wildSpawnCount: 999,
+      beachWildSlot,
     })?.id ?? null);
-    expect(firstCycle).toEqual(journeyBoard === 12
-      ? ['bottle', null, null, 'beach-ball']
-      : [null, null, 'beach-ball', 'bottle']);
+    expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
   }
 
   for (const journeyBoard of [1, 2, 10, 21, 30]) {

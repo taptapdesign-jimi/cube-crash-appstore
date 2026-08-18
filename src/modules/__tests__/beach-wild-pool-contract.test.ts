@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getAllowedWildTypes } from '../board-specific-rules';
 import {
-  getBeachWildSlotForSpawn,
+  BEACH_WILD_SLOT_WEIGHTS,
+  pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
 } from '../special-dice-registry';
 
@@ -15,27 +16,42 @@ describe('Beach World wild pool', () => {
     expect(getAllowedWildTypes(21)).toContain('wild-tnt');
   });
 
-  test('cycles Star, Juice, Beach Ball, then Bottle without a core Magnet/TNT path', () => {
+  test('uses one Beach probability roll for Star, Juice, Beach Ball, or Bottle without Magnet/TNT', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const start = source.indexOf('const isBeachJourneyBoard =');
     const end = source.indexOf('const specialDiceVariant =', start);
     const beachOwner = source.slice(start, end);
 
-    expect(beachOwner).toContain('const beachWildSlot = getBeachWildSlotForSpawn(boardNumber, wildSpawnCount)');
+    expect(beachOwner).toContain('const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined');
     expect(beachOwner).toContain('spawnJuice = beachWildSlot === 1 || beachWildSlot === 2');
     expect(beachOwner).toContain('spawnMagnet = false');
     expect(beachOwner).toContain('spawnTnt = false');
+    expect(source).toContain('beachWildSlot,');
   });
 
-  test('rotates only Beach Stage 02 so Bottle is first without duplicating the four-item bag', () => {
-    expect([0, 1, 2, 3].map((count) => getBeachWildSlotForSpawn(12, count))).toEqual([3, 0, 1, 2]);
-    expect(pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      wildSpawnCount: 0,
-      journeyBoard: 12,
-    })?.id).toBe('bottle');
+  test('gives all four Beach specials an equal independent 25-percent range', () => {
+    expect(BEACH_WILD_SLOT_WEIGHTS).toEqual([0.25, 0.25, 0.25, 0.25]);
+    expect([
+      pickBeachWildSlot(0),
+      pickBeachWildSlot(0.249999),
+      pickBeachWildSlot(0.25),
+      pickBeachWildSlot(0.499999),
+      pickBeachWildSlot(0.5),
+      pickBeachWildSlot(0.749999),
+      pickBeachWildSlot(0.75),
+      pickBeachWildSlot(0.999999),
+    ]).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  });
 
-    expect([0, 1, 2, 3].map((count) => getBeachWildSlotForSpawn(11, count))).toEqual([0, 1, 2, 3]);
-    expect([0, 1, 2, 3].map((count) => getBeachWildSlotForSpawn(13, count))).toEqual([0, 1, 2, 3]);
+  test('uses the supplied roll consistently on every Beach stage, including Stage 02', () => {
+    for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
+      const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
+        isArcade: false,
+        wildSpawnCount: 999,
+        journeyBoard,
+        beachWildSlot,
+      })?.id ?? null);
+      expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
+    }
   });
 });

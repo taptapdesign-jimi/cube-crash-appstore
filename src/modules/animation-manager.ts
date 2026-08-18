@@ -98,6 +98,10 @@ class AnimationManager {
     return tween;
   }
 
+  killExternalTween(tween: gsap.core.Tween | null | undefined): void {
+    this.killExternalAnimation(tween);
+  }
+
   // Track external timeline created outside the manager
   // 🔥 MEMORY LEAK FIX: Auto-remove when timeline completes
   // Without this, idle tile bounce smoke creates ~42k timelines/hour that never get GC'd
@@ -125,9 +129,14 @@ class AnimationManager {
   }
 
   killExternalTimeline(timeline: gsap.core.Timeline | null | undefined): void {
-    if (!timeline) return;
-    this.activeTimelines.delete(timeline);
-    try { timeline.kill(); } catch {}
+    this.killExternalAnimation(timeline);
+  }
+
+  killExternalAnimation(animation: gsap.core.Tween | gsap.core.Timeline | null | undefined): void {
+    if (!animation) return;
+    this.activeTweens.delete(animation as gsap.core.Tween);
+    this.activeTimelines.delete(animation as gsap.core.Timeline);
+    try { animation.kill(); } catch {}
   }
   
   // Initialize animation manager

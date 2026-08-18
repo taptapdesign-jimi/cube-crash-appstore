@@ -16,12 +16,12 @@ type BottleFinaleCleanup = (() => void) & {
 
 const PACK = './assets/shop/bottle/bottle animation pack';
 const use2x = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const source = (name: string, allow2x = true): string => `${PACK}/${name}${use2x && allow2x ? '@2x' : ''}.png`;
+const source = (name: string): string => `${PACK}/${name}${use2x ? '@2x' : ''}.png`;
 
 const BOTTLE_LAYERS = [
-  { key: 'botle1', src: source('botle1'), z: 8, width: '30%', left: '18%', direction: -1, restY: 100, speedMultiplier: 1 },
-  { key: 'botle2', src: source('botle2'), z: 9, width: '36%', left: '50%', direction: 1, restY: 0, speedMultiplier: 1.488 },
-  { key: 'botle3', src: source('botle3'), z: 10, width: '27%', left: '78%', direction: -1, restY: -60, speedMultiplier: 1.332 },
+  { key: 'botle1', src: source('botle1'), z: 8, width: '30%', left: '18%', restY: 100, speedMultiplier: 1 },
+  { key: 'botle2', src: source('botle2'), z: 9, width: '36%', left: '50%', restY: 0, speedMultiplier: 1.488 },
+  { key: 'botle3', src: source('botle3'), z: 10, width: '27%', left: '78%', restY: -60, speedMultiplier: 1.332 },
 ] as const;
 
 const ORIGINAL_BUBBLE_COUNT = 25;
@@ -60,7 +60,11 @@ export function attachBottleFinaleScene(
     return timeline;
   };
 
-  const acquireImage = (src: string, className: string): HTMLImageElement => {
+  const acquireImage = (
+    src: string,
+    className: string,
+    parent: HTMLElement = field,
+  ): HTMLImageElement => {
     const image = domElementPool.acquire('img') as HTMLImageElement;
     image.src = src;
     image.alt = '';
@@ -71,7 +75,7 @@ export function attachBottleFinaleScene(
     image.style.willChange = 'transform, opacity';
     image.style.backfaceVisibility = 'hidden';
     images.push(image);
-    field.appendChild(image);
+    parent.appendChild(image);
     return image;
   };
 
@@ -105,8 +109,11 @@ export function attachBottleFinaleScene(
     mover.style.pointerEvents = 'none';
     mover.style.willChange = 'transform, opacity';
     field.appendChild(mover);
-    const image = acquireImage(layer.src, `cc-bottle-finale-layer cc-bottle-finale-${layer.key}`);
-    mover.appendChild(image);
+    const image = acquireImage(
+      layer.src,
+      `cc-bottle-finale-layer cc-bottle-finale-${layer.key}`,
+      mover,
+    );
     image.dataset.bottleLayer = layer.key;
     image.style.position = 'relative';
     image.style.display = 'block';
@@ -271,7 +278,9 @@ export function attachBottleFinaleScene(
     exitStarted = true;
     // The authored sequence has already popped bubbles and dropped bottles.
     // Retire its owners before the final hidden-state handoff.
-    activeTimelines.splice(0).forEach((timeline) => { try { timeline.kill(); } catch {} });
+    activeTimelines.splice(0).forEach((timeline) => {
+      animationManager.killExternalTimeline(timeline);
+    });
     const finish = own(trackTimeline());
     finish.set(images, { opacity: 0 });
   };
@@ -289,7 +298,9 @@ export function attachBottleFinaleScene(
   const cleanup = (() => {
     if (cleaned) return;
     cleaned = true;
-    activeTimelines.forEach((timeline) => { try { timeline.kill(); } catch {} });
+    activeTimelines.splice(0).forEach((timeline) => {
+      animationManager.killExternalTimeline(timeline);
+    });
     images.forEach((image) => {
       try {
         gsap.killTweensOf(image);
@@ -303,6 +314,3 @@ export function attachBottleFinaleScene(
   cleanup.completionDelaySeconds = startDelaySeconds + 5.35;
   return cleanup;
 }
-
-export const BOTTLE_FINALE_SCENE_LAYER_KEYS = BOTTLE_LAYERS.map((layer) => layer.key);
-export const BOTTLE_FINALE_BUBBLE_COUNT = BUBBLE_COUNT;

@@ -1022,7 +1022,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const efficiencyBonus = computeEfficiencyBonusFromState({ bonus, boardNumber });
     const arcadeStageClearMode = isArcadeHomeRunMode();
 
-    // Targeted handoff only. Avoid broad waitForOngoingAnimations(4000):
+    // Targeted handoff only. Avoid waiting on unrelated animation families:
     // final-merge-handoff already waits exact TNT/juice/magnet/sparkle finales.
     // Here we only give active stars/bubbles a short, specific chance to complete.
     try {

@@ -52,6 +52,7 @@ let cleanupInProgress = false;
 let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
+let bubblyDelayedCallsRef: gsap.core.Tween[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
@@ -279,47 +280,6 @@ export function setExplosionContainer(container: Container | null): void {
     explosionContainer = null;
     isExplosionActive = false;
     setWildFxDragLock('juice-bubbles', false);
-  }
-}
-
-// FPS monitoring (from fx.ts)
-let fpsMonitorActive: boolean = false;
-let fpsFrameCount: number = 0;
-let fpsStartTime: number = 0;
-let currentFps: number = 60;
-let lastFpsCheck: number = 0;
-
-/**
- * Start FPS monitoring
- */
-function startFpsMonitoring(): void {
-  if (fpsMonitorActive) return;
-  fpsMonitorActive = true;
-  fpsFrameCount = 0;
-  fpsStartTime = performance.now();
-  lastFpsCheck = fpsStartTime;
-  currentFps = 60;
-}
-
-/**
- * Stop FPS monitoring
- */
-function stopFpsMonitoring(): void {
-  fpsMonitorActive = false;
-}
-
-/**
- * Update FPS counter
- */
-function updateFpsCounter(): void {
-  if (!fpsMonitorActive) return;
-  fpsFrameCount++;
-  const now = performance.now();
-  const elapsed = now - lastFpsCheck;
-  if (elapsed >= 1000) {
-    currentFps = (fpsFrameCount / elapsed) * 1000;
-    fpsFrameCount = 0;
-    lastFpsCheck = now;
   }
 }
 
@@ -714,7 +674,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         if (!isExplosionActive || cleanupInProgress) return;
         try {
           (bubble as any)._bubbleTweens = null;
-          bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
+          bubbleTweens.forEach((animation) => animationManager.killExternalAnimation(animation));
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
           bubblePool.release(bubble);
         } catch {}
@@ -1041,14 +1001,11 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         lateBurstDone = true;
         acc += lateBurstCount;
       }
-      const safeFps = (typeof currentFps !== 'undefined' && currentFps !== null) ? currentFps : 60;
-      const fpsFactor = safeFps >= 50 ? 1.0 : Math.max(0.5, safeFps / 50);
-      acc += perMs * dt * fpsFactor;
+      acc += perMs * dt;
       const toSpawn = Math.min(spawnBatchSize, Math.floor(acc)); // 5 odjednom
       if (toSpawn > 0) {
         acc -= toSpawn;
         for (let i = 0; i < toSpawn; i++) {
-          if (safeFps < 30 && spawned >= totalWithLate * 0.7) break;
           try { makeBubble(); } catch {}
         }
       }
@@ -1118,7 +1075,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       // owner and is returned as one transaction, preventing orphan tweens.
       lifecycle.trackTimeout(() => {
         if (!isExplosionActive || cleanupInProgress) return;
-        try { pollenFlockTween?.kill(); } catch {}
+        animationManager.killExternalTween(pollenFlockTween);
         let released = 0;
         pollenStates.forEach(({ particle }) => {
           try {
@@ -1301,7 +1258,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     };
 
     lifecycle.trackCleanup(() => {
-      try { pollenFlockTween?.kill(); } catch {}
+      animationManager.killExternalTween(pollenFlockTween);
       pollenFlockTween = null;
       pollenStates.length = 0;
     });
@@ -1622,7 +1579,7 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
       if (bubblyExitStarted) return;
       bubblyExitStarted = true;
       bubblyBounceTimelinesRef.forEach((tl) => {
-        try { tl.kill(); } catch {}
+        animationManager.killExternalTimeline(tl);
       });
       bubblyLetters.forEach((letterEl, index) => {
         const delay = index * BUBBLY_EXIT_STAGGER;
@@ -1648,12 +1605,13 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
           ease: 'power2.in'
         });
       });
-      trackDelayedCall(
+      const exitCleanupCall = trackDelayedCall(
         BUBBLY_EXIT_STAGGER * bubblyLetters.length +
         BUBBLY_EXIT_BOUNCE_DURATION + BUBBLY_EXIT_EXTRA * 0.2 +
         BUBBLY_EXIT_FADE_DURATION + BUBBLY_EXIT_EXTRA * 0.8 + 0.1,
         () => cleanupBubblyOverlay()
       );
+      bubblyDelayedCallsRef.push(exitCleanupCall);
     };
 
     let bubblyEnterComplete = 0;
@@ -1737,13 +1695,17 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
 function cleanupBubblyOverlay(): void {
   try {
     bubblyBounceTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      animationManager.killExternalTimeline(tl);
     });
     bubblyBounceTimelinesRef = [];
     bubblyTimelinesRef.forEach((tl) => {
-      try { tl.kill(); } catch {}
+      animationManager.killExternalTimeline(tl);
     });
     bubblyTimelinesRef = [];
+    bubblyDelayedCallsRef.forEach((call) => {
+      animationManager.killExternalTween(call);
+    });
+    bubblyDelayedCallsRef = [];
     if (bubblyOverlay) {
       try {
         gsap.killTweensOf(bubblyOverlay);
@@ -1795,13 +1757,6 @@ function cleanup(): void {
       safetyTimeoutId = null;
     }
 
-    // Stop FPS monitoring
-    try {
-      stopFpsMonitoring();
-    } catch (e) {
-      console.warn('⚠️ cleanup: Failed to stop FPS monitoring:', e);
-    }
-
     // Remove GSAP ticker
     if (spawnTick) {
       try {
@@ -1836,7 +1791,7 @@ function cleanup(): void {
             if (!bubble || (bubble as any).destroyed) return;
             if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
               bubble._bubbleTweens.forEach(tween => {
-                try { if (tween && tween.kill) tween.kill(); } catch {}
+                animationManager.killExternalAnimation(tween);
               });
               bubble._bubbleTweens = null;
             }
