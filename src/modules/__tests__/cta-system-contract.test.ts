@@ -161,10 +161,12 @@ describe('shared CTA system contract', () => {
 
   test('reveals the New Reward card before bouncing in its Continue CTA', () => {
     expect(newRewardSource).not.toContain('const ctaStart = titleStart');
-    const finalCardEnter = newRewardSource.indexOf('.to(finalImg, {');
+    const revealStart = newRewardSource.indexOf('const cardEnterStart = 0;');
+    const finalCardEnter = newRewardSource.indexOf('.to(unlockedSurface, {', revealStart);
     const cardImpact = newRewardSource.indexOf('}, undefined, cardImpactStart)', finalCardEnter);
     const ctaEnter = newRewardSource.indexOf('void ctaController?.enter()', finalCardEnter);
-    expect(finalCardEnter).toBeGreaterThan(-1);
+    expect(revealStart).toBeGreaterThan(-1);
+    expect(finalCardEnter).toBeGreaterThan(revealStart);
     expect(cardImpact).toBeGreaterThan(finalCardEnter);
     expect(ctaEnter).toBeGreaterThan(cardImpact);
   });

@@ -1,4 +1,4 @@
-import { Assets, Texture } from 'pixi.js';
+import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import {
   ASSET_NUMBERS,
@@ -11,6 +11,7 @@ import {
   ASSET_WILD_MAGNET,
   ASSET_WILD_TNT,
 } from '../modules/constants.js';
+import { isUsablePixiImageTexture, reloadPixiImageTexture } from './pixi-image-texture-health.js';
 
 export type BoardAssetWarmupMode = 'arcade' | 'journey' | 'unknown';
 
@@ -112,32 +113,6 @@ function unique(values: readonly string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
-function textureSource(tex: any): any {
-  return tex?.source ?? tex?.baseTexture ?? null;
-}
-
-function isUsableTexture(tex: any): boolean {
-  if (!tex || tex === Texture.EMPTY || tex.destroyed) return false;
-  const src = textureSource(tex);
-  if (src?.destroyed || src?.valid === false) return false;
-  const width = tex.width || src?.width || tex.orig?.width || 0;
-  const height = tex.height || src?.height || tex.orig?.height || 0;
-  return width > 1 && height > 1;
-}
-
-function removeStaleTexture(assetPath: string): void {
-  try {
-    const cache = (Assets as any)?.cache;
-    const isCached = typeof cache?.has === 'function' ? cache.has(assetPath) : false;
-    if (!isCached) return;
-    try {
-      if (typeof cache?.remove === 'function') cache.remove(assetPath);
-      else cache?.delete?.(assetPath);
-    } catch {}
-  } catch {}
-  try { (Texture as any).removeFromCache?.(assetPath); } catch {}
-}
-
 function getCachedTexture(assetPath: string): any {
   try {
     const cache = (Assets as any)?.cache;
@@ -182,8 +157,7 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
 
       for (const assetPath of assets) {
         const tex = getCachedTexture(assetPath);
-        if (isUsableTexture(tex)) continue;
-        removeStaleTexture(assetPath);
+        if (isUsablePixiImageTexture(tex)) continue;
         missingOrStale.push(assetPath);
       }
 
@@ -196,11 +170,9 @@ export function warmBoardGameAssets(options: BoardAssetWarmupOptions = {}): Prom
 
       const loadOne = async (assetPath: string): Promise<void> => {
         try {
-          let tex: any = await Assets.load(assetPath);
-          if (!isUsableTexture(tex)) {
-            removeStaleTexture(assetPath);
-            tex = Texture.from(assetPath);
-          }
+          const cached = getCachedTexture(assetPath);
+          if (isUsablePixiImageTexture(cached)) return;
+          await reloadPixiImageTexture(assetPath);
         } catch (error) {
           logger.warn('⚠️ Board asset warmup skipped asset; runtime guard will retry', 'board-asset-warmup', { assetPath, error });
         }

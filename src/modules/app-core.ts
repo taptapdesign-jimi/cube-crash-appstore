@@ -83,6 +83,7 @@ import {
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
 import { getJourneyBottomDecorAssetForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
+import { isUsablePixiImageTexture, pinPixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
@@ -1506,96 +1507,84 @@ const CORE_RENDER_TEXTURE_ASSETS = [
   ...CORE_HUD_TEXTURE_ASSETS,
 ] as const;
 
-function getTextureSource(tex: any): any {
-  return tex?.source ?? tex?.baseTexture ?? null;
+function getRequiredCoreRenderTextureAssets(): string[] {
+  const dpr = Math.max(1, Math.round(Number(window.devicePixelRatio) || 1));
+  const ghostAsset = dpr >= 3
+    ? './assets/ghost-placeholder@3x.png'
+    : dpr >= 2
+      ? './assets/ghost-placeholder@2x.png'
+      : './assets/ghost-placeholder.png';
+  const liveTiles = Array.isArray(STATE?.tiles) && STATE.tiles.length ? STATE.tiles : tiles;
+  const activeSpecialAssets = liveTiles
+    .filter((tile: any) => tile && !tile.destroyed && typeof tile.special === 'string' && tile.special.length > 0)
+    .map((tile: any) => getTileBaseTextureAssetPath(tile))
+    .filter(Boolean);
+  return Array.from(new Set([...CORE_RENDER_TEXTURE_ASSETS, ghostAsset, ...activeSpecialAssets]));
 }
 
 function isUsableGameTexture(tex: any): boolean {
-  if (!tex || tex === Texture.EMPTY || tex.destroyed) return false;
-  const src = getTextureSource(tex);
-  if (src?.destroyed || src?.valid === false) return false;
-  const width = tex.width || src?.width || tex.orig?.width || 0;
-  const height = tex.height || src?.height || tex.orig?.height || 0;
-  return width > 1 && height > 1;
+  return isUsablePixiImageTexture(tex);
 }
 
 function configureGameTextureSampling(tex: any): void {
   applyGameplayTextureFiltering(tex);
-}
-
-function removeStaleGameTexture(assetPath: string): void {
-  try {
-    const cache = (Assets as any)?.cache;
-    if (cache) {
-      try { cache.delete?.(assetPath); } catch {}
-      try { cache.remove?.(assetPath); } catch {}
-    }
-  } catch {}
-  try { (Texture as any).removeFromCache?.(assetPath); } catch {}
+  pinPixiImageTexture(tex);
 }
 
 function isCoreHudTextureAsset(assetPath: string): boolean {
   return (CORE_HUD_TEXTURE_ASSETS as readonly string[]).includes(assetPath);
 }
 
+function isCoreGhostTextureAsset(assetPath: string): boolean {
+  return assetPath.includes('/ghost-placeholder');
+}
+
 function shouldOptimizeAsGameTexture(assetPath: string): boolean {
   return (CORE_GAME_TEXTURE_ASSETS as readonly string[]).includes(assetPath);
 }
 
-let lastCoreGameTextureEnsureSuccessAt = 0;
-const RECENT_CORE_TEXTURE_ENSURE_MS = 2500;
+let coreGhostTextureNeedsRebuild = false;
 
-async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<string[]> {
-  const now = Date.now();
-  if (context !== 'boot' && lastCoreGameTextureEnsureSuccessAt > 0 && now - lastCoreGameTextureEnsureSuccessAt < RECENT_CORE_TEXTURE_ENSURE_MS) {
-    return [];
+class CoreRenderTextureBarrierError extends Error {
+  constructor(context: string, failedAssets: string[]) {
+    super(`Core render textures unavailable (${context}): ${failedAssets.join(', ')}`);
+    this.name = 'CoreRenderTextureBarrierError';
   }
+}
 
-  const staleAssets: string[] = [];
-
-  for (const assetPath of CORE_RENDER_TEXTURE_ASSETS) {
+function getUnusableRequiredCoreRenderTextureAssets(): string[] {
+  return getRequiredCoreRenderTextureAssets().filter((assetPath) => {
     let tex: any = null;
     try { tex = Assets.get(assetPath); } catch {}
-    if (isUsableGameTexture(tex)) {
-      if (shouldOptimizeAsGameTexture(assetPath)) configureGameTextureSampling(tex);
-      continue;
-    }
-    staleAssets.push(assetPath);
-    removeStaleGameTexture(assetPath);
-  }
+    return !isUsableGameTexture(tex);
+  });
+}
 
-  if (staleAssets.length > 0) {
-    devWarn('⚠️ Reloading stale/missing core game textures', { context, staleAssets });
-    try {
-      await Assets.load(staleAssets);
-    } catch (error) {
-      devWarn('⚠️ Batch core texture reload failed, retrying individually', { context, error });
-    }
-  }
+async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<string[]> {
+  const requiredAssets = getRequiredCoreRenderTextureAssets();
+  const staleAssets = getUnusableRequiredCoreRenderTextureAssets();
+
+  if (staleAssets.length > 0) devWarn('⚠️ Reloading stale/missing core game textures', { context, staleAssets });
 
   const waitForRetry = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
   const failedAssets = new Set<string>();
 
-  for (const assetPath of CORE_RENDER_TEXTURE_ASSETS) {
+  for (const assetPath of requiredAssets) {
     let usable = false;
     for (let attempt = 0; attempt < 4; attempt++) {
       let tex: any = null;
       try { tex = Assets.get(assetPath); } catch {}
 
       if (!isUsableGameTexture(tex)) {
-        removeStaleGameTexture(assetPath);
         try {
-          tex = await Assets.load(assetPath);
+          tex = await reloadPixiImageTexture(assetPath);
         } catch (error) {
           devWarn('⚠️ Core texture reload attempt failed', { context, assetPath, attempt: attempt + 1, error });
         }
       }
 
-      if (!isUsableGameTexture(tex)) {
-        try { tex = Texture.from(assetPath); } catch {}
-      }
-
       if (isUsableGameTexture(tex)) {
+        pinPixiImageTexture(tex);
         if (shouldOptimizeAsGameTexture(assetPath)) configureGameTextureSampling(tex);
         usable = true;
         break;
@@ -1610,20 +1599,22 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
   }
 
   if (failedAssets.size > 0) {
-    devWarn('⚠️ Core render textures still not usable after recovery attempts; continuing with next lifecycle retry', {
+    const details = {
       context,
       failedAssets: Array.from(failedAssets),
-    });
-  } else {
-    lastCoreGameTextureEnsureSuccessAt = Date.now();
+    };
+    devError('❌ Core render texture barrier failed; gameplay surface remains hidden', details);
+    throw new CoreRenderTextureBarrierError(context, details.failedAssets);
   }
+
+  if (staleAssets.some(isCoreGhostTextureAsset)) coreGhostTextureNeedsRebuild = true;
 
   return staleAssets;
 }
 
 function getTileBaseTextureAssetPath(tile: any): string {
   const special = typeof tile?.special === 'string' ? tile.special : '';
-  const fallback = special === 'wild-magnet'
+  const specialFallback = special === 'wild-magnet'
     ? ASSET_WILD_MAGNET
     : special === 'wild-juice'
       ? ASSET_WILD_JUICE
@@ -1631,8 +1622,13 @@ function getTileBaseTextureAssetPath(tile: any): string {
         ? ASSET_WILD_TNT
         : special === 'wild'
           ? ASSET_WILD
-          : ASSET_TILE;
-  return getSpecialDiceTexturePath(tile, fallback);
+          : '';
+  if (specialFallback) return getSpecialDiceTexturePath(tile, specialFallback);
+  const authoredPath = typeof tile?.base?._ccTextureAssetPath === 'string'
+    ? tile.base._ccTextureAssetPath
+    : '';
+  if (authoredPath) return authoredPath;
+  return (tile?.value | 0) > 0 ? ASSET_NUMBERS : ASSET_TILE;
 }
 
 function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
@@ -1646,12 +1642,16 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
       if (!base && host?.children) {
         base = host.children.find((child: any) => child && !child.destroyed && child instanceof Sprite) || null;
       }
+      let tileTextureRebound = false;
       if (!base && host?.addChildAt) {
-        base = new Sprite(Assets.get(getTileBaseTextureAssetPath(tile)) || Texture.from(getTileBaseTextureAssetPath(tile)));
+        const assetPath = getTileBaseTextureAssetPath(tile);
+        base = new Sprite(Assets.get(assetPath) || Texture.from(assetPath));
+        (base as any)._ccTextureAssetPath = assetPath;
         base.anchor?.set?.(0.5);
         host.addChildAt(base, 0);
         tile.base = base;
         rebound++;
+        tileTextureRebound = true;
       }
       if (!base || base.destroyed) continue;
 
@@ -1661,9 +1661,14 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
       if (!isUsableGameTexture(tex)) continue;
       if (base.texture !== tex || !isUsableGameTexture(base.texture)) {
         base.texture = tex;
+        (base as any)._ccTextureAssetPath = assetPath;
         base.visible = true;
         base.alpha = Number.isFinite(base.alpha) && base.alpha > 0 ? base.alpha : 1;
         rebound++;
+        tileTextureRebound = true;
+      }
+      if (tileTextureRebound && (tile.stackDepth || 0) > 1) {
+        try { makeBoard.refreshStackVisual(tile); } catch {}
       }
     }
     if (rebound > 0) {
@@ -1675,6 +1680,137 @@ function refreshLiveCoreGameSpriteTextures(reason: string = 'unknown'): void {
 }
 
 try { (window as any).__ccEnsureCoreGameTexturesLoaded = ensureCoreGameTexturesLoaded; } catch {}
+
+let coreTextureRecoveryPromise: Promise<void> | null = null;
+let coreTextureRecoveryOwnerGeneration = -1;
+let coreTextureRecoveryGeneration = 0;
+let coreTextureContextCanvas: HTMLCanvasElement | null = null;
+let coreTextureContextLostHandler: ((event: Event) => void) | null = null;
+let coreTextureContextRestoredHandler: (() => void) | null = null;
+let coreTextureVisibilityBeforeLoss: { stage: boolean; board: boolean; hud: boolean } | null = null;
+let coreTextureCanvasVisibilityBeforeHide: string | null = null;
+
+function hideGameplayForCoreTextureRecovery(): void {
+  try { if (stage) stage.visible = false; } catch {}
+  try { if (board) board.visible = false; } catch {}
+  try { if (hud) hud.visible = false; } catch {}
+  try { app?.renderer?.render?.(stage); } catch {}
+  try {
+    const canvas = app?.canvas as HTMLCanvasElement | undefined;
+    if (canvas) {
+      if (coreTextureCanvasVisibilityBeforeHide === null) {
+        coreTextureCanvasVisibilityBeforeHide = canvas.style.visibility || '';
+      }
+      canvas.style.visibility = 'hidden';
+    }
+  } catch {}
+}
+
+function restoreCanvasAfterCoreTextureRecovery(): void {
+  try {
+    const canvas = app?.canvas as HTMLCanvasElement | undefined;
+    if (canvas && coreTextureCanvasVisibilityBeforeHide !== null) {
+      canvas.style.visibility = coreTextureCanvasVisibilityBeforeHide;
+    }
+  } catch {}
+  coreTextureCanvasVisibilityBeforeHide = null;
+}
+
+function recoverCoreRenderTextures(reason: string): Promise<void> {
+  if (coreTextureRecoveryPromise && coreTextureRecoveryOwnerGeneration === coreTextureRecoveryGeneration) {
+    return coreTextureRecoveryPromise;
+  }
+  const ownerGeneration = coreTextureRecoveryGeneration;
+  const ownerApp = app;
+  const ownerCanvas = coreTextureContextCanvas;
+  const ownsCurrentLifecycle = () => (
+    ownerGeneration === coreTextureRecoveryGeneration &&
+    ownerApp === app &&
+    ownerCanvas === coreTextureContextCanvas
+  );
+  const visibility = coreTextureVisibilityBeforeLoss || {
+    stage: stage?.visible !== false,
+    board: board?.visible !== false,
+    hud: hud?.visible !== false,
+  };
+  hideGameplayForCoreTextureRecovery();
+
+  const recoveryPromise = (async () => {
+    const refreshedAssets = await ensureCoreGameTexturesLoaded(`recovery:${reason}`);
+    if (!ownsCurrentLifecycle()) return;
+    refreshLiveCoreGameSpriteTextures(`recovery:${reason}`);
+    _hudInitDone = false;
+    try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
+    await layoutBoard();
+    if (!ownsCurrentLifecycle()) return;
+    refreshLiveCoreGameSpriteTextures(`recovery:${reason}:post-layout`);
+    try { app?.renderer?.render?.(stage); } catch {}
+
+    if (!isGameplayEntryPending()) {
+      if (stage) stage.visible = visibility.stage;
+      if (board) board.visible = visibility.board;
+      if (hud) hud.visible = visibility.hud;
+      try { app?.renderer?.render?.(stage); } catch {}
+      restoreCanvasAfterCoreTextureRecovery();
+    }
+    devLog('✅ Core render texture recovery completed', { reason, refreshedAssets });
+  })().catch((error) => {
+    if (ownsCurrentLifecycle()) {
+      hideGameplayForCoreTextureRecovery();
+      devError('❌ Core render texture recovery failed; refusing to reveal a partial board', { reason, error });
+    }
+    throw error;
+  }).finally(() => {
+    if (coreTextureRecoveryPromise === recoveryPromise) {
+      coreTextureRecoveryPromise = null;
+      coreTextureRecoveryOwnerGeneration = -1;
+    }
+    if (ownerGeneration === coreTextureRecoveryGeneration) coreTextureVisibilityBeforeLoss = null;
+  });
+  coreTextureRecoveryOwnerGeneration = ownerGeneration;
+  coreTextureRecoveryPromise = recoveryPromise;
+  return recoveryPromise;
+}
+
+function detachCoreTextureContextRecovery(): void {
+  coreTextureRecoveryGeneration += 1;
+  if (coreTextureContextCanvas && coreTextureContextLostHandler) {
+    try { coreTextureContextCanvas.removeEventListener('webglcontextlost', coreTextureContextLostHandler); } catch {}
+  }
+  if (coreTextureContextCanvas && coreTextureContextRestoredHandler) {
+    try { coreTextureContextCanvas.removeEventListener('webglcontextrestored', coreTextureContextRestoredHandler); } catch {}
+  }
+  coreTextureContextCanvas = null;
+  coreTextureContextLostHandler = null;
+  coreTextureContextRestoredHandler = null;
+  coreTextureVisibilityBeforeLoss = null;
+  coreTextureCanvasVisibilityBeforeHide = null;
+}
+
+function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
+  if (coreTextureContextCanvas === canvas) return;
+  detachCoreTextureContextRecovery();
+  coreTextureContextCanvas = canvas;
+  coreTextureContextLostHandler = (event: Event) => {
+    try { event.preventDefault(); } catch {}
+    coreTextureVisibilityBeforeLoss = {
+      stage: stage?.visible !== false,
+      board: board?.visible !== false,
+      hud: hud?.visible !== false,
+    };
+    hideGameplayForCoreTextureRecovery();
+    devWarn('⚠️ WebGL context lost; gameplay hidden until core textures recover');
+  };
+  coreTextureContextRestoredHandler = () => {
+    void recoverCoreRenderTextures('webglcontextrestored').catch(() => {});
+  };
+  canvas.addEventListener('webglcontextlost', coreTextureContextLostHandler, false);
+  canvas.addEventListener('webglcontextrestored', coreTextureContextRestoredHandler, false);
+}
+
+try {
+  (window as any).__ccRecoverCoreRenderTextures = (reason = 'external') => recoverCoreRenderTextures(String(reason));
+} catch {}
 
 function resetGlobalFxLayer(reason: string = 'unknown') {
   try {
@@ -2969,6 +3105,7 @@ export async function boot(){
     host.appendChild(app.canvas);
   }
   app.canvas.style.touchAction = 'none';
+  installCoreTextureContextRecovery(app.canvas);
   app.canvas.style.zIndex = '10'; /* Above background, below sliders */
   
   // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
@@ -3766,6 +3903,19 @@ function activateGameplaySpatialMotionForCurrentBoard(): void {
 export async function layoutBoard(){
   ensureBoardLifecycleTrace('direct-board-layout');
   markBoardLifecycle('layout-start');
+  const layoutStageOwner = stage;
+  const layoutBoardOwner = board;
+  const layoutHudOwner = hud;
+  const layoutVisibilityBeforeCoreRepair = {
+    stage: stage?.visible !== false,
+    board: board?.visible !== false,
+    hud: hud?.visible !== false,
+  };
+  const layoutCoreRepairWasNeeded = (
+    getUnusableRequiredCoreRenderTextureAssets().length > 0 ||
+    coreTextureCanvasVisibilityBeforeHide !== null
+  );
+  if (layoutCoreRepairWasNeeded) hideGameplayForCoreTextureRecovery();
   const { w, h} = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
@@ -3916,15 +4066,25 @@ export async function layoutBoard(){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('layoutBoard');
+    refreshLiveCoreGameSpriteTextures('layoutBoard');
+    if (coreGhostTextureNeedsRebuild) {
+      initializeBackgroundLayer();
+      coreGhostTextureNeedsRebuild = false;
+      if ((window as any).__ccEnterAnimationActive === true) hideGhostPlaceholders();
+      else updateGhostVisibility();
+    }
     if (refreshedAssets.length > 0) {
-      refreshLiveCoreGameSpriteTextures('layoutBoard');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
         _hudInitDone = false;
         try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
       }
     }
   } catch (error) {
-    devWarn('⚠️ Core render texture recovery reported an issue during layoutBoard; continuing with retry-on-next-layout', error);
+    try { if (stage) stage.visible = false; } catch {}
+    try { if (board) board.visible = false; } catch {}
+    try { if (hud) hud.visible = false; } catch {}
+    devError('❌ Core render texture barrier blocked layoutBoard reveal', error);
+    throw error;
   }
 
   try {
@@ -3951,14 +4111,10 @@ export async function layoutBoard(){
           devLog('✅ Core HUD textures validated before HUD init');
         } catch (err) {
           devError('❌ CRITICAL: Failed to ensure HUD icons are loaded before HUD init:', err);
-          // Try to load via comprehensive preloader as fallback
-          try {
-            const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
-            await loadHudIconsIntoPixiCache();
-            devLog('✅ HUD icons loaded via comprehensive preloader fallback');
-          } catch (fallbackErr) {
-            devError('❌ CRITICAL: Fallback HUD icon loading also failed:', fallbackErr);
-          }
+          try { if (stage) stage.visible = false; } catch {}
+          try { if (board) board.visible = false; } catch {}
+          try { if (hud) hud.visible = false; } catch {}
+          throw err;
         }
         
         HUD.initHUD({ stage, app, top: safeTop, initialHide: _hudDropPending });
@@ -4108,6 +4264,14 @@ export async function layoutBoard(){
     devError('❌ Error during HUD initialization/update in app.js layout:', error);
     // Reset HUD flag on error to retry next time
     _hudInitDone = false;
+    if (
+      error instanceof CoreRenderTextureBarrierError ||
+      layoutCoreRepairWasNeeded ||
+      coreTextureRecoveryPromise !== null
+    ) {
+      hideGameplayForCoreTextureRecovery();
+      throw error;
+    }
   }
   
   // Start idle bounce animations for tiles with pips
@@ -4123,6 +4287,20 @@ export async function layoutBoard(){
     activateGameplaySpatialMotionForCurrentBoard();
   } else {
     devLog('⏭️ layoutBoard: Round cue retains spatial surface ownership until tile pop-in starts');
+  }
+  if (
+    layoutCoreRepairWasNeeded &&
+    !coreTextureRecoveryPromise &&
+    !isGameplayEntryPending() &&
+    stage === layoutStageOwner &&
+    board === layoutBoardOwner &&
+    hud === layoutHudOwner
+  ) {
+    stage.visible = layoutVisibilityBeforeCoreRepair.stage;
+    board.visible = layoutVisibilityBeforeCoreRepair.board;
+    hud.visible = layoutVisibilityBeforeCoreRepair.hud;
+    try { app?.renderer?.render?.(stage); } catch {}
+    restoreCanvasAfterCoreTextureRecovery();
   }
   markBoardLifecycle('layout-complete');
 }
@@ -5048,6 +5226,10 @@ function revealPreparedGameplaySurface(): void {
       hud.alpha = 1;
       hud.renderable = true;
     }
+    // A texture recovery that completed while entry was pending deliberately
+    // left the canvas hidden. The entry commit is the sole safe reveal owner.
+    try { app?.renderer?.render?.(stage); } catch {}
+    restoreCanvasAfterCoreTextureRecovery();
   } catch {}
 }
 function rebuildBoard(){
@@ -5564,15 +5746,16 @@ async function startLevel(n){
 
   try {
     const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
+    refreshLiveCoreGameSpriteTextures('startLevel');
     if (refreshedAssets.length > 0) {
-      refreshLiveCoreGameSpriteTextures('startLevel');
       if (refreshedAssets.some((assetPath) => isCoreHudTextureAsset(assetPath))) {
         _hudInitDone = false;
         try { (window as any).__ccForceHudRecreateForTextures = true; } catch {}
       }
     }
   } catch (error) {
-    devWarn('⚠️ Core render texture recovery reported an issue during startLevel; continuing with retry-on-layout', error);
+    devError('❌ Core render texture barrier blocked startLevel reveal', error);
+    throw error;
   }
   
   runStartLevelFxPrep({
@@ -14361,6 +14544,7 @@ export function cleanupGame() {
   // CRITICAL: Destroy and nullify app so boot() can create a new one
   if (app) {
     devLog('🧹 Destroying PIXI app in cleanupGame()');
+    detachCoreTextureContextRecovery();
     try {
       // 🔥 FIX: Don't destroy textures - they're managed by Assets and should be unloaded, not destroyed
       // Using texture: false prevents "A Texture managed by Assets was destroyed" warning

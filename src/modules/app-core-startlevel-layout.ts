@@ -37,6 +37,7 @@ export async function ensureStartLevelLayout({
     await layoutBoard();
   } catch (err) {
     devError('❌ Error in layoutBoard() during startGame:', err);
+    throw err;
   }
   if (layer) {
     layer.visible = true;

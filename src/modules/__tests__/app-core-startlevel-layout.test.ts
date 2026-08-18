@@ -37,4 +37,22 @@ describe('startLevel layout ownership', () => {
     expect(hideGhostPlaceholders).toHaveBeenCalledTimes(1);
     delete (window as any).__ccEnterAnimationActive;
   });
+
+  test('propagates a render-readiness failure instead of revealing a partial board', async () => {
+    const readinessError = new Error('core texture barrier');
+    const devError = jest.fn();
+
+    await expect(ensureStartLevelLayout({
+      layoutBoard: jest.fn().mockRejectedValue(readinessError),
+      initializeBackgroundLayer: jest.fn(),
+      board: { children: [] },
+      backgroundLayer: null,
+      setBackgroundLayer: jest.fn(),
+      updateGhostVisibility: jest.fn(),
+      hideGhostPlaceholders: jest.fn(),
+      devError,
+    })).rejects.toBe(readinessError);
+
+    expect(devError).toHaveBeenCalledWith('❌ Error in layoutBoard() during startGame:', readinessError);
+  });
 });

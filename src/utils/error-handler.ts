@@ -231,20 +231,22 @@ class ErrorHandler {
       return;
     }
     
-    // Try to recover PIXI context
-    const app = container.get('app') as { destroy?: (removeView?: boolean) => void } | undefined;
-    if (app && app.destroy) {
-      try {
-        app.destroy(true);
-        logger.info('✅ PIXI app destroyed successfully');
-      } catch (e) {
-        logger.warn('⚠️ Failed to destroy PIXI app:', e);
+    // Never destroy-and-abandon the gameplay renderer. The app-core recovery
+    // owner hides the surface, rehydrates Pixi's loader cache, rebinds Sprites,
+    // and recreates the HUD before revealing again.
+    const recoverCoreTextures = (window as any).__ccRecoverCoreRenderTextures;
+    if (typeof recoverCoreTextures === 'function') {
+      void Promise.resolve(recoverCoreTextures(`error-handler:${context}`)).catch((recoveryError) => {
+        logger.error('❌ PIXI texture recovery failed:', recoveryError);
+        if (this.isProduction) {
+          this.showUserFriendlyError('Graphics recovery failed. Please refresh the page.');
+        }
+      });
+    } else {
+      logger.warn('⚠️ PIXI recovery owner is not available yet; preserving renderer for the next lifecycle retry');
+      if (this.isProduction) {
+        this.showUserFriendlyError('Graphics recovery is unavailable. Please refresh the page.');
       }
-    }
-    
-    // Notify user if in production (only after preloader)
-    if (this.isProduction && !isLoadingScreen) {
-      this.showUserFriendlyError('Graphics error detected. Please refresh the page.');
     }
   }
 

@@ -12,6 +12,7 @@ import { isArcadeHomeRunMode } from './run-mode.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { isGameplayHudRevealAllowed } from './gameplay-hud-visibility-policy.ts';
+import { isUsablePixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.js';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
@@ -43,33 +44,15 @@ function shouldBlockHudCloseForTerminalResolution(source: string): boolean {
   return true;
 }
 
-function getTextureSource(tex: any): any {
-  return tex?.source ?? tex?.baseTexture ?? null;
-}
-
 function isUsableHudTexture(tex: any): boolean {
-  if (!tex || tex.destroyed) return false;
-  const src = getTextureSource(tex);
-  if (src?.destroyed || src?.valid === false) return false;
-  const width = tex.width || src?.width || tex.orig?.width || 0;
-  const height = tex.height || src?.height || tex.orig?.height || 0;
-  return width > 1 && height > 1;
-}
-
-function removeStaleHudTexture(assetPath: string): void {
-  try {
-    const cache = (Assets as any)?.cache;
-    try { cache?.delete?.(assetPath); } catch {}
-    try { cache?.remove?.(assetPath); } catch {}
-  } catch {}
+  return isUsablePixiImageTexture(tex);
 }
 
 async function loadUsableHudTexture(assetPath: string): Promise<any | null> {
   let tex: any = null;
   try { tex = Assets.get(assetPath); } catch {}
   if (isUsableHudTexture(tex)) return tex;
-  removeStaleHudTexture(assetPath);
-  try { tex = await Assets.load(assetPath); } catch (error) {
+  try { tex = await reloadPixiImageTexture(assetPath); } catch (error) {
     console.warn(`⚠️ Failed to load HUD texture ${assetPath}:`, error);
     return null;
   }
@@ -1642,6 +1625,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   wildMeterSpatialWrapper = null;
   
   HUD_ROOT = new Container();
+  const hudRootForThisInit = HUD_ROOT;
   HUD_ROOT.label = 'HUD_ROOT';
   HUD_ROOT.zIndex = 10_000;
   HUD_ROOT.sortableChildren = true;
@@ -1844,7 +1828,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       console.warn('⚠️ Close icon texture not found, trying to load...');
       // Try loading it asynchronously
       loadUsableHudTexture('./assets/close-icon.png').then((tex) => {
-        if (isUsableHudTexture(tex) && HUD_ROOT) {
+        if (isUsableHudTexture(tex) && HUD_ROOT === hudRootForThisInit && !hudRootForThisInit.destroyed) {
           // Create container for icon + circle
           const closeButtonContainer = new Container();
           closeButtonContainer.eventMode = 'static';
@@ -1897,7 +1881,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
           // Store reference
           closeIconSprite = closeButtonContainer;
-          HUD_ROOT._visibleCloseButton = closeButtonContainer;
+          hudRootForThisInit._visibleCloseButton = closeButtonContainer;
           
           // 🔥 FIX: Change to open End Run modal instead of going to homepage
           const handleCloseClick = (e) => {
@@ -1992,7 +1976,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             }, HUD_TAP_BOUNCE_OPEN_DELAY_MS);
           });
           
-          HUD_ROOT.addChild(closeButtonContainer);
+          hudRootForThisInit.addChild(closeButtonContainer);
           layout({ app, top });
           console.log('✅ Close icon with circle loaded and added');
         }
