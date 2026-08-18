@@ -32,6 +32,17 @@ describe('shared special-dice transaction contract', () => {
     expect(appMergeSource).not.toContain('usedSpawnLockedTilesWithPop');
   });
 
+  test('starts Magnet meter progress at validated pull commit, before its visual tail', () => {
+    const validationIndex = appMergeSource.indexOf('if (!dst || dst.destroyed)');
+    const progressCommitIndex = appMergeSource.indexOf('helpers?.onMagnetPullCommitted?.({ pulledTileCount })');
+    const pulledTileRemovalIndex = appMergeSource.indexOf('validTiles.forEach((tile: any, index: number) =>');
+    expect(progressCommitIndex).toBeGreaterThan(validationIndex);
+    expect(pulledTileRemovalIndex).toBeGreaterThan(progressCommitIndex);
+    expect(appCoreSource).toContain('onMagnetPullCommitted: () =>');
+    expect(appCoreSource).toContain('if (magnetPullProgressCommitted) return;');
+    expect(appCoreSource).toContain('addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true });');
+  });
+
   test('releases Magnet/Honey ownership after every rollback and abort path', () => {
     expect(appCoreSource).toContain("'wild-magnet-commit-validation-abort'");
     expect(appCoreSource).toContain("'wild-magnet-not-enough-valid-tiles'");

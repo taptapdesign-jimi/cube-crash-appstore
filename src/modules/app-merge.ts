@@ -516,6 +516,15 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ dst destroyed');
     return;
   }
+
+  // The pull has passed the authoritative tile/destination validation. Notify
+  // the meter owner now, before the long shard/respawn choreography starts.
+  // This keeps HUD progress immediate without crediting rejected pulls.
+  try {
+    helpers?.onMagnetPullCommitted?.({ pulledTileCount });
+  } catch (error) {
+    console.warn('⚠️ Magnet pull commit callback failed', error);
+  }
   
   // 🔥 USER REQUEST: Check for wild star tiles BEFORE removing them (to capture _wildStarSystem)
   // This allows us to animate stars to HUD when magnet pulls wild star

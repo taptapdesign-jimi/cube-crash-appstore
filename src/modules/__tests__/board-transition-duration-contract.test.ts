@@ -6,6 +6,14 @@ const read = (relativePath: string): string => fs.readFileSync(
 );
 
 describe('Board Transition duration contract', () => {
+  test('moves the shared NN number another six percent upward from its accepted lift', () => {
+    const source = read('src/modules/board-transition-screen.ts');
+    expect(source).toContain("numberContainer.style.transform = 'translate3d(0, -21vh, 0)'");
+    expect(source.indexOf("numberContainer.style.transform = 'translate3d(0, -21vh, 0)'")).toBeLessThan(
+      source.indexOf('const transitionText ='),
+    );
+  });
+
   test('removes about two seconds without changing the choreography order', () => {
     const source = read('src/modules/board-transition-screen.ts');
     expect(source).toContain('export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4');

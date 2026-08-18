@@ -129,10 +129,11 @@ function getDynamicBubbleCount(baseCount: number): number {
 export function startWildJuiceBubbles(tile) {
   const idleBubbleColors = getSpecialDiceIdleBubbleColors(tile);
   const specialVariantId = getSpecialDiceVariantForTile(tile)?.id;
+  const juiceIdleBubbleColors = [0xFFE6E1, 0xFFF2E9, 0xFFD5D6];
   const isHoney = specialVariantId === 'honey';
   const isBottle = specialVariantId === 'bottle';
   const usesJuiceFizzMotion = !isHoney && !isBottle;
-  const bubbleMotionScale = isHoney ? 1.3 : 1;
+  const bubbleMotionScale = isHoney ? 1.3 : usesJuiceFizzMotion ? 1.4 : 1;
   if (specialVariantId === 'mushroom') {
     stopWildJuiceBubbles(tile);
     return;
@@ -238,7 +239,9 @@ export function startWildJuiceBubbles(tile) {
     bubble.circle(0, 0, radius);
     const bubbleColor = isBottle
       ? 0xFFFFFF
-      : idleBubbleColors?.[Math.floor(Math.random() * idleBubbleColors.length)] ?? 0xFFFFFF;
+      : (idleBubbleColors || juiceIdleBubbleColors)[
+          Math.floor(Math.random() * (idleBubbleColors || juiceIdleBubbleColors).length)
+        ];
     bubble.fill({ color: bubbleColor, alpha: 0.6 });
     
     // Add highlight (smaller circle at top-left) for 3D sparkling effect
@@ -291,7 +294,7 @@ export function startWildJuiceBubbles(tile) {
     const crossDirection = Math.random() < 0.5 ? -1 : 1;
     const crossDistance = isBottle
       ? 10 + Math.random() * 8
-      : 12 + Math.random() * 10;
+      : (12 + Math.random() * 10) * 0.7;
     const juiceEndX = endX - crossDirection * crossDistance * (0.2 + Math.random() * 0.25);
     ownBubbleTween(bubble, trackTween(bubble, {
       keyframes: isBottle

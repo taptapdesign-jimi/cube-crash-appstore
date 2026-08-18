@@ -66,7 +66,7 @@ describe('Honey special-die visual contract', () => {
     expect(fxSource).toContain("getSpecialDiceVariantForTile(tile)?.id === 'honey'");
     expect(fxSource).toContain('const usesArtworkAlphaMask = Boolean(tile.base?.texture && tile.base.texture !== Texture.EMPTY)');
     expect(fxSource).toContain('mask = new Sprite(tile.base.texture)');
-    expect(fxSource).toContain('const bubbleMotionScale = isHoney ? 1.3 : 1');
+    expect(fxSource).toContain('const bubbleMotionScale = isHoney ? 1.3 : usesJuiceFizzMotion ? 1.4 : 1');
     expect(fxSource).toContain('const customShardColors = Array.isArray(opts.colors)');
   });
 

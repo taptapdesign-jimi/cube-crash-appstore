@@ -27,7 +27,6 @@ interface SmallStarBurstOptions {
     count?: number;
     speedScale?: number;
     gravityFall?: boolean;
-    bottleScatter?: boolean;
     flagWave?: boolean;
     sizeBoostChance?: number;
     sizeBoostMax?: number;
@@ -222,7 +221,6 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     ? Math.max(0.35, Math.min(3.5, Number(motion.speedScale)))
     : 1;
   const gravityFall = motion.gravityFall === true;
-  const bottleScatter = motion.bottleScatter === true;
   const flagWave = !gravityFall && motion.flagWave === true;
   const waveDurationScale = Number.isFinite(motion.waveDurationScale)
     ? Math.max(0.5, Math.min(2.4, Number(motion.waveDurationScale)))
@@ -264,7 +262,6 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
 
   const activeStars: HTMLImageElement[] = [];
   const activeWraps: HTMLElement[] = [];
-  const activeBottleBubbles: HTMLElement[] = [];
   const starTimelines: gsap.core.Timeline[] = [];
   const waveTimelines: gsap.core.Timeline[] = [];
   let maxAnimationTime = 0;
@@ -273,8 +270,6 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     const wrap = document.createElement('div');
     const img = domElementPool.acquire('img') as HTMLImageElement;
     img.src = sparkleSrc(i, opts.sources);
-    const isBottleGlass = bottleScatter && /\/glass\d+(?:@2x)?\.png$/i.test(img.src);
-    const isBottlePaper = bottleScatter && /\/paper\d+(?:@2x)?\.png$/i.test(img.src);
     img.alt = '';
     img.className = 'cc-sparkle-burst-sprite';
 
@@ -282,17 +277,11 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     const angle = radialProgress + (Math.random() - 0.5) * 0.95;
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
-    const laneOffset = bottleScatter
-      ? 18 + Math.random() * Math.min(52, viewportW * 0.14)
-      : 28 + Math.random() * Math.min(105, viewportW * 0.22);
-    const birthX = bottleScatter
-      ? originX
-      : gravityFall
+    const laneOffset = 28 + Math.random() * Math.min(105, viewportW * 0.22);
+    const birthX = gravityFall
       ? viewportW * (0.07 + Math.random() * 0.86)
       : originX + dirX * laneOffset + (Math.random() - 0.5) * 36;
-    const birthY = bottleScatter
-      ? originY
-      : gravityFall
+    const birthY = gravityFall
       ? originY + (Math.random() - 0.5) * Math.min(150, viewportH * 0.18)
       : originY + dirY * laneOffset + (Math.random() - 0.5) * 36;
     const spreadDistance = Math.min(Math.max(viewportW, viewportH) * (0.38 + Math.random() * 0.28), 500 + Math.random() * 190);
@@ -305,17 +294,15 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
       ? 1 + Math.random() * (sizeBoostMax - 1)
       : 1;
     const size = (26 + Math.random() * 42)
-      * (bottleScatter ? 1 : lateSizeScale)
+      * lateSizeScale
       * sizeBoost
       * baseSizeScale;
-    const baseScale = (gravityFall || bottleScatter) ? 1 : 0.85 + Math.random() * 0.5;
+    const baseScale = gravityFall ? 1 : 0.85 + Math.random() * 0.5;
     const baseOpacity = 0.42 + Math.random() * 0.58;
     const blinkOpacity = Math.min(1, baseOpacity + 0.22 + Math.random() * 0.28);
     const rotateStart = (Math.random() * 360) - 180;
     const rotateOut = rotateStart + (Math.random() - 0.5) * 28;
-    const delay = bottleScatter
-      ? isBottleGlass ? i * 0.025 : 0
-      : gravityFall
+    const delay = gravityFall
       ? 0
       : Math.min(
         1.35 * staggerSpanScale,
@@ -376,8 +363,8 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
       yPercent: -50,
       x: 0,
       y: 0,
-      scale: isBottleGlass ? 1.4 : isBottlePaper ? 0.35 : (gravityFall || bottleScatter) ? 1 : 0,
-      opacity: isBottlePaper ? 0 : (gravityFall || bottleScatter) ? 1 : 0,
+      scale: gravityFall ? 1 : 0,
+      opacity: gravityFall ? 1 : 0,
       rotation: rotateStart,
       visibility: 'visible',
       force3D: true
@@ -398,91 +385,7 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     const twinkleLow = baseOpacity * (0.38 + Math.random() * 0.22);
     const twinkleHigh = blinkOpacity;
 
-    let bottlePaperVisualLifetime = 0;
-    if (bottleScatter) {
-      const rotationTravel = (Math.random() < 0.5 ? -1 : 1)
-        * (isBottleGlass ? 150 + Math.random() * 310 : (50 + Math.random() * 120) * 1.6);
-      if (isBottleGlass) {
-        const glassLaunchDirections = [
-          { x: -0.9, y: -1 },
-          { x: 0, y: -1 },
-          { x: 0.9, y: -1 },
-        ];
-        const glassLandingDirections = [-1, -0.55, 0, 0.55, 1];
-        const launchDirection = glassLaunchDirections[Math.floor(Math.random() * glassLaunchDirections.length)];
-        const landingDirection = glassLandingDirections[Math.floor(Math.random() * glassLandingDirections.length)];
-        const horizontalExit = landingDirection * (viewportW * (0.14 + Math.random() * 0.12) + size + 50)
-          + (Math.random() - 0.5) * viewportW * 0.08;
-        const fallExit = viewportH - birthY + size * 2 + 250;
-        const launchX = launchDirection.x * (24 + Math.random() * 34);
-        const launchY = -(38 + Math.random() * 38);
-        const glassLaunchDuration = (0.1 + Math.random() * 0.1) * speedScale;
-        const glassFallDuration = (0.72 + Math.random() * 0.68) * speedScale;
-        maxAnimationTime = Math.max(maxAnimationTime, delay + glassLaunchDuration + glassFallDuration);
-        tl.to(wrap, {
-          keyframes: [
-            {
-              x: launchX,
-              y: launchY,
-              opacity: 1,
-              rotation: rotateStart + rotationTravel * 0.25,
-              scale: 1.4,
-              duration: glassLaunchDuration,
-              ease: 'power1.out',
-            },
-            {
-              x: horizontalExit + launchX * 0.35,
-              y: fallExit,
-              opacity: 1,
-              rotation: rotateStart + rotationTravel,
-              scale: 2.24,
-              duration: glassFallDuration,
-              ease: 'power1.in',
-            },
-          ],
-          onComplete: () => {
-            try { gsap.set(wrap, { visibility: 'hidden' }); } catch {}
-          },
-        });
-      } else {
-        const windDirection = Math.random() < 0.5 ? -1 : 1;
-        const paperLaunchAngle = Math.random() * Math.PI * 2;
-        const paperLaunchRadius = 65 + Math.random() * 85;
-        const paperLaunchX = Math.cos(paperLaunchAngle) * paperLaunchRadius;
-        const paperLaunchY = Math.sin(paperLaunchAngle) * paperLaunchRadius;
-        const targetX = (Math.random() - 0.5) * viewportW * 0.82;
-        const targetY = viewportH - birthY + size * (1.4 + Math.random() * 0.8);
-        const paperWindA = windDirection * (34 + Math.random() * 66);
-        const paperWindB = -windDirection * (48 + Math.random() * 82);
-        const paperWindC = windDirection * (28 + Math.random() * 72);
-        const paperLaunchTime = (0.08 + Math.random() * 0.16) * speedScale;
-        const paperTravelTime = (1.35 + Math.random() * 1.15) * speedScale;
-        bottlePaperVisualLifetime = paperLaunchTime + paperTravelTime;
-        maxAnimationTime = Math.max(maxAnimationTime, delay + paperLaunchTime + paperTravelTime);
-        tl.to(wrap, {
-          x: paperLaunchX,
-          y: paperLaunchY,
-          opacity: 1,
-          rotation: rotateStart + rotationTravel * 0.16,
-          scale: 1.4,
-          duration: paperLaunchTime,
-          ease: 'back.out(2.1)',
-        });
-        tl.to(wrap, {
-          keyframes: [
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.16 + paperWindA, y: paperLaunchY + (targetY - paperLaunchY) * 0.10, opacity: 1, rotation: rotateStart + rotationTravel * 0.26, scale: 1.4 },
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.42 + paperWindB, y: paperLaunchY + (targetY - paperLaunchY) * 0.31, opacity: 1, rotation: rotateStart + rotationTravel * 0.50, scale: 1.4 },
-            { x: paperLaunchX + (targetX - paperLaunchX) * 0.72 + paperWindC, y: paperLaunchY + (targetY - paperLaunchY) * 0.62, opacity: 1, rotation: rotateStart + rotationTravel * 0.76, scale: 1.4 },
-            { x: targetX, y: targetY, opacity: 1, rotation: rotateStart + rotationTravel, scale: 1.4 },
-          ],
-          duration: paperTravelTime,
-          ease: 'sine.in',
-          onComplete: () => {
-            try { gsap.set(wrap, { visibility: 'hidden' }); } catch {}
-          },
-        });
-      }
-    } else if (gravityFall) {
+    if (gravityFall) {
       const fallSide = Math.random() < 0.5 ? -1 : 1;
       const horizontalScatter = fallSide * (viewportW * (0.28 + Math.random() * 0.34));
       const fallExitY = viewportH - birthY + size * 1.7 + 120;
@@ -527,23 +430,18 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     }
     starTimelines.push(tl);
 
-    if (flagWave || isBottlePaper) {
+    if (flagWave) {
       const phaseDelay = delay + Math.random() * 0.16;
-      const bottlePaperWaveDurationScale = isBottlePaper ? 1.05 : waveDurationScale;
-      const bottlePaperWaveStrength = isBottlePaper ? 1.35 : waveStrength;
-      const bottlePaperRotationBoost = isBottlePaper ? 1.6 : 1;
-      const visualLifetime = isBottlePaper
-        ? bottlePaperVisualLifetime
-        : (launchDuration + travelDuration) * speedScale;
-      const waveRepeats = Math.max(1, Math.min(7, Math.round(visualLifetime / (0.36 * bottlePaperWaveDurationScale))));
+      const visualLifetime = (launchDuration + travelDuration) * speedScale;
+      const waveRepeats = Math.max(1, Math.min(7, Math.round(visualLifetime / (0.36 * waveDurationScale))));
       const waveTl = trackTimeline({ delay: phaseDelay, repeat: waveRepeats, yoyo: true });
       waveTl.to(img, {
-        skewX: (Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 5) * bottlePaperWaveStrength,
-        scaleX: 1 - (0.045 + Math.random() * 0.035) * bottlePaperWaveStrength,
-        scaleY: 1 + (0.035 + Math.random() * 0.045) * bottlePaperWaveStrength,
-        rotation: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3) * bottlePaperWaveStrength * bottlePaperRotationBoost,
-        x: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random() * 2) * bottlePaperWaveStrength,
-        duration: (0.24 + Math.random() * 0.12) * bottlePaperWaveDurationScale,
+        skewX: (Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 5) * waveStrength,
+        scaleX: 1 - (0.045 + Math.random() * 0.035) * waveStrength,
+        scaleY: 1 + (0.035 + Math.random() * 0.045) * waveStrength,
+        rotation: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3) * waveStrength,
+        x: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random() * 2) * waveStrength,
+        duration: (0.24 + Math.random() * 0.12) * waveDurationScale,
         ease: 'sine.inOut'
       });
       waveTl.to(img, {
@@ -552,102 +450,13 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
         scaleY: 1,
         rotation: 0,
         x: 0,
-        duration: 0.14 * bottlePaperWaveDurationScale,
+        duration: 0.14 * waveDurationScale,
         ease: 'sine.out'
       });
       waveTimelines.push(waveTl);
     }
   }
 
-  if (bottleScatter) {
-    // Keep the merge field dispersed: three independently staggered waves,
-    // with extra small organic bubbles instead of one circular cluster.
-    const bottleBubbleWaveSizes = [8, 11, 9];
-    const bottleBubbleWaveStarts = [0, 0.38, 0.86];
-    let bubbleOrdinal = 0;
-    let bottleBubbleMaxEnd = 0;
-    for (let waveIndex = 0; waveIndex < bottleBubbleWaveSizes.length; waveIndex += 1) {
-      const waveSize = bottleBubbleWaveSizes[waveIndex];
-      for (let indexInWave = 0; indexInWave < waveSize; indexInWave += 1) {
-        const currentBubbleOrdinal = bubbleOrdinal;
-        bubbleOrdinal += 1;
-        const bubble = domElementPool.acquire('div') as HTMLElement;
-        const idleEquivalentSize = 10 + Math.pow(Math.random(), 1.65) * 30;
-        const bubbleSize = idleEquivalentSize * (2 + Math.random() * 0.5);
-        const bubbleAspect = 0.68 + Math.random() * 0.64;
-        const bubbleWidth = bubbleSize * Math.sqrt(bubbleAspect);
-        const bubbleHeight = bubbleSize / Math.sqrt(bubbleAspect);
-        const laneProgress = (indexInWave + 0.5) / waveSize;
-        const laneJitter = (Math.random() - 0.5) * Math.min(0.14, 0.55 / waveSize);
-        const waveOffset = (waveIndex % 2 === 0 ? -1 : 1) * 0.025;
-        const startX = viewportW * Math.max(0.04, Math.min(0.96, laneProgress + laneJitter + waveOffset));
-        const startY = viewportH + bubbleHeight * (1.2 + Math.random() * 1.8);
-        const crossDirection = Math.random() < 0.5 ? -1 : 1;
-        const crossDistance = 20 + Math.random() * 34;
-        const popRiseRatio = Math.random() < 0.5
-          ? 0.2 + Math.random() * 0.3
-          : 0.5 + Math.random() * 0.4;
-        const popY = Math.max(viewportH * 0.08, startY - viewportH * popRiseRatio);
-        const totalRise = startY - popY;
-        const bubbleDuration = ((1.8 + Math.random() * 0.9) * speedScale) / 1.6;
-        const bubbleDelay = bottleBubbleWaveStarts[waveIndex]
-          + indexInWave * (0.04 + Math.random() * 0.03)
-          + (indexInWave === 0 ? 0 : Math.random() * 0.035);
-        const organicRadiusA = `${42 + Math.round(Math.random() * 18)}% ${42 + Math.round(Math.random() * 18)}% ${38 + Math.round(Math.random() * 24)}% ${40 + Math.round(Math.random() * 20)}% / ${38 + Math.round(Math.random() * 24)}% ${44 + Math.round(Math.random() * 16)}% ${42 + Math.round(Math.random() * 18)}% ${40 + Math.round(Math.random() * 20)}%`;
-        const organicRadiusB = `${38 + Math.round(Math.random() * 24)}% ${40 + Math.round(Math.random() * 20)}% ${44 + Math.round(Math.random() * 16)}% ${42 + Math.round(Math.random() * 18)}% / ${45 + Math.round(Math.random() * 15)}% ${38 + Math.round(Math.random() * 24)}% ${40 + Math.round(Math.random() * 20)}% ${42 + Math.round(Math.random() * 18)}%`;
-        bubble.className = 'cc-bottle-merge-bubble';
-        bubble.style.cssText = [
-          'position: absolute',
-          'pointer-events: none',
-          `left: ${Math.round(startX)}px`,
-          `top: ${Math.round(startY)}px`,
-          `width: ${Math.round(bubbleWidth)}px`,
-          `height: ${Math.round(bubbleHeight)}px`,
-          `border-radius: ${organicRadiusA}`,
-          'border: 1px solid rgba(204,243,241,0.4)',
-          'background: rgba(204,243,241,0.6)',
-          'box-shadow: inset -4px -5px 9px rgba(255,255,255,0.3), inset 3px 3px 7px rgba(255,255,255,0.48)',
-          'will-change: transform, opacity, background-color, border-radius',
-        ].join(';');
-        field.appendChild(bubble);
-        activeBottleBubbles.push(bubble);
-        const startScale = 0.2 + Math.random() * 0.2;
-        const endScale = 0.6 + Math.random() * 0.4;
-        gsap.set(bubble, { xPercent: -50, yPercent: -50, opacity: 0.7 + Math.random() * 0.3, scale: startScale });
-        const bubbleTl = trackTimeline({ delay: bubbleDelay });
-        bubbleTl.to(bubble, {
-          keyframes: [
-            { x: crossDirection * crossDistance, y: -totalRise * 0.25, scale: endScale, borderRadius: organicRadiusB, backgroundColor: 'rgba(217,247,245,0.6)' },
-            { x: -crossDirection * crossDistance, y: -totalRise * 0.50, borderRadius: organicRadiusA, backgroundColor: 'rgba(234,251,250,0.6)' },
-            { x: crossDirection * crossDistance * 0.75, y: -totalRise * 0.75, borderRadius: organicRadiusB, backgroundColor: 'rgba(246,254,253,0.6)' },
-            { x: (Math.random() - 0.5) * 20, y: -totalRise, borderRadius: organicRadiusA, backgroundColor: 'rgba(255,255,255,0.6)' },
-          ],
-          duration: bubbleDuration,
-          ease: 'sine.inOut',
-        });
-        bubbleTl.call(() => {
-          if ((currentBubbleOrdinal + 1) % 3 !== 0) return;
-          try { (window as any).triggerHapticImpact?.('light'); } catch {}
-        });
-        bubbleTl.to(bubble, {
-          scale: endScale * 1.2,
-          duration: 0.055,
-          ease: 'power2.out',
-        });
-        bubbleTl.to(bubble, {
-          scale: 0,
-          duration: 0.075,
-          ease: 'back.in(3)',
-          onComplete: () => {
-            try { gsap.set(bubble, { visibility: 'hidden' }); } catch {}
-          },
-        });
-        starTimelines.push(bubbleTl);
-        bottleBubbleMaxEnd = Math.max(bottleBubbleMaxEnd, bubbleDelay + bubbleDuration + 0.16);
-      }
-    }
-    maxAnimationTime = Math.max(maxAnimationTime, bottleBubbleMaxEnd);
-  }
 
   let cleaned = false;
   const cleanup = () => {
@@ -672,13 +481,6 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
         wrap.remove();
       } catch {}
     });
-    activeBottleBubbles.forEach((bubble) => {
-      try {
-        gsap.killTweensOf(bubble);
-        if (bubble.parentNode) bubble.parentNode.removeChild(bubble);
-        domElementPool.release(bubble);
-      } catch {}
-    });
     try { field.remove(); } catch {}
   };
 
@@ -689,8 +491,7 @@ export function attachSmallStarCenterBurst(overlay: HTMLElement, opts: SmallStar
     try { autoCleanupCall.kill(); } catch {}
     cleanup();
   };
-  // Parent text overlays may finish before long staggered Bottle bubbles.
-  // Publish the real child lifetime so the parent never truncates their pops.
+  // Publish the real child lifetime so the parent never truncates staggered particles.
   (cleanupOwner as any).completionDelaySeconds = autoCleanupDelay;
   return cleanupOwner;
 }

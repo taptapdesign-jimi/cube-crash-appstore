@@ -859,15 +859,26 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       });
       bubbleTweens.push(tl as any);
     } else {
-      // Vertical rise + drift (onComplete = remove, alpha uvijek 100%)
-      bubbleTweens.push(trackTween(bubble, {
-        x: startX + driftX,
-        y: endY,
+      // Full-screen Juice PNG bubbles follow an independent fizzy weave from
+      // below the viewport to above it. Keep this separate from tile idle FX.
+      const weaveDirection = Math.random() < 0.5 ? -1 : 1;
+      const weaveDistance = screenW * (0.1 + Math.random() * 0.08);
+      const travelY = endY - startY;
+      const riseTl = trackTimeline();
+      riseTl.to(bubble, {
+        keyframes: [
+          { x: startX + driftX * 0.18 + weaveDirection * weaveDistance, y: startY + travelY * 0.18 },
+          { x: startX + driftX * 0.38 - weaveDirection * weaveDistance * 0.92, y: startY + travelY * 0.38 },
+          { x: startX + driftX * 0.6 + weaveDirection * weaveDistance * 0.78, y: startY + travelY * 0.6 },
+          { x: startX + driftX * 0.8 - weaveDirection * weaveDistance * 0.62, y: startY + travelY * 0.8 },
+          { x: startX + driftX, y: endY },
+        ],
         duration,
-        ease: 'power2.inOut',
+        ease: 'sine.inOut',
         immediateRender: true,
-        onComplete: onBubbleComplete
-      }));
+        onComplete: onBubbleComplete,
+      });
+      bubbleTweens.push(riseTl as any);
     }
 
     // Scale animation

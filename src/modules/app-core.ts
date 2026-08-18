@@ -204,6 +204,7 @@ import {
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
+  getBeachWildSlotForSpawn,
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
@@ -6127,6 +6128,14 @@ async function spawnWildFromMeter(){
         spawnTnt = false;
         wildType = 'wild';
       }
+      const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 11 && boardNumber <= 20;
+      if (isBeachJourneyBoard) {
+        const beachWildSlot = getBeachWildSlotForSpawn(boardNumber, wildSpawnCount);
+        spawnJuice = beachWildSlot === 1 || beachWildSlot === 2;
+        spawnMagnet = false;
+        spawnTnt = false;
+        wildType = spawnJuice ? 'wild-juice' : 'wild';
+      }
       const specialDiceVariant = isFirstPlayTutorialRunActive() ? null : pickSpecialDiceVariantForWildSpawn({
         isArcade: isArcadeHomeRunMode(),
         wildSpawnCount,
@@ -8635,6 +8644,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   (dst as any)._wildMagnetPulledTilesScoring = true; // Flag to skip scoring in main merge 6 flow
                 }
                 
+                const activeTilesBeforePull = tiles.filter(t => {
+                  if (!t || t.locked) return false;
+                  const isWild = isWildLikeTile(t);
+                  const hasValue = (t.value|0) > 0;
+                  return isWild || hasValue;
+                });
+                const magnetPullProgressDecision = resolveMagnetPullProgressDecision({
+                  activeTilesBeforePull,
+                  mergeTile: dst,
+                  pulledTileCount: validTiles.length,
+                });
+                const { shouldAddWildProgress, isLastMergeBeforePull } = magnetPullProgressDecision;
+                let magnetPullProgressCommitted = false;
+
                 // 🔥 CRITICAL: Add merge function and makeBoard to helpers so handleWildMagnetMergedPulledTiles can use them
                 // 🔥 USER REQUEST: Add spawnLockedTilesWithPop + openLockedBounceParallel so wild magnet gets 6 locked like wild juice/star/TNT
                 const helpersWithMerge = {
@@ -8650,6 +8673,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   TILE,
                   fixHoverAnchor,
                   SPAWN,
+                  onMagnetPullCommitted: () => {
+                    if (magnetPullProgressCommitted) return;
+                    magnetPullProgressCommitted = true;
+                    if (shouldAddWildProgress) {
+                      devLog(`🧲 Magnet pull accepted for ${validTiles.length} tiles - starting merge-6 wild progress immediately`);
+                      addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true });
+                    } else if (isLastMergeBeforePull) {
+                      devLog(`🚨🚨🚨 LAST MERGE ACCEPTED (magnet pull) - ${activeTilesBeforePull.length} tiles before pull, resetting wild progress`);
+                      resetWildMeterState('last-merge-before-magnet-pull');
+                    }
+                  },
                   // Magnet/Honey board ownership ends when app-merge has
                   // committed every replacement, converted the consumed die,
                   // and synchronized placeholders. Its later endgame/visual
@@ -8673,19 +8707,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // This makes wild meter progress bar animate during pull animation, not after
                 // 🔥 CRITICAL FIX: Check if this is last merge (only 2 tiles on board) BEFORE adding wild progress
                 // This prevents wild meter from filling when magnet pull results in clean board
-                const activeTilesBeforePull = tiles.filter(t => {
-                  if (!t || t.locked) return false;
-                  const isWild = isWildLikeTile(t);
-                  const hasValue = (t.value|0) > 0;
-                  return isWild || hasValue;
-                });
-                const magnetPullProgressDecision = resolveMagnetPullProgressDecision({
-                  activeTilesBeforePull,
-                  mergeTile: dst,
-                  pulledTileCount: validTiles.length,
-                });
-                const { shouldAddWildProgress, isLastMergeBeforePull } = magnetPullProgressDecision;
-                
                 // Do not mutate the meter before downstream commit validation.
                 // A rejected pull must have no spawn/progress side effects to roll back.
                 devLog('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
@@ -8720,13 +8741,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   return;
                 }
                 devLog('✅ Pulled tiles merge committed - merge 6 created with 4x multiplier');
-                if (shouldAddWildProgress) {
-                  devLog(`🧲 Magnet pull committed for ${validTiles.length} tiles - adding merge-6 wild progress`);
-                  addWildProgress(WILD_INC_BIG, { confirmedNonFinal: true });
-                } else if (isLastMergeBeforePull) {
-                  devLog(`🚨🚨🚨 LAST MERGE COMMITTED (magnet pull) - ${activeTilesBeforePull.length} tiles before pull, resetting wild progress`);
-                  resetWildMeterState('last-merge-before-magnet-pull');
-                }
+                // Progress was already applied by onMagnetPullCommitted at the
+                // validated start of app-merge, before its long visual tail.
                 
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();

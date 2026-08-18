@@ -10,10 +10,13 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(source).toContain('if (!magnetMergeCommitted)');
     expect(source).toContain("setWildMagnetPullInProgress(false, 'commit-validation-abort')");
     expect(source).toContain("scheduleCheckLevelEnd(0.18, 'wild-magnet-commit-validation-abort')");
-    const commitCheck = source.indexOf('if (!magnetMergeCommitted)');
-    const committedProgress = source.indexOf('if (shouldAddWildProgress)', commitCheck);
-    expect(committedProgress).toBeGreaterThan(commitCheck);
-    expect(source.slice(source.lastIndexOf('const magnetMergeCommitted', commitCheck), commitCheck)).not.toContain('addWildProgress(');
+    const commitCallback = source.indexOf('onMagnetPullCommitted: () =>');
+    const committedProgress = source.indexOf('if (shouldAddWildProgress)', commitCallback);
+    const mergeAwait = source.indexOf('const magnetMergeCommitted = await handleWildMagnetMergedPulledTiles', commitCallback);
+    expect(commitCallback).toBeGreaterThan(-1);
+    expect(committedProgress).toBeGreaterThan(commitCallback);
+    expect(committedProgress).toBeLessThan(mergeAwait);
+    expect(source.slice(mergeAwait, source.indexOf('return;', mergeAwait))).not.toContain('addWildProgress(');
   });
 
   test('Arcade startLevel cannot write into Journey progression', () => {

@@ -277,40 +277,16 @@ test('Forest Stage 2 test sequence never leaks into another Journey board', () =
   }
 });
 
-test('Bottle is a Beach-only Magnet special with its authored FX palette', () => {
+test('Beach stages cycle Star, Juice, Beach Ball, and Beach-only Bottle', () => {
   for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
-    const bottle = pickSpecialDiceVariantForWildSpawn({
+    const firstCycle = [0, 1, 2, 3].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard,
-      wildSpawnCount: 0,
-    });
-    expect(bottle).toMatchObject({
-      id: 'bottle',
-      archetype: 'wild-magnet',
-      texture: './assets/shop/bottle/glass bottle.png',
-      idleMotion: 'bottle-float',
-      splashText: 'S.O.S.',
-      splashColor: '#7FD1CA',
-      splashColors: ['#7FD1CA'],
-    });
-    expect(getSpecialDiceTrailColors(bottle)).toEqual([0xFDCA89, 0xD8E9CA, 0xC8ECD0, 0xAEE9E6]);
-    expect(getSpecialDiceShardColors(bottle)).toEqual([0xB1DCC9, 0xFFCE77]);
-    expect(getSpecialDiceIdleBubbleColors(bottle)).toEqual([0xCCF3F1, 0xFFFFFF]);
-    expect(bottle?.burstParticleSources).toHaveLength(13);
-    expect(bottle?.burstMotion).toMatchObject({
-      count: 13,
-      cuberoFlight: true,
-      bottleScatter: true,
-      speedScale: 1.15,
-      baseSizeScale: 1,
-      staggerSpanScale: 0.7,
-      mixBlendMode: 'normal',
-    });
-    expect(pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      journeyBoard,
-      wildSpawnCount: 1,
-    })).toBeNull();
+      wildSpawnCount,
+    })?.id ?? null);
+    expect(firstCycle).toEqual(journeyBoard === 12
+      ? ['bottle', null, null, 'beach-ball']
+      : [null, null, 'beach-ball', 'bottle']);
   }
 
   for (const journeyBoard of [1, 2, 10, 21, 30]) {
@@ -318,6 +294,11 @@ test('Bottle is a Beach-only Magnet special with its authored FX palette', () =>
       isArcade: false,
       journeyBoard,
       wildSpawnCount: 0,
+    })?.id).not.toBe('bottle');
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard,
+      wildSpawnCount: 3,
     })?.id).not.toBe('bottle');
   }
 });

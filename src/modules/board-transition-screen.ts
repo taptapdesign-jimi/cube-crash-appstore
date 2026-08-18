@@ -726,6 +726,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       ].join(';');
     }
 
+    // Shared by Forest, Beach, Area 55, and scene-less transitions. The
+    // accepted 15vh lift plus another 6vh places the number near 29vh.
+    numberContainer.style.transform = 'translate3d(0, -21vh, 0)';
+
     // Board IDs remain global (1-30) for save/progression ownership, while
     // every Journey World presents its connected Unit as local Stage 01-10.
     const transitionText = (typeof displayText === 'string' && displayText.trim().length > 0)

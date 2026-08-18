@@ -66,12 +66,14 @@ function maskBoardIndicatorDividersForBackpack(): () => void {
     const w = window as any;
     w.__ccWildBackpackDividerMaskCount = Math.max(0, (w.__ccWildBackpackDividerMaskCount || 0) + 1);
     document.body.classList.add(BACKPACK_BODY_CLASS);
+    document.getElementById('app')?.classList.add(BACKPACK_BODY_CLASS);
     return () => {
       try {
         const win = window as any;
         win.__ccWildBackpackDividerMaskCount = Math.max(0, (win.__ccWildBackpackDividerMaskCount || 0) - 1);
         if (win.__ccWildBackpackDividerMaskCount <= 0) {
           document.body.classList.remove(BACKPACK_BODY_CLASS);
+          document.getElementById('app')?.classList.remove(BACKPACK_BODY_CLASS);
         }
       } catch {}
     };
@@ -716,5 +718,6 @@ export function cleanupWildSpawnDropAnimations(): void {
     (window as any).__ccWildSpawnDropInProgress = false;
     (window as any).__ccWildBackpackDividerMaskCount = 0;
     document.body.classList.remove(BACKPACK_BODY_CLASS);
+    document.getElementById('app')?.classList.remove(BACKPACK_BODY_CLASS);
   } catch {}
 }

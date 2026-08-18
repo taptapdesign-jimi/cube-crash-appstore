@@ -80,8 +80,12 @@ const CRITICAL_IMAGES: string[] = [
   './assets/shop/cubero/krpa7.png',
   './assets/shop/bottle/glass bottle.png',
   './assets/shop/bottle/glass bottle@2x.png',
-  ...Array.from({ length: 5 }, (_, index) => `./assets/shop/bottle/glass${index + 1}.png`),
-  ...Array.from({ length: 7 }, (_, index) => `./assets/shop/bottle/paper${index + 1}.png`),
+  ...['botle1', 'botle2', 'botle3'].flatMap((name) => [
+    `./assets/shop/bottle/bottle animation pack/${name}.png`,
+    `./assets/shop/bottle/bottle animation pack/${name}@2x.png`,
+  ]),
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bottle/bottle animation pack/bubble${index + 1}.png`),
+  ...Array.from({ length: 6 }, (_, index) => `./assets/shop/bottle/bottle animation pack/bubble${index + 1}@2x.png`),
 ];
 
 let preloadPromise: Promise<void> | null = null;

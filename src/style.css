@@ -669,6 +669,12 @@ body{
   z-index: 3 !important;
 }
 
+/* Backpack/crate and their emitted special die are Pixi visuals. Lift the
+   canvas above Journey's DOM bottom decor only for their bounded lifecycle. */
+#app.cc-wild-backpack-active canvas {
+  z-index: 3 !important;
+}
+
 body.cc-mushroom-finale-foreground #hud-board-indicator {
   z-index: 998 !important;
 }
