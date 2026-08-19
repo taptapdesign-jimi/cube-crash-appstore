@@ -46,7 +46,8 @@ export function spawnBounce(
   t: any,
   gsap: typeof gsap,
   opts: SpawnBounceOptions = {},
-  done?: () => void
+  done?: () => void,
+  interrupted?: () => void,
 ): void {
   const {
     startScale = 0.30,
@@ -109,6 +110,9 @@ export function spawnBounce(
   };
   const tl = trackTimeline({
     onComplete: finish,
+    onInterrupt: () => {
+      if (typeof interrupted === 'function') interrupted();
+    },
     onUpdate: keepFullOpacity
       ? () => {
           t.alpha = 1;

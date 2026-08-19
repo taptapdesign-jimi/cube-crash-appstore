@@ -1,6 +1,7 @@
 type ExitCleanupDeps = {
   HUD: { cleanupSmokeBubbles?: () => void };
   backgroundLayer: any | null;
+  finalResidualAlreadyPopped?: boolean;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
 };
@@ -8,6 +9,7 @@ type ExitCleanupDeps = {
 export function cleanupBeforeBoardExit({
   HUD,
   backgroundLayer,
+  finalResidualAlreadyPopped = false,
   devLog,
   devWarn,
 }: ExitCleanupDeps){
@@ -20,6 +22,20 @@ export function cleanupBeforeBoardExit({
   } catch (e) {
     devWarn('⚠️ Board exit: Error cleaning up smoke bubbles:', e);
   }
+  // A successful final handoff already animated and retired the ghost grid. Never
+  // resurrect it for a later generic board-exit owner (for example immediately
+  // before the completion/thumbs-up surface).
+  if (finalResidualAlreadyPopped) {
+    try {
+      if (backgroundLayer) backgroundLayer.visible = false;
+      window._ghostPlaceholders?.forEach?.((row: any[]) => {
+        row?.forEach?.((ghost: any) => { if (ghost) ghost.visible = false; });
+      });
+      devLog('👻 Board exit preserved retired final ghost layer');
+    } catch {}
+    return;
+  }
+
   // Keep ghost placeholders visible for the board exit animation. They used to be hidden
   // here, which made no-moves boards visually collapse before the exit could play.
   try {

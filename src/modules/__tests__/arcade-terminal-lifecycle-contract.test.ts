@@ -39,6 +39,7 @@ describe('Arcade terminal lifecycle regression contract', () => {
   test('Round 02+ summary keeps the overlay mounted through the complete modal exit', () => {
     const modal = fs.readFileSync(path.join(repoRoot, 'src/modules/clean-board-modal.ts'), 'utf8');
     const appCore = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
+    const endgame = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
     const secondaryStart = modal.indexOf('addButtonPressHandling(secondaryBtn, async () =>');
     const secondaryEnd = modal.indexOf("}, 'secondary');", secondaryStart);
     const exitOwner = modal.slice(secondaryStart, secondaryEnd);
@@ -73,6 +74,18 @@ describe('Arcade terminal lifecycle regression contract', () => {
     const boardExitStart = appCore.indexOf('async function animateBoardExit()');
     const boardExitEnd = appCore.indexOf('// 🔥 v112: tintLocked', boardExitStart);
     expect(appCore.slice(boardExitStart, boardExitEnd)).not.toContain('animationManager.killAll()');
+
+    const commonCleanupStart = appCore.indexOf('function killAllGsapTweensCommon');
+    const commonCleanupEnd = appCore.indexOf('function logBoardExitStats', commonCleanupStart);
+    const commonCleanup = appCore.slice(commonCleanupStart, commonCleanupEnd);
+    expect(commonCleanup).not.toContain('animationManager.killAll()');
+    expect(commonCleanup).not.toContain("gsap.killTweensOf('p')");
+    expect(commonCleanup).not.toContain("gsap.killTweensOf('progress')");
+    expect(commonCleanup).not.toContain("gsap.killTweensOf('ratio')");
+
+    const preNextCleanupStart = endgame.indexOf('async function performPreNextBoardCleanup');
+    const preNextCleanupEnd = endgame.indexOf('async function', preNextCleanupStart + 20);
+    expect(endgame.slice(preNextCleanupStart, preNextCleanupEnd)).not.toContain('.killAll()');
   });
 
   test('Arcade Stage continuation has one awaited reset and layout owner', () => {

@@ -9,6 +9,7 @@ const PROJECT = path.join(STACK_ROOT, 'Stack to Six.xcodeproj');
 const SCHEME = path.join(PROJECT, 'xcshareddata/xcschemes/Stack to Six.xcscheme');
 const PBXPROJ = path.join(PROJECT, 'project.pbxproj');
 const CONTROLLER = path.join(STACK_ROOT, 'Stack to Six/GameViewController.swift');
+const PRIVACY_MANIFEST = path.join(STACK_ROOT, 'Stack to Six/PrivacyInfo.xcprivacy');
 const WEB_BUNDLE = path.join(STACK_ROOT, 'Stack to Six/Web.bundle');
 const EXPECTED_BUNDLE_ID = 'com.taptapdesign.stacktosix.Stack-to-Six';
 const EXPECTED_INTRO_CHARACTERS = [
@@ -76,6 +77,7 @@ if (!sourceOnly) {
   requireCondition(fs.existsSync(SCHEME), `missing shared Stack to Six scheme: ${SCHEME}`);
   requireCondition(fs.existsSync(PBXPROJ), `missing Xcode project file: ${PBXPROJ}`);
   requireCondition(fs.existsSync(CONTROLLER), `missing Stack to Six GameViewController: ${CONTROLLER}`);
+  requireCondition(fs.existsSync(PRIVACY_MANIFEST), `missing Stack to Six privacy manifest: ${PRIVACY_MANIFEST}`);
 
   if (fs.existsSync(PBXPROJ)) {
     const projectText = fs.readFileSync(PBXPROJ, 'utf8');
@@ -106,6 +108,12 @@ if (!sourceOnly) {
   if (fs.existsSync(CONTROLLER)) {
     requireCondition(/private static let useDevServer\s*=\s*false/.test(fs.readFileSync(CONTROLLER, 'utf8')), 'GameViewController useDevServer must be false for bundled QA');
   }
+  if (fs.existsSync(PRIVACY_MANIFEST)) {
+    const privacyText = fs.readFileSync(PRIVACY_MANIFEST, 'utf8');
+    requireCondition(privacyText.includes('NSPrivacyAccessedAPICategoryUserDefaults'), 'privacy manifest must declare UserDefaults required-reason API usage');
+    requireCondition(privacyText.includes('<string>CA92.1</string>'), 'privacy manifest must declare app-only UserDefaults reason CA92.1');
+    requireCondition(privacyText.includes('<key>NSPrivacyTracking</key>') && privacyText.includes('<false/>'), 'privacy manifest must explicitly disable tracking');
+  }
 
   const distIndex = path.join(ROOT, 'dist/index.html');
   const bundleIndex = path.join(WEB_BUNDLE, 'index.html');
@@ -125,11 +133,13 @@ if (!sourceOnly) {
 
 if (builtApp) {
   const infoPlist = path.join(builtApp, 'Info.plist');
+  const builtPrivacyManifest = path.join(builtApp, 'PrivacyInfo.xcprivacy');
   requireCondition(fs.existsSync(infoPlist), `built app Info.plist is missing: ${infoPlist}`);
   if (fs.existsSync(infoPlist)) {
     const plist = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', infoPlist], { encoding: 'utf8' });
     requireCondition(plist.status === 0 && plist.stdout.trim() === EXPECTED_BUNDLE_ID, `built app bundle ID is not ${EXPECTED_BUNDLE_ID}`);
   }
+  requireCondition(fs.existsSync(builtPrivacyManifest), `built app privacy manifest is missing: ${builtPrivacyManifest}`);
   verifyRawAssets(path.join(builtApp, 'Web.bundle'), 'built Stack to Six app');
 }
 

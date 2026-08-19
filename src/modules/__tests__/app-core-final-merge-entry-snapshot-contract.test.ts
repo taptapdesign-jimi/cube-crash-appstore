@@ -34,7 +34,8 @@ describe('merge-entry finality snapshot contract', () => {
   test('blocks the delayed TNT gameplay bonus when entry snapshot is final', () => {
     expect(appCoreSource).toContain('const finalMergeOwnsTntResolution =');
     expect(appCoreSource).toContain('capturedWasFinalMerge ||');
-    expect(appCoreSource).toContain("releaseTntGateWhenSettled('final-merge-no-bonus');");
+    expect(appCoreSource).toContain("commitTntBoardForOrdinaryStacks('final-merge-no-bonus');");
+    expect(appCoreSource).toContain("releaseTntTransactionWhenSettled('final-merge-no-bonus');");
 
     const guard = appCoreSource.indexOf('if (finalMergeOwnsTntResolution) {');
     const bonus = appCoreSource.indexOf('runTntBoomBonusBreak2Tiles({', guard);

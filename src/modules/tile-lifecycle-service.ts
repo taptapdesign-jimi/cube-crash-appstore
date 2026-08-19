@@ -1,5 +1,7 @@
 import { gsap } from 'gsap';
 import { isSpecialDiceResolutionOwned, releaseSpecialDiceResolution } from './special-dice-registry.ts';
+import { MAGNET_TRANSIENT_TILE_FLAGS } from './tile-state-utils.ts';
+import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 
 export type TileLifecycleGrid = any[][] | null | undefined;
 
@@ -18,21 +20,6 @@ export type TileLifecycleRemoveOptions = {
   stopTntIdleShake?: (tile: any) => void;
   log?: (...args: any[]) => void;
 };
-
-const MAGNET_TRANSIENT_FLAGS = [
-  '_wildMagnetAffected',
-  '_wildMagnetOriginalX',
-  '_wildMagnetOriginalY',
-  '_wildMagnetPulledTilesMerge',
-  '_wildMagnetPulledTilesScoring',
-  '_wildMagnetMergeCallback',
-  '_wildMagnetPulledCells',
-  '_hasTilesToPull',
-  '_skipMagnetPull',
-  '_noTilesPulled',
-  '_willPullTiles',
-  '_wasWildMagnetMerge6',
-] as const;
 
 const TILE_ANIMATION_KEYS = [
   '_wobbleTl',
@@ -97,6 +84,10 @@ export function stopTileRuntimeFx(tile: any, options: TileLifecycleRemoveOptions
     } catch {}
   });
 
+  // The registry variants (Cubero, Mushroom, Ball, Bottle, Honey, Flower)
+  // share this owner. Stop it centrally so every removal/restart path retires
+  // its idle timeline and Mushroom smoke before the display object is destroyed.
+  try { stopSpecialDiceIdleMotion(tile); } catch {}
   try { options.stopWildIdle?.(tile); } catch {}
   try { options.stopWildShimmer?.(tile); } catch {}
   try { options.stopWildStars?.(tile); } catch {}
@@ -109,7 +100,7 @@ export function stopTileRuntimeFx(tile: any, options: TileLifecycleRemoveOptions
 export function clearTileTransientFlags(tile: any): void {
   if (!tile) return;
   try {
-    MAGNET_TRANSIENT_FLAGS.forEach((key) => {
+    MAGNET_TRANSIENT_TILE_FLAGS.forEach((key) => {
       delete tile[key];
     });
     delete tile._skipIdleScaleReset;

@@ -393,37 +393,9 @@ async function performPreNextBoardCleanup(nextLevel: number): Promise<void> {
   try {
     console.log(`🧹 endgame-flow: Performing ${isVeryLongSession ? 'VERY AGGRESSIVE' : isLongGameSession ? 'AGGRESSIVE' : 'standard'} cleanup before startLevel (Board ${nextLevel})...`);
 
-    try {
-      const animMod = await import('./animation-manager.js');
-      const am = animMod?.default;
-      if (am && typeof am.killAll === 'function') {
-        am.killAll();
-        console.log('✅ endgame-flow: animationManager.killAll() completed');
-      }
-    } catch (e) {
-      console.warn('⚠️ endgame-flow: animationManager.killAll failed:', e);
-    }
-
-    if (gsap) {
-      try {
-        gsap.killTweensOf('*');
-        if (gsap.globalTimeline) {
-          gsap.globalTimeline.clear();
-        }
-        if (isLongGameSession) {
-          try {
-            if ((gsap as any).getAllTweens) {
-              const allTweens = (gsap as any).getAllTweens();
-              if (Array.isArray(allTweens)) {
-                allTweens.forEach((tween: any) => {
-                  try { tween.kill(); } catch {}
-                });
-              }
-            }
-          } catch {}
-        }
-      } catch {}
-    }
+    // Feature owners clean their own tracked timelines. Never clear the
+    // shared AnimationManager or GSAP global timeline here: Journey, cards
+    // and modals may overlap this board handoff and own separate lifecycles.
 
     if ((window as any)._activeTimeouts) {
       (window as any)._activeTimeouts.forEach((timeout: NodeJS.Timeout) => {
@@ -830,19 +802,8 @@ async function performPreStartLevelCleanup(): Promise<void> {
     await sampleTransitionMemory('7_after_cleanupTextures');
     console.log('✅ endgame-flow: Old board destroyed, texture GC run');
 
-    try {
-      if (typeof (gsap as any).getAllTweens === 'function') {
-        const allTweens = (gsap as any).getAllTweens();
-        if (Array.isArray(allTweens)) {
-          allTweens.forEach((t: any) => { try { t?.kill?.(); } catch {} });
-          console.log('✅ endgame-flow: Killed', allTweens.length, 'GSAP tweens');
-        }
-      }
-      gsap.killTweensOf('*');
-      if (gsap.globalTimeline) gsap.globalTimeline.clear();
-    } catch (gsapErr) {
-      console.warn('⚠️ endgame-flow: GSAP nuclear kill failed (non-fatal):', gsapErr);
-    }
+    // AnimationManager and the board FX cleanup above own gameplay animation
+    // retirement. Global GSAP state belongs to the whole application.
   } catch (memErr) {
     console.warn('⚠️ endgame-flow: Pre-startLevel memory cleanup failed (non-fatal):', memErr);
   }

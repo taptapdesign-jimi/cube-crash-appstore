@@ -1,6 +1,8 @@
 import { preloadTntFrames } from './tnt-animation.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
 import { isWildLikeTile } from './final-merge-rules.ts';
+import { resetTileToNormalState } from './tile-state-utils.ts';
+import { removeTileFully } from './tile-lifecycle-service.ts';
 
 type OpenCellDeps = {
   c: number;
@@ -32,9 +34,40 @@ type OpenCellDeps = {
   startWildStars: (tile: any) => void;
   startTntIdleParticles: (tile: any) => void;
   startTntIdleShake: (tile: any) => void;
-  SPAWN: { spawnBounce: (tile: any, gsap: any, opts: any, onComplete?: () => void) => void };
+  spawnBounce: (
+    tile: any,
+    onComplete: (() => void) | null,
+    opts?: any,
+    onInterrupt?: (() => void) | null,
+  ) => void;
   gsap: any;
 };
+
+export function adaptSpawnBounce(
+  rawSpawnBounce: (
+    tile: any,
+    gsap: any,
+    opts?: any,
+    onComplete?: () => void,
+    onInterrupt?: () => void,
+  ) => void,
+  gsap: any,
+): OpenCellDeps['spawnBounce'] {
+  return (tile, onComplete, opts, onInterrupt) => rawSpawnBounce(
+    tile,
+    gsap,
+    opts,
+    onComplete || undefined,
+    onInterrupt || undefined,
+  );
+}
+
+export class OpenCellCancelledError extends Error {
+  constructor() {
+    super('openAtCell spawn animation was cancelled by lifecycle cleanup.');
+    this.name = 'OpenCellCancelledError';
+  }
+}
 
 export function openAtCellCore({
   c,
@@ -52,7 +85,7 @@ export function openAtCellCore({
   startWildStars,
   startTntIdleParticles,
   startTntIdleShake,
-  SPAWN,
+  spawnBounce,
   gsap,
 }: OpenCellDeps){
   const {
@@ -63,9 +96,21 @@ export function openAtCellCore({
     isWildTnt = false,
     skipBind = false,
     timeScale = 1.0,
+    forceFreshPlaceholder = false,
     skipSpawnAnimation = false,
   } = options || {};
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settleResolve = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const settleCancelled = () => {
+      if (settled) return;
+      settled = true;
+      reject(new OpenCellCancelledError());
+    };
     // Re-read from grid so we never spawn on a cell that was updated by another spawn (e.g. merge-6)
     let holder = grid?.[r]?.[c] || null;
     // 🔥 RACE FIX: If holder was destroyed (e.g. by magnet pull), treat as empty
@@ -86,7 +131,7 @@ export function openAtCellCore({
           hasValue,
           isWildTile,
         });
-        resolve(false);
+        settleResolve(false);
         return;
       }
 
@@ -97,7 +142,7 @@ export function openAtCellCore({
           holderSpecial: holder.special,
           holderLocked: holder.locked,
         });
-        resolve(false);
+        settleResolve(false);
         return;
       }
     }
@@ -109,9 +154,14 @@ export function openAtCellCore({
       const isWildTile = isWildLikeTile(holder);
       const hasValue = (holder.value | 0) > 0;
       if (hasValue || isWildTile || !holder.locked) {
-        resolve(false);
+        settleResolve(false);
         return;
       }
+    }
+
+    if (forceFreshPlaceholder && holder) {
+      removeTileFully(holder, { board, grid, tiles });
+      holder = null;
     }
 
     // Wild spawn: prefer existing ghost placeholder; in end game cell can be null — create tile then apply wild
@@ -126,16 +176,9 @@ export function openAtCellCore({
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
     
-    // 🔥 CRITICAL FIX: Clear magnet flags from holder before spawning
-    // This prevents spawned tiles from inheriting flags from previous magnet pull
-    delete holder._wildMagnetAffected;
-    delete holder._wildMagnetOriginalX;
-    delete holder._wildMagnetOriginalY;
-    delete holder._mergeTriggered75;
-    delete holder._skipIdleScaleReset;
-    delete holder._wildMagnetMergeCallback;
-    delete holder._wildMagnetPulledTilesMerge;
-    delete holder._wildMagnetPulledTilesScoring;
+    // A recycled holder must never carry Magnet routing into any newly spawned
+    // core wild or registry variant.
+    resetTileToNormalState(holder);
 
     if (isWild || isWildMagnet || isWildJuice || isWildTnt){
       if (isWildTnt) {
@@ -158,7 +201,7 @@ export function openAtCellCore({
       // 🔥 RACE FIX: Skip if holder was destroyed (e.g. by concurrent magnet pull)
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed before setValue (race with merge?)', { c, r });
-        resolve(false);
+        settleResolve(false);
         return;
       }
       if (skipSpawnAnimation) {
@@ -167,7 +210,7 @@ export function openAtCellCore({
       makeBoard.setValue(holder, 6, 0);
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed after setValue (wild)', { c, r });
-        resolve(false);
+        settleResolve(false);
         return;
       }
       // Always use applyWildSkinLocal to ensure correct texture is applied (double-check)
@@ -200,14 +243,14 @@ export function openAtCellCore({
     } else {
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed before setValue (race with merge?)', { c, r });
-        resolve(false);
+        settleResolve(false);
         return;
       }
       const v = (value == null) ? randomRegularTileValue() : value;
       makeBoard.setValue(holder, v, 0);
       if ((holder as any).destroyed || (holder.value | 0) <= 0) {
         devWarn('⚠️ openAtCell: Holder destroyed or invalid after setValue', { c, r, value: holder?.value });
-        resolve(false);
+        settleResolve(false);
         return;
       }
     }
@@ -218,7 +261,7 @@ export function openAtCellCore({
       holder.visible = false;
       holder.alpha = 0;
       holder.eventMode = 'none';
-      resolve(true);
+      settleResolve(true);
       return;
     }
     holder.visible = true;
@@ -234,10 +277,10 @@ export function openAtCellCore({
     } else {
       holder.alpha = 0;
     }
-    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: timeScale, keepFullOpacity: isActiveTile || isWildSpawn }, () => {
+    spawnBounce(holder, () => {
       if ((holder as any).destroyed) {
         devWarn('⚠️ openAtCell: Holder destroyed during spawnBounce', { c, r });
-        resolve(false);
+        settleResolve(false);
         return;
       }
       if (isActiveTile || isWildSpawn) {
@@ -252,7 +295,7 @@ export function openAtCellCore({
       } else {
         holder.alpha = 1;
       }
-      resolve(true);
-    });
+      settleResolve(true);
+    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: timeScale, keepFullOpacity: isActiveTile || isWildSpawn }, settleCancelled);
   });
 }

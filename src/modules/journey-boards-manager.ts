@@ -744,6 +744,7 @@ class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
+  private renderLifecycleGeneration = 0;
   private cleanupInProgress = false;
   private interimIdleEffectsCard: HTMLElement | null = null;
   private journeyExitPromise: Promise<void> | null = null;
@@ -805,37 +806,99 @@ class JourneyBoardsManager {
   
   // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame calls for proper cleanup
   private _activeRAFs: Set<number> = new Set();
+  private _activeRAFCancellationHandlers = new Map<number, () => void>();
   private _activeTimeouts: Set<number> = new Set();
+  private _activeTimeoutCancellationHandlers = new Map<number, () => void>();
   private _floatingDetailPlayButtons: Set<HTMLElement> = new Set();
   
   /**
    * 🔥 MEMORY LEAK FIX: Track requestAnimationFrame calls for cleanup
    */
-  private trackRAF(callback: FrameRequestCallback): number {
-    if (this.renderDisposed) return 0;
+  private trackRAF(callback: FrameRequestCallback, onCancel?: () => void): number {
+    if (this.renderDisposed) {
+      try { onCancel?.(); } catch {}
+      return 0;
+    }
+    const generation = this.renderLifecycleGeneration;
     const rafId = requestAnimationFrame((time: number) => {
       this._activeRAFs.delete(rafId);
+      this._activeRAFCancellationHandlers.delete(rafId);
+      if (this.renderDisposed || generation !== this.renderLifecycleGeneration) {
+        try { onCancel?.(); } catch {}
+        return;
+      }
       callback(time);
     });
     this._activeRAFs.add(rafId);
+    if (onCancel) this._activeRAFCancellationHandlers.set(rafId, onCancel);
     return rafId;
   }
 
-  private trackTimeout(callback: () => void, delayMs: number): number {
-    if (this.renderDisposed) return 0;
+  private waitForTrackedFrames(frameCount: number = 1): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      let remaining = Math.max(1, frameCount | 0);
+      const finish = (completed: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(completed);
+      };
+      const next = () => {
+        this.trackRAF(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            finish(true);
+            return;
+          }
+          next();
+        }, () => finish(false));
+      };
+      next();
+    });
+  }
+
+  private trackTimeout(callback: () => void, delayMs: number, onCancel?: () => void): number {
+    if (this.renderDisposed) {
+      try { onCancel?.(); } catch {}
+      return 0;
+    }
+    const generation = this.renderLifecycleGeneration;
     const timeoutId = window.setTimeout(() => {
       this._activeTimeouts.delete(timeoutId);
-      if (this.renderDisposed) return;
+      this._activeTimeoutCancellationHandlers.delete(timeoutId);
+      if (this.renderDisposed || generation !== this.renderLifecycleGeneration) {
+        try { onCancel?.(); } catch {}
+        return;
+      }
       callback();
     }, delayMs);
     this._activeTimeouts.add(timeoutId);
+    if (onCancel) this._activeTimeoutCancellationHandlers.set(timeoutId, onCancel);
     return timeoutId;
+  }
+
+  private clearTrackedTimeout(timeoutId: number): void {
+    if (!timeoutId) return;
+    window.clearTimeout(timeoutId);
+    this._activeTimeouts.delete(timeoutId);
+    this._activeTimeoutCancellationHandlers.delete(timeoutId);
+  }
+
+  private beginRenderLifecycle(): number {
+    // A new render replaces the previous DOM owner. Retire its pending work
+    // immediately rather than retaining no-op callbacks until their deadlines.
+    this.cancelAllRAFs();
+    this.cancelAllTimeouts();
+    this.renderLifecycleGeneration += 1;
+    this.renderDisposed = false;
+    return this.renderLifecycleGeneration;
   }
   
   /**
    * 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
    */
   private cancelAllRAFs(): void {
+    const cancellationHandlers = Array.from(this._activeRAFCancellationHandlers.values());
     this._activeRAFs.forEach(rafId => {
       try {
         cancelAnimationFrame(rafId);
@@ -844,16 +907,25 @@ class JourneyBoardsManager {
       }
     });
     this._activeRAFs.clear();
+    this._activeRAFCancellationHandlers.clear();
+    cancellationHandlers.forEach((onCancel) => {
+      try { onCancel(); } catch {}
+    });
     logger.info(`✅ Cancelled all tracked RAF calls`);
   }
 
   private cancelAllTimeouts(): void {
+    const cancellationHandlers = Array.from(this._activeTimeoutCancellationHandlers.values());
     this._activeTimeouts.forEach(timeoutId => {
       try {
         window.clearTimeout(timeoutId);
       } catch {}
     });
     this._activeTimeouts.clear();
+    this._activeTimeoutCancellationHandlers.clear();
+    cancellationHandlers.forEach((onCancel) => {
+      try { onCancel(); } catch {}
+    });
     this._floatingDetailPlayButtons.forEach(button => {
       try {
         if (button.parentNode) button.remove();
@@ -1424,7 +1496,7 @@ class JourneyBoardsManager {
           visualTarget.style.willChange = 'auto';
         }
 
-        window.requestAnimationFrame(() => {
+        this.trackRAF(() => {
           if (!document.body.contains(wrapper)) return;
           wrapper.style.transition = '';
           if (!isActiveInterimCard) {
@@ -3373,7 +3445,7 @@ class JourneyBoardsManager {
 
   private async showJourneyAfterDetailModalClose(context: string): Promise<void> {
     const returnEpoch = ++this.journeyDetailReturnEpoch;
-    this.renderDisposed = false;
+    this.beginRenderLifecycle();
     this.cleanupInProgress = false;
 
     logger.info(`🗺️ Returning to Journey after detail modal close (${context})`, { returnEpoch });
@@ -3734,6 +3806,7 @@ class JourneyBoardsManager {
     }
 
     const runJourneyRevealFallback = (attempt = 0) => {
+      if (!isCurrentDetailReturn() || this.renderDisposed) return;
       const journeyScreen = document.getElementById('journey-screen') as HTMLElement | null;
       const detailModal = document.getElementById('collectibles-detail-modal') as HTMLElement | null;
       const detailModalVisible =
@@ -3751,7 +3824,7 @@ class JourneyBoardsManager {
         (window as any).__ccJourneyActiveAreaEnterPending === true ||
         (window as any).__ccJourneyViewportTransitionLocked === true;
       if (journeyAnimationActive && attempt < 6) {
-        window.setTimeout(() => runJourneyRevealFallback(attempt + 1), 240);
+        this.trackTimeout(() => runJourneyRevealFallback(attempt + 1), 240);
         return;
       }
 
@@ -3784,11 +3857,11 @@ class JourneyBoardsManager {
         home: getElementVisibilitySnapshot(document.getElementById('home') as HTMLElement | null),
       });
 
-      window.setTimeout(() => {
+      this.trackTimeout(() => {
         ensureJourneyBoardsRendered('fallback-retry');
       }, 250);
     };
-    window.setTimeout(() => runJourneyRevealFallback(), 1250);
+    this.trackTimeout(() => runJourneyRevealFallback(), 1250);
   }
 
   constructor() {
@@ -5129,8 +5202,7 @@ class JourneyBoardsManager {
       this.startInterimCardIdleEffects();
       [0, 180].forEach((delayMs) => {
         if (delayMs === 0) {
-          requestAnimationFrame(() => {
-            if (this.renderDisposed) return;
+          this.trackRAF(() => {
             this.startVisibleInterimCardIdleEffects(document);
           });
           return;
@@ -5150,6 +5222,7 @@ class JourneyBoardsManager {
     if (this.cleanupInProgress) return;
     this.cleanupInProgress = true;
     this.renderDisposed = true;
+    this.renderLifecycleGeneration += 1;
     try {
     journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('cleanup');
@@ -5160,6 +5233,7 @@ class JourneyBoardsManager {
     // 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
     this.cancelAllRAFs();
     this.cancelAllTimeouts();
+    (this as any)._scrollRetryCount = 0;
     this.journeyWorldAnimation.stop(true);
     this.cleanupJourneyAreaIdleAnimations();
     this.cleanupDetailModalRuntimeState();
@@ -5453,8 +5527,8 @@ class JourneyBoardsManager {
       const { cardWrapper, boardId, reason, worldId } = scrollTarget;
 
       // Čekaj da se layout stabilizira
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+      this.trackRAF(() => {
+        this.trackRAF(() => {
           // Provjeri je li kartica u viewportu
           const viewportH = window.innerHeight;
           const cardRect = cardWrapper.getBoundingClientRect();
@@ -5566,9 +5640,9 @@ class JourneyBoardsManager {
 
       // Wait for layout to settle and ensure screen is fully visible
       // Use multiple RAF calls to ensure DOM is ready and screen enter animation has started
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
+      this.trackRAF(() => {
+        this.trackRAF(() => {
+          this.trackRAF(() => {
             // Get viewport dimensions
             const viewportW = window.innerWidth;
             const viewportH = window.innerHeight;
@@ -5594,7 +5668,7 @@ class JourneyBoardsManager {
               
               logger.warn(`⚠️ Journey target board ${boardId} not yet visible, retrying scroll in 200ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
               (this as any)._scrollRetryCount = retryCount + 1;
-              setTimeout(() => {
+              this.trackTimeout(() => {
                 this.scrollToInterimCard(boardId);
               }, 200);
               return;
@@ -5648,7 +5722,7 @@ class JourneyBoardsManager {
               scrollable.scrollTop = finalScrollPosition;
               
               // Verify position is correct
-              requestAnimationFrame(() => {
+              this.trackRAF(() => {
                 const finalCardRect = cardWrapper.getBoundingClientRect();
                 const finalCardCenterY = finalCardRect.top + finalCardRect.height / 2;
                 const error = Math.abs(finalCardCenterY - viewportCenterY);
@@ -5674,7 +5748,7 @@ class JourneyBoardsManager {
                 scrollable.style.userSelect = ''; // Allow text selection (doesn't block scroll but good practice)
                 
                 // 🔥 CRITICAL FIX: Verify scroll is enabled after a short delay
-                setTimeout(() => {
+                this.trackTimeout(() => {
                   const computedTouchAction = window.getComputedStyle(scrollable).touchAction;
                   if (computedTouchAction === 'none' || computedTouchAction === 'auto') {
                     logger.warn(`⚠️ Scroll touchAction is ${computedTouchAction}, forcing pan-y`);
@@ -5773,22 +5847,6 @@ class JourneyBoardsManager {
       return;
     }
     
-    // 🔥 USER REQUEST: Ensure all locked cards have 100% opacity after rendering
-    // This fixes any locked cards that might have opacity < 100%
-    this.trackTimeout(() => {
-      const lockedCards = container?.querySelectorAll('.journey-board-card.locked') as NodeListOf<HTMLElement>;
-      if (lockedCards) {
-        lockedCards.forEach((card) => {
-          const currentOpacity = window.getComputedStyle(card).opacity;
-          const opacityValue = parseFloat(currentOpacity);
-          if (isNaN(opacityValue) || opacityValue < 1.0) {
-            card.style.opacity = '1';
-            const boardId = card.getAttribute('data-board-id') || 'unknown';
-            logger.debug(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
-          }
-        });
-      }
-    }, 100); // Small delay to ensure cards are rendered
     if (!container) {
       logger.warn('⚠️ Journey boards container not found');
       return;
@@ -5798,7 +5856,7 @@ class JourneyBoardsManager {
     if (this.interimIdleEffectsCard) this.stopInterimCardIdleEffects();
 
     this.container = container;
-    this.renderDisposed = false;
+    this.beginRenderLifecycle();
     journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('render-before-dom-replace');
     this.resetJourneyBoardVisualResidue('renderBoards-before-dom-replace');
@@ -5813,6 +5871,20 @@ class JourneyBoardsManager {
     } catch (error) {
       logger.warn('⚠️ Failed to cleanup stale Journey hub animation targets:', error);
     }
+
+    // Ensure locked cards remain fully authored after this exact render settles.
+    this.trackTimeout(() => {
+      const lockedCards = container.querySelectorAll<HTMLElement>('.journey-board-card.locked');
+      lockedCards.forEach((card) => {
+        const currentOpacity = window.getComputedStyle(card).opacity;
+        const opacityValue = parseFloat(currentOpacity);
+        if (isNaN(opacityValue) || opacityValue < 1.0) {
+          card.style.opacity = '1';
+          const boardId = card.getAttribute('data-board-id') || 'unknown';
+          logger.debug(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
+        }
+      });
+    }, 100);
     
     // 🔥 CRITICAL FIX: Clean up previous observer if exists
     if ((container as any)._positionObserver) {
@@ -6220,16 +6292,17 @@ class JourneyBoardsManager {
 
     return new Promise((resolve) => {
       let settled = false;
+      let timeout = 0;
       const waiter = () => finish(true);
       const finish = (presented: boolean) => {
         if (settled) return;
         settled = true;
-        window.clearTimeout(timeout);
+        this.clearTrackedTimeout(timeout);
         this.journeyV700HubPresentationWaiters.delete(waiter);
         resolve(presented);
       };
-      const timeout = window.setTimeout(() => finish(false), timeoutMs);
       this.journeyV700HubPresentationWaiters.add(waiter);
+      timeout = this.trackTimeout(() => finish(false), timeoutMs, () => finish(false));
     });
   }
 
@@ -7507,16 +7580,17 @@ class JourneyBoardsManager {
 
 	    return new Promise((resolve) => {
 	      let completed = false;
+      let fallbackTimer = 0;
       const completeOnce = (source: string) => {
         if (completed) return;
         completed = true;
         this.logJourneyV700Flow('nav-exit-complete', { targetCount: targets.length, source }, document.getElementById('journey-boards-container') as HTMLElement | null);
         resolve();
       };
-      const fallbackTimer = window.setTimeout(() => {
+      fallbackTimer = this.trackTimeout(() => {
         this.logJourneyV700Flow('nav-exit-timeout-fallback', { targetCount: targets.length }, document.getElementById('journey-boards-container') as HTMLElement | null);
         completeOnce('timeout-fallback');
-	      }, Math.ceil(motion.exit.duration * 1000) + 220);
+	      }, Math.ceil(motion.exit.duration * 1000) + 220, () => completeOnce('lifecycle-cancelled'));
 	      try {
 	        gsap.killTweensOf(targets);
 	        gsap.set(targets, {
@@ -7536,12 +7610,12 @@ class JourneyBoardsManager {
 	          force3D: true,
 	          overwrite: true,
 	          onComplete: () => {
-            window.clearTimeout(fallbackTimer);
+            this.clearTrackedTimeout(fallbackTimer);
             completeOnce('tween-complete');
           },
         });
       } catch (error) {
-        window.clearTimeout(fallbackTimer);
+        this.clearTrackedTimeout(fallbackTimer);
         this.logJourneyV700Flow('nav-exit-error', { error: error instanceof Error ? error.message : String(error) }, document.getElementById('journey-boards-container') as HTMLElement | null);
         completeOnce('error-fallback');
       }
@@ -7691,7 +7765,8 @@ class JourneyBoardsManager {
     // If image is already in browser cache, trigger onload immediately
     if (img.complete && img.naturalWidth > 0) {
       // Image already loaded from cache - trigger onload handler immediately
-      setTimeout(() => {
+      this.trackTimeout(() => {
+        if (!document.body.contains(container)) return;
         if (img.onload) img.onload(new Event('load') as any);
       }, 0);
     }
@@ -7856,7 +7931,7 @@ class JourneyBoardsManager {
     
     // Only install interaction listeners during render. The complete interim
     // idle session starts after the visible Journey enter reaches idle.
-    requestAnimationFrame(() => {
+    this.trackRAF(() => {
       this.setupIdleInteractionListeners();
     });
   }
@@ -8943,7 +9018,7 @@ class JourneyBoardsManager {
 
         if (!ready) {
           stablePaintFrames = 0;
-          requestAnimationFrame(sample);
+          this.trackRAF(sample, () => resolve(null));
           return;
         }
 
@@ -8962,13 +9037,13 @@ class JourneyBoardsManager {
             resolve(target!);
             return;
           }
-          requestAnimationFrame(sample);
+          this.trackRAF(sample, () => resolve(null));
           return;
         }
         stablePaintFrames = 0;
-        requestAnimationFrame(sample);
+        this.trackRAF(sample, () => resolve(null));
       };
-      requestAnimationFrame(sample);
+      this.trackRAF(sample, () => resolve(null));
     });
   }
 
@@ -9968,7 +10043,8 @@ class JourneyBoardsManager {
       if (snapIndex === 2) {
         // Step 3: Center text in viewport using getBoundingClientRect for precise measurement
         // Only run after snap completes to avoid jitter during animation
-        requestAnimationFrame(() => {
+        this.trackRAF(() => {
+          if (!descEl.isConnected) return;
           const textRect = descEl.getBoundingClientRect();
           const textCenterX = textRect.left + (textRect.width / 2);
           const viewportCenterX = window.innerWidth / 2;
@@ -10525,10 +10601,10 @@ class JourneyBoardsManager {
     
     if (!skipJourneyExit) {
       await this.startJourneyExitAnimation();
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      if (!await this.waitForTrackedFrames(2)) return;
     } else if (journeyExitPromise) {
       await journeyExitPromise;
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      if (!await this.waitForTrackedFrames(2)) return;
     }
     
     // Step 2: Now open detail modal with enter animation
@@ -10605,7 +10681,7 @@ class JourneyBoardsManager {
       
       // ⚡ INSTANT SHOW: Defer non-essential prep to background (runs during animation)
       // This eliminates ~80-120ms of DOM manipulation
-      setTimeout(() => {
+      this.trackTimeout(() => {
       // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
       // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
       if (!board.interim) {
@@ -10635,7 +10711,7 @@ class JourneyBoardsManager {
       detailModal.setAttribute('data-journey-board-id', board.id.toString());
       
       // ⚡ INSTANT SHOW: Defer reset button setup to background
-      setTimeout(() => {
+      this.trackTimeout(() => {
       // 🔥 USER REQUEST: Setup reset stats button (dev tool) - only for journey boards
       const resetStatsBtn = detailModal.querySelector('#detail-reset-stats-btn') as HTMLElement;
       if (resetStatsBtn) {
@@ -10749,7 +10825,7 @@ class JourneyBoardsManager {
       }
 
       // ⚡ INSTANT SHOW: Defer title, badge, description, stats to background (~60ms saved)
-      setTimeout(() => {
+      this.trackTimeout(() => {
       // Set title in header (Board 01, Board 02, etc.)
       const titleEl = detailModal.querySelector('#detail-title');
       if (titleEl) {
@@ -10859,7 +10935,7 @@ class JourneyBoardsManager {
         resetDetailModalHorizontalSwipeLayout(swipeableContainer);
         const isIPad = isTabletDetailModalViewport();
         gsap.set(swipeableContainer, { x: 0 });
-        setTimeout(() => {
+        this.trackTimeout(() => {
           if (isIPad) {
             resetDetailModalHorizontalSwipeLayout(swipeableContainer);
             swipeableContainer.style.willChange = 'auto';
@@ -11602,7 +11678,7 @@ class JourneyBoardsManager {
       // Now make modal visible and start animations. This must be awaited because
       // direct game-return callers hide the PIXI app immediately after openBoardDetails().
       await new Promise<void>((resolveDetailModalEnterStarted) => {
-        requestAnimationFrame(() => {
+        this.trackRAF(() => {
           try {
           // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
           const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
@@ -11643,7 +11719,7 @@ class JourneyBoardsManager {
               delete (detailHeader as any).__detailHeaderEnterEnd;
               detailHeader.classList.remove('detail-header-enter');
               detailHeader.classList.add('detail-header-enter-done');
-              requestAnimationFrame(() => {
+              this.trackRAF(() => {
                 if (detailCloseBtn) {
                   detailCloseBtn.style.display = 'flex';
                   detailCloseBtn.style.visibility = 'visible';
@@ -12149,7 +12225,7 @@ class JourneyBoardsManager {
           } finally {
             resolveDetailModalEnterStarted();
           }
-        }); // End detail modal enter start frame
+        }, resolveDetailModalEnterStarted); // End detail modal enter start frame
       });
 
       journeySpatialMotion.activateJourneyDetailModal(detailModal as HTMLElement, board.id);
@@ -12437,8 +12513,8 @@ class JourneyBoardsManager {
     const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement;
     if (!bgContainer) return;
     
-    requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+    this.trackRAF(() => {
+        this.trackRAF(() => {
           if (!container || !bgContainer) return;
           
           const imageAspectRatio = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
@@ -12481,8 +12557,8 @@ class JourneyBoardsManager {
           
           // Show container after position is set (if it was hidden)
           if (positionChanged) {
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
+            this.trackRAF(() => {
+              this.trackRAF(() => {
                 bgContainer.style.opacity = '1';
                 bgContainer.style.visibility = 'visible';
               });

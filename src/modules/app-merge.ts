@@ -8,15 +8,14 @@ import * as makeBoard from './board.js';
 import { screenShake, wildImpactEffect, stopWildIdle, stopWildJuiceBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated, centerInBoard } from "./fx.ts";
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.ts';
-import { openAtCell, spawnBounce } from './app-spawn.ts';
-import { drawBoardBG } from './app-core.js';
+import { AppSpawnCancelledError, openAtCell, spawnBounce } from './app-spawn.ts';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
-import { randomRegularTileValue, trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
+import { randomRegularTileValue, trackAppTimeout, trackAppAnimationFrame, waitTrackedResult } from './app-core-utils.js';
 import { fillNullCellsWithLockedPlaceholders } from './app-core-board-build.ts';
 import { fixHoverAnchor } from './app-core-helpers.ts';
 import { isArcadeHomeRunMode } from './run-mode.js';
-import { getTransientSpawnState } from './tile-state-utils.ts';
+import { getTransientSpawnState, resetTileToNormalState } from './tile-state-utils.ts';
 import { isPlayableMagnetPullCandidate, isWildLikeTile } from './final-merge-rules.ts';
 import {
   clearSpecialDiceIdentity,
@@ -30,6 +29,7 @@ import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
 import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
 import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
 import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import { PostCommitBoardRevisionGuard } from './special-dice-transaction-owner.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -160,6 +160,9 @@ export function clearWildState(tile, opts = undefined){
   }
   // Only clear direct wild state (not magnet-like, which keeps its special property for pull cleanup).
   if (isSpecialDiceDirectWildLikeTile(tile)) {
+    // Keep registry identity until the finale has captured/consumed its visual
+    // profile. The destination can be the special tile, and later FX lookups
+    // still need Cubero/Mushroom/Ball/Flower sources during this transaction.
     tile.special = null;
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -467,13 +470,33 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
 }
 
 async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any): Promise<void> {
+  const drawBoardBG = helpers?.drawBoardBG;
   console.log('🧲 mergePulledTilesIntoMerge6: Removing', tiles.length, 'pulled tiles and adding 4x multiplier animations to existing merge 6');
   const endgameGuardSource = 'mergePulledTilesIntoMerge6';
   const beginEndgameGuard = (window as any)?.CC?.beginEndgameGuard;
   const endEndgameGuard = (window as any)?.CC?.endEndgameGuard;
   let endgameGuardActive = false;
   let shouldRunPostMagnetEndgameCheck = false;
+  let magnetLifecycleCancelled = false;
   let pendingPostGuardEndgameCheckSource: string | null = null;
+  const postCommitBoardRevision = new PostCommitBoardRevisionGuard(
+    typeof helpers?.getBoardMutationRevision === 'function'
+      ? helpers.getBoardMutationRevision
+      : undefined,
+  );
+  const abortSupersededPostCommitTail = (checkpoint: string): boolean => {
+    if (postCommitBoardRevision.isCurrent()) return false;
+    // A newer player merge now owns the board. The old Magnet tail must release
+    // its guard/owner in finally, but must not inspect, unlock, respawn, flag, or
+    // schedule endgame work against the newer board revision.
+    magnetLifecycleCancelled = true;
+    shouldRunPostMagnetEndgameCheck = false;
+    pendingPostGuardEndgameCheckSource = null;
+    emitIOSSpecialTransactionTrace('magnet-post-commit-tail-superseded', {
+      checkpoint,
+    });
+    return true;
+  };
   const pullShardColors = Array.isArray(helpers?.magnetShardColors) && helpers.magnetShardColors.length
     ? [...helpers.magnetShardColors]
     : getSpecialDiceShardColors(dst);
@@ -1567,7 +1590,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
     // Wait only 50ms to ensure shards start but spawn happens very fast (standard for all merge-6 spawns)
     console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
-    await new Promise(resolve => trackAppTimeout(resolve, 50));
+    if (await waitTrackedResult(50) === 'cancelled') return;
     
     // 🔥 CRITICAL FIX: Spawn OBLIGATORY tile FIRST (priority)
     // Then spawn replacement tiles with cascading delays
@@ -1582,8 +1605,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const forcedValue = forcedSpawnValues.get(key);
       
       // Create promise that resolves when spawn completes
-      const spawnPromise = new Promise<boolean>((resolve) => {
-      trackAppTimeout(() => {
+      const spawnPromise = (async (): Promise<boolean> => {
+        if (await waitTrackedResult(delay) === 'cancelled') return false;
         try {
           // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
           // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
@@ -1603,28 +1626,25 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
                 isActive,
                 isWildTile
               });
-                resolve(false); // Spawn failed
-                return;
+                return false;
             }
             
             // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
             if (!existingTile.locked) {
               console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
-                resolve(false); // Spawn failed
-                return;
+                return false;
             }
           }
           
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
-            openAtCell(
+            await openAtCell(
               c,
               r,
               forcedValue
                 ? { skipBind: false, value: forcedValue, forceFreshPlaceholder: true }
                 : { skipBind: false, forceFreshPlaceholder: true }
-            ).then(() => {
-              // Check if spawn was successful by verifying tile exists and has value > 0
-            trackAppTimeout(() => {
+            );
+            if (await waitTrackedResult(50) === 'cancelled') return false;
               const tile = STATE.grid?.[r]?.[c];
                 const spawnSuccess = !!(tile && !tile.locked && (tile.value|0) > 0);
                 
@@ -1650,18 +1670,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
                     console.error(`🚨🚨🚨 CRITICAL: OBLIGATORY tile spawn failed at (${c}, ${r})!`);
               }
                 }
-                resolve(spawnSuccess);
-            }, 50); // Small delay to ensure tile is created
-          }).catch((err) => {
-            console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
-            resolve(false);
-          });
+                return spawnSuccess;
         } catch (err) {
+          if (err instanceof AppSpawnCancelledError) throw err;
           console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
-          resolve(false);
+          return false;
         }
-      }, delay);
-      });
+      })();
       
       spawnPromises.push(spawnPromise);
     }
@@ -1708,6 +1723,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
               console.log('✅ STUCK MERGE 6 FIX: Spawned fallback tile at', fallbackCell);
             }
           } catch (e) {
+            if (e instanceof AppSpawnCancelledError) throw e;
             console.warn('⚠️ STUCK MERGE 6 FIX: Fallback spawn failed:', e);
           }
         }
@@ -1762,6 +1778,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             }
           }, 50);
         } catch (err) {
+          if (err instanceof AppSpawnCancelledError) throw err;
           console.warn(`⚠️ Failed to spawn additional tile at (${c}, ${r}):`, err);
         }
       }
@@ -1922,14 +1939,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const freshVal = randomRegularTileValue(wildTarget);
 
         delete (dst as any)._magnetMerge6Hidden;
-        delete (dst as any)._wildMagnetAffected;
-        delete (dst as any)._wildMagnetOriginalX;
-        delete (dst as any)._wildMagnetOriginalY;
-        delete (dst as any)._wildMagnetPulledTilesScoring;
-        delete (dst as any)._hasTilesToPull;
-        delete (dst as any)._isWildMagnetMerge;
-        delete (dst as any)._wildMagnetPulledTilesMerge;
-        delete (dst as any)._wildMagnetMergeCallback;
+        resetTileToNormalState(dst);
         clearSpecialDiceIdentity(dst);
 
         try { dst.refreshShadow?.(); } catch {}
@@ -2011,6 +2021,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // consumed Magnet/Honey is now a fresh regular cube, and placeholders are in
   // sync. Everything below is endgame verification or visual settle time and
   // must not continue owning gameplay input.
+  postCommitBoardRevision.capture();
   try {
     emitIOSSpecialTransactionTrace('magnet-board-commit-ready', {
       successfulSpawns,
@@ -2036,11 +2047,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Plus safety margin: Total safe delay: 1200ms
   // This ensures ALL spawn animations, unlocks, and bindings are complete before endgame check
   console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check...');
-  await new Promise(resolve => trackAppTimeout(resolve, 1200));
+  if (await waitTrackedResult(1200) === 'cancelled') return;
+  if (abortSupersededPostCommitTail('after-initial-settle')) return;
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
   const canAllMerge = await checkIfAllTilesCanMerge(STATE.tiles, helpers);
+  if (abortSupersededPostCommitTail('after-mergeability-simulation')) return;
   if (canAllMerge) {
     console.log('🚨🚨🚨 All tiles can be merged together - will trigger clean board flow after final merge 6');
     // Note: Clean board flow will be triggered automatically when the final merge 6 occurs
@@ -2100,7 +2113,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       }))
     });
     // Wait additional 600ms (increased from 500ms) for spawn animations and bindings to complete
-    await new Promise(resolve => trackAppTimeout(resolve, 600));
+    if (await waitTrackedResult(600) === 'cancelled') return;
+    if (abortSupersededPostCommitTail('after-spawn-settle')) return;
     spawnState = computeSpawnState();
   }
   
@@ -2114,7 +2128,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       note: 'No tiles were spawned - this will cause incorrect endgame check!'
     });
     // Wait additional time and re-check
-    await new Promise(resolve => trackAppTimeout(resolve, 500));
+    if (await waitTrackedResult(500) === 'cancelled') return;
+    if (abortSupersededPostCommitTail('after-zero-tile-recheck-wait')) return;
     let recheckState = computeSpawnState();
     console.log('🧲 Re-check after additional wait:', {
       minExpected: minExpectedTileCount,
@@ -2129,6 +2144,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       let fallbackTargets = findRandomEmptyCells(fallbackCount + LOCKED_RESERVE_COUNT);
       fallbackTargets = fallbackTargets.filter(c => !reservedSet.has(`${c.c},${c.r}`)).slice(0, fallbackCount);
       for (const target of fallbackTargets) {
+        if (abortSupersededPostCommitTail('before-fallback-spawn')) return;
         const fallbackValue = 1 + Math.floor(Math.random() * 3);
         try {
           await openAtCell(target.c, target.r, {
@@ -2137,10 +2153,13 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             forceFreshPlaceholder: true,
           });
         } catch (err) {
+          if (err instanceof AppSpawnCancelledError) throw err;
           console.warn('⚠️ Fallback spawn failed:', err);
         }
+        if (abortSupersededPostCommitTail('after-fallback-spawn')) return;
       }
-      await new Promise(resolve => trackAppTimeout(resolve, 100));
+      if (await waitTrackedResult(100) === 'cancelled') return;
+      if (abortSupersededPostCommitTail('after-fallback-settle')) return;
       recheckState = computeSpawnState();
       console.log('🧲 Fallback spawn re-check:', {
         actual: recheckState.actualTileCount,
@@ -2162,6 +2181,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // BUT: We should ensure spawn animations are complete before checking endgame
   try {
     const { isWildJuiceExplosionRunning } = await import('./fx.js');
+    if (abortSupersededPostCommitTail('after-fx-status-import')) return;
     if (typeof isWildJuiceExplosionRunning === 'function' && isWildJuiceExplosionRunning()) {
       console.log('💧 Bubbles animation is running, but spawn animations are complete - proceeding with endgame check');
       // Bubbles animation is visual only and doesn't block endgame detection
@@ -2196,7 +2216,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     } else {
       retryCount++;
       console.log(`⏳ Waiting for ${lockedActiveTilesCheck.length} tiles to unlock (retry ${retryCount}/${maxRetries})...`);
-      await new Promise(resolve => trackAppTimeout(resolve, 50));
+      if (await waitTrackedResult(50) === 'cancelled') return;
+      if (abortSupersededPostCommitTail('after-unlock-poll')) return;
     }
   }
   
@@ -2204,6 +2225,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Some tiles are still locked after max wait time, proceeding with check anyway');
   }
   
+  if (abortSupersededPostCommitTail('before-post-magnet-resolution')) return;
   const { makeBoard } = helpers;
   const postMagnetResolution = resolvePostMagnetEndgameAction({
     tiles: STATE.tiles,
@@ -2245,6 +2267,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 2. If board is clean AND no merge potential → trigger clean board flow (regardless of isActuallyLastMerge)
   // 3. If no merge/stack potential → call checkLevelEnd (will check stuck and show fail screen)
   if (postMagnetResolution.action === 'continue' && postMagnetResolution.reason === 'merge-or-stack-potential') {
+    if (abortSupersededPostCommitTail('before-continue-state-refresh')) return;
     // Spawned tiles have potential for merge/stack → game continues
     if (postMagnetResolution.shouldClearLastMergeFlag) {
       console.log('🧲 _isLastMerge flag was set, but new tiles with merge potential were spawned - this is NOT last merge anymore, clearing flag');
@@ -2264,6 +2287,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 BUG FIX 1: Check isBoardClean independently - if board is clean and no merge potential, trigger clean board flow
   // This handles the case where isBoardClean is true but isActuallyLastMerge is false (due to spawnCount > 0)
   if (postMagnetResolution.reason === 'clean-merge6-only') {
+    if (abortSupersededPostCommitTail('before-clean-endgame-request')) return;
     console.log('🧲 Board is clean (only merge 6, no other tiles) and no merge potential - calling checkLevelEnd to trigger clean board flow');
     requestPostGuardEndgameCheck('mergePulledTiles_clean_merge6_only');
     return; // Exit early after triggering clean board flow
@@ -2275,6 +2299,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // In both cases, we should call checkLevelEnd to check stuck and show fail screen
   // 🔥 CRITICAL FIX: Also check for single tile that can't merge (e.g., after player merges spawned tiles)
   if (postMagnetResolution.action === 'check-level-end') {
+    if (abortSupersededPostCommitTail('before-stuck-endgame-request')) return;
     // No merge/stack potential - check if we have any active tiles (locked or unlocked)
     const hasAnyActiveTiles = activeTilesFinal.length > 0;
     
@@ -2296,6 +2321,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Fallback: If we get here, something unexpected happened
   if (isLastMergeFlagSet && hasSpawnedNewTiles) {
+    if (abortSupersededPostCommitTail('before-fallback-last-merge-clear')) return;
     console.log('🧲 _isLastMerge flag was set, but new tiles were spawned - this is NOT last merge anymore, clearing flag');
     // Clear the flag since new tiles were spawned
     (dst as any)._isLastMerge = false;
@@ -2312,6 +2338,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       unlockedTilesCount: unlockedActiveTiles.length,
       note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
     });
+  } catch (error) {
+    if (error instanceof AppSpawnCancelledError) {
+      magnetLifecycleCancelled = true;
+      return;
+    }
+    throw error;
   } finally {
     if (endgameGuardActive && typeof endEndgameGuard === 'function') {
       try {
@@ -2321,8 +2353,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         console.warn('⚠️ Failed to end endgame guard in mergePulledTilesIntoMerge6', error);
       }
     }
-    const postGuardCheckSource = pendingPostGuardEndgameCheckSource
-      || (shouldRunPostMagnetEndgameCheck ? 'mergePulledTiles_postGuard_settle' : null);
+    const postGuardCheckSource = magnetLifecycleCancelled
+      ? null
+      : (pendingPostGuardEndgameCheckSource
+        || (shouldRunPostMagnetEndgameCheck ? 'mergePulledTiles_postGuard_settle' : null));
     if (postGuardCheckSource) {
       // checkLevelEnd owns its own settle delay and transient-state retries. Invoke it once,
       // only after this magnet transaction has released its guard; calling it before the

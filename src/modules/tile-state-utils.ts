@@ -2,7 +2,12 @@
 // Helpers for aggressively clearing magnet/wild residue before reusing a tile.
 
 import { isWildLikeTile } from './final-merge-rules';
-import { isSpecialDiceGameplayResolvingLikeTile } from './special-dice-registry';
+import {
+  clearSpecialDiceIdentity,
+  isSpecialDiceGameplayResolvingLikeTile,
+  releaseSpecialDiceResolution,
+} from './special-dice-registry';
+import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 
 export interface TileLike {
   special?: string | null;
@@ -19,6 +24,27 @@ export interface SpawnReadinessOptions {
   ignoreWildJuice?: boolean;
 }
 
+export const MAGNET_TRANSIENT_TILE_FLAGS = [
+  '_wildMagnetAffected',
+  '_wildMagnetOriginalX',
+  '_wildMagnetOriginalY',
+  '_wildMagnetMergeCallback',
+  '_wildMagnetPulledTilesMerge',
+  '_wildMagnetPulledTilesScoring',
+  '_wildMagnetPulledCells',
+  '_wildMagnetSpeedUp',
+  '_hasTilesToPull',
+  '_skipMagnetPull',
+  '_noTilesPulled',
+  '_willPullTiles',
+  '_wasWildMagnetMerge6',
+  '_isWildMagnetLastTwo',
+  '_isWildMagnetMerge',
+  '_magnetMerge6Hidden',
+  '_mergeTriggered75',
+  '_skipIdleScaleReset',
+] as const;
+
 /**
  * Fully resets a tile so it behaves like a fresh, normal cube.
  * Use this immediately before re-spawning a regular tile on a recycled holder.
@@ -26,9 +52,13 @@ export interface SpawnReadinessOptions {
 export function resetTileToNormalState(tile: TileLike | null | undefined): void {
   if (!tile) return;
 
-  tile.special = null;
-  tile.isWild = false;
-  tile.isWildFace = false;
+  stopSpecialDiceIdleMotion(tile);
+  // Clear both the visible wild fields and the registry-only variant/archetype
+  // identity. Leaving the hidden identity behind lets drag, save/load and
+  // endgame classification resurrect an old Cubero/Mushroom/Ball/Bottle/
+  // Honey/Flower after its holder has already become a regular cube.
+  clearSpecialDiceIdentity(tile);
+  releaseSpecialDiceResolution(tile);
 
   // Visual clean-up so the tile no longer looks like wild/magnet
   try {
@@ -44,16 +74,11 @@ export function resetTileToNormalState(tile: TileLike | null | undefined): void 
     }
   } catch {}
 
-  // Remove every flag we set during magnet pulls so drag/drop treats it as a normal tile
-  delete tile._wildMagnetAffected;
-  delete tile._wildMagnetOriginalX;
-  delete tile._wildMagnetOriginalY;
-  delete tile._wildMagnetMergeCallback;
-  delete tile._wildMagnetPulledTilesMerge;
-  delete tile._wildMagnetPulledTilesScoring;
-  delete tile._wildMagnetPulledCells;
-  delete tile._wildMagnetSpeedUp;
-  delete tile._skipIdleScaleReset;
+  // Remove the complete Magnet transaction identity before this object is
+  // reused by any regular or special archetype.
+  MAGNET_TRANSIENT_TILE_FLAGS.forEach((key) => {
+    delete tile[key];
+  });
   delete tile._ccWildSpawnDropping;
   delete tile._ccWildSpawnHandoffLock;
 }

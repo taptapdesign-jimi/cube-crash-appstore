@@ -22,10 +22,11 @@ describe('shared special-dice transaction contract', () => {
   });
 
   test('serializes external drops while preserving Magnet-owned internal merges', () => {
-    expect(appCoreSource).toContain('specialDiceTransactionOwner.isActive() && !isInternalPulledTilesMerge');
+    expect(appCoreSource).toContain('specialDiceTransactionOwner.isActive()');
+    expect(appCoreSource).toContain('!isInternalPulledTilesMerge');
     expect(appCoreSource).toContain('specialTransactionKind && !isInternalPulledTilesMerge');
     const boardCommitIndex = appMergeSource.indexOf('helpers?.onMagnetBoardCommit?.()');
-    const settleWaitIndex = appMergeSource.indexOf('await new Promise(resolve => trackAppTimeout(resolve, 1200))');
+    const settleWaitIndex = appMergeSource.indexOf('await waitTrackedResult(1200)');
     const handlerAwaitIndex = appCoreSource.indexOf('await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge)');
     const finalReleaseIndex = appCoreSource.indexOf("releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-handler-complete-fallback')");
     const boardCommitCallbackStart = appCoreSource.indexOf('onMagnetBoardCommit: () =>');
@@ -37,6 +38,41 @@ describe('shared special-dice transaction contract', () => {
     expect(finalReleaseIndex).toBeGreaterThan(handlerAwaitIndex);
     expect(boardCommitCallback).not.toContain('releaseSpecialDiceTransaction');
     expect(appMergeSource).not.toContain('usedSpawnLockedTilesWithPop');
+  });
+
+  test('allows only ordinary sub-six stacks after Magnet board commit', () => {
+    expect(appCoreSource).toContain('markSpecialDiceTransactionBoardCommitted(');
+    expect(appCoreSource).toContain("'magnet-board-commit'");
+    expect(appCoreSource).toContain("setInputGateLock('special-transaction', true, { ttlMs: 15000, scope: 'wild-only' })");
+    expect(appCoreSource).toContain('canOrdinaryStackDuringSpecialVisualTail(s, d)');
+    expect(appCoreSource).toContain('canOrdinaryStackDuringSpecialVisualTail(src, dst)');
+    expect(appCoreSource).toContain('canRunOrdinaryStackDuringVisualTail(specialDiceTransactionOwner');
+    expect(appCoreSource).toContain("if (specialDiceTransactionOwner.isActive()) return 'special-transaction'");
+    expect(appCoreSource).toContain('queueWildSpawnAfterGuardRelease(`special-transaction:${reason}`)');
+  });
+
+  test('abandons stale Magnet post-commit work when an ordinary merge changes the board revision', () => {
+    const revisionIncrementIndex = appCoreSource.indexOf('gameplayBoardMutationRevision += 1');
+    const firstGridMutationIndex = appCoreSource.indexOf('grid[src.gridY][src.gridX] = null', revisionIncrementIndex);
+    const commitCaptureIndex = appMergeSource.indexOf('postCommitBoardRevision.capture()');
+    const settleWaitIndex = appMergeSource.indexOf('await waitTrackedResult(1200)', commitCaptureIndex);
+    const staleCheckIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('after-initial-settle')", settleWaitIndex);
+    const fallbackIndex = appMergeSource.indexOf('await openAtCell(target.c, target.r', staleCheckIndex);
+    const fallbackGuardIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('before-fallback-spawn')", staleCheckIndex);
+    const resolutionIndex = appMergeSource.indexOf('resolvePostMagnetEndgameAction({', staleCheckIndex);
+    const resolutionGuardIndex = appMergeSource.indexOf("abortSupersededPostCommitTail('before-post-magnet-resolution')", staleCheckIndex);
+
+    expect(revisionIncrementIndex).toBeGreaterThan(0);
+    expect(firstGridMutationIndex).toBeGreaterThan(revisionIncrementIndex);
+    expect(appCoreSource).toContain('getBoardMutationRevision: () => gameplayBoardMutationRevision');
+    expect(commitCaptureIndex).toBeGreaterThan(0);
+    expect(staleCheckIndex).toBeGreaterThan(settleWaitIndex);
+    expect(fallbackGuardIndex).toBeGreaterThan(staleCheckIndex);
+    expect(fallbackGuardIndex).toBeLessThan(fallbackIndex);
+    expect(resolutionGuardIndex).toBeGreaterThan(staleCheckIndex);
+    expect(resolutionGuardIndex).toBeLessThan(resolutionIndex);
+    expect(appMergeSource).toContain('pendingPostGuardEndgameCheckSource = null');
+    expect(appMergeSource).toContain('magnetLifecycleCancelled = true');
   });
 
   test('starts Magnet meter progress at validated pull commit, before its visual tail', () => {
@@ -60,9 +96,47 @@ describe('shared special-dice transaction contract', () => {
   });
 
   test('releases from board completion, never the short legacy timeout or Flower visual tail', () => {
-    expect(appCoreSource).toContain("resetMerge6SpawnState('timeout', { releaseSpecialTransaction: false })");
+    expect(appCoreSource).not.toContain("resetMerge6SpawnState('timeout'");
+    expect(appCoreSource).toContain('retaining immutable owner until settlement');
     expect(appCoreSource).toContain("releaseSpecialTransaction: specialTransactionKind !== 'tnt'");
     expect(appCoreSource).toContain('releaseSpecialDiceTransaction(specialTransactionToken, `tnt-gameplay-settled:${reason}`)');
     expect(appCoreSource).toContain('specialDiceTransactionOwner.reset();');
+  });
+
+  test('TNT releases ordinary stacks after reserving exact bonus tiles, before its visual tail ends', () => {
+    const tntStart = appCoreSource.indexOf('let tntBonusGameplayComplete = false;');
+    const sprite6Trigger = appCoreSource.indexOf("triggerTntBonusBreak('sprite-6-enter-complete')", tntStart);
+    const reserveTiles = appCoreSource.indexOf('claimTntBonusTiles(toBreak)', tntStart);
+    const boardCommit = appCoreSource.indexOf("commitTntBoardForOrdinaryStacks('bonus-targets-reserved')", tntStart);
+    const visualComplete = appCoreSource.indexOf('tntVisibleSequenceComplete = true', tntStart);
+
+    expect(sprite6Trigger).toBeGreaterThan(tntStart);
+    expect(reserveTiles).toBeGreaterThan(tntStart);
+    expect(boardCommit).toBeGreaterThan(tntStart);
+    expect(boardCommit).toBeLessThan(visualComplete);
+    expect(appCoreSource).toContain('releaseTntGameplayInputGate();');
+    expect(appCoreSource).toContain('markSpecialDiceTransactionBoardCommitted(specialTransactionToken');
+    expect(appCoreSource).toContain('!isTntBonusTileOwned(tile)');
+  });
+
+  test('blocks endgame residue recovery during the special absorb handoff', () => {
+    const checkStart = appCoreSource.indexOf('function checkLevelEnd()');
+    const checkOwner = appCoreSource.slice(checkStart, checkStart + 5200);
+    const transactionGuard = checkOwner.indexOf('getSpecialDiceEndgameBlock(specialDiceTransactionOwner)');
+    const residueSweep = checkOwner.indexOf("forceRemoveMagnetMergeResidues('checkLevelEnd')");
+
+    expect(transactionGuard).toBeGreaterThan(-1);
+    expect(residueSweep).toBeGreaterThan(transactionGuard);
+    expect(checkOwner).toContain('scheduleCheckLevelEnd(0.2, `special-transaction:${specialTransactionBlock.kind}`)');
+  });
+
+  test('final special merge releases its exact token before clean-board modal ownership', () => {
+    const finalBranch = appCoreSource.indexOf('if (isLastMergeFlagSet && !willPulledTilesMerge)');
+    const finalRelease = appCoreSource.indexOf('`final-merge-clean-handoff:${finalMergeFx || \'regular\'}`', finalBranch);
+    const cleanFlow = appCoreSource.indexOf('await triggerCleanBoardFlow(finalCleanReason)', finalBranch);
+
+    expect(finalBranch).toBeGreaterThan(0);
+    expect(finalRelease).toBeGreaterThan(finalBranch);
+    expect(cleanFlow).toBeGreaterThan(finalRelease);
   });
 });

@@ -13,7 +13,7 @@ declare global {
     continueGame: () => Promise<void>;
     pauseGame: () => void;
     resumeGame: () => void;
-    restartGame: () => void;
+    restartGame: () => Promise<void>;
     exitToMenu: () => void;
     
     // Modals
@@ -57,7 +57,7 @@ declare global {
     
     // Game Control
     CC?: {
-      restart?: (options?: { animateHudDrop?: boolean }) => void;
+      restart?: (options?: { animateHudDrop?: boolean }) => Promise<void>;
       app?: any;
       stage?: any;
       pauseGame?: () => void;

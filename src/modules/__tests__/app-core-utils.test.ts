@@ -1,10 +1,17 @@
 import {
+  clearAllAppAnimationFrames,
+  clearAllAppIntervals,
   clearAllAppListeners,
+  clearAllAppTimeouts,
   getAppCleanupStats,
   randomRegularTileValue,
   randVal,
+  trackAppAnimationFrame,
+  trackAppInterval,
   trackAppListener,
   trackAppTimeout,
+  waitTracked,
+  waitTrackedResult,
 } from '../app-core-utils';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY, setRunMode } from '../run-mode';
 
@@ -72,7 +79,9 @@ describe('app-core-utils tracked timeouts', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    clearAllAppTimeouts();
+    clearAllAppIntervals();
+    clearAllAppAnimationFrames();
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -89,6 +98,90 @@ describe('app-core-utils tracked timeouts', () => {
       jest.advanceTimersByTime(30);
     }).not.toThrow();
     expect(afterError).toHaveBeenCalledTimes(1);
+    expect(getAppCleanupStats().timeouts).toBe(0);
+  });
+
+  test('cleanup settles cancellation-aware waits instead of leaving a pending promise', async () => {
+    const wait = waitTrackedResult(5_000);
+
+    expect(getAppCleanupStats().timeouts).toBe(1);
+    clearAllAppTimeouts();
+
+    await expect(wait).resolves.toBe('cancelled');
+    expect(getAppCleanupStats().timeouts).toBe(0);
+  });
+
+  test('elapsed cancellation-aware waits report elapsed and retire their timeout', async () => {
+    const wait = waitTrackedResult(25);
+
+    jest.advanceTimersByTime(25);
+
+    await expect(wait).resolves.toBe('elapsed');
+    expect(getAppCleanupStats().timeouts).toBe(0);
+  });
+
+  test('legacy waitTracked also settles during cleanup', async () => {
+    const wait = waitTracked(5_000);
+
+    clearAllAppTimeouts();
+
+    await expect(wait).resolves.toBeUndefined();
+  });
+
+  test('async timeout rejection is contained and its registry entry is retired', async () => {
+    trackAppTimeout(async () => {
+      throw new Error('async timeout boom');
+    }, 10);
+
+    jest.advanceTimersByTime(10);
+    await Promise.resolve();
+
+    expect(getAppCleanupStats().timeouts).toBe(0);
+  });
+});
+
+describe('app-core-utils tracked frame and interval callbacks', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    clearAllAppTimeouts();
+    clearAllAppIntervals();
+    clearAllAppAnimationFrames();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  test('RAF registry entry is removed even when its callback throws', () => {
+    let scheduled: FrameRequestCallback | null = null;
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      scheduled = callback;
+      return 73;
+    });
+
+    trackAppAnimationFrame(() => {
+      throw new Error('raf boom');
+    });
+    expect(getAppCleanupStats().animationFrames).toBe(1);
+
+    expect(() => scheduled?.(16)).toThrow('raf boom');
+    expect(getAppCleanupStats().animationFrames).toBe(0);
+  });
+
+  test('interval callback errors are contained and the interval remains owned', () => {
+    const callback = jest.fn(() => {
+      throw new Error('interval boom');
+    });
+    trackAppInterval(callback, 20);
+
+    expect(() => jest.advanceTimersByTime(60)).not.toThrow();
+    expect(callback).toHaveBeenCalledTimes(3);
+    expect(getAppCleanupStats().intervals).toBe(1);
+
+    clearAllAppIntervals();
+    expect(getAppCleanupStats().intervals).toBe(0);
   });
 });
 

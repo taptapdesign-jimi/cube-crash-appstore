@@ -114,6 +114,7 @@ describe('input gate', () => {
     expect(canStartTileDrag({ tile: { _ccWildSpawnDropping: true }, isWildTile: true }).reasons).toContain('wild-spawn-dropping');
     expect(canStartTileDrag({ tile: { _ccWildSpawnHandoffLock: true }, isWildTile: true }).reasons).toContain('wild-spawn-handoff');
     expect(canStartTileDrag({ tile: { _wildMagnetAffected: true }, isWildTile: false }).reasons).toContain('magnet-affected-tile');
+    expect(canStartTileDrag({ tile: { _ccTntBonusOwned: true }, isWildTile: false }).reasons).toContain('tnt-bonus-tile');
     expect(canStartTileDrag({
       tile: { special: 'wild-magnet', _ccSpecialDiceVariant: 'honey', _ccSpecialDiceResolving: true },
       isWildTile: true,
@@ -152,5 +153,18 @@ describe('input gate', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  test('a committed special visual tail permits ordinary pickup but keeps specials gated', () => {
+    setInputGateLock('special-transaction', true, { ttlMs: 5000, scope: 'wild-only' });
+
+    expect(canStartTileDrag({ tile: { value: 2 }, isWildTile: false })).toMatchObject({
+      allowed: true,
+      reasons: [],
+    });
+    expect(canStartTileDrag({ tile: { value: 6, special: 'wild-magnet' }, isWildTile: true })).toMatchObject({
+      allowed: false,
+      reasons: ['special-transaction'],
+    });
   });
 });

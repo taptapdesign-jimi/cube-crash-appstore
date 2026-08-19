@@ -11,6 +11,7 @@ import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from '
 import { getSpecialDiceIdleBubbleColors, getSpecialDiceTrailColors, getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { getOrganicRadialSmokeLayout, getSmokeCloudParticleAlpha } from './gameplay-fx-profile.ts';
 import { TILE } from './constants.js';
+import { destroyRuntimeTexture } from './runtime-texture-lifecycle.ts';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
@@ -5898,7 +5899,7 @@ export function stopWildShimmer(tile) {
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
   tile._wildShimmerMask = null;
-  try { tile._wildShimmerTexture?.destroy?.(true); } catch {}
+  destroyRuntimeTexture(tile._wildShimmerTexture);
   tile._wildShimmerTexture = null;
 }
 
@@ -6468,4 +6469,6 @@ export function stopWildIdle(tile){
   tile._wildShimmerSprite = null;
   tile._wildShimmerMask = null;
   tile._wildMask = null;
+  destroyRuntimeTexture(tile._wildShimmerTexture);
+  tile._wildShimmerTexture = null;
 }

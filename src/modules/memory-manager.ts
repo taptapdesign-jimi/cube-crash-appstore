@@ -6,6 +6,7 @@ import gameState from './game-state.js';
 import { container } from '../core/dependency-injection.js';
 import { Application, Container } from 'pixi.js';
 import { logger } from '../core/logger.js';
+import { isGameplayEntryPending } from './gameplay-entry-coordinator.ts';
 
 // Type definitions
 interface TrackedObject {
@@ -35,12 +36,16 @@ class MemoryManager {
   private textureCache: Set<Texture>;
   private isMonitoring: boolean;
   private cleanupInterval: NodeJS.Timeout | null;
+  private stateUnsubscribers: Array<() => void>;
+  private stateCleanupTimeout: ReturnType<typeof setTimeout> | null;
 
   constructor() {
     this.trackedObjects = new Map();
     this.textureCache = new Set();
     this.isMonitoring = false;
     this.cleanupInterval = null;
+    this.stateUnsubscribers = [];
+    this.stateCleanupTimeout = null;
   }
   
   // Initialize memory manager
@@ -66,12 +71,28 @@ class MemoryManager {
   
   // Setup state subscriptions
   private setupStateSubscriptions(): void {
+    this.teardownStateSubscriptions();
     // Game state changes
-    gameState.subscribe('isGameActive', (isActive: boolean) => {
+    const unsubscribe = gameState.subscribe('isGameActive', (isActive: boolean) => {
       if (!isActive) {
         // Game ended, perform cleanup
-        setTimeout(() => this.performCleanup(), 1000);
+        if (this.stateCleanupTimeout) clearTimeout(this.stateCleanupTimeout);
+        this.stateCleanupTimeout = setTimeout(() => {
+          this.stateCleanupTimeout = null;
+          this.performCleanup();
+        }, 1000);
       }
+    });
+    this.stateUnsubscribers.push(unsubscribe);
+  }
+
+  private teardownStateSubscriptions(): void {
+    if (this.stateCleanupTimeout) {
+      clearTimeout(this.stateCleanupTimeout);
+      this.stateCleanupTimeout = null;
+    }
+    this.stateUnsubscribers.splice(0).forEach((unsubscribe) => {
+      try { unsubscribe(); } catch {}
     });
   }
   
@@ -110,8 +131,9 @@ class MemoryManager {
       // Clean up PIXI textures
       this.cleanupPIXITextures();
       
-      // Clean up unused images
-      this.cleanupUnusedImages();
+      // DOM images are owned by their feature lifecycle/pools. Never remove
+      // generic <img> nodes here: an image can be incomplete while it is still
+      // a valid in-flight loading asset required by the current screen.
       
       // Force garbage collection if available
       this.forceGarbageCollection();
@@ -150,6 +172,10 @@ class MemoryManager {
   // Clean up PIXI textures
   private cleanupPIXITextures(): void {
     if (!window.PIXI || !window.PIXI.utils) return;
+    // Entry/recovery may be rebinding freshly loaded core textures. Running
+    // renderer GC in that ownership window can evict the exact sources that
+    // are about to be presented and produce a sprite-less retained frame.
+    if (isGameplayEntryPending()) return;
     
     try {
       // Stability-first: run renderer-managed GC only, do not destroy cache entries manually.
@@ -166,24 +192,6 @@ class MemoryManager {
       
     } catch (error) {
       logger.warn('PIXI texture cleanup failed', 'memory-manager', error);
-    }
-  }
-  
-  // Clean up unused images
-  private cleanupUnusedImages(): void {
-    try {
-      // Remove unused images from DOM
-      const images = document.querySelectorAll('img');
-      images.forEach(img => {
-        if (!img.complete || img.naturalWidth === 0) {
-          img.remove();
-        }
-      });
-      
-      logger.info('Cleaned up unused images', 'memory-manager');
-      
-    } catch (error) {
-      logger.warn('Image cleanup failed', 'memory-manager', error);
     }
   }
   
@@ -280,15 +288,21 @@ class MemoryManager {
   
   // Stop monitoring
   stop(): void {
-    this.isMonitoring = false;
+    if (!this.isMonitoring && !this.cleanupInterval) {
+      this.teardownStateSubscriptions();
+      return;
+    }
     
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
     
-    // Perform final cleanup
+    // Perform final cleanup while monitoring is still enabled. Previously the
+    // flag was cleared first, making performCleanup() an immediate no-op.
     this.performCleanup();
+    this.isMonitoring = false;
+    this.teardownStateSubscriptions();
     
     logger.info('Memory Manager stopped', 'memory-manager');
   }
@@ -309,4 +323,3 @@ export default memoryManager;
 
 // Export class for testing
 export { MemoryManager };
-

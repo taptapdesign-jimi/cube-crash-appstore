@@ -10,6 +10,7 @@ import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 import { randomRegularTileValue } from './app-core-utils.js';
 import { isWildLikeTile } from './final-merge-rules.ts';
+import { removeTileFully } from './tile-lifecycle-service.ts';
 // drawBoardBG function is now in app.js
 
 // Types
@@ -46,6 +47,14 @@ interface OpenAtCellOptions {
   isWild?: boolean;
   isWildMagnet?: boolean;
   skipBind?: boolean;
+  forceFreshPlaceholder?: boolean;
+}
+
+export class AppSpawnCancelledError extends Error {
+  constructor() {
+    super('app-spawn openAtCell cancelled by lifecycle cleanup.');
+    this.name = 'AppSpawnCancelledError';
+  }
 }
 
 interface OpenEmptiesOptions {
@@ -252,8 +261,8 @@ function applyWildSkinLocal(tile: Tile): void {
   }catch{}
 }
 
-export function openAtCell(c: number, r: number, { value = null, isWild = false, isWildMagnet = false, skipBind = false }: OpenAtCellOptions = {}): Promise<void> {
-  return new Promise((resolve) => {
+export function openAtCell(c: number, r: number, { value = null, isWild = false, isWildMagnet = false, skipBind = false, forceFreshPlaceholder = false }: OpenAtCellOptions = {}): Promise<void> {
+  return new Promise((resolve, reject) => {
     let holder = STATE.grid?.[r]?.[c] || null;
     
     // 🔥 CRITICAL: Check if cell is already occupied by an active tile
@@ -269,6 +278,16 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       }
     }
     
+    if (forceFreshPlaceholder && holder?.locked && (holder.value | 0) <= 0 && !isWildLikeTile(holder)) {
+      removeTileFully(holder, {
+        board: STATE.board,
+        grid: STATE.grid,
+        tiles: STATE.tiles,
+        setTiles: (nextTiles) => { STATE.tiles = nextTiles; },
+      });
+      holder = null;
+    }
+
     if (!holder) holder = makeBoard.createTile({ board: STATE.board!, grid: STATE.grid, tiles: STATE.tiles, c, r, val: 0, locked: true });
 
     holder.locked = false; 
@@ -277,20 +296,9 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
 
-    if (!isWild && !isWildMagnet) {
-      resetTileToNormalState(holder);
-    }
-    
-    // 🔥 CRITICAL FIX: Clear magnet flags from holder before spawning
-    // This prevents spawned tiles from inheriting flags from previous magnet pull
-    delete (holder as any)._wildMagnetAffected;
-    delete (holder as any)._wildMagnetOriginalX;
-    delete (holder as any)._wildMagnetOriginalY;
-    delete (holder as any)._mergeTriggered75;
-    delete (holder as any)._skipIdleScaleReset;
-    delete (holder as any)._wildMagnetMergeCallback;
-    delete (holder as any)._wildMagnetPulledTilesMerge;
-    delete (holder as any)._wildMagnetPulledTilesScoring;
+    // Normalize every recycled holder before applying either a regular skin or
+    // a new special archetype. This prevents cross-archetype Magnet residue.
+    resetTileToNormalState(holder);
 
     // 🔥 CRITICAL: Spawn guard - NEVER spawn a tile with value <= 0!
     let v = (value == null) ? randomRegularSpawnValue() : value;
@@ -362,11 +370,18 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       }
       sweepForUnanimatedSpawns();
       resolve();
-    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: isActiveTile });
+    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, keepFullOpacity: isActiveTile }, () => {
+      reject(new AppSpawnCancelledError());
+    });
   });
 }
 
-export function spawnBounce(t: Tile, done: (() => void) | null, opts: SpawnBounceOptions = {}): void {
+export function spawnBounce(
+  t: Tile,
+  done: (() => void) | null,
+  opts: SpawnBounceOptions = {},
+  interrupted?: (() => void) | null,
+): void {
   const {
     startScale = 0.30,
     max       = 1.08,
@@ -425,6 +440,7 @@ export function spawnBounce(t: Tile, done: (() => void) | null, opts: SpawnBounc
   };
   const tl = gsap.timeline({
     onComplete: finish,
+    onInterrupt: () => interrupted?.(),
     onUpdate: keepFullOpacity
       ? () => {
           t.alpha = 1;

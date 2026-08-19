@@ -91,7 +91,8 @@ describe('Arcade continuation Round cue contract', () => {
       coreSource.indexOf('export async function layoutBoard'),
     );
     const cueStart = boot.indexOf('void beginArcadeEntryCue(pendingArcadeEntryRound)');
-    expect(cueStart).toBeGreaterThan(boot.indexOf("gsap.globalTimeline.clear()"));
+    expect(boot).not.toContain('gsap.globalTimeline.clear()');
+    expect(cueStart).toBeGreaterThan(boot.indexOf("killAllGsapTweensCommon(tiles, 'boot-hard-reset')"));
     expect(cueStart).toBeLessThan(boot.indexOf('await app.init(initOptions)'));
     expect(boot).toContain('shouldOverlapArcadeEntryCueWithColdBoot()');
     expect(uiSource).toContain('!shouldOverlapArcadeEntryCueWithColdBoot()');

@@ -619,7 +619,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
                   zone: (window as any).__ccAppZone,
                   exitingToMenu: (window as any).exitingToMenu === true,
                 });
-                (window as WindowWithCC).CC!.restart!({ animateHudDrop: true });
+                await Promise.resolve((window as WindowWithCC).CC!.restart!({ animateHudDrop: true }));
                 logger.info('✅ window.CC.restart called from board-fail-modal');
               } catch (error) {
                 logger.warn('⚠️ window.CC.restart failed:', error);
@@ -650,7 +650,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
                   zone: (window as any).__ccAppZone,
                   exitingToMenu: (window as any).exitingToMenu === true,
                 });
-                (window as WindowWithCC).CC!.restart!({ animateHudDrop: true });
+                await Promise.resolve((window as WindowWithCC).CC!.restart!({ animateHudDrop: true }));
                 logger.info('✅ window.CC.restart called from board-fail-modal (fallback)');
               } catch (err) {
                 logger.warn('⚠️ window.CC.restart failed:', err);

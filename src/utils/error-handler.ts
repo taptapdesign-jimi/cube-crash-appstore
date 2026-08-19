@@ -323,11 +323,9 @@ class ErrorHandler {
       const app = container.get('app') as { renderer?: { textureGC?: { run?: () => void } } } | undefined;
       try { app?.renderer?.textureGC?.run?.(); } catch {}
 
-      const gsapGlobal = (window as any).gsap as undefined | { globalTimeline?: { clear: () => void } };
-      if (gsapGlobal?.globalTimeline) {
-        gsapGlobal.globalTimeline.clear();
-      }
-      
+      // Animation ownership belongs to gameplay/Journey/modal feature scopes.
+      // A memory warning may request Pixi texture GC, but must never kill the
+      // application-wide GSAP timeline and strand callback-owned promises.
       logger.info('✅ Caches cleared successfully');
     } catch (e) {
       logger.warn('⚠️ Failed to clear caches:', e);

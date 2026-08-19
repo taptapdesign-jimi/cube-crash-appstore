@@ -9,6 +9,7 @@ import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.ts';
 import { getBubbleColors } from './templates/template-manager.ts';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { destroyRuntimeTexture } from './runtime-texture-lifecycle.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -113,11 +114,7 @@ export function destroyWildJuiceBubblesScreenCache(): void {
     console.warn('⚠️ Skipping bubble screen cache destroy - texture still in use');
     return;
   }
-  if (isUsableRuntimeTexture(_cachedBubbleTexture)) {
-    try {
-      _cachedBubbleTexture.destroy(true);
-    } catch {}
-  }
+  if (_cachedBubbleTexture) destroyRuntimeTexture(_cachedBubbleTexture);
   _cachedBubbleTexture = null;
 }
 

@@ -37,7 +37,9 @@ describe('loadSavedBoardState', () => {
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
-      storage
+      storage,
+      rows: 1,
+      cols: 1,
     });
 
     expect(result).toBeNull();
@@ -54,7 +56,9 @@ describe('loadSavedBoardState', () => {
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
-      storage
+      storage,
+      rows: 1,
+      cols: 1,
     });
 
     expect(result).toBeNull();
@@ -69,7 +73,17 @@ describe('loadSavedBoardState', () => {
       boardNumber: 2,
       moves: 5,
       timestamp: now,
-      grid: [],
+      grid: [[{
+        value: 2,
+        special: null,
+        specialDiceVariant: null,
+        locked: false,
+        open: true,
+        isWild: false,
+        isWildFace: false,
+        gridX: 0,
+        gridY: 0,
+      }]],
     };
     const storage = createLocalStorageMock({
       cc_saved_game_board_02: JSON.stringify(saved),
@@ -81,10 +95,76 @@ describe('loadSavedBoardState', () => {
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
-      storage
+      storage,
+      rows: 1,
+      cols: 1,
     });
 
     expect(result).not.toBeNull();
     expect(result?.gameState?.score).toBe(10);
+    expect(result?.gameState?.schemaVersion).toBe(2);
+  });
+
+  it('removes a parseable save with an invalid board schema', () => {
+    const key = 'cc_saved_game_board_01';
+    const storage = createLocalStorageMock({
+      [key]: JSON.stringify({
+        timestamp: Date.now(),
+        grid: [[{
+          value: 2,
+          special: null,
+          locked: false,
+          open: true,
+          gridX: 4,
+          gridY: 0,
+        }]],
+      }),
+    });
+
+    const result = loadSavedBoardState({
+      boardNumber: 1,
+      getBoardSaveKey: () => key,
+      devLog: () => {},
+      devWarn: () => {},
+      storage,
+      rows: 1,
+      cols: 1,
+    });
+
+    expect(result).toBeNull();
+    expect(storage.getItem(key)).toBeNull();
+  });
+
+  it('removes a valid payload stored under a different Journey board key', () => {
+    const key = 'cc_saved_game_board_02';
+    const storage = createLocalStorageMock({
+      [key]: JSON.stringify({
+        boardNumber: 3,
+        level: 3,
+        moves: 10,
+        score: 0,
+        wildMeter: 0,
+        timestamp: Date.now(),
+        grid: [[{
+          value: 2,
+          special: null,
+          locked: false,
+          open: true,
+          gridX: 0,
+          gridY: 0,
+        }]],
+      }),
+    });
+
+    expect(loadSavedBoardState({
+      boardNumber: 2,
+      getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
+      devLog: () => {},
+      devWarn: () => {},
+      storage,
+      rows: 1,
+      cols: 1,
+    })).toBeNull();
+    expect(storage.getItem(key)).toBeNull();
   });
 });

@@ -27,6 +27,7 @@ const fastLintFiles = changedLintFiles();
 const fastSteps = [
   ['Unstaged diff hygiene', 'git', ['diff', '--check']],
   ['Staged diff hygiene', 'git', ['diff', '--cached', '--check']],
+  ['Type-safety regression audit', node, ['scripts/type-safety-regression-audit.mjs']],
   ['TypeScript', npm, ['run', 'type-check']],
   ...(fastLintFiles.length
     ? [['Changed-file lint', node, ['node_modules/eslint/bin/eslint.js', ...fastLintFiles]]]
@@ -42,6 +43,7 @@ const fastSteps = [
 const fullSteps = [
   ['Unstaged diff hygiene', 'git', ['diff', '--check']],
   ['Staged diff hygiene', 'git', ['diff', '--cached', '--check']],
+  ['Type-safety regression audit', node, ['scripts/type-safety-regression-audit.mjs']],
   ['TypeScript', npm, ['run', 'type-check']],
   ['Source release audit', npm, ['run', 'release:audit']],
   ['Lint', npm, ['run', 'lint']],

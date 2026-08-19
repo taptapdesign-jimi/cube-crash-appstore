@@ -298,6 +298,15 @@ export function getCoreWildTypeForSpecialDiceVariant(variant?: SpecialDiceVarian
   return null;
 }
 
+export function getCompatibleSpecialDiceVariant(
+  id: string | null | undefined,
+  coreWildType: string | null | undefined,
+): SpecialDiceVariantDefinition | null {
+  const variant = getSpecialDiceVariant(id);
+  if (!variant || !coreWildType) return null;
+  return getCoreWildTypeForSpecialDiceVariant(variant) === coreWildType ? variant : null;
+}
+
 export function getSpecialDiceFinaleFxForCoreWildType(coreWildType?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
   if (coreWildType === 'wild-tnt') return 'tnt';
   if (coreWildType === 'wild-magnet') return 'magnet';

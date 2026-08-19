@@ -453,7 +453,7 @@ function createModal(): HTMLElement {
       // Step 2: Wait for the active surface animation to complete, then restart.
       // 🔥 CRITICAL: Use setTimeout directly (NOT trackEndRunTimeout) because this action
       // MUST execute even after modal cleanup - cleanupAllEndRunResources would cancel it!
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log('🎯 Modal hidden, calling restart');
         try {
           const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
@@ -475,7 +475,7 @@ function createModal(): HTMLElement {
           console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
         }
         if ((window as any).CC && (window as any).CC.restart) {
-          (window as any).CC.restart();
+          await Promise.resolve((window as any).CC.restart());
         }
       }, getEndRunSurfaceExitDurationMs());
     };

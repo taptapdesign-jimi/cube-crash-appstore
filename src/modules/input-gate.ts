@@ -4,6 +4,7 @@
 import { STATE } from './app-state.ts';
 import { isWildLikeTile } from './final-merge-rules.ts';
 import { isSpecialDiceMagnetLikeTile, isSpecialDiceResolutionOwned } from './special-dice-registry.ts';
+import { isTntBonusTileOwned } from './tnt-bonus-tile-ownership.ts';
 
 export type InputGateLockReason =
   | 'juice-bubbles'
@@ -232,6 +233,7 @@ function getLegacyRuntimeReasons(input: CanStartTileDragInput): string[] {
   if (tile?._ccWildSpawnDropping === true) reasons.push('wild-spawn-dropping');
   if (tile?._ccWildSpawnHandoffLock === true) reasons.push('wild-spawn-handoff');
   if (tile?._wildMagnetAffected === true) reasons.push('magnet-affected-tile');
+  if (isTntBonusTileOwned(tile)) reasons.push('tnt-bonus-tile');
   if (tile?.locked === true && input.isWildTile !== true) reasons.push('locked-tile');
 
   return reasons;

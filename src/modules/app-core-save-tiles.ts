@@ -1,3 +1,22 @@
+import { getCompatibleSpecialDiceVariant } from './special-dice-registry.ts';
+
+export type BoardSnapshotIssue = {
+  code: string;
+  message: string;
+  gridX?: number;
+  gridY?: number;
+};
+
+export class BoardSnapshotIntegrityError extends Error {
+  readonly issues: BoardSnapshotIssue[];
+
+  constructor(issues: BoardSnapshotIssue[]) {
+    super(`Board is not safe to save (${issues.length} issue${issues.length === 1 ? '' : 's'})`);
+    this.name = 'BoardSnapshotIntegrityError';
+    this.issues = issues;
+  }
+}
+
 type SaveTilesDeps = {
   ROWS: number;
   COLS: number;
@@ -15,76 +34,97 @@ export function buildGridSnapshot({
   devLog,
   devWarn,
 }: SaveTilesDeps){
-  // 🔥 CRITICAL FIX: Save all tiles from tiles array, not just from grid
+  const getSerializableVariantId = (tile: any): string | null => {
+    const id = tile?._ccSpecialDiceVariant || tile?.specialDiceVariant || null;
+    return getCompatibleSpecialDiceVariant(id, tile?.special)?.id || null;
+  };
   const gridSnapshot = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-  const savedTiles: Array<{ snapshot: any; gridX: number; gridY: number }> = [];
-  
-  // First, save all tiles from tiles array (both active and locked tiles)
-  tiles.forEach((tile) => {
-    if (!tile || tile.destroyed) {
-      return; // Skip destroyed tiles only
+  const issues: BoardSnapshotIssue[] = [];
+  const liveTileSet = new Set((Array.isArray(tiles) ? tiles : []).filter((tile) => tile && !tile.destroyed));
+  const gridOwnerSet = new Set<any>();
+  const claimedCells = new Map<string, any>();
+
+  const addIssue = (code: string, message: string, gridX?: number, gridY?: number) => {
+    const entry = { code, message, gridX, gridY };
+    issues.push(entry);
+    devWarn('⚠️ Board snapshot rejected:', entry);
+  };
+  const hasActiveTween = (tween: any): boolean => {
+    if (!tween) return false;
+    try {
+      return typeof tween.isActive === 'function' ? tween.isActive() : tween.isActive === true;
+    } catch {
+      return true;
     }
-    
-    // Only skip tiles with invalid value (null, undefined, NaN, negative)
-    // Allow value 0 for locked/empty tiles
-    const tileValue = tile.value;
-    if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
-      return; // Skip tiles with invalid value
-    }
-    
-    const gridX = Number.isFinite(tile.gridX) ? (tile.gridX | 0) : -1;
-    const gridY = Number.isFinite(tile.gridY) ? (tile.gridY | 0) : -1;
-    
-    // Validate grid position
-    if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
-      devWarn('⚠️ Tile has invalid grid position:', { gridX, gridY, value: tile.value, special: tile.special, locked: tile.locked });
-      return;
-    }
-    
-    const tileSnapshot = {
-      value: Number.isFinite(tileValue) ? tileValue : 0,
-      special: tile.special || null,
-      specialDiceVariant: tile._ccSpecialDiceVariant || tile.specialDiceVariant || null,
-      locked: !!tile.locked,
-      open: !tile.locked,
-      isWild: !!tile.isWild,
-      isWildFace: !!tile.isWildFace,
-      gridX: gridX,
-      gridY: gridY,
-    };
-    
-    savedTiles.push({ snapshot: tileSnapshot, gridX, gridY });
-    
-    // Also place in grid snapshot at correct position
-    if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] === null) {
-      gridSnapshot[gridY][gridX] = tileSnapshot;
-    } else if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] !== null) {
-      devWarn('⚠️ Grid position already occupied - overwriting:', { gridX, gridY, existing: gridSnapshot[gridY][gridX], new: tileSnapshot });
-      gridSnapshot[gridY][gridX] = tileSnapshot; // Overwrite to ensure latest tile is saved
-    }
-  });
-  
-  // 🔥 ADDITIONAL FIX: Also check grid array for any tiles that might not be in tiles array
+  };
+  const isTransient = (tile: any): boolean =>
+    tile._pendingRemoval === true ||
+    tile._beingRemoved === true ||
+    tile._cleanupQueued === true ||
+    tile._isBeingSpawned === true ||
+    tile._ccWildSpawnDropping === true ||
+    tile._ccWildSpawnHandoffLock === true ||
+    tile._wildMagnetAffected === true ||
+    tile._ccSpecialDiceResolving === true ||
+    typeof tile._ccMerge6CleanupToken === 'number' ||
+    hasActiveTween(tile._spawnTween);
+
+  if (!Array.isArray(grid) || grid.length !== ROWS) {
+    addIssue('invalid-grid-shape', `Grid must contain exactly ${ROWS} rows.`);
+  }
+
   for (let r = 0; r < ROWS; r++) {
+    if (!Array.isArray(grid?.[r]) || grid[r].length !== COLS) {
+      addIssue('invalid-grid-shape', `Grid row ${r} must contain exactly ${COLS} columns.`, undefined, r);
+      continue;
+    }
     for (let c = 0; c < COLS; c++) {
       const gridTile = grid[r]?.[c];
-      if (!gridTile || gridTile.destroyed) continue;
-      
-      // Check if this tile is already saved
-      const alreadySaved = savedTiles.some(st => st.gridX === c && st.gridY === r);
-      if (alreadySaved) continue;
-      
-      // Check if tile has valid value
-      const tileValue = gridTile.value;
-      if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
+      if (!gridTile) continue;
+      if (gridTile.destroyed) {
+        addIssue('destroyed-grid-owner', 'Grid points to a destroyed tile.', c, r);
         continue;
       }
-      
-      // Save tile from grid
+      gridOwnerSet.add(gridTile);
+      if (!liveTileSet.has(gridTile)) {
+        addIssue('grid-owner-missing-from-tiles', 'Authoritative grid owner is missing from the live tile registry.', c, r);
+      }
+      if ((gridTile.gridX | 0) !== c || (gridTile.gridY | 0) !== r) {
+        addIssue('coordinate-mismatch', 'Tile coordinates do not match its authoritative grid cell.', c, r);
+      }
+      if (isTransient(gridTile)) {
+        addIssue('transient-grid-owner', 'Tile is in a transient gameplay lifecycle and cannot be saved.', c, r);
+      }
+
+      const tileValue = gridTile.value;
+      if (!Number.isInteger(tileValue) || tileValue < 0 || tileValue > 6) {
+        addIssue('invalid-value', 'Tile value must be an integer from 0 through 6.', c, r);
+        continue;
+      }
+      const special = gridTile.special || null;
+      if (!special && tileValue === 6) {
+        addIssue('transient-merge6', 'A plain value-6 result must settle before saving.', c, r);
+      }
+      if (special && tileValue !== 6) {
+        addIssue('special-value-mismatch', 'A special tile must have value 6.', c, r);
+      }
+      if (tileValue === 0 && (!gridTile.locked || special)) {
+        addIssue('invalid-placeholder', 'Value 0 is only valid for a locked regular placeholder.', c, r);
+      }
+      const isPlayable = !gridTile.locked && (tileValue > 0 || !!special);
+      if (isPlayable && (
+        gridTile.visible === false ||
+        (typeof gridTile.alpha === 'number' && gridTile.alpha <= 0.01) ||
+        gridTile.eventMode === 'none' ||
+        gridTile.eventMode === 'passive'
+      )) {
+        addIssue('passive-playable-tile', 'A playable tile is hidden or non-interactive.', c, r);
+      }
+
       const tileSnapshot = {
-        value: Number.isFinite(tileValue) ? tileValue : 0,
-        special: gridTile.special || null,
-        specialDiceVariant: gridTile._ccSpecialDiceVariant || gridTile.specialDiceVariant || null,
+        value: tileValue,
+        special,
+        specialDiceVariant: getSerializableVariantId(gridTile),
         locked: !!gridTile.locked,
         open: !gridTile.locked,
         isWild: !!gridTile.isWild,
@@ -93,16 +133,28 @@ export function buildGridSnapshot({
         gridY: r,
       };
       
-      savedTiles.push({ snapshot: tileSnapshot, gridX: c, gridY: r });
-      if (gridSnapshot[r] && gridSnapshot[r][c] === null) {
-        gridSnapshot[r][c] = tileSnapshot;
-      } else if (gridSnapshot[r] && gridSnapshot[r][c] !== null) {
-        devWarn('⚠️ Grid tile already saved - overwriting:', { gridX: c, gridY: r, existing: gridSnapshot[r][c], new: tileSnapshot });
-        gridSnapshot[r][c] = tileSnapshot;
-      }
+      gridSnapshot[r][c] = tileSnapshot;
     }
   }
-  
-  devLog('💾 Saved', savedTiles.length, 'tiles total (from tiles array + grid check)');
-  return { gridSnapshot, savedTilesCount: savedTiles.length };
+
+  liveTileSet.forEach((tile: any) => {
+    const c = Number.isInteger(tile.gridX) ? tile.gridX : -1;
+    const r = Number.isInteger(tile.gridY) ? tile.gridY : -1;
+    const key = `${c},${r}`;
+    const prior = claimedCells.get(key);
+    if (prior && prior !== tile) {
+      addIssue('duplicate-cell-claim', 'More than one live tile claims the same grid cell.', c, r);
+    } else {
+      claimedCells.set(key, tile);
+    }
+    if (!gridOwnerSet.has(tile)) {
+      addIssue('orphan-live-tile', 'A live tile is not the authoritative owner of any grid cell.', c, r);
+    }
+  });
+
+  if (issues.length > 0) throw new BoardSnapshotIntegrityError(issues);
+
+  const savedTilesCount = gridOwnerSet.size;
+  devLog('💾 Saved', savedTilesCount, 'tiles from authoritative grid identity');
+  return { gridSnapshot, savedTilesCount };
 }

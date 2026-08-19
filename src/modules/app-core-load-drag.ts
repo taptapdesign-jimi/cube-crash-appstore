@@ -1,7 +1,7 @@
 type LoadDragDeps = {
   STATE: { drag?: any };
   tiles: any[];
-  waitTracked: (ms: number) => Promise<void>;
+  waitTrackedResult: (ms: number) => Promise<'elapsed' | 'cancelled'>;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   devError: (...args: any[]) => void;
@@ -10,7 +10,7 @@ type LoadDragDeps = {
 export async function ensureDragReadyAndRebind({
   STATE,
   tiles,
-  waitTracked,
+  waitTrackedResult,
   devLog,
   devWarn,
   devError,
@@ -22,7 +22,7 @@ export async function ensureDragReadyAndRebind({
     let attempts = 0;
     const maxAttempts = 40; // 40 * 50ms = 2 seconds
     while (!STATE.drag && attempts < maxAttempts) {
-      await waitTracked(50);
+      if (await waitTrackedResult(50) === 'cancelled') return false;
       attempts++;
     }
     if (!STATE.drag) {
@@ -43,4 +43,5 @@ export async function ensureDragReadyAndRebind({
     }
   });
   devLog('✅ loadGameState: Re-bound all unlocked tiles to drag system');
+  return true;
 }

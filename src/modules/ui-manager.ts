@@ -1078,17 +1078,9 @@ class UIManager {
         logger.warn('⚠️ Failed to remove settings toggle handlers:', error);
       }
       
-      // 7. Cleanup animation manager
-      try {
-        const { default: animationManager } = await import('./animation-manager.js');
-        if (!cleanupStillOwned()) return;
-        if (animationManager && typeof animationManager.destroy === 'function') {
-          animationManager.destroy();
-          logger.info('🧹 Animation manager destroyed');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to destroy animation manager:', error);
-      }
+      // Homepage descendants and slider owners were retired above. The shared
+      // AnimationManager is an app service and must survive this screen exit;
+      // gameplay/Journey/modal animations may already be running.
     })().catch((error) => {
       logger.warn('⚠️ Failed to execute homepage cleanup:', error);
     });

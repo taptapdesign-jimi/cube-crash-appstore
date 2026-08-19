@@ -172,7 +172,8 @@ describe('Mushroom special-die visual contract', () => {
     expect(assetPreloaderSource).toContain("'./assets/shop/mushroom/mushroom.png'");
     const criticalAssets = assetPreloaderSource.slice(assetPreloaderSource.indexOf('const CRITICAL_ASSETS'));
     expect(criticalAssets).toContain("'./assets/shop/mushroom/mushroom.png'");
-    expect(loadTilesSource).toContain('specialDiceVariant: t._ccSpecialDiceVariant || t.specialDiceVariant || null');
+    expect(loadTilesSource).toContain('const savedSpecialDiceVariant = getCompatibleSpecialDiceVariant');
+    expect(loadTilesSource).toContain('applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant)');
     expect(wildSkinSource).toContain('void Assets.load(requestedAssetPath).then');
     expect(wildSkinSource).toContain("if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return");
     expect(wildSkinSource).toContain('applyResolvedTexture(loadedTexture || Assets.get(requestedAssetPath))');

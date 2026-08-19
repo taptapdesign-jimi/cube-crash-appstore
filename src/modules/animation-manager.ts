@@ -410,9 +410,6 @@ class AnimationManager {
   
   // Kill all animations
   killAll(): void {
-    const wasGlobalTimelinePaused = !!gsap.globalTimeline?.paused?.();
-    try { gsap.globalTimeline?.pause?.(); } catch {}
-
     // Kill named animations
     this.animations.forEach(animation => {
       try { animation?.kill?.(); } catch {}
@@ -435,17 +432,6 @@ class AnimationManager {
     });
     this.activeTimelines.clear();
 
-    try {
-      const children = gsap.globalTimeline?.getChildren?.(true, true, true) || [];
-      children.forEach((child: any) => {
-        try { child?.kill?.(); } catch {}
-      });
-    } catch {}
-
-    try {
-      if (!wasGlobalTimelinePaused) gsap.globalTimeline?.resume?.();
-    } catch {}
-    
     logger.info('✅ All animations killed');
   }
   

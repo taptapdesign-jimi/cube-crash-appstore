@@ -10,31 +10,86 @@ import { logger } from '../core/logger.js';
 import { getRunMode, isArcadeHomeRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { getJourneySmallValueBias } from './journey-stage-balance.js';
 
-// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
-const _appTimeouts: Set<NodeJS.Timeout> = new Set();
+// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup. A timeout may also
+// own a cancellation settlement (used by waitTrackedResult) so clearing the
+// registry never leaves an awaiting lifecycle suspended forever.
+type AppTimeoutRecord = {
+  onCancel?: () => void;
+};
 
-export function trackAppTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+const _appTimeouts = new Map<NodeJS.Timeout, AppTimeoutRecord>();
+
+function reportTrackedCallbackError(kind: 'timeout' | 'interval', error: unknown): void {
+  logger.error(`❌ Tracked app ${kind} callback failed`, 'app-core', error);
+}
+
+function scheduleAppTimeout(
+  callback: () => void | Promise<void>,
+  delay: number,
+  onCancel?: () => void,
+): NodeJS.Timeout {
   const timeout = setTimeout(() => {
+    // The timer has fired and is no longer cancellable. Remove it before
+    // invoking user code so a callback-triggered global cleanup cannot settle
+    // the same owner twice.
+    _appTimeouts.delete(timeout);
     try {
-      callback();
+      const result = callback();
+      if (result && typeof result.then === 'function') {
+        void result.catch((error) => reportTrackedCallbackError('timeout', error));
+      }
     } catch (error) {
-      logger.error('❌ Tracked app timeout callback failed', error);
-    } finally {
-      _appTimeouts.delete(timeout);
+      reportTrackedCallbackError('timeout', error);
     }
   }, delay);
-  _appTimeouts.add(timeout);
+  _appTimeouts.set(timeout, { onCancel });
   return timeout;
 }
 
+export function trackAppTimeout(callback: () => void | Promise<void>, delay: number): NodeJS.Timeout {
+  return scheduleAppTimeout(callback, delay);
+}
+
+export type TrackedWaitResult = 'elapsed' | 'cancelled';
+
+/**
+ * Cancellation-aware wait for lifecycle-sensitive code.
+ *
+ * Unlike a bare Promise(setTimeout), this always settles when app timeout
+ * ownership is cleared. New transaction code should branch on the result and
+ * stop mutating retired state when it is `cancelled`.
+ */
+export function waitTrackedResult(ms: number): Promise<TrackedWaitResult> {
+  return new Promise<TrackedWaitResult>((resolve) => {
+    let settled = false;
+    const settle = (result: TrackedWaitResult): void => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    scheduleAppTimeout(() => settle('elapsed'), ms, () => settle('cancelled'));
+  });
+}
+
+/**
+ * Compatibility wrapper for existing callers that only await elapsed time.
+ * It now also settles during cleanup; migrate transaction-sensitive callers
+ * to waitTrackedResult() when they need to distinguish cancellation.
+ */
 export function waitTracked(ms: number): Promise<void> {
-  return new Promise<void>(resolve => trackAppTimeout(() => resolve(), ms));
+  return waitTrackedResult(ms).then(() => undefined);
 }
 
 export function clearAllAppTimeouts() {
   logger.debug(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`, 'app-core');
-  _appTimeouts.forEach(timeout => clearTimeout(timeout));
+  const pending = Array.from(_appTimeouts.entries());
   _appTimeouts.clear();
+  pending.forEach(([timeout, record]) => {
+    try { clearTimeout(timeout); } catch {}
+    try { record.onCancel?.(); } catch (error) {
+      reportTrackedCallbackError('timeout', error);
+    }
+  });
 }
 
 // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
@@ -42,8 +97,11 @@ const _appAnimationFrames: Set<number> = new Set();
 
 export function trackAppAnimationFrame(callback: FrameRequestCallback): number {
   const rafId = requestAnimationFrame((now: number) => {
-    callback(now);
-    _appAnimationFrames.delete(rafId);
+    try {
+      callback(now);
+    } finally {
+      _appAnimationFrames.delete(rafId);
+    }
   });
   _appAnimationFrames.add(rafId);
   return rafId;
@@ -60,7 +118,11 @@ const _appIntervals: Set<NodeJS.Timeout> = new Set();
 
 export function trackAppInterval(callback: () => void, delay: number): NodeJS.Timeout {
   const interval = setInterval(() => {
-    callback();
+    try {
+      callback();
+    } catch (error) {
+      reportTrackedCallbackError('interval', error);
+    }
   }, delay);
   _appIntervals.add(interval);
   return interval;

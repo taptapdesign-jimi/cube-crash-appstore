@@ -1,6 +1,7 @@
-import { getSpecialDiceVariant, applySpecialDiceVariantToTile } from './special-dice-registry.ts';
+import { applySpecialDiceVariantToTile, getCompatibleSpecialDiceVariant } from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
+import { assertValidGameSave } from './app-core-save-schema.ts';
 
 type TileRestoreDeps = {
   gameState: any;
@@ -78,6 +79,16 @@ export function restoreTilesFromSave({
   devError,
   setWildJuiceSpawned,
 }: TileRestoreDeps): TileRestoreResult {
+  // Validate and normalize into a detached model before touching the live board.
+  // A malformed/duplicate/out-of-bounds save must never destroy a healthy
+  // in-memory session and then fail halfway through reconstruction.
+  const validatedGameState = assertValidGameSave(gameState, {
+    rows: ROWS,
+    cols: COLS,
+    allowLegacy: true,
+  });
+  const savedGrid = validatedGameState.grid;
+
   [...tiles].forEach(t => {
     removeTileFully(t, {
       board,
@@ -93,32 +104,6 @@ export function restoreTilesFromSave({
     });
   });
   tiles.length = 0;
-
-  let savedGrid = Array.isArray(gameState.grid) ? gameState.grid : [];
-  // Fallback: if grid is empty but we have a tiles array (e.g. legacy or alternate save format), build grid from it
-  if (savedGrid.length === 0 && gameState.tiles && Array.isArray(gameState.tiles) && gameState.tiles.length > 0) {
-    devLog('🔄 restoreTilesFromSave: grid empty, building from gameState.tiles', gameState.tiles.length);
-    const built = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    for (const t of gameState.tiles) {
-      if (!t || t.destroyed) continue;
-      const c = Number.isFinite(t.gridX) ? (t.gridX | 0) : -1;
-      const r = Number.isFinite(t.gridY) ? (t.gridY | 0) : -1;
-      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
-      const snapshot = {
-        value: Number.isFinite(t.value) ? (t.value | 0) : 0,
-        special: t.special ?? null,
-        locked: !!t.locked,
-        open: typeof t.open === 'boolean' ? t.open : !t.locked,
-        isWild: !!t.isWild,
-        isWildFace: !!t.isWildFace,
-        specialDiceVariant: t._ccSpecialDiceVariant || t.specialDiceVariant || null,
-        gridX: c,
-        gridY: r,
-      };
-      built[r][c] = snapshot;
-    }
-    savedGrid = built;
-  }
   // 🔥 CRITICAL: createEmptyGrid() updates caller's grid ref; we must use its return value
   // so we don't write to the old (possibly empty/sparse) grid and hit "Cannot set properties of undefined (setting '0')"
   const gridToUse = createEmptyGrid();
@@ -188,7 +173,12 @@ export function restoreTilesFromSave({
     tile.value = value;
     const isWildSnapshot = isWildLikeSpecial(savedSpecial) || snapshot?.isWild || snapshot?.isWildFace;
     tile.special = savedSpecial;
-    const savedSpecialDiceVariant = getSpecialDiceVariant(snapshot?.specialDiceVariant || null);
+    // A variant without a matching visible special is stale legacy residue.
+    // Never resurrect it onto a regular holder during restore.
+    const savedSpecialDiceVariant = getCompatibleSpecialDiceVariant(
+      snapshot?.specialDiceVariant || null,
+      savedSpecial,
+    );
     if (savedSpecialDiceVariant) {
       applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant);
     }

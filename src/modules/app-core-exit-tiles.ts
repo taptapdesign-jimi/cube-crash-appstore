@@ -5,7 +5,8 @@ type SelectExitTilesDeps = {
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   HUD: { playHudRise?: (opts?: any) => void };
-  waitTracked: (ms: number) => Promise<void>;
+  waitTrackedResult: (ms: number) => Promise<'elapsed' | 'cancelled'>;
+  includeGhostPlaceholders?: boolean;
 };
 
 export async function selectTilesForExit({
@@ -15,7 +16,8 @@ export async function selectTilesForExit({
   devLog,
   devWarn,
   HUD,
-  waitTracked,
+  waitTrackedResult,
+  includeGhostPlaceholders = true,
 }: SelectExitTilesDeps){
   const tilesToAnimate = STATE?.tiles || [];
   const moduleTiles = tiles || [];
@@ -33,7 +35,7 @@ export async function selectTilesForExit({
   const ghostPlaceholders: any[] = [];
   try {
     try { (window as any).hideGhostsUnderLockedTiles?.('select-exit-tiles'); } catch {}
-    const rows = (window as any)._ghostPlaceholders;
+    const rows = includeGhostPlaceholders ? (window as any)._ghostPlaceholders : null;
     if (Array.isArray(rows)) {
       rows.forEach((row: any[]) => {
         if (!Array.isArray(row)) return;
@@ -61,9 +63,9 @@ export async function selectTilesForExit({
       devWarn('⚠️ Failed to call HUD.playHudRise:', e);
     }
     // 🔥 CRITICAL FIX: Even with no tiles, wait for HUD animation to be visible
-    await waitTracked(400);
-    return { effectiveTiles: [], skip: true };
+    const cancelled = await waitTrackedResult(400) === 'cancelled';
+    return { effectiveTiles: [], skip: true, cancelled };
   }
   
-  return { effectiveTiles: effectiveWithGhosts, skip: false };
+  return { effectiveTiles: effectiveWithGhosts, skip: false, cancelled: false };
 }
