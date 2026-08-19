@@ -161,6 +161,54 @@ describe('modal vertical drag dismiss', () => {
     jest.useRealTimers();
   });
 
+  test('adds a bounded gentle 3D paper tilt without changing horizontal dismiss rejection', () => {
+    jest.useFakeTimers();
+    const surface = document.createElement('div');
+    const motion = document.createElement('div');
+    const idle = document.createElement('div');
+    const touchTilt = document.createElement('div');
+    idle.className = 'cc-gameplay-modal-idle-shell';
+    touchTilt.className = 'cc-gameplay-modal-touch-tilt-shell';
+    idle.appendChild(touchTilt);
+    motion.appendChild(idle);
+    surface.appendChild(motion);
+    jest.spyOn(motion, 'getBoundingClientRect').mockReturnValue({
+      top: 100,
+      bottom: 600,
+      height: 500,
+      width: 300,
+      left: 50,
+      right: 350,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    document.body.appendChild(surface);
+    const onDismiss = jest.fn();
+    const dispose = installGameplayOverlayModalDragMotion(surface, {
+      motionElement: motion,
+      onDismiss,
+      maxDragTiltDeg: 1.15,
+      maxTouchTiltDeg: 3.64,
+    });
+
+    surface.dispatchEvent(pointer('pointerdown', 100, 200));
+    surface.dispatchEvent(pointer('pointermove', 260, 160));
+    expect(touchTilt.style.transform).toContain('rotateX(0.58deg)');
+    expect(touchTilt.style.transform).toContain('rotateY(3.64deg)');
+    expect(touchTilt.style.willChange).toBe('transform');
+    surface.dispatchEvent(pointer('pointerup', 260, 160));
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(touchTilt.style.transform).toContain('rotateX(0.00deg) rotateY(0.00deg)');
+    expect(touchTilt.style.transition).toContain('280ms');
+    jest.advanceTimersByTime(280);
+    expect(touchTilt.style.willChange).toBe('');
+
+    dispose();
+    jest.useRealTimers();
+  });
+
   test('hands a committed finger-release pose to the canonical modal exit', () => {
     const surface = document.createElement('div');
     const motion = document.createElement('div');

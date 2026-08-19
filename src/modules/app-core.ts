@@ -212,6 +212,7 @@ import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from '.
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import { SpecialDiceTransactionOwner, type SpecialDiceTransactionKind } from './special-dice-transaction-owner.ts';
+import { resolveNoMovesCommitDecision } from './no-moves-commit-decision.ts';
 import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
 import { handleMergeCombo } from './app-core-merge-combo.ts';
 import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
@@ -717,6 +718,11 @@ let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wi
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 const merge6DestinationCleanupOwner = new Merge6DestinationCleanupOwner();
 const specialDiceTransactionOwner = new SpecialDiceTransactionOwner();
+let regularMergeHandoffSequence = 0;
+const regularMergeHandoffTokens = new Set<number>();
+const regularMergeHandoffFinalizers = new Map<number, () => void>();
+let noMovesFailFlowSequence = 0;
+let activeNoMovesFailFlowToken: number | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -860,6 +866,9 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   wildSpawnCancelToken++;
   resetMerge6SpawnState(`transient-guards:${reason}`);
   specialDiceTransactionOwner.reset();
+  regularMergeHandoffTokens.clear();
+  regularMergeHandoffFinalizers.clear();
+  activeNoMovesFailFlowToken = null;
   try { setInputGateLock('special-transaction', false); } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
@@ -1392,6 +1401,83 @@ type NoMovesFailFlowOptions = {
   persistStuckState?: boolean;
 };
 
+function buildNoMovesBoardSignature(sourceTiles: Tile[] = collectBoardGameplayTiles()): string {
+  return JSON.stringify(sourceTiles
+    .filter((tile: any) => tile && !tile.destroyed)
+    .map((tile: any) => ({
+      value: tile.value | 0,
+      special: tile.special || null,
+      locked: tile.locked === true,
+      stackDepth: tile.stackDepth || 1,
+      gridX: tile.gridX ?? null,
+      gridY: tile.gridY ?? null,
+      visible: tile.visible !== false,
+    }))
+    .sort((a: any, b: any) =>
+      (a.gridY ?? -1) - (b.gridY ?? -1) ||
+      (a.gridX ?? -1) - (b.gridX ?? -1) ||
+      a.value - b.value));
+}
+
+function getNoMovesCommitBlockReason(initialSignature: string): string | null {
+  const activeDragTile = ((STATE as any)?.drag?.t) || ((drag as any)?.t);
+  const endgameGuard = getEndgameGuardState();
+  const gameplayTiles = collectBoardGameplayTiles();
+  const currentSignature = buildNoMovesBoardSignature(gameplayTiles);
+  try {
+    const freshResult = checkEndGame({ tiles: gameplayTiles, moves, makeBoard }, true);
+    const decision = resolveNoMovesCommitDecision({
+      initialSignature,
+      currentSignature,
+      freshEndGameType: freshResult.type,
+      wildContinuationPending: isWildContinuationPendingForFail(),
+      gameplayTransactionActive:
+        wildSpawnInProgress ||
+        merge6SpawnInProgress ||
+        wildMagnetPullInProgress ||
+        specialDiceTransactionOwner.isActive() ||
+        regularMergeHandoffTokens.size > 0,
+      activeDrag: !!(activeDragTile && !activeDragTile.destroyed),
+      endgameGuardActive: endgameGuard.active,
+    });
+    return decision.action === 'defer' ? decision.reason : null;
+  } catch (error) {
+    devWarn('⚠️ No-moves commit recheck failed; deferring terminal commit', error);
+    return 'fresh-check-error';
+  }
+}
+
+function deferNoMovesFailBeforeOwnership(reason: string, blockReason: string): void {
+  devWarn('🛡️ Deferring NO MOVES before terminal ownership', { reason, blockReason });
+  queueWildSpawnAfterGuardRelease(`no-moves-prelock-deferred:${blockReason}`);
+  scheduleCheckLevelEnd(0.2, `no_moves_prelock_deferred:${reason}:${blockReason}`);
+}
+
+function cancelNoMovesFailFlow(token: number, reason: string, blockReason: string): void {
+  if (activeNoMovesFailFlowToken !== token) {
+    devWarn('🛡️ Ignoring stale NO MOVES rollback', {
+      requestedToken: token,
+      activeToken: activeNoMovesFailFlowToken,
+      reason,
+      blockReason,
+    });
+    return;
+  }
+  devWarn('🛡️ Cancelling stale NO MOVES terminal flow', { reason, blockReason });
+  activeNoMovesFailFlowToken = null;
+  try { clearNoMovesText(); } catch {}
+  try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
+  try { (window as any).__ccFailScreenPending = false; } catch {}
+  failScreenFlowInProgress = false;
+  busyEnding = false;
+  try { setInputGateLock('terminal-no-moves', false); } catch {}
+  try {
+    if (TILE_IDLE_BOUNCE.ENABLE) TILE_IDLE_BOUNCE.start(tiles, board);
+  } catch {}
+  queueWildSpawnAfterGuardRelease(`no-moves-cancelled:${blockReason}`);
+  scheduleCheckLevelEnd(0.2, `no_moves_cancelled:${reason}:${blockReason}`);
+}
+
 async function runNoMovesFailFlow({
   reason,
   waitMs = 1500,
@@ -1400,12 +1486,28 @@ async function runNoMovesFailFlow({
   exitTimeoutMs,
   persistStuckState = false,
 }: NoMovesFailFlowOptions): Promise<void> {
+  if (activeNoMovesFailFlowToken !== null || busyEnding) {
+    devLog('🛡️ NO MOVES request ignored because another terminal owner is active', {
+      reason,
+      activeNoMovesFailFlowToken,
+      busyEnding,
+    });
+    return;
+  }
+  const initialSignature = buildNoMovesBoardSignature();
   // Terminal owner must re-check immediately before locking the game. A wild
   // charge/drop may become ready while an earlier caller awaits tutorial or FX.
   if (deferFailForWildContinuation(`no-moves-preflight:${reason}`)) {
     devLog('🛡️ No-moves preflight cancelled terminal fail because wild continuation became ready', { reason, wildMeter });
     return;
   }
+  const preLockBlockReason = getNoMovesCommitBlockReason(initialSignature);
+  if (preLockBlockReason) {
+    deferNoMovesFailBeforeOwnership(reason, `pre-lock:${preLockBlockReason}`);
+    return;
+  }
+  const flowToken = ++noMovesFailFlowSequence;
+  activeNoMovesFailFlowToken = flowToken;
   devLog('⏳ Running no-moves fail flow before fail screen', { reason, waitMs, extraWaitMs });
   failScreenFlowInProgress = true;
   busyEnding = true;
@@ -1423,6 +1525,12 @@ async function runNoMovesFailFlow({
   try { showNoMovesText(); } catch {}
   await waitTracked(waitMs + Math.max(0, extraWaitMs));
 
+  const preCommitBlockReason = getNoMovesCommitBlockReason(initialSignature);
+  if (preCommitBlockReason) {
+    cancelNoMovesFailFlow(flowToken, reason, `pre-commit:${preCommitBlockReason}`);
+    return;
+  }
+
   if (typeof exitTimeoutMs === 'number' && exitTimeoutMs > 0) {
     try {
       await Promise.race([
@@ -1439,6 +1547,14 @@ async function runNoMovesFailFlow({
     try { await exitNoMovesText(); } catch {}
   }
 
+  const finalCommitBlockReason = getNoMovesCommitBlockReason(initialSignature);
+  if (finalCommitBlockReason) {
+    cancelNoMovesFailFlow(flowToken, reason, `final-commit:${finalCommitBlockReason}`);
+    return;
+  }
+
+  if (activeNoMovesFailFlowToken !== flowToken) return;
+  activeNoMovesFailFlowToken = null;
   showFinalScreen({ confirmedFailFlow: true });
 }
 
@@ -2378,6 +2494,7 @@ function getWildSpawnAnimationBlockReason(): string | null {
     const guard = getEndgameGuardState();
     if (guard.active) return `endgame-guard:${guard.sources.join(',') || 'ttl'}`;
     if (merge6SpawnInProgress) return 'merge6-spawn-in-progress';
+    if (regularMergeHandoffTokens.size > 0) return 'regular-merge-handoff';
     // A regular merge-6 owns its visible destination until the merge-cell
     // cleanup and replacement spawn have been scheduled. If the same merge
     // fills the wild meter, letting the reward drop start in this window races
@@ -2403,6 +2520,38 @@ function getWildSpawnAnimationBlockReason(): string | null {
     if ((window as any).__ccWildSpawnDropInProgress === true) return 'wild-spawn-drop';
   } catch {}
   return null;
+}
+
+function beginRegularMergeHandoff(): number {
+  const token = ++regularMergeHandoffSequence;
+  regularMergeHandoffTokens.add(token);
+  lastEndgameBoardMutationAt = Date.now();
+  // Navigation/interruption normally clears the whole token set. This bounded
+  // fallback must finalize the accepted board mutation before it can release
+  // a full wild meter into the board.
+  trackAppTimeout(() => {
+    if (!regularMergeHandoffTokens.has(token)) return;
+    const finalize = regularMergeHandoffFinalizers.get(token);
+    if (finalize) {
+      devWarn('⚠️ Regular merge handoff timed out; atomically finalizing accepted stack', { token });
+      finalize();
+      return;
+    }
+    devWarn('⚠️ Regular merge handoff timed out before finalizer registration; keeping spawn blocked', { token });
+  }, 2000);
+  return token;
+}
+
+function registerRegularMergeHandoffFinalizer(token: number | null, finalize: () => void): void {
+  if (token === null || !regularMergeHandoffTokens.has(token)) return;
+  regularMergeHandoffFinalizers.set(token, finalize);
+}
+
+function releaseRegularMergeHandoff(token: number | null, reason: string): void {
+  if (token === null || !regularMergeHandoffTokens.delete(token)) return;
+  regularMergeHandoffFinalizers.delete(token);
+  lastEndgameBoardMutationAt = Date.now();
+  queueWildSpawnAfterGuardRelease(`regular-merge-handoff:${reason}`);
 }
 
 function scheduleWildSpawnRetry(reason: string, delayMs = 220): void {
@@ -7132,8 +7281,12 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       wasLastThreeOrMoreStackForCheck,
     } = lastMergeResult;
     let stackMergeFilledWildMeter = false;
+    let regularMergeHandoffToken: number | null = null;
     
     if (!lastMergeResult.isActuallyLastMerge) {
+      if (!wildActive && effSum < 6) {
+        regularMergeHandoffToken = beginRegularMergeHandoff();
+      }
       // Normal merge - add wild progress
       const wildMeterBeforeStackFill = Number.isFinite(wildMeter) ? wildMeter : 0;
       addWildProgress(WILD_INC_SMALL, { confirmedNonFinal: true });
@@ -7195,8 +7348,40 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // 🔥 NOTE: wildStarTileForAnimation and shouldAnimateStarsToHUD are already set at the beginning of merge function
     // Use the pre-captured values here in the animation callback
 
+    let regularMergeBoardCommitFinalized = false;
+    const finalizeRegularMergeBoardCommit = (reason: string) => {
+      if (regularMergeBoardCommitFinalized) return;
+      regularMergeBoardCommitFinalized = true;
+      try { removeTile(src); } catch (error) {
+        devWarn('⚠️ Failed to remove regular merge source during finalization', { reason, error });
+      }
+      try {
+        normalizePlayableTileAfterMutation(dst);
+        makeBoard.syncTileZIndex?.(dst, board);
+        bindTileWithFallback(dst, false);
+        if (STATE.drag && typeof (STATE.drag as any).bindToTile === 'function') {
+          (STATE.drag as any).bindToTile(dst);
+        }
+      } catch (error) {
+        devWarn('⚠️ Failed to normalize regular merge destination during finalization', { reason, error });
+      }
+      releaseRegularMergeHandoff(regularMergeHandoffToken, reason);
+      regularMergeHandoffToken = null;
+    };
+    registerRegularMergeHandoffFinalizer(regularMergeHandoffToken, () => {
+      finalizeRegularMergeBoardCommit('source-absorb-timeout');
+    });
+
     trackTween(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
+      onInterrupt: () => {
+        // A navigation/global animation cleanup may kill the absorption tween.
+        // Commit the already accepted stack atomically before releasing a full
+        // wild meter; never expose the half-merged grid to reward spawning.
+        if (regularMergeHandoffToken !== null && regularMergeHandoffTokens.has(regularMergeHandoffToken)) {
+          finalizeRegularMergeBoardCommit('source-absorb-interrupted');
+        }
+      },
       onComplete: async () => {
         markMergePerformance('source-absorbed');
         // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
@@ -7222,7 +7407,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
         }
         
-        removeTile(src);
+        finalizeRegularMergeBoardCommit('source-absorbed-and-destination-normalized');
         
         // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
@@ -7264,19 +7449,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             });
           }
         }
-        // Re-enable drag on the merged tile and ensure drag points to the new stack
-        // 🔥 CRITICAL FIX: Ensure dst is NOT locked and is interactive after merge
-        normalizePlayableTileAfterMutation(dst);
-        try { makeBoard.syncTileZIndex?.(dst, board); } catch {}
-        bindTileWithFallback(dst, false);
-        if (STATE.drag && typeof (STATE.drag as any).bindToTile === 'function') {
-          try {
-            (STATE.drag as any).bindToTile(dst);
-          } catch (error) {
-            devWarn('⚠️ Failed to rebind drag to merged tile', error);
-          }
-        }
-        
         // 🔥 CRITICAL FIX: SKIP stuck check for merge-6 (effSum === 6)
         // Merge-6 will spawn new tiles, so we should check AFTER spawn completes, not before
         // This prevents false "stuck" detection when board has 2 tiles (e.g., 4 and 2) that can merge
@@ -8877,7 +9049,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       token: specialTransactionToken,
                     });
                     setWildMagnetPullInProgress(false, 'board-commit');
-                    releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-board-commit');
                   },
                 };
                 
@@ -8931,8 +9102,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
                 
-                // Idempotent fallback only: the normal path releases at the
-                // board-commit callback before app-merge's settle/endgame tail.
+                // The immutable special owner stays active until app-merge has
+                // finished every spawn/endgame verification against STATE.
                 setWildMagnetPullInProgress(false, 'merge-completed-fallback');
                 releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-handler-complete-fallback');
                 devLog('✅ Wild-magnet pull animation guard reset (merge completed)');

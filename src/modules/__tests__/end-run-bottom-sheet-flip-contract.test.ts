@@ -23,6 +23,7 @@ describe('reversible End Run bottom-sheet 3D flip experiment', () => {
     expect(endRunSource).toContain('<div class="end-run-modal-bounce-shell">');
     expect(endRunSource).toContain('<div class="end-run-sheet-flip-shell">');
     expect(endRunSource).toContain('<div class="cc-gameplay-modal-idle-shell">');
+    expect(endRunSource).toContain('<div class="cc-gameplay-modal-touch-tilt-shell">');
     expect(endRunSource).toContain('<div class="end-run-paper-clip-shell">');
     expect(endRunSource).toContain("el.classList.add('is-end-run-3d-flip-entering')");
     expect(endRunSource).toContain("modalEl.classList.add('is-end-run-3d-flip-exiting')");
@@ -45,6 +46,7 @@ describe('reversible End Run bottom-sheet 3D flip experiment', () => {
     expect(endRunSource).toContain('hideModal();');
     expect(endRunSource).toContain('if (END_RUN_CENTERED_MODAL_TEST_ENABLED) {');
     expect(endRunSource).toContain('installGameplayOverlayModalDragMotion(modal, {');
+    expect(endRunSource).toContain('maxTouchTiltDeg: 3.64');
     expect(endRunSource).toContain('} else {\n    addDragFunctionality(modal);');
     expect(endRunSource).toContain("el.style.display = 'flex'");
     expect(endRunSource).toContain(

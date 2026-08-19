@@ -400,19 +400,21 @@ function createModal(): HTMLElement {
     <div class="end-run-modal-bounce-shell">
       <div class="end-run-sheet-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
-          <div class="cc-gameplay-modal-gyro-shell">
-            <div class="end-run-paper-clip-shell">
-              <div class="modal-handle"></div>
-              <div class="simple-content">
-                <div class="simple-header">
-                  <div class="simple-title-section">
-                    <h2 id="end-run-modal-title" class="cc-gameplay-modal-title">${titleText}</h2>
-                    <p>${subtitleText}</p>
-                  </div>
-                  <div class="simple-buttons">
-                    <div class="simple-button-row">
-                      <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
-                      <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+          <div class="cc-gameplay-modal-touch-tilt-shell">
+            <div class="cc-gameplay-modal-gyro-shell">
+              <div class="end-run-paper-clip-shell">
+                <div class="modal-handle"></div>
+                <div class="simple-content">
+                  <div class="simple-header">
+                    <div class="simple-title-section">
+                      <h2 id="end-run-modal-title" class="cc-gameplay-modal-title">${titleText}</h2>
+                      <p>${subtitleText}</p>
+                    </div>
+                    <div class="simple-buttons">
+                      <div class="simple-button-row">
+                        <button type="button" data-end-run-action="restart">${isArcadeRun ? 'New Game' : 'Restart'}</button>
+                        <button type="button" data-end-run-action="exit">${exitBtnLabel}</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -601,6 +603,8 @@ function createModal(): HTMLElement {
       disposeEndRunDragMotion = installGameplayOverlayModalDragMotion(modal, {
         motionElement,
         onDismiss: () => hideModal(),
+        maxDragTiltDeg: 1.15,
+        maxTouchTiltDeg: 3.64,
       });
     }
   } else {

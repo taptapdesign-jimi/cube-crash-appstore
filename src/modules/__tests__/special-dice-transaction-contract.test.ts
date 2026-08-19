@@ -24,11 +24,18 @@ describe('shared special-dice transaction contract', () => {
   test('serializes external drops while preserving Magnet-owned internal merges', () => {
     expect(appCoreSource).toContain('specialDiceTransactionOwner.isActive() && !isInternalPulledTilesMerge');
     expect(appCoreSource).toContain('specialTransactionKind && !isInternalPulledTilesMerge');
-    expect(appCoreSource).toContain("releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-board-commit')");
     const boardCommitIndex = appMergeSource.indexOf('helpers?.onMagnetBoardCommit?.()');
     const settleWaitIndex = appMergeSource.indexOf('await new Promise(resolve => trackAppTimeout(resolve, 1200))');
+    const handlerAwaitIndex = appCoreSource.indexOf('await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge)');
+    const finalReleaseIndex = appCoreSource.indexOf("releaseSpecialDiceTransaction(specialTransactionToken, 'wild-magnet-handler-complete-fallback')");
+    const boardCommitCallbackStart = appCoreSource.indexOf('onMagnetBoardCommit: () =>');
+    const boardCommitCallbackEnd = appCoreSource.indexOf('};', boardCommitCallbackStart);
+    const boardCommitCallback = appCoreSource.slice(boardCommitCallbackStart, boardCommitCallbackEnd);
     expect(boardCommitIndex).toBeGreaterThan(0);
     expect(settleWaitIndex).toBeGreaterThan(boardCommitIndex);
+    expect(handlerAwaitIndex).toBeGreaterThan(0);
+    expect(finalReleaseIndex).toBeGreaterThan(handlerAwaitIndex);
+    expect(boardCommitCallback).not.toContain('releaseSpecialDiceTransaction');
     expect(appMergeSource).not.toContain('usedSpawnLockedTilesWithPop');
   });
 

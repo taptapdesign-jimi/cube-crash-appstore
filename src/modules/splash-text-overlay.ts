@@ -22,6 +22,7 @@ let swoopDelayedCallsRef: gsap.core.Tween[] = [];
 let swoopFxCleanup: (() => void) | null = null;
 let magneticTextActive = false;
 let magneticTextWaiters: Array<() => void> = [];
+let magneticRunId = 0;
 let sparkleOverlay: HTMLElement | null = null;
 let sparkleTimelinesRef: gsap.core.Timeline[] = [];
 let sparkleBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -107,7 +108,8 @@ function triggerSparkleHapticTrain(): void {
   } catch {}
 }
 
-function cleanupBuzzzOverlay(): void {
+function cleanupBuzzzOverlay(expectedRunId?: number): void {
+  if (typeof expectedRunId === 'number' && expectedRunId !== magneticRunId) return;
   try {
     swoopDelayedCallsRef.forEach((dc) => {
       killTrackedTween(dc);
@@ -148,8 +150,10 @@ function cleanupBuzzzOverlay(): void {
  * Same enter/exit as TNT BOOM, white color
  */
 export function showMagneticText(options: any = {}): void {
+  let runId = 0;
   try {
     cleanupBuzzzOverlay();
+    runId = ++magneticRunId;
     magneticTextActive = true;
     startWildFxDragLockForAnimation('magnetic-text', 3600, options?.inputReleaseAtRatio ?? 0.25);
 
@@ -290,9 +294,10 @@ export function showMagneticText(options: any = {}): void {
 
     let exitStarted = false;
     const startExit = () => {
+      if (runId !== magneticRunId) return;
       if (exitStarted) return;
       exitStarted = true;
-      try { (swoopFxCleanup as any)?.startExit?.(); } catch {}
+      try { (particleCleanup as any)?.startExit?.(); } catch {}
       swoopBounceTimelines.forEach((tl) => {
         killTrackedTimeline(tl);
       });
@@ -333,7 +338,7 @@ export function showMagneticText(options: any = {}): void {
       const particleElapsedSeconds = Math.max(0, (performance.now() - particleStartedAt) / 1000);
       const particleRemainingSeconds = Math.max(0, particleCompletionDelaySeconds - particleElapsedSeconds);
       const cleanupDelay = Math.max(exitTotal + beeFlightTail, particleRemainingSeconds + 0.05);
-      const exitCleanupCall = trackDelayedCall(cleanupDelay, () => cleanupBuzzzOverlay());
+      const exitCleanupCall = trackDelayedCall(cleanupDelay, () => cleanupBuzzzOverlay(runId));
       swoopDelayedCallsRef.push(exitCleanupCall);
     };
 
@@ -403,6 +408,7 @@ export function showMagneticText(options: any = {}): void {
         duration: FINAL_SETTLE_DURATION + BOOM_ENTER_EXTRA * 0.2,
         ease: 'back.out(1.5)',
         onComplete: () => {
+          if (runId !== magneticRunId) return;
           try { swoopBounceTimelines[index]?.play(0); } catch {}
           enterComplete += 1;
           if (enterComplete === letters.length) {
@@ -413,7 +419,7 @@ export function showMagneticText(options: any = {}): void {
     });
   } catch (e) {
     console.warn('⚠️ showMagneticText (SWOOP) failed:', e);
-    cleanupBuzzzOverlay();
+    cleanupBuzzzOverlay(runId || undefined);
   }
 }
 

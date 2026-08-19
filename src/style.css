@@ -3174,6 +3174,29 @@ body.journey-board-game-active #hud-board-indicator {
   isolation: isolate;
 }
 
+/* Score/Combo chooses its paper angle before the first visible frame. Keep the
+   angle on a nested longhand owner so enter/exit and drag transforms on the
+   outer bounce shell can never flatten it and reveal it late. */
+.score-bottom-sheet .cc-gameplay-modal-idle-shell {
+  rotate: var(--score-modal-rest-tilt, 0deg);
+}
+
+/* Touch-only 3D owner for Exit Game, High Score, and Combo. Enter/exit stay on
+   their outer shells, idle stays on the parent, and sensor gyro stays nested
+   below, so a gentle finger tilt never competes with another transform. */
+.cc-gameplay-modal-touch-tilt-shell {
+  position: relative;
+  width: 100%;
+  max-height: inherit;
+  transform-origin: 50% 54%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform: perspective(950px) rotateX(0deg) rotateY(0deg) translateZ(0);
+  -webkit-transform: perspective(950px) rotateX(0deg) rotateY(0deg) translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 .cc-gameplay-modal-idle-shell::before {
   content: "";
   position: absolute;

@@ -4,6 +4,7 @@ export interface ModalVerticalDragDismissOptions {
   excludeSelector?: string;
   onDragStart?: () => void;
   onDragMove?: (deltaY: number) => void;
+  onGestureMove?: (deltaX: number, deltaY: number) => void;
   onDragEnd?: (committed: boolean) => void;
 }
 
@@ -13,11 +14,14 @@ export interface GameplayOverlayModalDragMotionOptions
   restTiltDeg?: number;
   maxTravelPx?: number;
   maxDragTiltDeg?: number;
+  maxTouchTiltDeg?: number;
   snapbackMs?: number;
 }
 
 const IOS_MODAL_DRAG_TRAVEL_RATIO = 0.7;
 const IOS_MODAL_DRAG_RESISTANCE = 0.72;
+const GAMEPLAY_MODAL_TOUCH_TILT_STRENGTH = 1.3;
+const GAMEPLAY_MODAL_TOUCH_TILT_MAX_DEG = 3.64;
 
 export function getIosResistedModalVerticalDelta(
   deltaY: number,
@@ -70,11 +74,13 @@ export function installModalVerticalDragDismiss(
     try { surface.setPointerCapture(event.pointerId); } catch {}
   };
   const onPointerMove = (event: PointerEvent) => {
-    if (event.pointerId !== activePointerId || rejected) return;
+    if (event.pointerId !== activePointerId) return;
     lastX = event.clientX;
     lastY = event.clientY;
     const dx = lastX - startX;
     const dy = lastY - startY;
+    options.onGestureMove?.(dx, dy);
+    if (rejected) return;
     if (Math.abs(dx) > 14 && Math.abs(dx) > Math.abs(dy) * 1.15) rejected = true;
     if (!rejected) options.onDragMove?.(dy);
   };
@@ -123,21 +129,34 @@ export function installGameplayOverlayModalDragMotion(
 ): () => void {
   const motionElement = options.motionElement;
   const idleShell = motionElement.querySelector<HTMLElement>('.cc-gameplay-modal-idle-shell');
+  const touchTiltShell = motionElement.querySelector<HTMLElement>('.cc-gameplay-modal-touch-tilt-shell');
   const maxTravelPx = Number.isFinite(options.maxTravelPx)
     ? Math.max(120, Number(options.maxTravelPx))
     : null;
   const maxDragTiltDeg = Math.max(0, options.maxDragTiltDeg ?? 2.4);
+  const maxTouchTiltDeg = Math.max(0, options.maxTouchTiltDeg ?? GAMEPLAY_MODAL_TOUCH_TILT_MAX_DEG);
   const snapbackMs = Math.max(120, options.snapbackMs ?? 280);
   const restTiltDeg = Number.isFinite(options.restTiltDeg) ? Number(options.restTiltDeg) : 0;
   const originalTransform = motionElement.style.transform;
   const originalWebkitTransform = motionElement.style.webkitTransform;
   const originalTransition = motionElement.style.transition;
   const originalTouchAction = surface.style.touchAction;
+  const originalTouchTiltTransform = touchTiltShell?.style.transform ?? '';
+  const originalTouchTiltWebkitTransform = touchTiltShell?.style.webkitTransform ?? '';
+  const originalTouchTiltTransition = touchTiltShell?.style.transition ?? '';
+  const originalTouchTiltWillChange = touchTiltShell?.style.willChange ?? '';
   let dragStartRect: DOMRect | null = null;
   let dragViewportHeight = 0;
   let snapbackTimeout: number | null = null;
   let lastVisualY = 0;
   let lastDragTiltDeg = 0;
+
+  const setTouchTiltPose = (rotateXDeg: number, rotateYDeg: number) => {
+    if (!touchTiltShell) return;
+    const transform = `perspective(950px) rotateX(${rotateXDeg.toFixed(2)}deg) rotateY(${rotateYDeg.toFixed(2)}deg) translateZ(0)`;
+    touchTiltShell.style.transform = transform;
+    touchTiltShell.style.webkitTransform = transform;
+  };
 
   const setPose = (y: number, dragTiltDeg: number) => {
     lastVisualY = y;
@@ -155,6 +174,7 @@ export function installGameplayOverlayModalDragMotion(
 
   surface.style.touchAction = 'none';
   setPose(0, 0);
+  setTouchTiltPose(0, 0);
   const disposeGesture = installModalVerticalDragDismiss(surface, {
     ...options,
     onDragStart: () => {
@@ -165,6 +185,25 @@ export function installGameplayOverlayModalDragMotion(
       motionElement.style.removeProperty('--cc-modal-drag-release-y');
       motionElement.style.removeProperty('--cc-modal-drag-release-tilt');
       if (idleShell) idleShell.style.animationPlayState = 'paused';
+      if (touchTiltShell) {
+        touchTiltShell.style.transition = 'none';
+        touchTiltShell.style.willChange = 'transform';
+      }
+    },
+    onGestureMove: (deltaX, deltaY) => {
+      // A deliberately softer version of the Journey card's physical tilt.
+      // Horizontal finger travel turns the paper on Y; vertical travel gives
+      // only a small X lean while the outer owner keeps dismissal movement.
+      const rotateYDeg = Math.max(
+        -maxTouchTiltDeg,
+        Math.min(maxTouchTiltDeg, (deltaX / 42) * GAMEPLAY_MODAL_TOUCH_TILT_STRENGTH),
+      );
+      const maxTouchTiltXDeg = maxTouchTiltDeg * 0.72;
+      const rotateXDeg = Math.max(
+        -maxTouchTiltXDeg,
+        Math.min(maxTouchTiltXDeg, (-deltaY / 90) * GAMEPLAY_MODAL_TOUCH_TILT_STRENGTH),
+      );
+      setTouchTiltPose(rotateXDeg, rotateYDeg);
     },
     onDragMove: (deltaY) => {
       const viewportBoundedY = dragStartRect
@@ -191,11 +230,19 @@ export function installGameplayOverlayModalDragMotion(
         return;
       }
       motionElement.style.transition = `transform ${snapbackMs}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+      if (touchTiltShell) {
+        touchTiltShell.style.transition = `transform ${snapbackMs}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+      }
       setPose(0, 0);
+      setTouchTiltPose(0, 0);
       snapbackTimeout = window.setTimeout(() => {
         snapbackTimeout = null;
         motionElement.style.transition = originalTransition;
         if (idleShell) idleShell.style.removeProperty('animation-play-state');
+        if (touchTiltShell) {
+          touchTiltShell.style.transition = originalTouchTiltTransition;
+          touchTiltShell.style.willChange = originalTouchTiltWillChange;
+        }
       }, snapbackMs);
     },
   });
@@ -208,6 +255,12 @@ export function installGameplayOverlayModalDragMotion(
     motionElement.style.transition = originalTransition;
     motionElement.style.removeProperty('--cc-modal-drag-release-y');
     motionElement.style.removeProperty('--cc-modal-drag-release-tilt');
+    if (touchTiltShell) {
+      touchTiltShell.style.transform = originalTouchTiltTransform;
+      touchTiltShell.style.webkitTransform = originalTouchTiltWebkitTransform;
+      touchTiltShell.style.transition = originalTouchTiltTransition;
+      touchTiltShell.style.willChange = originalTouchTiltWillChange;
+    }
     surface.style.touchAction = originalTouchAction;
     if (idleShell) idleShell.style.removeProperty('animation-play-state');
   };

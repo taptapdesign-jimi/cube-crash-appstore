@@ -575,16 +575,18 @@ function createModal(): HTMLElement {
     <div class="cc-gameplay-modal-bounce-shell">
       <div class="cc-gameplay-modal-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
-          <div class="cc-gameplay-modal-gyro-shell">
-            <div class="cc-gameplay-modal-paper-shell">
-              <div class="simple-content">
-                <div class="simple-header">
-                  <div class="simple-title-section">
-                    <h2 id="score-sheet-title" class="cc-gameplay-modal-title">${titleText}</h2>
-                    <p id="score-sheet-subtitle">${subtitleText}</p>
-                  </div>
-                  <div class="score-stats-container">
+          <div class="cc-gameplay-modal-touch-tilt-shell">
+            <div class="cc-gameplay-modal-gyro-shell">
+              <div class="cc-gameplay-modal-paper-shell">
+                <div class="simple-content">
+                  <div class="simple-header">
+                    <div class="simple-title-section">
+                      <h2 id="score-sheet-title" class="cc-gameplay-modal-title">${titleText}</h2>
+                      <p id="score-sheet-subtitle">${subtitleText}</p>
+                    </div>
+                    <div class="score-stats-container">
 ${renderStatsItems(scoreSheetStats)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -606,7 +608,8 @@ ${renderStatsItems(scoreSheetStats)}
   disposeScoreSheetDragDismiss = bounceShell ? installGameplayOverlayModalDragMotion(modalEl, {
     onDismiss: hideScoreBottomSheet,
     motionElement: bounceShell,
-    restTiltDeg: restTilt,
+    maxDragTiltDeg: 1.15,
+    maxTouchTiltDeg: 3.64,
   }) : null;
 
   // Backdrop input remains a separate close path; the paper drag above owns

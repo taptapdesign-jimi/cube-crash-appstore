@@ -39,6 +39,9 @@ describe('shared gameplay modal benchmark', () => {
       expect(source).toContain('cc-gameplay-modal-paper-shell');
     }
 
+    expect(score).toContain('cc-gameplay-modal-touch-tilt-shell');
+    expect(score).toContain('maxTouchTiltDeg: 3.64');
+
     expect(score).toContain('cc-gameplay-modal-stage');
     expect(score).not.toContain('animateBottomSheetEntrance');
     expect(score).not.toContain('function addDragFunctionality');
@@ -138,6 +141,15 @@ describe('shared gameplay modal benchmark', () => {
     expect(rewardAnimations.indexOf("classList.remove('cc-gameplay-modal-entering')"))
       .toBeLessThan(rewardAnimations.indexOf("classList.add('cc-gameplay-modal-idle')"));
     expect(css).toContain('.cc-gameplay-modal-idle:has(.cc-cta[data-cta-state="pressed"])');
+    expect(css).toContain('.cc-gameplay-modal-touch-tilt-shell {');
+    expect(css).toContain('.score-bottom-sheet .cc-gameplay-modal-idle-shell {\n  rotate: var(--score-modal-rest-tilt, 0deg);');
+    expect(score.indexOf("setProperty('--score-modal-rest-tilt'"))
+      .toBeLessThan(score.indexOf('document.body.appendChild(modalEl)'));
+    const scoreDragConfig = score.slice(
+      score.indexOf('installGameplayOverlayModalDragMotion(modalEl'),
+      score.indexOf('}) : null;', score.indexOf('installGameplayOverlayModalDragMotion(modalEl')),
+    );
+    expect(scoreDragConfig).not.toContain('restTiltDeg');
   });
 
   test('reuses the Journey Stage stats enter and exit contract for HUD score and combo', () => {
