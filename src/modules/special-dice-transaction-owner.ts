@@ -149,6 +149,15 @@ export function canRunOrdinaryStackDuringVisualTail(
   },
 ): boolean {
   if (!owner.isVisualTail()) return false;
+  return isStableOrdinarySubSixStack(input);
+}
+
+export function isStableOrdinarySubSixStack(input: {
+  sourceValue: number;
+  destinationValue: number;
+  sourceStableOrdinary: boolean;
+  destinationStableOrdinary: boolean;
+}): boolean {
   if (!input.sourceStableOrdinary || !input.destinationStableOrdinary) return false;
   const sourceValue = input.sourceValue | 0;
   const destinationValue = input.destinationValue | 0;

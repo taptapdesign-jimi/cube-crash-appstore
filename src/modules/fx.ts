@@ -68,13 +68,14 @@ export function startWildJuiceBubbles(tile) {
   const juiceIdleBubbleColors = [0xFFE6E1, 0xFFF2E9, 0xFFD5D6];
   const isHoney = specialVariantId === 'honey';
   const isBottle = specialVariantId === 'bottle';
+  const isBeachBall = specialVariantId === 'beach-ball';
   const usesJuiceFizzMotion = !isHoney && !isBottle;
   const bubbleMotionScale = isHoney ? 1.3 : usesJuiceFizzMotion ? 1.4 : 1;
   if (specialVariantId === 'mushroom') {
     stopWildJuiceBubbles(tile);
     return;
   }
-  if (!tile || (tile.special !== 'wild-juice' && !isHoney && !isBottle)) return;
+  if (!tile || (tile.special !== 'wild-juice' && !isHoney && !isBottle && !isBeachBall)) return;
   
   // Stop existing bubble system if any
   stopWildJuiceBubbles(tile);
@@ -5923,6 +5924,13 @@ export function startMagnetIdleParticles(tile) {
   if (getSpecialDiceVariantForTile(tile)?.id === 'bottle') {
     // Bottle keeps the accepted gentle artwork rock plus the earlier sparse
     // Honey-style blue-white bubble profile. Merge bubbles are a separate DOM owner.
+    stopMagnetIdleParticles(tile);
+    startWildJuiceBubbles(tile);
+    return;
+  }
+  if (getSpecialDiceVariantForTile(tile)?.id === 'beach-ball') {
+    // Beach Ball uses Magnet board mechanics but keeps its accepted Juice-style
+    // idle bubbles and authored bounce motion.
     stopMagnetIdleParticles(tile);
     startWildJuiceBubbles(tile);
     return;

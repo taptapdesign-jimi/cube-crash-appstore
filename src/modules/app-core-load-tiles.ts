@@ -1,4 +1,8 @@
-import { applySpecialDiceVariantToTile, getCompatibleSpecialDiceVariant } from './special-dice-registry.ts';
+import {
+  applySpecialDiceVariantToTile,
+  getCompatibleSpecialDiceVariant,
+  getCoreWildTypeForSpecialDiceVariant,
+} from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
 import { assertValidGameSave } from './app-core-save-schema.ts';
@@ -171,14 +175,19 @@ export function restoreTilesFromSave({
     tile.scale.set(1);
 
     tile.value = value;
-    const isWildSnapshot = isWildLikeSpecial(savedSpecial) || snapshot?.isWild || snapshot?.isWildFace;
-    tile.special = savedSpecial;
     // A variant without a matching visible special is stale legacy residue.
     // Never resurrect it onto a regular holder during restore.
     const savedSpecialDiceVariant = getCompatibleSpecialDiceVariant(
       snapshot?.specialDiceVariant || null,
       savedSpecial,
     );
+    // Canonicalize accepted legacy pairs (currently pre-Magnet Beach Ball saves)
+    // before any gameplay/idle owner sees the restored tile.
+    if (savedSpecialDiceVariant) {
+      savedSpecial = getCoreWildTypeForSpecialDiceVariant(savedSpecialDiceVariant) || savedSpecial;
+    }
+    const isWildSnapshot = isWildLikeSpecial(savedSpecial) || snapshot?.isWild || snapshot?.isWildFace;
+    tile.special = savedSpecial;
     if (savedSpecialDiceVariant) {
       applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant);
     }

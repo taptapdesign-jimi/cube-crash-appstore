@@ -1,5 +1,6 @@
 import {
   canRunOrdinaryStackDuringVisualTail,
+  isStableOrdinarySubSixStack,
   getSpecialDiceEndgameBlock,
   PostCommitBoardRevisionGuard,
   SpecialDiceTransactionOwner,
@@ -85,6 +86,22 @@ test('visual tail permits stable ordinary sub-six stacks but no new board transa
   expect(decision(1, 2)).toBe(false);
   owner.markBoardCommitted(token, 3);
   expect(decision(1, 2)).toBe(true);
+  expect(decision(3, 3)).toBe(false);
+  expect(decision(1, 5)).toBe(false);
+  expect(decision(2, 2, false)).toBe(false);
+});
+
+test('classifies only stable ordinary sub-six stacks for concurrent visual handoffs', () => {
+  const decision = (sourceValue: number, destinationValue: number, stable = true) =>
+    isStableOrdinarySubSixStack({
+      sourceValue,
+      destinationValue,
+      sourceStableOrdinary: stable,
+      destinationStableOrdinary: stable,
+    });
+
+  expect(decision(1, 2)).toBe(true);
+  expect(decision(2, 3)).toBe(true);
   expect(decision(3, 3)).toBe(false);
   expect(decision(1, 5)).toBe(false);
   expect(decision(2, 2, false)).toBe(false);

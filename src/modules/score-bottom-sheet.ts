@@ -844,6 +844,7 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     disposeScoreSheetSpatialMotion = mountGameplayModalSpatialMotion(
       el,
       el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
+      'reduced-exit-score',
     );
     ensureScoreStatDividerExists();
     console.log('🎯 SCORE BOTTOM SHEET CREATED');

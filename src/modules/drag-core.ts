@@ -413,6 +413,93 @@ export function initDrag(cfg) {
     _moveRaf: null as number | null,
   };
 
+  const emitFastStackTrace = (phase: string, payload: Record<string, unknown> = {}) => {
+    if (!import.meta.env.DEV && (window as any).__ccFastStackDiagnostics !== true) return;
+    const w = window as any;
+    const sequence = Number(w.__ccFastStackTraceSequence || 0) + 1;
+    w.__ccFastStackTraceSequence = sequence;
+    const tiles = typeof getTiles === 'function' ? getTiles() : [];
+    const entry = {
+      sequence,
+      at: Math.round(performance.now()),
+      phase,
+      activePointerId: drag.pointerId,
+      activeDrag: drag.t ? {
+        value: drag.t.value | 0,
+        special: drag.t.special || null,
+        gridX: drag.t.gridX ?? null,
+        gridY: drag.t.gridY ?? null,
+      } : null,
+      locks: Object.entries(w.__ccInputGateLocks || {}).map(([reason, lock]: [string, any]) => ({
+        reason,
+        scope: lock?.scope || null,
+        remainingMs: Number.isFinite(lock?.expiresAt) ? Math.max(0, Math.round(lock.expiresAt - Date.now())) : null,
+      })),
+      tiles: Array.isArray(tiles) ? tiles
+        .filter((tile: any) => tile && !tile.destroyed)
+        .map((tile: any) => ({
+          value: tile.value | 0,
+          special: tile.special || null,
+          gridX: tile.gridX ?? null,
+          gridY: tile.gridY ?? null,
+          locked: tile.locked === true,
+          eventMode: tile.eventMode ?? null,
+          visible: tile.visible !== false,
+          pendingRemoval: tile._pendingRemoval === true || tile._beingRemoved === true,
+          resolutionOwned: tile._ccSpecialDiceResolving === true,
+        })) : [],
+      ...payload,
+    };
+    const ring = Array.isArray(w.__ccFastStackTrace) ? w.__ccFastStackTrace : [];
+    ring.push(entry);
+    if (ring.length > 240) ring.splice(0, ring.length - 240);
+    w.__ccFastStackTrace = ring;
+    console.info('[CC_FAST_STACK]', entry);
+  };
+
+  const onStagePointerDownTrace = (e: any) => {
+    const target = e?.target;
+    emitFastStackTrace('stage-pointer-down', {
+      pointerId: eventPointerId(e),
+      pointerType: e?.pointerType || null,
+      pointer: { x: Number(e?.global?.x), y: Number(e?.global?.y) },
+      hitTarget: target ? {
+        value: target.value ?? null,
+        special: target.special || null,
+        gridX: target.gridX ?? null,
+        gridY: target.gridY ?? null,
+        label: target.label || target.name || null,
+        eventMode: target.eventMode ?? null,
+        interactive: target.interactive ?? null,
+      } : null,
+    });
+  };
+  try { app?.stage?.on('pointerdown', onStagePointerDownTrace); } catch {}
+
+  const onCanvasPointerTrace = (phase: 'canvas-pointer-down' | 'canvas-pointer-up') => (e: PointerEvent) => {
+    const canvas = app?.canvas as HTMLCanvasElement | undefined;
+    const rect = canvas?.getBoundingClientRect?.();
+    emitFastStackTrace(phase, {
+      pointerId: Number.isFinite(e.pointerId) ? e.pointerId : null,
+      pointerType: e.pointerType || null,
+      buttons: e.buttons,
+      client: { x: Math.round(e.clientX), y: Math.round(e.clientY) },
+      canvas: rect ? {
+        x: Math.round(e.clientX - rect.left),
+        y: Math.round(e.clientY - rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      } : null,
+      domTarget: (e.target as HTMLElement | null)?.tagName || null,
+    });
+  };
+  const onCanvasPointerDownTrace = onCanvasPointerTrace('canvas-pointer-down');
+  const onCanvasPointerUpTrace = onCanvasPointerTrace('canvas-pointer-up');
+  try {
+    app?.canvas?.addEventListener('pointerdown', onCanvasPointerDownTrace, true);
+    app?.canvas?.addEventListener('pointerup', onCanvasPointerUpTrace, true);
+  } catch {}
+
   function beginDragPerfSample() {
     const now = performance.now();
     drag._perfSample = {
@@ -681,6 +768,7 @@ export function initDrag(cfg) {
         try { drag.t.removeAllListeners('pointerdown'); } catch {}
       }
       drag.t = null;
+      emitFastStackTrace('tile-binding-cleared');
       return;
     }
 
@@ -690,14 +778,25 @@ export function initDrag(cfg) {
     }
     t.eventMode = 'static';
     t.interactive = true;
-    t.interactiveChildren = true;
+    // The gameplay tile owns the complete regular-dice hit surface. Relying on
+    // transformed child bounds leaves short dead zones while stack/gyro visuals
+    // settle, where Pixi targets the board instead of bubbling through the tile.
+    const regularHalf = tileSize / 2;
+    t.hitArea = new Rectangle(-regularHalf, -regularHalf, tileSize, tileSize);
+    t.interactiveChildren = false;
     t.cursor = 'pointer';
     const special = getTileSpecial(t);
+    if (t.rotG && t.rotG !== t && !special) {
+      t.rotG.eventMode = 'none';
+      t.rotG.interactive = false;
+      t.rotG.interactiveChildren = false;
+    }
     if (special) {
       const hitSize = tileSize * 1.16;
       const half = hitSize / 2;
       const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
       t.hitArea = hitArea;
+      t.interactiveChildren = true;
       if (t.rotG && t.rotG !== t) {
         t.rotG.eventMode = 'static';
         t.rotG.interactive = true;
@@ -720,11 +819,34 @@ export function initDrag(cfg) {
     if (special && t.rotG && t.rotG !== t) {
       t.rotG.on('pointerdown', start);
     }
+    emitFastStackTrace('tile-bound', {
+      tile: {
+        value: t?.value ?? null,
+        special: t?.special || null,
+        gridX: t?.gridX ?? null,
+        gridY: t?.gridY ?? null,
+        eventMode: t?.eventMode ?? null,
+        rotEventMode: t?.rotG?.eventMode ?? null,
+      },
+    });
   }
 
   function onDown(e, t) {
+    emitFastStackTrace('pointer-down-entry', {
+      pointerId: eventPointerId(e),
+      pointerType: e?.pointerType || null,
+      tile: {
+        value: t?.value ?? null,
+        special: t?.special || null,
+        gridX: t?.gridX ?? null,
+        gridY: t?.gridY ?? null,
+        locked: t?.locked === true,
+        eventMode: t?.eventMode ?? null,
+      },
+    });
     // Multi-touch guard: only one active pointer can own drag.
     if (drag.t && !drag.t.destroyed) {
+      emitFastStackTrace('pointer-down-blocked', { reason: 'active-drag-owner' });
       try { e?.stopPropagation?.(); } catch {}
       try { e?.preventDefault?.(); } catch {}
       return;
@@ -740,12 +862,14 @@ export function initDrag(cfg) {
         // If container says paused but window says not paused, trust window (immediate resume)
         console.log('🛡️ DRAG: Container says paused but window._gamePaused is false - allowing drag');
       } else if (gamePaused) {
+        emitFastStackTrace('pointer-down-blocked', { reason: 'game-paused-container' });
         console.log('🛡️ DRAG BLOCKED: Game is paused (bottom sheet is open)');
         return;
       }
     } catch (error) {
       // If container doesn't exist, check window fallback
       if ((window as any)._gamePaused === true) {
+        emitFastStackTrace('pointer-down-blocked', { reason: 'game-paused-window' });
         console.log('🛡️ DRAG BLOCKED: Game is paused (window fallback)');
         return;
       }
@@ -755,6 +879,11 @@ export function initDrag(cfg) {
     const scoreSheetOpen = document.querySelector('.score-bottom-sheet.visible');
     const endRunModalOpen = document.querySelector('.simple-bottom-sheet.visible:not(.score-bottom-sheet)');
     if (scoreSheetOpen || endRunModalOpen) {
+      emitFastStackTrace('pointer-down-blocked', {
+        reason: 'bottom-sheet-open',
+        scoreSheetOpen: !!scoreSheetOpen,
+        endRunModalOpen: !!endRunModalOpen,
+      });
       console.log('🛡️ DRAG BLOCKED: Bottom sheet is open', { scoreSheetOpen: !!scoreSheetOpen, endRunModalOpen: !!endRunModalOpen });
       return;
     }
@@ -767,6 +896,10 @@ export function initDrag(cfg) {
       isWildTile: isAnyWildTile(t),
     });
     if (!inputGateDecision.allowed) {
+      emitFastStackTrace('pointer-down-blocked', {
+        reason: 'input-gate',
+        reasons: inputGateDecision.reasons,
+      });
       emitIOSSpecialTransactionTrace('drag-blocked', {
         reasons: inputGateDecision.reasons,
         value: t?.value ?? null,
@@ -857,6 +990,10 @@ export function initDrag(cfg) {
     pauseSpecialDiceIdleForDrag(t);
     drag.pointerId = eventPointerId(e);
     drag.pointerType = e?.pointerType || null;
+    emitFastStackTrace('drag-acquired', {
+      pointerId: drag.pointerId,
+      pointerType: drag.pointerType,
+    });
     beginDragPerfSample();
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
@@ -1349,6 +1486,11 @@ export function initDrag(cfg) {
     }
 
     const t = drag.t;
+    emitFastStackTrace('pointer-up-entry', {
+      pointerId: eventPointerId(e),
+      moved: drag.moved === true,
+      pointer: { x: Number(e?.global?.x), y: Number(e?.global?.y) },
+    });
     drag.t = null;
     finishDragPerfSample('pointerup');
     clearDragRuntime();
@@ -1466,6 +1608,7 @@ export function initDrag(cfg) {
 
     if (!t || t.destroyed) { clearHover(); return; }
     if (!drag.moved) {
+      emitFastStackTrace('drop-rejected', { reason: 'not-moved' });
       clearHover();
       const tileRef = t;
       snapBack(t, () => {
@@ -1520,6 +1663,7 @@ export function initDrag(cfg) {
     };
     
     if (!target) {
+      emitFastStackTrace('drop-rejected', { reason: 'no-target' });
       logDropDiagnostic({
         result: 'no-target',
         gameplayTileCount: typeof getTiles === 'function'
@@ -1564,6 +1708,13 @@ export function initDrag(cfg) {
     // CRITICAL: Only call canDrop if target is valid
     // If target is invalid, canMerge is false
     const canMerge = isValidTarget && canDrop(t, target);
+    emitFastStackTrace(canMerge ? 'drop-accepted' : 'drop-rejected', {
+      reason: canMerge ? 'can-drop' : 'invalid-target-or-can-drop-false',
+      source: { value: t?.value ?? null, special: t?.special || null, gridX: t?.gridX ?? null, gridY: t?.gridY ?? null },
+      target: { value: target?.value ?? null, special: target?.special || null, gridX: target?.gridX ?? null, gridY: target?.gridY ?? null },
+      isValidTarget,
+      canDrop: canMerge,
+    });
     logDropDiagnostic({
       result: canMerge ? 'accepted' : 'rejected',
       isValidTarget,
@@ -2368,6 +2519,11 @@ export function initDrag(cfg) {
   // 🔥 FIX: Add cleanup function to remove all listeners and clear intervals
   // This should be called when app is destroyed to prevent memory leaks
   function cleanup(options: { resumeIdle?: boolean } = {}) {
+    try { app?.stage?.off('pointerdown', onStagePointerDownTrace); } catch {}
+    try {
+      app?.canvas?.removeEventListener('pointerdown', onCanvasPointerDownTrace, true);
+      app?.canvas?.removeEventListener('pointerup', onCanvasPointerUpTrace, true);
+    } catch {}
     clearDragRuntime();
     if (options.resumeIdle !== false) {
       resumeSpecialDiceIdleAfterDrag();

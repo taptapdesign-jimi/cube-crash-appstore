@@ -1,6 +1,6 @@
 import { appSpatialMotion } from './journey-spatial-motion.js';
 
-export type GameplayModalSpatialProfile = 'standard' | 'journey-pair';
+export type GameplayModalSpatialProfile = 'standard' | 'reduced-exit-score';
 
 // Every paper modal shown over the shared backdrop uses the accepted Journey
 // card response. Keeping one profile prevents score/reward/exit surfaces from
@@ -11,6 +11,17 @@ const OVERLAY_MODAL_PROFILE = Object.freeze({
   rotateXDegrees: 4.6,
   rotateYDegrees: 5.2,
   zDepth: 12,
+});
+
+// Exit Game and the HUD Trophy/Combo sheets should react much more calmly
+// than collectible/Journey presentation surfaces. This is exactly 20% of the
+// shared overlay profile (an 80% reduction), while retaining the same axes.
+const REDUCED_EXIT_SCORE_MODAL_PROFILE = Object.freeze({
+  xDepth: 1.8,
+  yDepth: 2,
+  rotateXDegrees: 0.92,
+  rotateYDegrees: 1.04,
+  zDepth: 2.4,
 });
 
 const JOURNEY_FLIP_RIBBON_PROFILE = Object.freeze({
@@ -27,9 +38,13 @@ const JOURNEY_FLIP_RIBBON_LABEL_PROFILE = Object.freeze({
 export function mountGameplayModalSpatialMotion(
   stage: HTMLElement,
   target: HTMLElement | null,
+  profile: GameplayModalSpatialProfile = 'standard',
 ): () => void {
   if (!target) return () => undefined;
-  return appSpatialMotion.registerModalTargets(stage, [{ element: target, ...OVERLAY_MODAL_PROFILE }]);
+  const motionProfile = profile === 'reduced-exit-score'
+    ? REDUCED_EXIT_SCORE_MODAL_PROFILE
+    : OVERLAY_MODAL_PROFILE;
+  return appSpatialMotion.registerModalTargets(stage, [{ element: target, ...motionProfile }]);
 }
 
 /**

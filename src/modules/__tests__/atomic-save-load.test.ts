@@ -88,6 +88,25 @@ describe('saved-game schema validation', () => {
     expect(result.gameState.schemaVersion).toBe(GAME_SAVE_SCHEMA_VERSION);
   });
 
+  test('accepts a pre-Magnet Beach Ball save for restore-time canonicalization', () => {
+    const result = validateAndNormalizeGameSave({
+      grid: [[regularTile({
+        value: 6,
+        special: 'wild-juice',
+        isWild: true,
+        isWildFace: true,
+        specialDiceVariant: 'beach-ball',
+      })]],
+    }, { rows: 1, cols: 1 });
+
+    expect(result.ok).toBe(true);
+    if ('issues' in result) throw new Error('expected valid legacy Beach Ball save');
+    expect(result.gameState.grid[0][0]).toMatchObject({
+      special: 'wild-juice',
+      specialDiceVariant: 'beach-ball',
+    });
+  });
+
   test.each([
     ['unsupported version', { schemaVersion: 999, grid: [[regularTile()]] }],
     ['coordinate mismatch', { grid: [[regularTile({ gridX: 2 })]] }],

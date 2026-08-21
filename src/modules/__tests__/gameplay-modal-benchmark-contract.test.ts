@@ -73,7 +73,16 @@ describe('shared gameplay modal benchmark', () => {
     expect(spatialPermission).toContain('disposeSpatialMotion();');
     expect(journeyOverlay).toContain('mountJourneyCardFlipSpatialMotion');
     expect(modalSpatialMotion).toContain('const OVERLAY_MODAL_PROFILE = Object.freeze({');
-    expect(modalSpatialMotion.match(/\.\.\.OVERLAY_MODAL_PROFILE/g)).toHaveLength(2);
+    expect(modalSpatialMotion).toContain('const REDUCED_EXIT_SCORE_MODAL_PROFILE = Object.freeze({');
+    expect(modalSpatialMotion).toContain('rotateXDegrees: 0.92');
+    expect(modalSpatialMotion).toContain('rotateYDegrees: 1.04');
+    expect(modalSpatialMotion).toContain('zDepth: 2.4');
+    expect(endRun).toContain("'reduced-exit-score'");
+    expect(score).toContain("'reduced-exit-score'");
+    expect(reward).not.toContain("'reduced-exit-score'");
+    expect(journeyOverlay).not.toContain("'reduced-exit-score'");
+    expect(modalSpatialMotion).toContain('...motionProfile');
+    expect(modalSpatialMotion.match(/\.\.\.OVERLAY_MODAL_PROFILE/g)).toHaveLength(1);
     expect(modalSpatialMotion).not.toContain("addEventListener('deviceorientation'");
     expect(css).toContain('.cc-modal-spatial-target {');
   });

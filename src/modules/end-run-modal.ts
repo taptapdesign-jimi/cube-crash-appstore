@@ -781,6 +781,7 @@ export function showEndRunModal(): void {
     disposeEndRunSpatialMotion = mountGameplayModalSpatialMotion(
       el,
       el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
+      'reduced-exit-score',
     );
     console.log('🎯 END RUN MODAL CREATED');
 

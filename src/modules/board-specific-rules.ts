@@ -113,9 +113,8 @@ class BoardSpecificRules {
    */
   getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt')[] {
     const board = boardNumber ?? this.currentBoard;
-    // Beach World uses only Star/Juice gameplay. Beach Ball is a Juice
-    // archetype selected by the special-dice registry, so Magnet/TNT must not
-    // remain available through this core-type fallback.
+    // Beach keeps generic Magnet/TNT out of the fallback pool. Beach Ball and
+    // Bottle may still explicitly reuse Magnet gameplay through the registry.
     if (board >= 11 && board <= 20) {
       return ['wild', 'wild-juice'];
     }

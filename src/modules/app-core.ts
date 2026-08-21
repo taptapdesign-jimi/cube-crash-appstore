@@ -200,6 +200,7 @@ import {
   getSpecialDiceExplosionSpriteSources,
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
+  getSpecialDiceGameplayFxForMerge,
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceShardColor,
   getSpecialDiceShardColors,
@@ -224,6 +225,7 @@ import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import {
   canRunOrdinaryStackDuringVisualTail,
   getSpecialDiceEndgameBlock,
+  isStableOrdinarySubSixStack,
   SpecialDiceTransactionOwner,
   type SpecialDiceTransactionKind,
 } from './special-dice-transaction-owner.ts';
@@ -751,6 +753,7 @@ const regularMergeHandoffTokens = new Set<number>();
 const regularMergeHandoffFinalizers = new Map<number, () => void>();
 let noMovesFailFlowSequence = 0;
 let activeNoMovesFailFlowToken: number | null = null;
+let activeNoMovesInputLockToken: number | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildSpawnCancelToken = 0;
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -899,6 +902,26 @@ function canOrdinaryStackDuringSpecialVisualTail(src: any, dst: any): boolean {
   });
 }
 
+function canOrdinaryStackDuringMerge6Handoff(src: any, dst: any): boolean {
+  const isStableOrdinary = (tile: any) =>
+    !!tile &&
+    !tile.destroyed &&
+    !tile.locked &&
+    !isWildLikeTile(tile) &&
+    !getSpecialDiceVariantForTile(tile) &&
+    !isSpecialDiceResolutionOwned(tile) &&
+    tile._wildMagnetAffected !== true &&
+    !isTntBonusTileOwned(tile) &&
+    tile._ccWildSpawnDropping !== true &&
+    tile._pendingRemoval !== true;
+  return isStableOrdinarySubSixStack({
+    sourceValue: src?.value | 0,
+    destinationValue: dst?.value | 0,
+    sourceStableOrdinary: isStableOrdinary(src),
+    destinationStableOrdinary: isStableOrdinary(dst),
+  });
+}
+
 function releaseSpecialDiceTransaction(token: number | null, reason: string): boolean {
   const active = specialDiceTransactionOwner.snapshot();
   emitIOSSpecialTransactionTrace('release-request', { token, reason, active });
@@ -951,6 +974,7 @@ function resetTransientRunGuards(reason: string = 'unknown'): void {
   regularMergeHandoffTokens.clear();
   regularMergeHandoffFinalizers.clear();
   activeNoMovesFailFlowToken = null;
+  activeNoMovesInputLockToken = null;
   try { setInputGateLock('special-transaction', false); } catch {}
   wildMagnetPullInProgress = false;
   try { (window as any).__ccWildMagnetPullInProgress = false; } catch {}
@@ -1553,6 +1577,33 @@ function getNoMovesCommitBlockReason(initialSignature: string): string | null {
   }
 }
 
+function getNoMovesTraceState(reason: string, phase: string): Record<string, unknown> {
+  const gameplayTiles = collectBoardGameplayTiles();
+  return {
+    reason,
+    phase,
+    moves,
+    wildMeter,
+    wildSpawnInProgress,
+    merge6SpawnInProgress,
+    regularMergeHandoffCount: regularMergeHandoffTokens.size,
+    specialTransactionActive: specialDiceTransactionOwner.isActive(),
+    boardSignature: buildNoMovesBoardSignature(gameplayTiles),
+    tiles: gameplayTiles
+      .filter((tile: any) => tile && !tile.destroyed)
+      .map((tile: any) => ({
+        value: tile.value | 0,
+        special: tile.special || null,
+        locked: tile.locked === true,
+        stackDepth: tile.stackDepth || 1,
+        gridX: tile.gridX ?? null,
+        gridY: tile.gridY ?? null,
+        eventMode: tile.eventMode ?? null,
+        visible: tile.visible !== false,
+      })),
+  };
+}
+
 function deferNoMovesFailBeforeOwnership(reason: string, blockReason: string): void {
   devWarn('🛡️ Deferring NO MOVES before terminal ownership', { reason, blockReason });
   queueWildSpawnAfterGuardRelease(`no-moves-prelock-deferred:${blockReason}`);
@@ -1570,13 +1621,21 @@ function cancelNoMovesFailFlow(token: number, reason: string, blockReason: strin
     return;
   }
   devWarn('🛡️ Cancelling stale NO MOVES terminal flow', { reason, blockReason });
+  emitIOSSpecialTransactionTrace('no-moves-cancelled', {
+    token,
+    blockReason,
+    ...getNoMovesTraceState(reason, 'cancelled'),
+  });
   activeNoMovesFailFlowToken = null;
   try { clearNoMovesText(); } catch {}
-  try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
-  try { (window as any).__ccFailScreenPending = false; } catch {}
-  failScreenFlowInProgress = false;
-  busyEnding = false;
-  try { setInputGateLock('terminal-no-moves', false); } catch {}
+  if (activeNoMovesInputLockToken === token) {
+    activeNoMovesInputLockToken = null;
+    try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
+    try { (window as any).__ccFailScreenPending = false; } catch {}
+    failScreenFlowInProgress = false;
+    busyEnding = false;
+    try { setInputGateLock('terminal-no-moves', false); } catch {}
+  }
   try {
     if (TILE_IDLE_BOUNCE.ENABLE) TILE_IDLE_BOUNCE.start(tiles, board);
   } catch {}
@@ -1615,11 +1674,15 @@ async function runNoMovesFailFlow({
   const flowToken = ++noMovesFailFlowSequence;
   activeNoMovesFailFlowToken = flowToken;
   devLog('⏳ Running no-moves fail flow before fail screen', { reason, waitMs, extraWaitMs });
-  failScreenFlowInProgress = true;
-  busyEnding = true;
-  try { (window as any).__ccTerminalEndScreenPending = true; } catch {}
-  try { setInputGateLock('terminal-no-moves', true, { ttlMs: 12000, scope: 'all' }); } catch {}
-  try { (window as any).__ccFailScreenPending = true; } catch {}
+  emitIOSSpecialTransactionTrace('no-moves-candidate', {
+    token: flowToken,
+    waitMs,
+    extraWaitMs,
+    ...getNoMovesTraceState(reason, 'candidate'),
+  });
+  // Keep gameplay responsive while the NO MOVES candidate is being confirmed.
+  // A legal fast stack/merge changes the signature below and cancels this flow.
+  // Input becomes terminal only at the atomic commit boundary.
   try { TILE_IDLE_BOUNCE.stop(); } catch {}
   try { cleanupFxContainersByTag('tile-idle-smoke'); } catch {}
   if (persistStuckState) {
@@ -1669,7 +1732,30 @@ async function runNoMovesFailFlow({
   }
 
   if (activeNoMovesFailFlowToken !== flowToken) return;
+  activeNoMovesInputLockToken = flowToken;
+  failScreenFlowInProgress = true;
+  busyEnding = true;
+  try { (window as any).__ccTerminalEndScreenPending = true; } catch {}
+  try { setInputGateLock('terminal-no-moves', true, { ttlMs: 12000, scope: 'all' }); } catch {}
+  try { (window as any).__ccFailScreenPending = true; } catch {}
+  emitIOSSpecialTransactionTrace('no-moves-lock-acquired', {
+    token: flowToken,
+    ...getNoMovesTraceState(reason, 'terminal-lock'),
+  });
+
+  // Close the tiny pointer-start race between the last unlocked recheck and
+  // terminal ownership. If a drag began there, release only this flow's lock.
+  const postLockBlockReason = getNoMovesCommitBlockReason(initialSignature);
+  if (postLockBlockReason) {
+    cancelNoMovesFailFlow(flowToken, reason, `post-lock:${postLockBlockReason}`);
+    return;
+  }
+
   activeNoMovesFailFlowToken = null;
+  emitIOSSpecialTransactionTrace('no-moves-committed', {
+    token: flowToken,
+    ...getNoMovesTraceState(reason, 'commit'),
+  });
   showFinalScreen({ confirmedFailFlow: true });
 }
 
@@ -6901,13 +6987,24 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   // the post-mutation spawn guard, leaving a passive plain value-6 forever.
   const merge6DestinationHandoffActive = collectBoardGameplayTiles().some((tile: any) =>
     merge6DestinationCleanupOwner.hasClaim(tile));
-  if ((merge6SpawnInProgress || merge6DestinationHandoffActive) && !isInternalPulledTilesMerge) {
+  const merge6HandoffActive = merge6SpawnInProgress || merge6DestinationHandoffActive;
+  const ordinarySubSixStackDuringMerge6Handoff =
+    merge6HandoffActive && canOrdinaryStackDuringMerge6Handoff(src, dst);
+  if (merge6HandoffActive && !isInternalPulledTilesMerge && !ordinarySubSixStackDuringMerge6Handoff) {
     devWarn('🚨 MERGE BLOCKED: another merge-6 transaction still owns the board', {
       merge6SpawnInProgress,
       merge6DestinationHandoffActive,
     });
     helpers.snapBack?.(src);
     return;
+  }
+  if (ordinarySubSixStackDuringMerge6Handoff) {
+    emitIOSSpecialTransactionTrace('merge6-overlap-ordinary-stack-allowed', {
+      merge6SpawnInProgress,
+      merge6DestinationHandoffActive,
+      sourceValue: src?.value | 0,
+      destinationValue: dst?.value | 0,
+    });
   }
   if (src === dst) { helpers.snapBack(src); return; }
   
@@ -6998,7 +7095,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
   const wildActive = isWildLikeTile(src) || isWildLikeTile(dst) ||
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
   const specialTransactionKind = wildActive
-    ? getSpecialDiceFinaleFxForMerge({ src, dst, srcSpecial: src?.special, dstSpecial: dst?.special })
+    ? getSpecialDiceGameplayFxForMerge({ src, dst, srcSpecial: src?.special, dstSpecial: dst?.special })
     : null;
   if (specialTransactionKind && !isInternalPulledTilesMerge) {
     specialTransactionToken = beginSpecialDiceTransaction(specialTransactionKind);
@@ -14348,6 +14445,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
     // 🔥 FIX: Ensure busyEnding is always reset, even on error
     busyEnding = false;
     failScreenFlowInProgress = false;
+    activeNoMovesInputLockToken = null;
     try { (window as any).__ccTerminalEndScreenPending = false; } catch {}
     try { setInputGateLock('terminal-no-moves', false); } catch {}
   }

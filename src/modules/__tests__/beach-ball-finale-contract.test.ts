@@ -13,6 +13,8 @@ describe('Beach Ball finale regression contract', () => {
       registrySource.indexOf("  'beach-ball': {"),
       registrySource.indexOf('\n};', registrySource.indexOf("  'beach-ball': {")),
     );
+    expect(beachBallDefinition).toContain("archetype: 'wild-magnet'");
+    expect(beachBallDefinition).toContain("visualFinaleFx: 'juice'");
     expect(beachBallDefinition).toContain("juiceDropProfile: 'beach-ball'");
     expect(appCoreSource.match(/direction: getSpecialDiceJuiceDropProfile\([^)]*\) \? 'down' : 'up'/g)).toHaveLength(2);
     expect(appCoreSource.match(/dropProfile: getSpecialDiceJuiceDropProfile\(/g)).toHaveLength(2);

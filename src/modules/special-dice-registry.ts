@@ -18,6 +18,10 @@ export type SpecialDiceFinaleFlags = {
 export type SpecialDiceVariantDefinition = {
   id: string;
   archetype: SpecialDiceArchetype;
+  // Gameplay archetype and authored finale may intentionally differ. This
+  // keeps an accepted skin animation while allowing it to reuse another
+  // special's board mechanics.
+  visualFinaleFx?: SpecialDiceFinaleFx;
   texture: string;
   splashText: string;
   splashColor: string;
@@ -262,7 +266,8 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
   },
   'beach-ball': {
     id: 'beach-ball',
-    archetype: 'wild-juice',
+    archetype: 'wild-magnet',
+    visualFinaleFx: 'juice',
     texture: './assets/shop/ball/ball.png',
     splashText: 'Boooing',
     splashColor: '#E09FEF',
@@ -304,7 +309,11 @@ export function getCompatibleSpecialDiceVariant(
 ): SpecialDiceVariantDefinition | null {
   const variant = getSpecialDiceVariant(id);
   if (!variant || !coreWildType) return null;
-  return getCoreWildTypeForSpecialDiceVariant(variant) === coreWildType ? variant : null;
+  if (getCoreWildTypeForSpecialDiceVariant(variant) === coreWildType) return variant;
+  // Save compatibility for Beach Balls created before their gameplay archetype
+  // changed from Juice to Magnet. Restore canonicalizes the core special.
+  if (variant.id === 'beach-ball' && coreWildType === 'wild-juice') return variant;
+  return null;
 }
 
 export function getSpecialDiceFinaleFxForCoreWildType(coreWildType?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
@@ -325,8 +334,14 @@ export function getSpecialDiceFinaleFxForArchetype(archetype?: SpecialDiceArchet
 
 export function getSpecialDiceFinaleFxForTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
   const variant = getSpecialDiceVariantForTile(tile);
-  const variantFx = getSpecialDiceFinaleFxForArchetype(variant?.archetype || tile?._ccSpecialDiceArchetype);
-  if (variantFx) return variantFx;
+  if (variant?.visualFinaleFx) return variant.visualFinaleFx;
+  return getSpecialDiceGameplayFxForTile(tile, coreWildTypeOverride);
+}
+
+export function getSpecialDiceGameplayFxForTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): SpecialDiceFinaleFx | null {
+  const variant = getSpecialDiceVariantForTile(tile);
+  const gameplayFx = getSpecialDiceFinaleFxForArchetype(variant?.archetype || tile?._ccSpecialDiceArchetype);
+  if (gameplayFx) return gameplayFx;
   return getSpecialDiceFinaleFxForCoreWildType(coreWildTypeOverride || tile?.special || tile?._ccWildSpecial || null);
 }
 
@@ -339,7 +354,7 @@ export function specialDiceTileMatchesFinaleFx(
 }
 
 export function isSpecialDiceMagnetLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
-  return specialDiceTileMatchesFinaleFx(tile, 'magnet', coreWildTypeOverride);
+  return getSpecialDiceGameplayFxForTile(tile, coreWildTypeOverride) === 'magnet';
 }
 
 export function isSpecialDiceStarLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
@@ -355,15 +370,16 @@ export function isSpecialDiceTntLikeTile(tile: any, coreWildTypeOverride?: CoreW
 }
 
 export function isSpecialDiceGameplayResolvingLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
-  const fx = getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride);
+  const fx = getSpecialDiceGameplayFxForTile(tile, coreWildTypeOverride);
   return fx !== null && getSpecialDiceInputReleaseModeForFx(fx) === 'after-gameplay-resolve';
 }
 
 export function isSpecialDiceDirectWildLikeTile(tile: any, coreWildTypeOverride?: CoreWildType | string | null): boolean {
+  if (isSpecialDiceMagnetLikeTile(tile, coreWildTypeOverride)) return false;
   const fx = getSpecialDiceFinaleFxForTile(tile, coreWildTypeOverride);
   if (fx === 'star' || fx === 'juice' || fx === 'tnt') return true;
   const special = coreWildTypeOverride || tile?.special || tile?._ccWildSpecial || null;
-  if (fx === 'magnet' || special === 'wild-magnet') return false;
+  if (special === 'wild-magnet') return false;
   if (typeof special === 'string' && special.startsWith('wild') && special !== 'wild-magnet') return true;
   return tile?.isWild === true || tile?.isWildFace === true;
 }
@@ -385,6 +401,28 @@ export function getSpecialDiceFinaleFxForMerge({
 
   // If a future special-vs-special edge case reaches this path, use the most
   // cinematic/mechanically constrained finale first.
+  if (candidates.includes('tnt')) return 'tnt';
+  if (candidates.includes('magnet')) return 'magnet';
+  if (candidates.includes('juice')) return 'juice';
+  if (candidates.includes('star')) return 'star';
+  return null;
+}
+
+export function getSpecialDiceGameplayFxForMerge({
+  src,
+  dst,
+  srcSpecial,
+  dstSpecial,
+}: {
+  src?: any;
+  dst?: any;
+  srcSpecial?: CoreWildType | string | null;
+  dstSpecial?: CoreWildType | string | null;
+}): SpecialDiceFinaleFx | null {
+  const srcFx = getSpecialDiceGameplayFxForTile(src, srcSpecial);
+  const dstFx = getSpecialDiceGameplayFxForTile(dst, dstSpecial);
+  const candidates = [srcFx, dstFx];
+
   if (candidates.includes('tnt')) return 'tnt';
   if (candidates.includes('magnet')) return 'magnet';
   if (candidates.includes('juice')) return 'juice';
@@ -588,9 +626,9 @@ export function pickSpecialDiceVariantForWildSpawn({
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
-    // Beach uses one weighted roll per spawn. Ball and Bottle use registry
-    // variants; Star and Juice remain core wild types. Core Magnet and TNT
-    // are intentionally absent from the Beach pool.
+    // Beach uses one weighted roll per spawn. Ball and Bottle are explicit
+    // Magnet-gameplay variants; Star and Juice remain core wild types. Generic
+    // Magnet and TNT are intentionally absent from the Beach fallback pool.
     if (board >= 11 && board <= 20) {
       const beachSlot = Number.isFinite(beachWildSlot)
         ? Math.max(0, Math.min(3, Math.trunc(beachWildSlot as number)))

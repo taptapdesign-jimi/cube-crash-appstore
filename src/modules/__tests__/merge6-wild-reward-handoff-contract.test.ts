@@ -73,7 +73,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     ['cubero', 'wild'],
     ['core juice', 'wild-juice'],
     ['mushroom', 'wild-juice'],
-    ['beach ball', 'wild-juice'],
+    ['beach ball', 'wild-magnet'],
     ['core TNT', 'wild-tnt'],
     ['flower', 'wild-tnt'],
     ['core magnet', 'wild-magnet'],
@@ -190,6 +190,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     ['wild', 'cubero'],
     ['wild-juice', 'mushroom'],
     ['wild-magnet', 'bottle'],
+    ['wild-magnet', 'beach-ball'],
     ['wild-tnt', 'flower'],
   ])('retains matching %s + %s variant identity', (special, variantId) => {
     expect(getCompatibleSpecialDiceVariant(variantId, special)?.id).toBe(variantId);
@@ -201,7 +202,10 @@ describe('regular merge-6 to wild reward handoff', () => {
     const mutationStart = source.indexOf('makeBoard.setValue(dst, 6, 0);', entryStart);
     const entry = source.slice(entryStart, mutationStart);
     expect(entry).toContain('merge6DestinationHandoffActive');
-    expect(entry).toContain('(merge6SpawnInProgress || merge6DestinationHandoffActive)');
+    expect(entry).toContain('merge6SpawnInProgress || merge6DestinationHandoffActive');
+    expect(entry).toContain('canOrdinaryStackDuringMerge6Handoff(src, dst)');
+    expect(entry).toContain('!ordinarySubSixStackDuringMerge6Handoff');
+    expect(entry).toContain("emitIOSSpecialTransactionTrace('merge6-overlap-ordinary-stack-allowed'");
 
     const spawnGuardStart = source.indexOf('if (merge6SpawnInProgress) {', mutationStart);
     const spawnGuardEnd = source.indexOf('} else {', spawnGuardStart);

@@ -3,6 +3,8 @@ import path from 'node:path';
 import { getAllowedWildTypes } from '../board-specific-rules';
 import {
   BEACH_WILD_SLOT_WEIGHTS,
+  getCoreWildTypeForSpecialDiceVariant,
+  getSpecialDiceVariant,
   pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
 } from '../special-dice-registry';
@@ -16,7 +18,7 @@ describe('Beach World wild pool', () => {
     expect(getAllowedWildTypes(21)).toContain('wild-tnt');
   });
 
-  test('uses one Beach probability roll for Star, Juice, Beach Ball, or Bottle without Magnet/TNT', () => {
+  test('uses one Beach probability roll without exposing generic Magnet/TNT fallback', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const start = source.indexOf('const isBeachJourneyBoard =');
     const end = source.indexOf('const specialDiceVariant =', start);
@@ -27,6 +29,10 @@ describe('Beach World wild pool', () => {
     expect(beachOwner).toContain('spawnMagnet = false');
     expect(beachOwner).toContain('spawnTnt = false');
     expect(source).toContain('beachWildSlot,');
+  });
+
+  test('Beach Ball reuses Magnet gameplay while remaining an explicit Beach-only variant', () => {
+    expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('beach-ball'))).toBe('wild-magnet');
   });
 
   test('gives all four Beach specials an equal independent 25-percent range', () => {
