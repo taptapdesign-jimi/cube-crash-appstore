@@ -11558,6 +11558,31 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         });
 
         const triggerFinalMergeCleanBoardFromMergeGuard = async (guardReason: string): Promise<void> => {
+          // This fallback runs after the merge-6 mutation turn was claimed. A
+          // final result must release every gameplay owner before handing the
+          // board to the modal/score flow; otherwise Success can coexist with a
+          // stale spawn owner or special input lock.
+          if (regularMerge6CleanupToken !== null && dst) {
+            merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken);
+            regularMerge6CleanupToken = null;
+          }
+          if (merge6SpawnOwnerToken !== null) {
+            const releasedSpawnOwner = resetMerge6SpawnState(`final-merge-guard:${guardReason}`, {
+              specialTransactionToken,
+              merge6SpawnOwnerToken,
+            });
+            if (!releasedSpawnOwner) {
+              throw new Error(`Unable to release merge-6 owner for final guard: ${guardReason}`);
+            }
+            merge6SpawnOwnerToken = null;
+          } else {
+            releaseSpecialDiceTransaction(
+              specialTransactionToken,
+              `final-merge-guard:${guardReason}`,
+            );
+          }
+          try { releaseSpecialDiceResolution(src); } catch {}
+          try { releaseSpecialDiceResolution(dst); } catch {}
           const guardFinalMergeFx = getSpecialDiceFinaleFxForMerge({
             src,
             dst,

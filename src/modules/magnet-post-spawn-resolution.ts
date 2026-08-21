@@ -5,11 +5,12 @@ export type PostMagnetResolutionInput = {
   anyMergePossible?: (tiles: any[]) => boolean;
   isLastMergeFlagSet?: boolean;
   spawnCount?: number;
+  successfulSpawnCount?: number;
 };
 
 export type PostMagnetResolution = {
   action: PostMagnetResolutionAction;
-  reason: 'merge-or-stack-potential' | 'clean-merge6-only' | 'stuck-unlocked-tiles' | 'stuck-active-tiles' | 'no-active-tiles';
+  reason: 'merge-or-stack-potential' | 'spawned-tiles-settling' | 'clean-merge6-only' | 'stuck-unlocked-tiles' | 'stuck-active-tiles' | 'no-active-tiles';
   activeTiles: any[];
   unlockedActiveTiles: any[];
   hasMergeOrStackPotential: boolean;
@@ -98,6 +99,7 @@ export function resolvePostMagnetEndgameAction({
   anyMergePossible,
   isLastMergeFlagSet = false,
   spawnCount = 0,
+  successfulSpawnCount = 0,
 }: PostMagnetResolutionInput): PostMagnetResolution {
   const activeTiles = (Array.isArray(tiles) ? tiles : []).filter(isPlayablePostMagnetTile);
   const unlockedActiveTiles = activeTiles.filter((tile: any) => !tile.locked);
@@ -105,7 +107,12 @@ export function resolvePostMagnetEndgameAction({
     ? anyMergePossible(activeTiles)
     : false;
 
-  const hasSpawnedNewTiles = spawnCount > 0 && activeTiles.length > 1;
+  // Spawned replacements can still be locked/animating when this snapshot is
+  // taken, and locked regular tiles are intentionally excluded from
+  // activeTiles. The completed spawn counter is therefore authoritative; using
+  // activeTiles.length alone can misclassify the survivor as a clean final six.
+  const hasSpawnedNewTiles =
+    successfulSpawnCount > 0 || (spawnCount > 0 && activeTiles.length > 1);
   const isActuallyLastMerge = isLastMergeFlagSet && !hasSpawnedNewTiles;
   const isBoardClean = activeTiles.length === 1 && (activeTiles[0]?.value | 0) === 6;
   const shouldClearLastMergeFlag = !!isLastMergeFlagSet && hasSpawnedNewTiles;
@@ -114,6 +121,20 @@ export function resolvePostMagnetEndgameAction({
     return {
       action: 'continue',
       reason: 'merge-or-stack-potential',
+      activeTiles,
+      unlockedActiveTiles,
+      hasMergeOrStackPotential,
+      hasSpawnedNewTiles,
+      isActuallyLastMerge,
+      isBoardClean,
+      shouldClearLastMergeFlag,
+    };
+  }
+
+  if (hasSpawnedNewTiles && activeTiles.length <= 1) {
+    return {
+      action: 'continue',
+      reason: 'spawned-tiles-settling',
       activeTiles,
       unlockedActiveTiles,
       hasMergeOrStackPotential,

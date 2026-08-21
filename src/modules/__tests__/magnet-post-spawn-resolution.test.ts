@@ -41,6 +41,26 @@ test('post-magnet resolution asks central level-end check for clean merge-6 only
   expect(result.isActuallyLastMerge).toBe(true);
 });
 
+test('post-magnet resolution never completes while successfully spawned replacements are still locked', () => {
+  const result = resolvePostMagnetEndgameAction({
+    tiles: [
+      tile({ value: 6 }),
+      tile({ value: 2, locked: true }),
+      tile({ value: 4, locked: true }),
+    ],
+    anyMergePossible: () => false,
+    isLastMergeFlagSet: true,
+    spawnCount: 2,
+    successfulSpawnCount: 2,
+  });
+
+  expect(result.action).toBe('continue');
+  expect(result.reason).toBe('spawned-tiles-settling');
+  expect(result.hasSpawnedNewTiles).toBe(true);
+  expect(result.shouldClearLastMergeFlag).toBe(true);
+  expect(result.isActuallyLastMerge).toBe(false);
+});
+
 test('post-magnet resolution asks central level-end check for stuck unlocked tiles', () => {
   const result = resolvePostMagnetEndgameAction({
     tiles: [tile({ value: 4 }), tile({ value: 5 })],

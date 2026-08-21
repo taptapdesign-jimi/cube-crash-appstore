@@ -74,14 +74,13 @@ describe('Journey Hub transition ownership', () => {
     expect(targetGuardIndex).toBeGreaterThanOrEqual(0);
     expect(normalizedFlagIndex).toBeGreaterThan(targetGuardIndex);
     expect(returnModeIndex).toBeGreaterThan(normalizedFlagIndex);
-    expect(showSource).toContain(
-      'const hasConcreteJourneyReturnTargetEarly = getJourneyReturnBoardId() !== null',
-    );
+    expect(showSource).toContain('const journeyReturnPolicy = resolveJourneyReturnEntryPolicy({');
+    expect(showSource).toContain('hasRenderedBoardTarget: hasRenderedJourneyReturnTargetEarly');
     expect(showSource).not.toContain(
       'isV700WorldReturnEarly || getJourneyReturnBoardId() !== null',
     );
     expect(showSource).toContain(
-      'returningFromInterimBoardFlagEarly && hasConcreteJourneyReturnTargetEarly',
+      'const returningFromInterimBoardEarly = journeyReturnPolicy.returningFromInterimBoard',
     );
     expect(showSource).toContain("emitIOSNativeDiagnostic('stale-journey-return-cleared-for-hub'");
     expect(showSource).toContain("localStorage.removeItem('__ccReturningFromInterimBoard')");
@@ -99,7 +98,7 @@ describe('Journey Hub transition ownership', () => {
     expect(viewportDecisionIndex).toBeGreaterThan(normalizationIndex);
     expect(returnModeIndex).toBeGreaterThan(viewportDecisionIndex);
     expect(showSource).toContain(
-      'returningFromDetailModalFlagEarly && hasConcreteJourneyReturnTargetEarly',
+      'const returningFromDetailModalEarly = journeyReturnPolicy.returningFromDetailModal',
     );
     expect(showSource).toContain('delete (window as any).__ccReturningFromDetailModal');
     expect(showSource).toContain('delete (window as any).__ccSuppressJourneyV700AutoWorldEnter');

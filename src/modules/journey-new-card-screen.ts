@@ -5,6 +5,7 @@ import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { registerCta } from './cta-system.ts';
 import { createJourneyNewCardTiltProfile } from './journey-new-card-tilt.js';
+import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -133,6 +134,18 @@ function ensureJourneyNewCardStyles(): void {
       -webkit-transform-style: preserve-3d;
       pointer-events: none;
     }
+    .cc-journey-new-card-gyro-shell {
+      position: relative;
+      grid-area: 1 / 1;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      transform-origin: 50% 50%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      pointer-events: none;
+    }
     .cc-journey-new-card-surface {
       position: relative;
       grid-area: 1 / 1;
@@ -154,6 +167,19 @@ function ensureJourneyNewCardStyles(): void {
       z-index: 3;
       opacity: 0;
       visibility: hidden;
+    }
+    .cc-journey-new-card-auto-tilt-shell {
+      position: relative;
+      grid-area: 1 / 1;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      transform-origin: 50% 54%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;
+      animation-play-state: paused;
     }
     .cc-journey-new-card-frame,
     .cc-journey-new-card-final {
@@ -263,8 +289,14 @@ function ensureJourneyNewCardStyles(): void {
       will-change: transform, opacity !important;
     }
     @keyframes ccJourneyNewCardIdle {
-      0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
-      50% { transform: translateY(-8px) rotate(1deg) scale(1.02); }
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-8px) scale(1.02); }
+    }
+    @keyframes ccJourneyNewCardAutoTilt {
+      0%, 100% { transform: perspective(1050px) rotateX(0deg) rotateY(0deg) rotateZ(-0.45deg) translateZ(0); }
+      28% { transform: perspective(1050px) rotateX(-2.3deg) rotateY(2.6deg) rotateZ(1.35deg) translateZ(5px); }
+      58% { transform: perspective(1050px) rotateX(1.65deg) rotateY(-2.35deg) rotateZ(-1.15deg) translateZ(3px); }
+      78% { transform: perspective(1050px) rotateX(-0.4deg) rotateY(0.7deg) rotateZ(0.3deg) translateZ(1px); }
     }
     @keyframes ccJourneyNewCardShimmer {
       0%, 10% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
@@ -294,6 +326,12 @@ function ensureJourneyNewCardStyles(): void {
     .cc-journey-new-card-frame.glow-pulse,
     .cc-journey-new-card-final.glow-pulse {
       animation: ccJourneyNewCardGlowPulse 0.5s ease-out;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cc-journey-new-card-motion,
+      .cc-journey-new-card-auto-tilt-shell {
+        animation: none !important;
+      }
     }
     @media (max-height: 760px) {
       #cc-journey-new-card-overlay {
@@ -540,13 +578,19 @@ export async function showJourneyNewCardScreen({
         <div class="cc-journey-new-card-hero" role="button" aria-label="Reveal ${safeCardName}" tabindex="0" style="opacity:0;transform:translateY(-30px) scale(0);">
           <div class="cc-journey-new-card-shadow" style="opacity:0;transform:translateX(-50%) scale(0.68, 0.72);"></div>
           <div class="cc-journey-new-card-motion">
-            <div class="cc-journey-new-card-surface cc-journey-new-card-surface--interim">
-              <img class="cc-journey-new-card-frame" src="${getCrumbleFramePath(1)}" alt="">
-              <div class="cc-journey-new-card-light cc-journey-new-card-light--interim" aria-hidden="true"></div>
-            </div>
-            <div class="cc-journey-new-card-surface cc-journey-new-card-surface--unlocked">
-              <img class="cc-journey-new-card-final" src="${safeCardPath}" alt="${safeCardName}">
-              <div class="cc-journey-new-card-light cc-journey-new-card-light--unlocked" aria-hidden="true"></div>
+            <div class="cc-journey-new-card-gyro-shell">
+              <div class="cc-journey-new-card-surface cc-journey-new-card-surface--interim">
+                <div class="cc-journey-new-card-auto-tilt-shell cc-journey-new-card-auto-tilt-shell--interim">
+                  <img class="cc-journey-new-card-frame" src="${getCrumbleFramePath(1)}" alt="">
+                  <div class="cc-journey-new-card-light cc-journey-new-card-light--interim" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div class="cc-journey-new-card-surface cc-journey-new-card-surface--unlocked">
+                <div class="cc-journey-new-card-auto-tilt-shell cc-journey-new-card-auto-tilt-shell--unlocked">
+                  <img class="cc-journey-new-card-final" src="${safeCardPath}" alt="${safeCardName}">
+                  <div class="cc-journey-new-card-light cc-journey-new-card-light--unlocked" aria-hidden="true"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -561,14 +605,22 @@ export async function showJourneyNewCardScreen({
     const subtitle = overlay.querySelector('.cc-journey-new-card-subtitle') as HTMLElement | null;
     const hero = overlay.querySelector('.cc-journey-new-card-hero') as HTMLElement | null;
     const motion = overlay.querySelector('.cc-journey-new-card-motion') as HTMLElement | null;
+    const gyroShell = overlay.querySelector('.cc-journey-new-card-gyro-shell') as HTMLElement | null;
     const interimSurface = overlay.querySelector('.cc-journey-new-card-surface--interim') as HTMLElement | null;
     const unlockedSurface = overlay.querySelector('.cc-journey-new-card-surface--unlocked') as HTMLElement | null;
+    const interimAutoTilt = overlay.querySelector('.cc-journey-new-card-auto-tilt-shell--interim') as HTMLElement | null;
+    const unlockedAutoTilt = overlay.querySelector('.cc-journey-new-card-auto-tilt-shell--unlocked') as HTMLElement | null;
     const frameImg = overlay.querySelector('.cc-journey-new-card-frame') as HTMLImageElement | null;
     const finalImg = overlay.querySelector('.cc-journey-new-card-final') as HTMLImageElement | null;
     const interimLight = overlay.querySelector('.cc-journey-new-card-light--interim') as HTMLElement | null;
     const unlockedLight = overlay.querySelector('.cc-journey-new-card-light--unlocked') as HTMLElement | null;
     const shadow = overlay.querySelector('.cc-journey-new-card-shadow') as HTMLElement | null;
     const cta = overlay.querySelector('.cc-journey-new-card-cta') as HTMLButtonElement | null;
+    let disposeNewCardSpatialMotion: () => void = () => undefined;
+    const setCardIdleTiltState = (activeFace: 'interim' | 'unlocked' | 'none') => {
+      if (interimAutoTilt) interimAutoTilt.style.animationPlayState = activeFace === 'interim' ? 'running' : 'paused';
+      if (unlockedAutoTilt) unlockedAutoTilt.style.animationPlayState = activeFace === 'unlocked' ? 'running' : 'paused';
+    };
     let finish: () => void = () => {};
     const ctaController = cta ? registerCta(cta, {
       variant: 'primary',
@@ -601,9 +653,11 @@ export async function showJourneyNewCardScreen({
       try { cleanupJourneySmokeEffects(hero); } catch {}
       try { clearLightMask(interimLight); } catch {}
       try { clearLightMask(unlockedLight); } catch {}
+      try { disposeNewCardSpatialMotion(); } catch {}
+      disposeNewCardSpatialMotion = () => undefined;
       try { if (frameImg) frameImg.removeAttribute('src'); } catch {}
       try { if (finalImg) finalImg.removeAttribute('src'); } catch {}
-      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, interimSurface, unlockedSurface, frameImg, finalImg, interimLight, unlockedLight, shadow, cta]); } catch {}
+      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, gyroShell, interimSurface, unlockedSurface, interimAutoTilt, unlockedAutoTilt, frameImg, finalImg, interimLight, unlockedLight, shadow, cta]); } catch {}
       try { ctaController?.dispose(); } catch {}
     });
 
@@ -755,6 +809,7 @@ export async function showJourneyNewCardScreen({
       stopSprite9ShineLoop();
       stopFinalCardShineLoop();
       clearPendingShineWork();
+      setCardIdleTiltState('none');
       ++framePlaybackId;
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
@@ -810,6 +865,7 @@ export async function showJourneyNewCardScreen({
     const reveal = async () => {
       if (revealed || revealRunning || resolved || disposed) return;
       revealRunning = true;
+      setCardIdleTiltState('none');
       stopSprite9ShineLoop();
       clearPendingShineWork();
       const revealFramePlaybackId = ++framePlaybackId;
@@ -893,6 +949,7 @@ export async function showJourneyNewCardScreen({
                 z: 0,
                 force3D: true,
               });
+              setCardIdleTiltState('unlocked');
               revealDone();
             },
           }))
@@ -1051,6 +1108,7 @@ export async function showJourneyNewCardScreen({
             z: 0,
             force3D: true,
           });
+          setCardIdleTiltState('unlocked');
         }
         void ctaController?.enter();
         revealRunning = false;
@@ -1116,6 +1174,9 @@ export async function showJourneyNewCardScreen({
     const enter = trackNewCardTimeline(gsap.timeline({
       defaults: { overwrite: 'auto' },
       onComplete: () => {
+        disposeNewCardSpatialMotion();
+        disposeNewCardSpatialMotion = mountGameplayModalSpatialMotion(overlay, gyroShell);
+        setCardIdleTiltState('interim');
         gsap.to(shadow, {
           opacity: 0.72,
           y: 8,

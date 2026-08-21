@@ -3,43 +3,43 @@ import path from 'node:path';
 import { createJourneyNewCardTiltProfile } from '../journey-new-card-tilt';
 
 describe('Journey New Reward card tilt handoff', () => {
-  test('keeps both transition tilts bounded at 15 degrees and settles like the card modal', () => {
+  test('uses half-strength Journey transition and rest tilts', () => {
     const left = createJourneyNewCardTiltProfile(() => 0);
     expect(left).toEqual({
-      interimRestRotationDeg: -4.75,
-      interimRestRotateXDeg: -3,
-      interimRestRotateYDeg: -4,
-      interimExitRotationDeg: -9,
-      interimExitRotateXDeg: -9,
-      interimExitRotateYDeg: -9,
-      unlockedEntryRotationDeg: 9,
-      unlockedEntryRotateXDeg: 9,
-      unlockedEntryRotateYDeg: 9,
-      unlockedRestRotationDeg: 4.75,
-      unlockedRestRotateXDeg: 2,
-      unlockedRestRotateYDeg: 3,
-      unlockedExitRotationDeg: 9,
-      unlockedExitRotateXDeg: -9,
-      unlockedExitRotateYDeg: 9,
+      interimRestRotationDeg: -2.38,
+      interimRestRotateXDeg: -1.5,
+      interimRestRotateYDeg: -2,
+      interimExitRotationDeg: -4.5,
+      interimExitRotateXDeg: -4.5,
+      interimExitRotateYDeg: -4.5,
+      unlockedEntryRotationDeg: 4.5,
+      unlockedEntryRotateXDeg: 4.5,
+      unlockedEntryRotateYDeg: 4.5,
+      unlockedRestRotationDeg: 2.38,
+      unlockedRestRotateXDeg: 1,
+      unlockedRestRotateYDeg: 1.5,
+      unlockedExitRotationDeg: 4.5,
+      unlockedExitRotateXDeg: -4.5,
+      unlockedExitRotateYDeg: 4.5,
     });
 
     const right = createJourneyNewCardTiltProfile(() => 1);
     expect(right).toEqual({
-      interimRestRotationDeg: 6.25,
-      interimRestRotateXDeg: -6,
-      interimRestRotateYDeg: 7,
-      interimExitRotationDeg: 15,
-      interimExitRotateXDeg: -15,
-      interimExitRotateYDeg: 15,
-      unlockedEntryRotationDeg: -15,
-      unlockedEntryRotateXDeg: 15,
-      unlockedEntryRotateYDeg: -15,
-      unlockedRestRotationDeg: -6.25,
-      unlockedRestRotateXDeg: 4,
-      unlockedRestRotateYDeg: -6,
-      unlockedExitRotationDeg: -15,
-      unlockedExitRotateXDeg: -15,
-      unlockedExitRotateYDeg: -15,
+      interimRestRotationDeg: 3.13,
+      interimRestRotateXDeg: -3,
+      interimRestRotateYDeg: 3.5,
+      interimExitRotationDeg: 7.5,
+      interimExitRotateXDeg: -7.5,
+      interimExitRotateYDeg: 7.5,
+      unlockedEntryRotationDeg: -7.5,
+      unlockedEntryRotateXDeg: 7.5,
+      unlockedEntryRotateYDeg: -7.5,
+      unlockedRestRotationDeg: -3.13,
+      unlockedRestRotateXDeg: 2,
+      unlockedRestRotateYDeg: -3,
+      unlockedExitRotationDeg: -7.5,
+      unlockedExitRotateXDeg: -7.5,
+      unlockedExitRotateYDeg: -7.5,
     });
   });
 
@@ -54,6 +54,11 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toMatch(/\.cc-journey-new-card-surface \{[\s\S]*?transform-style: preserve-3d;[\s\S]*?-webkit-transform-style: preserve-3d;/);
     expect(source).toContain('cc-journey-new-card-surface--interim');
     expect(source).toContain('cc-journey-new-card-surface--unlocked');
+    expect(source).toContain('cc-journey-new-card-gyro-shell');
+    expect(source).toContain('cc-journey-new-card-auto-tilt-shell--interim');
+    expect(source).toContain('cc-journey-new-card-auto-tilt-shell--unlocked');
+    expect(source).toContain('mountGameplayModalSpatialMotion(overlay, gyroShell)');
+    expect(source).toContain('animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;');
     expect(source).toContain('rotationZ: revealTilt.interimRestRotationDeg');
     expect(source).toContain('rotationX: revealTilt.interimExitRotateXDeg');
     expect(source).toContain('rotationY: revealTilt.interimExitRotateYDeg');

@@ -2232,6 +2232,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     anyMergePossible: makeBoard?.anyMergePossible,
     isLastMergeFlagSet,
     spawnCount,
+    successfulSpawnCount: successfulSpawns,
   });
   const activeTilesFinal = postMagnetResolution.activeTiles;
   const unlockedActiveTiles = postMagnetResolution.unlockedActiveTiles;

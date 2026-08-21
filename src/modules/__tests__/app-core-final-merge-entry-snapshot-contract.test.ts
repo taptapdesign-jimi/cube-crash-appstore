@@ -42,4 +42,25 @@ describe('merge-entry finality snapshot contract', () => {
     expect(guard).toBeGreaterThanOrEqual(0);
     expect(bonus).toBeGreaterThan(guard);
   });
+
+  test('fallback final guard releases merge and special owners before clean-board handoff', () => {
+    const helperStart = appCoreSource.indexOf('const triggerFinalMergeCleanBoardFromMergeGuard = async');
+    const helperEnd = appCoreSource.indexOf('const maybeForceCleanBoardFromSingleMerge6', helperStart);
+    const helperSource = appCoreSource.slice(helperStart, helperEnd);
+    const cleanupRelease = helperSource.indexOf('merge6DestinationCleanupOwner.release(dst, regularMerge6CleanupToken)');
+    const spawnReset = helperSource.indexOf('resetMerge6SpawnState(`final-merge-guard:${guardReason}`');
+    const specialRelease = helperSource.indexOf('releaseSpecialDiceTransaction(');
+    const visualHandoff = helperSource.indexOf('prepareFinalMergeVisualHandoff(');
+    const cleanBoard = helperSource.indexOf('triggerCleanBoardFlow(finalReason)');
+
+    expect(helperStart).toBeGreaterThanOrEqual(0);
+    expect(cleanupRelease).toBeGreaterThanOrEqual(0);
+    expect(spawnReset).toBeGreaterThan(cleanupRelease);
+    expect(specialRelease).toBeGreaterThan(spawnReset);
+    expect(visualHandoff).toBeGreaterThan(specialRelease);
+    expect(cleanBoard).toBeGreaterThan(visualHandoff);
+    expect(helperSource).toContain('merge6SpawnOwnerToken = null');
+    expect(helperSource).toContain('releaseSpecialDiceResolution(src)');
+    expect(helperSource).toContain('releaseSpecialDiceResolution(dst)');
+  });
 });
