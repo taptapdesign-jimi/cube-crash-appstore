@@ -3,7 +3,7 @@ import { Container, Sprite, Assets, Graphics, Texture, Rectangle } from 'pixi.js
 import { logger } from '../core/logger.js';
 import {
   TILE, COLS, ROWS, GAP,
-  PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
+  PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE, SHADOW_COLOR,
   ASSET_TILE,
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
   ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
@@ -42,6 +42,8 @@ interface Tile extends Container {
   refreshShadow?: () => void;
   base?: Sprite;
   _zBeforeDrag?: number;
+  _shadowDirX?: number;
+  _shadowDirY?: number;
 }
 
 interface Board extends Container {
@@ -544,6 +546,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
   // meka "sjena"
   const sh = new Graphics();
+  // The shadow is hidden at rest. Prime alpha too, otherwise Pixi's default
+  // alpha=1 briefly paints a dark first-drag frame before the 80ms lift tween.
+  sh.alpha = 0;
   t.addChild(sh);
   t.shadow = sh;
 
@@ -681,8 +686,16 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     sh.clear();
 
     // Direction of shadow is away from a "light" at the board center.
-    const dx = t.x - boardCenterX;
-    const dy = t.y - boardCenterY;
+    const hasDirectionOverride =
+      Number.isFinite((t as any)._shadowDirX) &&
+      Number.isFinite((t as any)._shadowDirY) &&
+      ((t as any)._shadowDirX !== 0 || (t as any)._shadowDirY !== 0);
+    const dx = hasDirectionOverride
+      ? (t as any)._shadowDirX as number
+      : (t.x - boardCenterX);
+    const dy = hasDirectionOverride
+      ? (t as any)._shadowDirY as number
+      : (t.y - boardCenterY);
     const len = Math.hypot(dx, dy) || 1;
     const nx = dx / len;
     const ny = dy / len;
@@ -714,7 +727,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
       const height = TILE * grow * 0.90; // compress vertically for a softer base
 
       // Exponential alpha falloff so outer rings are very subtle
-      const alpha = 0.20 * Math.pow(1 - p, 1.6);
+      const alpha = 0.14 * Math.pow(1 - p, 1.6);
       if (alpha <= 0.003) continue;
 
       // Increase shift with each outer layer for natural parallax
@@ -733,22 +746,22 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
             const outerRadius = Math.min(width, height) * 0.45;
             const innerRadius = outerRadius * 0.4;
             drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
-            shV8.fill({ color: 0xBDA38D, alpha });
+            shV8.fill({ color: SHADOW_COLOR, alpha });
           } else if (isWildJuice) {
             const centerX = ox + width / 2;
             const centerY = oy + height / 2;
             drawJuiceMug(sh, centerX, centerY, width, height);
-            shV8.fill({ color: 0xBDA38D, alpha });
+            shV8.fill({ color: SHADOW_COLOR, alpha });
           } else if (isWildMagnet) {
             const centerX = ox + width / 2;
             const centerY = oy + height / 2;
             drawMagnet(sh, centerX, centerY, width, height);
-            shV8.fill({ color: 0xBDA38D, alpha });
+            shV8.fill({ color: SHADOW_COLOR, alpha });
           } else {
-            shV8.roundRect(ox, oy, width, height, TILE * 0.22).fill({ color: 0xBDA38D, alpha });
+            shV8.roundRect(ox, oy, width, height, TILE * 0.22).fill({ color: SHADOW_COLOR, alpha });
           }
         } else {
-          sh.beginFill(0xBDA38D, alpha);
+          sh.beginFill(SHADOW_COLOR, alpha);
           if (isWildStar) {
             const centerX = ox + width / 2;
             const centerY = oy + height / 2;

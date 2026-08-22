@@ -72,6 +72,7 @@ export function installDrag({
   const drag = initDrag({
     app,
     board,
+    dragLayer: board.parent || board,
     getTiles,
     getGrid, // Pass getGrid to drag manager
     tileSize: TILE,

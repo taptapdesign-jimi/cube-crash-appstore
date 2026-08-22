@@ -87,8 +87,8 @@ export const PIP_RADIUS: number = 6;
 export const PIP_SQUARE: boolean = true;
 export const PIPS_INNER_FACTOR: number = 0.40; // manja vrijednost = veći padding od ruba
 
-// Shadow (Figma referenca: X=1, Y=4, Blur≈10, boja #BDA38D)
-export const SHADOW_COLOR: number = 0xBDA38D;
+// Gameplay shadow tuned for a light brown, slightly deeper visible tone.
+export const SHADOW_COLOR: number = 0xB99572;
 export const SHADOW_ALPHA: number = 0.35;
 export const SHADOW_OFFSET_X: number = 1;
 export const SHADOW_OFFSET_Y: number = 4;

@@ -344,6 +344,7 @@ export function initDrag(cfg) {
   const {
     app,
     board,
+    dragLayer,
     getTiles,                      // () => Tile[]
     onMerge,                       // (srcTile, dstTile, helpers) => void
     canDrop = (src, dst) => true,
@@ -407,6 +408,71 @@ export function initDrag(cfg) {
     _pendingMoveEvent: null as any,
     _moveRaf: null as number | null,
   };
+
+  const DRAG_LAYER_Z_INDEX = 12000;
+  const activeDragLayer: any = dragLayer || (board && (board.parent || board)) || board;
+
+  function getDragLayer(): any {
+    if (!activeDragLayer) return board;
+    try {
+      if (typeof activeDragLayer.sortableChildren !== 'undefined') {
+        activeDragLayer.sortableChildren = true;
+      }
+      const parentZ = Number.isFinite(activeDragLayer.zIndex) ? Number(activeDragLayer.zIndex) : 0;
+      activeDragLayer.zIndex = Math.max(parentZ, DRAG_LAYER_Z_INDEX);
+    } catch {}
+    return activeDragLayer;
+  }
+
+  function promoteTileToDragLayer(t: any): void {
+    if (!t || !activeDragLayer) return;
+    if ((t as any)._dragOriginalParent !== undefined) return;
+
+    const originalParent = t.parent || board;
+    if (!originalParent || originalParent === activeDragLayer) {
+      if (originalParent !== activeDragLayer) {
+        (t as any)._dragOriginalParent = originalParent;
+      }
+      return;
+    }
+
+    (t as any)._dragOriginalParent = originalParent;
+    try { (t as any)._dragOriginalIndex = originalParent.getChildIndex?.(t) ?? -1; } catch {}
+
+    try {
+      const layer = getDragLayer();
+      if (!layer) return;
+      layer.addChild(t);
+      t.zIndex = 99999;
+    } catch {
+      // keep safe on frame churn.
+    }
+  }
+
+  function restoreTileParent(t: any): void {
+    if (!t) return;
+    const originalParent = (t as any)._dragOriginalParent;
+    const originalIndex = (t as any)._dragOriginalIndex;
+
+    if (originalParent && t.parent !== originalParent) {
+      try {
+        t.parent?.removeChild?.(t);
+        if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.addChildAt) {
+          const clampedIndex = Math.max(0, Math.min(originalIndex, originalParent.children?.length || 0));
+          originalParent.addChildAt(t, clampedIndex);
+        } else {
+          originalParent.addChild(t);
+        }
+      } catch {
+        try { originalParent.addChild(t); } catch {}
+      }
+    }
+
+    if (originalParent) {
+      delete (t as any)._dragOriginalParent;
+      delete (t as any)._dragOriginalIndex;
+    }
+  }
 
   const emitFastStackTrace = (phase: string, payload: Record<string, unknown> = {}) => {
     if (!import.meta.env.DEV && (window as any).__ccFastStackDiagnostics !== true) return;
@@ -666,6 +732,7 @@ export function initDrag(cfg) {
   }
 
   function clearDragRuntime() {
+    const activeDragTile = drag.t;
     if (drag._perfSample || drag._perfTicker) {
       finishDragPerfSample('runtime-clear');
     }
@@ -688,6 +755,11 @@ export function initDrag(cfg) {
     resetWildDragTrailCadence(drag._wildTrailCadence);
     drag.pointerId = null;
     drag.pointerType = null;
+    if (activeDragTile && typeof activeDragTile === 'object') {
+      restoreTileParent(activeDragTile);
+      delete (activeDragTile as any)._shadowDirX;
+      delete (activeDragTile as any)._shadowDirY;
+    }
     drag._lastWatchdogRefreshAt = 0;
     setGameplayDragActive(false);
   }
@@ -751,6 +823,7 @@ export function initDrag(cfg) {
   function rememberZ(t){ t._zBeforeDrag = (t?._zBeforeDrag ?? t?.zIndex ?? 0); }
   function restoreZ(t){
     if (!t) return;
+    restoreTileParent(t);
     t.zIndex = (t._zBeforeDrag ?? 0);
     t._zBeforeDrag = undefined;
     try { board.sortChildren?.(); } catch {}
@@ -1036,7 +1109,7 @@ export function initDrag(cfg) {
 
     // ⬆️ digni na vrh, ali zapamti prijašnji z-index
     rememberZ(t);
-    board.addChild(t);
+    promoteTileToDragLayer(t);
     t.zIndex = 9999;
 
     // Temporarily set grid cell to null so ghost placeholder becomes visible
@@ -1184,10 +1257,11 @@ export function initDrag(cfg) {
       const rotationSmooth = touchPerformanceMode ? 0.18 : ROT_SMOOTH;
       const next = cur + (targetRot - cur) * rotationSmooth;
       t.rotG.rotation = next;
+    }
 
-      // Desktop keeps the weighted parallax. Touch must stay directly under the finger;
-      // positional lag reads as input latency even when the renderer is holding 60 FPS.
-      if (touchPerformanceMode) {
+    // Desktop keeps the weighted parallax. Touch must stay directly under the finger;
+    // positional lag reads as input latency even when the renderer is holding 60 FPS.
+    if (touchPerformanceMode) {
         drag.lagX = 0;
         drag.lagY = 0;
       } else {
@@ -1202,6 +1276,22 @@ export function initDrag(cfg) {
 
     if (t.position?.set) {
       t.position.set(px, py);
+    }
+
+    // Keep shadow direction tied to finger movement for the active drag.
+    const dirLen = Math.hypot(drag.vx, drag.vy);
+    if (dirLen > 0.01) {
+      (t as any)._shadowDirX = -drag.vx;
+      (t as any)._shadowDirY = -drag.vy;
+      if (t.refreshShadow) {
+        t.refreshShadow();
+      }
+    } else if ((t as any)._shadowDirX !== undefined || (t as any)._shadowDirY !== undefined) {
+      delete (t as any)._shadowDirX;
+      delete (t as any)._shadowDirY;
+      if (t.refreshShadow) {
+        t.refreshShadow();
+      }
     }
 
     if (isAnyWildTile(t)) {
