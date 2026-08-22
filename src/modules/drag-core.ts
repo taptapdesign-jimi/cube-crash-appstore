@@ -1194,16 +1194,22 @@ export function initDrag(cfg) {
     // Pickup reads immediately, then settles into a slightly softer lifted hold.
     // The tile position remains fully attached to the pointer on touch devices.
     try { gsap.killTweensOf(t.scale); } catch {}
+    // Pixi's reparentChild preserves the tile's world transform. Because the board
+    // is scaled below the stage, the overlay-local scale is intentionally smaller
+    // than 1. Pickup motion must be relative to that preserved scale; absolute
+    // 1.13/1.105 targets would make the tile several times larger than the board.
+    const overlayScaleX = Number(t.scale?.x) || 1;
+    const overlayScaleY = Number(t.scale?.y) || 1;
     trackTimeline()
       .to(t.scale, {
-        x: 1.13,
-        y: 1.09,
+        x: overlayScaleX * 1.13,
+        y: overlayScaleY * 1.09,
         duration: 0.055,
         ease: 'power3.out',
       })
       .to(t.scale, {
-        x: 1.105,
-        y: 1.105,
+        x: overlayScaleX * 1.105,
+        y: overlayScaleY * 1.105,
         duration: 0.075,
         ease: 'back.out(2.2)',
       });
@@ -2435,6 +2441,21 @@ export function initDrag(cfg) {
 
   function getRect(d) {
     if (!d || d.destroyed) return { x: 0, y: 0, w: 0, h: 0 };
+    try {
+      const bounds = d.getBounds?.();
+      if (bounds && board?.toLocal) {
+        const a = board.toLocal({ x: bounds.x, y: bounds.y });
+        const b = board.toLocal({ x: bounds.x + bounds.width, y: bounds.y + bounds.height });
+        const x = Math.min(a.x, b.x);
+        const y = Math.min(a.y, b.y);
+        return {
+          x,
+          y,
+          w: Math.max(1, Math.abs(b.x - a.x)),
+          h: Math.max(1, Math.abs(b.y - a.y)),
+        };
+      }
+    } catch {}
     const scaleX = Math.abs(d.scale?.x ?? 1);
     const scaleY = Math.abs(d.scale?.y ?? 1);
     const w = Math.max(1, tileSize * scaleX);
