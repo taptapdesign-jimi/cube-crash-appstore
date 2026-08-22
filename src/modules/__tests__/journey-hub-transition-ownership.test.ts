@@ -143,6 +143,24 @@ describe('Journey Hub transition ownership', () => {
     expect(homepageEnterSource.match(/prepareSliderEnter\(\)/g)).toHaveLength(1);
   });
 
+  test('rapid Journey re-entry cannot cancel an active Homepage return owner', () => {
+    const journeyHandoffSource = uiManagerSource.split(
+      'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
+    )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
+    const guardIndex = journeyHandoffSource.indexOf(
+      'if ((window as any).__ccIsHidingCollectibles || homepageEnterTransitionOwner.isActive())',
+    );
+    const cancelIndex = journeyHandoffSource.indexOf(
+      "homepageEnterTransitionOwner.cancel('homepage-to-journey')",
+    );
+
+    expect(guardIndex).toBeGreaterThanOrEqual(0);
+    expect(cancelIndex).toBeGreaterThan(guardIndex);
+    expect(journeyHandoffSource).toContain(
+      "emitIOSNativeDiagnostic('journey-open-ignored-homepage-return-active'",
+    );
+  });
+
   test('hidden return targets stay exact and game overlays belong to zone cleanup', () => {
     const hiddenSyncSource = sliderManagerSource.split(
       'syncHiddenSlideState(slideIndex: number): void',
@@ -188,7 +206,7 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
-  test('World spatial motion starts before enter completes and never snaps on afterward', () => {
+  test('World spatial motion starts only after the Unit cascade to avoid cold layer promotion', () => {
     const worldEnterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',
     )[1]?.split('private playJourneyV700WorldExit')[0] ?? '';
@@ -198,15 +216,63 @@ describe('Journey Hub transition ownership', () => {
     const enterIndex = worldEnterSource.indexOf(
       'await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed })',
     );
-    const completeIndex = worldEnterSource.indexOf(
-      "emitIOSNativeDiagnostic('world-enter-complete'",
-    );
+    const idleIndex = worldEnterSource.indexOf("this.journeyV700Phase = 'idle'");
 
     expect(activateIndex).toBeGreaterThanOrEqual(0);
-    expect(activateIndex).toBeLessThan(enterIndex);
-    expect(worldEnterSource.slice(completeIndex)).not.toContain(
-      'journeySpatialMotion.activateJourneyWorld(container, worldId)',
+    expect(activateIndex).toBeGreaterThan(enterIndex);
+    expect(activateIndex).toBeGreaterThan(idleIndex);
+    expect(worldEnterSource).toContain(
+      "markIOSJourneyTransitionAudit('enter-activate-spatial-motion-after-cascade')",
     );
+  });
+
+  test('World enter avoids mass compositor promotion and static World layers stay unpromoted', () => {
+    const worldEnterSource = journeyManagerSource.split(
+      'private playJourneyV700WorldEnter(',
+    )[1]?.split('private playJourneyV700WorldExit')[0] ?? '';
+    const primeSource = journeyManagerSource.split(
+      'private primeJourneyV700WorldEnter(',
+    )[1]?.split('public playJourneyV700WorldEnterFromReturn')[0] ?? '';
+
+    expect(primeSource).toContain('force3D: false');
+    expect(worldEnterSource).toContain('force3D: false');
+    expect(worldAnimationCoordinatorSource).toContain('force3D: false');
+    expect(worldAnimationCoordinatorSource.split('public async enter(')[1]
+      ?.split('public async exit(')[0]).not.toContain('force3D: true');
+    expect(journeyManagerSource).not.toContain("cloud.style.willChange = 'transform'");
+    expect(collectiblesCssSource).toContain('.journey-board-card-wrapper {');
+    expect(collectiblesCssSource).toContain('will-change: auto;');
+  });
+
+  test('an early World close queues one clean exit instead of overlapping the enter cascade', () => {
+    const closeSource = journeyManagerSource.split(
+      'private closeJourneyV700World(): void',
+    )[1]?.split('private markJourneyDevBoardRefresh')[0] ?? '';
+    const worldEnterSource = journeyManagerSource.split(
+      'private playJourneyV700WorldEnter(',
+    )[1]?.split('private playJourneyV700WorldExit')[0] ?? '';
+
+    expect(closeSource).toContain("if (this.journeyV700Phase === 'entering')");
+    expect(closeSource).toContain('this.journeyV700CloseQueuedDuringEnter = true');
+    expect(closeSource.indexOf("if (this.journeyV700Phase === 'entering')"))
+      .toBeLessThan(closeSource.indexOf('this.playJourneyV700WorldExit(container, complete)'));
+    expect(worldEnterSource).toContain('const closeQueuedDuringEnter = this.journeyV700CloseQueuedDuringEnter');
+    expect(worldEnterSource).toContain("emitIOSNativeDiagnostic('close-world-queued-enter-flush'");
+    expect(worldEnterSource).toContain('this.trackRAF(() => this.closeJourneyV700World())');
+  });
+
+  test('DOM replacement retires outgoing owners without normalizing every discarded node', () => {
+    const renderBoardsSource = journeyManagerSource.split(
+      'public renderBoards(): void',
+    )[1]?.split('private setJourneyV700View')[0] ?? '';
+    const retireSource = journeyManagerSource.split(
+      'private retireJourneyBoardOwnersBeforeDomReplace',
+    )[1]?.split('public prepareJourneyBoardCardTransformsForReveal')[0] ?? '';
+
+    expect(renderBoardsSource).toContain('this.retireJourneyBoardOwnersBeforeDomReplace(container)');
+    expect(retireSource).toContain('gsap.killTweensOf(descendants)');
+    expect(retireSource).not.toContain('gsap.set(');
+    expect(retireSource).not.toContain('getComputedStyle(');
   });
 
   test('Hub to World freezes the live iOS elastic owner before starting exit', () => {

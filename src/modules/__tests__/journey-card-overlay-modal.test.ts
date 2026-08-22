@@ -467,7 +467,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).toContain("this.getCurrentJourneyForestAreas(cardsContainer),\n      cardsContainer,\n      true,");
     expect(portal).toContain("card.classList.add('journey-board-card-return-placeholder')");
     expect(portal).toContain('portalVisual = card.cloneNode(true) as HTMLElement;');
-    expect(portal).toContain("emitLandingDiagnostic('after-restore-raf-2')");
+    expect(portal).not.toContain('CC_CARD_LANDING');
   });
 
   test('keeps reduced motion deterministic and all lifecycle cleanup connected', () => {

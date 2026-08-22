@@ -12,6 +12,7 @@ const FOREST_BEE_MIN_ONSCREEN_SECONDS = 30;
 const FOREST_BEE_DIRECTION_FADE_MS = 80;
 const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
 const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 1.5;
+const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
 const FOREST_BEE_DEPTH_SCALES = Object.freeze([0.65, 0.7, 0.8, 0.9, 1] as const);
 const FOREST_BEE_ASSET_BASE = './assets/shop/honey';
 
@@ -120,6 +121,7 @@ interface LiveBee {
   pendingAsset: ForestBeeAsset | null;
   pendingAssetSeconds: number;
   depth: ForestBeeDepth | null;
+  rendered: boolean;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -622,6 +624,29 @@ export function startJourneyForestBeeOrbits(
   let sceneVisible = true;
   let lastTickTime = ticker.time;
   let visibilityObserver: IntersectionObserver | null = null;
+  const scrollRoot = options.scrollRoot ?? null;
+  const viewportWidth = window.innerWidth || options.root.getBoundingClientRect().width || FOREST_DESIGN_WIDTH;
+  const pxPerDesignUnit = viewportWidth / FOREST_DESIGN_WIDTH;
+  let rootContentTop = 0;
+  let visibleTopScene = Number.NEGATIVE_INFINITY;
+  let visibleBottomScene = Number.POSITIVE_INFINITY;
+
+  const refreshVisibleBandGeometry = (): void => {
+    if (!scrollRoot) return;
+    const rootRect = options.root.getBoundingClientRect();
+    const scrollRect = scrollRoot.getBoundingClientRect();
+    rootContentTop = rootRect.top - scrollRect.top + scrollRoot.scrollTop;
+  };
+  const refreshVisibleBand = (): void => {
+    if (!scrollRoot) return;
+    const viewportTopPx = scrollRoot.scrollTop - rootContentTop - options.contentTopPx;
+    visibleTopScene = (viewportTopPx - FOREST_BEE_VISIBILITY_MARGIN_PX) / pxPerDesignUnit;
+    visibleBottomScene = (
+      viewportTopPx + scrollRoot.clientHeight + FOREST_BEE_VISIBILITY_MARGIN_PX
+    ) / pxPerDesignUnit;
+  };
+  refreshVisibleBandGeometry();
+  refreshVisibleBand();
 
   const bees: LiveBee[] = plans.map((plan, index) => {
     const wrapper = document.createElement('div');
@@ -640,6 +665,7 @@ export function startJourneyForestBeeOrbits(
     wrapper.style.transformOrigin = '50% 50%';
     wrapper.style.backfaceVisibility = 'hidden';
     wrapper.style.willChange = 'transform';
+    wrapper.style.visibility = 'hidden';
     const imageLayers: [HTMLImageElement, HTMLImageElement] = [createBeeImageLayer(), createBeeImageLayer()];
     wrapper.append(...imageLayers);
     options.root.appendChild(wrapper);
@@ -656,6 +682,7 @@ export function startJourneyForestBeeOrbits(
       pendingAsset: null,
       pendingAssetSeconds: 0,
       depth: null,
+      rendered: false,
     };
     setBeeAsset(bee, index % 2 === 0 ? 'bee1' : 'bee3');
     setBeeDepth(bee, plan.edgeRoute === 'forest-gate'
@@ -713,11 +740,18 @@ export function startJourneyForestBeeOrbits(
       return;
     }
     if (!sceneVisible || (typeof document !== 'undefined' && document.hidden)) return;
+    refreshVisibleBand();
 
     bees.forEach((bee, index) => {
       bee.plan.elapsedSeconds += deltaSeconds;
-      bee.element.style.visibility = bee.plan.elapsedSeconds < 0 ? 'hidden' : 'visible';
-      if (bee.plan.elapsedSeconds < 0) return;
+      if (bee.plan.elapsedSeconds < 0) {
+        if (bee.rendered) {
+          bee.element.style.visibility = 'hidden';
+          bee.element.style.willChange = 'auto';
+          bee.rendered = false;
+        }
+        return;
+      }
       if (bee.plan.phase === 'roam') bee.plan.onScreenSeconds += deltaSeconds;
       if (bee.plan.elapsedSeconds >= bee.plan.durationSeconds) advanceCompletedFlight(bee, index);
 
@@ -736,7 +770,6 @@ export function startJourneyForestBeeOrbits(
       const scaleX = bee.plan.scale * entryScale * (1 + (bounceWave * 0.045));
       const scaleY = bee.plan.scale * entryScale * (1 - (bounceWave * 0.035));
 
-      updateBeeAssetCandidate(bee, asset, deltaSeconds);
       if (bee.plan.edgeRoute === 'forest-gate') {
         const beeCenterX = bee.sample[0] + ((bee.plan.width * bee.plan.scale) / 2);
         const enteredOpening = bee.plan.gateSide === -1
@@ -745,13 +778,33 @@ export function startJourneyForestBeeOrbits(
         const exitingOpening = bee.plan.gateSide === -1
           ? beeCenterX <= gateGeometry.passageRightX
           : beeCenterX >= gateGeometry.passageLeftX;
-        // z-index has no transition: the same wrapper changes depth atomically
-        // on the exact ticker sample where its centre enters the alpha opening.
+        // Depth remains logically current even while this bee is culled below
+        // or above the physical viewport, so it cannot reappear on a stale
+        // side of the Forest/card stacking contract.
         if (bee.plan.phase === 'entry' && enteredOpening) setBeeDepth(bee, 'front');
         if (bee.plan.phase === 'exit' && progress >= 0.3 && exitingOpening) {
           setBeeDepth(bee, 'behind-forest-main');
         }
       }
+
+      const beeHeightInScene = bee.plan.width * bee.plan.scale;
+      const isNearViewport = bee.sample[1] + beeHeightInScene >= visibleTopScene
+        && bee.sample[1] <= visibleBottomScene;
+      if (!isNearViewport) {
+        if (bee.rendered) {
+          bee.element.style.visibility = 'hidden';
+          bee.element.style.willChange = 'auto';
+          bee.rendered = false;
+        }
+        return;
+      }
+      if (!bee.rendered) {
+        bee.element.style.visibility = 'visible';
+        bee.element.style.willChange = 'transform';
+        bee.rendered = true;
+      }
+
+      updateBeeAssetCandidate(bee, asset, deltaSeconds);
       bee.element.style.transform = `translate3d(${(bee.sample[0] / FOREST_DESIGN_WIDTH) * 100}vw, ${(bee.sample[1] / FOREST_DESIGN_WIDTH) * 100}vw, 0) rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`;
     });
   };
@@ -807,7 +860,9 @@ export function startJourneyForestBeeOrbits(
       if (!rootRecord) return;
       sceneVisible = rootRecord.isIntersecting;
       lastTickTime = ticker.time;
-      bees.forEach((bee) => bee.element.style.willChange = sceneVisible ? 'transform' : 'auto');
+      bees.forEach((bee) => {
+        bee.element.style.willChange = sceneVisible && bee.rendered ? 'transform' : 'auto';
+      });
     }, {
       root: options.scrollRoot || null,
       rootMargin: '180px 0px',

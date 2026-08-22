@@ -16,6 +16,44 @@ export interface JourneyWorldEnterFrameSummary {
   over50: number;
 }
 
+type ActiveJourneyTransitionAudit = {
+  marker: string;
+  markerAt: number;
+};
+
+let activeTransitionAudit: ActiveJourneyTransitionAudit | null = null;
+
+export function markIOSJourneyTransitionAudit(marker: string): void {
+  if (!activeTransitionAudit) return;
+  activeTransitionAudit.marker = marker;
+  activeTransitionAudit.markerAt = performance.now();
+  emitIOSNativeDiagnostic('world-transition-marker', { marker });
+}
+
+function getTransitionWorkSnapshot(
+  container: HTMLElement | null,
+  transitionAudit: ActiveJourneyTransitionAudit,
+): Record<string, unknown> {
+  const elements = container ? Array.from(container.querySelectorAll<HTMLElement>('*')) : [];
+  let gsapChildren = -1;
+  try { gsapChildren = ((window as any).gsap?.globalTimeline?.getChildren?.(true, true, true) || []).length; } catch {}
+  return {
+    marker: transitionAudit.marker,
+    markerAgeMs: Math.round(performance.now() - transitionAudit.markerAt),
+    childCount: elements.length,
+    imageCount: container?.querySelectorAll('img').length ?? 0,
+    activeCssAnimations: typeof document.getAnimations === 'function'
+      ? document.getAnimations().filter((animation) => animation.playState === 'running').length
+      : -1,
+    willChangeCount: elements.filter((element) => getComputedStyle(element).willChange !== 'auto').length,
+    filterCount: elements.filter((element) => {
+      const style = getComputedStyle(element);
+      return style.filter !== 'none' || style.backdropFilter !== 'none';
+    }).length,
+    gsapChildren,
+  };
+}
+
 export function summarizeJourneyWorldEnterFrames(samples: number[]): JourneyWorldEnterFrameSummary {
   const finiteSamples = samples.filter(Number.isFinite).map((sample) => Math.max(0, Math.min(250, sample)));
   const average = finiteSamples.length
@@ -45,12 +83,16 @@ export function startIOSJourneyWorldEnterAudit(
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
   let finished = false;
   const samples: number[] = [];
+  const container = document.getElementById('journey-boards-container') as HTMLElement | null;
+  const transitionAudit = { marker: 'audit-start', markerAt: startedAt };
+  activeTransitionAudit = transitionAudit;
 
   const finish = (reason: string): void => {
     if (finished) return;
     finished = true;
     if (frameId !== null) cancelAnimationFrame(frameId);
     if (stopTimer !== null) clearTimeout(stopTimer);
+    if (activeTransitionAudit === transitionAudit) activeTransitionAudit = null;
     emitIOSNativeDiagnostic('world-enter-performance', {
       ...context,
       reason,
@@ -61,7 +103,15 @@ export function startIOSJourneyWorldEnterAudit(
 
   const sampleFrame = (frameAt: number): void => {
     if (finished) return;
-    samples.push(frameAt - lastFrameAt);
+    const frameMs = frameAt - lastFrameAt;
+    samples.push(frameMs);
+    if (frameMs > 50) {
+      emitIOSNativeDiagnostic('world-transition-long-frame', {
+        ...context,
+        frameMs: Math.round(frameMs),
+        ...getTransitionWorkSnapshot(container, transitionAudit),
+      });
+    }
     lastFrameAt = frameAt;
     frameId = requestAnimationFrame(sampleFrame);
   };

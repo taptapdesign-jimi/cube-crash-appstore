@@ -13,6 +13,7 @@ import {
   finalizeJourneySliderExit,
 } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
+import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
@@ -1449,6 +1450,19 @@ class UIManager {
   
   // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void {
+    // A rapid tap can land on the newly revealed Homepage Journey CTA while
+    // Journey -> Homepage is still inside its owned enter. Cancelling that
+    // owner here used to re-render Journey mid-handoff and strand spatial
+    // motion in its held state. The settled Homepage is the only valid source
+    // for a new Journey route.
+    if ((window as any).__ccIsHidingCollectibles || homepageEnterTransitionOwner.isActive()) {
+      logger.warn('⚠️ Journey CTA ignored until Homepage return settles');
+      emitIOSNativeDiagnostic('journey-open-ignored-homepage-return-active', {
+        hidingCollectibles: (window as any).__ccIsHidingCollectibles === true,
+        homepageEnterActive: homepageEnterTransitionOwner.isActive(),
+      });
+      return;
+    }
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     try { (window as any).CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}

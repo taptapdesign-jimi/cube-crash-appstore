@@ -28,6 +28,7 @@ import {
   isSpecialDiceJuiceLikeTile,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceTntLikeTile,
+  usesRoundBubbleDragTrail,
 } from './special-dice-registry.ts';
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
 import { completeBoardLifecycleTrace } from '../utils/board-lifecycle-performance.ts';
@@ -38,6 +39,8 @@ import {
   createWildDragTrailCadenceState,
   resetWildDragTrailCadence,
 } from './wild-drag-trail-cadence.ts';
+import { isBoardFxReduced } from './board-frame-budget.ts';
+import { getDragTrailPerformanceProfile } from './drag-trail-performance-profile.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -60,14 +63,6 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(__dg_orig_to(target, vars));
 const isVerboseGameplayLogsEnabled = () => (typeof window !== 'undefined') && (window as any).__ccVerboseGameplayLogs === true;
 const WILD_SPECIALS = new Set(['wild', 'wild-magnet', 'wild-juice', 'wild-tnt']);
-const TOUCH_REGULAR_TRAIL_SPACING_PX = 20;
-const DESKTOP_REGULAR_TRAIL_SPACING_PX = 16;
-const TOUCH_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME = 2;
-const DESKTOP_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME = 3;
-const TOUCH_WILD_TRAIL_SPACING_PX = 18;
-const DESKTOP_WILD_TRAIL_SPACING_PX = 14;
-const TOUCH_WILD_TRAIL_MAX_BURSTS_PER_FRAME = 2;
-const DESKTOP_WILD_TRAIL_MAX_BURSTS_PER_FRAME = 3;
 
 function emitNativeDragPerformance(payload: Record<string, unknown>): void {
   try {
@@ -593,27 +588,27 @@ export function initDrag(cfg) {
     }
 
     const touchMode = shouldUseTouchDragPerformanceMode();
+    const trailProfile = getDragTrailPerformanceProfile(touchMode, touchMode && isBoardFxReduced());
     const points = consumeWildDragTrailPoints(
       drag._wildTrailCadence,
       Number(tile.x) || 0,
       Number(tile.y) || 0,
       atMs,
       {
-        spacingPx: touchMode ? TOUCH_WILD_TRAIL_SPACING_PX : DESKTOP_WILD_TRAIL_SPACING_PX,
-        maxBurstsPerFrame: touchMode
-          ? TOUCH_WILD_TRAIL_MAX_BURSTS_PER_FRAME
-          : DESKTOP_WILD_TRAIL_MAX_BURSTS_PER_FRAME,
+        spacingPx: trailProfile.wildSpacingPx,
+        maxBurstsPerFrame: trailProfile.wildMaxBurstsPerFrame,
       },
     );
     if (points.length === 0) return;
 
     const tileZ = tile?.zIndex ?? 0;
     const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
+    const roundBubbleTrail = usesRoundBubbleDragTrail(tile);
     for (const point of points) {
       const isFastDrag = point.speedPxPerMs >= 0.65;
-      const particleCount = touchMode
-        ? (isFastDrag ? 3 : 2)
-        : (isFastDrag ? 4 : 3);
+      const particleCount = isFastDrag
+        ? trailProfile.wildParticles.fast
+        : trailProfile.wildParticles.slow;
       magicSparklesAtTile(board, tile, {
         intensity: 1,
         particleCount,
@@ -622,6 +617,7 @@ export function initDrag(cfg) {
         distanceScale: 0.9,
         customPosition: { x: point.x, y: point.y },
         zIndex: particlesZ,
+        forceCircleParticles: roundBubbleTrail,
       });
       if (drag._perfSample) {
         drag._perfSample.trailBursts += 1;
@@ -637,16 +633,15 @@ export function initDrag(cfg) {
     }
 
     const touchMode = shouldUseTouchDragPerformanceMode();
+    const trailProfile = getDragTrailPerformanceProfile(touchMode, touchMode && isBoardFxReduced());
     const points = consumeWildDragTrailPoints(
       drag._regularTrailCadence,
       Number(tile.x) || 0,
       Number(tile.y) || 0,
       atMs,
       {
-        spacingPx: touchMode ? TOUCH_REGULAR_TRAIL_SPACING_PX : DESKTOP_REGULAR_TRAIL_SPACING_PX,
-        maxBurstsPerFrame: touchMode
-          ? TOUCH_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME
-          : DESKTOP_REGULAR_TRAIL_MAX_BURSTS_PER_FRAME,
+        spacingPx: trailProfile.regularSpacingPx,
+        maxBurstsPerFrame: trailProfile.regularMaxBurstsPerFrame,
       },
     );
     if (points.length === 0) return;
@@ -655,9 +650,9 @@ export function initDrag(cfg) {
     const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001;
     for (const point of points) {
       const isFastDrag = point.speedPxPerMs >= 0.65;
-      const particleCount = touchMode
-        ? (isFastDrag ? 7 : 5)
-        : (isFastDrag ? 9 : 7);
+      const particleCount = isFastDrag
+        ? trailProfile.regularParticles.fast
+        : trailProfile.regularParticles.slow;
       dragSmokeTrail(board, tile, 96, 0.7, {
         zIndex: particlesZ,
         particleCount,

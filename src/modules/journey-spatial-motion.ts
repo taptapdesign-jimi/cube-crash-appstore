@@ -295,6 +295,19 @@ export function normalizeJourneySpatialTilt(
   };
 }
 
+const JOURNEY_WORLD_SENSOR_STEP = 0.008;
+
+export function quantizeJourneyWorldTilt(tilt: JourneySpatialTilt): JourneySpatialTilt {
+  const quantize = (value: number): number => (
+    Number(clamp(
+      Math.round(value / JOURNEY_WORLD_SENSOR_STEP) * JOURNEY_WORLD_SENSOR_STEP,
+      -1,
+      1,
+    ).toFixed(3))
+  );
+  return { x: quantize(tilt.x), y: quantize(tilt.y) };
+}
+
 export function createJourneySpatialOffset(
   tilt: JourneySpatialTilt,
   xDepth: number,
@@ -363,7 +376,12 @@ export class AppSpatialMotionController {
       return;
     }
 
-    this.targetTilt = normalizeJourneySpatialTilt(beta, gamma, this.baselineBeta, this.baselineGamma);
+    const normalizedTilt = normalizeJourneySpatialTilt(beta, gamma, this.baselineBeta, this.baselineGamma);
+    const nextTilt = this.activeSurface === 'journey-world'
+      ? quantizeJourneyWorldTilt(normalizedTilt)
+      : normalizedTilt;
+    if (nextTilt.x === this.targetTilt.x && nextTilt.y === this.targetTilt.y) return;
+    this.targetTilt = nextTilt;
     this.ensureFrame();
   };
 

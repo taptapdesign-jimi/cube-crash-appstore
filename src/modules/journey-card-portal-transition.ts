@@ -151,42 +151,6 @@ export function acquireJourneyCardOriginLease(
   let landingAnchorRect = anchorOriginRect;
   let portalVisual: HTMLElement | null = null;
 
-  const emitLandingDiagnostic = (phase: string) => {
-    const snapshot = (element: HTMLElement | null) => {
-      if (!element) return null;
-      const computed = window.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      const image = element.querySelector('img');
-      return {
-        connected: element.isConnected,
-        parentClass: element.parentElement?.className || null,
-        className: element.className,
-        inlineStyle: element.getAttribute('style'),
-        display: computed.display,
-        visibility: computed.visibility,
-        opacity: computed.opacity,
-        transform: computed.transform,
-        translate: computed.translate,
-        rect: [rect.x, rect.y, rect.width, rect.height].map((value) => Number(value.toFixed(2))),
-        imageComplete: image?.complete ?? null,
-        imageNaturalWidth: image?.naturalWidth ?? null,
-      };
-    };
-    const detail = {
-      phase,
-      boardId,
-      original: snapshot(card),
-      portal: snapshot(portalVisual),
-    };
-    console.info('[CC_CARD_LANDING]', detail);
-    try {
-      (window as any).webkit?.messageHandlers?.consoleLog?.postMessage?.({
-        level: 'info',
-        message: `[CC_CARD_LANDING] ${JSON.stringify(detail)}`,
-      });
-    } catch {}
-  };
-
   const restoreAttributes = (settledPresentation = false) => {
     card.className = originalClassName;
     if (originalStyle === null) card.removeAttribute('style');
@@ -292,16 +256,12 @@ export function acquireJourneyCardOriginLease(
       settled = true;
       mounted = false;
       try {
-        emitLandingDiagnostic('before-restore');
         // Reveal the already-resident original underneath the still-visible
         // terminal clone. Keep the clone for two real paint frames so WebKit
         // can composite the original before the modal layer disappears.
         restoreAttributes(useSettledRestorePresentation);
-        emitLandingDiagnostic('after-restore-same-task');
         requestAnimationFrame(() => {
-          emitLandingDiagnostic('after-restore-raf-1');
           requestAnimationFrame(() => {
-            emitLandingDiagnostic('after-restore-raf-2');
             portalVisual?.remove();
             portalVisual = null;
           });

@@ -1127,7 +1127,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       const height = baseHeight * sizeMultiplier;
       shard.rect(-width/2, -height/2, width, height)
            .fill({ color: color, alpha: fillAlpha });
-    } else if (isWildJuice) {
+    } else if (isWildJuice || opts.forceCircleParticles === true) {
       // Wild juice: circles (bubbles-like particles)
       const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
       const radius = baseRadius * sizeMultiplier;

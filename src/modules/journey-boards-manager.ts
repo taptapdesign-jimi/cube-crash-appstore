@@ -50,7 +50,10 @@ import {
 } from './journey-v700-motion.js';
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
-import { startIOSJourneyWorldEnterAudit } from '../utils/ios-journey-world-enter-audit.js';
+import {
+  markIOSJourneyTransitionAudit,
+  startIOSJourneyWorldEnterAudit,
+} from '../utils/ios-journey-world-enter-audit.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import {
   JourneyWorldAnimationCoordinator,
@@ -794,6 +797,7 @@ class JourneyBoardsManager {
   private journeyDetailCloseGuardUntil = 0;
   private journeyDetailCloseInProgress = false;
   private journeyV700WorldOpenInProgress = false;
+  private journeyV700CloseQueuedDuringEnter = false;
   private journeyCardOverlayModal: JourneyCardOverlayModalController | null = null;
   private journeyOverlayReturnInFlight: { boardId: number; promise: Promise<void> } | null = null;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
@@ -901,6 +905,7 @@ class JourneyBoardsManager {
     this.cancelAllTimeouts();
     this.stopForestBeeOrbits('render-replaced');
     this.stopBeachBubbleDrift('render-replaced');
+    this.journeyV700CloseQueuedDuringEnter = false;
     this.renderLifecycleGeneration += 1;
     this.renderDisposed = false;
     return this.renderLifecycleGeneration;
@@ -1444,86 +1449,20 @@ class JourneyBoardsManager {
     target.style.willChange = 'auto';
   }
 
-  private resetJourneyBoardVisualResidue(reason: string): void {
-    try {
-      this.clearJourneyAreaIdleStartTimeout();
-      this.cleanupJourneyAreaIdleAnimations(false);
-
-      const roots = Array.from(document.querySelectorAll('#journey-screen, #journey-boards-container')) as HTMLElement[];
-      const root = roots[0] || document.body;
-      const targets = Array.from(new Set(Array.from(root.querySelectorAll(
-        [
-          '.journey-board-card-wrapper',
-          '.journey-forest-main-art',
-          '.journey-forest-cloud-art',
-          '.journey-forest-island-art',
-          '.journey-forest-stump-art',
-          '.journey-forest-star-art',
-        ].join(', ')
-      )))) as HTMLElement[];
-
-      const duplicateCounts = new Map<string, number>();
-      targets.forEach((target) => {
-        const boardCard = target.classList.contains('journey-board-card-wrapper')
-          ? target.querySelector('.journey-board-card') as HTMLElement | null
-          : null;
-        const boardId = boardCard?.dataset?.boardId;
-        if (boardId) {
-          duplicateCounts.set(`card-${boardId}`, (duplicateCounts.get(`card-${boardId}`) || 0) + 1);
-        }
-        const beamClass = Array.from(target.classList).find((className) => className.startsWith('journey-robo-alien-beam-board-'));
-        if (beamClass) {
-          duplicateCounts.set(beamClass, (duplicateCounts.get(beamClass) || 0) + 1);
-        }
-
-        if ((target as any).__ccJourneyToGameExitTween) return;
-        try { gsap.killTweensOf(target); } catch {}
-        target.classList.remove('journey-area-idle-target');
-        target.style.transition = '';
-        target.style.pointerEvents = '';
-        target.style.willChange = '';
-
-        if (target.classList.contains('journey-board-card-wrapper')) {
-          this.restoreJourneyBoardCardWrapperVisibility(target);
-          this.restoreJourneyBoardCardVisualTarget(target);
-          return;
-        }
-
-        if (target.classList.contains('journey-robo-alien-beam-art')) {
-          target.style.removeProperty('opacity');
-        }
-
-        try {
-          gsap.set(target, {
-            scale: 1,
-            opacity: 1,
-            visibility: 'visible',
-            x: 0,
-            y: 0,
-            clearProps: 'scale,x,y',
-            overwrite: true,
-          });
-          target.style.opacity = '1';
-          target.style.visibility = 'visible';
-        } catch {}
-      });
-
-      const duplicates = Array.from(duplicateCounts.entries())
-        .filter(([, count]) => count > 1)
-        .map(([key, count]) => ({ key, count }));
-      if (targets.length || duplicates.length) {
-        logger.info('🧭 Journey visual residue reset', {
-          reason,
-          targetCount: targets.length,
-          duplicates,
-        });
-      }
-    } catch (error) {
-      logger.warn('⚠️ Failed to reset Journey visual residue:', {
-        reason,
-        error: error instanceof Error ? error.message : String(error),
-      });
+  private retireJourneyBoardOwnersBeforeDomReplace(container: HTMLElement): void {
+    // These descendants are discarded immediately by renderBoards(). Resetting
+    // transform/opacity/card styles one by one makes WebKit restyle hundreds of
+    // nodes that can never paint. Stop their owners in bulk and leave visual
+    // normalization to flows that actually preserve the current DOM.
+    this.clearJourneyAreaIdleStartTimeout();
+    this.cleanupJourneyAreaIdleAnimations(false);
+    const descendants = Array.from(container.querySelectorAll<HTMLElement>('*'));
+    if (descendants.length) {
+      try { gsap.killTweensOf(descendants); } catch {}
     }
+    emitIOSNativeDiagnostic('dom-replace-owners-retired', {
+      descendantCount: descendants.length,
+    });
   }
 
   public prepareJourneyBoardCardTransformsForReveal(reason: string): void {
@@ -2477,7 +2416,7 @@ class JourneyBoardsManager {
           bgContainer
         );
         cloud.style.opacity = `${0.74 + (seededUnit(index + 31) * 0.16)}`;
-        cloud.style.willChange = 'transform';
+        cloud.style.willChange = 'auto';
         cloudTargets.push(cloud);
       });
     };
@@ -2508,7 +2447,7 @@ class JourneyBoardsManager {
           bgContainer
         );
         cloud.style.opacity = `${0.72 + (seededUnit(index + 127) * 0.14)}`;
-        cloud.style.willChange = 'transform';
+        cloud.style.willChange = 'auto';
         cloudTargets.push(cloud);
       });
     };
@@ -2540,7 +2479,7 @@ class JourneyBoardsManager {
           bgContainer
         );
         cloud.style.opacity = `${0.72 + (seededUnit(index + 227) * 0.14)}`;
-        cloud.style.willChange = 'transform';
+        cloud.style.willChange = 'auto';
         cloudTargets.push(cloud);
       });
     };
@@ -2641,7 +2580,7 @@ class JourneyBoardsManager {
             bgContainer
           );
           cloud.style.opacity = '0.82';
-          cloud.style.willChange = 'transform';
+          cloud.style.willChange = 'auto';
           targets.push(cloud);
         });
 
@@ -2749,7 +2688,7 @@ class JourneyBoardsManager {
           bgContainer
         );
         cloud.style.opacity = '0.8';
-        cloud.style.willChange = 'transform';
+        cloud.style.willChange = 'auto';
         targets.push(cloud);
       });
 
@@ -2945,7 +2884,7 @@ class JourneyBoardsManager {
           bgContainer
         );
         cloud.style.opacity = `${slot.opacity}`;
-        cloud.style.willChange = 'transform';
+        cloud.style.willChange = 'auto';
         targets.push(cloud);
       });
 
@@ -5922,7 +5861,7 @@ class JourneyBoardsManager {
     this.beginRenderLifecycle();
     journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('render-before-dom-replace');
-    this.resetJourneyBoardVisualResidue('renderBoards-before-dom-replace');
+    this.retireJourneyBoardOwnersBeforeDomReplace(container);
     try {
       const staleHubTargets = Array.from(container.querySelectorAll<HTMLElement>(
         '.journey-v700-hub-cloud-layer, .journey-v700-hub-cloud, .journey-v700-world-card'
@@ -7277,7 +7216,7 @@ class JourneyBoardsManager {
         scale: motion.enter.scale,
         opacity: 0,
         visibility: 'visible',
-        force3D: true,
+        force3D: false,
         overwrite: true,
       });
       this.journeyV700PreparedWorldEnter = { worldId, targets: allTargets };
@@ -7424,7 +7363,7 @@ class JourneyBoardsManager {
           scale: motion.enter.scale,
           opacity: 0,
           visibility: 'visible',
-          force3D: true,
+          force3D: false,
         });
         targetsPrimed = true;
       }
@@ -7445,9 +7384,13 @@ class JourneyBoardsManager {
       targetCount: allTargets.length,
       reusedPreRevealPreparation: canReusePreparedTargets,
     });
-    const finishWorldEnterAudit = source.includes('game-return')
-      ? startIOSJourneyWorldEnterAudit({ worldId, source, unitCount: units.length, targetCount: allTargets.length })
-      : () => {};
+    const finishWorldEnterAudit = startIOSJourneyWorldEnterAudit({
+      worldId,
+      source: `enter:${source}`,
+      unitCount: units.length,
+      targetCount: allTargets.length,
+    });
+    markIOSJourneyTransitionAudit('enter-waiting-for-images');
 
     const images = Array.from(new Set(allTargets.flatMap((target) => (
       target instanceof HTMLImageElement
@@ -7481,10 +7424,7 @@ class JourneyBoardsManager {
         imageCount: images.length,
         unitCount: units.length,
       });
-      // Spatial motion owns CSS translate while the enter coordinator owns
-      // transform. Start that independent owner before the cascade so an
-      // already-authorized gyro cannot apply one late all-Unit position jump.
-      journeySpatialMotion.activateJourneyWorld(container, worldId);
+      markIOSJourneyTransitionAudit('enter-unit-cascade');
       await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed });
       // An early X interrupts the enter timeline. Its promise resolves through
       // onInterrupt, but that does not grant the stale enter continuation
@@ -7498,9 +7438,15 @@ class JourneyBoardsManager {
         finishWorldEnterAudit('stale-after-enter');
         return;
       }
-      finishWorldEnterAudit('complete');
       emitIOSNativeDiagnostic('world-enter-complete', { worldId, source, unitCount: units.length });
       this.journeyV700Phase = 'idle';
+      // Promoting every spatial target during the first Unit frame produced a
+      // measured cold 76ms hitch on Beach. Enter remains neutral; after the
+      // cascade the existing controller establishes a fresh baseline and
+      // eases the accepted depth motion in without a one-frame position jump.
+      markIOSJourneyTransitionAudit('enter-activate-spatial-motion-after-cascade');
+      journeySpatialMotion.activateJourneyWorld(container, worldId);
+      finishWorldEnterAudit('complete');
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
           target.style.removeProperty('opacity');
@@ -7521,9 +7467,17 @@ class JourneyBoardsManager {
       if (source === 'default') {
         this.restoreOrScrollToInterimCard();
       }
-      this.startForestBeeOrbits(container, worldId);
-      this.startBeachBubbleDrift(container, worldId);
+      const closeQueuedDuringEnter = this.journeyV700CloseQueuedDuringEnter;
+      if (!closeQueuedDuringEnter) {
+        this.startForestBeeOrbits(container, worldId);
+        this.startBeachBubbleDrift(container, worldId);
+      }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
+      if (closeQueuedDuringEnter) {
+        this.journeyV700CloseQueuedDuringEnter = false;
+        emitIOSNativeDiagnostic('close-world-queued-enter-flush', { worldId, source });
+        this.trackRAF(() => this.closeJourneyV700World());
+      }
     }).catch((error) => {
       finishWorldEnterAudit('error');
       this.logJourneyV700Flow('world-enter-error', { worldId, error: error instanceof Error ? error.message : String(error) }, container);
@@ -7544,6 +7498,13 @@ class JourneyBoardsManager {
       excludeBoardId: options.excludeBoardId,
       mainExitFirst: true,
     });
+    const finishWorldExitAudit = startIOSJourneyWorldEnterAudit({
+      worldId: this.journeyV700WorldId,
+      source: 'exit:world-to-hub',
+      unitCount: units.length,
+      targetCount: units.reduce((count, unit) => count + unit.targets.length, 0),
+    });
+    markIOSJourneyTransitionAudit('exit-unit-cascade');
     console.log('🧩 JourneyUnitExit world-exit-units-ready', {
       worldId: this.journeyV700WorldId,
       excludeBoardId: options.excludeBoardId || null,
@@ -7568,6 +7529,7 @@ class JourneyBoardsManager {
     }, container);
     if (!units.length) {
       this.logJourneyV700Flow('world-exit-no-groups-complete', {}, container);
+      finishWorldExitAudit('no-groups');
       onComplete();
       return;
     }
@@ -7580,10 +7542,13 @@ class JourneyBoardsManager {
     });
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     void this.journeyWorldAnimation.exit(units, reducedMotion).then(() => {
+      markIOSJourneyTransitionAudit('exit-before-completion-handoff');
       this.logJourneyV700Flow('world-exit-complete', { source: 'coordinator' }, container);
+      finishWorldExitAudit('complete');
       onComplete();
     }).catch((error) => {
       this.logJourneyV700Flow('world-exit-error', { error: error instanceof Error ? error.message : String(error) }, container);
+      finishWorldExitAudit('error');
       onComplete();
     });
   }
@@ -7757,15 +7722,25 @@ class JourneyBoardsManager {
       return;
     }
     this.logJourneyV700Flow('close-world-start', {}, container);
-    journeySpatialMotion.suspend();
     if (this.journeyV700View !== 'world') {
       this.logJourneyV700Flow('close-world-ignored-not-world', {}, container);
+      return;
+    }
+    if (this.journeyV700Phase === 'entering') {
+      const alreadyQueued = this.journeyV700CloseQueuedDuringEnter;
+      this.journeyV700CloseQueuedDuringEnter = true;
+      this.logJourneyV700Flow('close-world-queued-during-enter', { alreadyQueued }, container);
+      emitIOSNativeDiagnostic('close-world-queued-during-enter', {
+        worldId: this.journeyV700WorldId,
+        alreadyQueued,
+      });
       return;
     }
     if ((container as any).__ccJourneyV700Closing === true) {
       this.logJourneyV700Flow('close-world-ignored-already-closing', {}, container);
       return;
     }
+    journeySpatialMotion.suspend();
     (container as any).__ccJourneyV700Closing = true;
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
@@ -7780,15 +7755,33 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('close-world-content-exit-complete-await-nav', {}, container);
       await navExitPromise;
       this.logJourneyV700Flow('close-world-nav-exit-complete-render-hub', {}, container);
+      const finishHubRenderAudit = startIOSJourneyWorldEnterAudit({
+        worldId: this.journeyV700WorldId,
+        source: 'handoff:hub-render',
+        unitCount: 3,
+        targetCount: container.querySelectorAll('*').length,
+      });
       try {
+        markIOSJourneyTransitionAudit('hub-render-start');
+        const hubRenderStartedAt = performance.now();
         this.setJourneyV700View('hub');
         this.updateJourneyV700Nav('hub');
         (container as any).__ccJourneyV700Closing = false;
         (container as any).__ccJourneyV700ReturningFromWorld = true;
         this.renderBoards();
+        const hubRenderDurationMs = performance.now() - hubRenderStartedAt;
+        markIOSJourneyTransitionAudit('hub-render-complete');
+        emitIOSNativeDiagnostic('hub-render-duration', {
+          durationMs: Math.round(hubRenderDurationMs),
+          childCount: document.getElementById('journey-boards-container')?.querySelectorAll('*').length ?? 0,
+          imageCount: document.getElementById('journey-boards-container')?.querySelectorAll('img').length ?? 0,
+          longTaskCandidate: hubRenderDurationMs > 50,
+        });
+        finishHubRenderAudit('complete');
         this.trackTimeout(() => this.playJourneyV700NavEnter(), 120);
         this.logJourneyV700Flow('close-world-rendered-hub', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
       } catch (error) {
+        finishHubRenderAudit('error');
         (container as any).__ccJourneyV700Closing = false;
         this.logJourneyV700Flow('close-world-render-hub-error', { error: error instanceof Error ? error.message : String(error) }, container);
         throw error;

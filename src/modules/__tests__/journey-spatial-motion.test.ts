@@ -18,6 +18,7 @@ import {
   journeySpatialMotion,
   mixJourneyHubTilt,
   normalizeJourneySpatialTilt,
+  quantizeJourneyWorldTilt,
 } from '../journey-spatial-motion.js';
 
 describe('Journey spatial motion', () => {
@@ -30,6 +31,14 @@ describe('Journey spatial motion', () => {
 
   it('keeps tiny hand jitter inside the dead zone', () => {
     expect(normalizeJourneySpatialTilt(20.2, -4.3, 20, -4)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('coalesces subpixel Journey World sensor noise without reducing frame cadence', () => {
+    expect(quantizeJourneyWorldTilt({ x: 0.101, y: -0.203 }))
+      .toEqual({ x: 0.104, y: -0.2 });
+    expect(quantizeJourneyWorldTilt({ x: 0.103, y: -0.201 }))
+      .toEqual({ x: 0.104, y: -0.2 });
+    expect(quantizeJourneyWorldTilt({ x: 1, y: -1 })).toEqual({ x: 1, y: -1 });
   });
 
   it('amplifies relaxed Journey movement without increasing maximum travel', () => {

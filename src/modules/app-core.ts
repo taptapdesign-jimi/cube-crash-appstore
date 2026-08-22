@@ -54,6 +54,7 @@ import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
 import { devLog, devWarn, devError } from './app-core-logger.ts';
+import { getRendererPerformanceProfile } from './renderer-performance-profile.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag, MakeBoard } from '../types/game-types.js';
 import { getArcadeSaveKey, getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
@@ -3307,15 +3308,13 @@ export async function boot(){
     devLog('🎮 Creating fresh PIXI app');
     const rawDevicePixelRatio = window.devicePixelRatio || 1;
     const isIOSRuntime = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const rendererResolution = isIOSRuntime
-      ? Math.min(2, rawDevicePixelRatio)
-      : rawDevicePixelRatio;
+    const rendererProfile = getRendererPerformanceProfile(rawDevicePixelRatio, isIOSRuntime);
     const initOptions = {
       resizeTo: window,
       backgroundAlpha: 0,
       antialias: false,
-      resolution: rendererResolution,
-      powerPreference: "high-performance" as const
+      resolution: rendererProfile.resolution,
+      powerPreference: rendererProfile.powerPreference
     };
     const isTransientRendererInitError = (error: unknown): boolean => {
       const msg = String((error as any)?.message || error || '');

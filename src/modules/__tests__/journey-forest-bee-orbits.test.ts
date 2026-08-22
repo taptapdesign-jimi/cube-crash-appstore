@@ -173,6 +173,58 @@ describe('Journey Forest bee flight experiment', () => {
     root.remove();
   });
 
+  test('advances offscreen pooled bees without painting them until their scroll band is visible', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    const scrollRoot = document.createElement('div');
+    Object.defineProperties(scrollRoot, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    scrollRoot.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 390, bottom: 400,
+      width: 390, height: 400, toJSON: () => ({}),
+    });
+    const root = document.createElement('div');
+    root.getBoundingClientRect = () => ({
+      x: 0, y: -scrollRoot.scrollTop, left: 0, top: -scrollRoot.scrollTop,
+      right: 390, bottom: 1400 - scrollRoot.scrollTop,
+      width: 390, height: 1400, toJSON: () => ({}),
+    });
+    scrollRoot.appendChild(root);
+    document.body.appendChild(scrollRoot);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 2,
+      add: (callback: () => void) => { callbacks.add(callback); },
+      remove: (callback: () => void) => { callbacks.delete(callback); },
+    };
+    const controller = startJourneyForestBeeOrbits({
+      root,
+      contentTopPx: 0,
+      leftGutterPx: 0,
+      scrollRoot,
+      ticker,
+      random: () => 0.5,
+      observeVisibility: false,
+    });
+    const lowerBee = root.querySelector<HTMLElement>('.journey-forest-bee-orbit-12')!;
+    expect(lowerBee.style.visibility).toBe('hidden');
+    const offscreenTransform = lowerBee.style.transform;
+    ticker.time += 0.05;
+    callbacks.forEach((callback) => callback());
+    expect(lowerBee.style.transform).toBe(offscreenTransform);
+
+    scrollRoot.scrollTop = 600;
+    ticker.time += 0.05;
+    callbacks.forEach((callback) => callback());
+    expect(lowerBee.style.visibility).toBe('visible');
+    expect(lowerBee.style.transform).not.toBe(offscreenTransform);
+    expect(lowerBee.style.willChange).toBe('transform');
+
+    controller.dispose();
+    scrollRoot.remove();
+  });
+
   test('puts gate bees behind the complete Forest main stacking context', () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), 'src/modules/journey-forest-bee-orbits.ts'),

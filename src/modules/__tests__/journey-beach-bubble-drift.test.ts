@@ -93,7 +93,8 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     const layers = Array.from(root.querySelectorAll<HTMLElement>('.journey-beach-bubble-layer'));
     expect(layers).toHaveLength(4);
     expect(layers.every((layer) => layer.style.overflow === 'hidden')).toBe(true);
-    expect(layers.every((layer) => layer.style.height === '1682px')).toBe(true);
+    expect(layers.every((layer) => layer.style.top === '0px')).toBe(true);
+    expect(layers.every((layer) => layer.style.height === '1820px')).toBe(true);
     expect(layers.every((layer) => layer.style.left === '-24px')).toBe(true);
     expect(root.firstElementChild).toBe(layers[0]);
     expect(layers[1].nextElementSibling).toBe(background);
@@ -109,11 +110,11 @@ describe('Journey Beach ambient Bottle bubbles', () => {
       '.journey-beach-drift-bubble[data-beach-bubble-emitter-board="11"]',
     )).every((bubble) => (
       bubble.dataset.beachBubbleEmitterX === '174'
-      && bubble.dataset.beachBubbleEmitterY === '466'
+      && bubble.dataset.beachBubbleEmitterY === '604'
     ))).toBe(true);
     expect(Array.from(root.querySelectorAll<HTMLElement>(
       '.journey-beach-drift-bubble[data-beach-bubble-emitter-board="20"]',
-    )).every((bubble) => Number(bubble.dataset.beachBubbleEmitterY) === 1582)).toBe(true);
+    )).every((bubble) => Number(bubble.dataset.beachBubbleEmitterY) === 1720)).toBe(true);
     expect(new Set(Array.from(root.querySelectorAll<HTMLElement>('.journey-beach-drift-bubble'))
       .map((bubble) => Number(bubble.dataset.beachBubbleOpacity))))
       .toEqual(new Set([0.2, 0.3, 0.4, 0.5, 0.6]));
@@ -167,7 +168,7 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(visible.some((bubble) => bubble.style.transform.includes('translate3d('))).toBe(true);
     expect(Array.from(root.querySelectorAll<HTMLElement>(
       '.journey-beach-drift-bubble[data-beach-bubble-emitter-board="11"]',
-    )).every((bubble) => Number(bubble.dataset.beachBubbleEmitterY) === 516)).toBe(true);
+    )).every((bubble) => Number(bubble.dataset.beachBubbleEmitterY) === 654)).toBe(true);
     expect(root.style.height).toBe(heightBefore);
 
     controller.dispose();
@@ -195,5 +196,73 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(source).toContain("this.stopBeachBubbleDrift('world-exit')");
     expect(source).toContain("this.stopBeachBubbleDrift('manager-cleanup')");
     expect(source).not.toMatch(/BeachBird|beachBird|journey-beach-bird/);
+  });
+
+  test('keeps offscreen pooled bubbles on their timeline without per-frame compositor writes', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    const scrollRoot = document.createElement('div');
+    Object.defineProperties(scrollRoot, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    scrollRoot.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 390, bottom: 600,
+      width: 390, height: 600, toJSON: () => ({}),
+    });
+    const root = document.createElement('div');
+    root.style.height = '1440px';
+    root.getBoundingClientRect = () => ({
+      x: 0, y: -scrollRoot.scrollTop, left: 0, top: -scrollRoot.scrollTop,
+      right: 390, bottom: 1440 - scrollRoot.scrollTop,
+      width: 390, height: 1440, toJSON: () => ({}),
+    });
+    const background = document.createElement('div');
+    background.className = 'journey-bg-container';
+    background.style.height = '1440px';
+    root.appendChild(background);
+    for (let boardId = 11; boardId <= 20; boardId += 1) {
+      const art = document.createElement('img');
+      art.className = 'journey-beach-island-art';
+      art.dataset.journeyAreaId = `board-${boardId}`;
+      const top = 300 + ((boardId - 11) * 124);
+      art.getBoundingClientRect = () => ({
+        x: 50, y: top, left: 50, top, right: 250, bottom: top + 200,
+        width: 200, height: 200, toJSON: () => ({}),
+      });
+      root.appendChild(art);
+    }
+    scrollRoot.appendChild(root);
+    document.body.appendChild(scrollRoot);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 1,
+      add: (callback: () => void) => { callbacks.add(callback); },
+      remove: (callback: () => void) => { callbacks.delete(callback); },
+    };
+    const controller = startJourneyBeachBubbleDrift({
+      root,
+      scrollRoot,
+      ticker,
+      random: () => 0.5,
+      observeVisibility: false,
+    });
+    const lowerBubble = root.querySelector<HTMLImageElement>(
+      '.journey-beach-bubble-layer--birth .journey-beach-drift-bubble[data-beach-bubble-emitter-board="20"]',
+    )!;
+    const offscreenTransform = lowerBubble.style.transform;
+    expect(lowerBubble.style.opacity).toBe('0');
+    ticker.time += 0.05;
+    callbacks.forEach((callback) => callback());
+    expect(lowerBubble.style.transform).toBe(offscreenTransform);
+
+    scrollRoot.scrollTop = 1100;
+    scrollRoot.dispatchEvent(new Event('scroll'));
+    ticker.time += 0.05;
+    callbacks.forEach((callback) => callback());
+    expect(lowerBubble.style.transform).not.toBe(offscreenTransform);
+    expect(Number(lowerBubble.style.opacity)).toBeGreaterThan(0);
+
+    controller.dispose();
+    scrollRoot.remove();
   });
 });

@@ -3798,7 +3798,9 @@
   flex: none;
   box-sizing: border-box !important; /* 🔥 FIX: Ensure box-sizing is border-box */
   z-index: 10;
-  will-change: transform;
+  /* Promote only while a real GSAP/card interaction owns motion. Keeping all
+     30 World wrappers promoted made the first iOS World frame allocate layers. */
+  will-change: auto;
   /* 🔥 FIX: Ensure wrapper has no background that could be visible */
   background: transparent !important;
 }

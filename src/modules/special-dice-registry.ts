@@ -294,6 +294,13 @@ export function getSpecialDiceVariantForTile(tile: any): SpecialDiceVariantDefin
   return getSpecialDiceVariant(tile?._ccSpecialDiceVariant || tile?.specialDiceVariant || null);
 }
 
+/** Beach water-themed dice use a round bubble drag trail; every other die keeps its established trail. */
+export function usesRoundBubbleDragTrail(tile: any): boolean {
+  const variantId = getSpecialDiceVariantForTile(tile)?.id;
+  if (variantId) return variantId === 'beach-ball' || variantId === 'bottle';
+  return tile?.special === 'wild-juice' || tile?._ccWildSpecial === 'wild-juice';
+}
+
 export function getCoreWildTypeForSpecialDiceVariant(variant?: SpecialDiceVariantDefinition | null): CoreWildType | null {
   if (!variant) return null;
   if (variant.archetype === 'wild-star') return 'wild';

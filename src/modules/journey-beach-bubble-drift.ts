@@ -9,6 +9,7 @@ const BEACH_SLOWDOWN_MULTIPLIER = 1.84;
 const BUBBLE_SIZE_SCALES = Object.freeze([2, 2.5, 3, 3.5, 4] as const);
 const BUBBLE_OPACITIES = Object.freeze([0.2, 0.3, 0.4, 0.5, 0.6] as const);
 const BEACH_EMITTER_BOARD_IDS = Object.freeze([11, 13, 14, 16, 17, 19, 20] as const);
+const BUBBLE_VISIBILITY_MARGIN_PX = 180;
 const ASSET_BASE = './assets/shop/bottle/bottle animation pack';
 
 type BubbleDepth = 'behind-clouds' | 'between-clouds-and-units' | 'birth-behind-card' | 'front';
@@ -54,6 +55,7 @@ interface LiveBubble {
   waveAmplitude: number;
   waveCycles: number;
   phase: number;
+  rendered: boolean;
 }
 
 function clamp01(value: number): number {
@@ -159,8 +161,14 @@ export function startJourneyBeachBubbleDrift(
   const pxPerDesignUnit = viewportWidth / DESIGN_WIDTH;
   const leftGutter = options.leftGutterPx ?? 0;
   const layerLeft = Number.parseFloat(backgroundLayer?.style.left || '') || -leftGutter;
-  const layerTop = Number.parseFloat(backgroundLayer?.style.top || '') || 0;
+  const backgroundLayerTop = Number.parseFloat(backgroundLayer?.style.top || '') || 0;
+  // Bubble paint must reach the physical top of the Journey World. The art
+  // background intentionally starts below the fixed navigation, but using its
+  // top as the bubble-layer origin made overflow/paint containment clip rising
+  // bubbles before they passed behind that navigation.
+  const layerTop = 0;
   const baseLayerHeight = Number.parseFloat(backgroundLayer?.style.height || '') || sceneHeight;
+  const baseBubbleLayerHeight = baseLayerHeight + Math.max(0, backgroundLayerTop - layerTop);
   const layerWidth = backgroundLayer?.style.width || `${viewportWidth}px`;
 
   const behindLayer = document.createElement('div');
@@ -175,7 +183,7 @@ export function startJourneyBeachBubbleDrift(
     layer.style.left = `${layerLeft}px`;
     layer.style.top = `${layerTop}px`;
     layer.style.width = layerWidth;
-    layer.style.height = `${baseLayerHeight}px`;
+    layer.style.height = `${baseBubbleLayerHeight}px`;
   });
 
   if (cloudLayer) root.insertBefore(behindLayer, cloudLayer);
@@ -194,6 +202,24 @@ export function startJourneyBeachBubbleDrift(
   };
   const depths: BubbleDepth[] = ['behind-clouds', 'between-clouds-and-units', 'front'];
   const bubbles: LiveBubble[] = [];
+  const scrollRoot = options.scrollRoot ?? null;
+  let visibleTop = Number.NEGATIVE_INFINITY;
+  let visibleBottom = Number.POSITIVE_INFINITY;
+  let layerContentTop = 0;
+
+  // The Beach world is taller than the phone viewport. Keep every pooled
+  // bubble progressing in time, but only promote bubbles near the viewport to
+  // compositor work. Previously all 18 large PNGs wrote transform + opacity
+  // every frame, including bubbles more than a screen away.
+  const refreshVisibleBand = (): void => {
+    if (!scrollRoot) return;
+    const rootRect = root.getBoundingClientRect();
+    const scrollRect = scrollRoot.getBoundingClientRect();
+    layerContentTop = rootRect.top - scrollRect.top + scrollRoot.scrollTop + layerTop;
+    visibleTop = scrollRoot.scrollTop - layerContentTop - BUBBLE_VISIBILITY_MARGIN_PX;
+    visibleBottom = visibleTop + scrollRoot.clientHeight + (BUBBLE_VISIBILITY_MARGIN_PX * 2);
+  };
+  refreshVisibleBand();
 
   const refreshLayerExtent = (): void => {
     const rootRect = root.getBoundingClientRect();
@@ -204,8 +230,8 @@ export function startJourneyBeachBubbleDrift(
       );
       const rect = art?.getBoundingClientRect();
       return rect && rect.height > 0 ? Math.max(lowest, rect.bottom - layerOriginY) : lowest;
-    }, baseLayerHeight);
-    const visualHeight = Math.max(baseLayerHeight, lowestArtBottom);
+    }, baseBubbleLayerHeight);
+    const visualHeight = Math.max(baseBubbleLayerHeight, lowestArtBottom);
     behindLayer.style.height = `${visualHeight}px`;
     betweenLayer.style.height = `${visualHeight}px`;
     birthLayer.style.height = `${visualHeight}px`;
@@ -253,7 +279,10 @@ export function startJourneyBeachBubbleDrift(
     bubble.element.src = `${ASSET_BASE}/bubble${1 + Math.floor(sample(random) * 6)}.png`;
     bubble.element.style.width = `${bubble.size}px`;
     bubble.element.style.transform = `translate3d(${bubble.startX}px,${bubble.startY}px,0)`;
-    bubble.element.style.opacity = bubble.delaySeconds === 0 ? `${bubble.opacity}` : '0';
+    const startsNearViewport = bubble.startY + bubble.size >= visibleTop
+      && bubble.startY <= visibleBottom;
+    bubble.rendered = bubble.delaySeconds === 0 && startsNearViewport;
+    bubble.element.style.opacity = bubble.rendered ? `${bubble.opacity}` : '0';
   };
 
   for (let index = 0; index < BUBBLE_COUNT; index += 1) {
@@ -286,6 +315,7 @@ export function startJourneyBeachBubbleDrift(
       waveAmplitude: 0,
       waveCycles: 1,
       phase: 0,
+      rendered: false,
     };
     resetBubble(bubble, index, true);
     bubbles.push(bubble);
@@ -301,6 +331,10 @@ export function startJourneyBeachBubbleDrift(
     }
     const deltaSeconds = Math.min(0.1, Math.max(0, ticker.time - previousTickerTime));
     previousTickerTime = ticker.time;
+    if (scrollRoot) {
+      visibleTop = scrollRoot.scrollTop - layerContentTop - BUBBLE_VISIBILITY_MARGIN_PX;
+      visibleBottom = visibleTop + scrollRoot.clientHeight + (BUBBLE_VISIBILITY_MARGIN_PX * 2);
+    }
     bubbles.forEach((bubble, index) => {
       bubble.elapsedSeconds += deltaSeconds;
       if (bubble.elapsedSeconds < bubble.delaySeconds) return;
@@ -317,11 +351,23 @@ export function startJourneyBeachBubbleDrift(
           - Math.sin(bubble.phase)) * bubble.waveAmplitude;
       const y = startY + (endY - startY) * eased;
       const edgeFade = Math.min(1, (1 - progress) * 8);
+      const isNearViewport = y + bubble.size >= visibleTop && y <= visibleBottom;
+      if (!isNearViewport) {
+        if (bubble.rendered) {
+          bubble.element.style.opacity = '0';
+          bubble.rendered = false;
+        }
+        return;
+      }
       bubble.element.style.opacity = `${bubble.opacity * Math.max(0, edgeFade)}`;
       bubble.element.style.transform = `translate3d(${x}px,${y}px,0)`;
+      bubble.rendered = true;
     });
   };
   ticker.add(tick);
+
+  const handleScroll = (): void => refreshVisibleBand();
+  scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
 
   let observer: IntersectionObserver | null = null;
   if (options.observeVisibility !== false && typeof IntersectionObserver !== 'undefined') {
@@ -337,6 +383,7 @@ export function startJourneyBeachBubbleDrift(
       if (disposed) return;
       disposed = true;
       ticker.remove(tick);
+      scrollRoot?.removeEventListener('scroll', handleScroll);
       observer?.disconnect();
       behindLayer.remove();
       betweenLayer.remove();

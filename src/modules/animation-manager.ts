@@ -42,6 +42,7 @@ class AnimationManager {
   private activeTimelines: Set<gsap.core.Timeline>; // Track external timelines for cleanup
   private isInitialized: boolean;
   private tweenCounter: number; // For generating unique IDs
+  private killCleanupInstalled: WeakSet<object>;
 
   constructor() {
     this.animations = new Map();
@@ -50,11 +51,28 @@ class AnimationManager {
     this.activeTimelines = new Set();
     this.isInitialized = false;
     this.tweenCounter = 0;
+    this.killCleanupInstalled = new WeakSet();
+  }
+
+  private installDirectKillCleanup(animation: gsap.core.Tween | gsap.core.Timeline): void {
+    if (this.killCleanupInstalled.has(animation)) return;
+    this.killCleanupInstalled.add(animation);
+    const originalKill = animation.kill;
+    const killWithCleanup = (...args: unknown[]) => {
+      this.activeTweens.delete(animation as gsap.core.Tween);
+      this.activeTimelines.delete(animation as gsap.core.Timeline);
+      return originalKill.apply(animation, args as any);
+    };
+    // Preserve Jest/mock metadata and any library-specific properties attached
+    // to kill while adding manager cleanup for legacy direct-kill call sites.
+    Object.assign(killWithCleanup, originalKill);
+    (animation as any).kill = killWithCleanup;
   }
   
   // 🔥 FIX: Track a tween and auto-remove when complete
   private trackTween(tween: gsap.core.Tween): gsap.core.Tween {
     this.activeTweens.add(tween);
+    this.installDirectKillCleanup(tween);
     const originalOnComplete = tween.eventCallback('onComplete');
     const originalOnInterrupt = tween.eventCallback('onInterrupt');
     tween.eventCallback('onComplete', () => {
@@ -77,6 +95,7 @@ class AnimationManager {
   // Without this, idle tile bounce smoke particles accumulate ~42k tweens/hour
   trackExternalTween(tween: gsap.core.Tween): gsap.core.Tween {
     this.activeTweens.add(tween);
+    this.installDirectKillCleanup(tween);
     const originalOnComplete = tween.eventCallback('onComplete');
     const originalOnInterrupt = tween.eventCallback('onInterrupt');
     tween.eventCallback('onComplete', () => {
@@ -107,6 +126,7 @@ class AnimationManager {
   // Without this, idle tile bounce smoke creates ~42k timelines/hour that never get GC'd
   trackExternalTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
     this.activeTimelines.add(timeline);
+    this.installDirectKillCleanup(timeline);
     const originalOnComplete = timeline.eventCallback('onComplete');
     const originalOnInterrupt = timeline.eventCallback('onInterrupt');
     timeline.eventCallback('onComplete', () => {

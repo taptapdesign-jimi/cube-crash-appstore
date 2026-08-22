@@ -87,7 +87,11 @@ export class JourneyWorldAnimationCoordinator {
           visibility: 'visible',
           duration: motion.enter.duration,
           ease: motion.enter.ease,
-          force3D: true,
+          // The World contains dozens of large transparent PNG targets. Forcing
+          // all of them into compositor layers before their first visible frame
+          // produced a measured 77-150ms cold iOS hitch. Let GSAP keep this
+          // short enter in 2D; settled idle motion can then own only live Units.
+          force3D: false,
           overwrite: true,
         };
         const tween = options.targetsPrimed
@@ -310,7 +314,7 @@ export class JourneyWorldAnimationCoordinator {
         scale: 1,
         opacity: 1,
         visibility: 'visible',
-        force3D: true,
+        force3D: false,
         overwrite: true,
       });
     } catch {
