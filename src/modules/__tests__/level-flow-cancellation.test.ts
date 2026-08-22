@@ -37,7 +37,7 @@ describe('level-flow cancellation ownership', () => {
     expect(jest.getTimerCount()).toBe(0);
   });
 
-  test('a bounce completion delivered after cleanup cannot mutate the retired tile', async () => {
+  test('settles mutation ownership without waiting for the decorative bounce tail', async () => {
     const tile = {
       locked: true,
       destroyed: false,
@@ -70,15 +70,50 @@ describe('level-flow cancellation ownership', () => {
     await Promise.resolve();
 
     expect(spawnBounce).toHaveBeenCalledTimes(1);
-    const cancelledSpawn = expect(spawn).rejects.toBeInstanceOf(LevelFlowCancelledError);
+    await expect(spawn).resolves.toBe(1);
+    expect(tile.locked).toBe(false);
+    expect(tile.value).toBeGreaterThan(0);
+    expect(tile._isBeingSpawned).toBe(false);
+    expect(jest.getTimerCount()).toBe(0);
+
+    completeBounce?.();
+    expect(tile.scale.set).toHaveBeenCalledWith(1, 1);
+  });
+
+  test('a stale bounce completion cannot mutate a settled tile after level cleanup', async () => {
+    const tile = {
+      locked: true,
+      destroyed: false,
+      scale: { x: 1, y: 1, set: jest.fn() },
+      value: 0,
+      gridX: 1,
+      gridY: 1,
+      alpha: 1,
+      base: { alpha: 1 },
+      rotG: { alpha: 1 },
+      overlay: { alpha: 1, visible: false },
+      pips: { alpha: 1, visible: true },
+    } as any;
+    let completeBounce: (() => void) | null = null;
+    const spawn = openLockedBounceParallel({
+      tiles: [tile],
+      k: 1,
+      makeBoard: {
+        setValue: (target: any, value: number) => { target.value = value; },
+      },
+      spawnBounce: jest.fn((_tile, onComplete) => { completeBounce = onComplete; }),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    jest.advanceTimersByTime(50);
+    await expect(spawn).resolves.toBe(1);
     cleanupLevelFlowTimeouts();
-    await cancelledSpawn;
 
     const scaleCallsAfterCleanup = tile.scale.set.mock.calls.length;
-    const timersAfterCleanup = jest.getTimerCount();
     completeBounce?.();
 
     expect(tile.scale.set).toHaveBeenCalledTimes(scaleCallsAfterCleanup);
-    expect(jest.getTimerCount()).toBe(timersAfterCleanup);
+    expect(jest.getTimerCount()).toBe(0);
   });
 });

@@ -189,9 +189,10 @@ async function openLockedBounceParallelImpl({
   // 🔥 CRITICAL FIX: Procedural spawn with cascading animations – 100ms between tiles
   // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay 100ms between tiles for visible one-by-one
   // Sequential spawning (shifted by +50ms): 1st at 50ms, 2nd at 150ms, 3rd at 250ms, 4th at 350ms
-  // 🔥 USER BUG FIX: Return Promise that resolves when ALL spawns complete (spawnBounce callbacks run).
-  // Previously returned immediately, causing merge6SpawnInProgress=false too early and checkLevelEnd to run
-  // before new tiles were spawned → false fail screen when locked placeholders (value 0) were about to spawn.
+  // Return only after every selected tile has been unlocked, assigned a value and
+  // rebound to input. The decorative bounce may continue independently: holding
+  // merge-6 transaction ownership until its visual tail completes rejects a valid
+  // fast follow-up move, and a drag can legitimately interrupt that scale tween.
   const spawnPromises: Promise<void>[] = [];
   let successfulSpawns = 0;
   for (let index = 0; index < picks.length; index++) {
@@ -319,14 +320,8 @@ async function openLockedBounceParallelImpl({
         // which previously left successfulSpawns < picks.length and triggered bogus "remainder" spawns.
         countSuccessOnce();
 
-        let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
         const onBounceComplete = () => {
-          if (resolved || generationAtStart !== levelFlowGeneration) return;
-          if (fallbackTimer != null) {
-            clearTimeout(fallbackTimer);
-            activeSpawnTimeouts.delete(fallbackTimer);
-            fallbackTimer = null;
-          }
+          if (generationAtStart !== levelFlowGeneration) return;
           ensureActiveFullVisual(t, true);
           countSuccessOnce();
           const reinforce = setTimeout(() => {
@@ -338,31 +333,13 @@ async function openLockedBounceParallelImpl({
             ensureActiveFullVisual(t, true);
           }, 160);
           activeSpawnTimeouts.add(reinforce);
-          safeResolve();
         };
         if (spawnBounce) {
           spawnBounce(t, onBounceComplete, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0, keepFullOpacity: true });
-          fallbackTimer = setTimeout(() => {
-            if (generationAtStart !== levelFlowGeneration) {
-              if (fallbackTimer != null) {
-                activeSpawnTimeouts.delete(fallbackTimer);
-                fallbackTimer = null;
-              }
-              safeResolve();
-              return;
-            }
-            if (fallbackTimer != null) {
-              activeSpawnTimeouts.delete(fallbackTimer);
-              fallbackTimer = null;
-            }
-            ensureActiveFullVisual(t, true);
-            countSuccessOnce();
-            safeResolve();
-          }, delay + 1200);
-          activeSpawnTimeouts.add(fallbackTimer);
-        } else {
-          safeResolve();
         }
+        // Mutation ownership ends here, not when the optional scale bounce ends.
+        // All gameplay state needed by endgame and the next drag is already stable.
+        safeResolve();
       }, delay);
       activeSpawnTimeouts.add(timeout);
     });

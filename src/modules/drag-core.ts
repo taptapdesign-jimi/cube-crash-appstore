@@ -345,6 +345,7 @@ export function initDrag(cfg) {
     app,
     board,
     dragLayer,
+    syncDragLayer,
     getTiles,                      // () => Tile[]
     onMerge,                       // (srcTile, dstTile, helpers) => void
     canDrop = (src, dst) => true,
@@ -414,6 +415,7 @@ export function initDrag(cfg) {
 
   function getDragLayer(): any {
     if (!activeDragLayer) return board;
+    try { syncDragLayer?.(); } catch {}
     try {
       if (typeof activeDragLayer.sortableChildren !== 'undefined') {
         activeDragLayer.sortableChildren = true;
@@ -459,7 +461,16 @@ export function initDrag(cfg) {
     try {
       const layer = getDragLayer();
       if (!layer) return;
-      if (typeof layer.reparentChild === 'function') {
+      // The dedicated overlay intentionally mirrors the board transform. Moving
+      // a direct board child between those two containers must therefore retain
+      // its board-local transform verbatim. Pixi's reparentChild() preserves the
+      // current world matrix instead; on the first frame after a layout/Play
+      // transition the freshly-copied overlay world matrix can still be stale,
+      // which applies the board scale twice and makes the first dragged die tiny.
+      if (originalParent === board && layer !== board) {
+        originalParent.removeChild?.(t);
+        layer.addChild?.(t);
+      } else if (typeof layer.reparentChild === 'function') {
         layer.reparentChild(t);
       } else {
         const globalPosition = originalParent.toGlobal?.(t.position) ?? t.position;
@@ -480,7 +491,15 @@ export function initDrag(cfg) {
 
     if (originalParent && t.parent !== originalParent) {
       try {
-        if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.reparentChildAt) {
+        if (originalParent === board && t.parent === activeDragLayer) {
+          t.parent?.removeChild?.(t);
+          if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.addChildAt) {
+            const clampedIndex = Math.max(0, Math.min(originalIndex, originalParent.children?.length || 0));
+            originalParent.addChildAt(t, clampedIndex);
+          } else {
+            originalParent.addChild(t);
+          }
+        } else if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.reparentChildAt) {
           const clampedIndex = Math.max(0, Math.min(originalIndex, originalParent.children?.length || 0));
           originalParent.reparentChildAt(t, clampedIndex);
         } else if (originalParent.reparentChild) {
@@ -1194,10 +1213,9 @@ export function initDrag(cfg) {
     // Pickup reads immediately, then settles into a slightly softer lifted hold.
     // The tile position remains fully attached to the pointer on touch devices.
     try { gsap.killTweensOf(t.scale); } catch {}
-    // Pixi's reparentChild preserves the tile's world transform. Because the board
-    // is scaled below the stage, the overlay-local scale is intentionally smaller
-    // than 1. Pickup motion must be relative to that preserved scale; absolute
-    // 1.13/1.105 targets would make the tile several times larger than the board.
+    // Pickup stays relative to the tile's canonical board-local scale. This is
+    // also safe for the non-board fallback path, where Pixi may preserve a
+    // different local scale while moving the tile into the overlay.
     const overlayScaleX = Number(t.scale?.x) || 1;
     const overlayScaleY = Number(t.scale?.y) || 1;
     trackTimeline()
@@ -1317,6 +1335,7 @@ export function initDrag(cfg) {
     }
 
     if (t.position?.set) {
+      getDragLayer();
       const boardPoint = { x: px, y: py };
       const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;
       const parentPoint = positionInParentFromGlobal(t.parent, globalPoint);

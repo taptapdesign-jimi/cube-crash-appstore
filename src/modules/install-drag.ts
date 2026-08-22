@@ -68,11 +68,38 @@ export function installDrag({
   setHitArea();
   window.addEventListener('resize', setHitArea);
 
+  // Keep dragged dice in board-local scale while rendering above the Pixi HUD.
+  // Reparenting directly to stage makes every legacy scale-to-1 animation huge,
+  // because the gameplay board itself is scaled down for the viewport.
+  const dragLayerParent = board.parent || app.stage;
+  const dragLayer = new Container();
+  dragLayer.label = 'GAMEPLAY_DRAG_OVERLAY';
+  dragLayer.eventMode = 'none';
+  dragLayer.interactive = false;
+  dragLayer.interactiveChildren = false;
+  dragLayer.sortableChildren = true;
+  dragLayer.zIndex = 12_000;
+
+  const syncDragLayerTransform = () => {
+    dragLayer.position.copyFrom(board.position);
+    dragLayer.scale.copyFrom(board.scale);
+    dragLayer.pivot.copyFrom(board.pivot);
+    dragLayer.skew.copyFrom(board.skew);
+    dragLayer.rotation = board.rotation;
+  };
+
+  syncDragLayerTransform();
+  if (dragLayerParent) {
+    dragLayerParent.sortableChildren = true;
+    dragLayerParent.addChild(dragLayer);
+  }
+
   // 2) pokreni drag manager
   const drag = initDrag({
     app,
     board,
-    dragLayer: board.parent || board,
+    dragLayer,
+    syncDragLayer: syncDragLayerTransform,
     getTiles,
     getGrid, // Pass getGrid to drag manager
     tileSize: TILE,
@@ -177,9 +204,22 @@ export function installDrag({
   });
 
   // 3) funkcija za čišćenje listenera (ako ćeš rušiti/obnavljati igru)
-  const cleanup = () => {
+  const coreDragCleanup = typeof drag?.cleanup === 'function'
+    ? drag.cleanup.bind(drag)
+    : null;
+  let cleaned = false;
+  const cleanup = (options?: { resumeIdle?: boolean }) => {
+    if (cleaned) return;
+    cleaned = true;
+    try { coreDragCleanup?.(options); } catch {}
     window.removeEventListener('resize', setHitArea);
+    try { dragLayer.removeFromParent(); } catch {}
+    try { dragLayer.destroy({ children: false }); } catch {}
   };
+
+  // app-core retains the drag owner rather than this wrapper result, so its
+  // established teardown call must also own the overlay and resize listener.
+  drag.cleanup = cleanup;
 
   return { drag, cleanup };
 }
