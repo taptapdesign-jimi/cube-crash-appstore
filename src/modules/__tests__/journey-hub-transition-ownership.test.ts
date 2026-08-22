@@ -377,6 +377,10 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private playJourneyV700HubEnter')[0] ?? '';
 
     expect(hubRenderSource).toContain("visual.className = 'journey-v700-world-visual'");
+    expect(hubRenderSource).toContain("tiltShell.className = 'journey-v700-world-tilt-shell'");
+    expect(hubRenderSource).toContain('tiltShell.appendChild(banner)');
+    expect(hubRenderSource).toContain('tiltShell.appendChild(image)');
+    expect(hubRenderSource).toContain('visual.appendChild(tiltShell)');
     expect(hubRenderSource).toContain("worldId === 2 ? 'left' : 'right'");
     expect(hubRenderSource).toContain('board.unlocked && !board.interim');
     expect(hubRenderSource).toContain('const hasInterimCard = worldBoards.some((board) => board.interim)');
@@ -387,8 +391,8 @@ describe('Journey Hub transition ownership', () => {
     expect(hubRenderSource).toContain('this.openJourneyV700World(worldId, button)');
     expect(hubRenderSource).toContain('bannerCount.textContent = `${unlockedCount}/${worldBoards.length}`');
     expect(hubRenderSource).toContain("bannerFlagFx.className = 'journey-v700-world-banner-flag-fx'");
-    expect(hubRenderSource).toContain('visual.appendChild(banner)');
-    expect(hubRenderSource).toContain('visual.appendChild(image)');
+    expect(hubRenderSource).not.toContain('visual.appendChild(banner)');
+    expect(hubRenderSource).not.toContain('visual.appendChild(image)');
     expect(hubRenderSource).not.toContain('dreamGhost');
     expect(hubRenderSource).not.toContain("badge.className = 'journey-v700-world-badge'");
     expect(collectiblesCssSource).toContain(
@@ -448,6 +452,32 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).not.toContain(
       '.journey-v700-world-banner-flag-fx::before {\n  background: radial-gradient',
     );
+  });
+
+  test('World signs start face-local auto tilt only after enter and pause it before exit', () => {
+    const hubEnterSource = journeyManagerSource.split(
+      "private playJourneyV700HubEnter(source: 'homepage' | 'world-return'): void",
+    )[1]?.split('public playJourneyV700HubEnterFromHomepage')[0] ?? '';
+    const hubExitSource = journeyManagerSource.split(
+      "public playJourneyV700HubExit(reason = 'hub-exit'",
+    )[1]?.split('private getJourneyV700WorldTargetGroups')[0] ?? '';
+
+    expect(hubEnterSource).toContain("hub?.classList.remove('journey-v700-tilt-ready')");
+    expect(hubEnterSource).toContain("hub?.classList.add('journey-v700-tilt-ready')");
+    expect(hubEnterSource.indexOf("hub?.classList.add('journey-v700-tilt-ready')"))
+      .toBeGreaterThan(hubEnterSource.indexOf("clearProps: 'transform,opacity,visibility,willChange'"));
+    expect(hubExitSource).toContain("hub?.classList.remove('journey-v700-tilt-ready')");
+    expect(collectiblesCssSource).toContain('@keyframes journey-v700-world-auto-tilt');
+    expect(collectiblesCssSource).toContain('perspective(720px)');
+    expect(collectiblesCssSource).toContain('rotateY(7.2deg)');
+    expect(collectiblesCssSource).toContain('rotateY(-6.4deg)');
+    expect(collectiblesCssSource).toContain('drop-shadow(-5px 4px 4px rgba(174, 104, 56, 0.24))');
+    expect(collectiblesCssSource).toContain('drop-shadow(5px 4px 4px rgba(174, 104, 56, 0.22))');
+    expect(collectiblesCssSource).toContain(
+      '.journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell',
+    );
+    expect(collectiblesCssSource).toContain('animation-play-state: paused;');
+    expect(collectiblesCssSource).toContain('.journey-v700-world-tilt-shell {\n    animation: none !important;');
   });
 
   test('completed Journey boards refresh mounted star images without replacing the World DOM', () => {

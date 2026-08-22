@@ -80,6 +80,14 @@ import {
   acquireJourneyCardOriginLease,
   type JourneyCardOriginLease,
 } from './journey-card-portal-transition.js';
+import {
+  startJourneyForestBeeOrbits,
+  type JourneyForestBeeOrbitController,
+} from './journey-forest-bee-orbits.js';
+import {
+  startJourneyBeachBubbleDrift,
+  type JourneyBeachBubbleDriftController,
+} from './journey-beach-bubble-drift.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -795,6 +803,8 @@ class JourneyBoardsManager {
   private journeyWorldAnimation = new JourneyWorldAnimationCoordinator();
   private journeyV700WorldMotionEpoch = 0;
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
+  private forestBeeOrbits: JourneyForestBeeOrbitController | null = null;
+  private beachBubbleDrift: JourneyBeachBubbleDriftController | null = null;
   private journeyV700HubTopGuard: {
     scrollable: HTMLElement;
     onScroll: () => void;
@@ -889,9 +899,60 @@ class JourneyBoardsManager {
     // immediately rather than retaining no-op callbacks until their deadlines.
     this.cancelAllRAFs();
     this.cancelAllTimeouts();
+    this.stopForestBeeOrbits('render-replaced');
+    this.stopBeachBubbleDrift('render-replaced');
     this.renderLifecycleGeneration += 1;
     this.renderDisposed = false;
     return this.renderLifecycleGeneration;
+  }
+
+  private stopForestBeeOrbits(reason: string): void {
+    if (!this.forestBeeOrbits) return;
+    this.forestBeeOrbits.dispose();
+    this.forestBeeOrbits = null;
+    logger.info('🐝 Forest bee orbit owner stopped', { reason });
+  }
+
+  private startForestBeeOrbits(container: HTMLElement, worldId: number): void {
+    this.stopForestBeeOrbits('start-replacement');
+    if (worldId !== 1 || this.journeyV700Phase !== 'idle') return;
+    if (this.renderDisposed || this.journeyV700View !== 'world' || this.journeyV700WorldId !== 1) return;
+    if (!container.isConnected) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) return;
+
+    const scrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const leftGutterPx = scrollRoot
+      ? Number.parseFloat(getComputedStyle(scrollRoot).getPropertyValue('--pad-left')) || 0
+      : 0;
+    this.forestBeeOrbits = startJourneyForestBeeOrbits({
+      root: container,
+      contentTopPx: getJourneyWorldContentTopPx(),
+      leftGutterPx,
+      scrollRoot,
+    });
+    logger.info('🐝 Forest bee orbit owner started', this.forestBeeOrbits.getSnapshot());
+  }
+
+  private stopBeachBubbleDrift(reason: string): void {
+    if (!this.beachBubbleDrift) return;
+    this.beachBubbleDrift.dispose();
+    this.beachBubbleDrift = null;
+    logger.info('🫧 Beach bubble drift owner stopped', { reason });
+  }
+
+  private startBeachBubbleDrift(container: HTMLElement, worldId: number): void {
+    this.stopBeachBubbleDrift('start-replacement');
+    if (worldId !== 2 || this.journeyV700Phase !== 'idle') return;
+    if (this.renderDisposed || this.journeyV700View !== 'world' || this.journeyV700WorldId !== 2) return;
+    if (!container.isConnected) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) return;
+
+    const scrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const leftGutterPx = scrollRoot
+      ? Number.parseFloat(getComputedStyle(scrollRoot).getPropertyValue('--pad-left')) || 0
+      : 0;
+    this.beachBubbleDrift = startJourneyBeachBubbleDrift({ root: container, scrollRoot, leftGutterPx });
+    logger.info('🫧 Beach bubble drift owner started', this.beachBubbleDrift.getSnapshot());
   }
   
   /**
@@ -5224,7 +5285,9 @@ class JourneyBoardsManager {
     this.renderDisposed = true;
     this.renderLifecycleGeneration += 1;
     try {
-    journeySpatialMotion.deactivate();
+      this.stopForestBeeOrbits('manager-cleanup');
+      this.stopBeachBubbleDrift('manager-cleanup');
+      journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
@@ -6168,6 +6231,13 @@ class JourneyBoardsManager {
       visual.className = 'journey-v700-world-visual';
       visual.setAttribute('aria-hidden', 'true');
 
+      // Keep the 3D idle tilt on its own face-local layer. The outer card is
+      // reserved for standard enter/exit, while `visual` keeps the existing
+      // vertical float/spatial ownership.
+      const tiltShell = document.createElement('div');
+      tiltShell.className = 'journey-v700-world-tilt-shell';
+      tiltShell.style.setProperty('--journey-world-tilt-delay', `${-(worldId - 1) * 0.92}s`);
+
       const banner = document.createElement('span');
       banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldId === 2 ? 'left' : 'right'}`;
       banner.setAttribute('aria-hidden', 'true');
@@ -6189,7 +6259,7 @@ class JourneyBoardsManager {
       bannerCount.className = 'journey-v700-world-banner-count';
       bannerCount.textContent = `${unlockedCount}/${worldBoards.length}`;
       banner.appendChild(bannerCount);
-      visual.appendChild(banner);
+      tiltShell.appendChild(banner);
 
       const image = document.createElement('img');
       image.src = meta.asset;
@@ -6197,7 +6267,8 @@ class JourneyBoardsManager {
       image.draggable = false;
       image.setAttribute('aria-hidden', 'true');
       image.className = 'journey-v700-world-image';
-      visual.appendChild(image);
+      tiltShell.appendChild(image);
+      visual.appendChild(tiltShell);
       button.appendChild(visual);
 
 	      let worldCardTouchStartX = 0;
@@ -6379,6 +6450,7 @@ class JourneyBoardsManager {
     const enterEpoch = ++this.journeyV700HubEnterEpoch;
     const enterStartedAt = performance.now();
     hub?.classList.remove('journey-v700-idle-ready');
+    hub?.classList.remove('journey-v700-tilt-ready');
     hub?.classList.remove('journey-v700-banners-presented');
     hub?.classList.remove('journey-v700-banners-retracting');
     // Prime the neutral CSS idle phase before the first GSAP enter frame.
@@ -6481,6 +6553,7 @@ class JourneyBoardsManager {
         gsap.set(hubCloudLayer, { clearProps: 'transform,opacity,visibility,willChange' });
       }
       hub?.classList.add('journey-v700-idle-ready');
+      hub?.classList.add('journey-v700-tilt-ready');
       this.journeyV700Phase = 'idle';
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('idle-ready', container);
@@ -6689,6 +6762,7 @@ class JourneyBoardsManager {
     container.dataset.journeyV700WorldId = String(worldId);
 
     const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
+    const cloudContainer = container.querySelector('.journey-cloud-container') as HTMLElement | null;
     const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
     this.applyJourneyV700WorldHeights(container);
@@ -6718,6 +6792,7 @@ class JourneyBoardsManager {
     };
 
     bgContainer?.querySelectorAll<HTMLElement>('[data-journey-area-id]').forEach(scopeImage);
+    cloudContainer?.querySelectorAll<HTMLElement>('[data-journey-area-id]').forEach(scopeImage);
     decorContainer?.querySelectorAll<HTMLElement>('[data-journey-area-id]').forEach(scopeImage);
 
     cardsContainer?.querySelectorAll<HTMLElement>('.journey-board-card-wrapper').forEach((wrapper) => {
@@ -6855,6 +6930,7 @@ class JourneyBoardsManager {
     this.journeyV700Phase = 'exiting';
     worldCards.forEach((card) => card.classList.remove('journey-v700-idle-ready'));
     hub?.classList.remove('journey-v700-idle-ready');
+    hub?.classList.remove('journey-v700-tilt-ready');
     // Retract banners behind their World PNGs in parallel with the canonical
     // World exit. Pausing local idle preserves its live angle without a snap.
     hub?.classList.add('journey-v700-banners-retracting');
@@ -7445,6 +7521,8 @@ class JourneyBoardsManager {
       if (source === 'default') {
         this.restoreOrScrollToInterimCard();
       }
+      this.startForestBeeOrbits(container, worldId);
+      this.startBeachBubbleDrift(container, worldId);
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
     }).catch((error) => {
       finishWorldEnterAudit('error');
@@ -7457,6 +7535,8 @@ class JourneyBoardsManager {
     onComplete: () => void,
     options: { excludeBoardId?: number | null } = {}
   ): void {
+    this.stopForestBeeOrbits('world-exit');
+    this.stopBeachBubbleDrift('world-exit');
     journeySpatialMotion.suspend();
     this.journeyV700PreparedWorldEnter = null;
     ++this.journeyV700WorldMotionEpoch;
@@ -7510,6 +7590,7 @@ class JourneyBoardsManager {
 
   private applyJourneyV700WorldHeights(container: HTMLElement): void {
     const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement | null;
+    const cloudContainer = container.querySelector('.journey-cloud-container') as HTMLElement | null;
     const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement | null;
     const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
@@ -7519,6 +7600,7 @@ class JourneyBoardsManager {
     container.style.height = `${scopedHeight}px`;
     container.style.minHeight = `${scopedHeight}px`;
     if (bgContainer) bgContainer.style.height = `${worldHeightPx}px`;
+    if (cloudContainer) cloudContainer.style.height = `${worldHeightPx}px`;
     if (decorContainer) decorContainer.style.height = `${worldHeightPx}px`;
     if (cardsContainer) cardsContainer.style.height = `${scopedHeight}px`;
   }
@@ -7797,6 +7879,11 @@ class JourneyBoardsManager {
         bgContainer.style.height = `${bgHeightPx}px`; // Set exact height to show full image
       }
 
+      const cloudContainer = container.querySelector('.journey-cloud-container') as HTMLElement;
+      if (cloudContainer) {
+        cloudContainer.style.height = `${bgHeightPx}px`;
+      }
+
       const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement;
       if (decorContainer) {
         decorContainer.style.height = `${bgHeightPx}px`;
@@ -7889,6 +7976,21 @@ class JourneyBoardsManager {
     // Append to container (journey-boards-container) so it scrolls with content
     container.appendChild(bgContainer);
 
+    // Clouds need their own root stacking layer. Keeping them inside the z1
+    // background context made it impossible for one bee wrapper to be above
+    // clouds while still behind Forest main / the Unit art.
+    const cloudContainer = document.createElement('div');
+    cloudContainer.className = 'journey-cloud-container';
+    cloudContainer.style.position = 'absolute';
+    cloudContainer.style.top = `${FIXED_BG_TOP_PX}px`;
+    cloudContainer.style.height = `${initialBgHeightPx}px`;
+    cloudContainer.style.left = `-${padLeft}px`;
+    cloudContainer.style.width = `${vw}px`;
+    cloudContainer.style.zIndex = '0';
+    cloudContainer.style.pointerEvents = 'none';
+    cloudContainer.style.overflow = 'visible';
+    container.insertBefore(cloudContainer, bgContainer);
+
     const decorContainer = document.createElement('div');
     decorContainer.className = 'journey-decor-container';
     decorContainer.style.position = 'absolute';
@@ -7902,6 +8004,8 @@ class JourneyBoardsManager {
     container.appendChild(decorContainer);
 
     this.renderForestMapAssets(bgContainer, decorContainer);
+    bgContainer.querySelectorAll<HTMLElement>('.journey-forest-cloud-art')
+      .forEach((cloud) => cloudContainer.appendChild(cloud));
     
     // Create cards container - also ABSOLUTE position within journey-boards-container
     // Set critical dynamic values inline (top, height) - static styles in CSS

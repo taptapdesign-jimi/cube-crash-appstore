@@ -2626,6 +2626,23 @@
   z-index: 2;
   animation: journey-v700-world-idle 4.4s ease-in-out infinite;
   animation-play-state: paused;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.journey-v700-world-tilt-shell {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 54%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+  animation: journey-v700-world-auto-tilt 4.8s ease-in-out infinite both;
+  animation-delay: var(--journey-world-tilt-delay, 0s);
+  animation-play-state: paused;
+  will-change: transform;
 }
 
 .journey-v700-world-image {
@@ -2641,6 +2658,10 @@
 
 .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-visual,
 .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-cloud {
+  animation-play-state: running;
+}
+
+.journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell {
   animation-play-state: running;
 }
 
@@ -2857,6 +2878,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .journey-v700-world-tilt-shell {
+    animation: none !important;
+    transform: none !important;
+  }
+
   .journey-v700-world-banner,
   .journey-v700-world-banner-flag-fx::before,
   .journey-v700-world-banner-flag-fx::after {
@@ -2941,6 +2967,27 @@
   }
   50% {
     transform: translate(-50%, -50%) translate3d(0, -8px, 0) scale(1.018) rotate(0.7deg);
+  }
+}
+
+/* Face-local companion to the New Card auto tilt. Its gentler, longer arc
+   keeps all three World signs readable while adding visible parallax depth. */
+@keyframes journey-v700-world-auto-tilt {
+  0%, 100% {
+    transform: perspective(720px) rotateX(0deg) rotateY(0deg) rotateZ(-0.35deg) translateZ(0) scale(1);
+    filter: drop-shadow(0 3px 3px rgba(174, 104, 56, 0.16));
+  }
+  28% {
+    transform: perspective(720px) rotateX(-2.1deg) rotateY(7.2deg) rotateZ(0.9deg) translateZ(10px) scale(1.012);
+    filter: drop-shadow(-5px 4px 4px rgba(174, 104, 56, 0.24));
+  }
+  58% {
+    transform: perspective(720px) rotateX(1.55deg) rotateY(-6.4deg) rotateZ(-0.8deg) translateZ(7px) scale(1.008);
+    filter: drop-shadow(5px 4px 4px rgba(174, 104, 56, 0.22));
+  }
+  78% {
+    transform: perspective(720px) rotateX(-0.35deg) rotateY(2deg) rotateZ(0.2deg) translateZ(3px) scale(1.004);
+    filter: drop-shadow(-2px 3px 3px rgba(174, 104, 56, 0.18));
   }
 }
 
