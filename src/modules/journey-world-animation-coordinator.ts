@@ -7,6 +7,7 @@ import {
   JOURNEY_V700_UNIT_CARD_EXIT_EASE,
 } from './journey-v700-motion.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { markIOSJourneyTransitionAudit } from '../utils/ios-journey-world-enter-audit.js';
 
 export interface JourneyWorldAnimationUnit {
   id: string;
@@ -21,10 +22,23 @@ interface JourneyWorldEnterOptions {
 
 type JourneyWorldAnimationPhase = 'hidden' | 'entering' | 'idle' | 'exiting';
 
+interface JourneyWorldIdleEntry {
+  startTime: number;
+  speed: number;
+  phaseOffset: number;
+  ySetters: Array<(value: number) => void>;
+  cloudSetters: Array<{
+    x: (value: number) => void;
+    y: (value: number) => void;
+  }>;
+}
+
 export class JourneyWorldAnimationCoordinator {
   private phase: JourneyWorldAnimationPhase = 'hidden';
   private activeTimeline: gsap.core.Timeline | null = null;
-  private idleTickers: Array<() => void> = [];
+  private idleTicker: (() => void) | null = null;
+  private idleEntries: JourneyWorldIdleEntry[] = [];
+  private idlePaintSuspendedAt: number | null = null;
 
   public getPhase(): JourneyWorldAnimationPhase {
     return this.phase;
@@ -33,9 +47,26 @@ export class JourneyWorldAnimationCoordinator {
   public stop(resetTransforms = false): void {
     this.activeTimeline?.kill();
     this.activeTimeline = null;
-    this.idleTickers.forEach((ticker) => gsap.ticker.remove(ticker));
-    this.idleTickers = [];
+    if (this.idleTicker) gsap.ticker.remove(this.idleTicker);
+    this.idleTicker = null;
+    this.idleEntries = [];
+    this.idlePaintSuspendedAt = null;
     if (resetTransforms) this.phase = 'hidden';
+  }
+
+  /** Pause only settled idle paint. Enter keeps its contractually required
+   * per-Unit handoff, while modal/scroll suspension resumes from the exact
+   * previous phase without a catch-up jump. */
+  public setIdlePaintSuspended(suspended: boolean): void {
+    const now = gsap.ticker.time;
+    if (suspended) {
+      if (this.idlePaintSuspendedAt === null) this.idlePaintSuspendedAt = now;
+      return;
+    }
+    if (this.idlePaintSuspendedAt === null) return;
+    const pausedFor = Math.max(0, now - this.idlePaintSuspendedAt);
+    this.idleEntries.forEach((entry) => entry.startTime += pausedFor);
+    this.idlePaintSuspendedAt = null;
   }
 
   public async enter(
@@ -108,6 +139,7 @@ export class JourneyWorldAnimationCoordinator {
           ? Number(unit.enterDelayOffset)
           : getJourneyV700EnterOffset(unit.id, index, reducedMotion);
         tween.eventCallback('onStart', () => {
+          markIOSJourneyTransitionAudit(`enter-unit-${unit.id}-start`);
           emitIOSNativeDiagnostic('world-unit-enter-start', {
             unitId: unit.id,
             unitIndex: index,
@@ -164,6 +196,15 @@ export class JourneyWorldAnimationCoordinator {
 
       exitOrder.forEach((unit, index) => {
         const position = index * stagger;
+        const markUnitExitStart = () => {
+          markIOSJourneyTransitionAudit(`exit-unit-${unit.id}-start`);
+          emitIOSNativeDiagnostic('world-unit-exit-start', {
+            unitId: unit.id,
+            unitIndex: index,
+            targetCount: unit.targets.length,
+            scheduledAt: position,
+          });
+        };
         const cardWrappers = unit.targets.filter((target) => (
           target.classList.contains('journey-board-card-wrapper')
         ));
@@ -182,8 +223,9 @@ export class JourneyWorldAnimationCoordinator {
             opacity: 0,
             duration: motion.exit.duration,
             ease: motion.exit.ease,
-            force3D: true,
+            force3D: false,
             overwrite: true,
+            onStart: markUnitExitStart,
           });
           timeline.add(tween, position);
           return;
@@ -201,8 +243,9 @@ export class JourneyWorldAnimationCoordinator {
             opacity: 0,
             duration: motion.exit.duration,
             ease: motion.exit.ease,
-            force3D: true,
+            force3D: false,
             overwrite: true,
+            onStart: markUnitExitStart,
           }), position);
         }
 
@@ -210,8 +253,9 @@ export class JourneyWorldAnimationCoordinator {
           y: motion.exit.y,
           duration: JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
           ease: motion.exit.ease,
-          force3D: true,
+          force3D: false,
           overwrite: true,
+          onStart: structuralTargets.length ? undefined : markUnitExitStart,
         }), position);
         cardVisualTargets.forEach((card) => {
           card.classList.add('journey-card-tapping');
@@ -246,7 +290,7 @@ export class JourneyWorldAnimationCoordinator {
           opacity: 1,
           duration: JOURNEY_V700_UNIT_CARD_EXIT_DURATION,
           ease: JOURNEY_V700_UNIT_CARD_EXIT_EASE,
-          force3D: true,
+          force3D: false,
           overwrite: true,
           onComplete: finalizeCardExit,
           onInterrupt: finalizeCardExit,
@@ -275,24 +319,29 @@ export class JourneyWorldAnimationCoordinator {
         x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
         y: gsap.quickSetter(cloud, 'y', 'px') as (value: number) => void,
       }));
-      const ticker = () => {
-        if (this.phase !== 'entering' && this.phase !== 'idle') return;
-        const elapsed = gsap.ticker.time - startTime;
+      this.idleEntries.push({ startTime, speed, phaseOffset, ySetters, cloudSetters });
+    });
+
+    if (this.idleTicker) return;
+    this.idleTicker = () => {
+      if (this.phase !== 'entering' && this.phase !== 'idle') return;
+      if (this.idlePaintSuspendedAt !== null && this.phase === 'idle') return;
+      const now = gsap.ticker.time;
+      this.idleEntries.forEach((entry) => {
+        const elapsed = now - entry.startTime;
         const ramp = Math.min(1, elapsed / 0.18);
         const easedRamp = ramp * ramp * (3 - (2 * ramp));
-        const y = Math.sin((elapsed * speed) + phaseOffset) * 7 * easedRamp;
-        ySetters.forEach((setY) => setY(y));
-        cloudSetters.forEach((setters, cloudIndex) => {
-          const x = Math.sin((elapsed * speed * 0.62) + phaseOffset + cloudIndex) * 10 * easedRamp;
-          const y = Math.cos((elapsed * speed * 0.48) + phaseOffset + (cloudIndex * 0.73)) * 5 * easedRamp;
+        const y = Math.sin((elapsed * entry.speed) + entry.phaseOffset) * 7 * easedRamp;
+        entry.ySetters.forEach((setY) => setY(y));
+        entry.cloudSetters.forEach((setters, cloudIndex) => {
+          const x = Math.sin((elapsed * entry.speed * 0.62) + entry.phaseOffset + cloudIndex) * 10 * easedRamp;
+          const cloudY = Math.cos((elapsed * entry.speed * 0.48) + entry.phaseOffset + (cloudIndex * 0.73)) * 5 * easedRamp;
           setters.x(x);
-          setters.y(y);
+          setters.y(cloudY);
         });
-      };
-
-      gsap.ticker.add(ticker);
-      this.idleTickers.push(ticker);
-    });
+      });
+    };
+    gsap.ticker.add(this.idleTicker);
   }
 
   private getLiveUnits(units: JourneyWorldAnimationUnit[]): JourneyWorldAnimationUnit[] {

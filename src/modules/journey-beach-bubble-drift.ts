@@ -1,4 +1,10 @@
 import { gsap } from 'gsap';
+import {
+  startJourneyAmbientCanvasRuntime,
+  type JourneyAmbientCanvasDepth,
+  type JourneyAmbientCanvasFrame,
+  type JourneyAmbientTicker,
+} from './journey-ambient-canvas-runtime.js';
 
 const DESIGN_WIDTH = 390;
 const REFERENCE_HEIGHT = 844;
@@ -12,24 +18,17 @@ const BEACH_EMITTER_BOARD_IDS = Object.freeze([11, 13, 14, 16, 17, 19, 20] as co
 const BUBBLE_VISIBILITY_MARGIN_PX = 180;
 const ASSET_BASE = './assets/shop/bottle/bottle animation pack';
 
-type BubbleDepth = 'behind-clouds' | 'between-clouds-and-units' | 'birth-behind-card' | 'front';
-
-interface BubbleTicker {
-  time: number;
-  add(callback: () => void): void;
-  remove(callback: () => void): void;
-}
-
 export interface StartJourneyBeachBubbleDriftOptions {
   root: HTMLElement;
   scrollRoot?: HTMLElement | null;
   leftGutterPx?: number;
   random?: () => number;
-  ticker?: BubbleTicker;
+  ticker?: JourneyAmbientTicker;
   observeVisibility?: boolean;
 }
 
 export interface JourneyBeachBubbleDriftController {
+  setSuspended(suspended: boolean): void;
   dispose(): void;
   getSnapshot(): {
     disposed: boolean;
@@ -37,12 +36,18 @@ export interface JourneyBeachBubbleDriftController {
     layerCount: number;
     tickerCount: number;
     visibleBubbleCount: number;
+    renderer: 'canvas';
+    domImageCount: number;
+    emitterBoardIds: number[];
+    emitterAnchors: Array<{ boardId: number; x: number; y: number }>;
+    activeBubbleCount: number;
+    behindBubbleCount: number;
+    maxOpacity: number;
   };
 }
 
 interface LiveBubble {
-  element: HTMLImageElement;
-  depth: BubbleDepth;
+  depth: JourneyAmbientCanvasDepth;
   durationSeconds: number;
   delaySeconds: number;
   elapsedSeconds: number;
@@ -55,8 +60,11 @@ interface LiveBubble {
   waveAmplitude: number;
   waveCycles: number;
   phase: number;
+  assetIndex: number;
   rendered: boolean;
 }
+
+interface BeachBubbleEmitter { boardId: number; x: number; y: number }
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0.5));
@@ -66,13 +74,9 @@ function sample(random: () => number): number {
   return clamp01(random());
 }
 
-export function createBeachBubbleRiseDuration(
-  sceneHeightPx: number,
-  randomValue: number,
-): number {
+export function createBeachBubbleRiseDuration(sceneHeightPx: number, randomValue: number): number {
   const heightScale = Math.max(0.5, sceneHeightPx / REFERENCE_HEIGHT);
-  const bottleDuration = BOTTLE_RISE_MIN_SECONDS
-    + clamp01(randomValue) * BOTTLE_RISE_RANGE_SECONDS;
+  const bottleDuration = BOTTLE_RISE_MIN_SECONDS + clamp01(randomValue) * BOTTLE_RISE_RANGE_SECONDS;
   return bottleDuration * BEACH_SLOWDOWN_MULTIPLIER * heightScale;
 }
 
@@ -90,16 +94,7 @@ export function getBeachBubbleVerticalBounds(startY: number, bubbleSize: number)
   startY: number;
   endY: number;
 } {
-  return {
-    startY,
-    endY: -bubbleSize * 1.35,
-  };
-}
-
-interface BeachBubbleEmitter {
-  boardId: number;
-  x: number;
-  y: number;
+  return { startY, endY: -bubbleSize * 1.35 };
 }
 
 function resolveBeachBubbleEmitters(
@@ -136,15 +131,30 @@ function resolveSceneHeight(root: HTMLElement): number {
   return Math.max(1, root.getBoundingClientRect().height || root.clientHeight || REFERENCE_HEIGHT);
 }
 
-function setLayerBase(layer: HTMLDivElement, className: string, zIndex: number): void {
-  layer.className = className;
-  layer.style.cssText = [
-    'position:absolute',
-    'overflow:hidden',
-    'pointer-events:none',
-    'contain:layout paint',
-    `z-index:${zIndex}`,
-  ].join(';');
+function createBubbleAssets(): HTMLImageElement[] {
+  if (typeof Image === 'undefined') return [];
+  return Array.from({ length: 6 }, (_, index) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = `${ASSET_BASE}/bubble${index + 1}.png`;
+    return image;
+  });
+}
+
+function drawBubble(
+  context: CanvasRenderingContext2D | null,
+  image: HTMLImageElement | undefined,
+  x: number,
+  y: number,
+  size: number,
+  opacity: number,
+  canvasTop: number,
+): void {
+  if (!context || !image?.complete || image.naturalWidth <= 0 || opacity <= 0) return;
+  context.save();
+  context.globalAlpha = opacity;
+  context.drawImage(image, x, y - canvasTop, size, size);
+  context.restore();
 }
 
 export function startJourneyBeachBubbleDrift(
@@ -155,73 +165,21 @@ export function startJourneyBeachBubbleDrift(
   const ticker = options.ticker ?? gsap.ticker;
   const cloudLayer = root.querySelector<HTMLElement>('.journey-cloud-container');
   const backgroundLayer = root.querySelector<HTMLElement>('.journey-bg-container');
-  const cardsLayer = root.querySelector<HTMLElement>('.journey-cards-container');
   const sceneHeight = resolveSceneHeight(root);
   const viewportWidth = window.innerWidth || root.getBoundingClientRect().width || DESIGN_WIDTH;
   const pxPerDesignUnit = viewportWidth / DESIGN_WIDTH;
   const leftGutter = options.leftGutterPx ?? 0;
   const layerLeft = Number.parseFloat(backgroundLayer?.style.left || '') || -leftGutter;
-  const backgroundLayerTop = Number.parseFloat(backgroundLayer?.style.top || '') || 0;
-  // Bubble paint must reach the physical top of the Journey World. The art
-  // background intentionally starts below the fixed navigation, but using its
-  // top as the bubble-layer origin made overflow/paint containment clip rising
-  // bubbles before they passed behind that navigation.
   const layerTop = 0;
+  const layerWidth = Number.parseFloat(backgroundLayer?.style.width || '') || viewportWidth;
   const baseLayerHeight = Number.parseFloat(backgroundLayer?.style.height || '') || sceneHeight;
-  const baseBubbleLayerHeight = baseLayerHeight + Math.max(0, backgroundLayerTop - layerTop);
-  const layerWidth = backgroundLayer?.style.width || `${viewportWidth}px`;
-
-  const behindLayer = document.createElement('div');
-  const betweenLayer = document.createElement('div');
-  const birthLayer = document.createElement('div');
-  const frontLayer = document.createElement('div');
-  setLayerBase(behindLayer, 'journey-beach-bubble-layer journey-beach-bubble-layer--behind', 0);
-  setLayerBase(betweenLayer, 'journey-beach-bubble-layer journey-beach-bubble-layer--between', 0);
-  setLayerBase(birthLayer, 'journey-beach-bubble-layer journey-beach-bubble-layer--birth', 2);
-  setLayerBase(frontLayer, 'journey-beach-bubble-layer journey-beach-bubble-layer--front', 7);
-  [behindLayer, betweenLayer, birthLayer, frontLayer].forEach((layer) => {
-    layer.style.left = `${layerLeft}px`;
-    layer.style.top = `${layerTop}px`;
-    layer.style.width = layerWidth;
-    layer.style.height = `${baseBubbleLayerHeight}px`;
-  });
-
-  if (cloudLayer) root.insertBefore(behindLayer, cloudLayer);
-  else root.prepend(behindLayer);
-  if (backgroundLayer) root.insertBefore(betweenLayer, backgroundLayer);
-  else root.appendChild(betweenLayer);
-  if (cardsLayer) root.insertBefore(birthLayer, cardsLayer);
-  else root.appendChild(birthLayer);
-  root.appendChild(frontLayer);
-
-  const layerByDepth: Record<BubbleDepth, HTMLDivElement> = {
-    'behind-clouds': behindLayer,
-    'between-clouds-and-units': betweenLayer,
-    'birth-behind-card': birthLayer,
-    front: frontLayer,
-  };
-  const depths: BubbleDepth[] = ['behind-clouds', 'between-clouds-and-units', 'front'];
+  const backgroundTop = Number.parseFloat(backgroundLayer?.style.top || '') || 0;
+  const bubbleAssets = createBubbleAssets();
   const bubbles: LiveBubble[] = [];
-  const scrollRoot = options.scrollRoot ?? null;
-  let visibleTop = Number.NEGATIVE_INFINITY;
-  let visibleBottom = Number.POSITIVE_INFINITY;
-  let layerContentTop = 0;
+  let disposed = false;
+  let visualSceneHeight = baseLayerHeight + Math.max(0, backgroundTop - layerTop);
 
-  // The Beach world is taller than the phone viewport. Keep every pooled
-  // bubble progressing in time, but only promote bubbles near the viewport to
-  // compositor work. Previously all 18 large PNGs wrote transform + opacity
-  // every frame, including bubbles more than a screen away.
-  const refreshVisibleBand = (): void => {
-    if (!scrollRoot) return;
-    const rootRect = root.getBoundingClientRect();
-    const scrollRect = scrollRoot.getBoundingClientRect();
-    layerContentTop = rootRect.top - scrollRect.top + scrollRoot.scrollTop + layerTop;
-    visibleTop = scrollRoot.scrollTop - layerContentTop - BUBBLE_VISIBILITY_MARGIN_PX;
-    visibleBottom = visibleTop + scrollRoot.clientHeight + (BUBBLE_VISIBILITY_MARGIN_PX * 2);
-  };
-  refreshVisibleBand();
-
-  const refreshLayerExtent = (): void => {
+  const refreshVisualSceneHeight = (): number => {
     const rootRect = root.getBoundingClientRect();
     const layerOriginY = rootRect.top + layerTop;
     const lowestArtBottom = BEACH_EMITTER_BOARD_IDS.reduce((lowest, boardId) => {
@@ -230,45 +188,28 @@ export function startJourneyBeachBubbleDrift(
       );
       const rect = art?.getBoundingClientRect();
       return rect && rect.height > 0 ? Math.max(lowest, rect.bottom - layerOriginY) : lowest;
-    }, baseBubbleLayerHeight);
-    const visualHeight = Math.max(baseBubbleLayerHeight, lowestArtBottom);
-    behindLayer.style.height = `${visualHeight}px`;
-    betweenLayer.style.height = `${visualHeight}px`;
-    birthLayer.style.height = `${visualHeight}px`;
-    frontLayer.style.height = `${visualHeight}px`;
+    }, visualSceneHeight);
+    visualSceneHeight = Math.max(sceneHeight, visualSceneHeight, lowestArtBottom);
+    return visualSceneHeight;
   };
-  refreshLayerExtent();
+  refreshVisualSceneHeight();
 
   const resetBubble = (bubble: LiveBubble, index: number, initial = false): void => {
-    refreshLayerExtent();
-    const emitters = resolveBeachBubbleEmitters(
-      root,
-      layerLeft,
-      layerTop,
-      pxPerDesignUnit,
-    );
-    const isGuaranteedInitialEmitter = initial && index < emitters.length;
-    const nextDepth = isGuaranteedInitialEmitter
-      ? 'birth-behind-card'
-      : depths[Math.min(depths.length - 1, Math.floor(sample(random) * depths.length))];
-    bubble.depth = nextDepth;
-    layerByDepth[nextDepth].appendChild(bubble.element);
+    const emitters = resolveBeachBubbleEmitters(root, layerLeft, layerTop, pxPerDesignUnit);
+    const guaranteedEmitterBirth = initial && index < emitters.length;
+    bubble.depth = guaranteedEmitterBirth || sample(random) < (2 / 3) ? 'behind' : 'front';
     const emitter = emitters[index % emitters.length];
     bubble.emitterBoardId = emitter.boardId;
-    bubble.element.dataset.beachBubbleEmitterBoard = String(emitter.boardId);
-    bubble.element.dataset.beachBubbleEmitterX = String(emitter.x);
-    bubble.element.dataset.beachBubbleEmitterY = String(emitter.y);
     const authoredSize = 10 + sample(random) * 22;
     bubble.size = authoredSize * getBeachBubbleSizeScale(index) * pxPerDesignUnit;
     bubble.startX = emitter.x - bubble.size * 0.5;
     bubble.startY = emitter.y - bubble.size * 0.5;
-    bubble.endX = Math.min(viewportWidth - bubble.size, Math.max(0,
+    bubble.endX = Math.min(layerWidth - bubble.size, Math.max(0,
       bubble.startX + (-72 + sample(random) * 154) * pxPerDesignUnit));
     bubble.waveAmplitude = (16 + sample(random) * 38) * pxPerDesignUnit;
     bubble.waveCycles = 1.6 + sample(random) * 2;
     bubble.phase = sample(random) * Math.PI * 2;
     bubble.opacity = getBeachBubbleOpacity(index);
-    bubble.element.dataset.beachBubbleOpacity = String(bubble.opacity);
     bubble.durationSeconds = createBeachBubbleRiseDuration(sceneHeight, sample(random));
     bubble.delaySeconds = initial
       ? (index < emitters.length
@@ -276,71 +217,33 @@ export function startJourneyBeachBubbleDrift(
         : ((index - emitters.length + 1) / (BUBBLE_COUNT - emitters.length + 1)) * bubble.durationSeconds)
       : 0.45 + sample(random) * 1.8;
     bubble.elapsedSeconds = 0;
-    bubble.element.src = `${ASSET_BASE}/bubble${1 + Math.floor(sample(random) * 6)}.png`;
-    bubble.element.style.width = `${bubble.size}px`;
-    bubble.element.style.transform = `translate3d(${bubble.startX}px,${bubble.startY}px,0)`;
-    const startsNearViewport = bubble.startY + bubble.size >= visibleTop
-      && bubble.startY <= visibleBottom;
-    bubble.rendered = bubble.delaySeconds === 0 && startsNearViewport;
-    bubble.element.style.opacity = bubble.rendered ? `${bubble.opacity}` : '0';
+    bubble.assetIndex = Math.floor(sample(random) * 6) % 6;
+    bubble.rendered = false;
   };
 
   for (let index = 0; index < BUBBLE_COUNT; index += 1) {
-    const element = document.createElement('img');
-    element.className = 'journey-beach-drift-bubble';
-    element.alt = '';
-    element.draggable = false;
-    element.style.cssText = [
-      'position:absolute',
-      'left:0',
-      'top:0',
-      'height:auto',
-      'pointer-events:none',
-      'user-select:none',
-      'will-change:transform,opacity',
-      'backface-visibility:hidden',
-    ].join(';');
     const bubble: LiveBubble = {
-      element,
-      depth: 'behind-clouds',
-      durationSeconds: 1,
-      delaySeconds: 0,
-      elapsedSeconds: 0,
-      emitterBoardId: 11,
-      startX: 0,
-      startY: 0,
-      endX: 0,
-      size: 1,
-      opacity: 0,
-      waveAmplitude: 0,
-      waveCycles: 1,
-      phase: 0,
-      rendered: false,
+      depth: 'behind', durationSeconds: 1, delaySeconds: 0, elapsedSeconds: 0,
+      emitterBoardId: 11, startX: 0, startY: 0, endX: 0, size: 1, opacity: 0,
+      waveAmplitude: 0, waveCycles: 1, phase: 0, assetIndex: 0, rendered: false,
     };
     resetBubble(bubble, index, true);
     bubbles.push(bubble);
   }
 
-  let disposed = false;
-  let sceneVisible = true;
-  let previousTickerTime = ticker.time;
-  const tick = (): void => {
-    if (disposed || !sceneVisible) {
-      previousTickerTime = ticker.time;
-      return;
-    }
-    const deltaSeconds = Math.min(0.1, Math.max(0, ticker.time - previousTickerTime));
-    previousTickerTime = ticker.time;
-    if (scrollRoot) {
-      visibleTop = scrollRoot.scrollTop - layerContentTop - BUBBLE_VISIBILITY_MARGIN_PX;
-      visibleBottom = visibleTop + scrollRoot.clientHeight + (BUBBLE_VISIBILITY_MARGIN_PX * 2);
-    }
+  let runtime: ReturnType<typeof startJourneyAmbientCanvasRuntime>;
+  const render = (frame: JourneyAmbientCanvasFrame): number => {
+    let visibleCount = 0;
     bubbles.forEach((bubble, index) => {
-      bubble.elapsedSeconds += deltaSeconds;
-      if (bubble.elapsedSeconds < bubble.delaySeconds) return;
+      bubble.elapsedSeconds += frame.deltaSeconds;
+      if (bubble.elapsedSeconds < bubble.delaySeconds) {
+        bubble.rendered = false;
+        return;
+      }
       const progress = (bubble.elapsedSeconds - bubble.delaySeconds) / bubble.durationSeconds;
       if (progress >= 1) {
         resetBubble(bubble, index);
+        runtime?.setSceneHeight(refreshVisualSceneHeight());
         return;
       }
       const eased = Math.sin(progress * Math.PI * 0.5);
@@ -350,54 +253,68 @@ export function startJourneyBeachBubbleDrift(
         + (Math.sin(progress * Math.PI * 2 * bubble.waveCycles + bubble.phase)
           - Math.sin(bubble.phase)) * bubble.waveAmplitude;
       const y = startY + (endY - startY) * eased;
-      const edgeFade = Math.min(1, (1 - progress) * 8);
-      const isNearViewport = y + bubble.size >= visibleTop && y <= visibleBottom;
-      if (!isNearViewport) {
-        if (bubble.rendered) {
-          bubble.element.style.opacity = '0';
-          bubble.rendered = false;
-        }
-        return;
-      }
-      bubble.element.style.opacity = `${bubble.opacity * Math.max(0, edgeFade)}`;
-      bubble.element.style.transform = `translate3d(${x}px,${y}px,0)`;
-      bubble.rendered = true;
+      const opacity = bubble.opacity * Math.max(0, Math.min(1, (1 - progress) * 8));
+      bubble.rendered = y + bubble.size >= frame.viewportTop && y <= frame.viewportBottom;
+      if (!bubble.rendered) return;
+      visibleCount += 1;
+      drawBubble(
+        bubble.depth === 'front' ? frame.front : frame.behind,
+        bubbleAssets[bubble.assetIndex], x, y, bubble.size, opacity, frame.viewportTop,
+      );
     });
+    return visibleCount;
   };
-  ticker.add(tick);
 
-  const handleScroll = (): void => refreshVisibleBand();
-  scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
-
-  let observer: IntersectionObserver | null = null;
-  if (options.observeVisibility !== false && typeof IntersectionObserver !== 'undefined') {
-    observer = new IntersectionObserver((entries) => {
-      sceneVisible = entries.some((entry) => entry.isIntersecting);
-      previousTickerTime = ticker.time;
-    }, { root: options.scrollRoot ?? null });
-    observer.observe(root);
-  }
+  runtime = startJourneyAmbientCanvasRuntime({
+    root,
+    scrollRoot: options.scrollRoot,
+    ticker,
+    sceneWidthPx: layerWidth,
+    sceneHeightPx: visualSceneHeight,
+    layerLeftPx: layerLeft,
+    layerTopPx: layerTop,
+    visibilityMarginPx: BUBBLE_VISIBILITY_MARGIN_PX,
+    behindBefore: cloudLayer ?? backgroundLayer,
+    behindZIndex: 0,
+    frontZIndex: 7,
+    className: 'journey-beach-bubble-canvas',
+    observeVisibility: options.observeVisibility,
+    render,
+  });
+  root.dataset.journeyBeachBubbleRenderer = 'canvas';
 
   return {
+    setSuspended: (suspended) => runtime.setSuspended(suspended),
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      ticker.remove(tick);
-      scrollRoot?.removeEventListener('scroll', handleScroll);
-      observer?.disconnect();
-      behindLayer.remove();
-      betweenLayer.remove();
-      birthLayer.remove();
-      frontLayer.remove();
+      runtime.dispose();
+      bubbleAssets.forEach((image) => {
+        image.onload = null;
+        image.onerror = null;
+      });
       bubbles.length = 0;
+      delete root.dataset.journeyBeachBubbleRenderer;
     },
-    getSnapshot() {
+    getSnapshot: () => {
+      const runtimeSnapshot = runtime.getSnapshot();
       return {
         disposed,
         bubbleCount: bubbles.length,
-        layerCount: disposed ? 0 : 4,
-        tickerCount: disposed ? 0 : 1,
-        visibleBubbleCount: bubbles.filter((bubble) => Number(bubble.element.style.opacity) > 0).length,
+        layerCount: runtimeSnapshot.canvasCount,
+        tickerCount: runtimeSnapshot.tickerCount,
+        visibleBubbleCount: runtimeSnapshot.visibleSpriteCount,
+        renderer: 'canvas' as const,
+        domImageCount: 0,
+        emitterBoardIds: Array.from(new Set(bubbles.map((bubble) => bubble.emitterBoardId))),
+        emitterAnchors: Array.from(new Map(bubbles.map((bubble) => [bubble.emitterBoardId, {
+          boardId: bubble.emitterBoardId,
+          x: bubble.startX + bubble.size * 0.5,
+          y: bubble.startY + bubble.size * 0.5,
+        }])).values()),
+        activeBubbleCount: bubbles.filter((bubble) => bubble.elapsedSeconds >= bubble.delaySeconds).length,
+        behindBubbleCount: bubbles.filter((bubble) => bubble.depth === 'behind').length,
+        maxOpacity: bubbles.length > 0 ? Math.max(...bubbles.map((bubble) => bubble.opacity)) : 0,
       };
     },
   };

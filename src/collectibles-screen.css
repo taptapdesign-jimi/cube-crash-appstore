@@ -164,6 +164,42 @@
   transition: filter var(--journey-card-exit-neutral-duration, 520ms) linear;
 }
 
+/* WKWebView otherwise re-rasterizes three large shadow surfaces while the
+   complete two-sided card is simultaneously scaled and Y-rotated. The moving
+   silhouette does not need those settled-depth paints; they return when the
+   existing entry class is removed at the terminal pose. */
+.journey-card-flip-overlay.is-entering .journey-card-flip-front {
+  filter: none;
+  transition: none;
+}
+
+.journey-card-flip-overlay.is-entering .journey-card-flip-paper {
+  box-shadow: none;
+  transition: none;
+}
+
+.journey-card-flip-overlay.is-entering .journey-card-flip-back-shell::before {
+  animation: none;
+  box-shadow: none;
+  opacity: 0;
+  transition: none;
+}
+
+/* Keep the expensive shadow surfaces out of the spatial flight, then restore
+   settled depth promptly. This affects only the post-flight fade-in; exit
+   keeps its existing neutralization duration. */
+.journey-card-flip-overlay.is-settled:not(.is-exiting) .journey-card-flip-front {
+  transition-duration: 180ms;
+}
+
+.journey-card-flip-overlay.is-settled:not(.is-exiting) .journey-card-flip-paper {
+  transition-duration: 180ms;
+}
+
+.journey-card-flip-overlay.is-settled:not(.is-exiting) .journey-card-flip-back-shell::before {
+  transition-duration: 180ms;
+}
+
 .journey-card-flip-back {
   transform: rotateY(-180deg) translateZ(0.6px);
   -webkit-transform: rotateY(-180deg) translateZ(0.6px);
@@ -3759,6 +3795,20 @@
   width: 100%; /* 🔥 PREMIUM FIX: Fixed width - no horizontal scrolling */
   max-width: 100%; /* Prevent overflow */
   overflow: hidden; /* Clip smoke/FX so nothing bleeds above subtitle/header */
+}
+
+/* Shared current-and-future World runtime budget. During native scroll, modal
+   ownership and transitions, the scheduler keeps World transforms frozen and
+   releases their compositor promotions. Transitioning cards also drop their
+   live CSS shadow; the same visual shadow returns as soon as World idle owns
+   painting again. */
+#journey-boards-container.journey-world-runtime-paint-suspended .journey-area-idle-target {
+  will-change: auto !important;
+}
+
+#journey-boards-container.journey-world-runtime-transition .journey-board-card {
+  filter: none;
+  transition: none;
 }
 
 .journey-bg-container {

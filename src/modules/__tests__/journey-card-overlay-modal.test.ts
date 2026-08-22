@@ -407,7 +407,55 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("window.removeEventListener('pagehide', handleRouteChange)");
   });
 
-  test('keeps World gyro live while pausing idle, with exact origin leasing and board handoff', () => {
+  test('profiles modal-open phases with one bounded RAF owner and one native summary', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const manager = read('src/modules/journey-boards-manager.ts');
+    expect(modal).toContain("emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_OPEN]', 'summary'");
+    expect(modal).toContain('if (openProfileLongFrames.length < 8)');
+    expect(modal).toContain("markOpenProfile('geometry-read-start')");
+    expect(modal).toContain("markOpenProfile('geometry-read-complete')");
+    expect(modal).toContain("markOpenProfile('dom-appended')");
+    expect(modal).toContain("markOpenProfile('flight-started')");
+    expect(modal).toContain("'flight-front-static'");
+    expect(modal).toContain("'flight-front-turn'");
+    expect(modal).toContain("'flight-back-turn'");
+    expect(modal).toContain("'flight-back-settle'");
+    expect(modal).toContain("markOpenProfile('modal-gyro-mounted')");
+    expect(modal).toContain("emitOpenProfile('disposed-before-stable')");
+    expect(manager).toContain("markOpenProfile('world-paused')");
+    expect(manager).toContain('openProfileManagerMarks,');
+  });
+
+  test('profiles dismiss, scroll and rapid reopen as one bounded native summary', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const profiler = read('src/modules/journey-card-interaction-profiler.ts');
+    expect(profiler).toContain("emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_CHAIN]', 'summary'");
+    expect(profiler).toContain('const PROFILE_DURATION_MS = 8000');
+    expect(profiler).toContain('if (this.longFrames.length > MAX_LONG_FRAMES)');
+    expect(manager).toContain('this.journeyCardInteractionProfiler.begin(board.id)');
+    expect(manager).toContain("this.journeyCardInteractionProfiler.mark(`runtime-${snapshot.state}`)");
+    expect(manager).toContain("this.journeyCardInteractionProfiler.dispose('manager-cleanup')");
+    expect(modal).toContain("options.onPerformancePhase?.('dismiss-style-snapshot-start')");
+    expect(modal).toContain("options.onPerformancePhase?.('dismiss-return-flight-start')");
+    expect(modal).toContain("options.onPerformancePhase?.('dismiss-origin-stable-paints')");
+    expect(modal).toContain("options.onPerformancePhase?.('dismiss-cleanup-complete')");
+  });
+
+  test('removes expensive settled shadows only during the active card entry flight', () => {
+    const css = read('src/collectibles-screen.css');
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-front \{[\s\S]*?filter: none;[\s\S]*?transition: none;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-paper \{[\s\S]*?box-shadow: none;[\s\S]*?transition: none;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-back-shell::before \{[\s\S]*?animation: none;[\s\S]*?box-shadow: none;[\s\S]*?opacity: 0;[\s\S]*?transition: none;/);
+    expect(css).toMatch(/\.journey-card-flip-front \{[\s\S]*?drop-shadow\(0 14px 19px rgba\(165, 124, 98, 0\.86\)\)/);
+    expect(css).toMatch(/\.journey-card-flip-paper \{[\s\S]*?box-shadow: 0 14px 36px 0 rgba\(165, 124, 98, 0\.86\)/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-settled:not\(\.is-exiting\) \.journey-card-flip-front \{[\s\S]*?transition-duration: 180ms;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-settled:not\(\.is-exiting\) \.journey-card-flip-paper \{[\s\S]*?transition-duration: 180ms;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-settled:not\(\.is-exiting\) \.journey-card-flip-back-shell::before \{[\s\S]*?transition-duration: 180ms;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-exiting \.journey-card-flip-front \{[\s\S]*?drop-shadow\(0 14px 19px rgba\(165, 124, 98, 0\)\);/);
+  });
+
+  test('freezes World paint while modal gyro owns depth, with exact origin leasing and board handoff', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
     expect(manager).toContain('export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true');
@@ -421,17 +469,29 @@ describe('Journey two-sided card overlay prototype', () => {
       manager.indexOf('private resumeJourneyWorldAfterCardOverlay('),
       manager.indexOf('private scheduleJourneyAreaIdleAnimations('),
     );
-    expect(overlayPause).toContain('this.cleanupJourneyAreaIdleAnimations(false)');
+    expect(overlayPause).toContain('this.journeyWorldRuntime.openModal()');
+    expect(overlayPause).toContain('this.journeyWorldRuntime.endInteractionSettle()');
+    expect(overlayPause).not.toContain('this.cleanupJourneyAreaIdleAnimations(false)');
     expect(overlayPause).not.toContain('journeySpatialMotion.suspend()');
+    expect(overlayResume).toContain('this.journeyWorldRuntime.beginInteractionSettle()');
+    expect(overlayResume).toContain('this.journeyWorldRuntime.closeModal()');
+    expect(manager).toContain("snapshot.state === 'scrolling' && this.journeyOverlayLandingCard");
+    expect(manager).toContain("cleanupSmokeEffects?.(landingCard)");
+    expect(manager).toContain("{ preserveRuntimeSettle: true }");
+    expect(manager).toContain('this.trackTimeout(() => this.journeyWorldRuntime.endInteractionSettle(), 48)');
+    expect(overlayResume).not.toContain('this.startJourneyAreaIdleAnimations(');
     expect(overlayResume).not.toContain('journeySpatialMotion.resumeJourneyWorld(');
+    expect(manager).toContain('journeySpatialMotion.suspend();');
+    expect(manager).toContain('journeySpatialMotion.resumeJourneyWorld(container);');
     expect(manager).toContain('await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);');
     expect(manager).toContain('startOverlayPortaledCardJourneyExit(');
     expect(manager.match(/onPlayCardExitStart: \(\) =>/g)).toHaveLength(2);
     expect(manager.match(/onPlayCardExitComplete: \(\) =>/g)).toHaveLength(2);
     expect(manager).toContain('origin.prepareSettledLanding();');
     expect(manager).toContain('origin.captureLandingGeometry();');
-    expect(manager).toContain('this.stopOverlayCardLandingBounce(cardEl);');
-    expect(manager.indexOf('this.stopOverlayCardLandingBounce(cardEl);')).toBeLessThan(
+    const rapidReopenLandingCleanup = 'this.stopOverlayCardLandingBounce(cardEl, { preserveRuntimeSettle: true });';
+    expect(manager).toContain(rapidReopenLandingCleanup);
+    expect(manager.indexOf(rapidReopenLandingCleanup)).toBeLessThan(
       manager.indexOf('acquireJourneyCardOriginLease(board.id, cardEl)'),
     );
     expect(manager.indexOf('JOURNEY_CARD_IDLE_BOUNCE.pauseCardMotionForTap(cardEl);')).toBeLessThan(
@@ -464,7 +524,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).toContain('preserveInitialTransform?: boolean');
     expect(manager).toContain("target.classList.contains('journey-board-card-wrapper') && !options.preserveInitialTransform");
     expect(manager).toContain('rampSeconds: preserveCurrentBoardTransforms ? 1.8 : undefined');
-    expect(manager).toContain("this.getCurrentJourneyForestAreas(cardsContainer),\n      cardsContainer,\n      true,");
+    expect(manager).toContain('entry.startTime += pausedFor;');
+    expect(overlayResume).toContain('idleTickerCount: this.journeyAreaIdleTicker ? 1 : 0');
     expect(portal).toContain("card.classList.add('journey-board-card-return-placeholder')");
     expect(portal).toContain('portalVisual = card.cloneNode(true) as HTMLElement;');
     expect(portal).not.toContain('CC_CARD_LANDING');

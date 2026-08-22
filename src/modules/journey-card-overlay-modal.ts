@@ -19,6 +19,7 @@ import {
 } from './detail-modal-stats-enter-motion.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { getIosResistedModalVerticalDelta } from './modal-vertical-drag-dismiss.js';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -36,7 +37,10 @@ interface JourneyCardOverlayModalOptions {
   hasSavedState: boolean;
   scrollOwner?: HTMLElement | null;
   entryInitialOpacity?: number;
+  openProfileStartedAt?: number;
+  openProfileManagerMarks?: Readonly<Record<string, number>>;
   onCardEntrySettled?: () => void;
+  onPerformancePhase?: (phase: string) => void;
   onDismissCardLanded?: () => void;
   onPlayCardReturnStart?: () => void;
   onPlayCardExitStart?: () => void;
@@ -221,13 +225,86 @@ function waitForPaints(count = 1): Promise<void> {
 export function presentJourneyCardOverlayModal(
   options: JourneyCardOverlayModalOptions,
 ): JourneyCardOverlayModalController {
+  const openProfileStartedAt = options.openProfileStartedAt ?? performance.now();
+  const openProfileMarks: Record<string, number> = {
+    ...(options.openProfileManagerMarks ?? {}),
+  };
+  const openProfileLongFrames: Array<{ phase: string; frameMs: number }> = [];
+  let openProfilePhase = 'modal-call';
+  let openProfilePreviousFrameAt = openProfileStartedAt;
+  let openProfileFrameId = 0;
+  let openProfileWorstFrameMs = 0;
+  let openProfileWorstFramePhase = openProfilePhase;
+  let openProfileOver20 = 0;
+  let openProfileOver34 = 0;
+  let openProfileOver50 = 0;
+  let openProfileSettlePaintsRemaining: number | null = null;
+  let openProfileEmitted = false;
+  const markOpenProfile = (phase: string): void => {
+    openProfilePhase = phase;
+    openProfileMarks[phase] = Number((performance.now() - openProfileStartedAt).toFixed(2));
+  };
+  const emitOpenProfile = (result: 'entry-stable' | 'disposed-before-stable'): void => {
+    if (openProfileEmitted) return;
+    openProfileEmitted = true;
+    if (openProfileFrameId !== 0) {
+      cancelAnimationFrame(openProfileFrameId);
+      openProfileFrameId = 0;
+    }
+    emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_OPEN]', 'summary', {
+      boardId: options.boardId,
+      result,
+      totalMs: Number((performance.now() - openProfileStartedAt).toFixed(2)),
+      marks: openProfileMarks,
+      worstFrameMs: Number(openProfileWorstFrameMs.toFixed(2)),
+      worstFramePhase: openProfileWorstFramePhase,
+      over20: openProfileOver20,
+      over34: openProfileOver34,
+      over50: openProfileOver50,
+      longFrames: openProfileLongFrames,
+    });
+  };
+  const sampleOpenProfileFrame = (now: number): void => {
+    openProfileFrameId = 0;
+    if (openProfileEmitted) return;
+    const frameMs = Math.max(0, now - openProfilePreviousFrameAt);
+    openProfilePreviousFrameAt = now;
+    if (frameMs > openProfileWorstFrameMs) {
+      openProfileWorstFrameMs = frameMs;
+      openProfileWorstFramePhase = openProfilePhase;
+    }
+    if (frameMs > 20) {
+      openProfileOver20 += 1;
+      if (openProfileLongFrames.length < 8) {
+        openProfileLongFrames.push({
+          phase: openProfilePhase,
+          frameMs: Number(frameMs.toFixed(2)),
+        });
+      }
+    }
+    if (frameMs > 34) openProfileOver34 += 1;
+    if (frameMs > 50) openProfileOver50 += 1;
+    if (openProfileSettlePaintsRemaining !== null) {
+      openProfileSettlePaintsRemaining -= 1;
+      if (openProfileSettlePaintsRemaining <= 0) {
+        markOpenProfile('entry-stable');
+        emitOpenProfile('entry-stable');
+        return;
+      }
+    }
+    openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);
+  };
+  openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);
+  markOpenProfile('modal-call');
   activeJourneyCardOverlayModal?.dispose();
+  markOpenProfile('prior-modal-disposed');
 
   const viewModel = buildJourneyCardOverlayModalViewModel(
     options.boardId,
     boardStatsService.getBoardStats(options.boardId),
     options.hasSavedState,
   );
+  markOpenProfile('view-model-built');
   const stage = document.createElement('div');
   const tiltProfile = createJourneyCardOverlayTiltProfile();
   stage.id = 'journey-card-overlay-modal';
@@ -293,6 +370,7 @@ export function presentJourneyCardOverlayModal(
       <span class="journey-card-flip-idle-message is-tap">${renderIdleCoachLine('TAP TO FLIP', 0)}</span>
     </div>
   `;
+  markOpenProfile('template-built');
 
   const backdrop = stage.querySelector<HTMLElement>('.journey-card-flip-backdrop');
   const frame = stage.querySelector<HTMLElement>('.journey-card-flip-frame');
@@ -313,10 +391,12 @@ export function presentJourneyCardOverlayModal(
     stage.remove();
     throw new Error('Journey flip card failed to create its required owners');
   }
+  markOpenProfile('owners-resolved');
   const backContentElements = Array.from(
     stage.querySelectorAll<HTMLElement>('.journey-card-flip-stats > .journey-card-flip-stat, .journey-card-flip-stats > .journey-card-flip-divider'),
   );
   options.origin.mountInto(cardHost);
+  markOpenProfile('origin-mounted');
   stage.classList.toggle(
     'has-new-ribbon',
     cardHost.querySelector('.journey-card-ribbon') !== null,
@@ -336,6 +416,7 @@ export function presentJourneyCardOverlayModal(
     ? document.activeElement
     : null;
   if (journeyScreen) journeyScreen.inert = true;
+  markOpenProfile('environment-locked');
 
   const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   let resolveResult!: (result: JourneyCardOverlayModalResult) => void;
@@ -679,6 +760,8 @@ export function presentJourneyCardOverlayModal(
   };
 
   const cleanup = (value: JourneyCardOverlayModalResult) => {
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-cleanup-start');
+    if (!openProfileEmitted) emitOpenProfile('disposed-before-stable');
     disposeSpatialMotion?.();
     disposeSpatialMotion = null;
     cancelMotion();
@@ -702,6 +785,7 @@ export function presentJourneyCardOverlayModal(
     restoreEnvironment();
     stage.remove();
     if (activeJourneyCardOverlayModal === controller) activeJourneyCardOverlayModal = null;
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-cleanup-complete');
   };
 
   const settle = (value: JourneyCardOverlayModalResult) => {
@@ -813,7 +897,9 @@ export function presentJourneyCardOverlayModal(
   };
 
   const startEntry = async () => {
+    markOpenProfile('geometry-read-start');
     const destination = readFrameGeometry();
+    markOpenProfile('geometry-read-complete');
     if (!destination) {
       setRotorAngle(-180);
       setStableFace('back');
@@ -822,8 +908,10 @@ export function presentJourneyCardOverlayModal(
       stage.classList.add('is-settled');
       startBackContentEnter();
       disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+      markOpenProfile('modal-gyro-mounted');
       startSurfaceIdle();
       scheduleIdleCoach();
+      openProfileSettlePaintsRemaining = 2;
       return;
     }
     const initialOpacity = Math.max(0, Math.min(1, options.entryInitialOpacity ?? 1));
@@ -837,6 +925,14 @@ export function presentJourneyCardOverlayModal(
       durationMs: prefersReducedMotion ? 1 : JOURNEY_CARD_FLIP_ENTER_DURATION_MS,
       pathOffset: computeJourneyCardArcOffset,
       onProgress: (progress) => {
+        const flightPhase = progress < 0.32
+          ? 'flight-front-static'
+          : progress < 0.5
+            ? 'flight-front-turn'
+            : progress < 0.68
+              ? 'flight-back-turn'
+              : 'flight-back-settle';
+        if (openProfilePhase !== flightPhase) markOpenProfile(flightPhase);
         const angle = prefersReducedMotion ? -180 : getJourneyCardFlightFlipAngle(progress, 'enter');
         setRotorAngle(angle);
         if (angle <= -90) startBackContentEnter();
@@ -844,7 +940,9 @@ export function presentJourneyCardOverlayModal(
         spatialShell.style.opacity = String(initialOpacity + (1 - initialOpacity) * revealProgress);
       },
     });
+    markOpenProfile('flight-started');
     await spatialFlight.result;
+    markOpenProfile('flight-complete');
     spatialFlight = null;
     if (closing || settled) return;
     setRotorAngle(-180);
@@ -858,14 +956,18 @@ export function presentJourneyCardOverlayModal(
     stage.classList.add('is-settled');
     startBackContentEnter();
     disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
+    markOpenProfile('modal-gyro-mounted');
     startSurfaceIdle();
     scheduleIdleCoach();
     options.onCardEntrySettled?.();
+    openProfileSettlePaintsRemaining = 2;
     try { (window as any).triggerHapticImpact?.('medium'); } catch {}
   };
 
   const startReturn = async (play: boolean): Promise<void> => {
+    if (!play) options.onPerformancePhase?.('dismiss-geometry-read-start');
     const source = readFrameGeometry();
+    if (!play) options.onPerformancePhase?.('dismiss-geometry-read-complete');
     if (!source) {
       if (play) {
         options.onPlayCardReturnStart?.();
@@ -886,6 +988,7 @@ export function presentJourneyCardOverlayModal(
     const exitAtMs = landingAtMs + JOURNEY_CARD_PLAY_LANDING_PUNCH_DURATION_MS;
     let exitNotified = false;
     setRotorAngle(stableFace === 'back' ? -180 : 0);
+    if (!play) options.onPerformancePhase?.('dismiss-return-flight-start');
     spatialFlight = startJourneyCardSpatialFlight({
       motionElement: spatialShell,
       baseGeometry: source,
@@ -938,6 +1041,7 @@ export function presentJourneyCardOverlayModal(
       },
     });
     const outcome = await spatialFlight.result;
+    if (!play) options.onPerformancePhase?.('dismiss-return-flight-complete');
     spatialFlight = null;
     if (play && !exitNotified) options.onPlayCardExitStart?.();
     if (play) {
@@ -945,15 +1049,22 @@ export function presentJourneyCardOverlayModal(
       options.onPlayCardExitComplete?.();
     } else {
       const restored = options.origin.restoreNow();
+      options.onPerformancePhase?.('dismiss-origin-restored');
       didLandAtOrigin = outcome === 'complete' && restored && options.origin.anchor.isConnected;
       if (restored) {
         await waitForPaints(2);
+        options.onPerformancePhase?.('dismiss-origin-stable-paints');
         if (didLandAtOrigin) options.onDismissCardLanded?.();
       }
     }
   };
 
+  let closeRequestProfiled = false;
   const beginClose = async (value: JourneyCardOverlayModalResult) => {
+    if (!closeRequestProfiled) {
+      closeRequestProfiled = true;
+      options.onPerformancePhase?.(`${value}-requested`);
+    }
     if (closing || settled) return;
     if (entering && spatialFlight) {
       await spatialFlight.result;
@@ -977,6 +1088,7 @@ export function presentJourneyCardOverlayModal(
       return;
     }
     closing = true;
+    options.onPerformancePhase?.(`${value}-close-owned`);
     flipping = false;
     clearBackContentTimers();
     const exitNeutralDurationMs = value === 'play'
@@ -989,9 +1101,11 @@ export function presentJourneyCardOverlayModal(
     flipRecoilAnimation?.cancel();
     flipRecoilAnimation = null;
     setRotorAngle(stableRotorAngle());
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-style-snapshot-start');
     const visibleRotorTransform = window.getComputedStyle(rotor).transform || rotor.style.transform;
     const visibleImpactTransform = window.getComputedStyle(impactShell).transform || impactShell.style.transform;
     const visibleImpactTranslate = window.getComputedStyle(impactShell).translate || impactShell.style.translate;
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-style-snapshot-complete');
     impactAnimation?.cancel();
     impactAnimation = null;
     dragPreviewSettleAnimation?.cancel();
@@ -1008,11 +1122,14 @@ export function presentJourneyCardOverlayModal(
     startBackContentExit(prefersReducedMotion ? 0 : returnEdgeAtMs);
     stage.style.pointerEvents = 'none';
     closeController?.element.setAttribute('aria-disabled', 'true');
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-return-and-cta-start');
     await Promise.all([
       ctaController?.exit() ?? Promise.resolve(),
       startReturn(value === 'play'),
     ]);
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-return-and-cta-complete');
     settle(value);
+    if (value === 'dismiss') options.onPerformancePhase?.('dismiss-settled');
   };
 
   function isInteractiveControl(target: EventTarget | null): boolean {
@@ -1337,16 +1454,20 @@ export function presentJourneyCardOverlayModal(
     },
   });
   primeBackContentForEnter();
+  markOpenProfile('controls-mounted');
 
   setStableFace('front');
   setRotorAngle(0);
+  markOpenProfile('dom-append-start');
   document.body.appendChild(stage);
+  markOpenProfile('dom-appended');
   stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
   void startEntry();
   requestAnimationFrame(() => {
     if (settled) return;
     stage.classList.add('is-visible');
     backdrop.style.opacity = '1';
+    markOpenProfile('first-visible-paint');
   });
 
   controller = {

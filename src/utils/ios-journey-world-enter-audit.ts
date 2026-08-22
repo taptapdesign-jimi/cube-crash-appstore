@@ -16,12 +16,145 @@ export interface JourneyWorldEnterFrameSummary {
   over50: number;
 }
 
+interface JourneyWorldSlowFrame {
+  frameMs: number;
+  marker: string;
+  markerAgeMs: number;
+}
+
 type ActiveJourneyTransitionAudit = {
   marker: string;
   markerAt: number;
 };
 
 let activeTransitionAudit: ActiveJourneyTransitionAudit | null = null;
+
+interface JourneyRoutePhaseAccumulator {
+  count: number;
+  totalMs: number;
+  worstMs: number;
+  over20: number;
+  over34: number;
+  over50: number;
+}
+
+interface JourneyRouteSlowFrame extends JourneyWorldSlowFrame {
+  elapsedMs: number;
+}
+
+type ActiveJourneyRouteAudit = {
+  startedAt: number;
+  lastFrameAt: number;
+  marker: string;
+  markerAt: number;
+  frameId: number | null;
+  stopTimer: ReturnType<typeof setTimeout> | null;
+  phases: Map<string, JourneyRoutePhaseAccumulator>;
+  slowFrames: JourneyRouteSlowFrame[];
+};
+
+let activeRouteAudit: ActiveJourneyRouteAudit | null = null;
+
+function createRoutePhaseAccumulator(): JourneyRoutePhaseAccumulator {
+  return { count: 0, totalMs: 0, worstMs: 0, over20: 0, over34: 0, over50: 0 };
+}
+
+export function beginIOSJourneyRouteAudit(source = 'homepage-slider'): void {
+  if (typeof window === 'undefined' || !/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
+  if (activeRouteAudit) finishIOSJourneyRouteAudit('superseded');
+
+  const startedAt = performance.now();
+  const audit: ActiveJourneyRouteAudit = {
+    startedAt,
+    lastFrameAt: startedAt,
+    marker: 'homepage-to-journey-prep',
+    markerAt: startedAt,
+    frameId: null,
+    stopTimer: null,
+    phases: new Map(),
+    slowFrames: [],
+  };
+  activeRouteAudit = audit;
+
+  const sampleFrame = (frameAt: number): void => {
+    if (activeRouteAudit !== audit) return;
+    const frameMs = Math.max(0, Math.min(250, frameAt - audit.lastFrameAt));
+    const phase = audit.phases.get(audit.marker) || createRoutePhaseAccumulator();
+    phase.count += 1;
+    phase.totalMs += frameMs;
+    phase.worstMs = Math.max(phase.worstMs, frameMs);
+    if (frameMs > 20) phase.over20 += 1;
+    if (frameMs > 34) phase.over34 += 1;
+    if (frameMs > 50) phase.over50 += 1;
+    audit.phases.set(audit.marker, phase);
+    if (frameMs > 20) {
+      audit.slowFrames.push({
+        frameMs: Number(frameMs.toFixed(2)),
+        marker: audit.marker,
+        markerAgeMs: Math.round(frameAt - audit.markerAt),
+        elapsedMs: Math.round(frameAt - audit.startedAt),
+      });
+      audit.slowFrames.sort((left, right) => right.frameMs - left.frameMs);
+      if (audit.slowFrames.length > 16) audit.slowFrames.length = 16;
+    }
+    audit.lastFrameAt = frameAt;
+    audit.frameId = requestAnimationFrame(sampleFrame);
+  };
+
+  emitIOSNativeDiagnostic('journey-route-performance-begin', { source });
+  audit.frameId = requestAnimationFrame(sampleFrame);
+  audit.stopTimer = setTimeout(() => finishIOSJourneyRouteAudit('timeout'), 60_000);
+}
+
+export function markIOSJourneyRouteAudit(marker: string): void {
+  const audit = activeRouteAudit;
+  if (!audit) return;
+  audit.marker = marker;
+  audit.markerAt = performance.now();
+  emitIOSNativeDiagnostic('journey-route-marker', {
+    marker,
+    elapsedMs: Math.round(audit.markerAt - audit.startedAt),
+  });
+}
+
+export function finishIOSJourneyRouteAudit(reason = 'complete'): void {
+  const audit = activeRouteAudit;
+  if (!audit) return;
+  activeRouteAudit = null;
+  if (audit.frameId !== null) cancelAnimationFrame(audit.frameId);
+  if (audit.stopTimer !== null) clearTimeout(audit.stopTimer);
+
+  const phases = Array.from(audit.phases.entries()).map(([marker, phase]) => ({
+    marker,
+    frames: {
+      count: phase.count,
+      averageMs: Number((phase.count ? phase.totalMs / phase.count : 0).toFixed(2)),
+      worstMs: Number(phase.worstMs.toFixed(2)),
+      over20: phase.over20,
+      over34: phase.over34,
+      over50: phase.over50,
+    },
+  }));
+  const allFrames = phases.reduce((total, phase) => total + phase.frames.count, 0);
+  const weightedTotal = phases.reduce(
+    (total, phase) => total + (phase.frames.averageMs * phase.frames.count),
+    0,
+  );
+  emitIOSNativeDiagnostic('journey-route-performance', {
+    reason,
+    durationMs: Math.round(performance.now() - audit.startedAt),
+    frames: {
+      count: allFrames,
+      averageMs: Number((allFrames ? weightedTotal / allFrames : 0).toFixed(2)),
+      worstMs: Number(Math.max(0, ...phases.map((phase) => phase.frames.worstMs)).toFixed(2)),
+      over20: phases.reduce((total, phase) => total + phase.frames.over20, 0),
+      over34: phases.reduce((total, phase) => total + phase.frames.over34, 0),
+      over50: phases.reduce((total, phase) => total + phase.frames.over50, 0),
+    },
+    phases,
+    slowFrames: audit.slowFrames,
+  });
+}
 
 export function markIOSJourneyTransitionAudit(marker: string): void {
   if (!activeTransitionAudit) return;
@@ -83,6 +216,7 @@ export function startIOSJourneyWorldEnterAudit(
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
   let finished = false;
   const samples: number[] = [];
+  const slowFrames: JourneyWorldSlowFrame[] = [];
   const container = document.getElementById('journey-boards-container') as HTMLElement | null;
   const transitionAudit = { marker: 'audit-start', markerAt: startedAt };
   activeTransitionAudit = transitionAudit;
@@ -98,6 +232,7 @@ export function startIOSJourneyWorldEnterAudit(
       reason,
       durationMs: Math.round(performance.now() - startedAt),
       frames: summarizeJourneyWorldEnterFrames(samples),
+      slowFrames,
     });
   };
 
@@ -105,6 +240,15 @@ export function startIOSJourneyWorldEnterAudit(
     if (finished) return;
     const frameMs = frameAt - lastFrameAt;
     samples.push(frameMs);
+    if (frameMs > 20) {
+      slowFrames.push({
+        frameMs: Number(frameMs.toFixed(2)),
+        marker: transitionAudit.marker,
+        markerAgeMs: Math.round(performance.now() - transitionAudit.markerAt),
+      });
+      slowFrames.sort((left, right) => right.frameMs - left.frameMs);
+      if (slowFrames.length > 8) slowFrames.length = 8;
+    }
     if (frameMs > 50) {
       emitIOSNativeDiagnostic('world-transition-long-frame', {
         ...context,

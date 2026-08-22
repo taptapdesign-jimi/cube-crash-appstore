@@ -20,6 +20,11 @@ import {
 } from './modules/journey-card-base-transform.js';
 import { playNavIconCartoonBounce } from './utils/nav-icon-bounce.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
+import {
+  beginIOSJourneyRouteAudit,
+  finishIOSJourneyRouteAudit,
+  markIOSJourneyRouteAudit,
+} from './utils/ios-journey-world-enter-audit.js';
 import { resolveJourneyReturnEntryPolicy } from './modules/journey-return-entry-policy.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
@@ -1053,6 +1058,7 @@ class CollectiblesManager {
     const isReturningToJourneyWithActiveArea =
       returningFromDetailModalEarly || returningFromInterimBoardEarly;
     if (!isReturningToJourneyWithActiveArea) {
+      beginIOSJourneyRouteAudit('homepage-slider-to-journey');
       unlockJourneyViewportTransition('showCollectibles-fresh-enter');
     }
 
@@ -1672,10 +1678,12 @@ class CollectiblesManager {
           void finishJourneyBackCleanup();
 
           console.log('🏠 Step 2: Fast showing homepage slide 2 after Journey exit animation');
+          markIOSJourneyRouteAudit('homepage-return-enter');
           await homepageEnterHandoff('journey-exit-homepage-slide-1-fast', {
             targetSlideIndex: 1,
             skipFirstPaintReady: true,
           });
+          finishIOSJourneyRouteAudit('complete');
           return;
         }
 
@@ -1759,10 +1767,12 @@ class CollectiblesManager {
 
       const homepageEnterHandoff = (window as any).__ccPlayHomepageSliderEnterHandoff;
       if (typeof homepageEnterHandoff === 'function') {
+        markIOSJourneyRouteAudit('homepage-return-enter');
         await homepageEnterHandoff('journey-exit-homepage-slide-1', {
           targetSlideIndex: 1,
           skipFirstPaintReady: true,
         });
+        finishIOSJourneyRouteAudit('complete');
         return;
       }
 

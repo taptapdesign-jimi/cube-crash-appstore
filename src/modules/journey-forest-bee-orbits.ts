@@ -1,4 +1,10 @@
 import { gsap } from 'gsap';
+import {
+  startJourneyAmbientCanvasRuntime,
+  type JourneyAmbientCanvasDepth,
+  type JourneyAmbientCanvasFrame,
+  type JourneyAmbientTicker,
+} from './journey-ambient-canvas-runtime.js';
 
 const TAU = Math.PI * 2;
 const FOREST_DESIGN_WIDTH = 390;
@@ -9,7 +15,7 @@ const FOREST_BEE_POINT_COUNT = 8;
 const FOREST_BEE_ROAM_SECONDS = 7.5;
 const FOREST_BEE_EDGE_SECONDS = 5.5;
 const FOREST_BEE_MIN_ONSCREEN_SECONDS = 30;
-const FOREST_BEE_DIRECTION_FADE_MS = 80;
+const FOREST_BEE_DIRECTION_FADE_SECONDS = 0.08;
 const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
 const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 1.5;
 const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
@@ -70,12 +76,6 @@ export interface JourneyForestBeeFlightPlan {
   phase: ForestBeeFlightPhase;
 }
 
-interface ForestBeeTicker {
-  time: number;
-  add(callback: () => void): void;
-  remove(callback: () => void): void;
-}
-
 interface ForestBeeFlightContinuity {
   tangentX: number;
   tangentY: number;
@@ -88,11 +88,12 @@ interface StartJourneyForestBeeOrbitsOptions {
   leftGutterPx: number;
   scrollRoot?: HTMLElement | null;
   random?: () => number;
-  ticker?: ForestBeeTicker;
+  ticker?: JourneyAmbientTicker;
   observeVisibility?: boolean;
 }
 
 export interface JourneyForestBeeOrbitController {
+  setSuspended(suspended: boolean): void;
   dispose(): void;
   getSnapshot(): {
     disposed: boolean;
@@ -106,18 +107,18 @@ export interface JourneyForestBeeOrbitController {
     gateGeometrySource: 'dom' | 'fallback';
     gateCenterX: number;
     gateCenterY: number;
+    renderer: 'canvas';
+    canvasCount: number;
+    domImageCount: number;
   };
 }
 
 interface LiveBee {
-  element: HTMLDivElement;
-  imageLayers: [HTMLImageElement, HTMLImageElement];
-  activeImageLayer: 0 | 1;
   plan: JourneyForestBeeFlightPlan;
   sample: Float32Array;
   currentAsset: ForestBeeAsset | null;
-  loadingAsset: ForestBeeAsset | null;
-  assetLoadSequence: number;
+  previousAsset: ForestBeeAsset | null;
+  assetBlendSeconds: number;
   pendingAsset: ForestBeeAsset | null;
   pendingAssetSeconds: number;
   depth: ForestBeeDepth | null;
@@ -499,13 +500,8 @@ function sampleJourneyForestBeeFlight(
 }
 
 function setBeeDepth(bee: LiveBee, depth: ForestBeeDepth): void {
-  if (bee.depth === depth && bee.element.dataset.forestBeeDepth) return;
+  if (bee.depth === depth) return;
   bee.depth = depth;
-  bee.element.dataset.forestBeeDepth = depth;
-  // These are three distinct compositing contracts: z0 is behind the complete
-  // Forest PNG. The same root z0 deliberately lets lower-map Units occlude a
-  // behind-unit bee, z2 remains below cards, and z4 is in front of both.
-  bee.element.style.zIndex = depth === 'front' ? '4' : depth === 'behind-card' ? '2' : '0';
 }
 
 function chooseRoamDepth(index: number, random: () => number): ForestBeeDepth {
@@ -516,45 +512,10 @@ function chooseRoamDepth(index: number, random: () => number): ForestBeeDepth {
 }
 
 function setBeeAsset(bee: LiveBee, asset: ForestBeeAsset): void {
-  if (bee.currentAsset === asset || bee.loadingAsset === asset) return;
-  const source = FOREST_BEE_ASSET_BY_ID.get(asset);
-  if (!source) return;
-
-  if (bee.currentAsset === null) {
-    const initialLayer = bee.imageLayers[bee.activeImageLayer];
-    initialLayer.srcset = source.srcset;
-    initialLayer.src = source.src;
-    initialLayer.style.opacity = '1';
-    bee.currentAsset = asset;
-    bee.element.dataset.forestBeeAsset = asset;
-  } else {
-    const nextLayerIndex = (bee.activeImageLayer === 0 ? 1 : 0) as 0 | 1;
-    const currentLayer = bee.imageLayers[bee.activeImageLayer];
-    const nextLayer = bee.imageLayers[nextLayerIndex];
-    const loadSequence = bee.assetLoadSequence + 1;
-    bee.assetLoadSequence = loadSequence;
-    bee.loadingAsset = asset;
-    const promoteLoadedAsset = () => {
-      if (bee.assetLoadSequence !== loadSequence || bee.loadingAsset !== asset) return;
-      nextLayer.onload = null;
-      nextLayer.onerror = null;
-      nextLayer.style.opacity = '1';
-      currentLayer.style.opacity = '0';
-      bee.activeImageLayer = nextLayerIndex;
-      bee.currentAsset = asset;
-      bee.loadingAsset = null;
-      bee.element.dataset.forestBeeAsset = asset;
-    };
-    nextLayer.onload = promoteLoadedAsset;
-    nextLayer.onerror = () => {
-      if (bee.assetLoadSequence === loadSequence) bee.loadingAsset = null;
-    };
-    // Keep the current painted sprite visible until this direction is decoded.
-    nextLayer.style.opacity = '0';
-    nextLayer.srcset = source.srcset;
-    nextLayer.src = source.src;
-    if (nextLayer.complete && nextLayer.naturalWidth > 0) promoteLoadedAsset();
-  }
+  if (bee.currentAsset === asset || !FOREST_BEE_ASSET_BY_ID.has(asset)) return;
+  bee.previousAsset = bee.currentAsset;
+  bee.currentAsset = asset;
+  bee.assetBlendSeconds = bee.previousAsset ? 0 : FOREST_BEE_DIRECTION_FADE_SECONDS;
 }
 
 function updateBeeAssetCandidate(
@@ -562,7 +523,7 @@ function updateBeeAssetCandidate(
   candidate: ForestBeeAsset,
   deltaSeconds: number,
 ): void {
-  if (candidate === bee.currentAsset || candidate === bee.loadingAsset) {
+  if (candidate === bee.currentAsset) {
     bee.pendingAsset = null;
     bee.pendingAssetSeconds = 0;
     return;
@@ -579,35 +540,41 @@ function updateBeeAssetCandidate(
   bee.pendingAssetSeconds = 0;
 }
 
-function createBeeImageLayer(): HTMLImageElement {
-  const image = document.createElement('img');
-  image.alt = '';
-  image.draggable = false;
-  image.decoding = 'async';
-  image.setAttribute('aria-hidden', 'true');
-  image.style.position = 'absolute';
-  image.style.inset = '0';
-  image.style.width = '100%';
-  image.style.height = '100%';
-  image.style.objectFit = 'contain';
-  image.style.opacity = '0';
-  image.style.pointerEvents = 'none';
-  image.style.transition = `opacity ${FOREST_BEE_DIRECTION_FADE_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)`;
-  return image;
+function drawBeeAsset(
+  context: CanvasRenderingContext2D | null,
+  image: HTMLImageElement | undefined,
+  x: number,
+  y: number,
+  size: number,
+  rotation: number,
+  scaleX: number,
+  scaleY: number,
+  opacity: number,
+  canvasTop: number,
+): void {
+  if (!context || !image?.complete || image.naturalWidth <= 0 || opacity <= 0) return;
+  context.save();
+  context.globalAlpha = opacity;
+  context.translate(x + size / 2, y - canvasTop + size / 2);
+  context.rotate((rotation * Math.PI) / 180);
+  context.scale(scaleX, scaleY);
+  context.drawImage(image, -size / 2, -size / 2, size, size);
+  context.restore();
 }
 
-/** One ticker, one observer and nineteen reusable logical bees for Forest only. */
+/** Nineteen reusable logical bees painted by the shared two-canvas runtime. */
 export function startJourneyForestBeeOrbits(
   options: StartJourneyForestBeeOrbitsOptions,
 ): JourneyForestBeeOrbitController {
   const ticker = options.ticker || gsap.ticker;
   const random = options.random || Math.random;
-  const assetPreloads = typeof Image === 'undefined' ? [] : FOREST_BEE_ASSETS.map((asset) => {
+  const assetImages = new Map<ForestBeeAsset, HTMLImageElement>();
+  if (typeof Image !== 'undefined') FOREST_BEE_ASSETS.forEach((asset) => {
     const image = new Image();
     image.decoding = 'async';
     image.srcset = asset.srcset;
     image.src = asset.src;
-    return image;
+    assetImages.set(asset.asset, image);
   });
   let gateGeometry = resolveForestGateGeometry(options);
   const refreshGateGeometry = (): ForestBeeGateGeometry => {
@@ -620,65 +587,21 @@ export function startJourneyForestBeeOrbits(
   options.root.dataset.forestBeeGateGeometry = gateGeometry.source;
   options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;
   let disposed = false;
-  let tickerAttached = false;
-  let sceneVisible = true;
-  let lastTickTime = ticker.time;
-  let visibilityObserver: IntersectionObserver | null = null;
-  const scrollRoot = options.scrollRoot ?? null;
   const viewportWidth = window.innerWidth || options.root.getBoundingClientRect().width || FOREST_DESIGN_WIDTH;
   const pxPerDesignUnit = viewportWidth / FOREST_DESIGN_WIDTH;
-  let rootContentTop = 0;
-  let visibleTopScene = Number.NEGATIVE_INFINITY;
-  let visibleBottomScene = Number.POSITIVE_INFINITY;
-
-  const refreshVisibleBandGeometry = (): void => {
-    if (!scrollRoot) return;
-    const rootRect = options.root.getBoundingClientRect();
-    const scrollRect = scrollRoot.getBoundingClientRect();
-    rootContentTop = rootRect.top - scrollRect.top + scrollRoot.scrollTop;
-  };
-  const refreshVisibleBand = (): void => {
-    if (!scrollRoot) return;
-    const viewportTopPx = scrollRoot.scrollTop - rootContentTop - options.contentTopPx;
-    visibleTopScene = (viewportTopPx - FOREST_BEE_VISIBILITY_MARGIN_PX) / pxPerDesignUnit;
-    visibleBottomScene = (
-      viewportTopPx + scrollRoot.clientHeight + FOREST_BEE_VISIBILITY_MARGIN_PX
-    ) / pxPerDesignUnit;
-  };
-  refreshVisibleBandGeometry();
-  refreshVisibleBand();
-
+  const authoredHeight = Number.parseFloat(options.root.style.height || '');
+  const sceneHeight = Math.max(
+    Number.isFinite(authoredHeight) ? authoredHeight : 0,
+    options.root.getBoundingClientRect().height || 0,
+    options.contentTopPx + ((FOREST_FLIGHT_MAX_Y + 80) * pxPerDesignUnit),
+  );
   const bees: LiveBee[] = plans.map((plan, index) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = `journey-forest-bee-orbit journey-forest-bee-orbit-${index + 1}`;
-    wrapper.setAttribute('aria-hidden', 'true');
-    wrapper.dataset.forestBeeIndex = String(index + 1);
-    wrapper.dataset.forestBeeScale = String(plan.scale);
-    wrapper.dataset.forestBeeEdgeRoute = plan.edgeRoute;
-    wrapper.dataset.forestBeePhase = plan.phase;
-    wrapper.style.position = 'absolute';
-    wrapper.style.left = `${-options.leftGutterPx}px`;
-    wrapper.style.top = `${options.contentTopPx}px`;
-    wrapper.style.width = `${(plan.width / FOREST_DESIGN_WIDTH) * 100}vw`;
-    wrapper.style.aspectRatio = '1';
-    wrapper.style.pointerEvents = 'none';
-    wrapper.style.transformOrigin = '50% 50%';
-    wrapper.style.backfaceVisibility = 'hidden';
-    wrapper.style.willChange = 'transform';
-    wrapper.style.visibility = 'hidden';
-    const imageLayers: [HTMLImageElement, HTMLImageElement] = [createBeeImageLayer(), createBeeImageLayer()];
-    wrapper.append(...imageLayers);
-    options.root.appendChild(wrapper);
-
     const bee: LiveBee = {
-      element: wrapper,
-      imageLayers,
-      activeImageLayer: 0,
       plan,
       sample: new Float32Array(4),
       currentAsset: null,
-      loadingAsset: null,
-      assetLoadSequence: 0,
+      previousAsset: null,
+      assetBlendSeconds: FOREST_BEE_DIRECTION_FADE_SECONDS,
       pendingAsset: null,
       pendingAssetSeconds: 0,
       depth: null,
@@ -697,7 +620,6 @@ export function startJourneyForestBeeOrbits(
     if (bee.plan.phase === 'roam') {
       if (bee.plan.onScreenSeconds >= FOREST_BEE_MIN_ONSCREEN_SECONDS) {
         resetExitPlan(bee.plan, index, random, refreshGateGeometry());
-        bee.element.dataset.forestBeePhase = bee.plan.phase;
       } else {
         // Keep the same cyclic spline until the minimum visible lifetime is met.
         // Regenerating controls here would introduce a visible tangent break.
@@ -712,7 +634,6 @@ export function startJourneyForestBeeOrbits(
         setBeeDepth(bee, chooseRoamDepth(index, random));
       }
       resetEntryPlan(bee.plan, index, random, refreshGateGeometry(), 0, endX, endY);
-      bee.element.dataset.forestBeePhase = bee.plan.phase;
       return;
     }
     bee.plan.onScreenSeconds = 0;
@@ -727,32 +648,17 @@ export function startJourneyForestBeeOrbits(
       tangentY: endY - beforeEndY,
       bouncePhase: bee.plan.bouncePhase,
     });
-    bee.element.dataset.forestBeePhase = bee.plan.phase;
   };
 
-  const tick = () => {
-    if (disposed) return;
-    const now = ticker.time;
-    const deltaSeconds = clamp(now - lastTickTime, 0, 0.12);
-    lastTickTime = now;
-    if (!options.root.isConnected) {
-      controller.dispose();
-      return;
-    }
-    if (!sceneVisible || (typeof document !== 'undefined' && document.hidden)) return;
-    refreshVisibleBand();
-
+  const render = (frame: JourneyAmbientCanvasFrame): number => {
+    let visibleCount = 0;
     bees.forEach((bee, index) => {
-      bee.plan.elapsedSeconds += deltaSeconds;
+      bee.plan.elapsedSeconds += frame.deltaSeconds;
       if (bee.plan.elapsedSeconds < 0) {
-        if (bee.rendered) {
-          bee.element.style.visibility = 'hidden';
-          bee.element.style.willChange = 'auto';
-          bee.rendered = false;
-        }
+        bee.rendered = false;
         return;
       }
-      if (bee.plan.phase === 'roam') bee.plan.onScreenSeconds += deltaSeconds;
+      if (bee.plan.phase === 'roam') bee.plan.onScreenSeconds += frame.deltaSeconds;
       if (bee.plan.elapsedSeconds >= bee.plan.durationSeconds) advanceCompletedFlight(bee, index);
 
       const progress = bee.plan.elapsedSeconds / bee.plan.durationSeconds;
@@ -787,92 +693,90 @@ export function startJourneyForestBeeOrbits(
         }
       }
 
-      const beeHeightInScene = bee.plan.width * bee.plan.scale;
-      const isNearViewport = bee.sample[1] + beeHeightInScene >= visibleTopScene
-        && bee.sample[1] <= visibleBottomScene;
-      if (!isNearViewport) {
-        if (bee.rendered) {
-          bee.element.style.visibility = 'hidden';
-          bee.element.style.willChange = 'auto';
-          bee.rendered = false;
-        }
-        return;
+      updateBeeAssetCandidate(bee, asset, frame.deltaSeconds);
+      bee.assetBlendSeconds = Math.min(
+        FOREST_BEE_DIRECTION_FADE_SECONDS,
+        bee.assetBlendSeconds + frame.deltaSeconds,
+      );
+      const size = bee.plan.width * pxPerDesignUnit;
+      const x = bee.sample[0] * pxPerDesignUnit;
+      const y = options.contentTopPx + (bee.sample[1] * pxPerDesignUnit);
+      const paintedHeight = size * scaleY;
+      bee.rendered = y + paintedHeight >= frame.viewportTop && y <= frame.viewportBottom;
+      if (!bee.rendered) return;
+      visibleCount += 1;
+      const context = bee.depth === 'front' ? frame.front : frame.behind;
+      const blend = clamp(bee.assetBlendSeconds / FOREST_BEE_DIRECTION_FADE_SECONDS, 0, 1);
+      if (bee.previousAsset && blend < 1) {
+        drawBeeAsset(
+          context, assetImages.get(bee.previousAsset), x, y, size, rotation,
+          scaleX, scaleY, 1 - blend, frame.viewportTop,
+        );
+      } else {
+        bee.previousAsset = null;
       }
-      if (!bee.rendered) {
-        bee.element.style.visibility = 'visible';
-        bee.element.style.willChange = 'transform';
-        bee.rendered = true;
+      if (bee.currentAsset) {
+        drawBeeAsset(
+          context, assetImages.get(bee.currentAsset), x, y, size, rotation,
+          scaleX, scaleY, blend, frame.viewportTop,
+        );
       }
-
-      updateBeeAssetCandidate(bee, asset, deltaSeconds);
-      bee.element.style.transform = `translate3d(${(bee.sample[0] / FOREST_DESIGN_WIDTH) * 100}vw, ${(bee.sample[1] / FOREST_DESIGN_WIDTH) * 100}vw, 0) rotate(${rotation}deg) scaleX(${scaleX}) scaleY(${scaleY})`;
     });
+    return visibleCount;
   };
 
+  const cloudLayer = options.root.querySelector<HTMLElement>('.journey-cloud-container');
+  const runtime = startJourneyAmbientCanvasRuntime({
+    root: options.root,
+    scrollRoot: options.scrollRoot,
+    ticker,
+    sceneWidthPx: viewportWidth,
+    sceneHeightPx: sceneHeight,
+    layerLeftPx: -options.leftGutterPx,
+    layerTopPx: 0,
+    visibilityMarginPx: FOREST_BEE_VISIBILITY_MARGIN_PX,
+    behindBefore: cloudLayer,
+    behindZIndex: 0,
+    frontZIndex: 4,
+    className: 'journey-forest-bee-canvas',
+    observeVisibility: options.observeVisibility,
+    render,
+  });
+  options.root.dataset.journeyForestBeeRenderer = 'canvas';
+
   const controller: JourneyForestBeeOrbitController = {
+    setSuspended: (nextSuspended) => runtime.setSuspended(nextSuspended),
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      if (tickerAttached) {
-        try { ticker.remove(tick); } catch {}
-        tickerAttached = false;
-      }
-      if (visibilityObserver) {
-        try { visibilityObserver.disconnect(); } catch {}
-        visibilityObserver = null;
-      }
-      bees.forEach((bee) => {
-        bee.imageLayers.forEach((image) => {
-          image.onload = null;
-          image.onerror = null;
-        });
-        bee.imageLayers.forEach((image) => image.style.transition = 'none');
-        bee.element.style.willChange = 'auto';
-        bee.element.remove();
-      });
-      assetPreloads.forEach((image) => {
+      runtime.dispose();
+      assetImages.forEach((image) => {
         image.onload = null;
         image.onerror = null;
       });
       delete options.root.dataset.forestBeeGateGeometry;
       delete options.root.dataset.forestBeeGateCenter;
+      delete options.root.dataset.journeyForestBeeRenderer;
     },
-    getSnapshot: () => ({
-      disposed,
-      beeCount: disposed ? 0 : bees.length,
-      imageLayerCount: disposed ? 0 : bees.length * 2,
-      tickerCount: tickerAttached ? 1 : 0,
-      visibleBeeCount: disposed || !sceneVisible
-        ? 0
-        : bees.filter((bee) => bee.plan.elapsedSeconds >= 0).length,
-      gateBeeCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate').length,
-      gateEntryCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'entry').length,
-      gateExitCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'exit').length,
-      gateGeometrySource: gateGeometry.source,
-      gateCenterX: gateGeometry.centerX,
-      gateCenterY: (gateGeometry.topY + gateGeometry.bottomY) / 2,
-    }),
+    getSnapshot: () => {
+      const runtimeSnapshot = runtime.getSnapshot();
+      return {
+        disposed,
+        beeCount: disposed ? 0 : bees.length,
+        imageLayerCount: 0,
+        tickerCount: runtimeSnapshot.tickerCount,
+        visibleBeeCount: runtimeSnapshot.visibleSpriteCount,
+        gateBeeCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate').length,
+        gateEntryCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'entry').length,
+        gateExitCount: disposed ? 0 : bees.filter((bee) => bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'exit').length,
+        gateGeometrySource: gateGeometry.source,
+        gateCenterX: gateGeometry.centerX,
+        gateCenterY: (gateGeometry.topY + gateGeometry.bottomY) / 2,
+        renderer: 'canvas' as const,
+        canvasCount: runtimeSnapshot.canvasCount,
+        domImageCount: 0,
+      };
+    },
   };
-
-  if (options.observeVisibility !== false && typeof IntersectionObserver !== 'undefined') {
-    visibilityObserver = new IntersectionObserver((records) => {
-      const rootRecord = records.find((record) => record.target === options.root);
-      if (!rootRecord) return;
-      sceneVisible = rootRecord.isIntersecting;
-      lastTickTime = ticker.time;
-      bees.forEach((bee) => {
-        bee.element.style.willChange = sceneVisible && bee.rendered ? 'transform' : 'auto';
-      });
-    }, {
-      root: options.scrollRoot || null,
-      rootMargin: '180px 0px',
-      threshold: 0,
-    });
-    visibilityObserver.observe(options.root);
-  }
-
-  ticker.add(tick);
-  tickerAttached = true;
-  tick();
   return controller;
 }

@@ -226,6 +226,55 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
+  test('attributes slow enter and exit frames to the exact Unit without changing motion', () => {
+    expect(worldAnimationCoordinatorSource).toContain("markIOSJourneyTransitionAudit(`enter-unit-${unit.id}-start`)");
+    expect(worldAnimationCoordinatorSource).toContain("markIOSJourneyTransitionAudit(`exit-unit-${unit.id}-start`)");
+    expect(worldAnimationCoordinatorSource).toContain("emitIOSNativeDiagnostic('world-unit-exit-start'");
+    expect(journeyManagerSource).toContain("markIOSJourneyTransitionAudit('enter-unit-cascade')");
+    expect(journeyManagerSource).toContain("markIOSJourneyTransitionAudit('exit-unit-cascade')");
+  });
+
+  test('uses one resumable idle owner and avoids mass 3D promotion during World exit', () => {
+    expect(worldAnimationCoordinatorSource).toContain('private idleTicker: (() => void) | null = null;');
+    expect(worldAnimationCoordinatorSource).toContain('private idleEntries: JourneyWorldIdleEntry[] = [];');
+    expect(worldAnimationCoordinatorSource).toContain('public setIdlePaintSuspended(suspended: boolean): void');
+    expect(worldAnimationCoordinatorSource).toContain('entry.startTime += pausedFor');
+    expect(worldAnimationCoordinatorSource).toContain('if (this.idleTicker) return;');
+    expect(worldAnimationCoordinatorSource).not.toContain('private idleTickers: Array<() => void> = [];');
+
+    const exitSource = worldAnimationCoordinatorSource.split(
+      'public async exit(',
+    )[1]?.split('private startIdle(')[0] ?? '';
+    expect(exitSource).not.toContain('force3D: true');
+    expect(journeyManagerSource).toContain(
+      "snapshot.state !== 'idle' && snapshot.state !== 'transition'",
+    );
+  });
+
+  test('one generic runtime scheduler owns scroll, modal and transition paint for every World', () => {
+    const pauseSource = journeyManagerSource.split(
+      'private pauseJourneyWorldForCardOverlay(reason: string): void',
+    )[1]?.split('private resumeJourneyWorldAfterCardOverlay')[0] ?? '';
+    const resumeSource = journeyManagerSource.split(
+      'private resumeJourneyWorldAfterCardOverlay(reason: string): void',
+    )[1]?.split('private scheduleJourneyAreaIdleAnimations')[0] ?? '';
+    const enterSource = journeyManagerSource.split(
+      'private playJourneyV700WorldEnter(',
+    )[1]?.split('private playJourneyV700WorldExit(')[0] ?? '';
+
+    expect(journeyManagerSource).toContain('new JourneyWorldRuntimeScheduler()');
+    expect(enterSource).toContain('this.activateJourneyWorldRuntime(container, worldId)');
+    expect(enterSource).toContain('this.journeyWorldRuntime.endTransition()');
+    expect(pauseSource).toContain('this.journeyWorldRuntime.openModal()');
+    expect(pauseSource).not.toContain('this.cleanupJourneyAreaIdleAnimations(false)');
+    expect(resumeSource).toContain('this.journeyWorldRuntime.closeModal()');
+    expect(resumeSource).not.toContain('this.startJourneyAreaIdleAnimations(');
+    expect(journeyManagerSource).toContain('boardEntries.slice(0, 3)');
+    expect(collectiblesCssSource).toContain(
+      '#journey-boards-container.journey-world-runtime-transition .journey-board-card',
+    );
+  });
+
   test('World enter avoids mass compositor promotion and static World layers stay unpromoted', () => {
     const worldEnterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',
@@ -242,6 +291,65 @@ describe('Journey Hub transition ownership', () => {
     expect(journeyManagerSource).not.toContain("cloud.style.willChange = 'transform'");
     expect(collectiblesCssSource).toContain('.journey-board-card-wrapper {');
     expect(collectiblesCssSource).toContain('will-change: auto;');
+  });
+
+  test('each World main cloud bank has one structural transition owner while clouds keep idle drift', () => {
+    const renderAssetsSource = journeyManagerSource.split(
+      'private renderForestMapAssets(',
+    )[1]?.split('private cleanupDetailModalRuntimeState')[0] ?? '';
+    const fixedRenderSource = journeyManagerSource.split(
+      'private renderBoardsFixed(container: HTMLElement): void',
+    )[1]?.split('private updateBoardProgress')[0] ?? '';
+
+    expect(renderAssetsSource).toContain('const createMainCloudUnit = (');
+    expect(renderAssetsSource).toContain("createMainCloudUnit('forest-main', 0)");
+    expect(renderAssetsSource).toContain("createMainCloudUnit('beach-main', 1454)");
+    expect(renderAssetsSource).toContain("createMainCloudUnit('robo-main', 3166)");
+    expect(renderAssetsSource).toContain("addMainClouds(1, 'forest', forestMainCloudUnit)");
+    expect(renderAssetsSource).toContain("addMainClouds(2, 'beach', beachMainCloudUnit)");
+    expect(renderAssetsSource).toContain("addMainClouds(3, 'robo', roboMainCloudUnit)");
+    expect(renderAssetsSource).toContain('getJourneyMainCloudRenderSpecs(worldId)');
+    expect(fixedRenderSource).toContain("querySelectorAll<HTMLElement>('.journey-main-cloud-unit')");
+    expect(fixedRenderSource.indexOf("querySelectorAll<HTMLElement>('.journey-main-cloud-unit')"))
+      .toBeLessThan(fixedRenderSource.indexOf("querySelectorAll<HTMLElement>('.journey-forest-cloud-art')"));
+    expect(worldAnimationCoordinatorSource).toContain('unit.clouds.map((cloud) => ({');
+  });
+
+  test('pre-rasterizes and GPU-prewarms the active main cloud bank before Hub exit and visible World enter', () => {
+    const openWorldSource = journeyManagerSource.split(
+      'private openJourneyV700World(worldId: number, source?: HTMLElement): void',
+    )[1]?.split('private async buildJourneyMainCloudComposite')[0] ?? '';
+    const buildSource = journeyManagerSource.split(
+      'private async buildJourneyMainCloudComposite',
+    )[1]?.split('private async prewarmJourneyMainCloudComposite')[0] ?? '';
+    const prewarmSource = journeyManagerSource.split(
+      'private async prewarmJourneyMainCloudComposite',
+    )[1]?.split('private async prepareJourneyMainCloudComposite')[0] ?? '';
+    const prepareSource = journeyManagerSource.split(
+      'private async prepareJourneyMainCloudComposite',
+    )[1]?.split('private applyJourneyV700WorldScope')[0] ?? '';
+
+    expect(openWorldSource).toContain('await this.prewarmJourneyMainCloudComposite(container, worldId)');
+    expect(openWorldSource.indexOf('await this.prewarmJourneyMainCloudComposite(container, worldId)'))
+      .toBeLessThan(openWorldSource.indexOf('this.playJourneyV700HubExit('));
+    expect(openWorldSource).toContain('await this.prepareJourneyMainCloudComposite(container, worldId)');
+    expect(openWorldSource.indexOf('await this.prepareJourneyMainCloudComposite(container, worldId)'))
+      .toBeLessThan(openWorldSource.indexOf('this.trackRAF(() => {'));
+    expect(journeyManagerSource).toContain('void this.prewarmJourneyMainCloudComposite(container, worldId)');
+    expect(buildSource).toContain('getJourneyMainCloudRenderSpecs(worldId)');
+    expect(buildSource).toContain("document.createElement('canvas')");
+    expect(buildSource).toContain('Math.min(2, Math.max(1, window.devicePixelRatio || 1))');
+    expect(buildSource).toContain('context.drawImage(');
+    expect(buildSource).toContain("canvas.className = 'journey-forest-cloud-art journey-main-cloud-composite'");
+    expect(prewarmSource).toContain("stage.style.opacity = '0.001'");
+    expect(prewarmSource).toContain("stage.style.contain = 'strict'");
+    expect(prewarmSource).toContain('await this.waitForTrackedFrames(3)');
+    expect(prewarmSource).toContain("canvas.dataset.journeyCompositePrewarmed = 'true'");
+    expect(prewarmSource).toContain("emitIOSNativeDiagnostic('world-main-cloud-composite-prewarmed'");
+    expect(prepareSource).toContain('unit.replaceChildren(canvas)');
+    expect(prepareSource).toContain("source: canvas.dataset.journeyCompositePrewarmed === 'true' ? 'prewarmed' : 'cache'");
+    expect(journeyManagerSource).toContain('this.journeyMainCloudCompositeCache.clear()');
+    expect(journeyManagerSource).toContain('this.journeyMainCloudCompositePrewarms.clear()');
   });
 
   test('an early World close queues one clean exit instead of overlapping the enter cascade', () => {
@@ -307,7 +415,7 @@ describe('Journey Hub transition ownership', () => {
     expect(pinIndex).toBeGreaterThanOrEqual(0);
     expect(pinIndex).toBeLessThan(exitIndex);
     expect(openWorldSource).toContain('releaseHubViewportPin();\n        this.renderBoards();');
-    expect(openWorldSource).toContain('releaseHubViewportPin();\n        this.journeyV700WorldOpenInProgress = false;');
+    expect(openWorldSource).toContain('releaseHubViewportPin();\n        finishOpeningOwnership();');
 
     const pinSource = journeyManagerSource.split(
       'private pinJourneyV700HubViewportForExit(container: HTMLElement, reason: string): () => void',
