@@ -87,6 +87,8 @@ describe('Journey exact-card portal transition', () => {
     expect(portalVisual).not.toBe(card);
     expect(document.querySelectorAll('[data-board-id="26"]')).toHaveLength(1);
     expect(portalVisual).toHaveClass('journey-card-overlay-portaled-card');
+    expect(card).not.toHaveClass('journey-board-card-return-placeholder');
+    lease!.activatePortal();
     expect(card).toHaveClass('journey-board-card-return-placeholder');
 
     jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {

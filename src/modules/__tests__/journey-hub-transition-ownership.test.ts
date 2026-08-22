@@ -34,7 +34,7 @@ describe('Journey Hub transition ownership', () => {
 
   test('Hub renderer is DOM-only and delegates visible motion to the coordinator', () => {
     const renderSource = journeyManagerSource.split(
-      'private renderJourneyV700Hub(container: HTMLElement): void',
+      'private renderJourneyV700Hub(',
     )[1]?.split('private cancelJourneyV700HubEnter(reason: string): void')[0] ?? '';
 
     expect(renderSource).toContain("this.playJourneyV700HubEnter('world-return')");
@@ -194,9 +194,10 @@ describe('Journey Hub transition ownership', () => {
       'private openJourneyV700World(worldId: number, source?: HTMLElement): void',
     )[1]?.split('private applyJourneyV700WorldScope')[0] ?? '';
     const worldScopeSource = journeyManagerSource.split(
-      'private applyJourneyV700WorldScope(container: HTMLElement, worldId: number): void',
+      'private applyJourneyV700WorldScope(',
     )[1]?.split('private getJourneyV700WorldTargets')[0] ?? '';
 
+    expect(worldScopeSource).toContain("if (options.prepaint) return");
     expect(worldScopeSource).toContain("source: 'hub-world-open-render-prime'");
     expect(worldScopeSource).not.toContain("source: 'hub-world-open',\n        waitForImages: false");
     expect(openWorldSource).toContain("emitIOSNativeDiagnostic('world-enter-visible-frame-start'");
@@ -298,7 +299,7 @@ describe('Journey Hub transition ownership', () => {
       'private renderForestMapAssets(',
     )[1]?.split('private cleanupDetailModalRuntimeState')[0] ?? '';
     const fixedRenderSource = journeyManagerSource.split(
-      'private renderBoardsFixed(container: HTMLElement): void',
+      'private renderBoardsFixed(',
     )[1]?.split('private updateBoardProgress')[0] ?? '';
 
     expect(renderAssetsSource).toContain('const createMainCloudUnit = (');
@@ -315,41 +316,122 @@ describe('Journey Hub transition ownership', () => {
     expect(worldAnimationCoordinatorSource).toContain('unit.clouds.map((cloud) => ({');
   });
 
-  test('pre-rasterizes and GPU-prewarms the active main cloud bank before Hub exit and visible World enter', () => {
+  test('mounts only the active World assets and cards instead of hiding two complete World DOM trees', () => {
+    const renderAssetsSource = journeyManagerSource.split(
+      'private renderForestMapAssets(',
+    )[1]?.split('private cleanupDetailModalRuntimeState')[0] ?? '';
+    const fixedRenderSource = journeyManagerSource.split(
+      'private renderBoardsFixed(',
+    )[1]?.split('private setupIdleInteractionListeners')[0] ?? '';
+
+    expect(renderAssetsSource).toContain('activeWorldId: number');
+    expect(renderAssetsSource).toContain('activeWorldId === 1 ? createMainCloudUnit');
+    expect(renderAssetsSource).toContain('activeWorldId === 2 ? createMainCloudUnit');
+    expect(renderAssetsSource).toContain('activeWorldId === 3 ? createMainCloudUnit');
+    expect(renderAssetsSource).toContain('if (activeWorldId === 1 && forestMainCloudUnit)');
+    expect(renderAssetsSource).toContain('if (activeWorldId === 2 && beachMainCloudUnit)');
+    expect(renderAssetsSource).toContain('if (activeWorldId === 3 && roboMainCloudUnit)');
+    expect(fixedRenderSource).toContain('const activeWorldId = options.worldId || this.journeyV700WorldId || 1');
+    expect(fixedRenderSource).toContain('const activeWorldRange = this.getJourneyWorldRange(activeWorldId)');
+    expect(fixedRenderSource).toContain('this.renderForestMapAssets(bgContainer, decorContainer, activeWorldId)');
+    expect(fixedRenderSource).toContain('board.id < activeWorldRange.start');
+    expect(fixedRenderSource).toContain('board.id > activeWorldRange.end');
+    expect(fixedRenderSource.indexOf('board.id < activeWorldRange.start'))
+      .toBeLessThan(fixedRenderSource.indexOf('this.createBoardCardFixed(board, index)'));
+    expect(fixedRenderSource).toContain("emitIOSNativeDiagnostic('world-scoped-dom-rendered'");
+    expect(fixedRenderSource).toContain("cardCount: cardsContainer.querySelectorAll('.journey-board-card-wrapper').length");
+  });
+
+  test('prepaints the exact active World DOM behind Hub and commits it without rebuilding descendants', () => {
     const openWorldSource = journeyManagerSource.split(
       'private openJourneyV700World(worldId: number, source?: HTMLElement): void',
     )[1]?.split('private async buildJourneyMainCloudComposite')[0] ?? '';
     const buildSource = journeyManagerSource.split(
       'private async buildJourneyMainCloudComposite',
-    )[1]?.split('private async prewarmJourneyMainCloudComposite')[0] ?? '';
-    const prewarmSource = journeyManagerSource.split(
-      'private async prewarmJourneyMainCloudComposite',
     )[1]?.split('private async prepareJourneyMainCloudComposite')[0] ?? '';
     const prepareSource = journeyManagerSource.split(
       'private async prepareJourneyMainCloudComposite',
+    )[1]?.split('private cancelJourneyWorldPrepaint')[0] ?? '';
+    const worldPrepaintSource = journeyManagerSource.split(
+      'private prepareJourneyWorldPrepaint(',
+    )[1]?.split('private commitJourneyWorldPrepaint')[0] ?? '';
+    const worldCommitSource = journeyManagerSource.split(
+      'private commitJourneyWorldPrepaint(',
     )[1]?.split('private applyJourneyV700WorldScope')[0] ?? '';
 
-    expect(openWorldSource).toContain('await this.prewarmJourneyMainCloudComposite(container, worldId)');
-    expect(openWorldSource.indexOf('await this.prewarmJourneyMainCloudComposite(container, worldId)'))
+    expect(openWorldSource).toContain('await this.prepareJourneyWorldPrepaint(container, worldId)');
+    expect(openWorldSource.indexOf('await this.prepareJourneyWorldPrepaint(container, worldId)'))
       .toBeLessThan(openWorldSource.indexOf('this.playJourneyV700HubExit('));
-    expect(openWorldSource).toContain('await this.prepareJourneyMainCloudComposite(container, worldId)');
-    expect(openWorldSource.indexOf('await this.prepareJourneyMainCloudComposite(container, worldId)'))
-      .toBeLessThan(openWorldSource.indexOf('this.trackRAF(() => {'));
-    expect(journeyManagerSource).toContain('void this.prewarmJourneyMainCloudComposite(container, worldId)');
+    expect(openWorldSource).toContain('this.commitJourneyWorldPrepaint(container, worldId)');
+    expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('commit-fallback')");
+    expect(journeyManagerSource).toContain('void this.prepareJourneyWorldPrepaint(resolveLiveHubContainer(), worldId)');
     expect(buildSource).toContain('getJourneyMainCloudRenderSpecs(worldId)');
     expect(buildSource).toContain("document.createElement('canvas')");
     expect(buildSource).toContain('Math.min(2, Math.max(1, window.devicePixelRatio || 1))');
     expect(buildSource).toContain('context.drawImage(');
     expect(buildSource).toContain("canvas.className = 'journey-forest-cloud-art journey-main-cloud-composite'");
-    expect(prewarmSource).toContain("stage.style.opacity = '0.001'");
-    expect(prewarmSource).toContain("stage.style.contain = 'strict'");
-    expect(prewarmSource).toContain('await this.waitForTrackedFrames(3)');
-    expect(prewarmSource).toContain("canvas.dataset.journeyCompositePrewarmed = 'true'");
-    expect(prewarmSource).toContain("emitIOSNativeDiagnostic('world-main-cloud-composite-prewarmed'");
+    expect(journeyManagerSource).not.toContain('journey-main-cloud-prewarm-stage');
+    expect(journeyManagerSource).not.toContain('journeyMainCloudCompositePrewarms');
     expect(prepareSource).toContain('unit.replaceChildren(canvas)');
     expect(prepareSource).toContain("source: canvas.dataset.journeyCompositePrewarmed === 'true' ? 'prewarmed' : 'cache'");
+    expect(worldPrepaintSource).toContain("host.style.opacity = '0.001'");
+    expect(worldPrepaintSource).toContain("host.style.contain = 'strict'");
+    expect(worldPrepaintSource).toContain('if (current?.worldId === worldId && current.host.isConnected)');
+    expect(worldPrepaintSource).toContain('this.journeyWorldPrepaintEpoch === epoch');
+    expect(worldPrepaintSource).toContain('this.renderBoardsFixed(root, { worldId, deferRuntimeOwners: true })');
+    expect(worldPrepaintSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
+    expect(worldPrepaintSource).toContain('for (let frameIndex = 0; frameIndex < 3; frameIndex += 1)');
+    expect(worldPrepaintSource).toContain('await this.waitForTrackedFrames(1)');
+    expect(worldPrepaintSource).toContain('paintFrameMs');
+    expect(worldPrepaintSource).toContain("emitIOSNativeDiagnostic('world-prepaint-painted'");
+    expect(worldCommitSource).toContain('const preparedChildren = Array.from(stage.root.children)');
+    expect(worldCommitSource).toContain('preparedChildren.forEach((child) => container.appendChild(child))');
+    expect(worldCommitSource).toContain('this.beginRenderLifecycle()');
+    expect(worldCommitSource).toContain('this.journeyWorldPrepaintStage = null');
+    expect(worldCommitSource).not.toContain('this.renderBoards()');
+    expect(collectiblesCssSource).toContain('.journey-world-prepaint-root *::before');
+    expect(collectiblesCssSource).toContain('animation-play-state: paused !important');
     expect(journeyManagerSource).toContain('this.journeyMainCloudCompositeCache.clear()');
-    expect(journeyManagerSource).toContain('this.journeyMainCloudCompositePrewarms.clear()');
+    expect(journeyManagerSource).toContain("this.cancelJourneyWorldPrepaint('manager-cleanup')");
+    expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit')");
+    expect(openWorldSource).toContain('journeySpatialMotion.resumeJourneyHub(container)');
+  });
+
+  test('prepaints the exact Hub at the live World scroll offset before retiring the outgoing backing', () => {
+    const closeSource = journeyManagerSource.split(
+      'private closeJourneyV700World(): void',
+    )[1]?.split('private markJourneyDevBoardRefresh')[0] ?? '';
+    const prepareSource = journeyManagerSource.split(
+      'private prepareJourneyHubPrepaint(',
+    )[1]?.split('private async commitJourneyHubPrepaint')[0] ?? '';
+    const commitSource = journeyManagerSource.split(
+      'private async commitJourneyHubPrepaint(',
+    )[1]?.split('private cancelJourneyWorldPrepaint')[0] ?? '';
+
+    expect(closeSource).toContain('const hubPrepaintReady = this.prepareJourneyHubPrepaint(container)');
+    expect(closeSource).toContain('const preparedHubReady = await hubPrepaintReady');
+    expect(closeSource).toContain('await this.commitJourneyHubPrepaint(container)');
+    expect(prepareSource).toContain("container.closest('#journey-screen .collectibles-scrollable')");
+    expect(prepareSource).toContain("host.style.top = `${prepaintScrollTop}px`");
+    expect(prepareSource).toContain("host.style.opacity = '0.001'");
+    expect(prepareSource).not.toContain('applyAppPaperSurfaceToElement(host)');
+    expect(prepareSource).toContain('only paper owner throughout World -> Hub');
+    expect(prepareSource).toContain('this.renderJourneyV700Hub(root, { prepaint: true })');
+    expect(prepareSource).toContain('await Promise.all(images.map((image) => waitForImageReady(image)))');
+    expect(prepareSource).toContain('await this.waitForTrackedFrames(3)');
+    const hideIndex = commitSource.indexOf("child.style.visibility = 'hidden'");
+    const barrierIndex = commitSource.indexOf('await this.waitForTrackedFrames(1)');
+    const retireIndex = commitSource.indexOf('outgoingChildren.forEach((child) => child.remove())');
+    expect(hideIndex).toBeGreaterThanOrEqual(0);
+    expect(barrierIndex).toBeGreaterThan(hideIndex);
+    expect(retireIndex).toBeGreaterThan(barrierIndex);
+    expect(commitSource).toContain("this.playJourneyV700HubEnter('world-return')");
+    expect(commitSource).toContain('transparentStageBacking: true');
+    expect(closeSource).toContain('const outgoingZeroPresented = await this.waitForTrackedFrames(1)');
+    expect(closeSource).toContain('outgoingZeroPresented,');
+    expect(worldAnimationCoordinatorSource).toContain('const finalizeUnitExit = () => {');
+    expect(worldAnimationCoordinatorSource).toContain("visibility: 'hidden'");
+    expect(worldAnimationCoordinatorSource).toContain('onComplete: finalizeUnitExit');
   });
 
   test('an early World close queues one clean exit instead of overlapping the enter cascade', () => {
@@ -414,7 +496,7 @@ describe('Journey Hub transition ownership', () => {
     const exitIndex = openWorldSource.indexOf('this.playJourneyV700HubExit(');
     expect(pinIndex).toBeGreaterThanOrEqual(0);
     expect(pinIndex).toBeLessThan(exitIndex);
-    expect(openWorldSource).toContain('releaseHubViewportPin();\n        this.renderBoards();');
+    expect(openWorldSource).toContain('releaseHubViewportPin();\n        const committedPrepaint =');
     expect(openWorldSource).toContain('releaseHubViewportPin();\n        finishOpeningOwnership();');
 
     const pinSource = journeyManagerSource.split(
@@ -547,7 +629,7 @@ describe('Journey Hub transition ownership', () => {
 
   test('World progress lives on a mirrored banner inside the shared World visual owner', () => {
     const hubRenderSource = journeyManagerSource.split(
-      'private renderJourneyV700Hub(container: HTMLElement): void',
+      'private renderJourneyV700Hub(',
     )[1]?.split('private playJourneyV700HubEnter')[0] ?? '';
 
     expect(hubRenderSource).toContain("visual.className = 'journey-v700-world-visual'");

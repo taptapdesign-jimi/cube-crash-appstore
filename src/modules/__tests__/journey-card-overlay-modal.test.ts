@@ -238,7 +238,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('mountGameplaySheetClose(backShell, () =>');
     expect(modal).toContain("stage.classList.toggle('is-flipping-to-front', targetFace === 'front')");
     expect(modal).toContain("stage.classList.toggle('is-flipping-to-back', targetFace === 'back')");
-    expect(modal).toContain("stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back')");
+    expect(modal).toContain("stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back', 'is-prepainting')");
     expect(modal.match(/stage\.classList\.remove\('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back'\)/g)).toHaveLength(2);
     expect(modal).toContain("stage.classList.add('is-flipping-to-front');\n    stage.classList.add('is-exiting', 'is-backdrop-exiting');");
     expect(css).toContain('.journey-card-flip-overlay.is-flipping-to-front');
@@ -424,6 +424,29 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("emitOpenProfile('disposed-before-stable')");
     expect(manager).toContain("markOpenProfile('world-paused')");
     expect(manager).toContain('openProfileManagerMarks,');
+  });
+
+  test('prepaints both exact modal faces before hiding the live Journey card and starting flight', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const portal = read('src/modules/journey-card-portal-transition.ts');
+    const css = read('src/collectibles-screen.css');
+    const prepareSource = modal.split('const prepareAndStartEntry = async () => {')[1]
+      ?.split('void prepareAndStartEntry();')[0] ?? '';
+
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-prepainting \{[\s\S]*?opacity: 0\.001;[\s\S]*?visibility: visible;[\s\S]*?pointer-events: none;[\s\S]*?transition: none;/);
+    expect(prepareSource).toContain('await waitForPaints(1)');
+    expect(prepareSource).toContain('primeJourneyCardSpatialFlight(');
+    expect(prepareSource).toContain('left: destination.centerX - destination.width / 2');
+    expect(prepareSource).toContain('waitForModalImageReady(image)');
+    expect(prepareSource).toContain("markOpenProfile('prepaint-front-face')");
+    expect(prepareSource).toContain("markOpenProfile('prepaint-back-face')");
+    const activateIndex = prepareSource.indexOf('options.origin.activatePortal()');
+    const flightIndex = prepareSource.indexOf('const entryPromise = startEntry(destination)');
+    const revealIndex = prepareSource.indexOf("stage.classList.remove('is-prepainting')");
+    expect(activateIndex).toBeGreaterThanOrEqual(0);
+    expect(flightIndex).toBeGreaterThan(activateIndex);
+    expect(revealIndex).toBeGreaterThan(flightIndex);
+    expect(portal).toContain('transformOriginPrimed?: boolean');
   });
 
   test('profiles dismiss, scroll and rapid reopen as one bounded native summary', () => {

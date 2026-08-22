@@ -38,6 +38,17 @@
   transition: opacity 220ms ease;
 }
 
+/* Keep the exact modal compositor tree attached and paintable while the live
+ * Journey card still covers it. A non-zero alpha is required for WKWebView to
+ * raster both preserve-3d faces; visibility:hidden or display:none would defer
+ * that cost to the first visible flight frame. */
+.journey-card-flip-overlay.is-prepainting {
+  opacity: 0.001;
+  visibility: visible;
+  pointer-events: none;
+  transition: none;
+}
+
 .journey-card-flip-backdrop {
   position: absolute;
   inset: 0;
@@ -3047,6 +3058,21 @@
   z-index: 2;
   overflow: visible;
   pointer-events: none;
+}
+
+/* The selected incoming World is painted behind the stable Hub before its
+ * transition begins. Keep decorative CSS owners dormant until the exact
+ * prepared layer children are committed into the live World root. */
+.journey-world-prepaint-root *,
+.journey-world-prepaint-root *::before,
+.journey-world-prepaint-root *::after {
+  animation-play-state: paused !important;
+}
+
+.journey-hub-prepaint-root *,
+.journey-hub-prepaint-root *::before,
+.journey-hub-prepaint-root *::after {
+  animation-play-state: paused !important;
 }
 
 .journey-cards-container {

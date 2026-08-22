@@ -1068,6 +1068,25 @@ export class AppSpatialMotionController {
     });
   }
 
+  /** Resume the already-owned Journey Hub after an aborted World open. */
+  public resumeJourneyHub(container: HTMLElement): void {
+    if (
+      this.activeSurface !== 'journey-hub' ||
+      !this.suspended ||
+      !container.isConnected ||
+      this.targets.length === 0
+    ) return;
+    this.suspended = false;
+    this.resetBaseline();
+    this.startVisibilityTracking(container);
+    if (this.permissionState === 'granted') this.startListening();
+    this.ensureFrame();
+    this.emitDiagnostic('surface-resumed', {
+      surface: 'journey-hub',
+      targetCount: this.targets.length,
+    });
+  }
+
   public suspendHomepage(): void {
     if (this.activeSurface === 'homepage') this.suspend();
   }

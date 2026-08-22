@@ -867,6 +867,23 @@ const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotati
   30: { x: -13, y: 13, rotation: -2 },
 };
 
+type JourneyWorldPrepaintStage = {
+  worldId: number;
+  epoch: number;
+  host: HTMLDivElement;
+  root: HTMLDivElement;
+  readyPromise: Promise<boolean>;
+  ready: boolean;
+};
+
+type JourneyHubPrepaintStage = {
+  epoch: number;
+  host: HTMLDivElement;
+  root: HTMLDivElement;
+  readyPromise: Promise<boolean>;
+  ready: boolean;
+};
+
 
 class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
@@ -929,7 +946,10 @@ class JourneyBoardsManager {
   private journeyV700PreparedWorldEnter: { worldId: number; targets: HTMLElement[] } | null = null;
   private journeyMainCloudCompositeCache = new Map<number, HTMLCanvasElement>();
   private journeyMainCloudCompositeBuilds = new Map<number, Promise<HTMLCanvasElement | null>>();
-  private journeyMainCloudCompositePrewarms = new Map<number, Promise<void>>();
+  private journeyWorldPrepaintStage: JourneyWorldPrepaintStage | null = null;
+  private journeyWorldPrepaintEpoch = 0;
+  private journeyHubPrepaintStage: JourneyHubPrepaintStage | null = null;
+  private journeyHubPrepaintEpoch = 0;
   private forestBeeOrbits: JourneyForestBeeOrbitController | null = null;
   private beachBubbleDrift: JourneyBeachBubbleDriftController | null = null;
   private journeyWorldRuntime = new JourneyWorldRuntimeScheduler();
@@ -2547,7 +2567,8 @@ class JourneyBoardsManager {
 
   private renderForestMapAssets(
     bgContainer: HTMLElement,
-    decorContainer: HTMLElement
+    decorContainer: HTMLElement,
+    activeWorldId: number,
   ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
     const mainTargets: HTMLElement[] = [];
     const cloudTargets: HTMLElement[] = [];
@@ -2638,9 +2659,9 @@ class JourneyBoardsManager {
       bgContainer.appendChild(unit);
       return unit;
     };
-    const forestMainCloudUnit = createMainCloudUnit('forest-main', 0);
-    const beachMainCloudUnit = createMainCloudUnit('beach-main', 1454);
-    const roboMainCloudUnit = createMainCloudUnit('robo-main', 3166);
+    const forestMainCloudUnit = activeWorldId === 1 ? createMainCloudUnit('forest-main', 0) : null;
+    const beachMainCloudUnit = activeWorldId === 2 ? createMainCloudUnit('beach-main', 1454) : null;
+    const roboMainCloudUnit = activeWorldId === 3 ? createMainCloudUnit('robo-main', 3166) : null;
 
     const addMainClouds = (
       worldId: number,
@@ -3155,48 +3176,60 @@ class JourneyBoardsManager {
       }
     };
 
-    addMainClouds(1, 'forest', forestMainCloudUnit);
-    mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
-    addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [4, 3, 6]);
-    addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [4, 5, 6]);
-    addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [7, 6]);
-    addForestBoardGroup(4, 204, 572, 200, -12, -6, 0, 0, [5, 7, 2, 4, 6]);
-    addForestBoardGroup(5, 52, 702, 262, -10, -4, -62, -76, [6, 3]);
-    addForestBoardGroup(6, 194, 806, 200, -12, -6, 0, 0, [3, 6]);
-    addForestBoardGroup(7, 18, 910, 200, -10, -4, 0, 0, [4, 3, 5]);
-    addForestBoardGroup(8, 178, 1034, 200, -12, -6, 0, 0, [3, 5, 4, 6]);
-    addForestBoardGroup(9, -2, 1138, 200, -10, -4, 0, 0, [6, 5, 3, 4]);
-    addForestBoardGroup(10, 194, 1262, 200, -12, -6, 0, 0, [4, 3, 5, 6]);
-    addMainClouds(2, 'beach', beachMainCloudUnit);
-    const beachMainSrc = `${BEACH_WORLD_ASSET_BASE}/beach-main.png`;
-    const beachMain = addImage(beachMainSrc, 0, 1454, 390, 'journey-forest-main-art journey-beach-main-art', 3, 0, 'beach-main');
-    applyBeach2xSrcSet(beachMain, beachMainSrc);
-    mainTargets.push(beachMain);
-    addBeachBoardGroup(11, 1, 18, 1820, 200, -14, -3);
-    addBeachBoardGroup(12, 2, 194, 1944, 200, -8, 8);
-    addBeachBoardGroup(13, 3, 18, 2068, 200, -10, 8);
-    addBeachBoardGroup(14, 4, 194, 2192, 200, -12, 10);
-    addBeachBoardGroup(15, 5, 18, 2316, 200, -10, 4);
-    addBeachBoardGroup(16, 6, 194, 2440, 200, -12, 6);
-    addBeachBoardGroup(17, 7, 18, 2564, 200, -10, 8);
-    addBeachBoardGroup(18, 8, 194, 2688, 200, -8, 4);
-    addBeachBoardGroup(19, 9, 18, 2812, 200, -10, 8);
-    addBeachBoardGroup(20, 10, 194, 2936, 200, -12, 10);
-    addMainClouds(3, 'robo', roboMainCloudUnit);
-    const roboMainSrc = `${ROBO_WORLD_ASSET_BASE}/robo-main.png`;
-    const roboMain = addImage(roboMainSrc, 0, 3166, 390, 'journey-forest-main-art journey-robo-main-art', 3, 0, 'robo-main');
-    applyBeach2xSrcSet(roboMain, roboMainSrc);
-    mainTargets.push(roboMain);
-    addRoboBoardGroup(21, 1, 18, 3532, 200, -14, -3);
-    addRoboBoardGroup(22, 2, 184, 3646, 200, -8, 8);
-    addRoboBoardGroup(23, 3, 18, 3770, 200, -10, 8);
-    addRoboBoardGroup(24, 4, 166, 3904, 200, -12, 10);
-    addRoboBoardGroup(25, 5, 18, 4028, 200, -10, 4);
-    addRoboBoardGroup(26, 6, 186, 4152, 200, -12, 6);
-    addRoboBoardGroup(27, 7, 18, 4276, 200, -10, 8);
-    addRoboBoardGroup(28, 8, 176, 4400, 200, -8, 4);
-    addRoboBoardGroup(29, 9, 18, 4524, 200, -10, 8);
-    addRoboBoardGroup(30, 10, 194, 4648, 200, -12, 10);
+    if (activeWorldId === 1 && forestMainCloudUnit) {
+      if (!this.journeyMainCloudCompositeCache.has(1)) {
+        addMainClouds(1, 'forest', forestMainCloudUnit);
+      }
+      mainTargets.push(addImage(`${FOREST_WORLD_ASSET_BASE}/Forest main.png`, 0, -32, 390, 'journey-forest-main-art', 3, 0, 'forest-main'));
+      addForestBoardGroup(1, 4, 284, 200, -10, -4, 0, 0, [4, 3, 6]);
+      addForestBoardGroup(2, 190, 374, 200, -12, -6, 0, 0, [4, 5, 6]);
+      addForestBoardGroup(3, 18, 484, 200, -10, -4, 0, 0, [7, 6]);
+      addForestBoardGroup(4, 204, 572, 200, -12, -6, 0, 0, [5, 7, 2, 4, 6]);
+      addForestBoardGroup(5, 52, 702, 262, -10, -4, -62, -76, [6, 3]);
+      addForestBoardGroup(6, 194, 806, 200, -12, -6, 0, 0, [3, 6]);
+      addForestBoardGroup(7, 18, 910, 200, -10, -4, 0, 0, [4, 3, 5]);
+      addForestBoardGroup(8, 178, 1034, 200, -12, -6, 0, 0, [3, 5, 4, 6]);
+      addForestBoardGroup(9, -2, 1138, 200, -10, -4, 0, 0, [6, 5, 3, 4]);
+      addForestBoardGroup(10, 194, 1262, 200, -12, -6, 0, 0, [4, 3, 5, 6]);
+    }
+    if (activeWorldId === 2 && beachMainCloudUnit) {
+      if (!this.journeyMainCloudCompositeCache.has(2)) {
+        addMainClouds(2, 'beach', beachMainCloudUnit);
+      }
+      const beachMainSrc = `${BEACH_WORLD_ASSET_BASE}/beach-main.png`;
+      const beachMain = addImage(beachMainSrc, 0, 1454, 390, 'journey-forest-main-art journey-beach-main-art', 3, 0, 'beach-main');
+      applyBeach2xSrcSet(beachMain, beachMainSrc);
+      mainTargets.push(beachMain);
+      addBeachBoardGroup(11, 1, 18, 1820, 200, -14, -3);
+      addBeachBoardGroup(12, 2, 194, 1944, 200, -8, 8);
+      addBeachBoardGroup(13, 3, 18, 2068, 200, -10, 8);
+      addBeachBoardGroup(14, 4, 194, 2192, 200, -12, 10);
+      addBeachBoardGroup(15, 5, 18, 2316, 200, -10, 4);
+      addBeachBoardGroup(16, 6, 194, 2440, 200, -12, 6);
+      addBeachBoardGroup(17, 7, 18, 2564, 200, -10, 8);
+      addBeachBoardGroup(18, 8, 194, 2688, 200, -8, 4);
+      addBeachBoardGroup(19, 9, 18, 2812, 200, -10, 8);
+      addBeachBoardGroup(20, 10, 194, 2936, 200, -12, 10);
+    }
+    if (activeWorldId === 3 && roboMainCloudUnit) {
+      if (!this.journeyMainCloudCompositeCache.has(3)) {
+        addMainClouds(3, 'robo', roboMainCloudUnit);
+      }
+      const roboMainSrc = `${ROBO_WORLD_ASSET_BASE}/robo-main.png`;
+      const roboMain = addImage(roboMainSrc, 0, 3166, 390, 'journey-forest-main-art journey-robo-main-art', 3, 0, 'robo-main');
+      applyBeach2xSrcSet(roboMain, roboMainSrc);
+      mainTargets.push(roboMain);
+      addRoboBoardGroup(21, 1, 18, 3532, 200, -14, -3);
+      addRoboBoardGroup(22, 2, 184, 3646, 200, -8, 8);
+      addRoboBoardGroup(23, 3, 18, 3770, 200, -10, 8);
+      addRoboBoardGroup(24, 4, 166, 3904, 200, -12, 10);
+      addRoboBoardGroup(25, 5, 18, 4028, 200, -10, 4);
+      addRoboBoardGroup(26, 6, 186, 4152, 200, -12, 6);
+      addRoboBoardGroup(27, 7, 18, 4276, 200, -10, 8);
+      addRoboBoardGroup(28, 8, 176, 4400, 200, -8, 4);
+      addRoboBoardGroup(29, 9, 18, 4524, 200, -10, 8);
+      addRoboBoardGroup(30, 10, 194, 4648, 200, -12, 10);
+    }
 
     return { mainTargets, cloudTargets, boardTargets };
   }
@@ -5435,9 +5468,10 @@ class JourneyBoardsManager {
     this.renderLifecycleGeneration += 1;
     try {
       this.journeyCardInteractionProfiler.dispose('manager-cleanup');
+      this.cancelJourneyWorldPrepaint('manager-cleanup');
+      this.cancelJourneyHubPrepaint('manager-cleanup');
       this.journeyMainCloudCompositeCache.clear();
       this.journeyMainCloudCompositeBuilds.clear();
-      this.journeyMainCloudCompositePrewarms.clear();
       if (this.journeyOverlayLandingCard) {
         const landingCard = this.journeyOverlayLandingCard;
         this.stopOverlayCardLandingBounce(landingCard);
@@ -6073,6 +6107,8 @@ class JourneyBoardsManager {
     if (this.interimIdleEffectsCard) this.stopInterimCardIdleEffects();
 
     this.container = container;
+    this.cancelJourneyWorldPrepaint('render-replaced');
+    this.cancelJourneyHubPrepaint('render-replaced');
     this.beginRenderLifecycle();
     journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('render-before-dom-replace');
@@ -6168,10 +6204,10 @@ class JourneyBoardsManager {
     const navHeader = document.querySelector('#journey-screen .collectibles-header') as HTMLElement | null;
     const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
     const targets = journeyContainer ? this.getJourneyV700WorldTargets(journeyContainer) : [];
-    const visibleTargetCount = targets.filter((target) => {
-      const rect = target.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && target.style.display !== 'none';
-    }).length;
+    // Flow logging runs on animation boundaries. Never force geometry/style for
+    // every World target merely to serialize a marker; that observer work was
+    // large enough to contaminate the iPhone transition being measured.
+    const visibleTargetCount = targets.filter((target) => target.style.display !== 'none').length;
 
     return {
       view: this.journeyV700View,
@@ -6181,8 +6217,8 @@ class JourneyBoardsManager {
       containerWorldId: journeyContainer?.dataset.journeyV700WorldId || null,
       closing: journeyContainer ? (journeyContainer as any).__ccJourneyV700Closing === true : false,
       navExists: !!navHeader,
-      navOpacity: navHeader ? String(gsap.getProperty(navHeader, 'opacity')) : null,
-      navTransform: navHeader ? window.getComputedStyle(navHeader).transform : null,
+      navOpacity: navHeader?.style.opacity || null,
+      navTransform: navHeader?.style.transform || null,
       scrollTop: scrollable?.scrollTop ?? null,
       visibleTargetCount,
       idleTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
@@ -6318,11 +6354,17 @@ class JourneyBoardsManager {
     });
   }
 
-  private renderJourneyV700Hub(container: HTMLElement): void {
-    this.journeyWorldRuntime.deactivate();
-    this.journeyV700Phase = 'entering';
-    this.setJourneyV700View('hub');
-    this.updateJourneyV700Nav('hub');
+  private renderJourneyV700Hub(
+    container: HTMLElement,
+    options: { prepaint?: boolean } = {},
+  ): void {
+    const prepaint = options.prepaint === true;
+    if (!prepaint) {
+      this.journeyWorldRuntime.deactivate();
+      this.journeyV700Phase = 'entering';
+      this.setJourneyV700View('hub');
+      this.updateJourneyV700Nav('hub');
+    }
     container.dataset.journeyV700View = 'hub';
     container.style.height = '100%';
     container.style.minHeight = '100%';
@@ -6364,6 +6406,9 @@ class JourneyBoardsManager {
     hub.appendChild(hubCloudLayer);
 
     const worldIds = [1, 2, 3];
+    const resolveLiveHubContainer = (): HTMLElement => (
+      document.getElementById('journey-boards-container') as HTMLElement | null
+    ) || container;
     worldIds.forEach((worldId) => {
       const meta = JOURNEY_WORLD_LABELS[worldId];
       const range = this.getJourneyWorldRange(worldId);
@@ -6437,10 +6482,9 @@ class JourneyBoardsManager {
 	        worldCardTouchStartX = event.touches[0].clientX;
 	        worldCardTouchStartY = event.touches[0].clientY;
 	        worldCardTouchMoved = false;
-	        // Begin decode/raster/GPU warmup at physical touch-down. The shared
-	        // Promise is reused by touchend/click, so a normal tap overlaps most
-	        // of the preparation with the finger gesture and never builds twice.
-	        void this.prewarmJourneyMainCloudComposite(container, worldId);
+	        // Build and physically paint the exact incoming World root at touch
+	        // down. touchend/click reuses the same Promise and final DOM nodes.
+	        void this.prepareJourneyWorldPrepaint(resolveLiveHubContainer(), worldId);
 	      };
 
 	      const onWorldCardTouchMove = (event: TouchEvent) => {
@@ -6449,27 +6493,30 @@ class JourneyBoardsManager {
 	        const dy = event.touches[0].clientY - worldCardTouchStartY;
 	        if (Math.hypot(dx, dy) >= worldCardDragThresholdPx) {
 	          worldCardTouchMoved = true;
+	          if (this.journeyWorldPrepaintStage?.worldId === worldId) {
+	            this.cancelJourneyWorldPrepaint('hub-card-drag');
+	          }
 	        }
 	      };
 
 	      const openWorld = (event: Event) => {
 	        if (event.type === 'touchend' && worldCardTouchMoved) {
 	          suppressNextSyntheticClick = true;
-	          this.logJourneyV700Flow('world-card-touchend-ignored-drag', { worldId }, container);
+	          this.logJourneyV700Flow('world-card-touchend-ignored-drag', { worldId }, resolveLiveHubContainer());
 	          return;
 	        }
 	        if (event.type === 'click' && suppressNextSyntheticClick) {
 	          suppressNextSyntheticClick = false;
-	          this.logJourneyV700Flow('world-card-click-ignored-after-drag', { worldId }, container);
+	          this.logJourneyV700Flow('world-card-click-ignored-after-drag', { worldId }, resolveLiveHubContainer());
 	          return;
 	        }
 	        event.preventDefault();
 	        event.stopPropagation();
-	        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, container);
+	        this.logJourneyV700Flow('world-card-tap', { worldId, locked }, resolveLiveHubContainer());
         const now = Date.now();
         const lastTap = Number((button as any).__ccJourneyV700LastTap || 0);
         if (now - lastTap < 350) {
-          this.logJourneyV700Flow('world-card-tap-ignored-debounce', { worldId, deltaMs: now - lastTap }, container);
+          this.logJourneyV700Flow('world-card-tap-ignored-debounce', { worldId, deltaMs: now - lastTap }, resolveLiveHubContainer());
           return;
         }
         (button as any).__ccJourneyV700LastTap = now;
@@ -6485,6 +6532,13 @@ class JourneyBoardsManager {
     });
 
     container.appendChild(hub);
+    if (prepaint) {
+      emitIOSNativeDiagnostic('hub-prepaint-dom-ready', {
+        childCount: hub.querySelectorAll('*').length,
+        imageCount: hub.querySelectorAll('img').length,
+      });
+      return;
+    }
     this.resetJourneyV700HubScrollToTop(
       (container as any).__ccJourneyV700ReturningFromWorld === true
         ? 'return-from-world'
@@ -6596,8 +6650,12 @@ class JourneyBoardsManager {
     const stagger = getJourneyV700HubEnterStagger(reducedMotion);
     const worldFinalOpacity = new Map<HTMLElement, number>(
       worldCards.map((card) => {
+        const preparedOpacity = Number.parseFloat(card.dataset.journeyHubFinalOpacity || '');
         const cssOpacity = Number.parseFloat(getComputedStyle(card).opacity);
-        return [card, card.classList.contains('is-locked') && Number.isFinite(cssOpacity) ? cssOpacity : 1];
+        const finalOpacity = Number.isFinite(preparedOpacity)
+          ? preparedOpacity
+          : card.classList.contains('is-locked') && Number.isFinite(cssOpacity) ? cssOpacity : 1;
+        return [card, finalOpacity];
       }),
     );
     this.cancelJourneyV700HubEnter(`new-${source}-enter`);
@@ -6703,6 +6761,7 @@ class JourneyBoardsManager {
       // Remove the identity GSAP matrix atomically before CSS idle and gyro
       // take over separate layers.
       gsap.set(worldCards, { clearProps: 'transform,opacity,visibility,willChange' });
+      worldCards.forEach((worldCard) => delete worldCard.dataset.journeyHubFinalOpacity);
       // The Hub root is the sole visual idle owner. Prime its zero-delay phase
       // before marking child cards ready, then start every world/cloud from one
       // root mutation. This prevents Beach/Area 55 from exposing one WebKit
@@ -6831,11 +6890,10 @@ class JourneyBoardsManager {
       delete (container as any).__ccJourneyV700Opening;
     };
     const beginWorldOpen = async () => {
-      // A decoded/drawn canvas is not necessarily resident in WebKit's GPU.
-      // Present this exact element at near-zero alpha behind the still-stable
-      // Hub and cross a real paint barrier before any exit animation begins.
-      // Reparenting the same canvas later preserves its warmed backing store.
-      await this.prewarmJourneyMainCloudComposite(container, worldId);
+      // Prepare the exact final active-World DOM behind the stable Hub. This
+      // includes decode, raster and compositor ownership, so the transition
+      // never becomes the first presentation of a freshly rebuilt scene.
+      const worldPrepaintReady = await this.prepareJourneyWorldPrepaint(container, worldId);
       const journeyScreenBeforeExit = document.getElementById('journey-screen') as HTMLElement | null;
       if (
         this.renderDisposed ||
@@ -6844,6 +6902,10 @@ class JourneyBoardsManager {
         journeyScreenBeforeExit.hidden ||
         journeyScreenBeforeExit.classList.contains('hidden')
       ) {
+        this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit');
+        if (!this.renderDisposed && container.isConnected && this.journeyV700View === 'hub') {
+          journeySpatialMotion.resumeJourneyHub(container);
+        }
         finishOpeningOwnership();
         return;
       }
@@ -6888,8 +6950,13 @@ class JourneyBoardsManager {
         // Release and replace occur synchronously, so the outgoing Hub cannot
         // paint without its compensation transform.
         releaseHubViewportPin();
-        this.renderBoards();
-        await this.prepareJourneyMainCloudComposite(container, worldId);
+        const committedPrepaint = worldPrepaintReady &&
+          this.commitJourneyWorldPrepaint(container, worldId);
+        if (!committedPrepaint) {
+          this.cancelJourneyWorldPrepaint('commit-fallback');
+          this.renderBoards();
+          await this.prepareJourneyMainCloudComposite(container, worldId);
+        }
         if (scrollable) {
           scrollable.scrollTop = 0;
           this.trackRAF(() => {
@@ -6897,9 +6964,9 @@ class JourneyBoardsManager {
             scrollable.scrollTop = 0;
           });
         }
-        // renderBoards primes every Unit synchronously. Start the visible World
-        // and nav enter from a fresh animation-frame clock so expensive DOM
-        // construction cannot consume the first ~100ms before the first paint.
+        // Both the exact prepaint commit and the synchronous fallback prime
+        // every Unit before this point. Start visible World/nav motion on a
+        // fresh animation-frame clock, after all preparation ownership ends.
         this.trackRAF(() => {
           if (
             this.renderDisposed ||
@@ -6910,11 +6977,12 @@ class JourneyBoardsManager {
           emitIOSNativeDiagnostic('world-enter-visible-frame-start', {
             worldId,
             source: 'hub-world-open',
+            committedPrepaint,
           });
           this.playJourneyV700WorldEnter(container, worldId, {
             source: 'hub-world-open',
             lastBoardId: 0,
-            waitForImages: false,
+            waitForImages: !committedPrepaint,
           });
           this.playJourneyV700NavEnter();
         });
@@ -7041,76 +7109,11 @@ class JourneyBoardsManager {
     }
   }
 
-  private async prewarmJourneyMainCloudComposite(container: HTMLElement, worldId: number): Promise<void> {
-    if (this.journeyMainCloudCompositeCache.get(worldId)?.dataset.journeyCompositePrewarmed === 'true') return;
-    const activePrewarm = this.journeyMainCloudCompositePrewarms.get(worldId);
-    if (activePrewarm) return activePrewarm;
-
-    const generation = this.renderLifecycleGeneration;
-    const prewarm = (async () => {
-      const startedAt = performance.now();
-      const canvas = await this.buildJourneyMainCloudComposite(worldId);
-      if (
-        !canvas ||
-        this.renderDisposed ||
-        generation !== this.renderLifecycleGeneration ||
-        !container.isConnected ||
-        this.journeyV700View !== 'hub'
-      ) return;
-
-      const stage = document.createElement('div');
-      stage.className = 'journey-main-cloud-prewarm-stage';
-      stage.setAttribute('aria-hidden', 'true');
-      stage.style.position = 'absolute';
-      stage.style.inset = '0';
-      stage.style.overflow = 'hidden';
-      stage.style.pointerEvents = 'none';
-      stage.style.opacity = '0.001';
-      stage.style.zIndex = '0';
-      stage.style.contain = 'strict';
-      const viewportScale = Math.max(1, container.clientWidth || window.innerWidth || FOREST_MAP_DESIGN_WIDTH) /
-        FOREST_MAP_DESIGN_WIDTH;
-      const designWidth = Number(canvas.dataset.journeyCompositeDesignWidth || 1);
-      const designHeight = Number(canvas.dataset.journeyCompositeDesignHeight || 1);
-      canvas.style.left = '0';
-      canvas.style.top = '0';
-      canvas.style.width = `${designWidth * viewportScale}px`;
-      canvas.style.height = `${designHeight * viewportScale}px`;
-      canvas.style.transform = 'translateZ(0)';
-      canvas.style.willChange = 'transform';
-      stage.appendChild(canvas);
-      container.appendChild(stage);
-      // Geometry read commits layout; three tracked frames give WebKit one full
-      // style/layout, raster and compositor presentation cycle before Hub exit.
-      void canvas.getBoundingClientRect();
-      const painted = await this.waitForTrackedFrames(3);
-      if (
-        !painted ||
-        this.renderDisposed ||
-        generation !== this.renderLifecycleGeneration ||
-        !canvas.isConnected ||
-        this.journeyV700View !== 'hub'
-      ) return;
-      canvas.dataset.journeyCompositePrewarmed = 'true';
-      canvas.style.willChange = 'auto';
-      emitIOSNativeDiagnostic('world-main-cloud-composite-prewarmed', {
-        worldId,
-        width: canvas.width,
-        height: canvas.height,
-        durationMs: Math.round(performance.now() - startedAt),
-      });
-    })();
-    this.journeyMainCloudCompositePrewarms.set(worldId, prewarm);
-    try {
-      await prewarm;
-    } finally {
-      if (this.journeyMainCloudCompositePrewarms.get(worldId) === prewarm) {
-        this.journeyMainCloudCompositePrewarms.delete(worldId);
-      }
-    }
-  }
-
-  private async prepareJourneyMainCloudComposite(container: HTMLElement, worldId: number): Promise<void> {
+  private async prepareJourneyMainCloudComposite(
+    container: HTMLElement,
+    worldId: number,
+    options: { allowPrepaint?: boolean } = {},
+  ): Promise<void> {
     const areaId = worldId === 1 ? 'forest-main' : worldId === 2 ? 'beach-main' : worldId === 3 ? 'robo-main' : null;
     if (!areaId) return;
     const unit = container.querySelector<HTMLElement>(
@@ -7119,7 +7122,8 @@ class JourneyBoardsManager {
     if (!unit || !unit.isConnected) return;
 
     const canvas = await this.buildJourneyMainCloudComposite(worldId);
-    if (!canvas || !unit.isConnected || this.journeyV700View !== 'world' || this.journeyV700WorldId !== worldId) return;
+    const ownsVisibleWorld = this.journeyV700View === 'world' && this.journeyV700WorldId === worldId;
+    if (!canvas || !unit.isConnected || (!options.allowPrepaint && !ownsVisibleWorld)) return;
     try {
       gsap.killTweensOf(canvas);
       gsap.set(canvas, { clearProps: 'transform,opacity,visibility,willChange' });
@@ -7143,7 +7147,363 @@ class JourneyBoardsManager {
     });
   }
 
-  private applyJourneyV700WorldScope(container: HTMLElement, worldId: number): void {
+  private primeJourneyV700HubForHiddenHandoff(root: HTMLElement): void {
+    const worldCards = Array.from(root.querySelectorAll<HTMLElement>('.journey-v700-world-card'));
+    const hubCloudLayer = root.querySelector<HTMLElement>('.journey-v700-hub-cloud-layer');
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    const motion = getJourneyV700MotionProfile(reducedMotion);
+    worldCards.forEach((card) => {
+      if (!card.dataset.journeyHubFinalOpacity) {
+        const authoredOpacity = Number.parseFloat(getComputedStyle(card).opacity);
+        card.dataset.journeyHubFinalOpacity = String(Number.isFinite(authoredOpacity) ? authoredOpacity : 1);
+      }
+    });
+    try {
+      gsap.killTweensOf(worldCards);
+      gsap.set(worldCards, {
+        y: motion.enter.y,
+        scale: motion.enter.scale,
+        opacity: 0,
+        visibility: 'visible',
+        force3D: true,
+      });
+      if (hubCloudLayer) {
+        gsap.killTweensOf(hubCloudLayer);
+        gsap.set(hubCloudLayer, {
+          y: motion.enter.y * 0.55,
+          scale: 0.82,
+          opacity: 0,
+          visibility: 'visible',
+          force3D: true,
+        });
+      }
+    } catch {}
+  }
+
+  private cancelJourneyHubPrepaint(reason: string): void {
+    const stage = this.journeyHubPrepaintStage;
+    this.journeyHubPrepaintEpoch += 1;
+    this.journeyHubPrepaintStage = null;
+    if (!stage) return;
+    try { stage.host.remove(); } catch {}
+    emitIOSNativeDiagnostic('hub-prepaint-cancelled', { reason });
+  }
+
+  private prepareJourneyHubPrepaint(container: HTMLElement): Promise<boolean> {
+    const current = this.journeyHubPrepaintStage;
+    if (current?.host.isConnected) return current.readyPromise;
+    this.cancelJourneyHubPrepaint('replacement');
+
+    const epoch = ++this.journeyHubPrepaintEpoch;
+    const host = document.createElement('div');
+    host.className = 'journey-hub-prepaint-stage';
+    host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('inert', '');
+    const scrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const prepaintScrollTop = Math.max(0, scrollRoot?.scrollTop ?? 0);
+    const prepaintViewportHeight = Math.max(1, scrollRoot?.clientHeight || window.innerHeight || BASE_VIEWPORT_HEIGHT);
+    host.style.position = 'absolute';
+    host.style.top = `${prepaintScrollTop}px`;
+    host.style.right = '0';
+    host.style.bottom = 'auto';
+    host.style.left = '0';
+    host.style.width = '100%';
+    host.style.height = `${prepaintViewportHeight}px`;
+    host.style.overflow = 'hidden';
+    host.style.pointerEvents = 'none';
+    host.style.opacity = '0.001';
+    host.style.zIndex = '0';
+    host.style.contain = 'strict';
+    // Keep the staging surface transparent. The canonical body remains the
+    // only paper owner throughout World -> Hub; painting paper on this host
+    // creates a visibly duplicated paper frame when the host is promoted.
+
+    const root = document.createElement('div');
+    root.className = 'journey-hub-prepaint-root';
+    host.appendChild(root);
+    container.insertBefore(host, container.firstChild);
+
+    const stage: JourneyHubPrepaintStage = {
+      epoch,
+      host,
+      root,
+      readyPromise: Promise.resolve(false),
+      ready: false,
+    };
+    this.journeyHubPrepaintStage = stage;
+    const isCurrent = () => (
+      this.journeyHubPrepaintStage === stage &&
+      this.journeyHubPrepaintEpoch === epoch &&
+      host.isConnected &&
+      container.isConnected &&
+      this.journeyV700View === 'world' &&
+      !this.renderDisposed
+    );
+
+    stage.readyPromise = (async () => {
+      const startedAt = performance.now();
+      emitIOSNativeDiagnostic('hub-prepaint-build-start', {
+        worldId: this.journeyV700WorldId,
+        scrollTop: prepaintScrollTop,
+        viewportHeight: prepaintViewportHeight,
+      });
+      try {
+        this.renderJourneyV700Hub(root, { prepaint: true });
+        const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+        await Promise.all(images.map((image) => waitForImageReady(image)));
+        if (!isCurrent()) return false;
+        void root.getBoundingClientRect();
+        const painted = await this.waitForTrackedFrames(3);
+        if (!painted || !isCurrent()) return false;
+        stage.ready = true;
+        emitIOSNativeDiagnostic('hub-prepaint-painted', {
+          worldId: this.journeyV700WorldId,
+          childCount: root.querySelectorAll('*').length,
+          imageCount: images.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+        return true;
+      } catch (error) {
+        emitIOSNativeDiagnostic('hub-prepaint-fallback', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (this.journeyHubPrepaintStage === stage) {
+          this.cancelJourneyHubPrepaint('prepare-error');
+        }
+        return false;
+      }
+    })();
+    return stage.readyPromise;
+  }
+
+  private async commitJourneyHubPrepaint(container: HTMLElement): Promise<boolean> {
+    const stage = this.journeyHubPrepaintStage;
+    if (!stage || !stage.ready || !stage.host.isConnected || !stage.root.isConnected) return false;
+
+    this.primeJourneyV700HubForHiddenHandoff(stage.root);
+    const outgoingChildren = Array.from(container.children).filter((child) => child !== stage.host) as HTMLElement[];
+    outgoingChildren.forEach((child) => {
+      child.style.visibility = 'hidden';
+      child.style.pointerEvents = 'none';
+    });
+    stage.host.style.zIndex = '8';
+    stage.host.style.opacity = '1';
+    void container.offsetHeight;
+    const presented = await this.waitForTrackedFrames(1);
+    if (!presented || this.journeyHubPrepaintStage !== stage || !stage.host.isConnected) return false;
+
+    this.journeyHubPrepaintStage = null;
+    this.beginRenderLifecycle();
+    this.cancelJourneyWorldPrepaint('hub-prepaint-commit');
+    this.journeyWorldRuntime.deactivate();
+    journeySpatialMotion.deactivate();
+    this.cancelJourneyV700HubEnter('hub-prepaint-commit');
+    this.retireJourneyBoardOwnersBeforeDomReplace(container);
+    outgoingChildren.forEach((child) => child.remove());
+
+    container.style.height = stage.root.style.height || '100%';
+    container.style.minHeight = stage.root.style.minHeight || '100%';
+    container.style.position = 'relative';
+    container.style.width = '100%';
+    container.style.overflow = stage.root.style.overflow || 'visible';
+    container.dataset.journeyV700View = 'hub';
+    delete container.dataset.journeyV700WorldId;
+    const preparedChildren = Array.from(stage.root.children);
+    preparedChildren.forEach((child) => container.appendChild(child));
+    stage.host.remove();
+
+    this.setJourneyV700View('hub');
+    this.updateJourneyV700Nav('hub');
+    delete (container as any).__ccJourneyV700ReturningFromWorld;
+    this.journeyV700Phase = 'hidden';
+    this.resetJourneyV700HubScrollToTop('return-from-world-prepaint');
+    this.installJourneyScreenElasticOverscroll(container);
+    this.playJourneyV700HubEnter('world-return');
+    emitIOSNativeDiagnostic('hub-prepaint-committed', {
+      childCount: container.querySelectorAll('*').length,
+      imageCount: container.querySelectorAll('img').length,
+      preservedChildCount: preparedChildren.length,
+      outgoingHiddenPaintBarrier: true,
+      transparentStageBacking: true,
+    });
+    return true;
+  }
+
+  private cancelJourneyWorldPrepaint(reason: string): void {
+    const stage = this.journeyWorldPrepaintStage;
+    this.journeyWorldPrepaintEpoch += 1;
+    this.journeyWorldPrepaintStage = null;
+    if (!stage) return;
+    try { stage.host.remove(); } catch {}
+    emitIOSNativeDiagnostic('world-prepaint-cancelled', {
+      worldId: stage.worldId,
+      reason,
+    });
+  }
+
+  private prepareJourneyWorldPrepaint(container: HTMLElement, worldId: number): Promise<boolean> {
+    const current = this.journeyWorldPrepaintStage;
+    if (current?.worldId === worldId && current.host.isConnected) {
+      return current.readyPromise;
+    }
+    this.cancelJourneyWorldPrepaint('replacement');
+
+    const epoch = ++this.journeyWorldPrepaintEpoch;
+    const host = document.createElement('div');
+    host.className = 'journey-world-prepaint-stage';
+    host.setAttribute('aria-hidden', 'true');
+    host.setAttribute('inert', '');
+    host.style.position = 'absolute';
+    host.style.inset = '0';
+    host.style.width = '100%';
+    host.style.height = '100%';
+    host.style.overflow = 'hidden';
+    host.style.pointerEvents = 'none';
+    host.style.opacity = '0.001';
+    host.style.zIndex = '0';
+    host.style.contain = 'strict';
+
+    const root = document.createElement('div');
+    root.className = 'journey-world-prepaint-root';
+    root.dataset.journeyPrepaintWorldId = String(worldId);
+    host.appendChild(root);
+    const hub = container.querySelector(':scope > .journey-v700-hub');
+    container.insertBefore(host, hub || container.firstChild);
+
+    const stage: JourneyWorldPrepaintStage = {
+      worldId,
+      epoch,
+      host,
+      root,
+      readyPromise: Promise.resolve(false),
+      ready: false,
+    };
+    this.journeyWorldPrepaintStage = stage;
+
+    const isCurrent = () => (
+      this.journeyWorldPrepaintStage === stage &&
+      this.journeyWorldPrepaintEpoch === epoch &&
+      host.isConnected &&
+      container.isConnected &&
+      this.journeyV700View === 'hub' &&
+      !this.renderDisposed
+    );
+    stage.readyPromise = (async () => {
+      const startedAt = performance.now();
+      emitIOSNativeDiagnostic('world-prepaint-build-start', { worldId });
+      try {
+        // Build the composite detached, then mount it directly into the exact
+        // final World subtree. A separate prewarm host would be a second
+        // compositor owner and could survive a cancelled Hub drag.
+        await this.buildJourneyMainCloudComposite(worldId);
+        if (!isCurrent()) return false;
+
+        this.renderBoardsFixed(root, { worldId, deferRuntimeOwners: true });
+        this.applyJourneyV700WorldScope(root, worldId, { prepaint: true });
+        await this.prepareJourneyMainCloudComposite(root, worldId, { allowPrepaint: true });
+        if (!isCurrent()) return false;
+
+        const images = Array.from(root.querySelectorAll<HTMLImageElement>('img'));
+        await Promise.all(images.map((image) => waitForImageReady(image)));
+        if (!isCurrent()) return false;
+        emitIOSNativeDiagnostic('world-prepaint-images-ready', {
+          worldId,
+          imageCount: images.length,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+
+        // This is the exact final World subtree, connected at its real width.
+        // A geometry commit plus three physical frames lets WebKit decode,
+        // raster and allocate the main Unit compositor while Hub is stable.
+        void root.getBoundingClientRect();
+        const paintFrameMs: number[] = [];
+        let paintFrameStartedAt = performance.now();
+        for (let frameIndex = 0; frameIndex < 3; frameIndex += 1) {
+          const painted = await this.waitForTrackedFrames(1);
+          if (!painted || !isCurrent()) return false;
+          const paintFrameEndedAt = performance.now();
+          paintFrameMs.push(Math.round(paintFrameEndedAt - paintFrameStartedAt));
+          paintFrameStartedAt = paintFrameEndedAt;
+        }
+
+        stage.ready = true;
+        emitIOSNativeDiagnostic('world-prepaint-painted', {
+          worldId,
+          childCount: root.querySelectorAll('*').length,
+          imageCount: images.length,
+          paintFrameMs,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+        return true;
+      } catch (error) {
+        emitIOSNativeDiagnostic('world-prepaint-fallback', {
+          worldId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        if (this.journeyWorldPrepaintStage === stage) {
+          this.cancelJourneyWorldPrepaint('prepare-error');
+        }
+        return false;
+      }
+    })();
+    return stage.readyPromise;
+  }
+
+  private commitJourneyWorldPrepaint(container: HTMLElement, worldId: number): boolean {
+    const stage = this.journeyWorldPrepaintStage;
+    if (
+      !stage ||
+      !stage.ready ||
+      stage.worldId !== worldId ||
+      !stage.host.isConnected ||
+      !stage.root.isConnected
+    ) return false;
+
+    this.journeyWorldPrepaintStage = null;
+    this.beginRenderLifecycle();
+    journeySpatialMotion.deactivate();
+    this.cancelJourneyV700HubEnter('world-prepaint-commit');
+    this.retireJourneyBoardOwnersBeforeDomReplace(container);
+
+    Array.from(container.children).forEach((child) => {
+      if (child !== stage.host) child.remove();
+    });
+
+    container.style.height = stage.root.style.height;
+    container.style.minHeight = stage.root.style.minHeight;
+    container.style.position = 'relative';
+    container.style.width = '100%';
+    container.style.overflow = stage.root.style.overflow || 'visible';
+    container.dataset.journeyV700View = 'world';
+    container.dataset.journeyV700WorldId = String(worldId);
+
+    const preparedChildren = Array.from(stage.root.children);
+    preparedChildren.forEach((child) => container.appendChild(child));
+    stage.host.remove();
+
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    if (cardsContainer) {
+      this.trackTimeout(() => this.installInterimAreaHitTargets(cardsContainer), 0);
+    }
+    this.trackRAF(() => this.setupIdleInteractionListeners());
+    this.primeJourneyV700WorldEnter(container, worldId, {
+      source: 'hub-world-prepaint-commit',
+      lastBoardId: 0,
+    });
+    emitIOSNativeDiagnostic('world-prepaint-committed', {
+      worldId,
+      childCount: container.querySelectorAll('*').length,
+      imageCount: container.querySelectorAll('img').length,
+      preservedLayerCount: preparedChildren.length,
+    });
+    return true;
+  }
+
+  private applyJourneyV700WorldScope(
+    container: HTMLElement,
+    worldId: number,
+    options: { prepaint?: boolean } = {},
+  ): void {
     const range = this.getJourneyWorldRange(worldId);
     const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
     const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
@@ -7206,7 +7566,11 @@ class JourneyBoardsManager {
       }
     });
 
-    this.updateJourneyV700Nav('world', worldId);
+    if (!options.prepaint) {
+      this.updateJourneyV700Nav('world', worldId);
+    }
+
+    if (options.prepaint) return;
 
     const hasExplicitWorldReturnOwner =
       (window as any).__ccReturningFromDetailModal === true ||
@@ -8208,6 +8572,7 @@ class JourneyBoardsManager {
     }
     journeySpatialMotion.suspend();
     (container as any).__ccJourneyV700Closing = true;
+    const hubPrepaintReady = this.prepareJourneyHubPrepaint(container);
 
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
     const navExitPromise = this.playJourneyV700NavExit();
@@ -8220,6 +8585,12 @@ class JourneyBoardsManager {
       completed = true;
       this.logJourneyV700Flow('close-world-content-exit-complete-await-nav', {}, container);
       await navExitPromise;
+      const preparedHubReady = await hubPrepaintReady;
+      // The exit coordinator has now forced every outgoing Unit to exact zero
+      // opacity and hidden visibility. Cross one presentation boundary before
+      // promoting the Hub so WebKit cannot reuse the final low-alpha Main-art
+      // frame during the DOM handoff.
+      const outgoingZeroPresented = await this.waitForTrackedFrames(1);
       this.logJourneyV700Flow('close-world-nav-exit-complete-render-hub', {}, container);
       const finishHubRenderAudit = startIOSJourneyWorldEnterAudit({
         worldId: this.journeyV700WorldId,
@@ -8231,11 +8602,15 @@ class JourneyBoardsManager {
         markIOSJourneyTransitionAudit('hub-render-start');
         markIOSJourneyRouteAudit('journey-world-to-hub-render');
         const hubRenderStartedAt = performance.now();
-        this.setJourneyV700View('hub');
-        this.updateJourneyV700Nav('hub');
         (container as any).__ccJourneyV700Closing = false;
         (container as any).__ccJourneyV700ReturningFromWorld = true;
-        this.renderBoards();
+        const committedPrepaint = preparedHubReady && await this.commitJourneyHubPrepaint(container);
+        if (!committedPrepaint) {
+          this.cancelJourneyHubPrepaint('commit-fallback');
+          this.setJourneyV700View('hub');
+          this.updateJourneyV700Nav('hub');
+          this.renderBoards();
+        }
         const hubRenderDurationMs = performance.now() - hubRenderStartedAt;
         markIOSJourneyTransitionAudit('hub-render-complete');
         emitIOSNativeDiagnostic('hub-render-duration', {
@@ -8243,6 +8618,8 @@ class JourneyBoardsManager {
           childCount: document.getElementById('journey-boards-container')?.querySelectorAll('*').length ?? 0,
           imageCount: document.getElementById('journey-boards-container')?.querySelectorAll('img').length ?? 0,
           longTaskCandidate: hubRenderDurationMs > 50,
+          committedPrepaint,
+          outgoingZeroPresented,
         });
         finishHubRenderAudit('complete');
         this.trackTimeout(() => this.playJourneyV700NavEnter(), 120);
@@ -8291,93 +8668,20 @@ class JourneyBoardsManager {
     return isDirty;
   }
 
-  private renderBoardsFixed(container: HTMLElement): void {
+  private renderBoardsFixed(
+    container: HTMLElement,
+    options: { worldId?: number; deferRuntimeOwners?: boolean } = {},
+  ): void {
     // 🔥 APP STORE FIX: Fixed background position using viewport units
     // Background starts at a fixed position from top of viewport
     // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
     // Convert to viewport height units for consistency
     const FIXED_BG_TOP_VH = pxToVH(JOURNEY_CONTENT_TOP_PX, BASE_VIEWPORT_HEIGHT); // Shared Journey content top anchor
     
-    const img = new Image();
     const KNOWN_ASPECT_RATIO = FOREST_MAP_DESIGN_HEIGHT / FOREST_MAP_DESIGN_WIDTH;
-    
-    // 🔥 CRITICAL: Set image src - if already in browser cache, onload fires immediately
-    img.src = `${FOREST_WORLD_ASSET_BASE}/Forest main.png`;
-    
-    // If image is already in browser cache, trigger onload immediately
-    if (img.complete && img.naturalWidth > 0) {
-      // Image already loaded from cache - trigger onload handler immediately
-      this.trackTimeout(() => {
-        if (!document.body.contains(container)) return;
-        if (img.onload) img.onload(new Event('load') as any);
-      }, 0);
-    }
-    
-    // Load image and calculate dimensions
-    img.onload = () => {
-      if (this.renderDisposed || !document.body.contains(container)) return;
-      const imageAspectRatio = KNOWN_ASPECT_RATIO;
-      const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
-      const bgHeightPx = viewportWidth * imageAspectRatio; // Calculate height in pixels based on viewport width
-      
-      // 🔥 SCROLLABLE FIX: Put elements INSIDE journey-boards-container so they scroll with content
-      // Calculate top offset in pixels for absolute positioning within container
-      const FIXED_BG_TOP_PX = getJourneyWorldContentTopPx();
-      const FIXED_CARD_TOP_PX = getJourneyWorldCardStackTopPx();
-      
-      // Set container height to accommodate FULL background image height + top offset
-      const containerHeightPx = bgHeightPx + Math.max(FIXED_BG_TOP_PX, FIXED_CARD_TOP_PX) + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
-      container.style.height = `${containerHeightPx}px`;
-      container.style.position = 'relative';
-      container.style.width = '100%';
-      container.style.minHeight = `${containerHeightPx}px`;
-      container.style.overflow = 'visible'; // Ensure container doesn't clip background
-      
-      // Update background container height
-      const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement;
-      if (bgContainer) {
-        bgContainer.style.height = `${bgHeightPx}px`; // Set exact height to show full image
-      }
-
-      const cloudContainer = container.querySelector('.journey-cloud-container') as HTMLElement;
-      if (cloudContainer) {
-        cloudContainer.style.height = `${bgHeightPx}px`;
-      }
-
-      const decorContainer = container.querySelector('.journey-decor-container') as HTMLElement;
-      if (decorContainer) {
-        decorContainer.style.height = `${bgHeightPx}px`;
-      }
-      
-      // Update cards container height
-      const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement;
-      if (cardsContainer) {
-        cardsContainer.style.height = `${containerHeightPx}px`; // Full Journey stack so high-board smoke can render
-      }
-
-      if (this.journeyV700View === 'world' && this.journeyV700WorldId) {
-        this.applyJourneyV700WorldHeights(container);
-      }
-    };
-
-    img.onerror = () => {
-      if (this.renderDisposed || !document.body.contains(container)) return;
-      // Fallback to known aspect ratio if image fails to load
-      const imageAspectRatio = KNOWN_ASPECT_RATIO;
-      const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
-      const bgHeightPx = viewportWidth * imageAspectRatio;
-      const FIXED_BG_TOP_PX = getJourneyWorldContentTopPx();
-      const FIXED_CARD_TOP_PX = getJourneyWorldCardStackTopPx();
-      const containerHeightPx = bgHeightPx + Math.max(FIXED_BG_TOP_PX, FIXED_CARD_TOP_PX) + JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX;
-      container.style.height = `${containerHeightPx}px`;
-      container.style.minHeight = `${containerHeightPx}px`;
-      container.style.overflow = 'visible';
-      if (this.journeyV700View === 'world' && this.journeyV700WorldId) {
-        this.applyJourneyV700WorldHeights(container);
-      }
-    };
-    
-    // Use fallback aspect ratio for initial calculation
+    // The authored map ratio is immutable. The former throwaway Forest-main
+    // loader rewrote the same dimensions asynchronously near the first World
+    // frame, causing a redundant style/layout invalidation on cold iOS entry.
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
     const initialBgHeightPx = viewportWidth * KNOWN_ASPECT_RATIO;
     const FIXED_BG_TOP_PX = getJourneyWorldContentTopPx();
@@ -8463,7 +8767,9 @@ class JourneyBoardsManager {
     decorContainer.style.opacity = '1';
     container.appendChild(decorContainer);
 
-    this.renderForestMapAssets(bgContainer, decorContainer);
+    const activeWorldId = options.worldId || this.journeyV700WorldId || 1;
+    const activeWorldRange = this.getJourneyWorldRange(activeWorldId);
+    this.renderForestMapAssets(bgContainer, decorContainer, activeWorldId);
     // Main clouds share one structural enter/exit owner per World. Their image
     // children keep independent idle drift, while the complete cloud bank now
     // costs one transform instead of 7-14 simultaneous large-PNG transforms.
@@ -8487,12 +8793,27 @@ class JourneyBoardsManager {
 
     // Render cards with FIXED viewport-based positions
     this.boards.slice(0, JOURNEY_RENDERED_BOARDS).forEach((board, index) => {
+      if (
+        !activeWorldRange ||
+        board.id < activeWorldRange.start ||
+        board.id > activeWorldRange.end
+      ) return;
       const cardElement = this.createBoardCardFixed(board, index);
       cardsContainer.appendChild(cardElement);
     });
-    this.trackTimeout(() => {
-      this.installInterimAreaHitTargets(cardsContainer);
-    }, 0);
+    emitIOSNativeDiagnostic('world-scoped-dom-rendered', {
+      worldId: activeWorldId,
+      rangeStart: activeWorldRange?.start ?? null,
+      rangeEnd: activeWorldRange?.end ?? null,
+      childCount: container.querySelectorAll('*').length,
+      imageCount: container.querySelectorAll('img').length,
+      cardCount: cardsContainer.querySelectorAll('.journey-board-card-wrapper').length,
+    });
+    if (!options.deferRuntimeOwners) {
+      this.trackTimeout(() => {
+        this.installInterimAreaHitTargets(cardsContainer);
+      }, 0);
+    }
     // Forest scene idle starts after playJourneyForestSceneEnterAnimation().
     
     // 🔥 CRITICAL: DO NOT start idle bounce animations here - they will interfere with enter animation
@@ -8502,9 +8823,11 @@ class JourneyBoardsManager {
     
     // Only install interaction listeners during render. The complete interim
     // idle session starts after the visible Journey enter reaches idle.
-    this.trackRAF(() => {
-      this.setupIdleInteractionListeners();
-    });
+    if (!options.deferRuntimeOwners) {
+      this.trackRAF(() => {
+        this.setupIdleInteractionListeners();
+      });
+    }
   }
   
   private setupIdleInteractionListeners(): void {

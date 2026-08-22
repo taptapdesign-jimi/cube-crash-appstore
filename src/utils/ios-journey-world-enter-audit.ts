@@ -20,6 +20,8 @@ interface JourneyWorldSlowFrame {
   frameMs: number;
   marker: string;
   markerAgeMs: number;
+  intervalStartMarker?: string;
+  intervalEndMarker?: string;
 }
 
 type ActiveJourneyTransitionAudit = {
@@ -175,14 +177,18 @@ function getTransitionWorkSnapshot(
     markerAgeMs: Math.round(performance.now() - transitionAudit.markerAt),
     childCount: elements.length,
     imageCount: container?.querySelectorAll('img').length ?? 0,
-    activeCssAnimations: typeof document.getAnimations === 'function'
-      ? document.getAnimations().filter((animation) => animation.playState === 'running').length
-      : -1,
-    willChangeCount: elements.filter((element) => getComputedStyle(element).willChange !== 'auto').length,
-    filterCount: elements.filter((element) => {
-      const style = getComputedStyle(element);
-      return style.filter !== 'none' || style.backdropFilter !== 'none';
-    }).length,
+    // A slow-frame observer must not force style resolution over the complete
+    // scene and create the next slow frame itself. Inline ownership is enough
+    // for transition attribution; expensive computed snapshots belong in a
+    // separately scheduled idle diagnostic.
+    activeCssAnimations: -1,
+    willChangeCount: elements.filter((element) => (
+      !!element.style.willChange && element.style.willChange !== 'auto'
+    )).length,
+    filterCount: elements.filter((element) => (
+      (!!element.style.filter && element.style.filter !== 'none') ||
+      (!!element.style.backdropFilter && element.style.backdropFilter !== 'none')
+    )).length,
     gsapChildren,
   };
 }
@@ -219,6 +225,7 @@ export function startIOSJourneyWorldEnterAudit(
   const slowFrames: JourneyWorldSlowFrame[] = [];
   const container = document.getElementById('journey-boards-container') as HTMLElement | null;
   const transitionAudit = { marker: 'audit-start', markerAt: startedAt };
+  let intervalStartMarker = transitionAudit.marker;
   activeTransitionAudit = transitionAudit;
 
   const finish = (reason: string): void => {
@@ -239,12 +246,15 @@ export function startIOSJourneyWorldEnterAudit(
   const sampleFrame = (frameAt: number): void => {
     if (finished) return;
     const frameMs = frameAt - lastFrameAt;
+    const intervalEndMarker = transitionAudit.marker;
     samples.push(frameMs);
     if (frameMs > 20) {
       slowFrames.push({
         frameMs: Number(frameMs.toFixed(2)),
-        marker: transitionAudit.marker,
+        marker: intervalStartMarker,
         markerAgeMs: Math.round(performance.now() - transitionAudit.markerAt),
+        intervalStartMarker,
+        intervalEndMarker,
       });
       slowFrames.sort((left, right) => right.frameMs - left.frameMs);
       if (slowFrames.length > 8) slowFrames.length = 8;
@@ -254,9 +264,12 @@ export function startIOSJourneyWorldEnterAudit(
         ...context,
         frameMs: Math.round(frameMs),
         ...getTransitionWorkSnapshot(container, transitionAudit),
+        intervalStartMarker,
+        intervalEndMarker,
       });
     }
     lastFrameAt = frameAt;
+    intervalStartMarker = transitionAudit.marker;
     frameId = requestAnimationFrame(sampleFrame);
   };
 

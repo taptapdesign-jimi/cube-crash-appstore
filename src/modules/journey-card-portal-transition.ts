@@ -13,6 +13,7 @@ export interface JourneyCardOriginLease {
   readonly origin: JourneyCardGeometry;
   readonly aspectRatio: number;
   mountInto(host: HTMLElement): void;
+  activatePortal(): void;
   prepareSettledLanding(): void;
   captureLandingGeometry(): void;
   readLiveGeometry(): JourneyCardGeometry | null;
@@ -194,7 +195,6 @@ export function acquireJourneyCardOriginLease(
       // Keep the live card resident in its Journey Unit. Reparenting this
       // promoted/clipped layer through the modal forces WKWebView to rebuild
       // its compositor backing and can expose a one-frame blank on return.
-      card.classList.add('journey-board-card-return-placeholder');
       portalVisual = card.cloneNode(true) as HTMLElement;
       portalVisual.removeAttribute('id');
       portalVisual.removeAttribute('data-board-id');
@@ -207,6 +207,10 @@ export function acquireJourneyCardOriginLease(
       portalVisual.style.pointerEvents = 'none';
       portalVisual.style.touchAction = 'none';
       host.appendChild(portalVisual);
+    },
+    activatePortal() {
+      if (settled || !mounted || !portalVisual?.isConnected) return;
+      card.classList.add('journey-board-card-return-placeholder');
     },
     prepareSettledLanding() {
       if (settled || mounted) return;
@@ -342,6 +346,24 @@ export function computeJourneyCardMotionTransformOrigin(
   };
 }
 
+export function primeJourneyCardSpatialFlight(
+  motionElement: HTMLElement,
+  baseGeometry: JourneyCardGeometry,
+  from: JourneyCardGeometry,
+  to: JourneyCardGeometry,
+  preparedMotionRect: Pick<DOMRect, 'left' | 'top'>,
+): void {
+  const transformOrigin = computeJourneyCardMotionTransformOrigin(baseGeometry, preparedMotionRect);
+  const pose = computeJourneyCardSpatialPose(baseGeometry, from, to, 0);
+  motionElement.style.transformOrigin = `${transformOrigin.x}px ${transformOrigin.y}px`;
+  motionElement.style.willChange = 'transform';
+  motionElement.style.transform = [
+    `translate3d(${pose.x}px, ${pose.y}px, 0)`,
+    `rotate(${pose.rotationDeg}deg)`,
+    `scale(${pose.scaleX}, ${pose.scaleY})`,
+  ].join(' ');
+}
+
 export function startJourneyCardSpatialFlight(options: {
   motionElement: HTMLElement;
   baseGeometry: JourneyCardGeometry;
@@ -356,6 +378,7 @@ export function startJourneyCardSpatialFlight(options: {
     spatialProgress: number,
   ) => { x: number; y: number };
   onProgress?: (rawProgress: number) => void;
+  transformOriginPrimed?: boolean;
 }): JourneyCardSpatialFlightController {
   let animationFrame = 0;
   let finished = false;
@@ -412,12 +435,14 @@ export function startJourneyCardSpatialFlight(options: {
     animationFrame = requestAnimationFrame(render);
   };
 
-  const motionRect = options.motionElement.getBoundingClientRect();
-  const transformOrigin = computeJourneyCardMotionTransformOrigin(
-    options.baseGeometry,
-    motionRect,
-  );
-  options.motionElement.style.transformOrigin = `${transformOrigin.x}px ${transformOrigin.y}px`;
+  if (!options.transformOriginPrimed) {
+    const motionRect = options.motionElement.getBoundingClientRect();
+    const transformOrigin = computeJourneyCardMotionTransformOrigin(
+      options.baseGeometry,
+      motionRect,
+    );
+    options.motionElement.style.transformOrigin = `${transformOrigin.x}px ${transformOrigin.y}px`;
+  }
   options.motionElement.style.willChange = 'transform';
   render(startedAt);
 

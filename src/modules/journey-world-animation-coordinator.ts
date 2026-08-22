@@ -178,16 +178,22 @@ export class JourneyWorldAnimationCoordinator {
 
     await new Promise<void>((resolve) => {
       const cardExitFinalizers: Array<() => void> = [];
+      const unitExitFinalizers: Array<() => void> = [];
       const finalizeCardExits = () => {
         cardExitFinalizers.forEach((finalize) => finalize());
       };
+      const finalizeUnitExits = () => {
+        unitExitFinalizers.forEach((finalize) => finalize());
+      };
       const timeline = gsap.timeline({
         onComplete: () => {
+          finalizeUnitExits();
           finalizeCardExits();
           if (this.activeTimeline === timeline) this.activeTimeline = null;
           resolve();
         },
         onInterrupt: () => {
+          finalizeUnitExits();
           finalizeCardExits();
           resolve();
         },
@@ -213,6 +219,21 @@ export class JourneyWorldAnimationCoordinator {
           const card = wrapper.querySelector<HTMLElement>('.journey-board-card');
           return card ? [card] : [];
         });
+        let unitExitFinalized = false;
+        const finalizeUnitExit = () => {
+          if (unitExitFinalized) return;
+          unitExitFinalized = true;
+          unit.targets.forEach((target) => {
+            if (!target.isConnected) return;
+            gsap.set(target, {
+              opacity: 0,
+              visibility: 'hidden',
+              pointerEvents: 'none',
+              overwrite: true,
+            });
+          });
+        };
+        unitExitFinalizers.push(finalizeUnitExit);
 
         gsap.killTweensOf([...unit.targets, ...cardVisualTargets]);
 
@@ -226,6 +247,8 @@ export class JourneyWorldAnimationCoordinator {
             force3D: false,
             overwrite: true,
             onStart: markUnitExitStart,
+            onComplete: finalizeUnitExit,
+            onInterrupt: finalizeUnitExit,
           });
           timeline.add(tween, position);
           return;
@@ -246,6 +269,8 @@ export class JourneyWorldAnimationCoordinator {
             force3D: false,
             overwrite: true,
             onStart: markUnitExitStart,
+            onComplete: finalizeUnitExit,
+            onInterrupt: finalizeUnitExit,
           }), position);
         }
 

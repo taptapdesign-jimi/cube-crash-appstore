@@ -388,6 +388,30 @@ describe('Journey spatial motion', () => {
     expect(container.querySelectorAll('[data-journey-spatial-target="journey-hub"]')).toHaveLength(3);
   });
 
+  it('resumes the existing Journey Hub owner after an aborted World open', () => {
+    document.body.innerHTML = `
+      <div id="journey-boards-container">
+        <article class="journey-v700-world-card" data-world-id="1">
+          <div class="journey-v700-world-visual"><img class="journey-v700-world-image" /></div>
+        </article>
+        <div class="journey-v700-hub-cloud" data-world-id="1"></div>
+      </div>
+    `;
+    const container = document.getElementById('journey-boards-container') as HTMLElement;
+    const controllerState = journeySpatialMotion as unknown as { suspended: boolean; activeSurface: string | null };
+
+    journeySpatialMotion.activateJourneyHub(container);
+    journeySpatialMotion.suspend();
+    expect(controllerState.suspended).toBe(true);
+    expect(controllerState.activeSurface).toBe('journey-hub');
+
+    journeySpatialMotion.resumeJourneyHub(container);
+
+    expect(controllerState.suspended).toBe(false);
+    expect(controllerState.activeSurface).toBe('journey-hub');
+    expect(container.querySelectorAll('[data-journey-spatial-target="journey-hub"]')).toHaveLength(2);
+  });
+
   it('moves gameplay cube faces through their independent spatial wrappers and restores them on cleanup', () => {
     const wrapper = {
       x: 0,

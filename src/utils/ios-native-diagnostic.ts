@@ -19,7 +19,6 @@ export function emitNativeConsoleDiagnostic(
 export function emitIOSNativeDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
   try {
     const screen = document.getElementById('journey-screen') as HTMLElement | null;
-    const style = screen ? getComputedStyle(screen) : null;
     emitNativeConsoleDiagnostic('🧭 FailJourneyEnter', event, {
         returning: (window as any).__ccReturningFromDetailModal === true,
         returnBoardId: (window as any).__ccJourneyReturnBoardId ?? null,
@@ -29,9 +28,10 @@ export function emitIOSNativeDiagnostic(event: string, detail: Record<string, un
         animating: (window as any).__ccJourneyViewportEnterAnimating === true,
         screen: screen ? {
           hidden: screen.hidden,
-          display: style?.display,
-          visibility: style?.visibility,
-          opacity: style?.opacity,
+          classHidden: screen.classList.contains('hidden'),
+          display: screen.style.display || null,
+          visibility: screen.style.visibility || null,
+          opacity: screen.style.opacity || null,
           primed: screen.dataset.ccJourneyPrimedHidden ?? null,
         } : null,
         ...detail,

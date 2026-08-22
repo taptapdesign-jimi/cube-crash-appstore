@@ -1,4 +1,16 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { summarizeJourneyWorldEnterFrames } from '../../utils/ios-journey-world-enter-audit.js';
+
+const root = path.resolve(__dirname, '../../..');
+const nativeDiagnosticSource = fs.readFileSync(
+  path.join(root, 'src/utils/ios-native-diagnostic.ts'),
+  'utf8',
+);
+const journeyAuditSource = fs.readFileSync(
+  path.join(root, 'src/utils/ios-journey-world-enter-audit.ts'),
+  'utf8',
+);
 
 describe('Journey world enter performance audit', () => {
   it('summarizes frame pressure without allowing invalid or unbounded samples', () => {
@@ -21,5 +33,15 @@ describe('Journey world enter performance audit', () => {
       over34: 0,
       over50: 0,
     });
+  });
+
+  it('keeps transition markers free of forced style reads and labels both ends of a slow interval', () => {
+    expect(nativeDiagnosticSource).not.toContain('getComputedStyle(screen)');
+    expect(nativeDiagnosticSource).toContain('display: screen.style.display || null');
+    expect(journeyAuditSource).not.toContain('getComputedStyle(element)');
+    expect(journeyAuditSource).toContain('activeCssAnimations: -1');
+    expect(journeyAuditSource).toContain('intervalStartMarker');
+    expect(journeyAuditSource).toContain('intervalEndMarker');
+    expect(journeyAuditSource).toContain('marker: intervalStartMarker');
   });
 });

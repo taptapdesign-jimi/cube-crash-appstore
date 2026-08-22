@@ -7,6 +7,7 @@ import {
 import {
   captureJourneyCardGeometry,
   computeJourneyCardArcOffset,
+  primeJourneyCardSpatialFlight,
   startJourneyCardSpatialFlight,
   type JourneyCardGeometry,
   type JourneyCardOriginLease,
@@ -219,6 +220,32 @@ function waitForPaints(count = 1): Promise<void> {
       requestAnimationFrame(() => next(remaining - 1));
     };
     next(count);
+  });
+}
+
+function waitForModalImageReady(image: HTMLImageElement, timeoutMs = 800): Promise<void> {
+  if (!image.src) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      image.removeEventListener('load', onReady);
+      image.removeEventListener('error', onReady);
+      resolve();
+    };
+    const onReady = () => {
+      if (typeof image.decode === 'function') void image.decode().catch(() => undefined).then(finish);
+      else finish();
+    };
+    const timeoutId = window.setTimeout(finish, timeoutMs);
+    if (image.complete) {
+      onReady();
+      return;
+    }
+    image.addEventListener('load', onReady, { once: true });
+    image.addEventListener('error', onReady, { once: true });
   });
 }
 
@@ -896,9 +923,11 @@ export function presentJourneyCardOverlayModal(
     try { (window as any).triggerHapticImpact?.('light'); } catch {}
   };
 
-  const startEntry = async () => {
+  const startEntry = async (preparedDestination?: JourneyCardGeometry | null) => {
     markOpenProfile('geometry-read-start');
-    const destination = readFrameGeometry();
+    const destination = preparedDestination === undefined
+      ? readFrameGeometry()
+      : preparedDestination;
     markOpenProfile('geometry-read-complete');
     if (!destination) {
       setRotorAngle(-180);
@@ -939,6 +968,7 @@ export function presentJourneyCardOverlayModal(
         const revealProgress = Math.min(1, progress / 0.38);
         spatialShell.style.opacity = String(initialOpacity + (1 - initialOpacity) * revealProgress);
       },
+      transformOriginPrimed: preparedDestination !== undefined && preparedDestination !== null,
     });
     markOpenProfile('flight-started');
     await spatialFlight.result;
@@ -1458,17 +1488,61 @@ export function presentJourneyCardOverlayModal(
 
   setStableFace('front');
   setRotorAngle(0);
+  stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back', 'is-prepainting');
   markOpenProfile('dom-append-start');
   document.body.appendChild(stage);
   markOpenProfile('dom-appended');
-  stage.classList.add('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
-  void startEntry();
-  requestAnimationFrame(() => {
+  const prepareAndStartEntry = async () => {
+    markOpenProfile('prepaint-shell-wait');
+    await waitForPaints(1);
     if (settled) return;
+
+    markOpenProfile('prepaint-geometry-read-start');
+    const destination = readFrameGeometry();
+    markOpenProfile('prepaint-geometry-read-complete');
+    if (destination) {
+      primeJourneyCardSpatialFlight(
+        spatialShell,
+        destination,
+        options.origin.origin,
+        destination,
+        {
+          left: destination.centerX - destination.width / 2,
+          top: destination.centerY - destination.height / 2,
+        },
+      );
+      const initialOpacity = Math.max(0, Math.min(1, options.entryInitialOpacity ?? 1));
+      spatialShell.style.opacity = String(initialOpacity);
+    }
+    await Promise.all(
+      Array.from(stage.querySelectorAll<HTMLImageElement>('img')).map((image) => waitForModalImageReady(image)),
+    );
+    if (settled) return;
+
+    // Warm both exact preserve-3d faces while the original World card remains
+    // visible underneath. Each face gets a real WebKit presentation frame, so
+    // the visible flight never owns first raster or texture upload.
+    markOpenProfile('prepaint-front-face');
+    setRotorAngle(0);
+    await waitForPaints(1);
+    if (settled) return;
+    markOpenProfile('prepaint-back-face');
+    setRotorAngle(-180);
+    await waitForPaints(1);
+    if (settled) return;
+    setRotorAngle(0);
+    await waitForPaints(1);
+    if (settled) return;
+
+    options.origin.activatePortal();
+    const entryPromise = startEntry(destination);
+    stage.classList.remove('is-prepainting');
     stage.classList.add('is-visible');
     backdrop.style.opacity = '1';
     markOpenProfile('first-visible-paint');
-  });
+    void entryPromise;
+  };
+  void prepareAndStartEntry();
 
   controller = {
     element: stage,
