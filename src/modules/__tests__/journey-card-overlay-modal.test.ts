@@ -466,6 +466,7 @@ describe('Journey two-sided card overlay prototype', () => {
   });
 
   test('removes expensive settled shadows only during the active card entry flight', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-front \{[\s\S]*?filter: none;[\s\S]*?transition: none;/);
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering \.journey-card-flip-paper \{[\s\S]*?box-shadow: none;[\s\S]*?transition: none;/);
@@ -476,6 +477,11 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-settled:not\(\.is-exiting\) \.journey-card-flip-paper \{[\s\S]*?transition-duration: 180ms;/);
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-settled:not\(\.is-exiting\) \.journey-card-flip-back-shell::before \{[\s\S]*?transition-duration: 180ms;/);
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-exiting \.journey-card-flip-front \{[\s\S]*?drop-shadow\(0 14px 19px rgba\(165, 124, 98, 0\)\);/);
+    expect(modal).toContain('JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200');
+    expect(modal).toContain('progress >= shadowRevealProgress');
+    expect(modal).toContain("stage.classList.add('is-shadow-ready')");
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-front \{[\s\S]*?transition: filter 180ms linear;/);
+    expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-paper \{[\s\S]*?transition: box-shadow 180ms linear;/);
   });
 
   test('freezes World paint while modal gyro owns depth, with exact origin leasing and board handoff', () => {

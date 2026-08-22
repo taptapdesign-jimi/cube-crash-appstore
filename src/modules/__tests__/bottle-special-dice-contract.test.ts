@@ -237,16 +237,16 @@ describe('Bottle special-die visual contract', () => {
     expect(dragSource).toContain('const usesJuiceIdleFx = isSpecialDiceJuiceLikeTile(t)');
   });
 
-  test('keeps v915 Magnet density while canonically normalizing the reused survivor', () => {
+  test('keeps exact Magnet replacement density while canonically normalizing the reused survivor', () => {
     const mergeSource = read('src/modules/app-merge.ts');
     const resolutionSource = read('src/modules/magnet-post-spawn-resolution.ts');
-    expect(mergeSource).toContain('v915 Magnet continuation');
+    expect(mergeSource).toContain('Magnet continuation: exact replacements + converted survivor.');
     expect(mergeSource.indexOf('stopSpecialDiceIdleMotion(dst)')).toBeLessThan(
       mergeSource.indexOf('collapseTileToSingleStackVisual(dst)'),
     );
     expect(mergeSource).toContain('collapseTileToSingleStackVisual(dst)');
     expect(mergeSource).toContain('boardHelpers.setValue(dst, freshVal, 0)');
-    expect(resolutionSource).toContain('const obligatorySpawnCount = hasTilesToRespawn ? 1 : 0');
+    expect(resolutionSource).toContain('const obligatorySpawnCount = 0');
     expect(mergeSource).toContain('spawnBounce(dst, () =>');
   });
 });

@@ -144,8 +144,9 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
     }) },
     alpha: 0.2,
     _isBeingSpawned: true,
+    _ccHideFinalMergeResultVisual: true,
     rotG: { alpha: 0.4 },
-    base: { alpha: 0.5 },
+    base: { alpha: 0.5, visible: false },
     overlay: { alpha: 0.9, visible: true },
     num: { alpha: 0.6 },
     pips: { alpha: 0.1, visible: false },
@@ -157,9 +158,11 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
   expect(tile.scale.x).toBe(1);
   expect(tile.scale.y).toBe(1);
   expect(tile._isBeingSpawned).toBe(false);
+  expect(tile._ccHideFinalMergeResultVisual).toBeUndefined();
   expect(tile.alpha).toBe(1);
   expect(tile.rotG.alpha).toBe(1);
   expect(tile.base.alpha).toBe(1);
+  expect(tile.base.visible).toBe(true);
   expect(tile.overlay.alpha).toBe(1);
   expect(tile.overlay.visible).toBe(false);
   expect(tile.num.alpha).toBe(1);

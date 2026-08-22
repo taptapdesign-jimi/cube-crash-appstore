@@ -25,8 +25,42 @@ export function getArcadeSaveKey(): string {
   return ARCADE_SAVE_KEY;
 }
 
-export function hasArcadeSavedState(): boolean {
-  return localStorage.getItem(ARCADE_SAVE_KEY) !== null;
+export function isArcadeSaveStateResumable(state: any): boolean {
+  if (!state || typeof state !== 'object') return false;
+  const savedRound = Number.isFinite(Number(state.boardNumber))
+    ? Number(state.boardNumber)
+    : Number(state.level);
+  if (!Number.isFinite(savedRound) || savedRound < 1) return false;
+
+  const gridTiles = Array.isArray(state.grid)
+    ? state.grid.flatMap((row: any) => Array.isArray(row) ? row : [])
+    : [];
+  const candidates = gridTiles.length > 0
+    ? gridTiles
+    : (Array.isArray(state.tiles) ? state.tiles : []);
+  const isArcadePlayableTile = (snapshot: any): boolean => {
+    if (!snapshot || snapshot.destroyed === true || snapshot.locked === true || snapshot.open === false) return false;
+    const value = Number(snapshot.value);
+    const special = typeof snapshot.special === 'string' ? snapshot.special : '';
+    // A regular six is a legal Arcade continuation owner while another tile
+    // exists; only a lone six/terminal residue must be rejected.
+    return (Number.isFinite(value) && value > 0 && value <= 6) || special.length > 0;
+  };
+  return candidates.filter(isArcadePlayableTile).length >= 2;
+}
+
+export function hasArcadeSavedState(options: ResumableSaveOptions = {}): boolean {
+  const storage = options.storage ?? localStorage;
+  const serialized = storage.getItem(ARCADE_SAVE_KEY);
+  if (!serialized) return false;
+  try {
+    const resumable = isArcadeSaveStateResumable(JSON.parse(serialized));
+    if (!resumable && options.clearInvalid) storage.removeItem(ARCADE_SAVE_KEY);
+    return resumable;
+  } catch {
+    if (options.clearInvalid) storage.removeItem(ARCADE_SAVE_KEY);
+    return false;
+  }
 }
 
 export function getArcadeSavedRound(): number | null {

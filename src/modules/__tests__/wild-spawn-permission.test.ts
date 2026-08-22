@@ -47,7 +47,7 @@ test('requests retry while animation guard is active', () => {
   })).toEqual({
     action: 'retry',
     reason: 'merge6-spawn-in-progress',
-    retryDelayMs: 520,
+    retryDelayMs: 80,
   });
 });
 

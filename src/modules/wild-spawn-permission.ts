@@ -22,7 +22,10 @@ export type WildSpawnPermissionInput = {
   devLog?: (...args: any[]) => void;
 };
 
-const WILD_SPAWN_BOARD_SETTLE_MS = 520;
+// The merge owner already keeps the reward out of the board until its atomic
+// cleanup/spawn mutation has finished. This short paint handoff lets Pixi
+// publish that final state without an additional half-second visual pause.
+export const WILD_SPAWN_BOARD_SETTLE_MS = 80;
 
 function block(reason: string): WildSpawnPermission {
   return { action: 'block', reason };

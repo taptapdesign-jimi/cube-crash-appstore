@@ -139,6 +139,7 @@ import { resetWildAndEndgameState } from './app-core-startlevel-wild.ts';
 import { ensureStartLevelLayout } from './app-core-startlevel-layout.ts';
 import {
   beginGameplayEntryPreparation,
+  cancelGameplayEntryPreparation,
   commitPreparedGameplayEntry,
   hasPreparedGameplayEntry,
   isGameplayEntryGenerationLatest,
@@ -180,7 +181,7 @@ import { addElectricGlowCore } from './app-core-glow.ts';
 import { adaptSpawnBounce, OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
 import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
-import { resolveWildSpawnPermission } from './wild-spawn-permission.ts';
+import { resolveWildSpawnPermission, WILD_SPAWN_BOARD_SETTLE_MS } from './wild-spawn-permission.ts';
 import { resolveWildMeterProgressDecision } from './wild-meter-progress-decision.ts';
 import {
   isWildContinuationPending,
@@ -220,7 +221,7 @@ import {
   pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
 } from './special-dice-registry.ts';
-import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations } from './wild-spawn-drop.ts';
+import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadWildSpawnDropAssets } from './wild-spawn-drop.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { clearInputGateLocks, setInputGateLock } from './input-gate.ts';
 import {
@@ -272,12 +273,14 @@ import { restoreTilesFromSave, resumeDeferredTntIdleEffects } from './app-core-l
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import {
   beginArcadeEntryCue,
+  cancelArcadeEntryCueOwner,
   consumeArcadeEntryCue,
   isArcadeEntryCuePending,
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import {
   engageArcadeEntrySurfaceGate,
+  cancelArcadeEntrySurfaceGate,
   enforceArcadeEntrySurfaceGate,
   isArcadeEntrySurfaceGateActive,
   releaseArcadeEntrySurfaceGateAfterPreparedFrame,
@@ -2676,7 +2679,6 @@ let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
 let __hudMetrics: HudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
-const WILD_SPAWN_BOARD_SETTLE_MS = 520;
 function getWildSpawnAnimationBlockReason(): string | null {
   try {
     if (busyEnding) return 'busyEnding';
@@ -5550,11 +5552,27 @@ function revealPreparedGameplaySurface(): void {
       hud.alpha = 1;
       hud.renderable = true;
     }
+    const canvas = app?.canvas as HTMLCanvasElement | null | undefined;
+    if (canvas && !isArcadeEntrySurfaceGateActive()) {
+      canvas.style.display = 'block';
+      canvas.style.visibility = 'visible';
+      canvas.style.opacity = '1';
+      canvas.style.pointerEvents = 'auto';
+    }
     // A texture recovery that completed while entry was pending deliberately
     // left the canvas hidden. The entry commit is the sole safe reveal owner.
     try { app?.renderer?.render?.(stage); } catch {}
     restoreCanvasAfterCoreTextureRecovery();
   } catch {}
+}
+
+export async function recoverFreshArcadeEntryAfterFailedLoad(): Promise<void> {
+  delete (window as any).__ccSkipRebuildBoard;
+  delete (window as any).__ccArcadeContinuationCueRound;
+  cancelGameplayEntryPreparation();
+  cancelArcadeEntryCueOwner();
+  cancelArcadeEntrySurfaceGate();
+  await startLevel(1);
 }
 function rebuildBoard(){
   const gameplayEntryGeneration = activeGameplayEntryGeneration;
@@ -6058,6 +6076,10 @@ try {
 
 async function startLevel(n): Promise<void> {
   const startLevelGeneration = beginGameplayEntryPreparation(`startLevel:${n}`);
+  // Warm the Backpack/Crate frames alongside the board texture barrier. The
+  // first reward must not begin decoding its entrance only after the meter is
+  // already visibly full.
+  void preloadWildSpawnDropAssets();
   // Retire every callback/wait owned by the previous board before the new
   // generation begins awaiting textures or creating tiles.
   try { clearAllAppTimeouts(); } catch {}
@@ -14890,6 +14912,12 @@ export async function restart(options: RestartOptions = {}): Promise<void> {
 // Clean up game when exiting
 export function cleanupGame() {
   devLog('🧹 Cleaning up game state');
+  // Retire every hidden-entry owner before destroying its Pixi/DOM targets.
+  // Waiting for uiManager.hideApp() leaves a window where a stale Round cue or
+  // prepared commit can re-hide the next Homepage/new-game surface.
+  cancelGameplayEntryPreparation();
+  cancelArcadeEntryCueOwner();
+  cancelArcadeEntrySurfaceGate();
   journeySpatialMotion.deactivateGameplay();
   stopBoardFrameBudgetMonitor();
   

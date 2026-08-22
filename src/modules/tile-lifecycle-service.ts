@@ -169,6 +169,12 @@ export function isLockedEmptyPlaceholder(tile: any): boolean {
 export function normalizeSpawnedTileVisual(tile: any): void {
   if (!tile) return;
 
+  // A final merge may deliberately hide the result artwork while its finale
+  // owns the screen. Recycled/restarted holders must never retain that visual
+  // identity: the outer tile can remain interactive and measurable while its
+  // actual base texture stays invisible.
+  try { delete tile._ccHideFinalMergeResultVisual; } catch {}
+
   try {
     if (tile.scale?.set) tile.scale.set(1, 1);
     else if (tile.scale) {
@@ -181,7 +187,10 @@ export function normalizeSpawnedTileVisual(tile: any): void {
 
   tile.alpha = 1;
   if (tile.rotG) tile.rotG.alpha = 1;
-  if (tile.base) tile.base.alpha = 1;
+  if (tile.base) {
+    tile.base.alpha = 1;
+    tile.base.visible = true;
+  }
   if (tile.overlay) {
     tile.overlay.alpha = 1;
     tile.overlay.visible = false;

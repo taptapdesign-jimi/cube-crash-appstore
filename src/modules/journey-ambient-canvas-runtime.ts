@@ -39,6 +39,8 @@ export interface JourneyAmbientCanvasRuntimeOptions {
 
 export interface JourneyAmbientCanvasRuntime {
   setSuspended(suspended: boolean): void;
+  fadeIn(durationMs: number): void;
+  fadeOut(durationMs: number, onComplete?: () => void): void;
   refreshGeometry(): void;
   setSceneHeight(sceneHeightPx: number): void;
   dispose(): void;
@@ -138,6 +140,23 @@ export function startJourneyAmbientCanvasRuntime(
   let sceneVisible = true;
   let lastTickerTime = options.ticker.time;
   let observer: IntersectionObserver | null = null;
+  let fadeFrame = 0;
+  let fadeTimeout = 0;
+
+  const clearFadeOwnership = (): void => {
+    if (fadeFrame) cancelAnimationFrame(fadeFrame);
+    if (fadeTimeout) window.clearTimeout(fadeTimeout);
+    fadeFrame = 0;
+    fadeTimeout = 0;
+  };
+
+  const setLayerFade = (opacity: number, durationMs: number): void => {
+    [behindCanvas, frontCanvas].forEach((canvas) => {
+      canvas.style.transition = durationMs > 0 ? `opacity ${durationMs}ms ease-out` : 'none';
+      canvas.style.opacity = String(opacity);
+      canvas.style.willChange = durationMs > 0 ? 'transform, opacity' : 'transform';
+    });
+  };
 
   const resizeBitmaps = (): void => {
     const viewportHeight = scrollRoot?.clientHeight || window.innerHeight || sceneHeight;
@@ -223,6 +242,35 @@ export function startJourneyAmbientCanvasRuntime(
       behindCanvas.style.willChange = willChange;
       frontCanvas.style.willChange = willChange;
     },
+    fadeIn(durationMs): void {
+      if (disposed) return;
+      clearFadeOwnership();
+      setLayerFade(0, 0);
+      fadeFrame = requestAnimationFrame(() => {
+        fadeFrame = 0;
+        if (disposed) return;
+        setLayerFade(1, Math.max(0, durationMs));
+        fadeTimeout = window.setTimeout(() => {
+          fadeTimeout = 0;
+          if (disposed) return;
+          [behindCanvas, frontCanvas].forEach((canvas) => {
+            canvas.style.transition = 'none';
+            canvas.style.willChange = suspended ? 'auto' : 'transform';
+          });
+        }, Math.max(0, durationMs));
+      });
+    },
+    fadeOut(durationMs, onComplete): void {
+      if (disposed) return;
+      clearFadeOwnership();
+      setLayerFade(0, Math.max(0, durationMs));
+      fadeTimeout = window.setTimeout(() => {
+        fadeTimeout = 0;
+        if (disposed) return;
+        if (onComplete) onComplete();
+        else controller.dispose();
+      }, Math.max(0, durationMs));
+    },
     refreshGeometry,
     setSceneHeight(nextSceneHeight): void {
       if (disposed) return;
@@ -235,6 +283,7 @@ export function startJourneyAmbientCanvasRuntime(
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      clearFadeOwnership();
       options.ticker.remove(tick);
       scrollRoot?.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);

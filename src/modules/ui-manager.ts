@@ -14,7 +14,7 @@ import {
 } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
-import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
+import { boot as bootGame, layoutBoard as layoutGame, recoverFreshArcadeEntryAfterFailedLoad } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
@@ -442,7 +442,7 @@ class UIManager {
     // A forced/clean-install first play always owns Board 1 tutorial. Ignore
     // any migrated or partially-cleared Arcade save until that tutorial has
     // actually completed.
-    const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState();
+    const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState({ clearInvalid: true });
     if ((window as any).triggerGameStartSequence) {
       (window as any).triggerGameStartSequence({ resumeArcade: shouldResumeArcade });
     } else {
@@ -816,9 +816,10 @@ class UIManager {
         
         // Load saved game state AFTER boot/layout
         const loadGameState = (window as any).loadGameState;
+        let loaded = false;
         if (typeof loadGameState === 'function') {
           console.log('🔄 Loading saved game state...');
-          const loaded = await loadGameState();
+          loaded = await loadGameState();
           if (loaded) {
             console.log('✅ Saved game state loaded');
           } else {
@@ -826,6 +827,14 @@ class UIManager {
           }
         } else {
           console.error('❌ loadGameState function not found');
+        }
+        if (!loaded) {
+          console.warn('⚠️ Invalid Arcade continuation retired; rebuilding canonical fresh Round 01');
+          clearArcadeSaveState();
+          delete (window as any).__ccArcadeContinuationCueRound;
+          delete (window as any).__ccSkipRebuildBoard;
+          cancelArcadeEntryCueOwner();
+          await recoverFreshArcadeEntryAfterFailedLoad();
         }
         // loadGameState captures this one-shot value in its pop-in owner.
         delete (window as any).__ccArcadeContinuationCueRound;

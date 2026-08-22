@@ -36,14 +36,21 @@ export type PreMagnetRespawnDecision = {
 
 export function createMagnetRespawnPlan(pulledCellCount: number, hasTilesToRespawn: boolean): MagnetRespawnPlan {
   const replacementSpawnCount = hasTilesToRespawn ? Math.max(0, pulledCellCount | 0) : 0;
-  // v915 Magnet density: replace every pulled tile and add one nearby
-  // obligatory continuation cube. The merge-6 survivor is converted separately.
-  const obligatorySpawnCount = hasTilesToRespawn ? 1 : 0;
+  // Magnet replaces exactly what it pulled. The surviving merge-6 destination
+  // is converted separately, so adding another cube here creates a visible and
+  // gameplay-affecting fifth spawn after a four-tile pull.
+  const obligatorySpawnCount = 0;
   return {
     replacementSpawnCount,
     obligatorySpawnCount,
     spawnCount: replacementSpawnCount + obligatorySpawnCount,
   };
+}
+
+export function createMagnetRespawnDelays(spawnCount: number, intervalMs = 150): number[] {
+  const count = Math.max(0, spawnCount | 0);
+  const interval = Math.max(0, intervalMs);
+  return Array.from({ length: count }, (_, index) => index * interval);
 }
 
 export function resolvePreMagnetRespawnDecision({

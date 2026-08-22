@@ -322,6 +322,9 @@ async function playHomepageSliderEnterHandoff(
   });
   resetAnimationFlags();
 
+  let homepageFinalized = false;
+  try {
+
   applyPaperBackground();
   // One side-effect-limited state sync replaces forceReady + repeated manual
   // positioning. Spatial motion remains held until the enter is complete.
@@ -422,9 +425,40 @@ async function playHomepageSliderEnterHandoff(
         nav: getHomeEnterDiagSnapshot(document.getElementById('independent-nav') as HTMLElement | null),
       });
     }
+    homepageFinalized = true;
     lease.complete();
   }
   await lease.settled;
+  } catch (error) {
+    console.warn('⚠️ Homepage enter owner failed; restoring a safe visible Homepage', {
+      reason,
+      targetSlideIndex,
+      error,
+    });
+  } finally {
+    // A rejected image/readiness/animation await must never strand the already
+    // primed logo, hero, CTA or navigation at opacity/scale zero. Only the
+    // current lease may recover; a newer route owns its own prepared state.
+    if (!homepageFinalized && lease.isCurrent()) {
+      cancelSliderEnterAnimation(`${reason}:safe-finalize`);
+      forceHomepageSlideTarget(`${reason}:safe-finalize`, targetSlideIndex);
+      finalizeSliderEnterVisibility(`${reason}:safe-finalize`);
+      uiManager.hideApp();
+      try {
+        sliderManager.ensureReady();
+        if (gameState && typeof (gameState as any).set === 'function') {
+          (gameState as any).set('sliderLocked', false);
+        }
+        uiManager.reattachHomepageButtonListeners();
+      } catch (interactionError) {
+        console.warn('⚠️ Homepage safe finalize could not restore interaction', interactionError);
+      }
+      appSpatialMotion.releaseActivations(`homepage-enter-safe-finalize:${reason}`);
+      sliderManager.refreshHomepageSpatialMotion();
+      homepageFinalized = true;
+      lease.complete();
+    }
+  }
 }
 
 (window as any).__ccPlayHomepageSliderEnterHandoff = playHomepageSliderEnterHandoff;

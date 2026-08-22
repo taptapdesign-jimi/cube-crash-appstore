@@ -11,6 +11,7 @@ import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { logger } from '../core/logger.js';
 import { attachBubblySprites } from './text-bubbly-sprites.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
+import { createMushroomSporeFlightProfiles } from './mushroom-spore-flight-plan.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -80,21 +81,11 @@ const MUSHROOM_POLLEN_COUNT = 72;
 const MUSHROOM_POLLEN_MIN_RADIUS = 3.2;
 const MUSHROOM_POLLEN_MAX_RADIUS = MUSHROOM_POLLEN_MIN_RADIUS * 1.4;
 const MUSHROOM_POLLEN_COLORS = [0xFFBB9F, 0xFFD0A5, 0xFFEDC6, 0xFFF7E7, 0xFFEBE8] as const;
-const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 6;
-const MUSHROOM_POLLEN_GROUP_SIZE = 6;
+const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 5;
 const MUSHROOM_POLLEN_START_BAND_TOP_RATIO = 0.70;
 const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30;
 const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
 const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
-
-function createShuffledIndices(count: number): number[] {
-  const values = Array.from({ length: Math.max(0, count) }, (_, index) => index);
-  for (let index = values.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [values[index], values[swapIndex]] = [values[swapIndex], values[index]];
-  }
-  return values;
-}
 
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
@@ -530,7 +521,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   const maxActive = isMushroomDrop ? MUSHROOM_GROWTH_COUNT + MUSHROOM_POLLEN_COUNT : isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = isMushroomDrop
-    ? 6200
+    ? 5400
     : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
@@ -1063,10 +1054,23 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       arrivalStartScale: number;
       arrivalDuration: number;
       finished: boolean;
+      released: boolean;
     }> = [];
     let pollenFlockTween: gsap.core.Tween | null = null;
     let pollenReleaseScheduled = false;
     const clampPollenX = (x: number) => Math.max(-8, Math.min(screenW + 8, x));
+    const releasePollenParticle = (state: (typeof pollenStates)[number]) => {
+      if (state.released) return;
+      state.released = true;
+      const { particle } = state;
+      try {
+        if (particle.parent) particle.parent.removeChild(particle);
+        (particle as any)._mushroomPollen = false;
+        (particle as any)._bubbleTweens = null;
+        graphicsPool.release(particle);
+        active = Math.max(0, active - 1);
+      } catch {}
+    };
 
     const releasePollenFlock = () => {
       if (pollenReleaseScheduled) return;
@@ -1076,18 +1080,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       lifecycle.trackTimeout(() => {
         if (!isExplosionActive || cleanupInProgress) return;
         animationManager.killExternalTween(pollenFlockTween);
-        let released = 0;
-        pollenStates.forEach(({ particle }) => {
-          try {
-            if (particle.parent) particle.parent.removeChild(particle);
-            (particle as any)._mushroomPollen = false;
-            (particle as any)._bubbleTweens = null;
-            graphicsPool.release(particle);
-            released += 1;
-          } catch {}
-        });
+        pollenStates.forEach(releasePollenParticle);
         pollenStates.length = 0;
-        active = Math.max(0, active - released);
         maybeCompleteExplosion();
       }, 0);
     };
@@ -1095,24 +1089,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     const startMushroomPollenFlock = () => {
       if (!explosionContainer || explosionContainer.destroyed || cleanupInProgress) return;
 
-      const pollenGroupCount = Math.ceil(MUSHROOM_POLLEN_COUNT / MUSHROOM_POLLEN_GROUP_SIZE);
-      const pollenStartSlots = createShuffledIndices(MUSHROOM_POLLEN_COUNT);
-      const pollenGroupAssignments = createShuffledIndices(MUSHROOM_POLLEN_COUNT)
-        .map((slot) => slot % pollenGroupCount);
-      const birthRankByGroup = new Array<number>(pollenGroupCount);
-      const arrivalRankByGroup = new Array<number>(pollenGroupCount);
-      createShuffledIndices(pollenGroupCount).forEach((group, rank) => {
-        birthRankByGroup[group] = rank;
-      });
-      createShuffledIndices(pollenGroupCount).forEach((group, rank) => {
-        arrivalRankByGroup[group] = rank;
-      });
-      const groupBirthDelays = birthRankByGroup.map((rank) => rank * 0.055 + Math.random() * 0.025);
-      const groupArrivalTimes = arrivalRankByGroup.map((rank) => 1.45 + rank * 0.095 + Math.random() * 0.045);
-      const groupFadeDurations = Array.from(
-        { length: pollenGroupCount },
-        () => 0.24 + Math.random() * 0.18,
-      );
+      const flightProfiles = createMushroomSporeFlightProfiles(MUSHROOM_POLLEN_COUNT);
 
       for (let index = 0; index < MUSHROOM_POLLEN_COUNT; index += 1) {
         const particle = graphicsPool.acquire();
@@ -1132,9 +1109,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         // Stratified random slots fill the complete lower 30% immediately;
         // shuffling prevents either spatial order or depth from reading as a
         // mechanical row while still avoiding sparse holes.
-        const startBandProgress = (
-          pollenStartSlots[index] + Math.random()
-        ) / MUSHROOM_POLLEN_COUNT;
+        const profile = flightProfiles[index];
+        const startBandProgress = profile.startBandProgress;
         particle.y = screenH * (
           MUSHROOM_POLLEN_START_BAND_TOP_RATIO
           + startBandProgress * MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO
@@ -1150,13 +1126,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         (particle as any)._mushroomPollen = true;
         explosionContainer.addChild(particle);
         active += 1;
-        const pollenGroup = pollenGroupAssignments[index];
-        const birthDelay = groupBirthDelays[pollenGroup] + Math.random() * 0.040;
-        const targetY = screenH * (0.46 + Math.random() * 0.18);
-        // Members of a random six-particle group converge within a small
-        // window, then each begins fading on the exact frame it arrives.
-        const arrivalTime = groupArrivalTimes[pollenGroup] + Math.random() * 0.080;
-        const riseDuration = Math.max(0.42, arrivalTime - birthDelay);
+        const birthDelay = profile.birthDelay;
+        const targetY = particle.y - (screenH * profile.travelRatio);
+        const riseDuration = profile.riseDuration;
         pollenStates.push({
           particle,
           originX: particle.x,
@@ -1168,16 +1140,17 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           birthDelay,
           riseSpeed: Math.max(1, (particle.y - targetY) / riseDuration),
           targetY,
-          driftDirection: Math.random() < 0.5 ? -1 : 1,
-          driftSpeed: screenW * (0.020 + Math.random() * 0.025),
-          swayAmplitude: screenW * (0.018 + Math.random() * 0.027),
-          swaySpeed: 2.5 + Math.random() * 1.9,
+          driftDirection: profile.driftDirection,
+          driftSpeed: screenW * profile.driftSpeedRatio,
+          swayAmplitude: screenW * profile.swayAmplitudeRatio,
+          swaySpeed: profile.swaySpeed,
           depthBand,
           arrivalStartTime: null,
           arrivalStartAlpha: 0,
           arrivalStartScale: 1,
-          arrivalDuration: groupFadeDurations[pollenGroup] + Math.random() * 0.050,
+          arrivalDuration: profile.arrivalDuration,
           finished: false,
+          released: false,
         });
       }
 
@@ -1236,6 +1209,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
                 state.finished = true;
                 particle.alpha = 0;
                 particle.visible = false;
+                // Return each completed spore immediately. The remaining
+                // spores continue under the same single flock tween.
+                releasePollenParticle(state);
                 if (pollenStates.every((candidate) => candidate.finished)) {
                   releasePollenFlock();
                 }

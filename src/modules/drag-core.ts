@@ -20,7 +20,12 @@ import {
   stopTntIdleShake,
 } from './fx.ts';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
+import {
+  setSpecialDiceIdleDragging,
+  startSpecialDiceIdleMotion,
+  stopSpecialDiceIdleMotion,
+  updateSpecialDiceIdleDragMotion,
+} from './special-dice-idle.ts';
 import { canStartTileDrag } from './input-gate.ts';
 import {
   isSpecialDiceDirectWildLikeTile,
@@ -28,6 +33,7 @@ import {
   isSpecialDiceJuiceLikeTile,
   isSpecialDiceMagnetLikeTile,
   isSpecialDiceTntLikeTile,
+  getSpecialDiceVariantForTile,
   usesRoundBubbleDragTrail,
 } from './special-dice-registry.ts';
 import { isGameplayTileCandidate } from './tile-lifecycle-service.ts';
@@ -72,6 +78,15 @@ function emitNativeDragPerformance(payload: Record<string, unknown>): void {
       level: 'info',
       message: `🧪 DragPerf summary ${JSON.stringify(payload)}`,
     });
+  } catch {}
+}
+
+function emitNativeDragVisibility(payload: Record<string, unknown>): void {
+  try {
+    const message = `[CC_DRAG_VIS] ${JSON.stringify(payload)}`;
+    console.info('[CC_DRAG_VIS]', payload);
+    const handler = (window as any).webkit?.messageHandlers?.consoleLog;
+    handler?.postMessage?.({ level: 'info', message });
   } catch {}
 }
 
@@ -134,6 +149,14 @@ function getTileSpecial(tile: any): string | null {
   if (registryFx === 'star') return 'wild';
   if (tile.isWild === true || tile.isWildFace === true) return 'wild';
   return null;
+}
+
+function getDragTileKind(tile: any): string {
+  const variantId = getSpecialDiceVariantForTile(tile)?.id;
+  if (variantId) return variantId;
+  const special = getTileSpecial(tile);
+  if (special) return special;
+  return `regular-${Math.max(0, Number(tile?.value) | 0)}`;
 }
 
 function repairWildTileState(tile: any): string | null {
@@ -415,6 +438,22 @@ export function initDrag(cfg) {
 
   function getDragLayer(): any {
     if (!activeDragLayer) return board;
+    if (activeDragLayer.destroyed) return board;
+    const expectedParent = board?.parent || app?.stage || null;
+    try {
+      if (expectedParent && activeDragLayer.parent !== expectedParent) {
+        activeDragLayer.removeFromParent?.();
+        expectedParent.addChild?.(activeDragLayer);
+      }
+      activeDragLayer.visible = true;
+      activeDragLayer.renderable = true;
+      activeDragLayer.alpha = 1;
+      activeDragLayer.zIndex = DRAG_LAYER_Z_INDEX;
+      if (expectedParent && typeof expectedParent.sortableChildren !== 'undefined') {
+        expectedParent.sortableChildren = true;
+      }
+      expectedParent?.sortChildren?.();
+    } catch {}
     try { syncDragLayer?.(); } catch {}
     try {
       if (typeof activeDragLayer.sortableChildren !== 'undefined') {
@@ -445,6 +484,8 @@ export function initDrag(cfg) {
 
   function promoteTileToDragLayer(t: any): void {
     if (!t || !activeDragLayer) return;
+    const readyDragLayer = getDragLayer();
+    if (!readyDragLayer || readyDragLayer === board || readyDragLayer.destroyed) return;
     if ((t as any)._dragOriginalParent !== undefined) return;
 
     const originalParent = t.parent || board;
@@ -459,7 +500,7 @@ export function initDrag(cfg) {
     try { (t as any)._dragOriginalIndex = originalParent.getChildIndex?.(t) ?? -1; } catch {}
 
     try {
-      const layer = getDragLayer();
+      const layer = readyDragLayer;
       if (!layer) return;
       // The dedicated overlay intentionally mirrors the board transform. Moving
       // a direct board child between those two containers must therefore retain
@@ -614,30 +655,107 @@ export function initDrag(cfg) {
     app?.canvas?.addEventListener('pointerup', onCanvasPointerUpTrace, true);
   } catch {}
 
-  function beginDragPerfSample() {
+  function beginDragPerfSample(tile: any) {
     const now = performance.now();
     drag._perfSample = {
       startedAt: now,
+      tileKind: getDragTileKind(tile),
+      tileValue: Number(tile?.value) | 0,
+      tileSpecial: tile?.special || null,
       moveEvents: 0,
       processedMoves: 0,
       moveTotalMs: 0,
       moveMaxMs: 0,
       moveOver8Ms: 0,
+      trailTotalMs: 0,
+      trailMaxMs: 0,
       tickerFrames: 0,
+      tickerTotalMs: 0,
       tickerOver20Ms: 0,
       tickerOver34Ms: 0,
+      tickerOver50Ms: 0,
       tickerMaxMs: 0,
       trailBursts: 0,
       trailParticles: 0,
+      maxSpeedPxPerMs: 0,
+      visibilityChecks: 0,
+      visibilityCheckTotalMs: 0,
+      visibilityAnomaly: null,
+      tile,
     };
     drag._perfTicker = () => {
       const sample = drag._perfSample;
       if (!sample) return;
       const deltaMs = Number(app?.ticker?.deltaMS || 0);
       sample.tickerFrames += 1;
+      sample.tickerTotalMs += deltaMs;
       sample.tickerMaxMs = Math.max(sample.tickerMaxMs, deltaMs);
       if (deltaMs > 20) sample.tickerOver20Ms += 1;
       if (deltaMs > 34) sample.tickerOver34Ms += 1;
+      if (deltaMs > 50) sample.tickerOver50Ms += 1;
+      // One geometry sample per six rendered frames is enough to catch a
+      // sustained visual disappearance without turning diagnostics into the
+      // performance problem being measured.
+      if (!sample.visibilityAnomaly && sample.tickerFrames % 6 === 0) {
+        const checkStartedAt = performance.now();
+        const activeTile = sample.tile;
+        let bounds: any = null;
+        try { bounds = activeTile?.getBounds?.(); } catch {}
+        sample.visibilityChecks += 1;
+        sample.visibilityCheckTotalMs += performance.now() - checkStartedAt;
+        const scaleX = Number(activeTile?.scale?.x);
+        const scaleY = Number(activeTile?.scale?.y);
+        const baseVisible = activeTile?.base?.visible !== false;
+        const baseAlpha = Number(activeTile?.base?.alpha);
+        const rotGVisible = activeTile?.rotG?.visible !== false;
+        const rotGAlpha = Number(activeTile?.rotG?.alpha);
+        const rendererWidth = Number(app?.renderer?.screen?.width || 0);
+        const rendererHeight = Number(app?.renderer?.screen?.height || 0);
+        const outsideRenderer = !!bounds && rendererWidth > 0 && rendererHeight > 0 && (
+          bounds.x + bounds.width < 0 || bounds.y + bounds.height < 0 ||
+          bounds.x > rendererWidth || bounds.y > rendererHeight
+        );
+        const anomalyReason = activeTile?.destroyed ? 'destroyed'
+          : !activeTile?.parent ? 'missing-parent'
+          : activeTile.visible === false ? 'visible-false'
+          : Number(activeTile.alpha) <= 0.02 ? 'alpha-zero'
+          : !rotGVisible ? 'rotG-visible-false'
+          : Number.isFinite(rotGAlpha) && rotGAlpha <= 0.02 ? 'rotG-alpha-zero'
+          : !baseVisible ? 'base-visible-false'
+          : Number.isFinite(baseAlpha) && baseAlpha <= 0.02 ? 'base-alpha-zero'
+          : !Number.isFinite(scaleX) || !Number.isFinite(scaleY) ? 'invalid-scale'
+          : Math.min(Math.abs(scaleX), Math.abs(scaleY)) < 0.15 ? 'scale-too-small'
+          : Math.max(Math.abs(scaleX), Math.abs(scaleY)) > 3 ? 'scale-too-large'
+          : outsideRenderer ? 'outside-renderer' : null;
+        if (anomalyReason) {
+          sample.visibilityAnomaly = {
+            reason: anomalyReason,
+            frame: sample.tickerFrames,
+            elapsedMs: Math.round(performance.now() - sample.startedAt),
+            parent: activeTile?.parent?.label || activeTile?.parent?.name || activeTile?.parent?.constructor?.name || null,
+            visible: activeTile?.visible !== false,
+            alpha: Number(activeTile?.alpha),
+            baseVisible,
+            baseAlpha,
+            rotGVisible,
+            rotGAlpha,
+            scaleX,
+            scaleY,
+            zIndex: Number(activeTile?.zIndex),
+            bounds: bounds ? {
+              x: Math.round(bounds.x), y: Math.round(bounds.y),
+              width: Math.round(bounds.width), height: Math.round(bounds.height),
+            } : null,
+            renderer: { width: rendererWidth, height: rendererHeight },
+          };
+          emitNativeDragVisibility({
+            tileKind: sample.tileKind,
+            tileValue: sample.tileValue,
+            tileSpecial: sample.tileSpecial,
+            ...sample.visibilityAnomaly,
+          });
+        }
+      }
     };
     try { app?.ticker?.add(drag._perfTicker); } catch {}
   }
@@ -653,6 +771,9 @@ export function initDrag(cfg) {
     const durationMs = Math.max(0, performance.now() - sample.startedAt);
     const payload = {
       reason,
+      tileKind: sample.tileKind,
+      tileValue: sample.tileValue,
+      tileSpecial: sample.tileSpecial,
       durationMs: Math.round(durationMs),
       pointerType: drag.pointerType,
       rendererResolution: Number(app?.renderer?.resolution || 1),
@@ -664,12 +785,25 @@ export function initDrag(cfg) {
         : 0,
       moveMaxMs: Number(sample.moveMaxMs.toFixed(2)),
       moveOver8Ms: sample.moveOver8Ms,
+      trailTotalMs: Number(sample.trailTotalMs.toFixed(2)),
+      trailMaxMs: Number(sample.trailMaxMs.toFixed(2)),
       tickerFrames: sample.tickerFrames,
+      estimatedFps: sample.tickerTotalMs > 0
+        ? Number(Math.min(60, (sample.tickerFrames * 1000) / sample.tickerTotalMs).toFixed(1))
+        : 0,
+      tickerAverageMs: sample.tickerFrames > 0
+        ? Number((sample.tickerTotalMs / sample.tickerFrames).toFixed(2))
+        : 0,
       tickerOver20Ms: sample.tickerOver20Ms,
       tickerOver34Ms: sample.tickerOver34Ms,
+      tickerOver50Ms: sample.tickerOver50Ms,
       tickerMaxMs: Number(sample.tickerMaxMs.toFixed(2)),
       trailBursts: sample.trailBursts,
       trailParticles: sample.trailParticles,
+      maxSpeedPxPerMs: Number(sample.maxSpeedPxPerMs.toFixed(3)),
+      visibilityChecks: sample.visibilityChecks,
+      visibilityCheckTotalMs: Number(sample.visibilityCheckTotalMs.toFixed(2)),
+      visibilityAnomaly: sample.visibilityAnomaly,
     };
     try { (window as any).__ccLastDragPerf = payload; } catch {}
     console.info('🧪 DragPerf summary', payload);
@@ -738,6 +872,7 @@ export function initDrag(cfg) {
         customPosition: { x: point.x, y: point.y },
         zIndex: particlesZ,
         forceCircleParticles: roundBubbleTrail,
+        forceRectParticles: !roundBubbleTrail,
       });
       if (drag._perfSample) {
         drag._perfSample.trailBursts += 1;
@@ -1117,7 +1252,7 @@ export function initDrag(cfg) {
       pointerId: drag.pointerId,
       pointerType: drag.pointerType,
     });
-    beginDragPerfSample();
+    beginDragPerfSample(t);
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
     drag.startX = t.x;
@@ -1147,7 +1282,9 @@ export function initDrag(cfg) {
     drag.vx = 0; drag.vy = 0;
     drag.lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     drag.lagX = 0; drag.lagY = 0;
-    try { stopSpecialDiceIdleMotion(t); } catch {}
+    try {
+      if (!setSpecialDiceIdleDragging(t, true)) stopSpecialDiceIdleMotion(t);
+    } catch {}
     if (t.rotG) gsap.killTweensOf(t.rotG);
     // Remember board baseline and enable wobble only for juice wild
     drag._boardBaseX = board?.x ?? 0;
@@ -1288,6 +1425,21 @@ export function initDrag(cfg) {
     const instVY = (e.global.y - prevGP.y) / dt;
     drag.vx = drag.vx + (instVX - drag.vx) * VEL_SMOOTH;
     drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;
+    if (drag._perfSample) {
+      drag._perfSample.maxSpeedPxPerMs = Math.max(
+        drag._perfSample.maxSpeedPxPerMs,
+        Math.hypot(instVX, instVY),
+      );
+    }
+    try {
+      updateSpecialDiceIdleDragMotion(
+        t,
+        px - drag.startX,
+        py - drag.startY,
+        drag.vx,
+        drag.vy,
+      );
+    } catch {}
     drag.lastTime = now;
     
     // 🔥 USER REQUEST: Board wobble disabled for wild-juice drag (may use later)
@@ -1335,11 +1487,19 @@ export function initDrag(cfg) {
     }
 
     if (t.position?.set) {
-      getDragLayer();
-      const boardPoint = { x: px, y: py };
-      const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;
-      const parentPoint = positionInParentFromGlobal(t.parent, globalPoint);
-      t.position.set(parentPoint.x, parentPoint.y);
+      const layer = getDragLayer();
+      if ((t as any)._dragOriginalParent === board && t.parent === layer) {
+        // Board and GAMEPLAY_DRAG_OVERLAY intentionally mirror the exact same
+        // local transform. Keep direct board-local coordinates here: after a
+        // restart/layout Pixi can still hold a stale world matrix for one frame,
+        // making a board -> global -> overlay roundtrip throw the cube away.
+        t.position.set(px, py);
+      } else {
+        const boardPoint = { x: px, y: py };
+        const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;
+        const parentPoint = positionInParentFromGlobal(t.parent, globalPoint);
+        t.position.set(parentPoint.x, parentPoint.y);
+      }
     }
 
     // Keep shadow direction tied to finger movement for the active drag.
@@ -1358,6 +1518,7 @@ export function initDrag(cfg) {
       }
     }
 
+    const trailStartedAt = performance.now();
     if (isAnyWildTile(t)) {
       // All wild archetypes share one spatially continuous trail owner. Their
       // registry/core identity still selects the original colors and shapes.
@@ -1368,6 +1529,11 @@ export function initDrag(cfg) {
       // Preserve the v625 wooden smoke language, but distribute its pooled
       // puffs spatially instead of producing large timer-driven bursts.
       emitRegularDragTrail(t, now);
+    }
+    if (drag._perfSample) {
+      const trailElapsedMs = performance.now() - trailStartedAt;
+      drag._perfSample.trailTotalMs += trailElapsedMs;
+      drag._perfSample.trailMaxMs = Math.max(drag._perfSample.trailMaxMs, trailElapsedMs);
     }
 
     // ažuriraj _lastGlobal za sljedeći frame
@@ -1636,6 +1802,7 @@ export function initDrag(cfg) {
     }
 
     const t = drag.t;
+    try { setSpecialDiceIdleDragging(t, false); } catch {}
     emitFastStackTrace('pointer-up-entry', {
       pointerId: eventPointerId(e),
       moved: drag.moved === true,

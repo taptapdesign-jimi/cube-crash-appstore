@@ -171,6 +171,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("img.removeAttribute('data-spatial-role')");
     expect(source).toContain("img.removeAttribute('data-motion-role')");
     expect(source).toContain("img.removeAttribute('data-float-direction')");
+    expect(source).toContain("'bottom: 78px'");
+    expect(source).toContain("layer.key === 'hill1' ? 'bottom: 70px' : 'bottom: 80px'");
     expect(source).toContain('.slice(0, BEACH_BOARD_TRANSITION_CLOUD_COUNT)');
     expect(source).toContain('? beachCloudSpawnSlots.map((slot) => slot.top)');
     expect(source).toContain('const beachSpawnSlot = beachCloudSpawnSlots[i % beachCloudSpawnSlots.length]');

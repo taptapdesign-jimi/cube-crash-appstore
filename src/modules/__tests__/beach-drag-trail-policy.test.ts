@@ -18,11 +18,13 @@ describe('Beach special-dice drag trail policy', () => {
   test('keeps the existing emitter and changes only its drawn particle geometry', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/drag-core.ts'), 'utf8');
     expect(source).toContain('const roundBubbleTrail = usesRoundBubbleDragTrail(tile)');
+    expect(source).toContain('forceRectParticles: !roundBubbleTrail');
     expect(source).toContain('magicSparklesAtTile(board, tile');
     expect(source).toContain('forceCircleParticles: roundBubbleTrail');
     expect(source).not.toContain('dragRoundBubbleTrail(board, tile');
 
     const fxSource = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/fx.ts'), 'utf8');
-    expect(fxSource).toContain('isWildJuice || opts.forceCircleParticles === true');
+    expect(fxSource).toContain('opts.forceCircleParticles === true');
+    expect(fxSource).toContain('isWildJuice && opts.forceRectParticles !== true');
   });
 });

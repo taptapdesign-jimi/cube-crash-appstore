@@ -45,6 +45,9 @@ describe('Homepage cold-launch Arcade handoff', () => {
       .toBeLessThan(enterOwner.indexOf('gameState.setState'));
     expect(enterOwner.indexOf('gameState.setState'))
       .toBeLessThan(enterOwner.indexOf('primeHomepageForEnterLikeStartup'));
+    expect(enterOwner).toContain('finally {');
+    expect(enterOwner).toContain('forceHomepageSlideTarget(`${reason}:safe-finalize`');
+    expect(enterOwner).toContain('finalizeSliderEnterVisibility(`${reason}:safe-finalize`');
   });
 
   test('menu watchdog never starts a competing Homepage fallback while exitToMenu is active', () => {
@@ -112,5 +115,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
     const rebuildOwner = coreSource.slice(rebuildStart, rebuildEnd);
     expect(rebuildOwner).toContain('engageArcadeEntrySurfaceGate(app?.canvas ?? null)');
     expect(rebuildOwner).toContain('releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)');
+    expect(uiSource).toContain('await recoverFreshArcadeEntryAfterFailedLoad();');
+    expect(coreSource).toContain('export async function recoverFreshArcadeEntryAfterFailedLoad()');
   });
 });

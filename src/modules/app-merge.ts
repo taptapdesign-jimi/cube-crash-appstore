@@ -27,7 +27,7 @@ import {
 import { collapseTileToSingleStackVisual, removeTileFully } from './tile-lifecycle-service.ts';
 import { FINAL_MERGE_REASONS } from './final-merge-reasons.ts';
 import { emitIOSSpecialTransactionTrace } from '../utils/ios-special-transaction-trace.ts';
-import { createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
+import { createMagnetRespawnDelays, createMagnetRespawnPlan, isPlayablePostMagnetTile, resolvePostMagnetEndgameAction, resolvePreMagnetRespawnDecision } from './magnet-post-spawn-resolution.ts';
 import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { PostCommitBoardRevisionGuard } from './special-dice-transaction-owner.ts';
 
@@ -1310,12 +1310,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode A — Tiles exist to attract
   // Magnet attracts tiles (normal or wild). May spawn exactly as many tiles as attracted.
   // Must not spawn extra tiles beyond attraction count.
-  // v915 contract: replace every pulled tile, add one nearby obligatory cube,
-  // then convert the surviving merge-6 destination.
+  // Replace every pulled tile exactly once, then convert the surviving
+  // merge-6 destination. There is no extra continuation spawn.
   // When magnet pulls tiles, we need to:
   // 1. Spawn tiles to replace pulled tiles (pulledCells.length)
-  // 2. Spawn one obligatory nearby cube.
-  // 3. Convert the surviving merge-6 destination into a regular cube.
+  // 2. Convert the surviving merge-6 destination into a regular cube.
   // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), NO spawns at all (trigger CLEAN BOARD)
   // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
   // 🔥 CRITICAL: Check _isLastMerge flag FIRST - if set, skip ALL spawn logic and trigger clean board
@@ -1350,7 +1349,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     merge6StaysVisible: true, // Merge 6 should remain visible on board
     merge6Position: dst ? { gridX: dst.gridX, gridY: dst.gridY } : null,
     expectedTotalTiles: spawnCount + 1,
-    note: 'v915 Magnet continuation: replacements + nearby obligatory cube + converted survivor.'
+    note: 'Magnet continuation: exact replacements + converted survivor.'
   });
 
   // 🔒 SAFETY: Merge 6 tile should STAY on board after magnet pull
@@ -1572,8 +1571,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL FIX: Track successful spawns to ensure we spawn EXACTLY spawnCount tiles
   // Prioritize obligatory spawn (must spawn first), then replacement spawns
   let successfulSpawns = 0;
-  let successfulObligatorySpawn = false;
   const spawnPromises: Promise<boolean>[] = [];
+  const spawnDelays = createMagnetRespawnDelays(spawnTargets.length);
   
   if (spawnTargets.length > 0) {
     console.log('🧲 Respawning', spawnCount, 'tiles:', {
@@ -1599,8 +1598,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     for (let index = 0; index < spawnTargets.length && successfulSpawns < spawnCount; index++) {
       const { c, r } = spawnTargets[index];
       const isObligatory = obligatoryCell && c === obligatoryCell.c && r === obligatoryCell.r;
-      // Obligatory tile spawns first (0ms), replacement tiles cascade (150ms, 300ms, 450ms...)
-      const delay = isObligatory ? 0 : (successfulObligatorySpawn ? (successfulSpawns * 150) : 150);
+      // Compute from the stable target index. Reading successfulSpawns here
+      // gave every concurrently-created promise the same 150ms delay.
+      const delay = spawnDelays[index] ?? 0;
       const key = `${c},${r}`;
       const forcedValue = forcedSpawnValues.get(key);
       
@@ -1650,10 +1650,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
                 
                 if (spawnSuccess) {
                   successfulSpawns++;
-                  if (isObligatory) {
-                    successfulObligatorySpawn = true;
-                    console.log(`✅ Successfully spawned OBLIGATORY tile below merge 6 at (${c}, ${r})`);
-                  }
                 // Double-check: Ensure tile is draggable and bound to drag system
                 tile.eventMode = 'static';
                 tile.cursor = 'pointer';

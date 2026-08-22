@@ -12,7 +12,8 @@ describe('gameplay drag overlay contract', () => {
     expect(installSource).toContain('dragLayerParent.addChild(dragLayer);');
     expect(dragSource).toContain('t.zIndex = DRAG_LAYER_Z_INDEX;');
     expect(dragSource).not.toContain('t.zIndex = 9999;');
-    expect(dragSource).not.toContain('activeDragLayer.zIndex =');
+    expect(dragSource).toContain('activeDragLayer.zIndex = DRAG_LAYER_Z_INDEX;');
+    expect(dragSource).not.toContain('activeDragLayer.parent.zIndex =');
   });
 
   test('mirrors the board transform so every existing scale-to-one owner stays safe', () => {
@@ -52,6 +53,18 @@ describe('gameplay drag overlay contract', () => {
     expect(dragSource).toContain('restoreZ(t);\n    clearHover({ immediateMagnet: true });\n    autoCenter(t, target);');
   });
 
+  test('repairs a restart-surviving overlay and avoids stale world-matrix movement for direct board children', () => {
+    expect(dragSource).toContain('const expectedParent = board?.parent || app?.stage || null;');
+    expect(dragSource).toContain('if (expectedParent && activeDragLayer.parent !== expectedParent)');
+    expect(dragSource).toContain('activeDragLayer.visible = true;');
+    expect(dragSource).toContain('activeDragLayer.renderable = true;');
+    expect(dragSource).toContain('activeDragLayer.alpha = 1;');
+    expect(dragSource).toContain('if ((t as any)._dragOriginalParent === board && t.parent === layer)');
+    expect(dragSource).toContain('t.position.set(px, py);');
+    expect(dragSource.indexOf('t.position.set(px, py);'))
+      .toBeLessThan(dragSource.indexOf('const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;', dragSource.indexOf('t.position.set(px, py);')));
+  });
+
   test('keeps pickup scale relative to the world transform preserved by the overlay', () => {
     expect(dragSource).toContain('const overlayScaleX = Number(t.scale?.x) || 1;');
     expect(dragSource).toContain('x: overlayScaleX * 1.13,');
@@ -72,5 +85,24 @@ describe('gameplay drag overlay contract', () => {
 
     expect(snapBack).toContain('restoreGridCell(t);');
     expect(snapBack).toContain('restoreZ(t);');
+  });
+
+  test('attributes every physical drag to its archetype, frame budget and trail cost', () => {
+    expect(dragSource).toContain('tileKind: getDragTileKind(tile)');
+    expect(dragSource).toContain('estimatedFps: sample.tickerTotalMs > 0');
+    expect(dragSource).toContain('tickerOver50Ms: sample.tickerOver50Ms');
+    expect(dragSource).toContain('trailTotalMs: Number(sample.trailTotalMs.toFixed(2))');
+    expect(dragSource).toContain('maxSpeedPxPerMs: Number(sample.maxSpeedPxPerMs.toFixed(3))');
+  });
+
+  test('samples visual ownership sparsely and emits the first disappearance reason once', () => {
+    expect(dragSource).toContain('sample.tickerFrames % 6 === 0');
+    expect(dragSource).toContain("? 'missing-parent'");
+    expect(dragSource).toContain("? 'visible-false'");
+    expect(dragSource).toContain("? 'alpha-zero'");
+    expect(dragSource).toContain("? 'base-visible-false'");
+    expect(dragSource).toContain("? 'rotG-visible-false'");
+    expect(dragSource).toContain("? 'outside-renderer'");
+    expect(dragSource).toContain("const message = `[CC_DRAG_VIS] ${JSON.stringify(payload)}`;");
   });
 });

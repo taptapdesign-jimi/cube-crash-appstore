@@ -196,6 +196,25 @@
   transition: none;
 }
 
+/* Begin restoring settled depth exactly 200ms before the 520ms spatial entry
+   completes. At this point the card is already on its back-facing settle arc,
+   so the short fade reads early without paying for shadows during the costly
+   scale/turn portion of the flight. */
+.journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-front {
+  filter: drop-shadow(0 14px 19px rgba(165, 124, 98, 0.86));
+  transition: filter 180ms linear;
+}
+
+.journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-paper {
+  box-shadow: 0 14px 36px 0 rgba(165, 124, 98, 0.86);
+  transition: box-shadow 180ms linear;
+}
+
+.journey-card-flip-overlay.is-entering.is-shadow-ready .journey-card-flip-back-shell::before {
+  opacity: 0.28;
+  transition: opacity 180ms linear;
+}
+
 /* Keep the expensive shadow surfaces out of the spatial flight, then restore
    settled depth promptly. This affects only the post-flight fade-in; exit
    keeps its existing neutralization duration. */
@@ -2678,6 +2697,7 @@
 }
 
 .journey-v700-world-tilt-shell {
+  --journey-world-drag-shadow: rgba(185, 149, 114, 0.12);
   position: absolute;
   inset: 0;
   transform-origin: 50% 54%;
@@ -2686,7 +2706,7 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   pointer-events: none;
-  animation: journey-v700-world-auto-tilt 4.8s ease-in-out infinite both;
+  animation: journey-v700-world-auto-tilt var(--journey-world-tilt-duration, 4.8s) ease-in-out infinite both;
   animation-delay: var(--journey-world-tilt-delay, 0s);
   animation-play-state: paused;
   will-change: transform;
@@ -2849,7 +2869,7 @@
   mix-blend-mode: soft-light;
   opacity: 0;
   transform: translateZ(0);
-  animation: journey-world-flag-ember 6.8s ease-in-out infinite;
+  animation: journey-world-flag-ember var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;
 }
 
 .journey-v700-world-banner-flag-fx::after {
@@ -2862,7 +2882,7 @@
   mask-size: 260% 100%;
   -webkit-mask-position: 145% 0;
   mask-position: 145% 0;
-  animation: journey-world-flag-shine 6.8s ease-in-out infinite;
+  animation: journey-world-flag-shine var(--journey-world-shimmer-duration, 6.8s) ease-in-out var(--journey-world-shimmer-delay, 0s) infinite;
 }
 
 @keyframes journey-world-flag-ember {
@@ -3022,19 +3042,19 @@
 @keyframes journey-v700-world-auto-tilt {
   0%, 100% {
     transform: perspective(720px) rotateX(0deg) rotateY(0deg) rotateZ(-0.35deg) translateZ(0) scale(1);
-    filter: drop-shadow(0 3px 3px rgba(174, 104, 56, 0.16));
+    filter: drop-shadow(0 3px 3px var(--journey-world-drag-shadow));
   }
   28% {
     transform: perspective(720px) rotateX(-2.1deg) rotateY(7.2deg) rotateZ(0.9deg) translateZ(10px) scale(1.012);
-    filter: drop-shadow(-5px 4px 4px rgba(174, 104, 56, 0.24));
+    filter: drop-shadow(-5px 4px 4px var(--journey-world-drag-shadow));
   }
   58% {
     transform: perspective(720px) rotateX(1.55deg) rotateY(-6.4deg) rotateZ(-0.8deg) translateZ(7px) scale(1.008);
-    filter: drop-shadow(5px 4px 4px rgba(174, 104, 56, 0.22));
+    filter: drop-shadow(5px 4px 4px var(--journey-world-drag-shadow));
   }
   78% {
     transform: perspective(720px) rotateX(-0.35deg) rotateY(2deg) rotateZ(0.2deg) translateZ(3px) scale(1.004);
-    filter: drop-shadow(-2px 3px 3px rgba(174, 104, 56, 0.18));
+    filter: drop-shadow(-2px 3px 3px var(--journey-world-drag-shadow));
   }
 }
 

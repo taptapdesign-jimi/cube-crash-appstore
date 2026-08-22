@@ -121,7 +121,7 @@ const TRANSITION_SCENE_LAYERS = [
     alt: 'Hill 1',
     style: [
       'left: 50%',
-      'bottom: 88px',
+      'bottom: 78px',
       'width: auto',
       'z-index: 10',
       'transform-origin: center bottom',
@@ -1114,7 +1114,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               if (styleRule.startsWith('bottom:')) {
                 if (layer.key === 'mountain') return 'bottom: 140px';
                 if (layer.key === 'hill2') return 'bottom: 13px';
-                return 'bottom: 80px';
+                return layer.key === 'hill1' ? 'bottom: 70px' : 'bottom: 80px';
               }
               return styleRule;
             })

@@ -25,8 +25,18 @@ export function isAnyMenuScreenVisible(): boolean {
 }
 
 function isHomepageMenuReady(): boolean {
-  return isVisible(document.getElementById('home') as HTMLElement | null)
-    && isVisible(document.getElementById('slider-container') as HTMLElement | null);
+  const home = document.getElementById('home') as HTMLElement | null;
+  const container = document.getElementById('slider-container') as HTMLElement | null;
+  const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
+  const hero = activeSlide?.querySelector('.hero-container') as HTMLElement | null;
+  const cta = activeSlide?.querySelector('.slide-button') as HTMLElement | null;
+  const hasArea = (element: HTMLElement | null): boolean => {
+    if (!isVisible(element)) return false;
+    const rect = element!.getBoundingClientRect();
+    return rect.width > 1 && rect.height > 1;
+  };
+  return hasArea(home) && hasArea(container) && hasArea(activeSlide)
+    && (hasArea(hero) || hasArea(cta));
 }
 
 async function forceHomepageVisible(reason: string): Promise<void> {
@@ -40,6 +50,13 @@ async function forceHomepageVisible(reason: string): Promise<void> {
   try {
     const { appZoneManager } = await import('./app-zone-manager.js');
     await appZoneManager.showHomepageShell(`menu-exit-handoff:${reason}`);
+    const homepageEnter = (window as any).__ccPlayHomepageSliderEnterHandoff;
+    if (typeof homepageEnter === 'function') {
+      await homepageEnter(`menu-exit-recovery:${reason}`, {
+        targetSlideIndex: 0,
+        skipFirstPaintReady: true,
+      });
+    }
     const uiManagerModule = await import('./ui-manager.js');
     const uiManager = uiManagerModule.default;
     await wait(80);

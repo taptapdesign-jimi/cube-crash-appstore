@@ -1,5 +1,6 @@
 import {
   createMagnetRespawnPlan,
+  createMagnetRespawnDelays,
   isPlayablePostMagnetTile,
   resolvePostMagnetEndgameAction,
   resolvePreMagnetRespawnDecision,
@@ -89,11 +90,11 @@ test('post-magnet playable filter ignores locked regular tiles but keeps locked 
   expect(isPlayablePostMagnetTile(tile({ value: 0, locked: true, special: 'wild-juice' }))).toBe(true);
 });
 
-test('magnet respawn plan preserves v915 replacements, obligatory cube, and survivor density', () => {
+test('magnet respawn plan replaces exactly the pulled tiles without a fifth cube', () => {
   expect(createMagnetRespawnPlan(3, true)).toEqual({
     replacementSpawnCount: 3,
-    obligatorySpawnCount: 1,
-    spawnCount: 4,
+    obligatorySpawnCount: 0,
+    spawnCount: 3,
   });
 
   expect(createMagnetRespawnPlan(0, false)).toEqual({
@@ -101,6 +102,11 @@ test('magnet respawn plan preserves v915 replacements, obligatory cube, and surv
     obligatorySpawnCount: 0,
     spawnCount: 0,
   });
+});
+
+test('magnet respawns use a stable one-by-one pop-in cadence', () => {
+  expect(createMagnetRespawnDelays(4)).toEqual([0, 150, 300, 450]);
+  expect(createMagnetRespawnDelays(0)).toEqual([]);
 });
 
 test('pre-magnet respawn delegates final last-merge to central endgame', () => {

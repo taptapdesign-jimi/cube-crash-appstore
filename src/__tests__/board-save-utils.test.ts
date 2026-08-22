@@ -2,7 +2,9 @@ import {
   ARCADE_SAVE_KEY,
   getArcadeSavedRound,
   getBoardSaveKey,
+  hasArcadeSavedState,
   hasResumableSavedStateForBoard,
+  isArcadeSaveStateResumable,
   isBoardSaveStateResumable,
 } from '../utils/board-save-utils.ts';
 
@@ -23,6 +25,28 @@ describe('Arcade saved-round continuation', () => {
 
     localStorage.removeItem(ARCADE_SAVE_KEY);
     expect(getArcadeSavedRound()).toBeNull();
+  });
+
+  test('accepts only a playable Arcade continuation and clears terminal residue', () => {
+    expect(isArcadeSaveStateResumable({
+      boardNumber: 2,
+      grid: [[{ value: 3, open: true }, { value: 2, open: true }]],
+    })).toBe(true);
+    expect(isArcadeSaveStateResumable({
+      boardNumber: 2,
+      grid: [[{ value: 6, open: true }, { value: 5, open: true }]],
+    })).toBe(true);
+    expect(isArcadeSaveStateResumable({
+      boardNumber: 2,
+      grid: [[{ value: 0, special: 'wild', open: true }]],
+    })).toBe(false);
+
+    localStorage.setItem(ARCADE_SAVE_KEY, JSON.stringify({
+      boardNumber: 2,
+      grid: [[{ value: 0, special: 'wild', open: true }]],
+    }));
+    expect(hasArcadeSavedState({ clearInvalid: true })).toBe(false);
+    expect(localStorage.getItem(ARCADE_SAVE_KEY)).toBeNull();
   });
 });
 

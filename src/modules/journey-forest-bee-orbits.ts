@@ -8,16 +8,19 @@ import {
 
 const TAU = Math.PI * 2;
 const FOREST_DESIGN_WIDTH = 390;
-const FOREST_FLIGHT_MAX_Y = 1220;
-const FOREST_BEE_COUNT = 19;
+const FOREST_FLIGHT_MAX_Y = 1428;
+const FOREST_UNIT_BEE_COUNT = 20;
+const FOREST_MAIN_BEE_COUNT = 5;
+const FOREST_BEE_COUNT = FOREST_UNIT_BEE_COUNT + FOREST_MAIN_BEE_COUNT;
 const FOREST_GATE_BEE_COUNT = 10;
 const FOREST_BEE_POINT_COUNT = 8;
-const FOREST_BEE_ROAM_SECONDS = 7.5;
-const FOREST_BEE_EDGE_SECONDS = 5.5;
+const FOREST_BEE_ROAM_SECONDS = 11;
+const FOREST_BEE_EDGE_SECONDS = 7.8;
+const FOREST_BEE_BOUNCE_GAIN = 1.125;
 const FOREST_BEE_MIN_ONSCREEN_SECONDS = 30;
 const FOREST_BEE_DIRECTION_FADE_SECONDS = 0.08;
 const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
-const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 1.5;
+const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 0.82;
 const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
 const FOREST_BEE_DEPTH_SCALES = Object.freeze([0.65, 0.7, 0.8, 0.9, 1] as const);
 const FOREST_BEE_ASSET_BASE = './assets/shop/honey';
@@ -25,7 +28,7 @@ const FOREST_BEE_ASSET_BASE = './assets/shop/honey';
 type ForestBeeAsset = 'bee1' | 'bee2' | 'bee3' | 'bee4' | 'bee5' | 'bee6' | 'bee7';
 type ForestBeeFlightPhase = 'roam' | 'exit' | 'entry';
 type ForestBeeEdgeRoute = 'side' | 'forest-gate';
-type ForestBeeDepth = 'front' | 'behind-card' | 'behind-unit' | 'behind-forest-main';
+type ForestBeeDepth = 'front' | 'behind-forest-main';
 
 interface ForestBeeGateGeometry {
   source: 'dom' | 'fallback';
@@ -74,6 +77,7 @@ export interface JourneyForestBeeFlightPlan {
   gatePassageFraction: number;
   edgeRoute: ForestBeeEdgeRoute;
   phase: ForestBeeFlightPhase;
+  unitIndex: number;
 }
 
 interface ForestBeeFlightContinuity {
@@ -94,6 +98,7 @@ interface StartJourneyForestBeeOrbitsOptions {
 
 export interface JourneyForestBeeOrbitController {
   setSuspended(suspended: boolean): void;
+  fadeOutAndDispose(durationMs: number): void;
   dispose(): void;
   getSnapshot(): {
     disposed: boolean;
@@ -101,6 +106,7 @@ export interface JourneyForestBeeOrbitController {
     imageLayerCount: number;
     tickerCount: number;
     visibleBeeCount: number;
+    mainBeeCount: number;
     gateBeeCount: number;
     gateEntryCount: number;
     gateExitCount: number;
@@ -195,12 +201,17 @@ function readPlanPoint(
   return points[(boundedIndex * 2) + axis];
 }
 
+const FOREST_UNIT_LANE_CENTERS = Object.freeze([
+  384, 474, 584, 672, 802, 906, 1010, 1134, 1238, 1362,
+] as const);
+
 function getLaneCenterY(index: number): number {
-  return 126 + ((index % 7) * 164) + (index >= 7 ? 42 : 0);
+  if (index >= FOREST_UNIT_BEE_COUNT) return 190;
+  return FOREST_UNIT_LANE_CENTERS[index % FOREST_UNIT_LANE_CENTERS.length];
 }
 
 function getUnitAnchorX(index: number, random: () => number): number {
-  const unitIndex = index % 7;
+  const unitIndex = index % FOREST_UNIT_LANE_CENTERS.length;
   const unitCenterX = unitIndex % 2 === 0 ? 112 : 278;
   return clamp(unitCenterX + (centered(random) * 52), 34, FOREST_DESIGN_WIDTH - 34);
 }
@@ -215,12 +226,12 @@ function resetRoamPlan(
   continuity?: ForestBeeFlightContinuity,
 ): void {
   const laneCenterY = getLaneCenterY(index);
-  const ownsVerticalSweep = index % 3 === 0;
+  const ownsVerticalSweep = index % 4 === 0;
   const anchorX = Number.isFinite(startX) ? Number(startX) : 56 + (sample(random) * 278);
   const anchorY = Number.isFinite(startY)
     ? Number(startY)
     : clamp(
-      laneCenterY + (centered(random) * 82 * FOREST_BEE_ROAM_RANGE_MULTIPLIER),
+      laneCenterY + (centered(random) * 46),
       48,
       FOREST_FLIGHT_MAX_Y,
     );
@@ -228,7 +239,7 @@ function resetRoamPlan(
   const tangentLength = continuity ? Math.hypot(continuity.tangentX, continuity.tangentY) : 0;
   const tangentX = tangentLength > 0.001 ? continuity!.tangentX / tangentLength : 0;
   const tangentY = tangentLength > 0.001 ? continuity!.tangentY / tangentLength : 0;
-  const tangentDistance = 44 * FOREST_BEE_ROAM_RANGE_MULTIPLIER;
+  const tangentDistance = 36 * FOREST_BEE_ROAM_RANGE_MULTIPLIER;
 
   setPlanPoint(plan.points, 0, anchorX, anchorY);
   for (let pointIndex = 1; pointIndex < FOREST_BEE_POINT_COUNT - 1; pointIndex += 1) {
@@ -247,13 +258,13 @@ function resetRoamPlan(
       FOREST_DESIGN_WIDTH - 20,
     );
     const verticalSweep = ownsVerticalSweep
-      ? Math.sin((pointIndex / (FOREST_BEE_POINT_COUNT - 1)) * TAU) * 108
-      : centered(random) * 108;
-    const verticalTexture = ownsVerticalSweep ? centered(random) * 24 : 0;
+      ? Math.sin((pointIndex / (FOREST_BEE_POINT_COUNT - 1)) * TAU) * 48
+      : centered(random) * 48;
+    const verticalTexture = ownsVerticalSweep ? centered(random) * 12 : 0;
     const y = clamp(
       anchorY + ((verticalSweep + verticalTexture) * FOREST_BEE_ROAM_RANGE_MULTIPLIER),
-      42,
-      FOREST_FLIGHT_MAX_Y,
+      Math.max(42, laneCenterY - 72),
+      Math.min(FOREST_FLIGHT_MAX_Y, laneCenterY + 72),
     );
     setPlanPoint(plan.points, pointIndex, x, y);
   }
@@ -347,8 +358,9 @@ function resetEntryPlan(
     const originPineX = entrySide === -1 ? gate.leftPineX : gate.rightPineX;
     const oppositePineX = entrySide === -1 ? gate.rightPineX : gate.leftPineX;
     const entryEndX = getUnitAnchorX(index, random);
+    const laneCenterY = getLaneCenterY(index);
     const entryEndY = clamp(
-      getLaneCenterY(index) + (centered(random) * 108 * 1.5),
+      laneCenterY + (centered(random) * 44),
       92,
       FOREST_FLIGHT_MAX_Y,
     );
@@ -370,7 +382,11 @@ function resetEntryPlan(
     ];
     gatePoints.forEach(([x, y], pointIndex) => setPlanPoint(plan.points, pointIndex, x, y));
     plan.phase = 'entry';
-    plan.durationSeconds = FOREST_BEE_EDGE_SECONDS * (0.84 + (sample(random) * 0.32));
+    const verticalTravel = Math.abs(entryEndY - passageY);
+    plan.durationSeconds = Math.max(
+      FOREST_BEE_EDGE_SECONDS * (0.9 + (sample(random) * 0.2)),
+      4.5 + (verticalTravel / 105),
+    );
     plan.elapsedSeconds = clamp(initialProgress, 0, 0.9) * plan.durationSeconds;
     plan.onScreenSeconds = 0;
     return;
@@ -396,14 +412,20 @@ function resetEntryPlan(
   plan.bouncePhase = sample(random) * TAU;
 }
 
-/** Build nineteen fixed-allocation plans: two or three persistent bees per Unit. */
+/** Build two bees per Unit plus five immediately-visible Forest Main bees. */
 export function createJourneyForestBeeFlightPlans(
   random: () => number = Math.random,
   gate: ForestBeeGateGeometry = FOREST_BEE_FALLBACK_GATE_GEOMETRY,
 ): JourneyForestBeeFlightPlan[] {
+  // Keep the two bottom-Unit pairs out of the delayed doorway queue so Units 9
+  // and 10 are populated immediately on the first painted ambient frame.
+  const gatePlanIndices = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11];
   return Array.from({ length: FOREST_BEE_COUNT }, (_, index) => {
-    const gateOrdinal = index;
-    const isGateRoute = gateOrdinal < FOREST_GATE_BEE_COUNT;
+    const unitIndex = index >= FOREST_UNIT_BEE_COUNT
+      ? -1
+      : index % FOREST_UNIT_LANE_CENTERS.length;
+    const gateOrdinal = gatePlanIndices.indexOf(index);
+    const isGateRoute = gateOrdinal >= 0;
     const plan: JourneyForestBeeFlightPlan = {
       points: new Float32Array(FOREST_BEE_POINT_COUNT * 2),
       durationSeconds: FOREST_BEE_ROAM_SECONDS,
@@ -419,6 +441,7 @@ export function createJourneyForestBeeFlightPlans(
       gatePassageFraction: 0.12 + ((((gateOrdinal * 0.61803398875) % 1)) * 0.76),
       edgeRoute: isGateRoute ? 'forest-gate' : 'side',
       phase: 'roam',
+      unitIndex,
     };
     const initialProgress = 0.04 + ((index / FOREST_BEE_COUNT) * 0.82);
     resetRoamPlan(plan, index, random, undefined, undefined, initialProgress);
@@ -502,13 +525,6 @@ function sampleJourneyForestBeeFlight(
 function setBeeDepth(bee: LiveBee, depth: ForestBeeDepth): void {
   if (bee.depth === depth) return;
   bee.depth = depth;
-}
-
-function chooseRoamDepth(index: number, random: () => number): ForestBeeDepth {
-  const depthIndex = (index + Math.floor(sample(random) * 3)) % 3;
-  if (depthIndex === 0) return 'front';
-  if (depthIndex === 1) return 'behind-card';
-  return 'behind-unit';
 }
 
 function setBeeAsset(bee: LiveBee, asset: ForestBeeAsset): void {
@@ -610,7 +626,7 @@ export function startJourneyForestBeeOrbits(
     setBeeAsset(bee, index % 2 === 0 ? 'bee1' : 'bee3');
     setBeeDepth(bee, plan.edgeRoute === 'forest-gate'
       ? (plan.phase === 'entry' ? 'behind-forest-main' : 'front')
-      : chooseRoamDepth(index, random));
+      : 'front');
     return bee;
   });
 
@@ -628,10 +644,10 @@ export function startJourneyForestBeeOrbits(
       return;
     }
     if (bee.plan.phase === 'exit') {
-      // Change card depth only after the bee has completed its off-screen exit.
-      // A visible bee must never pop behind a card halfway through its route.
+      // Side-route bees always return in front. Only the authored Forest Main
+      // doorway is allowed to use the behind canvas.
       if (bee.plan.edgeRoute !== 'forest-gate') {
-        setBeeDepth(bee, chooseRoamDepth(index, random));
+        setBeeDepth(bee, 'front');
       }
       resetEntryPlan(bee.plan, index, random, refreshGateGeometry(), 0, endX, endY);
       return;
@@ -642,7 +658,7 @@ export function startJourneyForestBeeOrbits(
     // into roam rather than a second animation/emitter starting at the door.
     const beforeEndX = readPlanPoint(bee.plan.points, FOREST_BEE_POINT_COUNT - 2, 0);
     const beforeEndY = readPlanPoint(bee.plan.points, FOREST_BEE_POINT_COUNT - 2, 1);
-    setBeeDepth(bee, chooseRoamDepth(index, random));
+    setBeeDepth(bee, 'front');
     resetRoamPlan(bee.plan, index, random, endX, endY, 0, {
       tangentX: endX - beforeEndX,
       tangentY: endY - beforeEndY,
@@ -673,8 +689,8 @@ export function startJourneyForestBeeOrbits(
       const entryScale = bee.plan.edgeRoute === 'forest-gate' && bee.plan.phase === 'entry'
         ? 0.5 + (0.5 * clamp(progress / 0.5, 0, 1))
         : 1;
-      const scaleX = bee.plan.scale * entryScale * (1 + (bounceWave * 0.045));
-      const scaleY = bee.plan.scale * entryScale * (1 - (bounceWave * 0.035));
+      const scaleX = bee.plan.scale * entryScale * (1 + (bounceWave * 0.045 * FOREST_BEE_BOUNCE_GAIN));
+      const scaleY = bee.plan.scale * entryScale * (1 - (bounceWave * 0.035 * FOREST_BEE_BOUNCE_GAIN));
 
       if (bee.plan.edgeRoute === 'forest-gate') {
         const beeCenterX = bee.sample[0] + ((bee.plan.width * bee.plan.scale) / 2);
@@ -725,7 +741,7 @@ export function startJourneyForestBeeOrbits(
     return visibleCount;
   };
 
-  const cloudLayer = options.root.querySelector<HTMLElement>('.journey-cloud-container');
+  const backgroundLayer = options.root.querySelector<HTMLElement>('.journey-bg-container');
   const runtime = startJourneyAmbientCanvasRuntime({
     root: options.root,
     scrollRoot: options.scrollRoot,
@@ -735,17 +751,22 @@ export function startJourneyForestBeeOrbits(
     layerLeftPx: -options.leftGutterPx,
     layerTopPx: 0,
     visibilityMarginPx: FOREST_BEE_VISIBILITY_MARGIN_PX,
-    behindBefore: cloudLayer,
-    behindZIndex: 0,
+    // Keep every bee above clouds. The behind canvas sits immediately before
+    // the World background at the same z-index, so Forest/Main/Unit art can
+    // still occlude a bee without any cloud ever painting over it.
+    behindBefore: backgroundLayer,
+    behindZIndex: 1,
     frontZIndex: 4,
     className: 'journey-forest-bee-canvas',
     observeVisibility: options.observeVisibility,
     render,
   });
+  runtime.fadeIn(360);
   options.root.dataset.journeyForestBeeRenderer = 'canvas';
 
   const controller: JourneyForestBeeOrbitController = {
     setSuspended: (nextSuspended) => runtime.setSuspended(nextSuspended),
+    fadeOutAndDispose: (durationMs) => runtime.fadeOut(durationMs, () => controller.dispose()),
     dispose: () => {
       if (disposed) return;
       disposed = true;
@@ -763,6 +784,7 @@ export function startJourneyForestBeeOrbits(
       return {
         disposed,
         beeCount: disposed ? 0 : bees.length,
+        mainBeeCount: disposed ? 0 : bees.filter((bee) => bee.plan.unitIndex === -1).length,
         imageLayerCount: 0,
         tickerCount: runtimeSnapshot.tickerCount,
         visibleBeeCount: runtimeSnapshot.visibleSpriteCount,

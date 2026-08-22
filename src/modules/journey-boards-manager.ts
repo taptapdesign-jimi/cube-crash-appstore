@@ -839,9 +839,9 @@ const LOCKED_BOARD_NUMBER_OFFSETS: Record<number, { x: number; y: number; rotati
   2: { x: -4, y: 32, rotation: -15 },
   3: { x: 0, y: 36, rotation: 4 },
   4: { x: 8, y: 32 },
-  5: { x: 48, y: 15, rotation: 20 },
+  5: { x: 56, y: 19, rotation: 20 },
   6: { x: 10, y: 32 },
-  7: { x: -44, y: 35, rotation: -15 },
+  7: { x: -48, y: 39, rotation: -15 },
   8: { x: 52, y: 32 },
   9: { x: 18, y: 40, rotation: 14 },
   10: { x: 6, y: 32 },
@@ -1187,7 +1187,8 @@ class JourneyBoardsManager {
 
   private stopForestBeeOrbits(reason: string): void {
     if (!this.forestBeeOrbits) return;
-    this.forestBeeOrbits.dispose();
+    if (reason === 'world-exit') this.forestBeeOrbits.fadeOutAndDispose(220);
+    else this.forestBeeOrbits.dispose();
     this.forestBeeOrbits = null;
     logger.info('🐝 Forest bee orbit owner stopped', { reason });
   }
@@ -6436,7 +6437,14 @@ class JourneyBoardsManager {
       // vertical float/spatial ownership.
       const tiltShell = document.createElement('div');
       tiltShell.className = 'journey-v700-world-tilt-shell';
-      tiltShell.style.setProperty('--journey-world-tilt-delay', `${-(worldId - 1) * 0.92}s`);
+      // Each World owns a distinct duration band plus a random session phase.
+      // Different periods prevent the three shadows/turns from periodically
+      // falling back into the same synchronized shimmer beat.
+      const tiltDurationSeconds = 4.55 + ((worldId - 1) * 0.72) + (Math.random() * 0.38);
+      const tiltPhaseSeconds = -(Math.random() * tiltDurationSeconds);
+      tiltShell.style.setProperty('--journey-world-tilt-duration', `${tiltDurationSeconds.toFixed(3)}s`);
+      tiltShell.style.setProperty('--journey-world-tilt-delay', `${tiltPhaseSeconds.toFixed(3)}s`);
+      tiltShell.style.animationDirection = Math.random() < 0.5 ? 'normal' : 'reverse';
 
       const banner = document.createElement('span');
       banner.className = `journey-v700-world-banner journey-v700-world-banner-${worldId === 2 ? 'left' : 'right'}`;
@@ -6453,6 +6461,13 @@ class JourneyBoardsManager {
       const bannerFlagFx = document.createElement('span');
       bannerFlagFx.className = 'journey-v700-world-banner-flag-fx';
       bannerFlagFx.setAttribute('aria-hidden', 'true');
+      // The visible masked shimmer belongs to this flag layer, not the outer
+      // tilt shell. Give every World a distinct period and random negative
+      // phase so their light sweeps never launch or repeat together.
+      const shimmerDurationSeconds = 5.9 + ((worldId - 1) * 0.83) + (Math.random() * 0.44);
+      const shimmerPhaseSeconds = -(Math.random() * shimmerDurationSeconds);
+      bannerFlagFx.style.setProperty('--journey-world-shimmer-duration', `${shimmerDurationSeconds.toFixed(3)}s`);
+      bannerFlagFx.style.setProperty('--journey-world-shimmer-delay', `${shimmerPhaseSeconds.toFixed(3)}s`);
       banner.appendChild(bannerFlagFx);
 
       const bannerCount = document.createElement('span');

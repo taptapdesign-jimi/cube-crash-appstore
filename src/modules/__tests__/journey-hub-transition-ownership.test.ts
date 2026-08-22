@@ -684,8 +684,8 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: -15deg;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: 8deg;');
     expect(collectiblesCssSource).toContain('--journey-world-banner-rotation: -6deg;');
-    expect(collectiblesCssSource).toContain('animation: journey-world-flag-ember 6.8s ease-in-out infinite;');
-    expect(collectiblesCssSource).toContain('animation: journey-world-flag-shine 6.8s ease-in-out infinite;');
+    expect(collectiblesCssSource).toContain('animation: journey-world-flag-ember var(--journey-world-shimmer-duration, 6.8s)');
+    expect(collectiblesCssSource).toContain('animation: journey-world-flag-shine var(--journey-world-shimmer-duration, 6.8s)');
     expect(collectiblesCssSource).toContain(
       'transition: translate 0.72s cubic-bezier(0.2, 0.88, 0.32, 1.08);',
     );
@@ -724,11 +724,21 @@ describe('Journey Hub transition ownership', () => {
       .toBeGreaterThan(hubEnterSource.indexOf("clearProps: 'transform,opacity,visibility,willChange'"));
     expect(hubExitSource).toContain("hub?.classList.remove('journey-v700-tilt-ready')");
     expect(collectiblesCssSource).toContain('@keyframes journey-v700-world-auto-tilt');
+    expect(collectiblesCssSource).toContain('var(--journey-world-tilt-duration, 4.8s)');
+    expect(journeyManagerSource).toContain("--journey-world-tilt-duration");
+    expect(journeyManagerSource).toContain('const tiltPhaseSeconds = -(Math.random() * tiltDurationSeconds)');
+    expect(journeyManagerSource).toContain("Math.random() < 0.5 ? 'normal' : 'reverse'");
+    expect(journeyManagerSource).toContain("--journey-world-shimmer-duration");
+    expect(journeyManagerSource).toContain('const shimmerPhaseSeconds = -(Math.random() * shimmerDurationSeconds)');
+    expect(collectiblesCssSource).toContain('var(--journey-world-shimmer-duration, 6.8s)');
+    expect(collectiblesCssSource).toContain('var(--journey-world-shimmer-delay, 0s)');
     expect(collectiblesCssSource).toContain('perspective(720px)');
     expect(collectiblesCssSource).toContain('rotateY(7.2deg)');
     expect(collectiblesCssSource).toContain('rotateY(-6.4deg)');
-    expect(collectiblesCssSource).toContain('drop-shadow(-5px 4px 4px rgba(174, 104, 56, 0.24))');
-    expect(collectiblesCssSource).toContain('drop-shadow(5px 4px 4px rgba(174, 104, 56, 0.22))');
+    expect(collectiblesCssSource).toContain('--journey-world-drag-shadow: rgba(185, 149, 114, 0.12)');
+    expect(collectiblesCssSource).toContain('drop-shadow(-5px 4px 4px var(--journey-world-drag-shadow))');
+    expect(collectiblesCssSource).toContain('drop-shadow(5px 4px 4px var(--journey-world-drag-shadow))');
+    expect(collectiblesCssSource).not.toContain('rgba(174, 104, 56, 0.24)');
     expect(collectiblesCssSource).toContain(
       '.journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell',
     );

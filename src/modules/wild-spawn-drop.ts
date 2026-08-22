@@ -42,7 +42,7 @@ const WILD_SPAWN_TILE_Z_INDEX = WILD_SPAWN_CONTAINER_Z_INDEX + 1;
 let assetsPreloadPromise: Promise<void> | null = null;
 const activeDropCleanups = new Set<() => void>();
 
-function preloadWildSpawnDropAssets(): Promise<void> {
+export function preloadWildSpawnDropAssets(): Promise<void> {
   if (assetsPreloadPromise) return assetsPreloadPromise;
   assetsPreloadPromise = Assets.load([...BACKPACK_PLAYBACK_SOURCES, ...CRATE_IN_SOURCES])
     .then(() => undefined)

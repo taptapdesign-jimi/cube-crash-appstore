@@ -18,13 +18,22 @@ describe('Journey Forest bee canvas flights', () => {
     expect(getJourneyForestBeeAssetForVelocity(0, 0, 'bee4')).toBe('bee4');
   });
 
-  test('preserves nineteen pooled plans, ten staggered gate routes and the full depth scale mix', () => {
+  test('keeps two bees on every Unit and five diverse bees immediately on Forest Main', () => {
     let sampleIndex = 0;
     const samples = [0.1, 0.8, 0.35, 0.65, 0.2, 0.9, 0.45, 0.7];
     const plans = createJourneyForestBeeFlightPlans(() => samples[sampleIndex++ % samples.length]);
-    expect(plans).toHaveLength(19);
-    expect(Array.from({ length: 7 }, (_, unitIndex) => plans.filter((_, index) => index % 7 === unitIndex).length))
-      .toEqual([3, 3, 3, 3, 3, 2, 2]);
+    expect(plans).toHaveLength(25);
+    expect(Array.from({ length: 10 }, (_, unitIndex) => plans.filter((plan) => plan.unitIndex === unitIndex).length))
+      .toEqual([2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
+    const mainPlans = plans.filter((plan) => plan.unitIndex === -1);
+    expect(mainPlans).toHaveLength(5);
+    expect(mainPlans.every((plan) => plan.phase === 'roam' && plan.elapsedSeconds >= 0)).toBe(true);
+    expect(new Set(mainPlans.map((plan) => plan.scale))).toHaveProperty('size', 5);
+    mainPlans.forEach((plan) => {
+      const ys = Array.from(plan.points).filter((_, pointIndex) => pointIndex % 2 === 1);
+      expect(Math.min(...ys)).toBeGreaterThanOrEqual(118);
+      expect(Math.max(...ys)).toBeLessThanOrEqual(262);
+    });
     expect(new Set(plans.map((plan) => plan.scale))).toEqual(new Set([0.65, 0.7, 0.8, 0.9, 1]));
     const gatePlans = plans.filter((plan) => plan.edgeRoute === 'forest-gate');
     expect(gatePlans).toHaveLength(10);
@@ -36,9 +45,20 @@ describe('Journey Forest bee canvas flights', () => {
       expect(plan.phase).toBe('entry');
       expect(plan.elapsedSeconds).toBe(-(plan.gateRouteOrdinal * 1.05));
     });
+    [8, 9].forEach((unitIndex) => {
+      const initialBottomBees = plans.filter((plan) => plan.unitIndex === unitIndex);
+      expect(initialBottomBees).toHaveLength(2);
+      expect(initialBottomBees.every((plan) => plan.phase === 'roam' && plan.elapsedSeconds >= 0)).toBe(true);
+      initialBottomBees.forEach((plan) => {
+        const ys = Array.from(plan.points).filter((_, pointIndex) => pointIndex % 2 === 1);
+        const center = unitIndex === 8 ? 1238 : 1362;
+        expect(Math.min(...ys)).toBeGreaterThanOrEqual(center - 72);
+        expect(Math.max(...ys)).toBeLessThanOrEqual(center + 72);
+      });
+    });
   });
 
-  test('paints nineteen logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
+  test('paints twenty-five logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -49,6 +69,9 @@ describe('Journey Forest bee canvas flights', () => {
     const clouds = document.createElement('div');
     clouds.className = 'journey-cloud-container';
     root.appendChild(clouds);
+    const background = document.createElement('div');
+    background.className = 'journey-bg-container';
+    root.appendChild(background);
     document.body.appendChild(root);
     const callbacks = new Set<() => void>();
     const ticker = {
@@ -69,14 +92,18 @@ describe('Journey Forest bee canvas flights', () => {
     expect(canvases).toHaveLength(2);
     expect(root.querySelectorAll('.journey-forest-bee-orbit')).toHaveLength(0);
     expect(root.querySelectorAll('.journey-forest-bee-orbit img')).toHaveLength(0);
-    expect(canvases[0].nextElementSibling).toBe(clouds);
+    expect(clouds.nextElementSibling).toBe(canvases[0]);
+    expect(canvases[0].nextElementSibling).toBe(background);
+    expect(canvases[0].style.zIndex).toBe('1');
     expect(root.lastElementChild).toBe(canvases[1]);
     expect(canvases.every((canvas) => canvas.style.height === '1204px')).toBe(true);
     expect(canvases.every((canvas) => canvas.height === 2408)).toBe(true);
     expect(ticker.add).toHaveBeenCalledTimes(1);
+    expect(canvases.every((canvas) => canvas.style.opacity === '0')).toBe(true);
     expect(controller.getSnapshot()).toMatchObject({
       disposed: false,
-      beeCount: 19,
+      beeCount: 25,
+      mainBeeCount: 5,
       imageLayerCount: 0,
       tickerCount: 1,
       gateBeeCount: 10,
@@ -95,7 +122,7 @@ describe('Journey Forest bee canvas flights', () => {
     callbacks.forEach((callback) => callback());
     expect(canvases.every((canvas) => canvas.style.willChange === 'auto')).toBe(true);
     controller.setSuspended(false);
-    for (let frame = 0; frame < 170; frame += 1) {
+    for (let frame = 0; frame < 320; frame += 1) {
       ticker.time += 0.1;
       callbacks.forEach((callback) => callback());
     }
@@ -185,12 +212,18 @@ describe('Journey Forest bee canvas flights', () => {
       path.join(process.cwd(), 'src/modules/journey-forest-bee-orbits.ts'),
       'utf8',
     );
-    expect(source).toContain("type ForestBeeDepth = 'front' | 'behind-card' | 'behind-unit' | 'behind-forest-main'");
+    expect(source).toContain("type ForestBeeDepth = 'front' | 'behind-forest-main'");
+    expect(source).not.toContain("'behind-card'");
+    expect(source).not.toContain("'behind-unit'");
     expect(source).toContain('FOREST_BEE_MIN_ONSCREEN_SECONDS = 30');
+    expect(source).toContain('FOREST_BEE_ROAM_SECONDS = 11');
+    expect(source).toContain('FOREST_BEE_EDGE_SECONDS = 7.8');
+    expect(source).toContain('FOREST_BEE_BOUNCE_GAIN = 1.125');
     expect(source).toContain('FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05');
     expect(source).toContain('FOREST_BEE_DIRECTION_FADE_SECONDS = 0.08');
     expect(source).toContain('startJourneyAmbientCanvasRuntime({');
     expect(source).toContain("className: 'journey-forest-bee-canvas'");
+    expect(source).toContain('runtime.fadeIn(360)');
     expect(source).toContain("const context = bee.depth === 'front' ? frame.front : frame.behind");
     expect(source).not.toContain("document.createElement('div')");
     expect(source).not.toContain('bee.element.style.transform');
@@ -207,6 +240,7 @@ describe('Journey Forest bee canvas flights', () => {
     expect(managerSource).toContain("if (worldId !== 1 || this.journeyV700Phase !== 'idle') return;");
     expect(managerSource).toContain("this.stopForestBeeOrbits('render-replaced')");
     expect(managerSource).toContain("this.stopForestBeeOrbits('world-exit')");
+    expect(managerSource).toContain('this.forestBeeOrbits.fadeOutAndDispose(220)');
     expect(managerSource).toContain("this.stopForestBeeOrbits('manager-cleanup')");
     expect(managerSource).toContain('ambientOwner.setSuspended(snapshot.ambientSuspended)');
   });

@@ -17,7 +17,7 @@ describe('first-play tutorial entry routing', () => {
     expect(sliderManagerSource).toContain('SLIDER_CONFIG.SLIDE_DURATION_S * 1000');
     expect(sliderManagerSource).toContain('this.currentSlide === resolvedSlide && !sliderState.isAnimatingEnter');
     expect(uiManagerSource).toContain(
-      'const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState();',
+      'const shouldResumeArcade = !isFirstPlayTutorialForced() && hasArcadeSavedState({ clearInvalid: true });',
     );
   });
 

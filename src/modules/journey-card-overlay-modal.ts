@@ -64,6 +64,7 @@ export interface JourneyCardOverlayTiltProfile {
 let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
 
 export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 520;
+export const JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200;
 export const JOURNEY_CARD_FLIP_DISMISS_DURATION_MS = JOURNEY_CARD_FLIP_ENTER_DURATION_MS;
 export const JOURNEY_CARD_PLAY_LAUNCH_BOUNCE_DURATION_MS = 100;
 export const JOURNEY_CARD_PLAY_TRAVEL_DURATION_MS = 500;
@@ -934,6 +935,7 @@ export function presentJourneyCardOverlayModal(
       setStableFace('back');
       entering = false;
       stage.classList.remove('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
+      stage.classList.remove('is-shadow-ready');
       stage.classList.add('is-settled');
       startBackContentEnter();
       disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
@@ -962,6 +964,12 @@ export function presentJourneyCardOverlayModal(
               ? 'flight-back-turn'
               : 'flight-back-settle';
         if (openProfilePhase !== flightPhase) markOpenProfile(flightPhase);
+        const shadowRevealProgress = 1 - (
+          JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS / JOURNEY_CARD_FLIP_ENTER_DURATION_MS
+        );
+        if (!prefersReducedMotion && progress >= shadowRevealProgress) {
+          stage.classList.add('is-shadow-ready');
+        }
         const angle = prefersReducedMotion ? -180 : getJourneyCardFlightFlipAngle(progress, 'enter');
         setRotorAngle(angle);
         if (angle <= -90) startBackContentEnter();
@@ -983,6 +991,7 @@ export function presentJourneyCardOverlayModal(
     spatialShell.style.removeProperty('opacity');
     spatialShell.style.removeProperty('will-change');
     stage.classList.remove('is-entering', 'is-spatial-card-entry', 'is-flipping-to-back');
+    stage.classList.remove('is-shadow-ready');
     stage.classList.add('is-settled');
     startBackContentEnter();
     disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);

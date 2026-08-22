@@ -3,11 +3,14 @@ import { gsap } from 'gsap';
 import { Container, Graphics } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
+import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
   try {
+    try { tile?._ccHoneyBeeIdleOrbit?.dispose?.(); } catch {}
+    if (tile) delete tile._ccHoneyBeeIdleOrbit;
     const smokeTimelines = Array.isArray(tile?._ccMushroomSmokeTimelines)
       ? tile._ccMushroomSmokeTimelines
       : [];
@@ -51,13 +54,40 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
   } catch {}
 }
 
+export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  const controller = tile?._ccHoneyBeeIdleOrbit;
+  if (!controller?.setDragging) return false;
+  controller.setDragging(dragging);
+  return true;
+}
+
+export function updateSpecialDiceIdleDragMotion(
+  tile: any,
+  offsetX: number,
+  offsetY: number,
+  velocityX: number,
+  velocityY: number,
+): void {
+  tile?._ccHoneyBeeIdleOrbit?.updateDragMotion?.(offsetX, offsetY, velocityX, velocityY);
+}
+
 export function startSpecialDiceIdleMotion(tile: any): void {
   try {
     const variant = getSpecialDiceVariantForTile(tile);
-    if (!tile || tile.destroyed || !variant?.idleMotion) return;
+    if (!tile || tile.destroyed || (!variant?.idleMotion && variant?.id !== 'honey')) return;
     if (tile._ccWildSpawnDropping === true) return;
 
+    if (variant.id === 'honey' && tile._ccHoneyBeeIdleOrbit) {
+      tile._ccHoneyBeeIdleOrbit.setDragging?.(false);
+      return;
+    }
+
     stopSpecialDiceIdleMotion(tile);
+
+    if (variant.id === 'honey') {
+      tile._ccHoneyBeeIdleOrbit = startHoneyBeeIdleOrbit(tile);
+      return;
+    }
 
     const isBottleFloat = variant.idleMotion === 'bottle-float';
     const host = isBottleFloat && tile.base?.anchor?.set ? tile.base : tile.rotG;

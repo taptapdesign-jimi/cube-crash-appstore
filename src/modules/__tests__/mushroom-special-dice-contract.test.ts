@@ -114,7 +114,7 @@ describe('Mushroom special-die visual contract', () => {
     expect(assetPreloaderSource).not.toContain('assets/shop/mushroom/part${index + 1}@2x.png');
   });
 
-  test('adds one pooled layered spore owner with randomized grouped birth and arrival fades', () => {
+  test('adds one pooled layered spore owner with independent long and short routes', () => {
     const pollenBranch = juiceSource.slice(
       juiceSource.indexOf('const pollenStates:'),
       juiceSource.indexOf('// Initial burst stays visible'),
@@ -127,25 +127,20 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain('particle.circle(0, 0, radius * 1.65).fill({ color, alpha: 0.24 })');
     expect(juiceSource).toContain('particle.circle(0, 0, radius).fill({ color, alpha: 1 })');
     expect(juiceSource).toContain(".fill({ color: 0xFFF7E7, alpha: 0.92 })");
-    expect(juiceSource).toContain('const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 6');
-    expect(juiceSource).toContain('const MUSHROOM_POLLEN_GROUP_SIZE = 6');
+    expect(juiceSource).toContain('const MUSHROOM_POLLEN_FLOCK_DURATION_SECONDS = 5');
     expect(juiceSource).toContain('const MUSHROOM_POLLEN_START_BAND_TOP_RATIO = 0.70');
     expect(juiceSource).toContain('const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30');
-    expect(juiceSource).toContain('const pollenStartSlots = createShuffledIndices(MUSHROOM_POLLEN_COUNT)');
-    expect(juiceSource).toContain('const pollenGroupAssignments = createShuffledIndices(MUSHROOM_POLLEN_COUNT)');
+    expect(juiceSource).toContain('createMushroomSporeFlightProfiles(MUSHROOM_POLLEN_COUNT)');
     expect(juiceSource).toContain('startBandProgress * MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO');
     expect(juiceSource).toContain('particle.alpha = 0');
     expect(juiceSource).toContain('const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const');
     expect(juiceSource).toContain('const depthBand = index % MUSHROOM_POLLEN_DEPTHS.length');
     expect(juiceSource).toContain('particle.zIndex = MUSHROOM_POLLEN_DEPTHS[depthBand]');
     expect(juiceSource).toContain('const flockMotion = { time: 0 }');
-    expect(juiceSource).toContain('const groupBirthDelays = birthRankByGroup.map');
-    expect(juiceSource).toContain('const groupArrivalTimes = arrivalRankByGroup.map');
-    expect(juiceSource).toContain('const groupFadeDurations = Array.from');
-    expect(juiceSource).toContain('const birthDelay = groupBirthDelays[pollenGroup]');
-    expect(juiceSource).toContain('const arrivalTime = groupArrivalTimes[pollenGroup]');
+    expect(juiceSource).toContain('const birthDelay = profile.birthDelay');
+    expect(juiceSource).toContain('const targetY = particle.y - (screenH * profile.travelRatio)');
     expect(juiceSource).toContain('riseSpeed: Math.max(1, (particle.y - targetY) / riseDuration)');
-    expect(juiceSource).toContain('arrivalDuration: groupFadeDurations[pollenGroup]');
+    expect(juiceSource).toContain('arrivalDuration: profile.arrivalDuration');
     expect(juiceSource).toContain('const directionalDrift = state.driftDirection * state.driftSpeed * age');
     expect(juiceSource).toContain('const sparkleWave = 0.5');
     expect(juiceSource).toContain('particle.alpha = fadeIn * state.baseAlpha');
@@ -160,10 +155,11 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).not.toContain('pollenExitTween');
     expect(pollenBranch).not.toContain('gravityProgress');
     expect(pollenBranch).not.toContain('fallDistance');
-    expect(juiceSource).toContain('? 6200');
+    expect(juiceSource).toContain('? 5400');
     expect(juiceSource).toContain('let pollenReleaseScheduled = false');
     expect(juiceSource).toContain('const particle = graphicsPool.acquire()');
     expect(juiceSource).toContain('graphicsPool.release(particle)');
+    expect(juiceSource).toContain('releasePollenParticle(state)');
     expect(juiceSource).toContain("(particle as any)._mushroomPollen = true");
     expect(juiceSource).toContain('lifecycle.trackTimeout(startMushroomPollenFlock, 55)');
   });
