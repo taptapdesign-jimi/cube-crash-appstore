@@ -418,10 +418,27 @@ export function initDrag(cfg) {
       if (typeof activeDragLayer.sortableChildren !== 'undefined') {
         activeDragLayer.sortableChildren = true;
       }
-      const parentZ = Number.isFinite(activeDragLayer.zIndex) ? Number(activeDragLayer.zIndex) : 0;
-      activeDragLayer.zIndex = Math.max(parentZ, DRAG_LAYER_Z_INDEX);
     } catch {}
     return activeDragLayer;
+  }
+
+  function positionInParentFromGlobal(parent: any, globalPoint: any): any {
+    if (!parent?.toLocal || !globalPoint) return globalPoint;
+    try { return parent.toLocal(globalPoint); } catch { return globalPoint; }
+  }
+
+  function getTileBoardPosition(tile: any): { x: number; y: number } {
+    if (!tile) return { x: 0, y: 0 };
+    if (!tile.parent || tile.parent === board) {
+      return { x: Number(tile.x) || 0, y: Number(tile.y) || 0 };
+    }
+    try {
+      const globalPosition = tile.parent.toGlobal(tile.position);
+      const boardPosition = board.toLocal(globalPosition);
+      return { x: Number(boardPosition.x) || 0, y: Number(boardPosition.y) || 0 };
+    } catch {
+      return { x: Number(tile.x) || 0, y: Number(tile.y) || 0 };
+    }
   }
 
   function promoteTileToDragLayer(t: any): void {
@@ -442,8 +459,15 @@ export function initDrag(cfg) {
     try {
       const layer = getDragLayer();
       if (!layer) return;
-      layer.addChild(t);
-      t.zIndex = 99999;
+      if (typeof layer.reparentChild === 'function') {
+        layer.reparentChild(t);
+      } else {
+        const globalPosition = originalParent.toGlobal?.(t.position) ?? t.position;
+        layer.addChild(t);
+        const layerPosition = positionInParentFromGlobal(layer, globalPosition);
+        t.position?.set?.(layerPosition.x, layerPosition.y);
+      }
+      t.zIndex = DRAG_LAYER_Z_INDEX;
     } catch {
       // keep safe on frame churn.
     }
@@ -456,12 +480,22 @@ export function initDrag(cfg) {
 
     if (originalParent && t.parent !== originalParent) {
       try {
-        t.parent?.removeChild?.(t);
-        if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.addChildAt) {
+        if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.reparentChildAt) {
           const clampedIndex = Math.max(0, Math.min(originalIndex, originalParent.children?.length || 0));
-          originalParent.addChildAt(t, clampedIndex);
+          originalParent.reparentChildAt(t, clampedIndex);
+        } else if (originalParent.reparentChild) {
+          originalParent.reparentChild(t);
         } else {
-          originalParent.addChild(t);
+          const globalPosition = t.parent?.toGlobal?.(t.position) ?? t.position;
+          t.parent?.removeChild?.(t);
+          if (Number.isFinite(originalIndex) && originalIndex >= 0 && originalParent.addChildAt) {
+            const clampedIndex = Math.max(0, Math.min(originalIndex, originalParent.children?.length || 0));
+            originalParent.addChildAt(t, clampedIndex);
+          } else {
+            originalParent.addChild(t);
+          }
+          const restoredPosition = positionInParentFromGlobal(originalParent, globalPosition);
+          t.position?.set?.(restoredPosition.x, restoredPosition.y);
         }
       } catch {
         try { originalParent.addChild(t); } catch {}
@@ -655,10 +689,11 @@ export function initDrag(cfg) {
 
     const touchMode = shouldUseTouchDragPerformanceMode();
     const trailProfile = getDragTrailPerformanceProfile(touchMode, touchMode && isBoardFxReduced());
+    const tileBoardPosition = getTileBoardPosition(tile);
     const points = consumeWildDragTrailPoints(
       drag._wildTrailCadence,
-      Number(tile.x) || 0,
-      Number(tile.y) || 0,
+      tileBoardPosition.x,
+      tileBoardPosition.y,
       atMs,
       {
         spacingPx: trailProfile.wildSpacingPx,
@@ -700,10 +735,11 @@ export function initDrag(cfg) {
 
     const touchMode = shouldUseTouchDragPerformanceMode();
     const trailProfile = getDragTrailPerformanceProfile(touchMode, touchMode && isBoardFxReduced());
+    const tileBoardPosition = getTileBoardPosition(tile);
     const points = consumeWildDragTrailPoints(
       drag._regularTrailCadence,
-      Number(tile.x) || 0,
-      Number(tile.y) || 0,
+      tileBoardPosition.x,
+      tileBoardPosition.y,
       atMs,
       {
         spacingPx: trailProfile.regularSpacingPx,
@@ -1110,7 +1146,7 @@ export function initDrag(cfg) {
     // ⬆️ digni na vrh, ali zapamti prijašnji z-index
     rememberZ(t);
     promoteTileToDragLayer(t);
-    t.zIndex = 9999;
+    t.zIndex = DRAG_LAYER_Z_INDEX;
 
     // Temporarily set grid cell to null so ghost placeholder becomes visible
     if (cfg.getGrid) {
@@ -1181,8 +1217,9 @@ export function initDrag(cfg) {
     if (!usesJuiceIdleFx && isSpecialDiceMagnetLikeTile(t)) {
       try { stopMagnetIdleParticles(t); } catch {}
     }
-    resetWildDragTrailCadence(drag._regularTrailCadence, t.x, t.y, drag.lastTime);
-    resetWildDragTrailCadence(drag._wildTrailCadence, t.x, t.y, drag.lastTime);
+    const tileBoardPosition = getTileBoardPosition(t);
+    resetWildDragTrailCadence(drag._regularTrailCadence, tileBoardPosition.x, tileBoardPosition.y, drag.lastTime);
+    resetWildDragTrailCadence(drag._wildTrailCadence, tileBoardPosition.x, tileBoardPosition.y, drag.lastTime);
 
     app.stage.on('pointermove', onMove);
     app.stage.on('pointerup', onUp);
@@ -1262,20 +1299,22 @@ export function initDrag(cfg) {
     // Desktop keeps the weighted parallax. Touch must stay directly under the finger;
     // positional lag reads as input latency even when the renderer is holding 60 FPS.
     if (touchPerformanceMode) {
-        drag.lagX = 0;
-        drag.lagY = 0;
-      } else {
-        const targetLagX = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vx * 240));
-        const targetLagY = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vy * 240));
-        drag.lagX = drag.lagX + (targetLagX - drag.lagX) * 0.12;
-        drag.lagY = drag.lagY + (targetLagY - drag.lagY) * 0.12;
-        px += drag.lagX;
-        py += drag.lagY;
-      }
+      drag.lagX = 0;
+      drag.lagY = 0;
+    } else {
+      const targetLagX = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vx * 240));
+      const targetLagY = Math.max(-POS_LAG_PX, Math.min(POS_LAG_PX, -drag.vy * 240));
+      drag.lagX = drag.lagX + (targetLagX - drag.lagX) * 0.12;
+      drag.lagY = drag.lagY + (targetLagY - drag.lagY) * 0.12;
+      px += drag.lagX;
+      py += drag.lagY;
     }
 
     if (t.position?.set) {
-      t.position.set(px, py);
+      const boardPoint = { x: px, y: py };
+      const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;
+      const parentPoint = positionInParentFromGlobal(t.parent, globalPoint);
+      t.position.set(parentPoint.x, parentPoint.y);
     }
 
     // Keep shadow direction tied to finger movement for the active drag.
@@ -1322,8 +1361,9 @@ export function initDrag(cfg) {
       }
       drag._lastMagnetFieldUpdateAt = now;
       const allTiles = typeof getTiles === 'function' ? getTiles() : [];
-      const magnetX = t.x;
-      const magnetY = t.y;
+      const magnetPosition = getTileBoardPosition(t);
+      const magnetX = magnetPosition.x;
+      const magnetY = magnetPosition.y;
       const magnetRange = tileSize * 1.5; // Magnet affects tiles within 1.5 tiles
       const selectionRange = tileSize * 1.2; // Show selection if magnet is within 1.2 tiles
       const hoverRange = tileSize * 1.5; // Show hover effect if magnet is within 1.5 tiles
@@ -1844,13 +1884,12 @@ export function initDrag(cfg) {
       return;
     }
 
-    clearHover({ immediateMagnet: true });
-    autoCenter(t, target);
-
     // ✅ Z-INDEX SAFETY PATCH:
     // prije merge animacije vrati pločicu na originalni sloj,
     // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
     restoreZ(t);
+    clearHover({ immediateMagnet: true });
+    autoCenter(t, target);
     
     // Wild-juice bubbles explosion is triggered centrally in app-core effSum === 6 flow.
     const sourceSpecial = getTileSpecial(t);
@@ -2054,7 +2093,8 @@ export function initDrag(cfg) {
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (!isWildMagnetTile(src) && !isWildMagnetTile(t)) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
-        const dist = Math.hypot((src.x ?? 0) - (t.x ?? 0), (src.y ?? 0) - (t.y ?? 0));
+        const srcBoardPosition = getTileBoardPosition(src);
+        const dist = Math.hypot(srcBoardPosition.x - (t.x ?? 0), srcBoardPosition.y - (t.y ?? 0));
         if (dist < closestDist && dist <= maxCenterDist) {
           closestDist = dist;
           closest = t;
@@ -2079,7 +2119,8 @@ export function initDrag(cfg) {
         if (!isGameplayTileCandidate(t)) continue;
         if ((t as any)._ccWildSpawnDropping === true) continue;
         if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
-        const dist = Math.hypot((src.x ?? 0) - (t.x ?? 0), (src.y ?? 0) - (t.y ?? 0));
+        const srcBoardPosition = getTileBoardPosition(src);
+        const dist = Math.hypot(srcBoardPosition.x - (t.x ?? 0), srcBoardPosition.y - (t.y ?? 0));
         if (dist < closestDist && dist <= maxCenterDist) {
           closestDist = dist;
           closest = t;
@@ -2333,8 +2374,9 @@ export function initDrag(cfg) {
     const originX = state.originX;
     const originY = state.originY;
     const maxOffset = Math.max(0, tileSize * MAGNET_OFFSET_RATIO);
-    const dx = src.x - originX;
-    const dy = src.y - originY;
+    const srcBoardPosition = getTileBoardPosition(src);
+    const dx = srcBoardPosition.x - originX;
+    const dy = srcBoardPosition.y - originY;
 
     let offsetX = 0;
     let offsetY = 0;
@@ -2550,6 +2592,9 @@ export function initDrag(cfg) {
     }
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
+    // Snap-back targets are board-local. Return from the stage overlay first,
+    // preserving the current world-space point so the landing path cannot jump.
+    restoreZ(t);
     
     // 🔥 NOTE: Do not cleanup explosion state on snapBack; this can race with real merge explosion
     
