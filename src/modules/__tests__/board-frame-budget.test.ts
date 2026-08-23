@@ -1,6 +1,8 @@
 import {
   evaluateBoardFrameBudget,
   IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS,
+  startBoardFrameBudgetMonitor,
+  stopBoardFrameBudgetMonitor,
   shouldUseSustainedLoadReduction,
 } from '../board-frame-budget';
 
@@ -25,9 +27,28 @@ describe('board frame budget', () => {
     expect(result.sustainedLoadReduction).toBe(true);
   });
 
-  test('activates sustained reduction only on iOS after the thermal threshold', () => {
+  test('activates sustained reduction only for opted-in mobile runtimes after the thermal threshold', () => {
     expect(shouldUseSustainedLoadReduction(IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS - 1, true)).toBe(false);
     expect(shouldUseSustainedLoadReduction(IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS, true)).toBe(true);
     expect(shouldUseSustainedLoadReduction(IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS * 2, false)).toBe(false);
+  });
+
+  test('uses the gameplay ticker instead of owning a parallel animation-frame loop', () => {
+    const callbacks = new Set<(ticker?: unknown) => void>();
+    const ticker = {
+      add: jest.fn((callback: (ticker?: unknown) => void) => callbacks.add(callback)),
+      remove: jest.fn((callback: (ticker?: unknown) => void) => callbacks.delete(callback)),
+    };
+    const rafSpy = jest.spyOn(window, 'requestAnimationFrame');
+
+    startBoardFrameBudgetMonitor(ticker);
+
+    expect(ticker.add).toHaveBeenCalledTimes(1);
+    expect(rafSpy).not.toHaveBeenCalled();
+
+    stopBoardFrameBudgetMonitor();
+    expect(ticker.remove).toHaveBeenCalledTimes(1);
+    expect(callbacks.size).toBe(0);
+    rafSpy.mockRestore();
   });
 });

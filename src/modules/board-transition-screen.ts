@@ -18,6 +18,7 @@ import { appSpatialMotion } from './journey-spatial-motion.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { buildBoardTransitionExitSchedule } from './board-transition-exit-schedule.js';
 import {
+  BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariationSequence,
   type BeachTransitionVariation,
 } from './board-transition-beach-variation.js';
@@ -1174,7 +1175,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               ? `${palmPlacement.leftPercent}%`
               : `calc(${palmPlacement.leftPercent}% + ${palmPlacement.horizontalOffsetPx}px)`;
             sceneImg.style.top = 'auto';
-            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx + palmPlacement.verticalOffsetPx}px + ${palmPlacement.upwardLiftVh}vh)`;
+            sceneImg.style.bottom = `calc(${palmPlacement.bottomPx + palmPlacement.verticalOffsetPx + BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX}px + ${palmPlacement.upwardLiftVh}vh)`;
           }
           if (beachVariation && (layer.key === 'beach-bottle' || layer.key === 'beach-ball')) {
             const isBottle = layer.key === 'beach-bottle';

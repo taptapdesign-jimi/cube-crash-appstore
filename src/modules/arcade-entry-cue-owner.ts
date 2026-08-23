@@ -81,7 +81,6 @@ export function resetArcadeEntryCueOwner(): void {
   activeCue = null;
   presentationWaiters.forEach((waiters) => waiters.forEach((resolve) => resolve()));
   presentationWaiters.clear();
-  cancelArcadeEntrySurfaceGate();
 }
 
 /** Abort an entry that can no longer reach board pop-in (for example boot failure). */

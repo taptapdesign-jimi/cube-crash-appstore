@@ -5,7 +5,7 @@ import { usesRoundBubbleDragTrail } from '../special-dice-registry';
 describe('Beach special-dice drag trail policy', () => {
   test('uses round bubbles only for Juice, Beach Ball, and Bottle', () => {
     expect(usesRoundBubbleDragTrail({ special: 'wild-juice' })).toBe(true);
-    expect(usesRoundBubbleDragTrail({ special: 'wild-magnet', _ccSpecialDiceVariant: 'beach-ball' })).toBe(true);
+    expect(usesRoundBubbleDragTrail({ special: 'wild-tnt', _ccSpecialDiceVariant: 'beach-ball' })).toBe(true);
     expect(usesRoundBubbleDragTrail({ special: 'wild-magnet', _ccSpecialDiceVariant: 'bottle' })).toBe(true);
 
     expect(usesRoundBubbleDragTrail({ special: 'wild' })).toBe(false);

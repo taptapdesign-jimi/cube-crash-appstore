@@ -87,6 +87,7 @@ export function completeBoardLifecycleTrace(finalMilestone = 'first-input'): Boa
 }
 
 export function startBoardLifecycleFrameWindow(name: string): () => void {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return () => {};
   if (!activeTrace || activeTrace.completed || typeof requestAnimationFrame !== 'function') return () => {};
   const traceId = activeTrace.id;
   const samples: number[] = [];
@@ -124,3 +125,4 @@ export function resetBoardLifecycleTraceForTests(): void {
   activeTrace = null;
   traceSequence = 0;
 }
+import { areContinuousRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';

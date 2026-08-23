@@ -5,6 +5,7 @@ import {
   getCompatibleSpecialDiceVariant,
   getSpecialDiceGameplayFxForMerge,
   getSpecialDiceGameplayFxForTile,
+  getSpecialDiceGameplayReleaseAtSpawnRatio,
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceInputReleaseAtRatioForFx,
   getSpecialDiceInputReleaseMode,
@@ -65,7 +66,7 @@ test('variant archetype drives final merge FX for future special dice', () => {
   const cubero = makeTile({ special: 'wild' });
   applySpecialDiceVariantToTile(cubero, getSpecialDiceVariant('cubero'));
 
-  const beachBall = makeTile({ special: 'wild-magnet' });
+  const beachBall = makeTile({ special: 'wild-tnt' });
   applySpecialDiceVariantToTile(beachBall, getSpecialDiceVariant('beach-ball'));
 
   expect(getSpecialDiceFinaleFxForMerge({
@@ -86,7 +87,7 @@ test('variant archetype drives final merge FX for future special dice', () => {
     dst: makeTile(),
     srcSpecial: beachBall.special,
     dstSpecial: null,
-  })).toBe('magnet');
+  })).toBe('tnt');
 });
 
 test('finale FX priority remains deterministic for special-vs-special edge cases', () => {
@@ -106,7 +107,7 @@ test('finale FX priority remains deterministic for special-vs-special edge cases
 });
 
 test('finale flags expose archetype-driven merge behavior', () => {
-  const beachBall = makeTile({ special: 'wild-magnet' });
+  const beachBall = makeTile({ special: 'wild-tnt' });
   applySpecialDiceVariantToTile(beachBall, getSpecialDiceVariant('beach-ball'));
 
   expect(getSpecialDiceFinaleFlagsForMerge({
@@ -145,17 +146,17 @@ test('magnet-like helper follows core type and future variant archetype', () => 
   });
   expect(isSpecialDiceMagnetLikeTile(futureMagnet)).toBe(true);
 
-  const beachBall = makeTile({ special: 'wild-magnet' });
+  const beachBall = makeTile({ special: 'wild-tnt' });
   applySpecialDiceVariantToTile(beachBall, getSpecialDiceVariant('beach-ball'));
-  expect(isSpecialDiceMagnetLikeTile(beachBall)).toBe(true);
-  expect(getSpecialDiceGameplayFxForTile(beachBall)).toBe('magnet');
+  expect(isSpecialDiceMagnetLikeTile(beachBall)).toBe(false);
+  expect(getSpecialDiceGameplayFxForTile(beachBall)).toBe('tnt');
   expect(getSpecialDiceFinaleFxForTile(beachBall)).toBe('juice');
 });
 
 test('archetype helpers classify star, juice, tnt, and direct wild behavior', () => {
   const cubero = makeTile({ special: 'wild' });
   applySpecialDiceVariantToTile(cubero, getSpecialDiceVariant('cubero'));
-  const beachBall = makeTile({ special: 'wild-magnet' });
+  const beachBall = makeTile({ special: 'wild-tnt' });
   applySpecialDiceVariantToTile(beachBall, getSpecialDiceVariant('beach-ball'));
   const tnt = makeTile({ special: 'wild-tnt' });
   const magnet = makeTile({ special: 'wild-magnet', isWild: true, isWildFace: true });
@@ -165,7 +166,7 @@ test('archetype helpers classify star, juice, tnt, and direct wild behavior', ()
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 
   expect(isSpecialDiceDirectWildLikeTile(cubero)).toBe(true);
-  expect(isSpecialDiceDirectWildLikeTile(beachBall)).toBe(false);
+  expect(isSpecialDiceDirectWildLikeTile(beachBall)).toBe(true);
   expect(isSpecialDiceDirectWildLikeTile(tnt)).toBe(true);
   expect(isSpecialDiceDirectWildLikeTile(magnet)).toBe(false);
 });
@@ -176,6 +177,8 @@ test('special dice input release policy is archetype-driven', () => {
 
   expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.25);
   expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.30);
+  expect(getSpecialDiceGameplayReleaseAtSpawnRatio(beachBall)).toBe(0.08);
+  expect(getSpecialDiceGameplayReleaseAtSpawnRatio(cubero)).toBeUndefined();
   expect(getSpecialDiceInputReleaseMode(beachBall)).toBe('after-gameplay-resolve');
   expect(getSpecialDiceJuiceDropProfile(beachBall)).toBe('beach-ball');
   expect(getSpecialDiceInputReleaseAtRatioForFx('magnet')).toBe(0.25);
@@ -189,10 +192,10 @@ test('special dice input release policy is archetype-driven', () => {
   });
 });
 
-test('legacy Juice Beach Ball save remains loadable and canonicalizes to Magnet', () => {
-  const legacyVariant = getCompatibleSpecialDiceVariant('beach-ball', 'wild-juice');
+test.each(['wild-juice', 'wild-magnet'])('legacy %s Beach Ball save remains loadable and canonicalizes to TNT', (legacyCoreType) => {
+  const legacyVariant = getCompatibleSpecialDiceVariant('beach-ball', legacyCoreType);
   expect(legacyVariant?.id).toBe('beach-ball');
-  expect(legacyVariant?.archetype).toBe('wild-magnet');
+  expect(legacyVariant?.archetype).toBe('wild-tnt');
 });
 
 test('gameplay-resolving helper follows input release policy for current and future specials', () => {
@@ -208,7 +211,7 @@ test('gameplay-resolving helper follows input release policy for current and fut
     special: 'wild-magnet',
     _ccSpecialDiceArchetype: 'wild-magnet',
   }))).toBe(true);
-  const beachBall = makeTile({ special: 'wild-magnet' });
+  const beachBall = makeTile({ special: 'wild-tnt' });
   applySpecialDiceVariantToTile(beachBall, getSpecialDiceVariant('beach-ball'));
   expect(isSpecialDiceGameplayResolvingLikeTile(beachBall)).toBe(true);
 });

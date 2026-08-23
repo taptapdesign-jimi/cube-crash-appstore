@@ -6,6 +6,10 @@ export const BEACH_CURTAIN_LAYER_KEYS = Object.freeze([
   'beach-palm-center',
 ] as const);
 
+// The transition positions palms from the bottom edge, so a negative shared
+// offset moves the complete five-palm curtain down without changing its layout.
+export const BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX = -32;
+
 export type BeachCurtainLayerKey = typeof BEACH_CURTAIN_LAYER_KEYS[number];
 
 export type BeachPalmPlacement = Readonly<{

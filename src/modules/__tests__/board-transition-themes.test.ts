@@ -7,6 +7,7 @@ import {
 } from '../board-transition-themes';
 import {
   BEACH_CURTAIN_LAYER_KEYS,
+  BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX,
   createBeachTransitionVariation,
   createBeachTransitionVariationSequence,
 } from '../board-transition-beach-variation';
@@ -15,6 +16,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Board Transition World themes', () => {
+  test('lowers the complete Beach palm curtain by 32px', () => {
+    expect(BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX).toBe(-32);
+  });
+
   test.each([[1, 'forest'], [10, 'forest'], [11, 'beach'], [20, 'beach'], [21, 'area55'], [30, 'area55']])(
     'maps Journey board %i to %s',
     (board, theme) => expect(getJourneyBoardTransitionTheme(board)).toBe(theme),

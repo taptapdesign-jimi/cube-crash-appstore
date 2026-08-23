@@ -28,6 +28,8 @@ export interface JourneyAmbientCanvasRuntimeOptions {
   layerLeftPx?: number;
   layerTopPx?: number;
   visibilityMarginPx?: number;
+  pixelRatioCap?: number;
+  maxFramesPerSecond?: number;
   behindBefore?: Element | null;
   frontBefore?: Element | null;
   behindZIndex?: number;
@@ -51,6 +53,8 @@ export interface JourneyAmbientCanvasRuntime {
     visibleSpriteCount: number;
     pixelRatio: number;
     bitmapPixels: number;
+    maxFramesPerSecond: number;
+    visibilityMarginPx: number;
   };
 }
 
@@ -127,7 +131,16 @@ export function startJourneyAmbientCanvasRuntime(
   const frontContext = frontCanvas.getContext('2d', { alpha: true });
   const scrollRoot = options.scrollRoot ?? null;
   const visibilityMargin = Math.max(0, options.visibilityMarginPx ?? DEFAULT_VISIBILITY_MARGIN_PX);
-  const pixelRatio = clamp(window.devicePixelRatio || 1, 1, MAX_CANVAS_PIXEL_RATIO);
+  const pixelRatioCap = clamp(
+    Number.isFinite(options.pixelRatioCap) ? Number(options.pixelRatioCap) : MAX_CANVAS_PIXEL_RATIO,
+    1,
+    MAX_CANVAS_PIXEL_RATIO,
+  );
+  const pixelRatio = clamp(window.devicePixelRatio || 1, 1, pixelRatioCap);
+  const maxFramesPerSecond = Number.isFinite(options.maxFramesPerSecond)
+    ? clamp(Number(options.maxFramesPerSecond), 0, 60)
+    : 0;
+  const minimumFrameDeltaSeconds = maxFramesPerSecond > 0 ? 1 / maxFramesPerSecond : 0;
   let sceneWidth = Math.max(1, options.sceneWidthPx);
   let sceneHeight = Math.max(1, options.sceneHeightPx);
   let canvasHeight = 1;
@@ -138,7 +151,7 @@ export function startJourneyAmbientCanvasRuntime(
   let disposed = false;
   let suspended = false;
   let sceneVisible = true;
-  let lastTickerTime = options.ticker.time;
+  let lastRenderTime = options.ticker.time - minimumFrameDeltaSeconds;
   let observer: IntersectionObserver | null = null;
   let fadeFrame = 0;
   let fadeTimeout = 0;
@@ -209,11 +222,19 @@ export function startJourneyAmbientCanvasRuntime(
       return;
     }
     if (suspended || !sceneVisible || (typeof document !== 'undefined' && document.hidden)) {
-      lastTickerTime = now;
+      lastRenderTime = now;
       return;
     }
-    const deltaSeconds = clamp(now - lastTickerTime, 0, 0.12);
-    lastTickerTime = now;
+    const elapsedSinceRender = Math.max(0, now - lastRenderTime);
+    // GSAP's ticker commonly lands a fraction below the exact 30 Hz boundary.
+    // A small tolerance keeps the cadence at every second 60 Hz tick instead
+    // of producing an uneven 20/30 Hz pattern while still bounding the work.
+    if (
+      minimumFrameDeltaSeconds > 0
+      && elapsedSinceRender + 0.0005 < minimumFrameDeltaSeconds
+    ) return;
+    const deltaSeconds = clamp(elapsedSinceRender, 0, 0.12);
+    lastRenderTime = now;
     updateViewport();
     clearCanvases();
     const renderedCount = options.render({
@@ -228,16 +249,18 @@ export function startJourneyAmbientCanvasRuntime(
     visibleSpriteCount = typeof renderedCount === 'number' ? renderedCount : 0;
   };
 
-  const handleScroll = (): void => updateViewport();
+  // Do not reposition the scene window directly from the scroll event. The
+  // absolute canvases already travel with native scrolling; moving them before
+  // their bitmap is repainted exposes one stale scene slice in WKWebView. The
+  // bounded ticker updates transform and pixels together before the next paint.
   const handleResize = (): void => refreshGeometry();
-  scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('resize', handleResize, { passive: true });
 
   const controller: JourneyAmbientCanvasRuntime = {
     setSuspended(nextSuspended): void {
       if (disposed || suspended === nextSuspended) return;
       suspended = nextSuspended;
-      lastTickerTime = options.ticker.time;
+      lastRenderTime = options.ticker.time;
       const willChange = suspended ? 'auto' : 'transform';
       behindCanvas.style.willChange = willChange;
       frontCanvas.style.willChange = willChange;
@@ -285,12 +308,17 @@ export function startJourneyAmbientCanvasRuntime(
       disposed = true;
       clearFadeOwnership();
       options.ticker.remove(tick);
-      scrollRoot?.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
       observer?.disconnect();
       observer = null;
       behindCanvas.style.willChange = 'auto';
       frontCanvas.style.willChange = 'auto';
+      // Release both backing stores immediately. Waiting for WebKit GC here can
+      // retain several megabytes across repeated Forest/Beach route changes.
+      behindCanvas.width = 1;
+      behindCanvas.height = 1;
+      frontCanvas.width = 1;
+      frontCanvas.height = 1;
       behindCanvas.remove();
       frontCanvas.remove();
       visibleSpriteCount = 0;
@@ -302,6 +330,8 @@ export function startJourneyAmbientCanvasRuntime(
       visibleSpriteCount: disposed ? 0 : visibleSpriteCount,
       pixelRatio,
       bitmapPixels: disposed ? 0 : behindCanvas.width * behindCanvas.height * 2,
+      maxFramesPerSecond,
+      visibilityMarginPx: visibilityMargin,
     }),
   };
 
@@ -310,7 +340,7 @@ export function startJourneyAmbientCanvasRuntime(
       const record = entries.find((entry) => entry.target === options.root);
       if (!record) return;
       sceneVisible = record.isIntersecting;
-      lastTickerTime = options.ticker.time;
+      lastRenderTime = options.ticker.time;
     }, {
       root: scrollRoot,
       rootMargin: `${visibilityMargin}px 0px`,

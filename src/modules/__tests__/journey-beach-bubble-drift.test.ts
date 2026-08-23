@@ -5,6 +5,7 @@ import {
   getBeachBubbleOpacity,
   getBeachBubbleSizeScale,
   getBeachBubbleVerticalBounds,
+  resolveJourneyBeachBubbleRuntimeProfile,
   startJourneyBeachBubbleDrift,
 } from '../journey-beach-bubble-drift';
 
@@ -18,6 +19,20 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(Array.from({ length: 10 }, (_, index) => getBeachBubbleOpacity(index)))
       .toEqual([0.2, 0.3, 0.4, 0.5, 0.6, 0.2, 0.3, 0.4, 0.5, 0.6]);
     expect(getBeachBubbleVerticalBounds(600, 40)).toEqual({ startY: 600, endY: -54 });
+  });
+
+  test('uses the thermal bubble profile on iPhone, iPad and Android while preserving desktop', () => {
+    expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyBeachBubbleRuntimeProfile(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
+    )).toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0 });
   });
 
   test('renders eighteen pooled logical bubbles through two viewport canvases and zero sprite DOM nodes', () => {
@@ -115,6 +130,9 @@ describe('Journey Beach ambient Bottle bubbles', () => {
       domImageCount: 0,
       activeBubbleCount: 7,
       maxOpacity: 0.6,
+      pixelRatio: 2,
+      maxFramesPerSecond: 0,
+      visibilityMarginPx: 180,
     });
     expect(snapshot.emitterBoardIds).toEqual([11, 13, 14, 16, 17, 19, 20]);
     expect(snapshot.behindBubbleCount).toBeGreaterThanOrEqual(7);
@@ -125,6 +143,9 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     const initialTransform = canvases[0].style.transform;
     scrollRoot.scrollTop = 900;
     scrollRoot.dispatchEvent(new Event('scroll'));
+    expect(canvases[0].style.transform).toBe(initialTransform);
+    ticker.time += 1 / 30;
+    callbacks.forEach((callback) => callback());
     expect(canvases[0].style.transform).not.toBe(initialTransform);
     expect(canvases[0].style.transform).toBe(canvases[1].style.transform);
 
@@ -138,6 +159,7 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(canvases.every((canvas) => canvas.style.willChange === 'transform')).toBe(true);
 
     artTopByBoard.set(11, (artTopByBoard.get(11) ?? 0) + 50);
+    window.dispatchEvent(new Event('resize'));
     for (let frame = 0; frame < 240; frame += 1) {
       ticker.time += 0.05;
       callbacks.forEach((callback) => callback());
@@ -154,6 +176,56 @@ describe('Journey Beach ambient Bottle bubbles', () => {
     expect(controller.getSnapshot()).toMatchObject({
       disposed: true, bubbleCount: 0, layerCount: 0, tickerCount: 0,
     });
+    scrollRoot.remove();
+  });
+
+  test('keeps all eighteen bubbles and both depth canvases under the iPhone thermal profile', () => {
+    Object.defineProperties(window, {
+      innerWidth: { configurable: true, value: 390 },
+      innerHeight: { configurable: true, value: 844 },
+      devicePixelRatio: { configurable: true, value: 3 },
+    });
+    const scrollRoot = document.createElement('div');
+    Object.defineProperties(scrollRoot, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    const root = document.createElement('div');
+    root.style.height = '1440px';
+    scrollRoot.appendChild(root);
+    document.body.appendChild(scrollRoot);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 5,
+      add: (callback: () => void) => callbacks.add(callback),
+      remove: (callback: () => void) => callbacks.delete(callback),
+    };
+    const controller = startJourneyBeachBubbleDrift({
+      root,
+      scrollRoot,
+      ticker,
+      random: () => 0.5,
+      observeVisibility: false,
+      runtimeProfile: resolveJourneyBeachBubbleRuntimeProfile('iPhone'),
+    });
+
+    expect(controller.getSnapshot()).toMatchObject({
+      bubbleCount: 18,
+      layerCount: 2,
+      tickerCount: 1,
+      pixelRatio: 1.5,
+      bitmapPixels: 585 * 1260 * 2,
+      maxFramesPerSecond: 30,
+      visibilityMarginPx: 120,
+    });
+    const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-beach-bubble-canvas'));
+    expect(canvases).toHaveLength(2);
+    expect(canvases.every((canvas) => canvas.style.height === '840px')).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 585 && canvas.height === 1260)).toBe(true);
+
+    controller.dispose();
+    expect(callbacks.size).toBe(0);
+    expect(root.querySelectorAll('.journey-beach-bubble-canvas')).toHaveLength(0);
     scrollRoot.remove();
   });
 

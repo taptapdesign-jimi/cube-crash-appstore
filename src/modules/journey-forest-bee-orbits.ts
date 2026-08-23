@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import {
   startJourneyAmbientCanvasRuntime,
   type JourneyAmbientCanvasDepth,
@@ -94,6 +95,33 @@ interface StartJourneyForestBeeOrbitsOptions {
   random?: () => number;
   ticker?: JourneyAmbientTicker;
   observeVisibility?: boolean;
+  runtimeProfile?: JourneyForestBeeRuntimeProfile;
+}
+
+export interface JourneyForestBeeRuntimeProfile {
+  visibilityMarginPx: number;
+  pixelRatioCap: number;
+  maxFramesPerSecond: number;
+}
+
+export function resolveJourneyForestBeeRuntimeProfile(
+  userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+  platform = typeof navigator !== 'undefined' ? navigator.platform : '',
+  maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0,
+): JourneyForestBeeRuntimeProfile {
+  const mobileProfile = resolveMobileRuntimeProfile({ userAgent, platform, maxTouchPoints });
+  if (mobileProfile.isMobileDevice) {
+    return {
+      visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
+      pixelRatioCap: mobileProfile.ambientPixelRatioCap,
+      maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
+    };
+  }
+  return {
+    visibilityMarginPx: FOREST_BEE_VISIBILITY_MARGIN_PX,
+    pixelRatioCap: 2,
+    maxFramesPerSecond: 0,
+  };
 }
 
 export interface JourneyForestBeeOrbitController {
@@ -116,6 +144,10 @@ export interface JourneyForestBeeOrbitController {
     renderer: 'canvas';
     canvasCount: number;
     domImageCount: number;
+    pixelRatio: number;
+    bitmapPixels: number;
+    maxFramesPerSecond: number;
+    visibilityMarginPx: number;
   };
 }
 
@@ -578,12 +610,13 @@ function drawBeeAsset(
   context.restore();
 }
 
-/** Nineteen reusable logical bees painted by the shared two-canvas runtime. */
+/** Twenty-five reusable logical bees painted by the shared two-canvas runtime. */
 export function startJourneyForestBeeOrbits(
   options: StartJourneyForestBeeOrbitsOptions,
 ): JourneyForestBeeOrbitController {
   const ticker = options.ticker || gsap.ticker;
   const random = options.random || Math.random;
+  const runtimeProfile = options.runtimeProfile ?? resolveJourneyForestBeeRuntimeProfile();
   const assetImages = new Map<ForestBeeAsset, HTMLImageElement>();
   if (typeof Image !== 'undefined') FOREST_BEE_ASSETS.forEach((asset) => {
     const image = new Image();
@@ -750,7 +783,9 @@ export function startJourneyForestBeeOrbits(
     sceneHeightPx: sceneHeight,
     layerLeftPx: -options.leftGutterPx,
     layerTopPx: 0,
-    visibilityMarginPx: FOREST_BEE_VISIBILITY_MARGIN_PX,
+    visibilityMarginPx: runtimeProfile.visibilityMarginPx,
+    pixelRatioCap: runtimeProfile.pixelRatioCap,
+    maxFramesPerSecond: runtimeProfile.maxFramesPerSecond,
     // Keep every bee above clouds. The behind canvas sits immediately before
     // the World background at the same z-index, so Forest/Main/Unit art can
     // still occlude a bee without any cloud ever painting over it.
@@ -797,6 +832,10 @@ export function startJourneyForestBeeOrbits(
         renderer: 'canvas' as const,
         canvasCount: runtimeSnapshot.canvasCount,
         domImageCount: 0,
+        pixelRatio: runtimeSnapshot.pixelRatio,
+        bitmapPixels: runtimeSnapshot.bitmapPixels,
+        maxFramesPerSecond: runtimeSnapshot.maxFramesPerSecond,
+        visibilityMarginPx: runtimeSnapshot.visibilityMarginPx,
       };
     },
   };

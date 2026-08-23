@@ -111,6 +111,7 @@ function snapshotState(): Record<string, unknown> {
 }
 
 export function beginJourneyPlayAgainIncidentCycle(detail: Record<string, unknown> = {}): number {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return activeCycle;
   try {
     const entries = safeRead();
     const highestCycle = entries.reduce((highest, entry) => Math.max(highest, Number(entry?.cycle) || 0), 0);
@@ -125,6 +126,7 @@ export function recordJourneyPlayAgainIncident(
   detail: Record<string, unknown> = {},
   cycle = activeCycle,
 ): void {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return;
   try {
     const entry: JourneyPlayAgainIncidentEntry = {
       version: 1,
@@ -142,6 +144,7 @@ export function recordJourneyPlayAgainIncident(
 }
 
 export function dumpJourneyPlayAgainIncidentRing(): JourneyPlayAgainIncidentEntry[] {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return [];
   const entries = safeRead();
   try {
     if (entries.length > 0) console.info('🧪 JourneyPlayAgainIncidentRing', entries);
@@ -155,3 +158,4 @@ export function resetJourneyPlayAgainIncidentRingForTests(): void {
 }
 
 export const JOURNEY_PLAY_AGAIN_INCIDENT_RING_MAX_ENTRIES = MAX_ENTRIES;
+import { areContinuousRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';

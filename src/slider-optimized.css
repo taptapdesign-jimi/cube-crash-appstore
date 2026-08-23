@@ -241,6 +241,29 @@
   animation: settingsGlow 3.5s ease-in-out infinite;
 }
 
+/*
+ * Mobile thermal contract: Homepage keeps its authored animation recipes and
+ * timing, but only the physically active slide is allowed to advance an idle
+ * animation. Desktop remains unchanged for visual development/inspection.
+ */
+.cc-mobile-runtime #home .slider-slide .hero-image {
+  animation-play-state: paused;
+}
+
+.cc-mobile-runtime #home:not([hidden]) .slider-slide.active .hero-image {
+  animation-play-state: running;
+}
+
+/* The slider wrapper is promoted only during an owned drag or while GSAP sets
+ * an inline transition hint. Avoid retaining an idle four-slide GPU layer. */
+.cc-mobile-runtime #slider-wrapper {
+  will-change: auto;
+}
+
+.cc-mobile-runtime #slider-container.dragging #slider-wrapper {
+  will-change: transform;
+}
+
 @keyframes settingsGlow {
   0%, 100% {
     transform: translateY(0px) rotate(0deg) scale(1);

@@ -1,3 +1,9 @@
+import {
+  MOBILE_RUNTIME_PROFILE,
+  type MobileRuntimeProfile,
+} from './mobile-runtime-profile.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+
 type JourneySpatialSurface = 'homepage' | 'journey-hub' | 'journey-world' | 'journey-detail-modal' | 'arcade-stage-clear' | 'board-transition' | 'gameplay';
 
 type SpatialTarget = {
@@ -354,6 +360,10 @@ export class AppSpatialMotionController {
   private orientationEvents = 0;
   private spatialRenderFrames = 0;
 
+  public constructor(
+    private readonly runtimeProfile: MobileRuntimeProfile = MOBILE_RUNTIME_PROFILE,
+  ) {}
+
   private readonly handleOrientation = (event: DeviceOrientationEvent): void => {
     if (!this.hasMotionDemand() || document.hidden) return;
     if (this.activeSurface === 'homepage' && !this.isHomepageVisible()) {
@@ -377,7 +387,7 @@ export class AppSpatialMotionController {
     }
 
     const normalizedTilt = normalizeJourneySpatialTilt(beta, gamma, this.baselineBeta, this.baselineGamma);
-    const nextTilt = this.activeSurface === 'journey-world'
+    const nextTilt = this.activeSurface === 'journey-world' || this.activeSurface === 'journey-hub'
       ? quantizeJourneyWorldTilt(normalizedTilt)
       : normalizedTilt;
     if (nextTilt.x === this.targetTilt.x && nextTilt.y === this.targetTilt.y) return;
@@ -514,6 +524,7 @@ export class AppSpatialMotionController {
   /** Read-only, bounded physical-iPhone audit. It owns one temporary RAF and
    * reports once; it never changes motion state or surface ownership. */
   public profileFrameWindow(label: string, durationMs = 6000): void {
+    if (!areContinuousRuntimeDiagnosticsEnabled()) return;
     if (this.profileFrameId !== null || typeof window.requestAnimationFrame !== 'function') return;
     const startedAt = performance.now();
     let previousFrameAt = startedAt;
@@ -1287,6 +1298,15 @@ export class AppSpatialMotionController {
   private renderFrame(now: number): void {
     this.frameId = null;
     if (!this.hasMotionDemand() || document.hidden) return;
+    const spatialMaxFramesPerSecond = this.runtimeProfile.spatialMaxFramesPerSecond;
+    if (
+      spatialMaxFramesPerSecond > 0
+      && this.lastRenderAt !== null
+      && (now - this.lastRenderAt) < ((1000 / spatialMaxFramesPerSecond) - 1)
+    ) {
+      this.ensureFrame();
+      return;
+    }
     this.spatialRenderFrames += 1;
 
     const isJourneyScene = this.activeSurface === 'journey-hub'
@@ -1345,7 +1365,11 @@ export class AppSpatialMotionController {
         xDepth * surfaceGain.x,
         yDepth * surfaceGain.y,
       );
-      element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
+      this.setStylePropertyIfChanged(
+        element,
+        'translate',
+        `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`,
+      );
     });
     this.applyModalTilt();
   }
@@ -1371,10 +1395,14 @@ export class AppSpatialMotionController {
         const rotateX = -modalTilt.y * (target.rotateXDegrees ?? 0);
         const rotateY = modalTilt.x * (target.rotateYDegrees ?? 0);
         const z = Math.min(1, Math.hypot(modalTilt.x, modalTilt.y)) * (target.zDepth ?? 0);
-        target.element.style.setProperty('translate', `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`);
-        target.element.style.setProperty('--cc-modal-gyro-rx', `${rotateX.toFixed(2)}deg`);
-        target.element.style.setProperty('--cc-modal-gyro-ry', `${rotateY.toFixed(2)}deg`);
-        target.element.style.setProperty('--cc-modal-gyro-z', `${z.toFixed(2)}px`);
+        this.setStylePropertyIfChanged(
+          target.element,
+          'translate',
+          `${offset.x.toFixed(2)}px ${offset.y.toFixed(2)}px`,
+        );
+        this.setStylePropertyIfChanged(target.element, '--cc-modal-gyro-rx', `${rotateX.toFixed(2)}deg`);
+        this.setStylePropertyIfChanged(target.element, '--cc-modal-gyro-ry', `${rotateY.toFixed(2)}deg`);
+        this.setStylePropertyIfChanged(target.element, '--cc-modal-gyro-z', `${z.toFixed(2)}px`);
       });
     });
     if (!this.hasMotionDemand()) {
@@ -1470,7 +1498,7 @@ export class AppSpatialMotionController {
       );
       const x = this.snapGameplayOffset(decorOffset.x);
       const y = this.snapGameplayOffset(decorOffset.y);
-      journeyDecor.style.setProperty('translate', `${x.toFixed(2)}px ${y.toFixed(2)}px`);
+      this.setStylePropertyIfChanged(journeyDecor, 'translate', `${x.toFixed(2)}px ${y.toFixed(2)}px`);
       this.gameplayJourneyDecorElement = journeyDecor;
     } else {
       if (this.gameplayJourneyDecorElement) {
@@ -1543,6 +1571,9 @@ export class AppSpatialMotionController {
   }
 
   private setGameplayWrapperPosition(wrapper: GameplaySpatialWrapper, x: number, y: number): void {
+    const currentX = wrapper.position?.x ?? wrapper.x;
+    const currentY = wrapper.position?.y ?? wrapper.y;
+    if (currentX === x && currentY === y) return;
     if (typeof wrapper.position?.set === 'function') {
       wrapper.position.set(x, y);
       return;
@@ -1554,6 +1585,11 @@ export class AppSpatialMotionController {
     }
     wrapper.x = x;
     wrapper.y = y;
+  }
+
+  private setStylePropertyIfChanged(element: HTMLElement, property: string, value: string): void {
+    if (element.style.getPropertyValue(property) === value) return;
+    element.style.setProperty(property, value);
   }
 
   private removeCompositorHints(): void {

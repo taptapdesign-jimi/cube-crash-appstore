@@ -1160,16 +1160,18 @@ class SliderManager {
             force3D: true, // GPU acceleration
             overwrite: 'auto', // 🔥 FIX: 'auto' instead of true - prevents killing animation before it starts
             onStart: () => {
+              if (this.elements.wrapper) {
+                this.elements.wrapper.style.willChange = 'transform';
+              }
               if (forceAnimate && this.pendingHeroBounceSlide === this.currentSlide) {
                 this.pendingHeroBounceSlide = null;
                 this.scheduleHeroBounceBeforeSlideSettle();
               }
               logger.info(`🎬 GSAP animation STARTED: ${offset}px`);
             },
-            onUpdate: () => {
-              // 🔥 SMOOTH: Force GPU layer update for smooth 60fps
+            onInterrupt: () => {
               if (this.elements.wrapper) {
-                this.elements.wrapper.style.willChange = 'transform';
+                this.elements.wrapper.style.willChange = 'auto';
               }
             },
             onComplete: () => {

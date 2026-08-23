@@ -7,6 +7,7 @@
 
 import { logger } from '../core/logger.js';
 import { isAssetAliasRegistered, markAssetAliasRegistered } from './asset-registry.js';
+import { MOBILE_RUNTIME_PROFILE } from '../modules/mobile-runtime-profile.js';
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
@@ -42,6 +43,64 @@ const CRITICAL_HUD_ICONS: string[] = [
   './assets/hud/mega-combo-hud@3x.png',
   './assets/close-icon.png'
 ];
+
+const MOBILE_HUD_ICONS: string[] = [
+  './assets/hud/star-hud.png',
+  './assets/hud/score-hud.png',
+  './assets/hud/combo-hud.png',
+  './assets/hud/extra-combo-hud.png',
+  './assets/hud/mega-combo-hud.png',
+  './assets/close-icon.png',
+];
+
+const mobileImageLoads = new Map<string, Promise<void>>();
+
+function withCurrentDpr(path: string): string {
+  if (typeof window === 'undefined' || window.devicePixelRatio < 1.5) return path;
+  return path.replace(/\.png$/i, '@2x.png');
+}
+
+function loadMobileImageOnce(url: string): Promise<void> {
+  const existing = mobileImageLoads.get(url);
+  if (existing) return existing;
+  const load = new Promise<void>((resolve) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = url;
+    if (image.complete && image.naturalWidth > 0) resolve();
+  }).then(() => undefined);
+  mobileImageLoads.set(url, load);
+  return load;
+}
+
+async function loadMobileLaunchRouteAssets(): Promise<void> {
+  const routeAssets = [
+    withCurrentDpr('./assets/crash-cubes-homepage.png'),
+    withCurrentDpr('./assets/journey-map-homepage.png'),
+    withCurrentDpr('./assets/collectibles-box.png'),
+    withCurrentDpr('./assets/settings-slider.png'),
+    withCurrentDpr('./assets/logo-cube-crash.png'),
+    './assets/logo addons/gore ljevo shards.png',
+    './assets/logo addons/shards gore desno.png',
+    './assets/logo addons/dole ljevi shards.png',
+    './assets/logo addons/dole desni.png',
+    './assets/nav/cube-nav.png',
+    './assets/nav/stats-nav.png',
+    './assets/nav/collectibles-nav.png',
+    './assets/nav/settings-nav.png',
+    './assets/paper-bg.png',
+  ];
+  const pending = [...new Set(routeAssets)];
+  const workers = Array.from({ length: Math.min(2, pending.length) }, async () => {
+    while (pending.length > 0) {
+      const asset = pending.shift();
+      if (asset) await loadMobileImageOnce(asset);
+    }
+  });
+  await Promise.all(workers);
+}
 
 // All images that need to be preloaded at startup
 const ALL_STARTUP_IMAGES: string[] = [
@@ -289,7 +348,8 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     
     // Register all HUD icons with PIXI Assets FIRST and check cache
     // 🔥 Use Assets.cache.has() instead of Assets.get() - get() triggers PixiJS warning when not found
-    for (const iconPath of CRITICAL_HUD_ICONS) {
+    const hudIcons = MOBILE_RUNTIME_PROFILE.isMobileDevice ? MOBILE_HUD_ICONS : CRITICAL_HUD_ICONS;
+    for (const iconPath of hudIcons) {
       try {
         // Check if already loaded - use cache.has() to avoid "Asset was not found in Cache" warning
         if (typeof Assets.cache?.has === 'function' && Assets.cache.has(iconPath)) {
@@ -311,11 +371,11 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
       }
     }
     
-    logger.info(`📊 HUD icons cache status: ${cachedCount}/${CRITICAL_HUD_ICONS.length} already cached, ${iconsToLoad.length} need loading`);
+    logger.info(`📊 HUD icons cache status: ${cachedCount}/${hudIcons.length} already cached, ${iconsToLoad.length} need loading`);
     
     // If all icons are cached, return immediately
     if (iconsToLoad.length === 0) {
-      logger.info(`✅ All ${CRITICAL_HUD_ICONS.length} HUD icons already in cache - instant load`);
+      logger.info(`✅ All ${hudIcons.length} HUD icons already in cache - instant load`);
       return;
     }
     
@@ -359,7 +419,7 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
         // If we get here, loading completed (not timeout)
         const successCount = result.filter((r: any) => r.status === 'fulfilled').length;
         const totalLoaded = cachedCount + successCount;
-        logger.info(`✅ ${totalLoaded}/${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache (${successCount} new, ${cachedCount} cached)`);
+        logger.info(`✅ ${totalLoaded}/${hudIcons.length} HUD icons loaded into PIXI Assets cache (${successCount} new, ${cachedCount} cached)`);
       } catch (timeoutError: any) {
         // Timeout occurred - continue anyway, icons will load lazily
         if (timeoutError?.message === 'HUD icons loading timeout') {
@@ -502,6 +562,15 @@ export async function preloadAllStartupImages(): Promise<void> {
   
   preloadPromise = (async () => {
     try {
+      if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+        logger.info('📱 Loading bounded mobile launch-route assets');
+        await Promise.all([
+          loadHudIconsIntoPixiCache(),
+          loadMobileLaunchRouteAssets(),
+        ]);
+        isPreloading = false;
+        return;
+      }
       logger.info(`📦 Starting comprehensive image preloading (${ALL_STARTUP_IMAGES.length} images)...`);
       
       // Check if cache is valid

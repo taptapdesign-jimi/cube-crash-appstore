@@ -1,298 +1,271 @@
-// Confetti system with continuous spawning
-// Performance optimized: efficient cleanup, no memory leaks
+const CONFETTI_COLORS = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
+const BURST_COUNT = 5;
+const PIECES_PER_ORIGIN = 15;
+const BURST_INTERVAL_MS = 1000;
+const PARTICLE_DURATION_MS = 3000;
+const MOBILE_CANVAS_PIXEL_RATIO = 1;
+const DESKTOP_CANVAS_PIXEL_RATIO_CAP = 1.5;
+const EASE_OUT_SAMPLE_COUNT = 256;
 
-let activeAnimations = 0;
-const MAX_ANIMATIONS = 800; // Increased for continuous spawn
-let confettiCleanupInProgress = false;
-let confettiSpawnBlocked = false;
-
-// 🔥 MEMORY LEAK FIX: Track all active intervals, timeouts, and DOM elements for cleanup
-const activeIntervals: Set<NodeJS.Timeout> = new Set();
-const activeTimeouts: Set<NodeJS.Timeout> = new Set(); // 🔥 NEW: Track all setTimeout calls
-const activeConfettiElements: Set<HTMLElement> = new Set();
-const activeAnimProgressIntervals: Set<NodeJS.Timeout> = new Set();
-
-function createConfettiExplosion(element: HTMLElement): void {
-  if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
-  const confettiPerSpawn = 15;
-  const screenW = window.innerWidth;
-  const screenH = window.innerHeight;
-  
-  // Start immediately, no delay - spawn first batch right away (400ms earlier)
-  
-  // Spawn every 1 second
-  let spawnCount = 0;
-  const maxSpawns = 5; // Spawn for 5 seconds total
-  
-  // Helper function to spawn a batch
-  const spawnBatch = (isFirstBatch = false) => {
-    if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-    if (spawnCount >= maxSpawns) {
-      return;
-    }
-    
-    // For first batch, start immediately (no delay) to start 400ms earlier
-    // For subsequent batches, use small random delays
-    const delay = isFirstBatch ? 0 : Math.random() * 200;
-    
-    // Spawn from 4 top positions - Track all setTimeout calls for cleanup
-    const timeout1 = setTimeout(() => {
-      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-      activeTimeouts.delete(timeout1);
-      createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left');
-    }, delay);
-    activeTimeouts.add(timeout1);
-    
-    const timeout2 = setTimeout(() => {
-      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-      activeTimeouts.delete(timeout2);
-      createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right');
-    }, delay);
-    activeTimeouts.add(timeout2);
-    
-    const timeout3 = setTimeout(() => {
-      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-      activeTimeouts.delete(timeout3);
-      createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left');
-    }, delay);
-    activeTimeouts.add(timeout3);
-    
-    const timeout4 = setTimeout(() => {
-      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-      activeTimeouts.delete(timeout4);
-      createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right');
-    }, delay);
-    activeTimeouts.add(timeout4);
-    
-    spawnCount++;
-  };
-  
-  // Spawn first batch immediately with no delay (400ms earlier than before)
-  spawnBatch(true);
-  
-  // Then continue with interval
-  const spawnInterval = setInterval(() => {
-    if (confettiCleanupInProgress || confettiSpawnBlocked) {
-      clearInterval(spawnInterval);
-      activeIntervals.delete(spawnInterval);
-      return;
-    }
-    if (spawnCount >= maxSpawns) {
-      clearInterval(spawnInterval);
-      activeIntervals.delete(spawnInterval);
-      return;
-    }
-    spawnBatch();
-  }, 1000); // Every 1 second
-  
-  activeIntervals.add(spawnInterval);
+interface ConfettiParticle {
+  bornAt: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  width: number;
+  height: number;
+  borderRadius: number;
+  rotationTravel: number;
+  color: string;
 }
 
-function createSpawn(
-  colors: string[],
-  count: number,
+let canvas: HTMLCanvasElement | null = null;
+let context: CanvasRenderingContext2D | null = null;
+let particles: ConfettiParticle[] = [];
+let animationFrame = 0;
+let spawnBlocked = false;
+let cleanupInProgress = false;
+let burstCount = 0;
+let nextBurstAt = 0;
+let canvasWidth = 1;
+let canvasHeight = 1;
+let pixelRatio = 1;
+
+function cubicBezierCoordinate(time: number, control1: number, control2: number): number {
+  const inverse = 1 - time;
+  return (3 * inverse * inverse * time * control1)
+    + (3 * inverse * time * time * control2)
+    + (time * time * time);
+}
+
+// The accepted DOM implementation used CSS `ease-out`, which resolves to
+// cubic-bezier(0, 0, 0.58, 1). Precompute it once so the canvas path matches
+// that motion without solving a bezier for every particle on every frame.
+const EASE_OUT_SAMPLES = Array.from({ length: EASE_OUT_SAMPLE_COUNT + 1 }, (_, index) => {
+  const progress = index / EASE_OUT_SAMPLE_COUNT;
+  let low = 0;
+  let high = 1;
+  for (let iteration = 0; iteration < 20; iteration += 1) {
+    const midpoint = (low + high) / 2;
+    const x = cubicBezierCoordinate(midpoint, 0, 0.58);
+    if (x < progress) low = midpoint;
+    else high = midpoint;
+  }
+  return cubicBezierCoordinate((low + high) / 2, 0, 1);
+});
+
+function acceptedEaseOut(progress: number): number {
+  const bounded = Math.max(0, Math.min(1, progress));
+  const samplePosition = bounded * EASE_OUT_SAMPLE_COUNT;
+  const lowerIndex = Math.floor(samplePosition);
+  const upperIndex = Math.min(EASE_OUT_SAMPLE_COUNT, lowerIndex + 1);
+  const mix = samplePosition - lowerIndex;
+  return EASE_OUT_SAMPLES[lowerIndex]
+    + ((EASE_OUT_SAMPLES[upperIndex] - EASE_OUT_SAMPLES[lowerIndex]) * mix);
+}
+
+function isMobileRuntime(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPad|iPhone|iPod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function resizeCanvas(): void {
+  if (!canvas || !context) return;
+  canvasWidth = Math.max(1, window.innerWidth || 1);
+  canvasHeight = Math.max(1, window.innerHeight || 1);
+  pixelRatio = isMobileRuntime()
+    ? MOBILE_CANVAS_PIXEL_RATIO
+    : Math.min(window.devicePixelRatio || 1, DESKTOP_CANVAS_PIXEL_RATIO_CAP);
+  canvas.width = Math.max(1, Math.ceil(canvasWidth * pixelRatio));
+  canvas.height = Math.max(1, Math.ceil(canvasHeight * pixelRatio));
+  canvas.style.width = `${canvasWidth}px`;
+  canvas.style.height = `${canvasHeight}px`;
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+}
+
+function ensureCanvas(): boolean {
+  if (canvas?.isConnected && context) return true;
+  canvas = document.createElement('canvas');
+  canvas.className = 'cc-confetti-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.style.cssText = [
+    'position:fixed',
+    'inset:0',
+    'display:block',
+    'pointer-events:none',
+    'user-select:none',
+    'contain:strict',
+    'z-index:99999999999999',
+  ].join(';');
+  context = canvas.getContext('2d', { alpha: true, desynchronized: true });
+  if (!context) {
+    canvas.remove();
+    canvas = null;
+    return false;
+  }
+  document.body.appendChild(canvas);
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas, { passive: true });
+  return true;
+}
+
+function addOrigin(
+  now: number,
+  batchDelay: number,
   startX: number,
-  startY: number,
   baseAngle: number,
-  side: 'left' | 'right'
+  side: 'left' | 'right',
 ): void {
-  if (confettiCleanupInProgress || confettiSpawnBlocked) return;
   const isLeft = side === 'left';
-  
-  // Random spawn: each confetti gets random delay 0-2600ms (reduced by 400ms to start earlier)
-  for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
-    if (confettiCleanupInProgress || confettiSpawnBlocked) break;
-    const spawnDelay = Math.max(0, Math.random() * 3000 - 400); // Start 400ms earlier
-    
-    const spawnTimeout = setTimeout(() => {
-      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
-      activeTimeouts.delete(spawnTimeout);
-      const color = colors[i % colors.length];
-      const angleVariant = (Math.random() - 0.5) * 0.25;
-      const angle = baseAngle + angleVariant;
-    
-    // Vary gravity for different groups - some light like feathers, some heavier
-    const weightCategory = i % 3; // 0, 1, or 2
-    let gravityMultiplier, velocityRange;
-    
-    // More confetti fall like feathers (weightCategory 0 and 1)
-    if (weightCategory === 0) {
-      // Ultra light - moderate speed
-      gravityMultiplier = 0.3 + Math.random() * 0.1; // 0.3-0.4
-      velocityRange = { min: 120, max: 180 };
-    } else if (weightCategory === 1) {
-      // Light - moderate to fast speed
-      gravityMultiplier = 0.35 + Math.random() * 0.1; // 0.35-0.45
-      velocityRange = { min: 150, max: 220 };
-    } else {
-      // Medium weight - faster speed
-      gravityMultiplier = 0.4 + Math.random() * 0.15; // 0.4-0.55
-      velocityRange = { min: 180, max: 280 };
-    }
-    
-    const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
-    const velX = Math.cos(angle) * vel;
-    const velY = Math.sin(angle) * vel * gravityMultiplier;
-    
-    // Create confetti div element
-    const isStrip = i % 2 === 0;
-    const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2;
-    const h = isStrip ? 8 + Math.random() * 7 : 6 + Math.random() * 4;
-    
-    const confetti = document.createElement('div');
-    confetti.className = 'cc-confetti-piece';
-    
-    const style = confetti.style;
-    style.position = 'fixed';
-    style.left = `${startX + (isLeft ? Math.random() * 150 : -Math.random() * 150)}px`;
-    style.top = `${startY + Math.random() * 50}px`;
-    style.width = `${w}px`;
-    style.height = `${h}px`;
-    style.backgroundColor = color;
-    style.borderRadius = isStrip ? '2px' : '1px';
-    style.pointerEvents = 'none';
-    style.zIndex = '99999999999999';
-    style.transform = `rotate(${Math.random() * 360}deg)`;
-    style.opacity = '0.9';
-    
-    document.body.appendChild(confetti);
-    activeAnimations++;
-    activeConfettiElements.add(confetti);
-    
-    const duration = 3000; // 3 seconds total duration
-    const screenHeight = window.innerHeight;
-    
-    // Enhanced wiggly movement with more oscillation
-    const wiggleAmount = 80 + Math.random() * 120; // More oscillation
+  for (let index = 0; index < PIECES_PER_ORIGIN; index += 1) {
+    const angle = baseAngle + ((Math.random() - 0.5) * 0.25);
+    const weightCategory = index % 3;
+    const velocityMin = weightCategory === 0 ? 120 : weightCategory === 1 ? 150 : 180;
+    const velocityMax = weightCategory === 0 ? 180 : weightCategory === 1 ? 220 : 280;
+    const velocity = velocityMin + (Math.random() * (velocityMax - velocityMin));
+    const isStrip = index % 2 === 0;
+    const originX = startX + (isLeft ? Math.random() * 150 : -Math.random() * 150);
+    const startY = -(canvasHeight * 0.3) + (Math.random() * 50);
+    const wiggleAmount = 80 + (Math.random() * 120);
     const wigglePhase = Math.random() * Math.PI * 2;
-    
-    const endY = screenHeight * 1.3; // Fall to 130% of screen height
-    const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
-    const endRot = 360 + Math.random() * 720;
-    
-    // Confetti animation with fade-out
-    const anim = confetti.animate([
-      {
-        transform: `translate(0, 0) rotate(0deg)`,
-        opacity: 0.9
-      },
-      {
-        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
-        opacity: 0.9
-      }
-    ], {
-      duration,
-      easing: 'ease-out',
-      fill: 'forwards'
+    const endTranslationX = (Math.cos(angle) * velocity * 2)
+      + (Math.sin(wigglePhase + 1) * wiggleAmount);
+    particles.push({
+      bornAt: now + batchDelay + Math.max(0, (Math.random() * 3000) - 400),
+      startX: originX,
+      startY,
+      endX: originX + endTranslationX,
+      // The accepted DOM keyframe used translateY(130vh), not an absolute
+      // destination at 130vh. Preserve that exact path from the -30vh origin.
+      endY: startY + (canvasHeight * 1.3),
+      width: isStrip ? 3 + Math.random() : 4 + (Math.random() * 2),
+      height: isStrip ? 8 + (Math.random() * 7) : 6 + (Math.random() * 4),
+      borderRadius: isStrip ? 2 : 1,
+      rotationTravel: 360 + (Math.random() * 720),
+      color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
     });
-    
-    // Instant fade-out below screen: 400px past bottom for modal clearance
-    const fadeOutY = screenHeight + 400;
-    const animProgress = setInterval(() => {
-      if (!confetti.parentNode || !activeConfettiElements.has(confetti)) {
-        clearInterval(animProgress);
-        activeAnimProgressIntervals.delete(animProgress);
-        return;
-      }
-      const rect = confetti.getBoundingClientRect();
-      const currentY = rect.top;
-      
-      if (currentY >= fadeOutY) {
-        confetti.style.opacity = '0';
-        confetti.style.transform = 'scale(0)';
-        clearInterval(animProgress);
-        activeAnimProgressIntervals.delete(animProgress);
-      }
-    }, 10);
-    
-    activeAnimProgressIntervals.add(animProgress);
-    
-    anim.onfinish = () => {
-      if (activeAnimProgressIntervals.has(animProgress)) {
-        try { clearInterval(animProgress); } catch {}
-        activeAnimProgressIntervals.delete(animProgress);
-      }
-      confetti.remove();
-      activeAnimations--;
-      if (activeAnimations < 0) activeAnimations = 0;
-      activeConfettiElements.delete(confetti);
-    };
-    }, spawnDelay);
-    activeTimeouts.add(spawnTimeout);
   }
 }
 
-// Graceful cleanup: Stop new spawns but let existing animations finish
-// This allows confetti to continue animating after Continue is clicked
+function spawnBurst(now: number): void {
+  const batchDelay = burstCount === 0 ? 0 : Math.random() * 200;
+  addOrigin(now, batchDelay, -(canvasWidth * 0.3), Math.PI / 4, 'left');
+  addOrigin(now, batchDelay, canvasWidth * 1.3, (3 * Math.PI) / 4, 'right');
+  addOrigin(now, batchDelay, canvasWidth * 0.25, (Math.PI / 2) - 0.3, 'left');
+  addOrigin(now, batchDelay, canvasWidth * 0.75, (Math.PI / 2) + 0.3, 'right');
+  burstCount += 1;
+  nextBurstAt = now + BURST_INTERVAL_MS;
+}
+
+function drawParticle(particle: ConfettiParticle, now: number): boolean {
+  if (!context || now < particle.bornAt) return now < particle.bornAt + PARTICLE_DURATION_MS;
+  const progress = Math.min(1, (now - particle.bornAt) / PARTICLE_DURATION_MS);
+  if (progress >= 1) return false;
+  const travel = acceptedEaseOut(progress);
+  const x = particle.startX + ((particle.endX - particle.startX) * travel);
+  const y = particle.startY + ((particle.endY - particle.startY) * travel);
+
+  context.save();
+  context.translate(x, y);
+  context.rotate((particle.rotationTravel * travel) * (Math.PI / 180));
+  context.globalAlpha = 0.9;
+  context.fillStyle = particle.color;
+  context.beginPath();
+  if (typeof context.roundRect === 'function') {
+    context.roundRect(
+      -particle.width / 2,
+      -particle.height / 2,
+      particle.width,
+      particle.height,
+      particle.borderRadius,
+    );
+    context.fill();
+  } else {
+    // Older mobile canvases still receive the exact accepted motion; only the
+    // tiny corner radius falls back to a regular rectangle.
+    context.fillRect(-particle.width / 2, -particle.height / 2, particle.width, particle.height);
+  }
+  context.restore();
+  return true;
+}
+
+function finishRuntimeIfIdle(): boolean {
+  if (particles.length > 0 || (!spawnBlocked && burstCount < BURST_COUNT)) return false;
+  animationFrame = 0;
+  window.removeEventListener('resize', resizeCanvas);
+  canvas?.remove();
+  canvas = null;
+  context = null;
+  return true;
+}
+
+function renderFrame(now: number): void {
+  animationFrame = 0;
+  if (cleanupInProgress || !canvas || !context) return;
+  if (!spawnBlocked && burstCount < BURST_COUNT && now >= nextBurstAt) spawnBurst(now);
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.clearRect(0, 0, canvasWidth, canvasHeight);
+  particles = particles.filter((particle) => drawParticle(particle, now));
+  if (finishRuntimeIfIdle()) return;
+  animationFrame = requestAnimationFrame(renderFrame);
+}
+
+export function createConfettiExplosion(_element: HTMLElement): void {
+  if (cleanupInProgress || spawnBlocked) return;
+  if (canvas || particles.length > 0 || animationFrame) cleanupConfetti();
+  spawnBlocked = false;
+  if (!ensureCanvas()) return;
+  const now = performance.now();
+  burstCount = 0;
+  nextBurstAt = now;
+  spawnBurst(now);
+  animationFrame = requestAnimationFrame(renderFrame);
+}
+
+// Stop future waves and delayed particles while allowing already-visible pieces
+// to finish their current flight.
 export function stopConfettiSpawns(): void {
-  confettiSpawnBlocked = true;
-  // Clear all spawn intervals (stops new batches from spawning)
-  activeIntervals.forEach(interval => {
-    try {
-      clearInterval(interval);
-    } catch (e) {
-      // Ignore errors
-    }
-  });
-  activeIntervals.clear();
-  
-  // Clear all pending setTimeout calls (stops new confetti from spawning)
-  activeTimeouts.forEach(timeout => {
-    try {
-      clearTimeout(timeout);
-    } catch (e) {
-      // Ignore errors
-    }
-  });
-  activeTimeouts.clear();
-  
-  // DO NOT clear animProgress intervals - they're needed for fade-out animation
-  // DO NOT remove DOM elements - let them finish their animations
-  // Elements will cleanup themselves via onfinish callback when animation completes
+  spawnBlocked = true;
+  const now = performance.now();
+  particles = particles.filter((particle) => particle.bornAt <= now);
+  finishRuntimeIfIdle();
 }
 
-// Full cleanup function to clear all confetti animations (for restart/exit)
 export function cleanupConfetti(): void {
-  confettiCleanupInProgress = true;
-  confettiSpawnBlocked = true;
-  try {
-    // First stop all new spawns
-    stopConfettiSpawns();
-    
-    // Clear all animProgress intervals (force cleanup)
-    activeAnimProgressIntervals.forEach(interval => {
-      try {
-        clearInterval(interval);
-      } catch (e) {
-        // Ignore errors
-      }
-    });
-    activeAnimProgressIntervals.clear();
-    
-    // Then remove all DOM elements (force cleanup)
-    activeConfettiElements.forEach(element => {
-      try {
-        if (element && element.parentNode) {
-          element.remove();
-        }
-      } catch (e) {
-        // Ignore errors
-      }
-    });
-    activeConfettiElements.clear();
-    
-    // Reset counter
-    activeAnimations = 0;
-  } finally {
-    confettiCleanupInProgress = false;
-  }
+  cleanupInProgress = true;
+  spawnBlocked = true;
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+  animationFrame = 0;
+  window.removeEventListener('resize', resizeCanvas);
+  canvas?.remove();
+  canvas = null;
+  context = null;
+  particles = [];
+  burstCount = 0;
+  nextBurstAt = 0;
+  cleanupInProgress = false;
 }
 
-// Allow confetti to spawn again after a previous stop/cleanup.
 export function allowConfettiSpawns(): void {
-  if (confettiCleanupInProgress) return;
-  confettiSpawnBlocked = false;
+  if (!cleanupInProgress) spawnBlocked = false;
 }
 
-export { createConfettiExplosion };
+export function getConfettiRuntimeSnapshot(): {
+  canvasCount: number;
+  particleCount: number;
+  animationFrameCount: number;
+  burstCount: number;
+  spawnBlocked: boolean;
+  pixelRatio: number;
+} {
+  return {
+    canvasCount: canvas?.isConnected ? 1 : 0,
+    particleCount: particles.length,
+    animationFrameCount: animationFrame ? 1 : 0,
+    burstCount,
+    spawnBlocked,
+    pixelRatio,
+  };
+}

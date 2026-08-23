@@ -1,4 +1,5 @@
 import { emitIOSNativeDiagnostic } from './ios-native-diagnostic.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';
 
 export interface JourneyWorldEnterAuditContext {
   worldId: number;
@@ -62,6 +63,7 @@ function createRoutePhaseAccumulator(): JourneyRoutePhaseAccumulator {
 }
 
 export function beginIOSJourneyRouteAudit(source = 'homepage-slider'): void {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return;
   if (typeof window === 'undefined' || !/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
   if (activeRouteAudit) finishIOSJourneyRouteAudit('superseded');
 
@@ -212,6 +214,7 @@ export function summarizeJourneyWorldEnterFrames(samples: number[]): JourneyWorl
 export function startIOSJourneyWorldEnterAudit(
   context: JourneyWorldEnterAuditContext,
 ): (reason: string) => void {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return () => {};
   if (typeof window === 'undefined' || !/iPad|iPhone|iPod/.test(navigator.userAgent)) {
     return () => {};
   }

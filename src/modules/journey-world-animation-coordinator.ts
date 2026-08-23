@@ -8,6 +8,10 @@ import {
 } from './journey-v700-motion.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { markIOSJourneyTransitionAudit } from '../utils/ios-journey-world-enter-audit.js';
+import {
+  MOBILE_RUNTIME_PROFILE,
+  type MobileRuntimeProfile,
+} from './mobile-runtime-profile.js';
 
 export interface JourneyWorldAnimationUnit {
   id: string;
@@ -31,6 +35,24 @@ interface JourneyWorldIdleEntry {
     x: (value: number) => void;
     y: (value: number) => void;
   }>;
+  visibilityTargets: HTMLElement[];
+  visibleTargets: Set<HTMLElement>;
+  visibilityResolved: boolean;
+}
+
+const FRAME_INTERVAL_TOLERANCE_MS = 1;
+
+export function shouldRenderJourneySettledIdleFrame(
+  nowSeconds: number,
+  lastPaintSeconds: number | null,
+  maxFramesPerSecond: number,
+): boolean {
+  if (maxFramesPerSecond <= 0 || lastPaintSeconds === null) return true;
+  const minimumIntervalSeconds = Math.max(
+    0,
+    ((1000 / maxFramesPerSecond) - FRAME_INTERVAL_TOLERANCE_MS) / 1000,
+  );
+  return (nowSeconds - lastPaintSeconds) >= minimumIntervalSeconds;
 }
 
 export class JourneyWorldAnimationCoordinator {
@@ -39,6 +61,12 @@ export class JourneyWorldAnimationCoordinator {
   private idleTicker: (() => void) | null = null;
   private idleEntries: JourneyWorldIdleEntry[] = [];
   private idlePaintSuspendedAt: number | null = null;
+  private lastSettledIdlePaintAt: number | null = null;
+  private idleVisibilityObserver: IntersectionObserver | null = null;
+
+  public constructor(
+    private readonly runtimeProfile: MobileRuntimeProfile = MOBILE_RUNTIME_PROFILE,
+  ) {}
 
   public getPhase(): JourneyWorldAnimationPhase {
     return this.phase;
@@ -51,6 +79,9 @@ export class JourneyWorldAnimationCoordinator {
     this.idleTicker = null;
     this.idleEntries = [];
     this.idlePaintSuspendedAt = null;
+    this.lastSettledIdlePaintAt = null;
+    this.idleVisibilityObserver?.disconnect();
+    this.idleVisibilityObserver = null;
     if (resetTransforms) this.phase = 'hidden';
   }
 
@@ -67,6 +98,7 @@ export class JourneyWorldAnimationCoordinator {
     const pausedFor = Math.max(0, now - this.idlePaintSuspendedAt);
     this.idleEntries.forEach((entry) => entry.startTime += pausedFor);
     this.idlePaintSuspendedAt = null;
+    this.lastSettledIdlePaintAt = null;
   }
 
   public async enter(
@@ -344,7 +376,24 @@ export class JourneyWorldAnimationCoordinator {
         x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
         y: gsap.quickSetter(cloud, 'y', 'px') as (value: number) => void,
       }));
-      this.idleEntries.push({ startTime, speed, phaseOffset, ySetters, cloudSetters });
+      const visibilityTargets = Array.from(new Set(unit.targets));
+      const entry: JourneyWorldIdleEntry = {
+        startTime,
+        speed,
+        phaseOffset,
+        ySetters,
+        cloudSetters,
+        visibilityTargets,
+        // Treat every target as potentially visible until its own observer
+        // record arrives. Partial initial observer batches therefore cannot
+        // incorrectly suppress a Unit that is already on screen.
+        visibleTargets: new Set(visibilityTargets),
+        // Until IntersectionObserver delivers its first batch, preserve the
+        // previous visible behavior. This avoids a blank/snap frame on enter.
+        visibilityResolved: false,
+      };
+      this.idleEntries.push(entry);
+      this.observeIdleEntry(entry);
     });
 
     if (this.idleTicker) return;
@@ -352,7 +401,17 @@ export class JourneyWorldAnimationCoordinator {
       if (this.phase !== 'entering' && this.phase !== 'idle') return;
       if (this.idlePaintSuspendedAt !== null && this.phase === 'idle') return;
       const now = gsap.ticker.time;
+      if (
+        this.phase === 'idle'
+        && !shouldRenderJourneySettledIdleFrame(
+          now,
+          this.lastSettledIdlePaintAt,
+          this.runtimeProfile.settledIdleMaxFramesPerSecond,
+        )
+      ) return;
+      if (this.phase === 'idle') this.lastSettledIdlePaintAt = now;
       this.idleEntries.forEach((entry) => {
+        if (entry.visibilityResolved && entry.visibleTargets.size === 0) return;
         const elapsed = now - entry.startTime;
         const ramp = Math.min(1, elapsed / 0.18);
         const easedRamp = ramp * ramp * (3 - (2 * ramp));
@@ -367,6 +426,35 @@ export class JourneyWorldAnimationCoordinator {
       });
     };
     gsap.ticker.add(this.idleTicker);
+  }
+
+  private observeIdleEntry(entry: JourneyWorldIdleEntry): void {
+    if (typeof window.IntersectionObserver !== 'function' || entry.visibilityTargets.length === 0) return;
+    if (!this.idleVisibilityObserver) {
+      const firstTarget = entry.visibilityTargets[0];
+      const scrollRoot = firstTarget.closest<HTMLElement>('.collectibles-scrollable');
+      this.idleVisibilityObserver = new IntersectionObserver((records) => {
+        const changedEntries = new Set<JourneyWorldIdleEntry>();
+        records.forEach((record) => {
+          const element = record.target as HTMLElement;
+          this.idleEntries.forEach((idleEntry) => {
+            if (!idleEntry.visibilityTargets.includes(element)) return;
+            idleEntry.visibilityResolved = true;
+            if (record.isIntersecting) idleEntry.visibleTargets.add(element);
+            else idleEntry.visibleTargets.delete(element);
+            changedEntries.add(idleEntry);
+          });
+        });
+        // Paint newly visible Units immediately at their elapsed-time pose.
+        if (Array.from(changedEntries).some((idleEntry) => idleEntry.visibleTargets.size > 0)) {
+          this.lastSettledIdlePaintAt = null;
+        }
+      }, {
+        root: scrollRoot,
+        rootMargin: '160px 0px',
+      });
+    }
+    entry.visibilityTargets.forEach((target) => this.idleVisibilityObserver?.observe(target));
   }
 
   private getLiveUnits(units: JourneyWorldAnimationUnit[]): JourneyWorldAnimationUnit[] {

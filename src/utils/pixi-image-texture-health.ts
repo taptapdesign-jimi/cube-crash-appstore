@@ -1,4 +1,12 @@
-import { Assets, Texture } from 'pixi.js';
+import { Assets, Rectangle, Texture } from 'pixi.js';
+
+export interface PixiTextureGpuProbeResult {
+  status: 'healthy' | 'blank' | 'unavailable' | 'error';
+  samples: number;
+  nonTransparentPixels: number;
+  maxAlpha: number;
+  error?: string;
+}
 
 const reloadsByAsset = new Map<string, Promise<Texture>>();
 
@@ -43,6 +51,81 @@ export function isUsablePixiImageTexture(texture: any): texture is Texture {
 export function pinPixiImageTexture(texture: any): void {
   const source = getTextureSource(texture);
   if (source) source.autoGarbageCollect = false;
+}
+
+/**
+ * Reads three tiny regions from the actual renderer texture. This intentionally
+ * goes beyond resource metadata: WKWebView can retain ImageBitmap dimensions
+ * after its backing pixels have been purged. The bounded 3 x 8 x 8 readback is
+ * used only at lifecycle barriers, never from a ticker or animation frame.
+ */
+export function probePixiImageTextureGpuPixels(
+  renderer: any,
+  texture: any,
+  sampleSize = 8,
+): PixiTextureGpuProbeResult {
+  if (!isUsablePixiImageTexture(texture)) {
+    return { status: 'blank', samples: 0, nonTransparentPixels: 0, maxAlpha: 0 };
+  }
+  if (typeof renderer?.extract?.pixels !== 'function') {
+    return { status: 'unavailable', samples: 0, nonTransparentPixels: 0, maxAlpha: 0 };
+  }
+
+  const frame = texture.frame;
+  const frameWidth = Math.max(1, Math.floor(Number(frame?.width ?? texture.width) || 1));
+  const frameHeight = Math.max(1, Math.floor(Number(frame?.height ?? texture.height) || 1));
+  const size = Math.max(1, Math.min(Math.floor(sampleSize), frameWidth, frameHeight));
+  const frameX = Number(frame?.x) || 0;
+  const frameY = Number(frame?.y) || 0;
+  const positions = [0.25, 0.5, 0.75];
+  let samples = 0;
+  let nonTransparentPixels = 0;
+  let maxAlpha = 0;
+
+  try {
+    for (const ratio of positions) {
+      const x = frameX + Math.max(0, Math.min(frameWidth - size, Math.round(frameWidth * ratio - size / 2)));
+      const y = frameY + Math.max(0, Math.min(frameHeight - size, Math.round(frameHeight * ratio - size / 2)));
+      const probeTexture = new Texture({
+        source: texture.source,
+        frame: new Rectangle(x, y, size, size),
+        label: `cc-gpu-health-probe-${samples + 1}`,
+      });
+      try {
+        const output = renderer.extract.pixels(probeTexture);
+        const pixels = output?.pixels;
+        if (!pixels || typeof pixels.length !== 'number') {
+          throw new Error('Pixi renderer returned no pixel buffer');
+        }
+        for (let index = 3; index < pixels.length; index += 4) {
+          const alpha = Number(pixels[index]) || 0;
+          if (alpha > 4) nonTransparentPixels += 1;
+          if (alpha > maxAlpha) maxAlpha = alpha;
+        }
+        samples += 1;
+      } finally {
+        // Pixi 8 Texture.destroy(false) preserves the shared source but does
+        // not detach this temporary texture's resize listener from it.
+        try { texture.source?.off?.('resize', probeTexture.update, probeTexture); } catch {}
+        probeTexture.destroy(false);
+      }
+    }
+  } catch (error) {
+    return {
+      status: 'error',
+      samples,
+      nonTransparentPixels,
+      maxAlpha,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  return {
+    status: nonTransparentPixels > 0 ? 'healthy' : 'blank',
+    samples,
+    nonTransparentPixels,
+    maxAlpha,
+  };
 }
 
 function removeCachedAssetReferences(assetPath: string): void {

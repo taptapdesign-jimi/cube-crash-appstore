@@ -77,6 +77,9 @@ class MemoryManager {
   // Start memory monitoring
   start(): void {
     if (this.isMonitoring) return;
+    // WebKit on iPhone/iPad does not expose performance.memory. Polling every
+    // five seconds in that environment cannot observe or reclaim anything.
+    if (!(performance as any).memory) return;
     
     this.isMonitoring = true;
     this.monitorMemory();

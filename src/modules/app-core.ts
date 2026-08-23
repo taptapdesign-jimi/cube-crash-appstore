@@ -55,6 +55,8 @@ import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildT
 import { logger } from '../core/logger.js';
 import { devLog, devWarn, devError } from './app-core-logger.ts';
 import { getRendererPerformanceProfile } from './renderer-performance-profile.ts';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag, MakeBoard } from '../types/game-types.js';
 import { getArcadeSaveKey, getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
@@ -87,7 +89,13 @@ import {
 } from './app-core-utils.js';
 import { createReplayRecorder } from './app-core-replay.ts';
 import { getJourneyBottomDecorAssetForBoard, warmBoardGameAssets } from '../utils/board-asset-warmup.ts';
-import { isUsablePixiImageTexture, pinPixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
+import {
+  isUsablePixiImageTexture,
+  pinPixiImageTexture,
+  probePixiImageTextureGpuPixels,
+  reloadPixiImageTexture,
+} from '../utils/pixi-image-texture-health.ts';
+import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
@@ -104,6 +112,7 @@ import { handleSweetPopInComplete } from './app-core-popin-final.ts';
 import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
+import { markPixiMobileActivity, startPixiMobileFrameController, stopPixiMobileFrameController } from './pixi-mobile-frame-controller.js';
 import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
 import { markMergePerformance } from '../utils/merge-performance.ts';
 import { emitIOSArcadeGameplayTrace } from '../utils/ios-arcade-gameplay-trace.ts';
@@ -203,6 +212,7 @@ import {
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
   getSpecialDiceGameplayFxForMerge,
+  getSpecialDiceGameplayReleaseAtSpawnRatio,
   getSpecialDiceInputReleaseAtRatio,
   getSpecialDiceShardColor,
   getSpecialDiceShardColors,
@@ -1320,6 +1330,7 @@ async function prepareArcadeStageClearFinalMergeHandoff(
 // This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
+  markPixiMobileActivity(7000);
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
   const cleanBoardRunAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0);
 
@@ -1828,6 +1839,8 @@ const CORE_RENDER_TEXTURE_ASSETS = [
   ...CORE_HUD_TEXTURE_ASSETS,
 ] as const;
 
+const CORE_GPU_PROBE_ASSETS = [ASSET_TILE, ASSET_NUMBERS] as const;
+
 function getRequiredCoreRenderTextureAssets(): string[] {
   const dpr = Math.max(1, Math.round(Number(window.devicePixelRatio) || 1));
   const ghostAsset = dpr >= 3
@@ -1881,9 +1894,16 @@ function getUnusableRequiredCoreRenderTextureAssets(): string[] {
   });
 }
 
-async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promise<string[]> {
+async function ensureCoreGameTexturesLoaded(
+  context: string = 'unknown',
+  forceReloadAssets: readonly string[] = [],
+): Promise<string[]> {
   const requiredAssets = getRequiredCoreRenderTextureAssets();
-  const staleAssets = getUnusableRequiredCoreRenderTextureAssets();
+  const forcedAssets = new Set(forceReloadAssets);
+  const staleAssets = Array.from(new Set([
+    ...getUnusableRequiredCoreRenderTextureAssets(),
+    ...requiredAssets.filter((assetPath) => forcedAssets.has(assetPath)),
+  ]));
 
   if (staleAssets.length > 0) devWarn('⚠️ Reloading stale/missing core game textures', { context, staleAssets });
 
@@ -1896,7 +1916,7 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
       let tex: any = null;
       try { tex = Assets.get(assetPath); } catch {}
 
-      if (!isUsableGameTexture(tex)) {
+      if ((forcedAssets.has(assetPath) && attempt === 0) || !isUsableGameTexture(tex)) {
         try {
           tex = await reloadPixiImageTexture(assetPath);
         } catch (error) {
@@ -1931,6 +1951,63 @@ async function ensureCoreGameTexturesLoaded(context: string = 'unknown'): Promis
   if (staleAssets.some(isCoreGhostTextureAsset)) coreGhostTextureNeedsRebuild = true;
 
   return staleAssets;
+}
+
+function probeCoreGameTextureGpuPixels(context: string): {
+  healthy: boolean;
+  unavailable: boolean;
+  failedAssets: string[];
+} {
+  const results = CORE_GPU_PROBE_ASSETS.map((assetPath) => {
+    let texture: any = null;
+    try { texture = Assets.get(assetPath); } catch {}
+    return {
+      assetPath,
+      result: probePixiImageTextureGpuPixels(app?.renderer, texture),
+    };
+  });
+  const failedAssets = results
+    .filter(({ result }) => result.status === 'blank' || result.status === 'error')
+    .map(({ assetPath }) => assetPath);
+  const unavailable = results.every(({ result }) => result.status === 'unavailable');
+  emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'gpu-probe', {
+    context,
+    platform: MOBILE_RUNTIME_PROFILE.platform,
+    results: results.map(({ assetPath, result }) => ({ assetPath, ...result })),
+  });
+  return { healthy: failedAssets.length === 0, unavailable, failedAssets };
+}
+
+async function ensureCoreRenderTexturesGpuReady(context: string): Promise<string[]> {
+  const refreshedAssets = await ensureCoreGameTexturesLoaded(context);
+  const firstProbe = probeCoreGameTextureGpuPixels(`${context}:before-repair`);
+  if (firstProbe.healthy || firstProbe.unavailable) return refreshedAssets;
+
+  hideGameplayForCoreTextureRecovery();
+  const requiredAssets = getRequiredCoreRenderTextureAssets();
+  emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'forced-reload-start', {
+    context,
+    failedAssets: firstProbe.failedAssets,
+    reloadCount: requiredAssets.length,
+  });
+  const forceRefreshedAssets = await ensureCoreGameTexturesLoaded(
+    `${context}:gpu-repair`,
+    requiredAssets,
+  );
+  refreshLiveCoreGameSpriteTextures(`${context}:gpu-repair`);
+  const verification = probeCoreGameTextureGpuPixels(`${context}:after-repair`);
+  if (!verification.healthy && !verification.unavailable) {
+    emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'forced-reload-failed', {
+      context,
+      failedAssets: verification.failedAssets,
+    });
+    throw new CoreRenderTextureBarrierError(`${context}:gpu-probe`, verification.failedAssets);
+  }
+  emitNativeConsoleDiagnostic('[CC_TEXTURE_HEALTH]', 'forced-reload-complete', {
+    context,
+    refreshedAssets: forceRefreshedAssets,
+  });
+  return Array.from(new Set([...refreshedAssets, ...forceRefreshedAssets]));
 }
 
 function getTileBaseTextureAssetPath(tile: any): string {
@@ -2008,8 +2085,12 @@ let coreTextureRecoveryGeneration = 0;
 let coreTextureContextCanvas: HTMLCanvasElement | null = null;
 let coreTextureContextLostHandler: ((event: Event) => void) | null = null;
 let coreTextureContextRestoredHandler: (() => void) | null = null;
+let coreTextureVisibilityHandler: (() => void) | null = null;
+let coreTexturePageShowHandler: (() => void) | null = null;
 let coreTextureVisibilityBeforeLoss: { stage: boolean; board: boolean; hud: boolean } | null = null;
 let coreTextureCanvasVisibilityBeforeHide: string | null = null;
+let coreTextureNeedsFullRecovery = false;
+const coreTextureForegroundOwner = new ForegroundResumeEpoch();
 
 function hideGameplayForCoreTextureRecovery(): void {
   try { if (stage) stage.visible = false; } catch {}
@@ -2037,6 +2118,17 @@ function restoreCanvasAfterCoreTextureRecovery(): void {
   coreTextureCanvasVisibilityBeforeHide = null;
 }
 
+function restoreHealthyForegroundSurface(): void {
+  if (isGameplayEntryPending()) return;
+  const visibility = coreTextureVisibilityBeforeLoss;
+  if (stage && visibility) stage.visible = visibility.stage;
+  if (board && visibility) board.visible = visibility.board;
+  if (hud && visibility) hud.visible = visibility.hud;
+  try { app?.renderer?.render?.(stage); } catch {}
+  restoreCanvasAfterCoreTextureRecovery();
+  coreTextureVisibilityBeforeLoss = null;
+}
+
 function recoverCoreRenderTextures(reason: string): Promise<void> {
   if (coreTextureRecoveryPromise && coreTextureRecoveryOwnerGeneration === coreTextureRecoveryGeneration) {
     return coreTextureRecoveryPromise;
@@ -2057,7 +2149,7 @@ function recoverCoreRenderTextures(reason: string): Promise<void> {
   hideGameplayForCoreTextureRecovery();
 
   const recoveryPromise = (async () => {
-    const refreshedAssets = await ensureCoreGameTexturesLoaded(`recovery:${reason}`);
+    const refreshedAssets = await ensureCoreRenderTexturesGpuReady(`recovery:${reason}`);
     if (!ownsCurrentLifecycle()) return;
     refreshLiveCoreGameSpriteTextures(`recovery:${reason}`);
     _hudInitDone = false;
@@ -2101,11 +2193,21 @@ function detachCoreTextureContextRecovery(): void {
   if (coreTextureContextCanvas && coreTextureContextRestoredHandler) {
     try { coreTextureContextCanvas.removeEventListener('webglcontextrestored', coreTextureContextRestoredHandler); } catch {}
   }
+  if (coreTextureVisibilityHandler) {
+    try { document.removeEventListener('visibilitychange', coreTextureVisibilityHandler); } catch {}
+  }
+  if (coreTexturePageShowHandler) {
+    try { window.removeEventListener('pageshow', coreTexturePageShowHandler); } catch {}
+  }
   coreTextureContextCanvas = null;
   coreTextureContextLostHandler = null;
   coreTextureContextRestoredHandler = null;
+  coreTextureVisibilityHandler = null;
+  coreTexturePageShowHandler = null;
   coreTextureVisibilityBeforeLoss = null;
   coreTextureCanvasVisibilityBeforeHide = null;
+  coreTextureNeedsFullRecovery = false;
+  coreTextureForegroundOwner.invalidate();
 }
 
 function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
@@ -2114,19 +2216,80 @@ function installCoreTextureContextRecovery(canvas: HTMLCanvasElement): void {
   coreTextureContextCanvas = canvas;
   coreTextureContextLostHandler = (event: Event) => {
     try { event.preventDefault(); } catch {}
-    coreTextureVisibilityBeforeLoss = {
-      stage: stage?.visible !== false,
-      board: board?.visible !== false,
-      hud: hud?.visible !== false,
-    };
+    const beganSuspension = coreTextureForegroundOwner.beginSuspension(app?.ticker?.started === true);
+    coreTextureNeedsFullRecovery = true;
+    try { app?.ticker?.stop?.(); } catch {}
+    if (beganSuspension) {
+      coreTextureVisibilityBeforeLoss = {
+        stage: stage?.visible !== false,
+        board: board?.visible !== false,
+        hud: hud?.visible !== false,
+      };
+    }
     hideGameplayForCoreTextureRecovery();
     devWarn('⚠️ WebGL context lost; gameplay hidden until core textures recover');
   };
-  coreTextureContextRestoredHandler = () => {
-    void recoverCoreRenderTextures('webglcontextrestored').catch(() => {});
+  const recoverAfterForeground = (reason: string) => {
+    // A context can be restored while WKWebView is still backgrounded. Keep
+    // the lease pending so the visible event performs the guarded recovery.
+    if (document.hidden) return;
+    const resumeLease = coreTextureForegroundOwner.consume();
+    if (!resumeLease) return;
+    const ownerCanvas = coreTextureContextCanvas;
+    if (!ownerCanvas || ownerCanvas !== app?.canvas) return;
+    const ownsResume = () => (
+      coreTextureForegroundOwner.isCurrent(resumeLease) &&
+      ownerCanvas === coreTextureContextCanvas &&
+      ownerCanvas === app?.canvas
+    );
+    const unavailableAssets = getUnusableRequiredCoreRenderTextureAssets();
+    const needsFullRepair = coreTextureNeedsFullRecovery
+      || reason === 'webglcontextrestored'
+      || unavailableAssets.length > 0;
+    const recovery = needsFullRepair
+      ? recoverCoreRenderTextures(reason)
+      : Promise.resolve()
+          .then(() => ensureCoreRenderTexturesGpuReady(`foreground-fast:${reason}`))
+          .then((refreshedAssets) => {
+            if (!ownsResume()) return;
+            if (refreshedAssets.length > 0) return recoverCoreRenderTextures(`${reason}:gpu-repair`);
+            refreshLiveCoreGameSpriteTextures(`foreground-fast:${reason}`);
+            restoreHealthyForegroundSurface();
+            devLog('✅ Healthy foreground texture validation completed without HUD/layout rebuild', { reason });
+          });
+    void recovery
+      .then(() => {
+        if (!ownsResume() || document.hidden) return;
+        coreTextureNeedsFullRecovery = false;
+        if (resumeLease.resumeTicker && app?.ticker && !app.ticker.started) {
+          app.ticker.start();
+        }
+      })
+      .catch((error) => {
+        if (!ownsResume()) return;
+        devError('❌ Foreground texture recovery failed; gameplay remains hidden', { reason, error });
+      });
   };
+  coreTextureContextRestoredHandler = () => recoverAfterForeground('webglcontextrestored');
+  coreTextureVisibilityHandler = () => {
+    if (document.hidden) {
+      if (!coreTextureForegroundOwner.beginSuspension(app?.ticker?.started === true)) return;
+      coreTextureVisibilityBeforeLoss = {
+        stage: stage?.visible !== false,
+        board: board?.visible !== false,
+        hud: hud?.visible !== false,
+      };
+      try { app?.ticker?.stop?.(); } catch {}
+      hideGameplayForCoreTextureRecovery();
+      return;
+    }
+    recoverAfterForeground('visibility-foreground');
+  };
+  coreTexturePageShowHandler = () => recoverAfterForeground('pageshow');
   canvas.addEventListener('webglcontextlost', coreTextureContextLostHandler, false);
   canvas.addEventListener('webglcontextrestored', coreTextureContextRestoredHandler, false);
+  document.addEventListener('visibilitychange', coreTextureVisibilityHandler, false);
+  window.addEventListener('pageshow', coreTexturePageShowHandler, false);
 }
 
 try {
@@ -3051,6 +3214,7 @@ async function showMysteryPrize(){
 
 // -------------------- boot --------------------
 export async function boot(){
+  installMobileSaveLifecycle();
   ensureBoardLifecycleTrace('direct-board-boot');
   markBoardLifecycle('boot-start');
   devLog('🎮 Initializing PIXI app');
@@ -3309,8 +3473,10 @@ export async function boot(){
   if (!reuseApp) {
     devLog('🎮 Creating fresh PIXI app');
     const rawDevicePixelRatio = window.devicePixelRatio || 1;
-    const isIOSRuntime = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const rendererProfile = getRendererPerformanceProfile(rawDevicePixelRatio, isIOSRuntime);
+    const rendererProfile = getRendererPerformanceProfile(
+      rawDevicePixelRatio,
+      MOBILE_RUNTIME_PROFILE.isMobileDevice,
+    );
     const initOptions = {
       resizeTo: window,
       backgroundAlpha: 0,
@@ -3337,7 +3503,9 @@ export async function boot(){
         break;
       } catch (error) {
         initError = error;
-        try { app.destroy(true, true); } catch {}
+        try {
+          app.destroy(true, { children: true, texture: false, textureSource: false } as any);
+        } catch {}
         app = null as any;
         if (attempt < maxInitAttempts && isTransientRendererInitError(error)) {
           const retryDelayMs = 250 * attempt;
@@ -3492,8 +3660,9 @@ export async function boot(){
     app.ticker.remove(onFirstFrame);
   };
   
-  // Listen for first frame render
-  app.ticker.add(onFirstFrame);
+  // This is launch-only. Re-registering it on every soft renderer reuse can
+  // accumulate callbacks when an entry is interrupted before the next tick.
+  if (!reuseApp) app.ticker.add(onFirstFrame);
   app.canvas.style.left = '0';
   app.canvas.style.pointerEvents = 'auto';
   devLog('✅ Canvas added to DOM and styled');
@@ -6093,7 +6262,8 @@ async function startLevel(n): Promise<void> {
   resetTransientRunGuards('startLevel');
   // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
   (window as any).__ccEnterAnimationActive = true;
-  startBoardFrameBudgetMonitor();
+  startBoardFrameBudgetMonitor(app?.ticker);
+  startPixiMobileFrameController(app?.ticker);
   try { hideGhostPlaceholders(); } catch {}
   // Hide the previous surface before the first asynchronous texture boundary.
   // The new surface is revealed later in this function immediately before its
@@ -6104,7 +6274,7 @@ async function startLevel(n): Promise<void> {
   const deferSurfaceRevealForSavedLoad = (window as any).__ccSkipRebuildBoard === true;
 
   try {
-    const refreshedAssets = await ensureCoreGameTexturesLoaded('startLevel');
+    const refreshedAssets = await ensureCoreRenderTexturesGpuReady('startLevel');
     if (!isCurrentStartLevel()) return;
     refreshLiveCoreGameSpriteTextures('startLevel');
     if (refreshedAssets.length > 0) {
@@ -6301,6 +6471,8 @@ function applyWildSkinLocal(tile){
     startMagnetIdleParticles,
     startTntIdleParticles,
     startTntIdleShake,
+    stopTntIdleParticles,
+    stopTntIdleShake,
     trackAppAnimationFrame,
     devWarn,
   });
@@ -6865,7 +7037,9 @@ async function spawnWildFromMeter(){
           if (spawnedTile && !spawnedTile.destroyed) {
             delete (spawnedTile as any)._ccDeferWildIdleFx;
             startWildShimmer(spawnedTile);
-            if (spawnedTile.special === 'wild-juice') {
+            if (isSpecialDiceJuiceLikeTile(spawnedTile)) {
+              stopTntIdleParticles(spawnedTile);
+              stopTntIdleShake(spawnedTile);
               startWildJuiceBubbles(spawnedTile);
             } else if (spawnedTile.special === 'wild-tnt') {
               startTntIdleParticles(spawnedTile);
@@ -7187,6 +7361,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	        dropProfile: getSpecialDiceJuiceDropProfile(variant),
 	        spritePaths: getSpecialDiceExplosionSpriteSources(variant),
 	        inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
+	        gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(variant),
 	      });
 	    },
 	    showSparkleFinale: () => {
@@ -10091,16 +10266,22 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const wasWild = wildActive;
         // 🔥 CRITICAL: Determine if this is wild-magnet or wild-only merge
         // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
-        const merge6FinaleFx = getSpecialDiceFinaleFxForMerge({
+        const merge6FxInput = {
           src,
           dst,
           srcSpecial: srcSpecialMerge6,
           dstSpecial: dstSpecialMerge6,
-        });
-        const isMainWildMagnetMerge = merge6FinaleFx === 'magnet';
-        const isMainWildTntMerge = merge6FinaleFx === 'tnt';
-        const isMainWildStarMerge = merge6FinaleFx === 'star';
+        };
+        // Gameplay and presentation are deliberately independent. Beach Ball
+        // keeps its authored Juice-style drop finale, but owns TNT board
+        // mechanics (blast, four reserved bonus targets, and input commit).
+        const merge6GameplayFx = getSpecialDiceGameplayFxForMerge(merge6FxInput);
+        const merge6FinaleFx = getSpecialDiceFinaleFxForMerge(merge6FxInput);
+        const isMainWildMagnetMerge = merge6GameplayFx === 'magnet';
+        const isMainWildTntMerge = merge6GameplayFx === 'tnt';
+        const isMainWildStarMerge = merge6GameplayFx === 'star';
         const isMainWildJuiceMerge = merge6FinaleFx === 'juice';
+        const isMainWildTntVisualMerge = merge6FinaleFx === 'tnt';
         const isMainWildOnlyMerge = !!merge6FinaleFx && !isMainWildMagnetMerge;
         const playShortWildMerge6TileBlast = (label: string) => {
           try {
@@ -10216,6 +10397,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           }
           // TNT: pokreni animaciju prije shake-a, anchor na kockici merge 6, overlay prati board shake
           const alsoShakeTargets: HTMLElement[] = [];
+          let triggerTntGameplayAtVisualCommit: ((reason: string) => void) | null = null;
+          let markTntVisualSequenceComplete: ((reason: string) => void) | null = null;
           if (isMainWildTntMerge) {
             try {
               const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
@@ -10432,21 +10615,40 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                  }, 0);
 	                });
 	              };
-	              const tntOverlay = showTntAnimation({
-	                ...tntVisualOptionsForMerge,
-	                onSprite6Start: () => {
-	                  triggerTntBonusBreak('sprite-6-enter-complete');
-	                },
-	                onSprite10ExitLeadStart: () => {
-	                  triggerTntBonusBreak('sprite-10-exit-minus-300ms-fallback');
-	                },
-	                onSpriteSequenceComplete: () => {
-	                  tntVisibleSequenceComplete = true;
-	                  triggerTntBonusBreak('sequence-complete-fallback');
-	                  releaseTntTransactionWhenSettled('visible-sequence-complete');
-	                }
-	              });
-              if (tntOverlay) alsoShakeTargets.push(tntOverlay);
+	              const completeTntVisibleSequence = (reason: string) => {
+	                if (tntVisibleSequenceComplete) return;
+	                tntVisibleSequenceComplete = true;
+	                triggerTntBonusBreak(`${reason}-fallback`);
+	                releaseTntTransactionWhenSettled(reason);
+	              };
+	              triggerTntGameplayAtVisualCommit = triggerTntBonusBreak;
+	              markTntVisualSequenceComplete = completeTntVisibleSequence;
+	              if (isMainWildTntVisualMerge) {
+	                const tntOverlay = showTntAnimation({
+	                  ...tntVisualOptionsForMerge,
+	                  onSprite6Start: () => {
+	                    triggerTntBonusBreak('sprite-6-enter-complete');
+	                  },
+	                  onSprite10ExitLeadStart: () => {
+	                    triggerTntBonusBreak('sprite-10-exit-minus-300ms-fallback');
+	                  },
+	                  onSpriteSequenceComplete: () => {
+	                    completeTntVisibleSequence('visible-sequence-complete');
+	                  }
+	                });
+                if (tntOverlay) alsoShakeTargets.push(tntOverlay);
+	              } else {
+	                // A custom TNT archetype (Beach Ball) owns another visual
+	                // engine. These bounded guards prevent asset/start failures
+	                // from ever retaining the all-board transaction lock.
+	                const releaseRatio = getSpecialDiceInputReleaseAtRatio(tntVariantForMerge);
+	                trackAppTimeout(() => {
+	                  triggerTntBonusBreak('custom-visual-release-safety');
+	                }, Math.max(2200, Math.round(6200 * releaseRatio) + 450));
+	                trackAppTimeout(() => {
+	                  completeTntVisibleSequence('custom-visual-complete-safety');
+	                }, 6500);
+	              }
             } catch (e) {
               devWarn('⚠️ TNT animation position failed:', e);
             }
@@ -10678,7 +10880,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
             // Wild-TNT animacija je već pokrenuta gore (prije screenShake, anchor na kockici)
-            if (isWildTntMerge) {
+            if (isMainWildTntVisualMerge) {
               devLog('💥 Wild-TNT merge 6 – TNT animacija već pokrenuta (anchor na kockici, prati shake)');
             } else if (isWildJuiceMerge) {
               const wildJuiceVariantForExplosion = getSpecialDiceVariantForTile(src) || getSpecialDiceVariantForTile(dst);
@@ -10700,6 +10902,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   dropProfile: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion),
                   spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
                   inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildJuiceVariantForExplosion),
+                  gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(wildJuiceVariantForExplosion),
+                  onGameplayRelease: triggerTntGameplayAtVisualCommit
+                    ? () => triggerTntGameplayAtVisualCommit?.('custom-visual-gameplay-release')
+                    : undefined,
+                  onSequenceComplete: markTntVisualSequenceComplete
+                    ? () => markTntVisualSequenceComplete?.('custom-visual-sequence-complete')
+                    : undefined,
                 });
               } catch (error) {
                 devError('❌ Failed to trigger bubbles explosion:', error);
@@ -14910,7 +15119,10 @@ export async function restart(options: RestartOptions = {}): Promise<void> {
 }
 
 // Clean up game when exiting
-export function cleanupGame() {
+export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
+  // Preserve the historic hard-teardown default for explicit shutdown/fatal
+  // callers. Ordinary route exit must opt into the soft renderer session.
+  const destroyRenderer = options.destroyRenderer !== false;
   devLog('🧹 Cleaning up game state');
   // Retire every hidden-entry owner before destroying its Pixi/DOM targets.
   // Waiting for uiManager.hideApp() leaves a window where a stale Round cue or
@@ -14920,6 +15132,7 @@ export function cleanupGame() {
   cancelArcadeEntrySurfaceGate();
   journeySpatialMotion.deactivateGameplay();
   stopBoardFrameBudgetMonitor();
+  stopPixiMobileFrameController();
   
   // 🔥 CRITICAL FIX: Stop PIXI ticker FIRST to prevent render errors during cleanup
   // This prevents "Cannot read properties of null (reading '_x')" errors
@@ -15180,19 +15393,10 @@ export function cleanupGame() {
     }
   }
   
-  // 🔥 CRITICAL FIX: Stop memory manager interval before destroying app
-  try {
-    memoryManager.stop();
-    devLog('✅ Memory manager stopped');
-  } catch (e) {
-    devWarn('⚠️ Failed to stop memory manager:', e);
-  }
-
   // Clear global FX layer + FX state (prevents stale transforms after hard exit)
   cleanupFxForBoardReset('cleanupGame');
   
-  // CRITICAL: Destroy and nullify app so boot() can create a new one
-  if (app) {
+  if (app && destroyRenderer) {
     devLog('🧹 Destroying PIXI app in cleanupGame()');
     detachCoreTextureContextRecovery();
     try {
@@ -15205,6 +15409,17 @@ export function cleanupGame() {
     }
     app = null as any;
     devLog('✅ app set to null');
+  } else if (app) {
+    try { if (stage) stage.visible = false; } catch {}
+    try { if (board) board.visible = false; } catch {}
+    try { if (hud) hud.visible = false; } catch {}
+    try { app.renderer?.render?.(stage); } catch {}
+    try {
+      app.canvas.style.visibility = 'hidden';
+      app.canvas.style.opacity = '0';
+      app.canvas.style.pointerEvents = 'none';
+    } catch {}
+    devLog('⏸️ PIXI renderer session suspended for menu reuse');
   }
   
   // 🔥 CRITICAL FIX: Clear HUD_ROOT reference if it exists
@@ -15242,9 +15457,8 @@ export function cleanupGame() {
     import('./board-transition-screen.js').then(m => m.cleanupBoardTransitionScreen?.()).catch(() => {});
   } catch {}
   
-  // 🍎 iOS CRITICAL FIX: Remove iOS lifecycle event listeners (pagehide, visibilitychange)
-  // These listeners accumulate on every game restart and cause MASSIVE memory leaks on iOS!
-  // iOS WKWebView has strict memory limits (~200MB) - every listener leak brings us closer to crash!
+  // Mobile save/resume listeners are boot-owned. Remove this boot's exact
+  // references; the next boot installs one fresh set before any async work.
   try {
     const saveGameStateRef = (window as any)._saveGameStateRef;
     const iosVisibilityHandler = (window as any)._iosVisibilityHandler;
@@ -15256,7 +15470,7 @@ export function cleanupGame() {
     }
     
     if (iosVisibilityHandler) {
-      window.removeEventListener('visibilitychange', iosVisibilityHandler);
+      document.removeEventListener('visibilitychange', iosVisibilityHandler);
       devLog('✅ iOS visibilitychange listener removed (app-core.ts)');
       (window as any)._iosVisibilityHandler = null;
     }
@@ -15285,6 +15499,9 @@ export function cleanupGame() {
     devWarn('⚠️ Failed to remove lifecycle listeners:', e);
   }
   
+  try { drag?.cleanup?.({ resumeIdle: false }); } catch {}
+  drag = null as any;
+  try { (STATE as any).drag = null; } catch {}
   devLog('✅ Game cleanup completed');
   syncSharedState();
 }
@@ -15734,36 +15951,36 @@ window.animateBoardExit = animateBoardExit; // Export for exitToMenu
 export { drawBoardBG, animateBoardExit };
 
 
-// Mobile-specific save events
-// 🍎 iOS CRITICAL FIX: Store ALL event listener references for proper cleanup
-// iOS accumulates these listeners on every game restart - MUST be removed in cleanupGame()!
-const iosVisibilityHandler = () => {
-  if (document.hidden) {
-    saveGameState();
-  }
-};
+function installMobileSaveLifecycle(): void {
+  const previousSave = (window as any)._saveGameStateRef;
+  const previousVisibility = (window as any)._iosVisibilityHandler;
+  const previousResumeSave = (window as any)._saveGameStateResumeRef;
+  const previousResume = (window as any)._resumeHandlerRef;
+  try { if (previousSave) window.removeEventListener('pagehide', previousSave); } catch {}
+  try { if (previousSave) window.removeEventListener('beforeunload', previousSave); } catch {}
+  try { if (previousResumeSave) document.removeEventListener('pause', previousResumeSave); } catch {}
+  try { if (previousVisibility) document.removeEventListener('visibilitychange', previousVisibility); } catch {}
+  try { if (previousResume) document.removeEventListener('resume', previousResume); } catch {}
 
-(window as any)._saveGameStateRef = saveGameState;
-(window as any)._iosVisibilityHandler = iosVisibilityHandler; // 🍎 Store for cleanup!
+  const iosVisibilityHandler = () => {
+    if (document.hidden) saveGameState();
+  };
+  const resumeHandler = () => {
+    if (typeof window.loadGameState === 'function') {
+      trackAppTimeout(() => window.loadGameState(), 100);
+    }
+  };
 
-trackAppListener(window, 'pagehide', saveGameState);
-trackAppListener(window, 'visibilitychange', iosVisibilityHandler);
-
-// iOS/Android specific events
-trackAppListener(window, 'beforeunload', saveGameState);
-trackAppListener(document, 'pause', saveGameState, false); // Android
-// 🔥 MEMORY LEAK FIX: Store reference for cleanup (same function)
-(window as any)._saveGameStateResumeRef = saveGameState;
-const resumeHandler = () => {
-  // Reload game state when app resumes
-  if (typeof window.loadGameState === 'function') {
-    trackAppTimeout(() => {
-      window.loadGameState();
-    }, 100);
-  }
-};
-(window as any)._resumeHandlerRef = resumeHandler;
-trackAppListener(document, 'resume', resumeHandler, false); // Android
+  (window as any)._saveGameStateRef = saveGameState;
+  (window as any)._iosVisibilityHandler = iosVisibilityHandler;
+  (window as any)._saveGameStateResumeRef = saveGameState;
+  (window as any)._resumeHandlerRef = resumeHandler;
+  window.addEventListener('pagehide', saveGameState);
+  window.addEventListener('beforeunload', saveGameState);
+  document.addEventListener('visibilitychange', iosVisibilityHandler);
+  document.addEventListener('pause', saveGameState, false);
+  document.addEventListener('resume', resumeHandler, false);
+}
 
 // CRITICAL: Expose function to sync score from app-boot.ts
 // This ensures STATE.score and local score variable stay in sync

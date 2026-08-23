@@ -44,6 +44,7 @@ import { initializeServices } from './core/service-registry.js';
 import { getBoardSaveKey, hasResumableSavedStateForBoard, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
 import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
@@ -64,7 +65,7 @@ import { animateSliderExit, animateSliderEnter, cancelSliderEnterAnimation, fina
 import { resolveExitWaits, runWithBudget } from './modules/exit-transition-waits.js';
 import { hideNativeSplash } from './utils/native-splash.js';
 import { isNativeDevServerRuntime } from './utils/native-runtime.js';
-import { RUN_MODE_ARCADE_HOME } from './modules/run-mode.js';
+import { RUN_MODE_ARCADE_HOME, isArcadeHomeRunMode } from './modules/run-mode.js';
 import {
   getJourneyCardOverlayReturnBoardId,
   isJourneyInterimOriginActive,
@@ -72,6 +73,7 @@ import {
 import { appZoneManager } from './modules/app-zone-manager.js';
 import { waitForHomepageFirstPaintReady } from './utils/startup-readiness.js';
 import { appSpatialMotion } from './modules/journey-spatial-motion.js';
+import { MOBILE_RUNTIME_PROFILE } from './modules/mobile-runtime-profile.js';
 import { homepageEnterTransitionOwner } from './modules/homepage-enter-transition-owner.js';
 
 type GameCoreModule = typeof import('./modules/app-core.js');
@@ -591,6 +593,7 @@ function isGameBusyForWarmup(): boolean {
 }
 
 function schedulePostCriticalAssetWarmup(): void {
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) return;
   if (postCriticalAssetWarmupScheduled) return;
   postCriticalAssetWarmupScheduled = true;
 
@@ -615,6 +618,7 @@ function schedulePostCriticalAssetWarmup(): void {
 }
 
 function schedulePostHomePerformanceWarmup(): void {
+  if (MOBILE_RUNTIME_PROFILE.isMobileDevice) return;
   if (postHomePerformanceWarmupScheduled) return;
   postHomePerformanceWarmupScheduled = true;
 
@@ -689,12 +693,12 @@ async function activateFirstPlayTutorialWhenReady(): Promise<void> {
   module.activateFirstPlayTutorialWhenReady();
 }
 
-function cleanupGame(): void {
+function cleanupGame(options: { destroyRenderer?: boolean } = {}): void {
   if (!gameCoreModule) {
     logger.warn('⚠️ cleanupGame called before game core loaded - skipping');
     return;
   }
-  gameCoreModule.cleanupGame();
+  gameCoreModule.cleanupGame(options);
 }
 
 function getJourneyGameStartSnapshot(reason: string): Record<string, unknown> {
@@ -909,7 +913,7 @@ async function initializeApp(): Promise<void> {
     const appStoreCompliance = AppStoreCompliance.getInstance();
     
     errorBoundary.init();
-    performanceMonitorNew.init();
+    if (areContinuousRuntimeDiagnosticsEnabled()) performanceMonitorNew.init();
     accessibilityManager.init();
     appStoreCompliance.init();
     
@@ -2604,13 +2608,13 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to stop PIXI ticker before cleanup:', tickerError);
     }
     
-    // Step 4: Clean up game state AFTER killing all tweens AND exit animation completes
-    // 🔥 CRITICAL FIX: cleanupGame() destroys PIXI app - must be called AFTER exit animation completes
+    // Step 4: Clean up board-owned state after animations. Ordinary navigation
+    // keeps the empty renderer session suspended for reuse.
     try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
-        cleanupGame();
-        console.log('✅ cleanupGame() completed - PIXI app destroyed and nullified');
+        cleanupGame({ destroyRenderer: false });
+        console.log('✅ cleanupGame() completed - PIXI renderer session suspended');
       }
     } catch (error) {
       console.warn('⚠️ Failed to run cleanupGame:', error);
@@ -2621,6 +2625,13 @@ async function startNewRun(boardId: number): Promise<void> {
     // remove/reset stats internals before openBoardDetailsById repopulates the modal.
     if (shouldPreserveJourneyDetailModalDom) {
       console.log('⏭️ Skipping collectiblesManager.cleanup() for direct Journey detail modal return');
+    } else if (isArcadeHomeRunMode()) {
+      // Arcade does not own the suspended Journey tree. Destroying it here
+      // forces the next Journey tap to rebuild/decode the complete Hub and
+      // selected World after every Arcade run, causing the measured cold-enter
+      // hitch and needless compositor/GPU churn. Journey's own hide lifecycle
+      // already suspends its tickers, observers and spatial motion.
+      console.log('⏸️ Preserving suspended Journey DOM/assets across Arcade exit');
     } else {
       try {
         const collectiblesManager = (window as any).collectiblesManager;
@@ -2693,18 +2704,10 @@ async function startNewRun(boardId: number): Promise<void> {
       console.log('⚡ Fast arcade clean exit: skipped destructive homepage cleanup for seamless handoff');
     }
     
-    // Step 7: Remove iOS hard close lifecycle listener (main.ts)
-    // 🍎 iOS CRITICAL: This listener accumulates on EVERY page load and causes memory leaks!
-    try {
-      const iosHardCloseHandler = (window as any)._iosHardCloseHandler;
-      if (iosHardCloseHandler) {
-        document.removeEventListener('visibilitychange', iosHardCloseHandler);
-        (window as any)._iosHardCloseHandler = null;
-        console.log('✅ iOS hard close listener removed (main.ts)');
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to remove iOS hard close listener:', error);
-    }
+    // The iOS visibility owner is app-lifetime. Removing it on the first game
+    // exit leaves every later Arcade/Journey cycle without background saves or
+    // time accounting. It is installed once at module startup and must survive
+    // ordinary screen transitions.
     
     // Stop time tracking
     if (typeof (window as any).stopTimeTracking === 'function') {
@@ -2719,42 +2722,9 @@ async function startNewRun(boardId: number): Promise<void> {
     // This ensures exit animation is fully visible before hiding app
     // hideApp() will be called after Journey screen enter animation completes
     
-    // 🔥 CRITICAL FIX: Remove ALL canvas elements from DOM to prevent them from showing
-    // This ensures no leftover canvas elements are visible when returning to homepage
-    try {
-      const appElement = document.getElementById('app');
-      if (appElement) {
-        // Remove all canvas elements from app container
-        const canvases = appElement.querySelectorAll('canvas');
-        canvases.forEach(canvas => {
-          try {
-            canvas.remove();
-            console.log('✅ Removed canvas element from DOM');
-          } catch (e) {
-            console.warn('⚠️ Failed to remove canvas:', e);
-          }
-        });
-        
-        // Also check body for any stray canvas elements
-        const bodyCanvases = document.body.querySelectorAll('canvas');
-        bodyCanvases.forEach(canvas => {
-          // Only remove if it's not part of another system
-          if (canvas.parentElement === appElement || canvas.parentElement === document.body) {
-            try {
-              canvas.remove();
-              console.log('✅ Removed stray canvas element from body');
-            } catch (e) {
-              console.warn('⚠️ Failed to remove stray canvas:', e);
-            }
-          }
-        });
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to remove canvas elements:', error);
-    }
-    
-    // 🔥 CRITICAL FIX: Double-check that canvas is hidden after cleanupGame
-    // Sometimes canvas can reappear after cleanup, so we hide it again
+    // Keep the one renderer canvas attached but compositor-hidden. Removing it
+    // defeats session reuse and lets WKWebView present a stale IOSurface while
+    // a replacement canvas is being created.
     try {
       const canvas = document.querySelector('#app canvas');
       if (canvas && canvas instanceof HTMLElement) {

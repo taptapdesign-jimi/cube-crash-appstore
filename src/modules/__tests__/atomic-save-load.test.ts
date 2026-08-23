@@ -88,11 +88,11 @@ describe('saved-game schema validation', () => {
     expect(result.gameState.schemaVersion).toBe(GAME_SAVE_SCHEMA_VERSION);
   });
 
-  test('accepts a pre-Magnet Beach Ball save for restore-time canonicalization', () => {
+  test.each(['wild-juice', 'wild-magnet'])('accepts a legacy %s Beach Ball save for restore-time canonicalization', (legacyCoreType) => {
     const result = validateAndNormalizeGameSave({
       grid: [[regularTile({
         value: 6,
-        special: 'wild-juice',
+        special: legacyCoreType,
         isWild: true,
         isWildFace: true,
         specialDiceVariant: 'beach-ball',
@@ -102,7 +102,7 @@ describe('saved-game schema validation', () => {
     expect(result.ok).toBe(true);
     if ('issues' in result) throw new Error('expected valid legacy Beach Ball save');
     expect(result.gameState.grid[0][0]).toMatchObject({
-      special: 'wild-juice',
+      special: legacyCoreType,
       specialDiceVariant: 'beach-ball',
     });
   });

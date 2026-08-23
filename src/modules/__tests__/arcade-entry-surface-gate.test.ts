@@ -4,8 +4,19 @@ import {
   isArcadeEntrySurfaceGateActive,
   releaseArcadeEntrySurfaceGateAfterPreparedFrame,
 } from '../arcade-entry-surface-gate';
+import fs from 'fs';
+import path from 'path';
 
 describe('Arcade entry surface gate', () => {
+  test('global canvas CSS does not override lifecycle visibility ownership', () => {
+    const css = fs.readFileSync(path.resolve(process.cwd(), 'src/style.css'), 'utf8');
+    const canvasRule = css.match(/#app canvas\s*\{([\s\S]*?)\}/)?.[1] ?? '';
+
+    expect(canvasRule).not.toMatch(/display\s*:\s*block\s*!important/i);
+    expect(canvasRule).not.toMatch(/visibility\s*:\s*visible\s*!important/i);
+    expect(canvasRule).not.toMatch(/opacity\s*:\s*1\s*!important/i);
+  });
+
   test('keeps a reused canvas hidden until a prepared Pixi frame crosses a paint barrier', () => {
     const canvas = document.createElement('canvas');
     const render = jest.fn();

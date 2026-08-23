@@ -27,7 +27,7 @@ describe('Journey World runtime scheduler', () => {
     jest.advanceTimersByTime(180);
     expect(scheduler.getSnapshot()).toMatchObject({
       state: 'settling',
-      ambientSuspended: false,
+      ambientSuspended: true,
     });
     jest.advanceTimersByTime(48);
     expect(scheduler.getSnapshot().state).toBe('idle');
@@ -36,7 +36,7 @@ describe('Journey World runtime scheduler', () => {
     expect(scheduler.getSnapshot()).toMatchObject({
       state: 'modal',
       paintSuspended: true,
-      ambientSuspended: false,
+      ambientSuspended: true,
     });
     scheduler.beginTransition();
     expect(scheduler.getSnapshot()).toMatchObject({
@@ -90,7 +90,7 @@ describe('Journey World runtime scheduler', () => {
     expect(scheduler.getSnapshot().state).toBe('idle');
   });
 
-  it('holds World paint through a dismiss tail while ambient stays fluid', () => {
+  it('holds World and ambient paint through a modal dismiss tail', () => {
     const scrollRoot = document.createElement('div');
     const scheduler = new JourneyWorldRuntimeScheduler(180, 48);
     const states: string[] = [];
@@ -103,7 +103,7 @@ describe('Journey World runtime scheduler', () => {
     expect(scheduler.getSnapshot()).toMatchObject({
       state: 'settling',
       paintSuspended: true,
-      ambientSuspended: false,
+      ambientSuspended: true,
     });
 
     const beforeReopen = states.length;
@@ -112,6 +112,37 @@ describe('Journey World runtime scheduler', () => {
     expect(states.slice(beforeReopen)).toEqual(['modal']);
     scheduler.closeModal();
     expect(scheduler.getSnapshot().state).toBe('idle');
+  });
+
+  it('can resume only ambient paint before dismiss smoke while World paint stays paused', () => {
+    const scheduler = new JourneyWorldRuntimeScheduler(180, 48);
+    const snapshots: Array<{ state: string; paintSuspended: boolean; ambientSuspended: boolean }> = [];
+    scheduler.subscribe(({ state, paintSuspended, ambientSuspended }) => {
+      snapshots.push({ state, paintSuspended, ambientSuspended });
+    });
+    scheduler.activate(1, document.createElement('div'));
+    scheduler.openModal();
+    scheduler.beginInteractionSettle();
+    scheduler.closeModal();
+
+    scheduler.releaseAmbientDuringInteractionSettle();
+    expect(scheduler.getSnapshot()).toMatchObject({
+      state: 'settling',
+      paintSuspended: true,
+      ambientSuspended: false,
+    });
+    expect(snapshots[snapshots.length - 1]).toEqual({
+      state: 'settling',
+      paintSuspended: true,
+      ambientSuspended: false,
+    });
+
+    scheduler.endInteractionSettle();
+    expect(scheduler.getSnapshot()).toMatchObject({
+      state: 'idle',
+      paintSuspended: false,
+      ambientSuspended: false,
+    });
   });
 
   it('hands an active dismiss settle directly to native scroll', () => {

@@ -447,6 +447,33 @@
   animation: idleFloat 3s ease-in-out infinite; /* Ista animacija kao img element */
 }
 
+/* Mobile thermal contract: navigation idle belongs to the one active icon and
+ * only while Homepage owns the navigation tree. Cancelling/hiding the owner
+ * cannot leave a descendant CSS animation sampling in the background. */
+.cc-mobile-runtime #independent-nav .independent-nav-button.active img,
+.cc-mobile-runtime #independent-nav .independent-nav-button.active::after,
+.cc-mobile-runtime #independent-nav .independent-nav-button.active .nav-badge {
+  animation-play-state: paused;
+}
+
+.cc-mobile-runtime #independent-nav[data-homepage-owner='active']
+  .independent-nav-button.active img,
+.cc-mobile-runtime #independent-nav[data-homepage-owner='active']
+  .independent-nav-button.active::after,
+.cc-mobile-runtime #independent-nav[data-homepage-owner='active']
+  .independent-nav-button.active .nav-badge {
+  animation-play-state: running;
+}
+
+/* GSAP promotes the active motion shells while their finite tween runs and
+ * returns their inline will-change to auto on completion. Do not retain four
+ * navigation icon layers throughout an otherwise settled Homepage. */
+.cc-mobile-runtime .independent-nav-button,
+.cc-mobile-runtime .nav-icon-motion,
+.cc-mobile-runtime .nav-icon-visual {
+  will-change: auto;
+}
+
 .nav-badge-text {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 20px;

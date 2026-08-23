@@ -31,8 +31,8 @@ describe('Beach World wild pool', () => {
     expect(source).toContain('beachWildSlot,');
   });
 
-  test('Beach Ball reuses Magnet gameplay while remaining an explicit Beach-only variant', () => {
-    expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('beach-ball'))).toBe('wild-magnet');
+  test('Beach Ball reuses TNT gameplay while remaining an explicit Beach-only variant', () => {
+    expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('beach-ball'))).toBe('wild-tnt');
   });
 
   test('gives all four Beach specials an equal independent 25-percent range', () => {

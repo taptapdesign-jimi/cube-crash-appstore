@@ -1,4 +1,8 @@
-import { getSpecialDiceTexturePath, getSpecialDiceVisualConfig } from './special-dice-registry.ts';
+import {
+  getSpecialDiceTexturePath,
+  getSpecialDiceVisualConfig,
+  isSpecialDiceJuiceLikeTile,
+} from './special-dice-registry.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
@@ -18,6 +22,8 @@ type WildSkinDeps = {
   startMagnetIdleParticles: (tile: any) => void;
   startTntIdleParticles: (tile: any) => void;
   startTntIdleShake: (tile: any) => void;
+  stopTntIdleParticles: (tile: any) => void;
+  stopTntIdleShake: (tile: any) => void;
   trackAppAnimationFrame: (fn: () => void) => any;
   devWarn: (...args: any[]) => void;
 };
@@ -38,6 +44,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     startMagnetIdleParticles,
     startTntIdleParticles,
     startTntIdleShake,
+    stopTntIdleParticles,
+    stopTntIdleShake,
     trackAppAnimationFrame,
     devWarn,
   } = deps;
@@ -164,7 +172,11 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       if ((tile as any)._ccDeferWildIdleFx === true) return;
       startWildShimmer(tile); // Use shimmer instead of bounce
       // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
-      if (tile.special === 'wild-juice') {
+      if (isSpecialDiceJuiceLikeTile(tile)) {
+        // A visual variant may intentionally keep Juice idle animation while
+        // reusing another gameplay archetype (Beach Ball currently uses TNT).
+        stopTntIdleParticles(tile);
+        stopTntIdleShake(tile);
         startWildJuiceBubbles(tile);
       } else if (tile.special === 'wild-tnt') {
         if ((tile as any)._ccDeferTntIdleFx !== true) {

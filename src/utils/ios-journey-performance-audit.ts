@@ -1,5 +1,6 @@
 import animationManager from '../modules/animation-manager.js';
 import { getAppCleanupStats } from '../modules/app-core-utils.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';
 
 type AuditState = { id: number; boardNumber: number; startedAt: number; lastFrameAt: number; lastReportAt: number; samples: number[]; frameId: number | null; stopTimer: ReturnType<typeof setTimeout> | null };
 let sequence = 0;
@@ -62,6 +63,7 @@ function report(audit: AuditState, reportAt: number): void {
 }
 
 export function startIOSJourneyPerformanceAudit(boardNumber: number): void {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return;
   if (typeof window === 'undefined' || !/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
   finish('superseded');
   const startedAt = now();

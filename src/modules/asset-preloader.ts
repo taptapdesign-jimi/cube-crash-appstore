@@ -5,6 +5,7 @@
 import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import { shouldPausePostCriticalPreload } from './post-critical-preload-policy.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 
 function isAliasAlreadyInPixiResolver(alias: string): boolean {
@@ -356,6 +357,30 @@ const CRITICAL_ASSETS: string[] = [
   // and detail modals load them on demand to avoid iOS WebContent pressure.
 ];
 
+// Mobile startup owns only the first playable Pixi surface. Homepage and
+// Journey DOM art are loaded by their route owners, never decoded into Pixi.
+const MOBILE_CRITICAL_ASSETS: string[] = [
+  './assets/tile.png',
+  './assets/tile_numbers.png',
+  typeof window !== 'undefined' && window.devicePixelRatio >= 1.5
+    ? './assets/ghost-placeholder@2x.png'
+    : './assets/ghost-placeholder.png',
+  './assets/wild.png',
+  './assets/small-star.png',
+  './assets/close-button.png',
+  './assets/close-icon.png',
+  './assets/hud/help.png',
+  './assets/hud/star-hud.png',
+  './assets/hud/score-hud.png',
+  './assets/hud/combo-hud.png',
+  './assets/hud/extra-combo-hud.png',
+  './assets/hud/mega-combo-hud.png',
+];
+
+function getCriticalAssetsForRuntime(): string[] {
+  return MOBILE_RUNTIME_PROFILE.isMobileDevice ? MOBILE_CRITICAL_ASSETS : CRITICAL_ASSETS;
+}
+
 // Collectible card fronts are intentionally not part of global/deferred preload.
 // They are multi-megabyte PNGs and must be loaded only when a visible card or
 // detail modal needs them, otherwise iOS WebContent hits memory pressure.
@@ -424,7 +449,7 @@ export class AssetPreloader {
       getComputedStyle(overlay).display !== 'none' &&
       getComputedStyle(overlay).visibility !== 'hidden';
     return shouldPausePostCriticalPreload({
-      isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      isMobileRuntime: MOBILE_RUNTIME_PROFILE.isMobileDevice,
       appZone: (window as any).__ccAppZone,
       gameStartInProgress: (window as any).__ccGameStartInProgress === true,
       boardTransitionVisible: overlayVisible,
@@ -569,7 +594,7 @@ export class AssetPreloader {
     ];
     
     logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;
     const batchSize = isMobile ? 4 : 6;
     await this.loadImagesInBatches(htmlImages, batchSize);
     logger.debug('✅ All HTML images preloaded');
@@ -598,7 +623,7 @@ export class AssetPreloader {
     
     logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles placeholder images...`);
     
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;
     const batchSize = isMobile ? 4 : 6;
     await this.loadImagesInBatches(collectiblesImages, batchSize);
     localStorage.setItem(cacheKey, 'true');
@@ -657,7 +682,7 @@ export class AssetPreloader {
     journeyImages.push('./assets/colelctibles/common back.png');
     
     logger.info(`🗺️ Preloading ${journeyImages.length} Journey screen images for instant load...`);
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;
     const batchSize = isMobile ? 4 : 6;
     await this.loadImagesInBatches(journeyImages, batchSize);
     localStorage.setItem(cacheKey, 'true');
@@ -702,13 +727,14 @@ export class AssetPreloader {
     this.criticalPreloadPromise = (async () => {
       logger.info('🔄 Starting critical asset preloading only...');
 
-      this.totalCount = CRITICAL_ASSETS.length;
+      const criticalAssets = getCriticalAssetsForRuntime();
+      this.totalCount = criticalAssets.length;
       this.loadedCount = 0;
 
-      logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets`);
+      logger.debug(`📦 Loading ${criticalAssets.length} critical assets`);
 
       const registeredKeys = new Set<string>();
-      CRITICAL_ASSETS.forEach((assetPath: string) => {
+      criticalAssets.forEach((assetPath: string) => {
         if (registeredKeys.has(assetPath)) return;
         if (isAssetAliasRegistered(assetPath)) return;
         if (isAliasAlreadyInPixiResolver(assetPath)) {
@@ -728,22 +754,22 @@ export class AssetPreloader {
         }
       });
 
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;
+      const isIOS = MOBILE_RUNTIME_PROFILE.platform === 'ios';
       const batchSize = isIOS ? 8 : (isMobile ? 6 : 10);
 
-      logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
+      logger.debug(`📦 Loading ${criticalAssets.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
       this.updateProgress();
 
       let totalLoaded = 0;
-      for (let i = 0; i < CRITICAL_ASSETS.length; i += batchSize) {
-        const batch = CRITICAL_ASSETS.slice(i, i + batchSize);
+      for (let i = 0; i < criticalAssets.length; i += batchSize) {
+        const batch = criticalAssets.slice(i, i + batchSize);
         try {
           await Assets.load(batch);
           totalLoaded += batch.length;
           this.loadedCount = totalLoaded;
           this.updateProgress();
-          logger.debug(`✅ Loaded critical batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
+          logger.debug(`✅ Loaded critical batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(criticalAssets.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
           await this.yieldToMainThread();
         } catch (error) {
           logger.warn(`⚠️ Critical batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
@@ -780,6 +806,12 @@ export class AssetPreloader {
       logger.info('🔄 Starting post-critical asset preloading...');
 
       await this.preloadCriticalAssetsOnly();
+
+      if (MOBILE_RUNTIME_PROFILE.isMobileDevice) {
+        completed = true;
+        logger.info('📱 Mobile post-critical preload is route-owned; global warmup skipped');
+        return;
+      }
 
       if (this.shouldPausePostCriticalWork()) {
         logger.info('⏸️ Post-critical preload skipped because Journey/board owns iOS');
@@ -850,7 +882,7 @@ export class AssetPreloader {
       });
       
       // 🔥 OPTIMIZED: Use smaller batches on mobile for better performance
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isMobile = MOBILE_RUNTIME_PROFILE.isMobileDevice;
       const batchSize = isMobile ? 5 : 10; // Smaller batches on mobile
       
       logger.debug(`📦 Loading ${DEFERRED_ASSETS.length} deferred assets in batches of ${batchSize} (mobile: ${isMobile})`);

@@ -3,6 +3,7 @@ import path from 'node:path';
 import {
   createJourneyForestBeeFlightPlans,
   getJourneyForestBeeAssetForVelocity,
+  resolveJourneyForestBeeRuntimeProfile,
   startJourneyForestBeeOrbits,
 } from '../journey-forest-bee-orbits';
 
@@ -56,6 +57,20 @@ describe('Journey Forest bee canvas flights', () => {
         expect(Math.max(...ys)).toBeLessThanOrEqual(center + 72);
       });
     });
+  });
+
+  test('uses the thermal Forest profile on iPhone, iPad and Android while preserving desktop', () => {
+    expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyForestBeeRuntimeProfile(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
+    )).toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0 });
   });
 
   test('paints twenty-five logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
@@ -115,6 +130,9 @@ describe('Journey Forest bee canvas flights', () => {
       renderer: 'canvas',
       canvasCount: 2,
       domImageCount: 0,
+      pixelRatio: 2,
+      maxFramesPerSecond: 0,
+      visibilityMarginPx: 180,
     });
 
     controller.setSuspended(true);
@@ -166,6 +184,50 @@ describe('Journey Forest bee canvas flights', () => {
     root.remove();
   });
 
+  test('keeps twenty-five bees and both depth canvases under the iPhone thermal profile', () => {
+    Object.defineProperties(window, {
+      innerWidth: { configurable: true, value: 390 },
+      innerHeight: { configurable: true, value: 844 },
+      devicePixelRatio: { configurable: true, value: 3 },
+    });
+    const root = document.createElement('div');
+    root.style.height = '1400px';
+    document.body.appendChild(root);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 4,
+      add: (callback: () => void) => callbacks.add(callback),
+      remove: (callback: () => void) => callbacks.delete(callback),
+    };
+    const controller = startJourneyForestBeeOrbits({
+      root,
+      contentTopPx: 120,
+      leftGutterPx: 24,
+      ticker,
+      random: () => 0.5,
+      observeVisibility: false,
+      runtimeProfile: resolveJourneyForestBeeRuntimeProfile('iPhone'),
+    });
+
+    expect(controller.getSnapshot()).toMatchObject({
+      beeCount: 25,
+      canvasCount: 2,
+      tickerCount: 1,
+      pixelRatio: 1.5,
+      bitmapPixels: 585 * 1626 * 2,
+      maxFramesPerSecond: 30,
+      visibilityMarginPx: 120,
+    });
+    const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-forest-bee-canvas'));
+    expect(canvases).toHaveLength(2);
+    expect(canvases.every((canvas) => canvas.style.height === '1084px')).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 585 && canvas.height === 1626)).toBe(true);
+
+    controller.dispose();
+    expect(callbacks.size).toBe(0);
+    root.remove();
+  });
+
   test('moves only the two bounded canvas layers with native scroll', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
     const scrollRoot = document.createElement('div');
@@ -200,6 +262,9 @@ describe('Journey Forest bee canvas flights', () => {
     const initialTransform = canvases[0].style.transform;
     scrollRoot.scrollTop = 600;
     scrollRoot.dispatchEvent(new Event('scroll'));
+    expect(canvases[0].style.transform).toBe(initialTransform);
+    ticker.time += 1 / 30;
+    callbacks.forEach((callback) => callback());
     expect(canvases[0].style.transform).not.toBe(initialTransform);
     expect(canvases[0].style.transform).toBe(canvases[1].style.transform);
     expect(canvases.every((canvas) => canvas.style.height === '760px')).toBe(true);

@@ -66,23 +66,32 @@ describe('Journey ambient canvas runtime', () => {
       visibleSpriteCount: 4,
       pixelRatio: 2,
       bitmapPixels: 390 * 2 * 960 * 2 * 2,
+      maxFramesPerSecond: 0,
+      visibilityMarginPx: 180,
     });
 
     scrollRoot.scrollTop = 1000;
     scrollRoot.dispatchEvent(new Event('scroll'));
+    // Native scrolling moves the absolute canvas with the content. Do not move
+    // its scene window before the matching bitmap has been repainted, otherwise
+    // WKWebView presents one stale Forest/Beach frame during inertial scroll.
+    expect(canvases[0].style.transform).toBe('translate3d(0,0px,0)');
+    ticker.time += 1 / 60;
+    callbacks.forEach((callback) => callback());
     expect(canvases[0].style.transform).toBe('translate3d(0,820px,0)');
     expect(canvases[1].style.transform).toBe(canvases[0].style.transform);
+    expect(render).toHaveBeenCalledTimes(2);
     expect(root.style.height).toBe(heightBefore);
 
     runtime.setSuspended(true);
     ticker.time += 1;
     callbacks.forEach((callback) => callback());
-    expect(render).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(2);
     expect(canvases.every((canvas) => canvas.style.willChange === 'auto')).toBe(true);
     runtime.setSuspended(false);
     ticker.time += 0.05;
     callbacks.forEach((callback) => callback());
-    expect(render).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenCalledTimes(3);
 
     runtime.setSceneHeight(2000);
     expect(canvases.every((canvas) => canvas.style.height === '960px')).toBe(true);
@@ -96,5 +105,61 @@ describe('Journey ambient canvas runtime', () => {
       disposed: true, canvasCount: 0, tickerCount: 0, bitmapPixels: 0,
     });
     scrollRoot.remove();
+  });
+
+  test('caps bitmap density and renders a stable elapsed-time 30 Hz cadence', () => {
+    Object.defineProperties(window, {
+      innerWidth: { configurable: true, value: 390 },
+      innerHeight: { configurable: true, value: 844 },
+      devicePixelRatio: { configurable: true, value: 3 },
+    });
+    const root = document.createElement('div');
+    root.style.height = '1400px';
+    document.body.appendChild(root);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 10,
+      add: (callback: () => void) => callbacks.add(callback),
+      remove: (callback: () => void) => callbacks.delete(callback),
+    };
+    const deltas: number[] = [];
+    const runtime = startJourneyAmbientCanvasRuntime({
+      root,
+      ticker,
+      sceneWidthPx: 390,
+      sceneHeightPx: 1400,
+      visibilityMarginPx: 120,
+      pixelRatioCap: 1.5,
+      maxFramesPerSecond: 30,
+      className: 'journey-test-throttled-canvas',
+      observeVisibility: false,
+      render: ({ deltaSeconds }) => {
+        deltas.push(deltaSeconds);
+        return 2;
+      },
+    });
+
+    for (let frame = 0; frame < 60; frame += 1) {
+      ticker.time += 1 / 60;
+      callbacks.forEach((callback) => callback());
+    }
+
+    expect(deltas).toHaveLength(31);
+    expect(deltas.slice(1).every((delta) => Math.abs(delta - (1 / 30)) < 0.001)).toBe(true);
+    expect(runtime.getSnapshot()).toMatchObject({
+      canvasCount: 2,
+      tickerCount: 1,
+      pixelRatio: 1.5,
+      maxFramesPerSecond: 30,
+      visibilityMarginPx: 120,
+    });
+    const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-test-throttled-canvas'));
+    expect(canvases.every((canvas) => canvas.style.height === '1084px')).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 585 && canvas.height === 1626)).toBe(true);
+
+    runtime.dispose();
+    expect(callbacks.size).toBe(0);
+    expect(root.querySelectorAll('.journey-test-throttled-canvas')).toHaveLength(0);
+    root.remove();
   });
 });

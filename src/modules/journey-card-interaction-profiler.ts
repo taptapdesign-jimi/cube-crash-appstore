@@ -1,4 +1,5 @@
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 interface JourneyCardInteractionMark {
   phase: string;
@@ -40,6 +41,7 @@ export class JourneyCardInteractionProfiler {
   private longFrames: JourneyCardInteractionLongFrame[] = [];
 
   public begin(boardId: number): void {
+    if (!areContinuousRuntimeDiagnosticsEnabled()) return;
     if (this.frameId !== 0) {
       this.openCount += 1;
       this.mark('card-reopen-handler', boardId);

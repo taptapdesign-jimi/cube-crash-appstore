@@ -25,8 +25,10 @@ const DEFAULT_IDLE_HANDOFF_MS = 48;
  * It deliberately owns no visual implementation. DOM idle, spatial motion,
  * ambient effects and transition styling subscribe to the same bounded state
  * so World transforms never compete with native scroll or modal work. Ambient
- * owners remain fluid during scroll/modal and suspend only at hard lifecycle
- * boundaries such as transitions and teardown.
+ * owners remain fluid during scroll, but suspend while a preserve-3d modal or
+ * the critical portion of its landing settle owns the compositor, as well as
+ * during transitions and teardown. The landing owner may explicitly release
+ * only ambient paint before smoke while heavier World paint stays suspended.
  */
 export class JourneyWorldRuntimeScheduler {
   private state: JourneyWorldRuntimeState = 'inactive';
@@ -37,6 +39,7 @@ export class JourneyWorldRuntimeScheduler {
   private scrollActive = false;
   private settling = false;
   private interactionSettling = false;
+  private interactionAmbientReleased = false;
   private scrollRoot: HTMLElement | null = null;
   private scrollSettleTimer: number | null = null;
   private idleHandoffTimer: number | null = null;
@@ -52,6 +55,7 @@ export class JourneyWorldRuntimeScheduler {
     this.scrollActive = true;
     this.settling = false;
     this.interactionSettling = false;
+    this.interactionAmbientReleased = false;
     this.clearIdleHandoffTimer();
     this.recomputeState();
     this.clearScrollSettleTimer();
@@ -81,6 +85,7 @@ export class JourneyWorldRuntimeScheduler {
     this.scrollActive = false;
     this.settling = false;
     this.interactionSettling = false;
+    this.interactionAmbientReleased = false;
     this.scrollRoot = scrollRoot;
     this.scrollRoot?.addEventListener('scroll', this.onScroll, { passive: true });
     this.recomputeState(true);
@@ -108,17 +113,26 @@ export class JourneyWorldRuntimeScheduler {
     this.recomputeState();
   }
 
-  /** Keep heavy World paint paused through a short local interaction tail.
-   * Ambient owners remain full-rate because `settling` does not suspend them. */
+  /** Keep heavy World and ambient paint paused through a short local interaction tail. */
   public beginInteractionSettle(): void {
     if (this.worldId === null) return;
     this.interactionSettling = true;
+    this.interactionAmbientReleased = false;
     this.recomputeState();
+  }
+
+  /** Resume only the lightweight World ambient owner before local landing smoke. */
+  public releaseAmbientDuringInteractionSettle(): void {
+    if (!this.interactionSettling || this.interactionAmbientReleased) return;
+    this.interactionAmbientReleased = true;
+    // State intentionally remains `settling`; publish the narrower paint-policy change.
+    this.recomputeState(true);
   }
 
   public endInteractionSettle(): void {
     if (!this.interactionSettling) return;
     this.interactionSettling = false;
+    this.interactionAmbientReleased = false;
     this.recomputeState();
   }
 
@@ -131,6 +145,7 @@ export class JourneyWorldRuntimeScheduler {
     this.scrollActive = false;
     this.settling = false;
     this.interactionSettling = false;
+    this.interactionAmbientReleased = false;
     this.recomputeState(true);
   }
 
@@ -141,7 +156,13 @@ export class JourneyWorldRuntimeScheduler {
   }
 
   public getSnapshot(): JourneyWorldRuntimeSnapshot {
-    const ambientSuspended = this.state === 'inactive' || this.state === 'transition';
+    const ambientReleasedForLanding = this.state === 'settling'
+      && this.interactionSettling
+      && this.interactionAmbientReleased;
+    const ambientSuspended = this.state === 'inactive'
+      || this.state === 'transition'
+      || this.state === 'modal'
+      || (this.state === 'settling' && !ambientReleasedForLanding);
     return {
       state: this.state,
       worldId: this.worldId,

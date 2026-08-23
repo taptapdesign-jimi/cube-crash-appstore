@@ -67,6 +67,7 @@ export type SpecialDiceVariantDefinition = {
   };
   arcadeTestOrder?: number;
   inputReleaseAtRatio?: number;
+  gameplayReleaseAtSpawnRatio?: number;
 };
 
 const SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX: Record<SpecialDiceFinaleFx, number> = {
@@ -266,7 +267,7 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
   },
   'beach-ball': {
     id: 'beach-ball',
-    archetype: 'wild-magnet',
+    archetype: 'wild-tnt',
     visualFinaleFx: 'juice',
     texture: './assets/shop/ball/ball.png',
     splashText: 'Boooing',
@@ -282,6 +283,10 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     juiceDropProfile: 'beach-ball',
     arcadeTestOrder: 1,
     inputReleaseAtRatio: 0.30,
+    // Start the TNT handoff roughly one second earlier than the prior 85%
+    // phase. The board's existing ~0.6–0.7s return keeps the four staggered
+    // explosions visible well before the final Ball sprites leave the viewport.
+    gameplayReleaseAtSpawnRatio: 0.08,
   },
 };
 
@@ -317,9 +322,11 @@ export function getCompatibleSpecialDiceVariant(
   const variant = getSpecialDiceVariant(id);
   if (!variant || !coreWildType) return null;
   if (getCoreWildTypeForSpecialDiceVariant(variant) === coreWildType) return variant;
-  // Save compatibility for Beach Balls created before their gameplay archetype
-  // changed from Juice to Magnet. Restore canonicalizes the core special.
-  if (variant.id === 'beach-ball' && coreWildType === 'wild-juice') return variant;
+  // Save compatibility for Beach Balls created under their earlier Juice and
+  // Magnet gameplay archetypes. Restore canonicalizes the core special to TNT.
+  if (variant.id === 'beach-ball' && (coreWildType === 'wild-juice' || coreWildType === 'wild-magnet')) {
+    return variant;
+  }
   return null;
 }
 
@@ -557,6 +564,14 @@ export function getSpecialDiceInputReleaseAtRatio(tileOrVariant: any): number | 
   }
   const fx = getSpecialDiceFinaleFxForArchetype(variant?.archetype);
   return fx ? SPECIAL_DICE_INPUT_RELEASE_RATIO_BY_FX[fx] : undefined;
+}
+
+export function getSpecialDiceGameplayReleaseAtSpawnRatio(tileOrVariant: any): number | undefined {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  if (!Number.isFinite(variant?.gameplayReleaseAtSpawnRatio)) return undefined;
+  return Math.min(1, Math.max(0, Number(variant.gameplayReleaseAtSpawnRatio)));
 }
 
 export function getSpecialDiceInputReleaseAtRatioForFx(fx?: SpecialDiceFinaleFx | null): number {

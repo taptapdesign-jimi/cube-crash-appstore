@@ -95,6 +95,7 @@ export function finishMergePerformanceTrace(reason = 'settled'): MergePerformanc
 }
 
 export function beginMergePerformanceTrace(meta: MergePerformanceMeta): number {
+  if (!areContinuousRuntimeDiagnosticsEnabled()) return 0;
   finishMergePerformanceTrace('superseded-by-next-merge');
   const startedAt = now();
   const trace: ActiveMergeTrace = {
@@ -138,3 +139,4 @@ export function resetMergePerformanceForTests(): void {
   activeTrace = null;
   sequence = 0;
 }
+import { areContinuousRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';

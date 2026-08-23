@@ -109,7 +109,7 @@ describe('Arcade terminal lifecycle regression contract', () => {
     const startLevelOwner = appCore.slice(startLevelStart, startLevelEnd);
     expect(startLevelOwner).toContain('await ensureStartLevelLayout({');
     expect(startLevelOwner.indexOf('stage.visible = false'))
-      .toBeLessThan(startLevelOwner.indexOf("await ensureCoreGameTexturesLoaded('startLevel')"));
+      .toBeLessThan(startLevelOwner.indexOf("await ensureCoreRenderTexturesGpuReady('startLevel')"));
     expect(layoutHelper).toContain('export async function ensureStartLevelLayout');
     expect(layoutHelper).toContain('await layoutBoard();');
     expect(stageModal).toContain('await wait(300);');

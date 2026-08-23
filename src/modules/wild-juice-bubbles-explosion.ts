@@ -86,6 +86,7 @@ const MUSHROOM_POLLEN_START_BAND_TOP_RATIO = 0.70;
 const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30;
 const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
 const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
+const WILD_JUICE_INPUT_LOCK_MS = 6200;
 
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
@@ -287,6 +288,9 @@ type WildJuiceBubblesExplosionOptions = {
   dropProfile?: 'beach-ball' | 'mushroom';
   spritePaths?: string[] | null;
   inputReleaseAtRatio?: number;
+  gameplayReleaseAtSpawnRatio?: number;
+  onGameplayRelease?: () => void;
+  onSequenceComplete?: () => void;
 };
 
 export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosionOptions = {}): void {
@@ -307,6 +311,19 @@ export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosion
  * Internal function to start bubbles explosion (called after cleanup if needed)
  */
 async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesExplosionOptions = {}): Promise<void> {
+  let gameplayReleaseNotified = false;
+  let sequenceCompleteNotified = false;
+  const notifyGameplayRelease = () => {
+    if (gameplayReleaseNotified) return;
+    gameplayReleaseNotified = true;
+    try { options.onGameplayRelease?.(); } catch {}
+  };
+  const notifySequenceComplete = () => {
+    if (sequenceCompleteNotified) return;
+    sequenceCompleteNotified = true;
+    notifyGameplayRelease();
+    try { options.onSequenceComplete?.(); } catch {}
+  };
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const app = (windowState && windowState.app) || null;
   const stateStage = (windowState && windowState.stage) || null;
@@ -337,6 +354,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     }
     logger.warn('Cannot start bubbles explosion - no stage/host', undefined, { retriesExhausted: true });
     stageRetryCount = 0;
+    notifySequenceComplete();
     return;
   }
   stageRetryCount = 0;
@@ -367,6 +385,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
 
   if (bubbleTextures.length === 0) {
     console.warn('⚠️ Bubble explosion aborted: no bubble sprites loaded');
+    notifySequenceComplete();
     return;
   }
 
@@ -486,17 +505,32 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         parentIsStage: explosionContainer.parent === hostContainer,
         stageChildren: hostContainer.children.length
       });
+      notifySequenceComplete();
       cleanup();
       return;
     }
   } catch (e) {
     console.error('❌ Failed to add explosion container to stage:', e);
+    notifySequenceComplete();
     cleanup();
     return;
   }
 
   isExplosionActive = true;
-  startWildFxDragLockForAnimation('juice-bubbles', 6200, options.inputReleaseAtRatio ?? 0.30);
+  const inputReleaseAtRatio = options.inputReleaseAtRatio ?? 0.30;
+  startWildFxDragLockForAnimation('juice-bubbles', WILD_JUICE_INPUT_LOCK_MS, inputReleaseAtRatio);
+  const gameplayReleaseAtSpawnRatio = Number.isFinite(options.gameplayReleaseAtSpawnRatio)
+    ? Math.min(1, Math.max(0, Number(options.gameplayReleaseAtSpawnRatio)))
+    : null;
+  // Most Juice-family finales retain the established lock-ratio callback.
+  // Beach Ball instead ties TNT gameplay to its actual spawn phase below so
+  // slower devices cannot drift away from the visible Ball choreography.
+  if (gameplayReleaseAtSpawnRatio === null) {
+    lifecycle.trackTimeout(
+      notifyGameplayRelease,
+      Math.max(0, WILD_JUICE_INPUT_LOCK_MS * inputReleaseAtRatio),
+    );
+  }
   explosionStartTime = performance.now(); // Track when explosion started
   // 🔥 CRITICAL: Store start time globally so startLevel() can check elapsed time
   (window as any).__ccBubblesExplosionStartTime = explosionStartTime;
@@ -537,6 +571,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     if (!isExplosionActive || cleanupInProgress) return;
     if (spawned >= totalWithLate && active === 0) {
       logger.debug('Bubbles explosion complete - auto cleanup', undefined, { spawned, totalWithLate });
+      notifySequenceComplete();
       cleanup();
     }
   };
@@ -549,6 +584,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     safetyTimeoutId = null;
     if (isExplosionActive) {
       logger.warn('Bubbles explosion safety timeout', undefined, { ms: Math.round(safetyTimeoutMs) });
+      notifySequenceComplete();
       cleanup();
     }
   }, safetyTimeoutMs);
@@ -969,6 +1005,13 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       lastTick = now;
       const elapsed = now - startTime;
 
+      if (
+        gameplayReleaseAtSpawnRatio !== null &&
+        elapsed >= spawnDuration * gameplayReleaseAtSpawnRatio
+      ) {
+        notifyGameplayRelease();
+      }
+
       if (elapsed >= spawnDuration && spawned >= totalWithLate) {
         if (spawnTick === spawnTicker) {
           gsap.ticker.remove(spawnTicker);
@@ -983,7 +1026,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           gsap.ticker.remove(spawnTicker);
           spawnTick = null;
         }
-        lifecycle.trackTimeout(() => cleanup(), 0);
+        lifecycle.trackTimeout(() => {
+          notifySequenceComplete();
+          cleanup();
+        }, 0);
         return;
       }
 

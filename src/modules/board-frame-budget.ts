@@ -1,3 +1,5 @@
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
+
 export type BoardFrameBudgetSnapshot = {
   averageFrameMs: number;
   worstFrameMs: number;
@@ -9,21 +11,23 @@ export type BoardFrameBudgetSnapshot = {
 
 export const IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS = 180_000;
 
+type FrameBudgetTicker = {
+  add: (callback: (ticker?: unknown) => void) => unknown;
+  remove: (callback: (ticker?: unknown) => void) => unknown;
+};
+
 let rafId: number | null = null;
+let monitorTicker: FrameBudgetTicker | null = null;
+let tickerCallback: ((ticker?: unknown) => void) | null = null;
 let lastFrameAt = 0;
 let frameSamples: number[] = [];
 let stableWindows = 0;
 let reducedFx = false;
 let framesSinceEvaluation = 0;
-let monitorStartedAt = 0;
+let activeMonitorElapsedMs = 0;
 
-export function shouldUseSustainedLoadReduction(elapsedMs: number, isIOSRuntime: boolean): boolean {
-  return isIOSRuntime && Number.isFinite(elapsedMs) && elapsedMs >= IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS;
-}
-
-function detectIOSRuntime(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+export function shouldUseSustainedLoadReduction(elapsedMs: number, isMobileRuntime: boolean): boolean {
+  return isMobileRuntime && Number.isFinite(elapsedMs) && elapsedMs >= IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS;
 }
 
 export function evaluateBoardFrameBudget(
@@ -54,23 +58,26 @@ function publish(snapshot: BoardFrameBudgetSnapshot): void {
   } catch {}
 }
 
-export function startBoardFrameBudgetMonitor(): void {
-  if (rafId !== null || typeof requestAnimationFrame !== 'function') return;
+export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null): void {
+  if (rafId !== null || tickerCallback !== null) return;
   lastFrameAt = performance.now();
-  monitorStartedAt = lastFrameAt;
   frameSamples = [];
   stableWindows = 0;
   framesSinceEvaluation = 0;
-  const loop = (now: number) => {
-    frameSamples.push(Math.max(1, Math.min(250, now - lastFrameAt)));
+  activeMonitorElapsedMs = 0;
+
+  const sampleFrame = (now: number) => {
+    const frameMs = Math.max(1, Math.min(250, now - lastFrameAt));
+    frameSamples.push(frameMs);
     lastFrameAt = now;
+    activeMonitorElapsedMs += frameMs;
     if (frameSamples.length > 120) frameSamples.shift();
     framesSinceEvaluation += 1;
     if (frameSamples.length >= 60 && framesSinceEvaluation >= 15) {
       framesSinceEvaluation = 0;
       const sustainedLoadReduction = shouldUseSustainedLoadReduction(
-        now - monitorStartedAt,
-        detectIOSRuntime(),
+        activeMonitorElapsedMs,
+        MOBILE_RUNTIME_PROFILE.isMobileDevice,
       );
       const candidate = evaluateBoardFrameBudget(frameSamples, reducedFx, sustainedLoadReduction);
       if (reducedFx && !candidate.reducedFx) {
@@ -82,6 +89,21 @@ export function startBoardFrameBudgetMonitor(): void {
       reducedFx = candidate.reducedFx;
       publish(candidate);
     }
+  };
+
+  // Gameplay already owns a Pixi ticker. Sampling it avoids a second
+  // perpetual RAF loop and automatically suspends this monitor whenever
+  // gameplay or the WebView background lifecycle stops Pixi.
+  if (ticker?.add && ticker?.remove) {
+    monitorTicker = ticker;
+    tickerCallback = () => sampleFrame(performance.now());
+    monitorTicker.add(tickerCallback);
+    return;
+  }
+
+  if (typeof requestAnimationFrame !== 'function') return;
+  const loop = (now: number) => {
+    sampleFrame(now);
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
@@ -89,12 +111,17 @@ export function startBoardFrameBudgetMonitor(): void {
 
 export function stopBoardFrameBudgetMonitor(): void {
   if (rafId !== null) cancelAnimationFrame(rafId);
+  if (monitorTicker && tickerCallback) {
+    try { monitorTicker.remove(tickerCallback); } catch {}
+  }
   rafId = null;
+  monitorTicker = null;
+  tickerCallback = null;
   lastFrameAt = 0;
   frameSamples = [];
   stableWindows = 0;
   framesSinceEvaluation = 0;
-  monitorStartedAt = 0;
+  activeMonitorElapsedMs = 0;
   reducedFx = false;
   try { (window as any).__ccReducedBoardFx = false; } catch {}
 }

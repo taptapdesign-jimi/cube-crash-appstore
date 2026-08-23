@@ -1937,14 +1937,14 @@ export function initDrag(cfg) {
             }).catch(() => {});
           } catch {}
         }
-        if (tileRef.special === 'wild-juice') {
+        if (isSpecialDiceJuiceLikeTile(tileRef)) {
           try {
             import('./fx.js').then(fxModule => {
               if (fxModule?.startWildJuiceBubbles) fxModule.startWildJuiceBubbles(tileRef);
             }).catch(() => {});
           } catch {}
         }
-        if (tileRef.special === 'wild-tnt') {
+        if (tileRef.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tileRef)) {
           try {
             import('./fx.js').then(fxModule => {
               if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);
@@ -1994,10 +1994,10 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-juice') {
+        if (isSpecialDiceJuiceLikeTile(tileRef)) {
           try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-tnt') {
+        if (tileRef.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tileRef)) {
           try {
             import('./fx.js').then(fxModule => {
               if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);
@@ -2056,10 +2056,10 @@ export function initDrag(cfg) {
         if (tileRef.special === 'wild-magnet') {
           try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-juice') {
+        if (isSpecialDiceJuiceLikeTile(tileRef)) {
           try { import('./fx.js').then(fx => { if (fx?.startWildJuiceBubbles) fx.startWildJuiceBubbles(tileRef); }).catch(() => {}); } catch {}
         }
-        if (tileRef.special === 'wild-tnt') {
+        if (tileRef.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tileRef)) {
           try {
             import('./fx.js').then(fxModule => {
               if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);

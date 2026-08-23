@@ -61,20 +61,8 @@
   overscroll-behavior: none;
 }
 
-/* iOS animation optimizations */
-.ios-device .slider-slide {
-  /* Use transform instead of position for better performance */
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
 /* iOS PIXI.js optimizations */
 .ios-device canvas {
-  /* Enable hardware acceleration */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  
   /* Prevent iOS from scaling canvas */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -90,11 +78,6 @@
   /* Prevent iOS from zooming on input focus */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  
-  /* Improve modal performance */
-  will-change: transform, opacity;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
 /* iOS text optimizations */
@@ -113,18 +96,10 @@
   /* Prevent iOS from interfering with navigation */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
-  
-  /* Improve navigation performance */
-  will-change: transform, opacity;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
 /* iOS specific fixes */
 .ios-device .hero-image {
-  /* Fix iOS image rendering issues */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }

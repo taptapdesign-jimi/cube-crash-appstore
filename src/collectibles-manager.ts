@@ -26,6 +26,7 @@ import {
   markIOSJourneyRouteAudit,
 } from './utils/ios-journey-world-enter-audit.js';
 import { resolveJourneyReturnEntryPolicy } from './modules/journey-return-entry-policy.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -283,7 +284,7 @@ function restoreJourneyScrollableInteractivity(reason: string, unlockViewport = 
       delete (html as any)._originalTouchAction;
     }
 
-    if (!(scrollable as any).__ccJourneyScrollProbeInstalled) {
+    if (areContinuousRuntimeDiagnosticsEnabled() && !(scrollable as any).__ccJourneyScrollProbeInstalled) {
       let probeStartY = 0;
       let probeStartScrollTop = 0;
       const onProbeStart = (event: TouchEvent) => {

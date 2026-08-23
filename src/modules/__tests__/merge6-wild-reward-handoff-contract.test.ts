@@ -73,7 +73,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     ['cubero', 'wild'],
     ['core juice', 'wild-juice'],
     ['mushroom', 'wild-juice'],
-    ['beach ball', 'wild-magnet'],
+    ['beach ball', 'wild-tnt'],
     ['core TNT', 'wild-tnt'],
     ['flower', 'wild-tnt'],
     ['core magnet', 'wild-magnet'],
@@ -190,7 +190,7 @@ describe('regular merge-6 to wild reward handoff', () => {
     ['wild', 'cubero'],
     ['wild-juice', 'mushroom'],
     ['wild-magnet', 'bottle'],
-    ['wild-magnet', 'beach-ball'],
+    ['wild-tnt', 'beach-ball'],
     ['wild-tnt', 'flower'],
   ])('retains matching %s + %s variant identity', (special, variantId) => {
     expect(getCompatibleSpecialDiceVariant(variantId, special)?.id).toBe(variantId);

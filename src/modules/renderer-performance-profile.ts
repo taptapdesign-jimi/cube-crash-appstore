@@ -5,13 +5,13 @@ export type RendererPerformanceProfile = {
 
 export function getRendererPerformanceProfile(
   rawDevicePixelRatio: number,
-  isIOSRuntime: boolean,
+  isMobileRuntime: boolean,
 ): RendererPerformanceProfile {
   const safeDevicePixelRatio = Number.isFinite(rawDevicePixelRatio) && rawDevicePixelRatio > 0
     ? rawDevicePixelRatio
     : 1;
 
-  if (isIOSRuntime) {
+  if (isMobileRuntime) {
     return {
       resolution: Math.min(1.5, safeDevicePixelRatio),
       powerPreference: 'low-power',

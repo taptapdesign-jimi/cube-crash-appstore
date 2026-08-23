@@ -652,9 +652,10 @@ body{
 
 /* Canvas styling */
 #app canvas {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+  /* Runtime lifecycle owners must be able to compositor-hide the Pixi surface. */
+  display: block;
+  visibility: visible;
+  opacity: 1;
   width: 100% !important;
   height: 100% !important;
   position: absolute !important;

@@ -73,6 +73,7 @@ import {
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
 import { hideHomepageNavigation } from './navigation-control.js';
@@ -897,6 +898,7 @@ class JourneyBoardsManager {
   private journeyToGameExitActive = false;
   private journeyToGameExitBoardId: number | null = null;
   private journeyAreaIdleTicker: (() => void) | null = null;
+  private lastJourneyAreaIdlePaintAt: number | null = null;
   private journeyAreaIdleEntries: Array<{
     targets: HTMLElement[];
     areaId: string;
@@ -1080,7 +1082,9 @@ class JourneyBoardsManager {
       entry.runtimeActive = entry.isVisible && (
         !entry.areaId.startsWith('board-') || activeBoards.has(entry)
       );
-      const canPromote = entry.runtimeActive && !snapshot.paintSuspended;
+      const canPromote = !MOBILE_RUNTIME_PROFILE.isMobileDevice
+        && entry.runtimeActive
+        && !snapshot.paintSuspended;
       entry.targets.forEach((target) => {
         target.style.willChange = canPromote
           ? (target.classList.contains('journey-robo-alien-beam-art') ? 'transform, opacity' : 'transform')
@@ -1312,6 +1316,7 @@ class JourneyBoardsManager {
         try { gsap.ticker.remove(this.journeyAreaIdleTicker); } catch {}
         this.journeyAreaIdleTicker = null;
       }
+      this.lastJourneyAreaIdlePaintAt = null;
       if (this.journeyAreaIdleVisibilityObserver) {
         try { this.journeyAreaIdleVisibilityObserver.disconnect(); } catch {}
         this.journeyAreaIdleVisibilityObserver = null;
@@ -1432,7 +1437,10 @@ class JourneyBoardsManager {
       ) {
         setJourneyAlienBeamIdleReady(target, true);
       }
-      target.style.willChange = this.journeyWorldRuntime.getSnapshot().paintSuspended
+      target.style.willChange = (
+        MOBILE_RUNTIME_PROFILE.isMobileDevice
+        || this.journeyWorldRuntime.getSnapshot().paintSuspended
+      )
         ? 'auto'
         : (target.classList.contains('journey-robo-alien-beam-art') ? 'transform, opacity' : 'transform');
     });
@@ -1487,6 +1495,7 @@ class JourneyBoardsManager {
             if (!observedEntry) return;
             const nextVisible = record.isIntersecting;
             if (nextVisible && !observedEntry.isVisible) {
+              this.lastJourneyAreaIdlePaintAt = null;
               observedEntry.startTime = gsap.ticker.time;
               observedEntry.suspendedRebasePending = this.journeyWorldRuntime.getSnapshot().paintSuspended;
               observedEntry.targetStates.forEach((state) => {
@@ -1523,6 +1532,13 @@ class JourneyBoardsManager {
         if (this.journeyWorldRuntime.getSnapshot().paintSuspended) return;
 
         const now = gsap.ticker.time;
+        const maxFramesPerSecond = MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
+        if (
+          maxFramesPerSecond > 0
+          && this.lastJourneyAreaIdlePaintAt !== null
+          && (now - this.lastJourneyAreaIdlePaintAt) < (((1000 / maxFramesPerSecond) - 1) / 1000)
+        ) return;
+        this.lastJourneyAreaIdlePaintAt = now;
         this.journeyAreaIdleEntries.forEach((entry) => {
           if (!entry.runtimeActive) return;
           const elapsed = now - entry.startTime;
@@ -5171,6 +5187,13 @@ class JourneyBoardsManager {
         y: 1,
         duration: JOURNEY_INTERIM_IDLE_MOTION.landDurationSeconds,
         ease: 'power2.in',
+        onStart: () => {
+          // Let Forest bees (or the active World's ambient equivalent) visibly
+          // move for the complete landing beat before the card smoke appears.
+          // Heavy Unit/cloud idle and spatial motion remain paused by `settling`.
+          this.journeyWorldRuntime.releaseAmbientDuringInteractionSettle();
+          this.journeyCardInteractionProfiler.mark('dismiss-ambient-resumed-before-smoke', boardId);
+        },
         onComplete: () => {
           if (this.renderDisposed || !card.isConnected) return;
           this.journeyCardInteractionProfiler.mark('dismiss-landing-smoke-start', boardId);

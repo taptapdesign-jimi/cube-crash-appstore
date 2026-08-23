@@ -1,4 +1,5 @@
 import { gsap } from 'gsap';
+import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import {
   startJourneyAmbientCanvasRuntime,
   type JourneyAmbientCanvasDepth,
@@ -25,6 +26,33 @@ export interface StartJourneyBeachBubbleDriftOptions {
   random?: () => number;
   ticker?: JourneyAmbientTicker;
   observeVisibility?: boolean;
+  runtimeProfile?: JourneyBeachBubbleRuntimeProfile;
+}
+
+export interface JourneyBeachBubbleRuntimeProfile {
+  visibilityMarginPx: number;
+  pixelRatioCap: number;
+  maxFramesPerSecond: number;
+}
+
+export function resolveJourneyBeachBubbleRuntimeProfile(
+  userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+  platform = typeof navigator !== 'undefined' ? navigator.platform : '',
+  maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0,
+): JourneyBeachBubbleRuntimeProfile {
+  const mobileProfile = resolveMobileRuntimeProfile({ userAgent, platform, maxTouchPoints });
+  if (mobileProfile.isMobileDevice) {
+    return {
+      visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
+      pixelRatioCap: mobileProfile.ambientPixelRatioCap,
+      maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
+    };
+  }
+  return {
+    visibilityMarginPx: BUBBLE_VISIBILITY_MARGIN_PX,
+    pixelRatioCap: 2,
+    maxFramesPerSecond: 0,
+  };
 }
 
 export interface JourneyBeachBubbleDriftController {
@@ -43,6 +71,10 @@ export interface JourneyBeachBubbleDriftController {
     activeBubbleCount: number;
     behindBubbleCount: number;
     maxOpacity: number;
+    pixelRatio: number;
+    bitmapPixels: number;
+    maxFramesPerSecond: number;
+    visibilityMarginPx: number;
   };
 }
 
@@ -163,6 +195,7 @@ export function startJourneyBeachBubbleDrift(
   const { root } = options;
   const random = options.random ?? Math.random;
   const ticker = options.ticker ?? gsap.ticker;
+  const runtimeProfile = options.runtimeProfile ?? resolveJourneyBeachBubbleRuntimeProfile();
   const cloudLayer = root.querySelector<HTMLElement>('.journey-cloud-container');
   const backgroundLayer = root.querySelector<HTMLElement>('.journey-bg-container');
   const sceneHeight = resolveSceneHeight(root);
@@ -178,6 +211,7 @@ export function startJourneyBeachBubbleDrift(
   const bubbles: LiveBubble[] = [];
   let disposed = false;
   let visualSceneHeight = baseLayerHeight + Math.max(0, backgroundTop - layerTop);
+  let emitters = resolveBeachBubbleEmitters(root, layerLeft, layerTop, pxPerDesignUnit);
 
   const refreshVisualSceneHeight = (): number => {
     const rootRect = root.getBoundingClientRect();
@@ -194,8 +228,13 @@ export function startJourneyBeachBubbleDrift(
   };
   refreshVisualSceneHeight();
 
+  const refreshCachedGeometry = (): void => {
+    if (disposed) return;
+    emitters = resolveBeachBubbleEmitters(root, layerLeft, layerTop, pxPerDesignUnit);
+    runtime?.setSceneHeight(refreshVisualSceneHeight());
+  };
+
   const resetBubble = (bubble: LiveBubble, index: number, initial = false): void => {
-    const emitters = resolveBeachBubbleEmitters(root, layerLeft, layerTop, pxPerDesignUnit);
     const guaranteedEmitterBirth = initial && index < emitters.length;
     bubble.depth = guaranteedEmitterBirth || sample(random) < (2 / 3) ? 'behind' : 'front';
     const emitter = emitters[index % emitters.length];
@@ -243,7 +282,6 @@ export function startJourneyBeachBubbleDrift(
       const progress = (bubble.elapsedSeconds - bubble.delaySeconds) / bubble.durationSeconds;
       if (progress >= 1) {
         resetBubble(bubble, index);
-        runtime?.setSceneHeight(refreshVisualSceneHeight());
         return;
       }
       const eased = Math.sin(progress * Math.PI * 0.5);
@@ -273,7 +311,9 @@ export function startJourneyBeachBubbleDrift(
     sceneHeightPx: visualSceneHeight,
     layerLeftPx: layerLeft,
     layerTopPx: layerTop,
-    visibilityMarginPx: BUBBLE_VISIBILITY_MARGIN_PX,
+    visibilityMarginPx: runtimeProfile.visibilityMarginPx,
+    pixelRatioCap: runtimeProfile.pixelRatioCap,
+    maxFramesPerSecond: runtimeProfile.maxFramesPerSecond,
     behindBefore: cloudLayer ?? backgroundLayer,
     behindZIndex: 0,
     frontZIndex: 7,
@@ -282,12 +322,14 @@ export function startJourneyBeachBubbleDrift(
     render,
   });
   root.dataset.journeyBeachBubbleRenderer = 'canvas';
+  window.addEventListener('resize', refreshCachedGeometry, { passive: true });
 
   return {
     setSuspended: (suspended) => runtime.setSuspended(suspended),
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      window.removeEventListener('resize', refreshCachedGeometry);
       runtime.dispose();
       bubbleAssets.forEach((image) => {
         image.onload = null;
@@ -315,6 +357,10 @@ export function startJourneyBeachBubbleDrift(
         activeBubbleCount: bubbles.filter((bubble) => bubble.elapsedSeconds >= bubble.delaySeconds).length,
         behindBubbleCount: bubbles.filter((bubble) => bubble.depth === 'behind').length,
         maxOpacity: bubbles.length > 0 ? Math.max(...bubbles.map((bubble) => bubble.opacity)) : 0,
+        pixelRatio: runtimeSnapshot.pixelRatio,
+        bitmapPixels: runtimeSnapshot.bitmapPixels,
+        maxFramesPerSecond: runtimeSnapshot.maxFramesPerSecond,
+        visibilityMarginPx: runtimeSnapshot.visibilityMarginPx,
       };
     },
   };

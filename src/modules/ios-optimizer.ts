@@ -4,6 +4,10 @@
 import gameState from './game-state.js';
 import memoryManager from './memory-manager.js';
 import { logger } from '../core/logger.js';
+import {
+  MOBILE_RUNTIME_PROFILE,
+  type MobileRuntimePlatform,
+} from './mobile-runtime-profile.js';
 
 // Type definitions
 interface Optimizations {
@@ -16,6 +20,8 @@ interface Optimizations {
 
 interface OptimizationStatus {
   isIOS: boolean;
+  isMobileDevice: boolean;
+  platform: MobileRuntimePlatform;
   isInitialized: boolean;
   optimizations: Optimizations;
 }
@@ -28,20 +34,20 @@ declare let window: WindowWithMSStream;
 
 class IOSOptimizer {
   private isIOS: boolean;
+  private isMobileDevice: boolean;
+  private platform: MobileRuntimePlatform;
   private isInitialized: boolean;
   private optimizations: Optimizations;
-  private unsubscribeCurrentSlide: (() => void) | null;
   private unsubscribeGameActive: (() => void) | null;
   private disableSelectionStyleEl: HTMLStyleElement | null;
-  private animationOptimizationStyleEl: HTMLStyleElement | null;
 
   constructor() {
     this.isIOS = false;
+    this.isMobileDevice = false;
+    this.platform = 'desktop';
     this.isInitialized = false;
-    this.unsubscribeCurrentSlide = null;
     this.unsubscribeGameActive = null;
     this.disableSelectionStyleEl = null;
-    this.animationOptimizationStyleEl = null;
     this.optimizations = {
       passiveTouchEvents: false,
       hardwareAcceleration: false,
@@ -55,27 +61,30 @@ class IOSOptimizer {
   init(): void {
     if (this.isInitialized) return;
     
-    this.detectIOS();
+    this.detectRuntimePlatform();
     
-    if (this.isIOS) {
+    if (this.isMobileDevice) {
       this.applyIOSOptimizations();
       this.setupStateSubscriptions();
       this.isInitialized = true;
-      logger.info('📱 iOS Optimizer initialized');
+      logger.info(`📱 Mobile runtime optimizer initialized (${this.platform})`);
     } else {
-      logger.info('📱 Non-iOS device detected, skipping iOS optimizations');
+      logger.info('🖥️ Desktop runtime detected, preserving authored browser behavior');
     }
   }
   
-  // Detect iOS device
-  private detectIOS(): void {
-    const userAgent = navigator.userAgent;
-    this.isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
-    
-    if (this.isIOS) {
-      document.body.classList.add('ios-device');
-      logger.info('📱 iOS device detected');
-    }
+  // Publish one canonical runtime hook for mobile-only thermal CSS. This also
+  // recognizes iPadOS desktop-class user agents through the shared profile.
+  private detectRuntimePlatform(): void {
+    this.platform = MOBILE_RUNTIME_PROFILE.platform;
+    this.isMobileDevice = MOBILE_RUNTIME_PROFILE.isMobileDevice;
+    this.isIOS = this.platform === 'ios' && !window.MSStream;
+
+    if (!this.isMobileDevice) return;
+
+    document.body.classList.add('cc-mobile-runtime', `cc-runtime-${this.platform}`);
+    document.body.dataset.mobileRuntimePlatform = this.platform;
+    if (this.isIOS) document.body.classList.add('ios-device');
   }
   
   // Apply iOS optimizations
@@ -106,38 +115,23 @@ class IOSOptimizer {
   // Enable passive touch events
   private enablePassiveTouchEvents(): void {
     if (this.optimizations.passiveTouchEvents) return;
-    
-    // Add passive touch event listeners
-    document.addEventListener('touchstart', this.handlePassiveTouch, { passive: true });
-    document.addEventListener('touchmove', this.handlePassiveTouch, { passive: true });
-    document.addEventListener('touchend', this.handlePassiveTouch, { passive: true });
-    
+
+    // Touch owners already opt into passive listeners where appropriate. A
+    // document-wide passive listener cannot call preventDefault and only adds
+    // dispatch work to every gesture, so the optimizer deliberately installs
+    // no blanket listener.
     this.optimizations.passiveTouchEvents = true;
-    logger.info('📱 Passive touch events enabled');
-  }
-  
-  // Handle passive touch events
-  private handlePassiveTouch = (event: TouchEvent): void => {
-    // Prevent default touch behaviors that can cause scrolling issues
-    if (event.target && ((event.target as Element).closest('.slider') || (event.target as Element).closest('.button'))) {
-      event.preventDefault();
-    }
+    logger.info('📱 Touch handling left to scoped gesture owners');
   }
   
   // Enable hardware acceleration
   private enableHardwareAcceleration(): void {
     if (this.optimizations.hardwareAcceleration) return;
-    
-    // Add hardware acceleration classes
-    const elements = document.querySelectorAll('.slider, .button, .nav-button');
-    elements.forEach(el => {
-      (el as HTMLElement).style.transform = 'translateZ(0)';
-      (el as HTMLElement).style.willChange = 'transform';
-      (el as HTMLElement).style.backfaceVisibility = 'hidden';
-    });
-    
+
+    // Do not promote every slider/button/navigation node permanently. GSAP and
+    // transition-scoped classes own compositor hints only while motion runs.
     this.optimizations.hardwareAcceleration = true;
-    logger.info('📱 Hardware acceleration enabled');
+    logger.info('📱 Compositor promotion delegated to active transitions');
   }
   
   // Enable memory optimization
@@ -147,7 +141,8 @@ class IOSOptimizer {
     // Setup memory monitoring
     memoryManager.init();
     
-    // Reduce memory usage by hiding inactive elements
+    // SliderManager remains the sole owner of the active slide. CSS consumes
+    // that state without a second DOM mutation owner.
     this.setupMemoryOptimization();
     
     this.optimizations.memoryOptimization = true;
@@ -156,38 +151,18 @@ class IOSOptimizer {
   
   // Setup memory optimization
   private setupMemoryOptimization(): void {
-    // Hide inactive slider slides
-    this.unsubscribeCurrentSlide = gameState.subscribe('currentSlide', (slide: number) => {
-      const slides = document.querySelectorAll('.slider__slide');
-      slides.forEach((slideEl, index) => {
-        if (index !== slide) {
-          (slideEl as HTMLElement).style.visibility = 'hidden';
-          (slideEl as HTMLElement).style.pointerEvents = 'none';
-        } else {
-          (slideEl as HTMLElement).style.visibility = 'visible';
-          (slideEl as HTMLElement).style.pointerEvents = 'auto';
-        }
-      });
-    });
+    // Intentionally empty: MemoryManager owns monitoring and mobile CSS pauses
+    // inactive Homepage animations declaratively.
   }
   
   // Enable image optimization
   private enableImageOptimization(): void {
     if (this.optimizations.imageOptimization) return;
-    
-    // Add image optimization classes
-    const images = document.querySelectorAll('img');
-    images.forEach(img => {
-      img.style.imageRendering = 'crisp-edges';
-      img.style.imageRendering = '-webkit-optimize-contrast';
-      img.style.imageRendering = 'pixelated';
-      img.style.imageRendering = '-moz-crisp-edges';
-      img.style.imageRendering = 'high-quality';
-      img.style.imageRendering = 'auto';
-    });
-    
+
+    // Keep authored image rendering. Rewriting every image through several
+    // mutually exclusive modes ends at `auto` and only creates style churn.
     this.optimizations.imageOptimization = true;
-    logger.info('📱 Image optimization enabled');
+    logger.info('📱 Authored image rendering preserved');
   }
   
   // Enable animation optimization
@@ -195,8 +170,9 @@ class IOSOptimizer {
     if (this.optimizations.animationOptimization) return;
     
     // CRITICAL: Disable text selection and long-press menu on iOS
-    this.disableSelectionStyleEl = document.createElement('style');
-    this.disableSelectionStyleEl.textContent = `
+    if (this.isIOS) {
+      this.disableSelectionStyleEl = document.createElement('style');
+      this.disableSelectionStyleEl.textContent = `
       /* iOS: Disable text selection and long-press menu everywhere */
       body * {
         -webkit-user-select: none !important;
@@ -214,26 +190,8 @@ class IOSOptimizer {
         user-select: none !important;
       }
     `;
-    document.head.appendChild(this.disableSelectionStyleEl);
-    
-    // Optimize animations for iOS
-    this.animationOptimizationStyleEl = document.createElement('style');
-    this.animationOptimizationStyleEl.textContent = `
-      .ios-device .slider__wrapper {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-      }
-      
-      .ios-device .button {
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
-        -webkit-backface-visibility: hidden;
-        backface-visibility: hidden;
-      }
-    `;
-    document.head.appendChild(this.animationOptimizationStyleEl);
+      document.head.appendChild(this.disableSelectionStyleEl);
+    }
     
     this.optimizations.animationOptimization = true;
     logger.info('📱 Animation optimization enabled');
@@ -271,17 +229,18 @@ class IOSOptimizer {
   
   // Pause non-essential animations
   private pauseNonEssentialAnimations(): void {
-    const animations = document.querySelectorAll('.slider__hero-image--animated');
+    const animations = document.querySelectorAll<HTMLElement>('#home .hero-image');
     animations.forEach(el => {
-      (el as HTMLElement).style.animationPlayState = 'paused';
+      el.style.animationPlayState = 'paused';
     });
   }
   
   // Resume animations
   private resumeAnimations(): void {
-    const animations = document.querySelectorAll('.slider__hero-image--animated');
+    const animations = document.querySelectorAll<HTMLElement>('#home .hero-image');
     animations.forEach(el => {
-      (el as HTMLElement).style.animationPlayState = 'running';
+      // Clearing restores the mobile CSS rule: only the active slide runs.
+      el.style.removeProperty('animation-play-state');
     });
   }
   
@@ -289,30 +248,20 @@ class IOSOptimizer {
   private optimizeForGame(): void {
     // Reduce visual effects
     document.body.classList.add('game-mode');
-    
-    // Disable hover effects
-    const buttons = document.querySelectorAll('.button');
-    buttons.forEach(btn => {
-      (btn as HTMLElement).style.pointerEvents = 'none';
-    });
   }
   
   // Clean up game resources
   private cleanupGameResources(): void {
     // Remove game mode class
     document.body.classList.remove('game-mode');
-    
-    // Re-enable hover effects
-    const buttons = document.querySelectorAll('.button');
-    buttons.forEach(btn => {
-      (btn as HTMLElement).style.pointerEvents = 'auto';
-    });
   }
   
   // Get optimization status
   getOptimizationStatus(): OptimizationStatus {
     return {
       isIOS: this.isIOS,
+      isMobileDevice: this.isMobileDevice,
+      platform: this.platform,
       isInitialized: this.isInitialized,
       optimizations: { ...this.optimizations }
     };
@@ -339,29 +288,24 @@ class IOSOptimizer {
     if (!this.isInitialized) return;
 
     try {
-      this.unsubscribeCurrentSlide?.();
-    } catch {}
-    this.unsubscribeCurrentSlide = null;
-
-    try {
       this.unsubscribeGameActive?.();
     } catch {}
     this.unsubscribeGameActive = null;
 
-    try {
-      document.removeEventListener('touchstart', this.handlePassiveTouch);
-      document.removeEventListener('touchmove', this.handlePassiveTouch);
-      document.removeEventListener('touchend', this.handlePassiveTouch);
-    } catch {}
-
     try { this.disableSelectionStyleEl?.remove(); } catch {}
     this.disableSelectionStyleEl = null;
-    try { this.animationOptimizationStyleEl?.remove(); } catch {}
-    this.animationOptimizationStyleEl = null;
 
     document.body.classList.remove('game-mode');
+    document.body.classList.remove('cc-mobile-runtime', 'cc-runtime-ios', 'cc-runtime-android', 'ios-device');
+    delete document.body.dataset.mobileRuntimePlatform;
+    document.querySelectorAll<HTMLElement>('#home .hero-image').forEach((element) => {
+      element.style.removeProperty('animation-play-state');
+    });
 
     this.isInitialized = false;
+    this.isIOS = false;
+    this.isMobileDevice = false;
+    this.platform = 'desktop';
     this.optimizations = {
       passiveTouchEvents: false,
       hardwareAcceleration: false,

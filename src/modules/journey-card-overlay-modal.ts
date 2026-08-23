@@ -21,6 +21,7 @@ import {
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { getIosResistedModalVerticalDelta } from './modal-vertical-drag-dismiss.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -253,6 +254,7 @@ function waitForModalImageReady(image: HTMLImageElement, timeoutMs = 800): Promi
 export function presentJourneyCardOverlayModal(
   options: JourneyCardOverlayModalOptions,
 ): JourneyCardOverlayModalController {
+  const openProfilingEnabled = areContinuousRuntimeDiagnosticsEnabled();
   const openProfileStartedAt = options.openProfileStartedAt ?? performance.now();
   const openProfileMarks: Record<string, number> = {
     ...(options.openProfileManagerMarks ?? {}),
@@ -273,6 +275,7 @@ export function presentJourneyCardOverlayModal(
     openProfileMarks[phase] = Number((performance.now() - openProfileStartedAt).toFixed(2));
   };
   const emitOpenProfile = (result: 'entry-stable' | 'disposed-before-stable'): void => {
+    if (!openProfilingEnabled) return;
     if (openProfileEmitted) return;
     openProfileEmitted = true;
     if (openProfileFrameId !== 0) {
@@ -322,7 +325,7 @@ export function presentJourneyCardOverlayModal(
     }
     openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);
   };
-  openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);
+  if (openProfilingEnabled) openProfileFrameId = requestAnimationFrame(sampleOpenProfileFrame);
   markOpenProfile('modal-call');
   activeJourneyCardOverlayModal?.dispose();
   markOpenProfile('prior-modal-disposed');

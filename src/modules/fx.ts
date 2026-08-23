@@ -1207,6 +1207,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
               particlesToTrack.splice(idx, 1);
             }
           }
+          if (isIdleParticles && tile) {
+            const trackKey = opts?.trackKey || '_magnetIdleParticles';
+            const tileParticles = tile[trackKey];
+            if (Array.isArray(tileParticles)) {
+              const tileIndex = tileParticles.indexOf(shard);
+              if (tileIndex !== -1) tileParticles.splice(tileIndex, 1);
+            }
+          }
           // 🔥 OBJECT POOLING: Release back to pool instead of destroying
           graphicsPool.release(shard);
         } catch (err) {
@@ -5930,7 +5938,7 @@ export function startMagnetIdleParticles(tile) {
     return;
   }
   if (getSpecialDiceVariantForTile(tile)?.id === 'beach-ball') {
-    // Beach Ball uses Magnet board mechanics but keeps its accepted Juice-style
+    // Beach Ball uses TNT board mechanics but keeps its accepted Juice-style
     // idle bubbles and authored bounce motion.
     stopMagnetIdleParticles(tile);
     startWildJuiceBubbles(tile);
@@ -5939,7 +5947,7 @@ export function startMagnetIdleParticles(tile) {
   
   // Stop existing particles animation if any
   if (tile._magnetIdleParticlesInterval) {
-    clearInterval(tile._magnetIdleParticlesInterval);
+    clearAppInterval(tile._magnetIdleParticlesInterval);
     tile._magnetIdleParticlesInterval = null;
   }
   
@@ -5977,7 +5985,7 @@ export function startMagnetIdleParticles(tile) {
   tile._magnetIdleParticlesInterval = trackAppInterval(() => {
     if (!tile || tile.destroyed) {
       if (tile._magnetIdleParticlesInterval) {
-        clearInterval(tile._magnetIdleParticlesInterval);
+        clearAppInterval(tile._magnetIdleParticlesInterval);
         tile._magnetIdleParticlesInterval = null;
       }
       return;
@@ -5996,7 +6004,7 @@ export function stopMagnetIdleParticles(tile) {
   
   // 🔥 CRITICAL: Clear interval first to stop generating new particles
   if (tile._magnetIdleParticlesInterval) {
-    clearInterval(tile._magnetIdleParticlesInterval);
+    clearAppInterval(tile._magnetIdleParticlesInterval);
     tile._magnetIdleParticlesInterval = null;
   }
   

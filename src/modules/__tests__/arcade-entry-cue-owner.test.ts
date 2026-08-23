@@ -12,10 +12,22 @@ import {
   shouldOverlapArcadeEntryCueWithColdBoot,
   waitForArcadeEntryCuePresentation,
 } from '../arcade-entry-cue-owner';
+import {
+  engageArcadeEntrySurfaceGate,
+  isArcadeEntrySurfaceGateActive,
+  cancelArcadeEntrySurfaceGate,
+} from '../arcade-entry-surface-gate';
 
 afterEach(() => {
   resetArcadeEntryCueOwner();
+  cancelArcadeEntrySurfaceGate();
   jest.clearAllMocks();
+});
+
+test('resetting cue bookkeeping cannot reveal an entry surface owned by the current run', () => {
+  engageArcadeEntrySurfaceGate();
+  resetArcadeEntryCueOwner();
+  expect(isArcadeEntrySurfaceGateActive()).toBe(true);
 });
 
 test('failed boot cancellation removes the active visual owner', async () => {

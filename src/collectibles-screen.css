@@ -1585,7 +1585,7 @@
 #collectibles-detail-modal {
   position: fixed !important;
   inset: 0;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   background: var(--collectibles-surface);
   z-index: 1000000;
@@ -1593,7 +1593,7 @@
   overscroll-behavior: none;
   overscroll-behavior-y: none;
   font-family: 'Baloo2', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  visibility: visible !important;
+  visibility: visible;
   pointer-events: auto; /* 🔥 SWIPE FIX: Detail modal receives events (parent journey-screen has pointer-events: none) */
 }
 
@@ -2264,8 +2264,9 @@
   width: 220px !important; /* 🔥 USER REQUEST: Increased from 180px to 220px */
   max-width: 220px !important; /* Max width 220px */
   display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+  /* GSAP owns the hidden preparation and enter/exit visibility lifecycle. */
+  visibility: visible;
+  opacity: 1;
   flex-shrink: 0 !important;
 }
 
@@ -2730,6 +2731,60 @@
 
 .journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell {
   animation-play-state: running;
+}
+
+/* Mobile thermal ownership for Journey Worlds Hub. The existing Hub/card
+   readiness classes are the canonical lifecycle signal: finite GSAP enter,
+   exit and drag tweens retain their own inline compositor hints, while CSS
+   idle work exists only after the visible card has completed its handoff. */
+.cc-mobile-runtime .journey-v700-world-visual,
+.cc-mobile-runtime .journey-v700-world-cloud,
+.cc-mobile-runtime .journey-v700-world-tilt-shell,
+.cc-mobile-runtime .journey-v700-world-banner,
+.cc-mobile-runtime .journey-v700-world-banner-flag-fx::before,
+.cc-mobile-runtime .journey-v700-world-banner-flag-fx::after {
+  animation-play-state: paused;
+}
+
+.cc-mobile-runtime .journey-v700-world-cloud,
+.cc-mobile-runtime .journey-v700-world-tilt-shell,
+.cc-mobile-runtime .journey-v700-world-banner {
+  will-change: auto;
+}
+
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-visual,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-idle-ready .journey-v700-world-cloud {
+  animation-play-state: running;
+  will-change: transform;
+}
+
+.cc-mobile-runtime .journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell {
+  animation-play-state: running;
+  will-change: transform;
+}
+
+.cc-mobile-runtime .journey-v700-hub:is(.journey-v700-banners-presented, .journey-v700-banners-retracting)
+  .journey-v700-world-banner {
+  will-change: transform;
+}
+
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-banner,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-banner-flag-fx::before,
+.cc-mobile-runtime .journey-v700-hub.journey-v700-banners-presented
+  .journey-v700-world-banner-flag-fx::after {
+  animation-play-state: running;
+}
+
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-visual,
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-cloud,
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-tilt-shell,
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner,
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner-flag-fx::before,
+.cc-mobile-runtime #journey-screen[hidden] .journey-v700-world-banner-flag-fx::after {
+  animation-play-state: paused;
+  will-change: auto;
 }
 
 .journey-v700-world-beach .journey-v700-world-visual {

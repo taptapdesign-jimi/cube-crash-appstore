@@ -2,6 +2,7 @@ import {
   applySpecialDiceVariantToTile,
   getCompatibleSpecialDiceVariant,
   getCoreWildTypeForSpecialDiceVariant,
+  isSpecialDiceJuiceLikeTile,
 } from './special-dice-registry.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { removeTileFully } from './tile-lifecycle-service.ts';
@@ -181,7 +182,7 @@ export function restoreTilesFromSave({
       snapshot?.specialDiceVariant || null,
       savedSpecial,
     );
-    // Canonicalize accepted legacy pairs (currently pre-Magnet Beach Ball saves)
+    // Canonicalize accepted legacy pairs (currently pre-TNT Beach Ball saves)
     // before any gameplay/idle owner sees the restored tile.
     if (savedSpecialDiceVariant) {
       savedSpecial = getCoreWildTypeForSpecialDiceVariant(savedSpecialDiceVariant) || savedSpecial;
@@ -194,7 +195,7 @@ export function restoreTilesFromSave({
     tile.isWild = !!isWildSnapshot;
     tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
     tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
-    if (tile.special === 'wild-tnt') {
+    if (tile.special === 'wild-tnt' && !isSpecialDiceJuiceLikeTile(tile)) {
       tile._ccDeferTntIdleFx = true;
       deferredTntIdleTiles.push(tile);
     }
@@ -239,18 +240,17 @@ export function restoreTilesFromSave({
     if (isWildSnapshot) {
       applyWildSkinLocal(tile);
       try { startWildShimmer(tile); } catch {}
-      if (tile.special === 'wild-magnet') {
-        try { startMagnetIdleParticles(tile); } catch {}
-      }
-      if (tile.special === 'wild-juice') {
-        setWildJuiceSpawned(true);
+      if (isSpecialDiceJuiceLikeTile(tile)) {
+        if (tile.special === 'wild-juice') setWildJuiceSpawned(true);
         try {
           if (typeof startWildJuiceBubbles === 'function') {
             startWildJuiceBubbles(tile);
           }
         } catch (error) {
-          devWarn('⚠️ Failed to start wild-juice bubbles on load:', error);
+          devWarn('⚠️ Failed to start Juice-style bubbles on load:', error);
         }
+      } else if (tile.special === 'wild-magnet') {
+        try { startMagnetIdleParticles(tile); } catch {}
       }
     } else {
       try { stopWildShimmer(tile); } catch {}

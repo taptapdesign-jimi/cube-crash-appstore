@@ -25,6 +25,14 @@ The repository retains historical `cube-crash` names in paths and code. That doe
 - Resolve and verify the connected device before an install; identifiers may change after device re-pairing.
 - Install over the existing Stack to Six app. Do not uninstall it unless explicitly asked, because uninstalling destroys app data and can reintroduce developer-profile trust friction.
 
+## Mobile-first thermal and stability policy
+
+- Stack to Six is a phone/tablet game. Runtime performance decisions target iPhone, iPad/iPadOS, and Android devices; desktop web behavior is a development aid, not the optimization benchmark.
+- Mobile detection and shared thermal limits belong in `src/modules/mobile-runtime-profile.ts`. Do not add isolated iPhone-only user-agent checks for settled idle cadence, ambient canvas density, or similar cross-mobile budgets.
+- Preserve authored animation quality: enter, exit, drag, merge, modal flip, and active FX may use the display refresh rate. Reduce only settled idle, off-screen, hidden, background, duplicate, or redundant work.
+- A mobile optimization must not remove accepted Units, bees, bubbles, depth layering, or animation paths merely to improve a synthetic benchmark. Prefer elapsed-time 30 FPS settled motion, viewport culling, scoped compositor promotion, pooling, and deterministic suspend/resume cleanup.
+- Desktop-only smoothness does not close thermal, sustained FPS, memory-growth, touch, or WebView lifecycle work. Those remain `NEEDS PHYSICAL TEST` until verified on the physical target device.
+
 Read [`dev-production-modes.md`](dev-production-modes.md) before every native build/install. Before installation, verify the final `.app/Info.plist` bundle ID and bundled intro/assets. A successful Xcode build alone is not proof that the correct app was targeted.
 
 ## Web-to-iOS ownership

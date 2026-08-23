@@ -43,10 +43,8 @@ export class AppStoreCompliance {
       clearInterval(this.complianceIntervalId);
       this.complianceIntervalId = null;
     }
-    // Monitor for compliance issues
-    this.complianceIntervalId = setInterval(() => {
-      this.checkCompliance();
-    }, 60000); // Check every minute
+    // Static platform capabilities do not change during one WebView lifetime.
+    // The one check performed by init() is sufficient and owns no timer.
   }
   
   // 🔥 FIX: Add destroy method to clean up interval

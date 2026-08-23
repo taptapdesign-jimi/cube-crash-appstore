@@ -19,7 +19,9 @@ import {
   mixJourneyHubTilt,
   normalizeJourneySpatialTilt,
   quantizeJourneyWorldTilt,
+  type JourneySpatialTilt,
 } from '../journey-spatial-motion.js';
+import { resolveMobileRuntimeProfile } from '../mobile-runtime-profile.js';
 
 describe('Journey spatial motion', () => {
   afterEach(() => {
@@ -31,6 +33,72 @@ describe('Journey spatial motion', () => {
 
   it('keeps tiny hand jitter inside the dead zone', () => {
     expect(normalizeJourneySpatialTilt(20.2, -4.3, 20, -4)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('caps mobile spatial paint at 30fps while desktop keeps display cadence', () => {
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: class DeviceOrientationEventWithoutPermission {},
+    });
+    document.body.innerHTML = `
+      <section id="journey-world">
+        <img class="journey-forest-main-art" data-journey-area-id="forest-main" />
+      </section>
+    `;
+    const world = document.getElementById('journey-world') as HTMLElement;
+    const art = world.querySelector<HTMLElement>('.journey-forest-main-art') as HTMLElement;
+    const queuedFrames: FrameRequestCallback[] = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      queuedFrames.push(callback);
+      return queuedFrames.length;
+    });
+    const controller = new AppSpatialMotionController(resolveMobileRuntimeProfile({
+      userAgent: 'Mozilla/5.0 (Linux; Android 14)',
+    }));
+    const emitOrientation = (beta: number, gamma: number) => {
+      const event = new Event('deviceorientation') as DeviceOrientationEvent;
+      Object.defineProperties(event, {
+        beta: { value: beta },
+        gamma: { value: gamma },
+      });
+      window.dispatchEvent(event);
+    };
+
+    controller.activateJourneyWorld(world, 1);
+    emitOrientation(20, 0);
+    emitOrientation(29, 14);
+    queuedFrames.shift()?.(0);
+    const firstPaint = art.style.translate;
+    queuedFrames.shift()?.(16);
+    expect(art.style.translate).toBe(firstPaint);
+    queuedFrames.shift()?.(34);
+    expect(art.style.translate).not.toBe(firstPaint);
+
+    controller.deactivate();
+  });
+
+  it('does not rewrite an identical Journey spatial inline value', () => {
+    document.body.innerHTML = `
+      <section id="journey-world">
+        <img class="journey-forest-main-art" data-journey-area-id="forest-main" />
+      </section>
+    `;
+    const world = document.getElementById('journey-world') as HTMLElement;
+    const art = world.querySelector<HTMLElement>('.journey-forest-main-art') as HTMLElement;
+    const controller = new AppSpatialMotionController(resolveMobileRuntimeProfile({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+    }));
+    const setProperty = jest.spyOn(art.style, 'setProperty');
+
+    controller.activateJourneyWorld(world, 1);
+    (controller as unknown as { currentTilt: JourneySpatialTilt }).currentTilt = { x: 0.4, y: -0.2 };
+    (controller as unknown as { applyCurrentTilt(): void }).applyCurrentTilt();
+    const writesAfterFirstPaint = setProperty.mock.calls.length;
+    (controller as unknown as { applyCurrentTilt(): void }).applyCurrentTilt();
+
+    expect(writesAfterFirstPaint).toBeGreaterThan(0);
+    expect(setProperty.mock.calls).toHaveLength(writesAfterFirstPaint);
+    controller.deactivate();
   });
 
   it('coalesces subpixel Journey World sensor noise without reducing frame cadence', () => {

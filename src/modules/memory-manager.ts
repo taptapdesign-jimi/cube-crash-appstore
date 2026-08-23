@@ -3,10 +3,8 @@
 // Handles PIXI.js memory management and cleanup
 
 import gameState from './game-state.js';
-import { container } from '../core/dependency-injection.js';
-import { Application, Container } from 'pixi.js';
+import { Container } from 'pixi.js';
 import { logger } from '../core/logger.js';
-import { isGameplayEntryPending } from './gameplay-entry-coordinator.ts';
 
 // Type definitions
 interface TrackedObject {
@@ -54,16 +52,8 @@ class MemoryManager {
     
     this.isMonitoring = true;
     
-    // 🔥 CRITICAL: Shorter cleanup interval for iOS memory management (MEMORY LEAK FIX)
-    // Reduced from 2 minutes to 30 seconds to prevent memory crashes on iOS
-    this.cleanupInterval = setInterval(() => {
-      if (this.isMonitoring) {
-        logger.debug('Performing periodic memory cleanup', 'memory-manager');
-        this.performCleanup();
-      }
-    }, 30000); // Every 30 seconds (optimized for iOS)
-    
-    // Setup state subscriptions
+    // Cleanup is lifecycle-driven. A fixed 30-second wakeup used to scan empty
+    // registries during play and was not tied to a safe renderer boundary.
     this.setupStateSubscriptions();
     
     logger.info('Memory Manager initialized', 'memory-manager');
@@ -128,9 +118,6 @@ class MemoryManager {
       // Clean up tracked objects
       this.cleanupTrackedObjects();
       
-      // Clean up PIXI textures
-      this.cleanupPIXITextures();
-      
       // DOM images are owned by their feature lifecycle/pools. Never remove
       // generic <img> nodes here: an image can be incomplete while it is still
       // a valid in-flight loading asset required by the current screen.
@@ -166,32 +153,6 @@ class MemoryManager {
     
     if (toRemove.length > 0) {
       logger.info(`Cleaned up ${toRemove.length} tracked objects`, 'memory-manager');
-    }
-  }
-  
-  // Clean up PIXI textures
-  private cleanupPIXITextures(): void {
-    if (!window.PIXI || !window.PIXI.utils) return;
-    // Entry/recovery may be rebinding freshly loaded core textures. Running
-    // renderer GC in that ownership window can evict the exact sources that
-    // are about to be presented and produce a sprite-less retained frame.
-    if (isGameplayEntryPending()) return;
-    
-    try {
-      // Stability-first: run renderer-managed GC only, do not destroy cache entries manually.
-      // Manual cache/baseTexture destruction can race active render and crash with addressModeU.
-      const app = container.get('app') as Application | null;
-      try { app?.renderer?.textureGC?.run?.(); } catch {}
-      // Keep local tracking set clean from already-destroyed textures.
-      const staleTextures: Texture[] = [];
-      this.textureCache.forEach((tex) => {
-        const bt = tex?.baseTexture as any;
-        if (!tex || bt?.destroyed) staleTextures.push(tex);
-      });
-      staleTextures.forEach((tex) => this.textureCache.delete(tex));
-      
-    } catch (error) {
-      logger.warn('PIXI texture cleanup failed', 'memory-manager', error);
     }
   }
   
@@ -235,36 +196,6 @@ class MemoryManager {
       
     } catch (error) {
       logger.error('PIXI container cleanup failed', 'memory-manager', error);
-    }
-  }
-  
-  // Clean up main PIXI app
-  cleanupMainApp(): void {
-    const app = container.get('app');
-    if (!app) return;
-    
-    try {
-      logger.info('Cleaning up main PIXI app', 'memory-manager');
-      
-      // Clean up stage
-      if (app.stage) {
-        this.cleanupPIXIContainer(app.stage);
-      }
-      
-      // Destroy the app
-      app.destroy(true, {
-        children: true,
-        texture: true,
-        baseTexture: true
-      });
-      
-      // Clear reference
-      container.set('app', null);
-      
-      logger.info('Main PIXI app cleaned up', 'memory-manager');
-      
-    } catch (error) {
-      logger.error('Main PIXI app cleanup failed', 'memory-manager', error);
     }
   }
   

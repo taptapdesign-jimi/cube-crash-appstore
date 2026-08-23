@@ -41,7 +41,7 @@ describe('gameplay stabilization ownership boundaries', () => {
   });
 
   test('a new board retires previous-board animation frames before awaiting entry work', () => {
-    const startLevelBody = appCore.slice(appCore.indexOf('async function startLevel'), appCore.indexOf('async function startLevel') + 1800);
+    const startLevelBody = appCore.slice(appCore.indexOf('async function startLevel'), appCore.indexOf('async function startLevel') + 2600);
     expect(startLevelBody).toContain('clearAllAppAnimationFrames()');
     expect(startLevelBody.indexOf('clearAllAppAnimationFrames()')).toBeLessThan(startLevelBody.indexOf('await '));
   });
