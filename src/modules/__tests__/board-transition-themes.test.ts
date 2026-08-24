@@ -139,45 +139,45 @@ describe('Board Transition World themes', () => {
       'robo-fence',
       'robo-walker',
       'robo-ground-rear',
-      'robo-ship',
+      'robo-fence-static-left',
+      'robo-fence-static-right',
       'robo-fighter-left',
       'robo-fighter-right',
-      'robo-beam-left',
       'robo-beam-right',
       'robo-beam-hit',
-      'robo-hit-smoke',
+      'robo-beam-after',
     ]);
     expect(AREA55_BOARD_TRANSITION_PROFILE.enterOrder).toEqual([
       'robo-ground-front',
       'robo-ground-rear',
       'robo-walker',
       'robo-fence',
-      'robo-ship',
+      'robo-fence-static-left',
+      'robo-fence-static-right',
       'robo-front',
       'robo-fighter-left',
       'robo-fighter-right',
-      'robo-beam-left',
       'robo-beam-right',
       'robo-beam-hit',
-      'robo-hit-smoke',
+      'robo-beam-after',
     ]);
     const zIndexes = AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => Number(
       layer.style.find((rule) => rule.startsWith('z-index:'))?.split(':')[1]?.trim(),
     ));
-    expect(zIndexes).toEqual([70, 60, 50, 40, 30, 20, 73, 76, 55, 55, 55, 77]);
+    expect(zIndexes).toEqual([70, 60, 50, 40, 30, 20, 20, 73, 76, 29, 59, 59]);
     expect(AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.src)).toEqual([
       './assets/journey assets/robo/robo frontalni.png',
       './assets/journey assets/robo/zemlja1.png',
       './assets/journey assets/robo/ograda.png',
       './assets/journey assets/robo/robo1.png',
       './assets/journey assets/robo/zemlja2.png',
-      './assets/journey assets/robo/ship.png',
+      './assets/journey assets/robo/ograda.png',
+      './assets/journey assets/robo/ograda.png',
       './assets/journey assets/robo/ship1.png',
       './assets/journey assets/robo/ship1.png',
-      './assets/journey assets/robo/beam1.png',
       './assets/journey assets/robo/beam2.png',
       './assets/journey assets/robo/beam3.png',
-      './assets/smoke/smoke5.png',
+      './assets/journey assets/robo/beam1.png',
     ]);
     const styleByLayer = Object.fromEntries(
       AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => [layer.key, layer.style]),
@@ -197,8 +197,11 @@ describe('Board Transition World themes', () => {
     expect(styleByLayer['robo-ground-rear']).toEqual(expect.arrayContaining([
       'bottom: -90px', 'width: min(237vw, 921px)',
     ]));
-    expect(styleByLayer['robo-ship']).toEqual(expect.arrayContaining([
-      'left: calc(30% - 7px)', 'bottom: 289px', 'width: 250px',
+    expect(styleByLayer['robo-fence-static-left']).toEqual(expect.arrayContaining([
+      'left: calc(30% - 31px)', 'bottom: 323px', 'width: 150px',
+    ]));
+    expect(styleByLayer['robo-fence-static-right']).toEqual(expect.arrayContaining([
+      'left: calc(70% + 31px)', 'bottom: 323px', 'width: 150px',
     ]));
     expect(styleByLayer['robo-fighter-left']).toEqual(expect.arrayContaining([
       'left: calc(50% - 55px)', 'bottom: 470px', 'width: 90px', 'z-index: 73', 'opacity: 0',
@@ -206,15 +209,18 @@ describe('Board Transition World themes', () => {
     expect(styleByLayer['robo-fighter-right']).toEqual(expect.arrayContaining([
       'left: calc(50% + 55px)', 'bottom: 450px', 'width: 108px', 'z-index: 76', 'opacity: 0',
     ]));
-    expect(styleByLayer['robo-beam-left']).toEqual(expect.arrayContaining(['bottom: 440px', 'z-index: 55']));
-    expect(styleByLayer['robo-beam-right']).toEqual(expect.arrayContaining(['bottom: 430px', 'z-index: 55']));
-    expect(styleByLayer['robo-beam-hit']).toEqual(expect.arrayContaining(['bottom: 450px', 'z-index: 55']));
-    expect(styleByLayer['robo-hit-smoke']).toContain('z-index: 77');
+    expect(styleByLayer['robo-beam-left']).toBeUndefined();
+    expect(styleByLayer['robo-beam-right']).toEqual(expect.arrayContaining(['width: 264.5px']));
+    expect(styleByLayer['robo-beam-right']).toEqual(expect.arrayContaining(['left: calc(50% + 76px)', 'bottom: 430px', 'z-index: 29']));
+    expect(styleByLayer['robo-beam-hit']).toEqual(expect.arrayContaining(['bottom: 450px', 'z-index: 59']));
+    expect(styleByLayer['robo-beam-after']).toEqual(expect.arrayContaining(['left: calc(50% + 78px)', 'width: 264.5px', 'z-index: 59']));
 
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
     expect(source).toContain('const proceduralSceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor)');
-    expect(source).toContain("resolvedTheme === 'area55' && layerKey === 'robo-front'");
-    expect(source).toContain('? 0');
+    expect(source).toContain('const roboGroundBounceCompleteSeconds = 0.62');
+    expect(source).toContain("resolvedTheme === 'area55'");
+    expect(source).toContain(': !isRoboGroundLayer');
+    expect(source).toContain('? roboGroundBounceCompleteSeconds + Math.max(0, index - 2)');
     expect(source).toContain("const isBottle = layerKey === 'beach-bottle'");
     expect(source).toContain("const roboRestX = layerKey === 'robo-ground-rear' ? 100 : layerKey === 'robo-ground-front' ? -100 : 0");
     expect(source).toContain('function startRoboGroundAmbientMotion');
@@ -226,15 +232,21 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("logger.info('[CC_ROBO_DIRECTION]', directionTrace)");
     expect(source).toContain("sceneImg.style.left = roboVariation.frontTravelDirection === 1 ? '16%' : '84%'");
     expect(source).toContain("sceneImg.style.left = roboVariation.walkerTravelDirection === 1 ? '20%' : '80%'");
+    expect(source).toContain("sceneImg.dataset.travelDirection = roboVariation.walkerTravelDirection === 1");
     expect(source).toContain('const roboFrontTravelDirection = roboVariation?.frontTravelDirection ?? 1');
+    expect(source).toContain('const roboWalkerTravelDurationScale = 1 / 0.60');
+    expect(source).toContain('const roboFrontTravelDurationScale = 1 / 0.70');
+    expect(source).not.toContain('characterMotionDurationSeconds');
     expect(source).toContain('const roboCharacterScaleXSign = isRoboFront');
     expect(source).toContain('roboFrontTravelDirection === -1 ? -1 : 1');
-    expect(source).toContain("isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? -1 : 1");
+    expect(source).toContain('const roboWalkerTravelDirection = roboVariation?.walkerTravelDirection ?? -roboFrontTravelDirection');
+    expect(source).toContain('isRoboWalker && roboWalkerTravelDirection === 1 ? -1 : 1');
     expect(source).toContain('roboInitialScale * roboCharacterScaleXSign');
     expect(source).toContain('scaleX: 1.04 * roboCharacterScaleXSign');
     expect(source).toContain('scaleX: roboCharacterScaleXSign, scaleY: 1');
     expect(source).not.toContain('roboCharacterMirrorY');
-    expect(source).toContain('const roboWalkerEndX = (roboVariation?.walkerTravelDirection ?? -1)');
+    expect(source).toContain('const roboWalkerEndX = roboWalkerTravelDirection * Math.max(');
+    expect(source).toContain('(window.innerWidth || 390) + sceneImg.offsetWidth * 1.5');
     expect(source).toContain('const isRoboGroundFront = isRoboScene && layerKey === \'robo-ground-front\'');
     expect(source).toContain('isRoboGroundFront ? 4.2 : 14');
     expect(source).toContain('const roboArrivalOvershootScale = isRoboGroundFront ? 1.012 : 1.04');
@@ -253,98 +265,199 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("x: roboFrontEndX * 0.56, y: 9, rotation: -3");
     expect(source).toContain("x: roboFrontEndX * 0.80, y: -6, rotation: 2");
     expect(source).toContain("const roboInitialScale = isRoboFront ? 1 : 0");
-    expect(source).toContain('isRoboFront || isRoboShip ? 1 : 0');
-    const shipEnterBranch = source.slice(
-      source.indexOf("} else if (layerKey === 'robo-ship') {"),
-      source.indexOf("} else {", source.indexOf("} else if (layerKey === 'robo-ship') {") + 1),
-    );
-    expect(shipEnterBranch).toContain('scale: 1.08');
-    expect(shipEnterBranch).toContain("ease: 'back.out(2.0)'");
-    expect(shipEnterBranch).toContain('scale: 0.95');
-    expect(shipEnterBranch).toContain('scale: 1');
-    expect(shipEnterBranch).not.toContain('opacity:');
-    expect(shipEnterBranch).not.toContain("ease: 'none'");
+    expect(source).toContain("layerKey === 'robo-fence-static-left' || layerKey === 'robo-fence-static-right'");
+    expect(source).toContain("const roboStaticFenceScaleXSign = layerKey === 'robo-fence-static-right' ? -1 : 1");
+    expect(source).not.toContain("layerKey === 'robo-ship'");
     expect(source).toContain('function startRoboAirCombatMotion');
-    expect(source).toContain('scale: 0.5');
-    expect(source).toContain('const fighterOutsideViewportX = Math.max(260, (window.innerWidth || 390) * 0.72)');
-    expect(source).toContain('timeline.set(leftFighter, { x: -fighterOutsideViewportX, y: 0 }, 0)');
-    expect(source).toContain('timeline.set(rightFighter, { x: fighterOutsideViewportX, y: -18 }, 0)');
-    expect(source).toContain('x: gsap.utils.random(-10, 10)');
-    expect(source).toContain('y: gsap.utils.random(-6, 6)');
-    expect(source).toContain('scale: 1.25');
-    expect(source).toContain('scale: 2.1');
-    expect(source).toContain('scale: 3');
-    expect(source).toContain('x: 115');
-    expect(source).toContain('x: -115');
-    expect(source).toContain('y: -210');
-    expect(source).toContain('y: -214');
+    expect(source).toContain("const digitEnterBaseDelay = resolvedTheme === 'area55' ? 1.3 : 0.3");
+    expect(source).toContain('const delay = digitEnterBaseDelay + (index * 0.3)');
+    expect(source).toContain('scale: 1.15');
+    expect(source).toContain('const fighterOnScreenX = Math.min(118, (window.innerWidth || 390) * 0.30)');
+    expect(source).toContain('const leftShip = sceneImagesByKey.get(\'robo-fighter-left\')');
+    expect(source).toContain('const rightShip = sceneImagesByKey.get(\'robo-fighter-right\')');
+    expect(source).toContain('const rightShipBaseScale = leftShipBaseScale * 1.40');
+    expect(source).toContain('const rightShipEnterScale = rightShipBaseScale * 0.80');
+    expect(source).toContain('gsap.set(leftShip, { x: -fighterOnScreenX, y: -104, scale: leftShipBaseScale })');
+    expect(source).toContain('gsap.set(rightShipMotion, { x: fighterOnScreenX, y: -42, scale: rightShipEnterScale })');
+    expect(source).toContain('const LEFT_SHIP_START_DELAY_SECONDS = 0');
+    expect(source).toContain("const timeline = trackTimeline({ paused: true })");
+    expect(source).toContain('trackTimeline({ repeat: -1, delay: startDelay, paused: true })');
+    expect(source).toContain('trackTimeline({ delay, paused: true })');
+    expect(source).toContain('rightShipMotion.dataset.sceneLayer = \'robo-fighter-right\'');
+    expect(source).toContain("rightShip.removeAttribute('data-scene-layer')");
+    expect(source).toContain('roboAirCombatTimelines.forEach((ownedTimeline) => ownedTimeline.play(0))');
+    expect(source).toContain('enterTimeline.call(() => {');
+    expect(source).toContain('}, undefined, 0)');
+    expect(source).toContain('], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase);');
+    expect(source).toContain('const fighterFlightDurationSeconds = 3.00');
+    expect(source).not.toContain('leftShipEscapeTimeline');
+    expect(source).not.toContain('rightShipEscapeTimeline');
+    expect(source).toContain('], 0, crossingVariation.rightBankPhase);');
+    expect(source).toContain('x: gsap.utils.random(-18, 18)');
+    expect(source).toContain('y: gsap.utils.random(-14, 14)');
+    expect(source).toContain('scale: leftShipBaseScale * 1.50');
+    expect(source).toContain('scale: rightShipBaseScale * 1.60');
+    expect(source).toContain('const nnAppearSeconds = 1.30');
+    expect(source).toContain('x: leftShipBeforeNn.x + 50');
+    expect(source).toContain('y: leftShipBeforeNn.y - 68');
+    expect(source).toContain('y: rightShipBeforeNn.y + 49');
+    expect(source).toContain('scale: leftShipBaseScale * 1.50 * 0.90');
+    expect(source).toContain('const fighterExitDistance = (window.innerWidth || 390) * 2');
+    expect(source).toContain("console.info('[CC_ROBO_SHIP_EXIT]', payload)");
+    expect(source).toContain("fighter.style.opacity = '0'");
+    expect(source).toContain("fighter.style.visibility = 'hidden'");
+    expect(source).toContain("fighter.style.display = 'none'");
+    expect(source).not.toContain('time: 2.22, x: -104 + flightJitter[8].x');
+    expect(source).not.toContain('time: 2.22, x: 108 + flightJitter[9].x');
+    expect(source).toContain('firstTime: gsap.utils.random(1.52, 1.66)');
+    expect(source).toContain('firstX: gsap.utils.random(86, 134)');
+    expect(source).toContain('verticalSeparation: gsap.utils.random(192, 242)');
+    expect(source).toContain('const verticalDepthScaleRatio = 0.60');
+    expect(source).toContain('scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio');
+    expect(source).toContain('scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio');
+    expect(source).toContain('const fighterExitVerticalDistance = (window.innerHeight || 760) * 0.85 + 100');
+    expect(source).toContain("addFighterExit(leftFighterExit, 'left', fighterExitDistance, fighterExitVerticalDistance)");
+    expect(source).toContain("addFighterExit(rightFighterExit, 'right', -fighterExitDistance, -fighterExitVerticalDistance)");
+    expect(source).toContain('exitTimeline?.add(fighterExitTimeline, sceneParallaxLead)');
+    expect(source).toContain('const wobbleStrength = gsap.utils.random(1.8, 2.8)');
+    expect(source).toContain('const circleRadius = gsap.utils.random(16, 26)');
+    expect(source).toContain('exitTimeline.call(stopRoboAirCombatMotion, undefined, sceneParallaxLead)');
+    expect(source).toContain('const acceleratedProgress = 0.12 * progress + 0.88 * progress * progress');
+    expect(source).toContain('const wobbleEnvelope = 0.65 + Math.sin(Math.PI * progress) * 0.35');
+    expect(source).toContain('Math.sin(wobblePhaseNow) - Math.sin(wobblePhase)');
+    expect(source).toContain('progress * Math.PI * 2 + wobblePhase');
+    expect(source).toContain('progress * Math.PI * 10 + wobblePhase');
+    expect(source).toContain('stopRoboAirCombatMotion();');
+    expect(source).toContain('const roboGroundBounceCompleteSeconds = 0.62');
+    expect(source).toContain('const roboFrontLeadSeconds = 0.30');
+    expect(source).toContain("layerKey === 'robo-front'");
+    expect(source).toContain('? roboGroundBounceCompleteSeconds - roboFrontLeadSeconds');
+    expect(source).toContain("const isRoboGroundLayer = layerKey === 'robo-ground-front' || layerKey === 'robo-ground-rear'");
+    expect(source).toContain(': !isRoboGroundLayer');
+    expect(source).not.toContain("(layerKey === 'robo-front' || layerKey === 'robo-walker')\n          ? 0");
     const uninterruptedFlightBranch = source.slice(
-      source.indexOf('// Both fighters start completely beyond opposite viewport edges.'),
+      source.indexOf('type FlightPoint ='),
       source.indexOf('const addBeamShot = ('),
     );
+    expect(uninterruptedFlightBranch).toContain('const sampleSmoothFlightValue = (');
+    expect(uninterruptedFlightBranch).toContain('const currentTangent =');
+    expect(uninterruptedFlightBranch).toContain('const nextTangent =');
+    expect(uninterruptedFlightBranch).toContain('const startContinuousFlight = (');
+    expect(uninterruptedFlightBranch).toContain("ease: 'none'");
+    expect(uninterruptedFlightBranch).toContain('Math.sin(elapsed * 5.2 + bankPhase) * 8');
+    expect(uninterruptedFlightBranch).toContain('Math.sin(elapsed * 8.7 + bankPhase * 0.7) * 2');
+    expect(uninterruptedFlightBranch).toContain('Math.max(-10, Math.min(10');
     expect(uninterruptedFlightBranch).not.toContain("ease: 'sine.inOut'");
-    expect(uninterruptedFlightBranch.match(/ease: 'none'/g)?.length).toBeGreaterThanOrEqual(12);
-    const flightScales = Array.from(uninterruptedFlightBranch.matchAll(/scale: ([0-9.]+)/g))
-      .map((match) => Number(match[1]));
-    expect(Math.max(...flightScales)).toBe(3);
     expect(source).toContain('const addBeamShot = (');
-    expect(source).toContain('const leftBeamImpact = interpolateFlightPoint(leftSecondCrossing, leftThirdCrossing, 0.12 / 0.38)');
-    expect(source).toContain('const rightBeamImpact = interpolateFlightPoint(rightThirdCrossing, rightBankAway, 0.07 / 0.25)');
-    expect(source).toContain('xPercent: -86');
-    expect(source).toContain('addBeamShot(beamLeft, 0.65, -4, { x: leftBeamImpact.x, y: leftBeamImpact.y - 30 })');
-    expect(source).toContain('addBeamShot(beamRight, 0.98, 4, { x: rightBeamImpact.x, y: rightBeamImpact.y - 20 })');
-    expect(source).toContain('addBeamShot(beamHit, 1.5, -2, rightHitPoint, true)');
-    expect(source).toContain('timeline.set(hitSmoke, {');
-    expect(source).toContain('x: rightHitPoint.x');
-    expect(source).toContain('y: rightHitPoint.y');
-    expect(source).toContain("filter: 'drop-shadow(0 0 7px rgba(104, 239, 255, 0.95))'");
-    expect(source).toContain('duration: 0.32');
-    expect(source).toContain('}, start + 0.4)');
-    expect(source).toContain('const addContinuousFlightWobble = (fighter: HTMLImageElement, phaseOffset: number)');
-    expect(source).toContain('addContinuousFlightWobble(leftFighter, 0)');
-    expect(source).toContain('addContinuousFlightWobble(rightFighter, 0.035)');
-    expect(source).toContain('xPercent: -48.7');
-    expect(source).toContain('yPercent: -2.6');
+    expect(source).toContain('const numberRect = numberContainer.getBoundingClientRect()');
+    expect(source).toContain('const forestRect = forestContainer.getBoundingClientRect()');
+    expect(source).toContain('const numberCenterX = numberRect.left + numberRect.width * 0.5 - forestRect.left');
+    expect(source).toContain('const numberCenterY = numberRect.top + numberRect.height * 0.5 - forestRect.top');
+    expect(source).not.toContain('{ beam: beamLeft, x: numberCenterX - 60 }');
+    expect(source).toContain('{ beam: beamRight, x: numberCenterX + 100 }');
+    expect(source).toContain("beam.style.top = `${numberCenterY + 150}px`");
+    expect(source).toContain("beam.style.bottom = 'auto'");
+    expect(source).toContain('gsap.set([beamRight, beamHit, beamAfter], {');
+    expect(source).toContain('opacity: 0');
+    expect(source).toContain('rotation: -90');
+    expect(source).toContain('scaleX: 1');
+    expect(source).toContain('scaleY: 1');
+    expect(source).toContain("filter: 'drop-shadow(0 0 9px rgba(104, 239, 255, 1))'");
+    expect(source).toContain('xPercent: -88');
+    expect(source).toContain('yPercent: -75');
+    expect(source).toContain("transformOrigin: '88% 75%'");
+    expect(source).toContain('const resolveImpactX = (): number => targetShip.offsetLeft + impact.x - beam.offsetLeft');
+    expect(source).toContain('const targetCenterY = forestContainer.clientHeight');
+    expect(source).toContain('return targetCenterY - beam.offsetTop');
+    expect(source).toContain('const launchJitterX = gsap.utils.random(-22, 22)');
+    expect(source).toContain('launchZIndex = 59');
+    expect(source).toContain('zIndex: launchZIndex');
+    expect(source).toContain('x: () => resolveImpactX() + horizontalTravel + launchJitterX');
+    expect(source).toContain('y: () => resolveImpactY() + 480');
+    expect(source).toContain('y: resolveImpactY');
+    expect(source).not.toContain('addBeamShot(beamLeft');
+    expect(source).toContain('const firstBeamStartSeconds = 0.00');
+    expect(source).toContain('const beamShotStaggerSeconds = 0.12');
+    expect(source).toContain('addBeamShot(beamHit, firstBeamStartSeconds, -96');
+    expect(source).toContain('addBeamShot(beamRight, firstBeamStartSeconds + beamShotStaggerSeconds, -108, rightHitPoint, rightShipMotion, 168, 29)');
+    expect(source).toContain('addBeamShot(beamAfter, firstBeamStartSeconds + beamShotStaggerSeconds * 2, -100');
+    expect(source).toContain("filter: 'drop-shadow(0 0 12px rgba(104, 239, 255, 1))'");
+    expect(source).toContain('const flightScale = gsap.utils.random(2.10, 2.35)');
+    expect(source).not.toContain('timeline.set(beam, { zIndex: 75 }, start + 0.28)');
+    expect(source).toContain("console.info('[CC_ROBO_BEAM_DEPTH]', payload)");
+    expect(source).toContain('frontGroundZIndex: window.getComputedStyle(frontGround).zIndex');
+    expect(source).toContain('rearGroundZIndex: window.getComputedStyle(rearGround).zIndex');
+    expect(source).toContain('scaleX: flightScale');
+    expect(source).toContain('scaleY: flightScale');
+    expect(source).toContain('duration: 0.6');
+    expect(source).toContain('}, start + 0.7)');
+    expect(source).toContain('scaleX: 1.55');
+    expect(source).toContain('scaleY: 1.55');
+    expect(source).toContain('const addContinuousFlightWobble = (');
+    expect(source).toContain('gsap.utils.random(1.55, 2.15)');
+    expect(source).toContain('gsap.utils.random(1.35, 1.95)');
+    expect(source).toContain('const hoverXPercent = 500 / shipWidth');
+    expect(source).toContain('const hoverYPercent = 500 / shipHeight');
+    expect(source).toContain('ship.naturalHeight / ship.naturalWidth');
+    expect(source).toContain(': 188 / 194');
     expect(source).toContain('repeat: -1');
+    expect(source).toContain('const wobbleClock = { phase: phaseOffset }');
+    expect(source).toContain('phase: phaseOffset + Math.PI * 40');
+    expect(source).toContain('const xWave = Math.sin(phase * 1.37)');
+    expect(source).toContain('const yWave = Math.sin(phase * 1.73 + 1.2)');
     expect(source).toContain('roboAirCombatTimelines.forEach((timeline) => {');
-    expect(source).toContain("'./assets/journey assets/robo/ship2.png'");
-    expect(source).toContain("'./assets/journey assets/robo/ship3.png'");
-    expect(source).toContain("'./assets/journey assets/robo/ship4.png'");
-    expect(source).toContain('rightFighter.src = ROBO_AIR_COMBAT_DAMAGE_FRAMES[2]');
-    expect(source).toContain('ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 1.95');
+    expect(source).not.toContain('ROBO_AIR_COMBAT_DAMAGE_FRAMES');
+    expect(source).not.toContain('buildRoboDamageFrameSchedule');
+    expect(source).not.toContain('const flightFinaleStart = 2.12');
+    expect(source).toContain("rightShipMotion.className = 'cc-robo-fighter-motion'");
+    expect(source).toContain('rightShipMotion.appendChild(rightShip)');
+    expect(source).toContain('startContinuousFlight(rightShipMotion, [');
+    expect(source).not.toContain("filter: 'blur(1.15px)'");
+    expect(source).not.toContain('renderDamageFrame');
+    expect(source).not.toContain("event: '[CC_ROBO_DAMAGE]'");
+    expect(source).toContain('y: leftShipUpperY');
+    expect(source).toContain('x: -45 + flightJitter[11].x * 0.25');
+    expect(source).toContain('y: -135 + flightJitter[11].y');
+    expect(source).toContain('const leftShipUpperY = Math.min(20 - leftShipRestTop, rightHitPoint.y - 80)');
+    expect(source).not.toContain('rightEdgeApproachX');
+    expect(source).not.toContain('damageState');
+    expect(source).not.toContain('damageSequenceStart');
+    expect(source).not.toContain('damageSequenceEnd');
+    expect(source).toContain("ease: 'none'");
+    expect(source).toContain("timeline.to({}, { duration: 0.001, ease: 'none' }, fighterFlightDurationSeconds)");
+    expect(source).toContain('ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 0');
+    expect(source).toContain('let roboAirCombatMasterTimeline: gsap.core.Timeline | null = null');
+    expect(source).toContain('function getRoboAirCombatHoldSeconds(): number');
+    expect(source).toContain('resolveRoboAirCombatHoldSeconds({');
+    expect(source).toContain('roboAirCombatMasterTimeline = timeline');
+    expect(source).toContain('getRoboAirCombatHoldSeconds()');
     expect(source).toContain('stopRoboAirCombatMotion();');
-    expect(source).toContain("['robo-beam-left', 'robo-beam-right', 'robo-beam-hit', 'robo-hit-smoke']");
+    expect(source).toContain("['robo-beam-right', 'robo-beam-hit', 'robo-beam-after']");
+    expect(source).toContain("!(transitionTheme === 'area55' && ROBO_AIR_COMBAT_LAYER_KEYS.has(key))");
+    expect(source).toContain("'robo-front', 'robo-walker', 'robo-fence'");
+    expect(source).not.toContain("'robo-fighter-left', 'robo-fighter-right', 'robo-front', 'robo-walker', 'robo-fence'");
+    expect(source).not.toContain('robo-hit-smoke');
+    expect(source).not.toContain('hitSmoke');
     expect(source).toContain("const roboRestRotation = layerKey === 'robo-fence' ? 6 : 0");
-    expect(source).toContain("'robo-fighter-left', 'robo-fighter-right', 'robo-ship', 'robo-front'");
+    expect(source).toContain("'robo-front', 'robo-walker', 'robo-fence'");
+    expect(source).toContain("'robo-fence-static-left', 'robo-fence-static-right'");
+    expect(source).not.toContain("'robo-fighter-left', 'robo-fighter-right', 'robo-ship', 'robo-front'");
     expect(source).toContain("const isRoboSceneExit = transitionTheme === 'area55'");
     expect(source).toContain("if (sceneImg.dataset.motionRole === 'float') stopBeachAmbientMotion(sceneImg)");
   });
 
-  test('keeps the three fighter crossings inside the authored upper-screen flight band', () => {
+  test('keeps both fighters on screen while their opening flight is already active', () => {
     const viewportWidth = 390;
-    const viewportHeight = 844;
-    const forestBottomOffset = 52;
-    const outsideX = Math.max(260, viewportWidth * 0.72);
-    expect(-55 - outsideX).toBeLessThan(-viewportWidth / 2 - 45);
-    expect(55 + outsideX).toBeGreaterThan(viewportWidth / 2 + 45);
+    const onScreenX = Math.min(118, viewportWidth * 0.30);
+    expect(onScreenX).toBeLessThan(viewportWidth * 0.5);
+    expect(-onScreenX).toBeGreaterThan(-viewportWidth * 0.5);
 
-    const crossingPairs = [
-      [-55 + 110, 55 - 110],
-      [-55 - 5, 55 + 5],
-      [-55 + 115, 55 - 115],
-    ];
-    crossingPairs.forEach(([leftX, rightX], index) => {
-      if (index % 2 === 0) expect(leftX).toBeGreaterThan(rightX);
-      else expect(leftX).toBeLessThan(rightX);
-    });
-
-    const leftBaseTop = viewportHeight + forestBottomOffset - 470 - 87;
-    const rightBaseTop = viewportHeight + forestBottomOffset - 450 - 105;
-    [leftBaseTop, rightBaseTop].forEach((top) => {
-      expect(top / viewportHeight).toBeLessThanOrEqual(0.41);
-    });
-    expect((leftBaseTop - 210) / viewportHeight).toBeCloseTo(0.15, 1);
-    expect((rightBaseTop - 214) / viewportHeight).toBeCloseTo(0.15, 1);
+    const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
+    expect(source).toContain('{ time: 0, x: -fighterOnScreenX, y: -104, scale: leftShipBaseScale }');
+    expect(source).toContain('{ time: 0, x: fighterOnScreenX, y: -42, scale: rightShipEnterScale }');
+    expect(source).toContain('gsap.utils.random(-Math.PI, Math.PI)');
+    expect(source).toContain('crossingVariation.leftBankPhase');
+    expect(source).toContain('crossingVariation.rightBankPhase');
   });
 
   test('creates one bounded per-run layout with balanced palm exits and opposite ball/castle sides', () => {
@@ -418,8 +531,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('x: exitDirection * curtainExitDistance');
     expect(source).toContain('y: curtainExitDownDistance');
     expect(source).toContain('opacity: 1');
-    expect(source).toContain("const isRoboShip = isRoboScene && layerKey === 'robo-ship'");
-    expect(source).toContain('isRoboShip ? 3 : isRoboFront ? 0');
+    expect(source).toContain("const isRoboStaticFence = isRoboScene && (");
+    expect(source).toContain('isRoboStaticFence ? roboStaticFenceScaleXSign : 1');
     expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).toContain('duration: 0.42');
     expect(source).toContain("ease: 'power3.out'");
@@ -427,7 +540,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1');
     expect(source).toContain('duration: BEACH_CURTAIN_PALM_EXIT_SECONDS');
     expect(source).toContain('duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS');
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront || isRoboShip ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
     expect(source).toContain("ease: 'back.in(1.35)'");
     expect(source).toContain('scale: 0');
     expect(source).toContain('export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4');
@@ -455,7 +568,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
     expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
     expect(source).toContain("const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2'");
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront || isRoboShip ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
     expect(source).toContain('isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).not.toContain('scale: beachPalmRestScale * 1.28');
     expect(source).not.toContain("}, '<-0.10');");

@@ -24,7 +24,8 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('export const BOARD_TRANSITION_CLOUD_EXIT_REBOUND_SECONDS = 0.065');
     expect(source).toContain('export const BOARD_TRANSITION_CLOUD_EXIT_COLLAPSE_SECONDS = 0.46');
     expect(source).toContain("duration: resolvedTheme === 'area55'");
-    expect(source).toContain('? ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS');
+    expect(source).toContain('? Math.max(');
+    expect(source).toContain('getRoboAirCombatHoldSeconds()');
     expect(source).toContain(': BOARD_TRANSITION_HOLD_DURATION_SECONDS');
     expect(source).toContain(
       'const sceneParallaxLead = BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS',
@@ -51,5 +52,13 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('scaleY: 0.93');
     expect(source).toContain("scaleX: 0,\n      scaleY: 0,");
     expect(source).not.toContain("opacity: 0,\n      scaleX: 0,\n      scaleY: 0,");
+  });
+
+  test('slows Robo walker by 40 percent and frontal Robo by 30 percent', () => {
+    const source = read('src/modules/board-transition-screen.ts');
+    expect(source).toContain('const roboWalkerTravelDurationScale = 1 / 0.60');
+    expect(source).toContain('const roboFrontTravelDurationScale = 1 / 0.70');
+    expect(source).toContain('duration: 0.48 * roboWalkerTravelDurationScale');
+    expect(source).toContain('duration: 0.48 * roboFrontTravelDurationScale');
   });
 });
