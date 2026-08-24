@@ -1424,9 +1424,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const roboInitialScale = isRoboFront || layerKey === 'robo-ship' ? 1 : 0;
         const roboFrontTravelDirection = roboVariation?.frontTravelDirection ?? 1;
         const roboFrontStartX = -roboFrontTravelDirection * Math.max(360, window.innerWidth);
-        const roboCharacterMirrorY = isRoboFront
-          ? roboFrontTravelDirection === -1 ? 180 : 0
-          : isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? 180 : 0;
+        const roboCharacterScaleXSign = isRoboFront
+          ? roboFrontTravelDirection === -1 ? -1 : 1
+          : isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? -1 : 1;
         gsap.set(sceneImg, {
           opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0,
           xPercent: -50,
@@ -1434,11 +1434,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           x: isHill ? hillBaseX - hillParallaxX * 0.18 : isRoboFront ? roboFrontStartX : 0,
           y: isHill ? hillStartYOffset : isBeachCurtain ? beachPalmEnterStartY : isBeachFrontShore ? 0 : isRoboScene && (isRoboFront || layerKey === 'robo-ship') ? 0 : isRoboGroundFront ? 4.2 : 14,
           scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
-          scaleX: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          scaleX: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale * roboCharacterScaleXSign : 0,
           scaleY: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
           rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : isRoboShip ? 3 : isRoboFront ? 0 : direction * 8,
           rotationX: 0,
-          rotationY: roboCharacterMirrorY,
+          rotationY: 0,
           transformOrigin: 'center bottom',
           force3D: false
         });
@@ -1491,16 +1491,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           if (isRoboFront) {
             const roboFrontEndX = roboFrontTravelDirection * Math.max(640, window.innerWidth * 1.65);
             sceneEnterTimeline
-              .to(sceneImg, { x: roboFrontStartX * 0.28, y: -7, rotation: 3, scale: 1.01, duration: 0.34, ease: 'none' })
-              .to(sceneImg, { x: roboFrontEndX * 0.10, y: 7, rotation: -3, scale: 0.99, duration: 0.42, ease: 'none' })
-              .to(sceneImg, { x: roboFrontEndX * 0.32, y: -9, rotation: 3, scale: 1.01, duration: 0.44, ease: 'none' })
-              .to(sceneImg, { x: roboFrontEndX * 0.56, y: 9, rotation: -3, scale: 0.99, duration: 0.46, ease: 'none' })
-              .to(sceneImg, { x: roboFrontEndX * 0.80, y: -6, rotation: 2, scale: 1.01, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboFrontStartX * 0.28, y: -7, rotation: 3, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.34, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.10, y: 7, rotation: -3, scaleX: 0.99 * roboCharacterScaleXSign, scaleY: 0.99, duration: 0.42, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.32, y: -9, rotation: 3, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.44, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.56, y: 9, rotation: -3, scaleX: 0.99 * roboCharacterScaleXSign, scaleY: 0.99, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.80, y: -6, rotation: 2, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.46, ease: 'none' })
               .to(sceneImg, {
                 x: roboFrontEndX,
                 y: 6,
                 rotation: -2,
-                scale: 1,
+                scaleX: roboCharacterScaleXSign,
+                scaleY: 1,
                 duration: 0.48,
                 ease: 'none',
                 onComplete: () => {
@@ -1518,18 +1519,19 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                 x: 0,
                 y: 0,
                 rotation: 0,
-                scale: 1.04,
+                scaleX: 1.04 * roboCharacterScaleXSign,
+                scaleY: 1.04,
                 duration: 0.3 * sceneEnterSpeedFactor,
                 ease: 'back.out(2.0)',
               })
-              .to(sceneImg, { scale: 0.95, duration: 0.1 * sceneEnterSpeedFactor, ease: 'power2.out' })
-              .to(sceneImg, { scale: 1, duration: 0.12 * sceneEnterSpeedFactor, ease: 'back.out(1.5)' })
-              .to(sceneImg, { x: roboWalkerEndX * 0.18, y: 7, rotation: -3, scale: 1.01, duration: 0.34, ease: 'none' })
-              .to(sceneImg, { x: roboWalkerEndX * 0.36, y: -7, rotation: 3, scale: 0.99, duration: 0.42, ease: 'none' })
-              .to(sceneImg, { x: roboWalkerEndX * 0.53, y: 9, rotation: -3, scale: 1.01, duration: 0.44, ease: 'none' })
-              .to(sceneImg, { x: roboWalkerEndX * 0.70, y: -9, rotation: 3, scale: 0.99, duration: 0.46, ease: 'none' })
-              .to(sceneImg, { x: roboWalkerEndX * 0.86, y: 6, rotation: -2, scale: 1.01, duration: 0.46, ease: 'none' })
-              .to(sceneImg, { x: roboWalkerEndX, y: 0, rotation: 0, scale: 1, duration: 0.48, ease: 'none' });
+              .to(sceneImg, { scaleX: 0.95 * roboCharacterScaleXSign, scaleY: 0.95, duration: 0.1 * sceneEnterSpeedFactor, ease: 'power2.out' })
+              .to(sceneImg, { scaleX: roboCharacterScaleXSign, scaleY: 1, duration: 0.12 * sceneEnterSpeedFactor, ease: 'back.out(1.5)' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.18, y: 7, rotation: -3, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.34, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.36, y: -7, rotation: 3, scaleX: 0.99 * roboCharacterScaleXSign, scaleY: 0.99, duration: 0.42, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.53, y: 9, rotation: -3, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.44, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.70, y: -9, rotation: 3, scaleX: 0.99 * roboCharacterScaleXSign, scaleY: 0.99, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.86, y: 6, rotation: -2, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX, y: 0, rotation: 0, scaleX: roboCharacterScaleXSign, scaleY: 1, duration: 0.48, ease: 'none' });
           } else if (layerKey === 'robo-ship') {
             sceneEnterTimeline.to(sceneImg, { opacity: 1, x: 0, y: 0, scale: 1.20, duration: 2, ease: 'none' });
           } else {

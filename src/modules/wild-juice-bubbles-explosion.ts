@@ -96,13 +96,18 @@ const ROBO_EXTRA_NEON_COUNT = 7;
 const ROBO_BELOW_TEXT_DUPLICATE_RATIO = 0.60;
 const ROBO_FINALE_SAFETY_TIMEOUT_MS = 6000;
 const ROBO_NEON_MOTION_START_MS = 750;
-const ROBO_NEON_EXIT_START_MS = 1450;
-const ROBO_NEON_MOTION_SECONDS = (ROBO_NEON_EXIT_START_MS - ROBO_NEON_MOTION_START_MS) / 1000;
+const ROBO_NEON_ENTER_INITIAL_DELAY_SECONDS = 0.02;
+const ROBO_NEON_ENTER_STAGGER_SECONDS = 0.016;
+const ROBO_GRAVITY_EXIT_PADDING_SECONDS = 0.05;
 const ROBO_NEON_MOTION_RADIANS_PER_SECOND = (Math.PI * 4) / 0.85;
-const ROBO_NEON_EXIT_PAIR_GAP_SECONDS = 0.018;
-const ROBO_NEON_COLLAPSE_SECONDS = 0.16;
-const ROBO_HEAD_EXIT_ANTICIPATION_SECONDS = 0.08;
-const ROBO_HEAD_EXIT_COLLAPSE_SECONDS = 0.18;
+const ROBO_NEON_EXIT_STAGGER_SECONDS = 0.022;
+const ROBO_NEON_EXIT_HOP_SECONDS = 0.10;
+const ROBO_NEON_EXIT_FALL_SECONDS = 0.44;
+const ROBO_NEON_EXIT_HOP_PX = 24;
+const ROBO_HEAD_GRAVITY_HOP_SECONDS = 0.10;
+const ROBO_HEAD_GRAVITY_FALL_SECONDS = 0.50;
+const ROBO_HEAD_GRAVITY_HOP_PX = 30;
+const ROBO_HEAD_ENTER_SECONDS = ROBO_HEAD_GRAVITY_FALL_SECONDS + ROBO_HEAD_GRAVITY_HOP_SECONDS;
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
   document.body?.classList.toggle(MUSHROOM_FOREGROUND_CLASS, active);
@@ -1136,35 +1141,49 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     const robotBaseScale = robotBaseWidth / Math.max(1, robotTexture.width);
     const robotOriginX = screenW * 0.5;
     const robotOriginY = screenH * 0.70;
+    const robotGravityDriftX = (Math.random() * 2 - 1) * 40;
     robot.anchor.set(0.5);
-    robot.x = robotOriginX;
-    robot.y = robotOriginY;
-    robot.alpha = 0;
-    robot.rotation = -0.035;
-    robot.scale.set(robotBaseScale * 0.72);
+    robot.x = robotOriginX + robotGravityDriftX;
+    robot.y = screenH + robotBaseWidth;
+    robot.alpha = 1;
+    robot.rotation = -Math.sign(robotGravityDriftX || 1) * 0.20;
+    robot.scale.set(robotBaseScale);
     robot.eventMode = 'none';
     robot.zIndex = 10000;
     explosionContainer.addChild(robot);
+    const robotEnterTimeline = trackTimeline();
     const robotTimeline = trackTimeline();
-    roboAnimations.push(robotTimeline);
-    robotTimeline.to(robot, {
-      alpha: 1,
-      rotation: 0,
-      duration: 0.10,
+    roboAnimations.push(robotEnterTimeline, robotTimeline);
+    robotEnterTimeline.to(robot, {
+      x: robotOriginX + robotGravityDriftX * 0.12,
+      y: robotOriginY - ROBO_HEAD_GRAVITY_HOP_PX,
+      rotation: Math.sign(robotGravityDriftX || 1) * 0.05,
+      duration: ROBO_HEAD_GRAVITY_FALL_SECONDS,
       ease: 'power2.out',
     });
-    robotTimeline.to(robot.scale, {
-      x: robotBaseScale,
-      y: robotBaseScale,
-      duration: 0.10,
-      ease: 'back.out(2.2)',
-    }, 0);
+    robotEnterTimeline.to(robot, {
+      x: robotOriginX,
+      y: robotOriginY,
+      rotation: 0,
+      duration: ROBO_HEAD_GRAVITY_HOP_SECONDS,
+      ease: 'power2.in',
+    });
     const robotTexturePool = bubbleTextures.slice(0, 11);
     const robotForwardSequence = robotTexturePool.slice(1);
-    const robotReverseSequence = robotTexturePool.slice(0, -1).reverse();
-    const robotFrameSequence = [...robotForwardSequence, ...robotReverseSequence];
+    const robotFrameSequence = robotForwardSequence;
+    const robotAnimationEndSeconds = ROBO_HEAD_ENTER_SECONDS
+      + 0.10
+      + Math.max(0, robotFrameSequence.length - 1) * ROBO_FRAME_STEP_SECONDS
+      + ROBO_FRAME_SMEAR_IN_SECONDS
+      + ROBO_FRAME_SMEAR_OUT_SECONDS;
+    const roboGravityExitStartSeconds = robotAnimationEndSeconds
+      + ROBO_GRAVITY_EXIT_PADDING_SECONDS;
+    const roboNeonMotionSeconds = Math.max(
+      0,
+      roboGravityExitStartSeconds - ROBO_NEON_MOTION_START_MS / 1000,
+    );
     robotFrameSequence.forEach((texture, sequenceIndex) => {
-      const frameStart = 0.10 + sequenceIndex * ROBO_FRAME_STEP_SECONDS;
+      const frameStart = ROBO_HEAD_ENTER_SECONDS + 0.10 + sequenceIndex * ROBO_FRAME_STEP_SECONDS;
       robotTimeline.to(robot.scale, {
         x: robotBaseScale * 1.035,
         y: robotBaseScale * 0.985,
@@ -1175,10 +1194,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         if (robot.destroyed) return;
         robot.texture = texture;
         applyGameplayTextureFiltering(robot.texture);
-        // The centered sprite never moves or fades. A tiny scale-only smear
-        // around this swap suggests motion blur without a Pixi filter pass.
-        robot.position.set(robotOriginX, robotOriginY);
-        robot.rotation = 0;
+        // Texture swaps preserve the live gravity-owned position. A tiny
+        // scale-only smear suggests motion blur without another position owner.
         robot.alpha = 1;
       }, undefined, frameStart + ROBO_FRAME_SMEAR_IN_SECONDS);
       robotTimeline.to(robot.scale, {
@@ -1255,12 +1272,13 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         const isWindmill = neonTextureIndices[index] === 1;
         const scatterAngle = Math.random() * Math.PI * 2;
         const scatterDistance = 20 + Math.random() * 32;
+        const enterDriftX = (Math.random() * 2 - 1) * 34;
         neon.anchor.set(0.5);
-        neon.x = originX;
-        neon.y = originY;
-        neon.alpha = 0;
-        neon.rotation = 0;
-        neon.scale.set(0);
+        neon.x = originX + enterDriftX;
+        neon.y = screenH + popDiameter;
+        neon.alpha = 1;
+        neon.rotation = -rotationDirection * 1.55;
+        neon.scale.set(targetScale * 1.04);
         neon.eventMode = 'none';
         neon.zIndex = 240 + index;
         explosionContainer.addChild(neon);
@@ -1277,58 +1295,45 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           scatterY: Math.sin(scatterAngle) * scatterDistance,
         });
 
-        const enterTl = trackTimeline({ delay: 0.02 + index * 0.016 });
+        const enterTl = trackTimeline({
+          delay: ROBO_NEON_ENTER_INITIAL_DELAY_SECONDS + index * ROBO_NEON_ENTER_STAGGER_SECONDS,
+        });
         roboAnimations.push(enterTl);
-        // Exact presentation inverse of the authored exit: pop from zero to
-        // the oversized exit pose, settle to authored size, then unwind both
-        // wobble beats back to the stable orbit origin.
-        enterTl.to(neon.scale, {
-          x: targetScale * 1.28,
-          y: targetScale * 1.28,
-          duration: 0.13,
-          ease: 'back.out(2.5)',
-        });
+        // Reverse of the gravity exit: rise from below the viewport, pass the
+        // resting point by one small hop, then settle onto the orbit origin.
         enterTl.to(neon, {
-          alpha: 1,
-          duration: 0.09,
+          x: originX + enterDriftX * 0.12,
+          y: originY - ROBO_NEON_EXIT_HOP_PX,
+          rotation: rotationDirection * 0.18,
+          duration: ROBO_NEON_EXIT_FALL_SECONDS,
           ease: 'power2.out',
-        }, 0);
-        enterTl.to(neon.scale, {
-          x: targetScale,
-          y: targetScale,
-          duration: 0.07,
-          ease: 'power2.in',
-        });
-        enterTl.to(neon, {
-          x: originX - rotationDirection * 6,
-          rotation: -rotationDirection * 0.34,
-          duration: 0.05,
-          ease: 'power1.inOut',
-        });
-        enterTl.to(neon, {
-          x: originX + rotationDirection * 6,
-          rotation: rotationDirection * 0.34,
-          duration: 0.05,
-          ease: 'power1.inOut',
         });
         enterTl.to(neon, {
           x: originX,
+          y: originY,
           rotation: 0,
-          duration: 0.05,
-          ease: 'back.out(2.1)',
+          duration: ROBO_NEON_EXIT_HOP_SECONDS,
+          ease: 'power2.in',
         });
+        enterTl.to(neon.scale, {
+          x: targetScale,
+          y: targetScale,
+          duration: ROBO_NEON_EXIT_HOP_SECONDS,
+          ease: 'power2.inOut',
+        }, ROBO_NEON_EXIT_FALL_SECONDS);
       }
 
       const neonMotion = { time: 0, progress: 0 };
       let neonMotionTween: gsap.core.Tween | null = null;
+      let neonExitStarted = false;
       lifecycle.trackTimeout(() => {
-        if (!isExplosionActive || cleanupInProgress) return;
+        if (!isExplosionActive || cleanupInProgress || neonExitStarted || roboNeonMotionSeconds <= 0) return;
         neonMotionTween = trackTween(neonMotion, {
           // Keep the accepted orbit/pulse cadence alive without a dead hold:
           // this owner runs continuously until the exit owner takes over.
-          time: ROBO_NEON_MOTION_RADIANS_PER_SECOND * ROBO_NEON_MOTION_SECONDS,
+          time: ROBO_NEON_MOTION_RADIANS_PER_SECOND * roboNeonMotionSeconds,
           progress: 1,
-          duration: ROBO_NEON_MOTION_SECONDS,
+          duration: roboNeonMotionSeconds,
           ease: 'none',
           onUpdate: () => {
             neonSprites.forEach(({
@@ -1368,16 +1373,24 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       }, ROBO_NEON_MOTION_START_MS);
 
       const neonExitTimeline = trackTimeline({
-        delay: ROBO_NEON_EXIT_START_MS / 1000,
+        delay: roboGravityExitStartSeconds,
         onStart: () => traceRoboFinale('shared-exit-start', { count: neonSprites.length }),
       });
+      neonExitTimeline.addLabel('neon-gravity-exit', 0);
+      neonExitTimeline.addLabel('head-gravity-exit', 0);
       roboAnimations.push(neonExitTimeline);
       const liveNeonSprites = neonSprites
         .map(({ sprite }) => sprite)
         .filter((sprite) => sprite && !sprite.destroyed && sprite.parent);
-      const neonExitStartScales: number[] = [];
+      const neonExitStartStates: Array<{
+        x: number;
+        y: number;
+        rotation: number;
+        scale: number;
+        driftX: number;
+        rotationDirection: -1 | 1;
+      }> = [];
       const neonExitState = { elapsed: 0 };
-      const neonExitEase = gsap.parseEase('back.in(2.2)');
       const shuffledNeonIndices = liveNeonSprites.map((_sprite, index) => index);
       for (let index = shuffledNeonIndices.length - 1; index > 0; index -= 1) {
         const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -1386,44 +1399,55 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           shuffledNeonIndices[index],
         ];
       }
-      const neonExitPairByIndex = new Map<number, number>();
+      const neonExitOrderByIndex = new Map<number, number>();
       shuffledNeonIndices.forEach((spriteIndex, orderIndex) => {
-        neonExitPairByIndex.set(spriteIndex, Math.floor(orderIndex / 2));
+        neonExitOrderByIndex.set(spriteIndex, orderIndex);
       });
-      const neonExitPairCount = Math.ceil(liveNeonSprites.length / 2);
-      const neonExitDuration = ROBO_NEON_COLLAPSE_SECONDS
-        + Math.max(0, neonExitPairCount - 1) * ROBO_NEON_EXIT_PAIR_GAP_SECONDS;
-      let robotExitStartScale = robot.scale.x;
+      const neonExitDuration = ROBO_NEON_EXIT_HOP_SECONDS
+        + ROBO_NEON_EXIT_FALL_SECONDS
+        + Math.max(0, liveNeonSprites.length - 1) * ROBO_NEON_EXIT_STAGGER_SECONDS;
       neonExitTimeline.call(() => {
-        animationManager.killExternalTimeline(robotTimeline);
+        neonExitStarted = true;
+        animationManager.killExternalTimeline(robotEnterTimeline);
         animationManager.killExternalTween(neonMotionTween);
         neonMotionTween = null;
-        robotExitStartScale = robot.scale.x;
         liveNeonSprites.forEach((sprite, index) => {
-          neonExitStartScales[index] = sprite.scale.x;
+          gsap.killTweensOf(sprite);
+          gsap.killTweensOf(sprite.scale);
+          neonExitStartStates[index] = {
+            x: sprite.x,
+            y: sprite.y,
+            rotation: sprite.rotation,
+            scale: sprite.scale.x,
+            driftX: (Math.random() * 2 - 1) * 34,
+            rotationDirection: Math.random() < 0.5 ? -1 : 1,
+          };
         });
-      });
-      neonExitTimeline.to(robot.scale, {
-        x: () => robotExitStartScale * 1.12,
-        y: () => robotExitStartScale * 1.12,
-        duration: ROBO_HEAD_EXIT_ANTICIPATION_SECONDS,
-        ease: 'back.out(2.2)',
+      }, undefined, 'neon-gravity-exit');
+      neonExitTimeline.to(robot, {
+        x: robotOriginX + robotGravityDriftX * 0.12,
+        y: robotOriginY - ROBO_HEAD_GRAVITY_HOP_PX,
+        rotation: Math.sign(robotGravityDriftX || 1) * 0.18,
+        duration: ROBO_HEAD_GRAVITY_HOP_SECONDS,
+        ease: 'power2.out',
         onStart: () => traceRoboFinale('head-exit-start'),
-      }, neonExitDuration);
-      neonExitTimeline.to(robot.scale, {
-        x: 0,
-        y: 0,
-        duration: ROBO_HEAD_EXIT_COLLAPSE_SECONDS,
-        ease: 'back.in(2.0)',
+      }, 'head-gravity-exit');
+      neonExitTimeline.to(robot, {
+        x: robotOriginX + robotGravityDriftX,
+        y: screenH + robotBaseWidth,
+        rotation: Math.sign(robotGravityDriftX || 1) * 1.60,
+        duration: ROBO_HEAD_GRAVITY_FALL_SECONDS,
+        ease: 'power2.in',
         onComplete: () => {
+          robot.alpha = 0;
           robotExitComplete = true;
           traceRoboFinale('head-exit-complete');
           finishRoboFinaleAfterVisualExit();
         },
-      }, neonExitDuration + ROBO_HEAD_EXIT_ANTICIPATION_SECONDS);
-      // One proxy owns randomly shuffled pairs. Every scale is still written
-      // in this single render callback, so pair choreography cannot regress
-      // into per-target tween serialization.
+      }, `head-gravity-exit+=${ROBO_HEAD_GRAVITY_HOP_SECONDS}`);
+      // One proxy owns the complete randomized gravity wave. Every sprite is
+      // still written in one render callback, so staggered falling adds no
+      // per-Neon timelines or competing transform owners.
       neonExitTimeline.to(neonExitState, {
         elapsed: neonExitDuration,
         duration: neonExitDuration,
@@ -1431,14 +1455,35 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         onUpdate: () => {
           liveNeonSprites.forEach((sprite, index) => {
             if (sprite.destroyed || !sprite.parent) return;
-            const pairIndex = neonExitPairByIndex.get(index) ?? 0;
-            const localProgress = Math.max(0, Math.min(
+            const startState = neonExitStartStates[index];
+            if (!startState) return;
+            const orderIndex = neonExitOrderByIndex.get(index) ?? 0;
+            const localElapsed = neonExitState.elapsed
+              - orderIndex * ROBO_NEON_EXIT_STAGGER_SECONDS;
+            if (localElapsed <= 0) return;
+            if (localElapsed <= ROBO_NEON_EXIT_HOP_SECONDS) {
+              const hopProgress = Math.min(1, localElapsed / ROBO_NEON_EXIT_HOP_SECONDS);
+              const easedHop = 1 - Math.pow(1 - hopProgress, 2);
+              sprite.x = startState.x + startState.driftX * 0.12 * easedHop;
+              sprite.y = startState.y - ROBO_NEON_EXIT_HOP_PX * easedHop;
+              sprite.rotation = startState.rotation
+                + startState.rotationDirection * 0.18 * easedHop;
+              sprite.scale.set(startState.scale * (1 + 0.04 * easedHop));
+              return;
+            }
+            const fallProgress = Math.min(
               1,
-              (neonExitState.elapsed - pairIndex * ROBO_NEON_EXIT_PAIR_GAP_SECONDS)
-                / ROBO_NEON_COLLAPSE_SECONDS,
-            ));
-            const scale = (neonExitStartScales[index] ?? 0) * (1 - neonExitEase(localProgress));
-            sprite.scale.set(scale);
+              (localElapsed - ROBO_NEON_EXIT_HOP_SECONDS) / ROBO_NEON_EXIT_FALL_SECONDS,
+            );
+            const gravityProgress = fallProgress * fallProgress;
+            const hopY = startState.y - ROBO_NEON_EXIT_HOP_PX;
+            const belowScreenY = screenH + Math.max(80, sprite.height);
+            sprite.x = startState.x + startState.driftX * (0.12 + fallProgress * 0.88);
+            sprite.y = hopY + (belowScreenY - hopY) * gravityProgress;
+            sprite.rotation = startState.rotation
+              + startState.rotationDirection * (0.18 + fallProgress * 1.55);
+            sprite.scale.set(startState.scale * 1.04);
+            if (fallProgress >= 1) sprite.alpha = 0;
           });
         },
         onComplete: () => {
@@ -1449,7 +1494,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           traceRoboFinale('neon-exit-complete', { count: liveNeonSprites.length });
           finishRoboFinaleAfterVisualExit();
         },
-      }, 0);
+      }, 'neon-gravity-exit');
     }
 
     (robot as any)._bubbleTweens = roboAnimations;

@@ -199,10 +199,13 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("sceneImg.style.left = roboVariation.frontTravelDirection === 1 ? '16%' : '84%'");
     expect(source).toContain("sceneImg.style.left = roboVariation.walkerTravelDirection === 1 ? '20%' : '80%'");
     expect(source).toContain('const roboFrontTravelDirection = roboVariation?.frontTravelDirection ?? 1');
-    expect(source).toContain('const roboCharacterMirrorY = isRoboFront');
-    expect(source).toContain('roboFrontTravelDirection === -1 ? 180 : 0');
-    expect(source).toContain("isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? 180 : 0");
-    expect(source).toContain('rotationY: roboCharacterMirrorY');
+    expect(source).toContain('const roboCharacterScaleXSign = isRoboFront');
+    expect(source).toContain('roboFrontTravelDirection === -1 ? -1 : 1');
+    expect(source).toContain("isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? -1 : 1");
+    expect(source).toContain('roboInitialScale * roboCharacterScaleXSign');
+    expect(source).toContain('scaleX: 1.04 * roboCharacterScaleXSign');
+    expect(source).toContain('scaleX: roboCharacterScaleXSign, scaleY: 1');
+    expect(source).not.toContain('roboCharacterMirrorY');
     expect(source).toContain('const roboWalkerEndX = (roboVariation?.walkerTravelDirection ?? -1)');
     expect(source).toContain('const isRoboGroundFront = isRoboScene && layerKey === \'robo-ground-front\'');
     expect(source).toContain('isRoboGroundFront ? 4.2 : 14');
@@ -210,7 +213,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const roboArrivalReboundScale = isRoboGroundFront ? 0.985 : 0.95');
     expect(source).toContain('const roboArrivalEaseStrength = isRoboGroundFront ? 0.6 : 2.0');
     expect(source).toContain('const roboSettleEaseStrength = isRoboGroundFront ? 0.45 : 1.5');
-    expect(source).toContain("scale: 1, duration: 0.12 * sceneEnterSpeedFactor");
+    expect(source).toContain("scaleX: roboCharacterScaleXSign, scaleY: 1, duration: 0.12 * sceneEnterSpeedFactor");
     expect(source).toContain("x: roboWalkerEndX * 0.18, y: 7, rotation: -3");
     expect(source).toContain("x: roboWalkerEndX * 0.53, y: 9, rotation: -3");
     expect(source).toContain("x: roboWalkerEndX * 0.86, y: 6, rotation: -2");
