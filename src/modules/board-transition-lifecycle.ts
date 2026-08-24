@@ -2,7 +2,8 @@ export type BoardTransitionSettlement = (invokeOnComplete?: boolean) => boolean;
 
 export function createBoardTransitionSettlement(options: {
   resolve: () => void;
-  onComplete: () => void;
+  reject?: (error: unknown) => void;
+  onComplete: () => void | Promise<void>;
   onSettled?: () => void;
 }): BoardTransitionSettlement {
   let settled = false;
@@ -12,9 +13,27 @@ export function createBoardTransitionSettlement(options: {
     settled = true;
     try {
       options.onSettled?.();
-    } finally {
+    } catch (error) {
       options.resolve();
-      if (invokeOnComplete) options.onComplete();
+      throw error;
+    }
+    if (!invokeOnComplete) {
+      options.resolve();
+      return true;
+    }
+    try {
+      const completion = options.onComplete();
+      if (!completion || typeof (completion as Promise<void>).then !== 'function') {
+        options.resolve();
+        return true;
+      }
+      void Promise.resolve(completion).then(options.resolve).catch((error) => {
+        if (options.reject) options.reject(error);
+        else options.resolve();
+      });
+    } catch (error) {
+      if (options.reject) options.reject(error);
+      else options.resolve();
     }
     return true;
   };

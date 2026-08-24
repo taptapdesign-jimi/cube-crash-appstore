@@ -27,6 +27,38 @@ describe('Board Transition settlement lifecycle', () => {
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
 
+  test('does not resolve until an asynchronous gameplay handoff completes', async () => {
+    const resolve = jest.fn();
+    let finish = () => {};
+    const settle = createBoardTransitionSettlement({
+      resolve,
+      onComplete: () => new Promise<void>((done) => { finish = done; }),
+    });
+
+    settle();
+    expect(resolve).not.toHaveBeenCalled();
+    finish();
+    await Promise.resolve();
+    expect(resolve).toHaveBeenCalledTimes(1);
+  });
+
+  test('routes asynchronous handoff rejection to the transition owner', async () => {
+    const resolve = jest.fn();
+    const reject = jest.fn();
+    const error = new Error('board boot failed');
+    const settle = createBoardTransitionSettlement({
+      resolve,
+      reject,
+      onComplete: async () => { throw error; },
+    });
+
+    settle();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(reject).toHaveBeenCalledWith(error);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
   test('still resolves when cleanup bookkeeping throws', () => {
     const resolve = jest.fn();
     const settle = createBoardTransitionSettlement({

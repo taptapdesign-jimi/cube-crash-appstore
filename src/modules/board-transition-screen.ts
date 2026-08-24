@@ -44,7 +44,7 @@ import { boardTransitionPresentationHandoff } from './board-transition-presentat
 
 interface BoardTransitionOptions {
   boardNumber: number;
-  onComplete: () => void;
+  onComplete: () => void | Promise<void>;
   hideForest?: boolean;
   displayText?: string;
   theme?: BoardTransitionThemeId;
@@ -658,17 +658,23 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     let finishOnce: BoardTransitionSettlement;
     finishOnce = createBoardTransitionSettlement({
       resolve,
+      reject,
       onSettled: () => {
         if (activeTransitionSettlement === finishOnce) activeTransitionSettlement = null;
         try { sampleMemorySpike('4_transition_complete'); } catch {}
         stopMemSampling('finished');
         markBoardLifecycle('transition-complete');
       },
-      onComplete: () => {
+      onComplete: async () => {
+        logger.info('[CC_BOARD_HANDOFF] onComplete-start', { generation: activeGeneration, boardNumber });
         try {
-          onComplete();
+          await onComplete();
+          logger.info('[CC_BOARD_HANDOFF] onComplete-resolve', { generation: activeGeneration, boardNumber });
         } catch (onCompleteError) {
-          logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
+          logger.error('[CC_BOARD_HANDOFF] onComplete-reject', { generation: activeGeneration, boardNumber, error: onCompleteError });
+          cleanup();
+          isTransitionActive = false;
+          throw onCompleteError;
         }
       },
     });
@@ -1753,7 +1759,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             // Check if digitEl still exists and is valid
             if (!digitEl || !digitEl.parentNode || digitEl.isConnected === false) {
               logger.warn('⚠️ board-transition-screen: Digit element destroyed before animation complete');
-              return; // Element destroyed, skip cleanup
+              cleanup();
+              isTransitionActive = false;
+              finishOnce(false);
+              return;
             }
             
             // 🔥 APP STORE: Cleanup will-change after animation completes
@@ -1811,6 +1820,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             }
           } catch (error) {
             logger.warn('⚠️ board-transition-screen: Error in digit animation onComplete:', error);
+            cleanup();
+            isTransitionActive = false;
+            finishOnce(false);
           }
         }
       });

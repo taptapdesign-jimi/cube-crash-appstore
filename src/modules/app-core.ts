@@ -5737,8 +5737,11 @@ function revealPreparedGameplaySurface(): void {
   } catch {}
 }
 
-function releaseBoardTransitionCoverAfterPreparedFrame(): void {
+function releaseBoardTransitionCoverAfterPreparedFrame(gameplayGeneration: number): void {
+  const lease = boardTransitionPresentationHandoff.claimForGameplayEntry(gameplayGeneration);
+  if (!lease) return;
   void boardTransitionPresentationHandoff.releaseAfterPreparedFrames({
+    lease,
     renderPreparedFrame: () => {
       try { app?.renderer?.render?.(stage); } catch {}
     },
@@ -5878,7 +5881,6 @@ function rebuildBoard(){
     onPopInStarted: () => {
       if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
       if (arcadeEntryCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
-      releaseBoardTransitionCoverAfterPreparedFrame();
     },
     shouldAbort: () => gameplayEntrySignal?.aborted === true ||
       !isGameplayEntryGenerationLatest(gameplayEntryGeneration),
@@ -5893,6 +5895,9 @@ function rebuildBoard(){
       gameplayEntrySignal = signal;
       if (signal.aborted) return;
       revealPreparedGameplaySurface();
+      // The committed generation is the authoritative prepared-surface owner.
+      // Cover release must not depend on an optional cue/pop-in callback.
+      releaseBoardTransitionCoverAfterPreparedFrame(gameplayEntryGeneration);
       if (arcadeEntryCueRound <= 0) scheduleBoardPopInSafetyNet();
       return sweetPopInRunner();
     },
@@ -15845,6 +15850,7 @@ async function loadGameState(overrideBoardNumber?: number) {
         loadedEntrySignal = signal;
         if (signal.aborted) return;
         revealPreparedGameplaySurface();
+        releaseBoardTransitionCoverAfterPreparedFrame(loadedEntryGeneration);
         return playLoadPopInAnimation({
       tiles,
       backgroundLayer,
@@ -15864,7 +15870,6 @@ async function loadGameState(overrideBoardNumber?: number) {
       onPopInStarted: () => {
         if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
         if (arcadeContinuationCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
-        releaseBoardTransitionCoverAfterPreparedFrame();
       },
       shouldAbort: () => loadedEntrySignal?.aborted === true ||
         !isGameplayEntryGenerationLatest(loadedEntryGeneration),
