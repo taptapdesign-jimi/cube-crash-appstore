@@ -2,8 +2,7 @@
 // Centralized mutable state for the game (single source of truth).
 // Everything else imports/reads/writes from here to avoid circular deps.
 
-import { Application, Container, Graphics, Rectangle, Text } from 'pixi.js';
-import { gsap } from 'gsap';
+import { Application, Container, Graphics, Text } from 'pixi.js';
 import {
   COLS, ROWS, TILE, GAP,
   HUD_H, HUD_PAD_X, HUD_TEXT, HUD_DIV,
@@ -88,4 +87,3 @@ export {
   SFX_EXPLODE, ENDLESS, STORAGE_BEST,
   REFILL_ON_SIX_BY_DEPTH, REFILL_AFTER_SMALL_EVERY, POWERUP_WILD_CHANCE,
 };
-

@@ -93,7 +93,6 @@ function startLoopFadeOut(): void {
   const a = audio;
   if (!a) return;
   const steps = Math.max(1, (PRE_END_FADE_SEC * 1000) / LOOP_FADE_STEP_MS);
-  const stepVolume = a.volume / steps;
   let step = 0;
   loopFadeInterval = setInterval(() => {
     step++;

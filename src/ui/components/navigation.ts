@@ -26,7 +26,7 @@ export interface NavigationConfig {
 }
 
 export function createNavigation(config: NavigationConfig = {}): HTMLElementConfig {
-  const { currentSlide = 0, onSlideChange, badgeCount, journeyBadgeCount } = config;
+  const { currentSlide = 0, onSlideChange, journeyBadgeCount } = config;
 
   return {
     tag: 'div',

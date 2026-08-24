@@ -631,10 +631,6 @@ export class AppSpatialMotionController {
       if (!worldId) return;
       const depthScale = getJourneySpatialDepthScale(index + 2 + this.hubEntryDepthOffset);
       const verticalDirection = this.worldDirections[worldId].y;
-      // Forest and Area 55 sit left of the visual centre; Beach sits right.
-      // Their positive sensor travel therefore begins inward, with outward
-      // travel attenuated later in applyCurrentTilt().
-      const inwardX: -1 | 1 = worldId === 2 ? -1 : 1;
       targets.push({
         element: image,
         xDepth: JOURNEY_SPATIAL_DEPTH.hubWorld.x * depthScale,

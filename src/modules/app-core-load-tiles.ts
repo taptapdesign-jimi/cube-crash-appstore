@@ -34,7 +34,6 @@ type TileRestoreDeps = {
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
   devError: (...args: any[]) => void;
-  setWildJuiceSpawned: (v: boolean) => void;
 };
 
 type TileRestoreResult = {
@@ -71,9 +70,7 @@ export function restoreTilesFromSave({
   stopWildShimmer,
   startMagnetIdleParticles,
   stopMagnetIdleParticles,
-  startTntIdleParticles,
   stopTntIdleParticles,
-  startTntIdleShake,
   stopTntIdleShake,
   startWildJuiceBubbles,
   stopWildJuiceBubbles,
@@ -82,7 +79,6 @@ export function restoreTilesFromSave({
   devLog,
   devWarn,
   devError,
-  setWildJuiceSpawned,
 }: TileRestoreDeps): TileRestoreResult {
   // Validate and normalize into a detached model before touching the live board.
   // A malformed/duplicate/out-of-bounds save must never destroy a healthy
@@ -241,7 +237,6 @@ export function restoreTilesFromSave({
       applyWildSkinLocal(tile);
       try { startWildShimmer(tile); } catch {}
       if (isSpecialDiceJuiceLikeTile(tile)) {
-        if (tile.special === 'wild-juice') setWildJuiceSpawned(true);
         try {
           if (typeof startWildJuiceBubbles === 'function') {
             startWildJuiceBubbles(tile);

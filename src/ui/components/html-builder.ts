@@ -13,8 +13,6 @@ export interface HTMLElementConfig {
 }
 
 export class HTMLBuilder {
-  private static container: DocumentFragment | null = null;
-
   static createElement(config: HTMLElementConfig): HTMLElement {
     const element = document.createElement(config.tag);
 

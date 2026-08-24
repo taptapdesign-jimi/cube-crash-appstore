@@ -490,7 +490,6 @@ export function presentJourneyCardOverlayModal(
   let dragFlipCommitted = false;
   let dragAllowedDirection: -1 | 0 | 1 = 0;
   let dragMoved = false;
-  let dragCardWidth = 1;
   let dragCardHeight = 1;
   let dragCardRect: DOMRect | null = null;
   let dragViewportHeight = 0;
@@ -1194,7 +1193,6 @@ export function presentJourneyCardOverlayModal(
     dragAllowedDirection = 0;
     dragMoved = false;
     dragCardRect = frame.getBoundingClientRect();
-    dragCardWidth = Math.max(1, dragCardRect.width);
     dragCardHeight = Math.max(1, dragCardRect.height);
     dragViewportHeight = window.innerHeight;
     dragViewportWidth = window.innerWidth;

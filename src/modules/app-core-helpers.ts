@@ -8,7 +8,6 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { Assets } from 'pixi.js';
-import { logger } from '../core/logger.js';
 import { TILE } from './constants.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
@@ -230,4 +229,3 @@ export function hudResetCombo(_resetCombo?: () => void): void {
 
 // Note: animateScore and animateBoardHUD remain in app-core.ts
 // because they use complex callback logic with _animateScore, _animateBoard, HUD.animateScore, etc.
-

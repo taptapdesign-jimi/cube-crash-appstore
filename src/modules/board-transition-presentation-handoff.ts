@@ -13,10 +13,10 @@ export type BoardTransitionCoverLease = Readonly<{
 
 const COVER_HOLD_DEADLINE_MS = 12_000;
 
-function traceHandoff(event: string, generation: number): void {
+function traceHandoff(event: string, generation: number, detail?: unknown): void {
   if (typeof window === 'undefined') return;
   const target = window as typeof window & { __ccBoardHandoffTrace?: unknown[] };
-  const entry = { event, generation, at: Date.now(), visibility: document.visibilityState };
+  const entry = { event, generation, at: Date.now(), visibility: document.visibilityState, detail };
   target.__ccBoardHandoffTrace = [...(target.__ccBoardHandoffTrace ?? []).slice(-39), entry];
   console.info('[CC_BOARD_HANDOFF]', entry);
 }
@@ -41,7 +41,14 @@ class BoardTransitionPresentationHandoff {
     this.gameplayOwner = 0;
     this.clearDeadline();
     traceHandoff(reason, generation);
-    release();
+    try {
+      release();
+    } catch (error) {
+      // Ownership is already terminal above. A DOM cleanup failure must not
+      // reject a fire-and-forget prepared-frame release or revive the lease.
+      traceHandoff('release-callback-error', generation, String(error));
+      console.error('[CC_BOARD_HANDOFF] release callback failed', error);
+    }
     return true;
   }
 

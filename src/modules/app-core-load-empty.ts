@@ -21,7 +21,6 @@ export function handleEmptyLoadState({
   getPendingCleanBoard,
   clearPendingCleanBoard,
   getBoardSaveKey,
-  triggerCleanBoardFlow,
   runFailFlow,
   showFinalScreen,
   clearLoadedTiles,

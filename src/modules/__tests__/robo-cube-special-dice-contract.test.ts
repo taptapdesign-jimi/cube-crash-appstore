@@ -14,7 +14,6 @@ import {
 const read = (relativePath: string) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
 describe('Robo Cube special die', () => {
-  const registrySource = read('src/modules/special-dice-registry.ts');
   const idleSource = read('src/modules/robo-cube-idle.ts');
   const specialIdleSource = read('src/modules/special-dice-idle.ts');
   const juiceSource = read('src/modules/wild-juice-bubbles-explosion.ts');
@@ -42,7 +41,7 @@ describe('Robo Cube special die', () => {
       (_, index) => `./assets/shop/robo/robo-cube${index + 1}.png`,
     ));
     expect(robo?.explosionSpriteSources).toHaveLength(12);
-    expect(getSpecialDiceFinaleAccentSpriteSources(robo)).toHaveLength(3);
+    expect(getSpecialDiceFinaleAccentSpriteSources(robo)).toHaveLength(4);
 
     for (let frame = 1; frame <= 4; frame += 1) {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/robo/robo-cube${frame}.png`))).toBe(true);
@@ -51,7 +50,7 @@ describe('Robo Cube special die', () => {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/robo/robo${frame}.png`))).toBe(true);
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/robo/robo${frame}@2x.png`))).toBe(true);
     }
-    for (let frame = 1; frame <= 3; frame += 1) {
+    for (let frame = 1; frame <= 4; frame += 1) {
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/robo/neon${frame}.png`))).toBe(true);
       expect(fs.existsSync(path.resolve(process.cwd(), `assets/shop/robo/neon${frame}@2x.png`))).toBe(true);
     }
@@ -189,8 +188,12 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('const ROBO_BELOW_TEXT_DUPLICATE_RATIO = 0.60');
     expect(juiceSource).toContain('Math.round(upperNeonCount * ROBO_BELOW_TEXT_DUPLICATE_RATIO)');
     expect(juiceSource).toContain('const heartCount = 5');
+    expect(juiceSource).toContain('const requiredAlternateTextureIndices = Array.from(');
+    expect(juiceSource).toContain('(_, index) => index + 1');
     expect(juiceSource).toContain('const neonTextureIndices = [');
-    expect(juiceSource).toContain('Math.floor(Math.random() * (accentTextures.length - 1))');
+    expect(juiceSource).toContain('accentTextures.length > 3 && Math.random() < 0.20');
+    expect(juiceSource).toContain('Math.floor(Math.random() * nonPistolAlternateCount)');
+    expect(juiceSource).toContain('lastNeon4RotationDirection === 1 ? -1 : 1');
     expect(juiceSource).toContain('].sort(() => Math.random() - 0.5)');
     expect(juiceSource).not.toContain('neonLayoutSlots');
     expect(juiceSource).toContain('const placedNeonOrigins: Array<{ x: number; y: number; diameter: number }> = []');
@@ -221,9 +224,9 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('scatterX * easedScatter');
     expect(juiceSource).toContain('scatterY * easedScatter');
     expect(juiceSource).not.toContain('originY - neonMotion.progress * 100');
-    expect(juiceSource).toContain('const isWindmill = neonTextureIndices[index] === 1');
-    expect(juiceSource).toContain('? wave * 1.35 * rotationDirection');
-    expect(juiceSource).toContain('const ROBO_NEON_EXIT_STAGGER_SECONDS = 0.022');
+    expect(juiceSource).toContain('const isWindmill = textureIndex === 1 || textureIndex === 2');
+    expect(juiceSource).toContain('? rotationWave * 1.35 * rotationDirection');
+    expect(juiceSource).toContain('const ROBO_NEON_EXIT_STAGGER_SECONDS = 0.006');
     expect(juiceSource).toContain('const ROBO_NEON_EXIT_HOP_SECONDS = 0.10');
     expect(juiceSource).toContain('const ROBO_NEON_EXIT_FALL_SECONDS = 0.44');
     expect(juiceSource).toContain('const ROBO_NEON_EXIT_HOP_PX = 24');
@@ -234,16 +237,18 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('const ROBO_NEON_ENTER_INITIAL_DELAY_SECONDS = 0.02');
     expect(juiceSource).toContain('const ROBO_NEON_ENTER_STAGGER_SECONDS = 0.016');
     expect(juiceSource).toContain('const ROBO_GRAVITY_EXIT_PADDING_SECONDS = 0.05');
+    expect(juiceSource).toContain('const ROBO_NEON_EXIT_LEAD_SECONDS = 0.20');
     expect(juiceSource).toContain('const robotAnimationEndSeconds = ROBO_HEAD_ENTER_SECONDS');
     expect(juiceSource).toContain('const frameStart = ROBO_HEAD_ENTER_SECONDS + 0.10 + sequenceIndex * ROBO_FRAME_STEP_SECONDS');
     expect(juiceSource).toContain('const roboGravityExitStartSeconds = robotAnimationEndSeconds');
+    expect(juiceSource).toContain('roboGravityExitStartSeconds - ROBO_NEON_EXIT_LEAD_SECONDS');
     expect(juiceSource).not.toContain('ROBO_NEON_EXIT_ANTICIPATION_SECONDS');
     expect(juiceSource).toContain('const neonExitTimeline = trackTimeline({');
     expect(juiceSource).toContain("neonExitTimeline.addLabel('neon-gravity-exit', 0)");
-    expect(juiceSource).toContain("neonExitTimeline.addLabel('head-gravity-exit', 0)");
+    expect(juiceSource).toContain("neonExitTimeline.addLabel('head-gravity-exit', ROBO_NEON_EXIT_LEAD_SECONDS)");
     expect(juiceSource).toContain("}, 'head-gravity-exit')");
-    expect(juiceSource).toContain("}, 'neon-gravity-exit')");
-    expect(juiceSource).toContain('delay: roboGravityExitStartSeconds');
+    expect(juiceSource).toContain("}, undefined, 'neon-gravity-exit')");
+    expect(juiceSource).toContain('delay: roboNeonGravityExitStartSeconds');
     expect(juiceSource).toContain("traceRoboFinale('shared-exit-start'");
     expect(juiceSource).toContain("traceRoboFinale('head-exit-start')");
     expect(juiceSource).toContain("traceRoboFinale('visual-exit-complete')");
@@ -254,7 +259,10 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('animationManager.killExternalTimeline(robotEnterTimeline)');
     expect(juiceSource).not.toContain('animationManager.killExternalTimeline(robotTimeline)');
     expect(juiceSource).toContain('neonExitTimeline.to(robot, {');
-    expect(juiceSource).toContain('neonExitTimeline.to(neonExitState, {');
+    expect(juiceSource).not.toContain('neonExitTimeline.to(neonExitState, {');
+    expect(juiceSource).toContain('let renderNeonExitFrame: (() => void) | null = null');
+    expect(juiceSource).toContain('if (neonExitStarted) {');
+    expect(juiceSource).toContain('renderNeonExitFrame?.();');
     expect(juiceSource).toContain('const gravityProgress = fallProgress * fallProgress');
     expect(juiceSource).toContain('const belowScreenY = screenH + Math.max(80, sprite.height)');
     expect(juiceSource).toContain('sprite.y = hopY + (belowScreenY - hopY) * gravityProgress');
@@ -262,6 +270,10 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('const shuffledNeonIndices = liveNeonSprites.map');
     expect(juiceSource).toContain('neonExitOrderByIndex.set(spriteIndex, orderIndex)');
     expect(juiceSource).toContain('orderIndex * ROBO_NEON_EXIT_STAGGER_SECONDS');
+    expect(juiceSource).not.toContain('if (localElapsed <= 0) return');
+    expect(juiceSource).toContain('sprite.rotation = startState.rotation + liveRotationDelta');
+    expect(juiceSource).toContain('(neonMotion.time - neonExitMotionStartRadians)');
+    expect(juiceSource).not.toContain('animationManager.killExternalTween(neonMotionTween)');
     expect(juiceSource).not.toContain('neonExitTimeline.to(liveNeonSprites.map((sprite) => sprite.scale)');
     expect(juiceSource).toContain('/ ROBO_NEON_EXIT_FALL_SECONDS');
     expect(juiceSource).toContain('y: screenH + robotBaseWidth');
@@ -282,10 +294,22 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('if (!isExplosionActive || cleanupInProgress || neonExitStarted || roboNeonMotionSeconds <= 0) return');
     expect(juiceSource).toContain('gsap.killTweensOf(sprite.scale)');
     expect(juiceSource).toContain('ROBO_NEON_MOTION_RADIANS_PER_SECOND = (Math.PI * 4) / 0.85');
+    expect(juiceSource).toContain('const ROBO_NEON_ROTATION_SPEED_RATIO = 0.50');
+    expect(juiceSource).toContain('* ROBO_NEON_ROTATION_SPEED_RATIO + phase');
+    expect(juiceSource).toContain('* ROBO_NEON_ROTATION_SPEED_RATIO + metadata.phase');
     expect(juiceSource).toContain('time: ROBO_NEON_MOTION_RADIANS_PER_SECOND * roboNeonMotionSeconds');
     expect(juiceSource).toContain('isRoboDrop ? ROBO_FINALE_SAFETY_TIMEOUT_MS');
     expect(juiceSource).not.toContain('}, ROBO_FINALE_COMPLETE_MS);');
     expect(appCoreSource.match(/accentSpritePaths: getSpecialDiceFinaleAccentSpriteSources/g)).toHaveLength(2);
+  });
+
+  test('starts the complete four-texture Neon gravity wave inside the 200ms head lead', () => {
+    const accentCount = getSpecialDiceFinaleAccentSpriteSources(getSpecialDiceVariant('robo-cube'))?.length ?? 0;
+    const upperNeonCount = accentCount * 3 + 7;
+    const neonCount = upperNeonCount + Math.round(upperNeonCount * 0.60);
+    const maximumGravityStartSpreadSeconds = Math.max(0, neonCount - 1) * 0.006;
+    expect(accentCount).toBe(4);
+    expect(maximumGravityStartSpreadSeconds).toBeLessThanOrEqual(0.20);
   });
 
   test('routes the complete effect through the existing Juice lock and cleanup owner', () => {

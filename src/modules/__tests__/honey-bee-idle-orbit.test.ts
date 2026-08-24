@@ -162,6 +162,30 @@ describe('Honey bee idle orbit', () => {
     expect(source).toContain('bees.forEach(({ bee }) => spritePool.release(bee))');
   });
 
+  test('recovers decoded bee textures without live Pixi placeholders or extra animation owners', () => {
+    expect(source).not.toContain('Texture.from(source)');
+    expect(source).toContain('isUsablePixiImageTexture(cached) ? cached : Texture.EMPTY');
+    expect(source).toContain('await Assets.load(source)');
+    expect(source).toContain('await reloadPixiImageTexture(source)');
+    expect(source).toContain('if (disposed) return');
+    expect(source.match(/animationManager\.trackExternalTween/g)).toHaveLength(1);
+  });
+
+  test('reapplies the authored local size whenever an empty texture becomes a decoded bee', () => {
+    expect(source).toContain('const applyBeeTexture =');
+    expect(source).toContain('state.bee.width = state.size');
+    expect(source).toContain('state.bee.height = state.size');
+    expect(source).toContain('state.baseScaleX = state.bee.scale.x');
+    expect(source).toContain('state.baseScaleY = state.bee.scale.y');
+    expect(source).not.toContain('state.bee.texture = textures[assetIndex]');
+  });
+
+  test('caps settled mobile idle painting while keeping entrance and drag at display cadence', () => {
+    expect(source).toContain('MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond');
+    expect(source).toContain('!dragging && !isEntranceActive && idleFps > 0');
+    expect(source).toContain('clock.elapsed - lastPaintElapsed < minIdleFrameSeconds');
+  });
+
   test('owns one tween and returns every sprite to the keyed pool on idempotent disposal', () => {
     expect(source).toContain("getBubbleSpritePool(() => textures[0] || Texture.EMPTY, HONEY_BEE_POOL_KEY)");
     expect(source).toContain('const HONEY_BEE_COUNT = 3');

@@ -15,8 +15,6 @@ const MAX_SAME_WILD_DROP_STREAK = 2;
 
 export function decideWildType({
   boardNumber,
-  firstWildSpawned,
-  wildSpawnCount,
   lastWildDropType = null,
   wildDropTypeStreak = 0,
   filterWildType,

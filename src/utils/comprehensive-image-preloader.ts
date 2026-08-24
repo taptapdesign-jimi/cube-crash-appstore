@@ -6,7 +6,7 @@
  */
 
 import { logger } from '../core/logger.js';
-import { isAssetAliasRegistered, markAssetAliasRegistered } from './asset-registry.js';
+import { markAssetAliasRegistered } from './asset-registry.js';
 import { MOBILE_RUNTIME_PROFILE } from '../modules/mobile-runtime-profile.js';
 
 const CACHE_NAME = 'cube-crash-images-v2';
@@ -298,11 +298,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/journey assets/pine5.png',
   './assets/journey assets/fence.left.png',
   './assets/journey assets/fence.right.png',
-];
-
-// Journey board images (preloaded on-demand when boards are opened)
-const JOURNEY_BOARD_IMAGES: string[] = [
-  // Journey board full card images are loaded on-demand when a board is opened.
 ];
 
 let preloadPromise: Promise<void> | null = null;

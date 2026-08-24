@@ -131,11 +131,11 @@ const roboFinaleSources2x = Array.from(
   (_, index) => `./assets/shop/robo/robo${index + 1}@2x.png`,
 );
 const roboNeonSources1x = Array.from(
-  { length: 3 },
+  { length: 4 },
   (_, index) => `./assets/shop/robo/neon${index + 1}.png`,
 );
 const roboNeonSources2x = Array.from(
-  { length: 3 },
+  { length: 4 },
   (_, index) => `./assets/shop/robo/neon${index + 1}@2x.png`,
 );
 

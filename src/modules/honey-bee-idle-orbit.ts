@@ -3,7 +3,9 @@ import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { TILE } from './constants.js';
 import { getJourneyForestBeeAssetForVelocity } from './journey-forest-bee-orbits.js';
+import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getBubbleSpritePool } from './object-pool.js';
+import { isUsablePixiImageTexture, reloadPixiImageTexture } from '../utils/pixi-image-texture-health.js';
 
 const TAU = Math.PI * 2;
 const HONEY_BEE_COUNT = 3;
@@ -199,9 +201,14 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
   const host = tile?.rotG;
   if (!host || host.destroyed) return null;
 
-  const textures = HONEY_BEE_SOURCES.map((source) => (
-    (Assets.get(source) as Texture | undefined) || Texture.from(source)
-  ));
+  // Never attach Texture.from(path)'s unresolved placeholder to a live Pixi
+  // sprite. On iOS that source can be invalidated after cache pressure while
+  // the Honey controller itself remains alive, leaving three moving but empty
+  // sprites. Keep the pooled sprites empty until a decoded texture is ready.
+  const textures = HONEY_BEE_SOURCES.map((source) => {
+    const cached = Assets.get(source) as Texture | undefined;
+    return isUsablePixiImageTexture(cached) ? cached : Texture.EMPTY;
+  });
   const spritePool = getBubbleSpritePool(() => textures[0] || Texture.EMPTY, HONEY_BEE_POOL_KEY);
   const behindLayer = new Container();
   behindLayer.label = 'honey-idle-bee-orbit-behind';
@@ -220,11 +227,12 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
   const profiles = createHoneyBeeOrbitProfiles();
   const bees = Array.from({ length: HONEY_BEE_COUNT }, (_, index) => {
     const bee = spritePool.acquire(textures[index % textures.length]);
+    const size = HONEY_BEE_SIZE * profiles[index].sizeScale;
     bee.label = `honey-idle-bee-${index + 1}`;
     bee.eventMode = 'none';
     bee.anchor.set(0.5);
-    bee.width = HONEY_BEE_SIZE * profiles[index].sizeScale;
-    bee.height = HONEY_BEE_SIZE * profiles[index].sizeScale;
+    bee.width = size;
+    bee.height = size;
     const baseScaleX = bee.scale.x;
     const baseScaleY = bee.scale.y;
     bee.alpha = 0;
@@ -233,6 +241,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
     return {
       bee,
       asset: '',
+      size,
       baseScaleX,
       baseScaleY,
       depthScale: 1,
@@ -244,18 +253,38 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
     };
   });
 
+  const applyBeeTexture = (state: (typeof bees)[number], texture: Texture): void => {
+    if (!texture || texture === Texture.EMPTY || !isUsablePixiImageTexture(texture)) return;
+    state.bee.texture = texture;
+    // Width/height must be reapplied after replacing Texture.EMPTY. Otherwise
+    // Pixi preserves the placeholder-derived scale against the decoded PNG's
+    // much larger natural dimensions and the bee can cover the whole screen.
+    state.bee.width = state.size;
+    state.bee.height = state.size;
+    state.baseScaleX = state.bee.scale.x;
+    state.baseScaleY = state.bee.scale.y;
+  };
+
   let disposed = false;
   let dragging = false;
   let dragScale = 1;
   let lastElapsed = 0;
+  let lastPaintElapsed = Number.NEGATIVE_INFINITY;
   let lastDragOffsetX = 0;
   let lastDragOffsetY = 0;
   let chasePerpendicularX = 0;
   let chasePerpendicularY = 1;
   let chaseFanStrength = 0;
   const clock = { elapsed: 0 };
-  const render = () => {
+  const render = (force = false) => {
     if (disposed || tile?.destroyed || host.destroyed) return;
+    const idleFps = MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
+    const isEntranceActive = clock.elapsed < 0.6;
+    if (!force && !dragging && !isEntranceActive && idleFps > 0) {
+      const minIdleFrameSeconds = 1 / idleFps;
+      if (clock.elapsed - lastPaintElapsed < minIdleFrameSeconds) return;
+    }
+    lastPaintElapsed = clock.elapsed;
     const deltaSeconds = Math.min(0.05, Math.max(1 / 240, clock.elapsed - lastElapsed || 1 / 60));
     lastElapsed = clock.elapsed;
     dragScale += ((dragging ? HONEY_DRAG_SCALE : 1) - dragScale) * 0.16;
@@ -329,7 +358,7 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
       );
       if (state.asset !== asset) {
         const assetIndex = Math.max(0, Number(asset.slice(3)) - 1);
-        state.bee.texture = textures[assetIndex] || textures[0];
+        applyBeeTexture(state, textures[assetIndex] || textures[0]);
         state.asset = asset;
       }
       state.bee.x = state.trail.x
@@ -362,7 +391,38 @@ export function startHoneyBeeIdleOrbit(tile: any): HoneyBeeIdleOrbitController |
       );
     });
   };
-  render();
+  render(true);
+
+  // Preloading normally makes this a cache-only path. If iOS discarded or
+  // invalidated a source, reload it once and update the existing three pooled
+  // sprites in place; no sprite/ticker/timeline is created by recovery.
+  void Promise.all(HONEY_BEE_SOURCES.map(async (source, index) => {
+    const cached = Assets.get(source) as Texture | undefined;
+    if (isUsablePixiImageTexture(cached)) return { index, texture: cached };
+    try {
+      const loaded = await Assets.load(source) as Texture | undefined;
+      if (isUsablePixiImageTexture(loaded)) return { index, texture: loaded };
+    } catch {}
+    try {
+      const recovered = await reloadPixiImageTexture(source);
+      return { index, texture: recovered };
+    } catch {
+      return { index, texture: null };
+    }
+  })).then((resolved) => {
+    if (disposed) return;
+    resolved.forEach(({ index, texture }) => {
+      if (texture && isUsablePixiImageTexture(texture)) textures[index] = texture;
+    });
+    bees.forEach((state, index) => {
+      const assetIndex = state.asset
+        ? Math.max(0, Number(state.asset.slice(3)) - 1)
+        : index % textures.length;
+      const texture = textures[assetIndex] || textures[0];
+      applyBeeTexture(state, texture);
+    });
+    render(true);
+  }).catch(() => {});
 
   const tween = animationManager.trackExternalTween(gsap.to(clock, {
     elapsed: HONEY_ORBIT_CLOCK_SECONDS,

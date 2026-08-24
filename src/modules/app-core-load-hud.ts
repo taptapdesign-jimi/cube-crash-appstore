@@ -27,7 +27,6 @@ export function ensureHudAfterLoad({
   devWarn,
   devError,
   isHudDropPending,
-  setHudDropPending,
 }: LoadHudDeps){
   // Ensure HUD is visible
   if (hud) {

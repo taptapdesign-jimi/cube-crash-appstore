@@ -369,7 +369,7 @@ export function staggerAnimation(
 /**
  * Reveal collectible card animation
  */
-export function revealCollectibleCardAnimation(sheet: HTMLElement, detail: any): Promise<void> {
+export function revealCollectibleCardAnimation(sheet: HTMLElement, _detail: any): Promise<void> {
   return new Promise((resolve) => {
     const card = sheet.querySelector('.collectible-reward-card');
     const image = sheet.querySelector('.collectible-card-image');

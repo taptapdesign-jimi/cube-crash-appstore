@@ -99,8 +99,10 @@ const ROBO_NEON_MOTION_START_MS = 750;
 const ROBO_NEON_ENTER_INITIAL_DELAY_SECONDS = 0.02;
 const ROBO_NEON_ENTER_STAGGER_SECONDS = 0.016;
 const ROBO_GRAVITY_EXIT_PADDING_SECONDS = 0.05;
+const ROBO_NEON_EXIT_LEAD_SECONDS = 0.20;
 const ROBO_NEON_MOTION_RADIANS_PER_SECOND = (Math.PI * 4) / 0.85;
-const ROBO_NEON_EXIT_STAGGER_SECONDS = 0.022;
+const ROBO_NEON_ROTATION_SPEED_RATIO = 0.50;
+const ROBO_NEON_EXIT_STAGGER_SECONDS = 0.006;
 const ROBO_NEON_EXIT_HOP_SECONDS = 0.10;
 const ROBO_NEON_EXIT_FALL_SECONDS = 0.44;
 const ROBO_NEON_EXIT_HOP_PX = 24;
@@ -1178,7 +1180,11 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       + ROBO_FRAME_SMEAR_OUT_SECONDS;
     const roboGravityExitStartSeconds = robotAnimationEndSeconds
       + ROBO_GRAVITY_EXIT_PADDING_SECONDS;
-    const roboNeonMotionSeconds = Math.max(
+    const roboNeonGravityExitStartSeconds = Math.max(
+      0,
+      roboGravityExitStartSeconds - ROBO_NEON_EXIT_LEAD_SECONDS,
+    );
+    const roboNeonScatterSeconds = Math.max(
       0,
       roboGravityExitStartSeconds - ROBO_NEON_MOTION_START_MS / 1000,
     );
@@ -1222,12 +1228,23 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       const belowTextDuplicateCount = Math.round(upperNeonCount * ROBO_BELOW_TEXT_DUPLICATE_RATIO);
       const neonCount = upperNeonCount + belowTextDuplicateCount;
       const heartCount = 5;
+      const alternateTextureCount = Math.max(0, neonCount - Math.min(heartCount, neonCount));
+      const nonPistolAlternateCount = Math.max(0, Math.min(2, accentTextures.length - 1));
+      const requiredAlternateTextureIndices = Array.from(
+        { length: Math.min(alternateTextureCount, nonPistolAlternateCount) },
+        (_, index) => index + 1,
+      );
       const neonTextureIndices = [
         ...Array.from({ length: Math.min(heartCount, neonCount) }, () => 0),
-        ...Array.from({ length: Math.max(0, neonCount - heartCount) }, () => (
-          accentTextures.length > 1
-            ? 1 + Math.floor(Math.random() * (accentTextures.length - 1))
-            : 0
+        ...requiredAlternateTextureIndices,
+        ...Array.from({
+          length: Math.max(0, alternateTextureCount - requiredAlternateTextureIndices.length),
+        }, () => (
+          accentTextures.length > 3 && Math.random() < 0.20
+            ? 3
+            : nonPistolAlternateCount > 0
+              ? 1 + Math.floor(Math.random() * nonPistolAlternateCount)
+              : 0
         )),
       ].sort(() => Math.random() - 0.5);
       const placedNeonOrigins: Array<{ x: number; y: number; diameter: number }> = [];
@@ -1236,8 +1253,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           .sort(() => Math.random() - 0.5)
           .slice(0, Math.round(neonCount * 0.50)),
       );
+      let lastNeon4RotationDirection: -1 | 1 | null = null;
       for (let index = 0; index < neonCount; index += 1) {
-        const texture = accentTextures[neonTextureIndices[index] ?? 0] ?? accentTextures[0];
+        const textureIndex = neonTextureIndices[index] ?? 0;
+        const texture = accentTextures[textureIndex] ?? accentTextures[0];
         const neon = bubblePool.acquire(texture);
         const targetWidth = Math.min(52, screenW * (0.105 + (index % 3) * 0.012));
         const sizeMultiplier = enlargedIndices.has(index) ? 1.40 : 1;
@@ -1268,8 +1287,14 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         const originY = bestOrigin.y;
         placedNeonOrigins.push({ x: originX, y: originY, diameter: popDiameter });
         const minimumAlpha = 0.75 + Math.random() * 0.20;
-        const rotationDirection: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
-        const isWindmill = neonTextureIndices[index] === 1;
+        let rotationDirection: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+        if (textureIndex === 3) {
+          rotationDirection = lastNeon4RotationDirection === null
+            ? rotationDirection
+            : lastNeon4RotationDirection === 1 ? -1 : 1;
+          lastNeon4RotationDirection = rotationDirection;
+        }
+        const isWindmill = textureIndex === 1 || textureIndex === 2;
         const scatterAngle = Math.random() * Math.PI * 2;
         const scatterDistance = 20 + Math.random() * 32;
         const enterDriftX = (Math.random() * 2 - 1) * 34;
@@ -1323,9 +1348,19 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         }, ROBO_NEON_EXIT_FALL_SECONDS);
       }
 
+      const plannedNeonExitDuration = ROBO_NEON_EXIT_HOP_SECONDS
+        + ROBO_NEON_EXIT_FALL_SECONDS
+        + Math.max(0, neonSprites.length - 1) * ROBO_NEON_EXIT_STAGGER_SECONDS;
+      const roboNeonMotionSeconds = Math.max(
+        0,
+        roboNeonGravityExitStartSeconds
+          + plannedNeonExitDuration
+          - ROBO_NEON_MOTION_START_MS / 1000,
+      );
       const neonMotion = { time: 0, progress: 0 };
       let neonMotionTween: gsap.core.Tween | null = null;
       let neonExitStarted = false;
+      let renderNeonExitFrame: (() => void) | null = null;
       lifecycle.trackTimeout(() => {
         if (!isExplosionActive || cleanupInProgress || neonExitStarted || roboNeonMotionSeconds <= 0) return;
         neonMotionTween = trackTween(neonMotion, {
@@ -1336,6 +1371,15 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           duration: roboNeonMotionSeconds,
           ease: 'none',
           onUpdate: () => {
+            neonMotion.progress = Math.min(
+              1,
+              neonMotion.time
+                / Math.max(0.001, ROBO_NEON_MOTION_RADIANS_PER_SECOND * roboNeonScatterSeconds),
+            );
+            if (neonExitStarted) {
+              renderNeonExitFrame?.();
+              return;
+            }
             neonSprites.forEach(({
               sprite,
               originX,
@@ -1350,6 +1394,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
             }, index) => {
               if (!sprite || sprite.destroyed || !sprite.parent) return;
               const wave = neonMotion.time + phase;
+              const rotationWave = neonMotion.time * ROBO_NEON_ROTATION_SPEED_RATIO + phase;
               const circularRadius = 8 + (index % 4) * 2.5;
               const scatterProgress = Math.max(0, (neonMotion.progress - 0.62) / 0.38);
               const easedScatter = scatterProgress * scatterProgress;
@@ -1360,24 +1405,34 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
                 + Math.sin(wave * 0.92) * circularRadius * 0.65
                 + scatterY * easedScatter;
               sprite.rotation = isWindmill
-                ? wave * 1.35 * rotationDirection
-                : Math.sin(wave * 0.82) * 0.24 * rotationDirection;
+                ? rotationWave * 1.35 * rotationDirection
+                : Math.sin(rotationWave * 0.82) * 0.24 * rotationDirection;
               const pulse = (Math.sin(wave * 1.31) + 1) * 0.5;
               const pulseScale = targetScale * (0.92 + pulse * 0.14);
               sprite.scale.set(pulseScale);
               sprite.alpha = minimumAlpha + (1 - minimumAlpha) * pulse;
             });
           },
+          onComplete: () => {
+            if (!neonExitStarted || neonExitComplete) return;
+            renderNeonExitFrame?.();
+            liveNeonSprites.forEach((sprite) => {
+              if (!sprite.destroyed) sprite.alpha = 0;
+            });
+            neonExitComplete = true;
+            traceRoboFinale('neon-exit-complete', { count: liveNeonSprites.length });
+            finishRoboFinaleAfterVisualExit();
+          },
         });
         roboAnimations.push(neonMotionTween);
       }, ROBO_NEON_MOTION_START_MS);
 
       const neonExitTimeline = trackTimeline({
-        delay: roboGravityExitStartSeconds,
+        delay: roboNeonGravityExitStartSeconds,
         onStart: () => traceRoboFinale('shared-exit-start', { count: neonSprites.length }),
       });
       neonExitTimeline.addLabel('neon-gravity-exit', 0);
-      neonExitTimeline.addLabel('head-gravity-exit', 0);
+      neonExitTimeline.addLabel('head-gravity-exit', ROBO_NEON_EXIT_LEAD_SECONDS);
       roboAnimations.push(neonExitTimeline);
       const liveNeonSprites = neonSprites
         .map(({ sprite }) => sprite)
@@ -1389,8 +1444,12 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         scale: number;
         driftX: number;
         rotationDirection: -1 | 1;
+        liveDx: number;
+        liveDy: number;
+        liveRotation: number;
+        livePulseScale: number;
       }> = [];
-      const neonExitState = { elapsed: 0 };
+      let neonExitMotionStartRadians = 0;
       const shuffledNeonIndices = liveNeonSprites.map((_sprite, index) => index);
       for (let index = shuffledNeonIndices.length - 1; index > 0; index -= 1) {
         const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -1403,17 +1462,29 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       shuffledNeonIndices.forEach((spriteIndex, orderIndex) => {
         neonExitOrderByIndex.set(spriteIndex, orderIndex);
       });
-      const neonExitDuration = ROBO_NEON_EXIT_HOP_SECONDS
-        + ROBO_NEON_EXIT_FALL_SECONDS
-        + Math.max(0, liveNeonSprites.length - 1) * ROBO_NEON_EXIT_STAGGER_SECONDS;
+      const neonExitDuration = plannedNeonExitDuration;
       neonExitTimeline.call(() => {
         neonExitStarted = true;
+        neonExitMotionStartRadians = neonMotion.time;
         animationManager.killExternalTimeline(robotEnterTimeline);
-        animationManager.killExternalTween(neonMotionTween);
-        neonMotionTween = null;
         liveNeonSprites.forEach((sprite, index) => {
           gsap.killTweensOf(sprite);
           gsap.killTweensOf(sprite.scale);
+          const metadata = neonSprites[index];
+          if (!metadata) return;
+          const wave = neonExitMotionStartRadians + metadata.phase;
+          const rotationWave = neonExitMotionStartRadians * ROBO_NEON_ROTATION_SPEED_RATIO
+            + metadata.phase;
+          const circularRadius = 8 + (index % 4) * 2.5;
+          const scatterProgress = Math.max(0, (neonMotion.progress - 0.62) / 0.38);
+          const easedScatter = scatterProgress * scatterProgress;
+          const liveDx = Math.cos(wave) * circularRadius + metadata.scatterX * easedScatter;
+          const liveDy = Math.sin(wave * 0.92) * circularRadius * 0.65
+            + metadata.scatterY * easedScatter;
+          const liveRotation = metadata.isWindmill
+            ? rotationWave * 1.35 * metadata.rotationDirection
+            : Math.sin(rotationWave * 0.82) * 0.24 * metadata.rotationDirection;
+          const pulse = (Math.sin(wave * 1.31) + 1) * 0.5;
           neonExitStartStates[index] = {
             x: sprite.x,
             y: sprite.y,
@@ -1421,8 +1492,13 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
             scale: sprite.scale.x,
             driftX: (Math.random() * 2 - 1) * 34,
             rotationDirection: Math.random() < 0.5 ? -1 : 1,
+            liveDx,
+            liveDy,
+            liveRotation,
+            livePulseScale: metadata.targetScale * (0.92 + pulse * 0.14),
           };
         });
+        renderNeonExitFrame?.();
       }, undefined, 'neon-gravity-exit');
       neonExitTimeline.to(robot, {
         x: robotOriginX + robotGravityDriftX * 0.12,
@@ -1445,30 +1521,66 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           finishRoboFinaleAfterVisualExit();
         },
       }, `head-gravity-exit+=${ROBO_HEAD_GRAVITY_HOP_SECONDS}`);
-      // One proxy owns the complete randomized gravity wave. Every sprite is
-      // still written in one render callback, so staggered falling adds no
-      // per-Neon timelines or competing transform owners.
-      neonExitTimeline.to(neonExitState, {
-        elapsed: neonExitDuration,
-        duration: neonExitDuration,
-        ease: 'none',
-        onUpdate: () => {
+      // The original live-motion tween remains the sole Neon sprite writer.
+      // Its one continuous clock composes orbit/pulse with gravity, so there is
+      // no stop/restart handoff at the exit boundary.
+      renderNeonExitFrame = () => {
+        const neonExitElapsed = Math.max(
+          0,
+          (neonMotion.time - neonExitMotionStartRadians)
+            / ROBO_NEON_MOTION_RADIANS_PER_SECOND,
+        );
           liveNeonSprites.forEach((sprite, index) => {
             if (sprite.destroyed || !sprite.parent) return;
             const startState = neonExitStartStates[index];
             if (!startState) return;
+            const metadata = neonSprites[index];
+            if (!metadata) return;
+            const wave = neonExitMotionStartRadians
+              + neonExitElapsed * ROBO_NEON_MOTION_RADIANS_PER_SECOND
+              + metadata.phase;
+            const rotationWave = (
+              neonExitMotionStartRadians
+                + neonExitElapsed * ROBO_NEON_MOTION_RADIANS_PER_SECOND
+            ) * ROBO_NEON_ROTATION_SPEED_RATIO + metadata.phase;
+            const circularRadius = 8 + (index % 4) * 2.5;
+            const scatterProgress = Math.max(0, (neonMotion.progress - 0.62) / 0.38);
+            const easedScatter = scatterProgress * scatterProgress;
+            const liveDx = Math.cos(wave) * circularRadius + metadata.scatterX * easedScatter;
+            const liveDy = Math.sin(wave * 0.92) * circularRadius * 0.65
+              + metadata.scatterY * easedScatter;
+            const liveRotation = metadata.isWindmill
+              ? rotationWave * 1.35 * metadata.rotationDirection
+              : Math.sin(rotationWave * 0.82) * 0.24 * metadata.rotationDirection;
+            const pulse = (Math.sin(wave * 1.31) + 1) * 0.5;
+            const livePulseScale = metadata.targetScale * (0.92 + pulse * 0.14);
+            const liveScaleRatio = startState.livePulseScale > 0
+              ? livePulseScale / startState.livePulseScale
+              : 1;
+            const liveOffsetX = liveDx - startState.liveDx;
+            const liveOffsetY = liveDy - startState.liveDy;
+            const liveRotationDelta = liveRotation - startState.liveRotation;
             const orderIndex = neonExitOrderByIndex.get(index) ?? 0;
-            const localElapsed = neonExitState.elapsed
+            const localElapsed = neonExitElapsed
               - orderIndex * ROBO_NEON_EXIT_STAGGER_SECONDS;
-            if (localElapsed <= 0) return;
+            if (localElapsed <= 0) {
+              sprite.x = startState.x + liveOffsetX;
+              sprite.y = startState.y + liveOffsetY;
+              sprite.rotation = startState.rotation + liveRotationDelta;
+              sprite.scale.set(startState.scale * liveScaleRatio);
+              sprite.alpha = metadata.minimumAlpha + (1 - metadata.minimumAlpha) * pulse;
+              return;
+            }
             if (localElapsed <= ROBO_NEON_EXIT_HOP_SECONDS) {
               const hopProgress = Math.min(1, localElapsed / ROBO_NEON_EXIT_HOP_SECONDS);
               const easedHop = 1 - Math.pow(1 - hopProgress, 2);
-              sprite.x = startState.x + startState.driftX * 0.12 * easedHop;
-              sprite.y = startState.y - ROBO_NEON_EXIT_HOP_PX * easedHop;
+              sprite.x = startState.x + startState.driftX * 0.12 * easedHop + liveOffsetX;
+              sprite.y = startState.y - ROBO_NEON_EXIT_HOP_PX * easedHop + liveOffsetY;
               sprite.rotation = startState.rotation
-                + startState.rotationDirection * 0.18 * easedHop;
-              sprite.scale.set(startState.scale * (1 + 0.04 * easedHop));
+                + startState.rotationDirection * 0.18 * easedHop
+                + liveRotationDelta;
+              sprite.scale.set(startState.scale * (1 + 0.04 * easedHop) * liveScaleRatio);
+              sprite.alpha = metadata.minimumAlpha + (1 - metadata.minimumAlpha) * pulse;
               return;
             }
             const fallProgress = Math.min(
@@ -1478,23 +1590,18 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
             const gravityProgress = fallProgress * fallProgress;
             const hopY = startState.y - ROBO_NEON_EXIT_HOP_PX;
             const belowScreenY = screenH + Math.max(80, sprite.height);
-            sprite.x = startState.x + startState.driftX * (0.12 + fallProgress * 0.88);
-            sprite.y = hopY + (belowScreenY - hopY) * gravityProgress;
+            sprite.x = startState.x
+              + startState.driftX * (0.12 + fallProgress * 0.88)
+              + liveOffsetX;
+            sprite.y = hopY + (belowScreenY - hopY) * gravityProgress + liveOffsetY;
             sprite.rotation = startState.rotation
-              + startState.rotationDirection * (0.18 + fallProgress * 1.55);
-            sprite.scale.set(startState.scale * 1.04);
+              + startState.rotationDirection * (0.18 + fallProgress * 1.55)
+              + liveRotationDelta;
+            sprite.scale.set(startState.scale * 1.04 * liveScaleRatio);
+            sprite.alpha = metadata.minimumAlpha + (1 - metadata.minimumAlpha) * pulse;
             if (fallProgress >= 1) sprite.alpha = 0;
           });
-        },
-        onComplete: () => {
-          liveNeonSprites.forEach((sprite) => {
-            if (!sprite.destroyed) sprite.alpha = 0;
-          });
-          neonExitComplete = true;
-          traceRoboFinale('neon-exit-complete', { count: liveNeonSprites.length });
-          finishRoboFinaleAfterVisualExit();
-        },
-      }, 'neon-gravity-exit');
+      };
     }
 
     (robot as any)._bubbleTweens = roboAnimations;

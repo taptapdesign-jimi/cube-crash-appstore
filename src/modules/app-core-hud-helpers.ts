@@ -1,6 +1,6 @@
 import { gsap } from 'gsap';
 import { logger } from '../core/logger.js';
-import { devLog, devWarn, devError } from './app-core-logger.ts';
+import { devLog, devError } from './app-core-logger.ts';
 
 type HudDeps = {
   getScore: () => number;

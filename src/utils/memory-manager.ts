@@ -193,7 +193,7 @@ class MemoryManager {
     
     const toRemove = textures.slice(0, Math.floor(textures.length / 2));
     
-    toRemove.forEach(([name, data]) => {
+    toRemove.forEach(([name]) => {
       try {
         // Stability-first: do not destroy textures from this generic cache manager.
         // Texture lifecycle must be owned by feature modules / PIXI GC to avoid render-time crashes.
@@ -212,7 +212,7 @@ class MemoryManager {
     
     const toRemove = objects.slice(0, Math.floor(objects.length / 2));
     
-    toRemove.forEach(([name, data]) => {
+    toRemove.forEach(([name]) => {
       try {
         // Stability-first: only forget references here; do not hard-destroy foreign objects.
         // Their owning module is responsible for deterministic cleanup.
@@ -283,7 +283,7 @@ class MemoryManager {
     logger.info('🧹 Force cleaning up all resources...');
     
     // Cleanup all textures
-    this.textureCache.forEach((data, name) => {
+    this.textureCache.forEach((_data, name) => {
       try {
         // Intentionally non-destructive for runtime stability.
       } catch (error) {
@@ -293,7 +293,7 @@ class MemoryManager {
     this.textureCache.clear();
     
     // Cleanup all objects
-    this.objectCache.forEach((data, name) => {
+    this.objectCache.forEach((_data, name) => {
       try {
         // Intentionally non-destructive for runtime stability.
       } catch (error) {

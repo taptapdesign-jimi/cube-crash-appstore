@@ -140,6 +140,12 @@ describe('Board Transition World themes', () => {
       'robo-walker',
       'robo-ground-rear',
       'robo-ship',
+      'robo-fighter-left',
+      'robo-fighter-right',
+      'robo-beam-left',
+      'robo-beam-right',
+      'robo-beam-hit',
+      'robo-hit-smoke',
     ]);
     expect(AREA55_BOARD_TRANSITION_PROFILE.enterOrder).toEqual([
       'robo-ground-front',
@@ -148,11 +154,17 @@ describe('Board Transition World themes', () => {
       'robo-fence',
       'robo-ship',
       'robo-front',
+      'robo-fighter-left',
+      'robo-fighter-right',
+      'robo-beam-left',
+      'robo-beam-right',
+      'robo-beam-hit',
+      'robo-hit-smoke',
     ]);
     const zIndexes = AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => Number(
       layer.style.find((rule) => rule.startsWith('z-index:'))?.split(':')[1]?.trim(),
     ));
-    expect(zIndexes).toEqual([70, 60, 50, 40, 30, 20]);
+    expect(zIndexes).toEqual([70, 60, 50, 40, 30, 20, 73, 76, 55, 55, 55, 77]);
     expect(AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.src)).toEqual([
       './assets/journey assets/robo/robo frontalni.png',
       './assets/journey assets/robo/zemlja1.png',
@@ -160,6 +172,12 @@ describe('Board Transition World themes', () => {
       './assets/journey assets/robo/robo1.png',
       './assets/journey assets/robo/zemlja2.png',
       './assets/journey assets/robo/ship.png',
+      './assets/journey assets/robo/ship1.png',
+      './assets/journey assets/robo/ship1.png',
+      './assets/journey assets/robo/beam1.png',
+      './assets/journey assets/robo/beam2.png',
+      './assets/journey assets/robo/beam3.png',
+      './assets/smoke/smoke5.png',
     ]);
     const styleByLayer = Object.fromEntries(
       AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => [layer.key, layer.style]),
@@ -180,8 +198,18 @@ describe('Board Transition World themes', () => {
       'bottom: -90px', 'width: min(237vw, 921px)',
     ]));
     expect(styleByLayer['robo-ship']).toEqual(expect.arrayContaining([
-      'left: calc(30% - 7px)', 'bottom: 249px', 'width: min(98vw, 383px)',
+      'left: calc(30% - 7px)', 'bottom: 289px', 'width: 250px',
     ]));
+    expect(styleByLayer['robo-fighter-left']).toEqual(expect.arrayContaining([
+      'left: calc(50% - 55px)', 'bottom: 470px', 'width: 90px', 'z-index: 73', 'opacity: 0',
+    ]));
+    expect(styleByLayer['robo-fighter-right']).toEqual(expect.arrayContaining([
+      'left: calc(50% + 55px)', 'bottom: 450px', 'width: 108px', 'z-index: 76', 'opacity: 0',
+    ]));
+    expect(styleByLayer['robo-beam-left']).toEqual(expect.arrayContaining(['bottom: 440px', 'z-index: 55']));
+    expect(styleByLayer['robo-beam-right']).toEqual(expect.arrayContaining(['bottom: 430px', 'z-index: 55']));
+    expect(styleByLayer['robo-beam-hit']).toEqual(expect.arrayContaining(['bottom: 450px', 'z-index: 55']));
+    expect(styleByLayer['robo-hit-smoke']).toContain('z-index: 77');
 
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
     expect(source).toContain('const proceduralSceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor)');
@@ -224,11 +252,99 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("x: roboFrontEndX * 0.32, y: -9, rotation: 3");
     expect(source).toContain("x: roboFrontEndX * 0.56, y: 9, rotation: -3");
     expect(source).toContain("x: roboFrontEndX * 0.80, y: -6, rotation: 2");
-    expect(source).toContain("opacity: 1, x: 0, y: 0, scale: 1.20, duration: 2, ease: 'none'");
+    expect(source).toContain("const roboInitialScale = isRoboFront ? 1 : 0");
+    expect(source).toContain('isRoboFront || isRoboShip ? 1 : 0');
+    const shipEnterBranch = source.slice(
+      source.indexOf("} else if (layerKey === 'robo-ship') {"),
+      source.indexOf("} else {", source.indexOf("} else if (layerKey === 'robo-ship') {") + 1),
+    );
+    expect(shipEnterBranch).toContain('scale: 1.08');
+    expect(shipEnterBranch).toContain("ease: 'back.out(2.0)'");
+    expect(shipEnterBranch).toContain('scale: 0.95');
+    expect(shipEnterBranch).toContain('scale: 1');
+    expect(shipEnterBranch).not.toContain('opacity:');
+    expect(shipEnterBranch).not.toContain("ease: 'none'");
+    expect(source).toContain('function startRoboAirCombatMotion');
+    expect(source).toContain('scale: 0.5');
+    expect(source).toContain('const fighterOutsideViewportX = Math.max(260, (window.innerWidth || 390) * 0.72)');
+    expect(source).toContain('timeline.set(leftFighter, { x: -fighterOutsideViewportX, y: 0 }, 0)');
+    expect(source).toContain('timeline.set(rightFighter, { x: fighterOutsideViewportX, y: -18 }, 0)');
+    expect(source).toContain('x: gsap.utils.random(-10, 10)');
+    expect(source).toContain('y: gsap.utils.random(-6, 6)');
+    expect(source).toContain('scale: 1.25');
+    expect(source).toContain('scale: 2.1');
+    expect(source).toContain('scale: 3');
+    expect(source).toContain('x: 115');
+    expect(source).toContain('x: -115');
+    expect(source).toContain('y: -210');
+    expect(source).toContain('y: -214');
+    const uninterruptedFlightBranch = source.slice(
+      source.indexOf('// Both fighters start completely beyond opposite viewport edges.'),
+      source.indexOf('const addBeamShot = ('),
+    );
+    expect(uninterruptedFlightBranch).not.toContain("ease: 'sine.inOut'");
+    expect(uninterruptedFlightBranch.match(/ease: 'none'/g)?.length).toBeGreaterThanOrEqual(12);
+    const flightScales = Array.from(uninterruptedFlightBranch.matchAll(/scale: ([0-9.]+)/g))
+      .map((match) => Number(match[1]));
+    expect(Math.max(...flightScales)).toBe(3);
+    expect(source).toContain('const addBeamShot = (');
+    expect(source).toContain('const leftBeamImpact = interpolateFlightPoint(leftSecondCrossing, leftThirdCrossing, 0.12 / 0.38)');
+    expect(source).toContain('const rightBeamImpact = interpolateFlightPoint(rightThirdCrossing, rightBankAway, 0.07 / 0.25)');
+    expect(source).toContain('xPercent: -86');
+    expect(source).toContain('addBeamShot(beamLeft, 0.65, -4, { x: leftBeamImpact.x, y: leftBeamImpact.y - 30 })');
+    expect(source).toContain('addBeamShot(beamRight, 0.98, 4, { x: rightBeamImpact.x, y: rightBeamImpact.y - 20 })');
+    expect(source).toContain('addBeamShot(beamHit, 1.5, -2, rightHitPoint, true)');
+    expect(source).toContain('timeline.set(hitSmoke, {');
+    expect(source).toContain('x: rightHitPoint.x');
+    expect(source).toContain('y: rightHitPoint.y');
+    expect(source).toContain("filter: 'drop-shadow(0 0 7px rgba(104, 239, 255, 0.95))'");
+    expect(source).toContain('duration: 0.32');
+    expect(source).toContain('}, start + 0.4)');
+    expect(source).toContain('const addContinuousFlightWobble = (fighter: HTMLImageElement, phaseOffset: number)');
+    expect(source).toContain('addContinuousFlightWobble(leftFighter, 0)');
+    expect(source).toContain('addContinuousFlightWobble(rightFighter, 0.035)');
+    expect(source).toContain('xPercent: -48.7');
+    expect(source).toContain('yPercent: -2.6');
+    expect(source).toContain('repeat: -1');
+    expect(source).toContain('roboAirCombatTimelines.forEach((timeline) => {');
+    expect(source).toContain("'./assets/journey assets/robo/ship2.png'");
+    expect(source).toContain("'./assets/journey assets/robo/ship3.png'");
+    expect(source).toContain("'./assets/journey assets/robo/ship4.png'");
+    expect(source).toContain('rightFighter.src = ROBO_AIR_COMBAT_DAMAGE_FRAMES[2]');
+    expect(source).toContain('ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 1.95');
+    expect(source).toContain('stopRoboAirCombatMotion();');
+    expect(source).toContain("['robo-beam-left', 'robo-beam-right', 'robo-beam-hit', 'robo-hit-smoke']");
     expect(source).toContain("const roboRestRotation = layerKey === 'robo-fence' ? 6 : 0");
-    expect(source).toContain("['robo-ship', 'robo-front', 'robo-walker', 'robo-fence', 'robo-ground-rear', 'robo-ground-front']");
+    expect(source).toContain("'robo-fighter-left', 'robo-fighter-right', 'robo-ship', 'robo-front'");
     expect(source).toContain("const isRoboSceneExit = transitionTheme === 'area55'");
     expect(source).toContain("if (sceneImg.dataset.motionRole === 'float') stopBeachAmbientMotion(sceneImg)");
+  });
+
+  test('keeps the three fighter crossings inside the authored upper-screen flight band', () => {
+    const viewportWidth = 390;
+    const viewportHeight = 844;
+    const forestBottomOffset = 52;
+    const outsideX = Math.max(260, viewportWidth * 0.72);
+    expect(-55 - outsideX).toBeLessThan(-viewportWidth / 2 - 45);
+    expect(55 + outsideX).toBeGreaterThan(viewportWidth / 2 + 45);
+
+    const crossingPairs = [
+      [-55 + 110, 55 - 110],
+      [-55 - 5, 55 + 5],
+      [-55 + 115, 55 - 115],
+    ];
+    crossingPairs.forEach(([leftX, rightX], index) => {
+      if (index % 2 === 0) expect(leftX).toBeGreaterThan(rightX);
+      else expect(leftX).toBeLessThan(rightX);
+    });
+
+    const leftBaseTop = viewportHeight + forestBottomOffset - 470 - 87;
+    const rightBaseTop = viewportHeight + forestBottomOffset - 450 - 105;
+    [leftBaseTop, rightBaseTop].forEach((top) => {
+      expect(top / viewportHeight).toBeLessThanOrEqual(0.41);
+    });
+    expect((leftBaseTop - 210) / viewportHeight).toBeCloseTo(0.15, 1);
+    expect((rightBaseTop - 214) / viewportHeight).toBeCloseTo(0.15, 1);
   });
 
   test('creates one bounded per-run layout with balanced palm exits and opposite ball/castle sides', () => {
@@ -311,7 +427,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1');
     expect(source).toContain('duration: BEACH_CURTAIN_PALM_EXIT_SECONDS');
     expect(source).toContain('duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS');
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront || isRoboShip ? 1 : 0');
     expect(source).toContain("ease: 'back.in(1.35)'");
     expect(source).toContain('scale: 0');
     expect(source).toContain('export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4');
@@ -339,7 +455,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
     expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
     expect(source).toContain("const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2'");
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront || isRoboShip ? 1 : 0');
     expect(source).toContain('isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).not.toContain('scale: beachPalmRestScale * 1.28');
     expect(source).not.toContain("}, '<-0.10');");

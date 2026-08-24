@@ -97,13 +97,6 @@ class DOMElementPool {
       // 🔥 FIX: Kill GSAP animations on element
       gsap.killTweensOf(el);
       
-      // 🔥 FIX: Remove event listeners by cloning (only way to remove anonymous listeners)
-      // This replaces the element with a clean clone that has no event listeners
-      if (el.parentNode) {
-        const clone = el.cloneNode(false) as HTMLElement;
-        // Don't replace in DOM - just use the element but clear it
-      }
-      
       // Clear all inline styles (will be set by caller)
       el.style.cssText = '';
       

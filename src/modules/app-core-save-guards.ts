@@ -12,7 +12,6 @@ type SaveGuardDeps = {
 
 export function canSaveGameState({
   boardNumber,
-  userMadeMove,
   gameHasEnded,
   gridReady,
   gameplayTransientBusy = false,

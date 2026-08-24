@@ -658,7 +658,7 @@ function createSettingsToggle(toggle: SettingToggle): HTMLElementConfig {
 }
 
 export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementConfig {
-  const { onBack, onToggleGameSounds, onToggleVibration, onToggleMusic } = config;
+  const { onToggleGameSounds, onToggleVibration, onToggleMusic } = config;
 
   // Load saved settings from localStorage
   const savedSettings = (window as any)._settings || {};

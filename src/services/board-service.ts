@@ -142,7 +142,7 @@ class BoardService implements BoardServiceInterface {
     }
   }
 
-  private findPIXITile(tileId: string): PIXITile | null {
+  private findPIXITile(_tileId: string): PIXITile | null {
     // This would find the actual PIXI tile
     // For now, return null
     return null;

@@ -2,7 +2,6 @@ import { gsap } from 'gsap';
 import { resolveMobileRuntimeProfile } from './mobile-runtime-profile.js';
 import {
   startJourneyAmbientCanvasRuntime,
-  type JourneyAmbientCanvasDepth,
   type JourneyAmbientCanvasFrame,
   type JourneyAmbientTicker,
 } from './journey-ambient-canvas-runtime.js';
@@ -13,7 +12,6 @@ const FOREST_FLIGHT_MAX_Y = 1428;
 const FOREST_UNIT_BEE_COUNT = 20;
 const FOREST_MAIN_BEE_COUNT = 5;
 const FOREST_BEE_COUNT = FOREST_UNIT_BEE_COUNT + FOREST_MAIN_BEE_COUNT;
-const FOREST_GATE_BEE_COUNT = 10;
 const FOREST_BEE_POINT_COUNT = 8;
 const FOREST_BEE_ROAM_SECONDS = 11;
 const FOREST_BEE_EDGE_SECONDS = 7.8;

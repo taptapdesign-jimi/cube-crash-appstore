@@ -26,7 +26,6 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     stopTntIdleParticles,
     stopTntIdleShake,
     stopSpecialDiceIdleMotion,
-    devWarn,
   } = deps;
 
   tiles.forEach(t => {

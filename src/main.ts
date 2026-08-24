@@ -900,12 +900,6 @@ async function initializeApp(): Promise<void> {
     errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
     memoryManager.init();
     
-    // 🚀 Initialize Enhanced Memory Manager (automatic leak detection & cleanup)
-    // TEMPORARILY DISABLED FOR DEBUGGING DEVICE CRASH
-    // enhancedMemoryManager.init();
-    // logger.info('✅ Enhanced Memory Manager active - monitoring 920 potential leaks');
-    logger.info('⚠️ Enhanced Memory Manager DISABLED for debugging');
-    
     // Initialize App Store compliance
     const errorBoundary = ErrorBoundary.getInstance();
     const performanceMonitorNew = PerformanceMonitor.getInstance();

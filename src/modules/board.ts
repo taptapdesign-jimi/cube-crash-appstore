@@ -19,7 +19,6 @@ import { isTileTransientlySpawning, isVisibleGameplayResolvingSpecialPresence } 
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
 
-const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
 // Type definitions
@@ -585,8 +584,6 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     const mugHeight = height * 0.9;
     const handleWidth = width * 0.15;
     const handleHeight = height * 0.4;
-    const rimWidth = mugWidth * 1.1; // Rim is slightly wider
-    const rimHeight = height * 0.12;
     
     // Main mug body (trapezoid shape - wider at top, narrower at bottom)
     const topWidth = mugWidth;
@@ -629,7 +626,6 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     const magnetWidth = width * 0.8;
     const magnetHeight = height * 0.85;
     const barWidth = magnetWidth * 0.25; // Width of each bar
-    const gap = magnetWidth * 0.15; // Gap between bars
     
     // Left bar (U shape)
     const leftBarX = x - magnetWidth / 2;
@@ -945,8 +941,6 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
-  const wildCubes = open.filter(tileIsWild);
-  
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
   const wildStars = open.filter((t) => isSpecialDiceDirectWildLikeTile(t) || (t as any).isWild === true || (t as any).isWildFace === true);
   const magnets = open.filter((t) => isSpecialDiceMagnetLikeTile(t));

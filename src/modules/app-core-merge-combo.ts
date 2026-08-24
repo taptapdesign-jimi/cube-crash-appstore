@@ -25,7 +25,6 @@ export function handleMergeCombo({
   scheduleComboDecay,
   HUD,
   devLog,
-  devError,
 }: MergeComboDeps){
   // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
   // If so, skip combo increment AND timer here - magnet pull will handle both with proper count

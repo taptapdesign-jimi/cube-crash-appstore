@@ -1,8 +1,6 @@
 type StartLevelWildDeps = {
   setWildMeter: (v: number) => void;
   resetWildProgress: (value: number, animate?: boolean) => void;
-  setWildJuiceSpawned: (v: boolean) => void;
-  setWildMagnetSpawned: (v: boolean) => void;
   setFirstWildSpawned: (v: boolean) => void;
   setWildSpawnCount?: (v: number) => void;
   setWildMergeLockedSpawnCount?: (v: number) => void;
@@ -16,8 +14,6 @@ type StartLevelWildDeps = {
 export function resetWildAndEndgameState({
   setWildMeter,
   resetWildProgress,
-  setWildJuiceSpawned,
-  setWildMagnetSpawned,
   setFirstWildSpawned,
   setWildSpawnCount,
   setWildMergeLockedSpawnCount,
@@ -31,8 +27,6 @@ export function resetWildAndEndgameState({
   const nextWildMeter = Math.max(0, Number.isFinite(carryoverWildMeter) ? carryoverWildMeter : 0);
   setWildMeter(nextWildMeter);
   resetWildProgress(nextWildMeter, false);
-  setWildJuiceSpawned(false);
-  setWildMagnetSpawned(false);
   setFirstWildSpawned(false);
   if (!preserveWildDropProgress) {
     setWildSpawnCount?.(0);

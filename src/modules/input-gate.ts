@@ -60,7 +60,7 @@ function canRebindAfterVisualTail(tile: any): boolean {
   return true;
 }
 
-function unlockWildTilesForVisualTail(reason: string): void {
+function unlockWildTilesForVisualTail(_reason: string): void {
   try {
     const drag = STATE?.drag;
     const tiles = Array.isArray(STATE?.tiles) ? STATE.tiles : [];

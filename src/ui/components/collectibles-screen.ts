@@ -9,7 +9,7 @@ export interface CollectiblesScreenConfig {
 }
 
 export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}): HTMLElementConfig {
-  const { onBack, onUnlock, onHide, showDebugControls = false } = config;
+  const { onBack } = config;
 
   return {
     tag: 'div',

@@ -78,7 +78,7 @@ export function animateSettingsScreenEnter(): void {
   // STEP 1: Header FIRST (0ms delay)
   if (settingsHeader) {
     // 🔥 FIX: Track tween for cleanup
-    const headerTween = trackTween(settingsHeader, { 
+    trackTween(settingsHeader, {
       scale: 1, 
       opacity: 1, 
       duration: 0.5, 
@@ -99,7 +99,7 @@ export function animateSettingsScreenEnter(): void {
     const delay = baseDelay + (animationIndex * stagger);
     
     // 🔥 FIX: Track tween for cleanup
-    const toggleTween = trackTween(toggle, {
+    trackTween(toggle, {
       scale: 1,
       opacity: 1,
       duration: 0.5,
@@ -113,7 +113,7 @@ export function animateSettingsScreenEnter(): void {
     if (dividers[i]) {
       const dividerDelay = baseDelay + (animationIndex * stagger);
       // 🔥 FIX: Track tween for cleanup
-      const dividerTween = trackTween(dividers[i], {
+      trackTween(dividers[i], {
         scale: 1,
         opacity: 1,
         duration: 0.5,

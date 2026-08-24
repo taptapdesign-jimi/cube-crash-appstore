@@ -137,4 +137,19 @@ describe('board transition presentation handoff', () => {
     await expect(currentResult).resolves.toBe(true);
     expect(release).toHaveBeenCalledTimes(1);
   });
+
+  test('a throwing release callback still terminates cover ownership', async () => {
+    const frames: FrameRequestCallback[] = [];
+    boardTransitionPresentationHandoff.retain(() => { throw new Error('DOM cleanup failed'); });
+    const result = boardTransitionPresentationHandoff.releaseAfterPreparedFrames({
+      renderPreparedFrame: jest.fn(),
+      scheduleFrame: (callback) => { frames.push(callback); return frames.length; },
+    });
+
+    frames.shift()?.(0);
+    await Promise.resolve();
+    frames.shift()?.(16);
+    await expect(result).resolves.toBe(true);
+    expect(boardTransitionPresentationHandoff.hasPendingCover()).toBe(false);
+  });
 });

@@ -168,7 +168,6 @@ describe('atomic restore boundary', () => {
       devLog: jest.fn(),
       devWarn: jest.fn(),
       devError: jest.fn(),
-      setWildJuiceSpawned: jest.fn(),
     })).toThrow(GameSaveValidationError);
 
     expect(liveTiles).toEqual([liveTile]);

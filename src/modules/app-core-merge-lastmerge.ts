@@ -137,7 +137,6 @@ export function handleLastMergeEarly({
     mode,
   });
   const {
-    activeTilesBeforeWildProgress,
     activeTilesCountBeforeWildProgress,
     cannotPullDueToEndGame,
     dstSpecialForCheck,
@@ -145,8 +144,6 @@ export function handleLastMergeEarly({
     isRegularLastTwoMerge6,
     isWildLastTwoForCheck,
     srcSpecialForCheck,
-    visibleTilesCountBeforeWildProgress,
-    wasLastThreeOrMoreStackForCheck,
     willPullTiles,
   } = state;
   

@@ -66,6 +66,7 @@ let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track 
 let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let roboGroundAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
+let roboAirCombatTimelines: gsap.core.Timeline[] = [];
 let isCleaningUp = false;
 let activeTransitionSettlement: BoardTransitionSettlement | null = null;
 let transitionGeneration = 0;
@@ -76,6 +77,20 @@ const TRANSITION_CLOUD_IMAGES = [
   './assets/board transition/oblak mali desno.png',
   './assets/board transition/oblak mali ljevo.png',
   './assets/board transition/oblak veliki ljevo dole.png'
+];
+
+const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
+  'robo-fighter-left',
+  'robo-fighter-right',
+  'robo-beam-left',
+  'robo-beam-right',
+  'robo-beam-hit',
+  'robo-hit-smoke',
+]);
+const ROBO_AIR_COMBAT_DAMAGE_FRAMES = [
+  './assets/journey assets/robo/ship2.png',
+  './assets/journey assets/robo/ship3.png',
+  './assets/journey assets/robo/ship4.png',
 ];
 
 const CLOUD_CSS_STYLES = `
@@ -423,6 +438,330 @@ function stopRoboGroundAmbientMotion(sceneImg: HTMLElement): void {
   roboGroundAmbientTimelines.delete(sceneImg);
 }
 
+function stopRoboAirCombatMotion(): void {
+  roboAirCombatTimelines.forEach((timeline) => {
+    try { timeline.kill(); } catch {}
+  });
+  roboAirCombatTimelines = [];
+}
+
+function startRoboAirCombatMotion(sceneImagesByKey: Map<string, HTMLImageElement>): void {
+  stopRoboAirCombatMotion();
+  const leftFighter = sceneImagesByKey.get('robo-fighter-left');
+  const rightFighter = sceneImagesByKey.get('robo-fighter-right');
+  const beamLeft = sceneImagesByKey.get('robo-beam-left');
+  const beamRight = sceneImagesByKey.get('robo-beam-right');
+  const beamHit = sceneImagesByKey.get('robo-beam-hit');
+  const hitSmoke = sceneImagesByKey.get('robo-hit-smoke');
+  if (!leftFighter || !rightFighter || !beamLeft || !beamRight || !beamHit || !hitSmoke) return;
+
+  const timeline = trackTimeline();
+  roboAirCombatTimelines.push(timeline);
+  contentTimelines.push(timeline);
+  const fighters = [leftFighter, rightFighter];
+  const beams = [beamLeft, beamRight, beamHit];
+  const fighterOutsideViewportX = Math.max(260, (window.innerWidth || 390) * 0.72);
+  const flightJitter = Array.from({ length: 12 }, () => ({
+    x: gsap.utils.random(-10, 10),
+    y: gsap.utils.random(-6, 6),
+    rotation: gsap.utils.random(-0.8, 0.8),
+  }));
+  const leftSecondCrossing = {
+    x: -5 + flightJitter[2].x,
+    y: -210 + flightJitter[2].y,
+  };
+  const rightThirdCrossing = {
+    x: -115 + flightJitter[5].x,
+    y: -214 + flightJitter[5].y,
+  };
+  const leftThirdCrossing = {
+    x: 115 + flightJitter[4].x,
+    y: -62 + flightJitter[4].y,
+  };
+  const rightBankAway = {
+    x: 20 + flightJitter[7].x,
+    y: -120 + flightJitter[7].y,
+  };
+  const rightHitPoint = {
+    x: 35 + flightJitter[11].x,
+    y: -136 + flightJitter[11].y,
+  };
+  const interpolateFlightPoint = (
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    progress: number,
+  ): { x: number; y: number } => ({
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+  });
+  const leftBeamImpact = interpolateFlightPoint(leftSecondCrossing, leftThirdCrossing, 0.12 / 0.38);
+  const rightBeamImpact = interpolateFlightPoint(rightThirdCrossing, rightBankAway, 0.07 / 0.25);
+
+  timeline.set(fighters, {
+    opacity: 1,
+    xPercent: -50,
+    x: 0,
+    y: 0,
+    scale: 0.5,
+    rotation: 0,
+    transformOrigin: '50% 50%',
+  }, 0);
+  timeline.set(leftFighter, { x: -fighterOutsideViewportX, y: 0 }, 0);
+  timeline.set(rightFighter, { x: fighterOutsideViewportX, y: -18 }, 0);
+  timeline.set(beams, {
+    opacity: 0,
+    xPercent: -50,
+    y: 220,
+    scaleX: 0.42,
+    scaleY: 0.42,
+    transformOrigin: '50% 80%',
+  }, 0);
+  timeline.set(hitSmoke, {
+    opacity: 0,
+    xPercent: -50,
+    x: 0,
+    y: 0,
+    scale: 0.35,
+    rotation: 0,
+    transformOrigin: '50% 50%',
+  }, 0);
+
+  // The main timeline exclusively owns flight X/Y/rotation/scale. These small
+  // relative percentages add an irregular engine-hover vibration without ever
+  // pausing or overwriting that uninterrupted path.
+  const addContinuousFlightWobble = (fighter: HTMLImageElement, phaseOffset: number): void => {
+    const wobble = trackTimeline({ repeat: -1 });
+    roboAirCombatTimelines.push(wobble);
+    contentTimelines.push(wobble);
+    wobble
+      .to(fighter, {
+        xPercent: -48.7,
+        yPercent: -2.6,
+        skewX: 0.65,
+        duration: 0.14 + phaseOffset,
+        ease: 'sine.inOut',
+      })
+      .to(fighter, {
+        xPercent: -51.2,
+        yPercent: 1.9,
+        skewX: -0.55,
+        duration: 0.19 - phaseOffset * 0.5,
+        ease: 'sine.inOut',
+      })
+      .to(fighter, {
+        xPercent: -49.2,
+        yPercent: -1.3,
+        skewX: 0.4,
+        duration: 0.16 + phaseOffset * 0.4,
+        ease: 'sine.inOut',
+      })
+      .to(fighter, {
+        xPercent: -50,
+        yPercent: 0,
+        skewX: 0,
+        duration: 0.18,
+        ease: 'sine.inOut',
+      });
+  };
+  addContinuousFlightWobble(leftFighter, 0);
+  addContinuousFlightWobble(rightFighter, 0.035);
+
+  // Both fighters start completely beyond opposite viewport edges. Linear
+  // segment ownership avoids the zero-velocity hold that sine.inOut created at
+  // each waypoint; per-run jitter keeps the uninterrupted hover path organic.
+  timeline.to(leftFighter, {
+    scale: 1.25,
+    x: 110 + flightJitter[0].x,
+    y: -82 + flightJitter[0].y,
+    rotation: 5 + flightJitter[0].rotation,
+    duration: 0.45,
+    ease: 'none',
+  }, 0);
+  timeline.to(rightFighter, {
+    scale: 1.25,
+    x: -110 + flightJitter[1].x,
+    y: -132 + flightJitter[1].y,
+    rotation: -5 + flightJitter[1].rotation,
+    duration: 0.45,
+    ease: 'none',
+  }, 0);
+  timeline.to(leftFighter, {
+    scale: 2.1,
+    x: leftSecondCrossing.x,
+    y: leftSecondCrossing.y,
+    rotation: -5 + flightJitter[2].rotation,
+    duration: 0.4,
+    ease: 'none',
+  }, 0.45);
+  timeline.to(rightFighter, {
+    scale: 2.1,
+    x: 5 + flightJitter[3].x,
+    y: -102 + flightJitter[3].y,
+    rotation: 5 + flightJitter[3].rotation,
+    duration: 0.4,
+    ease: 'none',
+  }, 0.45);
+  timeline.to(leftFighter, {
+    scale: 3,
+    x: leftThirdCrossing.x,
+    y: leftThirdCrossing.y,
+    rotation: 5 + flightJitter[4].rotation,
+    duration: 0.38,
+    ease: 'none',
+  }, 0.85);
+  timeline.to(rightFighter, {
+    scale: 3,
+    x: rightThirdCrossing.x,
+    y: rightThirdCrossing.y,
+    rotation: -5 + flightJitter[5].rotation,
+    duration: 0.38,
+    ease: 'none',
+  }, 0.85);
+
+  // After the third crossing they bank away in opposite directions, then keep
+  // a small floating wobble until the final beam hits the right fighter.
+  timeline.to(leftFighter, {
+    x: -20 + flightJitter[6].x,
+    y: -145 + flightJitter[6].y,
+    rotation: -4 + flightJitter[6].rotation,
+    duration: 0.25,
+    ease: 'none',
+  }, 1.23);
+  timeline.to(rightFighter, {
+    x: rightBankAway.x,
+    y: rightBankAway.y,
+    rotation: 4 + flightJitter[7].rotation,
+    duration: 0.25,
+    ease: 'none',
+  }, 1.23);
+  timeline
+    .to(leftFighter, { x: 10 + flightJitter[8].x, y: -158 + flightJitter[8].y, rotation: 2.5 + flightJitter[8].rotation, duration: 0.52, ease: 'none' }, 1.48)
+    .to(leftFighter, { x: -25 + flightJitter[9].x, y: -122 + flightJitter[9].y, rotation: -2.5 + flightJitter[9].rotation, duration: 0.52, ease: 'none' }, 2)
+    .to(leftFighter, { x: 8 + flightJitter[10].x, y: -150 + flightJitter[10].y, rotation: 2 + flightJitter[10].rotation, duration: 0.55, ease: 'none' }, 2.52)
+    .to(leftFighter, { x: -8, y: -138, rotation: -1.5, duration: 0.22, ease: 'none' }, 3.07);
+  timeline.to(rightFighter, {
+    x: rightHitPoint.x,
+    y: rightHitPoint.y,
+    rotation: 2 + flightJitter[11].rotation,
+    duration: 0.34,
+    ease: 'none',
+  }, 1.48);
+
+  const addBeamShot = (
+    beam: HTMLImageElement,
+    start: number,
+    rotation: number,
+    impact: { x: number; y: number },
+    flipVertical = false,
+  ): void => {
+    const verticalDirection = flipVertical ? -1 : 1;
+    timeline.set(beam, {
+      opacity: 0,
+      xPercent: -86,
+      x: 0,
+      y: 220,
+      scaleX: 0.42,
+      scaleY: 0.42 * verticalDirection,
+      rotation,
+    }, start);
+    timeline.to(beam, {
+      opacity: 1,
+      x: impact.x,
+      y: impact.y,
+      scaleX: 1.2,
+      scaleY: 1.2 * verticalDirection,
+      filter: 'drop-shadow(0 0 7px rgba(104, 239, 255, 0.95))',
+      duration: 0.32,
+      ease: 'none',
+    }, start);
+    timeline.to(beam, {
+      opacity: 1,
+      duration: 0.08,
+      ease: 'none',
+    }, start + 0.32);
+    timeline.to(beam, {
+      opacity: 0,
+      scaleX: 1.28,
+      scaleY: 1.28 * verticalDirection,
+      duration: 0.1,
+      ease: 'none',
+    }, start + 0.4);
+  };
+  // The beam PNGs place their bright impact burst around 86% of their width.
+  // Anchoring that point, rather than the transparent image centre, makes each
+  // shot meet the fighter's interpolated position exactly. The final shot lands
+  // at 1.82s, on the same frame that begins the damage sequence.
+  addBeamShot(beamLeft, 0.65, -4, { x: leftBeamImpact.x, y: leftBeamImpact.y - 30 });
+  addBeamShot(beamRight, 0.98, 4, { x: rightBeamImpact.x, y: rightBeamImpact.y - 20 });
+  addBeamShot(beamHit, 1.5, -2, rightHitPoint, true);
+
+  // The final shot owns the damage sequence: authored ship frames 2/3/4,
+  // then a slower side-to-side fall with one lightweight smoke sprite.
+  timeline.call(() => { rightFighter.src = ROBO_AIR_COMBAT_DAMAGE_FRAMES[0]; }, undefined, 1.82);
+  timeline.call(() => { rightFighter.src = ROBO_AIR_COMBAT_DAMAGE_FRAMES[1]; }, undefined, 1.96);
+  timeline.call(() => { rightFighter.src = ROBO_AIR_COMBAT_DAMAGE_FRAMES[2]; }, undefined, 2.1);
+  timeline.to(rightFighter, {
+    x: -8,
+    y: -75,
+    rotation: -8,
+    duration: 0.32,
+    ease: 'none',
+  }, 1.82);
+  timeline.to(rightFighter, {
+    x: 22,
+    y: 45,
+    rotation: 12,
+    duration: 0.38,
+    ease: 'none',
+  }, 2.14);
+  timeline.to(rightFighter, {
+    x: 5,
+    y: 280,
+    rotation: -18,
+    scale: 2.7,
+    duration: 0.55,
+    ease: 'power1.in',
+  }, 2.52);
+  timeline.to(rightFighter, {
+    x: -5,
+    y: 360,
+    rotation: -22,
+    scale: 2.6,
+    duration: 0.22,
+    ease: 'power1.in',
+  }, 3.07);
+  timeline.set(hitSmoke, {
+    x: rightHitPoint.x,
+    y: rightHitPoint.y,
+  }, 1.82);
+  timeline.to(hitSmoke, {
+    opacity: 0.9,
+    scale: 1.2,
+    x: -7,
+    y: -112,
+    duration: 0.18,
+    ease: 'power2.out',
+  }, 1.82);
+  timeline.to(hitSmoke, {
+    opacity: 0.72,
+    scale: 1.8,
+    x: 18,
+    y: 20,
+    rotation: 10,
+    duration: 0.46,
+    ease: 'sine.inOut',
+  }, 2);
+  timeline.to(hitSmoke, {
+    opacity: 0,
+    scale: 2.35,
+    x: 2,
+    y: 225,
+    rotation: -12,
+    duration: 0.48,
+    ease: 'power1.in',
+  }, 2.48);
+}
+
 function resetPooledImage(img: HTMLImageElement): void {
   try { gsap.killTweensOf(img); } catch {}
   try { gsap.set(img, { clearProps: 'all' }); } catch {}
@@ -443,6 +782,7 @@ const TRANSITION_HAPTIC_OTHER_DELAY = 0.25;
 const TRANSITION_EXIT_HAPTIC_FIRST_DELAY = 0.3;
 const TRANSITION_EXIT_HAPTIC_SECOND_GAP = 0.3;
 export const BOARD_TRANSITION_HOLD_DURATION_SECONDS = 0.4;
+export const ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS = 1.95;
 export const BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS = 0.35;
 export const BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS = 0.2;
 const BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS = 0.28;
@@ -488,7 +828,12 @@ function ensureCloudStyles(): void {
 }
 
 async function preloadTransitionAssets(sceneLayers: readonly BoardTransitionThemeLayer[]): Promise<void> {
-  const urls = [...TRANSITION_CLOUD_IMAGES, ...sceneLayers.map((layer) => layer.src)];
+  const includesRoboAirCombat = sceneLayers.some((layer) => layer.key === 'robo-fighter-right');
+  const urls = [
+    ...TRANSITION_CLOUD_IMAGES,
+    ...sceneLayers.map((layer) => layer.src),
+    ...(includesRoboAirCombat ? ROBO_AIR_COMBAT_DAMAGE_FRAMES : []),
+  ];
   const missingUrls = urls.filter((src) => !preloadedTransitionAssetUrls.has(src));
   if (missingUrls.length === 0) return;
   if (assetsPreloadPromise) {
@@ -1396,6 +1741,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const sceneEnterSpeedFactor = 0.945;
       orderedSceneImages.forEach((sceneImg, index) => {
         const layerKey = sceneImg.dataset.sceneLayer || '';
+        if (resolvedTheme === 'area55' && ROBO_AIR_COMBAT_LAYER_KEYS.has(layerKey)) return;
         const proceduralSceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor);
         const sceneEnterStart = resolvedTheme === 'area55' && layerKey === 'robo-front'
           ? 0
@@ -1427,14 +1773,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const hillBaseScale = getTransitionHillBaseScale(layerKey);
         const hillBaseX = getTransitionHillBaseX(layerKey);
         const hillStartYOffset = Math.round(Math.min(window.innerHeight || 760, 760) * 0.4);
-        const roboInitialScale = isRoboFront || layerKey === 'robo-ship' ? 1 : 0;
+        const roboInitialScale = isRoboFront ? 1 : 0;
         const roboFrontTravelDirection = roboVariation?.frontTravelDirection ?? 1;
         const roboFrontStartX = -roboFrontTravelDirection * Math.max(360, window.innerWidth);
         const roboCharacterScaleXSign = isRoboFront
           ? roboFrontTravelDirection === -1 ? -1 : 1
           : isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? -1 : 1;
         gsap.set(sceneImg, {
-          opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0,
+          opacity: isBeachCurtain || isBeachFrontShore || isRoboFront || isRoboShip ? 1 : 0,
           xPercent: -50,
           yPercent: 0,
           x: isHill ? hillBaseX - hillParallaxX * 0.18 : isRoboFront ? roboFrontStartX : 0,
@@ -1539,7 +1885,24 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               .to(sceneImg, { x: roboWalkerEndX * 0.86, y: 6, rotation: -2, scaleX: 1.01 * roboCharacterScaleXSign, scaleY: 1.01, duration: 0.46, ease: 'none' })
               .to(sceneImg, { x: roboWalkerEndX, y: 0, rotation: 0, scaleX: roboCharacterScaleXSign, scaleY: 1, duration: 0.48, ease: 'none' });
           } else if (layerKey === 'robo-ship') {
-            sceneEnterTimeline.to(sceneImg, { opacity: 1, x: 0, y: 0, scale: 1.20, duration: 2, ease: 'none' });
+            sceneEnterTimeline
+              .to(sceneImg, {
+                x: 0,
+                y: 0,
+                scale: 1.08,
+                duration: 0.3 * sceneEnterSpeedFactor,
+                ease: 'back.out(2.0)',
+              })
+              .to(sceneImg, {
+                scale: 0.95,
+                duration: 0.1 * sceneEnterSpeedFactor,
+                ease: 'power2.out',
+              })
+              .to(sceneImg, {
+                scale: 1,
+                duration: 0.12 * sceneEnterSpeedFactor,
+                ease: 'back.out(1.5)',
+              });
           } else {
             const roboRestX = layerKey === 'robo-ground-rear' ? 100 : layerKey === 'robo-ground-front' ? -100 : 0;
             const roboRestRotation = layerKey === 'robo-fence' ? 6 : 0;
@@ -1647,6 +2010,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
           isBeachCurtain ? 0.02 + (beachPalmNumber - 1) * 0.045 : sceneEnterStart,
         );
       });
+      if (resolvedTheme === 'area55') {
+        startRoboAirCombatMotion(sceneImagesByKey as Map<string, HTMLImageElement>);
+      }
       if (beachShoreAmbientTargets.length > 0) {
         const latestShoreEnterIndex = Math.max(
           ...beachShoreAmbientTargets.map((sceneImg) => orderedSceneImages.indexOf(sceneImg)),
@@ -1814,7 +2180,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               });
               
               pauseTimeline.to({}, {
-                duration: BOARD_TRANSITION_HOLD_DURATION_SECONDS,
+                duration: resolvedTheme === 'area55'
+                  ? ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS
+                  : BOARD_TRANSITION_HOLD_DURATION_SECONDS,
                 ease: 'none'
               });
             }
@@ -1860,6 +2228,13 @@ function startExitAnimation(
   onComplete: () => void
 ): void {
   void container;
+  stopRoboAirCombatMotion();
+  if (transitionTheme === 'area55' && forestContainer) {
+    ['robo-beam-left', 'robo-beam-right', 'robo-beam-hit', 'robo-hit-smoke'].forEach((layerKey) => {
+      const effect = forestContainer.querySelector(`[data-scene-layer="${layerKey}"]`) as HTMLElement | null;
+      if (effect) effect.style.opacity = '0';
+    });
+  }
   // 🔥 CRITICAL FIX: Kill any existing exit timeline before creating new one
   if (exitTimeline) {
     try { exitTimeline.kill(); } catch {}
@@ -2065,7 +2440,10 @@ function startExitAnimation(
     addCloudExitAt(hillExitBaseStart);
     const otherExitImageByKey = new Map(otherExitImages.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg]));
     const otherExitLayerKeys = transitionTheme === 'area55'
-      ? ['robo-ship', 'robo-front', 'robo-walker', 'robo-fence', 'robo-ground-rear', 'robo-ground-front']
+      ? [
+          'robo-fighter-left', 'robo-fighter-right', 'robo-ship', 'robo-front',
+          'robo-walker', 'robo-fence', 'robo-ground-rear', 'robo-ground-front',
+        ]
           .filter((key) => otherExitImageByKey.has(key))
       : [...otherExitImageByKey.keys()];
     const beachExitDependencies = transitionTheme === 'beach'
@@ -2329,10 +2707,11 @@ function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean } 
     }
   });
   contentTimelines = [];
-  try { beachShoreAmbientTimeline?.kill(); } catch {}
-  beachShoreAmbientTimeline = null;
-  beachAmbientTimelines.clear();
-  roboGroundAmbientTimelines.clear();
+      try { beachShoreAmbientTimeline?.kill(); } catch {}
+      beachShoreAmbientTimeline = null;
+      beachAmbientTimelines.clear();
+      roboGroundAmbientTimelines.clear();
+      stopRoboAirCombatMotion();
   
   // Keep the overlay DOM reusable, but always return transient image elements to the pool.
   activeCloudImages.forEach(cloudImg => {

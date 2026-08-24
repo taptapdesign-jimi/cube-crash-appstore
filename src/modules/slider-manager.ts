@@ -730,7 +730,7 @@ class SliderManager {
       }
     };
     
-    const handleGlobalTouchEnd = (e: TouchEvent) => {
+    const handleGlobalTouchEnd = (_e: TouchEvent) => {
       // 🔥 FIX: Complete the swipe gesture by calling slider's touch end logic
       if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
         this.isDragging = false;
@@ -833,7 +833,7 @@ class SliderManager {
   }
   
   // Handle touch end
-  private handleTouchEnd(event: SliderTouchEvent): void {
+  private handleTouchEnd(_event: SliderTouchEvent): void {
     if (!this.isDragging) return;
 
     if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
@@ -896,7 +896,7 @@ class SliderManager {
   }
   
   // Handle mouse up
-  private handleMouseUp(event: SliderMouseEvent): void {
+  private handleMouseUp(_event: SliderMouseEvent): void {
     if (!this.isDragging) return;
 
     if (gameState.get('sliderLocked') || sliderState.isAnyAnimationInProgress()) {
@@ -924,8 +924,6 @@ class SliderManager {
     const baseOffset = -this.currentSlide * slideWidth;
     
     // iOS SAFETY: Elastic bounce at edges (first and last slide)
-    const maxDragDistance = slideWidth * SLIDER_CONFIG.ELASTIC_LIMIT_MULTIPLIER;
-    
     let currentOffset = baseOffset + deltaX;
     
     // First slide: Prevent dragging right (positive deltaX)

@@ -2,7 +2,7 @@
 // ✅ mobile-first, cache-busted celebration & prize flow
 // TODO: Remove @ts-nocheck after incremental typing cleanup
 
-import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite } from 'pixi.js';
+import { Application, Container, Assets, Graphics, Rectangle, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
 import {
@@ -10,27 +10,23 @@ import {
   ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT
 } from './constants.js';
 import { sweetPopIn, sweetPopOut } from './app-board.ts';
-import * as CONSTS from './constants.js';
 import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
-// 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
-// import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
-import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
 import { wild } from './hud-helpers.ts';
 import animationManager from './animation-manager.ts';
 import * as FLOW  from './level-flow.js';
-import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
+import { clearWildState } from './app-merge.ts';
 import { resetTileToNormalState, boardHasPersistentLockedTiles, isTileTransientlySpawning, getTransientSpawnState } from './tile-state-utils.ts';
 import { statsService } from '../services/stats-service.js';
 import { arcadeStatsService } from '../services/arcade-stats-service.js';
@@ -58,8 +54,8 @@ import { getRendererPerformanceProfile } from './renderer-performance-profile.ts
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
-import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag, MakeBoard } from '../types/game-types.js';
-import { getArcadeSaveKey, getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
+import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
+import { getArcadeSaveKey, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { 
   setPendingCleanBoard, 
   clearPendingCleanBoard, 
@@ -73,15 +69,12 @@ import {
   regularValuePool,
   randomRegularTileValue,
   isFirstPlayTutorialRunActive,
-  sleep, 
-  pickWildValue,
   trackAppTimeout,
   waitTracked,
   waitTrackedResult,
   clearAllAppTimeouts,
   trackAppAnimationFrame,
   clearAllAppAnimationFrames,
-  trackAppInterval,
   clearAllAppIntervals,
   trackAppListener,
   clearAllAppListeners,
@@ -98,7 +91,7 @@ import {
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
 import { journeySpatialMotion } from './journey-spatial-motion.js';
-import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
+import { getReactiveActiveTiles, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
 import { resetBoardContainerHelper } from './app-core-board-reset.ts';
@@ -187,7 +180,6 @@ import { bindTileWithFallbackCore } from './app-core-bind.ts';
 import { saveAfterBoardStart } from './app-core-startlevel-save.ts';
 import { runStartLevelPost } from './app-core-startlevel-post.ts';
 import { maybeRebuildBoard } from './app-core-startlevel-rebuild.ts';
-import { addElectricGlowCore } from './app-core-glow.ts';
 import { adaptSpawnBounce, OpenCellCancelledError, openAtCellCore } from './app-core-open-cell.ts';
 import { getRandomEmptyCell } from './app-core-random-empty.ts';
 import { hasLastMergeTile } from './app-core-wild-preload.ts';
@@ -299,10 +291,8 @@ import {
 } from './arcade-entry-surface-gate.js';
 import { killInvalidPixiGsapTweens, killPixiGsapSubtree } from './pixi-gsap-cleanup.ts';
 import {
-  tintLocked,
   fixHoverAnchor,
   ensureFonts,
-  loadFirstTexture,
   killComboTimer as killComboTimerHelper,
   scheduleComboDecay as scheduleComboDecayHelper,
   hudSetCombo as hudSetComboHelper,
@@ -593,7 +583,6 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       const sy = Number.isFinite(t.scale?.y) ? t.scale.y : 1;
       if (Math.min(sx, sy) < 0.86) {
         try { gsap?.killTweensOf?.(t.scale); } catch {}
-        let spawnCancelledAfterDrop = false;
         try {
           if (t.scale?.set) t.scale.set(1, 1);
           else if (t.scale) {
@@ -748,9 +737,6 @@ function hudResetCombo(){
   hudResetComboHelper(HUD.resetCombo);
 }
 
-// HUD legacy refs (fallback)
-let scoreNumText = null, boardNumText = null, comboNumText = null;
-
 // Export combo text for animations
 window.comboText = null;
 
@@ -758,7 +744,6 @@ window.comboText = null;
 let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/juice are used rapidly
-let merge6SpawnInProgressIsWild = false; // 🔥 Only block fast merges while wild merge-6 is spawning
 let merge6SpawnOwnerSequence = 0;
 let activeMerge6SpawnOwnerToken: number | null = null;
 let merge6SpawnResetTimer: gsap.core.Tween | null = null;
@@ -854,7 +839,6 @@ function resetMerge6SpawnState(
   }
   const wasInProgress = merge6SpawnInProgress;
   merge6SpawnInProgress = false;
-  merge6SpawnInProgressIsWild = false;
   activeMerge6SpawnOwnerToken = null;
   clearMerge6SpawnResetTimer();
   if (options.releaseSpecialTransaction !== false) {
@@ -1438,21 +1422,6 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
 
   // 🧪 DEV LOG: Snapshot when "clean board" is triggered (cleanup stats, stage/board children, tiles, renderer, assets, gsap, memoryManager, performance.memory)
   try {
-    const cleanupStats = getAppCleanupStats();
-    const activeTiles = getReactiveActiveTiles(tiles);
-    const rendererAny = app?.renderer as any;
-    const textureCount = (typeof rendererAny?.texture?.managedTextures !== 'undefined')
-      ? (rendererAny.texture.managedTextures?.length ?? (rendererAny.texture.managedTextures?.size ?? 0))
-      : (typeof rendererAny?.textureGC !== 'undefined' ? (rendererAny.textureGC?.getManagedTextures?.()?.length ?? 0) : 0);
-    const cache = (Assets as any)?.cache;
-    const cacheSize = cache && typeof (cache as { size?: number }).size === 'number' ? (cache as { size: number }).size : (cache && typeof cache === 'object' ? (cache instanceof Map ? cache.size : Object.keys(cache).length) : 0);
-    const gsapTweens = typeof (gsap as any).getAllTweens === 'function' ? (gsap as any).getAllTweens().length : 0;
-    const mmStats = typeof (memoryManager as any).getMemoryInfo === 'function' ? (memoryManager as any).getMemoryInfo() : null;
-    const perfMem = (performance as any).memory ? {
-      usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-      totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-      jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
-    } : null;
     logRuntimeStats('clean board');
   } catch (e) {
     devWarn('⚠️ DEV LOG (clean board) snapshot failed:', e);
@@ -1463,8 +1432,6 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
 
   // Reset wild meter immediately (legacy behavior)
   resetWildMeterState(`trigger-clean-board:${reason}`);
-  wildJuiceSpawned = false; // Reset wild-juice spawn tracking
-  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
   firstWildSpawned = false; // 🔥 USER REQUEST: Reset first wild spawn tracking
   wildSpawnCount = 0;
   lastWildDropType = null;
@@ -2839,11 +2806,8 @@ function softResetBoardView(reason: string = 'unknown') {
   window._ghostPlaceholders = null;
 }
 
-// ----- progress wrapper (delegira HUD-u) -----
-let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
 let __hudMetrics: HudMetrics = { top: 0, bottom: 80 };
-let allowWildDecrease = false;
 function getWildSpawnAnimationBlockReason(): string | null {
   try {
     if (busyEnding) return 'busyEnding';
@@ -3078,7 +3042,6 @@ function setWildProgress(ratio, animate=false){
     queueWildSpawnIfNeeded();
   }
 }
-let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount, { confirmedNonFinal = false }: { confirmedNonFinal?: boolean } = {}){
   logger.debug('🔥🔥🔥 addWildProgress CALLED', 'app-core', { amount, wildMeter, boardNumber });
 
@@ -3186,33 +3149,11 @@ function addWildProgress(amount, { confirmedNonFinal = false }: { confirmedNonFi
   }
 }
 function resetWildProgress(value=0, animate=false){
-  allowWildDecrease = true;
   setWildProgress(value, animate);
-  allowWildDecrease = false;
 }
 
 // 🔥 v112: ensureFonts moved to app-core-helpers.ts
 // Imported: ensureFonts
-
-// Cache-busted celebration import
-async function showCleanBoardCelebrationFresh(args){
-  const bust = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV)
-    ? `?bust=${Date.now()}`
-    : '';
-  const m = await import(`./center-celebration.js${bust}`);
-  return m.showCleanBoardCelebration(args);
-}
-
-// Graceful import (DEV uses cache-bust; PROD clean path)
-async function showMysteryPrize(){
-  try {
-    const bust = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV)
-      ? `?bust=${Date.now()}`
-      : '';
-    const m = await import(`./mystery-prize.js${bust}`);
-    return m.showMysteryPrize({ app, stage, board, TILE });
-  } catch {}
-}
 
 // -------------------- boot --------------------
 export async function boot(){
@@ -4225,8 +4166,6 @@ export async function boot(){
       wildMeter = 0;
       STATE.wildMeter = 0;
       resetWildProgress(0, false);
-      wildJuiceSpawned = false;
-      wildMagnetSpawned = false;
       firstWildSpawned = false;
       wildSpawnCount = 0;
       lastWildDropType = null;
@@ -4417,8 +4356,6 @@ export async function layoutBoard(){
   const isMobilePortrait = (vw < 768) || (vh > vw);
 
   const cssVars = getComputedStyle(document.documentElement);
-  const SAL = parseFloat(cssVars.getPropertyValue('--sal')) || 0;
-  const SAR = parseFloat(cssVars.getPropertyValue('--sar')) || 0;
   const SAB = parseFloat(cssVars.getPropertyValue('--sab')) || 0;
   const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
   
@@ -4436,9 +4373,6 @@ export async function layoutBoard(){
     viewportHeight: vh
   });
 
-  const MIN_SIDE = isMobilePortrait ? 24 : 14;
-  const LEFT_PAD  = Math.max(MIN_SIDE, SAL);
-  const RIGHT_PAD = Math.max(MIN_SIDE, SAR);
   const TOP_PAD   = 20 + Math.round(vh * 0.004); // Move HUD lower (now 0.4% = ~4px on iPhone 13)
   const BOT_PAD   = (isMobilePortrait ? 24 : 24) + SAB;
   const GAP_HUD   = 24;
@@ -4487,8 +4421,6 @@ export async function layoutBoard(){
   hudBottom = safeTop + HUD_H + GAP_HUD;
   __hudMetrics.top = Math.round(safeTop);
   __hudMetrics.bottom = Math.round(hudBottom);
-  
-  const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   
   // Scale board to fit screen width
   const HUD_PADDING = 24;
@@ -4662,17 +4594,6 @@ export async function layoutBoard(){
             }
           }, 120);
         }
-        
-        // hook za wild meter prema HUD-u
-        hudUpdateProgress = (ratio, animate)=>{
-          devLog('🎯 hudUpdateProgress called with:', { ratio, animate });
-          try{ 
-            HUD.updateProgressBar?.(ratio, animate); 
-            devLog('✅ HUD.updateProgressBar called successfully');
-          } catch(error) {
-            devError('❌ Error calling HUD.updateProgressBar:', error);
-          }
-        };
         
         // 🔥 Initialize stars collector
         try {
@@ -5391,7 +5312,6 @@ async function animateFinalResidualArtifactsPopOut(reason: string = 'final-merge
 
   try {
     normalizeFinalMerge6ResidueVisuals(`popout:${reason}`);
-    const ghostLayerLocked = (window as any).__ccFinalGhostLayerLockedHidden === true;
     try { (window as any).__ccForceHideGhosts = false; } catch {}
     try { (window as any).__ccEnterAnimationActive = false; } catch {}
     const orphanFinalResidueTargets = collectOrphanFinalBoardTileResidualTargets({
@@ -5592,80 +5512,6 @@ function drawBoardBG(mode = 'active+empty'){
   // Show ghosts for empty cells (where grid[r][c] === null)
   updateGhostVisibility();
 }
-
-function pulseBoardZoom(
-  factor = 0.92,
-  opts: {
-    translateFactor?: number;
-    onComplete?: () => void;
-    outDur?: number;
-    inDur?: number;
-    hold?: number;
-    outEase?: string;
-    inEase?: string;
-  } = {}
-) {
-  if (!board) return;
-  try { board._wildZoomTl?.kill?.(); } catch {}
-
-  const { w: baseW, h: baseH } = boardSize();
-  const sx0 = board.scale?.x ?? 1;
-  const sy0 = board.scale?.y ?? 1;
-  const x0 = board.x ?? 0;
-  const y0 = board.y ?? 0;
-
-  const displayW = baseW * sx0;
-  const displayH = baseH * sy0;
-
-  const scaleFactor = Math.max(0.75, Math.min(0.99, factor));
-  const translateFactor = Math.max(0, Math.min(1, opts.translateFactor ?? 0.4));
-  const userOnComplete = typeof opts.onComplete === 'function' ? opts.onComplete : null;
-  const dx = ((displayW - displayW * scaleFactor) / 2) * translateFactor;
-  const dy = ((displayH - displayH * scaleFactor) / 2) * translateFactor;
-
-  const outDur = opts.outDur ?? 0.12;
-  const inDur  = opts.inDur  ?? 0.22;
-  const hold   = Math.max(0, opts.hold ?? 0.05);
-  const outEase = opts.outEase ?? 'power3.out';
-  const inEase  = opts.inEase  ?? 'elastic.out(1, 0.6)';
-
-  const tl = animationManager.trackExternalTimeline(
-    gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } })
-  );
-
-  tl.to(board.scale, {
-    x: sx0 * scaleFactor,
-    y: sy0 * scaleFactor,
-    duration: outDur,
-    ease: outEase
-  }, 0);
-
-  tl.to(board, {
-    x: x0 + dx,
-    y: y0 + dy,
-    duration: outDur,
-    ease: outEase
-  }, 0);
-
-  tl.to(board.scale, {
-    x: sx0,
-    y: sy0,
-    duration: inDur,
-    ease: inEase
-  }, `>${hold}`);
-
-  tl.to(board, {
-    x: x0,
-    y: y0,
-    duration: inDur,
-    ease: inEase
-  }, `>${hold}`);
-
-  board._wildZoomTl = tl;
-  return tl;
-}
-
-
 
 const { updateHUD, animateScore, animateBoardHUD } = createHudHelpers({
   getScore: () => score,
@@ -6376,8 +6222,6 @@ async function startLevel(n): Promise<void> {
   resetWildAndEndgameState({
     setWildMeter: (v) => { wildMeter = v; },
     resetWildProgress,
-    setWildJuiceSpawned: (v) => { wildJuiceSpawned = v; },
-    setWildMagnetSpawned: (v) => { wildMagnetSpawned = v; },
     setFirstWildSpawned: (v) => { firstWildSpawned = v; },
     setWildSpawnCount: (v) => { wildSpawnCount = v; },
     setWildMergeLockedSpawnCount: (v) => { wildMergeLockedSpawnCount = v; },
@@ -6488,18 +6332,6 @@ function applyWildSkinLocal(tile){
     stopTntIdleParticles,
     stopTntIdleShake,
     trackAppAnimationFrame,
-    devWarn,
-  });
-}
-
-// Electric glow effect for wild-magnet tiles
-function addElectricGlow(tile){
-  addElectricGlowCore({
-    tile,
-    Container,
-    Graphics,
-    gsap,
-    animationManager,
     devWarn,
   });
 }
@@ -6731,9 +6563,6 @@ function spawnLockedTilesWithPop(count: number, excludeCells?: Array<{ c: number
 }
 
 // Track if wild-juice has been spawned (first wild spawn should be wild-juice)
-let wildJuiceSpawned = false;
-// Track if wild-magnet has been spawned (second wild spawn should be wild-magnet)
-let wildMagnetSpawned = false;
 // 🔥 USER REQUEST: Track if first wild has been spawned (must be wild zvjezdica)
 let firstWildSpawned = false;
 // Track total wild spawns to enforce first/second sequence.
@@ -6742,8 +6571,6 @@ let lastWildDropType: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt' | null 
 let wildDropTypeStreak = 0;
 // Track wild-merge locked tile spawns (1st=7, 2nd=4)
 let wildMergeLockedSpawnCount = 0;
-const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-juice and wild-magnet)
-const WILD_JUICE_RESPAWN_CHANCE = 0.4; // 40% chance wild-juice spawns again after first spawn
 
 async function spawnWildFromMeter(){
   const spawnToken = wildSpawnCancelToken;
@@ -7090,11 +6917,9 @@ async function spawnWildFromMeter(){
         }
         
         if (spawnJuice) {
-          wildJuiceSpawned = true; // Mark as spawned (but can spawn again)
           devLog('🍺 Wild-juice spawned (35% random chance)');
           // No board shake on spawn - only on merge 6
         } else if (spawnMagnet) {
-          wildMagnetSpawned = true; // Mark as spawned
           if (wasFirstWild && boardNumber === 1) {
             devLog('🧲 Board 1: First wild-magnet spawned from preloader');
           } else {
@@ -7635,7 +7460,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       let previousDirection = 0; // Start with no direction
 
       // Iterate through all stack layers (starting from bottom)
-      dst.stackG.children.forEach((layer: any, index: number) => {
+      dst.stackG.children.forEach((layer: any) => {
         if (layer && layer.alpha !== undefined) {
           // Add brown overlay to this layer
           const overlay = new Graphics();
@@ -7724,7 +7549,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       visibleTilesCountBeforeWildProgress,
       activeTilesCountBeforeWildProgress,
       activeTilesBeforeWildProgress,
-      wasLastThreeOrMoreStackForCheck,
     } = lastMergeResult;
     let stackMergeFilledWildMeter = false;
 
@@ -9335,12 +9159,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // 🔥 CRITICAL: Store all timeline references for cleanup (MEMORY LEAK FIX)
         const activeTimelines: any[] = [];
         
-        // 🔥 CRITICAL: Calculate merge location early (for shards animation)
-        const calculateMergeLocation = () => {
-          const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
-          return dst && !dst.destroyed ? dst : (validTiles.length > 0 ? { x: validTiles[0].x, y: validTiles[0].y } : null);
-        };
-        
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
         // Use const binding to avoid block-function scoping quirks (keeps reference for timeouts)
         cleanupAllPullAnimations = () => {
@@ -9580,7 +9398,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 // Ako isMagnetPullMergeFinal === false, merge 6 tile će biti obrisan
                 
                 // Cleanup all pulled tiles since merge failed
-                nearestTiles.forEach((t: any, idx: number) => {
+                nearestTiles.forEach((t: any) => {
                   if (t && !t.destroyed) {
                     const origX = t._wildMagnetOriginalX ?? t.x;
                     const origY = t._wildMagnetOriginalY ?? t.y;
@@ -9778,9 +9596,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           
           // Step 2: Move towards merge location - FASTER
           // 🔥 CRITICAL: Calculate 75% position - merge will trigger before reaching 100%
-          const target75X = startX + (mergeX - startX) * 0.75;
-          const target75Y = startY + (mergeY - startY) * 0.75;
-          
           const moveDuration = 0.35; // Faster: 0.35s (was 0.55s, decreased by 0.200s)
           const scaleHoldDuration = moveDuration * 0.20; // Hold original scale for first 20% of the path
           const scaleShrinkDuration = moveDuration - scaleHoldDuration; // Shrink during remaining 80%
@@ -9790,7 +9605,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // Add label at the START of movement for precise timing
           tl.addLabel('moveStart', `>${moveStartTime}`);
           
-          const moveTween = tl.to(tile, {
+          tl.to(tile, {
             x: mergeX,
             y: mergeY,
             duration: moveDuration,
@@ -10264,10 +10079,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           releaseSpecialDiceTransaction(specialTransactionToken, 'merge6-animation-destination-destroyed');
           return;
         }
-        let dstX = 0, dstY = 0, dstGridX = 0, dstGridY = 0, dstZIndex = 0;
+        let dstGridX = 0, dstGridY = 0, dstZIndex = 0;
         try {
-          dstX = (typeof dst.x === 'number' && Number.isFinite(dst.x)) ? dst.x : 0;
-          dstY = (typeof dst.y === 'number' && Number.isFinite(dst.y)) ? dst.y : 0;
           dstGridX = dst.gridX ?? 0;
           dstGridY = dst.gridY ?? 0;
           dstZIndex = dst.zIndex ?? 0;
@@ -10964,12 +10777,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // This ensures shards animation starts before tile "dies off"
           // 🔥 SPEED UP: Instant procedural fade-out + animation duration exactly 1s
           const mergePos = centerInBoard(board, dst, TILE);
-          // 🔥 CRITICAL: Check if this is wild merge to pass isWildOnly flag for yellow shards
-          const isWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
-          const isWildJuiceMerge = srcSpecial === 'wild-juice' || dstSpecial === 'wild-juice';
-          const isWildMagnetMerge = isSpecialDiceMagnetLikeTile(src, srcSpecial) || isSpecialDiceMagnetLikeTile(dst, dstSpecial);
-          const isWildOnlyMerge = isWildMerge && !isWildJuiceMerge && !isWildMagnetMerge;
-          
           // 🎨 TEMPLATE-BASED: Use new template system for reliable pooling
           const reducedMergeFx = isBoardFxReduced();
           const regularMerge6Fx = getRegularMerge6FxProfile(reducedMergeFx);
@@ -11567,11 +11374,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
         // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
-        const currentFinalBlockersForSourceOfTruth = getFinalMergeTileSets({
-          tiles: collectBoardGameplayTiles(),
-          src,
-          dst,
-        }).finalMergeBlockersBefore;
         const hasRawLastMergeFlag =
           (dst as any)?._isLastMerge === true ||
           (src as any)?._isLastMerge === true;
@@ -11704,7 +11506,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           merge6SpawnOwnerToken = ++merge6SpawnOwnerSequence;
           activeMerge6SpawnOwnerToken = merge6SpawnOwnerToken;
           merge6SpawnInProgress = true;
-          merge6SpawnInProgressIsWild = isWildMerge6;
           lastEndgameBoardMutationAt = Date.now();
           devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
           clearMerge6SpawnResetTimer();
@@ -12193,7 +11994,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 reason: 'endgame-spawn-hard-fallback',
               });
             };
-            const runSpawn = (retry = false) => {
+            const runSpawn = () => {
               forceClearSpawnCell();
               return openAtCell(spawnC, spawnR, {
                 value: (wildMergeTarget ? randomRegularTileValue(wildMergeTarget) : null),
@@ -12208,7 +12009,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             let firstResult = await runSpawn();
             if (!firstResult) {
               forceClearSpawnCell();
-              firstResult = await runSpawn(true);
+              firstResult = await runSpawn();
             }
             if (!firstResult) {
               devWarn('⚠️ END-GAME SPAWN: Retry failed at (', spawnC, ',', spawnR, ')', '- forcing hard spawn');
@@ -12227,7 +12028,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const forcedOk = hardSpawnAtCell();
               if (!forcedOk) {
                 devWarn('🚨 END-GAME/LOW-TILE SPAWN VERIFY: hard spawn failed, attempting final retry via openAtCell');
-                await runSpawn(true);
+                await runSpawn();
               }
             }
             if (hasActiveTileAtMergeCell()) {
@@ -14617,8 +14418,6 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       });
     }
   } catch (error) {
-    // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
-    // If board-fail-modal fails, log error but don't show the old overlay
     devError('❌ CRITICAL: End-run modal failed - cannot show end screen:', error);
     devError('❌ This should never happen. Check board-fail-modal.js / clean-board-modal.js for errors.');
     // Don't show old stars modal - it's deprecated and shows wrong UI
@@ -15470,7 +15269,15 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   // 🔥 CRITICAL: Cleanup screen lifecycles (modal/transition)
   try {
     import('./clean-board-modal.js').then(m => m.cleanupCleanBoardModalLifecycle?.()).catch(() => {});
-    import('./board-transition-screen.js').then(m => m.cleanupBoardTransitionScreen?.()).catch(() => {});
+    import('./board-transition-screen.js')
+      .then(m => m.cleanupBoardTransitionScreen?.())
+      .catch((error) => {
+        // Navigation must not leave an opaque transition owner mounted merely
+        // because the lazy cleanup module failed to load or execute.
+        devError('[CC_BOARD_HANDOFF] navigation cleanup import failed', error);
+        try { document.getElementById('cc-board-transition-overlay')?.remove(); } catch {}
+        boardTransitionPresentationHandoff.cancel();
+      });
   } catch {}
   
   // Mobile save/resume listeners are boot-owned. Remove this boot's exact
@@ -15530,12 +15337,6 @@ export function startFreshGame() {
 
 // --- Game State Saving/Loading ---
 let lastSavedState = null;
-
-// --- GHOST PLACEHOLDER MANAGEMENT ---
-function updateAllGhostPlaceholders() {
-  // Ghost placeholders su sada fiksni i uvijek vidljivi
-  // Ne mijenjaju se, samo se crtaju u drawBoardBG
-}
 
 // Debounced save timer to prevent saving mid-animation
 let saveGameTimer = null;
@@ -15715,7 +15516,6 @@ async function loadGameState(overrideBoardNumber?: number) {
       devLog,
       devWarn,
       devError,
-      setWildJuiceSpawned: (v) => { wildJuiceSpawned = v; },
     });
 
     board?.sortChildren?.();

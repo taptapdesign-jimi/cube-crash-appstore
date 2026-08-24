@@ -1,7 +1,7 @@
 // Simple End Run Modal
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
-import { pauseGame, resumeGame } from './pause-utils.js';
+import { resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 import { clearArcadeSaveState, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
@@ -88,7 +88,6 @@ function hideModalWithCtas(clicked: HTMLButtonElement): void {
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
-const _endRunIntervals = new Set<ReturnType<typeof setInterval>>();
 const _endRunAnimationFrames = new Set<number>();
 const _endRunEventListeners: Array<{
   element: HTMLElement | Document;
@@ -109,12 +108,6 @@ function trackEndRunTimeout(callback: () => void, delay: number): ReturnType<typ
   }, delay);
   _endRunTimeouts.add(timeout);
   return timeout;
-}
-
-function trackEndRunInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
-  const interval = setInterval(callback, delay);
-  _endRunIntervals.add(interval);
-  return interval;
 }
 
 function trackEndRunAnimationFrame(callback: (now: number) => void): number {
@@ -143,9 +136,6 @@ function clearAllEndRunTimeouts(): void {
 }
 
 function clearAllEndRunIntervals(): void {
-  console.log(`🧹 end-run-modal: Clearing ${_endRunIntervals.size} intervals`);
-  _endRunIntervals.forEach(interval => clearInterval(interval));
-  _endRunIntervals.clear();
 }
 
 function clearAllEndRunAnimationFrames(): void {

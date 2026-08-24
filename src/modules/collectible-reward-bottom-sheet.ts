@@ -182,7 +182,7 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
 /**
  * Hide collectible reward bottom sheet
  */
-export async function hideCollectibleRewardBottomSheet(reason: string = 'dismiss', options: HideOptions = {}): Promise<void> {
+export async function hideCollectibleRewardBottomSheet(_reason: string = 'dismiss', options: HideOptions = {}): Promise<void> {
   const overlay = getActiveOverlay();
   if (!overlay || getIsClosing()) return;
 

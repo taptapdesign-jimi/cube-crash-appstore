@@ -37,7 +37,6 @@ const DEBOUNCE_MS = 50; // 50ms debounce window
 const MAX_MERGE_VALUE = 6; // Maximum merge value (merge 6)
 const MIN_TILES_FOR_MERGE = 2; // Minimum total tiles needed for any merge
 const DEFAULT_STACK_DEPTH = 1; // Default stack depth if not specified
-const MAX_OSCILLATION_CYCLES = 10; // Maximum oscillation cycles for animations (if used)
 
 // Debouncing system to prevent multiple simultaneous checks
 let lastCheckTime = 0;
@@ -81,11 +80,6 @@ export function clearEndgameCheckerCache(): void {
  */
 function tileIsWild(tile: any): boolean {
   return isWildLikeTile(tile);
-}
-
-function tileIsNonMagnetWild(tile: any): boolean {
-  if (!tileIsWild(tile)) return false;
-  return !isSpecialDiceMagnetLikeTile(tile);
 }
 
 function isVisibleLockedWildGameplayPresence(tile: any): boolean {
@@ -586,10 +580,6 @@ function isGameStuck(context: EndGameContext): boolean {
 /**
  * Check if moves are depleted and game should end
  */
-function isMovesDepleted(context: EndGameContext): boolean {
-  return context.moves === 0;
-}
-
 /**
  * 🔥 MAIN END GAME CHECKER
  * 
@@ -643,7 +633,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     logger.debug('🔥 EndGameChecker: Force refresh requested - bypassing cache', 'endgame-checker');
   }
   
-  const { tiles, moves, makeBoard } = context;
+  const { tiles } = context;
   
   logger.debug('🎯 EndGameChecker: Starting end game check (simplified rules)', 'endgame-checker');
 

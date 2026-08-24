@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
+import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 import gameState from '../modules/game-state.js';
 import { sliderState } from '../modules/slider-state.js';
@@ -108,17 +108,6 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
   activeTimeouts.add(timeout);
 };
 
-const getBaseTransform = (element: HTMLElement): string => {
-  const computedTransform = window.getComputedStyle(element).transform;
-  if (
-    computedTransform === 'matrix(0, 0, 0, 0, 0, 0)' ||
-    computedTransform === 'matrix3d(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)'
-  ) {
-    return '';
-  }
-  return computedTransform && computedTransform !== 'none' ? computedTransform : '';
-};
-
 const HOME_ENTER_DIAG_PREFIX = '🏠🧪 HOME_ENTER_DIAG';
 
 const getHomeEnterElementLabel = (element: HTMLElement): string => {
@@ -162,19 +151,6 @@ const logHomeEnterElementState = (phase: string, element: HTMLElement | null | u
     },
     ...extra,
   });
-};
-
-const easeHomeEnterScale = (progress: number): number => {
-  const clamped = Math.max(0, Math.min(1, progress));
-  const c1 = 1.35;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(clamped - 1, 3) + c1 * Math.pow(clamped - 1, 2);
-};
-
-const applyHomeEnterScale = (element: HTMLElement, baseTransform: string, scale: number): void => {
-  const transform = baseTransform ? `${baseTransform} scale(${scale})` : `scale(${scale})`;
-  element.style.setProperty('transform', transform, 'important');
-  element.style.setProperty('-webkit-transform', transform, 'important');
 };
 
 const removeHomeEnterClassesWithoutTransition = (

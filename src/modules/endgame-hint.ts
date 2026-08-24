@@ -29,7 +29,6 @@ const HINT_MESSAGES = [
 const IDLE_DELAY_MS = 20000;
 const VISIBLE_DURATION_MS = 3000;
 const REPEAT_DELAY_MS = 5000;
-const ROTATE_MS = 3000;
 const STYLE_ID = 'endgame-hint-style';
 const ENTER_BOUNCE_SCALE = 1.2;
 const ENTER_DURATION = 0.24;
@@ -436,10 +435,6 @@ function animateOut(onComplete?: () => void): void {
     tl.add(exitTl, 0);
   });
   activeTween = tl;
-}
-
-function startRotate(): void {
-  // Single message only; keep bounce loop in place.
 }
 
 function stopRotate(): void {

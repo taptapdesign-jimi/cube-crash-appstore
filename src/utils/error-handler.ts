@@ -221,7 +221,7 @@ class ErrorHandler {
   }
 
   // PIXI.js specific error handling
-  private handlePIXIError(error: Error | Event, context: string): void {
+  private handlePIXIError(_error: Error | Event, context: string): void {
     logger.warn('🎮 PIXI.js error detected, attempting recovery...');
     
     // Don't do anything during preloader phase
@@ -251,7 +251,7 @@ class ErrorHandler {
   }
 
   // Memory error handling
-  private handleMemoryError(error: Error | Event, context: string): void {
+  private handleMemoryError(_error: Error | Event, _context: string): void {
     logger.warn('💾 Memory error detected, attempting cleanup...');
     
     // Don't do anything during preloader phase
@@ -282,7 +282,7 @@ class ErrorHandler {
   }
 
   // Touch error handling
-  private handleTouchError(error: Error | Event, context: string): void {
+  private handleTouchError(_error: Error | Event, _context: string): void {
     logger.warn('👆 Touch error detected, attempting recovery...');
     
     // Re-initialize touch handlers

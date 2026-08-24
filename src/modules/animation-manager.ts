@@ -2,7 +2,6 @@
 // Handles all animations and transitions
 
 import { gsap } from 'gsap';
-import gameState from './game-state.js';
 import { logger } from '../core/logger.js';
 
 // Type definitions
@@ -41,7 +40,6 @@ class AnimationManager {
   private activeTweens: Set<gsap.core.Tween>; // 🔥 FIX: Track all active tweens for cleanup
   private activeTimelines: Set<gsap.core.Timeline>; // Track external timelines for cleanup
   private isInitialized: boolean;
-  private tweenCounter: number; // For generating unique IDs
   private killCleanupInstalled: WeakSet<object>;
 
   constructor() {
@@ -50,7 +48,6 @@ class AnimationManager {
     this.activeTweens = new Set(); // 🔥 FIX: Track all active tweens
     this.activeTimelines = new Set();
     this.isInitialized = false;
-    this.tweenCounter = 0;
     this.killCleanupInstalled = new WeakSet();
   }
 

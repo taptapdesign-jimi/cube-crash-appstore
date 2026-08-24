@@ -1,6 +1,5 @@
 [
   "src/collectibles-manager.ts",
-  "src/core/enhanced-memory-manager.ts",
   "src/main.ts",
   "src/modules/app-merge.ts",
   "src/modules/app-spawn.ts",
@@ -52,7 +51,6 @@
   "src/modules/special-dice-idle.ts",
   "src/modules/splash-text-overlay.ts",
   "src/modules/stars-collector.ts",
-  "src/modules/stars-modal.ts",
   "src/modules/text-bolts.ts",
   "src/modules/text-bubbly-sprites.ts",
   "src/modules/text-clouds.ts",

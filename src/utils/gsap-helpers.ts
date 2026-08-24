@@ -1,5 +1,3 @@
-import { gsap } from 'gsap';
-
 type TweenLike = gsap.core.Tween | gsap.core.Timeline;
 
 const tweenRegistry = new Map<string, Set<TweenLike>>();
@@ -41,7 +39,6 @@ export function killAllRegisteredTweens(): void {
     tweenRegistry.delete(contextId);
   });
 }
-
 
 
 

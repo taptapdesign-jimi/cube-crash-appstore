@@ -1,6 +1,6 @@
 // Type definitions for app.js
 
-import type { Application, Container, Graphics, Text, Rectangle, Texture, Sprite } from 'pixi.js';
+import type { Application, Container, Graphics } from 'pixi.js';
 
 // Game state types (ultra-permissive for quick TypeScript fix)
 export interface GameState {

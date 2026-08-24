@@ -1,7 +1,7 @@
 // src/modules/app-board.ts
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
+import { STATE, COLS, ROWS, TILE } from './app-state.js';
 import * as makeBoard from './board.js';
 import { createBoardPopInHapticSchedule, createBoardPopInPlan } from './board-popin-scheduler.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
@@ -573,69 +573,5 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       if (delayedCallRef) { try { delayedCallRef.kill(); } catch {} }
     };
-  });
-}
-
-// Classic ring "deal-in" animation
-function dealFromRim(listTiles: Tile[]): Promise<void> {
-  return new Promise(resolve => {
-    const size = { w: COLS * TILE + (COLS - 1) * GAP, h: ROWS * TILE + (ROWS - 1) * GAP };
-    const center = { x: size.w / 2, y: size.h / 2 };
-    const ring = Math.max(size.w, size.h) * 0.65;
-
-    const list = [...listTiles];
-    for (let i = list.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [list[i], list[j]] = [list[j], list[i]];
-    }
-
-    let done = 0;
-    list.forEach((t) => {
-      const tile = t as any;
-      const target = { x: tile.x, y: tile.y };
-      tile.visible = true;
-      makeBoard.syncTileZIndex(tile, STATE.board, true);
-
-      const dx = target.x - center.x, dy = target.y - center.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const ux = dx / len, uy = dy / len;
-      const sx = target.x + ux * ring, sy = target.y + uy * ring;
-
-      const enterDur = 0.72 + Math.random() * 0.21; // 50% slower, gentler
-      const baseDel = 0.03 + Math.random() * 0.06; // base minimal stagger
-      const originRow = (Math.random() * ROWS) | 0;
-      const originCol = (Math.random() * COLS) | 0;
-      const dist = Math.hypot((tile.gridX | 0) - originCol, (tile.gridY | 0) - originRow);
-      const waveSpacing = 0.045 + Math.random() * 0.020; // seconds per grid distance
-      const enterDel = baseDel + dist * waveSpacing + Math.random() * 0.05;
-
-      tile.position.set(sx, sy);
-      tile.scale.set(0.92 + Math.random() * 0.06);
-
-      trackTimeline({
-        delay: enterDel,
-        onComplete: () => {
-          makeBoard.syncTileZIndex(tile, STATE.board);
-          if (++done === list.length) resolve();
-        }
-      })
-        .to(tile, {
-          x: target.x,
-          y: target.y,
-          duration: enterDur,
-          ease: 'elastic.out(1,0.70)',
-          onUpdate: () => {
-            try {
-              (tile as any).refreshShadow?.();
-            } catch {}
-          }
-        }, 0)
-        .to(tile.scale, {
-          x: 1,
-          y: 1,
-          duration: enterDur,
-          ease: 'elastic.out(1,0.70)'
-        }, 0);
-    });
   });
 }

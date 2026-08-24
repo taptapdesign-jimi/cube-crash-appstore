@@ -364,7 +364,7 @@ export function listTemplates(): string[] {
  * Reset pattern counters (for testing/debugging)
  */
 export function resetPatternCounters(): void {
-  patternCounters.forEach((value, key) => {
+  patternCounters.forEach((_value, key) => {
     patternCounters.set(key, 0);
   });
   console.log('🔄 Pattern counters reset');
@@ -418,4 +418,3 @@ registerTemplate('wooden', woodenTemplate as Template);
 setActiveTemplate('wooden');
 
 console.log('🎨 Template Manager initialized with wooden template');
-
