@@ -12,6 +12,7 @@ import { logger } from '../core/logger.js';
 import { attachBubblySprites } from './text-bubbly-sprites.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { createMushroomSporeFlightProfiles } from './mushroom-spore-flight-plan.ts';
+import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -87,6 +88,28 @@ const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30;
 const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
 const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
 const WILD_JUICE_INPUT_LOCK_MS = 6200;
+const ROBO_FRAME_STEP_SECONDS = 0.19;
+const ROBO_NEON_DUPLICATE_COUNT = 3;
+const ROBO_EXTRA_NEON_COUNT = 7;
+const ROBO_BELOW_TEXT_DUPLICATE_RATIO = 0.60;
+const ROBO_FINALE_COMPLETE_MS = 2300;
+const ROBO_NEON_MOTION_START_MS = 760;
+const ROBO_NEON_MOTION_SECONDS = 0.62;
+const ROBO_NEON_EXIT_START_MS = 1450;
+const ROBO_BOING_OFFSETS = [
+  { x: -20, y: -12 },
+  { x: 16, y: 20 },
+  { x: 20, y: -18 },
+  { x: -14, y: 16 },
+  { x: -20, y: -20 },
+  { x: 18, y: 10 },
+  { x: -10, y: 20 },
+  { x: 20, y: -8 },
+  { x: -18, y: 14 },
+  { x: 12, y: -20 },
+  { x: 20, y: 18 },
+  { x: 0, y: 0 },
+] as const;
 
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
@@ -192,6 +215,11 @@ function triggerWildJuiceHapticBurst(spawnDurationMs: number): void {
   } catch {}
 }
 
+function triggerRoboFinaleHaptics(): void {
+  scheduleHapticPulseTrain(80, 3, 95);
+  scheduleHapticPulseTrain(1780, 3, 80);
+}
+
 function getFxHost(stage: any): any {
   if (!stage || stage.destroyed) return null;
   const w = typeof window !== 'undefined' ? (window as any) : null;
@@ -285,8 +313,9 @@ type WildJuiceBubblesExplosionOptions = {
   textColor?: string;
   textColors?: string[];
   direction?: 'up' | 'down';
-  dropProfile?: 'beach-ball' | 'mushroom';
+  dropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   spritePaths?: string[] | null;
+  accentSpritePaths?: string[] | null;
   inputReleaseAtRatio?: number;
   gameplayReleaseAtSpawnRatio?: number;
   onGameplayRelease?: () => void;
@@ -538,6 +567,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   const direction = options.direction === 'down' ? 'down' : 'up';
   const isCustomDownDrop = direction === 'down' && !usesDefaultBubbleSprites;
   const isMushroomDrop = isCustomDownDrop && options.dropProfile === 'mushroom';
+  const isRoboDrop = isCustomDownDrop && options.dropProfile === 'robo';
   if (isMushroomDrop) {
     // Mushroom grows from below the physical viewport, so its canvas must own
     // the foreground over the DOM Round indicator and Journey bottom decor.
@@ -546,18 +576,21 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   // iOS stability: keep the premium feel, but avoid saturating the renderer during repeated wild merges.
-  const totalBubbles = isMushroomDrop ? MUSHROOM_GROWTH_COUNT : isCustomDownDrop ? 29 : 48;
+  const totalBubbles = isMushroomDrop ? MUSHROOM_GROWTH_COUNT : isRoboDrop ? 1 : isCustomDownDrop ? 29 : 48;
   const lateBurstCount = isCustomDownDrop ? 0 : 18;
   const spawnDuration = isMushroomDrop
     ? (MUSHROOM_GROWTH_COUNT - 1) * MUSHROOM_GROWTH_STAGGER_MS
+    : isRoboDrop ? 1500
     : isCustomDownDrop ? 1300 : 1500;
   const spawnBatchSize = isMushroomDrop ? 1 : isCustomDownDrop ? 2 : 3;
   const maxActive = isMushroomDrop ? MUSHROOM_GROWTH_COUNT + MUSHROOM_POLLEN_COUNT : isCustomDownDrop ? 21 : 34;
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = isMushroomDrop
     ? 5400
+    : isRoboDrop ? ROBO_FINALE_COMPLETE_MS + 300
     : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
-  triggerWildJuiceHapticBurst(spawnDuration);
+  if (isRoboDrop) triggerRoboFinaleHaptics();
+  else triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1076,6 +1109,330 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   // profile-specific spawn branch can return (Mushroom owns scheduled waves).
   if (options.showText !== false) {
     createAndShowBubblyText({ text: options.text, color: options.textColor, colors: options.textColors });
+  }
+
+  if (isRoboDrop) {
+    const accentPaths = Array.isArray(options.accentSpritePaths)
+      ? options.accentSpritePaths.filter(Boolean)
+      : [];
+    const accentTextures = (await Promise.allSettled(accentPaths.map((path) => Assets.load(path))))
+      .flatMap((result) => result.status === 'fulfilled' && result.value ? [result.value as Texture] : []);
+    const roboAnimations: any[] = [];
+    const robotTexture = bubbleTextures[0];
+    const robot = bubblePool.acquire(robotTexture);
+    const robotBaseWidth = Math.min(screenW * 0.576, 288);
+    const robotBaseScale = robotBaseWidth / Math.max(1, robotTexture.width);
+    const robotOriginX = screenW * 0.5;
+    const robotOriginY = screenH * 0.70 + 80;
+    robot.anchor.set(0.5);
+    robot.x = robotOriginX;
+    robot.y = robotOriginY;
+    robot.alpha = 0;
+    robot.rotation = -0.035;
+    robot.scale.set(robotBaseScale * 0.72);
+    robot.eventMode = 'none';
+    robot.zIndex = 10000;
+    explosionContainer.addChild(robot);
+    const robotTimeline = trackTimeline();
+    roboAnimations.push(robotTimeline);
+    robotTimeline.to(robot, {
+      alpha: 1,
+      rotation: 0,
+      duration: 0.10,
+      ease: 'power2.out',
+    });
+    robotTimeline.to(robot.scale, {
+      x: robotBaseScale,
+      y: robotBaseScale,
+      duration: 0.10,
+      ease: 'back.out(2.2)',
+    }, 0);
+    const robotTexturePool = bubbleTextures.slice(0, 12);
+    let previousRobotTextureIndex = 0;
+    const robotFrameSequence = Array.from({ length: 10 }, () => {
+      const availableTextureIndices = robotTexturePool
+        .map((_texture, textureIndex) => textureIndex)
+        .filter((textureIndex) => textureIndex !== previousRobotTextureIndex);
+      const textureIndex = availableTextureIndices[Math.floor(Math.random() * availableTextureIndices.length)] ?? 0;
+      previousRobotTextureIndex = textureIndex;
+      return { texture: robotTexturePool[textureIndex], textureIndex };
+    });
+    robotFrameSequence.forEach(({ texture, textureIndex }, sequenceIndex) => {
+      const frameStart = 0.10 + sequenceIndex * ROBO_FRAME_STEP_SECONDS;
+      const boingOffset = ROBO_BOING_OFFSETS[Math.floor(Math.random() * ROBO_BOING_OFFSETS.length)]
+        ?? ROBO_BOING_OFFSETS[ROBO_BOING_OFFSETS.length - 1];
+      const normalizedSequenceProgress = sequenceIndex / Math.max(1, robotFrameSequence.length - 1);
+      const progressToPeak = 1 - Math.abs(normalizedSequenceProgress * 2 - 1);
+      const frameScale = robotBaseScale * (1 + Math.max(0, progressToPeak) * 0.5);
+      const targetX = robotOriginX + boingOffset.x * 0.55;
+      const targetY = robotOriginY + boingOffset.y * 0.55;
+      const targetRotation = (Math.random() * 0.024) - 0.012;
+      const fadeOutSeconds = ROBO_FRAME_STEP_SECONDS * 0.42;
+      const fadeInSeconds = ROBO_FRAME_STEP_SECONDS * 0.56;
+      robotTimeline.to(robot, {
+        alpha: 0,
+        duration: fadeOutSeconds,
+        ease: 'sine.in',
+      }, frameStart);
+      robotTimeline.call(() => {
+        if (!robot.destroyed) {
+          robot.texture = texture;
+          applyGameplayTextureFiltering(robot.texture);
+        }
+      }, undefined, frameStart + ROBO_FRAME_STEP_SECONDS * 0.44);
+      robotTimeline.to(robot, {
+        x: targetX,
+        y: targetY,
+        rotation: targetRotation,
+        alpha: 1,
+        duration: fadeInSeconds,
+        ease: 'sine.out',
+      }, frameStart + ROBO_FRAME_STEP_SECONDS * 0.44);
+      robotTimeline.to(robot.scale, {
+        x: frameScale,
+        y: frameScale,
+        duration: ROBO_FRAME_STEP_SECONDS * 0.92,
+        ease: 'sine.inOut',
+      }, frameStart);
+    });
+    const robotFramesEnd = 0.10 + robotFrameSequence.length * ROBO_FRAME_STEP_SECONDS;
+    const deathDirection = Math.random() < 0.5 ? -1 : 1;
+    robotTimeline.to(robot, {
+      rotation: deathDirection * 0.09,
+      x: robotOriginX + deathDirection * (8 + Math.random() * 12),
+      y: robotOriginY + (Math.random() * 16 - 8),
+      duration: 0.04,
+      ease: 'power1.inOut',
+    }, robotFramesEnd + 0.02);
+    robotTimeline.to(robot, {
+      rotation: -deathDirection * 0.16,
+      alpha: 0,
+      duration: 0.08,
+      ease: 'back.in(1.8)',
+    });
+    robotTimeline.to(robot.scale, {
+      x: robotBaseScale * 0.08,
+      y: robotBaseScale * 0.08,
+      duration: 0.08,
+      ease: 'back.in(2.2)',
+    }, '<');
+
+    const neonSprites: Array<{
+      sprite: Sprite;
+      originX: number;
+      originY: number;
+      phase: number;
+      rotationDirection: -1 | 1;
+      targetScale: number;
+      minimumAlpha: number;
+      scatterX: number;
+      scatterY: number;
+    }> = [];
+    if (accentTextures.length) {
+      const upperNeonCount = accentTextures.length * ROBO_NEON_DUPLICATE_COUNT + ROBO_EXTRA_NEON_COUNT;
+      const belowTextDuplicateCount = Math.round(upperNeonCount * ROBO_BELOW_TEXT_DUPLICATE_RATIO);
+      const neonCount = upperNeonCount + belowTextDuplicateCount;
+      const heartCount = 5;
+      const neonTextureIndices = [
+        ...Array.from({ length: Math.min(heartCount, neonCount) }, () => 0),
+        ...Array.from({ length: Math.max(0, neonCount - heartCount) }, () => (
+          accentTextures.length > 1
+            ? 1 + Math.floor(Math.random() * (accentTextures.length - 1))
+            : 0
+        )),
+      ].sort(() => Math.random() - 0.5);
+      const placedNeonOrigins: Array<{ x: number; y: number; diameter: number }> = [];
+      const enlargedIndices = new Set(
+        Array.from({ length: neonCount }, (_, index) => index)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.round(neonCount * 0.50)),
+      );
+      for (let index = 0; index < neonCount; index += 1) {
+        const texture = accentTextures[neonTextureIndices[index] ?? 0] ?? accentTextures[0];
+        const neon = bubblePool.acquire(texture);
+        const targetWidth = Math.min(52, screenW * (0.105 + (index % 3) * 0.012));
+        const sizeMultiplier = enlargedIndices.has(index) ? 1.40 : 1;
+        const targetScale = (targetWidth / Math.max(1, texture.width)) * sizeMultiplier;
+        const popDiameter = targetWidth * sizeMultiplier * 1.28;
+        const horizontalMargin = popDiameter * 0.5 + 6;
+        const topLimit = screenH * 0.14 + popDiameter * 0.5;
+        const bottomLimit = screenH * 0.91 - popDiameter * 0.5;
+        let bestOrigin = {
+          x: horizontalMargin + Math.random() * Math.max(1, screenW - horizontalMargin * 2),
+          y: topLimit + Math.random() * Math.max(1, bottomLimit - topLimit),
+          clearance: Number.NEGATIVE_INFINITY,
+        };
+        for (let attempt = 0; attempt < 120; attempt += 1) {
+          const candidateX = horizontalMargin + Math.random() * Math.max(1, screenW - horizontalMargin * 2);
+          const candidateY = topLimit + Math.random() * Math.max(1, bottomLimit - topLimit);
+          const clearance = placedNeonOrigins.reduce((minimum, placed) => {
+            const distance = Math.hypot(candidateX - placed.x, candidateY - placed.y);
+            const requiredDistance = (popDiameter + placed.diameter) * 0.5 + 16;
+            return Math.min(minimum, distance - requiredDistance);
+          }, Number.POSITIVE_INFINITY);
+          if (clearance > bestOrigin.clearance) {
+            bestOrigin = { x: candidateX, y: candidateY, clearance };
+          }
+          if (clearance >= 0) break;
+        }
+        const originX = bestOrigin.x;
+        const originY = bestOrigin.y;
+        placedNeonOrigins.push({ x: originX, y: originY, diameter: popDiameter });
+        const minimumAlpha = 0.75 + Math.random() * 0.20;
+        const rotationDirection: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+        const scatterAngle = Math.random() * Math.PI * 2;
+        const scatterDistance = 20 + Math.random() * 32;
+        neon.anchor.set(0.5);
+        neon.x = originX;
+        neon.y = originY;
+        neon.alpha = 0;
+        neon.rotation = 0;
+        neon.scale.set(0);
+        neon.eventMode = 'none';
+        neon.zIndex = 240 + index;
+        explosionContainer.addChild(neon);
+        neonSprites.push({
+          sprite: neon,
+          originX,
+          originY,
+          phase: Math.random() * Math.PI * 2,
+          rotationDirection,
+          targetScale,
+          minimumAlpha,
+          scatterX: Math.cos(scatterAngle) * scatterDistance,
+          scatterY: Math.sin(scatterAngle) * scatterDistance,
+        });
+
+        const enterTl = trackTimeline({ delay: 0.02 + index * 0.016 });
+        roboAnimations.push(enterTl);
+        // Exact presentation inverse of the authored exit: pop from zero to
+        // the oversized exit pose, settle to authored size, then unwind both
+        // wobble beats back to the stable orbit origin.
+        enterTl.to(neon.scale, {
+          x: targetScale * 1.28,
+          y: targetScale * 1.28,
+          duration: 0.13,
+          ease: 'back.out(2.5)',
+        });
+        enterTl.to(neon, {
+          alpha: 1,
+          duration: 0.09,
+          ease: 'power2.out',
+        }, 0);
+        enterTl.to(neon.scale, {
+          x: targetScale,
+          y: targetScale,
+          duration: 0.07,
+          ease: 'power2.in',
+        });
+        enterTl.to(neon, {
+          x: originX - rotationDirection * 6,
+          rotation: -rotationDirection * 0.34,
+          duration: 0.05,
+          ease: 'power1.inOut',
+        });
+        enterTl.to(neon, {
+          x: originX + rotationDirection * 6,
+          rotation: rotationDirection * 0.34,
+          duration: 0.05,
+          ease: 'power1.inOut',
+        });
+        enterTl.to(neon, {
+          x: originX,
+          rotation: 0,
+          duration: 0.05,
+          ease: 'back.out(2.1)',
+        });
+      }
+
+      const neonMotion = { time: 0, progress: 0 };
+      let neonMotionTween: gsap.core.Tween | null = null;
+      lifecycle.trackTimeout(() => {
+        if (!isExplosionActive || cleanupInProgress) return;
+        neonMotionTween = trackTween(neonMotion, {
+          time: Math.PI * 4,
+          progress: 1,
+          duration: ROBO_NEON_MOTION_SECONDS,
+          ease: 'none',
+          onUpdate: () => {
+            neonSprites.forEach(({
+              sprite,
+              originX,
+              originY,
+              phase,
+              rotationDirection,
+              targetScale,
+              minimumAlpha,
+              scatterX,
+              scatterY,
+            }, index) => {
+              if (!sprite || sprite.destroyed || !sprite.parent) return;
+              const wave = neonMotion.time + phase;
+              const circularRadius = 8 + (index % 4) * 2.5;
+              const scatterProgress = Math.max(0, (neonMotion.progress - 0.62) / 0.38);
+              const easedScatter = scatterProgress * scatterProgress;
+              sprite.x = originX
+                + Math.cos(wave) * circularRadius
+                + scatterX * easedScatter;
+              sprite.y = originY
+                + Math.sin(wave * 0.92) * circularRadius * 0.65
+                + scatterY * easedScatter;
+              sprite.rotation = Math.sin(wave * 0.82) * 0.24 * rotationDirection;
+              const pulse = (Math.sin(wave * 1.31) + 1) * 0.5;
+              const pulseScale = targetScale * (0.92 + pulse * 0.14);
+              sprite.scale.set(pulseScale);
+              sprite.alpha = minimumAlpha + (1 - minimumAlpha) * pulse;
+            });
+          },
+        });
+        roboAnimations.push(neonMotionTween);
+      }, ROBO_NEON_MOTION_START_MS);
+
+      lifecycle.trackTimeout(() => {
+        animationManager.killExternalTween(neonMotionTween);
+        neonMotionTween = null;
+        neonSprites.forEach(({ sprite, rotationDirection }, index) => {
+          if (!sprite || sprite.destroyed || !sprite.parent) return;
+          const popTl = trackTimeline({ delay: index * 0.014 });
+          roboAnimations.push(popTl);
+          popTl.to(sprite, {
+            x: sprite.x + rotationDirection * 6,
+            rotation: rotationDirection * 0.34,
+            duration: 0.06,
+            ease: 'power1.inOut',
+          });
+          popTl.to(sprite, {
+            x: sprite.x - rotationDirection * 6,
+            rotation: -rotationDirection * 0.34,
+            duration: 0.06,
+            ease: 'power1.inOut',
+          });
+          popTl.to(sprite.scale, {
+            x: sprite.scale.x * 1.28,
+            y: sprite.scale.y * 1.28,
+            duration: 0.08,
+            ease: 'power2.out',
+          });
+          popTl.to(sprite.scale, {
+            x: 0,
+            y: 0,
+            duration: 0.14,
+            ease: 'back.in(2.5)',
+          });
+          popTl.to(sprite, { alpha: 0, duration: 0.10, ease: 'power2.in' }, '<');
+        });
+      }, ROBO_NEON_EXIT_START_MS);
+    }
+
+    (robot as any)._bubbleTweens = roboAnimations;
+    neonSprites.forEach(({ sprite }) => {
+      (sprite as any)._bubbleTweens = roboAnimations;
+    });
+    lifecycle.trackTimeout(() => {
+      notifySequenceComplete();
+      cleanup();
+    }, ROBO_FINALE_COMPLETE_MS);
+    return;
   }
 
   if (isMushroomDrop) {

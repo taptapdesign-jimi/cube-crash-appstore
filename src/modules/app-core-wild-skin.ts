@@ -6,6 +6,11 @@ import {
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isWildLikeSpecial } from './final-merge-rules.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
+import {
+  isUsablePixiImageTexture,
+  pinPixiImageTexture,
+  reloadPixiImageTexture,
+} from '../utils/pixi-image-texture-health.ts';
 
 type WildSkinDeps = {
   Assets: { get: (key: string) => any; load?: (key: string) => Promise<any> };
@@ -75,7 +80,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     }
     const specialVisual = getSpecialDiceVisualConfig(tile);
     const applyResolvedTexture = (resolvedTexture: any): boolean => {
-      if (!base || !resolvedTexture || resolvedTexture === Texture.EMPTY || tile.destroyed) return false;
+      if (!base || tile.destroyed || !isUsablePixiImageTexture(resolvedTexture)) return false;
+      pinPixiImageTexture(resolvedTexture);
       // Force set texture even if it's already set (prevents texture loss)
       base.texture = resolvedTexture;
       const faceSize = tile.special === 'wild-magnet' ? TILE * 0.96 : TILE;
@@ -111,16 +117,26 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
       return true;
     };
 
-    // Apply a cached/placeholder texture immediately, then confirm the decoded
-    // custom texture asynchronously. iOS cold starts can expose Texture.from()
-    // before the underlying image has completed decoding.
-    const tex = Assets.get(requestedAssetPath) || Texture.from(requestedAssetPath);
-    applyResolvedTexture(tex);
+    // Never attach Texture.from(path)'s unresolved placeholder to a live Pixi
+    // sprite. Pixi 8 may invalidate that placeholder's source after a failed or
+    // superseded load, and the batch renderer then crashes while reading uid or
+    // alphaMode. Keep the tile's current safe texture until a decoded source is
+    // available.
+    applyResolvedTexture(Assets.get(requestedAssetPath));
     if (specialVisual && typeof Assets.load === 'function') {
       void Assets.load(requestedAssetPath).then((loadedTexture: any) => {
         if (tile.destroyed) return;
         if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return;
-        applyResolvedTexture(loadedTexture || Assets.get(requestedAssetPath));
+        const resolvedTexture = loadedTexture || Assets.get(requestedAssetPath);
+        if (!applyResolvedTexture(resolvedTexture)) {
+          void reloadPixiImageTexture(requestedAssetPath).then((reloadedTexture) => {
+            if (tile.destroyed) return;
+            if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return;
+            applyResolvedTexture(reloadedTexture);
+          }).catch((error: unknown) => {
+            devWarn('⚠️ Special dice texture source recovery failed', { requestedAssetPath, error });
+          });
+        }
       }).catch((error: unknown) => {
         devWarn('⚠️ Special dice texture decode retry failed', { requestedAssetPath, error });
       });

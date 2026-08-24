@@ -71,7 +71,7 @@ export function startWildJuiceBubbles(tile) {
   const isBeachBall = specialVariantId === 'beach-ball';
   const usesJuiceFizzMotion = !isHoney && !isBottle;
   const bubbleMotionScale = isHoney ? 1.3 : usesJuiceFizzMotion ? 1.4 : 1;
-  if (specialVariantId === 'mushroom') {
+  if (specialVariantId === 'mushroom' || specialVariantId === 'robo-cube') {
     stopWildJuiceBubbles(tile);
     return;
   }

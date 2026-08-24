@@ -9,6 +9,7 @@ const PROJECT = path.join(STACK_ROOT, 'Stack to Six.xcodeproj');
 const SCHEME = path.join(PROJECT, 'xcshareddata/xcschemes/Stack to Six.xcscheme');
 const PBXPROJ = path.join(PROJECT, 'project.pbxproj');
 const CONTROLLER = path.join(STACK_ROOT, 'Stack to Six/GameViewController.swift');
+const INFO_PLIST = path.join(STACK_ROOT, 'Info.plist');
 const PRIVACY_MANIFEST = path.join(STACK_ROOT, 'Stack to Six/PrivacyInfo.xcprivacy');
 const WEB_BUNDLE = path.join(STACK_ROOT, 'Stack to Six/Web.bundle');
 const EXPECTED_BUNDLE_ID = 'com.taptapdesign.stacktosix.Stack-to-Six';
@@ -77,6 +78,7 @@ if (!sourceOnly) {
   requireCondition(fs.existsSync(SCHEME), `missing shared Stack to Six scheme: ${SCHEME}`);
   requireCondition(fs.existsSync(PBXPROJ), `missing Xcode project file: ${PBXPROJ}`);
   requireCondition(fs.existsSync(CONTROLLER), `missing Stack to Six GameViewController: ${CONTROLLER}`);
+  requireCondition(fs.existsSync(INFO_PLIST), `missing Stack to Six Info.plist: ${INFO_PLIST}`);
   requireCondition(fs.existsSync(PRIVACY_MANIFEST), `missing Stack to Six privacy manifest: ${PRIVACY_MANIFEST}`);
 
   if (fs.existsSync(PBXPROJ)) {
@@ -91,6 +93,15 @@ if (!sourceOnly) {
     requireCondition(configuredBundleIds.length > 0, 'Xcode project has no PRODUCT_BUNDLE_IDENTIFIER setting');
     requireCondition(configuredBundleIds.includes(EXPECTED_BUNDLE_ID), `Xcode app target must use ${EXPECTED_BUNDLE_ID}`);
     requireCondition(configuredBundleIds.every((bundleId) => allowedBundleIds.has(bundleId)), `Xcode project contains an unexpected bundle ID: ${[...new Set(configuredBundleIds)].join(', ')}`);
+    const deploymentTargets = [...projectText.matchAll(/IPHONEOS_DEPLOYMENT_TARGET\s*=\s*([^;]+);/g)]
+      .map((match) => match[1].trim());
+    const deviceFamilies = [...projectText.matchAll(/TARGETED_DEVICE_FAMILY\s*=\s*([^;]+);/g)]
+      .map((match) => match[1].trim().replace(/^"|"$/g, ''));
+    const marketingVersions = [...projectText.matchAll(/MARKETING_VERSION\s*=\s*([^;]+);/g)]
+      .map((match) => match[1].trim());
+    requireCondition(deploymentTargets.length > 0 && deploymentTargets.every((target) => target === '17.0'), 'all explicit iOS deployment targets must be 17.0');
+    requireCondition(deviceFamilies.length > 0 && deviceFamilies.every((family) => family === '1'), 'Stack to Six v1 must be iPhone-only (TARGETED_DEVICE_FAMILY = 1)');
+    requireCondition(marketingVersions.length > 0 && marketingVersions.every((version) => version === '1.0'), 'Stack to Six v1 marketing version must remain 1.0');
 
     const appTarget = projectText.match(/([A-F0-9]{24}) \/\* Stack to Six \*\/ = \{\s*isa = PBXNativeTarget;[\s\S]*?productName = "Stack to Six";/);
     requireCondition(Boolean(appTarget), 'could not resolve the Stack to Six PBXNativeTarget');
@@ -106,7 +117,17 @@ if (!sourceOnly) {
     }
   }
   if (fs.existsSync(CONTROLLER)) {
-    requireCondition(/private static let useDevServer\s*=\s*false/.test(fs.readFileSync(CONTROLLER, 'utf8')), 'GameViewController useDevServer must be false for bundled QA');
+    const controllerText = fs.readFileSync(CONTROLLER, 'utf8');
+    requireCondition(/private static let useDevServer\s*=\s*false/.test(controllerText), 'GameViewController useDevServer must be false for bundled QA');
+    requireCondition(controllerText.includes('return .portrait'), 'GameViewController must lock the iPhone-only v1 app to portrait');
+    requireCondition(controllerText.includes('decidePolicyFor navigationAction'), 'GameViewController must enforce the native navigation allowlist');
+    requireCondition(controllerText.includes('isTrustedGameURL'), 'GameViewController must recognize only the trusted bundled/dev game origin');
+    requireCondition(controllerText.includes('UIApplication.shared.open'), 'GameViewController must open explicit external HTTPS links outside the game WebView');
+  }
+  if (fs.existsSync(INFO_PLIST)) {
+    const infoText = fs.readFileSync(INFO_PLIST, 'utf8');
+    requireCondition(!infoText.includes('NSAllowsArbitraryLoadsInWebContent'), 'Info.plist must not allow arbitrary network loads inside WKWebView');
+    requireCondition(!infoText.includes('UISupportedInterfaceOrientations~ipad'), 'iPhone-only v1 must not declare an iPad orientation surface');
   }
   if (fs.existsSync(PRIVACY_MANIFEST)) {
     const privacyText = fs.readFileSync(PRIVACY_MANIFEST, 'utf8');
@@ -136,8 +157,19 @@ if (builtApp) {
   const builtPrivacyManifest = path.join(builtApp, 'PrivacyInfo.xcprivacy');
   requireCondition(fs.existsSync(infoPlist), `built app Info.plist is missing: ${infoPlist}`);
   if (fs.existsSync(infoPlist)) {
-    const plist = spawnSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIdentifier', infoPlist], { encoding: 'utf8' });
-    requireCondition(plist.status === 0 && plist.stdout.trim() === EXPECTED_BUNDLE_ID, `built app bundle ID is not ${EXPECTED_BUNDLE_ID}`);
+    const readPlist = (key) => spawnSync('/usr/libexec/PlistBuddy', ['-c', `Print :${key}`, infoPlist], { encoding: 'utf8' });
+    const bundleId = readPlist('CFBundleIdentifier');
+    const marketingVersion = readPlist('CFBundleShortVersionString');
+    const minimumOS = readPlist('MinimumOSVersion');
+    const deviceFamily = readPlist('UIDeviceFamily');
+    const orientations = readPlist('UISupportedInterfaceOrientations');
+    const arbitraryWebLoads = readPlist('NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent');
+    requireCondition(bundleId.status === 0 && bundleId.stdout.trim() === EXPECTED_BUNDLE_ID, `built app bundle ID is not ${EXPECTED_BUNDLE_ID}`);
+    requireCondition(marketingVersion.status === 0 && marketingVersion.stdout.trim() === '1.0', 'built app marketing version is not 1.0');
+    requireCondition(minimumOS.status === 0 && minimumOS.stdout.trim() === '17.0', 'built app minimum iOS version is not 17.0');
+    requireCondition(deviceFamily.status === 0 && /\b1\b/.test(deviceFamily.stdout) && !/\b2\b/.test(deviceFamily.stdout), 'built app is not iPhone-only');
+    requireCondition(orientations.status === 0 && orientations.stdout.includes('UIInterfaceOrientationPortrait') && !orientations.stdout.includes('Landscape'), 'built app is not portrait-only');
+    requireCondition(arbitraryWebLoads.status !== 0, 'built app still allows arbitrary WKWebView network loads');
   }
   requireCondition(fs.existsSync(builtPrivacyManifest), `built app privacy manifest is missing: ${builtPrivacyManifest}`);
   verifyRawAssets(path.join(builtApp, 'Web.bundle'), 'built Stack to Six app');

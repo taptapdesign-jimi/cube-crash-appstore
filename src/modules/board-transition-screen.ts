@@ -58,6 +58,7 @@ let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track sce
 let activeSceneElements: HTMLElement[] = []; // Animated scene layer elements (hill wrappers + regular images)
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
+let roboGroundAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
 let isCleaningUp = false;
 let activeTransitionSettlement: BoardTransitionSettlement | null = null;
@@ -392,6 +393,28 @@ function stopBeachAmbientMotion(sceneImg: HTMLElement): void {
     try { timeline.kill(); } catch {}
   });
   beachAmbientTimelines.delete(sceneImg);
+}
+
+function startRoboGroundAmbientMotion(sceneImg: HTMLElement, layerKey: string, restX: number): void {
+  const firstDirection = layerKey === 'robo-ground-rear' ? 1 : -1;
+  const timeline = trackTimeline({ repeat: -1 });
+  contentTimelines.push(timeline);
+  const owned = roboGroundAmbientTimelines.get(sceneImg) ?? [];
+  owned.push(timeline);
+  roboGroundAmbientTimelines.set(sceneImg, owned);
+  sceneImg.style.willChange = 'transform';
+  timeline
+    .to(sceneImg, { x: restX + firstDirection * 40, duration: 4.2, ease: 'sine.inOut' })
+    .to(sceneImg, { x: restX - firstDirection * 40, duration: 8.4, ease: 'sine.inOut' })
+    .to(sceneImg, { x: restX, duration: 4.2, ease: 'sine.inOut' });
+}
+
+function stopRoboGroundAmbientMotion(sceneImg: HTMLElement): void {
+  const owned = roboGroundAmbientTimelines.get(sceneImg) ?? [];
+  owned.forEach((timeline) => {
+    try { timeline.kill(); } catch {}
+  });
+  roboGroundAmbientTimelines.delete(sceneImg);
 }
 
 function resetPooledImage(img: HTMLImageElement): void {
@@ -1331,11 +1354,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 
       const sceneEnterSpeedFactor = 0.945;
       orderedSceneImages.forEach((sceneImg, index) => {
-        const sceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor);
-        const direction = index % 2 === 0 ? -1 : 1;
         const layerKey = sceneImg.dataset.sceneLayer || '';
+        const proceduralSceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor);
+        const sceneEnterStart = resolvedTheme === 'area55' && layerKey === 'robo-front'
+          ? 0
+          : proceduralSceneEnterStart;
+        const direction = index % 2 === 0 ? -1 : 1;
         const motionRole = sceneImg.dataset.motionRole || '';
         const isBeachCurtain = resolvedTheme === 'beach' && motionRole === 'curtain';
+        const isRoboScene = resolvedTheme === 'area55';
+        const isRoboFront = isRoboScene && layerKey === 'robo-front';
+        const isRoboWalker = isRoboScene && layerKey === 'robo-walker';
         const palmPlacement = isBeachCurtain
           ? beachVariation?.palms[layerKey as keyof BeachTransitionVariation['palms']]
           : undefined;
@@ -1355,16 +1384,18 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const hillBaseScale = getTransitionHillBaseScale(layerKey);
         const hillBaseX = getTransitionHillBaseX(layerKey);
         const hillStartYOffset = Math.round(Math.min(window.innerHeight || 760, 760) * 0.4);
+        const roboInitialScale = isRoboFront || layerKey === 'robo-ship' ? 1 : 0;
+        const roboFrontStartX = -Math.max(360, window.innerWidth);
         gsap.set(sceneImg, {
-          opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0,
+          opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0,
           xPercent: -50,
           yPercent: 0,
-          x: isHill ? hillBaseX - hillParallaxX * 0.18 : 0,
-          y: isHill ? hillStartYOffset : isBeachCurtain ? beachPalmEnterStartY : isBeachFrontShore ? 0 : 14,
-          scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : 0,
-          scaleX: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : 0,
-          scaleY: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : 0,
-          rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : direction * 8,
+          x: isHill ? hillBaseX - hillParallaxX * 0.18 : isRoboFront ? roboFrontStartX : 0,
+          y: isHill ? hillStartYOffset : isBeachCurtain ? beachPalmEnterStartY : isBeachFrontShore ? 0 : isRoboScene && (isRoboFront || layerKey === 'robo-ship') ? 0 : 14,
+          scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          scaleX: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          scaleY: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0,
+          rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : isRoboScene && (isRoboFront || layerKey === 'robo-ship') ? 0 : direction * 8,
           rotationX: 0,
           rotationY: 0,
           transformOrigin: 'center bottom',
@@ -1414,6 +1445,90 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               sceneImg.style.visibility = 'hidden';
               sceneImg.style.willChange = 'auto';
             },
+          });
+        } else if (isRoboScene) {
+          if (isRoboFront) {
+            const roboFrontEndX = Math.max(640, window.innerWidth * 1.65);
+            sceneEnterTimeline
+              .to(sceneImg, { x: roboFrontStartX * 0.28, y: -7, rotation: 3, scale: 1.01, duration: 0.34, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.10, y: 7, rotation: -3, scale: 0.99, duration: 0.42, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.32, y: -9, rotation: 3, scale: 1.01, duration: 0.44, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.56, y: 9, rotation: -3, scale: 0.99, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboFrontEndX * 0.80, y: -6, rotation: 2, scale: 1.01, duration: 0.46, ease: 'none' })
+              .to(sceneImg, {
+                x: roboFrontEndX,
+                y: 6,
+                rotation: -2,
+                scale: 1,
+                duration: 0.48,
+                ease: 'none',
+                onComplete: () => {
+                  sceneImg.style.opacity = '0';
+                  sceneImg.style.visibility = 'hidden';
+                  sceneImg.style.willChange = 'auto';
+                },
+              });
+          } else if (isRoboWalker) {
+            const roboWalkerEndX = -Math.max(270, window.innerWidth * 0.72);
+            sceneEnterTimeline
+              .to(sceneImg, {
+                opacity: 1,
+                x: 0,
+                y: 0,
+                rotation: 0,
+                scale: 1.04,
+                duration: 0.3 * sceneEnterSpeedFactor,
+                ease: 'back.out(2.0)',
+              })
+              .to(sceneImg, { scale: 0.95, duration: 0.1 * sceneEnterSpeedFactor, ease: 'power2.out' })
+              .to(sceneImg, { scale: 1, duration: 0.12 * sceneEnterSpeedFactor, ease: 'back.out(1.5)' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.18, y: 7, rotation: -3, scale: 1.01, duration: 0.34, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.36, y: -7, rotation: 3, scale: 0.99, duration: 0.42, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.53, y: 9, rotation: -3, scale: 1.01, duration: 0.44, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.70, y: -9, rotation: 3, scale: 0.99, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX * 0.86, y: 6, rotation: -2, scale: 1.01, duration: 0.46, ease: 'none' })
+              .to(sceneImg, { x: roboWalkerEndX, y: 0, rotation: 0, scale: 1, duration: 0.48, ease: 'none' });
+          } else if (layerKey === 'robo-ship') {
+            sceneEnterTimeline.to(sceneImg, { opacity: 1, x: 0, y: 0, scale: 1.20, duration: 2, ease: 'none' });
+          } else {
+            const roboRestX = layerKey === 'robo-ground-rear' ? 100 : layerKey === 'robo-ground-front' ? -100 : 0;
+            const roboRestRotation = layerKey === 'robo-fence' ? 6 : 0;
+            sceneEnterTimeline.to(sceneImg, {
+              opacity: 1,
+              x: roboRestX,
+              y: 0,
+              scale: 1.04,
+              rotation: roboRestRotation,
+              duration: 0.3 * sceneEnterSpeedFactor,
+              ease: 'back.out(2.0)',
+            });
+            sceneEnterTimeline.to(sceneImg, {
+              scale: 0.95,
+              duration: 0.1 * sceneEnterSpeedFactor,
+              ease: 'power2.out',
+            });
+            sceneEnterTimeline.to(sceneImg, {
+              opacity: 1,
+              x: roboRestX,
+              y: 0,
+              scale: 1,
+              rotation: roboRestRotation,
+              duration: 0.12 * sceneEnterSpeedFactor,
+              ease: 'back.out(1.5)',
+              onComplete: () => {
+                if (layerKey === 'robo-ground-rear' || layerKey === 'robo-ground-front') {
+                  startRoboGroundAmbientMotion(sceneImg, layerKey, roboRestX);
+                } else {
+                  try { sceneImg.style.willChange = 'auto'; } catch {}
+                  if (motionRole === 'float') startBeachAmbientMotion(sceneImg, layerKey, motionRole);
+                }
+              },
+            });
+          }
+          sceneEnterTimeline.call(() => {
+            if (motionRole !== 'float') {
+              try { sceneImg.style.willChange = 'auto'; } catch {}
+            }
           });
         } else if (isHill) {
           // Horizontal terrain travel is one uninterrupted owner from the first
@@ -1886,6 +2001,10 @@ function startExitAnimation(
     const hillExitBaseStart = sceneExitStart + BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS;
     addCloudExitAt(hillExitBaseStart);
     const otherExitImageByKey = new Map(otherExitImages.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg]));
+    const otherExitLayerKeys = transitionTheme === 'area55'
+      ? ['robo-ship', 'robo-front', 'robo-walker', 'robo-fence', 'robo-ground-rear', 'robo-ground-front']
+          .filter((key) => otherExitImageByKey.has(key))
+      : [...otherExitImageByKey.keys()];
     const beachExitDependencies = transitionTheme === 'beach'
       ? { 'beach-sea-3': 'beach-ball', 'beach-shore-2': 'beach-castle' }
       : {};
@@ -1893,7 +2012,7 @@ function startExitAnimation(
       ? { 'beach-bottle': -0.2, 'beach-ball': 0.1 }
       : {};
     const otherSchedule = buildBoardTransitionExitSchedule({
-      layerKeys: [...otherExitImageByKey.keys()],
+      layerKeys: otherExitLayerKeys,
       baseStart: sceneExitStart + (firstPineExitImages.length + remainingPineExitImages.length) * 0.05,
       stagger: 0.05,
       duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
@@ -1969,22 +2088,45 @@ function startExitAnimation(
         });
       } else {
         const isBeachSceneExit = transitionTheme === 'beach';
+        const isRoboSceneExit = transitionTheme === 'area55';
         const isBeachBallExit = isBeachSceneExit && layerKey === 'beach-ball';
-        sceneExitTimeline.to(sceneImg, {
-          opacity: isBeachSceneExit ? 1 : 0,
+        if (isRoboSceneExit) {
+          sceneExitTimeline.to(sceneImg, {
+            opacity: 1,
+            x: 0,
+            y: 24,
+            rotation: orderIndex % 2 === 0 ? 12 : -12,
+            scale: 0,
+            duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
+            ease: 'back.in(1.35)',
+            overwrite: 'auto',
+            onStart: () => {
+              if (sceneImg.dataset.motionRole === 'float') stopBeachAmbientMotion(sceneImg);
+              if (layerKey === 'robo-ground-rear' || layerKey === 'robo-ground-front') {
+                stopRoboGroundAmbientMotion(sceneImg);
+              }
+            },
+            onComplete: () => {
+              sceneImg.style.opacity = '0';
+              try { sceneImg.style.willChange = 'auto'; } catch {}
+            },
+          });
+        } else sceneExitTimeline.to(sceneImg, {
+          opacity: isBeachSceneExit || isRoboSceneExit ? 1 : 0,
           scale: 0,
+          x: 0,
           y: isAggressiveDownPine ? 112 : 24,
           rotation: isBeachBallExit
             ? orderIndex % 2 === 0 ? '+=18' : '-=18'
             : orderIndex % 2 === 0 ? 12 : -12,
           duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
-          ease: isBeachSceneExit ? 'back.in(1.35)' : 'power2.in',
+          ease: isBeachSceneExit || isRoboSceneExit ? 'back.in(1.35)' : 'power2.in',
           overwrite: 'auto',
           onStart: () => {
             if (isBeachSceneExit) stopBeachAmbientMotion(sceneImg);
           },
           onComplete: () => {
-            if (isBeachSceneExit) sceneImg.style.opacity = '0';
+            if (isBeachSceneExit || isRoboSceneExit) sceneImg.style.opacity = '0';
             try { sceneImg.style.willChange = 'auto'; } catch {}
           }
         });
@@ -2125,6 +2267,7 @@ function cleanup(options: { preserveDom?: boolean } = {}): void {
   try { beachShoreAmbientTimeline?.kill(); } catch {}
   beachShoreAmbientTimeline = null;
   beachAmbientTimelines.clear();
+  roboGroundAmbientTimelines.clear();
   
   // Keep the overlay DOM reusable, but always return transient image elements to the pool.
   activeCloudImages.forEach(cloudImg => {

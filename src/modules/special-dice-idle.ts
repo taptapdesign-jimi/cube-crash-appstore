@@ -4,11 +4,14 @@ import { Container, Graphics } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
+import { startRoboCubeIdle } from './robo-cube-idle.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
 export function stopSpecialDiceIdleMotion(tile: any): void {
   try {
+    try { tile?._ccRoboCubeIdle?.dispose?.(); } catch {}
+    if (tile) delete tile._ccRoboCubeIdle;
     try { tile?._ccHoneyBeeIdleOrbit?.dispose?.(); } catch {}
     if (tile) delete tile._ccHoneyBeeIdleOrbit;
     const smokeTimelines = Array.isArray(tile?._ccMushroomSmokeTimelines)
@@ -55,6 +58,11 @@ export function stopSpecialDiceIdleMotion(tile: any): void {
 }
 
 export function setSpecialDiceIdleDragging(tile: any, dragging: boolean): boolean {
+  const roboController = tile?._ccRoboCubeIdle;
+  if (roboController?.setDragging) {
+    roboController.setDragging(dragging);
+    return true;
+  }
   const controller = tile?._ccHoneyBeeIdleOrbit;
   if (!controller?.setDragging) return false;
   controller.setDragging(dragging);
@@ -86,6 +94,16 @@ export function startSpecialDiceIdleMotion(tile: any): void {
 
     if (variant.id === 'honey') {
       tile._ccHoneyBeeIdleOrbit = startHoneyBeeIdleOrbit(tile);
+      return;
+    }
+
+    if (variant.idleMotion === 'robo-sprite-cycle') {
+      const idleSources = Array.isArray(variant.idleSpriteSources) ? variant.idleSpriteSources : [];
+      const finaleSources = [
+        ...(Array.isArray(variant.explosionSpriteSources) ? variant.explosionSpriteSources : []),
+        ...(Array.isArray(variant.finaleAccentSpriteSources) ? variant.finaleAccentSpriteSources : []),
+      ];
+      tile._ccRoboCubeIdle = startRoboCubeIdle(tile, idleSources, finaleSources);
       return;
     }
 

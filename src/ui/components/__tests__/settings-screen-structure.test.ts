@@ -65,10 +65,42 @@ describe('Settings screen structure', () => {
     (screen as HTMLElement & { _settingsCleanup?: () => void })._settingsCleanup?.();
   });
 
-  it('keeps the footer credit and version visible but non-interactive', () => {
+  it('keeps the footer credit/version static and adds only the Privacy Policy action', () => {
     const screen = HTMLBuilder.createElement(createSettingsScreen({}));
     expect(screen.querySelector('#settings-footer-haptic')).toBeNull();
     expect(screen.querySelector('.settings-footer-text')?.tagName).toBe('DIV');
     expect(screen.querySelector('.settings-version')?.textContent).toBe('v1.0');
+    expect(screen.querySelector('.settings-footer-text')?.firstElementChild?.classList.contains('settings-version')).toBe(true);
+    expect(screen.querySelector<HTMLButtonElement>('#settings-privacy-policy-link')?.textContent).toBe('Privacy Policy');
+    expect(screen.querySelector('#settings-privacy-policy-link')?.getAttribute('aria-haspopup')).toBe('dialog');
+  });
+
+  it('opens one Privacy modal on the shared End Game presentation contract and removes it on navigation', () => {
+    renderSettingsScreen(document.body, {});
+    const screen = document.getElementById('settings-screen') as HTMLElement;
+
+    screen.querySelector<HTMLButtonElement>('#settings-privacy-policy-link')?.click();
+    screen.querySelector<HTMLButtonElement>('#settings-privacy-policy-link')?.click();
+
+    const modals = document.querySelectorAll('#settings-privacy-policy-modal');
+    expect(modals).toHaveLength(1);
+    expect(modals[0].getAttribute('role')).toBe('dialog');
+    expect(modals[0].classList.contains('cc-gameplay-modal-stage')).toBe(true);
+    expect(modals[0].querySelector('.cc-gameplay-modal-bounce-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-flip-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-idle-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-touch-tilt-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-gyro-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-paper-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-title')?.textContent).toBe('Privacy Policy');
+    expect(modals[0].querySelector('.gameplay-sheet-close')).not.toBeNull();
+    expect(modals[0].textContent).toContain('does not collect, transmit, sell, or share personal data');
+    expect(modals[0].textContent).toContain('stored only on your device');
+    expect(modals[0].textContent).toContain('does not use accounts, advertising, analytics, or in-app purchases');
+
+    window.dispatchEvent(new Event('cc-navigation'));
+    expect(document.getElementById('settings-privacy-policy-modal')).toBeNull();
+
+    (screen as HTMLElement & { _settingsCleanup?: () => void })._settingsCleanup?.();
   });
 });

@@ -23,6 +23,17 @@ describe('mobile resource architecture', () => {
     expect(assets).toContain('Mobile post-critical preload is route-owned; global warmup skipped');
   });
 
+  test('HTML preloads only parsed launch art and leaves route assets to their owners', () => {
+    const index = read('index.html');
+    const imagePreloads = index.match(/<link\s+rel="preload"\s+as="image"[^>]*>/g) ?? [];
+
+    expect(imagePreloads).toHaveLength(2);
+    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/taplogo.png');
+    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/lik-board.png');
+    expect(imagePreloads.join('\n')).not.toMatch(/@2x|@3x/);
+    expect(imagePreloads.join('\n')).not.toMatch(/crash-cubes-homepage|\/nav\/|modals\/paper|journey assets|tile\.png/);
+  });
+
   test('production continuous diagnostics are opt-in and the scroll probe is DEV-only', () => {
     const policy = read('src/utils/runtime-diagnostics-policy.ts');
     const collectibles = read('src/collectibles-manager.ts');

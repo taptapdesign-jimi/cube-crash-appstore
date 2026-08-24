@@ -68,17 +68,14 @@ export const AREA55_BOARD_TRANSITION_PROFILE = Object.freeze({
   id: 'area55',
   sceneClass: 'cc-board-transition-scene--area55',
   layers: Object.freeze([
-    { key: 'area55-rear', src: './assets/journey assets/robo/robo world/robo7.png', alt: '', style: islandStyle('50%', 58, 'min(62vw, 254px)', 8), spatialRole: 'terrain' },
-    { key: 'area55-left', src: './assets/journey assets/robo/robo world/robo1.png', alt: '', style: islandStyle('5%', 2, 'min(43vw, 176px)', 18), spatialRole: 'scene' },
-    { key: 'area55-right', src: './assets/journey assets/robo/robo world/robo5.png', alt: '', style: islandStyle('72%', 10, 'min(43vw, 176px)', 20), spatialRole: 'scene' },
-    { key: 'area55-mid', src: './assets/journey assets/robo/robo world/robo10.png', alt: '', style: islandStyle('22%', -34, 'min(41vw, 168px)', 24), spatialRole: 'scene' },
-    { key: 'area55-front', src: './assets/journey assets/robo/robo world/robo8.png', alt: '', style: islandStyle('66%', -42, 'min(44vw, 180px)', 26), spatialRole: 'scene' },
-    { key: 'area55-main', src: './assets/journey assets/robo/robo world/robo-main.png', alt: 'Area 55', style: islandStyle('50%', -82, 'min(78vw, 320px)', 34), spatialRole: 'primary' },
-    { key: 'area55-crater-left', src: './assets/journey assets/robo/robo world/crater1.png', alt: '', style: islandStyle('18%', -5, 'min(19vw, 77px)', 40), spatialRole: 'scene' },
-    { key: 'area55-crater-right', src: './assets/journey assets/robo/robo world/crater3.png', alt: '', style: islandStyle('80%', -9, 'min(18vw, 75px)', 40), spatialRole: 'scene' },
-    { key: 'area55-beam', src: './assets/journey assets/robo/robo world/alien beam.png', alt: '', style: islandStyle('50%', 18, 'min(14vw, 54px)', 42), spatialRole: 'scene' },
+    { key: 'robo-front', src: './assets/journey assets/robo/robo frontalni.png', alt: '', style: islandStyle('16%', -200, 'min(128vw, 500px)', 70), spatialRole: 'primary' },
+    { key: 'robo-ground-front', src: './assets/journey assets/robo/zemlja1.png', alt: '', style: islandStyle('50%', -280, 'min(263vw, 1023px)', 60), spatialRole: 'terrain' },
+    { key: 'robo-fence', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('25%', 151, 'min(77vw, 299px)', 50), spatialRole: 'scene' },
+    { key: 'robo-walker', src: './assets/journey assets/robo/robo1.png', alt: '', style: islandStyle('80%', 136, 'min(64vw, 251px)', 40), spatialRole: 'scene' },
+    { key: 'robo-ground-rear', src: './assets/journey assets/robo/zemlja2.png', alt: '', style: islandStyle('50%', -90, 'min(237vw, 921px)', 30), spatialRole: 'terrain' },
+    { key: 'robo-ship', src: './assets/journey assets/robo/ship.png', alt: 'Robo World', style: islandStyle('calc(30% - 35px)', 245, 'min(98vw, 383px)', 20), spatialRole: 'scene' },
   ]),
-  enterOrder: Object.freeze(['area55-rear', 'area55-left', 'area55-right', 'area55-mid', 'area55-front', 'area55-main', 'area55-crater-left', 'area55-crater-right', 'area55-beam']),
+  enterOrder: Object.freeze(['robo-ground-rear', 'robo-walker', 'robo-ground-front', 'robo-fence', 'robo-ship', 'robo-front']),
 } satisfies BoardTransitionThemeProfile);
 
 export function getJourneyBoardTransitionTheme(boardNumber: number): BoardTransitionThemeId {

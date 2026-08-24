@@ -209,6 +209,7 @@ import {
   releaseSpecialDiceResolution,
   getCoreWildTypeForSpecialDiceVariant,
   getSpecialDiceExplosionSpriteSources,
+  getSpecialDiceFinaleAccentSpriteSources,
   getSpecialDiceFinaleFlagsForMerge,
   getSpecialDiceFinaleFxForMerge,
   getSpecialDiceGameplayFxForMerge,
@@ -7360,6 +7361,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	        direction: getSpecialDiceJuiceDropProfile(variant) ? 'down' : 'up',
 	        dropProfile: getSpecialDiceJuiceDropProfile(variant),
 	        spritePaths: getSpecialDiceExplosionSpriteSources(variant),
+	        accentSpritePaths: getSpecialDiceFinaleAccentSpriteSources(variant),
 	        inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(variant),
 	        gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(variant),
 	      });
@@ -10901,6 +10903,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   direction: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion) ? 'down' : 'up',
                   dropProfile: getSpecialDiceJuiceDropProfile(wildJuiceVariantForExplosion),
                   spritePaths: getSpecialDiceExplosionSpriteSources(wildJuiceVariantForExplosion),
+                  accentSpritePaths: getSpecialDiceFinaleAccentSpriteSources(wildJuiceVariantForExplosion),
                   inputReleaseAtRatio: getSpecialDiceInputReleaseAtRatio(wildJuiceVariantForExplosion),
                   gameplayReleaseAtSpawnRatio: getSpecialDiceGameplayReleaseAtSpawnRatio(wildJuiceVariantForExplosion),
                   onGameplayRelease: triggerTntGameplayAtVisualCommit

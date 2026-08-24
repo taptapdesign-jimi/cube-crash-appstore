@@ -5196,7 +5196,7 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-version {
   display: block;
-  margin-top: 2px;
+  margin: 0 0 2px;
   font-family: "Baloo2", system-ui, sans-serif;
   font-size: 11px;
   font-weight: 500;
@@ -5204,6 +5204,74 @@ body:has(:root) .tile.wild-3d-glow {
   color: #9f725b;
   opacity: 0.72;
   pointer-events: none;
+}
+
+.settings-privacy-policy-link {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 2px 5px;
+  border: 0;
+  background: transparent;
+  color: #9f725b;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.82;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-privacy-policy-link:focus-visible {
+  outline: 2px solid #e8744a;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.settings-privacy-policy-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000000;
+  pointer-events: auto;
+}
+
+.simple-bottom-sheet.settings-privacy-policy-modal {
+  z-index: 10000001;
+}
+
+.settings-privacy-policy-paper {
+  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+.settings-privacy-policy-copy {
+  align-items: center;
+  text-align: center;
+}
+
+.settings-privacy-policy-copy .settings-privacy-policy-title {
+  color: #ad8675;
+}
+
+.settings-privacy-policy-copy .settings-privacy-policy-title-accent {
+  color: #e8744a;
+}
+
+.settings-privacy-policy-copy p {
+  font-size: 18px;
+}
+
+.settings-privacy-policy-copy .cc-gameplay-modal-title + p {
+  margin-top: 8px;
+}
+
+.settings-privacy-policy-copy .settings-privacy-policy-updated {
+  margin-top: 8px;
+  font-size: 15px;
+  opacity: 0.72;
 }
 
 .settings-toggle-container {

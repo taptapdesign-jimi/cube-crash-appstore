@@ -44,8 +44,10 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop';
-  juiceDropProfile?: 'beach-ball' | 'mushroom';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle';
+  idleSpriteSources?: string[];
+  juiceDropProfile?: 'beach-ball' | 'mushroom' | 'robo';
+  finaleAccentSpriteSources?: string[];
   orbitParticleSources?: string[];
   burstParticleSources?: string[];
   burstMotion?: {
@@ -115,6 +117,27 @@ const mushroomGrowthSources = [
     (_, index) => `./assets/shop/mushroom/mushroom${index + 1}.png`,
   ),
 ];
+
+const roboCubeIdleSources = Array.from(
+  { length: 4 },
+  (_, index) => `./assets/shop/robo/robo-cube${index + 1}.png`,
+);
+const roboFinaleSources1x = Array.from(
+  { length: 12 },
+  (_, index) => `./assets/shop/robo/robo${index + 1}.png`,
+);
+const roboFinaleSources2x = Array.from(
+  { length: 12 },
+  (_, index) => `./assets/shop/robo/robo${index + 1}@2x.png`,
+);
+const roboNeonSources1x = Array.from(
+  { length: 3 },
+  (_, index) => `./assets/shop/robo/neon${index + 1}.png`,
+);
+const roboNeonSources2x = Array.from(
+  { length: 3 },
+  (_, index) => `./assets/shop/robo/neon${index + 1}@2x.png`,
+);
 
 const flowerExplosionSources1x = Array.from(
   { length: 9 },
@@ -236,6 +259,29 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     idleOrbit: false,
     idleMotion: 'mushroom-pop',
     juiceDropProfile: 'mushroom',
+    inputReleaseAtRatio: 0.30,
+  },
+  'robo-cube': {
+    id: 'robo-cube',
+    archetype: 'wild-juice',
+    texture: './assets/shop/robo/robo-cube1.png',
+    splashText: 'BIBI - RIBI',
+    splashColor: '#A68B7C',
+    splashColors: ['#A68B7C'],
+    shardColor: 0x91F2FF,
+    shardColors: [0x91F2FF, 0xFAC388],
+    trailColors: [0xFED49C, 0xE99D5F, 0xAA9482, 0x8AEEFE],
+    explosionSpriteSources: useHighResolutionSpecialDiceFx
+      ? roboFinaleSources2x
+      : roboFinaleSources1x,
+    finaleAccentSpriteSources: useHighResolutionSpecialDiceFx
+      ? roboNeonSources2x
+      : roboNeonSources1x,
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'robo-sprite-cycle',
+    idleSpriteSources: roboCubeIdleSources,
+    juiceDropProfile: 'robo',
     inputReleaseAtRatio: 0.30,
   },
   cubero: {
@@ -548,7 +594,7 @@ export function getSpecialDiceSplashLetterColors(tileOrVariant: any): string[] |
   return text.map((_, index) => index < splitIndex ? options.colors[0] : options.colors[1]);
 }
 
-export function getSpecialDiceJuiceDropProfile(tileOrVariant: any): 'beach-ball' | 'mushroom' | undefined {
+export function getSpecialDiceJuiceDropProfile(tileOrVariant: any): 'beach-ball' | 'mushroom' | 'robo' | undefined {
   const variant = tileOrVariant?.texture && tileOrVariant?.splashText
     ? tileOrVariant
     : getSpecialDiceVariantForTile(tileOrVariant);
@@ -633,18 +679,31 @@ export function getSpecialDiceExplosionSpriteSources(tileOrVariant: any): string
     : null;
 }
 
+export function getSpecialDiceFinaleAccentSpriteSources(tileOrVariant: any): string[] | null {
+  const variant = tileOrVariant?.texture && tileOrVariant?.splashText
+    ? tileOrVariant
+    : getSpecialDiceVariantForTile(tileOrVariant);
+  return Array.isArray(variant?.finaleAccentSpriteSources) && variant.finaleAccentSpriteSources.length
+    ? variant.finaleAccentSpriteSources
+    : null;
+}
+
+export const ROBO_WILD_VARIANT_CHANCE = 0.25;
+
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
   arcadeStage,
   journeyBoard,
   beachWildSlot,
+  roboWildRoll,
 }: {
   isArcade: boolean;
   wildSpawnCount: number;
   arcadeStage?: number;
   journeyBoard?: number;
   beachWildSlot?: number;
+  roboWildRoll?: number;
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
@@ -658,6 +717,17 @@ export function pickSpecialDiceVariantForWildSpawn({
       if (beachSlot === 2) return SPECIAL_DICE_VARIANTS['beach-ball'];
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
+    }
+    // Robo World Cjelina 01 guarantees Robo Cube as its first earned wild.
+    // Remaining Robo stages use one bounded roll per spawn; no other world or
+    // Arcade route can consume this visual variant.
+    if (board === 21) {
+      return wildSpawnCount === 0 ? SPECIAL_DICE_VARIANTS['robo-cube'] : null;
+    }
+    if (board >= 22 && board <= 30) {
+      const finiteRoll = Number.isFinite(roboWildRoll) ? Number(roboWildRoll) : Math.random();
+      const roll = Math.max(0, Math.min(1 - Number.EPSILON, finiteRoll));
+      return roll < ROBO_WILD_VARIANT_CHANCE ? SPECIAL_DICE_VARIANTS['robo-cube'] : null;
     }
     // Temporary Forest test profile belongs only to Cjelina 02. Do not let
     // its per-run spawn order leak into any other Forest/Beach/Area 55 board.

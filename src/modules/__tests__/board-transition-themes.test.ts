@@ -120,6 +120,90 @@ describe('Board Transition World themes', () => {
     expect(frontBeachTop - sea3Top).toBe(84);
   });
 
+  test('Robo World composes the supplied front-to-back scene and directional character motion', () => {
+    expect(AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.key)).toEqual([
+      'robo-front',
+      'robo-ground-front',
+      'robo-fence',
+      'robo-walker',
+      'robo-ground-rear',
+      'robo-ship',
+    ]);
+    expect(AREA55_BOARD_TRANSITION_PROFILE.enterOrder).toEqual([
+      'robo-ground-rear',
+      'robo-walker',
+      'robo-ground-front',
+      'robo-fence',
+      'robo-ship',
+      'robo-front',
+    ]);
+    const zIndexes = AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => Number(
+      layer.style.find((rule) => rule.startsWith('z-index:'))?.split(':')[1]?.trim(),
+    ));
+    expect(zIndexes).toEqual([70, 60, 50, 40, 30, 20]);
+    expect(AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => layer.src)).toEqual([
+      './assets/journey assets/robo/robo frontalni.png',
+      './assets/journey assets/robo/zemlja1.png',
+      './assets/journey assets/robo/ograda.png',
+      './assets/journey assets/robo/robo1.png',
+      './assets/journey assets/robo/zemlja2.png',
+      './assets/journey assets/robo/ship.png',
+    ]);
+    const styleByLayer = Object.fromEntries(
+      AREA55_BOARD_TRANSITION_PROFILE.layers.map((layer) => [layer.key, layer.style]),
+    );
+    expect(styleByLayer['robo-front']).toEqual(expect.arrayContaining([
+      'left: 16%', 'bottom: -200px', 'width: min(128vw, 500px)',
+    ]));
+    expect(styleByLayer['robo-ground-front']).toEqual(expect.arrayContaining([
+      'bottom: -280px', 'width: min(263vw, 1023px)',
+    ]));
+    expect(styleByLayer['robo-fence']).toEqual(expect.arrayContaining([
+      'bottom: 151px', 'width: min(77vw, 299px)',
+    ]));
+    expect(styleByLayer['robo-walker']).toEqual(expect.arrayContaining([
+      'bottom: 136px', 'width: min(64vw, 251px)',
+    ]));
+    expect(styleByLayer['robo-ground-rear']).toEqual(expect.arrayContaining([
+      'bottom: -90px', 'width: min(237vw, 921px)',
+    ]));
+    expect(styleByLayer['robo-ship']).toEqual(expect.arrayContaining([
+      'left: calc(30% - 35px)', 'bottom: 245px', 'width: min(98vw, 383px)',
+    ]));
+
+    const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
+    expect(source).toContain('const proceduralSceneEnterStart = 0.05 + index * (0.045 * sceneEnterSpeedFactor)');
+    expect(source).toContain("resolvedTheme === 'area55' && layerKey === 'robo-front'");
+    expect(source).toContain('? 0');
+    expect(source).toContain("const isBottle = layerKey === 'beach-bottle'");
+    expect(source).toContain("const roboRestX = layerKey === 'robo-ground-rear' ? 100 : layerKey === 'robo-ground-front' ? -100 : 0");
+    expect(source).toContain('function startRoboGroundAmbientMotion');
+    expect(source).toContain("const firstDirection = layerKey === 'robo-ground-rear' ? 1 : -1");
+    expect(source).toContain("x: restX + firstDirection * 40, duration: 4.2, ease: 'sine.inOut'");
+    expect(source).toContain("x: restX - firstDirection * 40, duration: 8.4, ease: 'sine.inOut'");
+    expect(source).toContain('stopRoboGroundAmbientMotion(sceneImg)');
+    expect(source).toContain("const roboWalkerEndX = -Math.max(270, window.innerWidth * 0.72)");
+    expect(source).toContain("scale: 1.04");
+    expect(source).toContain("ease: 'back.out(2.0)'");
+    expect(source).toContain("scale: 0.95, duration: 0.1 * sceneEnterSpeedFactor");
+    expect(source).toContain("scale: 1, duration: 0.12 * sceneEnterSpeedFactor");
+    expect(source).toContain("x: roboWalkerEndX * 0.18, y: 7, rotation: -3");
+    expect(source).toContain("x: roboWalkerEndX * 0.53, y: 9, rotation: -3");
+    expect(source).toContain("x: roboWalkerEndX * 0.86, y: 6, rotation: -2");
+    expect(source).toContain("const roboFrontStartX = -Math.max(360, window.innerWidth)");
+    expect(source).toContain("const roboFrontEndX = Math.max(640, window.innerWidth * 1.65)");
+    expect(source).toContain("x: roboFrontStartX * 0.28, y: -7, rotation: 3");
+    expect(source).toContain("x: roboFrontEndX * 0.10, y: 7, rotation: -3");
+    expect(source).toContain("x: roboFrontEndX * 0.32, y: -9, rotation: 3");
+    expect(source).toContain("x: roboFrontEndX * 0.56, y: 9, rotation: -3");
+    expect(source).toContain("x: roboFrontEndX * 0.80, y: -6, rotation: 2");
+    expect(source).toContain("opacity: 1, x: 0, y: 0, scale: 1.20, duration: 2, ease: 'none'");
+    expect(source).toContain("const roboRestRotation = layerKey === 'robo-fence' ? 6 : 0");
+    expect(source).toContain("['robo-ship', 'robo-front', 'robo-walker', 'robo-fence', 'robo-ground-rear', 'robo-ground-front']");
+    expect(source).toContain("const isRoboSceneExit = transitionTheme === 'area55'");
+    expect(source).toContain("if (sceneImg.dataset.motionRole === 'float') stopBeachAmbientMotion(sceneImg)");
+  });
+
   test('creates one bounded per-run layout with balanced palm exits and opposite ball/castle sides', () => {
     const leftVariation = createBeachTransitionVariation(() => 0.1);
     const rightVariation = createBeachTransitionVariation(() => 0.9);
@@ -191,15 +275,15 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('x: exitDirection * curtainExitDistance');
     expect(source).toContain('y: curtainExitDownDistance');
     expect(source).toContain('opacity: 1');
-    expect(source).toContain('rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : direction * 8');
-    expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : 0');
+    expect(source).toContain("rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : isRoboScene && (isRoboFront || layerKey === 'robo-ship') ? 0 : direction * 8");
+    expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).toContain('duration: 0.42');
     expect(source).toContain("ease: 'power3.out'");
     expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_SECONDS = 0.62');
     expect(source).toContain('const BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS = 0.1');
     expect(source).toContain('duration: BEACH_CURTAIN_PALM_EXIT_SECONDS');
     expect(source).toContain('duration: (beachPalmNumber - 1) * BEACH_CURTAIN_PALM_EXIT_STAGGER_SECONDS');
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
     expect(source).toContain("ease: 'back.in(1.35)'");
     expect(source).toContain('scale: 0');
     expect(source).toContain('export const BEACH_CURTAIN_PALM_DWELL_SECONDS = 0.4');
@@ -227,8 +311,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("4: Object.freeze({ restScale: 0.8, restRotation: -12, enterStartYRatio: 0.39");
     expect(source).toContain("5: Object.freeze({ restScale: 0.8, restRotation: 12, enterStartYRatio: 0.47");
     expect(source).toContain("const isBeachFrontShore = resolvedTheme === 'beach' && layerKey === 'beach-shore-2'");
-    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore ? 1 : 0');
-    expect(source).toContain('isBeachFrontShore ? 0.7 : 0');
+    expect(source).toContain('opacity: isBeachCurtain || isBeachFrontShore || isRoboFront ? 1 : 0');
+    expect(source).toContain('isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).not.toContain('scale: beachPalmRestScale * 1.28');
     expect(source).not.toContain("}, '<-0.10');");
     expect(source).not.toContain('exitDownY');
@@ -243,7 +327,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("const isBeachCenterPalm = layerKey === 'beach-palm-center'");
     expect(source).toContain('const beachPalmMotion = BEACH_CURTAIN_PALM_MOTION[beachPalmNumber]');
     expect(source).toContain('const rotationLimit = isBottle ? 24 : 84');
-    expect(source).toContain('isBottle ? gsap.utils.random(-18, -9) : gsap.utils.random(-22, -10)');
+    expect(source).toContain('y: () => isBottle ? gsap.utils.random(-18, -9) : gsap.utils.random(-22, -10)');
     expect(source).toContain('x: () => horizontalDirection * (isBottle');
     expect(source).toContain('? gsap.utils.random(69, 104)');
     expect(source).toContain(': gsap.utils.random(73, 117))');

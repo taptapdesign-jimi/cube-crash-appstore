@@ -86,7 +86,7 @@ describe('Mushroom special-die visual contract', () => {
     expect(idleSource).toContain("smokeContainer.label = 'mushroom-idle-smoke'");
     expect(idleSource).toContain('tile._ccMushroomSmokeTimelines = smokeTimelines');
     expect(idleSource).toContain("tile._ccMushroomSmokeContainer.destroy?.({ children: true })");
-    expect(fxSource).toContain("if (specialVariantId === 'mushroom')");
+    expect(fxSource).toContain("specialVariantId === 'mushroom'");
     expect(fxSource).toContain('stopWildJuiceBubbles(tile)');
   });
 
@@ -172,6 +172,9 @@ describe('Mushroom special-die visual contract', () => {
     expect(loadTilesSource).toContain('applySpecialDiceVariantToTile(tile, savedSpecialDiceVariant)');
     expect(wildSkinSource).toContain('void Assets.load(requestedAssetPath).then');
     expect(wildSkinSource).toContain("if (getSpecialDiceTexturePath(tile, '') !== requestedAssetPath) return");
-    expect(wildSkinSource).toContain('applyResolvedTexture(loadedTexture || Assets.get(requestedAssetPath))');
+    expect(wildSkinSource).toContain('const resolvedTexture = loadedTexture || Assets.get(requestedAssetPath)');
+    expect(wildSkinSource).toContain('if (!applyResolvedTexture(resolvedTexture))');
+    expect(wildSkinSource).toContain('reloadPixiImageTexture(requestedAssetPath)');
+    expect(wildSkinSource).not.toContain('Texture.from(requestedAssetPath)');
   });
 });

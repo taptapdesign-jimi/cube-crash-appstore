@@ -293,11 +293,13 @@ test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay arc
 test('Forest Stage 2 test sequence never leaks into another Journey board', () => {
   for (const journeyBoard of [1, 3, 4, 10, 21, 30]) {
     for (const wildSpawnCount of [0, 1, 2]) {
-      expect(pickSpecialDiceVariantForWildSpawn({
+      const variant = pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         journeyBoard,
         wildSpawnCount,
-      })).toBeNull();
+        roboWildRoll: 0.1,
+      });
+      expect(['flower', 'honey', 'mushroom']).not.toContain(variant?.id);
     }
   }
 });

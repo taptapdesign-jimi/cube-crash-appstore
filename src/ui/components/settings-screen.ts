@@ -5,6 +5,7 @@ import { isFirstPlayTutorialForced, setFirstPlayTutorialDevEnabled } from '../..
 import { SPECIAL_DICE_VARIANTS, getCoreWildTypeForSpecialDiceVariant } from '../../modules/special-dice-registry.js';
 import { formatGameplayProgressLabel } from '../../modules/gameplay-terminology.ts';
 import { scheduleSpatialMotionPermissionIntroForNextLaunch } from '../../modules/spatial-motion-permission-modal.js';
+import { closePrivacyPolicyModal, showPrivacyPolicyModal } from './privacy-policy-modal.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -806,7 +807,18 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
               {
                 tag: 'div',
                 className: 'settings-footer-text',
-                html: 'Made with ❤️ in Croatia<br/>by Tap Tap Design<span class="settings-version">v1.0</span>',
+                html: '<span class="settings-version">v1.0</span>Made with ❤️ in Croatia<br/>by Tap Tap Design',
+              },
+              {
+                tag: 'button',
+                id: 'settings-privacy-policy-link',
+                className: 'settings-privacy-policy-link',
+                text: 'Privacy Policy',
+                attributes: {
+                  type: 'button',
+                  'aria-haspopup': 'dialog',
+                  'aria-controls': 'settings-privacy-policy-modal',
+                },
               },
             ],
           },
@@ -859,6 +871,13 @@ export function renderSettingsScreen(
       ? (targetNode as Element)
       : targetNode?.parentElement) as Element | null;
     if (!target) return;
+    const privacyPolicyLink = target.closest('#settings-privacy-policy-link');
+    if (privacyPolicyLink) {
+      e.preventDefault();
+      e.stopPropagation();
+      showPrivacyPolicyModal();
+      return;
+    }
     const devOpenButton = target.closest('#settings-dev-open-btn, .settings-dev-open-button');
     if (devOpenButton && SETTINGS_DEVELOPER_TOOLS_ENABLED) {
       e.preventDefault();
@@ -992,6 +1011,7 @@ export function renderSettingsScreen(
   // Settings stays mounted for the app lifetime. Navigation may reset its local
   // sub-view, but must not dispose the persistent click/change ownership.
   const navigationResetHandler = () => {
+    closePrivacyPolicyModal({ immediate: true });
     setSettingsView('main');
   };
   window.addEventListener('cc-navigation', navigationResetHandler);
@@ -1000,6 +1020,7 @@ export function renderSettingsScreen(
 
   // 🔥 FIX: Store cleanup function on element for proper memory management
   (element as any)._settingsCleanup = () => {
+    closePrivacyPolicyModal({ immediate: true });
     setSettingsView('main');
     element.removeEventListener('click', clickHandler);
     element.removeEventListener('change', changeHandler);

@@ -13,6 +13,7 @@ describe('shared gameplay modal benchmark', () => {
   const rewardUi = read('src/modules/collectible-reward-ui.ts');
   const rewardAnimations = read('src/modules/collectible-reward-animations.ts');
   const spatialPermission = read('src/modules/spatial-motion-permission-modal.ts');
+  const privacy = read('src/ui/components/privacy-policy-modal.ts');
   const journeyOverlay = read('src/modules/journey-card-overlay-modal.ts');
   const modalSpatialMotion = read('src/modules/gameplay-modal-spatial-motion.ts');
   const modalDragMotion = read('src/modules/modal-vertical-drag-dismiss.ts');
@@ -32,7 +33,7 @@ describe('shared gameplay modal benchmark', () => {
   });
 
   test('migrates score and collectible reward to the same structural motion owners', () => {
-    for (const source of [score, rewardUi]) {
+    for (const source of [score, rewardUi, privacy]) {
       expect(source).toContain('cc-gameplay-modal-bounce-shell');
       expect(source).toContain('cc-gameplay-modal-flip-shell');
       expect(source).toContain('cc-gameplay-modal-idle-shell');
@@ -46,6 +47,9 @@ describe('shared gameplay modal benchmark', () => {
     expect(score).not.toContain('animateBottomSheetEntrance');
     expect(score).not.toContain('function addDragFunctionality');
     expect(rewardUi).toContain('cc-gameplay-modal-stage');
+    expect(privacy).toContain('cc-gameplay-modal-stage');
+    expect(privacy).toContain('GAMEPLAY_MODAL_BENCHMARK.enterDurationMs');
+    expect(privacy).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
     expect(reward).not.toContain('attachDragHandlers');
     expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.enterDurationMs');
     expect(rewardAnimations).toContain('GAMEPLAY_MODAL_BENCHMARK.exitDurationMs');
@@ -58,6 +62,7 @@ describe('shared gameplay modal benchmark', () => {
     for (const source of [score, reward, endRun]) {
       expect(source).toContain('installGameplayOverlayModalDragMotion');
     }
+    expect(privacy).toContain('installGameplayOverlayModalDragMotion');
     expect(spatialPermission).toContain('installGameplayOverlayModalDragMotion');
     expect(spatialPermission).toContain('motionElement: dragShell');
     expect(rewardUi).not.toContain('attachDragHandlers');
@@ -70,6 +75,7 @@ describe('shared gameplay modal benchmark', () => {
     expect(reward).toContain('mountGameplayModalSpatialMotion');
     expect(endRun).toContain('mountGameplayModalSpatialMotion');
     expect(spatialPermission).toContain('mountGameplayModalSpatialMotion');
+    expect(privacy).toContain('mountGameplayModalSpatialMotion');
     expect(spatialPermission).toContain('disposeSpatialMotion();');
     expect(journeyOverlay).toContain('mountJourneyCardFlipSpatialMotion');
     expect(modalSpatialMotion).toContain('const OVERLAY_MODAL_PROFILE = Object.freeze({');
@@ -90,13 +96,18 @@ describe('shared gameplay modal benchmark', () => {
   test('owns one 32px headline size across every paper gameplay modal', () => {
     expect(css).toContain('--cc-gameplay-modal-title-size: 32px;');
     expect(css).toContain('.cc-gameplay-modal-title {\n  font-size: var(--cc-gameplay-modal-title-size);');
-    for (const source of [endRun, score, rewardUtils, spatialPermission, journeyOverlay]) {
+    for (const source of [endRun, score, rewardUtils, spatialPermission, journeyOverlay, privacy]) {
       expect(source).toContain('cc-gameplay-modal-title');
     }
     expect(css.match(/--cc-gameplay-modal-title-size/g)).toHaveLength(2);
     expect(css).not.toContain('.score-bottom-sheet .simple-title-section h2 {\n  font-family: "Baloo2", system-ui, -apple-system, sans-serif;\n  font-size: 40px;');
     expect(rewardUtils).not.toContain('class="collectible-reward-title"');
     expect(collectiblesCss).not.toContain('font-size: 40px;\n  font-weight: 900;\n  line-height: 1;\n  text-align: center;');
+    expect(privacy).toContain('<span class="settings-privacy-policy-title-accent">Privacy</span> Policy');
+    expect(css).toContain('.settings-privacy-policy-copy .settings-privacy-policy-title {\n  color: #ad8675;');
+    expect(css).toContain('.settings-privacy-policy-copy .settings-privacy-policy-title-accent {\n  color: #e8744a;');
+    expect(css).toContain('.settings-privacy-policy-copy p {\n  font-size: 18px;');
+    expect(css).toContain('.settings-privacy-policy-copy .cc-gameplay-modal-title + p {\n  margin-top: 8px;');
   });
 
   test('owns one Journey-strength backdrop across every paper gameplay modal', () => {
