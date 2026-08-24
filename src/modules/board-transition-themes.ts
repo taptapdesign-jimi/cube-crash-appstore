@@ -80,11 +80,12 @@ export const AREA55_BOARD_TRANSITION_PROFILE = Object.freeze({
     { key: 'robo-beam-right', src: './assets/journey assets/robo/beam2.png', alt: '', style: [...islandStyle('calc(50% + 76px)', 430, '264.5px', 29), 'opacity: 0'], spatialRole: 'scene' },
     { key: 'robo-beam-hit', src: './assets/journey assets/robo/beam3.png', alt: '', style: [...islandStyle('calc(50% + 55px)', 450, '264.5px', 59), 'opacity: 0'], spatialRole: 'scene' },
     { key: 'robo-beam-after', src: './assets/journey assets/robo/beam1.png', alt: '', style: [...islandStyle('calc(50% + 78px)', 438, '264.5px', 59), 'opacity: 0'], spatialRole: 'scene' },
+    { key: 'robo-beam-final', src: './assets/journey assets/robo/beam3.png', alt: '', style: [...islandStyle('calc(50% + 55px)', 450, '264.5px', 29), 'opacity: 0'], spatialRole: 'scene' },
   ]),
   enterOrder: Object.freeze([
     'robo-ground-front', 'robo-ground-rear', 'robo-walker', 'robo-fence',
     'robo-fence-static-left', 'robo-fence-static-right', 'robo-front',
-    'robo-fighter-left', 'robo-fighter-right', 'robo-beam-right', 'robo-beam-hit', 'robo-beam-after',
+    'robo-fighter-left', 'robo-fighter-right', 'robo-beam-right', 'robo-beam-hit', 'robo-beam-after', 'robo-beam-final',
   ]),
 } satisfies BoardTransitionThemeProfile);
 

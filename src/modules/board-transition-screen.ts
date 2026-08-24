@@ -87,6 +87,7 @@ const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
   'robo-beam-right',
   'robo-beam-hit',
   'robo-beam-after',
+  'robo-beam-final',
 ]);
 const CLOUD_CSS_STYLES = `
 @keyframes cc-cloud-enter {
@@ -462,9 +463,10 @@ function startRoboAirCombatMotion(
   const beamRight = sceneImagesByKey.get('robo-beam-right');
   const beamHit = sceneImagesByKey.get('robo-beam-hit');
   const beamAfter = sceneImagesByKey.get('robo-beam-after');
+  const beamFinal = sceneImagesByKey.get('robo-beam-final');
   const frontGround = sceneImagesByKey.get('robo-ground-front');
   const rearGround = sceneImagesByKey.get('robo-ground-rear');
-  if (!leftShip || !rightShip || !beamRight || !beamHit || !beamAfter || !frontGround || !rearGround) return;
+  if (!leftShip || !rightShip || !beamRight || !beamHit || !beamAfter || !beamFinal || !frontGround || !rearGround) return;
 
   // Keep the right fighter's path on a stable outer wrapper while its inner
   // image owns only the lightweight engine wobble and the normal scene exit.
@@ -511,9 +513,12 @@ function startRoboAirCombatMotion(
   const leftShipBottom = Number.parseFloat(leftShip.style.bottom) || 470;
   const leftShipRestTop = forestContainer.clientHeight - leftShipBottom - leftShipRenderedHeight;
   const leftShipUpperY = Math.min(20 - leftShipRestTop, rightHitPoint.y - 80);
+  const leftShipEnterX = -((window.innerWidth || 390) * 0.5 + leftShipRenderedWidth + 60);
+  const leftShipEnterY = -134;
+  const rightShipEnterY = -32;
 
   gsap.set(ships, {
-    opacity: 1,
+    opacity: 0,
     xPercent: -50,
     x: 0,
     y: 0,
@@ -524,8 +529,9 @@ function startRoboAirCombatMotion(
   const leftShipBaseScale = 1.15;
   const rightShipBaseScale = leftShipBaseScale * 1.40;
   const rightShipEnterScale = rightShipBaseScale * 0.80;
-  gsap.set(leftShip, { x: -fighterOnScreenX, y: -104, scale: leftShipBaseScale });
-  gsap.set(rightShipMotion, { x: fighterOnScreenX, y: -42, scale: rightShipEnterScale });
+  gsap.set(leftShip, { x: leftShipEnterX, y: leftShipEnterY, scale: leftShipBaseScale });
+  gsap.set(rightShipMotion, { x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale });
+  timeline.set(leftShip, { opacity: 1 }, 0);
   const numberRect = numberContainer.getBoundingClientRect();
   const forestRect = forestContainer.getBoundingClientRect();
   const numberCenterX = numberRect.left + numberRect.width * 0.5 - forestRect.left;
@@ -535,7 +541,7 @@ function startRoboAirCombatMotion(
     beam.style.top = `${numberCenterY + 150}px`;
     beam.style.bottom = 'auto';
   });
-  gsap.set([beamRight, beamHit, beamAfter], {
+  gsap.set([beamRight, beamHit, beamAfter, beamFinal], {
     opacity: 0,
     xPercent: -88,
     yPercent: -75,
@@ -585,7 +591,9 @@ function startRoboAirCombatMotion(
     });
   };
   const LEFT_SHIP_START_DELAY_SECONDS = 0;
+  const RIGHT_SHIP_START_DELAY_SECONDS = 0.20;
   const fighterFlightDurationSeconds = 3.00;
+  const beamFourStartSeconds = 2.12;
   addContinuousFlightWobble(
     leftShip,
     LEFT_SHIP_START_DELAY_SECONDS,
@@ -595,11 +603,12 @@ function startRoboAirCombatMotion(
   );
   addContinuousFlightWobble(
     rightShip,
-    0,
+    RIGHT_SHIP_START_DELAY_SECONDS,
     gsap.utils.random(-Math.PI, Math.PI),
     0,
     gsap.utils.random(1.35, 1.95),
   );
+  timeline.set(rightShipMotion, { opacity: 1 }, RIGHT_SHIP_START_DELAY_SECONDS);
 
   type FlightPoint = { time: number; x: number; y: number; scale: number };
   const sampleSmoothFlightValue = (
@@ -701,27 +710,56 @@ function startRoboAirCombatMotion(
     rightBankPhase: gsap.utils.random(-Math.PI, Math.PI),
   };
   const secondCrossTime = crossingVariation.firstTime + crossingVariation.secondTimeGap;
-  const swapMidpointTime = secondCrossTime + crossingVariation.swapMidpointGap;
+  const swapMidpointTime = Math.max(
+    beamFourStartSeconds + 0.18,
+    secondCrossTime + crossingVariation.swapMidpointGap,
+  );
   const finalLowerY = crossingVariation.upperY + crossingVariation.verticalSeparation;
   const verticalDepthScaleRatio = 0.60;
+  const leftShipAtBeamFour = {
+    x: crossingVariation.secondX + flightJitter[6].x - 67,
+    y: crossingVariation.upperY - 50,
+  };
+  const rightShipAtBeamFour = {
+    x: -crossingVariation.secondX + flightJitter[7].x + 45,
+    y: finalLowerY,
+  };
+  const lowerShipPostBeamFourMidpoint = {
+    x: leftShipAtBeamFour.x + 50,
+    y: leftShipAtBeamFour.y - 10,
+  };
+  const lowerShipPostBeamFourEnd = {
+    x: leftShipAtBeamFour.x + 100 + flightJitter[8].x * 0.25,
+    y: leftShipAtBeamFour.y + 16,
+  };
+  const rightShipPostBeamFourMidpoint = {
+    x: rightShipAtBeamFour.x + 10,
+    y: rightShipAtBeamFour.y + 4,
+  };
+  const rightShipPostBeamFourEnd = {
+    x: rightShipAtBeamFour.x + 20,
+    y: rightShipAtBeamFour.y + 10,
+  };
   startContinuousFlight(leftShip, [
-    { time: 0, x: -fighterOnScreenX, y: -104, scale: leftShipBaseScale },
+    { time: 0, x: leftShipEnterX, y: leftShipEnterY, scale: leftShipBaseScale },
     { time: 0.72, x: leftShipBeforeNn.x, y: leftShipBeforeNn.y, scale: leftShipBaseScale * 1.50 },
     { time: nnAppearSeconds, x: leftShipAtNn.x, y: leftShipAtNn.y, scale: leftShipBaseScale * 1.50 * 0.90 },
     { time: crossingVariation.firstTime, x: -crossingVariation.firstX + flightJitter[4].x, y: leftShipUpperY - 18 + flightJitter[5].y, scale: leftShipBaseScale * 1.42 },
     { time: secondCrossTime, x: crossingVariation.secondX + flightJitter[6].x, y: crossingVariation.upperY, scale: leftShipBaseScale * 1.48 },
-    { time: swapMidpointTime, x: crossingVariation.midpointX, y: (crossingVariation.upperY + finalLowerY) * 0.5 + crossingVariation.midpointYOffset, scale: leftShipBaseScale * 1.72 },
-    { time: fighterFlightDurationSeconds, x: -crossingVariation.finalX + flightJitter[8].x, y: finalLowerY, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
+    { time: beamFourStartSeconds, x: leftShipAtBeamFour.x, y: leftShipAtBeamFour.y, scale: leftShipBaseScale * 1.48 },
+    { time: swapMidpointTime, x: lowerShipPostBeamFourMidpoint.x, y: lowerShipPostBeamFourMidpoint.y, scale: leftShipBaseScale * 1.72 },
+    { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
   ], LEFT_SHIP_START_DELAY_SECONDS, crossingVariation.leftBankPhase);
   startContinuousFlight(rightShipMotion, [
-    { time: 0, x: fighterOnScreenX, y: -42, scale: rightShipEnterScale },
+    { time: 0, x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale },
     { time: 0.72, x: rightShipBeforeNn.x, y: rightShipBeforeNn.y, scale: rightShipBaseScale * 1.60 },
     { time: nnAppearSeconds, x: rightShipAtNn.x, y: rightShipAtNn.y, scale: rightShipBaseScale * 1.60 },
     { time: crossingVariation.firstTime, x: crossingVariation.firstX + flightJitter[5].x, y: -96 + flightJitter[6].y, scale: rightShipBaseScale * 1.52 },
     { time: secondCrossTime, x: -crossingVariation.secondX + flightJitter[7].x, y: finalLowerY, scale: rightShipBaseScale * 1.46 },
-    { time: swapMidpointTime, x: -crossingVariation.midpointX, y: (crossingVariation.upperY + finalLowerY) * 0.5 - crossingVariation.midpointYOffset, scale: rightShipBaseScale * 1.12 },
-    { time: fighterFlightDurationSeconds, x: crossingVariation.finalX + flightJitter[9].x, y: crossingVariation.upperY, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
-  ], 0, crossingVariation.rightBankPhase);
+    { time: beamFourStartSeconds, x: rightShipAtBeamFour.x, y: rightShipAtBeamFour.y, scale: rightShipBaseScale * 1.46 },
+    { time: swapMidpointTime, x: rightShipPostBeamFourMidpoint.x, y: rightShipPostBeamFourMidpoint.y, scale: rightShipBaseScale * 1.12 },
+    { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
+  ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase);
 
   const addBeamShot = (
     beam: HTMLImageElement,
@@ -731,8 +769,12 @@ function startRoboAirCombatMotion(
     targetShip: HTMLElement,
     horizontalTravel: number,
     launchZIndex = 59,
+    scaleMultiplier = 1,
+    travelMultiplier = 1,
+    impactYOffset = 0,
+    impactXOffset = 0,
   ): void => {
-    const resolveImpactX = (): number => targetShip.offsetLeft + impact.x - beam.offsetLeft;
+    const resolveImpactX = (): number => targetShip.offsetLeft + impact.x - beam.offsetLeft + impactXOffset;
     const resolveImpactY = (): number => {
       const targetHeight = targetShip.offsetHeight || rightShipRenderedHeight;
       const targetBottom = Number.parseFloat(targetShip.style.bottom) || 0;
@@ -740,17 +782,17 @@ function startRoboAirCombatMotion(
         - targetBottom
         - targetHeight * 0.5
         + impact.y;
-      return targetCenterY - beam.offsetTop;
+      return targetCenterY - beam.offsetTop + impactYOffset;
     };
     const launchJitterX = gsap.utils.random(-22, 22);
-    const flightScale = gsap.utils.random(2.10, 2.35);
+    const flightScale = gsap.utils.random(2.10, 2.35) * scaleMultiplier;
     timeline.set(beam, {
       opacity: 0,
       zIndex: launchZIndex,
       xPercent: -88,
       yPercent: -75,
-      x: () => resolveImpactX() + horizontalTravel + launchJitterX,
-      y: () => resolveImpactY() + 480,
+      x: () => resolveImpactX() + horizontalTravel * travelMultiplier + launchJitterX,
+      y: () => resolveImpactY() + 480 * travelMultiplier,
       scaleX: 1,
       scaleY: 1,
       rotation,
@@ -795,15 +837,16 @@ function startRoboAirCombatMotion(
   // The beam PNGs place their bright impact burst around 88% / 75%.
   // Anchoring that point, rather than the transparent image centre, makes each
   // Three independent beam elements remain hidden until their own shot, then
-  // Beam 2 remains behind upper/rear zemlja2; Beams 1/3 remain behind front zemlja1.
-  // Three visibly enlarged shots fire one-by-one during the opening wobble.
+  // Beam 2 and the late Beam 4 remain behind upper/rear zemlja2; Beams 1/3 remain behind front zemlja1.
+  // Three rapid opening shots are followed by the longer Beam 4 near the finale.
   // The rapid volley begins immediately, exactly two seconds earlier than the
   // prior authored 2.00s launch reference, while ships continue to NN exit.
   const firstBeamStartSeconds = 0.00;
   const beamShotStaggerSeconds = 0.12;
-  addBeamShot(beamHit, firstBeamStartSeconds, -96, rightHitPoint, rightShipMotion, -154);
+  addBeamShot(beamHit, firstBeamStartSeconds, -96, rightHitPoint, rightShipMotion, -154, 59, 1.50, 1.30);
   addBeamShot(beamRight, firstBeamStartSeconds + beamShotStaggerSeconds, -108, rightHitPoint, rightShipMotion, 168, 29);
-  addBeamShot(beamAfter, firstBeamStartSeconds + beamShotStaggerSeconds * 2, -100, rightHitPoint, rightShipMotion, 148);
+  addBeamShot(beamAfter, firstBeamStartSeconds + beamShotStaggerSeconds * 2, -100, rightHitPoint, rightShipMotion, 148, 59, 1, 1, 0, 70);
+  addBeamShot(beamFinal, beamFourStartSeconds, -96, rightHitPoint, rightShipMotion, -154, 29, 1.30, 1.50, -70);
 
   // Keep the swapped-height fighters visible and wobbling until NN exit owns
   // their one-way off-screen departure.
@@ -2295,7 +2338,7 @@ function startExitAnimation(
     : null;
   if (!leftFighterExit || !rightFighterExit) stopRoboAirCombatMotion();
   if (transitionTheme === 'area55' && forestContainer) {
-    ['robo-beam-right', 'robo-beam-hit', 'robo-beam-after'].forEach((layerKey) => {
+    ['robo-beam-right', 'robo-beam-hit', 'robo-beam-after', 'robo-beam-final'].forEach((layerKey) => {
       const effect = forestContainer.querySelector(`[data-scene-layer="${layerKey}"]`) as HTMLElement | null;
       if (effect) effect.style.opacity = '0';
     });
@@ -2404,11 +2447,13 @@ function startExitAnimation(
       const wobblePhase = gsap.utils.random(-Math.PI, Math.PI);
       const wobbleStrength = gsap.utils.random(1.8, 2.8);
       const circleRadius = gsap.utils.random(16, 26);
+      const turnsFromSoutheastToNorthwest = side === 'left';
+      const fighterExitDuration = turnsFromSoutheastToNorthwest ? 0.92 / 0.90 : 0.92;
       const fighterExitTimeline = trackTimeline();
       contentTimelines.push(fighterExitTimeline);
       fighterExitTimeline.to(exitClock, {
         progress: 1,
-        duration: 0.92,
+        duration: fighterExitDuration,
         ease: 'none',
         onStart: () => {
           startX = Number(gsap.getProperty(fighter, 'x')) || 0;
@@ -2419,20 +2464,39 @@ function startExitAnimation(
         onUpdate: () => {
           const progress = exitClock.progress;
           const acceleratedProgress = 0.12 * progress + 0.88 * progress * progress;
+          const southeastTurnProgress = 0.20;
+          const southeastWaypointX = startX + fighterExitDistance * southeastTurnProgress;
+          const southeastWaypointY = startY + fighterExitVerticalDistance * southeastTurnProgress;
+          const turnLegProgress = Math.min(1, progress / southeastTurnProgress);
+          const turnLegEaseOut = 1 - (1 - turnLegProgress) * (1 - turnLegProgress);
+          const launchLegProgress = Math.max(0, (progress - southeastTurnProgress) / (1 - southeastTurnProgress));
+          const launchBackStrength = 1.35;
+          const launchBackEaseIn = launchLegProgress * launchLegProgress
+            * ((launchBackStrength + 1) * launchLegProgress - launchBackStrength);
+          const baseX = turnsFromSoutheastToNorthwest
+            ? progress <= southeastTurnProgress
+              ? startX + (southeastWaypointX - startX) * turnLegEaseOut
+              : southeastWaypointX + (targetX - southeastWaypointX) * launchBackEaseIn
+            : startX + (targetX - startX) * acceleratedProgress;
+          const baseY = turnsFromSoutheastToNorthwest
+            ? progress <= southeastTurnProgress
+              ? startY + (southeastWaypointY - startY) * turnLegEaseOut
+              : southeastWaypointY + (startY + yDelta - southeastWaypointY) * launchBackEaseIn
+            : startY + yDelta * acceleratedProgress;
           const wobbleEnvelope = 0.65 + Math.sin(Math.PI * progress) * 0.35;
           const wobblePhaseNow = progress * Math.PI * 2 + wobblePhase;
           const microWobblePhase = progress * Math.PI * 10 + wobblePhase;
           const diagonalDirection = side === 'left' ? 1 : -1;
           gsap.set(fighter, {
-            x: startX + (targetX - startX) * acceleratedProgress
+            x: baseX
               + (Math.sin(wobblePhaseNow) - Math.sin(wobblePhase)) * circleRadius * wobbleEnvelope
               + (Math.sin(microWobblePhase) - Math.sin(wobblePhase)) * wobbleStrength,
-            y: startY + yDelta * acceleratedProgress
+            y: baseY
               + (Math.cos(wobblePhaseNow) - Math.cos(wobblePhase))
                 * circleRadius * 0.72 * wobbleEnvelope
               + (Math.cos(microWobblePhase * 1.17) - Math.cos(wobblePhase * 1.17))
                 * wobbleStrength * 0.72,
-            rotation: startRotation + diagonalDirection * 30 * acceleratedProgress
+            rotation: startRotation + (turnsFromSoutheastToNorthwest ? -30 * launchLegProgress : diagonalDirection * 30 * acceleratedProgress)
               + (Math.sin(microWobblePhase * 1.31) - Math.sin(wobblePhase * 1.31))
                 * 1.6 * wobbleEnvelope,
             scale: startScale * (1 + Math.sin(microWobblePhase * 0.83) * 0.01 * wobbleEnvelope),
@@ -2460,7 +2524,7 @@ function startExitAnimation(
       });
       exitTimeline?.add(fighterExitTimeline, sceneParallaxLead);
     };
-    addFighterExit(leftFighterExit, 'left', fighterExitDistance, fighterExitVerticalDistance);
+    addFighterExit(leftFighterExit, 'left', -fighterExitDistance, -fighterExitVerticalDistance);
     addFighterExit(rightFighterExit, 'right', -fighterExitDistance, -fighterExitVerticalDistance);
   }
 
@@ -2679,11 +2743,14 @@ function startExitAnimation(
         const isRoboSceneExit = transitionTheme === 'area55';
         const isBeachBallExit = isBeachSceneExit && layerKey === 'beach-ball';
         if (isRoboSceneExit) {
+          const isRoboFrontExit = layerKey === 'robo-front';
           sceneExitTimeline.to(sceneImg, {
             opacity: 1,
-            x: 0,
-            y: 24,
-            rotation: orderIndex % 2 === 0 ? 12 : -12,
+            ...(isRoboFrontExit ? {} : { x: 0 }),
+            y: isRoboFrontExit
+              ? `+=${Math.max(220, forestContainer.clientHeight * 0.35)}`
+              : 24,
+            rotation: isRoboFrontExit ? 0 : orderIndex % 2 === 0 ? 12 : -12,
             scale: 0,
             duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
             ease: 'back.in(1.35)',
