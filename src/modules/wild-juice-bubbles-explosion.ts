@@ -88,29 +88,21 @@ const MUSHROOM_POLLEN_START_BAND_HEIGHT_RATIO = 0.30;
 const MUSHROOM_POLLEN_DEPTHS = [140, 88, 68, 49, 30] as const;
 const MUSHROOM_FOREGROUND_CLASS = 'cc-mushroom-finale-foreground';
 const WILD_JUICE_INPUT_LOCK_MS = 6200;
-const ROBO_FRAME_STEP_SECONDS = 0.19;
+const ROBO_FRAME_STEP_SECONDS = 0.12;
+const ROBO_FRAME_SMEAR_IN_SECONDS = 0.024;
+const ROBO_FRAME_SMEAR_OUT_SECONDS = 0.052;
 const ROBO_NEON_DUPLICATE_COUNT = 3;
 const ROBO_EXTRA_NEON_COUNT = 7;
 const ROBO_BELOW_TEXT_DUPLICATE_RATIO = 0.60;
-const ROBO_FINALE_COMPLETE_MS = 2300;
-const ROBO_NEON_MOTION_START_MS = 760;
-const ROBO_NEON_MOTION_SECONDS = 0.62;
+const ROBO_FINALE_SAFETY_TIMEOUT_MS = 6000;
+const ROBO_NEON_MOTION_START_MS = 750;
 const ROBO_NEON_EXIT_START_MS = 1450;
-const ROBO_BOING_OFFSETS = [
-  { x: -20, y: -12 },
-  { x: 16, y: 20 },
-  { x: 20, y: -18 },
-  { x: -14, y: 16 },
-  { x: -20, y: -20 },
-  { x: 18, y: 10 },
-  { x: -10, y: 20 },
-  { x: 20, y: -8 },
-  { x: -18, y: 14 },
-  { x: 12, y: -20 },
-  { x: 20, y: 18 },
-  { x: 0, y: 0 },
-] as const;
-
+const ROBO_NEON_MOTION_SECONDS = (ROBO_NEON_EXIT_START_MS - ROBO_NEON_MOTION_START_MS) / 1000;
+const ROBO_NEON_MOTION_RADIANS_PER_SECOND = (Math.PI * 4) / 0.85;
+const ROBO_NEON_EXIT_PAIR_GAP_SECONDS = 0.018;
+const ROBO_NEON_COLLAPSE_SECONDS = 0.16;
+const ROBO_HEAD_EXIT_ANTICIPATION_SECONDS = 0.08;
+const ROBO_HEAD_EXIT_COLLAPSE_SECONDS = 0.18;
 function setMushroomForegroundOwnership(active: boolean): void {
   if (typeof document === 'undefined') return;
   document.body?.classList.toggle(MUSHROOM_FOREGROUND_CLASS, active);
@@ -218,6 +210,17 @@ function triggerWildJuiceHapticBurst(spawnDurationMs: number): void {
 function triggerRoboFinaleHaptics(): void {
   scheduleHapticPulseTrain(80, 3, 95);
   scheduleHapticPulseTrain(1780, 3, 80);
+}
+
+function traceRoboFinale(event: string, details: Record<string, unknown> = {}): void {
+  const elapsedMs = explosionStartTime > 0 ? Math.round(performance.now() - explosionStartTime) : null;
+  const entry = { event, elapsedMs, ...details };
+  try { console.debug('[CC_ROBO_FINALE]', entry); } catch {}
+  try {
+    const trace = ((window as any).__ccRoboFinaleTrace ??= []);
+    trace.push(entry);
+    if (trace.length > 100) trace.splice(0, trace.length - 100);
+  } catch {}
 }
 
 function getFxHost(stage: any): any {
@@ -587,7 +590,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   const maxBubbleDurationMs = 2100; // 1.1–2.1s
   const safetyTimeoutMs = isMushroomDrop
     ? 5400
-    : isRoboDrop ? ROBO_FINALE_COMPLETE_MS + 300
+    : isRoboDrop ? ROBO_FINALE_SAFETY_TIMEOUT_MS
     : spawnDuration + maxBubbleDurationMs + 1800; // extra for 70% more bubbles
   if (isRoboDrop) triggerRoboFinaleHaptics();
   else triggerWildJuiceHapticBurst(spawnDuration);
@@ -616,6 +619,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   safetyTimeoutId = lifecycle.trackTimeout(() => {
     safetyTimeoutId = null;
     if (isExplosionActive) {
+      if (isRoboDrop) traceRoboFinale('safety-cleanup');
       logger.warn('Bubbles explosion safety timeout', undefined, { ms: Math.round(safetyTimeoutMs) });
       notifySequenceComplete();
       cleanup();
@@ -1117,13 +1121,21 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       : [];
     const accentTextures = (await Promise.allSettled(accentPaths.map((path) => Assets.load(path))))
       .flatMap((result) => result.status === 'fulfilled' && result.value ? [result.value as Texture] : []);
+    let robotExitComplete = false;
+    let neonExitComplete = accentTextures.length === 0;
+    const finishRoboFinaleAfterVisualExit = () => {
+      if (!robotExitComplete || !neonExitComplete || !isExplosionActive || cleanupInProgress) return;
+      traceRoboFinale('visual-exit-complete');
+      notifySequenceComplete();
+      cleanup();
+    };
     const roboAnimations: any[] = [];
     const robotTexture = bubbleTextures[0];
     const robot = bubblePool.acquire(robotTexture);
     const robotBaseWidth = Math.min(screenW * 0.576, 288);
     const robotBaseScale = robotBaseWidth / Math.max(1, robotTexture.width);
     const robotOriginX = screenW * 0.5;
-    const robotOriginY = screenH * 0.70 + 80;
+    const robotOriginY = screenH * 0.70;
     robot.anchor.set(0.5);
     robot.x = robotOriginX;
     robot.y = robotOriginY;
@@ -1147,82 +1159,42 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       duration: 0.10,
       ease: 'back.out(2.2)',
     }, 0);
-    const robotTexturePool = bubbleTextures.slice(0, 12);
-    let previousRobotTextureIndex = 0;
-    const robotFrameSequence = Array.from({ length: 10 }, () => {
-      const availableTextureIndices = robotTexturePool
-        .map((_texture, textureIndex) => textureIndex)
-        .filter((textureIndex) => textureIndex !== previousRobotTextureIndex);
-      const textureIndex = availableTextureIndices[Math.floor(Math.random() * availableTextureIndices.length)] ?? 0;
-      previousRobotTextureIndex = textureIndex;
-      return { texture: robotTexturePool[textureIndex], textureIndex };
-    });
-    robotFrameSequence.forEach(({ texture, textureIndex }, sequenceIndex) => {
+    const robotTexturePool = bubbleTextures.slice(0, 11);
+    const robotForwardSequence = robotTexturePool.slice(1);
+    const robotReverseSequence = robotTexturePool.slice(0, -1).reverse();
+    const robotFrameSequence = [...robotForwardSequence, ...robotReverseSequence];
+    robotFrameSequence.forEach((texture, sequenceIndex) => {
       const frameStart = 0.10 + sequenceIndex * ROBO_FRAME_STEP_SECONDS;
-      const boingOffset = ROBO_BOING_OFFSETS[Math.floor(Math.random() * ROBO_BOING_OFFSETS.length)]
-        ?? ROBO_BOING_OFFSETS[ROBO_BOING_OFFSETS.length - 1];
-      const normalizedSequenceProgress = sequenceIndex / Math.max(1, robotFrameSequence.length - 1);
-      const progressToPeak = 1 - Math.abs(normalizedSequenceProgress * 2 - 1);
-      const frameScale = robotBaseScale * (1 + Math.max(0, progressToPeak) * 0.5);
-      const targetX = robotOriginX + boingOffset.x * 0.55;
-      const targetY = robotOriginY + boingOffset.y * 0.55;
-      const targetRotation = (Math.random() * 0.024) - 0.012;
-      const fadeOutSeconds = ROBO_FRAME_STEP_SECONDS * 0.42;
-      const fadeInSeconds = ROBO_FRAME_STEP_SECONDS * 0.56;
-      robotTimeline.to(robot, {
-        alpha: 0,
-        duration: fadeOutSeconds,
-        ease: 'sine.in',
+      robotTimeline.to(robot.scale, {
+        x: robotBaseScale * 1.035,
+        y: robotBaseScale * 0.985,
+        duration: ROBO_FRAME_SMEAR_IN_SECONDS,
+        ease: 'power1.in',
       }, frameStart);
       robotTimeline.call(() => {
-        if (!robot.destroyed) {
-          robot.texture = texture;
-          applyGameplayTextureFiltering(robot.texture);
-        }
-      }, undefined, frameStart + ROBO_FRAME_STEP_SECONDS * 0.44);
-      robotTimeline.to(robot, {
-        x: targetX,
-        y: targetY,
-        rotation: targetRotation,
-        alpha: 1,
-        duration: fadeInSeconds,
-        ease: 'sine.out',
-      }, frameStart + ROBO_FRAME_STEP_SECONDS * 0.44);
+        if (robot.destroyed) return;
+        robot.texture = texture;
+        applyGameplayTextureFiltering(robot.texture);
+        // The centered sprite never moves or fades. A tiny scale-only smear
+        // around this swap suggests motion blur without a Pixi filter pass.
+        robot.position.set(robotOriginX, robotOriginY);
+        robot.rotation = 0;
+        robot.alpha = 1;
+      }, undefined, frameStart + ROBO_FRAME_SMEAR_IN_SECONDS);
       robotTimeline.to(robot.scale, {
-        x: frameScale,
-        y: frameScale,
-        duration: ROBO_FRAME_STEP_SECONDS * 0.92,
-        ease: 'sine.inOut',
-      }, frameStart);
+        x: robotBaseScale,
+        y: robotBaseScale,
+        duration: ROBO_FRAME_SMEAR_OUT_SECONDS,
+        ease: 'power2.out',
+      }, frameStart + ROBO_FRAME_SMEAR_IN_SECONDS);
     });
-    const robotFramesEnd = 0.10 + robotFrameSequence.length * ROBO_FRAME_STEP_SECONDS;
-    const deathDirection = Math.random() < 0.5 ? -1 : 1;
-    robotTimeline.to(robot, {
-      rotation: deathDirection * 0.09,
-      x: robotOriginX + deathDirection * (8 + Math.random() * 12),
-      y: robotOriginY + (Math.random() * 16 - 8),
-      duration: 0.04,
-      ease: 'power1.inOut',
-    }, robotFramesEnd + 0.02);
-    robotTimeline.to(robot, {
-      rotation: -deathDirection * 0.16,
-      alpha: 0,
-      duration: 0.08,
-      ease: 'back.in(1.8)',
-    });
-    robotTimeline.to(robot.scale, {
-      x: robotBaseScale * 0.08,
-      y: robotBaseScale * 0.08,
-      duration: 0.08,
-      ease: 'back.in(2.2)',
-    }, '<');
-
     const neonSprites: Array<{
       sprite: Sprite;
       originX: number;
       originY: number;
       phase: number;
       rotationDirection: -1 | 1;
+      isWindmill: boolean;
       targetScale: number;
       minimumAlpha: number;
       scatterX: number;
@@ -1280,6 +1252,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         placedNeonOrigins.push({ x: originX, y: originY, diameter: popDiameter });
         const minimumAlpha = 0.75 + Math.random() * 0.20;
         const rotationDirection: -1 | 1 = Math.random() < 0.5 ? -1 : 1;
+        const isWindmill = neonTextureIndices[index] === 1;
         const scatterAngle = Math.random() * Math.PI * 2;
         const scatterDistance = 20 + Math.random() * 32;
         neon.anchor.set(0.5);
@@ -1297,6 +1270,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           originY,
           phase: Math.random() * Math.PI * 2,
           rotationDirection,
+          isWindmill,
           targetScale,
           minimumAlpha,
           scatterX: Math.cos(scatterAngle) * scatterDistance,
@@ -1350,7 +1324,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       lifecycle.trackTimeout(() => {
         if (!isExplosionActive || cleanupInProgress) return;
         neonMotionTween = trackTween(neonMotion, {
-          time: Math.PI * 4,
+          // Keep the accepted orbit/pulse cadence alive without a dead hold:
+          // this owner runs continuously until the exit owner takes over.
+          time: ROBO_NEON_MOTION_RADIANS_PER_SECOND * ROBO_NEON_MOTION_SECONDS,
           progress: 1,
           duration: ROBO_NEON_MOTION_SECONDS,
           ease: 'none',
@@ -1361,6 +1337,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
               originY,
               phase,
               rotationDirection,
+              isWindmill,
               targetScale,
               minimumAlpha,
               scatterX,
@@ -1377,7 +1354,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
               sprite.y = originY
                 + Math.sin(wave * 0.92) * circularRadius * 0.65
                 + scatterY * easedScatter;
-              sprite.rotation = Math.sin(wave * 0.82) * 0.24 * rotationDirection;
+              sprite.rotation = isWindmill
+                ? wave * 1.35 * rotationDirection
+                : Math.sin(wave * 0.82) * 0.24 * rotationDirection;
               const pulse = (Math.sin(wave * 1.31) + 1) * 0.5;
               const pulseScale = targetScale * (0.92 + pulse * 0.14);
               sprite.scale.set(pulseScale);
@@ -1388,50 +1367,95 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         roboAnimations.push(neonMotionTween);
       }, ROBO_NEON_MOTION_START_MS);
 
-      lifecycle.trackTimeout(() => {
+      const neonExitTimeline = trackTimeline({
+        delay: ROBO_NEON_EXIT_START_MS / 1000,
+        onStart: () => traceRoboFinale('shared-exit-start', { count: neonSprites.length }),
+      });
+      roboAnimations.push(neonExitTimeline);
+      const liveNeonSprites = neonSprites
+        .map(({ sprite }) => sprite)
+        .filter((sprite) => sprite && !sprite.destroyed && sprite.parent);
+      const neonExitStartScales: number[] = [];
+      const neonExitState = { elapsed: 0 };
+      const neonExitEase = gsap.parseEase('back.in(2.2)');
+      const shuffledNeonIndices = liveNeonSprites.map((_sprite, index) => index);
+      for (let index = shuffledNeonIndices.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffledNeonIndices[index], shuffledNeonIndices[swapIndex]] = [
+          shuffledNeonIndices[swapIndex],
+          shuffledNeonIndices[index],
+        ];
+      }
+      const neonExitPairByIndex = new Map<number, number>();
+      shuffledNeonIndices.forEach((spriteIndex, orderIndex) => {
+        neonExitPairByIndex.set(spriteIndex, Math.floor(orderIndex / 2));
+      });
+      const neonExitPairCount = Math.ceil(liveNeonSprites.length / 2);
+      const neonExitDuration = ROBO_NEON_COLLAPSE_SECONDS
+        + Math.max(0, neonExitPairCount - 1) * ROBO_NEON_EXIT_PAIR_GAP_SECONDS;
+      let robotExitStartScale = robot.scale.x;
+      neonExitTimeline.call(() => {
+        animationManager.killExternalTimeline(robotTimeline);
         animationManager.killExternalTween(neonMotionTween);
         neonMotionTween = null;
-        neonSprites.forEach(({ sprite, rotationDirection }, index) => {
-          if (!sprite || sprite.destroyed || !sprite.parent) return;
-          const popTl = trackTimeline({ delay: index * 0.014 });
-          roboAnimations.push(popTl);
-          popTl.to(sprite, {
-            x: sprite.x + rotationDirection * 6,
-            rotation: rotationDirection * 0.34,
-            duration: 0.06,
-            ease: 'power1.inOut',
-          });
-          popTl.to(sprite, {
-            x: sprite.x - rotationDirection * 6,
-            rotation: -rotationDirection * 0.34,
-            duration: 0.06,
-            ease: 'power1.inOut',
-          });
-          popTl.to(sprite.scale, {
-            x: sprite.scale.x * 1.28,
-            y: sprite.scale.y * 1.28,
-            duration: 0.08,
-            ease: 'power2.out',
-          });
-          popTl.to(sprite.scale, {
-            x: 0,
-            y: 0,
-            duration: 0.14,
-            ease: 'back.in(2.5)',
-          });
-          popTl.to(sprite, { alpha: 0, duration: 0.10, ease: 'power2.in' }, '<');
+        robotExitStartScale = robot.scale.x;
+        liveNeonSprites.forEach((sprite, index) => {
+          neonExitStartScales[index] = sprite.scale.x;
         });
-      }, ROBO_NEON_EXIT_START_MS);
+      });
+      neonExitTimeline.to(robot.scale, {
+        x: () => robotExitStartScale * 1.12,
+        y: () => robotExitStartScale * 1.12,
+        duration: ROBO_HEAD_EXIT_ANTICIPATION_SECONDS,
+        ease: 'back.out(2.2)',
+        onStart: () => traceRoboFinale('head-exit-start'),
+      }, neonExitDuration);
+      neonExitTimeline.to(robot.scale, {
+        x: 0,
+        y: 0,
+        duration: ROBO_HEAD_EXIT_COLLAPSE_SECONDS,
+        ease: 'back.in(2.0)',
+        onComplete: () => {
+          robotExitComplete = true;
+          traceRoboFinale('head-exit-complete');
+          finishRoboFinaleAfterVisualExit();
+        },
+      }, neonExitDuration + ROBO_HEAD_EXIT_ANTICIPATION_SECONDS);
+      // One proxy owns randomly shuffled pairs. Every scale is still written
+      // in this single render callback, so pair choreography cannot regress
+      // into per-target tween serialization.
+      neonExitTimeline.to(neonExitState, {
+        elapsed: neonExitDuration,
+        duration: neonExitDuration,
+        ease: 'none',
+        onUpdate: () => {
+          liveNeonSprites.forEach((sprite, index) => {
+            if (sprite.destroyed || !sprite.parent) return;
+            const pairIndex = neonExitPairByIndex.get(index) ?? 0;
+            const localProgress = Math.max(0, Math.min(
+              1,
+              (neonExitState.elapsed - pairIndex * ROBO_NEON_EXIT_PAIR_GAP_SECONDS)
+                / ROBO_NEON_COLLAPSE_SECONDS,
+            ));
+            const scale = (neonExitStartScales[index] ?? 0) * (1 - neonExitEase(localProgress));
+            sprite.scale.set(scale);
+          });
+        },
+        onComplete: () => {
+          liveNeonSprites.forEach((sprite) => {
+            if (!sprite.destroyed) sprite.alpha = 0;
+          });
+          neonExitComplete = true;
+          traceRoboFinale('neon-exit-complete', { count: liveNeonSprites.length });
+          finishRoboFinaleAfterVisualExit();
+        },
+      }, 0);
     }
 
     (robot as any)._bubbleTweens = roboAnimations;
     neonSprites.forEach(({ sprite }) => {
       (sprite as any)._bubbleTweens = roboAnimations;
     });
-    lifecycle.trackTimeout(() => {
-      notifySequenceComplete();
-      cleanup();
-    }, ROBO_FINALE_COMPLETE_MS);
     return;
   }
 

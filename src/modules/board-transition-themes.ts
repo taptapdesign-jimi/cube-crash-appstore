@@ -73,9 +73,9 @@ export const AREA55_BOARD_TRANSITION_PROFILE = Object.freeze({
     { key: 'robo-fence', src: './assets/journey assets/robo/ograda.png', alt: '', style: islandStyle('25%', 151, 'min(77vw, 299px)', 50), spatialRole: 'scene' },
     { key: 'robo-walker', src: './assets/journey assets/robo/robo1.png', alt: '', style: islandStyle('80%', 136, 'min(64vw, 251px)', 40), spatialRole: 'scene' },
     { key: 'robo-ground-rear', src: './assets/journey assets/robo/zemlja2.png', alt: '', style: islandStyle('50%', -90, 'min(237vw, 921px)', 30), spatialRole: 'terrain' },
-    { key: 'robo-ship', src: './assets/journey assets/robo/ship.png', alt: 'Robo World', style: islandStyle('calc(30% - 35px)', 245, 'min(98vw, 383px)', 20), spatialRole: 'scene' },
+    { key: 'robo-ship', src: './assets/journey assets/robo/ship.png', alt: 'Robo World', style: islandStyle('calc(30% - 7px)', 249, 'min(98vw, 383px)', 20), spatialRole: 'scene' },
   ]),
-  enterOrder: Object.freeze(['robo-ground-rear', 'robo-walker', 'robo-ground-front', 'robo-fence', 'robo-ship', 'robo-front']),
+  enterOrder: Object.freeze(['robo-ground-front', 'robo-ground-rear', 'robo-walker', 'robo-fence', 'robo-ship', 'robo-front']),
 } satisfies BoardTransitionThemeProfile);
 
 export function getJourneyBoardTransitionTheme(boardNumber: number): BoardTransitionThemeId {

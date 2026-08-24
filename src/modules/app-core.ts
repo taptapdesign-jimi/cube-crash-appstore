@@ -155,6 +155,7 @@ import {
   isGameplayEntryPending,
   prepareGameplayEntryCommit,
 } from './gameplay-entry-coordinator.ts';
+import { boardTransitionPresentationHandoff } from './board-transition-presentation-handoff.ts';
 import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
@@ -5736,6 +5737,14 @@ function revealPreparedGameplaySurface(): void {
   } catch {}
 }
 
+function releaseBoardTransitionCoverAfterPreparedFrame(): void {
+  void boardTransitionPresentationHandoff.releaseAfterPreparedFrames({
+    renderPreparedFrame: () => {
+      try { app?.renderer?.render?.(stage); } catch {}
+    },
+  });
+}
+
 export async function recoverFreshArcadeEntryAfterFailedLoad(): Promise<void> {
   delete (window as any).__ccSkipRebuildBoard;
   delete (window as any).__ccArcadeContinuationCueRound;
@@ -5866,12 +5875,11 @@ function rebuildBoard(){
           }
         }
       : undefined,
-    onPopInStarted: arcadeEntryCueRound > 0
-      ? () => {
-          if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
-          releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
-        }
-      : undefined,
+    onPopInStarted: () => {
+      if (gameplayEntrySignal?.aborted || !isGameplayEntryGenerationLatest(gameplayEntryGeneration)) return;
+      if (arcadeEntryCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
+      releaseBoardTransitionCoverAfterPreparedFrame();
+    },
     shouldAbort: () => gameplayEntrySignal?.aborted === true ||
       !isGameplayEntryGenerationLatest(gameplayEntryGeneration),
     getAbortSignal: () => gameplayEntrySignal,
@@ -15853,12 +15861,11 @@ async function loadGameState(overrideBoardNumber?: number) {
             }
           }
         : undefined,
-      onPopInStarted: arcadeContinuationCueRound > 0
-        ? () => {
-            if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
-            releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
-          }
-        : undefined,
+      onPopInStarted: () => {
+        if (loadedEntrySignal?.aborted || !isGameplayEntryGenerationLatest(loadedEntryGeneration)) return;
+        if (arcadeContinuationCueRound > 0) releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage);
+        releaseBoardTransitionCoverAfterPreparedFrame();
+      },
       shouldAbort: () => loadedEntrySignal?.aborted === true ||
         !isGameplayEntryGenerationLatest(loadedEntryGeneration),
       getAbortSignal: () => loadedEntrySignal,

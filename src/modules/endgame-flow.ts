@@ -540,9 +540,7 @@ async function prepareForBoardTransitionScreen(): Promise<void> {
   await sampleTransitionMemory('2_before_show_transition');
 }
 
-async function completeBoardTransitionHandoff(cleanupBoardTransitionScreen?: () => void): Promise<void> {
-  try { cleanupBoardTransitionScreen?.(); } catch {}
-
+async function completeBoardTransitionHandoff(): Promise<void> {
   try {
     if (typeof (window as any).hideGhostPlaceholders === 'function') {
       (window as any).hideGhostPlaceholders();
@@ -1284,7 +1282,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           stopPixiTickerForTransition();
           const transitionEndTs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
           console.log('⏱️ endgame-flow: Transition duration (ms)', Math.round(transitionEndTs - transitionStartTs));
-          await completeBoardTransitionHandoff(cleanupBoardTransitionScreen);
+          await completeBoardTransitionHandoff();
           // After transition screen completes, start the next board
           // 🔥 CRITICAL FIX: Hide app first to cleanup previous board before starting new one
           // This prevents blank screen with old board visible in background

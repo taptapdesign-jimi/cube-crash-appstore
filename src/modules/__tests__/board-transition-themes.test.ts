@@ -11,11 +11,23 @@ import {
   createBeachTransitionVariation,
   createBeachTransitionVariationSequence,
 } from '../board-transition-beach-variation';
+import { createRoboTransitionVariation } from '../board-transition-robo-variation';
 import { RUN_MODE_ARCADE_HOME, RUN_MODE_JOURNEY } from '../run-mode';
 import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Board Transition World themes', () => {
+  test('randomizes the two Robo character directions as one opposite pair per transition', () => {
+    expect(createRoboTransitionVariation(() => 0.1)).toEqual({
+      frontTravelDirection: 1,
+      walkerTravelDirection: -1,
+    });
+    expect(createRoboTransitionVariation(() => 0.9)).toEqual({
+      frontTravelDirection: -1,
+      walkerTravelDirection: 1,
+    });
+  });
+
   test('lowers the complete Beach palm curtain by 32px', () => {
     expect(BEACH_PALM_GLOBAL_VERTICAL_OFFSET_PX).toBe(-32);
   });
@@ -130,9 +142,9 @@ describe('Board Transition World themes', () => {
       'robo-ship',
     ]);
     expect(AREA55_BOARD_TRANSITION_PROFILE.enterOrder).toEqual([
+      'robo-ground-front',
       'robo-ground-rear',
       'robo-walker',
-      'robo-ground-front',
       'robo-fence',
       'robo-ship',
       'robo-front',
@@ -168,7 +180,7 @@ describe('Board Transition World themes', () => {
       'bottom: -90px', 'width: min(237vw, 921px)',
     ]));
     expect(styleByLayer['robo-ship']).toEqual(expect.arrayContaining([
-      'left: calc(30% - 35px)', 'bottom: 245px', 'width: min(98vw, 383px)',
+      'left: calc(30% - 7px)', 'bottom: 249px', 'width: min(98vw, 383px)',
     ]));
 
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
@@ -182,16 +194,28 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("x: restX + firstDirection * 40, duration: 4.2, ease: 'sine.inOut'");
     expect(source).toContain("x: restX - firstDirection * 40, duration: 8.4, ease: 'sine.inOut'");
     expect(source).toContain('stopRoboGroundAmbientMotion(sceneImg)');
-    expect(source).toContain("const roboWalkerEndX = -Math.max(270, window.innerWidth * 0.72)");
-    expect(source).toContain("scale: 1.04");
-    expect(source).toContain("ease: 'back.out(2.0)'");
-    expect(source).toContain("scale: 0.95, duration: 0.1 * sceneEnterSpeedFactor");
+    expect(source).toContain("const roboVariation: RoboTransitionVariation | null = resolvedTheme === 'area55'");
+    expect(source).toContain("logger.info('[CC_ROBO_DIRECTION]', directionTrace)");
+    expect(source).toContain("sceneImg.style.left = roboVariation.frontTravelDirection === 1 ? '16%' : '84%'");
+    expect(source).toContain("sceneImg.style.left = roboVariation.walkerTravelDirection === 1 ? '20%' : '80%'");
+    expect(source).toContain('const roboFrontTravelDirection = roboVariation?.frontTravelDirection ?? 1');
+    expect(source).toContain('const roboCharacterMirrorY = isRoboFront');
+    expect(source).toContain('roboFrontTravelDirection === -1 ? 180 : 0');
+    expect(source).toContain("isRoboWalker && roboVariation?.walkerTravelDirection === 1 ? 180 : 0");
+    expect(source).toContain('rotationY: roboCharacterMirrorY');
+    expect(source).toContain('const roboWalkerEndX = (roboVariation?.walkerTravelDirection ?? -1)');
+    expect(source).toContain('const isRoboGroundFront = isRoboScene && layerKey === \'robo-ground-front\'');
+    expect(source).toContain('isRoboGroundFront ? 4.2 : 14');
+    expect(source).toContain('const roboArrivalOvershootScale = isRoboGroundFront ? 1.012 : 1.04');
+    expect(source).toContain('const roboArrivalReboundScale = isRoboGroundFront ? 0.985 : 0.95');
+    expect(source).toContain('const roboArrivalEaseStrength = isRoboGroundFront ? 0.6 : 2.0');
+    expect(source).toContain('const roboSettleEaseStrength = isRoboGroundFront ? 0.45 : 1.5');
     expect(source).toContain("scale: 1, duration: 0.12 * sceneEnterSpeedFactor");
     expect(source).toContain("x: roboWalkerEndX * 0.18, y: 7, rotation: -3");
     expect(source).toContain("x: roboWalkerEndX * 0.53, y: 9, rotation: -3");
     expect(source).toContain("x: roboWalkerEndX * 0.86, y: 6, rotation: -2");
-    expect(source).toContain("const roboFrontStartX = -Math.max(360, window.innerWidth)");
-    expect(source).toContain("const roboFrontEndX = Math.max(640, window.innerWidth * 1.65)");
+    expect(source).toContain("const roboFrontStartX = -roboFrontTravelDirection * Math.max(360, window.innerWidth)");
+    expect(source).toContain("const roboFrontEndX = roboFrontTravelDirection * Math.max(640, window.innerWidth * 1.65)");
     expect(source).toContain("x: roboFrontStartX * 0.28, y: -7, rotation: 3");
     expect(source).toContain("x: roboFrontEndX * 0.10, y: 7, rotation: -3");
     expect(source).toContain("x: roboFrontEndX * 0.32, y: -9, rotation: 3");
@@ -275,7 +299,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('x: exitDirection * curtainExitDistance');
     expect(source).toContain('y: curtainExitDownDistance');
     expect(source).toContain('opacity: 1');
-    expect(source).toContain("rotation: isHill ? 0 : isBeachCurtain ? beachPalmRestRotation : isRoboScene && (isRoboFront || layerKey === 'robo-ship') ? 0 : direction * 8");
+    expect(source).toContain("const isRoboShip = isRoboScene && layerKey === 'robo-ship'");
+    expect(source).toContain('isRoboShip ? 3 : isRoboFront ? 0');
     expect(source).toContain('scale: isHill ? hillBaseScale * 0.68 : isBeachCurtain ? beachPalmRestScale : isBeachFrontShore ? 0.7 : isRoboScene ? roboInitialScale : 0');
     expect(source).toContain('duration: 0.42');
     expect(source).toContain("ease: 'power3.out'");
