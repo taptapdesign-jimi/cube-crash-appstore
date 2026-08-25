@@ -39,6 +39,7 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('latestSceneExitEnd + 0.02');
     expect(source).toContain('addCloudExitAt(hillExitBaseStart)');
     expect(source).toContain('const hillContinuousDriftTimeline = trackTimeline()');
+    expect(source).toContain('enterTimeline.add(hillContinuousDriftTimeline, sceneEnterStart)');
     expect(source).toContain("duration: getTransitionHillParallaxDuration(layerKey)");
     expect(source).toContain("ease: 'none'");
     expect(source).toContain('duration: 0.72 * sceneEnterSpeedFactor');
