@@ -57,6 +57,8 @@ export type JourneyBottomDecorAsset = Readonly<{
 
 const BEACH_FIRST_BOARD = 11;
 const BEACH_LAST_BOARD = 20;
+const AREA55_FIRST_BOARD = 21;
+const AREA55_LAST_BOARD = 30;
 const BEACH_HUD_HIGH_RES_FILE_BY_UNIT: Readonly<Partial<Record<number, string>>> = Object.freeze({
   1: 'beach-hud1@2x.png',
   2: 'beach-hud2@2x.png',
@@ -80,6 +82,16 @@ function getBeachHudAsset(unitIndex: number): JourneyBottomDecorAsset {
   };
 }
 
+function getArea55HudAsset(unitIndex: number): JourneyBottomDecorAsset {
+  const safeUnitIndex = Math.max(1, Math.min(10, Math.floor(unitIndex)));
+  const assetBase = './assets/journey assets/robo/robo hud';
+  return {
+    key: `area55-hud${safeUnitIndex}`,
+    oneX: `${assetBase}/area${safeUnitIndex}.png`,
+    twoX: `${assetBase}/area${safeUnitIndex}@2x.png`,
+  };
+}
+
 export function getJourneyBottomDecorIndexForBoard(boardNumber?: number): number {
   const safeBoardNumber = Math.max(1, Math.floor(Number(boardNumber) || 1));
   const existing = journeyBottomDecorByBoard.get(safeBoardNumber);
@@ -94,6 +106,10 @@ export function getJourneyBottomDecorAssetForBoard(boardNumber?: number): Journe
   if (safeBoardNumber >= BEACH_FIRST_BOARD && safeBoardNumber <= BEACH_LAST_BOARD) {
     const unitIndex = safeBoardNumber - BEACH_FIRST_BOARD + 1;
     return getBeachHudAsset(unitIndex);
+  }
+  if (safeBoardNumber >= AREA55_FIRST_BOARD && safeBoardNumber <= AREA55_LAST_BOARD) {
+    const unitIndex = safeBoardNumber - AREA55_FIRST_BOARD + 1;
+    return getArea55HudAsset(unitIndex);
   }
 
   const decorIndex = getJourneyBottomDecorIndexForBoard(safeBoardNumber);

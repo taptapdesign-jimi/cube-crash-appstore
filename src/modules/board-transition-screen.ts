@@ -24,7 +24,9 @@ import {
   type BeachTransitionVariation,
 } from './board-transition-beach-variation.js';
 import {
+  createRoboAirCombatVariation,
   createRoboTransitionVariation,
+  type RoboAirCombatVariation,
   type RoboTransitionVariation,
 } from './board-transition-robo-variation.js';
 import { getRunMode } from './run-mode.js';
@@ -63,12 +65,16 @@ let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track al
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track scene image elements for cleanup
 let activeSceneElements: HTMLElement[] = []; // Animated scene layer elements (hill wrappers + regular images)
+let activeForestTransitionBeeImages: HTMLImageElement[] = [];
+let activeForestTransitionBeeLayers: HTMLElement[] = [];
+let forestTransitionBeeTimelines: gsap.core.Timeline[] = [];
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let roboGroundAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
 let roboAirCombatTimelines: gsap.core.Timeline[] = [];
 let roboAirCombatMasterTimeline: gsap.core.Timeline | null = null;
+let activeRoboAirCombatVariation: RoboAirCombatVariation | null = null;
 let isCleaningUp = false;
 let activeTransitionSettlement: BoardTransitionSettlement | null = null;
 let transitionGeneration = 0;
@@ -80,6 +86,35 @@ const TRANSITION_CLOUD_IMAGES = [
   './assets/board transition/oblak mali ljevo.png',
   './assets/board transition/oblak veliki ljevo dole.png'
 ];
+
+const FOREST_TRANSITION_BEE_ASSETS = [
+  './assets/shop/honey/bee1@2x.png',
+  './assets/shop/honey/bee2@2x.png',
+  './assets/shop/honey/bee3@2x.png',
+  './assets/shop/honey/bee4@2x.png',
+  './assets/shop/honey/bee5@2x.png',
+  './assets/shop/honey/bee6@2x.png',
+  './assets/shop/honey/bee7@2x.png',
+];
+
+type ForestTransitionBeeZone = 'clouds' | 'mountain' | 'hill' | 'pines' | 'foreground';
+
+const FOREST_TRANSITION_BEE_ZONES: ReadonlyArray<Readonly<{
+  zone: ForestTransitionBeeZone;
+  zIndex: number;
+  centerTopPercent: number;
+  sizeMultiplier: number;
+  count: number;
+  bottomBand?: boolean;
+  minSizePx?: number;
+  maxSizePx?: number;
+}>> = Object.freeze([
+  Object.freeze({ zone: 'clouds', zIndex: -1, centerTopPercent: 28, sizeMultiplier: 1, count: 3 }),
+  Object.freeze({ zone: 'mountain', zIndex: -1, centerTopPercent: 30, sizeMultiplier: 1, count: 3 }),
+  Object.freeze({ zone: 'hill', zIndex: 9, centerTopPercent: 52, sizeMultiplier: 0.60, count: 3 }),
+  Object.freeze({ zone: 'pines', zIndex: 33, centerTopPercent: 64, sizeMultiplier: 1.50, count: 3 }),
+  Object.freeze({ zone: 'foreground', zIndex: 45, centerTopPercent: 0, sizeMultiplier: 1, count: 4, bottomBand: true, minSizePx: 50, maxSizePx: 90 }),
+]);
 
 const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
   'robo-fighter-left',
@@ -254,6 +289,94 @@ let memSampleStartTs = 0;
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+function stopForestTransitionBees(): void {
+  forestTransitionBeeTimelines.forEach((timeline) => {
+    try { timeline.kill(); } catch {}
+  });
+  forestTransitionBeeTimelines = [];
+  activeForestTransitionBeeImages.forEach((beeImage) => {
+    try {
+      resetPooledImage(beeImage);
+      domElementPool.release(beeImage);
+    } catch {}
+  });
+  activeForestTransitionBeeImages = [];
+  activeForestTransitionBeeLayers.forEach((layer) => {
+    try { layer.remove(); } catch {}
+  });
+  activeForestTransitionBeeLayers = [];
+}
+
+function startForestTransitionBees(
+  forestContainer: HTMLElement,
+  cloudContainer: HTMLElement,
+): void {
+  stopForestTransitionBees();
+  FOREST_TRANSITION_BEE_ZONES.forEach((zoneConfig) => {
+    const layer = document.createElement('div');
+    layer.className = `cc-forest-transition-bees cc-forest-transition-bees--${zoneConfig.zone}`;
+    layer.dataset.forestBeeZone = zoneConfig.zone;
+    layer.style.cssText = [
+      'position: absolute',
+      'inset: 0',
+      'pointer-events: none',
+      'overflow: visible',
+      `z-index: ${zoneConfig.zIndex}`,
+    ].join(';');
+    const host = zoneConfig.zone === 'clouds' ? cloudContainer : forestContainer;
+    host.insertBefore(layer, host.firstChild);
+    activeForestTransitionBeeLayers.push(layer);
+
+    for (let beeIndex = 0; beeIndex < zoneConfig.count; beeIndex += 1) {
+      const beeImage = domElementPool.acquire('img') as HTMLImageElement;
+      resetPooledImage(beeImage);
+      beeImage.src = FOREST_TRANSITION_BEE_ASSETS[Math.floor(Math.random() * FOREST_TRANSITION_BEE_ASSETS.length)];
+      beeImage.alt = '';
+      beeImage.className = 'cc-forest-transition-bee';
+      beeImage.dataset.forestBeeZone = zoneConfig.zone;
+      const sizePx = zoneConfig.minSizePx !== undefined && zoneConfig.maxSizePx !== undefined
+        ? Math.round(zoneConfig.minSizePx + Math.random() * (zoneConfig.maxSizePx - zoneConfig.minSizePx))
+        : Math.round((28 + Math.random() * 10) * zoneConfig.sizeMultiplier);
+      const startLeftPercent = 8 + Math.random() * 84;
+      const startTopPercent = zoneConfig.centerTopPercent + (Math.random() * 24 - 12);
+      const bottomPx = 32 + Math.random() * 16;
+      beeImage.style.cssText = [
+        'position: absolute',
+        `left: ${startLeftPercent}%`,
+        zoneConfig.bottomBand ? 'top: auto' : `top: ${startTopPercent}%`,
+        zoneConfig.bottomBand ? `bottom: ${bottomPx}px` : 'bottom: auto',
+        `width: ${sizePx}px`,
+        'height: auto',
+        'display: block',
+        'pointer-events: none',
+        'will-change: transform',
+        'transform-origin: 50% 50%',
+      ].join(';');
+      layer.appendChild(beeImage);
+      activeForestTransitionBeeImages.push(beeImage);
+
+      const direction = Math.random() < 0.5 ? -1 : 1;
+      const travelX = 70 + Math.random() * 60;
+      const travelY = zoneConfig.bottomBand
+        ? 12 + Math.random() * 4
+        : 26 + Math.random() * 38;
+      const duration = 0.48 + Math.random() * 0.24;
+      const firstVerticalDirection = Math.random() < 0.5 ? -1 : 1;
+      const timeline = trackTimeline({ repeat: -1 });
+      timeline.set(beeImage, { scaleX: direction, scaleY: 1, rotation: direction * -10 });
+      timeline.to(beeImage, { x: direction * travelX, y: firstVerticalDirection * travelY, rotation: direction * 18, duration, ease: 'sine.inOut' });
+      timeline.set(beeImage, { scaleX: -direction });
+      timeline.to(beeImage, { x: -direction * travelX * 0.78, y: -firstVerticalDirection * travelY * 0.65, rotation: direction * -17, duration: duration * 0.88, ease: 'sine.inOut' });
+      timeline.set(beeImage, { scaleX: direction });
+      timeline.to(beeImage, { x: direction * travelX * 0.42, y: -firstVerticalDirection * travelY, rotation: direction * 15, duration: duration * 0.76, ease: 'sine.inOut' });
+      timeline.set(beeImage, { scaleX: -direction });
+      timeline.to(beeImage, { x: 0, y: 0, rotation: direction * -10, duration: duration * 0.84, ease: 'sine.inOut' });
+      timeline.seek(Math.random() * timeline.duration());
+      forestTransitionBeeTimelines.push(timeline);
+    }
+  });
+}
 
 function isTransitionHillLayer(layerKey: string): boolean {
   return layerKey === 'mountain' || layerKey === 'hill1' || layerKey === 'hill2';
@@ -499,10 +622,17 @@ function startRoboAirCombatMotion(
   // so every scene element starts the shared exit immediately after the rapid
   // opening volley instead of waiting for independent character traversals.
   const ships = [leftShip, rightShipMotion];
-  const fighterOnScreenX = Math.min(118, (window.innerWidth || 390) * 0.30);
+  const combatVariation = createRoboAirCombatVariation();
+  activeRoboAirCombatVariation = combatVariation;
+  console.info('[CC_ROBO_VARIATION]', combatVariation);
+  window.__ccRoboVariationTrace = [
+    ...(window.__ccRoboVariationTrace ?? []).slice(-9),
+    combatVariation,
+  ];
+  const fighterOnScreenX = Math.min(combatVariation.fighterEntryX, (window.innerWidth || 390) * 0.34);
   const flightJitter = Array.from({ length: 12 }, () => ({
-    x: gsap.utils.random(-18, 18),
-    y: gsap.utils.random(-14, 14),
+    x: gsap.utils.random(-combatVariation.fighterJitterX, combatVariation.fighterJitterX),
+    y: gsap.utils.random(-combatVariation.fighterJitterY, combatVariation.fighterJitterY),
   }));
   const rightHitPoint = {
     x: -45 + flightJitter[11].x * 0.25,
@@ -709,6 +839,13 @@ function startRoboAirCombatMotion(
     leftBankPhase: gsap.utils.random(-Math.PI, Math.PI),
     rightBankPhase: gsap.utils.random(-Math.PI, Math.PI),
   };
+  const crossingPolarity = combatVariation.crossingPolarity;
+  const routeHorizontalScale = combatVariation.routeHorizontalScale;
+  crossingVariation.firstX *= routeHorizontalScale;
+  crossingVariation.secondX *= routeHorizontalScale;
+  crossingVariation.finalX *= routeHorizontalScale;
+  crossingVariation.upperY += combatVariation.routeVerticalBias;
+  crossingVariation.verticalSeparation *= combatVariation.routeVerticalScale;
   const secondCrossTime = crossingVariation.firstTime + crossingVariation.secondTimeGap;
   const swapMidpointTime = Math.max(
     beamFourStartSeconds + 0.18,
@@ -717,35 +854,35 @@ function startRoboAirCombatMotion(
   const finalLowerY = crossingVariation.upperY + crossingVariation.verticalSeparation;
   const verticalDepthScaleRatio = 0.60;
   const leftShipAtBeamFour = {
-    x: crossingVariation.secondX + flightJitter[6].x - 67,
+    x: crossingPolarity * crossingVariation.secondX + flightJitter[6].x - 67,
     y: crossingVariation.upperY - 50,
   };
   const rightShipAtBeamFour = {
-    x: -crossingVariation.secondX + flightJitter[7].x + 45,
+    x: -crossingPolarity * crossingVariation.secondX + flightJitter[7].x + 45,
     y: finalLowerY,
   };
   const lowerShipPostBeamFourMidpoint = {
-    x: leftShipAtBeamFour.x + 50,
+    x: leftShipAtBeamFour.x + combatVariation.postBeamDirection * 50,
     y: leftShipAtBeamFour.y - 10,
   };
   const lowerShipPostBeamFourEnd = {
-    x: leftShipAtBeamFour.x + 100 + flightJitter[8].x * 0.25,
+    x: leftShipAtBeamFour.x + combatVariation.postBeamDirection * 100 + flightJitter[8].x * 0.25,
     y: leftShipAtBeamFour.y + 16,
   };
   const rightShipPostBeamFourMidpoint = {
-    x: rightShipAtBeamFour.x + 10,
+    x: rightShipAtBeamFour.x - combatVariation.postBeamDirection * 22,
     y: rightShipAtBeamFour.y + 4,
   };
   const rightShipPostBeamFourEnd = {
-    x: rightShipAtBeamFour.x + 20,
+    x: rightShipAtBeamFour.x - combatVariation.postBeamDirection * 44,
     y: rightShipAtBeamFour.y + 10,
   };
   startContinuousFlight(leftShip, [
     { time: 0, x: leftShipEnterX, y: leftShipEnterY, scale: leftShipBaseScale },
     { time: 0.72, x: leftShipBeforeNn.x, y: leftShipBeforeNn.y, scale: leftShipBaseScale * 1.50 },
     { time: nnAppearSeconds, x: leftShipAtNn.x, y: leftShipAtNn.y, scale: leftShipBaseScale * 1.50 * 0.90 },
-    { time: crossingVariation.firstTime, x: -crossingVariation.firstX + flightJitter[4].x, y: leftShipUpperY - 18 + flightJitter[5].y, scale: leftShipBaseScale * 1.42 },
-    { time: secondCrossTime, x: crossingVariation.secondX + flightJitter[6].x, y: crossingVariation.upperY, scale: leftShipBaseScale * 1.48 },
+    { time: crossingVariation.firstTime, x: -crossingPolarity * crossingVariation.firstX + flightJitter[4].x, y: leftShipUpperY - 18 + combatVariation.routeVerticalBias + flightJitter[5].y, scale: leftShipBaseScale * 1.42 },
+    { time: secondCrossTime, x: crossingPolarity * crossingVariation.secondX + flightJitter[6].x, y: crossingVariation.upperY, scale: leftShipBaseScale * 1.48 },
     { time: beamFourStartSeconds, x: leftShipAtBeamFour.x, y: leftShipAtBeamFour.y, scale: leftShipBaseScale * 1.48 },
     { time: swapMidpointTime, x: lowerShipPostBeamFourMidpoint.x, y: lowerShipPostBeamFourMidpoint.y, scale: leftShipBaseScale * 1.72 },
     { time: fighterFlightDurationSeconds, x: lowerShipPostBeamFourEnd.x, y: lowerShipPostBeamFourEnd.y, scale: leftShipBaseScale * 1.48 / verticalDepthScaleRatio },
@@ -754,8 +891,8 @@ function startRoboAirCombatMotion(
     { time: 0, x: fighterOnScreenX, y: rightShipEnterY, scale: rightShipEnterScale },
     { time: 0.72, x: rightShipBeforeNn.x, y: rightShipBeforeNn.y, scale: rightShipBaseScale * 1.60 },
     { time: nnAppearSeconds, x: rightShipAtNn.x, y: rightShipAtNn.y, scale: rightShipBaseScale * 1.60 },
-    { time: crossingVariation.firstTime, x: crossingVariation.firstX + flightJitter[5].x, y: -96 + flightJitter[6].y, scale: rightShipBaseScale * 1.52 },
-    { time: secondCrossTime, x: -crossingVariation.secondX + flightJitter[7].x, y: finalLowerY, scale: rightShipBaseScale * 1.46 },
+    { time: crossingVariation.firstTime, x: crossingPolarity * crossingVariation.firstX + flightJitter[5].x, y: -96 + combatVariation.routeVerticalBias + flightJitter[6].y, scale: rightShipBaseScale * 1.52 },
+    { time: secondCrossTime, x: -crossingPolarity * crossingVariation.secondX + flightJitter[7].x, y: finalLowerY, scale: rightShipBaseScale * 1.46 },
     { time: beamFourStartSeconds, x: rightShipAtBeamFour.x, y: rightShipAtBeamFour.y, scale: rightShipBaseScale * 1.46 },
     { time: swapMidpointTime, x: rightShipPostBeamFourMidpoint.x, y: rightShipPostBeamFourMidpoint.y, scale: rightShipBaseScale * 1.12 },
     { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
@@ -765,42 +902,43 @@ function startRoboAirCombatMotion(
     beam: HTMLImageElement,
     start: number,
     rotation: number,
-    impact: { x: number; y: number },
-    targetShip: HTMLElement,
     horizontalTravel: number,
     launchZIndex = 59,
     scaleMultiplier = 1,
     travelMultiplier = 1,
-    impactYOffset = 0,
-    impactXOffset = 0,
+    destinationYOffset = 0,
+    destinationXOffset = 0,
+    mirroredY = false,
+    launchYOffset = 0,
+    launchXRatio?: number,
   ): void => {
-    const resolveImpactX = (): number => targetShip.offsetLeft + impact.x - beam.offsetLeft + impactXOffset;
-    const resolveImpactY = (): number => {
-      const targetHeight = targetShip.offsetHeight || rightShipRenderedHeight;
-      const targetBottom = Number.parseFloat(targetShip.style.bottom) || 0;
-      const targetCenterY = forestContainer.clientHeight
-        - targetBottom
-        - targetHeight * 0.5
-        + impact.y;
-      return targetCenterY - beam.offsetTop + impactYOffset;
-    };
+    const beamFadeOutDurationSeconds = 0.1 * 0.70;
     const launchJitterX = gsap.utils.random(-22, 22);
     const flightScale = gsap.utils.random(2.10, 2.35) * scaleMultiplier;
+    const entersFromLeft = horizontalTravel >= 0;
+    const launchAnchor = {
+      x: forestContainer.clientWidth * (launchXRatio ?? (entersFromLeft ? 0.12 : 0.88)),
+      y: -forestRect.top - 70 + launchYOffset,
+    };
     timeline.set(beam, {
-      opacity: 0,
+      opacity: 1,
       zIndex: launchZIndex,
       xPercent: -88,
       yPercent: -75,
-      x: () => resolveImpactX() + horizontalTravel * travelMultiplier + launchJitterX,
-      y: () => resolveImpactY() + 480 * travelMultiplier,
-      scaleX: 1,
-      scaleY: 1,
-      rotation,
+      x: () => launchAnchor.x - beam.offsetLeft,
+      y: () => launchAnchor.y - beam.offsetTop,
+      scaleX: flightScale,
+      scaleY: mirroredY ? -flightScale : flightScale,
+      rotation: rotation + 180,
       transformOrigin: '88% 75%',
     }, start);
     timeline.call(() => {
       const payload = {
         beam: beam.dataset.sceneLayer || 'unknown',
+        sourceCorner: entersFromLeft ? 'top-left' : 'top-right',
+        sourceX: Math.round(launchAnchor.x),
+        sourceY: Math.round(launchAnchor.y),
+        direction: 'down',
         beamZIndex: window.getComputedStyle(beam).zIndex,
         frontGroundZIndex: window.getComputedStyle(frontGround).zIndex,
         rearGroundZIndex: window.getComputedStyle(rearGround).zIndex,
@@ -813,10 +951,16 @@ function startRoboAirCombatMotion(
     }, undefined, start);
     timeline.to(beam, {
       opacity: 1,
-      x: resolveImpactX,
-      y: resolveImpactY,
-      scaleX: flightScale,
-      scaleY: flightScale,
+      x: () => launchAnchor.x - beam.offsetLeft
+        + horizontalTravel * travelMultiplier
+        + destinationXOffset
+        + launchJitterX,
+      y: () => launchAnchor.y - beam.offsetTop
+        + 480 * travelMultiplier
+        + destinationYOffset
+        - launchYOffset,
+      scaleX: 1,
+      scaleY: mirroredY ? -1 : 1,
       filter: 'drop-shadow(0 0 12px rgba(104, 239, 255, 1))',
       duration: 0.6,
       ease: 'none',
@@ -829,29 +973,53 @@ function startRoboAirCombatMotion(
     timeline.to(beam, {
       opacity: 0,
       scaleX: 1.55,
-      scaleY: 1.55,
-      duration: 0.1,
+      scaleY: mirroredY ? -1.55 : 1.55,
+      duration: beamFadeOutDurationSeconds,
       ease: 'none',
     }, start + 0.7);
   };
-  // The beam PNGs place their bright impact burst around 88% / 75%.
-  // Anchoring that point, rather than the transparent image centre, makes each
-  // Three independent beam elements remain hidden until their own shot, then
-  // Beam 2 and the late Beam 4 remain behind upper/rear zemlja2; Beams 1/3 remain behind front zemlja1.
-  // Three rapid opening shots are followed by the longer Beam 4 near the finale.
-  // The rapid volley begins immediately, exactly two seconds earlier than the
-  // prior authored 2.00s launch reference, while ships continue to NN exit.
-  const firstBeamStartSeconds = 0.00;
-  const beamShotStaggerSeconds = 0.12;
-  addBeamShot(beamHit, firstBeamStartSeconds, -96, rightHitPoint, rightShipMotion, -154, 59, 1.50, 1.30);
-  addBeamShot(beamRight, firstBeamStartSeconds + beamShotStaggerSeconds, -108, rightHitPoint, rightShipMotion, 168, 29);
-  addBeamShot(beamAfter, firstBeamStartSeconds + beamShotStaggerSeconds * 2, -100, rightHitPoint, rightShipMotion, 148, 59, 1, 1, 0, 70);
-  addBeamShot(beamFinal, beamFourStartSeconds, -96, rightHitPoint, rightShipMotion, -154, 29, 1.30, 1.50, -70);
+  // Beams enter independently from just above the top-left or top-right edge,
+  // choosing the opposite corner from their horizontal fall direction. They
+  // are not attached to fighter geometry and travel downward into the scene.
+  // Only Beam 1 and the late mirrored Beam 4 fire; both remain behind the
+  // upper/rear zemlja2 while ships continue to NN exit.
+  const firstBeamStartSeconds = RIGHT_SHIP_START_DELAY_SECONDS;
+  addBeamShot(
+    beamHit,
+    firstBeamStartSeconds,
+    -96 + combatVariation.beamOne.rotationOffset,
+    -154,
+    29,
+    combatVariation.beamOne.scaleMultiplier,
+    combatVariation.beamOne.travelMultiplier,
+    0,
+    combatVariation.beamOne.destinationXOffset,
+    false,
+    0,
+    combatVariation.beamOne.launchXRatio,
+  );
+  addBeamShot(
+    beamFinal,
+    beamFourStartSeconds,
+    -96 + combatVariation.beamFour.rotationOffset,
+    154,
+    29,
+    combatVariation.beamFour.scaleMultiplier,
+    combatVariation.beamFour.travelMultiplier,
+    -70,
+    combatVariation.beamFour.destinationXOffset,
+    true,
+    -40,
+    combatVariation.beamFour.launchXRatio,
+  );
 
   // Keep the swapped-height fighters visible and wobbling until NN exit owns
   // their one-way off-screen departure.
   timeline.to({}, { duration: 0.001, ease: 'none' }, fighterFlightDurationSeconds);
-  roboAirCombatTimelines.forEach((ownedTimeline) => ownedTimeline.play(0));
+  roboAirCombatTimelines
+    .filter((ownedTimeline) => ownedTimeline !== timeline)
+    .forEach((ownedTimeline) => ownedTimeline.play(0));
+  timeline.play(0);
 }
 
 function resetPooledImage(img: HTMLImageElement): void {
@@ -919,16 +1087,20 @@ function ensureCloudStyles(): void {
   document.head.appendChild(style);
 }
 
-async function preloadTransitionAssets(sceneLayers: readonly BoardTransitionThemeLayer[]): Promise<void> {
+async function preloadTransitionAssets(
+  sceneLayers: readonly BoardTransitionThemeLayer[],
+  includeForestBees = false,
+): Promise<void> {
   const urls = [
     ...TRANSITION_CLOUD_IMAGES,
     ...sceneLayers.map((layer) => layer.src),
+    ...(includeForestBees ? FOREST_TRANSITION_BEE_ASSETS : []),
   ];
   const missingUrls = urls.filter((src) => !preloadedTransitionAssetUrls.has(src));
   if (missingUrls.length === 0) return;
   if (assetsPreloadPromise) {
     await assetsPreloadPromise;
-    return preloadTransitionAssets(sceneLayers);
+    return preloadTransitionAssets(sceneLayers, includeForestBees);
   }
   assetsPreloadPromise = (async () => {
     try {
@@ -1066,7 +1238,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
 
   // Preload in the background; do not block the transition overlay on image decode.
-  preloadTransitionAssets(showScene ? sceneLayers : []).catch((error) => {
+  preloadTransitionAssets(showScene ? sceneLayers : [], resolvedTheme === 'forest').catch((error) => {
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
   import('../utils/board-asset-warmup.js')
@@ -1696,7 +1868,13 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
       overlay.appendChild(forestContainer);
       forestContainer.appendChild(cloudMidContainer);
+      if (resolvedTheme === 'forest') {
+        startForestTransitionBees(forestContainer, cloudContainer);
+      } else {
+        stopForestTransitionBees();
+      }
     } else {
+      stopForestTransitionBees();
       overlay.appendChild(cloudMidContainer);
       // Arcade variant: explicitly remove/disable scene layer if a reused overlay still has it.
       if (forestContainer && forestContainer.parentNode) {
@@ -2428,6 +2606,7 @@ function startExitAnimation(
   const sceneParallaxLead = BOARD_TRANSITION_EXIT_PARALLAX_LEAD_SECONDS;
 
   if (leftFighterExit && rightFighterExit) {
+    const exitVariation = activeRoboAirCombatVariation ?? createRoboAirCombatVariation();
     exitTimeline.call(stopRoboAirCombatMotion, undefined, sceneParallaxLead);
     const fighterExitDistance = (window.innerWidth || 390) * 2
       + Math.max(leftFighterExit.offsetWidth, rightFighterExit.offsetWidth)
@@ -2447,8 +2626,7 @@ function startExitAnimation(
       const wobblePhase = gsap.utils.random(-Math.PI, Math.PI);
       const wobbleStrength = gsap.utils.random(1.8, 2.8);
       const circleRadius = gsap.utils.random(16, 26);
-      const turnsFromSoutheastToNorthwest = side === 'left';
-      const fighterExitDuration = turnsFromSoutheastToNorthwest ? 0.92 / 0.90 : 0.92;
+      const fighterExitDuration = exitVariation.exitDurationSeconds;
       const fighterExitTimeline = trackTimeline();
       contentTimelines.push(fighterExitTimeline);
       fighterExitTimeline.to(exitClock, {
@@ -2464,25 +2642,12 @@ function startExitAnimation(
         onUpdate: () => {
           const progress = exitClock.progress;
           const acceleratedProgress = 0.12 * progress + 0.88 * progress * progress;
-          const southeastTurnProgress = 0.20;
-          const southeastWaypointX = startX + fighterExitDistance * southeastTurnProgress;
-          const southeastWaypointY = startY + fighterExitVerticalDistance * southeastTurnProgress;
-          const turnLegProgress = Math.min(1, progress / southeastTurnProgress);
-          const turnLegEaseOut = 1 - (1 - turnLegProgress) * (1 - turnLegProgress);
-          const launchLegProgress = Math.max(0, (progress - southeastTurnProgress) / (1 - southeastTurnProgress));
-          const launchBackStrength = 1.35;
-          const launchBackEaseIn = launchLegProgress * launchLegProgress
-            * ((launchBackStrength + 1) * launchLegProgress - launchBackStrength);
-          const baseX = turnsFromSoutheastToNorthwest
-            ? progress <= southeastTurnProgress
-              ? startX + (southeastWaypointX - startX) * turnLegEaseOut
-              : southeastWaypointX + (targetX - southeastWaypointX) * launchBackEaseIn
-            : startX + (targetX - startX) * acceleratedProgress;
-          const baseY = turnsFromSoutheastToNorthwest
-            ? progress <= southeastTurnProgress
-              ? startY + (southeastWaypointY - startY) * turnLegEaseOut
-              : southeastWaypointY + (startY + yDelta - southeastWaypointY) * launchBackEaseIn
-            : startY + yDelta * acceleratedProgress;
+          const arcProgress = Math.sin(Math.PI * progress);
+          const arcDirection = side === 'left' ? 1 : -1;
+          const baseX = startX + (targetX - startX) * acceleratedProgress
+            + arcDirection * circleRadius * 2.2 * arcProgress;
+          const baseY = startY + yDelta * acceleratedProgress
+            - circleRadius * 1.35 * arcProgress;
           const wobbleEnvelope = 0.65 + Math.sin(Math.PI * progress) * 0.35;
           const wobblePhaseNow = progress * Math.PI * 2 + wobblePhase;
           const microWobblePhase = progress * Math.PI * 10 + wobblePhase;
@@ -2496,7 +2661,7 @@ function startExitAnimation(
                 * circleRadius * 0.72 * wobbleEnvelope
               + (Math.cos(microWobblePhase * 1.17) - Math.cos(wobblePhase * 1.17))
                 * wobbleStrength * 0.72,
-            rotation: startRotation + (turnsFromSoutheastToNorthwest ? -30 * launchLegProgress : diagonalDirection * 30 * acceleratedProgress)
+            rotation: startRotation + diagonalDirection * 30 * acceleratedProgress
               + (Math.sin(microWobblePhase * 1.31) - Math.sin(wobblePhase * 1.31))
                 * 1.6 * wobbleEnvelope,
             scale: startScale * (1 + Math.sin(microWobblePhase * 0.83) * 0.01 * wobbleEnvelope),
@@ -2507,6 +2672,10 @@ function startExitAnimation(
           const rect = fighter.getBoundingClientRect();
           const payload = {
             side,
+            routeProfile: exitVariation.routeProfile,
+            exitPattern: exitVariation.exitPattern,
+            targetX: Math.round(targetX),
+            yDelta: Math.round(yDelta),
             left: Math.round(rect.left),
             right: Math.round(rect.right),
             viewportWidth: window.innerWidth || 390,
@@ -2524,8 +2693,24 @@ function startExitAnimation(
       });
       exitTimeline?.add(fighterExitTimeline, sceneParallaxLead);
     };
-    addFighterExit(leftFighterExit, 'left', -fighterExitDistance, -fighterExitVerticalDistance);
-    addFighterExit(rightFighterExit, 'right', -fighterExitDistance, -fighterExitVerticalDistance);
+    const exitDirections = exitVariation.exitPattern === 0
+      ? { left: [-1, -1], right: [1, 1] }
+      : exitVariation.exitPattern === 1
+        ? { left: [-1, 1], right: [1, -1] }
+        : { left: [1, -1], right: [-1, 1] };
+    const exitVerticalDistance = fighterExitVerticalDistance * exitVariation.exitVerticalScale;
+    addFighterExit(
+      leftFighterExit,
+      'left',
+      exitDirections.left[0] * fighterExitDistance,
+      exitDirections.left[1] * exitVerticalDistance,
+    );
+    addFighterExit(
+      rightFighterExit,
+      'right',
+      exitDirections.right[0] * fighterExitDistance,
+      exitDirections.right[1] * exitVerticalDistance,
+    );
   }
 
   // Replay same two digit haptics on exit (numbers disappearing), aligned with delayed digit exit.
@@ -2921,11 +3106,13 @@ function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean } 
     }
   });
   contentTimelines = [];
+      stopForestTransitionBees();
       try { beachShoreAmbientTimeline?.kill(); } catch {}
       beachShoreAmbientTimeline = null;
       beachAmbientTimelines.clear();
       roboGroundAmbientTimelines.clear();
       stopRoboAirCombatMotion();
+      activeRoboAirCombatVariation = null;
   
   // Keep the overlay DOM reusable, but always return transient image elements to the pool.
   activeCloudImages.forEach(cloudImg => {

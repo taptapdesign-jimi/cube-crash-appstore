@@ -94,6 +94,10 @@ import {
   type JourneyBeachBubbleDriftController,
 } from './journey-beach-bubble-drift.js';
 import {
+  startJourneyArea55ShipFlybys,
+  type JourneyArea55ShipFlybyController,
+} from './journey-area55-ship-flybys.js';
+import {
   JourneyWorldRuntimeScheduler,
   type JourneyWorldRuntimeSnapshot,
 } from './journey-world-runtime-scheduler.js';
@@ -954,6 +958,7 @@ class JourneyBoardsManager {
   private journeyHubPrepaintEpoch = 0;
   private forestBeeOrbits: JourneyForestBeeOrbitController | null = null;
   private beachBubbleDrift: JourneyBeachBubbleDriftController | null = null;
+  private area55ShipFlybys: JourneyArea55ShipFlybyController | null = null;
   private journeyWorldRuntime = new JourneyWorldRuntimeScheduler();
   private journeyCardInteractionProfiler = new JourneyCardInteractionProfiler();
   private journeyWorldRuntimeIdleSuspendedAt: number | null = null;
@@ -1040,7 +1045,7 @@ class JourneyBoardsManager {
       }
     }
 
-    [this.forestBeeOrbits, this.beachBubbleDrift].forEach((ambientOwner) => {
+    [this.forestBeeOrbits, this.beachBubbleDrift, this.area55ShipFlybys].forEach((ambientOwner) => {
       if (!ambientOwner) return;
       ambientOwner.setSuspended(snapshot.ambientSuspended);
     });
@@ -1183,6 +1188,7 @@ class JourneyBoardsManager {
     this.cancelAllTimeouts();
     this.stopForestBeeOrbits('render-replaced');
     this.stopBeachBubbleDrift('render-replaced');
+    this.stopArea55ShipFlybys('render-replaced');
     this.journeyV700CloseQueuedDuringEnter = false;
     this.renderLifecycleGeneration += 1;
     this.renderDisposed = false;
@@ -1241,6 +1247,30 @@ class JourneyBoardsManager {
     const runtimeSnapshot = this.journeyWorldRuntime.getSnapshot();
     this.beachBubbleDrift.setSuspended(runtimeSnapshot.ambientSuspended);
     logger.info('🫧 Beach bubble drift owner started', this.beachBubbleDrift.getSnapshot());
+  }
+
+  private stopArea55ShipFlybys(reason: string): void {
+    if (!this.area55ShipFlybys) return;
+    this.area55ShipFlybys.dispose();
+    this.area55ShipFlybys = null;
+    logger.info('🛸 Area 55 ship flyby owner stopped', { reason });
+  }
+
+  private startArea55ShipFlybys(container: HTMLElement, worldId: number): void {
+    this.stopArea55ShipFlybys('start-replacement');
+    if (worldId !== 3 || this.journeyV700Phase !== 'idle') return;
+    if (this.renderDisposed || this.journeyV700View !== 'world' || this.journeyV700WorldId !== 3) return;
+    if (!container.isConnected) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) return;
+
+    const scrollRoot = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+    const leftGutterPx = scrollRoot
+      ? Number.parseFloat(getComputedStyle(scrollRoot).getPropertyValue('--pad-left')) || 0
+      : 0;
+    this.area55ShipFlybys = startJourneyArea55ShipFlybys({ root: container, scrollRoot, leftGutterPx });
+    const runtimeSnapshot = this.journeyWorldRuntime.getSnapshot();
+    this.area55ShipFlybys.setSuspended(runtimeSnapshot.ambientSuspended);
+    logger.info('🛸 Area 55 ship flyby owner started', this.area55ShipFlybys.getSnapshot());
   }
   
   /**
@@ -5504,6 +5534,7 @@ class JourneyBoardsManager {
       this.journeyWorldRuntime.deactivate();
       this.stopForestBeeOrbits('manager-cleanup');
       this.stopBeachBubbleDrift('manager-cleanup');
+      this.stopArea55ShipFlybys('manager-cleanup');
       journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
@@ -8337,6 +8368,7 @@ class JourneyBoardsManager {
       if (!closeQueuedDuringEnter) {
         this.startForestBeeOrbits(container, worldId);
         this.startBeachBubbleDrift(container, worldId);
+        this.startArea55ShipFlybys(container, worldId);
       }
       this.logJourneyV700Flow('world-enter-complete', { worldId, source }, container);
       if (closeQueuedDuringEnter) {
@@ -8359,6 +8391,7 @@ class JourneyBoardsManager {
     this.journeyWorldRuntime.beginTransition();
     this.stopForestBeeOrbits('world-exit');
     this.stopBeachBubbleDrift('world-exit');
+    this.stopArea55ShipFlybys('world-exit');
     journeySpatialMotion.suspend();
     this.journeyV700PreparedWorldEnter = null;
     ++this.journeyV700WorldMotionEpoch;

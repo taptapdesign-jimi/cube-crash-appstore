@@ -1,0 +1,163 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {
+  advanceJourneyArea55ShipScale,
+  clampJourneyArea55ShipRotation,
+  getJourneyArea55ShipSize,
+  resolveJourneyArea55ShipRuntimeProfile,
+  startJourneyArea55ShipFlybys,
+} from '../journey-area55-ship-flybys';
+
+describe('Journey Area 55 pooled ship flybys', () => {
+  test('holds one scale for at least three seconds before a short smooth change', () => {
+    const scale = {
+      scaleWave: 0.25,
+      scaleFromWave: 0.25,
+      scaleTargetWave: 0.25,
+      scaleHoldSeconds: 3,
+      scaleTransitionSeconds: 0.45,
+    };
+    const random = jest.fn()
+      .mockReturnValueOnce(0.75)
+      .mockReturnValueOnce(0.5);
+
+    advanceJourneyArea55ShipScale(scale, 2.99, random);
+    expect(scale.scaleWave).toBe(0.25);
+    expect(random).not.toHaveBeenCalled();
+
+    advanceJourneyArea55ShipScale(scale, 0.21, random);
+    expect(scale.scaleWave).toBeGreaterThan(0.25);
+    expect(scale.scaleWave).toBeLessThan(0.75);
+    expect(random).toHaveBeenCalledTimes(1);
+
+    advanceJourneyArea55ShipScale(scale, 0.25, random);
+    expect(scale.scaleWave).toBe(0.75);
+    expect(scale.scaleHoldSeconds).toBe(3.75);
+    expect(random).toHaveBeenCalledTimes(2);
+  });
+
+  test('halves scale and clamps every bank to twenty degrees', () => {
+    expect(getJourneyArea55ShipSize(55, 0)).toBe(50);
+    expect(getJourneyArea55ShipSize(62.5, 0.5)).toBe(62.5);
+    expect(getJourneyArea55ShipSize(69.5, 1)).toBe(75);
+    expect(clampJourneyArea55ShipRotation(Math.PI / 2)).toBeCloseTo(20 * Math.PI / 180, 10);
+    expect(clampJourneyArea55ShipRotation(-Math.PI / 2)).toBeCloseTo(-20 * Math.PI / 180, 10);
+  });
+
+  test('uses the shared mobile thermal cadence', () => {
+    expect(resolveJourneyArea55ShipRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    expect(resolveJourneyArea55ShipRuntimeProfile('Mozilla/5.0 (Linux; Android 15)'))
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+  });
+
+  test('pools exactly four cross-screen ships behind clouds in alternating upper and lower lanes', () => {
+    Object.defineProperties(window, {
+      innerWidth: { configurable: true, value: 390 },
+      innerHeight: { configurable: true, value: 844 },
+      devicePixelRatio: { configurable: true, value: 3 },
+    });
+    const scrollRoot = document.createElement('div');
+    Object.defineProperties(scrollRoot, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollTop: { configurable: true, writable: true, value: 0 },
+    });
+    scrollRoot.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 390, bottom: 600,
+      width: 390, height: 600, toJSON: () => ({}),
+    });
+    const root = document.createElement('div');
+    root.style.height = '5200px';
+    root.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 390, bottom: 5200,
+      width: 390, height: 5200, toJSON: () => ({}),
+    });
+    const clouds = document.createElement('div');
+    clouds.className = 'journey-cloud-container';
+    const background = document.createElement('div');
+    background.className = 'journey-bg-container';
+    background.style.width = '390px';
+    root.append(clouds, background);
+    const addArt = (className: string, areaId: string, top: number): void => {
+      const art = document.createElement('img');
+      art.className = className;
+      art.dataset.journeyAreaId = areaId;
+      art.getBoundingClientRect = () => ({
+        x: 95, y: top, left: 95, top, right: 295, bottom: top + 200,
+        width: 200, height: 200, toJSON: () => ({}),
+      });
+      root.appendChild(art);
+    };
+    addArt('journey-robo-main-art', 'robo-main', 3166);
+    for (let boardId = 21; boardId <= 30; boardId += 1) {
+      addArt('journey-robo-island-art', `board-${boardId}`, 3532 + (boardId - 21) * 124);
+    }
+    scrollRoot.appendChild(root);
+    document.body.appendChild(scrollRoot);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 10,
+      add: jest.fn((callback: () => void) => callbacks.add(callback)),
+      remove: jest.fn((callback: () => void) => callbacks.delete(callback)),
+    };
+    const controller = startJourneyArea55ShipFlybys({
+      root, scrollRoot, ticker, random: () => 0.75, observeVisibility: false,
+      runtimeProfile: resolveJourneyArea55ShipRuntimeProfile('iPhone'),
+    });
+
+    expect(controller.getSnapshot()).toMatchObject({
+      disposed: false,
+      shipCount: 4,
+      behindShipCount: 4,
+      frontShipCount: 0,
+      minShipSizePx: 50,
+      maxShipSizePx: 75,
+      canvasCount: 2,
+      tickerCount: 1,
+      domImageCount: 0,
+      renderer: 'canvas',
+      asset: './assets/journey assets/robo/ship1@2x.png',
+      maxRotationDegrees: 20,
+      maxFramesPerSecond: 30,
+    });
+    const canvases = root.querySelectorAll('.journey-area55-ship-canvas');
+    expect(canvases).toHaveLength(2);
+    expect(canvases[0]?.nextElementSibling).toBe(clouds);
+    expect(root.querySelectorAll('.journey-area55-ship')).toHaveLength(0);
+    expect(ticker.add).toHaveBeenCalledTimes(1);
+
+    controller.setSuspended(true);
+    controller.dispose();
+    controller.dispose();
+    expect(ticker.remove).toHaveBeenCalledTimes(1);
+    expect(callbacks.size).toBe(0);
+    expect(root.querySelectorAll('.journey-area55-ship-canvas')).toHaveLength(0);
+    expect(controller.getSnapshot()).toMatchObject({ disposed: true, shipCount: 0, canvasCount: 0, tickerCount: 0 });
+    scrollRoot.remove();
+  });
+
+  test('uses only ship1, full-screen eased paths and every manager boundary', () => {
+    expect(fs.existsSync(path.resolve(process.cwd(), 'assets/journey assets/robo/ship1@2x.png'))).toBe(true);
+    const flybySource = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/journey-area55-ship-flybys.ts'), 'utf8');
+    expect(flybySource).toContain("const SHIP_ASSET = './assets/journey assets/robo/ship1@2x.png'");
+    expect(flybySource).not.toContain('ship2@2x.png');
+    expect(flybySource).toContain('const SHIP_COUNT = 4');
+    expect(flybySource).toContain("depth: 'behind'");
+    expect(flybySource).toContain("lane: index % 2 === 0 ? 'upper' : 'lower'");
+    expect(flybySource).toContain("ship.lane === 'upper' ? 0.12 : 0.62");
+    expect(flybySource).not.toContain('drawTrail');
+    expect(flybySource).not.toContain('TRAIL_COLOR');
+    expect(flybySource).toContain('const eased = progress * progress * (3 - 2 * progress)');
+    expect(flybySource).toContain('const MIN_SCALE_HOLD_SECONDS = 3');
+    expect(flybySource).not.toContain('progress * Math.PI * 6');
+    expect(flybySource).toContain('ship.startX = ship.direction === 1 ? -overshoot : layerWidth + overshoot');
+    expect(flybySource).toContain('ship.endX = ship.direction === 1 ? layerWidth + overshoot : -overshoot');
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'), 'utf8');
+    expect(source).toContain("if (worldId !== 3 || this.journeyV700Phase !== 'idle') return;");
+    expect(source).toContain("this.stopArea55ShipFlybys('render-replaced')");
+    expect(source).toContain("this.stopArea55ShipFlybys('world-exit')");
+    expect(source).toContain("this.stopArea55ShipFlybys('manager-cleanup')");
+    expect(source).toContain('this.startArea55ShipFlybys(container, worldId)');
+    expect(source).toContain('[this.forestBeeOrbits, this.beachBubbleDrift, this.area55ShipFlybys]');
+  });
+});

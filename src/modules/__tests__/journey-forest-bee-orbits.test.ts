@@ -19,7 +19,7 @@ describe('Journey Forest bee canvas flights', () => {
     expect(getJourneyForestBeeAssetForVelocity(0, 0, 'bee4')).toBe('bee4');
   });
 
-  test('keeps two bees on every Unit and five diverse bees immediately on Forest Main', () => {
+  test('keeps the existing Unit and Forest Main bees', () => {
     let sampleIndex = 0;
     const samples = [0.1, 0.8, 0.35, 0.65, 0.2, 0.9, 0.45, 0.7];
     const plans = createJourneyForestBeeFlightPlans(() => samples[sampleIndex++ % samples.length]);
@@ -184,7 +184,7 @@ describe('Journey Forest bee canvas flights', () => {
     root.remove();
   });
 
-  test('keeps twenty-five bees and both depth canvases under the iPhone thermal profile', () => {
+  test('keeps all twenty-five bees and both depth canvases under the iPhone thermal profile', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -278,6 +278,7 @@ describe('Journey Forest bee canvas flights', () => {
       'utf8',
     );
     expect(source).toContain("type ForestBeeDepth = 'front' | 'behind-forest-main'");
+    expect(source).toContain("type ForestBeeEdgeRoute = 'side' | 'forest-gate'");
     expect(source).not.toContain("'behind-card'");
     expect(source).not.toContain("'behind-unit'");
     expect(source).toContain('FOREST_BEE_MIN_ONSCREEN_SECONDS = 30');
@@ -290,6 +291,8 @@ describe('Journey Forest bee canvas flights', () => {
     expect(source).toContain("className: 'journey-forest-bee-canvas'");
     expect(source).toContain('runtime.fadeIn(360)');
     expect(source).toContain("const context = bee.depth === 'front' ? frame.front : frame.behind");
+    expect(source).toContain('behindBefore: backgroundLayer');
+    expect(source).toContain('behindZIndex: 1');
     expect(source).not.toContain("document.createElement('div')");
     expect(source).not.toContain('bee.element.style.transform');
     expect(source).toContain('bee.plan.elapsedSeconds - bee.plan.durationSeconds');
