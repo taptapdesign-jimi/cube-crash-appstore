@@ -1064,8 +1064,11 @@ function startForestTransitionSpecialBee(
         }
         const velocityX = x - previousX;
         const velocityY = y - previousY;
-        const nextHorizontalDirection = Math.abs(velocityX) > 0.08 ? Math.sign(velocityX) : horizontalDirection;
-        if (nextHorizontalDirection !== 0 && nextHorizontalDirection !== horizontalDirection) {
+        const canChangeSpriteDirection = progress < orbitEntryEnd || progress >= orbitExitStart;
+        const nextHorizontalDirection = canChangeSpriteDirection && Math.abs(velocityX) > 0.08
+          ? Math.sign(velocityX)
+          : horizontalDirection;
+        if (canChangeSpriteDirection && nextHorizontalDirection !== 0 && nextHorizontalDirection !== horizontalDirection) {
           pointForestTransitionBeeToward(beeImage, nextHorizontalDirection, 0);
           horizontalDirection = nextHorizontalDirection;
         }
@@ -1177,8 +1180,13 @@ function pointForestTransitionBeeToward(
   velocityX: number,
   velocityY: number,
 ): void {
+  const previousVelocity = forestTransitionBeeVelocities.get(beeImage);
   forestTransitionBeeVelocities.set(beeImage, { x: velocityX, y: velocityY });
-  const asset = getJourneyForestBeeAssetForVelocity(velocityX, velocityY);
+  const horizontalDirection = Math.abs(velocityX) > 0.08
+    ? Math.sign(velocityX)
+    : Math.sign(previousVelocity?.x ?? 0);
+  if (horizontalDirection === 0) return;
+  const asset = getJourneyForestBeeAssetForVelocity(horizontalDirection, 0);
   beeImage.src = `./assets/shop/honey/${asset}@2x.png`;
 }
 
@@ -1951,6 +1959,28 @@ function startRoboAirCombatMotion(
     const launchJitterX = gsap.utils.random(-22, 22);
     const flightScale = gsap.utils.random(2.10, 2.35) * scaleMultiplier;
     const entersFromLeft = horizontalTravel >= 0;
+    const beamIntrinsicAxisDegrees = mirroredY ? -22.6 : 22.6;
+    const verticalTravelPx = 480 * travelMultiplier + destinationYOffset - launchYOffset;
+    const authoredAxisRadians = (rotation + 180 + beamIntrinsicAxisDegrees) * Math.PI / 180;
+    const authoredAxisSin = Math.sin(authoredAxisRadians);
+    const projectedHorizontalTravelPx = Math.abs(authoredAxisSin) > 0.08
+      ? verticalTravelPx * Math.cos(authoredAxisRadians) / authoredAxisSin
+      : horizontalTravel;
+    const horizontalDirection = Math.sign(horizontalTravel) || 1;
+    const minimumHorizontalTravelPx = Math.min(
+      forestContainer.clientWidth * 0.48,
+      Math.max(170, Math.abs(horizontalTravel) * travelMultiplier * 1.12),
+    );
+    const maximumHorizontalTravelPx = Math.max(
+      minimumHorizontalTravelPx,
+      forestContainer.clientWidth * 0.68,
+    );
+    const alignedHorizontalTravelPx = horizontalDirection * Math.max(
+      minimumHorizontalTravelPx,
+      Math.min(maximumHorizontalTravelPx, Math.abs(projectedHorizontalTravelPx)),
+    ) + destinationXOffset + launchJitterX;
+    const travelAxisDegrees = Math.atan2(verticalTravelPx, alignedHorizontalTravelPx) * 180 / Math.PI;
+    const renderedBeamRotationDegrees = travelAxisDegrees - beamIntrinsicAxisDegrees;
     const launchAnchor = {
       x: forestContainer.clientWidth * (launchXRatio ?? (entersFromLeft ? 0.12 : 0.88)),
       y: -forestRect.top - 70 + launchYOffset,
@@ -1964,7 +1994,7 @@ function startRoboAirCombatMotion(
       y: () => launchAnchor.y - beam.offsetTop,
       scaleX: flightScale,
       scaleY: mirroredY ? -flightScale : flightScale,
-      rotation: rotation + 180,
+      rotation: renderedBeamRotationDegrees,
       transformOrigin: '88% 75%',
     }, start);
     timeline.call(() => {
@@ -1973,7 +2003,11 @@ function startRoboAirCombatMotion(
         sourceCorner: entersFromLeft ? 'top-left' : 'top-right',
         sourceX: Math.round(launchAnchor.x),
         sourceY: Math.round(launchAnchor.y),
-        direction: 'down',
+        direction: alignedHorizontalTravelPx < 0 ? 'down-left' : 'down-right',
+        travelX: Math.round(alignedHorizontalTravelPx),
+        travelY: Math.round(verticalTravelPx),
+        travelAxisDegrees: Number(travelAxisDegrees.toFixed(2)),
+        renderedBeamRotationDegrees: Number(renderedBeamRotationDegrees.toFixed(2)),
         beamZIndex: window.getComputedStyle(beam).zIndex,
         frontGroundZIndex: window.getComputedStyle(frontGround).zIndex,
         rearGroundZIndex: window.getComputedStyle(rearGround).zIndex,
@@ -1987,13 +2021,9 @@ function startRoboAirCombatMotion(
     timeline.to(beam, {
       opacity: 1,
       x: () => launchAnchor.x - beam.offsetLeft
-        + horizontalTravel * travelMultiplier
-        + destinationXOffset
-        + launchJitterX,
+        + alignedHorizontalTravelPx,
       y: () => launchAnchor.y - beam.offsetTop
-        + 480 * travelMultiplier
-        + destinationYOffset
-        - launchYOffset,
+        + verticalTravelPx,
       scaleX: 1,
       scaleY: mirroredY ? -1 : 1,
       filter: 'drop-shadow(0 0 12px rgba(104, 239, 255, 1))',
