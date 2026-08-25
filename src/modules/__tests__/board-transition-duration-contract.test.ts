@@ -43,6 +43,9 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain("duration: getTransitionHillParallaxDuration(layerKey)");
     expect(source).toContain("ease: 'none'");
     expect(source).toContain('duration: 0.72 * sceneEnterSpeedFactor');
+    expect(source).toContain("if (layerKey === 'mountain') {");
+    expect(source).toContain("y: -7,\n              duration: 0.14,\n              ease: 'sine.out'");
+    expect(source).toContain("y: 0,\n              duration: 0.22,\n              ease: 'back.out(1.35)'");
     expect(source).not.toContain('hillBaseScale * 1.12');
     expect(source).not.toContain('hillBaseScale * 0.98');
     expect(source).not.toContain('const hillDriftStart = -0.3');
@@ -61,5 +64,13 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('const roboFrontTravelDurationScale = 1 / 0.70');
     expect(source).toContain('duration: 0.48 * roboWalkerTravelDurationScale');
     expect(source).toContain('duration: 0.48 * roboFrontTravelDurationScale');
+  });
+
+  test('extends the Forest mountain and hill exit movement by one second in total', () => {
+    const source = read('src/modules/board-transition-screen.ts');
+    expect(source).toContain("return { dropY: 210, scale: 0.94, duration: 0.78, ease: 'back.in(1.18)' }");
+    expect(source).toContain("return { dropY: 210, scale: 0.96, duration: 0.71, ease: 'back.in(1.05)' }");
+    expect(source).toContain("return { dropY: 220, scale: 0.96, duration: 0.71, ease: 'back.in(1.05)' }");
+    expect(0.78 + 0.71 + 0.71).toBeCloseTo(0.44 + 0.38 + 0.38 + 1, 8);
   });
 });
