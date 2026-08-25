@@ -50,8 +50,8 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain("if (layerKey === 'mountain') {");
     expect(source).toContain("y: -7,\n              duration: 0.14,\n              ease: 'sine.out'");
     expect(source).toContain("y: 0,\n              duration: 0.22,\n              ease: 'back.out(1.35)'");
-    expect(source).toContain("resolvedTheme === 'forest'");
-    expect(source).toContain('FOREST_TRANSITION_SPECIAL_BEE_COMPLETE_AT_SECONDS');
+    expect(source).not.toContain(": resolvedTheme === 'forest'");
+    expect(source).not.toContain('const beeCompletionBarrierSeconds =');
     expect(source).not.toContain('hillBaseScale * 1.12');
     expect(source).not.toContain('hillBaseScale * 0.98');
     expect(source).not.toContain('const hillDriftStart = -0.3');

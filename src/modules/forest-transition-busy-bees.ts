@@ -1,6 +1,7 @@
 const TAU = Math.PI * 2;
 export const FOREST_BUSY_BEE_DURATION_SCALE = 1 / 0.70;
 export const FOREST_BUSY_BEE_RISE_SEPARATION_MULTIPLIER = 8;
+export const FOREST_BUSY_BEE_LOW_FENCE_COUNT = 5;
 
 export type ForestBusyBeePineDepth = 'behind-front-pines' | 'behind-rear-pines';
 export type ForestBusyBeeOrigin = 'bottom';
@@ -28,6 +29,8 @@ export interface ForestBusyBeePlan {
   initialScaleRatio: number;
   riseScaleRatio: number;
   loopsPine: boolean;
+  staysInLowFenceBand: boolean;
+  lowFenceBottomPx: number | null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -56,15 +59,23 @@ export function createForestBusyBeePlans(
     const column = index % columnCount;
     const row = Math.floor(index / columnCount);
     const columnProgress = columnCount <= 1 ? 0.5 : column / (columnCount - 1);
-    const leftPercent = 3 + columnProgress * 79 + (row % 2 === 0 ? -1.2 : 1.2);
+    const staysInLowFenceBand = index < Math.min(count, FOREST_BUSY_BEE_LOW_FENCE_COUNT);
+    const lowFenceProgress = FOREST_BUSY_BEE_LOW_FENCE_COUNT <= 1
+      ? 0.5
+      : index / (FOREST_BUSY_BEE_LOW_FENCE_COUNT - 1);
+    const leftPercent = staysInLowFenceBand
+      ? 2 + lowFenceProgress * 80
+      : 3 + columnProgress * 79 + (row % 2 === 0 ? -1.2 : 1.2);
     const restViewportRatio = 0.24 + (row % 2) * 0.34 + random() * 0.07;
     const origin: ForestBusyBeeOrigin = 'bottom';
     const scaleProgress = count <= 1 ? 0.5 : index / (count - 1);
     const initialScaleRatio = clamp(0.58 + scaleProgress * 0.26 + (random() * 0.008 - 0.004), 0.56, 0.86);
     const riseScaleRatio = clamp(0.40 + random() * 0.48, 0.40, 0.88);
     const renderedHalfSize = 70 * initialScaleRatio * 0.5;
+    const finalRenderedHalfSize = 70 * riseScaleRatio * 0.5;
     const baseCenterX = (leftPercent / 100) * containerWidth + 35;
     const baseCenterY = restViewportRatio * viewportHeight;
+    const lowFenceBottomPx = staysInLowFenceBand ? 10 + random() * 70 : null;
     // Spread the complete flock across one launch row while preserving the
     // separate two-row rest layout. Every rendered bee begins fully below the
     // physical viewport; the sampler owns that exact pose from its first frame.
@@ -74,16 +85,21 @@ export function createForestBusyBeePlans(
     const startOffsetY = viewportHeight + 5 + renderedHalfSize - baseCenterY;
     const sweepDirection = random() < 0.5 ? -1 : 1;
     const endOffsetX = (random() * 2 - 1) * containerWidth * 0.10;
-    const endOffsetY = (random() * 2 - 1) * viewportHeight * 0.055;
+    const endOffsetY = lowFenceBottomPx === null
+      ? (random() * 2 - 1) * viewportHeight * 0.055
+      : viewportHeight - lowFenceBottomPx - finalRenderedHalfSize - baseCenterY;
     const controlOneX = startOffsetX + (endOffsetX - startOffsetX) * 0.30
       + sweepDirection * (42 + random() * 54) * widthScale;
     const riseLane = index % 4;
-    const riseLaneSeparationY = riseLane * 18 * FOREST_BUSY_BEE_RISE_SEPARATION_MULTIPLIER;
+    const riseLaneSeparationY = staysInLowFenceBand
+      ? 0
+      : riseLane * 18 * FOREST_BUSY_BEE_RISE_SEPARATION_MULTIPLIER;
     const controlOneY = startOffsetY + (endOffsetY - startOffsetY) * 0.28
-      - (34 + random() * 64) - riseLaneSeparationY;
+      - (staysInLowFenceBand ? 8 + random() * 12 : 34 + random() * 64) - riseLaneSeparationY;
     const controlTwoX = startOffsetX + (endOffsetX - startOffsetX) * 0.68
       - sweepDirection * (46 + random() * 68) * widthScale;
-    const controlTwoY = startOffsetY + (endOffsetY - startOffsetY) * 0.70 + (random() * 70 - 35);
+    const controlTwoY = startOffsetY + (endOffsetY - startOffsetY) * 0.70
+      + (staysInLowFenceBand ? random() * 14 - 7 : random() * 70 - 35);
     return {
       leftPercent,
       restViewportRatio,
@@ -100,13 +116,15 @@ export function createForestBusyBeePlans(
       wobblePhase: random() * TAU,
       wobbleCycles: 2.4 + random() * 1.8,
       wobbleX: (24 + random() * 34) * widthScale,
-      wobbleY: 12 + random() * 20,
+      wobbleY: staysInLowFenceBand ? 4 + random() * 4 : 12 + random() * 20,
       pineDepth: index % 2 === 0 ? 'behind-front-pines' : 'behind-rear-pines',
-      frontFenceHold: index % 5 === 0,
+      frontFenceHold: staysInLowFenceBand ? index % 2 === 0 : index % 5 === 0,
       origin,
       initialScaleRatio,
       riseScaleRatio,
       loopsPine: index % 3 !== 0,
+      staysInLowFenceBand,
+      lowFenceBottomPx,
     };
   });
 }

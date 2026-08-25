@@ -1,5 +1,6 @@
 import {
   FOREST_BUSY_BEE_RISE_SEPARATION_MULTIPLIER,
+  FOREST_BUSY_BEE_LOW_FENCE_COUNT,
   createForestBusyBeePlans,
   sampleForestBusyBeeCross,
   sampleForestBusyBeeScale,
@@ -27,6 +28,22 @@ describe('Forest Busy Bee plans', () => {
     expect(plans.every((plan) => plan.riseScaleRatio >= 0.40 && plan.riseScaleRatio <= 0.88)).toBe(true);
     expect(plans.some((plan) => plan.riseScaleRatio <= 0.46)).toBe(true);
     expect(FOREST_BUSY_BEE_RISE_SEPARATION_MULTIPLIER).toBe(8);
+    const lowFencePlans = plans.filter((plan) => plan.staysInLowFenceBand);
+    expect(FOREST_BUSY_BEE_LOW_FENCE_COUNT).toBe(5);
+    expect(lowFencePlans).toHaveLength(5);
+    expect(lowFencePlans.map((plan) => plan.leftPercent)).toEqual([2, 22, 42, 62, 82]);
+    expect(lowFencePlans.every((plan) => (
+      plan.lowFenceBottomPx !== null
+      && plan.lowFenceBottomPx >= 10
+      && plan.lowFenceBottomPx <= 80
+    ))).toBe(true);
+    expect(lowFencePlans.some((plan) => plan.frontFenceHold)).toBe(true);
+    expect(lowFencePlans.some((plan) => !plan.frontFenceHold)).toBe(true);
+    lowFencePlans.forEach((plan) => {
+      const finalCenterY = plan.restViewportRatio * 844 + plan.endOffsetY;
+      const finalBottomGap = 844 - finalCenterY - 70 * plan.riseScaleRatio * 0.5;
+      expect(finalBottomGap).toBeCloseTo(plan.lowFenceBottomPx as number, 5);
+    });
     plans.forEach((plan) => {
       const renderedHalfSize = 70 * plan.initialScaleRatio * 0.5;
       const startCenterY = plan.restViewportRatio * 844 + plan.startOffsetY;
@@ -35,10 +52,12 @@ describe('Forest Busy Bee plans', () => {
     expect(plans.filter((plan) => plan.loopsPine)).toHaveLength(9);
     expect(plans.every((plan) => plan.bounceDuration >= 0.44 && plan.bounceDuration <= 0.56)).toBe(true);
     expect(plans.every((plan) => plan.crossDuration >= 1.02 / 0.70 && plan.crossDuration <= 1.20 / 0.70)).toBe(true);
-    expect(plans.every((plan) => Math.abs(plan.endOffsetY) <= 844 * 0.055)).toBe(true);
+    expect(plans.filter((plan) => !plan.staysInLowFenceBand).every((plan) => (
+      Math.abs(plan.endOffsetY) <= 844 * 0.055
+    ))).toBe(true);
     expect(plans.filter((plan) => plan.pineDepth === 'behind-front-pines')).toHaveLength(7);
     expect(plans.filter((plan) => plan.pineDepth === 'behind-rear-pines')).toHaveLength(7);
-    expect(plans.filter((plan) => plan.frontFenceHold)).toHaveLength(3);
+    expect(plans.filter((plan) => plan.frontFenceHold)).toHaveLength(5);
   });
 
   test('keeps the wobbly cross continuous at both endpoints', () => {
