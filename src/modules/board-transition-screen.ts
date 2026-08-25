@@ -32,6 +32,12 @@ import {
 import { getRunMode } from './run-mode.js';
 import { getJourneyForestBeeAssetForVelocity } from './journey-forest-bee-orbits.js';
 import {
+  createForestBusyBeePlans,
+  FOREST_BUSY_BEE_DURATION_SCALE,
+  sampleForestBusyBeeCross,
+  sampleForestBusyBeeScale,
+} from './forest-transition-busy-bees.js';
+import {
   AREA55_BOARD_TRANSITION_PROFILE,
   BEACH_BOARD_TRANSITION_PROFILE,
   BEACH_BOARD_TRANSITION_CLOUD_COUNT,
@@ -68,10 +74,16 @@ let activeSceneImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track sce
 let activeSceneElements: HTMLElement[] = []; // Animated scene layer elements (hill wrappers + regular images)
 let activeForestTransitionBeeImages: HTMLImageElement[] = [];
 let activeForestTransitionBeeLayers: HTMLElement[] = [];
-const forestTransitionBeeTimelines = new Map<HTMLImageElement, gsap.core.Timeline>();
 const forestTransitionBeeVelocities = new WeakMap<HTMLImageElement, { x: number; y: number }>();
+const forestTransitionBeeIntroProgress = new WeakMap<HTMLImageElement, number>();
+const forestTransitionBeeTracePositions = new WeakMap<HTMLImageElement, { x: number; y: number }>();
 let forestTransitionBeeIntroTimeline: gsap.core.Timeline | null = null;
 let forestTransitionBeeDepthTimeline: gsap.core.Timeline | null = null;
+let forestTransitionSpecialBeeLaunchTimeline: gsap.core.Timeline | null = null;
+let forestTransitionSpecialBeeTimeline: gsap.core.Timeline | null = null;
+let forestTransitionSpecialBeeImages: HTMLImageElement[] = [];
+let forestTransitionSpecialBeeRearLayer: HTMLElement | null = null;
+let forestTransitionSpecialBeeFrontLayer: HTMLElement | null = null;
 let forestTransitionBeeIntroStartedAtMs = 0;
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
 let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
@@ -101,7 +113,7 @@ const FOREST_TRANSITION_BEE_ASSETS = [
   './assets/shop/honey/bee6@2x.png',
   './assets/shop/honey/bee7@2x.png',
 ];
-type ForestTransitionBeeDepth = 'front-of-fence' | 'behind-fence' | 'behind-pine2' | 'behind-pine4';
+type ForestTransitionBeeDepth = 'front-of-fence' | 'behind-fence' | 'behind-front-pines' | 'behind-rear-pines';
 type ForestTransitionBeeGroup = 'left' | 'center' | 'right';
 
 const FOREST_TRANSITION_BEE_LAYERS: ReadonlyArray<Readonly<{
@@ -110,33 +122,38 @@ const FOREST_TRANSITION_BEE_LAYERS: ReadonlyArray<Readonly<{
 }>> = Object.freeze([
   Object.freeze({ depth: 'front-of-fence', zIndex: 45 }),
   Object.freeze({ depth: 'behind-fence', zIndex: 37 }),
-  Object.freeze({ depth: 'behind-pine2', zIndex: 35 }),
-  Object.freeze({ depth: 'behind-pine4', zIndex: 35 }),
+  Object.freeze({ depth: 'behind-front-pines', zIndex: 35 }),
+  Object.freeze({ depth: 'behind-rear-pines', zIndex: 33 }),
 ]);
 
+const FOREST_TRANSITION_BUSY_BEE_COUNT = 14;
+const FOREST_TRANSITION_BEE_GROUP_COUNTS = Object.freeze({ left: 4, center: 6, right: 4 });
 const FOREST_TRANSITION_BEE_PLACEMENTS: ReadonlyArray<Readonly<{
   group: ForestTransitionBeeGroup;
-  depth: ForestTransitionBeeDepth;
-}>> = Object.freeze([
-  { group: 'left', depth: 'behind-pine2' },
-  { group: 'left', depth: 'front-of-fence' },
-  { group: 'left', depth: 'behind-pine4' },
-  { group: 'center', depth: 'behind-pine2' },
-  { group: 'center', depth: 'behind-fence' },
-  { group: 'center', depth: 'behind-pine4' },
-  { group: 'center', depth: 'front-of-fence' },
-  { group: 'right', depth: 'behind-pine2' },
-  { group: 'right', depth: 'behind-fence' },
-  { group: 'right', depth: 'behind-pine4' },
-]);
+}>> = Object.freeze(Array.from({ length: FOREST_TRANSITION_BUSY_BEE_COUNT }, (_unused, index) => Object.freeze({
+  group: (
+    index < FOREST_TRANSITION_BEE_GROUP_COUNTS.left
+      ? 'left'
+      : index < FOREST_TRANSITION_BEE_GROUP_COUNTS.left + FOREST_TRANSITION_BEE_GROUP_COUNTS.center
+        ? 'center'
+        : 'right'
+  ) as ForestTransitionBeeGroup,
+})));
 const FOREST_TRANSITION_BEE_INTRO_START_SECONDS = 0;
-const FOREST_TRANSITION_BEE_INTRO_DURATION_SECONDS = 1.5;
-const FOREST_TRANSITION_BEE_PHASE_TWO_AT_SECONDS = 1.5;
-const FOREST_TRANSITION_BEE_PHASE_THREE_AT_SECONDS = 3;
-const FOREST_TRANSITION_BEE_EXIT_COMPLETE_AT_SECONDS = 4.2;
+const FOREST_TRANSITION_BEE_INTRO_DURATION_SECONDS = 1.2 * FOREST_BUSY_BEE_DURATION_SCALE;
+const FOREST_TRANSITION_BEE_PHASE_TWO_AT_SECONDS = 1.2 * FOREST_BUSY_BEE_DURATION_SCALE;
+const FOREST_TRANSITION_BEE_PHASE_THREE_AT_SECONDS = 1.75 * FOREST_BUSY_BEE_DURATION_SCALE;
+const FOREST_TRANSITION_BEE_EXIT_COMPLETE_AT_SECONDS = 2.7 * FOREST_BUSY_BEE_DURATION_SCALE;
 const FOREST_TRANSITION_BEE_COMPLETION_CUSHION_SECONDS = 0.02;
 const FOREST_TRANSITION_BEE_BOTTOM_MIN_PX = 10;
 const FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX = 200;
+const FOREST_BUSY_BEE_BEHIND_FRONT_PINES_PROGRESS = 0.48;
+const FOREST_BUSY_BEE_BEHIND_REAR_PINES_PROGRESS = 0.74;
+const FOREST_TRANSITION_SPECIAL_BEE_START_SECONDS = 1 * FOREST_BUSY_BEE_DURATION_SCALE;
+const FOREST_TRANSITION_SPECIAL_BEE_COMPLETE_AT_SECONDS = 3.35 * FOREST_BUSY_BEE_DURATION_SCALE;
+const FOREST_TRANSITION_SPECIAL_BEE_NUMBER_EXIT_LEAD_SECONDS = 1;
+const FOREST_TRANSITION_SPECIAL_BEE_SECOND_WAVE_DELAY_SECONDS = 0.5;
+const FOREST_TRANSITION_SPECIAL_BEE_SCALE_MULTIPLIER = 1.7;
 
 const ROBO_AIR_COMBAT_LAYER_KEYS = new Set([
   'robo-fighter-left',
@@ -175,7 +192,7 @@ const TRANSITION_SCENE_LAYERS = [
       'width: auto',
       'z-index: 0',
       'transform-origin: center bottom',
-      '--scene-base-scale: 1.18404'
+      '--scene-base-scale: 1.45'
     ]
   },
   {
@@ -188,7 +205,7 @@ const TRANSITION_SCENE_LAYERS = [
       'width: auto',
       'z-index: 20',
       'transform-origin: center bottom',
-      '--scene-base-scale: 1.45152'
+      '--scene-base-scale: 1.53'
     ]
   },
   {
@@ -201,7 +218,7 @@ const TRANSITION_SCENE_LAYERS = [
       'width: auto',
       'z-index: 10',
       'transform-origin: center bottom',
-      '--scene-base-scale: 1.39104'
+      '--scene-base-scale: 1.6'
     ]
   },
   {
@@ -312,26 +329,23 @@ const trackTimeline = (options: any = {}) => animationManager.trackExternalTimel
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
-function stopForestTransitionBeeMotion(beeImage?: HTMLImageElement): void {
-  if (beeImage) {
-    const timeline = forestTransitionBeeTimelines.get(beeImage);
-    try { timeline?.kill(); } catch {}
-    forestTransitionBeeTimelines.delete(beeImage);
-    return;
-  }
-  forestTransitionBeeTimelines.forEach((timeline) => {
-    try { timeline.kill(); } catch {}
+function traceForestTransitionBeeEnter(event: 'started' | 'checkpoint' | 'completed'): void {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const viewportIntersectingBees = activeForestTransitionBeeImages.filter((beeImage) => {
+    const rect = beeImage.getBoundingClientRect();
+    return rect.right > 0 && rect.left < viewportWidth && rect.bottom > 0 && rect.top < viewportHeight;
   });
-  forestTransitionBeeTimelines.clear();
-}
-
-function traceForestTransitionBeeEnter(event: 'started' | 'completed'): void {
   const entry = {
     event,
     timestampMs: Math.round(performance.now()),
     count: activeForestTransitionBeeImages.length,
     visibleCount: activeForestTransitionBeeImages.filter((beeImage) => (
       beeImage.style.display !== 'none' && Number(gsap.getProperty(beeImage, 'opacity')) > 0
+    )).length,
+    viewportIntersectingCount: viewportIntersectingBees.length,
+    decodedCount: activeForestTransitionBeeImages.filter((beeImage) => (
+      beeImage.complete && beeImage.naturalWidth > 0
     )).length,
     depthCounts: activeForestTransitionBeeImages.reduce<Record<string, number>>((counts, beeImage) => {
       const depth = beeImage.dataset.forestBeeDepth || 'unknown';
@@ -341,10 +355,50 @@ function traceForestTransitionBeeEnter(event: 'started' | 'completed'): void {
     landingBottomRangePx: [FOREST_TRANSITION_BEE_BOTTOM_MIN_PX, FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX],
   };
   console.info('[CC_FOREST_BEE_ENTER]', entry);
+  const forestRect = document.querySelector('.cc-board-transition-forest')?.getBoundingClientRect();
+  const layoutEntry = {
+    event,
+    timestampMs: entry.timestampMs,
+    viewport: { width: viewportWidth, height: viewportHeight },
+    forestRect: forestRect ? {
+      top: Math.round(forestRect.top),
+      bottom: Math.round(forestRect.bottom),
+      height: Math.round(forestRect.height),
+    } : null,
+    bees: activeForestTransitionBeeImages.map((beeImage, index) => {
+      const rect = beeImage.getBoundingClientRect();
+      const transformX = Number(gsap.getProperty(beeImage, 'x')) || 0;
+      const transformY = Number(gsap.getProperty(beeImage, 'y')) || 0;
+      const previousTracePosition = forestTransitionBeeTracePositions.get(beeImage);
+      forestTransitionBeeTracePositions.set(beeImage, { x: transformX, y: transformY });
+      return {
+        index,
+        depth: beeImage.dataset.forestBeeDepth,
+        opacity: Number(gsap.getProperty(beeImage, 'opacity')),
+        introProgress: Number((forestTransitionBeeIntroProgress.get(beeImage) ?? 0).toFixed(3)),
+        transformX: Math.round(transformX),
+        transformY: Math.round(transformY),
+        motionDeltaPx: previousTracePosition
+          ? Number(Math.hypot(transformX - previousTracePosition.x, transformY - previousTracePosition.y).toFixed(2))
+          : null,
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        right: Math.round(rect.right),
+        bottom: Math.round(rect.bottom),
+        intersectsViewport: rect.right > 0 && rect.left < viewportWidth && rect.bottom > 0 && rect.top < viewportHeight,
+      };
+    }),
+  };
+  console.info('[CC_FOREST_BEE_LAYOUT]', layoutEntry);
   const runtimeWindow = window as typeof window & { __ccForestBeeEnterTrace?: Array<Record<string, unknown>> };
   runtimeWindow.__ccForestBeeEnterTrace = [
     ...(runtimeWindow.__ccForestBeeEnterTrace ?? []).slice(-5),
     entry,
+  ];
+  const layoutRuntimeWindow = window as typeof window & { __ccForestBeeLayoutTrace?: Array<Record<string, unknown>> };
+  layoutRuntimeWindow.__ccForestBeeLayoutTrace = [
+    ...(layoutRuntimeWindow.__ccForestBeeLayoutTrace ?? []).slice(-5),
+    layoutEntry,
   ];
 }
 
@@ -367,11 +421,12 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
   if (forestTransitionBeeDepthTimeline) return;
   const bees = activeForestTransitionBeeImages.filter((beeImage) => beeImage.style.display !== 'none');
   if (bees.length === 0) return;
-  const behindFenceLayer = activeForestTransitionBeeLayers.find(
-    (layer) => layer.dataset.forestBeeDepth === 'behind-fence',
-  );
+  const beeLayerByDepth = new Map(activeForestTransitionBeeLayers.map((layer) => [
+    layer.dataset.forestBeeDepth as ForestTransitionBeeDepth,
+    layer,
+  ]));
   const containerRect = forestContainer.getBoundingClientRect();
-  const minimumSeparationPx = 60;
+  const minimumSeparationPx = Math.max(42, 60 - Math.max(0, bees.length - 10) * 1.8);
   const createEntropyPointSet = (
     count: number,
     minXRatio: number,
@@ -422,25 +477,21 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
     }
     return entropyFallback;
   };
-  const upperCount = Math.floor(bees.length * 0.5);
-  const verticalDirections = bees.map((_beeImage, index) => index < upperCount ? -1 : 1);
-  for (let index = verticalDirections.length - 1; index > 0; index -= 1) {
+  const pineOrbitTreeKeys: Array<'pine2' | 'pine4'> = bees.map((_beeImage, index) => (
+    index < Math.ceil(bees.length / 2) ? 'pine2' : 'pine4'
+  ));
+  for (let index = pineOrbitTreeKeys.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
-    [verticalDirections[index], verticalDirections[swapIndex]] = [verticalDirections[swapIndex], verticalDirections[index]];
+    [pineOrbitTreeKeys[index], pineOrbitTreeKeys[swapIndex]] = [pineOrbitTreeKeys[swapIndex], pineOrbitTreeKeys[index]];
   }
-  const upperPoints = createEntropyPointSet(upperCount, 0.08, 0.92, 0.10, 0.58, true);
-  const lowerPoints = createEntropyPointSet(
-    bees.length - upperCount,
-    0.04,
-    0.96,
-    Math.max(0.5, 1 - 70 / Math.max(1, containerRect.height)),
-    Math.max(0.5, 1 - 10 / Math.max(1, containerRect.height)),
-    false,
-  );
-  let upperPointIndex = 0;
-  let lowerPointIndex = 0;
-  const phaseTwoPoints = verticalDirections.map((direction) => (
-    direction < 0 ? upperPoints[upperPointIndex++] : lowerPoints[lowerPointIndex++]
+  const pine2Count = pineOrbitTreeKeys.filter((treeKey) => treeKey === 'pine2').length;
+  const pine4Count = pineOrbitTreeKeys.length - pine2Count;
+  const pine2Points = createEntropyPointSet(pine2Count, 0.08, 0.54, 0.42, 0.80, true);
+  const pine4Points = createEntropyPointSet(pine4Count, 0.46, 0.92, 0.42, 0.80, true);
+  let pine2PointIndex = 0;
+  let pine4PointIndex = 0;
+  const phaseTwoPoints = pineOrbitTreeKeys.map((treeKey) => (
+    treeKey === 'pine2' ? pine2Points[pine2PointIndex++] : pine4Points[pine4PointIndex++]
   ));
   const exitSides = bees.map((_beeImage, index) => index < Math.ceil(bees.length / 2) ? -1 : 1);
   for (let index = exitSides.length - 1; index > 0; index -= 1) {
@@ -454,11 +505,16 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
     const liveRect = beeImage.getBoundingClientRect();
     const livePoint = { x: liveRect.left + liveRect.width * 0.5, y: liveRect.top + liveRect.height * 0.5 };
     const phaseTwoPoint = phaseTwoPoints[index];
+    const orbitTreeKey = pineOrbitTreeKeys[index];
     const curveDirection = Math.random() < 0.5 ? -1 : 1;
     const curvePx = curveDirection * (18 + Math.random() * 34);
     const exitSide = exitSides[index];
     const phaseThreeSweepX = (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 80);
     const phaseThreeSweepY = (Math.random() < 0.5 ? -1 : 1) * (110 + Math.random() * 90);
+    const loopsPine = beeImage.dataset.forestBeeLoopsPine === 'true';
+    const loopDirection = index % 2 === 0 ? 1 : -1;
+    const loopRadiusX = 52 + Math.random() * 34;
+    const loopRadiusY = 44 + Math.random() * 30;
     const beeWidth = Math.max(1, liveRect.width);
     const exitPoint = {
       x: exitSide > 0
@@ -472,6 +528,20 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
         y: (livePoint.y + phaseTwoPoint.y) * 0.5 + (Math.random() * 54 - 27),
       },
       phaseTwoPoint,
+      loopControlOne: {
+        x: phaseTwoPoint.x + loopDirection * loopRadiusX,
+        y: phaseTwoPoint.y - (loopsPine ? loopRadiusY : loopRadiusY * 0.45),
+      },
+      loopControlTwo: {
+        x: phaseTwoPoint.x + loopDirection * loopRadiusX * (loopsPine ? -1.08 : 1.65),
+        y: phaseTwoPoint.y + loopRadiusY * (loopsPine ? 1 : 0.35),
+      },
+      loopEnd: {
+        x: phaseTwoPoint.x + loopDirection * (loopsPine ? 8 + Math.random() * 14 : 92 + Math.random() * 54),
+        y: phaseTwoPoint.y + (loopsPine ? Math.random() * 18 - 9 : Math.random() * 54 - 27),
+      },
+      loopsPine,
+      orbitBehindDepth: 'behind-rear-pines',
       exitCurvePoint: {
         x: phaseTwoPoint.x + (exitPoint.x - phaseTwoPoint.x) * 0.24 + phaseThreeSweepX,
         y: clampPhaseThreeY(phaseTwoPoint.y + (exitPoint.y - phaseTwoPoint.y) * 0.18 + phaseThreeSweepY),
@@ -483,6 +553,7 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
       exitPoint,
       rotation: -18 + Math.random() * 36,
       phaseTwoScale: 0.40,
+      phaseTwoStartScale: Math.max(0.18, Number(gsap.getProperty(beeImage, 'scaleX')) || 1),
       exitRotation: -22 + Math.random() * 44,
       wobblePhase: Math.random() * Math.PI * 2,
       wobbleX: 12 + Math.random() * 16,
@@ -504,34 +575,39 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
       bees.forEach((beeImage) => {
         handoffVelocities.set(beeImage, forestTransitionBeeVelocities.get(beeImage) ?? { x: 0, y: -1 });
       });
-      stopForestTransitionBeeMotion();
       gsap.killTweensOf(bees, 'scale,scaleX,scaleY');
       bees.forEach((beeImage) => {
-        behindFenceLayer?.appendChild(beeImage);
-        beeImage.dataset.forestBeeDepth = 'behind-fence';
+        const phaseDepth = plans.get(beeImage)?.orbitBehindDepth;
+        if (phaseDepth) {
+          beeLayerByDepth.get(phaseDepth)?.appendChild(beeImage);
+          beeImage.dataset.forestBeeDepth = phaseDepth;
+        }
         const liveVelocity = handoffVelocities.get(beeImage);
         if (liveVelocity) pointForestTransitionBeeToward(beeImage, liveVelocity.x, liveVelocity.y);
       });
       traceForestTransitionBeeDepth('started', {
         count: bees.length,
-        layout: 'entropy',
+        layout: 'pine-orbit-entropy',
         minimumSeparationPx: Math.round(minimumSeparationPx),
-        upperCount,
-        lowerCount: bees.length - upperCount,
-        lowerBottomBandPx: [10, 70],
+        pine2Count,
+        pine4Count,
+        loopCount: bees.filter((beeImage) => beeImage.dataset.forestBeeLoopsPine === 'true').length,
         phaseTwoScaleReductionPercent: 60,
         introElapsedMs: Math.round(performance.now() - forestTransitionBeeIntroStartedAtMs),
       });
     },
     onComplete: () => {
       gsap.set(bees, { opacity: 0, visibility: 'hidden', display: 'none' });
-      traceForestTransitionBeeDepth('completed', { count: bees.length, completedAtSeconds: 4.2 });
+      traceForestTransitionBeeDepth('completed', {
+        count: bees.length,
+        completedAtSeconds: FOREST_TRANSITION_BEE_EXIT_COMPLETE_AT_SECONDS,
+      });
     },
   });
   contentTimelines.push(forestTransitionBeeDepthTimeline);
   const seamlessDuration = FOREST_TRANSITION_BEE_EXIT_COMPLETE_AT_SECONDS - FOREST_TRANSITION_BEE_PHASE_TWO_AT_SECONDS;
   const phaseThreeLocalStart = FOREST_TRANSITION_BEE_PHASE_THREE_AT_SECONDS - FOREST_TRANSITION_BEE_PHASE_TWO_AT_SECONDS;
-  const exitTurnLocalStart = 1.62;
+  const exitTurnLocalStart = 0.90 * FOREST_BUSY_BEE_DURATION_SCALE;
   const motionClock = { elapsed: 0 };
   const runtimePlans = new Map<HTMLImageElement, {
     points: Array<{ x: number; y: number }>;
@@ -540,7 +616,11 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
     scaleXSetter: (value: number) => void;
     scaleYSetter: (value: number) => void;
     rotationSetter: (value: number) => void;
-    lastDirectionSegment: number;
+    previousX: number;
+    previousY: number;
+    lastDirectionSector: number;
+    currentDepth: ForestTransitionBeeDepth;
+    currentScale: number;
   }>();
   const cubic = (start: number, controlOne: number, controlTwo: number, end: number, progress: number): number => {
     const inverse = 1 - progress;
@@ -568,19 +648,10 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
       x: phaseTwoEnd.x + (Math.random() * 72 - 36),
       y: phaseTwoEnd.y - (38 + Math.random() * 46),
     };
-    const seamlessDeparture = {
-      x: phaseTwoEnd.x + (phaseTwoEnd.x - phaseTwoArrival.x) * 0.52,
-      y: phaseTwoEnd.y + (phaseTwoEnd.y - phaseTwoArrival.y) * 0.52,
-    };
+    const loopControlOne = resolveTransform(beeImage, plan.loopControlOne);
+    const loopControlTwo = resolveTransform(beeImage, plan.loopControlTwo);
+    const loopEnd = resolveTransform(beeImage, plan.loopEnd);
     const exitCurveEnd = resolveTransform(beeImage, plan.exitCurvePoint);
-    const exitCurveArrival = {
-      x: seamlessDeparture.x + (exitCurveEnd.x - seamlessDeparture.x) * 0.72,
-      y: seamlessDeparture.y + (exitCurveEnd.y - seamlessDeparture.y) * 0.72,
-    };
-    const secondDeparture = {
-      x: exitCurveEnd.x + (exitCurveEnd.x - exitCurveArrival.x) * 0.48,
-      y: exitCurveEnd.y + (exitCurveEnd.y - exitCurveArrival.y) * 0.48,
-    };
     const exitEnd = resolveTransform(beeImage, plan.exitPoint);
     const exitWobble = resolveTransform(beeImage, plan.exitWobblePoint);
     return [
@@ -588,10 +659,10 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
       firstControl,
       phaseTwoArrival,
       phaseTwoEnd,
-      seamlessDeparture,
-      exitCurveArrival,
+      loopControlOne,
+      loopControlTwo,
+      loopEnd,
       exitCurveEnd,
-      secondDeparture,
       exitWobble,
       exitEnd,
     ];
@@ -605,8 +676,16 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
         scaleXSetter: gsap.quickSetter(beeImage, 'scaleX') as (value: number) => void,
         scaleYSetter: gsap.quickSetter(beeImage, 'scaleY') as (value: number) => void,
         rotationSetter: gsap.quickSetter(beeImage, 'rotation', 'deg') as (value: number) => void,
-        lastDirectionSegment: -1,
+        previousX: 0,
+        previousY: 0,
+        lastDirectionSector: Number.NaN,
+        currentDepth: plans.get(beeImage)?.orbitBehindDepth ?? 'behind-front-pines',
       });
+      const runtime = runtimePlans.get(beeImage);
+      if (runtime) {
+        runtime.previousX = runtime.points[0].x;
+        runtime.previousY = runtime.points[0].y;
+      }
     });
   }, undefined, 0);
   forestTransitionBeeDepthTimeline.to(motionClock, {
@@ -621,55 +700,204 @@ function startForestTransitionBeeDepthMotion(forestContainer: HTMLElement): void
         if (!runtime || !plan) return;
         let localProgress: number;
         let pointOffset: number;
-        let directionSegment: number;
         if (elapsed < phaseThreeLocalStart) {
           localProgress = elapsed / phaseThreeLocalStart;
           pointOffset = 0;
-          directionSegment = 0;
         } else if (elapsed < exitTurnLocalStart) {
           localProgress = (elapsed - phaseThreeLocalStart) / (exitTurnLocalStart - phaseThreeLocalStart);
           pointOffset = 3;
-          directionSegment = 1;
         } else {
           localProgress = (elapsed - exitTurnLocalStart) / (seamlessDuration - exitTurnLocalStart);
           pointOffset = 6;
-          directionSegment = 2;
         }
         const start = runtime.points[pointOffset];
         const controlOne = runtime.points[pointOffset + 1];
         const controlTwo = runtime.points[pointOffset + 2];
         const end = runtime.points[pointOffset + 3];
         const phaseTwoProgress = Math.min(1, elapsed / phaseThreeLocalStart);
-        const exitProgress = Math.max(0, (elapsed - phaseThreeLocalStart) / (seamlessDuration - phaseThreeLocalStart));
+        const exitProgress = Math.max(0, (elapsed - exitTurnLocalStart) / (seamlessDuration - exitTurnLocalStart));
+        // Phase 2 and phase 3 live in the depth corridor between the pines
+        // (z36) and hills (z20/z10). Never promote a main bee in front of a
+        // pine after the phase-1 handoff.
+        const targetDepth: ForestTransitionBeeDepth = plan.orbitBehindDepth;
+        if (targetDepth !== runtime.currentDepth) {
+          beeLayerByDepth.get(targetDepth)?.appendChild(beeImage);
+          beeImage.dataset.forestBeeDepth = targetDepth;
+          runtime.currentDepth = targetDepth;
+        }
         const wobbleEnergy = 0.72 + phaseTwoProgress * 0.68 + exitProgress * 0.22;
+        const segmentWobbleEnvelope = Math.sin(Math.PI * Math.max(0, Math.min(1, localProgress)));
         const wobblePhase = plan.wobblePhase + elapsed * Math.PI * 3.15;
         const x = cubic(start.x, controlOne.x, controlTwo.x, end.x, localProgress)
-          + Math.sin(wobblePhase) * plan.wobbleX * wobbleEnergy;
+          + Math.sin(wobblePhase) * plan.wobbleX * wobbleEnergy * segmentWobbleEnvelope;
         const y = cubic(start.y, controlOne.y, controlTwo.y, end.y, localProgress)
-          + Math.sin(wobblePhase * 1.37 + plan.wobblePhase) * plan.wobbleY * wobbleEnergy;
+          + Math.sin(wobblePhase * 1.37 + plan.wobblePhase) * plan.wobbleY * wobbleEnergy * segmentWobbleEnvelope;
+        const velocityX = x - runtime.previousX;
+        const velocityY = y - runtime.previousY;
         runtime.xSetter(x);
         runtime.ySetter(y);
-        const phaseTwoScale = plan.restScale + (plan.restScale * plan.phaseTwoScale - plan.restScale) * phaseTwoProgress;
+        const phaseTwoScale = plan.phaseTwoStartScale
+          + (plan.restScale * plan.phaseTwoScale - plan.phaseTwoStartScale) * phaseTwoProgress;
         const renderedScale = phaseTwoScale + (plan.restScale * 0.18 - phaseTwoScale) * exitProgress;
         runtime.scaleXSetter(renderedScale);
         runtime.scaleYSetter(renderedScale);
         runtime.rotationSetter(plan.rotation * Math.sin(elapsed * Math.PI * 2.15) * (1 - exitProgress * 0.55));
-        if (runtime.lastDirectionSegment !== directionSegment) {
-          runtime.lastDirectionSegment = directionSegment;
-          pointForestTransitionBeeToward(beeImage, end.x - start.x, end.y - start.y);
+        const directionSector = Math.round(Math.atan2(velocityY, velocityX) / (Math.PI * 0.25));
+        if (
+          directionSector !== runtime.lastDirectionSector
+          && Math.abs(velocityX) + Math.abs(velocityY) > 0.4
+        ) {
+          runtime.lastDirectionSector = directionSector;
+          pointForestTransitionBeeToward(beeImage, velocityX, velocityY);
         }
+        runtime.previousX = x;
+        runtime.previousY = y;
       });
     },
   }, 0);
   forestTransitionBeeDepthTimeline.play(0);
 }
 
+function startForestTransitionSpecialBee(
+  overlay: HTMLElement,
+  digitElements: HTMLElement[],
+): void {
+  if (
+    forestTransitionSpecialBeeTimeline
+    || !forestTransitionSpecialBeeRearLayer
+    || !forestTransitionSpecialBeeFrontLayer
+    || digitElements.length === 0
+  ) return;
+  const overlayRect = overlay.getBoundingClientRect();
+  const toOverlayPoint = (rect: DOMRect, xRatio: number, yRatio: number) => ({
+    x: rect.left - overlayRect.left + rect.width * xRatio,
+    y: rect.top - overlayRect.top + rect.height * yRatio,
+  });
+  forestTransitionSpecialBeeTimeline = trackTimeline({
+    onComplete: () => {
+      gsap.set(forestTransitionSpecialBeeImages, { opacity: 0, visibility: 'hidden', display: 'none' });
+      forestTransitionSpecialBeeTimeline = null;
+    },
+  });
+  contentTimelines.push(forestTransitionSpecialBeeTimeline);
+  const digitRects = [
+    digitElements[0].getBoundingClientRect(),
+    (digitElements[1] ?? digitElements[0]).getBoundingClientRect(),
+  ];
+  const routeDuration = 1.35 * FOREST_BUSY_BEE_DURATION_SCALE;
+  const specialBeeWidthPx = 58 * FOREST_TRANSITION_SPECIAL_BEE_SCALE_MULTIPLIER;
+  Array.from({ length: 8 }, (_, beeIndex) => {
+    const routeIndex = beeIndex % 4;
+    const beeWave = Math.floor(beeIndex / 4);
+    const beeImage = domElementPool.acquire('img') as HTMLImageElement;
+    resetPooledImage(beeImage);
+    beeImage.src = FOREST_TRANSITION_BEE_ASSETS[Math.floor(Math.random() * FOREST_TRANSITION_BEE_ASSETS.length)];
+    beeImage.alt = '';
+    beeImage.className = 'cc-forest-transition-special-bee';
+    beeImage.style.cssText = [
+      'position: absolute', 'left: 0', 'top: 0', `width: ${specialBeeWidthPx}px`, 'height: auto',
+      'display: block', 'pointer-events: none', 'will-change: transform', 'transform-origin: 50% 50%',
+    ].join(';');
+    forestTransitionSpecialBeeFrontLayer?.appendChild(beeImage);
+    forestTransitionSpecialBeeImages.push(beeImage);
+    const reverseDigits = routeIndex % 2 === 1;
+    const firstRect = digitRects[reverseDigits ? 1 : 0];
+    const secondRect = digitRects[reverseDigits ? 0 : 1];
+    const firstCenter = toOverlayPoint(firstRect, 0.5, 0.5);
+    const secondCenter = toOverlayPoint(secondRect, 0.5, 0.5);
+    const routeSide = routeIndex % 2 === 0 ? 1 : -1;
+    const verticalOffset = (routeIndex - 1.5) * 18;
+    const starts = [
+      { x: -76, y: firstCenter.y + 120 },
+      { x: overlayRect.width + 76, y: firstCenter.y + 82 },
+      { x: firstCenter.x - 90, y: -76 },
+      { x: secondCenter.x + 90, y: overlayRect.height + 76 },
+    ];
+    const start = starts[routeIndex];
+    const firstOuter = {
+      x: firstCenter.x - routeSide * firstRect.width * 0.58,
+      y: firstCenter.y + verticalOffset,
+    };
+    const firstHole = { x: firstCenter.x, y: firstCenter.y + verticalOffset * 0.25 };
+    const bridge = {
+      x: (firstCenter.x + secondCenter.x) * 0.5,
+      y: Math.min(firstCenter.y, secondCenter.y) - 62 - routeIndex * 7,
+    };
+    const secondOuter = {
+      x: secondCenter.x + routeSide * secondRect.width * 0.60,
+      y: secondCenter.y - verticalOffset * 0.45,
+    };
+    const end = {
+      x: routeSide > 0 ? overlayRect.width + 92 : -92,
+      y: secondOuter.y + 52 + routeIndex * 13,
+    };
+    const clock = { progress: 0 };
+    const xSetter = gsap.quickSetter(beeImage, 'x', 'px');
+    const ySetter = gsap.quickSetter(beeImage, 'y', 'px');
+    const rotationSetter = gsap.quickSetter(beeImage, 'rotation', 'deg');
+    let previousX = start.x;
+    let previousY = start.y;
+    let directionSector = Number.NaN;
+    let currentDepth = 'front';
+    gsap.set(beeImage, { x: start.x, y: start.y, opacity: 1, scaleX: 0.72 + routeIndex * 0.05, scaleY: 0.72 + routeIndex * 0.05 });
+    forestTransitionSpecialBeeTimeline?.to(clock, {
+      progress: 1,
+      duration: routeDuration,
+      ease: 'none',
+      onUpdate: () => {
+        const progress = clock.progress;
+        const points = progress < 0.24
+          ? [start, start, firstOuter, firstOuter, progress / 0.24]
+          : progress < 0.48
+            ? [firstOuter, firstCenter, firstHole, bridge, (progress - 0.24) / 0.24]
+            : progress < 0.78
+              ? [bridge, secondCenter, secondOuter, secondOuter, (progress - 0.48) / 0.30]
+              : [secondOuter, secondOuter, end, end, (progress - 0.78) / 0.22];
+        const x = resolveForestBeeCubic(points[0].x, points[1].x, points[2].x, points[3].x, points[4] as number);
+        const y = resolveForestBeeCubic(points[0].y, points[1].y, points[2].y, points[3].y, points[4] as number);
+        const nextDepth = progress >= 0.24 && progress < 0.52 ? 'rear' : 'front';
+        if (nextDepth !== currentDepth) {
+          (nextDepth === 'rear' ? forestTransitionSpecialBeeRearLayer : forestTransitionSpecialBeeFrontLayer)?.appendChild(beeImage);
+          currentDepth = nextDepth;
+        }
+        const velocityX = x - previousX;
+        const velocityY = y - previousY;
+        const nextSector = Math.round(Math.atan2(velocityY, velocityX) / (Math.PI * 0.25));
+        if (nextSector !== directionSector) {
+          pointForestTransitionBeeToward(beeImage, velocityX, velocityY);
+          directionSector = nextSector;
+        }
+        xSetter(x);
+        ySetter(y);
+        rotationSetter(Math.max(-14, Math.min(14, velocityX * 0.24)));
+        previousX = x;
+        previousY = y;
+      },
+    }, (routeIndex * 0.12 + beeWave * FOREST_TRANSITION_SPECIAL_BEE_SECOND_WAVE_DELAY_SECONDS) * FOREST_BUSY_BEE_DURATION_SCALE);
+    return beeImage;
+  });
+}
+
 function stopForestTransitionBees(): void {
+  try { forestTransitionSpecialBeeLaunchTimeline?.kill(); } catch {}
+  forestTransitionSpecialBeeLaunchTimeline = null;
+  try { forestTransitionSpecialBeeTimeline?.kill(); } catch {}
+  forestTransitionSpecialBeeTimeline = null;
+  forestTransitionSpecialBeeImages.forEach((beeImage) => {
+    try {
+      resetPooledImage(beeImage);
+      domElementPool.release(beeImage);
+    } catch {}
+  });
+  forestTransitionSpecialBeeImages = [];
+  try { forestTransitionSpecialBeeRearLayer?.remove(); } catch {}
+  try { forestTransitionSpecialBeeFrontLayer?.remove(); } catch {}
+  forestTransitionSpecialBeeRearLayer = null;
+  forestTransitionSpecialBeeFrontLayer = null;
   try { forestTransitionBeeIntroTimeline?.kill(); } catch {}
   forestTransitionBeeIntroTimeline = null;
   stopForestTransitionBeeDepthMotion();
   forestTransitionBeeIntroStartedAtMs = 0;
-  stopForestTransitionBeeMotion();
   activeForestTransitionBeeImages.forEach((beeImage) => {
     try {
       resetPooledImage(beeImage);
@@ -707,7 +935,11 @@ function resolveForestBeeCubic(
     + progress * progress * progress * end;
 }
 
-function startForestTransitionBees(forestContainer: HTMLElement): void {
+function startForestTransitionBees(
+  forestContainer: HTMLElement,
+  overlay: HTMLElement,
+  digitElements: HTMLElement[],
+): void {
   stopForestTransitionBees();
   const layerByDepth = new Map<ForestTransitionBeeDepth, HTMLElement>();
   FOREST_TRANSITION_BEE_LAYERS.forEach((layerConfig) => {
@@ -725,29 +957,75 @@ function startForestTransitionBees(forestContainer: HTMLElement): void {
     activeForestTransitionBeeLayers.push(layer);
     layerByDepth.set(layerConfig.depth, layer);
   });
+  const createSpecialLayer = (className: string, zIndex: number): HTMLElement => {
+    const layer = document.createElement('div');
+    layer.className = className;
+    layer.style.cssText = [
+      'position: absolute',
+      'inset: 0',
+      'pointer-events: none',
+      'overflow: visible',
+      `z-index: ${zIndex}`,
+    ].join(';');
+    overlay.appendChild(layer);
+    return layer;
+  };
+  forestTransitionSpecialBeeRearLayer = createSpecialLayer('cc-forest-transition-special-bee-rear', 9);
+  forestTransitionSpecialBeeFrontLayer = createSpecialLayer('cc-forest-transition-special-bee-front', 11);
+  forestTransitionSpecialBeeLaunchTimeline = trackTimeline({ paused: true });
+  forestTransitionSpecialBeeLaunchTimeline.call(
+    () => startForestTransitionSpecialBee(overlay, digitElements),
+    undefined,
+    FOREST_TRANSITION_SPECIAL_BEE_START_SECONDS,
+  );
+  contentTimelines.push(forestTransitionSpecialBeeLaunchTimeline);
 
   const containerWidth = Math.max(1, forestContainer.clientWidth || 390);
+  const forestContainerRect = forestContainer.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 844;
   forestTransitionBeeIntroTimeline = trackTimeline({
     paused: true,
     onStart: () => traceForestTransitionBeeEnter('started'),
   });
   contentTimelines.push(forestTransitionBeeIntroTimeline);
+  const busyBeePlans = createForestBusyBeePlans(
+    FOREST_TRANSITION_BEE_PLACEMENTS.length,
+    containerWidth,
+    viewportHeight,
+  );
+  const phaseOneRuntimes: Array<{
+    beeImage: HTMLImageElement;
+    busyPlan: (typeof busyBeePlans)[number];
+    crossPosition: Float32Array;
+    xSetter: (value: number) => void;
+    ySetter: (value: number) => void;
+    rotationSetter: (value: number) => void;
+    scaleXSetter: (value: number) => void;
+    scaleYSetter: (value: number) => void;
+    restScale: number;
+    previousX: number;
+    previousY: number;
+    previousDirectionSector: number;
+    currentDepth: ForestTransitionBeeDepth;
+  }> = [];
   FOREST_TRANSITION_BEE_PLACEMENTS.forEach((placement, placementIndex) => {
+    const busyPlan = busyBeePlans[placementIndex];
     const beeImage = domElementPool.acquire('img') as HTMLImageElement;
     resetPooledImage(beeImage);
     beeImage.src = FOREST_TRANSITION_BEE_ASSETS[Math.floor(Math.random() * FOREST_TRANSITION_BEE_ASSETS.length)];
     beeImage.alt = '';
     beeImage.className = 'cc-forest-transition-bee';
     beeImage.dataset.forestBeeGroup = placement.group;
-    const initialDepth = placement.depth;
+    beeImage.dataset.forestBeeOrigin = busyPlan.origin;
+    beeImage.dataset.forestBeeLoopsPine = String(busyPlan.loopsPine);
+    const initialDepth: ForestTransitionBeeDepth = busyPlan.frontFenceHold ? 'front-of-fence' : 'behind-fence';
     beeImage.dataset.forestBeeDepth = initialDepth;
-    const restScale = 0.80 + Math.random() * 0.40;
+    const restScale = 1;
     const sizePx = 70;
     beeImage.dataset.forestBeeRestScale = restScale.toFixed(4);
-    const laneCenterPercent = ((placementIndex + 0.5) / FOREST_TRANSITION_BEE_PLACEMENTS.length) * 100;
-    const startLeftPercent = Math.max(3, Math.min(97, laneCenterPercent + (Math.random() * 5 - 2.5)));
-    const bottomPx = FOREST_TRANSITION_BEE_BOTTOM_MIN_PX
-      + Math.random() * (FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX - FOREST_TRANSITION_BEE_BOTTOM_MIN_PX);
+    const startLeftPercent = busyPlan.leftPercent;
+    const restViewportCenterY = viewportHeight * busyPlan.restViewportRatio;
+    const bottomPx = forestContainerRect.bottom - restViewportCenterY - sizePx * 0.5;
     beeImage.style.cssText = [
       'position: absolute',
       `left: ${startLeftPercent}%`,
@@ -758,279 +1036,123 @@ function startForestTransitionBees(forestContainer: HTMLElement): void {
       'display: block',
       'pointer-events: none',
       'will-change: transform',
+      'content-visibility: visible',
       'transform-origin: 50% 50%',
     ].join(';');
     layerByDepth.get(initialDepth)?.appendChild(beeImage);
     activeForestTransitionBeeImages.push(beeImage);
 
-    const idleTimeline = trackTimeline({ repeat: -1, paused: true });
-    const waypointCount = 7;
-    let previousX = 0;
-    let previousY = 0;
-    Array.from({ length: waypointCount }, () => {
-      const segmentStartX = previousX;
-      const segmentStartY = previousY;
-      const targetLeftPercent = 3 + Math.random() * 94;
-      const targetX = ((targetLeftPercent - startLeftPercent) / 100) * containerWidth;
-      const targetY = bottomPx - (
-        FOREST_TRANSITION_BEE_BOTTOM_MIN_PX
-        + Math.random() * (FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX - FOREST_TRANSITION_BEE_BOTTOM_MIN_PX)
-      );
-      const deltaX = targetX - segmentStartX;
-      const deltaY = targetY - segmentStartY;
-      const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-      const curveDirection = Math.random() < 0.5 ? -1 : 1;
-      const curvePx = curveDirection * (14 + Math.random() * 10);
-      const totalDuration = 0.75 + Math.min(0.60, distance / Math.max(1, containerWidth) * 0.70);
-      const unclampedMidX = segmentStartX + deltaX * 0.5 + (-deltaY / distance) * curvePx;
-      const unclampedMidY = segmentStartY + deltaY * 0.5 + (deltaX / distance) * curvePx;
-      const minTravelX = ((3 - startLeftPercent) / 100) * containerWidth;
-      const maxTravelX = ((97 - startLeftPercent) / 100) * containerWidth;
-      const minTravelY = bottomPx - FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX;
-      const maxTravelY = bottomPx - FOREST_TRANSITION_BEE_BOTTOM_MIN_PX;
-      const waypoint = {
-        x: targetX,
-        y: targetY,
-        midX: Math.max(minTravelX, Math.min(maxTravelX, unclampedMidX)),
-        midY: Math.max(minTravelY, Math.min(maxTravelY, unclampedMidY)),
-        rotation: -12 + Math.random() * 24,
-        duration: totalDuration,
-      };
-      idleTimeline.call(() => {
-        pointForestTransitionBeeToward(beeImage, waypoint.midX - segmentStartX, waypoint.midY - segmentStartY);
-      });
-      idleTimeline.to(beeImage, {
-        x: waypoint.midX,
-        y: waypoint.midY,
-        rotation: waypoint.rotation,
-        duration: waypoint.duration * 0.48,
-        ease: 'none',
-      });
-      idleTimeline.call(() => pointForestTransitionBeeToward(
-        beeImage,
-        waypoint.x - waypoint.midX,
-        waypoint.y - waypoint.midY,
-      ));
-      idleTimeline.to(beeImage, {
-        x: waypoint.x,
-        y: waypoint.y,
-        rotation: -waypoint.rotation * 0.65,
-        duration: waypoint.duration * 0.52,
-        ease: 'none',
-      });
-      previousX = waypoint.x;
-      previousY = waypoint.y;
-      return waypoint;
-    });
-    const returnDeltaX = -previousX;
-    const returnDeltaY = -previousY;
-    const returnDistance = Math.max(1, Math.hypot(returnDeltaX, returnDeltaY));
-    const returnCurvePx = (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 10);
-    const unclampedReturnMidX = previousX * 0.5 + (-returnDeltaY / returnDistance) * returnCurvePx;
-    const unclampedReturnMidY = previousY * 0.5 + (returnDeltaX / returnDistance) * returnCurvePx;
-    const returnMidX = Math.max(
-      ((3 - startLeftPercent) / 100) * containerWidth,
-      Math.min(((97 - startLeftPercent) / 100) * containerWidth, unclampedReturnMidX),
-    );
-    const returnMidY = Math.max(
-      bottomPx - FOREST_TRANSITION_BEE_ENTRY_BOTTOM_MAX_PX,
-      Math.min(bottomPx - FOREST_TRANSITION_BEE_BOTTOM_MIN_PX, unclampedReturnMidY),
-    );
-    const returnDuration = 0.80 + Math.random() * 0.40;
-    idleTimeline.call(() => pointForestTransitionBeeToward(
+    pointForestTransitionBeeToward(
       beeImage,
-      returnMidX - previousX,
-      returnMidY - previousY,
-    ));
-    idleTimeline.to(beeImage, {
-      x: returnMidX,
-      y: returnMidY,
-      rotation: -10 + Math.random() * 20,
-      duration: returnDuration * 0.48,
-      ease: 'none',
-    });
-    idleTimeline.call(() => pointForestTransitionBeeToward(beeImage, -returnMidX, -returnMidY));
-    idleTimeline.to(beeImage, {
-      x: 0,
-      y: 0,
-      rotation: 0,
-      duration: returnDuration * 0.52,
-      ease: 'none',
-    });
-    let ownedIdleTimeline = idleTimeline;
-    if (placementIndex % 2 === 1) {
-      try { idleTimeline.kill(); } catch {}
-      const orbitTreeKey = placementIndex % 4 === 1 ? 'pine2' : 'pine4';
-      const orbitBehindDepth: ForestTransitionBeeDepth = orbitTreeKey === 'pine2' ? 'behind-pine2' : 'behind-pine4';
-      const orbitRadiusX = 48 + Math.random() * 26;
-      const orbitRadiusY = 32 + Math.random() * 22;
-      const orbitHeightRatio = 0.10 + Math.random() * 0.13;
-      const orbitDirection = placementIndex % 3 === 0 ? -1 : 1;
-      const orbitSlot = orbitTreeKey === 'pine2' ? (placementIndex - 1) / 4 : (placementIndex - 3) / 4;
-      const orbitSlotCount = orbitTreeKey === 'pine2' ? 3 : 2;
-      const orbitStartAngle = Math.PI * 0.5
-        + orbitSlot / orbitSlotCount * Math.PI * 2
-        + (Math.random() * 0.24 - 0.12);
-      const orbitDuration = 2.75 + Math.random() * 0.35;
-      const orbitPhase = { progress: 0 };
-      let orbitCenterX = 0;
-      let orbitCenterY = 0;
-      let orbitStartX = 0;
-      let orbitStartY = 0;
-      let orbitApproachX = 0;
-      let orbitApproachY = 0;
-      let isFirstOrbitCycle = true;
-      let currentOrbitDepth = '';
-      let currentDirectionSector = -1;
-      const xSetter = gsap.quickSetter(beeImage, 'x', 'px');
-      const ySetter = gsap.quickSetter(beeImage, 'y', 'px');
-      const rotationSetter = gsap.quickSetter(beeImage, 'rotation', 'deg');
-      const resolveOrbitGeometry = (): void => {
-        const containerRect = forestContainer.getBoundingClientRect();
-        const treeImage = forestContainer.querySelector(`[data-scene-layer="${orbitTreeKey}"]`) as HTMLElement | null;
-        const treeRect = treeImage?.getBoundingClientRect();
-        const fallbackXRatio = orbitTreeKey === 'pine2' ? 0.31 : 0.78;
-        orbitCenterX = treeRect && treeRect.width > 0
-          ? treeRect.left + treeRect.width * 0.5
-          : containerRect.left + containerRect.width * fallbackXRatio;
-        orbitCenterY = treeRect && treeRect.height > 0
-          ? treeRect.top + treeRect.height * orbitHeightRatio
-          : containerRect.top + containerRect.height * 0.67;
-        const beeRect = beeImage.getBoundingClientRect();
-        orbitApproachX = Number(gsap.getProperty(beeImage, 'x')) || 0;
-        orbitApproachY = Number(gsap.getProperty(beeImage, 'y')) || 0;
-        orbitStartX = orbitApproachX + orbitCenterX - (beeRect.left + beeRect.width * 0.5);
-        orbitStartY = orbitApproachY + orbitCenterY - (beeRect.top + beeRect.height * 0.5);
-      };
-      const orbitTimeline = trackTimeline({ repeat: -1, paused: true });
-      orbitTimeline.to(orbitPhase, {
-        progress: 1,
-        duration: orbitDuration,
-        ease: 'none',
-        onStart: resolveOrbitGeometry,
-        onUpdate: () => {
-          const angle = orbitStartAngle + orbitDirection * orbitPhase.progress * Math.PI * 2;
-          const harmonic = Math.sin(angle * 2 + placementIndex * 0.7);
-          const velocityX = -Math.sin(angle) * orbitRadiusX * orbitDirection;
-          const velocityY = Math.cos(angle) * orbitRadiusY * orbitDirection;
-          forestTransitionBeeVelocities.set(beeImage, { x: velocityX, y: velocityY });
-          const nextDepth = Math.sin(angle) <= 0 ? orbitBehindDepth : 'front-of-fence';
-          if (nextDepth !== currentOrbitDepth) {
-            const targetLayer = layerByDepth.get(nextDepth);
-            targetLayer?.appendChild(beeImage);
-            beeImage.dataset.forestBeeDepth = nextDepth;
-            currentOrbitDepth = nextDepth;
-          }
-          const directionSector = Math.round(angle / (Math.PI * 0.25));
-          if (directionSector !== currentDirectionSector) {
-            pointForestTransitionBeeToward(beeImage, velocityX, velocityY);
-            currentDirectionSector = directionSector;
-          }
-          const targetX = orbitStartX + Math.cos(angle) * orbitRadiusX + harmonic * 5;
-          const targetY = orbitStartY + Math.sin(angle) * orbitRadiusY + Math.cos(angle * 3) * 3;
-          const approachProgress = isFirstOrbitCycle
-            ? Math.min(1, orbitPhase.progress * orbitDuration / 0.28)
-            : 1;
-          const smoothApproach = approachProgress * approachProgress * (3 - 2 * approachProgress);
-          xSetter(orbitApproachX + (targetX - orbitApproachX) * smoothApproach);
-          ySetter(orbitApproachY + (targetY - orbitApproachY) * smoothApproach);
-          rotationSetter(Math.max(-10, Math.min(10, velocityX * 0.12)));
-        },
-      });
-      orbitTimeline.eventCallback('onRepeat', () => {
-        orbitPhase.progress = 0;
-        isFirstOrbitCycle = false;
-      });
-      orbitTimeline.eventCallback('onComplete', () => {
-        const targetLayer = layerByDepth.get('front-of-fence');
-          targetLayer?.appendChild(beeImage);
-        beeImage.dataset.forestBeeDepth = 'front-of-fence';
-      });
-      ownedIdleTimeline = orbitTimeline;
-    }
-    forestTransitionBeeTimelines.set(beeImage, ownedIdleTimeline);
-
-    const landingCenterX = containerWidth * startLeftPercent / 100;
-    const renderedHalfWidth = sizePx * restScale * 0.5;
-    const originMode = placementIndex % 3;
-    const enterStartX = originMode === 0
-      ? -(landingCenterX + renderedHalfWidth + 24)
-      : originMode === 1
-        ? containerWidth - landingCenterX + renderedHalfWidth + 24
-        : (Math.random() * 2 - 1) * containerWidth * 0.26;
-    const enterStartY = originMode === 2
-      ? Math.max(280, forestContainer.clientHeight - bottomPx + renderedHalfWidth + 24)
-      : 54 + Math.random() * 110;
-    const enterDelay = placementIndex * (0.018 + Math.random() * 0.004);
-    const enterDuration = 0.52 + Math.random() * 0.14;
-    const zigDirection = Math.random() < 0.5 ? -1 : 1;
-    const controlOneX = enterStartX * 0.58 + zigDirection * containerWidth * (0.10 + Math.random() * 0.10);
-    const controlOneY = enterStartY * (0.62 + Math.random() * 0.10);
-    const controlTwoX = -zigDirection * containerWidth * (0.10 + Math.random() * 0.08);
-    const controlTwoY = enterStartY * (0.18 + Math.random() * 0.10);
-    const enterClock = { progress: 0 };
-    const enterXSetter = gsap.quickSetter(beeImage, 'x', 'px');
-    const enterYSetter = gsap.quickSetter(beeImage, 'y', 'px');
-    const enterRotationSetter = gsap.quickSetter(beeImage, 'rotation', 'deg');
-    const enterScaleXSetter = gsap.quickSetter(beeImage, 'scaleX');
-    const enterScaleYSetter = gsap.quickSetter(beeImage, 'scaleY');
-    let previousEnterX = enterStartX;
-    let previousEnterY = enterStartY;
-    let previousEnterDirectionSector = Number.NaN;
-    pointForestTransitionBeeToward(beeImage, controlOneX - enterStartX, controlOneY - enterStartY);
+      busyPlan.controlOneX - busyPlan.startOffsetX,
+      busyPlan.controlOneY - busyPlan.startOffsetY,
+    );
     gsap.set(beeImage, {
-      x: enterStartX,
-      y: enterStartY,
+      x: busyPlan.startOffsetX,
+      y: busyPlan.startOffsetY,
       opacity: 1,
-      scaleX: restScale * 0.72,
-      scaleY: restScale * 0.72,
-      rotation: zigDirection * 10,
+      scaleX: restScale * busyPlan.initialScaleRatio,
+      scaleY: restScale * busyPlan.initialScaleRatio,
+      rotation: -8 + Math.random() * 16,
     });
-    forestTransitionBeeIntroTimeline.to(enterClock, {
-      progress: 1,
-      duration: enterDuration,
-      ease: 'none',
-      onUpdate: () => {
-        const progress = enterClock.progress;
-        const x = resolveForestBeeCubic(enterStartX, controlOneX, controlTwoX, 0, progress);
-        const y = resolveForestBeeCubic(enterStartY, controlOneY, controlTwoY, 0, progress);
-        const velocityX = x - previousEnterX;
-        const velocityY = y - previousEnterY;
-        enterXSetter(x);
-        enterYSetter(y);
-        enterRotationSetter(Math.max(-12, Math.min(12, velocityX * 0.22)));
-        const scale = restScale * (0.72 + progress * 0.28);
-        enterScaleXSetter(scale);
-        enterScaleYSetter(scale);
-        const directionSector = Math.round(Math.atan2(velocityY, velocityX) / (Math.PI * 0.25));
-        if (directionSector !== previousEnterDirectionSector && Math.abs(velocityX) + Math.abs(velocityY) > 0.4) {
-          pointForestTransitionBeeToward(beeImage, velocityX, velocityY);
-          previousEnterDirectionSector = directionSector;
-        }
-        previousEnterX = x;
-        previousEnterY = y;
-      },
-      onComplete: () => ownedIdleTimeline.play(0),
-    }, enterDelay);
+    forestTransitionBeeIntroProgress.set(beeImage, 0);
+    forestTransitionBeeTracePositions.delete(beeImage);
+    phaseOneRuntimes.push({
+      beeImage,
+      busyPlan,
+      crossPosition: new Float32Array(2),
+      xSetter: gsap.quickSetter(beeImage, 'x', 'px'),
+      ySetter: gsap.quickSetter(beeImage, 'y', 'px'),
+      rotationSetter: gsap.quickSetter(beeImage, 'rotation', 'deg'),
+      scaleXSetter: gsap.quickSetter(beeImage, 'scaleX'),
+      scaleYSetter: gsap.quickSetter(beeImage, 'scaleY'),
+      restScale,
+      previousX: busyPlan.startOffsetX,
+      previousY: busyPlan.startOffsetY,
+      previousDirectionSector: Number.NaN,
+      currentDepth: initialDepth,
+      currentScale: restScale * busyPlan.initialScaleRatio,
+    });
   });
+
+  const phaseOneClock = { progress: 0 };
+  const phaseOneDuration = Math.max(...busyBeePlans.map((plan) => plan.crossDuration));
+  // One shared phase-1 callback paints the complete flock in the same frame.
+  // This mirrors the proven phase-2 owner and removes all per-bee callback gates.
+  forestTransitionBeeIntroTimeline.to(phaseOneClock, {
+    progress: 1,
+    duration: phaseOneDuration,
+    ease: 'none',
+    onUpdate: () => {
+      const progress = phaseOneClock.progress;
+      phaseOneRuntimes.forEach((runtime) => {
+        const {
+          beeImage,
+          busyPlan,
+          crossPosition,
+        } = runtime;
+        forestTransitionBeeIntroProgress.set(beeImage, progress);
+        sampleForestBusyBeeCross(busyPlan, progress, crossPosition);
+        const x = crossPosition[0];
+        const y = crossPosition[1];
+        const velocityX = x - runtime.previousX;
+        const velocityY = y - runtime.previousY;
+        runtime.xSetter(x);
+        runtime.ySetter(y);
+        runtime.rotationSetter(Math.max(-14, Math.min(14, velocityX * 0.20)));
+        const scaleWobbleEnvelope = Math.sin(Math.PI * progress);
+        const wobbleScale = 1 + Math.sin((progress * Math.PI * 6) + busyPlan.wobblePhase)
+          * 0.035 * scaleWobbleEnvelope;
+        const scale = runtime.restScale * sampleForestBusyBeeScale(busyPlan, progress) * wobbleScale;
+        runtime.scaleXSetter(scale);
+        runtime.scaleYSetter(scale);
+        runtime.currentScale = scale;
+        const targetDepth: ForestTransitionBeeDepth = progress >= FOREST_BUSY_BEE_BEHIND_REAR_PINES_PROGRESS
+          ? 'behind-rear-pines'
+          : progress >= FOREST_BUSY_BEE_BEHIND_FRONT_PINES_PROGRESS
+            ? 'behind-front-pines'
+            : busyPlan.frontFenceHold ? 'front-of-fence' : 'behind-fence';
+        if (targetDepth !== runtime.currentDepth) {
+          layerByDepth.get(targetDepth)?.appendChild(beeImage);
+          beeImage.dataset.forestBeeDepth = targetDepth;
+          runtime.currentDepth = targetDepth;
+        }
+        const directionSector = Math.round(Math.atan2(velocityY, velocityX) / (Math.PI * 0.25));
+        if (directionSector !== runtime.previousDirectionSector && Math.abs(velocityX) + Math.abs(velocityY) > 0.4) {
+          pointForestTransitionBeeToward(beeImage, velocityX, velocityY);
+          runtime.previousDirectionSector = directionSector;
+        }
+        runtime.previousX = x;
+        runtime.previousY = y;
+        forestTransitionBeeVelocities.set(beeImage, { x: velocityX, y: velocityY });
+      });
+    },
+    onComplete: () => {
+      phaseOneRuntimes.forEach(({ beeImage }) => {
+        forestTransitionBeeIntroProgress.set(beeImage, 1);
+      });
+      traceForestTransitionBeeEnter('completed');
+      startForestTransitionBeeDepthMotion(forestContainer);
+    },
+  }, FOREST_TRANSITION_BEE_INTRO_START_SECONDS);
   forestTransitionBeeIntroTimeline.to({}, {
     duration: FOREST_TRANSITION_BEE_INTRO_DURATION_SECONDS,
     ease: 'none',
   }, 0);
-  forestTransitionBeeIntroTimeline.call(
-    () => {
-      traceForestTransitionBeeEnter('completed');
-      startForestTransitionBeeDepthMotion(forestContainer);
-    },
-    undefined,
-    FOREST_TRANSITION_BEE_PHASE_TWO_AT_SECONDS,
-  );
+  [0.18, 0.35, 0.6].forEach((checkpointSeconds) => {
+    forestTransitionBeeIntroTimeline?.call(
+      () => traceForestTransitionBeeEnter('checkpoint'),
+      undefined,
+      checkpointSeconds,
+    );
+  });
 }
 
 function startForestTransitionBeeIntroMotion(): void {
   if (!forestTransitionBeeIntroTimeline || forestTransitionBeeIntroTimeline.isActive()) return;
   forestTransitionBeeIntroStartedAtMs = performance.now();
   forestTransitionBeeIntroTimeline.play(0);
+  forestTransitionSpecialBeeLaunchTimeline?.play(0);
 }
 
 function isTransitionHillLayer(layerKey: string): boolean {
@@ -1045,9 +1167,11 @@ function getTransitionHillParallaxX(layerKey: string): number {
 }
 
 function getTransitionHillBaseScale(layerKey: string): number {
-  if (layerKey === 'mountain') return 1.42085;
-  if (layerKey === 'hill1') return 1.39104;
-  if (layerKey === 'hill2') return 1.45152;
+  // Terrain PNGs contain transparent edge padding. These seam-safe scales keep
+  // neighbouring layers overlapped through their complete horizontal drift.
+  if (layerKey === 'mountain') return 1.45;
+  if (layerKey === 'hill1') return 1.6;
+  if (layerKey === 'hill2') return 1.53;
   return 1;
 }
 
@@ -1895,8 +2019,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   } catch (_) { /* ignore */ }
   if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
 
-  // Preload in the background; do not block the transition overlay on image decode.
-  preloadTransitionAssets(showScene ? sceneLayers : [], resolvedTheme === 'forest').catch((error) => {
+  // Main Forest bees change directional PNGs on their first flight frame. Decode
+  // those seven small textures before the overlay starts so a cold iOS cache
+  // cannot turn scheduled bees into visually blank elements.
+  if (resolvedTheme === 'forest') {
+    await preloadTransitionAssets([], true);
+    if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
+  }
+  preloadTransitionAssets(showScene ? sceneLayers : [], false).catch((error) => {
     logger.warn('⚠️ board-transition-screen: Background preload failed:', error);
   });
   import('../utils/board-asset-warmup.js')
@@ -2552,7 +2682,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     overlay.appendChild(container);
     document.body.appendChild(overlay);
     if (resolvedTheme === 'forest' && forestContainer) {
-      startForestTransitionBees(forestContainer);
+      startForestTransitionBees(forestContainer, overlay, digitElements);
     }
 
     currentOverlay = overlay;
@@ -3139,7 +3269,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                       ROBO_AIR_COMBAT_HOLD_DURATION_SECONDS,
                       getRoboAirCombatHoldSeconds(),
                     )
-                  : BOARD_TRANSITION_HOLD_DURATION_SECONDS,
+                  : resolvedTheme === 'forest'
+                    ? Math.max(
+                        BOARD_TRANSITION_HOLD_DURATION_SECONDS,
+                        FOREST_TRANSITION_SPECIAL_BEE_COMPLETE_AT_SECONDS
+                          - FOREST_TRANSITION_SPECIAL_BEE_NUMBER_EXIT_LEAD_SECONDS
+                          - Math.max(0, (performance.now() - forestTransitionBeeIntroStartedAtMs) / 1000),
+                      )
+                    : BOARD_TRANSITION_HOLD_DURATION_SECONDS,
                 ease: 'none'
               });
             }

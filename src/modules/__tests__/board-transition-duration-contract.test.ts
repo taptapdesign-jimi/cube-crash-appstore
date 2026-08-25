@@ -42,10 +42,16 @@ describe('Board Transition duration contract', () => {
     expect(source).toContain('enterTimeline.add(hillContinuousDriftTimeline, sceneEnterStart)');
     expect(source).toContain("duration: getTransitionHillParallaxDuration(layerKey)");
     expect(source).toContain("ease: 'none'");
+    expect(source).toContain("if (layerKey === 'mountain') return 1.45");
+    expect(source).toContain("if (layerKey === 'hill1') return 1.6");
+    expect(source).toContain("if (layerKey === 'hill2') return 1.53");
+    expect(source).toContain('Terrain PNGs contain transparent edge padding');
     expect(source).toContain('duration: 0.72 * sceneEnterSpeedFactor');
     expect(source).toContain("if (layerKey === 'mountain') {");
     expect(source).toContain("y: -7,\n              duration: 0.14,\n              ease: 'sine.out'");
     expect(source).toContain("y: 0,\n              duration: 0.22,\n              ease: 'back.out(1.35)'");
+    expect(source).toContain("resolvedTheme === 'forest'");
+    expect(source).toContain('FOREST_TRANSITION_SPECIAL_BEE_COMPLETE_AT_SECONDS');
     expect(source).not.toContain('hillBaseScale * 1.12');
     expect(source).not.toContain('hillBaseScale * 0.98');
     expect(source).not.toContain('const hillDriftStart = -0.3');
