@@ -73,7 +73,7 @@ describe('Board Transition World themes', () => {
     expect(resolveBoardTransitionTheme({ boardNumber: 1, hideForest: true, runMode: RUN_MODE_JOURNEY })).toBe('none');
   });
 
-  test('uses only two named NN bees and removes the regular lower-bee runtime', () => {
+  test('uses four named NN bees and removes the regular lower-bee runtime', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/board-transition-screen.ts'), 'utf8');
     const nnBeeSource = source.slice(
       source.indexOf('function startSimpleForestNNBees('),
@@ -96,6 +96,8 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('function stopForestNNBees(');
     expect(source).toContain("role: 'left'");
     expect(source).toContain("role: 'right'");
+    expect(source).toContain("role: 'high-scout'");
+    expect(source).toContain("role: 'low-dancer'");
     expect(nnBeeSource).toContain('const catmullRom = (points: readonly Point[], progress: number): Point => {');
     expect(nnBeeSource).toContain('const buildArcLengthSamples = (points: readonly Point[]): RouteSample[] => {');
     expect(nnBeeSource).toContain('const sampleByDistance = (samples: readonly RouteSample[], distance: number): Point => {');
@@ -104,10 +106,11 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).toContain('const routeVerticalSweep = Math.min(overlayRect.height * 0.27, Math.max(62, orbitRadiusY * 1.68) * 1.48)');
     expect(nnBeeSource).toContain('const storySpreadX = 0.92 + Math.random() * 0.20');
     expect(nnBeeSource).toContain('const storySpreadY = 0.90 + Math.random() * 0.24');
-    expect(nnBeeSource).toContain('const leftEntryY = overlayRect.height * 0.08 * 0.85');
-    expect(nnBeeSource).toContain('const rightEntryY = overlayRect.height * 0.68 * 1.35');
-    expect(nnBeeSource).toContain('const leftExitY = numberCenter.y + routeVerticalSweep * 1.28 * 0.80');
-    expect(nnBeeSource).toContain('const rightExitY = numberCenter.y + routeVerticalSweep * 1.13 * 1.20');
+    expect(nnBeeSource).toContain('const randomBetween = (minimum: number, maximum: number): number => (');
+    expect(nnBeeSource).toContain('const leftEntryY = overlayRect.height * randomBetween(0.045, 0.095)');
+    expect(nnBeeSource).toContain('const rightEntryY = overlayRect.height * randomBetween(0.84, 0.94)');
+    expect(nnBeeSource).toContain('const leftExitY = numberCenter.y + routeVerticalSweep * randomBetween(0.94, 1.12)');
+    expect(nnBeeSource).toContain('const rightExitY = numberCenter.y + routeVerticalSweep * randomBetween(1.24, 1.42)');
     expect(nnBeeSource).toContain('const digitPoint = (index: 0 | 1, dx: number, dy: number): Point => ({');
     expect(nnBeeSource).toContain('const variedStoryPoint = (dx: number, dy: number, jitter = 0.055): Point => ({');
     expect(nnBeeSource).toContain('variedStoryPoint(-0.08, -1.02)');
@@ -123,7 +126,9 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).toContain('mountainRect.height * ((48 + 27.6) / 328)');
     expect(nnBeeSource).toContain('mountainRect.width * 0.515');
     expect(nnBeeSource).toContain('buildArcLengthSamples([point, summitPoint, runtime.exitPoint])');
-    expect(nnBeeSource).toContain("runtime.role === 'left' && segmentIndex >= runtime.knotTimes.length - 3");
+    expect(nnBeeSource).toContain("mountainExitMode: 'retarget'");
+    expect(nnBeeSource).toContain("mountainExitMode: 'occlude'");
+    expect(nnBeeSource).toContain("runtime.mountainExitMode !== 'none' && segmentIndex >= runtime.knotTimes.length - 3");
     expect(nnBeeSource).toContain('beeRight >= runtime.mountainPeakBounds.left');
     expect(nnBeeSource).toContain('beeBottom >= runtime.mountainPeakBounds.top');
     expect(nnBeeSource).toContain('shouldPassBehindMountain !== runtime.isBehindMountain');
@@ -131,21 +136,46 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).not.toContain('rearKnotWindows');
     expect(nnBeeSource).not.toContain('rearDistanceWindows');
     expect(nnBeeSource).not.toContain('shouldPassBehindDigits');
-    expect(nnBeeSource).toContain("(route.role === 'left' ? frontLayer : rearLayer).appendChild(beeImage)");
+    expect(nnBeeSource).toContain("const homeLayer = route.role === 'left' ? frontLayer : rearLayer");
+    expect(nnBeeSource).toContain('homeLayer.appendChild(beeImage)');
     expect(nnBeeSource).toContain('const tangentLookahead = 8');
-    expect(nnBeeSource).toContain('const tangentStart = sampleByDistance(activeSamples, activeDistance - tangentLookahead)');
-    expect(nnBeeSource).toContain('const tangentEnd = sampleByDistance(activeSamples, activeDistance + tangentLookahead)');
+    expect(nnBeeSource).toContain('const tangentStart = applyRouteWobble(');
+    expect(nnBeeSource).toContain('sampleByDistance(activeSamples, activeDistance - tangentLookahead)');
+    expect(nnBeeSource).toContain('const tangentEnd = applyRouteWobble(');
+    expect(nnBeeSource).toContain('sampleByDistance(activeSamples, activeDistance + tangentLookahead)');
     expect(nnBeeSource).toContain('pointForestTransitionBeeToward(runtime.beeImage, velocityX, velocityY, deltaSeconds)');
     expect(nnBeeSource).not.toContain('{ x: -beeWidthPx - 34');
     expect(nnBeeSource).toContain('{ x: overlayRect.width + beeWidthPx + 34, y: leftEntryY }');
     expect(nnBeeSource).toContain('{ x: overlayRect.width + 34');
-    expect(nnBeeSource).toContain('const initialDirection = -1');
-    expect(nnBeeSource).toContain('scale: 0.78 * 0.30');
+    expect(nnBeeSource).toContain('const initialDirection = route.initialDirection');
+    expect(nnBeeSource).toContain('initialDirection: 1');
+    expect(nnBeeSource).toContain('{ x: -beeWidthPx - randomBetween(12, 24), y: overlayRect.height * randomBetween(0.10, 0.18) }');
+    expect(nnBeeSource).toContain('digitPoint(0, -0.30, -0.62)');
+    expect(nnBeeSource).toContain('overlayRect.height * randomBetween(0.86, 0.94)');
+    expect(nnBeeSource).toContain('variedStoryPoint(0.16, 1.18, 0.035)');
+    expect(nnBeeSource).toContain('variedStoryPoint(-0.26, -1.58, 0.035)');
+    expect(nnBeeSource).toContain('routeVerticalSweep * randomBetween(1.20, 1.42)');
+    expect(nnBeeSource).toContain('routeVerticalSweep * randomBetween(1.52, 1.70)');
+    expect(nnBeeSource).toContain('verticalWobblePx: randomBetween(28, 38)');
+    expect(nnBeeSource).toContain('verticalWobblePx: randomBetween(38, 48)');
+    expect(nnBeeSource).toContain('horizontalWobblePx: randomBetween(11, 17)');
+    expect(nnBeeSource).toContain('horizontalWobblePx: randomBetween(15, 21)');
+    expect(nnBeeSource).toContain('const applyRouteWobble = (');
+    expect(nnBeeSource).toContain('Math.sin(Math.PI * progress) ** 1.35');
+    expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.90, 1)');
+    expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.84, 0.96)');
+    expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.82, 0.96)');
+    expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.50, 0.60)');
+    expect(nnBeeSource).toContain('const baseScale = 0.78 * 0.85 * route.scaleMultiplier');
+    expect(nnBeeSource).toContain('scale: baseScale * 0.30');
     expect(nnBeeSource).toContain('const flowClock = { seconds: 0 }');
-    expect(nnBeeSource).toContain('knotTimes: [0, 0.45, 0.78, 1.15, 1.50, 1.82, 2.15, 2.48, 2.98, 3.50]');
-    expect(nnBeeSource).toContain('knotTimes: [0, 0.48, 0.82, 1.20, 1.55, 1.88, 2.22, 2.56, 3.03, 3.55]');
-    expect(nnBeeSource).toContain('speedWaves: [0.16, 0.08, 0.12, 0.10, 0.14, 0.09, 0.15, 0.11, 0.18]');
-    expect(nnBeeSource).toContain('speedWaves: [0.14, 0.10, 0.08, 0.15, 0.10, 0.13, 0.09, 0.16, 0.18]');
+    expect(nnBeeSource).toContain('const randomizeKnotTimes = (times: readonly number[], jitterSeconds = 0.045)');
+    expect(nnBeeSource).toContain('times[index - 1] + 0.12');
+    expect(nnBeeSource).toContain('times[index + 1] - 0.12');
+    expect(nnBeeSource).toContain('knotTimes: randomizeKnotTimes([0, 0.45, 0.78, 1.15, 1.50, 1.82, 2.15, 2.48, 2.98, 3.50])');
+    expect(nnBeeSource).toContain('knotTimes: randomizeKnotTimes([0, 0.48, 0.82, 1.20, 1.55, 1.88, 2.22, 2.56, 3.03, 3.55])');
+    expect(nnBeeSource).toContain('const randomizeSpeedWaves = (waves: readonly number[])');
+    expect(nnBeeSource).toContain('Math.max(0.06, Math.min(0.20');
     expect(nnBeeSource).toContain('const knotDistances = route.points.map');
     expect(nnBeeSource).toContain('runtime.knotTimes[runtime.knotTimes.length - 1]');
     expect(nnBeeSource).toContain('const segmentProgress = Math.max(0, Math.min(1,');
@@ -163,7 +193,7 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).toContain('const smoothScaleProgress = scaleChangeProgress * scaleChangeProgress');
     expect(nnBeeSource).toContain('const introScaleProgress = Math.max(0, Math.min(1, flowClock.seconds))');
     expect(nnBeeSource).toContain('const introScale = 0.30 + 0.70 * smoothIntroScale');
-    expect(nnBeeSource).toContain('0.78 * introScale * lifetimeScale * (1 + stretch + breath) * exitScale');
+    expect(nnBeeSource).toContain('runtime.baseScale * introScale * lifetimeScale * (1 + stretch + breath) * exitScale');
     expect(nnBeeSource).not.toContain('profileBonusSeconds');
     expect(nnBeeSource).not.toContain('speedOscillationA');
     expect(nnBeeSource).not.toContain('speedMultiplier');
@@ -171,7 +201,8 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).not.toContain('.to(beeImage');
     expect(nnBeeSource).not.toContain('orbitClock');
     expect(nnBeeSource).not.toContain('approachKeyframes');
-    expect(nnBeeSource).toContain('let point = sampleByDistance(runtime.samples, travelledDistance)');
+    expect(nnBeeSource).toContain('let point = applyRouteWobble(');
+    expect(nnBeeSource).toContain('sampleByDistance(runtime.samples, travelledDistance)');
     expect(nnBeeSource).toContain('runtime.xSetter(point.x)');
     expect(nnBeeSource).toContain('runtime.ySetter(point.y)');
     expect(nnBeeSource).toContain('const nextDirection = Math.abs(velocityX) > 0.12');

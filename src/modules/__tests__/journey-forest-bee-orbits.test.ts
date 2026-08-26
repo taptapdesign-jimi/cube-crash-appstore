@@ -23,13 +23,17 @@ describe('Journey Forest bee canvas flights', () => {
     let sampleIndex = 0;
     const samples = [0.1, 0.8, 0.35, 0.65, 0.2, 0.9, 0.45, 0.7];
     const plans = createJourneyForestBeeFlightPlans(() => samples[sampleIndex++ % samples.length]);
-    expect(plans).toHaveLength(25);
+    expect(plans).toHaveLength(18);
     expect(Array.from({ length: 10 }, (_, unitIndex) => plans.filter((plan) => plan.unitIndex === unitIndex).length))
-      .toEqual([2, 2, 2, 2, 2, 2, 2, 2, 2, 2]);
+      .toEqual([1, 1, 2, 1, 2, 2, 1, 2, 1, 1]);
+    Array.from({ length: 10 }, (_, unitIndex) => unitIndex).forEach((unitIndex) => {
+      const initialUnitBees = plans.filter((plan) => plan.unitIndex === unitIndex);
+      expect(initialUnitBees.some((plan) => plan.phase === 'roam' && plan.elapsedSeconds >= 0)).toBe(true);
+    });
     const mainPlans = plans.filter((plan) => plan.unitIndex === -1);
-    expect(mainPlans).toHaveLength(5);
+    expect(mainPlans).toHaveLength(4);
     expect(mainPlans.every((plan) => plan.phase === 'roam' && plan.elapsedSeconds >= 0)).toBe(true);
-    expect(new Set(mainPlans.map((plan) => plan.scale))).toHaveProperty('size', 5);
+    expect(new Set(mainPlans.map((plan) => plan.scale))).toHaveProperty('size', 4);
     mainPlans.forEach((plan) => {
       const ys = Array.from(plan.points).filter((_, pointIndex) => pointIndex % 2 === 1);
       expect(Math.min(...ys)).toBeGreaterThanOrEqual(118);
@@ -43,37 +47,26 @@ describe('Journey Forest bee canvas flights', () => {
     expect(gatePlans.map((plan) => plan.gateRouteOrdinal)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     gatePlans.forEach((plan) => {
       expect(plan.points).toHaveLength(16);
-      expect(plan.phase).toBe('entry');
-      expect(plan.elapsedSeconds).toBe(-(plan.gateRouteOrdinal * 1.05));
-    });
-    [8, 9].forEach((unitIndex) => {
-      const initialBottomBees = plans.filter((plan) => plan.unitIndex === unitIndex);
-      expect(initialBottomBees).toHaveLength(2);
-      expect(initialBottomBees.every((plan) => plan.phase === 'roam' && plan.elapsedSeconds >= 0)).toBe(true);
-      initialBottomBees.forEach((plan) => {
-        const ys = Array.from(plan.points).filter((_, pointIndex) => pointIndex % 2 === 1);
-        const center = unitIndex === 8 ? 1238 : 1362;
-        expect(Math.min(...ys)).toBeGreaterThanOrEqual(center - 72);
-        expect(Math.max(...ys)).toBeLessThanOrEqual(center + 72);
-      });
+      expect(plan.phase).toBe('roam');
+      expect(plan.elapsedSeconds).toBeGreaterThanOrEqual(0);
     });
   });
 
   test('uses the thermal Forest profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
     expect(resolveJourneyForestBeeRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
+    )).toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
       .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0 });
   });
 
-  test('paints twenty-five logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
+  test('paints eighteen logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -117,12 +110,12 @@ describe('Journey Forest bee canvas flights', () => {
     expect(canvases.every((canvas) => canvas.style.opacity === '0')).toBe(true);
     expect(controller.getSnapshot()).toMatchObject({
       disposed: false,
-      beeCount: 25,
-      mainBeeCount: 5,
+      beeCount: 18,
+      mainBeeCount: 4,
       imageLayerCount: 0,
       tickerCount: 1,
       gateBeeCount: 10,
-      gateEntryCount: 10,
+      gateEntryCount: 0,
       gateExitCount: 0,
       gateGeometrySource: 'fallback',
       gateCenterX: 183,
@@ -184,7 +177,7 @@ describe('Journey Forest bee canvas flights', () => {
     root.remove();
   });
 
-  test('keeps all twenty-five bees and both depth canvases under the iPhone thermal profile', () => {
+  test('keeps all eighteen bees and both depth canvases under the iPhone thermal profile', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -210,18 +203,18 @@ describe('Journey Forest bee canvas flights', () => {
     });
 
     expect(controller.getSnapshot()).toMatchObject({
-      beeCount: 25,
+      beeCount: 18,
       canvasCount: 2,
       tickerCount: 1,
-      pixelRatio: 1.5,
-      bitmapPixels: 585 * 1626 * 2,
+      pixelRatio: 1.35,
+      bitmapPixels: 527 * 1464 * 2,
       maxFramesPerSecond: 30,
       visibilityMarginPx: 120,
     });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-forest-bee-canvas'));
     expect(canvases).toHaveLength(2);
     expect(canvases.every((canvas) => canvas.style.height === '1084px')).toBe(true);
-    expect(canvases.every((canvas) => canvas.width === 585 && canvas.height === 1626)).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 527 && canvas.height === 1464)).toBe(true);
 
     controller.dispose();
     expect(callbacks.size).toBe(0);

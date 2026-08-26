@@ -9,8 +9,8 @@ import {
 const TAU = Math.PI * 2;
 const FOREST_DESIGN_WIDTH = 390;
 const FOREST_FLIGHT_MAX_Y = 1428;
-const FOREST_UNIT_BEE_COUNT = 20;
-const FOREST_MAIN_BEE_COUNT = 5;
+const FOREST_UNIT_BEE_COUNT = 14;
+const FOREST_MAIN_BEE_COUNT = 4;
 const FOREST_BEE_COUNT = FOREST_UNIT_BEE_COUNT + FOREST_MAIN_BEE_COUNT;
 const FOREST_BEE_POINT_COUNT = 8;
 const FOREST_BEE_ROAM_SECONDS = 11;
@@ -22,6 +22,7 @@ const FOREST_BEE_DIRECTION_STABILITY_SECONDS = 0.05;
 const FOREST_BEE_ROAM_RANGE_MULTIPLIER = 0.82;
 const FOREST_BEE_VISIBILITY_MARGIN_PX = 180;
 const FOREST_BEE_DEPTH_SCALES = Object.freeze([0.65, 0.7, 0.8, 0.9, 1] as const);
+const FOREST_UNIT_DUPLICATE_LANES = Object.freeze([2, 4, 5, 7] as const);
 const FOREST_BEE_ASSET_BASE = './assets/shop/honey';
 
 type ForestBeeAsset = 'bee1' | 'bee2' | 'bee3' | 'bee4' | 'bee5' | 'bee6' | 'bee7';
@@ -111,7 +112,7 @@ export function resolveJourneyForestBeeRuntimeProfile(
   if (mobileProfile.isMobileDevice) {
     return {
       visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
-      pixelRatioCap: mobileProfile.ambientPixelRatioCap,
+      pixelRatioCap: Math.min(mobileProfile.ambientPixelRatioCap, 1.35),
       maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
     };
   }
@@ -235,13 +236,12 @@ const FOREST_UNIT_LANE_CENTERS = Object.freeze([
   384, 474, 584, 672, 802, 906, 1010, 1134, 1238, 1362,
 ] as const);
 
-function getLaneCenterY(index: number): number {
-  if (index >= FOREST_UNIT_BEE_COUNT) return 190;
-  return FOREST_UNIT_LANE_CENTERS[index % FOREST_UNIT_LANE_CENTERS.length];
+function getLaneCenterY(unitIndex: number): number {
+  if (unitIndex < 0) return 190;
+  return FOREST_UNIT_LANE_CENTERS[unitIndex % FOREST_UNIT_LANE_CENTERS.length];
 }
 
-function getUnitAnchorX(index: number, random: () => number): number {
-  const unitIndex = index % FOREST_UNIT_LANE_CENTERS.length;
+function getUnitAnchorX(unitIndex: number, random: () => number): number {
   const unitCenterX = unitIndex % 2 === 0 ? 112 : 278;
   return clamp(unitCenterX + (centered(random) * 52), 34, FOREST_DESIGN_WIDTH - 34);
 }
@@ -255,7 +255,7 @@ function resetRoamPlan(
   initialProgress = 0,
   continuity?: ForestBeeFlightContinuity,
 ): void {
-  const laneCenterY = getLaneCenterY(index);
+  const laneCenterY = getLaneCenterY(plan.unitIndex);
   const ownsVerticalSweep = index % 4 === 0;
   const anchorX = Number.isFinite(startX) ? Number(startX) : 56 + (sample(random) * 278);
   const anchorY = Number.isFinite(startY)
@@ -309,7 +309,6 @@ function resetRoamPlan(
 
 function resetExitPlan(
   plan: JourneyForestBeeFlightPlan,
-  index: number,
   random: () => number,
   gate: ForestBeeGateGeometry,
 ): void {
@@ -349,7 +348,7 @@ function resetExitPlan(
   }
   const exitsRight = sample(random) >= 0.5;
   const endX = exitsRight ? FOREST_DESIGN_WIDTH + 72 : -72;
-  const laneCenterY = getLaneCenterY(index);
+  const laneCenterY = getLaneCenterY(plan.unitIndex);
 
   for (let pointIndex = 0; pointIndex < FOREST_BEE_POINT_COUNT; pointIndex += 1) {
     const progress = pointIndex / (FOREST_BEE_POINT_COUNT - 1);
@@ -368,7 +367,6 @@ function resetExitPlan(
 
 function resetEntryPlan(
   plan: JourneyForestBeeFlightPlan,
-  index: number,
   random: () => number,
   gate: ForestBeeGateGeometry,
   initialProgress = 0,
@@ -387,8 +385,8 @@ function resetEntryPlan(
     const farPassageX = entrySide === -1 ? gate.passageRightX : gate.passageLeftX;
     const originPineX = entrySide === -1 ? gate.leftPineX : gate.rightPineX;
     const oppositePineX = entrySide === -1 ? gate.rightPineX : gate.leftPineX;
-    const entryEndX = getUnitAnchorX(index, random);
-    const laneCenterY = getLaneCenterY(index);
+    const entryEndX = getUnitAnchorX(plan.unitIndex, random);
+    const laneCenterY = getLaneCenterY(plan.unitIndex);
     const entryEndY = clamp(
       laneCenterY + (centered(random) * 44),
       92,
@@ -424,7 +422,7 @@ function resetEntryPlan(
   const entersFromRight = sample(random) >= 0.5;
   const sideStartX = entersFromRight ? FOREST_DESIGN_WIDTH + 72 : -72;
   const endX = 58 + (sample(random) * 274);
-  const laneCenterY = getLaneCenterY(index);
+  const laneCenterY = getLaneCenterY(plan.unitIndex);
   const sideStartY = clamp(laneCenterY + (centered(random) * 94), 42, FOREST_FLIGHT_MAX_Y);
   const endY = clamp(laneCenterY + (centered(random) * 72), 42, FOREST_FLIGHT_MAX_Y);
 
@@ -442,18 +440,17 @@ function resetEntryPlan(
   plan.bouncePhase = sample(random) * TAU;
 }
 
-/** Build two bees per Unit plus five immediately-visible Forest Main bees. */
+/** Build one immediately roaming bee per Unit, four middle-lane duplicates and four Forest Main bees. */
 export function createJourneyForestBeeFlightPlans(
   random: () => number = Math.random,
-  gate: ForestBeeGateGeometry = FOREST_BEE_FALLBACK_GATE_GEOMETRY,
 ): JourneyForestBeeFlightPlan[] {
-  // Keep the two bottom-Unit pairs out of the delayed doorway queue so Units 9
-  // and 10 are populated immediately on the first painted ambient frame.
-  const gatePlanIndices = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11];
+  const gatePlanIndices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   return Array.from({ length: FOREST_BEE_COUNT }, (_, index) => {
     const unitIndex = index >= FOREST_UNIT_BEE_COUNT
       ? -1
-      : index % FOREST_UNIT_LANE_CENTERS.length;
+      : index < FOREST_UNIT_LANE_CENTERS.length
+        ? index
+        : FOREST_UNIT_DUPLICATE_LANES[index - FOREST_UNIT_LANE_CENTERS.length];
     const gateOrdinal = gatePlanIndices.indexOf(index);
     const isGateRoute = gateOrdinal >= 0;
     const plan: JourneyForestBeeFlightPlan = {
@@ -475,12 +472,6 @@ export function createJourneyForestBeeFlightPlans(
     };
     const initialProgress = 0.04 + ((index / FOREST_BEE_COUNT) * 0.82);
     resetRoamPlan(plan, index, random, undefined, undefined, initialProgress);
-    if (plan.edgeRoute === 'forest-gate') {
-      // Gate bees are scheduled one-by-one. Negative elapsed time is only an
-      // initial hold; each fixed wrapper then flies its complete route once.
-      resetEntryPlan(plan, index, random, gate, 0);
-      plan.elapsedSeconds = -(gateOrdinal * 1.05);
-    }
     return plan;
   });
 }
@@ -608,7 +599,7 @@ function drawBeeAsset(
   context.restore();
 }
 
-/** Twenty-five reusable logical bees painted by the shared two-canvas runtime. */
+/** Eighteen reusable logical bees painted by the shared two-canvas runtime. */
 export function startJourneyForestBeeOrbits(
   options: StartJourneyForestBeeOrbitsOptions,
 ): JourneyForestBeeOrbitController {
@@ -630,7 +621,7 @@ export function startJourneyForestBeeOrbits(
     options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;
     return gateGeometry;
   };
-  const plans = createJourneyForestBeeFlightPlans(random, gateGeometry);
+  const plans = createJourneyForestBeeFlightPlans(random);
   options.root.dataset.forestBeeGateGeometry = gateGeometry.source;
   options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;
   let disposed = false;
@@ -666,7 +657,7 @@ export function startJourneyForestBeeOrbits(
     const endY = readPlanPoint(bee.plan.points, FOREST_BEE_POINT_COUNT - 1, 1);
     if (bee.plan.phase === 'roam') {
       if (bee.plan.onScreenSeconds >= FOREST_BEE_MIN_ONSCREEN_SECONDS) {
-        resetExitPlan(bee.plan, index, random, refreshGateGeometry());
+        resetExitPlan(bee.plan, random, refreshGateGeometry());
       } else {
         // Keep the same cyclic spline until the minimum visible lifetime is met.
         // Regenerating controls here would introduce a visible tangent break.
@@ -680,7 +671,7 @@ export function startJourneyForestBeeOrbits(
       if (bee.plan.edgeRoute !== 'forest-gate') {
         setBeeDepth(bee, 'front');
       }
-      resetEntryPlan(bee.plan, index, random, refreshGateGeometry(), 0, endX, endY);
+      resetEntryPlan(bee.plan, random, refreshGateGeometry(), 0, endX, endY);
       return;
     }
     bee.plan.onScreenSeconds = 0;
