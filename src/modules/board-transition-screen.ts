@@ -74,6 +74,7 @@ const forestTransitionBeeDirectionStates = new WeakMap<HTMLImageElement, {
 }>();
 let forestTransitionSpecialBeeTimeline: gsap.core.Timeline | null = null;
 let forestTransitionSpecialBeeImages: HTMLImageElement[] = [];
+let forestTransitionSpecialBeeBehindMountainLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeRearLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeFrontLayer: HTMLElement | null = null;
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
@@ -295,6 +296,10 @@ function startSimpleForestNNBees(
     overlay.appendChild(layer);
     return layer;
   };
+  forestTransitionSpecialBeeBehindMountainLayer = createSpecialLayer(
+    'cc-forest-transition-special-bee-behind-mountain',
+    3,
+  );
   forestTransitionSpecialBeeRearLayer = createSpecialLayer('cc-forest-transition-special-bee-rear', 9);
   forestTransitionSpecialBeeFrontLayer = createSpecialLayer('cc-forest-transition-special-bee-front', 11);
   const rearLayer = forestTransitionSpecialBeeRearLayer;
@@ -322,10 +327,10 @@ function startSimpleForestNNBees(
   const routeVerticalSweep = Math.min(overlayRect.height * 0.27, Math.max(62, orbitRadiusY * 1.68) * 1.48);
   const storySpreadX = 0.92 + Math.random() * 0.20;
   const storySpreadY = 0.90 + Math.random() * 0.24;
-  const leftEntryY = overlayRect.height * 0.08;
-  const rightEntryY = leftEntryY + overlayRect.height * 0.60;
-  const leftExitY = numberCenter.y + routeVerticalSweep * 1.28;
-  const rightExitY = numberCenter.y + routeVerticalSweep * 1.13;
+  const leftEntryY = overlayRect.height * 0.08 * 0.85;
+  const rightEntryY = overlayRect.height * 0.68 * 1.35;
+  const leftExitY = numberCenter.y + routeVerticalSweep * 1.28 * 0.80;
+  const rightExitY = numberCenter.y + routeVerticalSweep * 1.13 * 1.20;
   const digitPoint = (index: 0 | 1, dx: number, dy: number): Point => ({
     x: digitCenters[index].x + dx * routeLateralSweep,
     y: digitCenters[index].y + dy * routeVerticalSweep,
@@ -394,10 +399,13 @@ function startSimpleForestNNBees(
   const routes = [
     {
       role: 'left',
+      scaleChangeStart: 0.40,
+      scaleChangeEnd: 0.50,
+      lifetimeScale: 0.60,
       knotTimes: [0, 0.45, 0.78, 1.15, 1.50, 1.82, 2.15, 2.48, 2.98, 3.50],
       speedWaves: [0.16, 0.08, 0.12, 0.10, 0.14, 0.09, 0.15, 0.11, 0.18],
       points: [
-        { x: -beeWidthPx - 34, y: leftEntryY },
+        { x: overlayRect.width + beeWidthPx + 34, y: leftEntryY },
         variedStoryPoint(-1.30, -0.52),
         digitPoint(0, -0.05, -0.02),
         variedStoryPoint(-0.08, -1.02),
@@ -411,6 +419,9 @@ function startSimpleForestNNBees(
     },
     {
       role: 'right',
+      scaleChangeStart: 0.80,
+      scaleChangeEnd: 0.88,
+      lifetimeScale: 0.70,
       knotTimes: [0, 0.48, 0.82, 1.20, 1.55, 1.88, 2.22, 2.56, 3.03, 3.55],
       speedWaves: [0.14, 0.10, 0.08, 0.15, 0.10, 0.13, 0.09, 0.16, 0.18],
       points: [
@@ -418,7 +429,7 @@ function startSimpleForestNNBees(
         variedStoryPoint(1.24, 0.42),
         digitPoint(1, 0.04, 0.02),
         variedStoryPoint(0.14, 1.00),
-        variedStoryPoint(-0.98, 0.34),
+        variedStoryPoint(-1.18, 0.34),
         digitPoint(0, -0.04, -0.04),
         variedStoryPoint(-0.82, -0.68),
         variedStoryPoint(0.04, -1.04),
@@ -442,22 +453,31 @@ function startSimpleForestNNBees(
     forestTransitionSpecialBeeImages.push(beeImage);
     const samples = buildArcLengthSamples(route.points);
     const start = samples[0];
-    const initialDirection = index === 0 ? 1 : -1;
+    const initialDirection = -1;
     const knotDistances = route.points.map((_point, knotIndex) => samples[Math.round(
       (knotIndex / (route.points.length - 1)) * (samples.length - 1),
     )].distance);
     pointForestTransitionBeeToward(beeImage, initialDirection, 0);
-    gsap.set(beeImage, { x: start.x, y: start.y, opacity: 1, scale: 0.78, rotation: 0 });
+    gsap.set(beeImage, { x: start.x, y: start.y, opacity: 1, scale: 0.78 * 0.30, rotation: 0 });
     return {
       beeImage,
+      role: route.role,
       samples,
       totalDistance: samples[samples.length - 1].distance,
       knotDistances,
       knotTimes: route.knotTimes,
       speedWaves: route.speedWaves,
+      scaleChangeStart: route.scaleChangeStart,
+      scaleChangeEnd: route.scaleChangeEnd,
+      lifetimeScale: route.lifetimeScale,
+      exitPoint: route.points[route.points.length - 1],
+      mountainExitSamples: null as RouteSample[] | null,
+      mountainExitStartedSeconds: 0,
+      mountainPeakBounds: null as { left: number; right: number; top: number; bottom: number } | null,
       bank: 0,
       previousClockSeconds: 0,
       horizontalDirection: initialDirection,
+      isBehindMountain: false,
       xSetter: gsap.quickSetter(beeImage, 'x', 'px') as (value: number) => void,
       ySetter: gsap.quickSetter(beeImage, 'y', 'px') as (value: number) => void,
       rotationSetter: gsap.quickSetter(beeImage, 'rotation', 'deg') as (value: number) => void,
@@ -502,16 +522,74 @@ function startSimpleForestNNBees(
         const segmentEndDistance = runtime.knotDistances[segmentIndex + 1];
         const travelledDistance = segmentStartDistance
           + (segmentEndDistance - segmentStartDistance) * warpedProgress;
-        const point = sampleByDistance(runtime.samples, travelledDistance);
+        let point = sampleByDistance(runtime.samples, travelledDistance);
+        let activeSamples = runtime.samples;
+        let activeDistance = travelledDistance;
+        if (runtime.role === 'left' && segmentIndex >= runtime.knotTimes.length - 3) {
+          if (!runtime.mountainExitSamples) {
+            const mountainLayer = overlay.querySelector('[data-scene-layer="mountain"]') as HTMLElement | null;
+            const mountainImage = mountainLayer?.querySelector('img') as HTMLImageElement | null;
+            const mountainRect = mountainImage?.getBoundingClientRect();
+            if (mountainRect && mountainRect.width > 0 && mountainRect.height > 0) {
+              const mountainLeft = mountainRect.left - overlayRect.left;
+              const mountainTop = mountainRect.top - overlayRect.top;
+              const visiblePeakTop = mountainTop + mountainRect.height * (48 / 328);
+              const visiblePeakBottom = mountainTop + mountainRect.height * ((48 + 27.6) / 328);
+              const summitPoint = {
+                x: mountainLeft + mountainRect.width * 0.515 - beeWidthPx * 0.5,
+                y: (visiblePeakTop + visiblePeakBottom) * 0.5 - beeWidthPx * 0.5,
+              };
+              runtime.mountainExitSamples = buildArcLengthSamples([point, summitPoint, runtime.exitPoint]);
+              runtime.mountainExitStartedSeconds = flowClock.seconds;
+              runtime.mountainPeakBounds = {
+                left: mountainLeft + mountainRect.width * (168 / 390),
+                right: mountainLeft + mountainRect.width * (232 / 390),
+                top: visiblePeakTop,
+                bottom: visiblePeakBottom,
+              };
+            }
+          }
+          if (runtime.mountainExitSamples) {
+            const exitEndSeconds = runtime.knotTimes[runtime.knotTimes.length - 1];
+            const exitRouteProgress = Math.max(0, Math.min(1,
+              (flowClock.seconds - runtime.mountainExitStartedSeconds)
+                / (exitEndSeconds - runtime.mountainExitStartedSeconds),
+            ));
+            const warpedExitProgress = exitRouteProgress
+              + (0.08 / (Math.PI * 2)) * Math.sin(Math.PI * 2 * exitRouteProgress);
+            activeSamples = runtime.mountainExitSamples;
+            activeDistance = activeSamples[activeSamples.length - 1].distance * warpedExitProgress;
+            point = sampleByDistance(activeSamples, activeDistance);
+          }
+        }
         const tangentLookahead = 8;
-        const tangentStart = sampleByDistance(runtime.samples, travelledDistance - tangentLookahead);
-        const tangentEnd = sampleByDistance(runtime.samples, travelledDistance + tangentLookahead);
+        const tangentStart = sampleByDistance(activeSamples, activeDistance - tangentLookahead);
+        const tangentEnd = sampleByDistance(activeSamples, activeDistance + tangentLookahead);
         const velocityX = tangentEnd.x - tangentStart.x;
         const velocityY = tangentEnd.y - tangentStart.y;
         const deltaSeconds = Math.max(0, Math.min(1 / 30, flowClock.seconds - runtime.previousClockSeconds));
         const speedFactor = 1 + waveStrength * Math.cos(Math.PI * 2 * segmentProgress);
         runtime.xSetter(point.x);
         runtime.ySetter(point.y);
+        if (runtime.role === 'left' && runtime.mountainPeakBounds) {
+          const beeLeft = point.x;
+          const beeRight = point.x + beeWidthPx;
+          const beeTop = point.y;
+          const beeBottom = point.y + beeWidthPx;
+          const shouldPassBehindMountain = Boolean(
+            beeRight >= runtime.mountainPeakBounds.left
+              && beeLeft <= runtime.mountainPeakBounds.right
+              && beeBottom >= runtime.mountainPeakBounds.top
+              && beeTop <= runtime.mountainPeakBounds.bottom,
+          );
+          if (shouldPassBehindMountain !== runtime.isBehindMountain) {
+            runtime.isBehindMountain = shouldPassBehindMountain;
+            const targetLayer = shouldPassBehindMountain
+              ? forestTransitionSpecialBeeBehindMountainLayer
+              : frontLayer;
+            targetLayer?.appendChild(runtime.beeImage);
+          }
+        }
         const targetBank = Math.max(-11, Math.min(11,
           Math.atan2(velocityY, Math.max(0.01, Math.abs(velocityX))) * (180 / Math.PI) * 0.16,
         ));
@@ -519,11 +597,25 @@ function startSimpleForestNNBees(
         runtime.rotationSetter(runtime.bank);
         const stretch = Math.max(-0.018, Math.min(0.045, (speedFactor - 1) * 0.055));
         const breath = Math.sin(travelledDistance / 93 + index * 2.17) * 0.010;
-        const remainingDistance = runtime.totalDistance - travelledDistance;
+        const remainingDistance = activeSamples[activeSamples.length - 1].distance - activeDistance;
         const exitProgress = Math.max(0, Math.min(1, remainingDistance / 110));
         const exitScale = exitProgress * exitProgress * (3 - 2 * exitProgress);
-        runtime.scaleXSetter(0.78 * (1 + stretch + breath) * exitScale);
-        runtime.scaleYSetter(0.78 * (1 - stretch * 0.65 - breath * 0.5) * exitScale);
+        const lifetimeProgress = Math.max(0, Math.min(1,
+          flowClock.seconds / runtime.knotTimes[runtime.knotTimes.length - 1],
+        ));
+        const scaleChangeProgress = Math.max(0, Math.min(1,
+          (lifetimeProgress - runtime.scaleChangeStart)
+            / (runtime.scaleChangeEnd - runtime.scaleChangeStart),
+        ));
+        const smoothScaleProgress = scaleChangeProgress * scaleChangeProgress
+          * (3 - 2 * scaleChangeProgress);
+        const lifetimeScale = 1 + (runtime.lifetimeScale - 1) * smoothScaleProgress;
+        const introScaleProgress = Math.max(0, Math.min(1, flowClock.seconds));
+        const smoothIntroScale = introScaleProgress * introScaleProgress
+          * (3 - 2 * introScaleProgress);
+        const introScale = 0.30 + 0.70 * smoothIntroScale;
+        runtime.scaleXSetter(0.78 * introScale * lifetimeScale * (1 + stretch + breath) * exitScale);
+        runtime.scaleYSetter(0.78 * introScale * lifetimeScale * (1 - stretch * 0.65 - breath * 0.5) * exitScale);
         const nextDirection = Math.abs(velocityX) > 0.12
           ? Math.sign(velocityX)
           : runtime.horizontalDirection;
@@ -556,6 +648,8 @@ function stopForestNNBees(): void {
     } catch {}
   });
   forestTransitionSpecialBeeImages = [];
+  try { forestTransitionSpecialBeeBehindMountainLayer?.remove(); } catch {}
+  forestTransitionSpecialBeeBehindMountainLayer = null;
   try { forestTransitionSpecialBeeRearLayer?.remove(); } catch {}
   forestTransitionSpecialBeeRearLayer = null;
   try { forestTransitionSpecialBeeFrontLayer?.remove(); } catch {}
