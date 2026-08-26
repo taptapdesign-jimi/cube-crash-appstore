@@ -2068,6 +2068,7 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
     const bubblyScales: number[] = [];
     const bubblyRotations: number[] = [];
     const bubblyText = Array.from(String(options.text || 'BUBBLY'));
+    const isRoboNameplate = bubblyText.join('') === 'BIBI - RIBI';
     const bubblyColor = String(options.color || '#FFA6AF');
     const bubblyColors = Array.isArray(options.colors) ? options.colors : null;
     const bubblyFontSizes = createRandomTextLetterSizes(bubblyText.length);
@@ -2081,6 +2082,7 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
       const letterColor = bubblyColors?.[index] || bubblyColor;
       const letterAlpha = options.text ? 0.8 + Math.random() * 0.2 : 1;
       const visibleLetterColor = colorWithAlpha(letterColor, letterAlpha);
+      const isRoboDivider = isRoboNameplate && letter === '-';
       letterEl.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
@@ -2094,8 +2096,10 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
         'display: inline-block',
         'visibility: visible',
         'pointer-events: none',
-        'margin-right: 0',
-        index === 0 ? 'margin-left: 0' : 'margin-left: -4.2px',
+        isRoboDivider ? 'margin-right: 7px' : 'margin-right: 0',
+        index === 0
+          ? 'margin-left: 0'
+          : isRoboDivider ? 'margin-left: 3px' : 'margin-left: -4.2px',
         'padding: 0',
         'border: 0',
         'outline: 0',

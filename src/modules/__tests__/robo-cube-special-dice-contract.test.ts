@@ -36,6 +36,9 @@ describe('Robo Cube special die', () => {
     expect(getSpecialDiceJuiceDropProfile(robo)).toBe('robo');
     expect(getSpecialDiceTrailColors(robo)).toEqual([0xFED49C, 0xE99D5F, 0xAA9482, 0x8AEEFE]);
     expect(getSpecialDiceShardColors(robo)).toEqual([0x91F2FF, 0xFAC388]);
+    expect(juiceSource).toContain("const isRoboNameplate = bubblyText.join('') === 'BIBI - RIBI'");
+    expect(juiceSource).toContain("isRoboDivider ? 'margin-right: 7px' : 'margin-right: 0'");
+    expect(juiceSource).toContain("isRoboDivider ? 'margin-left: 3px' : 'margin-left: -4.2px'");
     expect(robo?.idleSpriteSources).toEqual(Array.from(
       { length: 4 },
       (_, index) => `./assets/shop/robo/robo-cube${index + 1}.png`,
