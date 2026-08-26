@@ -3092,22 +3092,6 @@ function addWildProgress(amount, { confirmedNonFinal = false }: { confirmedNonFi
     devLog('✅ Preserving wild progress from confirmed non-final merge despite transient live-board last-pair view');
   }
   
-  // Kill any existing animations and smoke interval first
-  try {
-    if (wild?.view?._smokeInterval) {
-      clearInterval(wild.view._smokeInterval);
-      wild.view._smokeInterval = null;
-    }
-    gsap.killTweensOf(wild?.view?._fill);
-    if (wild?.view?._currentAnimation) {
-      wild.view._currentAnimation.kill();
-      wild.view._currentAnimation = null;
-    }
-    devLog('🔥 addWildProgress: Previous animations killed');
-  } catch (e) {
-    logger.warn('⚠️ addWildProgress: Error killing animations', 'app-core', e);
-  }
-  
   const inc = Number.isFinite(amount) ? amount : 0;
   if (inc <= 0) {
     devLog('⚠️ addWildProgress: Ignoring non-positive increment:', inc);
@@ -3137,17 +3121,6 @@ function addWildProgress(amount, { confirmedNonFinal = false }: { confirmedNonFi
   devLog('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
   setWildProgress(target, true);
 
-  // DEBUG: Force test wild meter with clamped ratio
-  const displayRatio = Math.min(1, wildMeter);
-  devLog('🧪 DEBUG: Testing wild meter directly...');
-  devLog('🧪 DEBUG: wild available:', !!wild);
-  devLog('🧪 DEBUG: wild.setProgress available:', !!(wild && wild.setProgress));
-  if (wild && wild.setProgress) {
-    wild.setProgress(displayRatio, true);
-    devLog('✅ DEBUG: Direct wild.setProgress called with display ratio:', displayRatio);
-  } else {
-    devWarn('⚠️ DEBUG: wild or wild.setProgress not available');
-  }
 }
 function resetWildProgress(value=0, animate=false){
   setWildProgress(value, animate);
@@ -6599,6 +6572,7 @@ async function spawnWildFromMeter(){
     setWildMeter: (v) => { wildMeter = v; },
     setStateWildMeter: (v) => { STATE.wildMeter = v; },
     resetWildProgress,
+    animateWildMeterChargeConsumption: HUD.animateWildMeterChargeConsumption,
   });
 
   const attempted = new Set();
@@ -10420,7 +10394,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                      board,
 	                      dst,
 	                      addWildProgress,
-	                      WILD_INC_BIG,
 	                      removeTile,
 	                      openAtCell,
 	                      regularMerge6ShardsTemplated,
@@ -13937,7 +13910,6 @@ function runTntBoomBonusBreak2Tiles(deps: {
   board: any;
   dst: Tile;
   addWildProgress: (n: number) => void;
-  WILD_INC_BIG: number;
   removeTile: (t: Tile) => void;
   openAtCell: (c: number, r: number, opts?: any) => Promise<unknown>;
   regularMerge6ShardsTemplated: (board: any, tile: any, opts?: any) => void;
@@ -13952,7 +13924,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onBoardCommitted, onComplete } = deps;
+  // The activating merge already awards one full BIG increment. Each of the
+  // four TNT/Ball bonus impacts contributes a small, explicit 5% reward.
+  const bonusProgressPerImpact = 0.05;
   let ownedBonusTiles: Tile[] = [];
   let boardCommitNotified = false;
   const notifyBoardCommitted = () => {
@@ -14049,13 +14024,14 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        }
         const c = tile.gridX ?? 0;
         const r = tile.gridY ?? 0;
-        // Wild preload: cap immediate gain to 2, delay remaining to reduce spike
-	        if (i < 2) {
-	          addWildProgress(WILD_INC_BIG);
-	        } else {
-	          trackAppTimeout(() => {
-	            addWildProgress(WILD_INC_BIG);
-	          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
+	        // Preserve the stagger and award exactly 5% per completed impact:
+	        // four explosions together add 20% to the preload meter.
+		        if (i < 2) {
+		          addWildProgress(bonusProgressPerImpact);
+		        } else {
+		          trackAppTimeout(() => {
+		            addWildProgress(bonusProgressPerImpact);
+		          }, Math.round((0.4 + (i - 2) * 0.1) * 1000));
 	        }
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('heavy');
@@ -14613,12 +14589,9 @@ async function performRestartGame(): Promise<void> {
         devLog('✅ RESTART GAME: Combo idle timer killed');
       } catch {}
       
-      // 🔥 CRITICAL: Stop wild loader animations and clear smoke interval (prevents memory leak)
-      if (wild?.view?._smokeInterval) {
-        clearInterval(wild.view._smokeInterval);
-        wild.view._smokeInterval = null;
-        devLog('✅ RESTART GAME: Wild meter smoke interval cleared');
-      }
+      // Retire both bounded wild-meter particle owners and their live nodes.
+      wild?.view?._stopWildMeterTipPuffs?.();
+      wild?.view?._stopWildMeterBoil?.();
       gsap.killTweensOf(wild?.view?._fill);
       if (wild?.view?._currentAnimation) {
         wild.view._currentAnimation.kill();

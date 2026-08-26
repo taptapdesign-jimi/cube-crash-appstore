@@ -4,7 +4,7 @@ import { Graphics } from 'pixi.js';
 import { COLS, GAP, ROWS, STATE, TILE } from './app-state.js';
 import { setValue as setBoardValue } from './board.js';
 import { startWildStars } from './fx.ts';
-import { cleanupSmokeBubbles } from './hud-helpers.ts';
+import { cleanupSmokeBubbles, resumeWildMeterBoil } from './hud-helpers.ts';
 import { isSpecialDiceStarLikeTile } from './special-dice-registry.ts';
 import { shouldLockFirstPlayTutorialHud } from './first-play-tutorial-hud-lock.ts';
 import { clearFirstPlayTutorialResumeBlockers } from './first-play-tutorial-dev-reset.ts';
@@ -117,7 +117,7 @@ function setWildMeterSmokeFrozen(frozen: boolean): void {
       delete (window as any).__ccFirstPlayTutorialFreezeWildMeterSmoke;
       cleanupSmokeBubbles();
       scheduleTimeout(() => {
-        try { cleanupSmokeBubbles(); } catch {}
+        try { resumeWildMeterBoil(); } catch {}
       }, 180);
     }
   } catch {}

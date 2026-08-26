@@ -3,6 +3,7 @@ type WildMeterDeps = {
   setWildMeter: (v: number) => void;
   setStateWildMeter: (v: number) => void;
   resetWildProgress: (v: number, animate?: boolean) => void;
+  animateWildMeterChargeConsumption?: (leftover: number) => void;
 };
 
 export function consumeWildCharge({
@@ -10,10 +11,15 @@ export function consumeWildCharge({
   setWildMeter,
   setStateWildMeter,
   resetWildProgress,
+  animateWildMeterChargeConsumption,
 }: WildMeterDeps){
   const leftover = Math.max(0, wildMeter - 1);
   setWildMeter(leftover);
   setStateWildMeter(leftover);
-  resetWildProgress(leftover, true);
+  if (animateWildMeterChargeConsumption) {
+    animateWildMeterChargeConsumption(leftover);
+  } else {
+    resetWildProgress(leftover, true);
+  }
   return leftover;
 }

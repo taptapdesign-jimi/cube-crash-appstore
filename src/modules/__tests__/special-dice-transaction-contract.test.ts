@@ -103,6 +103,14 @@ describe('shared special-dice transaction contract', () => {
     expect(appCoreSource).toContain('specialDiceTransactionOwner.reset();');
   });
 
+  test('awards exactly five percent for each TNT and Beach Ball bonus impact', () => {
+    expect(appCoreSource).toContain('const bonusProgressPerImpact = 0.05;');
+    expect(appCoreSource).toContain('addWildProgress(bonusProgressPerImpact);');
+    const bonusOwner = appCoreSource.split('function runTntBoomBonusBreak2Tiles(')[1]
+      ?.split('\nfunction ', 1)[0] ?? '';
+    expect(bonusOwner).not.toContain('addWildProgress(WILD_INC_BIG);');
+  });
+
   test('TNT releases ordinary stacks after reserving exact bonus tiles, before its visual tail ends', () => {
     const tntStart = appCoreSource.indexOf('let tntBonusGameplayComplete = false;');
     const sprite6Trigger = appCoreSource.indexOf("triggerTntBonusBreak('sprite-6-enter-complete')", tntStart);
