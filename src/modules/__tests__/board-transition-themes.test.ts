@@ -73,52 +73,27 @@ describe('Board Transition World themes', () => {
     expect(resolveBoardTransitionTheme({ boardNumber: 1, hideForest: true, runMode: RUN_MODE_JOURNEY })).toBe('none');
   });
 
-  test('uses ten gentle Forest-main bees and exactly two named NN routes', () => {
+  test('uses only two named NN bees and removes the regular lower-bee runtime', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/board-transition-screen.ts'), 'utf8');
-    const simpleBeeSource = source.slice(
-      source.indexOf('function startSimpleForestTransitionBees('),
-      source.indexOf('function startForestTransitionBeeIntroMotion('),
-    );
     const nnBeeSource = source.slice(
       source.indexOf('function startSimpleForestNNBees('),
-      source.indexOf('function stopForestTransitionBees('),
+      source.indexOf('function stopForestNNBees('),
     );
-    expect(source).toContain('function startSimpleForestTransitionBees(');
-    expect(source).toContain("beeImage.dataset.forestBeeRole = 'gentle-forest-main-cycle'");
-    expect(simpleBeeSource.match(/group: '(left|center|right)'/g)).toHaveLength(10);
-    expect(simpleBeeSource).toContain("kind: 'swoop'");
-    expect(simpleBeeSource).toContain("kind: 'figure8'");
-    expect(simpleBeeSource).toContain("kind: 'oval'");
-    expect(simpleBeeSource).toContain("kind: 'clover'");
-    expect(simpleBeeSource).toContain("kind: 'vertical-loop'");
-    expect(simpleBeeSource).toContain('flightProfiles.forEach((profile, index) => {');
-    expect(source).toContain("{ depth: 'front-of-pines', zIndex: 45 }");
-    expect(source).toContain("const depth = 'front-of-pines'");
-    expect(simpleBeeSource).not.toContain('crossingDepth');
-    expect(source).toContain('forestTransitionBeeMotionTimeline = trackTimeline({ paused: true })');
-    expect(source).toContain('seconds: 3600');
+    expect(source).not.toContain('function startSimpleForestTransitionBees(');
+    expect(source).not.toContain("beeImage.dataset.forestBeeRole = 'gentle-forest-main-cycle'");
+    expect(source).not.toContain('forestTransitionBeeMotionTimeline');
+    expect(source).not.toContain('forestTransitionBeeIntroTimeline');
+    expect(source).not.toContain('forestTransitionBeeExitStarter');
+    expect(source).not.toContain('activeForestTransitionBeeImages');
+    expect(source).not.toContain('activeForestTransitionBeeLayers');
+    expect(source).not.toContain('seconds: 3600');
+    expect(source).toContain('const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args))');
+    expect(source.match(/trackDelayedCall\(/g)?.length).toBeGreaterThanOrEqual(2);
     expect(source).toContain("ease: 'none'");
-    expect(simpleBeeSource).toContain("if (runtime.kind === 'figure8')");
-    expect(simpleBeeSource).toContain("if (runtime.kind === 'swoop')");
-    expect(simpleBeeSource).toContain("if (runtime.kind === 'clover')");
-    expect(simpleBeeSource).toContain("if (runtime.kind === 'vertical-loop')");
-    expect(simpleBeeSource).toContain('radiusX: profile.radiusX');
-    expect(simpleBeeSource).toContain('radiusY: profile.radiusY');
-    expect(simpleBeeSource).toContain('cycleSeconds: profile.cycleSeconds');
-    expect(simpleBeeSource).toContain('runtime.speedStrength / speedOscillationOmega');
-    expect(simpleBeeSource).toContain('active: true');
-    expect(simpleBeeSource).toContain('}, 0);');
-    expect(simpleBeeSource).not.toContain("ease: 'back.out(1.45)'");
-    expect(source).toContain('const nextHorizontalDirection = Math.abs(velocityX) > 0.08');
     expect(source).toContain('const candidate = getJourneyForestBeeAssetForVelocity(velocityX, velocityY, fallback)');
     expect(source).toContain('state.pendingSeconds < 0.05');
-    expect(simpleBeeSource).toContain('pointForestTransitionBeeToward(runtime.beeImage, velocityX, velocityY, deltaSeconds)');
-    expect(simpleBeeSource).toContain("mode: 'loop' as const");
-    expect(simpleBeeSource).toContain("if (runtime.mode === 'exit')");
-    expect(simpleBeeSource).toContain('const exitKinds = [');
-    expect(simpleBeeSource).toContain("'left', 'down', 'left', 'down', 'down', 'down', 'right', 'right', 'right', 'down'");
-    expect(source).toContain("exitTimeline.call(() => forestTransitionBeeExitStarter?.(), undefined, 0)");
     expect(source).toContain('function startSimpleForestNNBees(');
+    expect(source).toContain('function stopForestNNBees(');
     expect(source).toContain("role: 'left'");
     expect(source).toContain("role: 'right'");
     expect(nnBeeSource).toContain('const catmullRom = (points: readonly Point[], progress: number): Point => {');
@@ -177,8 +152,6 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).not.toContain("ease: 'back.in");
     expect(nnBeeSource).toContain("ease: 'none'");
     expect(source).not.toContain('const routeTimeline = trackTimeline({ paused: true })');
-    expect(simpleBeeSource).not.toContain('repeat: -1');
-    expect(source).toContain('startSimpleForestTransitionBees(forestContainer, overlay)');
     expect(source).toContain('() => startSimpleForestNNBees(overlay, digitElements)');
     expect(source).toContain('() => startSimpleForestNNBees(overlay, digitElements),\n          undefined,\n          0,');
   });
