@@ -74,4 +74,20 @@ describe('Beach Ball finale regression contract', () => {
     expect(juiceSource).toContain('notifyGameplayRelease');
     expect(juiceSource).toContain('notifySequenceComplete');
   });
+
+  test('keeps falling Ball motion intact while separating its four board impacts', () => {
+    expect(appCoreSource).toContain("impactProfile: tntVariantForMerge?.id === 'beach-ball' ? 'beach-ball' : 'standard'");
+    expect(appCoreSource).toContain("impactProfile === 'beach-ball'");
+    expect(appCoreSource).toContain('selectSpatiallySeparatedTntTargets(candidates, count)');
+    expect(appCoreSource).toContain('const beachBallImpactDelaysMs = [0, 260, 560, 900] as const');
+    expect(appCoreSource).toContain('trackAppTimeout(replaceTile, 120)');
+
+    const customDropStart = juiceSource.indexOf('} else if (isCustomDownDrop) {');
+    const customDropEnd = juiceSource.indexOf('\n    } else {', customDropStart);
+    const customDrop = juiceSource.slice(customDropStart, customDropEnd);
+    expect(customDrop).toContain('duration: duration * 0.52');
+    expect(customDrop).toContain('duration: duration * 0.26');
+    expect(customDrop).toContain('duration: duration * 0.42');
+    expect(customDrop).toContain('onComplete: onBubbleComplete');
+  });
 });

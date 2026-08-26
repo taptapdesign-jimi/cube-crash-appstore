@@ -116,6 +116,7 @@ import {
   releaseTntBonusTile,
   releaseTntBonusTiles,
 } from './tnt-bonus-tile-ownership.ts';
+import { selectSpatiallySeparatedTntTargets } from './tnt-bonus-target-selection.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
@@ -10431,6 +10432,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        ? tntVisualOptionsForMerge?.burstSources
 	                        : undefined,
 	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
+	                      impactProfile: tntVariantForMerge?.id === 'beach-ball' ? 'beach-ball' : 'standard',
 	                      skipFx: false,
 	                      onBoardCommitted: () => {
 	                        commitTntBoardForOrdinaryStacks('bonus-targets-reserved');
@@ -13945,11 +13947,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
   devWarn: (...args: any[]) => void;
   bonusParticleSources?: string[];
   bonusParticleScale?: number;
+  impactProfile?: 'standard' | 'beach-ball';
   skipFx?: boolean;
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, skipFx, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onBoardCommitted, onComplete } = deps;
   let ownedBonusTiles: Tile[] = [];
   let boardCommitNotified = false;
   const notifyBoardCommitted = () => {
@@ -14004,8 +14007,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
       try { onComplete?.(); } catch {}
       return;
     }
-	    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
-	    const toBreak = shuffled.slice(0, count);
+	    const toBreak = impactProfile === 'beach-ball'
+	      ? selectSpatiallySeparatedTntTargets(candidates, count)
+	      : [...candidates].sort(() => Math.random() - 0.5).slice(0, count);
 	    ownedBonusTiles = toBreak;
 	    claimTntBonusTiles(toBreak);
 	    // From this point onward only these exact tiles are unsafe. Release the
@@ -14032,8 +14036,11 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	      completedBreaks = count;
 	      markBreakComplete();
 	    }, Math.max(1600, Math.round(((count - 1) * 0.2 + 1.6) * 1000)));
+	    const beachBallImpactDelaysMs = [0, 260, 560, 900] as const;
 	    toBreak.forEach((tile: Tile, i: number) => {
-	      const delayMs = i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
+	      const delayMs = impactProfile === 'beach-ball'
+	        ? beachBallImpactDelaysMs[i] ?? i * 300
+	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
 	      const doBreak = () => {
 	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
 	          releaseTntBonusTile(tile);
@@ -14057,12 +14064,42 @@ function runTntBoomBonusBreak2Tiles(deps: {
         // Shards + smoke should appear during the popout/transition, before new tile spawns
         if (!skipFx) {
           try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
-          try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.0, { sizeScale: 1.5, spawnShape: 'box' }); } catch (e) { devWarn('TNT transition smoke:', e); }
+          try {
+            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : 1.0, {
+              sizeScale: impactProfile === 'beach-ball' ? 1.9 : 1.5,
+              distanceScale: impactProfile === 'beach-ball' ? 1.35 : 1,
+              countScale: impactProfile === 'beach-ball' ? 1.15 : 1,
+              spawnShape: 'box',
+              zIndex: 9994,
+            });
+          } catch (e) { devWarn('TNT transition smoke:', e); }
         }
         const oldValue = (tile.value | 0);
         const basePos = getScreenPos(tile);
-        releaseTntBonusTile(tile);
-        removeTile(tile);
+        if (impactProfile === 'beach-ball') {
+          const impactVisual = (tile as any).rotG || tile;
+          const scale = impactVisual?.scale;
+          if (scale) {
+            const scaleX = Number(scale.x) || 1;
+            const scaleY = Number(scale.y) || 1;
+            try { gsap.killTweensOf(scale); } catch {}
+            trackTween(scale, {
+              x: scaleX * 1.24,
+              y: scaleY * 0.72,
+              duration: 0.09,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            });
+          }
+        }
+        const replaceTile = () => {
+          if (!tile || tile.destroyed || !board || !STATE?.tiles) {
+            releaseTntBonusTile(tile);
+            markBreakComplete();
+            return;
+          }
+          releaseTntBonusTile(tile);
+          removeTile(tile);
         // ⭐ Wild TNT: 1 star per broken tile → HUD (ignore merge-6 1-3)
         try {
           const bonusParticleTexture = bonusParticleTextures[(Math.random() * bonusParticleTextures.length) | 0];
@@ -14101,6 +14138,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	          .finally(() => {
 	            markBreakComplete();
 	          });
+	        };
+	        if (impactProfile === 'beach-ball') {
+	          trackAppTimeout(replaceTile, 120);
+	        } else {
+	          replaceTile();
+	        }
 	      };
 	      if (delayMs <= 0) {
 	        doBreak();
@@ -14109,7 +14152,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	      }
 	    });
 	    void forceCompleteTimeout;
-	    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
+	    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new', {
+	      impactProfile,
+	      staggerMs: impactProfile === 'beach-ball' ? beachBallImpactDelaysMs : 200,
+	    });
   } catch (e) {
     devWarn('TNT boom bonus break2 failed:', e);
     releaseTntBonusTiles(ownedBonusTiles);
