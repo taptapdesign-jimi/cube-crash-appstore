@@ -65,12 +65,27 @@ describe('gameplay drag overlay contract', () => {
       .toBeLessThan(dragSource.indexOf('const globalPoint = board.toGlobal?.(boardPoint) ?? boardPoint;', dragSource.indexOf('t.position.set(px, py);')));
   });
 
-  test('keeps pickup scale relative to the world transform preserved by the overlay', () => {
-    expect(dragSource).toContain('const overlayScaleX = Number(t.scale?.x) || 1;');
-    expect(dragSource).toContain('x: overlayScaleX * 1.13,');
-    expect(dragSource).toContain('x: overlayScaleX * 1.105,');
-    expect(dragSource).not.toContain('x: 1.13,');
-    expect(dragSource).not.toContain('x: 1.105,');
+  test('bounds repeated pickup feedback to one immutable tile-local baseline', () => {
+    expect(dragSource).toContain('const pickupBaseScale = resetTileToCanonicalDragScale(t);');
+    expect(dragSource).toContain('const overlayScaleX = pickupBaseScale.x;');
+    expect(dragSource).toContain('x: overlayScaleX * PICKUP_PEAK_SCALE_X,');
+    expect(dragSource).toContain('x: overlayScaleX * PICKUP_HOLD_SCALE,');
+    expect(dragSource).toContain('tile?._ccPickupScaleTimeline?.kill?.();');
+    expect(dragSource).toContain('tile?._ccSnapBackTimeline?.kill?.();');
+    expect(dragSource).toContain('tile?.scale?.set?.(base.x, base.y);');
+    expect(dragSource).not.toContain('const overlayScaleX = Number(t.scale?.x) || 1;');
+  });
+
+  test('snap-back restores the same canonical scale and exposes one interruptible owner', () => {
+    const snapBack = dragSource.split('function snapBack(t, onSnapBackComplete) {')[1]
+      ?.split('\n  function onCancel', 1)[0] ?? '';
+
+    expect(snapBack).toContain('const baseScale = resetTileToCanonicalDragScale(t);');
+    expect(snapBack).toContain('t._ccSnapBackTimeline = tl;');
+    expect(snapBack).toContain('t.scale.set(baseScale.x, baseScale.y);');
+    expect(snapBack).toContain('x: baseScale.x * 1.035,');
+    expect(snapBack).toContain('x: baseScale.x,');
+    expect(snapBack).not.toContain('t.scale.set(1, 1);');
   });
 
   test('measures overlay and board tiles in the same board coordinate space', () => {

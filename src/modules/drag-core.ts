@@ -121,6 +121,9 @@ const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
 const DRAG_WATCHDOG_REFRESH_MS = 650;
 const DRAG_HOVER_PICK_THROTTLE_MS = 24;
+const PICKUP_PEAK_SCALE_X = 1.13;
+const PICKUP_PEAK_SCALE_Y = 1.09;
+const PICKUP_HOLD_SCALE = 1.105;
 
 function isIOSRuntime(): boolean {
   return typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -157,6 +160,29 @@ function getDragTileKind(tile: any): string {
   const special = getTileSpecial(tile);
   if (special) return special;
   return `regular-${Math.max(0, Number(tile?.value) | 0)}`;
+}
+
+function getCanonicalDragScale(tile: any): { x: number; y: number } {
+  const liveX = Number(tile?.scale?.x);
+  const liveY = Number(tile?.scale?.y);
+  if (!Number.isFinite(tile?._ccDragBaseScaleX)) {
+    tile._ccDragBaseScaleX = Number.isFinite(liveX) && liveX > 0 ? liveX : 1;
+  }
+  if (!Number.isFinite(tile?._ccDragBaseScaleY)) {
+    tile._ccDragBaseScaleY = Number.isFinite(liveY) && liveY > 0 ? liveY : 1;
+  }
+  return { x: tile._ccDragBaseScaleX, y: tile._ccDragBaseScaleY };
+}
+
+function resetTileToCanonicalDragScale(tile: any): { x: number; y: number } {
+  const base = getCanonicalDragScale(tile);
+  try { tile?._ccPickupScaleTimeline?.kill?.(); } catch {}
+  try { tile?._ccSnapBackTimeline?.kill?.(); } catch {}
+  try { gsap.killTweensOf(tile?.scale); } catch {}
+  try { tile?.scale?.set?.(base.x, base.y); } catch {}
+  tile._ccPickupScaleTimeline = null;
+  tile._ccSnapBackTimeline = null;
+  return base;
 }
 
 function repairWildTileState(tile: any): string | null {
@@ -1180,6 +1206,10 @@ export function initDrag(cfg) {
       try { e?.preventDefault?.(); } catch {}
       return;
     }
+    // A rapid new press may arrive while the previous tap's snap-back is still
+    // settling. Always restart pickup from one immutable tile-local baseline;
+    // never use the currently enlarged frame as the next multiplier base.
+    const pickupBaseScale = resetTileToCanonicalDragScale(t);
     completeBoardLifecycleTrace('first-input');
     
     // 🧲 MAGNETIC REACTION: No need to store original positions
@@ -1349,22 +1379,30 @@ export function initDrag(cfg) {
 
     // Pickup reads immediately, then settles into a slightly softer lifted hold.
     // The tile position remains fully attached to the pointer on touch devices.
-    try { gsap.killTweensOf(t.scale); } catch {}
     // Pickup stays relative to the tile's canonical board-local scale. This is
     // also safe for the non-board fallback path, where Pixi may preserve a
     // different local scale while moving the tile into the overlay.
-    const overlayScaleX = Number(t.scale?.x) || 1;
-    const overlayScaleY = Number(t.scale?.y) || 1;
-    trackTimeline()
+    const overlayScaleX = pickupBaseScale.x;
+    const overlayScaleY = pickupBaseScale.y;
+    const pickupScaleTimeline = trackTimeline({
+      onComplete: () => {
+        if (t?._ccPickupScaleTimeline === pickupScaleTimeline) t._ccPickupScaleTimeline = null;
+      },
+      onInterrupt: () => {
+        if (t?._ccPickupScaleTimeline === pickupScaleTimeline) t._ccPickupScaleTimeline = null;
+      },
+    });
+    t._ccPickupScaleTimeline = pickupScaleTimeline;
+    pickupScaleTimeline
       .to(t.scale, {
-        x: overlayScaleX * 1.13,
-        y: overlayScaleY * 1.09,
+        x: overlayScaleX * PICKUP_PEAK_SCALE_X,
+        y: overlayScaleY * PICKUP_PEAK_SCALE_Y,
         duration: 0.055,
         ease: 'power3.out',
       })
       .to(t.scale, {
-        x: overlayScaleX * 1.105,
-        y: overlayScaleY * 1.105,
+        x: overlayScaleX * PICKUP_HOLD_SCALE,
+        y: overlayScaleY * PICKUP_HOLD_SCALE,
         duration: 0.075,
         ease: 'back.out(2.2)',
       });
@@ -2808,18 +2846,23 @@ export function initDrag(cfg) {
     // Ghost placeholders are now fixed and always visible
     
     try { gsap.killTweensOf(t); } catch {}
-    try { gsap.killTweensOf(t.scale); } catch {}
+    const baseScale = resetTileToCanonicalDragScale(t);
 
     // Return along the shortest path. A compact landing squash communicates the
     // occupied grid cell without the old left/right shake feeling punitive.
     const tl = trackTimeline({
       onComplete: () => {
-        if (t?.scale) t.scale.set(1, 1);
+        if (t?.scale) t.scale.set(baseScale.x, baseScale.y);
         if (t) t.rotation = 0;
+        if (t?._ccSnapBackTimeline === tl) t._ccSnapBackTimeline = null;
         restoreZ(t);
         try { onSnapBackComplete?.(t); } catch {}
-      }
+      },
+      onInterrupt: () => {
+        if (t?._ccSnapBackTimeline === tl) t._ccSnapBackTimeline = null;
+      },
     });
+    t._ccSnapBackTimeline = tl;
     tl.to(t, {
       x: drag.startX,
       y: drag.startY,
@@ -2828,14 +2871,14 @@ export function initDrag(cfg) {
       ease: 'back.out(1.65)',
     }, 0)
       .to(t.scale, {
-        x: 1.035,
-        y: 0.965,
+        x: baseScale.x * 1.035,
+        y: baseScale.y * 0.965,
         duration: 0.13,
         ease: 'power2.in',
       }, 0)
       .to(t.scale, {
-        x: 1,
-        y: 1,
+        x: baseScale.x,
+        y: baseScale.y,
         duration: 0.105,
         ease: 'back.out(2.5)',
       })
