@@ -34,6 +34,9 @@ describe('Board Transition duration contract', () => {
       'const hillExitBaseStart = sceneExitStart + BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS',
     );
     expect(source).toContain('const sceneExitStart = Math.max(0, digitExitEnd - 0.5)');
+    expect(source).toContain('const fenceExitStart = Math.max(0, sceneExitStart - 0.9)');
+    expect(source).toContain('const rearPineExitStart = Math.max(0, sceneExitStart - 0.5)');
+    expect(source).toContain("/^(pine1|pine3|pine5)$/.test(sceneImg.dataset.sceneLayer || '')");
     expect(source).toContain('exitTimeline.to(overlay, {');
     expect(source).toContain('const latestSceneExitEnd = orderedExitEntries.reduce');
     expect(source).toContain('latestSceneExitEnd + 0.02');

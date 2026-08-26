@@ -321,6 +321,7 @@ function startSimpleForestNNBees(
     y: (digitCenters[0].y + digitCenters[1].y) * 0.5,
   };
   const beeWidthPx = 58 * FOREST_TRANSITION_SPECIAL_BEE_SCALE_MULTIPLIER;
+  const introOversizePx = 160;
   const orbitRadiusX = Math.max(76, Math.abs(digitCenters[1].x - digitCenters[0].x) * 0.5 + 24);
   const orbitRadiusY = Math.max(34, Math.max(digitRects[0].height, digitRects[1].height) * 0.30);
   const routeLateralSweep = Math.min(overlayRect.width * 0.38, orbitRadiusX * 1.72);
@@ -545,6 +546,7 @@ function startSimpleForestNNBees(
       ],
     },
   ] as const;
+  const fullSizeIntroIndex = Math.floor(Math.random() * routes.length);
   const routeRuntimes = routes.map((route, index) => {
     const beeImage = domElementPool.acquire('img') as HTMLImageElement;
     resetPooledImage(beeImage);
@@ -563,11 +565,14 @@ function startSimpleForestNNBees(
     const start = samples[0];
     const initialDirection = route.initialDirection;
     const baseScale = 0.78 * 0.85 * route.scaleMultiplier;
+    const introScaleMultiplier = index === fullSizeIntroIndex ? 1 : 0.70;
+    const introStartScale = (1 + introOversizePx / (beeWidthPx * baseScale))
+      * introScaleMultiplier;
     const knotDistances = route.points.map((_point, knotIndex) => samples[Math.round(
       (knotIndex / (route.points.length - 1)) * (samples.length - 1),
     )].distance);
     pointForestTransitionBeeToward(beeImage, initialDirection, 0);
-    gsap.set(beeImage, { x: start.x, y: start.y, opacity: 1, scale: baseScale * 0.30, rotation: 0 });
+    gsap.set(beeImage, { x: start.x, y: start.y, opacity: 1, scale: baseScale * introStartScale, rotation: 0 });
     return {
       beeImage,
       role: route.role,
@@ -582,6 +587,7 @@ function startSimpleForestNNBees(
       scaleChangeEnd: route.scaleChangeEnd,
       lifetimeScale: route.lifetimeScale,
       baseScale,
+      introStartScale,
       verticalWobblePx: route.verticalWobblePx,
       verticalWobbleCycles: route.verticalWobbleCycles,
       horizontalWobblePx: route.horizontalWobblePx,
@@ -744,11 +750,17 @@ function startSimpleForestNNBees(
         const stretch = Math.max(-0.018, Math.min(0.045, (speedFactor - 1) * 0.055));
         const breath = Math.sin(travelledDistance / 93 + index * 2.17) * 0.010;
         const remainingDistance = activeSamples[activeSamples.length - 1].distance - activeDistance;
-        const exitProgress = Math.max(0, Math.min(1, remainingDistance / 110));
+        const exitProgress = Math.max(0, Math.min(1, remainingDistance / 70));
         const exitScale = exitProgress * exitProgress * (3 - 2 * exitProgress);
         const lifetimeProgress = Math.max(0, Math.min(1,
           flowClock.seconds / runtime.knotTimes[runtime.knotTimes.length - 1],
         ));
+        const proceduralExitProgress = Math.max(0, Math.min(1,
+          (220 - remainingDistance) / (220 - 90),
+        ));
+        const smoothProceduralExit = proceduralExitProgress * proceduralExitProgress
+          * (3 - 2 * proceduralExitProgress);
+        const proceduralExitScale = 1 - 0.30 * smoothProceduralExit;
         const scaleChangeProgress = Math.max(0, Math.min(1,
           (lifetimeProgress - runtime.scaleChangeStart)
             / (runtime.scaleChangeEnd - runtime.scaleChangeStart),
@@ -759,9 +771,12 @@ function startSimpleForestNNBees(
         const introScaleProgress = Math.max(0, Math.min(1, flowClock.seconds));
         const smoothIntroScale = introScaleProgress * introScaleProgress
           * (3 - 2 * introScaleProgress);
-        const introScale = 0.30 + 0.70 * smoothIntroScale;
-        runtime.scaleXSetter(runtime.baseScale * introScale * lifetimeScale * (1 + stretch + breath) * exitScale);
-        runtime.scaleYSetter(runtime.baseScale * introScale * lifetimeScale * (1 - stretch * 0.65 - breath * 0.5) * exitScale);
+        const introScale = runtime.introStartScale
+          + (1 - runtime.introStartScale) * smoothIntroScale;
+        runtime.scaleXSetter(runtime.baseScale * introScale * lifetimeScale
+          * (1 + stretch + breath) * proceduralExitScale * exitScale);
+        runtime.scaleYSetter(runtime.baseScale * introScale * lifetimeScale
+          * (1 - stretch * 0.65 - breath * 0.5) * proceduralExitScale * exitScale);
         const nextDirection = Math.abs(velocityX) > 0.12
           ? Math.sign(velocityX)
           : runtime.horizontalDirection;
@@ -3320,15 +3335,12 @@ function startExitAnimation(
       exitTimeline.add(ambientTimeline, 0);
     });
 
-    const pine4ExitImage = sceneImages.find((sceneImg) => sceneImg.dataset.sceneLayer === 'pine4') || null;
-    const pineExitImages = sceneImages
-      .filter((sceneImg) => /^pine[1-5]$/.test(sceneImg.dataset.sceneLayer || '') && sceneImg.dataset.sceneLayer !== 'pine4')
+    const rearPineExitImages = sceneImages
+      .filter((sceneImg) => /^(pine1|pine3|pine5)$/.test(sceneImg.dataset.sceneLayer || ''))
       .sort(() => Math.random() - 0.5);
-    const firstPineExitImages = [
-      ...(pine4ExitImage ? [pine4ExitImage] : []),
-      ...pineExitImages.slice(0, 1)
-    ];
-    const remainingPineExitImages = pineExitImages.slice(1);
+    const frontPineExitImages = ['pine4', 'pine2']
+      .map((key) => sceneImages.find((sceneImg) => sceneImg.dataset.sceneLayer === key))
+      .filter(Boolean) as HTMLElement[];
     const fenceExitImages = sceneImages
       .filter((sceneImg) => /^fence-(left|right)$/.test(sceneImg.dataset.sceneLayer || ''))
       .sort(() => Math.random() - 0.5);
@@ -3343,7 +3355,8 @@ function startExitAnimation(
         && !/^pine[1-5]$/.test(key)
         && !/^fence-(left|right)$/.test(key);
     });
-    const fenceExitStart = Math.max(0, sceneExitStart - 0.4);
+    const fenceExitStart = Math.max(0, sceneExitStart - 0.9);
+    const rearPineExitStart = Math.max(0, sceneExitStart - 0.5);
     const hillExitBaseStart = sceneExitStart + BOARD_TRANSITION_HILL_EXIT_LAG_SECONDS;
     addCloudExitAt(hillExitBaseStart);
     const otherExitImageByKey = new Map(otherExitImages.map((sceneImg) => [sceneImg.dataset.sceneLayer || '', sceneImg]));
@@ -3363,7 +3376,7 @@ function startExitAnimation(
       : {};
     const otherSchedule = buildBoardTransitionExitSchedule({
       layerKeys: otherExitLayerKeys,
-      baseStart: sceneExitStart + (firstPineExitImages.length + remainingPineExitImages.length) * 0.05,
+      baseStart: sceneExitStart + (frontPineExitImages.length + rearPineExitImages.length) * 0.05,
       stagger: 0.05,
       duration: BOARD_TRANSITION_REGULAR_SCENE_EXIT_SECONDS,
       dependencies: beachExitDependencies,
@@ -3372,14 +3385,14 @@ function startExitAnimation(
     const otherExitEntries = otherSchedule.entries.map((entry) => ({
       sceneImg: otherExitImageByKey.get(entry.key) as HTMLElement,
       start: entry.start,
-      orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + entry.orderIndex,
+      orderIndex: fenceExitImages.length + frontPineExitImages.length + rearPineExitImages.length + entry.orderIndex,
     }));
     const orderedExitEntries = [
       ...fenceExitImages.map((sceneImg, index) => ({ sceneImg, start: fenceExitStart + index * 0.06, orderIndex: index })),
-      ...firstPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + index * 0.05, orderIndex: fenceExitImages.length + index })),
-      ...remainingPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + (firstPineExitImages.length + index) * 0.05, orderIndex: fenceExitImages.length + firstPineExitImages.length + index })),
+      ...rearPineExitImages.map((sceneImg, index) => ({ sceneImg, start: rearPineExitStart + index * 0.05, orderIndex: fenceExitImages.length + index })),
+      ...frontPineExitImages.map((sceneImg, index) => ({ sceneImg, start: sceneExitStart + index * 0.05, orderIndex: fenceExitImages.length + rearPineExitImages.length + index })),
       ...otherExitEntries,
-      ...hillExitImages.map((sceneImg, index) => ({ sceneImg, start: hillExitBaseStart + index * 0.2, orderIndex: fenceExitImages.length + firstPineExitImages.length + remainingPineExitImages.length + otherExitImages.length + index }))
+      ...hillExitImages.map((sceneImg, index) => ({ sceneImg, start: hillExitBaseStart + index * 0.2, orderIndex: fenceExitImages.length + frontPineExitImages.length + rearPineExitImages.length + otherExitImages.length + index }))
     ];
     const latestSceneExitEnd = orderedExitEntries.reduce((latestEnd, { sceneImg, start }) => {
       const layerKey = sceneImg.dataset.sceneLayer || '';

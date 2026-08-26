@@ -167,7 +167,12 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.82, 0.96)');
     expect(nnBeeSource).toContain('scaleMultiplier: randomBetween(0.50, 0.60)');
     expect(nnBeeSource).toContain('const baseScale = 0.78 * 0.85 * route.scaleMultiplier');
-    expect(nnBeeSource).toContain('scale: baseScale * 0.30');
+    expect(nnBeeSource).toContain('const introOversizePx = 160');
+    expect(nnBeeSource).toContain('const fullSizeIntroIndex = Math.floor(Math.random() * routes.length)');
+    expect(nnBeeSource).toContain('const introScaleMultiplier = index === fullSizeIntroIndex ? 1 : 0.70');
+    expect(nnBeeSource).toContain('const introStartScale = (1 + introOversizePx / (beeWidthPx * baseScale))');
+    expect(nnBeeSource).toContain('* introScaleMultiplier');
+    expect(nnBeeSource).toContain('scale: baseScale * introStartScale');
     expect(nnBeeSource).toContain('const flowClock = { seconds: 0 }');
     expect(nnBeeSource).toContain('const randomizeKnotTimes = (times: readonly number[], jitterSeconds = 0.045)');
     expect(nnBeeSource).toContain('times[index - 1] + 0.12');
@@ -192,8 +197,12 @@ describe('Board Transition World themes', () => {
     expect(nnBeeSource).toContain('const lifetimeProgress = Math.max(0, Math.min(1,');
     expect(nnBeeSource).toContain('const smoothScaleProgress = scaleChangeProgress * scaleChangeProgress');
     expect(nnBeeSource).toContain('const introScaleProgress = Math.max(0, Math.min(1, flowClock.seconds))');
-    expect(nnBeeSource).toContain('const introScale = 0.30 + 0.70 * smoothIntroScale');
-    expect(nnBeeSource).toContain('runtime.baseScale * introScale * lifetimeScale * (1 + stretch + breath) * exitScale');
+    expect(nnBeeSource).toContain('const introScale = runtime.introStartScale');
+    expect(nnBeeSource).toContain('+ (1 - runtime.introStartScale) * smoothIntroScale');
+    expect(nnBeeSource).toContain('remainingDistance / 70');
+    expect(nnBeeSource).toContain('(220 - remainingDistance) / (220 - 90)');
+    expect(nnBeeSource).toContain('const proceduralExitScale = 1 - 0.30 * smoothProceduralExit');
+    expect(nnBeeSource).toContain('* (1 + stretch + breath) * proceduralExitScale * exitScale');
     expect(nnBeeSource).not.toContain('profileBonusSeconds');
     expect(nnBeeSource).not.toContain('speedOscillationA');
     expect(nnBeeSource).not.toContain('speedMultiplier');
