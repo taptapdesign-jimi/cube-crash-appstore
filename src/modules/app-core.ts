@@ -14589,15 +14589,13 @@ async function performRestartGame(): Promise<void> {
         devLog('✅ RESTART GAME: Combo idle timer killed');
       } catch {}
       
-      // Retire both bounded wild-meter particle owners and their live nodes.
-      wild?.view?._stopWildMeterTipPuffs?.();
-      wild?.view?._stopWildMeterBoil?.();
+      // Retire the bounded v915 wild-meter smoke owner and its live nodes.
+      wild?.view?._stopWildMeterSmoke?.();
       gsap.killTweensOf(wild?.view?._fill);
       if (wild?.view?._currentAnimation) {
         wild.view._currentAnimation.kill();
         wild.view._currentAnimation = null;
       }
-      wild?.view?._stopFillBurn?.();
       // 🔥 CRITICAL: Kill HUD progress bar animations
       try {
         gsap.killTweensOf('[data-wild-loader]');

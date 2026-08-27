@@ -24,12 +24,12 @@ export const SPACESHIP_BEAM_EXIT_ALTERNATING_STATES = [
   [0.4, 0],
   [0, 0],
 ] as const;
-export const SPACESHIP_BEAM_EXIT_FLASH_STARTS = [3.115, 3.126, 3.137, 3.148, 3.159, 3.170, 3.181, 3.192] as const;
 export const SPACESHIP_BEAM_EXIT_FLASH_DURATION = 0.009;
 export const SPACESHIP_BEAM_EXIT_FADE_DURATION = 0.009;
-export const SPACESHIP_BEAM_HIDDEN_AT_SECONDS = 3.21;
-export const SPACESHIP_BEAM_DISCONNECT_AT_SECONDS = 3.24;
-export const SPACESHIP_SAUCER_EXIT_AT_SECONDS = 3.25;
+export const SPACESHIP_SAUCER_EXIT_LANES = [-1, 1] as const;
+export const SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES = 18;
+export const SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES = 20;
+export const SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO = 0.4;
 export const SPACESHIP_LAYER_Z = {
   backgroundDice: 0,
   belowBeam: 1,
@@ -45,6 +45,19 @@ export const SPACESHIP_PULL_ARRIVAL_GAP_SECONDS = 0.04;
 export const SPACESHIP_PULL_LINEAR_WEIGHT = 0.14;
 export const SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS = 0.01;
 export const SPACESHIP_SCATTER_ENTROPY = 0.5;
+
+export function getSpaceshipSaucerExitPlan(random: () => number = Math.random) {
+  const sampleIndex = () => Math.min(
+    SPACESHIP_SAUCER_EXIT_LANES.length - 1,
+    Math.max(0, Math.floor(random() * SPACESHIP_SAUCER_EXIT_LANES.length)),
+  );
+  const lane = SPACESHIP_SAUCER_EXIT_LANES[sampleIndex()];
+  return {
+    lane,
+    finalXRatio: lane * SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO,
+    finalRotation: lane * SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES,
+  };
+}
 
 export function getSpaceshipMagneticPullProgress(linearProgress: number): number {
   const progress = Math.max(0, Math.min(1, linearProgress));
@@ -129,6 +142,92 @@ export function getSpaceshipDebrisMotion(plan: { pullOrder: number; travelDelayS
     + plan.pullOrder * SPACESHIP_PULL_ARRIVAL_GAP_SECONDS;
   return { travelStartAt, travelSeconds, arrivalAt: travelStartAt + travelSeconds };
 }
+
+export const SPACESHIP_SUCTION_COMPLETE_AT_SECONDS = Math.max(
+  ...SPACESHIP_PULL_PLAN.map(getSpaceshipDebrisMotion).map(({ arrivalAt }) => arrivalAt),
+) + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS;
+export const SPACESHIP_SAUCER_EXIT_AT_SECONDS = SPACESHIP_SUCTION_COMPLETE_AT_SECONDS;
+export const SPACESHIP_SAUCER_EXIT_SECONDS = SPACESHIP_SCENE_SECONDS - SPACESHIP_SAUCER_EXIT_AT_SECONDS;
+export const SPACESHIP_BEAM_EXIT_FLASH_STARTS = [2.855, 2.866, 2.877, 2.888, 2.899, 2.910, 2.921, 2.930] as const;
+export const SPACESHIP_BEAM_HIDDEN_AT_SECONDS = 2.94;
+export const SPACESHIP_BEAM_DISCONNECT_AT_SECONDS = SPACESHIP_BEAM_HIDDEN_AT_SECONDS;
+export const SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS = (
+  SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - SPACESHIP_SAUCER_EXIT_AT_SECONDS
+) / SPACESHIP_SAUCER_EXIT_SECONDS;
+
+const SPACESHIP_EXIT_KNOT_SECONDS = [0, 0.20, 0.32, 0.56, 0.88] as const;
+const SPACESHIP_EXIT_X_RATIOS = [0, -0.075, 0.055, 0.20, SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO] as const;
+const SPACESHIP_EXIT_X_TANGENTS = [0, 0, 0.85, 1.10, 1.60] as const;
+const SPACESHIP_EXIT_Y_RATIOS = [0.05, 0.04, -0.02, -0.18, -0.62] as const;
+const SPACESHIP_EXIT_Y_TANGENTS = [0, -0.38, -0.52, -1, -2] as const;
+const SPACESHIP_EXIT_ROTATIONS = [0, -4, 6, 13, SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES] as const;
+const SPACESHIP_EXIT_ROTATION_TANGENTS = [0, 18, 28, 20, 8] as const;
+const SPACESHIP_EXIT_SCALES = [1, 1.018, 1.01, 1, 0.985] as const;
+const SPACESHIP_EXIT_SCALE_TANGENTS = [0, 0, -0.03, -0.02, 0] as const;
+
+function sampleSpaceshipExitTrack(
+  values: readonly number[],
+  tangents: readonly number[],
+  elapsedSeconds: number,
+): number {
+  let segmentIndex = 0;
+  while (
+    segmentIndex < SPACESHIP_EXIT_KNOT_SECONDS.length - 2
+    && elapsedSeconds >= SPACESHIP_EXIT_KNOT_SECONDS[segmentIndex + 1]
+  ) {
+    segmentIndex += 1;
+  }
+  const startTime = SPACESHIP_EXIT_KNOT_SECONDS[segmentIndex];
+  const endTime = SPACESHIP_EXIT_KNOT_SECONDS[segmentIndex + 1];
+  const duration = Math.max(0.001, endTime - startTime);
+  const progress = Math.max(0, Math.min(1, (elapsedSeconds - startTime) / duration));
+  const progress2 = progress * progress;
+  const progress3 = progress2 * progress;
+  const h00 = 2 * progress3 - 3 * progress2 + 1;
+  const h10 = progress3 - 2 * progress2 + progress;
+  const h01 = -2 * progress3 + 3 * progress2;
+  const h11 = progress3 - progress2;
+  return h00 * values[segmentIndex]
+    + h10 * duration * tangents[segmentIndex]
+    + h01 * values[segmentIndex + 1]
+    + h11 * duration * tangents[segmentIndex + 1];
+}
+
+export function getSpaceshipSaucerExitPose(
+  plan: ReturnType<typeof getSpaceshipSaucerExitPlan>,
+  linearProgress: number,
+  viewportHeight: number,
+  viewportWidth: number,
+) {
+  const progress = Math.max(0, Math.min(1, linearProgress));
+  const elapsedSeconds = progress * SPACESHIP_SAUCER_EXIT_SECONDS;
+  const rotation = plan.lane * sampleSpaceshipExitTrack(
+    SPACESHIP_EXIT_ROTATIONS,
+    SPACESHIP_EXIT_ROTATION_TANGENTS,
+    elapsedSeconds,
+  );
+  return {
+    x: plan.lane * viewportWidth * sampleSpaceshipExitTrack(
+      SPACESHIP_EXIT_X_RATIOS,
+      SPACESHIP_EXIT_X_TANGENTS,
+      elapsedSeconds,
+    ),
+    y: viewportHeight * sampleSpaceshipExitTrack(
+      SPACESHIP_EXIT_Y_RATIOS,
+      SPACESHIP_EXIT_Y_TANGENTS,
+      elapsedSeconds,
+    ),
+    rotation: Math.max(
+      -SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES,
+      Math.min(SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES, rotation),
+    ),
+    scale: sampleSpaceshipExitTrack(
+      SPACESHIP_EXIT_SCALES,
+      SPACESHIP_EXIT_SCALE_TANGENTS,
+      elapsedSeconds,
+    ),
+  };
+}
 export const SPACESHIP_FINALE_SOURCES = [
   ...SAUCER_SOURCES,
   source('leftbeam'),
@@ -195,7 +294,10 @@ function createFakeBoardDie(value: number): HTMLElement {
   return die;
 }
 
-export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) & {
+export function attachSpaceshipFinaleScene(
+  overlay: HTMLElement,
+  options: { exitRandom?: () => number } = {},
+): (() => void) & {
   startExit?: () => void;
   completionDelaySeconds?: number;
 } {
@@ -331,6 +433,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
     if (disposed || started) return;
     started = true;
     traceSuction('scene-start', { debrisCount: debris.length });
+    const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom);
     const master = own(gsap.timeline({ paused: true }));
     master.to(rigTargets, {
       y: '4vh',
@@ -342,7 +445,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
     master.to(rigTargets, { x: 18, y: '2vh', rotation: 12, duration: 0.50, ease: 'sine.inOut' }, 0.95);
     master.to(rigTargets, { x: -12, y: '7vh', rotation: -8, duration: 0.50, ease: 'sine.inOut' }, 1.45);
     master.to(rigTargets, { x: 14, y: '3vh', rotation: 10, duration: 0.45, ease: 'sine.inOut' }, 1.95);
-    master.to(rigTargets, { x: 0, y: '5vh', rotation: 0, duration: 0.50, ease: 'sine.inOut' }, 2.40);
+    master.to(rigTargets, { x: 0, y: '5vh', rotation: 0, duration: 0.22, ease: 'sine.inOut' }, 2.40);
     master.set([leftBeam, rightBeam], {
       opacity: 0,
       visibility: 'hidden',
@@ -359,9 +462,56 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
         beamRigConnected: beamRig.isConnected,
       });
     }, undefined, SPACESHIP_BEAM_DISCONNECT_AT_SECONDS);
-    master.to(saucerRig, { y: '-48vh', rotation: 9, duration: 0.25, ease: 'power2.in' }, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    const createRigPoseSetters = (rig: HTMLElement) => ({
+      x: gsap.quickSetter(rig, 'x', 'px'),
+      y: gsap.quickSetter(rig, 'y', 'px'),
+      rotation: gsap.quickSetter(rig, 'rotation', 'deg'),
+      scaleX: gsap.quickSetter(rig, 'scaleX'),
+      scaleY: gsap.quickSetter(rig, 'scaleY'),
+    });
+    const beamPoseSetters = createRigPoseSetters(beamRig);
+    const saucerPoseSetters = createRigPoseSetters(saucerRig);
+    const applyRigPose = (
+      setters: ReturnType<typeof createRigPoseSetters>,
+      pose: ReturnType<typeof getSpaceshipSaucerExitPose>,
+    ) => {
+      setters.x(pose.x);
+      setters.y(pose.y);
+      setters.rotation(pose.rotation);
+      setters.scaleX(pose.scale);
+      setters.scaleY(pose.scale);
+    };
+    const exitState = { progress: 0 };
+    let exitViewportHeight = 844;
+    let exitViewportWidth = 390;
+    master.to(exitState, {
+      progress: 1,
+      duration: SPACESHIP_SAUCER_EXIT_SECONDS,
+      ease: 'none',
+      onStart: () => {
+        const fieldRect = field.getBoundingClientRect();
+        exitViewportHeight = fieldRect.height || window.innerHeight || 844;
+        exitViewportWidth = fieldRect.width || window.innerWidth || 390;
+        traceSuction('saucer-exit-motion', {
+          exitLane: saucerExit.lane,
+          exitRotation: saucerExit.finalRotation,
+        });
+      },
+      onUpdate: () => {
+        const pose = getSpaceshipSaucerExitPose(
+          saucerExit,
+          exitState.progress,
+          exitViewportHeight,
+          exitViewportWidth,
+        );
+        applyRigPose(saucerPoseSetters, pose);
+        if (beamRig.isConnected) applyRigPose(beamPoseSetters, pose);
+      },
+    }, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     master.call(() => {
       traceSuction('saucer-exit-start', {
+        exitLane: saucerExit.lane,
+        exitRotation: saucerExit.finalRotation,
         sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
         beamRigDisplay: getComputedStyle(beamRig).display,
         beamRigVisibility: getComputedStyle(beamRig).visibility,
@@ -383,7 +533,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
       leadLevels: readonly number[] = [],
     ) => {
       const stepSeconds = 0.075;
-      const lastStartSeconds = 3.02;
+      const lastStartSeconds = SPACESHIP_BEAM_EXIT_FLASH_STARTS[0] - stepSeconds;
       let cursor = startAt;
       for (const opacity of leadLevels) {
         if (cursor > lastStartSeconds) return;
@@ -446,7 +596,8 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
       const intakeMarker = intakeMarkers[Math.floor(pullOrder) % intakeMarkers.length];
       const setLeft = gsap.quickSetter(mover, 'left', 'px');
       const setTop = gsap.quickSetter(mover, 'top', 'px');
-      const setScale = gsap.quickSetter(mover, 'scale');
+      const setScaleX = gsap.quickSetter(mover, 'scaleX');
+      const setScaleY = gsap.quickSetter(mover, 'scaleY');
       const setWobbleX = gsap.quickSetter(image, 'x', 'px');
       const setRotation = gsap.quickSetter(image, 'rotation', 'deg');
       const motionState = { progress: 0 };
@@ -484,9 +635,11 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
           const wobble = Math.sin(linearProgress * Math.PI * 2 * wobbleCycles) * wobbleEnvelope;
           setLeft(cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress));
           setTop(startTop + (targetTop - startTop) * magneticProgress);
-          setScale(SPACESHIP_DEBRIS_INITIAL_SCALE
+          const scale = SPACESHIP_DEBRIS_INITIAL_SCALE
             - (SPACESHIP_DEBRIS_INITIAL_SCALE - SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE)
-              * Math.pow(magneticProgress, 1.18));
+              * Math.pow(magneticProgress, 1.18);
+          setScaleX(scale);
+          setScaleY(scale);
           setWobbleX(driftX * wobble);
           const rotation = startRotation * (1 - magneticProgress) + wobbleRotation * wobble;
           setRotation(id.startsWith('die') ? gsap.utils.clamp(-60, 60, rotation) : rotation);
@@ -520,7 +673,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
   };
 
   // Warm the browser cache without making visual duration depend on network or
-  // decode latency. The authored master starts now and owns exactly four seconds.
+  // decode latency. The authored master starts now and owns exactly 3.5 seconds.
   void preloadSpaceshipFinaleAssets();
   start();
 
@@ -544,7 +697,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
     } catch {}
     field.remove();
   }) as (() => void) & { startExit?: () => void; completionDelaySeconds?: number };
-  // The scene owns its authored four-second exit. The shared overlay may start
+  // The scene owns its authored 3.5-second exit. The shared overlay may start
   // its text exit earlier, but it must keep this field alive until completion.
   cleanup.startExit = () => {};
   cleanup.completionDelaySeconds = SCENE_SECONDS;

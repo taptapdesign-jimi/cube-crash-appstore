@@ -12,6 +12,7 @@ import {
   SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS,
   SPACESHIP_PULL_PLAN,
   SPACESHIP_SAUCER_EXIT_AT_SECONDS,
+  SPACESHIP_SCENE_SECONDS,
 } from '../spaceship-finale-scene.js';
 
 const rect = (left: number, top: number, width = 0, height = 0): DOMRect => ({
@@ -35,6 +36,11 @@ describe('Spaceship finale rendered lifecycle', () => {
   test('pulls the below-screen reference formation continuously into the live intake, then cleans every owner', () => {
     const viewportWidth = 390;
     const viewportHeight = 844;
+    const nativeSetAttribute = Element.prototype.setAttribute;
+    jest.spyOn(Element.prototype, 'setAttribute').mockImplementation(function rejectInvalidWebKitAttribute(name, value) {
+      if (name.includes(',')) throw new DOMException(`Invalid qualified name: '${name}'`, 'InvalidCharacterError');
+      return nativeSetAttribute.call(this, name, value);
+    });
     jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function mockRect() {
       const element = this as HTMLElement;
       if (element.classList.contains('cc-spaceship-finale-scene')) {
@@ -69,7 +75,7 @@ describe('Spaceship finale rendered lifecycle', () => {
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
 
-    const cleanup = attachSpaceshipFinaleScene(overlay);
+    const cleanup = attachSpaceshipFinaleScene(overlay, { exitRandom: () => 0 });
     tracked.forEach((timeline) => timeline.pause(0));
     const movers = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-debris-mover'));
 
@@ -87,8 +93,19 @@ describe('Spaceship finale rendered lifecycle', () => {
       expect(Number(gsap.getProperty(beams[0], 'opacity'))).toBeCloseTo(leftOpacity, 2);
       expect(Number(gsap.getProperty(beams[1], 'opacity'))).toBeCloseTo(rightOpacity, 2);
     });
-    tracked[1].seek(SPACESHIP_BEAM_HIDDEN_AT_SECONDS, false);
     const beamRig = overlay.querySelector<HTMLElement>('.cc-spaceship-finale-beam-rig');
+    const saucerRig = overlay.querySelector<HTMLElement>('.cc-spaceship-finale-saucer-rig');
+    tracked[0].seek(SPACESHIP_SAUCER_EXIT_AT_SECONDS - 0.001, false);
+    expect(beamRig!.isConnected).toBe(true);
+    expect(saucerRig!.isConnected).toBe(true);
+    expect(Number(gsap.getProperty(saucerRig!, 'opacity'))).toBe(1);
+    tracked[0].seek(SPACESHIP_SAUCER_EXIT_AT_SECONDS + 0.10, false);
+    expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeGreaterThan(0);
+    expect(Number(gsap.getProperty(saucerRig!, 'rotation'))).toBeGreaterThan(0);
+    tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - 0.001, false);
+    expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeLessThan(0);
+    expect(Number(gsap.getProperty(saucerRig!, 'rotation'))).toBeLessThan(0);
+    tracked[1].seek(SPACESHIP_BEAM_HIDDEN_AT_SECONDS, false);
     beams.forEach((beam) => {
       expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(0);
       expect(gsap.getProperty(beam, 'visibility')).toBe('hidden');
@@ -96,26 +113,51 @@ describe('Spaceship finale rendered lifecycle', () => {
     expect(gsap.getProperty(beamRig!, 'opacity')).toBe(0);
     expect(gsap.getProperty(beamRig!, 'visibility')).toBe('hidden');
     expect(gsap.getProperty(beamRig!, 'display')).toBe('none');
-    const saucerRig = overlay.querySelector<HTMLElement>('.cc-spaceship-finale-saucer-rig');
     tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - 0.001, false);
     expect(beamRig!.isConnected).toBe(true);
+    const beforeDetachPose = {
+      x: Number(gsap.getProperty(saucerRig!, 'x')),
+      y: Number(gsap.getProperty(saucerRig!, 'y')),
+      rotation: Number(gsap.getProperty(saucerRig!, 'rotation')),
+    };
     tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS, false);
     expect(beamRig!.isConnected).toBe(false);
     expect(overlay.querySelector('.cc-spaceship-finale-beam-rig')).toBeNull();
     expect(saucerRig!.isConnected).toBe(true);
-    tracked[0].seek(SPACESHIP_SAUCER_EXIT_AT_SECONDS, false);
     beams.forEach((beam) => {
       expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(0);
       expect(gsap.getProperty(beam, 'visibility')).toBe('hidden');
     });
     expect(beamRig!.isConnected).toBe(false);
     expect(saucerRig!.isConnected).toBe(true);
+    expect(Number(gsap.getProperty(saucerRig!, 'opacity'))).toBe(1);
+    expect(gsap.getProperty(saucerRig!, 'visibility')).not.toBe('hidden');
+    const atDetachPose = {
+      x: Number(gsap.getProperty(saucerRig!, 'x')),
+      y: Number(gsap.getProperty(saucerRig!, 'y')),
+      rotation: Number(gsap.getProperty(saucerRig!, 'rotation')),
+    };
+    expect(Math.hypot(atDetachPose.x - beforeDetachPose.x, atDetachPose.y - beforeDetachPose.y)).toBeLessThan(2);
+    expect(Math.abs(atDetachPose.rotation - beforeDetachPose.rotation)).toBeLessThan(1);
+    tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS + 0.001, false);
+    const afterDetachDistance = Math.hypot(
+      Number(gsap.getProperty(saucerRig!, 'x')) - atDetachPose.x,
+      Number(gsap.getProperty(saucerRig!, 'y')) - atDetachPose.y,
+    );
+    expect(afterDetachDistance).toBeLessThan(2);
+    tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS + 0.40, false);
+    expect(Number(gsap.getProperty(saucerRig!, 'y'))).toBeLessThan(0);
+    expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeLessThan(0);
+    tracked[0].seek(SPACESHIP_SCENE_SECONDS - 0.001, false);
+    expect(Number(gsap.getProperty(saucerRig!, 'y'))).toBeLessThan(-400);
+    expect(Number(gsap.getProperty(saucerRig!, 'opacity'))).toBe(1);
     const tracePhases = (window as any).__ccSpaceshipSuctionTrace
       .map(({ phase }: { phase: string }) => phase);
-    expect(tracePhases.indexOf('beam-off')).toBeLessThan(tracePhases.indexOf('beam-disconnected'));
-    expect(tracePhases.indexOf('beam-disconnected')).toBeLessThan(tracePhases.indexOf('saucer-exit-start'));
+    expect(tracePhases).toContain('beam-off');
+    expect(tracePhases.indexOf('saucer-exit-motion')).toBeLessThan(tracePhases.indexOf('beam-disconnected'));
+    expect(tracePhases.indexOf('saucer-exit-start')).toBeLessThan(tracePhases.indexOf('beam-disconnected'));
     expect(overlay.querySelectorAll('.cc-spaceship-finale-scene')).toHaveLength(1);
-    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeLessThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeGreaterThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     movers.forEach((mover, index) => {
       const plan = SPACESHIP_PULL_PLAN[index];
       const delaysAppearance = 'value' in plan && plan.value === 3;

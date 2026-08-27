@@ -821,26 +821,10 @@ function makeWildLoader() {
   fillBounceLayer.sortableChildren = true;
   fill.zIndex = 0;
 
-  // A masked gold/orange burn is reused for real progress increments.
-  const fillFxLayer = new Container();
-  fillFxLayer.label = 'wildMeterFillFxLayer';
-  fillFxLayer.zIndex = 1;
-  const fillFxMask = new Graphics();
-  fillFxMask.label = 'wildMeterFillFxMask';
-  const fillBurn = new Graphics();
-  fillBurn.label = 'wildMeterFillBurn';
-  fillBurn.alpha = 0;
-  fillBurn.blendMode = 'screen';
-  const tipBubbleLayer = new Container();
-  tipBubbleLayer.label = 'wildMeterHoneyTipBubbleLayer';
-  tipBubbleLayer.zIndex = -1;
-  tipBubbleLayer.eventMode = 'none';
-  fillFxLayer.mask = fillFxMask;
-  fillFxLayer.addChild(fillFxMask, fillBurn);
-  fillBounceLayer.addChild(fill, fillFxLayer);
+  fillBounceLayer.addChild(fill);
   fillSpatialLayer.addChild(fillBounceLayer);
 
-  container.addChild(tipBubbleLayer, bg, fillSpatialLayer, dashLine);
+  container.addChild(bg, fillSpatialLayer, dashLine);
   
   // Position relative to HUD
   container.x = 24;
@@ -852,10 +836,6 @@ function makeWildLoader() {
   container._fill = fill;
   container._fillSpatialWrapper = fillSpatialLayer;
   container._fillBounceLayer = fillBounceLayer;
-  container._fillFxLayer = fillFxLayer;
-  container._fillFxMask = fillFxMask;
-  container._fillBurn = fillBurn;
-  container._tipBubbleLayer = tipBubbleLayer;
   container._dashLine = dashLine;
   container._drawDashLine = drawDashLine;
   container._maxWidth = 200;
@@ -875,52 +855,9 @@ function makeWildLoader() {
       targetFill.drawRoundedRect(clampedLeft, 0, clampedWidth, 10, 5);
       targetFill.endFill();
     }
-    try {
-      fillFxMask.clear();
-      fillFxMask.roundRect(clampedLeft, 0, clampedWidth, 10, 5).fill(0xFFFFFF);
-      fillBurn.clear();
-      fillBurn.roundRect(clampedLeft, 0, clampedWidth, 10, 5).fill({ color: 0xFFB24D, alpha: 0.72 });
-    } catch {}
     container._liveFillLeft = clampedLeft;
     container._liveFillWidth = clampedWidth;
-    syncWildMeterBoil(clampedWidth);
   };
-
-  const stopFillBurn = () => {
-    try {
-      if (container._fillBurnTimeline) {
-        container._fillBurnTimeline.kill();
-        container._fillBurnTimeline = null;
-      }
-      container._fillBurnTargetWidth = null;
-      gsap.killTweensOf(fillBurn);
-      fillBurn.alpha = 0;
-    } catch {}
-  };
-
-  const playFillBurn = (targetWidth: number) => {
-    if (targetWidth <= 1 || fillFxLayer.destroyed) return;
-    stopFillBurn();
-    container._fillBurnTargetWidth = targetWidth;
-    container._fillBurnTimeline = trackTimeline({
-      onComplete: () => {
-        container._fillBurnTimeline = null;
-        container._fillBurnTargetWidth = null;
-        if (!fillBurn.destroyed) fillBurn.alpha = 0;
-      },
-    })
-      .to(fillBurn, {
-        alpha: 0.58,
-        duration: 0.14,
-        ease: 'power2.out',
-      }, 0)
-      .to(fillBurn, {
-        alpha: 0,
-        duration: 0.5,
-        ease: 'power2.inOut',
-      }, 0.14);
-  };
-  container._stopFillBurn = stopFillBurn;
   container._consumeActive = false;
   container._consumeGeneration = 0;
   container._consumeQueue = [];
@@ -959,213 +896,66 @@ function makeWildLoader() {
     } catch {}
   };
 
-  const activeWildMeterBoilBubbles = new Set<any>();
-  const isWildMeterBoilDisabled = () => isWildMeterSmokeFrozen() || (
+  const activeWildMeterSmoke = new Set<any>();
+  const isWildMeterSmokeDisabled = () => isWildMeterSmokeFrozen() || (
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true
   );
-  const stopWildMeterBoil = () => {
-    if (container._boilInterval) clearInterval(container._boilInterval);
-    container._boilInterval = null;
-    activeWildMeterBoilBubbles.forEach((bubble) => {
-      try { bubble._boilTimeline?.kill?.(); } catch {}
-      try { bubble.parent?.removeChild?.(bubble); } catch {}
-      try { bubble.destroy?.(); } catch {}
-    });
-    activeWildMeterBoilBubbles.clear();
+  const stopWildMeterSmokeEmission = () => {
+    if (container._smokeInterval) clearInterval(container._smokeInterval);
+    container._smokeInterval = null;
   };
-  const emitWildMeterBoilBubble = () => {
-    if (isWildMeterBoilDisabled() || fillFxLayer.destroyed || activeWildMeterBoilBubbles.size >= 3) return;
+  const stopWildMeterSmoke = () => {
+    stopWildMeterSmokeEmission();
+    activeWildMeterSmoke.forEach((smokeBubble) => {
+      try { smokeBubble._wildMeterSmokeTween?.kill?.(); } catch {}
+      try { smokeBubble.parent?.removeChild?.(smokeBubble); } catch {}
+      try { smokeBubble.destroy?.(); } catch {}
+    });
+    activeWildMeterSmoke.clear();
+  };
+  const emitV915WildMeterSmoke = () => {
+    if (isWildMeterSmokeDisabled() || fill.destroyed || !container.parent) return;
     const liveLeft = Math.max(0, Number(container._liveFillLeft) || 0);
     const liveWidth = Math.max(0, Number(container._liveFillWidth) || 0);
-    if (liveWidth <= 4) return;
-    const radius = 1.8 + Math.random() * 1.2;
-    const bubble = new Graphics();
-    bubble.label = 'wild-meter-boil-bubble';
-    bubble._isWildMeterSmokeBubble = true;
-    bubble
-      .circle(0, 0, radius)
-      .fill({ color: 0xFFA866, alpha: 0.78 })
-      .circle(-radius * 0.2, -radius * 0.22, radius * 0.26)
-      .fill({ color: 0xFFE7B5, alpha: 0.9 });
-    bubble.x = liveLeft + radius + Math.random() * Math.max(1, liveWidth - radius * 2);
-    bubble.y = 8.2 + Math.random() * 0.7;
-    bubble.alpha = 0.45;
-    bubble.scale.set(0.4, 0.32);
-    fillFxLayer.addChild(bubble);
-    activeWildMeterBoilBubbles.add(bubble);
-    const startX = bubble.x;
-    const boilTimeline = trackTimeline({
+    if (liveWidth <= 0) return;
+    const hudStage = container.parent;
+    const globalX = container.x + liveLeft + Math.random() * Math.max(1, liveWidth);
+    const globalY = container.y + 5 + (Math.random() - 0.5) * 5;
+    const smokeBubble = new Graphics();
+    smokeBubble.label = 'wild-meter-smoke';
+    smokeBubble._isWildMeterSmokeBubble = true;
+    const radius = 2.5 + Math.pow(Math.random(), 1.7) * 3;
+    smokeBubble.circle(0, 0, radius).fill({ color: 0xF86B3C, alpha: 0.5 });
+    smokeBubble.x = globalX;
+    smokeBubble.y = globalY;
+    smokeBubble.zIndex = 2000;
+    hudStage.addChild(smokeBubble);
+    activeWildMeterSmoke.add(smokeBubble);
+    smokeBubble._wildMeterSmokeTween = trackTween(smokeBubble, {
+      y: globalY - 15 - Math.random() * 10,
+      x: globalX + (Math.random() - 0.5) * 10,
+      alpha: 0,
+      duration: 1.0 + Math.random() * 0.3,
+      ease: 'power1.out',
       onComplete: () => {
-        activeWildMeterBoilBubbles.delete(bubble);
-        try { bubble.parent?.removeChild?.(bubble); } catch {}
-        try { bubble.destroy?.(); } catch {}
+        activeWildMeterSmoke.delete(smokeBubble);
+        try { smokeBubble.parent?.removeChild?.(smokeBubble); } catch {}
+        try { smokeBubble.destroy?.(); } catch {}
       },
-    })
-      .to(bubble, {
-        x: startX + (Math.random() - 0.5) * 2.4,
-        y: 3.2 + Math.random() * 1.2,
-        alpha: 0.9,
-        duration: 0.34 + Math.random() * 0.08,
-        ease: 'sine.out',
-      }, 0)
-      .to(bubble.scale, {
-        x: 1,
-        y: 0.84,
-        duration: 0.3,
-        ease: 'back.out(1.35)',
-      }, 0)
-      .to(bubble, { alpha: 0, duration: 0.1, ease: 'power2.in' })
-      .to(bubble.scale, { x: 1.35, y: 0.3, duration: 0.1, ease: 'power2.out' }, '<');
-    bubble._boilTimeline = boilTimeline;
-  };
-  const startWildMeterBoil = () => {
-    if (container._boilInterval || isWildMeterBoilDisabled()) return;
-    emitWildMeterBoilBubble();
-    container._boilInterval = setInterval(() => {
-      if (isWildMeterBoilDisabled()) {
-        stopWildMeterBoil();
-        return;
-      }
-      emitWildMeterBoilBubble();
-    }, 180);
-  };
-  const syncWildMeterBoil = (visibleWidth: number) => {
-    if (visibleWidth > 4) startWildMeterBoil();
-    else stopWildMeterBoil();
-  };
-  container._stopWildMeterBoil = stopWildMeterBoil;
-  container._syncWildMeterBoil = () => syncWildMeterBoil(container._liveFillWidth || 0);
-
-  const activeWildMeterTipPuffs = new Set<any>();
-  const areWildMeterTipPuffsDisabled = () => isWildMeterSmokeFrozen() || (
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true
-  );
-  const stopWildMeterTipPuffs = () => {
-    if (container._smokeInterval) clearInterval(container._smokeInterval);
-    container._smokeInterval = null;
-    activeWildMeterTipPuffs.forEach((puff) => {
-      try { puff._tipPuffTimeline?.kill?.(); } catch {}
-      try { puff.parent?.removeChild?.(puff); } catch {}
-      try { puff.destroy?.(); } catch {}
     });
-    activeWildMeterTipPuffs.clear();
   };
-  const stopWildMeterTipPuffEmission = () => {
-    if (container._smokeInterval) clearInterval(container._smokeInterval);
-    container._smokeInterval = null;
-  };
-
-  const emitWildMeterTipPuffs = () => {
-    if (
-      areWildMeterTipPuffsDisabled() ||
-      tipBubbleLayer.destroyed ||
-      fill.destroyed ||
-      activeWildMeterTipPuffs.size >= 9
-    ) return;
-    const liveLeft = Math.max(0, Number(container._liveFillLeft) || 0);
-    const liveWidth = Math.max(0, Number(container._liveFillWidth) || 0);
-    if (liveWidth <= 3) return;
-    const globalFillLeft = fill.toGlobal({ x: liveLeft, y: 0 });
-    const globalFillRight = fill.toGlobal({ x: liveLeft + liveWidth, y: 0 });
-    const localFillLeft = tipBubbleLayer.toLocal(globalFillLeft);
-    const localFillRight = tipBubbleLayer.toLocal(globalFillRight);
-    const localVisibleWidth = Math.max(1, localFillRight.x - localFillLeft.x);
-    const smokeProfiles = [
-      { radius: 11.34 + Math.random() * 3.24, startScale: 0.38 },
-      { radius: 7.02 + Math.random() * 2.43, startScale: 0.44 },
-      { radius: 3.51 + Math.random() * 1.62, startScale: 0.5 },
-    ];
-    for (let puffIndex = 0; puffIndex < smokeProfiles.length; puffIndex += 1) {
-      if (activeWildMeterTipPuffs.size >= 9) break;
-      const { radius: baseRadius, startScale } = smokeProfiles[puffIndex];
-      const sizeBoost = 1.3 + Math.random() * 0.2;
-      const radius = baseRadius * sizeBoost;
-      const usesAiryBurnTone = puffIndex === 1 || Math.random() < 0.28;
-      const smokeColor = usesAiryBurnTone ? 0xFFB24D : (Math.random() < 0.5 ? 0xE7744A : 0xD95F3F);
-      const smokeAlpha = usesAiryBurnTone ? 0.2 : 0.38;
-      const puff = new Graphics();
-      puff.label = 'wild-meter-honey-tip-bubble';
-      puff._isWildMeterSmokeBubble = true;
-      puff
-        .circle(-radius * 0.5, radius * 0.08, radius * 0.68)
-        .fill({ color: smokeColor, alpha: smokeAlpha * 0.78 })
-        .circle(0, -radius * 0.18, radius * 0.88)
-        .fill({ color: smokeColor, alpha: smokeAlpha })
-        .circle(radius * 0.58, radius * 0.12, radius * 0.62)
-        .fill({ color: smokeColor, alpha: smokeAlpha * 0.72 })
-        .circle(-radius * 0.2, -radius * 0.4, radius * 0.28)
-        .fill({ color: usesAiryBurnTone ? 0xFFE0A6 : 0xFFC18A, alpha: usesAiryBurnTone ? 0.34 : 0.5 });
-      const laneRatios = [0.2, 0.52, 0.84];
-      const laneJitter = Math.min(10, localVisibleWidth * 0.08);
-      puff.x = localFillLeft.x + localVisibleWidth * laneRatios[puffIndex] + (Math.random() - 0.5) * laneJitter;
-      puff.y = localFillLeft.y + 6.5 + Math.random() * 1.5;
-      const smokePeakAlpha = usesAiryBurnTone ? 0.3 : 0.48;
-      puff.alpha = usesAiryBurnTone ? 0.24 : 0.4;
-      puff.scale.set(startScale);
-      tipBubbleLayer.addChild(puff);
-      activeWildMeterTipPuffs.add(puff);
-      const startX = puff.x;
-      const startY = puff.y;
-      const windDirection = Math.random() < 0.5 ? -1 : 1;
-      const windDrift = 4 + Math.random() * 4;
-      const riseDistance = (11 + Math.random() * 3) * (1 + Math.random() * 0.5);
-      const tipPuffTimeline = trackTimeline({
-        onComplete: () => {
-          activeWildMeterTipPuffs.delete(puff);
-          try { puff.parent?.removeChild?.(puff); } catch {}
-          try { puff.destroy?.(); } catch {}
-        },
-      })
-        .to(puff, {
-          x: startX + windDirection * windDrift * 0.55,
-          y: startY - 3.5,
-          alpha: smokePeakAlpha,
-          duration: 0.24,
-          ease: 'sine.out',
-        }, 0)
-        .to(puff, {
-          x: startX - windDirection * windDrift * 0.35,
-          y: startY - 7,
-          alpha: smokePeakAlpha * 0.68,
-          duration: 0.3,
-          ease: 'sine.inOut',
-        })
-        .to(puff, {
-          x: startX + windDirection * windDrift,
-          y: startY - riseDistance,
-          alpha: 0,
-          duration: 0.3,
-          ease: 'power2.in',
-        })
-        .to(puff.scale, {
-          x: 1.08,
-          y: 0.9,
-          duration: 0.38,
-          ease: 'back.out(1.6)',
-        }, 0)
-        .to(puff.scale, {
-          x: 1.3,
-          y: 0.72,
-          duration: 0.46,
-          ease: 'power2.in',
-        }, 0.38);
-      puff._tipPuffTimeline = tipPuffTimeline;
-    }
-  };
-
-  const startWildMeterTipPuffs = () => {
-    if (container._smokeInterval || areWildMeterTipPuffsDisabled()) return;
+  const startV915WildMeterSmoke = () => {
+    if (container._smokeInterval || isWildMeterSmokeDisabled()) return;
     container._smokeInterval = setInterval(() => {
-      if (areWildMeterTipPuffsDisabled()) {
-        stopWildMeterTipPuffs();
+      if (isWildMeterSmokeDisabled()) {
+        stopWildMeterSmoke();
         return;
       }
-      emitWildMeterTipPuffs();
-    }, 160);
+      emitV915WildMeterSmoke();
+    }, 100);
   };
-  container._stopWildMeterTipPuffs = stopWildMeterTipPuffs;
+  container._stopWildMeterSmoke = stopWildMeterSmoke;
 
   // Methods
   container.setProgress = (ratio, animate = false) => {
@@ -1190,11 +980,6 @@ function makeWildLoader() {
       container._consumeQueue.length = 0;
       container._pendingProgressRatio = null;
     }
-    const keepsSameFillBurn = Boolean(
-      animate &&
-      container._fillBurnTimeline &&
-      Math.abs((container._fillBurnTargetWidth ?? -1) - width) <= 0.5
-    );
     if (container._currentAnimation) {
       container._currentAnimation.kill();
       container._currentAnimation = null;
@@ -1203,10 +988,9 @@ function makeWildLoader() {
       container._springTimeline.kill();
       container._springTimeline = null;
     }
-    if (!keepsSameFillBurn) container._stopFillBurn?.();
     gsap.killTweensOf(fillBounceLayer);
     fillBounceLayer.y = fillRestY;
-    container._stopWildMeterTipPuffs?.();
+    stopWildMeterSmokeEmission();
     if (animate) {
       // Use GSAP to animate the width by redrawing the fill
       const startWidth = container._fill.width || 0;
@@ -1223,7 +1007,7 @@ function makeWildLoader() {
       const reachedFull = progress >= 0.999;
 
       const animatedFill = { width: startWidth };
-      if (isGrowing) startWildMeterTipPuffs();
+      if (isGrowing) startV915WildMeterSmoke();
       const redrawAnimatedFill = () => {
         const f = container._fill;
         if (!f || (f as { destroyed?: boolean }).destroyed) return;
@@ -1234,12 +1018,11 @@ function makeWildLoader() {
       const finishAnimation = () => {
         drawFill(fill, width);
         if (reachedFull) playFillVerticalBounce(fillBounceLayer);
-        stopWildMeterTipPuffEmission();
+        stopWildMeterSmokeEmission();
         container._currentAnimation = null;
       };
 
       if (isGrowing) {
-        if (!keepsSameFillBurn) playFillBurn(width);
         // Partial gains bounce immediately. A full charge waits until the fill
         // actually settles at 100%, so the pulse reads as a clear READY cue
         // while a Ball/TNT transaction may still be finishing safely.
@@ -1306,7 +1089,7 @@ function makeWildLoader() {
         container._springTimeline.kill();
         container._springTimeline = null;
       }
-      container._stopFillBurn?.();
+      container._stopWildMeterSmoke?.();
       container._consumeActive = false;
       container._consumeQueue.length = 0;
       container._pendingProgressRatio = null;
@@ -1327,8 +1110,7 @@ function makeWildLoader() {
       container._springTimeline.kill();
       container._springTimeline = null;
     }
-    container._stopFillBurn?.();
-    container._stopWildMeterTipPuffs?.();
+    container._stopWildMeterSmoke?.();
     gsap.killTweensOf(fillBounceLayer);
     fillBounceLayer.y = fillRestY;
 
@@ -1348,7 +1130,7 @@ function makeWildLoader() {
     };
     const finish = () => {
       if (generation !== container._consumeGeneration || fill.destroyed) return;
-      stopWildMeterTipPuffEmission();
+      stopWildMeterSmokeEmission();
       const latestRatio = clampWildMeterRatio(container._pendingProgressRatio ?? progress);
       drawFill(fill, getWildMeterRefillWidth(maxWidth, latestRatio));
       if (latestRatio > 0) playFillVerticalBounce(fillBounceLayer);
@@ -1363,7 +1145,7 @@ function makeWildLoader() {
       onComplete: finish,
       onInterrupt: () => {
         if (generation === container._consumeGeneration) {
-          stopWildMeterTipPuffs();
+          stopWildMeterSmoke();
           container._currentAnimation = null;
         }
       },
@@ -1384,10 +1166,7 @@ function makeWildLoader() {
       .call(() => drawFill(fill, 0))
       .call(() => {
         const latestRatio = clampWildMeterRatio(container._pendingProgressRatio ?? progress);
-        if (latestRatio > 0) {
-          playFillBurn(getWildMeterRefillWidth(maxWidth, latestRatio));
-          startWildMeterTipPuffs();
-        }
+        if (latestRatio > 0) startV915WildMeterSmoke();
       })
       .to(refill, {
         progress: 1,
@@ -1913,10 +1692,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     console.warn('⚠️ Failed to destroy old HUD_ROOT:', error);
     HUD_ROOT = null; // Clear reference anyway
   }
-  // Retire the bounded tip-puff owner and every live cloudlet.
+  // Retire the bounded v915 smoke owner and every live smoke circle.
   try {
-    wild?.view?._stopWildMeterTipPuffs?.();
-    wild?.view?._stopWildMeterBoil?.();
+    wild?.view?._stopWildMeterSmoke?.();
   } catch {}
   
   // 🔥 CRITICAL: Kill any active animations (MEMORY LEAK FIX)
@@ -1931,7 +1709,6 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     if (Array.isArray(wild.view._consumeQueue)) wild.view._consumeQueue.length = 0;
     wild.view._pendingProgressRatio = null;
   }
-  wild?.view?._stopFillBurn?.();
   
   // Clear references
   closeIconSprite = null;
@@ -3282,8 +3059,7 @@ export function cleanupSmokeBubbles() {
     // Find wild container and kill its smoke interval
     if (wild && wild.view) {
       const wildContainer = wild.view;
-      wildContainer._stopWildMeterTipPuffs?.();
-      wildContainer._stopWildMeterBoil?.();
+      wildContainer._stopWildMeterSmoke?.();
     }
     
     const removeSmokeFromContainer = (container) => {
@@ -3325,7 +3101,8 @@ export function cleanupSmokeBubbles() {
 }
 
 export function resumeWildMeterBoil(): void {
-  try { wild?.view?._syncWildMeterBoil?.(); } catch {}
+  // Kept as a compatibility hook for the tutorial. v915 smoke is event-bound
+  // and therefore has no persistent idle owner to resume.
 }
 
 // Play HUD rise animation - exact reverse of playHudDrop
@@ -3961,8 +3738,7 @@ export function resetWildMeter(instant = true) {
   
   // Kill all GSAP animations for wild meter and clear smoke interval
   try {
-    wild?.view?._stopWildMeterTipPuffs?.();
-    wild?.view?._stopWildMeterBoil?.();
+    wild?.view?._stopWildMeterSmoke?.();
     gsap.killTweensOf(wild?.view?._fill);
     gsap.killTweensOf(wild?.view?._fill?.scale);
     gsap.killTweensOf(wild?.view?._fillBounceLayer);
@@ -3986,7 +3762,6 @@ export function resetWildMeter(instant = true) {
       if (Array.isArray(wild.view._consumeQueue)) wild.view._consumeQueue.length = 0;
       wild.view._pendingProgressRatio = null;
     }
-    wild?.view?._stopFillBurn?.();
     console.log('✅ PIXI RESET: All GSAP animations killed');
   } catch (e) {
     console.warn('⚠️ PIXI RESET: Error killing GSAP animations:', e);

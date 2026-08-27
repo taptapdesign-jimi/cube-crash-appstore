@@ -174,8 +174,8 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       ? './assets/shop/spaceship/spaceship@2x.png'
       : './assets/shop/spaceship/spaceship.png',
     splashText: 'WOOMBUU',
-    splashColor: '#F1A151',
-    splashColors: ['#F1A151', '#56D7EC'],
+    splashColor: '#75C4C3',
+    splashColors: ['#75C4C3', '#58D9EA'],
     splashSplitIndex: 3,
     shardColor: 0xF2CDA8,
     shardColors: [0xF2CDA8, 0x8AEEFE],
