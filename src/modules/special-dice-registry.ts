@@ -32,7 +32,7 @@ export type SpecialDiceVariantDefinition = {
   shardColors?: number[];
   trailColors?: number[];
   idleBubbleColors?: number[];
-  finaleScene?: 'bottle-ocean';
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction';
   explosionSpriteSources?: string[];
   explosionScale?: number;
   explosionHorizontalScale?: number;
@@ -44,7 +44,7 @@ export type SpecialDiceVariantDefinition = {
   visualFit?: 'height';
   hitAreaSize?: 'tile';
   idleOrbit?: boolean;
-  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle';
+  idleMotion?: 'float' | 'beach-ball-bounce' | 'bottle-float' | 'cubero-hop' | 'mushroom-pop' | 'robo-sprite-cycle' | 'spaceship-hover';
   idleSpriteSources?: string[];
   juiceDropProfile?: 'beach-ball' | 'mushroom' | 'robo';
   finaleAccentSpriteSources?: string[];
@@ -167,6 +167,25 @@ const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  spaceship: {
+    id: 'spaceship',
+    archetype: 'wild-magnet',
+    texture: useHighResolutionSpecialDiceFx
+      ? './assets/shop/spaceship/spaceship@2x.png'
+      : './assets/shop/spaceship/spaceship.png',
+    splashText: 'WOOMBUU',
+    splashColor: '#F1A151',
+    splashColors: ['#F1A151', '#56D7EC'],
+    splashSplitIndex: 3,
+    shardColor: 0xF2CDA8,
+    shardColors: [0xF2CDA8, 0x8AEEFE],
+    trailColors: [0xF8DCBF, 0xEFBE8F, 0x7CFBFD, 0x8AEEFE],
+    finaleScene: 'spaceship-abduction',
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    idleMotion: 'spaceship-hover',
+    inputReleaseAtRatio: 0.25,
+  },
   bottle: {
     id: 'bottle',
     archetype: 'wild-magnet',
@@ -718,11 +737,15 @@ export function pickSpecialDiceVariantForWildSpawn({
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
     }
-    // Robo World Cjelina 01 guarantees Robo Cube as its first earned wild.
+    // Robo World Cjelina 01 guarantees Spaceship first and Robo Cube second.
+    // The new Magnet-family visual stays isolated from Forest, Beach, Arcade,
+    // and the later Robo roll so it cannot dilute the accepted Robo chance.
     // Remaining Robo stages use one bounded roll per spawn; no other world or
     // Arcade route can consume this visual variant.
     if (board === 21) {
-      return wildSpawnCount === 0 ? SPECIAL_DICE_VARIANTS['robo-cube'] : null;
+      if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS.spaceship;
+      if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS['robo-cube'];
+      return null;
     }
     if (board >= 22 && board <= 30) {
       const finiteRoll = Number.isFinite(roboWildRoll) ? Number(roboWildRoll) : Math.random();

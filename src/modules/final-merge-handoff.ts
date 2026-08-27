@@ -161,7 +161,10 @@ async function waitForRuntimeComplete(
 function buildFinaleRuntimes(options: FinalMergeHandoffOptions): FinaleRuntime[] {
   const tntCompletionAlreadyPassed = reasonAlreadyPassedTntCompletion(options.reason);
   const tntMaxWaitMs = options.isArcade ? 2200 : 3200;
-  const magnetMaxWaitMs = options.isArcade ? 1600 : 2400;
+  // Magnet variants normally resolve sooner through their completion signal.
+  // The hard ceiling matches the authored four-second Spaceship visual and
+  // prevents a missing completion signal from delaying Clean Board beyond it.
+  const magnetMaxWaitMs = 4000;
   const juiceMaxWaitMs = options.isArcade ? 5200 : 6500;
   const sparkleMaxWaitMs = options.isArcade ? 1400 : 2200;
 

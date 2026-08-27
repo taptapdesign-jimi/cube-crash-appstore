@@ -831,12 +831,16 @@ function makeWildLoader() {
   fillBurn.label = 'wildMeterFillBurn';
   fillBurn.alpha = 0;
   fillBurn.blendMode = 'screen';
+  const tipBubbleLayer = new Container();
+  tipBubbleLayer.label = 'wildMeterHoneyTipBubbleLayer';
+  tipBubbleLayer.zIndex = -1;
+  tipBubbleLayer.eventMode = 'none';
   fillFxLayer.mask = fillFxMask;
   fillFxLayer.addChild(fillFxMask, fillBurn);
   fillBounceLayer.addChild(fill, fillFxLayer);
   fillSpatialLayer.addChild(fillBounceLayer);
 
-  container.addChild(bg, fillSpatialLayer, dashLine);
+  container.addChild(tipBubbleLayer, bg, fillSpatialLayer, dashLine);
   
   // Position relative to HUD
   container.x = 24;
@@ -851,6 +855,7 @@ function makeWildLoader() {
   container._fillFxLayer = fillFxLayer;
   container._fillFxMask = fillFxMask;
   container._fillBurn = fillBurn;
+  container._tipBubbleLayer = tipBubbleLayer;
   container._dashLine = dashLine;
   container._drawDashLine = drawDashLine;
   container._maxWidth = 200;
@@ -1047,35 +1052,65 @@ function makeWildLoader() {
     });
     activeWildMeterTipPuffs.clear();
   };
+  const stopWildMeterTipPuffEmission = () => {
+    if (container._smokeInterval) clearInterval(container._smokeInterval);
+    container._smokeInterval = null;
+  };
 
   const emitWildMeterTipPuffs = () => {
-    if (areWildMeterTipPuffsDisabled() || !container.parent || fill.destroyed) return;
+    if (
+      areWildMeterTipPuffsDisabled() ||
+      tipBubbleLayer.destroyed ||
+      fill.destroyed ||
+      activeWildMeterTipPuffs.size >= 9
+    ) return;
     const liveLeft = Math.max(0, Number(container._liveFillLeft) || 0);
     const liveWidth = Math.max(0, Number(container._liveFillWidth) || 0);
     if (liveWidth <= 3) return;
-    const hudStage = container.parent;
-    const tipPoint = fill.toGlobal({ x: liveLeft + liveWidth, y: Math.random() * 2 });
-    const localTip = typeof hudStage.toLocal === 'function' ? hudStage.toLocal(tipPoint) : tipPoint;
-    for (let puffIndex = 0; puffIndex < 2; puffIndex += 1) {
-      const radius = 1.25 + Math.random() * 0.85;
+    const globalFillLeft = fill.toGlobal({ x: liveLeft, y: 0 });
+    const globalFillRight = fill.toGlobal({ x: liveLeft + liveWidth, y: 0 });
+    const localFillLeft = tipBubbleLayer.toLocal(globalFillLeft);
+    const localFillRight = tipBubbleLayer.toLocal(globalFillRight);
+    const localVisibleWidth = Math.max(1, localFillRight.x - localFillLeft.x);
+    const smokeProfiles = [
+      { radius: 11.34 + Math.random() * 3.24, startScale: 0.38 },
+      { radius: 7.02 + Math.random() * 2.43, startScale: 0.44 },
+      { radius: 3.51 + Math.random() * 1.62, startScale: 0.5 },
+    ];
+    for (let puffIndex = 0; puffIndex < smokeProfiles.length; puffIndex += 1) {
+      if (activeWildMeterTipPuffs.size >= 9) break;
+      const { radius: baseRadius, startScale } = smokeProfiles[puffIndex];
+      const sizeBoost = 1.3 + Math.random() * 0.2;
+      const radius = baseRadius * sizeBoost;
+      const usesAiryBurnTone = puffIndex === 1 || Math.random() < 0.28;
+      const smokeColor = usesAiryBurnTone ? 0xFFB24D : (Math.random() < 0.5 ? 0xE7744A : 0xD95F3F);
+      const smokeAlpha = usesAiryBurnTone ? 0.2 : 0.38;
       const puff = new Graphics();
-      puff.label = 'wild-meter-tip-puff';
+      puff.label = 'wild-meter-honey-tip-bubble';
       puff._isWildMeterSmokeBubble = true;
       puff
-        .circle(-radius * 0.34, 0, radius * 0.72)
-        .fill({ color: 0xE7744A, alpha: 0.46 })
-        .circle(radius * 0.3, radius * 0.08, radius * 0.58)
-        .fill({ color: 0xF58A4E, alpha: 0.52 })
-        .circle(0, -radius * 0.28, radius * 0.62)
-        .fill({ color: 0xFFD69A, alpha: 0.62 });
-      puff.x = localTip.x + (puffIndex === 0 ? -2.2 : 1.2) + (Math.random() - 0.5) * 1.5;
-      puff.y = localTip.y;
-      puff.alpha = 0.42;
-      puff.scale.set(0.58, 0.5);
-      hudStage.addChild(puff);
+        .circle(-radius * 0.5, radius * 0.08, radius * 0.68)
+        .fill({ color: smokeColor, alpha: smokeAlpha * 0.78 })
+        .circle(0, -radius * 0.18, radius * 0.88)
+        .fill({ color: smokeColor, alpha: smokeAlpha })
+        .circle(radius * 0.58, radius * 0.12, radius * 0.62)
+        .fill({ color: smokeColor, alpha: smokeAlpha * 0.72 })
+        .circle(-radius * 0.2, -radius * 0.4, radius * 0.28)
+        .fill({ color: usesAiryBurnTone ? 0xFFE0A6 : 0xFFC18A, alpha: usesAiryBurnTone ? 0.34 : 0.5 });
+      const laneRatios = [0.2, 0.52, 0.84];
+      const laneJitter = Math.min(10, localVisibleWidth * 0.08);
+      puff.x = localFillLeft.x + localVisibleWidth * laneRatios[puffIndex] + (Math.random() - 0.5) * laneJitter;
+      puff.y = localFillLeft.y + 6.5 + Math.random() * 1.5;
+      const smokePeakAlpha = usesAiryBurnTone ? 0.3 : 0.48;
+      puff.alpha = usesAiryBurnTone ? 0.24 : 0.4;
+      puff.scale.set(startScale);
+      tipBubbleLayer.addChild(puff);
       activeWildMeterTipPuffs.add(puff);
       const startX = puff.x;
       const startY = puff.y;
+      const windDirection = Math.random() < 0.5 ? -1 : 1;
+      const windDrift = 4 + Math.random() * 4;
+      const riseDistance = (11 + Math.random() * 3) * (1 + Math.random() * 0.5);
       const tipPuffTimeline = trackTimeline({
         onComplete: () => {
           activeWildMeterTipPuffs.delete(puff);
@@ -1084,38 +1119,51 @@ function makeWildLoader() {
         },
       })
         .to(puff, {
-          x: startX + (Math.random() - 0.5) * 3,
-          y: startY - 3 - Math.random() * 2,
-          alpha: 0,
-          duration: 0.32 + Math.random() * 0.08,
+          x: startX + windDirection * windDrift * 0.55,
+          y: startY - 3.5,
+          alpha: smokePeakAlpha,
+          duration: 0.24,
           ease: 'sine.out',
         }, 0)
+        .to(puff, {
+          x: startX - windDirection * windDrift * 0.35,
+          y: startY - 7,
+          alpha: smokePeakAlpha * 0.68,
+          duration: 0.3,
+          ease: 'sine.inOut',
+        })
+        .to(puff, {
+          x: startX + windDirection * windDrift,
+          y: startY - riseDistance,
+          alpha: 0,
+          duration: 0.3,
+          ease: 'power2.in',
+        })
         .to(puff.scale, {
-          x: 1.05,
-          y: 0.82,
-          duration: 0.2,
-          ease: 'back.out(1.4)',
+          x: 1.08,
+          y: 0.9,
+          duration: 0.38,
+          ease: 'back.out(1.6)',
         }, 0)
         .to(puff.scale, {
-          x: 0.35,
-          y: 0.25,
-          duration: 0.14,
+          x: 1.3,
+          y: 0.72,
+          duration: 0.46,
           ease: 'power2.in',
-        });
+        }, 0.38);
       puff._tipPuffTimeline = tipPuffTimeline;
     }
   };
 
   const startWildMeterTipPuffs = () => {
     if (container._smokeInterval || areWildMeterTipPuffsDisabled()) return;
-    emitWildMeterTipPuffs();
     container._smokeInterval = setInterval(() => {
       if (areWildMeterTipPuffsDisabled()) {
         stopWildMeterTipPuffs();
         return;
       }
       emitWildMeterTipPuffs();
-    }, 140);
+    }, 160);
   };
   container._stopWildMeterTipPuffs = stopWildMeterTipPuffs;
 
@@ -1186,7 +1234,7 @@ function makeWildLoader() {
       const finishAnimation = () => {
         drawFill(fill, width);
         if (reachedFull) playFillVerticalBounce(fillBounceLayer);
-        stopWildMeterTipPuffs();
+        stopWildMeterTipPuffEmission();
         container._currentAnimation = null;
       };
 
@@ -1300,7 +1348,7 @@ function makeWildLoader() {
     };
     const finish = () => {
       if (generation !== container._consumeGeneration || fill.destroyed) return;
-      stopWildMeterTipPuffs();
+      stopWildMeterTipPuffEmission();
       const latestRatio = clampWildMeterRatio(container._pendingProgressRatio ?? progress);
       drawFill(fill, getWildMeterRefillWidth(maxWidth, latestRatio));
       if (latestRatio > 0) playFillVerticalBounce(fillBounceLayer);

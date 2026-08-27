@@ -1019,7 +1019,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   // }
   
   try {
-    colors = getSpecialDiceTrailColors(tile) || getDragParticleColors(tileSpecial);
+    colors = Array.isArray(opts.colors) && opts.colors.length
+      ? opts.colors.filter((color) => Number.isFinite(color))
+      : getSpecialDiceTrailColors(tile) || getDragParticleColors(tileSpecial);
     if (!colors || !Array.isArray(colors) || colors.length === 0) {
       console.error(`❌ getDragParticleColors returned empty/invalid array for ${tileSpecial}`);
       // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
@@ -1157,7 +1159,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     // Random position around tile (distanceScale e.g. 0.28 = prskalica, blizu izvora)
     const distScale = opts.distanceScale ?? 1;
-    const angle = Math.random() * Math.PI * 2;
+    const angleMin = Number.isFinite(opts.angleMin) ? Number(opts.angleMin) : 0;
+    const angleMax = Number.isFinite(opts.angleMax) ? Number(opts.angleMax) : Math.PI * 2;
+    const angle = angleMin + Math.random() * Math.max(0, angleMax - angleMin);
     const distance = baseTile * (0.1 + Math.random() * 0.6) * distScale; // prskalica: manji distScale = bliže
     shard.x = x + Math.cos(angle) * distance;
     shard.y = y + Math.sin(angle) * distance;
@@ -5960,6 +5964,8 @@ export function startMagnetIdleParticles(tile) {
     return;
   }
   
+  const isSpaceship = getSpecialDiceVariantForTile(tile)?.id === 'spaceship';
+
   // Generate particles every 200ms (5 times per second) at 24% intensity (normal size, like drag smoke)
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
@@ -5973,6 +5979,21 @@ export function startMagnetIdleParticles(tile) {
         intensity: 0.35, // Slightly reduced to lower idle cost
         trackForIdle: true // 🔥 CRITICAL: Track particles for cleanup
       });
+      if (isSpaceship) {
+        // A second small cyan layer stays below and behind the hovering craft.
+        // It shares the canonical Magnet particle tracker and cleanup owner.
+        magicSparklesAtTile(board, tile, {
+          colors: [0x7CFBFD, 0x8AEEFE],
+          particleCount: 4,
+          fillAlpha: 0.78,
+          sizeMultiplier: 0.72,
+          distanceScale: 0.46,
+          angleMin: Math.PI / 3,
+          angleMax: Math.PI * 2 / 3,
+          zIndex: (tile.zIndex ?? 0) - 0.001,
+          trackForIdle: true,
+        });
+      }
     } catch (err) {
       console.warn('Magnet idle particles error:', err);
     }

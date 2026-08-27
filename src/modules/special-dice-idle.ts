@@ -5,6 +5,7 @@ import animationManager from './animation-manager.js';
 import { getSpecialDiceVariantForTile } from './special-dice-registry.ts';
 import { startHoneyBeeIdleOrbit } from './honey-bee-idle-orbit.ts';
 import { startRoboCubeIdle } from './robo-cube-idle.ts';
+import { preloadSpaceshipFinaleAssets } from './spaceship-finale-scene.ts';
 
 const trackTimeline = (opts: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 
@@ -105,6 +106,10 @@ export function startSpecialDiceIdleMotion(tile: any): void {
       ];
       tile._ccRoboCubeIdle = startRoboCubeIdle(tile, idleSources, finaleSources);
       return;
+    }
+
+    if (variant.idleMotion === 'spaceship-hover') {
+      void preloadSpaceshipFinaleAssets();
     }
 
     const isBottleFloat = variant.idleMotion === 'bottle-float';
@@ -212,6 +217,29 @@ export function startSpecialDiceIdleMotion(tile: any): void {
         y: base.y,
         rotation: base.rotation,
         duration: 0.34,
+        ease: 'sine.inOut',
+      });
+    } else if (variant.idleMotion === 'spaceship-hover') {
+      const hoverTiltRadians = 15 * Math.PI / 180;
+      tl.to(host, {
+        x: motionBase.x - 5,
+        y: motionBase.y - 3,
+        rotation: motionBase.rotation - hoverTiltRadians,
+        duration: 1.1,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        x: motionBase.x + 5,
+        y: motionBase.y + 3,
+        rotation: motionBase.rotation + hoverTiltRadians,
+        duration: 2.2,
+        ease: 'sine.inOut',
+      });
+      tl.to(host, {
+        x: motionBase.x,
+        y: motionBase.y,
+        rotation: motionBase.rotation,
+        duration: 1.1,
         ease: 'sine.inOut',
       });
     } else if (variant.idleMotion === 'bottle-float') {

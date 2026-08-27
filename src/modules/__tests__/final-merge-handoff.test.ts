@@ -79,7 +79,7 @@ test('final magnet handoff waits for magnetic text completion signal', async () 
   });
 
   expect(waitForMagneticTextComplete).toHaveBeenCalledTimes(1);
-  expect(waitForMagneticTextComplete).toHaveBeenCalledWith(2400);
+  expect(waitForMagneticTextComplete).toHaveBeenCalledWith(4000);
 });
 
 test('final sparkle handoff waits for sparkle completion signal', async () => {

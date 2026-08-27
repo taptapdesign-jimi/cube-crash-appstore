@@ -8,6 +8,7 @@ import { attachPuffyClouds } from './text-clouds.js';
 import { attachSmallStarCenterBurst } from './text-sparkles.js';
 import { attachBoltSprites } from './text-bolts.js';
 import { attachBottleFinaleScene } from './bottle-finale-scene.js';
+import { attachSpaceshipFinaleScene } from './spaceship-finale-scene.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
@@ -174,9 +175,12 @@ export function showMagneticText(options: any = {}): void {
     // Bottle keeps Magnet gameplay but explicitly reuses the exact Cubero
     // artwork-flight owner. Other Magnet variants retain their bolt/bee owner.
     const usesBottleOceanScene = options?.finaleScene === 'bottle-ocean';
+    const usesSpaceshipAbductionScene = options?.finaleScene === 'spaceship-abduction';
     const usesCuberoFlight = options?.burstMotion?.cuberoFlight === true;
     const particleStartedAt = performance.now();
-    const particleCleanup = usesBottleOceanScene
+    const particleCleanup = usesSpaceshipAbductionScene
+      ? attachSpaceshipFinaleScene(overlay)
+      : usesBottleOceanScene
       ? attachBottleFinaleScene(overlay, 1, BOOM_ENTER_DELAY)
       : usesCuberoFlight
       ? attachSmallStarCenterBurst(overlay, {

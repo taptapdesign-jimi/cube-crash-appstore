@@ -59,4 +59,24 @@ describe('special-dice idle lifecycle', () => {
     expect(anchor).toMatchObject({ x: 0.5, y: 0.5 });
     expect(base.y).toBe(0);
   });
+
+  test('Spaceship hover owns rotG and restores its exact board pose on cleanup', () => {
+    const rotG = new Container();
+    rotG.position.set(8, -6);
+    rotG.rotation = 0.12;
+    const tile: any = {
+      rotG,
+      destroyed: false,
+      _ccSpecialDiceVariant: 'spaceship',
+    };
+    const baseline = animationManager.getStats().activeTimelines;
+
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccSpecialDiceIdleHost).toBe(rotG);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+
+    stopSpecialDiceIdleMotion(tile);
+    expect(rotG).toMatchObject({ x: 8, y: -6, rotation: 0.12 });
+    expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
 });
