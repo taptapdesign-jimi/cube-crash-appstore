@@ -11,9 +11,14 @@ import {
 import {
   getSpaceshipMagneticPullProgress,
   getSpaceshipDebrisMotion,
+  SPACESHIP_BEAM_EXIT_FADE_DURATION,
+  SPACESHIP_BEAM_EXIT_FLASH_DURATION,
+  SPACESHIP_BEAM_EXIT_FLASH_LEVELS,
+  SPACESHIP_BEAM_EXIT_FLASH_STARTS,
   SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE,
   SPACESHIP_DEBRIS_INITIAL_SCALE,
   SPACESHIP_DEBRIS_PLAN,
+  SPACESHIP_FAKE_DICE_PLAN,
   SPACESHIP_LAYER_Z,
   SPACESHIP_PULL_ARRIVAL_GAP_SECONDS,
   SPACESHIP_PULL_BASE_SECONDS,
@@ -110,14 +115,33 @@ describe('Spaceship special die', () => {
   test('runs one continuous accelerating suction curve through selective beam depth', () => {
     const scene = read('src/modules/spaceship-finale-scene.ts');
     expect(SPACESHIP_RIGHT_BEAM_LEAD_LEVELS).toEqual([0.5, 0.6, 0.4, 1]);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_LEVELS).toEqual([1, 0, 1, 0, 0.7, 0, 0.4, 0]);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_STARTS[0]).toBeLessThan(3.52);
+    expect(
+      SPACESHIP_BEAM_EXIT_FLASH_STARTS[SPACESHIP_BEAM_EXIT_FLASH_STARTS.length - 1]
+        + SPACESHIP_BEAM_EXIT_FADE_DURATION,
+    ).toBeLessThan(4);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_DURATION).toBe(0.055);
+    expect(SPACESHIP_BEAM_EXIT_FADE_DURATION).toBe(0.17);
     expect(scene).toContain('gsap.utils.shuffle([...SPACESHIP_BEAM_SHIMMER_LEVELS])');
     expect(scene).toContain('scheduleBeamShimmer(rightBeam, 0.52, SPACESHIP_RIGHT_BEAM_LEAD_LEVELS)');
     expect(scene).toContain('scheduleBeamShimmer(leftBeam, 0.80)');
+    expect(scene).toContain("ease: isFinalFade ? 'power2.out' : 'power1.inOut'");
+    expect(scene).not.toContain("beams.to([leftBeam, rightBeam], { opacity: 0, duration: 0.26, ease: 'power2.in' }, 3.46)");
     expect(scene).toContain('left:-40%;top:calc(66% - 40px);width:132%');
     expect(scene).toContain('right:-43.25%;top:calc(66% - 40px);width:145.5%');
-    expect(SPACESHIP_LAYER_Z).toEqual({ belowBeam: 1, beam: 2, aboveBeam: 3, saucer: 4 });
+    expect(SPACESHIP_LAYER_Z).toEqual({
+      backgroundDice: 0,
+      belowBeam: 1,
+      beam: 2,
+      aboveBeam: 3,
+      foregroundDice: 4,
+      saucer: 5,
+    });
     expect(scene).toContain('const rigTargets = [beamRig, saucerRig]');
-    expect(scene).toContain('layout.belowBeams ? SPACESHIP_LAYER_Z.belowBeam : SPACESHIP_LAYER_Z.aboveBeam');
+    expect(scene).toContain('? SPACESHIP_LAYER_Z.foregroundDice');
+    expect(scene).toContain('? SPACESHIP_LAYER_Z.backgroundDice');
+    expect(scene).toContain('? SPACESHIP_LAYER_Z.belowBeam');
     expect(scene).not.toContain('xPercent: -7');
     expect(scene).not.toContain('xPercent: 7');
     expect(scene).not.toContain('brightness(');
@@ -146,6 +170,18 @@ describe('Spaceship special die', () => {
     expect(pullPlan.map(({ pullOrder }) => pullOrder)).toEqual([...Array(12).keys()]);
     expect(SPACESHIP_DEBRIS_PLAN.filter(({ belowBeams }) => belowBeams).map(({ id }) => id).sort())
       .toEqual(['can1', 'can2', 'can4', 'rock3', 'rock6', 'rock7']);
+    expect(SPACESHIP_FAKE_DICE_PLAN.map(({ value }) => value)).toEqual([3, 2, 4, 1, 2, 5, 4, 3]);
+    expect(SPACESHIP_FAKE_DICE_PLAN).toHaveLength(8);
+    expect(SPACESHIP_FAKE_DICE_PLAN.map(({ sizeReduction }) => sizeReduction))
+      .toEqual([0.60, 0.80, 0.70, 0.75, 0.65, 0.60, 0.80, 0.70]);
+    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ size }) => size >= 19 && size <= 33)).toBe(true);
+    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ x }) => x <= 20 || x >= 80)).toBe(true);
+    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ y, size }) => y / 100 * 844 - size * 1.4 / 2 > 844)).toBe(true);
+    expect(new Set(SPACESHIP_FAKE_DICE_PLAN.map(({ size }) => size)).size).toBe(8);
+    expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => foregroundDice)).toBe(true);
+    expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => !foregroundDice)).toBe(true);
+    expect(scene).toContain("const BOARD_TILE_SOURCE = `./assets/tile${useHighResolutionAssets ? '@2x' : ''}.png`");
+    expect(scene).toContain('createFakeBoardDie(layout.value)');
     const motions = pullPlan.map(getSpaceshipDebrisMotion);
     expect(motions.every(({ travelStartAt }) => travelStartAt === 0)).toBe(true);
     expect(SPACESHIP_PULL_BASE_SECONDS).toBe(2);
@@ -158,7 +194,7 @@ describe('Spaceship special die', () => {
     expect(new Set(SPACESHIP_DEBRIS_PLAN.map(({ curveX }) => curveX.join(','))).size).toBe(12);
     expect(SPACESHIP_DEBRIS_PLAN.every(({ x, curveX }) => curveX.some((control) => control !== x))).toBe(true);
     expect(Math.max(...SPACESHIP_DEBRIS_PLAN.flatMap(({ startRotation, wobbleRotation }) => [Math.abs(startRotation), Math.abs(wobbleRotation)]))).toBeLessThanOrEqual(12);
-    expect(SPACESHIP_DEBRIS_INITIAL_SCALE).toBe(1);
+    expect(SPACESHIP_DEBRIS_INITIAL_SCALE).toBe(1.4);
     const rockSizes = SPACESHIP_DEBRIS_PLAN.filter(({ id }) => id.startsWith('rock')).map(({ size }) => size);
     const canSizes = SPACESHIP_DEBRIS_PLAN.filter(({ id }) => id.startsWith('can')).map(({ size }) => size);
     expect(rockSizes.every((size) => size >= 100 && size <= 120)).toBe(true);
@@ -170,7 +206,7 @@ describe('Spaceship special die', () => {
     const pullSamples = Array.from({ length: 11 }, (_, index) => getSpaceshipMagneticPullProgress(index / 10));
     const pullSpeeds = pullSamples.slice(1).map((progress, index) => progress - pullSamples[index]);
     expect(pullSpeeds.slice(1).every((speed, index) => speed > pullSpeeds[index])).toBe(true);
-    expect(SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE).toBe(0.16);
+    expect(SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE).toBe(0.6);
     expect(scene).toContain('scale: SPACESHIP_DEBRIS_INITIAL_SCALE');
     expect(scene).toContain('opacity: 1');
     expect(scene).not.toContain('scale: 1.7');

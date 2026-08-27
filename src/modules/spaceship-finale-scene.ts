@@ -10,16 +10,23 @@ const source = (name: string) => `${PACK}/${name}${useHighResolutionAssets ? '@2
 const SAUCER_SOURCES = Array.from({ length: 4 }, (_, index) => source(`saucer${index + 1}`));
 const ROCK_SOURCES = Array.from({ length: 7 }, (_, index) => source(`rock${index + 1}`));
 const CAN_SOURCES = Array.from({ length: 5 }, (_, index) => source(`kanta${index + 1}`));
+const BOARD_TILE_SOURCE = `./assets/tile${useHighResolutionAssets ? '@2x' : ''}.png`;
 export const SPACESHIP_BEAM_SHIMMER_LEVELS = [1, 0.9, 0.5, 0.6, 0.3] as const;
 export const SPACESHIP_RIGHT_BEAM_LEAD_LEVELS = [0.5, 0.6, 0.4, 1] as const;
+export const SPACESHIP_BEAM_EXIT_FLASH_LEVELS = [1, 0, 1, 0, 0.7, 0, 0.4, 0] as const;
+export const SPACESHIP_BEAM_EXIT_FLASH_STARTS = [3.28, 3.35, 3.42, 3.49, 3.57, 3.65, 3.73, 3.81] as const;
+export const SPACESHIP_BEAM_EXIT_FLASH_DURATION = 0.055;
+export const SPACESHIP_BEAM_EXIT_FADE_DURATION = 0.17;
 export const SPACESHIP_LAYER_Z = {
+  backgroundDice: 0,
   belowBeam: 1,
   beam: 2,
   aboveBeam: 3,
-  saucer: 4,
+  foregroundDice: 4,
+  saucer: 5,
 } as const;
-export const SPACESHIP_DEBRIS_INITIAL_SCALE = 1;
-export const SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE = 0.16;
+export const SPACESHIP_DEBRIS_INITIAL_SCALE = 1.4;
+export const SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE = 0.6;
 export const SPACESHIP_PULL_BASE_SECONDS = 2;
 export const SPACESHIP_PULL_ARRIVAL_GAP_SECONDS = 0.045;
 export const SPACESHIP_PULL_LINEAR_WEIGHT = 0.14;
@@ -53,6 +60,22 @@ export const SPACESHIP_DEBRIS_PLAN = [
   { id: 'can5', source: CAN_SOURCES[4], x: 52, y: 156, curveX: [63, 45], size: 130, pullOrder: 10, startRotation: 7, wobbleRotation: -9, driftX: -18, belowBeams: false },
 ] as const;
 
+export const SPACESHIP_FAKE_DICE_PLAN = [
+  { id: 'die1', value: 3, x: 12, y: 116, curveX: [18, 36], size: 33, sizeReduction: 0.60, pullOrder: 0.5, startRotation: -22, wobbleRotation: 14, driftX: 20, belowBeams: true, foregroundDice: false },
+  { id: 'die2', value: 2, x: 84, y: 121, curveX: [75, 61], size: 19, sizeReduction: 0.80, pullOrder: 1.5, startRotation: 18, wobbleRotation: -13, driftX: -18, belowBeams: false, foregroundDice: true },
+  { id: 'die3', value: 4, x: 20, y: 128, curveX: [12, 39], size: 22, sizeReduction: 0.70, pullOrder: 3.5, startRotation: 25, wobbleRotation: -16, driftX: -20, belowBeams: false, foregroundDice: true },
+  { id: 'die4', value: 1, x: 90, y: 134, curveX: [96, 64], size: 27, sizeReduction: 0.75, pullOrder: 4.5, startRotation: -17, wobbleRotation: 12, driftX: 22, belowBeams: true, foregroundDice: false },
+  { id: 'die5', value: 2, x: 8, y: 142, curveX: [2, 34], size: 32, sizeReduction: 0.65, pullOrder: 6.5, startRotation: 14, wobbleRotation: -15, driftX: 18, belowBeams: true, foregroundDice: false },
+  { id: 'die6', value: 5, x: 92, y: 149, curveX: [98, 66], size: 31, sizeReduction: 0.60, pullOrder: 7.5, startRotation: -24, wobbleRotation: 17, driftX: -22, belowBeams: false, foregroundDice: true },
+  { id: 'die7', value: 4, x: 18, y: 158, curveX: [9, 38], size: 20, sizeReduction: 0.80, pullOrder: 9.5, startRotation: -16, wobbleRotation: 13, driftX: 21, belowBeams: false, foregroundDice: true },
+  { id: 'die8', value: 3, x: 82, y: 164, curveX: [91, 60], size: 26, sizeReduction: 0.70, pullOrder: 10.5, startRotation: 21, wobbleRotation: -14, driftX: -19, belowBeams: true, foregroundDice: false },
+] as const;
+
+export const SPACESHIP_PULL_PLAN = [
+  ...SPACESHIP_DEBRIS_PLAN,
+  ...SPACESHIP_FAKE_DICE_PLAN,
+] as const;
+
 export function getSpaceshipDebrisMotion(plan: { pullOrder: number }) {
   const travelStartAt = 0;
   const travelSeconds = SPACESHIP_PULL_BASE_SECONDS
@@ -65,6 +88,7 @@ export const SPACESHIP_FINALE_SOURCES = [
   source('rightbeam'),
   ...ROCK_SOURCES,
   ...CAN_SOURCES,
+  BOARD_TILE_SOURCE,
 ];
 
 let preloadPromise: Promise<void> | null = null;
@@ -97,6 +121,31 @@ function createImage(source: string, className: string): HTMLImageElement {
     'will-change:transform,opacity',
   ].join(';');
   return image;
+}
+
+function createFakeBoardDie(value: number): HTMLElement {
+  const die = document.createElement('div');
+  die.className = 'cc-spaceship-finale-debris cc-spaceship-finale-fake-die';
+  die.dataset.spaceshipDieValue = String(value);
+  die.style.cssText = 'position:absolute;inset:0;pointer-events:none;transform-origin:50% 50%;will-change:transform';
+  const base = createImage(BOARD_TILE_SOURCE, 'cc-spaceship-finale-fake-die-base');
+  base.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain';
+  die.appendChild(base);
+
+  const pipPositions: Record<number, Array<[number, number]>> = {
+    1: [[50, 50]],
+    2: [[32, 32], [68, 68]],
+    3: [[32, 32], [50, 50], [68, 68]],
+    4: [[32, 32], [68, 32], [32, 68], [68, 68]],
+    5: [[32, 32], [68, 32], [50, 50], [32, 68], [68, 68]],
+  };
+  for (const [left, top] of pipPositions[value] ?? []) {
+    const pip = document.createElement('span');
+    pip.className = 'cc-spaceship-finale-fake-die-pip';
+    pip.style.cssText = `position:absolute;left:${left}%;top:${top}%;width:12%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:24%;background:#815A42;opacity:.9`;
+    die.appendChild(pip);
+  }
+  return die;
 }
 
 export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) & {
@@ -152,7 +201,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
   saucerRig.append(saucer, ...intakeMarkers);
   field.append(beamRig, saucerRig);
 
-  const debris = SPACESHIP_DEBRIS_PLAN.map((layout) => {
+  const debris = SPACESHIP_PULL_PLAN.map((layout) => {
     const mover = document.createElement('div');
     mover.className = 'cc-spaceship-finale-debris-mover';
     mover.dataset.spaceshipDebris = layout.id;
@@ -163,14 +212,24 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
       'pointer-events:none',
       'transform-origin:50% 50%',
       'will-change:transform,left,top,opacity',
-      `z-index:${layout.belowBeams ? SPACESHIP_LAYER_Z.belowBeam : SPACESHIP_LAYER_Z.aboveBeam}`,
+      `z-index:${'foregroundDice' in layout && layout.foregroundDice
+        ? SPACESHIP_LAYER_Z.foregroundDice
+        : 'value' in layout
+          ? SPACESHIP_LAYER_Z.backgroundDice
+          : layout.belowBeams
+            ? SPACESHIP_LAYER_Z.belowBeam
+            : SPACESHIP_LAYER_Z.aboveBeam}`,
     ].join(';');
-    const image = createImage(layout.source, 'cc-spaceship-finale-debris');
-    image.dataset.spaceshipDebris = layout.id;
-    image.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain';
-    mover.appendChild(image);
+    const visual = 'value' in layout
+      ? createFakeBoardDie(layout.value)
+      : createImage(layout.source, 'cc-spaceship-finale-debris');
+    visual.dataset.spaceshipDebris = layout.id;
+    if (!('value' in layout)) {
+      visual.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain';
+    }
+    mover.appendChild(visual);
     field.appendChild(mover);
-    return { mover, image, ...layout };
+    return { mover, image: visual, ...layout };
   });
   overlay.insertBefore(field, overlay.firstChild);
 
@@ -245,7 +304,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
       leadLevels: readonly number[] = [],
     ) => {
       const stepSeconds = 0.11;
-      const lastStartSeconds = 3.34;
+      const lastStartSeconds = 3.14;
       let cursor = startAt;
       for (const opacity of leadLevels) {
         if (cursor > lastStartSeconds) return;
@@ -263,7 +322,14 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
     };
     scheduleBeamShimmer(rightBeam, 0.52, SPACESHIP_RIGHT_BEAM_LEAD_LEVELS);
     scheduleBeamShimmer(leftBeam, 0.80);
-    beams.to([leftBeam, rightBeam], { opacity: 0, duration: 0.26, ease: 'power2.in' }, 3.46);
+    SPACESHIP_BEAM_EXIT_FLASH_LEVELS.forEach((opacity, index) => {
+      const isFinalFade = index === SPACESHIP_BEAM_EXIT_FLASH_LEVELS.length - 1;
+      beams.to([leftBeam, rightBeam], {
+        opacity,
+        duration: isFinalFade ? SPACESHIP_BEAM_EXIT_FADE_DURATION : SPACESHIP_BEAM_EXIT_FLASH_DURATION,
+        ease: isFinalFade ? 'power2.out' : 'power1.inOut',
+      }, SPACESHIP_BEAM_EXIT_FLASH_STARTS[index]);
+    });
 
     debris.forEach(({
       mover,
@@ -280,7 +346,7 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
       const item = own(gsap.timeline({ paused: true }));
       const motion = getSpaceshipDebrisMotion({ pullOrder });
       const { travelStartAt, travelSeconds, arrivalAt } = motion;
-      const intakeMarker = intakeMarkers[pullOrder % intakeMarkers.length];
+      const intakeMarker = intakeMarkers[Math.floor(pullOrder) % intakeMarkers.length];
       const setLeft = gsap.quickSetter(mover, 'left', 'px');
       const setTop = gsap.quickSetter(mover, 'top', 'px');
       const setScale = gsap.quickSetter(mover, 'scale');
@@ -318,7 +384,9 @@ export function attachSpaceshipFinaleScene(overlay: HTMLElement): (() => void) &
           const wobble = Math.sin(linearProgress * Math.PI * 2 * wobbleCycles) * wobbleEnvelope;
           setLeft(cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress));
           setTop(startTop + (targetTop - startTop) * magneticProgress);
-          setScale(1 - (1 - SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE) * Math.pow(magneticProgress, 1.18));
+          setScale(SPACESHIP_DEBRIS_INITIAL_SCALE
+            - (SPACESHIP_DEBRIS_INITIAL_SCALE - SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE)
+              * Math.pow(magneticProgress, 1.18));
           setWobbleX(driftX * wobble);
           setRotation(startRotation * (1 - magneticProgress) + wobbleRotation * wobble);
         },

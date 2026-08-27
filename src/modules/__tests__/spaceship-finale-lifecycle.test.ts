@@ -3,7 +3,11 @@ import animationManager from '../animation-manager.js';
 import {
   attachSpaceshipFinaleScene,
   getSpaceshipDebrisMotion,
-  SPACESHIP_DEBRIS_PLAN,
+  SPACESHIP_BEAM_EXIT_FADE_DURATION,
+  SPACESHIP_BEAM_EXIT_FLASH_DURATION,
+  SPACESHIP_BEAM_EXIT_FLASH_LEVELS,
+  SPACESHIP_BEAM_EXIT_FLASH_STARTS,
+  SPACESHIP_PULL_PLAN,
 } from '../spaceship-finale-scene.js';
 
 const rect = (left: number, top: number, width = 0, height = 0): DOMRect => ({
@@ -65,8 +69,19 @@ describe('Spaceship finale rendered lifecycle', () => {
     tracked.forEach((timeline) => timeline.pause(0));
     const movers = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-debris-mover'));
 
-    expect(movers).toHaveLength(12);
-    expect(tracked).toHaveLength(14);
+    expect(movers).toHaveLength(20);
+    expect(tracked).toHaveLength(22);
+    const fakeDice = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-fake-die'));
+    expect(fakeDice.map(({ dataset }) => Number(dataset.spaceshipDieValue))).toEqual([3, 2, 4, 1, 2, 5, 4, 3]);
+    expect(overlay.querySelectorAll('.cc-spaceship-finale-fake-die-pip')).toHaveLength(24);
+    const beams = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-beam'));
+    SPACESHIP_BEAM_EXIT_FLASH_LEVELS.forEach((opacity, index) => {
+      const duration = index === SPACESHIP_BEAM_EXIT_FLASH_LEVELS.length - 1
+        ? SPACESHIP_BEAM_EXIT_FADE_DURATION
+        : SPACESHIP_BEAM_EXIT_FLASH_DURATION;
+      tracked[1].seek(SPACESHIP_BEAM_EXIT_FLASH_STARTS[index] + duration);
+      beams.forEach((beam) => expect(Number(gsap.getProperty(beam, 'opacity'))).toBeCloseTo(opacity, 2));
+    });
     movers.forEach((mover, index) => {
       expect(Number(gsap.getProperty(mover, 'opacity'))).toBe(1);
       expect(Number.parseFloat(mover.style.top)).toBeGreaterThan(100);
@@ -79,11 +94,11 @@ describe('Spaceship finale rendered lifecycle', () => {
       timeline.pause(0);
     });
 
-    SPACESHIP_DEBRIS_PLAN.forEach((plan, index) => {
+    SPACESHIP_PULL_PLAN.forEach((plan, index) => {
       const motion = getSpaceshipDebrisMotion(plan);
       const timeline = tracked[index + 2];
       const marker = overlay.querySelector<HTMLElement>(
-        `.cc-spaceship-intake-marker-${(plan.pullOrder % 3) + 1}`,
+        `.cc-spaceship-intake-marker-${(Math.floor(plan.pullOrder) % 3) + 1}`,
       );
       const markerStartLeft = marker!.getBoundingClientRect().left;
       for (let step = 0; step <= 7; step += 1) {
