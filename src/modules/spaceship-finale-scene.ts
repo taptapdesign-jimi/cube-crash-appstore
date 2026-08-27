@@ -3,7 +3,7 @@ import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 
 const PACK = './assets/shop/spaceship';
-export const SPACESHIP_SCENE_SECONDS = 3.5;
+export const SPACESHIP_SCENE_SECONDS = 3.8;
 const SCENE_SECONDS = SPACESHIP_SCENE_SECONDS;
 const useHighResolutionAssets = typeof window !== 'undefined' && window.devicePixelRatio > 1.5;
 const source = (name: string) => `${PACK}/${name}${useHighResolutionAssets ? '@2x' : ''}.png`;
@@ -27,9 +27,15 @@ export const SPACESHIP_BEAM_EXIT_ALTERNATING_STATES = [
 export const SPACESHIP_BEAM_EXIT_FLASH_DURATION = 0.009;
 export const SPACESHIP_BEAM_EXIT_FADE_DURATION = 0.009;
 export const SPACESHIP_SAUCER_EXIT_LANES = [-1, 1] as const;
-export const SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES = 18;
+export const SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES = 20;
 export const SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES = 20;
-export const SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO = 0.4;
+export const SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO = 1.12;
+export const SPACESHIP_SAUCER_ENTER_LANES = [
+  { id: 'upper-left', side: -1, startX: -0.44, startY: -0.34, control1X: -0.34, control1Y: -0.12, control2X: 0.10, control2Y: -0.035, startRotation: -12 },
+  { id: 'upper-right', side: 1, startX: 0.44, startY: -0.34, control1X: 0.34, control1Y: -0.12, control2X: -0.10, control2Y: -0.035, startRotation: 12 },
+  { id: 'left-upper', side: -1, startX: -0.62, startY: -0.16, control1X: -0.43, control1Y: -0.23, control2X: 0.075, control2Y: -0.015, startRotation: -12 },
+  { id: 'right-upper', side: 1, startX: 0.62, startY: -0.16, control1X: 0.43, control1Y: -0.23, control2X: -0.075, control2Y: -0.015, startRotation: 12 },
+] as const;
 export const SPACESHIP_LAYER_Z = {
   backgroundDice: 0,
   belowBeam: 1,
@@ -40,6 +46,7 @@ export const SPACESHIP_LAYER_Z = {
 } as const;
 export const SPACESHIP_DEBRIS_INITIAL_SCALE = 1.4;
 export const SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE = 0.6;
+export const SPACESHIP_FAKE_DIE_SIZE_PX = 52;
 export const SPACESHIP_PULL_BASE_SECONDS = 1.95;
 export const SPACESHIP_PULL_ARRIVAL_GAP_SECONDS = 0.04;
 export const SPACESHIP_PULL_LINEAR_WEIGHT = 0.14;
@@ -57,6 +64,11 @@ export function getSpaceshipSaucerExitPlan(random: () => number = Math.random) {
     finalXRatio: lane * SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO,
     finalRotation: lane * SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES,
   };
+}
+
+export function getSpaceshipSaucerEnterPlan(random: () => number = Math.random) {
+  const sample = Math.max(0, Math.min(0.999999, random()));
+  return SPACESHIP_SAUCER_ENTER_LANES[Math.floor(sample * SPACESHIP_SAUCER_ENTER_LANES.length)];
 }
 
 export function getSpaceshipMagneticPullProgress(linearProgress: number): number {
@@ -120,14 +132,14 @@ export const SPACESHIP_EXTRA_ROCK_PLAN = [
 ] as const;
 
 export const SPACESHIP_FAKE_DICE_PLAN = [
-  { id: 'die1', value: 3, x: 3, y: 116, curveX: [-4, 34], size: 33, sizeReduction: 0.60, pullOrder: 12, travelDelaySeconds: 0.08, startRotation: -22, wobbleRotation: 52, driftX: 30, belowBeams: true, foregroundDice: false },
-  { id: 'die2', value: 2, x: 95, y: 121, curveX: [103, 64], size: 19, sizeReduction: 0.80, pullOrder: 1.5, startRotation: 18, wobbleRotation: -60, driftX: -32, belowBeams: false, foregroundDice: true },
-  { id: 'die3', value: 4, x: 10, y: 128, curveX: [-1, 37], size: 22, sizeReduction: 0.70, pullOrder: 3.5, startRotation: 25, wobbleRotation: -48, driftX: -30, belowBeams: false, foregroundDice: true },
-  { id: 'die4', value: 1, x: 97, y: 134, curveX: [105, 66], size: 27, sizeReduction: 0.75, pullOrder: 4.5, startRotation: -17, wobbleRotation: 56, driftX: 34, belowBeams: true, foregroundDice: false },
-  { id: 'die5', value: 2, x: 1, y: 142, curveX: [-7, 32], size: 32, sizeReduction: 0.65, pullOrder: 6.5, startRotation: 14, wobbleRotation: -55, driftX: 36, belowBeams: true, foregroundDice: false },
-  { id: 'die6', value: 5, x: 94, y: 149, curveX: [102, 67], size: 31, sizeReduction: 0.60, pullOrder: 7.5, startRotation: -24, wobbleRotation: 60, driftX: -38, belowBeams: false, foregroundDice: true },
-  { id: 'die7', value: 4, x: 7, y: 158, curveX: [-3, 36], size: 20, sizeReduction: 0.80, pullOrder: 9.5, startRotation: -16, wobbleRotation: 46, driftX: 34, belowBeams: false, foregroundDice: true },
-  { id: 'die8', value: 3, x: 91, y: 164, curveX: [101, 62], size: 26, sizeReduction: 0.70, pullOrder: 13, travelDelaySeconds: 0.14, startRotation: 21, wobbleRotation: -58, driftX: -36, belowBeams: true, foregroundDice: false },
+  { id: 'die1', value: 3, x: 3, y: 116, curveX: [-4, 34], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 12, travelDelaySeconds: 0.08, startRotation: -22, wobbleRotation: 52, driftX: 30, belowBeams: true, foregroundDice: false },
+  { id: 'die2', value: 2, x: 95, y: 121, curveX: [103, 64], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 1.5, startRotation: 18, wobbleRotation: -60, driftX: -32, belowBeams: false, foregroundDice: true },
+  { id: 'die3', value: 4, x: 10, y: 128, curveX: [-1, 37], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 3.5, startRotation: 25, wobbleRotation: -48, driftX: -30, belowBeams: false, foregroundDice: true },
+  { id: 'die4', value: 1, x: 97, y: 134, curveX: [105, 66], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 4.5, startRotation: -17, wobbleRotation: 56, driftX: 34, belowBeams: true, foregroundDice: false },
+  { id: 'die5', value: 2, x: 1, y: 142, curveX: [-7, 32], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 6.5, startRotation: 14, wobbleRotation: -55, driftX: 36, belowBeams: true, foregroundDice: false },
+  { id: 'die6', value: 5, x: 94, y: 149, curveX: [102, 67], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 7.5, startRotation: -24, wobbleRotation: 60, driftX: -38, belowBeams: false, foregroundDice: true },
+  { id: 'die7', value: 4, x: 7, y: 158, curveX: [-3, 36], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 9.5, startRotation: -16, wobbleRotation: 46, driftX: 34, belowBeams: false, foregroundDice: true },
+  { id: 'die8', value: 3, x: 91, y: 164, curveX: [101, 62], size: SPACESHIP_FAKE_DIE_SIZE_PX, pullOrder: 13, travelDelaySeconds: 0.14, startRotation: 21, wobbleRotation: -58, driftX: -36, belowBeams: true, foregroundDice: false },
 ] as const;
 
 export const SPACESHIP_PULL_PLAN = [
@@ -155,15 +167,17 @@ export const SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS = (
   SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - SPACESHIP_SAUCER_EXIT_AT_SECONDS
 ) / SPACESHIP_SAUCER_EXIT_SECONDS;
 
-const SPACESHIP_EXIT_KNOT_SECONDS = [0, 0.20, 0.32, 0.56, 0.88] as const;
-const SPACESHIP_EXIT_X_RATIOS = [0, -0.075, 0.055, 0.20, SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO] as const;
-const SPACESHIP_EXIT_X_TANGENTS = [0, 0, 0.85, 1.10, 1.60] as const;
-const SPACESHIP_EXIT_Y_RATIOS = [0.05, 0.04, -0.02, -0.18, -0.62] as const;
-const SPACESHIP_EXIT_Y_TANGENTS = [0, -0.38, -0.52, -1, -2] as const;
-const SPACESHIP_EXIT_ROTATIONS = [0, -4, 6, 13, SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES] as const;
-const SPACESHIP_EXIT_ROTATION_TANGENTS = [0, 18, 28, 20, 8] as const;
-const SPACESHIP_EXIT_SCALES = [1, 1.018, 1.01, 1, 0.985] as const;
-const SPACESHIP_EXIT_SCALE_TANGENTS = [0, 0, -0.03, -0.02, 0] as const;
+const SPACESHIP_EXIT_KNOT_SECONDS = [0, 0.1290625, 0.258125, 0.36875, 0.4978125, 0.6453125, 0.8296875, 0.995625, 1.18] as const;
+const SPACESHIP_EXIT_X_RATIOS = [0, 0.008, 0.035, 0.09, 0.20, 0.42, 0.78, SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO, SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO] as const;
+const SPACESHIP_EXIT_X_TANGENTS = [0, 0.12, 0.30, 0.58, 1.05, 1.75, 2.20, 0, 0] as const;
+const SPACESHIP_EXIT_Y_RATIOS = [0.05, 0.045, 0.025, -0.015, -0.10, -0.28, -0.58, -0.84, -0.84] as const;
+const SPACESHIP_EXIT_Y_TANGENTS = [0, -0.08, -0.22, -0.48, -0.90, -1.45, -1.85, 0, 0] as const;
+const SPACESHIP_EXIT_ROTATIONS = [0, 1.5, 4, 7, 11, 15, 19, 20, 20] as const;
+const SPACESHIP_EXIT_ROTATION_TANGENTS = [0, 14, 20, 24, 24, 20, 10, 0, 0] as const;
+const SPACESHIP_EXIT_SCALE_X = [1, 0.998, 0.994, 0.989, 0.982, 0.974, 0.964, 0.96, 0.96] as const;
+const SPACESHIP_EXIT_SCALE_Y = [1, 0.997, 0.991, 0.983, 0.973, 0.96, 0.945, 0.94, 0.94] as const;
+const SPACESHIP_EXIT_SCALE_X_TANGENTS = [0, -0.02, -0.03, -0.04, -0.05, -0.06, -0.04, 0, 0] as const;
+const SPACESHIP_EXIT_SCALE_Y_TANGENTS = [0, -0.03, -0.05, -0.06, -0.08, -0.09, -0.06, 0, 0] as const;
 
 function sampleSpaceshipExitTrack(
   values: readonly number[],
@@ -221,9 +235,14 @@ export function getSpaceshipSaucerExitPose(
       -SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES,
       Math.min(SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES, rotation),
     ),
-    scale: sampleSpaceshipExitTrack(
-      SPACESHIP_EXIT_SCALES,
-      SPACESHIP_EXIT_SCALE_TANGENTS,
+    scaleX: sampleSpaceshipExitTrack(
+      SPACESHIP_EXIT_SCALE_X,
+      SPACESHIP_EXIT_SCALE_X_TANGENTS,
+      elapsedSeconds,
+    ),
+    scaleY: sampleSpaceshipExitTrack(
+      SPACESHIP_EXIT_SCALE_Y,
+      SPACESHIP_EXIT_SCALE_Y_TANGENTS,
       elapsedSeconds,
     ),
   };
@@ -296,7 +315,7 @@ function createFakeBoardDie(value: number): HTMLElement {
 
 export function attachSpaceshipFinaleScene(
   overlay: HTMLElement,
-  options: { exitRandom?: () => number } = {},
+  options: { enterRandom?: () => number; exitRandom?: () => number } = {},
 ): (() => void) & {
   startExit?: () => void;
   completionDelaySeconds?: number;
@@ -333,6 +352,7 @@ export function attachSpaceshipFinaleScene(
   const beamRig = createRig('cc-spaceship-finale-rig cc-spaceship-finale-beam-rig', SPACESHIP_LAYER_Z.beam);
   const saucerRig = createRig('cc-spaceship-finale-rig cc-spaceship-finale-saucer-rig', SPACESHIP_LAYER_Z.saucer);
   const rigTargets = [beamRig, saucerRig];
+  const saucerEnter = getSpaceshipSaucerEnterPlan(options.enterRandom);
 
   const saucer = createImage(SAUCER_SOURCES[0], 'cc-spaceship-finale-saucer');
   saucer.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain;z-index:3';
@@ -389,7 +409,14 @@ export function attachSpaceshipFinaleScene(
   });
   overlay.insertBefore(field, overlay.firstChild);
 
-  gsap.set(rigTargets, { xPercent: -50, y: '-42vh', rotation: -11, opacity: 1, force3D: true });
+  gsap.set(rigTargets, {
+    xPercent: -50,
+    x: `${saucerEnter.startX * 100}vw`,
+    y: `${saucerEnter.startY * 100}vh`,
+    rotation: saucerEnter.startRotation,
+    opacity: 1,
+    force3D: true,
+  });
   gsap.set([leftBeam, rightBeam], { opacity: 0, scaleY: 0.96, force3D: true });
   debris.forEach(({ mover, image, x, y, startRotation, id }) => {
     const delaysAppearance = id === 'die1' || id === 'die8';
@@ -435,12 +462,74 @@ export function attachSpaceshipFinaleScene(
     traceSuction('scene-start', { debrisCount: debris.length });
     const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom);
     const master = own(gsap.timeline({ paused: true }));
-    master.to(rigTargets, {
-      y: '4vh',
-      rotation: 0,
+    const enterFlightState = { progress: 0 };
+    const enterPoseSetters = rigTargets.map((rig) => ({
+      x: gsap.quickSetter(rig, 'x', 'px'),
+      y: gsap.quickSetter(rig, 'y', 'px'),
+      rotation: gsap.quickSetter(rig, 'rotation', 'deg'),
+    }));
+    let enterViewportWidth = 390;
+    let enterViewportHeight = 844;
+    master.to(enterFlightState, {
+      progress: 1,
       duration: 0.45,
-      ease: 'power3.out',
+      ease: 'none',
+      onStart: () => {
+        const fieldRect = field.getBoundingClientRect();
+        enterViewportWidth = fieldRect.width || window.innerWidth || 390;
+        enterViewportHeight = fieldRect.height || window.innerHeight || 844;
+      },
+      onUpdate: () => {
+        const progress = enterFlightState.progress;
+        const flightProgress = 1 - Math.pow(1 - progress, 3);
+        const wobbleEnvelope = Math.pow(1 - flightProgress, 1.35) * Math.sin(Math.PI * flightProgress);
+        const x = cubicBezier(
+          saucerEnter.startX,
+          saucerEnter.control1X,
+          saucerEnter.control2X,
+          0,
+          flightProgress,
+        ) * enterViewportWidth
+          + saucerEnter.side * enterViewportWidth * 0.018
+            * Math.sin(5 * Math.PI * flightProgress) * wobbleEnvelope;
+        const y = cubicBezier(
+          saucerEnter.startY,
+          saucerEnter.control1Y,
+          saucerEnter.control2Y,
+          0.04,
+          flightProgress,
+        ) * enterViewportHeight
+          + enterViewportHeight * 0.01
+            * Math.sin(4 * Math.PI * flightProgress) * wobbleEnvelope;
+        const rotation = saucerEnter.startRotation * (1 - flightProgress)
+          + saucerEnter.side * 4 * Math.sin(4 * Math.PI * flightProgress) * wobbleEnvelope;
+        enterPoseSetters.forEach((setters) => {
+          setters.x(x);
+          setters.y(y);
+          setters.rotation(rotation);
+        });
+      },
     }, 0);
+    const enterSpringState = { progress: 0 };
+    const setBeamEnterYPercent = gsap.quickSetter(beamRig, 'yPercent');
+    const setSaucerEnterYPercent = gsap.quickSetter(saucerRig, 'yPercent');
+    let enterSpringRigHeight = 202;
+    master.to(enterSpringState, {
+      progress: 1,
+      duration: 0.60,
+      ease: 'none',
+      onStart: () => {
+        enterSpringRigHeight = saucerRig.getBoundingClientRect().height || 202;
+      },
+      onUpdate: () => {
+        const progress = enterSpringState.progress;
+        const offsetPx = 18 * (1 - progress) * Math.sin(3 * Math.PI * progress);
+        const offsetPercent = offsetPx / enterSpringRigHeight * 100;
+        setBeamEnterYPercent(offsetPercent);
+        setSaucerEnterYPercent(offsetPercent);
+      },
+    }, 0.30);
+    master.set(rigTargets, { yPercent: 0 }, 0.90);
     master.to(rigTargets, { x: -24, y: '6vh', rotation: -10, duration: 0.50, ease: 'sine.inOut' }, 0.45);
     master.to(rigTargets, { x: 18, y: '2vh', rotation: 12, duration: 0.50, ease: 'sine.inOut' }, 0.95);
     master.to(rigTargets, { x: -12, y: '7vh', rotation: -8, duration: 0.50, ease: 'sine.inOut' }, 1.45);
@@ -478,8 +567,8 @@ export function attachSpaceshipFinaleScene(
       setters.x(pose.x);
       setters.y(pose.y);
       setters.rotation(pose.rotation);
-      setters.scaleX(pose.scale);
-      setters.scaleY(pose.scale);
+      setters.scaleX(pose.scaleX);
+      setters.scaleY(pose.scaleY);
     };
     const exitState = { progress: 0 };
     let exitViewportHeight = 844;

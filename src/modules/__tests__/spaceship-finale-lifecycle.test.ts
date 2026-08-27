@@ -100,11 +100,11 @@ describe('Spaceship finale rendered lifecycle', () => {
     expect(saucerRig!.isConnected).toBe(true);
     expect(Number(gsap.getProperty(saucerRig!, 'opacity'))).toBe(1);
     tracked[0].seek(SPACESHIP_SAUCER_EXIT_AT_SECONDS + 0.10, false);
-    expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeGreaterThan(0);
-    expect(Number(gsap.getProperty(saucerRig!, 'rotation'))).toBeGreaterThan(0);
-    tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - 0.001, false);
     expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeLessThan(0);
     expect(Number(gsap.getProperty(saucerRig!, 'rotation'))).toBeLessThan(0);
+    tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS - 0.001, false);
+    expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeLessThan(0);
+    expect(Math.abs(Number(gsap.getProperty(saucerRig!, 'rotation')))).toBeLessThan(20);
     tracked[1].seek(SPACESHIP_BEAM_HIDDEN_AT_SECONDS, false);
     beams.forEach((beam) => {
       expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(0);

@@ -11,6 +11,7 @@ import {
 import {
   getSpaceshipMagneticPullProgress,
   getSpaceshipDebrisMotion,
+  getSpaceshipSaucerEnterPlan,
   getSpaceshipSaucerExitPose,
   getSpaceshipSaucerExitPlan,
   getSpaceshipScatterLayout,
@@ -25,6 +26,7 @@ import {
   SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS,
   SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE,
   SPACESHIP_DEBRIS_INITIAL_SCALE,
+  SPACESHIP_FAKE_DIE_SIZE_PX,
   SPACESHIP_DEBRIS_PLAN,
   SPACESHIP_EXTRA_ROCK_PLAN,
   SPACESHIP_FAKE_DICE_PLAN,
@@ -40,6 +42,7 @@ import {
   SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES,
   SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES,
   SPACESHIP_SAUCER_EXIT_SECONDS,
+  SPACESHIP_SAUCER_ENTER_LANES,
   SPACESHIP_SCATTER_ENTROPY,
   SPACESHIP_SCENE_SECONDS,
   SPACESHIP_SUCTION_COMPLETE_AT_SECONDS,
@@ -59,6 +62,9 @@ describe('Spaceship special die', () => {
       splashSplitIndex: 3,
       finaleScene: 'spaceship-abduction',
       idleMotion: 'spaceship-hover',
+      visualWidth: 147.456,
+      visualHeight: 147.456,
+      hitAreaSize: 'tile',
     });
     expect(spaceship?.texture).toMatch(/assets\/shop\/spaceship\/spaceship(?:@2x)?\.png$/);
     expect(getCoreWildTypeForSpecialDiceVariant(spaceship)).toBe('wild-magnet');
@@ -97,11 +103,11 @@ describe('Spaceship special die', () => {
     })?.id).not.toBe('spaceship');
   });
 
-  test('uses every supplied scene asset in one bounded three-and-a-half-second lifecycle owner', () => {
+  test('uses every supplied scene asset in one bounded complete lifecycle owner', () => {
     const scene = read('src/modules/spaceship-finale-scene.ts');
     const splash = read('src/modules/splash-text-overlay.ts');
     const idle = read('src/modules/special-dice-idle.ts');
-    expect(SPACESHIP_SCENE_SECONDS).toBe(3.5);
+    expect(SPACESHIP_SCENE_SECONDS).toBe(3.8);
     expect(scene).toContain('master.call(() => {}, undefined, SCENE_SECONDS)');
     expect(scene).toContain('cleanup.completionDelaySeconds = SCENE_SECONDS');
     expect(scene).toContain('animationManager.killExternalTimeline(timeline)');
@@ -153,10 +159,10 @@ describe('Spaceship special die', () => {
     expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeGreaterThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     expect(SPACESHIP_SAUCER_EXIT_AT_SECONDS).toBe(SPACESHIP_SUCTION_COMPLETE_AT_SECONDS);
     expect(SPACESHIP_SAUCER_EXIT_AT_SECONDS).toBeCloseTo(2.62, 10);
-    expect(SPACESHIP_SAUCER_EXIT_SECONDS).toBeCloseTo(0.88, 10);
+    expect(SPACESHIP_SAUCER_EXIT_SECONDS).toBeCloseTo(1.18, 10);
     expect(SPACESHIP_SAUCER_EXIT_AT_SECONDS + SPACESHIP_SAUCER_EXIT_SECONDS)
       .toBeCloseTo(SPACESHIP_SCENE_SECONDS, 10);
-    expect(SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS).toBeCloseTo(0.32 / 0.88, 10);
+    expect(SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS).toBeCloseTo(0.32 / 1.18, 10);
     expect(scene).toContain('gsap.utils.shuffle([...SPACESHIP_BEAM_SHIMMER_LEVELS])');
     expect(scene).toContain('scheduleBeamShimmer(rightBeam, 0.34, SPACESHIP_RIGHT_BEAM_LEAD_LEVELS)');
     expect(scene).toContain('scheduleBeamShimmer(leftBeam, 0.54)');
@@ -182,6 +188,18 @@ describe('Spaceship special die', () => {
       saucer: 5,
     });
     expect(scene).toContain('const rigTargets = [beamRig, saucerRig]');
+    expect(scene).toContain('const saucerEnter = getSpaceshipSaucerEnterPlan(options.enterRandom)');
+    expect(scene).toContain('const flightProgress = 1 - Math.pow(1 - progress, 3)');
+    expect(scene).toContain('saucerEnter.control1X');
+    expect(scene).toContain('saucerEnter.control2Y');
+    expect(scene).toContain("const setBeamEnterYPercent = gsap.quickSetter(beamRig, 'yPercent')");
+    expect(scene).toContain("const setSaucerEnterYPercent = gsap.quickSetter(saucerRig, 'yPercent')");
+    expect(scene).toContain('const offsetPx = 18 * (1 - progress) * Math.sin(3 * Math.PI * progress)');
+    expect(scene).toContain('setBeamEnterYPercent(offsetPercent)');
+    expect(scene).toContain('setSaucerEnterYPercent(offsetPercent)');
+    expect(scene).toContain('}, 0.30);\n    master.set(rigTargets, { yPercent: 0 }, 0.90);');
+    expect(scene).not.toContain("{ y: '2.5vh', duration: 0.07");
+    expect(scene).not.toContain("ease: 'back.out(4.05)'");
     expect(scene).toContain('? SPACESHIP_LAYER_Z.foregroundDice');
     expect(scene).toContain('? SPACESHIP_LAYER_Z.backgroundDice');
     expect(scene).toContain('? SPACESHIP_LAYER_Z.belowBeam');
@@ -215,12 +233,11 @@ describe('Spaceship special die', () => {
       .toEqual(['can1', 'can2', 'can4', 'rock3', 'rock6', 'rock7']);
     expect(SPACESHIP_FAKE_DICE_PLAN.map(({ value }) => value)).toEqual([3, 2, 4, 1, 2, 5, 4, 3]);
     expect(SPACESHIP_FAKE_DICE_PLAN).toHaveLength(8);
-    expect(SPACESHIP_FAKE_DICE_PLAN.map(({ sizeReduction }) => sizeReduction))
-      .toEqual([0.60, 0.80, 0.70, 0.75, 0.65, 0.60, 0.80, 0.70]);
-    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ size }) => size >= 19 && size <= 33)).toBe(true);
+    expect(SPACESHIP_FAKE_DIE_SIZE_PX * SPACESHIP_DEBRIS_INITIAL_SCALE).toBeCloseTo(72.8, 10);
+    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ size }) => size === SPACESHIP_FAKE_DIE_SIZE_PX)).toBe(true);
     expect(SPACESHIP_FAKE_DICE_PLAN.every(({ x }) => x <= 20 || x >= 80)).toBe(true);
     expect(SPACESHIP_FAKE_DICE_PLAN.every(({ y, size }) => y / 100 * 844 - size * 1.4 / 2 > 844)).toBe(true);
-    expect(new Set(SPACESHIP_FAKE_DICE_PLAN.map(({ size }) => size)).size).toBe(8);
+    expect(new Set(SPACESHIP_FAKE_DICE_PLAN.map(({ size }) => size)).size).toBe(1);
     expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => foregroundDice)).toBe(true);
     expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => !foregroundDice)).toBe(true);
     const valueThreeDice = SPACESHIP_FAKE_DICE_PLAN.filter(({ value }) => value === 3);
@@ -304,7 +321,7 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain("left: `${targetX}%`");
     expect(scene).not.toContain('stageY');
     expect(scene).not.toContain('yoyo: true');
-    expect(scene.match(/onUpdate:/g)).toHaveLength(2);
+    expect(scene.match(/onUpdate:/g)).toHaveLength(4);
     expect(scene).not.toContain('requestAnimationFrame');
     expect(scene).toContain('for (let index = 0; index < 27; index += 1)');
     expect(scene).toContain('}, SPACESHIP_SAUCER_EXIT_AT_SECONDS);');
@@ -312,11 +329,25 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain('new Graphics');
   });
 
+  test('chooses one of four curved saucer entry lanes independently from exit', () => {
+    expect(SPACESHIP_SAUCER_ENTER_LANES.map(({ id }) => id)).toEqual([
+      'upper-left', 'upper-right', 'left-upper', 'right-upper',
+    ]);
+    expect([0, 0.25, 0.5, 0.75].map((sample) => getSpaceshipSaucerEnterPlan(() => sample).id))
+      .toEqual(['upper-left', 'upper-right', 'left-upper', 'right-upper']);
+    expect(getSpaceshipSaucerEnterPlan(() => 1).id).toBe('right-upper');
+    expect(SPACESHIP_SAUCER_ENTER_LANES.every(({ startX, startY, startRotation }) => (
+      Math.abs(startX) >= 0.44 && startY <= -0.16 && Math.abs(startRotation) === 12
+    ))).toBe(true);
+    expect(SPACESHIP_SAUCER_ENTER_LANES[0].startX).toBe(-SPACESHIP_SAUCER_ENTER_LANES[1].startX);
+    expect(SPACESHIP_SAUCER_ENTER_LANES[2].startX).toBe(-SPACESHIP_SAUCER_ENTER_LANES[3].startX);
+  });
+
   test('samples one bounded floating saucer exit toward upper-left or upper-right', () => {
     expect(SPACESHIP_SAUCER_EXIT_LANES).toEqual([-1, 1]);
-    expect(SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES).toBe(18);
+    expect(SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES).toBe(20);
     expect(SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES).toBe(20);
-    expect(SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO).toBe(0.4);
+    expect(SPACESHIP_SAUCER_EXIT_HORIZONTAL_VIEWPORT_RATIO).toBe(1.12);
 
     const sample = (...values: number[]) => {
       let index = 0;
@@ -324,13 +355,13 @@ describe('Spaceship special die', () => {
     };
     expect(sample(0, 0)).toEqual({
       lane: -1,
-      finalXRatio: -0.4,
-      finalRotation: -18,
+      finalXRatio: -1.12,
+      finalRotation: -20,
     });
     expect(sample(0.999, 0)).toEqual({
       lane: 1,
-      finalXRatio: 0.4,
-      finalRotation: 18,
+      finalXRatio: 1.12,
+      finalRotation: 20,
     });
     let randomCalls = 0;
     getSpaceshipSaucerExitPlan(() => {
@@ -342,18 +373,22 @@ describe('Spaceship special die', () => {
     const scene = read('src/modules/spaceship-finale-scene.ts');
     const leftPlan = sample(0, 0);
     const startPose = getSpaceshipSaucerExitPose(leftPlan, 0, 844, 390);
-    const swishPose = getSpaceshipSaucerExitPose(leftPlan, 0.20 / 0.88, 844, 390);
+    const swishPose = getSpaceshipSaucerExitPose(leftPlan, 0.1290625 / 1.18, 844, 390);
     const detachPose = getSpaceshipSaucerExitPose(leftPlan, SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS, 844, 390);
     const middlePose = getSpaceshipSaucerExitPose(leftPlan, 0.5, 844, 390);
     const endPose = getSpaceshipSaucerExitPose(leftPlan, 1, 844, 390);
     const rightEndPose = getSpaceshipSaucerExitPose(sample(0.999, 0), 1, 844, 390);
     expect(startPose.x).toBeCloseTo(0, 10);
     expect(startPose.rotation).toBeCloseTo(0, 10);
-    expect(startPose.scale).toBeCloseTo(1, 10);
+    expect(startPose.scaleX).toBeCloseTo(1, 10);
+    expect(startPose.scaleY).toBeCloseTo(1, 10);
     expect(startPose.y).toBeCloseTo(42.2, 10);
-    expect(swishPose.x).toBeCloseTo(29.25, 10);
-    expect(swishPose.rotation).toBeCloseTo(4, 10);
-    const swishProgress = 0.20 / 0.88;
+    expect(swishPose.x).toBeLessThan(0);
+    expect(swishPose.rotation).toBeLessThan(0);
+    expect(swishPose.y).toBeLessThan(startPose.y);
+    expect(swishPose.scaleX).toBeLessThanOrEqual(1);
+    expect(swishPose.scaleY).toBeLessThanOrEqual(1);
+    const swishProgress = 0.1290625 / 1.18;
     const swishEpsilon = 0.00001;
     const beforeSwish = getSpaceshipSaucerExitPose(leftPlan, swishProgress - swishEpsilon, 844, 390);
     const afterSwish = getSpaceshipSaucerExitPose(leftPlan, swishProgress + swishEpsilon, 844, 390);
@@ -365,18 +400,18 @@ describe('Spaceship special die', () => {
       (afterSwish.x - swishPose.x) / swishEpsilon,
       (afterSwish.y - swishPose.y) / swishEpsilon,
     );
-    expect(swishSpeedBefore).toBeGreaterThan(200);
     expect(swishSpeedBefore).toBeCloseTo(swishSpeedAfter, 0);
-    expect(detachPose.x).toBeCloseTo(-21.45, 10);
-    expect(detachPose.rotation).toBeCloseTo(-6, 10);
+    expect(detachPose.x).toBeLessThan(0);
+    expect(Math.abs(detachPose.rotation)).toBeLessThan(SPACESHIP_SAUCER_EXIT_MAX_ROTATION_DEGREES);
     expect(middlePose.y).toBeLessThan(startPose.y);
     expect(middlePose.x).toBeLessThan(0);
-    expect(endPose.x).toBeCloseTo(-156, 10);
-    expect(endPose.y).toBeCloseTo(-523.28, 10);
-    expect(endPose.rotation).toBeCloseTo(-18, 10);
-    expect(endPose.scale).toBeCloseTo(0.985, 10);
-    expect(rightEndPose.x).toBeCloseTo(156, 10);
-    expect(rightEndPose.rotation).toBeCloseTo(18, 10);
+    expect(endPose.x).toBeCloseTo(-436.8, 10);
+    expect(endPose.y).toBeCloseTo(-708.96, 10);
+    expect(endPose.rotation).toBeCloseTo(-20, 10);
+    expect(endPose.scaleX).toBeCloseTo(0.96, 10);
+    expect(endPose.scaleY).toBeCloseTo(0.94, 10);
+    expect(rightEndPose.x).toBeCloseTo(436.8, 10);
+    expect(rightEndPose.rotation).toBeCloseTo(20, 10);
     for (const laneSample of [sample(0), sample(0.999)]) {
       const poses = Array.from({ length: 201 }, (_, index) => getSpaceshipSaucerExitPose(
         laneSample,
@@ -384,7 +419,12 @@ describe('Spaceship special die', () => {
         844,
         390,
       ));
-      expect(poses.some((pose) => Math.sign(pose.x) === -laneSample.lane)).toBe(true);
+      expect(poses.every((pose) => pose.x * laneSample.lane >= -0.000001)).toBe(true);
+      expect(poses.slice(1).every((pose, index) => (
+        pose.x * laneSample.lane >= poses[index].x * laneSample.lane - 0.000001
+        && pose.y <= poses[index].y + 0.000001
+        && pose.rotation * laneSample.lane >= poses[index].rotation * laneSample.lane - 0.000001
+      ))).toBe(true);
       expect(Math.sign(poses[poses.length - 1].x)).toBe(laneSample.lane);
       expect(poses.every((pose) => Math.abs(pose.rotation) <= 20)).toBe(true);
       expect(poses.every((pose) => Object.values(pose).every(Number.isFinite))).toBe(true);
@@ -392,8 +432,17 @@ describe('Spaceship special die', () => {
         pose.x - poses[index].x,
         pose.y - poses[index].y,
       ));
-      expect(Math.max(...jumps)).toBeLessThan(12);
+      expect(Math.max(...jumps)).toBeLessThan(17);
     }
+    const tailPose = (progress: number) => getSpaceshipSaucerExitPose(leftPlan, progress, 844, 390);
+    const sampledSpeed = (progress: number) => {
+      const epsilon = 0.0001;
+      const before = tailPose(progress - epsilon);
+      const after = tailPose(progress + epsilon);
+      return Math.hypot(after.x - before.x, after.y - before.y) / (2 * epsilon);
+    };
+    expect(sampledSpeed(0.66375 / 1.18)).toBeGreaterThan(sampledSpeed(0.479375 / 1.18) * 1.5);
+    expect(sampledSpeed(0.479375 / 1.18)).toBeGreaterThan(sampledSpeed(0.3871875 / 1.18) * 1.4);
     const epsilon = 0.00001;
     const beforeDetach = getSpaceshipSaucerExitPose(leftPlan, SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS - epsilon, 844, 390);
     const afterDetach = getSpaceshipSaucerExitPose(leftPlan, SPACESHIP_BEAM_DISCONNECT_EXIT_PROGRESS + epsilon, 844, 390);
@@ -405,7 +454,7 @@ describe('Spaceship special die', () => {
     expect(leftVelocityY).toBeCloseTo(rightVelocityY, 0);
 
     expect(scene).toContain('const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom)');
-    expect(scene.match(/master\.to\(rigTargets, \{/g)).toHaveLength(6);
+    expect(scene.match(/master\.to\(rigTargets, \{/g)).toHaveLength(5);
     expect(scene).toContain('const exitState = { progress: 0 }');
     expect(scene).toContain('exitViewportWidth = fieldRect.width || window.innerWidth || 390');
     expect(scene).toContain("traceSuction('saucer-exit-motion'");

@@ -23,9 +23,9 @@ describe('gameplay terminology', () => {
     [11, 'Beach 01'],
     [12, 'Beach 02'],
     [20, 'Beach 10'],
-    [21, 'Area 55 01'],
-    [22, 'Area 55 02'],
-    [30, 'Area 55 10'],
+    [21, 'Area 01'],
+    [22, 'Area 02'],
+    [30, 'Area 10'],
   ])('formats Journey result board %i as a World-local stage', (boardNumber, expected) => {
     expect(formatGameplayResultProgressLabel('journey', boardNumber)).toBe(expected);
   });

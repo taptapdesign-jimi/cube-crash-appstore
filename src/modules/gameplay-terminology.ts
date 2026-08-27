@@ -28,7 +28,7 @@ export function formatGameplayProgressLabel(
 const JOURNEY_RESULT_WORLD_NAMES = Object.freeze([
   'Forest',
   'Beach',
-  'Area 55',
+  'Area',
 ]);
 
 export function formatGameplayResultProgressLabel(

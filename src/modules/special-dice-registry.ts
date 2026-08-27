@@ -181,6 +181,8 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     shardColors: [0xF2CDA8, 0x8AEEFE],
     trailColors: [0xF8DCBF, 0xEFBE8F, 0x7CFBFD, 0x8AEEFE],
     finaleScene: 'spaceship-abduction',
+    visualWidth: 147.456,
+    visualHeight: 147.456,
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'spaceship-hover',
