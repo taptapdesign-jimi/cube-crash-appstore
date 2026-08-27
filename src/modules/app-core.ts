@@ -225,6 +225,7 @@ import {
   isSpecialDiceTntLikeTile,
   pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
+  shouldForceCoreTntAsFirstForestDie,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadWildSpawnDropAssets } from './wild-spawn-drop.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
@@ -6664,6 +6665,16 @@ async function spawnWildFromMeter(){
         spawnTnt = false;
         wildType = 'wild';
       }
+      if (!isFirstPlayTutorialRunActive() && shouldForceCoreTntAsFirstForestDie({
+        isArcade: isArcadeHomeRunMode(),
+        journeyBoard: boardNumber,
+        wildSpawnCount,
+      })) {
+        spawnJuice = false;
+        spawnMagnet = false;
+        spawnTnt = true;
+        wildType = 'wild-tnt';
+      }
       const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 11 && boardNumber <= 20;
       const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined;
       if (isBeachJourneyBoard) {
@@ -9741,9 +9752,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           ...getSpecialDiceSplashOptions(tntVariantForMerge),
         }
       : undefined;
+    const tntAnimationOptionsForMerge = {
+      ...(tntVisualOptionsForMerge || {}),
+      diceDebris: tntVariantForMerge == null,
+    };
     const tntFramesReadyForMerge =
       srcSpecial === 'wild-tnt' || dstSpecial === 'wild-tnt'
-        ? preloadTntFrames(tntVisualOptionsForMerge)
+        ? preloadTntFrames(tntAnimationOptionsForMerge)
             .then(() => true)
             .catch((error) => {
               devWarn('⚠️ TNT merge frame preload failed before the sprite finale:', error);
@@ -10428,7 +10443,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	              markTntVisualSequenceComplete = completeTntVisibleSequence;
 	              if (isMainWildTntVisualMerge) {
 	                const tntOverlay = showTntAnimation({
-	                  ...tntVisualOptionsForMerge,
+	                  ...tntAnimationOptionsForMerge,
 	                  onSprite6Start: () => {
 	                    triggerTntBonusBreak('sprite-6-enter-complete');
 	                  },

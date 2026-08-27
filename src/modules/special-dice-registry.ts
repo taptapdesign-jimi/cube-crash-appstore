@@ -711,6 +711,20 @@ export function getSpecialDiceFinaleAccentSpriteSources(tileOrVariant: any): str
 
 export const ROBO_WILD_VARIANT_CHANCE = 0.25;
 
+export function shouldForceCoreTntAsFirstForestDie({
+  isArcade,
+  journeyBoard,
+  wildSpawnCount,
+}: {
+  isArcade: boolean;
+  journeyBoard?: number;
+  wildSpawnCount: number;
+}): boolean {
+  return !isArcade
+    && Math.trunc(Number(journeyBoard)) === 1
+    && wildSpawnCount === 0;
+}
+
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,

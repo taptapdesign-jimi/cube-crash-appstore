@@ -24,6 +24,7 @@ import {
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
   pickSpecialDiceVariantForWildSpawn,
+  shouldForceCoreTntAsFirstForestDie,
   applySpecialDiceVariantToTile,
   clearSpecialDiceIdentity,
   isSpecialDiceResolutionOwned,
@@ -225,6 +226,34 @@ test('archetype preserves TNT finale when generic special field is missing', () 
 
   expect(getSpecialDiceFinaleFxForTile(tnt)).toBe('tnt');
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
+});
+
+test('original TNT is forced only as the first Forest Cjelina 01 die', () => {
+  expect(shouldForceCoreTntAsFirstForestDie({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 0,
+  })).toBe(true);
+  expect(shouldForceCoreTntAsFirstForestDie({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 1,
+  })).toBe(false);
+  expect(shouldForceCoreTntAsFirstForestDie({
+    isArcade: true,
+    journeyBoard: 1,
+    wildSpawnCount: 0,
+  })).toBe(false);
+  expect(shouldForceCoreTntAsFirstForestDie({
+    isArcade: false,
+    journeyBoard: 2,
+    wildSpawnCount: 0,
+  })).toBe(false);
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 0,
+  })).toBeNull();
 });
 
 test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay archetype', () => {

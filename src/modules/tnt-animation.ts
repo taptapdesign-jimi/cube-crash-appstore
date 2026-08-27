@@ -2,7 +2,7 @@
 // Anchor na kockici merge 6; prati board shake; bez stanke na tnt6; slide + bounce
 
 import { gsap } from 'gsap';
-import { Assets, Container, Sprite, type Texture } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite, type Texture } from 'pixi.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
@@ -41,6 +41,19 @@ const TNT_ANIM_FRAMES_2X: string[] = [
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const TNT_ANIM_FRAMES_FALLBACK: string[] = TNT_ANIM_FRAMES_1X;
 export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_FALLBACK;
+export const TNT_DICE_DEBRIS_COUNT = 14;
+// TNT smoke frames occupy integer z-depths 0...11. Keep two dice immediately
+// above the nearest cloud (but still behind the separate DOM BOOM text), then
+// force the rest through the cloud body instead of leaving depth to chance.
+export const TNT_DICE_DEBRIS_DEPTHS = [
+  11.5, 10.5, 9.5, 8.5,
+  7.5, 6.5, 5.5, 4.5,
+  3.5, 2.5, 1.5, 0.5,
+  11.25, 6.25,
+] as const;
+const TNT_DICE_BOOM_UNDERLAY_INDICES = new Set([0, 12]);
+const TNT_DICE_FRONT_SMOKE_INDEX = 1;
+const TNT_DICE_TILE_SOURCE = './assets/tile.png';
 
 export type TntAnimationVisualOptions = {
   frameSources?: string[];
@@ -55,6 +68,7 @@ export type TntAnimationVisualOptions = {
   hideFrameIndicesAtExitStart?: number[];
   burstSources?: string[];
   burstMotion?: Record<string, unknown>;
+  diceDebris?: boolean;
 };
 
 const preloadPromises = new Map<string, Promise<void>>();
@@ -75,7 +89,8 @@ function resolveFrameSources(options?: TntAnimationVisualOptions): { preferred: 
 export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promise<void> {
   const { preferred, fallback } = resolveFrameSources(options);
   const burstSources = Array.isArray(options.burstSources) ? options.burstSources.filter(Boolean) : [];
-  const cacheKey = [...preferred, ...burstSources].join('|');
+  const diceSources = options.diceDebris === true ? [TNT_DICE_TILE_SOURCE] : [];
+  const cacheKey = [...preferred, ...burstSources, ...diceSources].join('|');
   const existing = preloadPromises.get(cacheKey);
   if (existing) return existing;
 
@@ -104,6 +119,11 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
       if (isRenderableTexture(cached)) return;
       await Assets.load<Texture>(source);
     }));
+    await Promise.all(diceSources.map(async (source) => {
+      const cached = Assets.get(source) as Texture | undefined;
+      if (isRenderableTexture(cached)) return;
+      await Assets.load<Texture>(source);
+    }));
   })().catch((error) => {
     // A transient local WebView/asset-cache failure must remain retryable.
     preloadPromises.delete(cacheKey);
@@ -112,6 +132,113 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
 
   preloadPromises.set(cacheKey, preloadPromise);
   return preloadPromise;
+}
+
+export type TntDiceDebrisPlan = {
+  value: number;
+  size: number;
+  depth: number;
+  angle: number;
+  distance: number;
+  curve: number;
+  startX: number;
+  startY: number;
+  startRotation: number;
+  rotationTravel: number;
+  startScale: number;
+  peakScale: number;
+  endScale: number;
+  delay: number;
+  duration: number;
+};
+
+export function createTntDiceDebrisPlans(random: () => number = Math.random): TntDiceDebrisPlan[] {
+  const originSlots = [
+    { x: -120, y: -90 }, { x: -35, y: -135 }, { x: 55, y: -130 }, { x: 130, y: -75 },
+    { x: -155, y: 5 }, { x: 155, y: 10 }, { x: -120, y: 95 }, { x: 120, y: 100 },
+    { x: -35, y: 145 }, { x: 55, y: 150 }, { x: -175, y: 145 }, { x: 175, y: 155 },
+    { x: -185, y: -150 }, { x: 185, y: -145 },
+  ];
+  const delays = [
+    0.14, 0.18, 0.22, 0.26,
+    0.36, 0.42, 0.48, 0.54,
+    0.60, 0.66, 0.72, 0.78, 0.84, 0.90,
+  ];
+  const angleEntropy: number[] = [];
+  const plans = Array.from({ length: TNT_DICE_DEBRIS_COUNT }, (_, index) => {
+    const origin = originSlots[index];
+    const startX = origin.x * 0.50 + (random() - 0.5) * 6;
+    const startY = origin.y * 0.50 + (random() - 0.5) * 6;
+    const angleJitter = (random() - 0.5) * 0.20;
+    angleEntropy.push(angleJitter);
+    return {
+      value: 1 + Math.floor(Math.max(0, Math.min(0.999999, random())) * 6),
+      size: 36 + random() * 22,
+      depth: TNT_DICE_DEBRIS_DEPTHS[index],
+      angle: Math.atan2(startY, startX) + angleJitter,
+      distance: 95 + random() * 70,
+      curve: (index % 2 === 0 ? -1 : 1) * (10 + random() * 16),
+      startX,
+      startY,
+      startRotation: (random() - 0.5) * 0.78,
+      rotationTravel: (random() < 0.5 ? -1 : 1) * (1.25 + random() * 2.15),
+      startScale: 0.44 + random() * 0.28,
+      peakScale: 0.88 + random() * 0.42,
+      endScale: 0.38 + random() * 0.38,
+      delay: delays[index] + random() * 0.018,
+      duration: 0.82 + random() * 0.22,
+    };
+  });
+  // These three plans are composition anchors, not random ring debris. Two sit
+  // above frame 11 while the DOM BOOM letters enter, so they visibly travel
+  // behind the glyphs. The third sits just below frame 11 in the smoke centre.
+  // Keep them pinned while the separation solver moves neighbouring dice away.
+  Object.assign(plans[0], {
+    startX: -38, startY: 4, delay: 0.32, duration: 1, distance: 72, curve: -12,
+  });
+  Object.assign(plans[12], {
+    startX: 38, startY: -4, delay: 0.40, duration: 0.96, distance: 72, curve: 12,
+  });
+  Object.assign(plans[TNT_DICE_FRONT_SMOKE_INDEX], {
+    startX: 0, startY: 48, delay: 0.36, duration: 0.98, distance: 78, curve: 10,
+  });
+  const pinnedCompositionIndices = new Set([
+    ...TNT_DICE_BOOM_UNDERLAY_INDICES,
+    TNT_DICE_FRONT_SMOKE_INDEX,
+  ]);
+  for (let iteration = 0; iteration < 24; iteration += 1) {
+    for (let firstIndex = 0; firstIndex < plans.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < plans.length; secondIndex += 1) {
+        const first = plans[firstIndex];
+        const second = plans[secondIndex];
+        const dx = second.startX - first.startX;
+        const dy = second.startY - first.startY;
+        const distance = Math.max(0.001, Math.hypot(dx, dy));
+        const minimumDistance = (first.size + second.size) * 0.5 + 3;
+        if (distance >= minimumDistance) continue;
+        const firstPinned = pinnedCompositionIndices.has(firstIndex);
+        const secondPinned = pinnedCompositionIndices.has(secondIndex);
+        if (firstPinned && secondPinned) continue;
+        const push = minimumDistance - distance;
+        const normalX = dx / distance;
+        const normalY = dy / distance;
+        if (!firstPinned) {
+          const firstPush = secondPinned ? push : push * 0.5;
+          first.startX -= normalX * firstPush;
+          first.startY -= normalY * firstPush;
+        }
+        if (!secondPinned) {
+          const secondPush = firstPinned ? push : push * 0.5;
+          second.startX += normalX * secondPush;
+          second.startY += normalY * secondPush;
+        }
+      }
+    }
+  }
+  plans.forEach((plan, index) => {
+    plan.angle = Math.atan2(plan.startY, plan.startX) + angleEntropy[index];
+  });
+  return plans;
 }
 
 let isActive = false;
@@ -424,6 +551,120 @@ function attachDepthLayeredFlowerBurst(
   };
 }
 
+const TNT_DICE_PIP_POSITIONS: Record<number, Array<[number, number]>> = {
+  1: [[0, 0]],
+  2: [[-1, -1], [1, 1]],
+  3: [[-1, -1], [0, 0], [1, 1]],
+  4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+  5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+  6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]],
+};
+
+function attachDepthLayeredTntDiceDebris(
+  container: Container,
+  tileTexture: Texture,
+  centerX: number,
+  centerY: number,
+  random: () => number = Math.random,
+): () => void {
+  const dice: Container[] = [];
+  const timelines: gsap.core.Timeline[] = [];
+  let disposed = false;
+
+  createTntDiceDebrisPlans(random).forEach((plan) => {
+    const die = new Container();
+    die.label = `tnt-dice-debris-${plan.value}`;
+    die.eventMode = 'none';
+    die.zIndex = plan.depth;
+    die.position.set(centerX + plan.startX, centerY + plan.startY);
+    die.rotation = plan.startRotation;
+    die.alpha = 0;
+
+    const face = new Sprite(tileTexture);
+    face.anchor.set(0.5);
+    face.width = 64;
+    face.height = 64;
+    face.eventMode = 'none';
+    die.addChild(face);
+
+    const pips = new Graphics();
+    const spacing = 15;
+    const pipSize = 7.5;
+    TNT_DICE_PIP_POSITIONS[plan.value].forEach(([column, row]) => {
+      pips.roundRect(
+        column * spacing - pipSize * 0.5,
+        row * spacing - pipSize * 0.5,
+        pipSize,
+        pipSize,
+        2.2,
+      );
+    });
+    pips.fill({ color: 0x815A42, alpha: 0.9 });
+    pips.eventMode = 'none';
+    die.addChild(pips);
+
+    const settledScale = plan.size / 64;
+    die.scale.set(settledScale * plan.startScale);
+    container.addChild(die);
+    dice.push(die);
+
+    const flight = { progress: 0 };
+    const perpendicularX = -Math.sin(plan.angle);
+    const perpendicularY = Math.cos(plan.angle);
+    const timeline = trackTimeline({ delay: plan.delay });
+    timeline.to(flight, {
+      progress: 1,
+      duration: plan.duration,
+      ease: 'none',
+      onUpdate: () => {
+        if (disposed || die.destroyed) return;
+        const progress = flight.progress;
+        const impulse = 1 - Math.pow(1 - progress, 2.35);
+        const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
+        const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
+        const popIn = Math.min(1, progress / 0.12);
+        die.x = centerX + plan.startX
+          + Math.cos(plan.angle) * plan.distance * impulse
+          + perpendicularX * curveEnvelope;
+        die.y = centerY + plan.startY
+          + Math.sin(plan.angle) * plan.distance * impulse
+          + perpendicularY * curveEnvelope
+          + 28 * progress * progress;
+        die.rotation = plan.startRotation + plan.rotationTravel * impulse;
+        const liveScale = plan.startScale + (plan.peakScale - plan.startScale) * popIn;
+        const scale = settledScale * (liveScale + (plan.endScale - liveScale) * fadeOut);
+        die.scale.set(scale);
+        die.alpha = popIn * (1 - fadeOut);
+      },
+    });
+    timelines.push(timeline);
+  });
+  try { container.sortChildren?.(); } catch {}
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    timelines.forEach((timeline) => {
+      try { timeline.kill(); } catch {}
+    });
+    dice.forEach((die) => {
+      try {
+        gsap.killTweensOf(die);
+        gsap.killTweensOf(die.scale);
+        if (die.parent) die.parent.removeChild(die);
+        const children = die.removeChildren();
+        children.forEach((child) => {
+          try {
+            if (child instanceof Sprite) child.destroy({ texture: false, textureSource: false });
+            else child.destroy();
+          } catch {}
+        });
+        die.destroy();
+      } catch {}
+    });
+  };
+}
+
 function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
@@ -587,6 +828,7 @@ export function showTntAnimation(options: {
   hideFrameIndicesAtExitStart?: number[];
   burstSources?: string[];
   burstMotion?: Record<string, unknown>;
+  diceDebris?: boolean;
 } = {}): HTMLElement | null {
   tntMemInit();
   const now = Date.now();
@@ -817,6 +1059,18 @@ export function showTntAnimation(options: {
           foregroundBurstCleanups.push(dispose);
         }, [], at);
       });
+    }
+  }
+  if (options.diceDebris === true && pixiFrameContainer) {
+    const tileTexture = Assets.get(TNT_DICE_TILE_SOURCE) as Texture | undefined;
+    if (isRenderableTexture(tileTexture)) {
+      const dispose = attachDepthLayeredTntDiceDebris(
+        pixiFrameContainer,
+        tileTexture,
+        centerX,
+        centerY,
+      );
+      foregroundBurstCleanups.push(dispose);
     }
   }
 
