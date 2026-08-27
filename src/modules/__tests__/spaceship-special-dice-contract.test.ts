@@ -11,19 +11,28 @@ import {
 import {
   getSpaceshipMagneticPullProgress,
   getSpaceshipDebrisMotion,
+  getSpaceshipScatterLayout,
+  SPACESHIP_BEAM_DISCONNECT_AT_SECONDS,
+  SPACESHIP_BEAM_EXIT_ALTERNATING_STATES,
   SPACESHIP_BEAM_EXIT_FADE_DURATION,
   SPACESHIP_BEAM_EXIT_FLASH_DURATION,
   SPACESHIP_BEAM_EXIT_FLASH_LEVELS,
   SPACESHIP_BEAM_EXIT_FLASH_STARTS,
+  SPACESHIP_BEAM_HIDDEN_AT_SECONDS,
+  SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS,
   SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE,
   SPACESHIP_DEBRIS_INITIAL_SCALE,
   SPACESHIP_DEBRIS_PLAN,
+  SPACESHIP_EXTRA_ROCK_PLAN,
   SPACESHIP_FAKE_DICE_PLAN,
   SPACESHIP_LAYER_Z,
   SPACESHIP_PULL_ARRIVAL_GAP_SECONDS,
   SPACESHIP_PULL_BASE_SECONDS,
   SPACESHIP_PULL_LINEAR_WEIGHT,
+  SPACESHIP_PULL_PLAN,
   SPACESHIP_RIGHT_BEAM_LEAD_LEVELS,
+  SPACESHIP_SAUCER_EXIT_AT_SECONDS,
+  SPACESHIP_SCATTER_ENTROPY,
   SPACESHIP_SCENE_SECONDS,
 } from '../spaceship-finale-scene';
 
@@ -79,11 +88,11 @@ describe('Spaceship special die', () => {
     })?.id).not.toBe('spaceship');
   });
 
-  test('uses every supplied scene asset in one bounded four-second lifecycle owner', () => {
+  test('uses every supplied scene asset in one bounded three-and-a-half-second lifecycle owner', () => {
     const scene = read('src/modules/spaceship-finale-scene.ts');
     const splash = read('src/modules/splash-text-overlay.ts');
     const idle = read('src/modules/special-dice-idle.ts');
-    expect(SPACESHIP_SCENE_SECONDS).toBe(4);
+    expect(SPACESHIP_SCENE_SECONDS).toBe(3.5);
     expect(scene).toContain('master.call(() => {}, undefined, SCENE_SECONDS)');
     expect(scene).toContain('cleanup.completionDelaySeconds = SCENE_SECONDS');
     expect(scene).toContain('animationManager.killExternalTimeline(timeline)');
@@ -116,17 +125,37 @@ describe('Spaceship special die', () => {
     const scene = read('src/modules/spaceship-finale-scene.ts');
     expect(SPACESHIP_RIGHT_BEAM_LEAD_LEVELS).toEqual([0.5, 0.6, 0.4, 1]);
     expect(SPACESHIP_BEAM_EXIT_FLASH_LEVELS).toEqual([1, 0, 1, 0, 0.7, 0, 0.4, 0]);
-    expect(SPACESHIP_BEAM_EXIT_FLASH_STARTS[0]).toBeLessThan(3.52);
+    expect(SPACESHIP_BEAM_EXIT_ALTERNATING_STATES).toEqual([
+      [1, 0], [0, 1], [0.85, 0], [0, 0.75],
+      [0.65, 0], [0, 0.55], [0.4, 0], [0, 0],
+    ]);
+    expect(SPACESHIP_BEAM_EXIT_ALTERNATING_STATES.slice(0, -1).every(([left, right]) => (left > 0) !== (right > 0))).toBe(true);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_STARTS[0]).toBeLessThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     expect(
       SPACESHIP_BEAM_EXIT_FLASH_STARTS[SPACESHIP_BEAM_EXIT_FLASH_STARTS.length - 1]
         + SPACESHIP_BEAM_EXIT_FADE_DURATION,
-    ).toBeLessThan(4);
-    expect(SPACESHIP_BEAM_EXIT_FLASH_DURATION).toBe(0.055);
-    expect(SPACESHIP_BEAM_EXIT_FADE_DURATION).toBe(0.17);
+    ).toBeLessThan(SPACESHIP_BEAM_HIDDEN_AT_SECONDS);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_DURATION).toBe(0.009);
+    expect(SPACESHIP_BEAM_EXIT_FADE_DURATION).toBe(0.009);
+    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBe(3.21);
+    expect(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS).toBe(3.24);
+    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeLessThan(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS);
+    expect(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS).toBeLessThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeLessThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    expect(SPACESHIP_SAUCER_EXIT_AT_SECONDS).toBe(3.25);
     expect(scene).toContain('gsap.utils.shuffle([...SPACESHIP_BEAM_SHIMMER_LEVELS])');
-    expect(scene).toContain('scheduleBeamShimmer(rightBeam, 0.52, SPACESHIP_RIGHT_BEAM_LEAD_LEVELS)');
-    expect(scene).toContain('scheduleBeamShimmer(leftBeam, 0.80)');
+    expect(scene).toContain('scheduleBeamShimmer(rightBeam, 0.34, SPACESHIP_RIGHT_BEAM_LEAD_LEVELS)');
+    expect(scene).toContain('scheduleBeamShimmer(leftBeam, 0.54)');
+    expect(scene).toContain("visibility: 'hidden'");
     expect(scene).toContain("ease: isFinalFade ? 'power2.out' : 'power1.inOut'");
+    expect(scene).toContain('beams.to(leftBeam');
+    expect(scene).toContain('beams.to(rightBeam');
+    expect(scene).toContain("beams.set(beamRig, { opacity: 0, visibility: 'hidden', display: 'none' }");
+    expect(scene).toContain("traceSuction('beam-off'");
+    expect(scene).toContain("traceSuction('beam-disconnected'");
+    expect(scene).toContain("traceSuction('saucer-exit-start'");
+    expect(scene).toContain('master.to(saucerRig');
+    expect(scene).not.toContain("master.to(rigTargets, { y: '-48vh'");
     expect(scene).not.toContain("beams.to([leftBeam, rightBeam], { opacity: 0, duration: 0.26, ease: 'power2.in' }, 3.46)");
     expect(scene).toContain('left:-40%;top:calc(66% - 40px);width:132%');
     expect(scene).toContain('right:-43.25%;top:calc(66% - 40px);width:145.5%');
@@ -180,16 +209,35 @@ describe('Spaceship special die', () => {
     expect(new Set(SPACESHIP_FAKE_DICE_PLAN.map(({ size }) => size)).size).toBe(8);
     expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => foregroundDice)).toBe(true);
     expect(SPACESHIP_FAKE_DICE_PLAN.some(({ foregroundDice }) => !foregroundDice)).toBe(true);
+    const valueThreeDice = SPACESHIP_FAKE_DICE_PLAN.filter(({ value }) => value === 3);
+    const nonValueThree = SPACESHIP_PULL_PLAN.filter((plan) => !('value' in plan) || plan.value !== 3);
+    expect(valueThreeDice).toHaveLength(2);
+    expect(valueThreeDice.every((die) => 'travelDelaySeconds' in die && die.travelDelaySeconds > 0)).toBe(true);
+    expect(Math.min(...valueThreeDice.map(({ pullOrder }) => pullOrder)))
+      .toBeGreaterThan(Math.max(...nonValueThree.map(({ pullOrder }) => pullOrder)));
+    expect(Math.min(...valueThreeDice.map(getSpaceshipDebrisMotion).map(({ arrivalAt }) => arrivalAt)))
+      .toBeGreaterThan(Math.max(...nonValueThree.map(getSpaceshipDebrisMotion).map(({ arrivalAt }) => arrivalAt)));
+    expect(Math.max(...SPACESHIP_FAKE_DICE_PLAN.map(({ wobbleRotation }) => Math.abs(wobbleRotation)))).toBe(60);
+    expect(SPACESHIP_FAKE_DICE_PLAN.every(({ wobbleRotation }) => Math.abs(wobbleRotation) <= 60)).toBe(true);
+    expect(Math.min(...SPACESHIP_FAKE_DICE_PLAN.map(({ x }) => x))).toBeLessThanOrEqual(3);
+    expect(Math.max(...SPACESHIP_FAKE_DICE_PLAN.map(({ x }) => x))).toBeGreaterThanOrEqual(97);
+    expect(SPACESHIP_EXTRA_ROCK_PLAN).toHaveLength(5);
+    expect(SPACESHIP_EXTRA_ROCK_PLAN.filter(({ id }) => id.startsWith('rock1Copy'))).toHaveLength(2);
+    expect(SPACESHIP_EXTRA_ROCK_PLAN.filter(({ id }) => id.startsWith('rock3Copy'))).toHaveLength(3);
+    expect(SPACESHIP_EXTRA_ROCK_PLAN.every(({ startRotation }) => Math.abs(startRotation) === 95)).toBe(true);
+    expect(new Set(SPACESHIP_EXTRA_ROCK_PLAN.map(({ size }) => size)).size).toBe(5);
     expect(scene).toContain("const BOARD_TILE_SOURCE = `./assets/tile${useHighResolutionAssets ? '@2x' : ''}.png`");
     expect(scene).toContain('createFakeBoardDie(layout.value)');
     const motions = pullPlan.map(getSpaceshipDebrisMotion);
     expect(motions.every(({ travelStartAt }) => travelStartAt === 0)).toBe(true);
-    expect(SPACESHIP_PULL_BASE_SECONDS).toBe(2);
-    expect(SPACESHIP_PULL_ARRIVAL_GAP_SECONDS).toBe(0.045);
+    expect(SPACESHIP_PULL_BASE_SECONDS).toBe(1.95);
+    expect(SPACESHIP_PULL_ARRIVAL_GAP_SECONDS).toBe(0.04);
     motions.slice(1).forEach(({ arrivalAt }, index) => {
-      expect(arrivalAt - motions[index].arrivalAt).toBeCloseTo(0.045, 10);
+      expect(arrivalAt - motions[index].arrivalAt).toBeCloseTo(0.04, 10);
     });
-    expect(Math.max(...motions.map(({ arrivalAt }) => arrivalAt))).toBeCloseTo(2.495, 10);
+    expect(Math.max(...motions.map(({ arrivalAt }) => arrivalAt))).toBeCloseTo(2.39, 10);
+    expect(SPACESHIP_BEAM_EXIT_FLASH_STARTS[0]).toBe(3.115);
+    expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBe(3.21);
     expect(new Set(motions.map(({ travelSeconds }) => travelSeconds.toFixed(3))).size).toBeGreaterThanOrEqual(3);
     expect(new Set(SPACESHIP_DEBRIS_PLAN.map(({ curveX }) => curveX.join(','))).size).toBe(12);
     expect(SPACESHIP_DEBRIS_PLAN.every(({ x, curveX }) => curveX.some((control) => control !== x))).toBe(true);
@@ -224,16 +272,26 @@ describe('Spaceship special die', () => {
     expect(scene).toContain("gsap.quickSetter(image, 'rotation', 'deg')");
     expect(scene).toContain("left: () => `${resolveIntakePoint(intakeMarker).left}px`");
     expect(scene).toContain("top: () => `${resolveIntakePoint(intakeMarker).top}px`");
-    expect(scene).toContain('item.set(mover, { opacity: 0, scale: 0.06 }, arrivalAt + 0.025)');
+    expect(SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS).toBe(0.01);
+    expect(scene).toContain('arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS');
+    expect(scene).toContain("gsap.utils.clamp(-60, 60, rotation)");
+    expect(SPACESHIP_SCATTER_ENTROPY).toBe(0.5);
+    const minimumScatter = getSpaceshipScatterLayout(SPACESHIP_DEBRIS_PLAN[0], () => 0);
+    const maximumScatter = getSpaceshipScatterLayout(SPACESHIP_DEBRIS_PLAN[0], () => 1);
+    expect(minimumScatter.x).toBeGreaterThanOrEqual(-6);
+    expect(maximumScatter.x).toBeLessThanOrEqual(106);
+    expect([...minimumScatter.curveX, ...maximumScatter.curveX].every((control) => control >= -15 && control <= 115)).toBe(true);
+    expect(minimumScatter.y).toBe(SPACESHIP_DEBRIS_PLAN[0].y);
+    expect(maximumScatter.y).toBe(SPACESHIP_DEBRIS_PLAN[0].y + 8);
+    expect(scene).toContain('const scatteredLayout = getSpaceshipScatterLayout(layout)');
     expect(scene).toContain("traceSuction('item-arrival'");
     expect(scene).not.toContain("left: `${targetX}%`");
     expect(scene).not.toContain('stageY');
     expect(scene).not.toContain('yoyo: true');
     expect(scene.match(/onUpdate:/g)).toHaveLength(1);
     expect(scene).not.toContain('requestAnimationFrame');
-    expect(scene).not.toMatch(/rotation:\s*(?:-?(?:3[1-9]|[4-9]\d|\d{3,}))/);
-    expect(scene).toContain('for (let index = 0; index < 22; index += 1)');
-    expect(scene).toContain("}, 3.52);");
+    expect(scene).toContain('for (let index = 0; index < 27; index += 1)');
+    expect(scene).toContain('}, SPACESHIP_SAUCER_EXIT_AT_SECONDS);');
     expect(scene).not.toContain('backgroundColor');
     expect(scene).not.toContain('new Graphics');
   });
