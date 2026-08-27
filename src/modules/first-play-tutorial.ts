@@ -54,6 +54,7 @@ let scheduledTimeouts: number[] = [];
 let scheduledAnimationFrames: number[] = [];
 let tutorialCtaController: CtaController | null = null;
 let activationPending = false;
+let guidedDragOwner: { step: TutorialStep; tile: any } | null = null;
 
 function disposeTutorialCta(): void {
   tutorialCtaController?.dispose();
@@ -230,8 +231,11 @@ export function beginFirstPlayTutorialRun(source: TutorialRunSource): boolean {
   stepFourWildTile = null;
   stepFourTargetTile = null;
   activationPending = false;
+  guidedDragOwner = null;
   (window as any).__ccFirstPlayTutorialActive = true;
   (window as any).__ccFirstPlayTutorialCanDrop = isTutorialDropAllowed;
+  (window as any).__ccFirstPlayTutorialDragStarted = hidePointerForGuidedDrag;
+  (window as any).__ccFirstPlayTutorialDragReturned = restorePointerAfterGuidedSnapBack;
   (window as any).__ccFirstPlayTutorialDisplaceWildSpawnOccupant = displaceFourthStepWildSpawnOccupant;
   setWildMeterSmokeFrozen(true);
   hudDimStarted = false;
@@ -1199,6 +1203,41 @@ function popOutPointer(onComplete?: () => void): void {
   });
 }
 
+function isCurrentGuidedDragTile(tile: any): boolean {
+  if (!active || !tile || tile.destroyed) return false;
+  if (currentStep !== 1 && currentStep !== 2 && currentStep !== 4) return false;
+  return targetTiles.includes(tile);
+}
+
+function hidePointerForGuidedDrag(tile: any): void {
+  if (!isCurrentGuidedDragTile(tile)) return;
+  guidedDragOwner = { step: currentStep, tile };
+  const pointer = getPointerShell();
+  const image = getPointerImage();
+  stopStepThreePointerHint();
+  stopStepFourPointerHint();
+  if (pointer) {
+    gsap.killTweensOf(pointer);
+    pointer.style.display = 'none';
+  }
+  if (image) {
+    gsap.killTweensOf(image);
+    gsap.set(image, { opacity: 0, scale: 0 });
+  }
+}
+
+function restorePointerAfterGuidedSnapBack(tile: any): void {
+  const owner = guidedDragOwner;
+  if (!owner || owner.tile !== tile || owner.step !== currentStep) return;
+  guidedDragOwner = null;
+  if (!isCurrentGuidedDragTile(tile)) return;
+  if (currentStep === 4) {
+    startStepFourPointerHint();
+  } else {
+    popInPointer();
+  }
+}
+
 function cellRect(c: number, r: number): DOMRect | null {
   const app = STATE.app;
   const board = STATE.board;
@@ -1351,6 +1390,7 @@ function animateSecondStepOneTileIn(tile: any): void {
 function activateSecondStep(mergedTile: any): void {
   if (!active || !mergedTile || mergedTile.destroyed) return;
   currentStep = 2;
+  guidedDragOwner = null;
   secondStepUserInteracted = false;
   secondStepCompleting = false;
   const oneCol = Math.max(0, COLS - 2);
@@ -1460,6 +1500,7 @@ function activateThirdStep(): void {
   targetCellThree = null;
   targetCellTwo = null;
   pointerAnimationKey = '';
+  guidedDragOwner = null;
   restoreBoardAndHudOpacity(false, false);
   stopHudDim(true, true);
   restoreAllTileInteractivityForFreePlay();
@@ -1485,6 +1526,8 @@ function restoreNormalGameplayDrag(final = false): void {
   if (final) {
     try {
       delete (window as any).__ccFirstPlayTutorialCanDrop;
+      delete (window as any).__ccFirstPlayTutorialDragStarted;
+      delete (window as any).__ccFirstPlayTutorialDragReturned;
       delete (window as any).__ccFirstPlayTutorialActive;
       delete (window as any).__ccFirstPlayTutorialWildSpawnCell;
       delete (window as any).__ccFirstPlayTutorialForceWildStar;
@@ -1849,6 +1892,7 @@ function activateFourthStep(wildTile: any): void {
   targetCellThree = null;
   targetCellTwo = null;
   pointerAnimationKey = '';
+  guidedDragOwner = null;
 
   setOverlayDimVisible(true);
   scheduleTimeout(() => {
@@ -2222,6 +2266,7 @@ export function completeFirstPlayTutorial(): void {
   stepFourTargetTile = null;
   hudDimStarted = false;
   activationPending = false;
+  guidedDragOwner = null;
   stopPolling();
   stopStepThreeBoardDim();
   clearScheduledWork();
@@ -2275,6 +2320,8 @@ export function openFirstPlayTutorialDevModal(): void {
 
 if (isBrowser()) {
   (window as any).__ccFirstPlayTutorialCanDrop = isTutorialDropAllowed;
+  (window as any).__ccFirstPlayTutorialDragStarted = hidePointerForGuidedDrag;
+  (window as any).__ccFirstPlayTutorialDragReturned = restorePointerAfterGuidedSnapBack;
   (window as any).firstPlayTutorial = {
     arm: armFirstPlayTutorial,
     reset: resetFirstPlayTutorialRequest,

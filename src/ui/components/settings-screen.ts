@@ -807,7 +807,7 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
               {
                 tag: 'div',
                 className: 'settings-footer-text',
-                html: '<span class="settings-version">v1.0</span>Made with ❤️ in Croatia<br/>by Tap Tap Design',
+                html: '<span class="settings-footer-credit">Made with ❤️ in Croatia<br/>by Tap Tap Design</span><span class="settings-version">Version: 1.0</span>',
               },
               {
                 tag: 'button',

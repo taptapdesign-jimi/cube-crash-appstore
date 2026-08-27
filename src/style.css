@@ -5176,6 +5176,9 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-footer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-family: "Baloo2", system-ui, -apple-system, sans-serif;
   font-size: 16px;
   font-weight: 400;
@@ -5194,21 +5197,29 @@ body:has(:root) .tile.wild-3d-glow {
   text-align: center;
 }
 
-.settings-version {
+.settings-footer-credit {
   display: block;
-  margin: 0 0 2px;
-  font-family: "Baloo2", system-ui, sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 14px;
-  color: #9f725b;
-  opacity: 0.72;
+  line-height: 22px;
+}
+
+.settings-version {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  color: #9b6f5c;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
   pointer-events: none;
 }
 
 .settings-privacy-policy-link {
   display: inline-block;
-  margin-top: 5px;
+  margin-top: 10px;
   padding: 2px 5px;
   border: 0;
   background: transparent;

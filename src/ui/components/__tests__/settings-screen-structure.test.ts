@@ -69,8 +69,10 @@ describe('Settings screen structure', () => {
     const screen = HTMLBuilder.createElement(createSettingsScreen({}));
     expect(screen.querySelector('#settings-footer-haptic')).toBeNull();
     expect(screen.querySelector('.settings-footer-text')?.tagName).toBe('DIV');
-    expect(screen.querySelector('.settings-version')?.textContent).toBe('v1.0');
-    expect(screen.querySelector('.settings-footer-text')?.firstElementChild?.classList.contains('settings-version')).toBe(true);
+    expect(screen.querySelector('.settings-version')?.textContent).toBe('Version: 1.0');
+    expect(screen.querySelector('.settings-footer-text')?.firstElementChild?.classList.contains('settings-footer-credit')).toBe(true);
+    expect(screen.querySelector('.settings-footer-text')?.lastElementChild?.classList.contains('settings-version')).toBe(true);
+    expect(screen.querySelector('.settings-footer-credit')?.textContent).toContain('Made with');
     expect(screen.querySelector<HTMLButtonElement>('#settings-privacy-policy-link')?.textContent).toBe('Privacy Policy');
     expect(screen.querySelector('#settings-privacy-policy-link')?.getAttribute('aria-haspopup')).toBe('dialog');
   });

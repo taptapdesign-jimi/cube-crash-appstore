@@ -60,6 +60,8 @@ function clearFirstPlayTutorialCompletionFlags(): void {
     delete (window as any).__ccFirstPlayTutorialFreezeWildMeterSmoke;
     delete (window as any).__ccFirstPlayTutorialActive;
     delete (window as any).__ccFirstPlayTutorialCanDrop;
+    delete (window as any).__ccFirstPlayTutorialDragStarted;
+    delete (window as any).__ccFirstPlayTutorialDragReturned;
     delete (window as any).__ccFirstPlayTutorialWildSpawnCell;
     delete (window as any).__ccFirstPlayTutorialForceWildStar;
     delete (window as any).__ccFirstPlayTutorialDisplaceWildSpawnOccupant;

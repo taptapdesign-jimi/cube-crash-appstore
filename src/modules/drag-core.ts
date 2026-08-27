@@ -1275,6 +1275,7 @@ export function initDrag(cfg) {
     }
     drag.t = t;
     setGameplayDragActive(true);
+    try { (window as any).__ccFirstPlayTutorialDragStarted?.(t); } catch {}
     pauseSpecialDiceIdleForDrag(t);
     drag.pointerId = eventPointerId(e);
     drag.pointerType = e?.pointerType || null;
@@ -2857,6 +2858,7 @@ export function initDrag(cfg) {
         if (t?._ccSnapBackTimeline === tl) t._ccSnapBackTimeline = null;
         restoreZ(t);
         try { onSnapBackComplete?.(t); } catch {}
+        try { (window as any).__ccFirstPlayTutorialDragReturned?.(t); } catch {}
       },
       onInterrupt: () => {
         if (t?._ccSnapBackTimeline === tl) t._ccSnapBackTimeline = null;
