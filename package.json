@@ -30,6 +30,7 @@
     "release:check": "npm run qa:full",
     "qa:fast": "node scripts/qa-gate.mjs fast",
     "qa:full": "node scripts/qa-gate.mjs full",
+    "qa:gameplay-lock": "node scripts/gameplay-contract-audit.mjs && jest --runInBand --runTestsByPath src/modules/__tests__/gameplay-resolution-engine.test.ts src/modules/__tests__/final-merge-rules.test.ts src/modules/__tests__/final-merge-all-archetypes.test.ts src/modules/__tests__/endgame-checker.test.ts src/modules/__tests__/merge6-rescue-contract.test.ts src/modules/__tests__/merge6-terminal-handoff-decision.test.ts src/modules/__tests__/merge6-destination-cleanup-owner.test.ts src/modules/__tests__/no-moves-commit-decision.test.ts src/modules/__tests__/no-moves-terminal-commit-contract.test.ts src/modules/__tests__/active-drag-endgame-policy.test.ts src/modules/__tests__/input-gate.test.ts src/modules/__tests__/drag-hit-ownership-contract.test.ts src/modules/__tests__/gameplay-stabilization-ownership-contract.test.ts src/modules/__tests__/app-core-repeated-boot-ownership.test.ts src/modules/__tests__/special-dice-transaction-owner.test.ts src/modules/__tests__/special-dice-transaction-contract.test.ts src/modules/__tests__/tile-lifecycle-service.test.ts src/modules/__tests__/atomic-save-load.test.ts src/modules/__tests__/run-mode.test.ts",
     "qa:visual": "node scripts/stack-to-six-visual-audit.mjs",
     "qa:ios:source": "node scripts/stack-to-six-native-audit.mjs --source-only",
     "qa:ios": "node scripts/stack-to-six-native-audit.mjs",

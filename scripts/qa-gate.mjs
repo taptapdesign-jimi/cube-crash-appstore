@@ -47,6 +47,7 @@ const fullSteps = [
   ['Type-safety regression audit', node, ['scripts/type-safety-regression-audit.mjs']],
   ['TypeScript', npm, ['run', 'type-check']],
   ['Dead-code TypeScript audit', npm, ['run', 'type-check:unused']],
+  ['Gameplay KING contract', npm, ['run', 'qa:gameplay-lock']],
   ['Source release audit', npm, ['run', 'release:audit']],
   ['Lint', npm, ['run', 'lint']],
   ['Tests', node, ['node_modules/jest/bin/jest.js', '--runInBand']],

@@ -69,6 +69,10 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 
 ## Major ownership map
 
+- Ultimate gameplay behavior and cleanup guardrail: [`GAMEPLAY_KING_CONTRACT.md`](GAMEPLAY_KING_CONTRACT.md). It is the highest-priority contract for end-game, drag/input, merge, lifecycle, save/load and legacy strangler work. Its asset-preservation order remains active until the user explicitly revokes it.
+- Browser-global compatibility inventory: [`RUNTIME_BRIDGE_CONTRACT.md`](RUNTIME_BRIDGE_CONTRACT.md).
+- App Store preparation checklist: [`APP_STORE_RELEASE_READINESS.md`](APP_STORE_RELEASE_READINESS.md). This is a readiness audit, not proof of Apple approval.
+
 - App/game orchestration: `src/modules/app-core.ts` and extracted `app-core-*` modules.
 - Gameplay decisions/final merge: `gameplay-resolution-engine.ts`, `final-merge-rules.ts`, `endgame-checker.ts`.
 - Merge/FX: `merge-animations.ts`, `fx.ts`, `fx-*`, `wild-stars.ts`, and `stars-collector.ts`.
@@ -92,3 +96,5 @@ Journey Worlds hub and an individual Journey world are different surfaces. Every
 - Do not destroy shared Pixi textures from a local effect.
 - Validate proportionally: targeted tests where logic changes, then type-check and production build when practical.
 - Never claim a phone has the latest change merely because web build passed; verify sync, final `.app`, install result, and launched bundle separately.
+- Run `npm run qa:gameplay-lock` for gameplay changes and gameplay-adjacent legacy cleanup. Do not add a second decision owner for final merge, end-game, active-tile filtering, input gating or run origin.
+- Assets are intentionally excluded from the current cleanup program. Do not optimize, deduplicate, rename, relocate, replace or delete them without a later explicit user request.
