@@ -55,6 +55,7 @@ import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.ts';
 import { ForegroundResumeEpoch } from './foreground-resume-epoch.ts';
 import { createHudHelpers } from './app-core-hud-helpers.ts';
 import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag } from '../types/game-types.js';
+import type { RuntimeGameBridge } from '../types/runtime-game-bridge.ts';
 import { getArcadeSaveKey, getBoardSaveKey } from '../utils/board-save-utils.js';
 import { 
   setPendingCleanBoard, 
@@ -277,6 +278,7 @@ import { loadSavedBoardState } from './app-core-load-save.ts';
 import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
 import { restoreTilesFromSave, resumeDeferredTntIdleEffects } from './app-core-load-tiles.ts';
 import { playLoadPopInAnimation } from './app-core-load-popin.ts';
+import { cleanupMobileSaveLifecycle, installMobileSaveLifecycle } from './app-core-mobile-save-lifecycle.ts';
 import {
   beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
@@ -3134,7 +3136,7 @@ function resetWildProgress(value=0, animate=false){
 
 // -------------------- boot --------------------
 export async function boot(){
-  installMobileSaveLifecycle();
+  installMobileSaveLifecycle({ saveGameState, trackAppTimeout });
   ensureBoardLifecycleTrace('direct-board-boot');
   markBoardLifecycle('boot-start');
   devLog('🎮 Initializing PIXI app');
@@ -4009,7 +4011,6 @@ export async function boot(){
   // Force HUD reinit after board numbering changes
   _hudInitDone = false;
   trackAppListener(window, 'resize', layoutBoard);
-  scheduleIdleCheck();
 
   // viewport + fonts
   {
@@ -4194,7 +4195,7 @@ export async function boot(){
   };
 
   // Debug mini-API (ostavljeno)
-  window.CC = {
+  const runtimeGameBridge = {
     nextLevel: () => startLevel(level + 1),
     retry:     () => startLevel(level),
     state:     () => ({ level, score, board: boardNumber, moves, wildMeter, tiles: tiles.length }),
@@ -4220,8 +4221,6 @@ export async function boot(){
     getUnifiedHudInfo: () => HUD.getUnifiedHudInfo ? HUD.getUnifiedHudInfo() : { y: 0, height: 0, parent: null, dropped: false },
     hideGameUI: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
     showGameUI: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
-    testCleanBoard: async () => { /* ... tvoja baza ... */ },
-    testCleanAndPrize: async () => { /* ... tvoja baza ... */ },
     pauseGame: () => pauseGame(),
     resumeGame: () => resumeGame(),
     resume: () => resumeGame(),
@@ -4282,17 +4281,16 @@ export async function boot(){
     replayExport: () => replayRecorder.export(),
     replayImport: (json: string) => replayRecorder.import(json),
     replayStatus: () => replayRecorder.status(),
-  } as any;
+  } satisfies RuntimeGameBridge;
+  window.CC = runtimeGameBridge;
 
   // Expose for continueGameWithSavedState fallback when loadGameState fails
-  (window as any).rebuildBoard = rebuildBoard;
-  (window as any).startLevel = startLevel;
+  window.rebuildBoard = rebuildBoard;
+  window.startLevel = startLevel;
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
-  (window as any).killAllDelayedCalls = killAllDelayedCalls;
-  (window as any).destroyAllGraphicsObjects = destroyAllGraphicsObjects;
-  window.testCleanAndPrize = () => (window.CC as any).testCleanAndPrize?.();
-
+  window.killAllDelayedCalls = killAllDelayedCalls;
+  window.destroyAllGraphicsObjects = destroyAllGraphicsObjects;
   syncSharedState();
   
   // Re-assert the single shared paper owner after boot-time DOM setup settles.
@@ -5505,8 +5503,8 @@ const { updateHUD, animateScore, animateBoardHUD } = createHudHelpers({
   setBoardNumber: (v) => { boardNumber = v; },
   getMoves: () => moves,
   getCombo: () =>
-    typeof (window as any).CC?.getCombo === 'function'
-      ? (window as any).CC.getCombo()
+    typeof window.CC?.getCombo === 'function'
+      ? window.CC.getCombo()
       : combo,
   setCombo: (v) => { combo = v; },
   syncSharedState,
@@ -11073,8 +11071,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // Stats: Track longest combo - use actual combo value after merge-6
         // For merge-6, combo is already incremented in the merge function above
-        const currentComboForMerge6 = typeof (window as any).CC?.getCombo === 'function'
-          ? (window as any).CC.getCombo()
+        const currentComboForMerge6 = typeof window.CC?.getCombo === 'function'
+          ? window.CC.getCombo()
           : combo;
         if (currentComboForMerge6 > 0 && !isFirstPlayTutorialRunActive()) {
           statsService.updateLongestCombo(currentComboForMerge6);
@@ -14762,8 +14760,8 @@ async function performRestartGame(): Promise<void> {
   try {
     devLog('🔄 RESTART GAME: Resetting star count...');
     // Reset stars collector via window.CC.setStarsCount (exported above)
-    if (typeof (window as any).CC?.setStarsCount === 'function') {
-      (window as any).CC.setStarsCount(0);
+    if (typeof window.CC?.setStarsCount === 'function') {
+      window.CC.setStarsCount(0);
       devLog('✅ RESTART GAME: Star count reset to 0');
     } else {
       // Fallback: try to import and reset directly
@@ -14905,8 +14903,6 @@ async function performRestartGame(): Promise<void> {
   
   devLog('✅ Clean restart completed - HUD position preserved');
 }
-// temporary idle checker (no-op so boot doesn't fail)
-function scheduleIdleCheck(){ /* no-op for now */ }
 // Pause/Resume functions
 export function pauseGame() {
   try {
@@ -15325,45 +15321,7 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   
   // Mobile save/resume listeners are boot-owned. Remove this boot's exact
   // references; the next boot installs one fresh set before any async work.
-  try {
-    const saveGameStateRef = (window as any)._saveGameStateRef;
-    const iosVisibilityHandler = (window as any)._iosVisibilityHandler;
-    
-    if (saveGameStateRef) {
-      window.removeEventListener('pagehide', saveGameStateRef);
-      devLog('✅ iOS pagehide listener removed (app-core.ts)');
-      (window as any)._saveGameStateRef = null;
-    }
-    
-    if (iosVisibilityHandler) {
-      document.removeEventListener('visibilitychange', iosVisibilityHandler);
-      devLog('✅ iOS visibilitychange listener removed (app-core.ts)');
-      (window as any)._iosVisibilityHandler = null;
-    }
-  } catch (e) {
-    devWarn('⚠️ Failed to remove iOS lifecycle listeners:', e);
-  }
-  
-  // 🔥 CRITICAL: Remove remaining lifecycle listeners (beforeunload/pause/resume)
-  try {
-    const saveGameStateRef = (window as any)._saveGameStateResumeRef;
-    const resumeHandler = (window as any)._resumeHandlerRef;
-    
-    if (saveGameStateRef) {
-      window.removeEventListener('beforeunload', saveGameStateRef);
-      document.removeEventListener('pause', saveGameStateRef, false);
-      (window as any)._saveGameStateResumeRef = null;
-      devLog('✅ beforeunload/pause listeners removed');
-    }
-    
-    if (resumeHandler) {
-      document.removeEventListener('resume', resumeHandler, false);
-      (window as any)._resumeHandlerRef = null;
-      devLog('✅ resume listener removed');
-    }
-  } catch (e) {
-    devWarn('⚠️ Failed to remove lifecycle listeners:', e);
-  }
+  cleanupMobileSaveLifecycle({ log: devLog, warn: devWarn });
   
   try { drag?.cleanup?.({ resumeIdle: false }); } catch {}
   drag = null as any;
@@ -15803,42 +15761,11 @@ window.saveGameState = saveGameState;
 window.loadGameState = loadGameState;
 window.drawBoardBG = drawBoardBG;
 window.animateBoardExit = animateBoardExit; // Export for exitToMenu
-(window as any).stopPixiTicker = stopPixiTicker; // Export for exit cleanup
+window.stopPixiTicker = stopPixiTicker; // Export for exit cleanup
 
 // Export drawBoardBG and animateBoardExit for other modules
 export { drawBoardBG, animateBoardExit };
 
-
-function installMobileSaveLifecycle(): void {
-  const previousSave = (window as any)._saveGameStateRef;
-  const previousVisibility = (window as any)._iosVisibilityHandler;
-  const previousResumeSave = (window as any)._saveGameStateResumeRef;
-  const previousResume = (window as any)._resumeHandlerRef;
-  try { if (previousSave) window.removeEventListener('pagehide', previousSave); } catch {}
-  try { if (previousSave) window.removeEventListener('beforeunload', previousSave); } catch {}
-  try { if (previousResumeSave) document.removeEventListener('pause', previousResumeSave); } catch {}
-  try { if (previousVisibility) document.removeEventListener('visibilitychange', previousVisibility); } catch {}
-  try { if (previousResume) document.removeEventListener('resume', previousResume); } catch {}
-
-  const iosVisibilityHandler = () => {
-    if (document.hidden) saveGameState();
-  };
-  const resumeHandler = () => {
-    if (typeof window.loadGameState === 'function') {
-      trackAppTimeout(() => window.loadGameState(), 100);
-    }
-  };
-
-  (window as any)._saveGameStateRef = saveGameState;
-  (window as any)._iosVisibilityHandler = iosVisibilityHandler;
-  (window as any)._saveGameStateResumeRef = saveGameState;
-  (window as any)._resumeHandlerRef = resumeHandler;
-  window.addEventListener('pagehide', saveGameState);
-  window.addEventListener('beforeunload', saveGameState);
-  document.addEventListener('visibilitychange', iosVisibilityHandler);
-  document.addEventListener('pause', saveGameState, false);
-  document.addEventListener('resume', resumeHandler, false);
-}
 
 // CRITICAL: Expose function to sync score from app-boot.ts
 // This ensures STATE.score and local score variable stay in sync

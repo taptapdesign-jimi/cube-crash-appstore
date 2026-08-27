@@ -1,8 +1,11 @@
+import type { RuntimeGameBridge } from './runtime-game-bridge.ts';
+
 // Global Window interface extensions
 declare global {
   interface Window {
     // Game state
     gameState: any;
+    STATE?: any;
     uiManager: any;
     animationManager: any;
     sliderManager: any;
@@ -11,13 +14,28 @@ declare global {
     // Game functions
     startGameNow: () => Promise<void>;
     continueGame: () => Promise<void>;
+    startNewGame?: () => void;
     pauseGame: () => void;
     resumeGame: () => void;
     restartGame: () => Promise<void>;
     exitToMenu: () => void;
     
     // Modals
+    lockSlider?: () => void;
     unlockSlider?: () => void;
+    showEndRunModalFromGame?: () => void;
+
+    // Gameplay compatibility hooks with active repository callers
+    updateGhostVisibility?: () => void;
+    hideGhostPlaceholders?: () => void;
+    checkForUnsavedHighScore?: () => void;
+    trackCubesCracked?: (count?: number) => void | Promise<void>;
+    trackHelpersUsed?: (count?: number) => void | Promise<void>;
+    trackHighestBoard?: (board: number) => void | Promise<void>;
+    trackLongestCombo?: (combo: number) => void | Promise<void>;
+    trackCollectiblesUnlocked?: (count: number) => void | Promise<void>;
+    checkCollectiblesMilestones?: (score: number) => void | Promise<void>;
+    resetAllStats?: () => void;
     
     // iOS Optimizer
     iosImageOptimizer?: any;
@@ -56,55 +74,18 @@ declare global {
     updateHighScore?: (score: number) => void;
     
     // Game Control
-    CC?: {
-      restart?: (options?: { animateHudDrop?: boolean }) => Promise<void>;
-      app?: any;
-      stage?: any;
-      pauseGame?: () => void;
-      resumeGame?: () => void;
-      nextLevel?: () => void;
-      retry?: () => void;
-      state?: () => { level: number; score: number; board: number; moves: number; wildMeter: number; tiles: number };
-      getScore?: () => number;
-      setScore?: (v: number) => void;
-      animateScoreTo?: (v: number, d?: number) => void;
-      updateHUD?: () => void;
-      getHudMetrics?: () => Record<string, unknown>;
-      getUnifiedHudInfo?: () => { y: number; height: number; parent: any; dropped: boolean };
-      hideGameUI?: () => void;
-      showGameUI?: () => void;
-      testCleanBoard?: () => Promise<void>;
-      testCleanAndPrize?: () => Promise<void>;
-      showCleanBoardOverlay?: () => void;
-      triggerCleanBoardFlow?: (reason: string) => Promise<void>;
-      checkLevelEnd?: () => void;
-      applyWildSkinLocal?: (tile: any) => void;
-      getCombo?: () => number;
-      setCombo?: (v: number) => void;
-      scheduleComboDecay?: () => void;
-      killComboTimer?: () => void;
-      addStars?: (count: number) => void;
-      setStarsCount?: (count: number) => void;
-      cleanupFxForBoardReset?: (reason?: string) => void;
-      softResetBoardView?: (reason?: string) => void;
-      destroyOldBoardForTransition?: (reason?: string) => void;
-      cleanupTexturesForBoardTransition?: (reason: string, aggressive?: boolean, skipCacheClear?: boolean) => void;
-      snapshotState?: () => {
-        grid: any[][];
-        score: number;
-        level: number;
-        boardNumber: number;
-        moves: number;
-        wildMeter: number;
-        starsCount: number;
-      };
-      replayStartRecord?: () => void;
-      replayStartVerify?: (steps: Array<any>) => void;
-      replayStop?: () => void;
-      replayExport?: () => string;
-      replayImport?: (json: string) => boolean;
-      replayStatus?: () => { mode: string; steps: number; stepIndex: number; lastError: string | null };
-    };
+    CC?: RuntimeGameBridge;
+
+    // app-core compatibility adapters used by save/load and recovery flows
+    saveGameState?: () => void;
+    loadGameState?: (boardNumber?: number) => Promise<boolean>;
+    rebuildBoard?: () => void;
+    startLevel?: (boardNumber: number) => Promise<void>;
+    drawBoardBG?: (mode?: string) => void;
+    animateBoardExit?: () => Promise<void>;
+    stopPixiTicker?: () => boolean;
+    killAllDelayedCalls?: () => void;
+    destroyAllGraphicsObjects?: () => void;
     
     // Memory Management
     gc?: () => void;
@@ -122,9 +103,6 @@ declare global {
     
     // GSAP
     gsap?: any;
-    
-    // Analytics
-    gtag?: (command: string, action: string, parameters: any) => void;
     
     // CubeCrash Internal Flags (__cc*)
     // See docs/WINDOW_CC_FLAGS.md for full documentation

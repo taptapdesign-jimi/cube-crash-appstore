@@ -106,8 +106,16 @@ describe('shared gameplay modal benchmark', () => {
     expect(privacy).toContain('<span class="settings-privacy-policy-title-accent">Privacy</span> Policy');
     expect(css).toContain('.settings-privacy-policy-copy .settings-privacy-policy-title {\n  color: #ad8675;');
     expect(css).toContain('.settings-privacy-policy-copy .settings-privacy-policy-title-accent {\n  color: #e8744a;');
-    expect(css).toContain('.settings-privacy-policy-copy p {\n  font-size: 18px;');
-    expect(css).toContain('.settings-privacy-policy-copy .cc-gameplay-modal-title + p {\n  margin-top: 8px;');
+    expect(css).toContain('.settings-privacy-policy-copy p {\n  font-family: "Baloo2", system-ui, -apple-system, sans-serif;\n  font-size: 16px;\n  font-weight: 500 !important;\n  line-height: 1.155;\n  text-align: left;');
+    expect(css).toContain('.settings-privacy-policy-paper {\n  height: min(calc((100vw - 64px) / 0.732), calc(390px / 0.732));\n  max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));\n  padding: 40px;');
+    expect(css).toContain('.settings-privacy-policy-scroll {\n  height: 100%;\n  width: 100%;\n  min-height: 0;');
+    expect(css).toContain('.settings-privacy-policy-scroll-track {\n  position: absolute;\n  top: 50%;\n  right: -24px;\n  height: 62.5%;\n  width: 4px;');
+    expect(css).toContain('.settings-privacy-policy-scroll-thumb {');
+    expect(privacy).toContain('data-modal-drag-ignore');
+    expect(privacy).toContain('const syncScrollThumb = () => {');
+    expect(privacy).toContain('const trackHeight = privacyScrollTrack.clientHeight;');
+    expect(privacy).toContain('>Read Privacy Policy</a>');
+    expect(css).toContain('.settings-privacy-policy-online-link {\n  display: inline-block;\n  color: #e8744a;\n  font-weight: 400;\n  white-space: nowrap;');
   });
 
   test('owns one Journey-strength backdrop across every paper gameplay modal', () => {

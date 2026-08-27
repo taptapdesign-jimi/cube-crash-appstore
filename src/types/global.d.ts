@@ -24,7 +24,6 @@ declare global {
     
     // Debug/test functions
     comboText?: any;
-    testCleanAndPrize?: () => void;
     _userMadeMove?: boolean;
     _ghostPlaceholders?: any[];
     
@@ -156,4 +155,3 @@ export interface TweenOptions {
 
 // Export empty object to make this a module
 export {};
-

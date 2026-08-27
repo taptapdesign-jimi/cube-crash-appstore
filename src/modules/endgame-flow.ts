@@ -295,19 +295,19 @@ async function handleCleanBoardPlayAgain(ctx: EndgameContext, boardNumber: numbe
 
     if (isArcadeHomeRunMode()) {
       (window as any).__ccArcadePlayAgainStarting = true;
-      try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-arcade-play-again'); } catch {}
+      try { window.CC?.cleanupFxForBoardReset?.('endgame-arcade-play-again'); } catch {}
       (window as any).__ccTriggerHudDrop = true;
       const uiManagerModule = await import('./ui-manager.js');
       await uiManagerModule.default.startNewGame();
       console.log('✅ endgame-flow: Restarted arcade board via uiManager.startNewGame');
     } else if (typeof (window as any).startNewRunFromJourney === 'function') {
       recordJourneyPlayAgainIncident('before-play-again-cleanup', { boardId: boardNumber });
-      try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
+      try { window.CC?.cleanupFxForBoardReset?.('endgame-play-again'); } catch {}
       recordJourneyPlayAgainIncident('after-play-again-fx-cleanup', { boardId: boardNumber });
-      try { (window as any).CC?.resetTransientRunGuards?.('endgame-play-again'); } catch {}
-      try { (window as any).CC?.softResetBoardView?.('endgame-play-again'); } catch {}
+      try { window.CC?.resetTransientRunGuards?.('endgame-play-again'); } catch {}
+      try { window.CC?.softResetBoardView?.('endgame-play-again'); } catch {}
       recordJourneyPlayAgainIncident('after-play-again-soft-reset', { boardId: boardNumber });
-      try { (window as any).CC?.destroyOldBoardForTransition?.('endgame-play-again'); } catch {}
+      try { window.CC?.destroyOldBoardForTransition?.('endgame-play-again'); } catch {}
       recordJourneyPlayAgainIncident('after-play-again-old-board-destroy', { boardId: boardNumber });
       emitIOSNativeDiagnostic('journey-play-again-old-board-destroyed', { boardId: boardNumber });
       await (window as any).startNewRunFromJourney(boardNumber);
@@ -560,7 +560,7 @@ async function completeBoardTransitionHandoff(): Promise<void> {
 
 function stopPixiTickerForTransition(): void {
   try {
-    const app = (window as any).CC?.app;
+    const app = window.CC?.app;
     if (app?.ticker) {
       app.ticker.stop();
       console.log('✅ endgame-flow: PIXI ticker stopped (first in onComplete)');
@@ -570,7 +570,7 @@ function stopPixiTickerForTransition(): void {
 
 function startPixiTickerForBoot(): void {
   try {
-    const app = (window as any).CC?.app;
+    const app = window.CC?.app;
     if (app?.ticker && !app.ticker.started) {
       app.ticker.start();
       console.log('✅ endgame-flow: PIXI ticker started before boot');
@@ -602,8 +602,8 @@ async function showAppAndRenderBoard(): Promise<void> {
   } catch {}
 
   try {
-    const app = (window as any).CC?.app;
-    const stage = (window as any).CC?.stage;
+    const app = window.CC?.app;
+    const stage = window.CC?.stage;
     if (app?.canvas) {
       app.canvas.style.display = 'block';
       app.canvas.style.visibility = 'visible';
@@ -630,7 +630,7 @@ async function showAppOnly(): Promise<void> {
 
 async function layoutBoardSafe(): Promise<void> {
   try {
-    const layoutBoardFn = (window as any).CC?.layoutBoard;
+    const layoutBoardFn = window.CC?.layoutBoard;
     if (typeof layoutBoardFn === 'function') {
       await layoutBoardFn();
       console.log('✅ endgame-flow: layoutBoard completed before showApp');
@@ -792,11 +792,11 @@ async function startNextBoardWithRetry(options: {
 
 async function performPreStartLevelCleanup(): Promise<void> {
   try {
-    (window as any).CC?.cleanupFxForBoardReset?.('endgame-flow');
-    (window as any).CC?.softResetBoardView?.('endgame-flow');
-    (window as any).CC?.destroyOldBoardForTransition?.('endgame-flow');
+    window.CC?.cleanupFxForBoardReset?.('endgame-flow');
+    window.CC?.softResetBoardView?.('endgame-flow');
+    window.CC?.destroyOldBoardForTransition?.('endgame-flow');
     await sampleTransitionMemory('6_after_destroyOldBoard');
-    (window as any).CC?.cleanupTexturesForBoardTransition?.('endgame-flow', false, true);
+    window.CC?.cleanupTexturesForBoardTransition?.('endgame-flow', false, true);
     await sampleTransitionMemory('7_after_cleanupTextures');
     console.log('✅ endgame-flow: Old board destroyed, texture GC run');
 

@@ -42,8 +42,8 @@ const updateHUD = () => {
   try {
     // 🔥 CRITICAL FIX: Get actual combo value from window.CC.getCombo() instead of hardcoded 0
     // This was causing combo to reset to 0 after magnet pull!
-    const currentCombo = typeof (window as any).CC?.getCombo === 'function'
-      ? (window as any).CC.getCombo()
+    const currentCombo = typeof window.CC?.getCombo === 'function'
+      ? window.CC.getCombo()
       : 0;
     
     if (typeof HUD.updateHUD === 'function') { 
@@ -88,7 +88,7 @@ function triggerMagnetQuickHapticBurst(count = 4, intervalMs = 50): void {
 }
 
 function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
-  const checker = (window as any)?.CC?.checkLevelEnd;
+  const checker = window.CC?.checkLevelEnd;
   if (typeof checker !== 'function') return false;
   try {
     console.log(`🎯 triggerCentralEndgameCheck invoked from ${source}`);
@@ -101,7 +101,7 @@ function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
 }
 
 async function triggerCentralCleanBoardFlow(reason: string): Promise<boolean> {
-  const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+  const triggerCleanBoardFlow = window.CC?.triggerCleanBoardFlow;
   if (typeof triggerCleanBoardFlow !== 'function') {
     console.error('❌ triggerCleanBoardFlow unavailable - refusing legacy direct endgame fallback', { reason });
     return false;
@@ -175,83 +175,6 @@ export function clearWildState(tile, opts = undefined){
   }
 }
 
-function pulseBoardZoom(factor = 0.92, opts: any = {}) {
-  const board = STATE.board;
-  if (!board) return;
-  
-  // 🔥 MEMORY LEAK FIX: Kill existing timeline AND clear all board tweens
-  try { 
-    if ((board as any)._wildZoomTl) {
-      (board as any)._wildZoomTl.kill(); 
-      (board as any)._wildZoomTl = null;
-    }
-    // Also kill any lingering board tweens
-    gsap.killTweensOf(board);
-    gsap.killTweensOf(board.scale);
-  } catch {}
-
-  const baseW = COLS * TILE + (COLS - 1) * GAP;
-  const baseH = ROWS * TILE + (ROWS - 1) * GAP;
-  const sx0 = board.scale?.x ?? 1;
-  const sy0 = board.scale?.y ?? 1;
-  const x0 = board.x ?? 0;
-  const y0 = board.y ?? 0;
-
-  const displayW = baseW * sx0;
-  const displayH = baseH * sy0;
-
-  const scaleFactor = Math.max(0.75, Math.min(0.99, factor));
-  const translateFactor = Math.max(0, Math.min(1, opts.translateFactor ?? 0.4));
-  const userOnComplete = typeof opts.onComplete === 'function' ? opts.onComplete : null;
-  const dx = ((displayW - displayW * scaleFactor) / 2) * translateFactor;
-  const dy = ((displayH - displayH * scaleFactor) / 2) * translateFactor;
-
-  const outDur = opts.outDur ?? 0.12;
-  const inDur  = opts.inDur  ?? 0.22;
-
-  const tl = trackTimeline({ 
-    onComplete: () => { 
-      (board as any)._wildZoomTl = null; 
-      try { userOnComplete?.(); } catch {} 
-    },
-    // 🔥 MEMORY LEAK FIX: Auto-kill timeline on complete
-    onInterrupt: () => { (board as any)._wildZoomTl = null; }
-  });
-
-  tl.to(board.scale, {
-    x: sx0 * scaleFactor,
-    y: sy0 * scaleFactor,
-    duration: outDur,
-    ease: opts.outEase ?? 'power3.out'
-  }, 0);
-
-  tl.to(board, {
-    x: x0 + dx,
-    y: y0 + dy,
-    duration: outDur,
-    ease: opts.outEase ?? 'power3.out'
-  }, 0);
-
-  const hold = opts.hold ?? 0.05;
-
-  tl.to(board.scale, {
-    x: sx0,
-    y: sy0,
-    duration: inDur,
-    ease: opts.inEase ?? 'elastic.out(1, 0.6)'
-  }, `>${hold}`);
-
-  tl.to(board, {
-    x: x0,
-    y: y0,
-    duration: inDur,
-    ease: opts.inEase ?? 'elastic.out(1, 0.6)'
-  }, `>${hold}`);
-
-  (board as any)._wildZoomTl = tl;
-  return tl;
-}
-
 function wobble(t){ 
   if (!t || t.destroyed) return;
   const x0=t.x;
@@ -315,56 +238,6 @@ function landBounce(t){
     (t as any)._bounceRotTl = rotTl;
   }
 }
-function landPreBounce(t){
-  return new Promise<void>((resolve)=>{
-    if (!t || t.destroyed) {
-      resolve();
-      return;
-    }
-    
-    const r0 = (t as any).rotG?.rotation || 0;
-    
-    // 🔥 MEMORY LEAK FIX: Kill ALL existing animations on tile
-    try {
-      gsap.killTweensOf(t);
-      gsap.killTweensOf(t.scale);
-      if ((t as any).rotG) gsap.killTweensOf((t as any).rotG);
-      if ((t as any)._preBounceTl) {
-        (t as any)._preBounceTl.kill();
-        (t as any)._preBounceTl = null;
-      }
-      if ((t as any)._preBounceRotTl) {
-        (t as any)._preBounceRotTl.kill();
-        (t as any)._preBounceRotTl = null;
-      }
-    } catch {}
-    
-    const tl = trackTimeline({ 
-      onComplete: () => { 
-        (t as any)._preBounceTl = null; 
-        resolve(); 
-      },
-      onInterrupt: () => { 
-        (t as any)._preBounceTl = null; 
-        resolve(); 
-      }
-    });
-    tl.to(t.scale, { x:1.10, y:0.94, duration:0.05, ease:'power3.out' })
-      .to(t.scale, { x:1.00, y:1.00, duration:0.07, ease:'back.out(2)' });
-    (t as any)._preBounceTl = tl;
-    
-    if ((t as any).rotG){
-      const rotTl = trackTimeline({ 
-        onComplete: () => { (t as any)._preBounceRotTl = null; },
-        onInterrupt: () => { (t as any)._preBounceRotTl = null; }
-      });
-      rotTl.to((t as any).rotG, { rotation: r0 + 0.05, duration: 0.05, ease:'power2.out' }, 0)
-           .to((t as any).rotG, { rotation: r0,        duration: 0.07, ease:'back.out(2)' });
-      (t as any)._preBounceRotTl = rotTl;
-    }
-  });
-}
-
 // Function to add 4x multiplier animations to existing merge 6 tile
 // All pulled tiles are removed, and animations are applied to the existing merge 6 tile
 /**
@@ -473,8 +346,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const drawBoardBG = helpers?.drawBoardBG;
   console.log('🧲 mergePulledTilesIntoMerge6: Removing', tiles.length, 'pulled tiles and adding 4x multiplier animations to existing merge 6');
   const endgameGuardSource = 'mergePulledTilesIntoMerge6';
-  const beginEndgameGuard = (window as any)?.CC?.beginEndgameGuard;
-  const endEndgameGuard = (window as any)?.CC?.endEndgameGuard;
+  const beginEndgameGuard = window.CC?.beginEndgameGuard;
+  const endEndgameGuard = window.CC?.endEndgameGuard;
   let endgameGuardActive = false;
   let shouldRunPostMagnetEndgameCheck = false;
   let magnetLifecycleCancelled = false;
@@ -501,7 +374,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     ? [...helpers.magnetShardColors]
     : getSpecialDiceShardColors(dst);
   const requestPostGuardEndgameCheck = (source: string): boolean => {
-    const checker = (window as any)?.CC?.checkLevelEnd;
+    const checker = window.CC?.checkLevelEnd;
     if (typeof checker !== 'function') return false;
     if (endgameGuardActive) {
       pendingPostGuardEndgameCheckSource = source;
@@ -908,8 +781,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const scoreDelta = 6 * mult; // Additional score from pulled tiles merge 6
   
   // Get current score from window.CC if available, otherwise use STATE.score
-  const currentScore = typeof (window as any).CC?.getScore === 'function' 
-    ? (window as any).CC.getScore() 
+  const currentScore = typeof window.CC?.getScore === 'function'
+    ? window.CC.getScore()
     : (STATE.score || 0);
   
   const newScore = Math.min(999999, currentScore + scoreDelta);
@@ -917,8 +790,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   console.log('🎯 Pulled tiles merge 6: mult=', mult, 'scoreDelta=', scoreDelta, 'currentScore=', currentScore, 'newScore=', newScore);
   
   // Update score using window.CC.setScore to sync with app-core.ts local score variable
-  if (typeof (window as any).CC?.setScore === 'function') {
-    (window as any).CC.setScore(newScore);
+  if (typeof window.CC?.setScore === 'function') {
+    window.CC.setScore(newScore);
   } else {
     // Fallback: update STATE.score directly
     STATE.score = newScore;
@@ -932,17 +805,17 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // We need to kill that timer so it doesn't reset our new combo value
   try {
     // Kill existing combo timer to prevent it from resetting combo
-    if (typeof (window as any).CC?.killComboTimer === 'function') {
-      (window as any).CC.killComboTimer();
+    if (typeof window.CC?.killComboTimer === 'function') {
+      window.CC.killComboTimer();
       console.log('🔥 MAGNET COMBO: Killed existing combo timer before updating combo');
     }
   } catch (e) {
     console.warn('⚠️ Failed to kill combo timer:', e);
   }
   
-  const currentCombo = typeof (window as any).CC?.getCombo === 'function'
-    ? (window as any).CC.getCombo()
-    : (typeof (window as any).CC?.combo === 'number' ? (window as any).CC.combo : 0);
+  const currentCombo = typeof window.CC?.getCombo === 'function'
+    ? window.CC.getCombo()
+    : 0;
   
   // 🔥 CRITICAL: Combo should be: currentCombo + 1 (for main merge 6) + pulledTileCount (for pulled tiles)
   // The main merge flow skipped combo increment, so we add 1 here for the main merge 6
@@ -950,20 +823,20 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   console.log('🔥 MAGNET COMBO: currentCombo=', currentCombo, '+ 1 (main merge 6) +', pulledTileCount, '(pulled tiles) = newCombo=', newCombo);
   
   // Update combo using window.CC.setCombo
-  if (typeof (window as any).CC?.setCombo === 'function') {
-    (window as any).CC.setCombo(newCombo);
+  if (typeof window.CC?.setCombo === 'function') {
+    window.CC.setCombo(newCombo);
     console.log('🔥 MAGNET COMBO: Called window.CC.setCombo with newCombo=', newCombo);
     
     // 🔥 CRITICAL: Double-check combo was actually set (read it back)
-    const verifyCombo = typeof (window as any).CC?.getCombo === 'function'
-      ? (window as any).CC.getCombo()
+    const verifyCombo = typeof window.CC?.getCombo === 'function'
+      ? window.CC.getCombo()
       : null;
     console.log('🔥 MAGNET COMBO: Verified combo after setCombo=', verifyCombo, '(should be', newCombo, ')');
     
     if (verifyCombo !== newCombo) {
       console.error('❌ MAGNET COMBO: Combo mismatch! Set to', newCombo, 'but read back as', verifyCombo);
       // Force set again
-      (window as any).CC.setCombo(newCombo);
+      window.CC.setCombo(newCombo);
       console.log('🔥 MAGNET COMBO: Force-set combo again to', newCombo);
     }
   } else {
@@ -972,9 +845,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Schedule combo decay (same as normal merge) - reset combo timer but don't reset combo value
   // This starts a NEW timer for the updated combo value
-  if (typeof (window as any).CC?.scheduleComboDecay === 'function') {
+  if (typeof window.CC?.scheduleComboDecay === 'function') {
     // Wild-magnet merge-6 uses extended combo window before returning to normal 2s on later merges.
-    (window as any).CC.scheduleComboDecay(4000);
+    window.CC.scheduleComboDecay(4000);
     console.log('🔥 MAGNET COMBO: Scheduled combo decay for combo=', newCombo);
   } else {
     console.error('❌ MAGNET COMBO: window.CC.scheduleComboDecay is not a function!');
@@ -996,8 +869,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // 🔥 USER REQUEST: Track longest combo after magnet pull (get actual current combo value)
   // Get actual current combo value after magnet pull to track the correct longest combo
-  const currentComboAfterMagnet = typeof (window as any).CC?.getCombo === 'function'
-    ? (window as any).CC.getCombo()
+  const currentComboAfterMagnet = typeof window.CC?.getCombo === 'function'
+    ? window.CC.getCombo()
     : newCombo;
   
   // Stats: track longest combo (global and per-board) - use ACTUAL current combo value after magnet pull
@@ -1078,16 +951,16 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // 🔥 CRITICAL: Double-check combo after updateHUD
-  const comboAfterHUD = typeof (window as any).CC?.getCombo === 'function'
-    ? (window as any).CC.getCombo()
+  const comboAfterHUD = typeof window.CC?.getCombo === 'function'
+    ? window.CC.getCombo()
     : null;
   console.log('🔥 MAGNET COMBO: Combo after updateHUD()=', comboAfterHUD, '(should still be', newCombo, ')');
   
   if (comboAfterHUD !== newCombo) {
     console.error('❌ MAGNET COMBO: Combo was reset after updateHUD()! Was', newCombo, 'now is', comboAfterHUD);
     // Force restore combo
-    if (typeof (window as any).CC?.setCombo === 'function') {
-      (window as any).CC.setCombo(newCombo);
+    if (typeof window.CC?.setCombo === 'function') {
+      window.CC.setCombo(newCombo);
       console.log('🔥 MAGNET COMBO: Force-restored combo to', newCombo);
       updateHUD(); // Update HUD again with correct combo
     }

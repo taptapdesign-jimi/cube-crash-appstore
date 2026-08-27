@@ -684,7 +684,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         await runExitAnimation(action);
 
         // 🔥 BUG FIX: Cleanup board/FX after fail-modal exit to avoid cutting off the pop-out
-        try { (window as any).CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
+        try { window.CC?.cleanupFxForBoardReset?.('fail-exit'); } catch {}
 
         // Keep the fail overlay alive until the destination owns the screen.
         // Resolving early lets app-core resume while no Journey or board layer is visible.

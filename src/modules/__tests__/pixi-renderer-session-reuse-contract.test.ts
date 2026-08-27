@@ -12,8 +12,8 @@ test('ordinary menu exit suspends the Pixi renderer instead of destroying its We
   expect(core).toContain("app.canvas.style.visibility = 'hidden'");
   expect(core).toContain('drag = null as any');
   expect(core).toContain('if (!reuseApp) app.ticker.add(onFirstFrame);');
-  expect(core).toContain('installMobileSaveLifecycle();');
-  expect(core).toContain("document.addEventListener('visibilitychange', iosVisibilityHandler)");
+  expect(core).toContain('installMobileSaveLifecycle({ saveGameState, trackAppTimeout });');
+  expect(core).toContain('cleanupMobileSaveLifecycle({ log: devLog, warn: devWarn });');
   expect(main).toContain('cleanupGame({ destroyRenderer: false });');
   expect(main).not.toContain('canvas.remove();');
 });

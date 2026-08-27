@@ -91,7 +91,7 @@ function emitNativeDragVisibility(payload: Record<string, unknown>): void {
 }
 
 function schedulePostFailedDropEndgameCheck(reason: string): void {
-  const checkLevelEnd = (window as any).CC?.checkLevelEnd;
+  const checkLevelEnd = window.CC?.checkLevelEnd;
   if (typeof checkLevelEnd !== 'function') return;
   setTimeout(() => {
     try {

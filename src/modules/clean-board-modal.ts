@@ -1548,8 +1548,8 @@ export async function showCleanBoardModal({
               
               // Start new board (use startNewRunFromJourney for proper initialization)
               try {
-                try { (window as any).CC?.cleanupFxForBoardReset?.('clean-board-modal'); } catch {}
-                try { (window as any).CC?.softResetBoardView?.('clean-board-modal'); } catch {}
+                try { window.CC?.cleanupFxForBoardReset?.('clean-board-modal'); } catch {}
+                try { window.CC?.softResetBoardView?.('clean-board-modal'); } catch {}
                 if (typeof (window as any).startNewRunFromJourney === 'function') {
                   // Set Journey flags for proper initialization
                   markJourneyGameOrigin({ fromInterim: true });

@@ -51,7 +51,7 @@ function readOptionalStats(owner: any, method: string): unknown {
 function snapshotState(): Record<string, unknown> {
   try {
     const runtime = window as any;
-    const state = runtime.STATE || runtime.CC?.STATE || {};
+    const state = runtime.STATE || {};
     const cc = runtime.CC || {};
     const tiles = Array.isArray(state.tiles) ? state.tiles : [];
     const app = state.app || cc.app || runtime.app;

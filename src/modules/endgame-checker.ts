@@ -598,8 +598,8 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
 
   // External transition guard (set from app-core/app-merge) - avoid evaluating transient states.
   try {
-    const guardState = (typeof window !== 'undefined' && (window as any)?.CC?.getEndgameGuardState)
-      ? (window as any).CC.getEndgameGuardState()
+    const guardState = (typeof window !== 'undefined' && window.CC?.getEndgameGuardState)
+      ? window.CC.getEndgameGuardState()
       : null;
     if (guardState?.active) {
       const guardedResult: EndGameResult = { type: 'continue', reason: 'external_guard_active' };

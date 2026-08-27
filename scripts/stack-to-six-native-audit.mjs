@@ -8,10 +8,12 @@ const STACK_ROOT = '/Users/user/Stack to Six';
 const PROJECT = path.join(STACK_ROOT, 'Stack to Six.xcodeproj');
 const SCHEME = path.join(PROJECT, 'xcshareddata/xcschemes/Stack to Six.xcscheme');
 const PBXPROJ = path.join(PROJECT, 'project.pbxproj');
+const NATIVE_APP_SOURCE = path.join(STACK_ROOT, 'Stack to Six');
 const CONTROLLER = path.join(STACK_ROOT, 'Stack to Six/GameViewController.swift');
 const INFO_PLIST = path.join(STACK_ROOT, 'Info.plist');
 const PRIVACY_MANIFEST = path.join(STACK_ROOT, 'Stack to Six/PrivacyInfo.xcprivacy');
 const WEB_BUNDLE = path.join(STACK_ROOT, 'Stack to Six/Web.bundle');
+const APP_STORE_PROFILE = path.join(ROOT, 'release/stacktosix-app-store-profile.json');
 const EXPECTED_BUNDLE_ID = 'com.taptapdesign.stacktosix.Stack-to-Six';
 const EXPECTED_INTRO_CHARACTERS = [
   'lik-board.png',
@@ -73,6 +75,23 @@ requireCondition(!packageJson.includes('CAPACITOR_USE_DEV_SERVER'), 'package scr
 requireCondition(!packageJson.includes('"ios:sync'), 'package scripts still expose generic ios:sync commands');
 requireCondition(!packageJson.includes('"ios:build'), 'package scripts still expose generic ios:build commands');
 
+requireCondition(fs.existsSync(APP_STORE_PROFILE), 'missing locked App Store audience profile');
+if (fs.existsSync(APP_STORE_PROFILE)) {
+  try {
+    const profile = JSON.parse(fs.readFileSync(APP_STORE_PROFILE, 'utf8'));
+    requireCondition(profile.officialContactEmail === 'stacktosix@gmail.com', 'official App Store contact email must remain stacktosix@gmail.com');
+    requireCondition(profile.privacyPolicyUrl === 'https://taptapdesign.com/stacktosix-privacy-policy/', 'official Privacy Policy URL has drifted');
+    requireCondition(profile.supportUrl === 'https://taptapdesign.com/stacktosix-privacy-policy/support.html', 'official Support URL has drifted');
+    requireCondition(profile.audience === 'general-audience', 'App Store audience must remain general-audience');
+    requireCondition(profile.expectedAppleCalculatedAgeRating === '4+', 'expected Apple-calculated age rating must remain 4+');
+    requireCondition(profile.ageCategoriesAndOverride === 'not-applicable', 'age category override must remain not-applicable');
+    requireCondition(profile.madeForKids === false, 'Made for Kids / Kids Category must remain disabled for release 1.0');
+    requireCondition(profile.gameCenterEnabled === false, 'Game Center must remain disabled for release 1.0');
+  } catch (error) {
+    failures.push(`App Store audience profile is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 if (!sourceOnly) {
   requireCondition(fs.existsSync(PROJECT), `missing authoritative Xcode project: ${PROJECT}`);
   requireCondition(fs.existsSync(SCHEME), `missing shared Stack to Six scheme: ${SCHEME}`);
@@ -99,9 +118,13 @@ if (!sourceOnly) {
       .map((match) => match[1].trim().replace(/^"|"$/g, ''));
     const marketingVersions = [...projectText.matchAll(/MARKETING_VERSION\s*=\s*([^;]+);/g)]
       .map((match) => match[1].trim());
+    const releaseBuildNumbers = [...projectText.matchAll(/CURRENT_PROJECT_VERSION\s*=\s*3;/g)];
     requireCondition(deploymentTargets.length > 0 && deploymentTargets.every((target) => target === '17.0'), 'all explicit iOS deployment targets must be 17.0');
-    requireCondition(deviceFamilies.length > 0 && deviceFamilies.every((family) => family === '1'), 'Stack to Six v1 must be iPhone-only (TARGETED_DEVICE_FAMILY = 1)');
+    requireCondition(deviceFamilies.length > 0 && deviceFamilies.every((family) => family === '1,2'), 'Stack to Six v1 must be universal for iPhone and iPad (TARGETED_DEVICE_FAMILY = "1,2")');
     requireCondition(marketingVersions.length > 0 && marketingVersions.every((version) => version === '1.0'), 'Stack to Six v1 marketing version must remain 1.0');
+    requireCondition(releaseBuildNumbers.length >= 2, 'Stack to Six app Debug and Release build numbers must be 3');
+    requireCondition(!projectText.includes('CURRENT_PROJECT_VERSION = 2;'), 'stale Stack to Six app build number 2 remains in the Xcode project');
+    requireCondition(!/GameKit|GameCenter|game-center/i.test(projectText), 'Xcode project enables or references Game Center/GameKit');
 
     const appTarget = projectText.match(/([A-F0-9]{24}) \/\* Stack to Six \*\/ = \{\s*isa = PBXNativeTarget;[\s\S]*?productName = "Stack to Six";/);
     requireCondition(Boolean(appTarget), 'could not resolve the Stack to Six PBXNativeTarget');
@@ -116,10 +139,22 @@ if (!sourceOnly) {
       requireCondition(appReferences.every((reference) => /ReferencedContainer\s*=\s*"container:Stack to Six\.xcodeproj"/.test(reference)), 'shared scheme must reference Stack to Six.xcodeproj');
     }
   }
+  if (fs.existsSync(NATIVE_APP_SOURCE)) {
+    const nativeIntegrationFiles = walkFiles(NATIVE_APP_SOURCE)
+      .filter((relative) => !relative.startsWith('Web.bundle/'))
+      .filter((relative) => /\.(?:swift|m|mm|h|entitlements)$/.test(relative));
+    const gameCenterFiles = nativeIntegrationFiles.filter((relative) => {
+      const contents = fs.readFileSync(path.join(NATIVE_APP_SOURCE, relative), 'utf8');
+      return /\b(?:GameKit|GKLocalPlayer|GKGameCenterViewController)\b|com\.apple\.developer\.game-center/i.test(contents);
+    });
+    requireCondition(gameCenterFiles.length === 0, `native source integrates Game Center/GameKit: ${gameCenterFiles.join(', ')}`);
+  }
   if (fs.existsSync(CONTROLLER)) {
     const controllerText = fs.readFileSync(CONTROLLER, 'utf8');
     requireCondition(/private static let useDevServer\s*=\s*false/.test(controllerText), 'GameViewController useDevServer must be false for bundled QA');
-    requireCondition(controllerText.includes('return .portrait'), 'GameViewController must lock the iPhone-only v1 app to portrait');
+    requireCondition(/private static let devServerURL\s*=\s*""/.test(controllerText), 'GameViewController devServerURL must be empty for App Store release source');
+    requireCondition(!/https?:\/\/192\.168\./.test(controllerText), 'GameViewController still contains a private LAN development URL');
+    requireCondition(controllerText.includes('return .portrait'), 'GameViewController must lock the universal v1 app to portrait');
     requireCondition(controllerText.includes('decidePolicyFor navigationAction'), 'GameViewController must enforce the native navigation allowlist');
     requireCondition(controllerText.includes('isTrustedGameURL'), 'GameViewController must recognize only the trusted bundled/dev game origin');
     requireCondition(controllerText.includes('UIApplication.shared.open'), 'GameViewController must open explicit external HTTPS links outside the game WebView');
@@ -127,12 +162,22 @@ if (!sourceOnly) {
   if (fs.existsSync(INFO_PLIST)) {
     const infoText = fs.readFileSync(INFO_PLIST, 'utf8');
     requireCondition(!infoText.includes('NSAllowsArbitraryLoadsInWebContent'), 'Info.plist must not allow arbitrary network loads inside WKWebView');
-    requireCondition(!infoText.includes('UISupportedInterfaceOrientations~ipad'), 'iPhone-only v1 must not declare an iPad orientation surface');
+    requireCondition(
+      /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/.test(infoText),
+      'Info.plist must declare that Stack to Six does not use non-exempt encryption',
+    );
+    requireCondition(
+      /<key>UIRequiresFullScreen<\/key>\s*<true\/>/.test(infoText),
+      'universal portrait Stack to Six must require full screen on iPad',
+    );
+    requireCondition(!infoText.includes('UISupportedInterfaceOrientations~ipad'), 'universal v1 must use the shared portrait orientation surface on iPhone and iPad');
   }
   if (fs.existsSync(PRIVACY_MANIFEST)) {
     const privacyText = fs.readFileSync(PRIVACY_MANIFEST, 'utf8');
     requireCondition(privacyText.includes('NSPrivacyAccessedAPICategoryUserDefaults'), 'privacy manifest must declare UserDefaults required-reason API usage');
     requireCondition(privacyText.includes('<string>CA92.1</string>'), 'privacy manifest must declare app-only UserDefaults reason CA92.1');
+    requireCondition(privacyText.includes('NSPrivacyAccessedAPICategorySystemBootTime'), 'privacy manifest must declare system boot time required-reason API usage');
+    requireCondition(privacyText.includes('<string>35F9.1</string>'), 'privacy manifest must declare elapsed-time reason 35F9.1 for systemUptime');
     requireCondition(privacyText.includes('<key>NSPrivacyTracking</key>') && privacyText.includes('<false/>'), 'privacy manifest must explicitly disable tracking');
   }
 
@@ -160,15 +205,21 @@ if (builtApp) {
     const readPlist = (key) => spawnSync('/usr/libexec/PlistBuddy', ['-c', `Print :${key}`, infoPlist], { encoding: 'utf8' });
     const bundleId = readPlist('CFBundleIdentifier');
     const marketingVersion = readPlist('CFBundleShortVersionString');
+    const buildNumber = readPlist('CFBundleVersion');
     const minimumOS = readPlist('MinimumOSVersion');
     const deviceFamily = readPlist('UIDeviceFamily');
     const orientations = readPlist('UISupportedInterfaceOrientations');
+    const nonExemptEncryption = readPlist('ITSAppUsesNonExemptEncryption');
     const arbitraryWebLoads = readPlist('NSAppTransportSecurity:NSAllowsArbitraryLoadsInWebContent');
+    const requiresFullScreen = readPlist('UIRequiresFullScreen');
     requireCondition(bundleId.status === 0 && bundleId.stdout.trim() === EXPECTED_BUNDLE_ID, `built app bundle ID is not ${EXPECTED_BUNDLE_ID}`);
     requireCondition(marketingVersion.status === 0 && marketingVersion.stdout.trim() === '1.0', 'built app marketing version is not 1.0');
+    requireCondition(buildNumber.status === 0 && buildNumber.stdout.trim() === '3', 'built app build number is not 3');
     requireCondition(minimumOS.status === 0 && minimumOS.stdout.trim() === '17.0', 'built app minimum iOS version is not 17.0');
-    requireCondition(deviceFamily.status === 0 && /\b1\b/.test(deviceFamily.stdout) && !/\b2\b/.test(deviceFamily.stdout), 'built app is not iPhone-only');
+    requireCondition(deviceFamily.status === 0 && /\b1\b/.test(deviceFamily.stdout) && /\b2\b/.test(deviceFamily.stdout), 'built app is not universal for iPhone and iPad');
     requireCondition(orientations.status === 0 && orientations.stdout.includes('UIInterfaceOrientationPortrait') && !orientations.stdout.includes('Landscape'), 'built app is not portrait-only');
+    requireCondition(requiresFullScreen.status === 0 && requiresFullScreen.stdout.trim() === 'true', 'built universal app does not require full screen on iPad');
+    requireCondition(nonExemptEncryption.status === 0 && nonExemptEncryption.stdout.trim() === 'false', 'built app must declare ITSAppUsesNonExemptEncryption=false');
     requireCondition(arbitraryWebLoads.status !== 0, 'built app still allows arbitrary WKWebView network loads');
   }
   requireCondition(fs.existsSync(builtPrivacyManifest), `built app privacy manifest is missing: ${builtPrivacyManifest}`);

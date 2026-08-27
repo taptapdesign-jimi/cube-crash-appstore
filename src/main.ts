@@ -491,7 +491,7 @@ function hideGameVisualResidueForHomepage(reason: string): void {
   });
 
   try {
-    const STATE = (window as any).STATE || (window as any).CC?.STATE;
+    const STATE = (window as any).STATE;
     if (STATE?.board) STATE.board.visible = false;
     if (STATE?.hud) STATE.hud.visible = false;
     const app = (window as any).app || STATE?.app;
@@ -728,7 +728,7 @@ function getJourneyGameStartSnapshot(reason: string): Record<string, unknown> {
     };
   };
 
-  const cc = (window as any).CC;
+  const cc = window.CC;
   const pixiCanvas = cc?.app?.canvas as HTMLCanvasElement | undefined;
 
   return {
@@ -1742,7 +1742,7 @@ async function startNewRun(boardId: number): Promise<void> {
           // 🔥 CRITICAL FIX: Keep canvas hidden until HUD is ready to drop
           // This prevents seeing old HUD residue before drop animation starts
           try {
-            const gameState = (window as any).CC;
+            const gameState = window.CC;
             if (gameState && gameState.app && gameState.app.canvas) {
               gameState.app.canvas.style.opacity = '0';
               gameState.app.canvas.style.transition = 'none';
@@ -2026,7 +2026,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
     // 🔥 CRITICAL FIX: Clear ALL flags before starting fresh board
     // This prevents leftover flags from previous boards (e.g., __ccSkipRebuildBoard)
-    try { (window as any).CC?.resetTransientRunGuards?.('startNewRunFromJourney'); } catch {}
+    try { window.CC?.resetTransientRunGuards?.('startNewRunFromJourney'); } catch {}
     delete (window as any).__ccSkipRebuildBoard;
     delete (window as any).__ccPreserveScore;
     // 🔥 CRITICAL FIX: Clear skip board exit animation flag - new board should always animate exit

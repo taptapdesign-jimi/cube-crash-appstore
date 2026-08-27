@@ -464,8 +464,8 @@ function createModal(): HTMLElement {
         } catch (error) {
           console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
         }
-        if ((window as any).CC && (window as any).CC.restart) {
-          await Promise.resolve((window as any).CC.restart());
+        if (window.CC?.restart) {
+          await Promise.resolve(window.CC.restart());
         }
       }, getEndRunSurfaceExitDurationMs());
     };

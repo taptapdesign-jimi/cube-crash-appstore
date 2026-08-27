@@ -123,7 +123,7 @@ describe('regular merge-6 to wild reward handoff', () => {
   test('keeps the consumed destination variant available until its finale captures visual assets', () => {
     const appMerge = fs.readFileSync(path.join(repoRoot, 'src/modules/app-merge.ts'), 'utf8');
     const clearStart = appMerge.indexOf('export function clearWildState');
-    const clearEnd = appMerge.indexOf('function pulseBoardZoom', clearStart);
+    const clearEnd = appMerge.indexOf('function wobble', clearStart);
     const clearOwner = appMerge.slice(clearStart, clearEnd);
 
     expect(clearOwner).toContain('tile.special = null;');

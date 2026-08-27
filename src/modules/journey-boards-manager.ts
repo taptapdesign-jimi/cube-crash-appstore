@@ -126,7 +126,7 @@ function shouldSkipDetailModalGameAssetPreload(): boolean {
     const recentGameExit = lastGameExitAt > 0 && Date.now() - lastGameExitAt < 15000;
     if (recentGameExit) return true;
 
-    const pixiApp = (window as any).STATE?.app || (window as any).CC?.app || (window as any).app;
+    const pixiApp = (window as any).STATE?.app || window.CC?.app || (window as any).app;
     const appDestroyed = pixiApp?.destroyed === true || pixiApp?.renderer?.destroyed === true;
     return appDestroyed;
   } catch {
@@ -455,25 +455,8 @@ export interface JourneyBoard {
 }
 
 
-// Card positions from Figma (converted from pixel offsets to percentages)
-// Frame size: 361.51 x 770.32
-// All offsets are relative to center (0,0)
-// Converting: x_offset / (frame_width/2) * 100 + 50 = percentage
-//            y_offset / (frame_height/2) * 100 + 50 = percentage
-const FRAME_WIDTH = 361.51;
+// Figma frame height retained by the active responsive top-position converter.
 const FRAME_HEIGHT = 770.32;
-
-// Helper to convert Figma offset to percentage (relative to container center)
-function figmaToPercent(xOffset: number, yOffset: number): { x: number; y: number } {
-  // Frame center is at (FRAME_WIDTH/2, FRAME_HEIGHT/2)
-  // Offset is relative to center, so we add half frame to get absolute position
-  const xAbsolute = (FRAME_WIDTH / 2) + xOffset;
-  const yAbsolute = (FRAME_HEIGHT / 2) + yOffset;
-  // Convert to percentage
-  const xPercent = (xAbsolute / FRAME_WIDTH) * 100;
-  const yPercent = (yAbsolute / FRAME_HEIGHT) * 100;
-  return { x: xPercent, y: yPercent };
-}
 
 // ============================================================================
 // PIXEL-TO-PERCENTAGE POSITIONING SYSTEM (Journey Screen ONLY)
@@ -10892,8 +10875,8 @@ class JourneyBoardsManager {
       try {
         // Stability: cleanup FX before transition
         try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
-        try { (window as any).CC?.cleanupFxForBoardReset?.('journey-transition'); } catch {}
-        try { (window as any).CC?.softResetBoardView?.('journey-transition'); } catch {}
+        try { window.CC?.cleanupFxForBoardReset?.('journey-transition'); } catch {}
+        try { window.CC?.softResetBoardView?.('journey-transition'); } catch {}
         const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
         await showBoardTransitionScreen({
           boardNumber: board.id,

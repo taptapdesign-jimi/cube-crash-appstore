@@ -73,13 +73,6 @@ export const STATE: GameState = {
   drag: null,
 };
 
-// Re-exports for convenience (keeps old imports working if needed)
-export const app = STATE.app;
-export const stage = STATE.stage;
-export const board = STATE.board;
-export const divider = STATE.divider;
-export const hud = STATE.hud;
-
 export {
   COLS, ROWS, TILE, GAP,
   HUD_H, HUD_PAD_X, HUD_TEXT, HUD_DIV,

@@ -1129,7 +1129,7 @@ class UIManager {
       // Ensure canvas is visible when present (may be missing if showApp runs before boot, e.g. Journey continue)
       let canvas = appElement.querySelector('canvas') ?? null;
       if (!canvas) {
-        const app = (window as any).CC?.app;
+        const app = window.CC?.app;
         const c = app?.canvas;
         if (c) {
           if (!c.parentElement) appElement.appendChild(c);
@@ -1319,7 +1319,7 @@ class UIManager {
       
       // Hide PIXI board and HUD if they exist
       // Use window.STATE instead of require to avoid module loading issues
-      const STATE = (window as any).STATE || (window as any).CC?.STATE;
+      const STATE = (window as any).STATE;
       if (STATE?.board) {
         STATE.board.visible = false;
       }
@@ -1474,8 +1474,8 @@ class UIManager {
     }
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
-    try { (window as any).CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
-    try { (window as any).CC?.softResetBoardView?.('nav:collectibles'); } catch {}
+    try { window.CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
+    try { window.CC?.softResetBoardView?.('nav:collectibles'); } catch {}
 
     applyPaperBackground();
     const appElement = document.getElementById('app');
@@ -1951,8 +1951,8 @@ class UIManager {
     journeySpatialMotion.holdActivations('settings-enter');
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
-    try { (window as any).CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
-    try { (window as any).CC?.softResetBoardView?.('nav:settings'); } catch {}
+    try { window.CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
+    try { window.CC?.softResetBoardView?.('nav:settings'); } catch {}
 
     applyPaperBackground();
     const appElement = document.getElementById('app');

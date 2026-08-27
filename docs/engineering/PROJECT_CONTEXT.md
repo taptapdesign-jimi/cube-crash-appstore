@@ -72,8 +72,10 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Ultimate gameplay behavior and cleanup guardrail: [`GAMEPLAY_KING_CONTRACT.md`](GAMEPLAY_KING_CONTRACT.md). It is the highest-priority contract for end-game, drag/input, merge, lifecycle, save/load and legacy strangler work. Its asset-preservation order remains active until the user explicitly revokes it.
 - Browser-global compatibility inventory: [`RUNTIME_BRIDGE_CONTRACT.md`](RUNTIME_BRIDGE_CONTRACT.md).
 - App Store preparation checklist: [`APP_STORE_RELEASE_READINESS.md`](APP_STORE_RELEASE_READINESS.md). This is a readiness audit, not proof of Apple approval.
+- Completed source-cleanup record: [`POST_KING_CLEANUP_CLOSURE.md`](POST_KING_CLEANUP_CLOSURE.md). It closes packages 1-8 without closing native, physical-device or App Store submission work.
 
 - App/game orchestration: `src/modules/app-core.ts` and extracted `app-core-*` modules.
+- Incremental app-core strangler boundaries: [`APP_CORE_OWNERSHIP_MAP.md`](APP_CORE_OWNERSHIP_MAP.md). It records protected orchestration zones and the established extracted-owner families; it does not authorize a broad rewrite.
 - Gameplay decisions/final merge: `gameplay-resolution-engine.ts`, `final-merge-rules.ts`, `endgame-checker.ts`.
 - Merge/FX: `merge-animations.ts`, `fx.ts`, `fx-*`, `wild-stars.ts`, and `stars-collector.ts`.
 - Regular cube stack-contact and no-input board-idle stretch/squash tuning: `src/modules/gameplay-tile-cartoon-motion.ts`. Both Journey and Arcade consume this one profile; retune its `stack.strength` and `idle.strength` rather than introducing mode-specific motion copies.

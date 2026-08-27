@@ -5244,7 +5244,26 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-privacy-policy-paper {
+  height: min(calc((100vw - 64px) / 0.732), calc(390px / 0.732));
   max-height: calc(100dvh - 48px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  padding: 40px;
+  overflow: hidden;
+}
+
+.settings-privacy-policy-paper .simple-content,
+.settings-privacy-policy-paper .simple-header,
+.settings-privacy-policy-copy {
+  min-height: 0;
+}
+
+.settings-privacy-policy-paper .simple-content {
+  height: 100%;
+  margin-top: 0;
+}
+
+.settings-privacy-policy-paper .simple-header,
+.settings-privacy-policy-copy {
+  flex: 1;
 }
 
 .settings-privacy-policy-copy {
@@ -5261,17 +5280,93 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-privacy-policy-copy p {
-  font-size: 18px;
+  font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 500 !important;
+  line-height: 1.155;
+  text-align: left;
 }
 
-.settings-privacy-policy-copy .cc-gameplay-modal-title + p {
+.settings-privacy-policy-scroll-shell {
+  position: relative;
+  width: 100%;
+  min-height: 0;
   margin-top: 8px;
+  flex: 1;
+}
+
+.settings-privacy-policy-scroll {
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+  padding-right: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: none;
+}
+
+.settings-privacy-policy-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-privacy-policy-scroll-track {
+  position: absolute;
+  top: 50%;
+  right: -24px;
+  height: 62.5%;
+  width: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #eadfd6;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.settings-privacy-policy-scroll-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  min-height: 14px;
+  border-radius: 2px;
+  background: #e7744a;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.settings-privacy-policy-scroll p + p {
+  margin-top: 8px;
+}
+
+.settings-privacy-policy-online-link {
+  display: inline-block;
+  color: #e8744a;
+  font-weight: 400;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.settings-privacy-policy-online-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid #e8744a;
+  outline-offset: 3px;
 }
 
 .settings-privacy-policy-copy .settings-privacy-policy-updated {
   margin-top: 8px;
   font-size: 15px;
   opacity: 0.72;
+}
+
+@media (max-height: 700px) {
+  .settings-privacy-policy-paper {
+    height: min(calc((100vw - 82px) / 0.732), calc(330px / 0.732));
+  }
 }
 
 .settings-toggle-container {

@@ -458,12 +458,7 @@ function setTileValue(tile: any, value: number): void {
     tile.isWild = false;
     tile.isWildFace = false;
     tile._spawned = true;
-    const makeBoard = (window as any).CC?.makeBoard;
-    if (makeBoard?.setValue) {
-      makeBoard.setValue(tile, value, 0);
-    } else {
-      tile.value = value;
-    }
+    tile.value = value;
     tile.locked = false;
     tile.visible = true;
     tile.alpha = 1;
@@ -493,11 +488,6 @@ function forceTutorialTileValueVisual(tile: any, value: number): void {
   if (tile.num) {
     tile.num.visible = false;
   }
-  try {
-    const makeBoard = (window as any).CC?.makeBoard;
-    makeBoard?.drawStack?.(tile);
-    makeBoard?.drawPips?.(tile);
-  } catch {}
   drawTutorialPips(tile, value);
 }
 
@@ -598,9 +588,6 @@ function normalizeTutorialTileVisual(tile: any): void {
     tile.scale?.set?.(1, 1);
     tile.rotG?.scale?.set?.(1, 1);
     tile.pivot?.set?.(0, 0);
-    const makeBoard = (window as any).CC?.makeBoard;
-    makeBoard?.drawStack?.(tile);
-    makeBoard?.drawPips?.(tile);
   } catch {}
 }
 
@@ -718,7 +705,7 @@ function prepareTutorialBoard(): boolean {
   if (tileOne) forceTutorialTileValueVisual(tileOne, 1);
 
   try {
-    (window as any).CC?.layoutBoard?.();
+    window.CC?.layoutBoard?.();
   } catch {}
 
   // layoutBoard positions the board container, not individual tiles. Re-apply exact tile coordinates after it.

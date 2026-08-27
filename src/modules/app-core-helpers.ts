@@ -144,8 +144,8 @@ export function scheduleComboDecay(
     }
     // 🔥 CRITICAL: Get current combo value at execution time (not from closure)
     // This ensures we use the actual combo value when timer executes, not the value when timer was created
-    const comboAtExecution = typeof (window as any).CC?.getCombo === 'function' 
-      ? (window as any).CC.getCombo() 
+    const comboAtExecution = typeof window.CC?.getCombo === 'function'
+      ? window.CC.getCombo()
       : currentComboValue;
     
     // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost
@@ -174,8 +174,8 @@ export function scheduleComboDecay(
     
     // 🔥 CRITICAL: Only reset combo if it's still the same value (not incremented during timer)
     // This prevents resetting combo if user made a merge while timer was running
-    const finalCombo = typeof (window as any).CC?.getCombo === 'function' 
-      ? (window as any).CC.getCombo() 
+    const finalCombo = typeof window.CC?.getCombo === 'function'
+      ? window.CC.getCombo()
       : currentComboValue;
     
     if (finalCombo === comboAtExecution && finalCombo > 0) {

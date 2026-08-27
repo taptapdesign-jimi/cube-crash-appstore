@@ -40,13 +40,27 @@ export function showPrivacyPolicyModal(): void {
                   <div class="simple-header">
                     <div class="simple-title-section settings-privacy-policy-copy">
                       <h2 id="settings-privacy-policy-title" class="cc-gameplay-modal-title settings-privacy-policy-title"><span class="settings-privacy-policy-title-accent">Privacy</span> Policy</h2>
-                      <p>Stack to Six does not collect, transmit, sell, or share personal data.</p>
-                      <p>Game progress and settings are stored only on your device.</p>
-                      <p>Optional device motion is used only for visual effects and is not recorded or transmitted.</p>
-                      <p>The game does not use accounts, advertising, analytics, or in-app purchases.</p>
-                      <p>Deleting the app removes its locally stored data.</p>
-                      <p>Privacy questions can be directed to Tap Tap Design through the App Store support page.</p>
-                      <p class="settings-privacy-policy-updated">Last updated: August 23, 2026</p>
+                      <div class="settings-privacy-policy-scroll-shell">
+                        <div
+                          class="settings-privacy-policy-scroll"
+                          role="region"
+                          aria-label="Privacy Policy details"
+                          tabindex="0"
+                          data-modal-drag-ignore
+                        >
+                          <p>Stack to Six does not collect, transmit, sell, or share personal data.</p>
+                          <p>Game progress and settings are stored only on your device.</p>
+                          <p>Optional device motion is used only for visual effects, is not recorded or transmitted, and can be turned off at any time under Settings → 3D Motion.</p>
+                          <p>The game does not use accounts, advertising, analytics, or in-app purchases.</p>
+                          <p>Deleting the app removes its locally stored data.</p>
+                          <p>Privacy questions can be directed to Tap Tap Design through the App Store support page.</p>
+                          <p><a class="settings-privacy-policy-online-link" href="https://taptapdesign.com/stacktosix-privacy-policy/" target="_blank" rel="noopener noreferrer">Read Privacy Policy</a></p>
+                          <p class="settings-privacy-policy-updated">Last updated: August 27, 2026</p>
+                        </div>
+                        <div class="settings-privacy-policy-scroll-track" aria-hidden="true">
+                          <div class="settings-privacy-policy-scroll-thumb"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -60,6 +74,9 @@ export function showPrivacyPolicyModal(): void {
 
   const bounceShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-bounce-shell');
   const gyroShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell');
+  const privacyScroll = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll');
+  const privacyScrollTrack = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll-track');
+  const privacyScrollThumb = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll-thumb');
   let closeController: GameplaySheetCloseController | null = null;
   let disposeDragMotion: (() => void) | null = null;
   let disposeSpatialMotion: (() => void) | null = null;
@@ -68,6 +85,21 @@ export function showPrivacyPolicyModal(): void {
   let exitTimer = 0;
   let closing = false;
   let cleaned = false;
+  let scrollResizeObserver: ResizeObserver | null = null;
+
+  const syncScrollThumb = () => {
+    if (!privacyScroll || !privacyScrollTrack || !privacyScrollThumb) return;
+    const viewportHeight = privacyScroll.clientHeight;
+    const trackHeight = privacyScrollTrack.clientHeight;
+    const scrollRange = Math.max(0, privacyScroll.scrollHeight - viewportHeight);
+    const thumbHeight = scrollRange > 0
+      ? Math.max(14, trackHeight * viewportHeight / privacyScroll.scrollHeight)
+      : trackHeight;
+    const thumbRange = Math.max(0, trackHeight - thumbHeight);
+    const progress = scrollRange > 0 ? privacyScroll.scrollTop / scrollRange : 0;
+    privacyScrollThumb.style.height = `${thumbHeight}px`;
+    privacyScrollThumb.style.transform = `translate3d(0, ${thumbRange * progress}px, 0)`;
+  };
 
   const removeInputListeners = () => {
     backdrop.removeEventListener('click', onBackdropClick);
@@ -79,6 +111,10 @@ export function showPrivacyPolicyModal(): void {
     if (cleaned) return;
     cleaned = true;
     removeInputListeners();
+    privacyScroll?.removeEventListener('scroll', syncScrollThumb);
+    window.removeEventListener('resize', syncScrollThumb);
+    scrollResizeObserver?.disconnect();
+    scrollResizeObserver = null;
     window.cancelAnimationFrame(enterFrame);
     window.clearTimeout(enterTimer);
     window.clearTimeout(exitTimer);
@@ -145,8 +181,19 @@ export function showPrivacyPolicyModal(): void {
   document.body.appendChild(backdrop);
   document.body.appendChild(stage);
 
+  privacyScroll?.addEventListener('scroll', syncScrollThumb, { passive: true });
+  window.addEventListener('resize', syncScrollThumb);
+  if (typeof ResizeObserver !== 'undefined' && privacyScroll) {
+    scrollResizeObserver = new ResizeObserver(syncScrollThumb);
+    scrollResizeObserver.observe(privacyScroll);
+    if (privacyScroll.firstElementChild instanceof HTMLElement) {
+      scrollResizeObserver.observe(privacyScroll.firstElementChild);
+    }
+  }
+
   enterFrame = window.requestAnimationFrame(() => {
     if (cleaned || closing) return;
+    syncScrollThumb();
     stage.classList.add('visible', 'cc-gameplay-modal-entering');
     backdrop.classList.add('cc-gameplay-modal-backdrop-visible');
     closeController?.element.focus();

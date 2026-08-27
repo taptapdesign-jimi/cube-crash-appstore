@@ -189,7 +189,7 @@ function hideSettingsForDevGameFlow(): void {
 }
 
 async function ensureLastMergeDevGameReady(): Promise<any> {
-  let cc = (window as any).CC;
+  let cc = window.CC;
   if (cc && typeof cc.devLastMergeTntScene === 'function') {
     return cc;
   }
@@ -216,7 +216,7 @@ async function ensureLastMergeDevGameReady(): Promise<any> {
     delete (window as any).__ccStartAtLevel;
     delete (window as any).__ccTriggerHudDrop;
 
-    cc = (window as any).CC;
+    cc = window.CC;
   } catch (error) {
     delete (window as any).__ccStartAtLevel;
     delete (window as any).__ccTriggerHudDrop;
@@ -237,7 +237,7 @@ async function showCleanBoardDevFlow(): Promise<void> {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
   try {
-    const cc = (window as any).CC;
+    const cc = window.CC;
     if (cc && typeof cc.showCleanBoardOverlay === 'function') {
       await cc.showCleanBoardOverlay();
       return;

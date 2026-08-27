@@ -26,13 +26,6 @@ export class ErrorBoundary {
       this.errorHandler(error, errorInfo);
     }
     
-    // Report to analytics if available
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'exception', {
-        description: error.message,
-        fatal: false
-      });
-    }
   }
 
   wrapFunction<T extends (...args: any[]) => any>(fn: T): T {
