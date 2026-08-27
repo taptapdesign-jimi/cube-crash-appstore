@@ -68,12 +68,15 @@ describe('Flower special-die visual contract', () => {
     expect(tntSource).toContain('sprite.zIndex = 8.5');
     expect(tntSource).toContain('attachDepthLayeredFlowerBurst(');
     expect(tntSource).toContain('particleIndex * (0.035 + Math.random() * 0.01)');
-    expect(tntSource).toContain('const flight = { progress: 0 }');
+    expect(tntSource).toContain('const particlePlans: Array<{');
+    expect(tntSource).toContain('masterTimeline = trackTimeline();');
+    expect(tntSource).toContain('masterClock.time < plan.delay');
     expect(tntSource).toContain("duration: 1.12 * speedScale");
     expect(tntSource).toContain("ease: 'none'");
-    expect(tntSource).toContain('const forwardDistance = distance * progress');
+    expect(tntSource).toContain('const forwardDistance = plan.distance * progress');
     expect(tntSource).toContain('const swirlTurns = 1.15 + Math.random() * 0.85');
-    expect(tntSource).toContain('const swirl = Math.sin((progress * Math.PI * 2 * swirlTurns) + swirlPhase)');
+    expect(tntSource).toContain('const swirlOscillation = Math.sin((progress * Math.PI * 2 * plan.swirlTurns) + plan.swirlPhase)');
+    expect(tntSource).toContain('if (needsDepthSort)');
     const appCoreSource = read('src/modules/app-core.ts');
     expect(appCoreSource).toContain("tntVariantForMerge?.id === 'flower'");
     expect(appCoreSource).toContain('bonusParticleScale: tntVariantForMerge?.id === \'flower\' ? 1.4 : 1');

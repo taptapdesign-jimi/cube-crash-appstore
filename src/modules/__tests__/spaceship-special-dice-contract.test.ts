@@ -43,6 +43,9 @@ import {
   SPACESHIP_SAUCER_EXIT_ROTATION_DEGREES,
   SPACESHIP_SAUCER_EXIT_SECONDS,
   SPACESHIP_SAUCER_ENTER_LANES,
+  SPACESHIP_SAUCER_FRAME_COUNT,
+  SPACESHIP_SAUCER_FRAME_START_AT_SECONDS,
+  SPACESHIP_SAUCER_FRAME_STEP_SECONDS,
   SPACESHIP_SCATTER_ENTROPY,
   SPACESHIP_SCENE_SECONDS,
   SPACESHIP_SUCTION_COMPLETE_AT_SECONDS,
@@ -323,7 +326,13 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain('yoyo: true');
     expect(scene.match(/onUpdate:/g)).toHaveLength(4);
     expect(scene).not.toContain('requestAnimationFrame');
-    expect(scene).toContain('for (let index = 0; index < 27; index += 1)');
+    expect(SPACESHIP_SAUCER_FRAME_COUNT).toBe(33);
+    const finalSaucerFrameAt = SPACESHIP_SAUCER_FRAME_START_AT_SECONDS
+      + (SPACESHIP_SAUCER_FRAME_COUNT - 1) * SPACESHIP_SAUCER_FRAME_STEP_SECONDS;
+    expect(finalSaucerFrameAt).toBeGreaterThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    expect(SPACESHIP_SCENE_SECONDS - finalSaucerFrameAt).toBeLessThan(SPACESHIP_SAUCER_FRAME_STEP_SECONDS);
+    expect(scene).toContain('index < SPACESHIP_SAUCER_FRAME_COUNT');
+    expect(scene).toContain('index * SPACESHIP_SAUCER_FRAME_STEP_SECONDS');
     expect(scene).toContain('}, SPACESHIP_SAUCER_EXIT_AT_SECONDS);');
     expect(scene).not.toContain('backgroundColor');
     expect(scene).not.toContain('new Graphics');

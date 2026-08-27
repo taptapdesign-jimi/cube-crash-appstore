@@ -8,6 +8,7 @@ import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
 import { setInputGateLock } from './input-gate.ts';
 import { attachSmallStarCenterBurst } from './text-sparkles.ts';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 
 const BASE = './assets/shop/explosion pack/animation/';
 const TNT_ANIM_FRAMES_1X: string[] = [
@@ -41,17 +42,24 @@ const TNT_ANIM_FRAMES_2X: string[] = [
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const TNT_ANIM_FRAMES_FALLBACK: string[] = TNT_ANIM_FRAMES_1X;
 export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_FALLBACK;
-export const TNT_DICE_DEBRIS_COUNT = 14;
+export const TNT_DICE_BASE_DEBRIS_COUNT = 14;
+export const TNT_DICE_DEBRIS_COUNT = 16;
+// Keep the authored debris paths and launch cadence, but let the dice clear
+// the blast a little faster than the original flight timing.
+export const TNT_DICE_FLIGHT_DURATION_SCALE = 0.88;
+export const TNT_DICE_LEFT_TRAIL_SPEED_MULTIPLIER = 1.35;
 // TNT smoke frames occupy integer z-depths 0...11. Keep two dice immediately
-// above the nearest cloud (but still behind the separate DOM BOOM text), then
-// force the rest through the cloud body instead of leaving depth to chance.
+// above the nearest cloud plus a two-die left trail (all still behind the
+// separate DOM BOOM text), then force the rest through the cloud body instead
+// of leaving depth to chance.
 export const TNT_DICE_DEBRIS_DEPTHS = [
   11.5, 10.5, 9.5, 8.5,
   7.5, 6.5, 5.5, 4.5,
   3.5, 2.5, 1.5, 0.5,
-  11.25, 6.25,
+  11.25, 6.25, 11.4, 11.3,
 ] as const;
-const TNT_DICE_BOOM_UNDERLAY_INDICES = new Set([0, 12]);
+const TNT_DICE_LEFT_TRAIL_INDICES = [14, 15] as const;
+const TNT_DICE_BOOM_UNDERLAY_INDICES = new Set([0, 12, ...TNT_DICE_LEFT_TRAIL_INDICES]);
 const TNT_DICE_FRONT_SMOKE_INDEX = 1;
 const TNT_DICE_TILE_SOURCE = './assets/tile.png';
 
@@ -157,12 +165,12 @@ export function createTntDiceDebrisPlans(random: () => number = Math.random): Tn
     { x: -120, y: -90 }, { x: -35, y: -135 }, { x: 55, y: -130 }, { x: 130, y: -75 },
     { x: -155, y: 5 }, { x: 155, y: 10 }, { x: -120, y: 95 }, { x: 120, y: 100 },
     { x: -35, y: 145 }, { x: 55, y: 150 }, { x: -175, y: 145 }, { x: 175, y: 155 },
-    { x: -185, y: -150 }, { x: 185, y: -145 },
+    { x: -185, y: -150 }, { x: 185, y: -145 }, { x: -222, y: 126 }, { x: -148, y: 84 },
   ];
   const delays = [
     0.14, 0.18, 0.22, 0.26,
     0.36, 0.42, 0.48, 0.54,
-    0.60, 0.66, 0.72, 0.78, 0.84, 0.90,
+    0.60, 0.66, 0.72, 0.78, 0.84, 0.90, 0.34, 0.42,
   ];
   const angleEntropy: number[] = [];
   const plans = Array.from({ length: TNT_DICE_DEBRIS_COUNT }, (_, index) => {
@@ -186,7 +194,7 @@ export function createTntDiceDebrisPlans(random: () => number = Math.random): Tn
       peakScale: 0.88 + random() * 0.42,
       endScale: 0.38 + random() * 0.38,
       delay: delays[index] + random() * 0.018,
-      duration: 0.82 + random() * 0.22,
+      duration: (0.82 + random() * 0.22) * TNT_DICE_FLIGHT_DURATION_SCALE,
     };
   });
   // These three plans are composition anchors, not random ring debris. Two sit
@@ -194,21 +202,45 @@ export function createTntDiceDebrisPlans(random: () => number = Math.random): Tn
   // behind the glyphs. The third sits just below frame 11 in the smoke centre.
   // Keep them pinned while the separation solver moves neighbouring dice away.
   Object.assign(plans[0], {
-    startX: -38, startY: 4, delay: 0.32, duration: 1, distance: 72, curve: -12,
+    startX: -38, startY: 4, delay: 0.32,
+    duration: 1 * TNT_DICE_FLIGHT_DURATION_SCALE,
+    distance: 72, curve: -12,
   });
   Object.assign(plans[12], {
-    startX: 38, startY: -4, delay: 0.40, duration: 0.96, distance: 72, curve: 12,
+    startX: 38, startY: -4, delay: 0.40,
+    duration: 0.96 * TNT_DICE_FLIGHT_DURATION_SCALE,
+    distance: 72, curve: 12,
   });
   Object.assign(plans[TNT_DICE_FRONT_SMOKE_INDEX], {
-    startX: 0, startY: 48, delay: 0.36, duration: 0.98, distance: 78, curve: 10,
+    startX: 0, startY: 48, delay: 0.36,
+    duration: 0.98 * TNT_DICE_FLIGHT_DURATION_SCALE,
+    distance: 78, curve: 10,
+  });
+  // Two additional small dice share one lower-left radial lane beneath BOOM.
+  // The outer die leads and the inner die follows 80ms later; only this pair
+  // receives the requested 1.35x speed relative to the current TNT dice.
+  Object.assign(plans[TNT_DICE_LEFT_TRAIL_INDICES[0]], {
+    size: 36, startX: -111, startY: 63, delay: 0.34,
+    duration: (0.94 * TNT_DICE_FLIGHT_DURATION_SCALE) / TNT_DICE_LEFT_TRAIL_SPEED_MULTIPLIER,
+    distance: 76, curve: -10,
+  });
+  Object.assign(plans[TNT_DICE_LEFT_TRAIL_INDICES[1]], {
+    size: 36, startX: -74, startY: 42, delay: 0.42,
+    duration: (0.94 * TNT_DICE_FLIGHT_DURATION_SCALE) / TNT_DICE_LEFT_TRAIL_SPEED_MULTIPLIER,
+    distance: 76, curve: -10,
+  });
+  TNT_DICE_LEFT_TRAIL_INDICES.forEach((index) => {
+    angleEntropy[index] = 0;
   });
   const pinnedCompositionIndices = new Set([
     ...TNT_DICE_BOOM_UNDERLAY_INDICES,
     TNT_DICE_FRONT_SMOKE_INDEX,
   ]);
+  // Preserve the accepted 14-die composition exactly. The added BOOM trail is
+  // authored independently and must not push the existing randomized ring.
   for (let iteration = 0; iteration < 24; iteration += 1) {
-    for (let firstIndex = 0; firstIndex < plans.length; firstIndex += 1) {
-      for (let secondIndex = firstIndex + 1; secondIndex < plans.length; secondIndex += 1) {
+    for (let firstIndex = 0; firstIndex < TNT_DICE_BASE_DEBRIS_COUNT; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < TNT_DICE_BASE_DEBRIS_COUNT; secondIndex += 1) {
         const first = plans[firstIndex];
         const second = plans[secondIndex];
         const dx = second.startX - first.startX;
@@ -264,6 +296,7 @@ const MAX_TNT_SPRITE_POOL = 40;
 let pooledFrameSprites: Sprite[] = [];
 let pooledFrameContainer: Container | null = null;
 let foregroundBurstCleanups: Array<() => void> = [];
+let releaseTntMobileActivity: (() => void) | null = null;
 
 function releaseTntInputGate(): void {
   try { (window as any).__ccTntDragBlocked = false; } catch {}
@@ -466,7 +499,28 @@ function attachDepthLayeredFlowerBurst(
     { x: 44, y: -10 },
   ];
   const particles: Sprite[] = [];
-  const timelines: gsap.core.Timeline[] = [];
+  const particlePlans: Array<{
+    sprite: Sprite;
+    delay: number;
+    duration: number;
+    distance: number;
+    curve: number;
+    perpendicularX: number;
+    perpendicularY: number;
+    directionX: number;
+    directionY: number;
+    startX: number;
+    startY: number;
+    startRotation: number;
+    rotationTravel: number;
+    swirlTurns: number;
+    swirlPhase: number;
+    swirlAmplitude: number;
+    settledScale: number;
+    promotedToForeground: boolean;
+    finished: boolean;
+  }> = [];
+  let masterTimeline: gsap.core.Timeline | null = null;
   let disposed = false;
 
   try { container.sortableChildren = true; } catch {}
@@ -502,51 +556,89 @@ function attachDepthLayeredFlowerBurst(
       container.addChild(sprite);
       particles.push(sprite);
 
-      const delay = waveTime + particleIndex * (0.035 + Math.random() * 0.01);
-      const flight = { progress: 0 };
-      let promotedToForeground = false;
-      const timeline = trackTimeline({ delay });
-      timeline.to(flight, {
-        progress: 1,
+      particlePlans.push({
+        sprite,
+        delay: waveTime + particleIndex * (0.035 + Math.random() * 0.01),
         duration: 1.12 * speedScale,
-        ease: 'none',
-        onUpdate: () => {
-          if (disposed || sprite.destroyed) return;
-          const progress = flight.progress;
+        distance,
+        curve,
+        perpendicularX,
+        perpendicularY,
+        directionX: Math.cos(angle),
+        directionY: Math.sin(angle),
+        startX,
+        startY,
+        startRotation,
+        rotationTravel,
+        swirlTurns,
+        swirlPhase,
+        swirlAmplitude,
+        settledScale,
+        promotedToForeground: false,
+        finished: false,
+      });
+    }
+  });
+
+  // One GSAP owner updates the complete burst. Previously every flower had
+  // its own timeline/onUpdate callback (27 callbacks in the authored setup),
+  // which amplified frame pressure exactly during the TNT finale.
+  if (particlePlans.length > 0) {
+    const masterClock = { time: 0 };
+    const totalDuration = particlePlans.reduce(
+      (latest, plan) => Math.max(latest, plan.delay + plan.duration),
+      0,
+    );
+    masterTimeline = trackTimeline();
+    masterTimeline.to(masterClock, {
+      time: totalDuration,
+      duration: totalDuration,
+      ease: 'none',
+      onUpdate: () => {
+        if (disposed) return;
+        let needsDepthSort = false;
+        particlePlans.forEach((plan) => {
+          const { sprite } = plan;
+          if (plan.finished || sprite.destroyed || masterClock.time < plan.delay) return;
+          const progress = Math.min(1, Math.max(0, (masterClock.time - plan.delay) / plan.duration));
           const windEnvelope = Math.sin(Math.PI * progress);
-          const broadWind = Math.sin(Math.PI * progress) * curve;
-          const swirl = Math.sin((progress * Math.PI * 2 * swirlTurns) + swirlPhase)
-            * swirlAmplitude * windEnvelope;
-          const forwardDistance = distance * progress;
-          sprite.x = startX + Math.cos(angle) * forwardDistance + perpendicularX * (broadWind + swirl);
-          sprite.y = startY + Math.sin(angle) * forwardDistance + perpendicularY * (broadWind + swirl);
-          sprite.rotation = startRotation + rotationTravel * progress
-            + Math.sin((progress * Math.PI * 2 * swirlTurns) + swirlPhase) * 0.16;
+          const swirlOscillation = Math.sin((progress * Math.PI * 2 * plan.swirlTurns) + plan.swirlPhase);
+          const broadWind = windEnvelope * plan.curve;
+          const swirl = swirlOscillation * plan.swirlAmplitude * windEnvelope;
+          const forwardDistance = plan.distance * progress;
+          sprite.x = plan.startX + plan.directionX * forwardDistance
+            + plan.perpendicularX * (broadWind + swirl);
+          sprite.y = plan.startY + plan.directionY * forwardDistance
+            + plan.perpendicularY * (broadWind + swirl);
+          sprite.rotation = plan.startRotation + plan.rotationTravel * progress + swirlOscillation * 0.16;
 
           const enterProgress = Math.min(1, progress / 0.14);
           const exitProgress = Math.max(0, (progress - 0.78) / 0.22);
-          const scale = settledScale * (0.82 + enterProgress * 0.36) * (1 - exitProgress * 0.36);
+          const scale = plan.settledScale * (0.82 + enterProgress * 0.36) * (1 - exitProgress * 0.36);
           sprite.scale.set(scale, scale);
           sprite.alpha = Math.min(1, progress / 0.1) * (1 - exitProgress);
 
-          if (!promotedToForeground && progress >= 0.28) {
-            promotedToForeground = true;
+          if (!plan.promotedToForeground && progress >= 0.28) {
+            plan.promotedToForeground = true;
             sprite.zIndex = 8.5;
-            try { container.sortChildren?.(); } catch {}
+            needsDepthSort = true;
           }
-        },
-      });
-      timelines.push(timeline);
-    }
-  });
+          if (progress >= 1) plan.finished = true;
+        });
+        if (needsDepthSort) {
+          try { container.sortChildren?.(); } catch {}
+        }
+      },
+    });
+  }
 
   return () => {
     if (disposed) return;
     disposed = true;
-    timelines.forEach((timeline) => {
-      try { timeline.kill(); } catch {}
-    });
+    try { masterTimeline?.kill(); } catch {}
+    masterTimeline = null;
     particles.forEach((particle) => releaseFrameSprite(particle));
+    particlePlans.length = 0;
     try { container.sortChildren?.(); } catch {}
   };
 }
@@ -759,6 +851,8 @@ function cleanup(): void {
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
   } finally {
+    try { releaseTntMobileActivity?.(); } catch {}
+    releaseTntMobileActivity = null;
     cleanupInProgress = false;
     tntMemSample('tnt_4_cleanup_end');
     tntMemReport();
@@ -842,6 +936,9 @@ export function showTntAnimation(options: {
   lastTntStartMs = now;
 
   isActive = true;
+  // Own active cadence for the real TNT/Flower lifecycle. HUD Star flights
+  // acquire their own leases, so the handoff cannot fall through to 30fps.
+  releaseTntMobileActivity = acquirePixiMobileActivityLease('tnt-flower-finale');
   try {
     (window as any).__ccTntAnimationActive = true;
     (window as any).__ccTntDragBlocked = true;

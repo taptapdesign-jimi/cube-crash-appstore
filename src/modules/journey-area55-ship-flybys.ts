@@ -90,6 +90,22 @@ function resolveSceneHeight(root: HTMLElement): number {
   return Math.max(1, root.getBoundingClientRect().height || root.clientHeight || REFERENCE_HEIGHT);
 }
 
+export function resolveJourneyArea55ShipCanvasGeometry(
+  root: HTMLElement,
+  scrollRoot: HTMLElement | null | undefined,
+  fallbackWidth: number,
+  fallbackLeftGutterPx = 0,
+): { left: number; width: number } {
+  const rootRect = root.getBoundingClientRect();
+  const viewportRect = scrollRoot?.getBoundingClientRect();
+  const measuredWidth = scrollRoot?.clientWidth || viewportRect?.width || fallbackWidth;
+  const hasMeasuredOrigin = Number.isFinite(rootRect.left) && Number.isFinite(viewportRect?.left);
+  return {
+    left: hasMeasuredOrigin ? Number(viewportRect?.left) - rootRect.left : -fallbackLeftGutterPx,
+    width: Math.max(1, Number.isFinite(measuredWidth) ? measuredWidth : fallbackWidth),
+  };
+}
+
 function createShipAsset(): HTMLImageElement | null {
   if (typeof Image === 'undefined') return null;
   const image = new Image(); image.decoding = 'async'; image.src = SHIP_ASSET; return image;
@@ -116,8 +132,14 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
   const sceneHeight = resolveSceneHeight(root);
   const viewportWidth = window.innerWidth || root.getBoundingClientRect().width || DESIGN_WIDTH;
   const leftGutter = options.leftGutterPx ?? 0;
-  const layerLeft = Number.parseFloat(background?.style.left || '') || -leftGutter;
-  const layerWidth = Number.parseFloat(background?.style.width || '') || viewportWidth;
+  // The Journey section already cancels the shared 24px content padding and
+  // spans the physical viewport. Reusing the background's historical -24px
+  // inline offset shifted this canvas left a second time, so its right edge
+  // ended 24px before the device edge. Measure the actual root/scroll viewport
+  // relationship instead of applying padding ownership twice.
+  const canvasGeometry = resolveJourneyArea55ShipCanvasGeometry(root, options.scrollRoot, viewportWidth, leftGutter);
+  const layerLeft = canvasGeometry.left;
+  const layerWidth = canvasGeometry.width;
   const image = createShipAsset();
   let disposed = false;
   const ships: LiveShip[] = Array.from({ length: SHIP_COUNT }, (_, index) => ({

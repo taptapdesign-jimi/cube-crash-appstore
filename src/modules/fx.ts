@@ -14,6 +14,7 @@ import { TILE } from './constants.js';
 import { destroyRuntimeTexture } from './runtime-texture-lifecycle.ts';
 import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
@@ -3969,6 +3970,102 @@ function createMerge6Stars(board, layer, centerX, centerY) {
 // Track active star animations for cleanup (prevents lag when merging multiple wild stars quickly)
 let activeStarAnimationContainers = new Set();
 
+function releaseHudStarContainerCadence(container) {
+  const release = container?._ccReleaseMobileActivity;
+  container._ccReleaseMobileActivity = null;
+  try { release?.(); } catch {}
+}
+
+function clearHudStarContainerTimers(container) {
+  if (container?._cleanupTimeout) {
+    try { clearTimeout(container._cleanupTimeout); } catch {}
+    container._cleanupTimeout = null;
+  }
+  if (container?._jobCleanupTimeouts instanceof Set) {
+    container._jobCleanupTimeouts.forEach((timeout) => {
+      try { clearTimeout(timeout); } catch {}
+    });
+    container._jobCleanupTimeouts.clear();
+  }
+}
+
+function detachHudStarContainerOwner(container) {
+  const ownerStage = container?._ccOwnerStage;
+  if (ownerStage?._ccHudStarFlightContainer === container) {
+    ownerStage._ccHudStarFlightContainer = null;
+  }
+  container._ccOwnerStage = null;
+}
+
+function destroyHudStarAnimationContainer(container) {
+  if (!container) return;
+  clearHudStarContainerTimers(container);
+  killOwnedStarTimelines(container);
+  releaseHudStarContainerCadence(container);
+  detachHudStarContainerOwner(container);
+  activeStarAnimationContainers.delete(container);
+  try { gsap.killTweensOf(container); } catch {}
+  try { gsap.killTweensOf(container.scale); } catch {}
+  try { gsap.killTweensOf(container.alpha); } catch {}
+  try {
+    if (container.parent) container.parent.removeChild(container);
+    if (!container.destroyed) container.destroy({ children: true });
+  } catch {}
+}
+
+function acquireHudStarAnimationContainer(stage) {
+  let container = stage?._ccHudStarFlightContainer;
+  const canReuse = container
+    && !container.destroyed
+    && container.parent === stage;
+
+  if (!canReuse) {
+    if (container) destroyHudStarAnimationContainer(container);
+    container = new Container();
+    container.label = 'stars-to-hud-animation';
+    container.zIndex = 999999;
+    container.eventMode = 'none';
+    container.x = 0;
+    container.y = 0;
+    container.visible = true;
+    container.alpha = 1;
+    container.renderable = true;
+    container._isProtectedStarAnimation = true;
+    container._starTimelines = [];
+    container._activeJobCount = 0;
+    container._jobCleanupTimeouts = new Set();
+    container._ccOwnerStage = stage;
+    container._ccReleaseMobileActivity = acquirePixiMobileActivityLease('hud-star-flight');
+
+    stage.sortableChildren = true;
+    stage.addChild(container);
+    stage._ccHudStarFlightContainer = container;
+    activeStarAnimationContainers.add(container);
+    try { stage.sortChildren?.(); } catch {}
+  } else if (container._cleanupTimeout) {
+    try { clearTimeout(container._cleanupTimeout); } catch {}
+    container._cleanupTimeout = null;
+  }
+
+  container._activeJobCount = Math.max(0, Number(container._activeJobCount) || 0) + 1;
+  return container;
+}
+
+function releaseHudStarAnimationJob(container) {
+  if (!container || container.destroyed) return;
+  container._activeJobCount = Math.max(0, (Number(container._activeJobCount) || 0) - 1);
+  if (container._activeJobCount > 0) return;
+  if (container._cleanupTimeout) {
+    try { clearTimeout(container._cleanupTimeout); } catch {}
+  }
+  container._cleanupTimeout = setTimeout(() => {
+    container._cleanupTimeout = null;
+    if ((Number(container._activeJobCount) || 0) === 0) {
+      destroyHudStarAnimationContainer(container);
+    }
+  }, 120);
+}
+
 function killOwnedStarTimelines(container) {
   const timelines = Array.isArray(container?._starTimelines)
     ? [...container._starTimelines]
@@ -3996,13 +4093,7 @@ export function forceCleanupAllStarAnimations() {
     activeStarAnimationContainers.forEach(container => {
       try {
         if (container && !container.destroyed) {
-          // 🔥 CRITICAL FIX: Clear cleanup timeout if exists
-          if (container._cleanupTimeout) {
-            try {
-              clearTimeout(container._cleanupTimeout);
-              container._cleanupTimeout = null;
-            } catch {}
-          }
+          clearHudStarContainerTimers(container);
 
           // Path motion targets a plain object, not the PIXI container. Killing
           // only container/child tweens leaves those timelines ticking invisibly.
@@ -4035,8 +4126,12 @@ export function forceCleanupAllStarAnimations() {
             container.destroy({ children: true });
           }
         }
+        releaseHudStarContainerCadence(container);
+        detachHudStarContainerOwner(container);
       } catch (e) {
         console.warn('⚠️ forceCleanupAllStarAnimations: Error cleaning up container:', e);
+        releaseHudStarContainerCadence(container);
+        detachHudStarContainerOwner(container);
       }
     });
     
@@ -4263,73 +4358,24 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     savedWildTilePos: savedWildTileScreenPos
   });
   
-  // 🔥 CRITICAL: Create animation container on STAGE with PROTECTED identifier
-  // This ensures it's independent of board animations and won't be killed by cleanup
-  const animationContainer = new Container();
-  animationContainer.label = 'stars-to-hud-animation';
-  animationContainer.zIndex = 999999; // 🔥 EXTREME z-index to sit above HUD layers
-  animationContainer.eventMode = 'none';
-  animationContainer.x = 0;
-  animationContainer.y = 0;
-  animationContainer.visible = true; // 🔥 CRITICAL: Ensure container is visible
-  animationContainer.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
-  animationContainer.renderable = true; // 🔥 CRITICAL: Ensure container is renderable
-  
-  // 🔥 CRITICAL: Mark container as PROTECTED to prevent it from being killed by cleanup functions
-  animationContainer._isProtectedStarAnimation = true;
-  
-  if (verboseLogs) console.log('⭐ Creating star animation container:', {
-    visible: animationContainer.visible,
-    alpha: animationContainer.alpha,
-    renderable: animationContainer.renderable,
-    zIndex: animationContainer.zIndex,
-    protected: animationContainer._isProtectedStarAnimation
-  });
-  
-  // Ensure stage sortable children is enabled for z-index
-  if (stage.sortableChildren !== undefined) {
-    stage.sortableChildren = true;
-  }
-  
-  // 🔥 CRITICAL FIX: Validate stage is still valid before adding container (board transition fix)
+  // One protected stage-level runtime owns every overlapping HUD-star batch.
+  // This avoids duplicate containers/stage sorts and keeps cadence ownership
+  // continuous when TNT, Magnet, Honey, Flower, or regular merges overlap.
+  let animationContainer = null;
   try {
     if (stage.destroyed) {
       console.error('❌ animateStarsToHudIcon: Stage was destroyed during setup!');
-      animationContainer.destroy?.({ children: true });
       return;
     }
-    
-    // rendererApp is already set above from app parameter, stage.app, or window.STATE
-    // No need to get it again here
-    
-    stage.addChild(animationContainer);
-    
-    // 🔥 CRITICAL FIX: Verify container was actually added (defensive check)
-    if (!animationContainer.parent || animationContainer.parent !== stage) {
-      console.error('❌ animateStarsToHudIcon: Failed to add container to stage!');
-      animationContainer.destroy?.({ children: true });
-      return;
-    }
+    animationContainer = acquireHudStarAnimationContainer(stage);
   } catch (e) {
-    console.error('❌ animateStarsToHudIcon: Failed to add container to stage:', e);
-    animationContainer.destroy?.({ children: true });
+    console.error('❌ animateStarsToHudIcon: Failed to acquire shared HUD-star runtime:', e);
     return;
   }
-  
-  // Track this container for cleanup
-  activeStarAnimationContainers.add(animationContainer);
-  
-  // Force sort to ensure z-index is respected
-  try {
-    stage.sortChildren();
-  } catch {}
-  
+
   // Store references for cleanup
   const starSprites = [];
   const timelines = [];
-  // The container is the lifecycle owner even though the main motion tween
-  // targets local path objects. Reset/Play Again can therefore cancel all work.
-  animationContainer._starTimelines = timelines;
   
   const STAR_COUNT = Math.min(3, savedStarPositions.length);
   let maxStarDuration = 0;
@@ -4361,6 +4407,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   if (!sharedStarTexture) {
     console.error('❌ No star texture available, aborting animation');
+    releaseHudStarAnimationJob(animationContainer);
     return;
   }
   
@@ -4709,6 +4756,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     }, 0);
     
     timelines.push(tl);
+    animationContainer._starTimelines.push(tl);
   }
   
   // 🔥 MEMORY LEAK FIX: Improved cleanup after all animations complete
@@ -4748,6 +4796,10 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           console.warn('⚠️ performCleanup: Error killing timeline:', e);
         }
       });
+      if (Array.isArray(animationContainer?._starTimelines)) {
+        animationContainer._starTimelines = animationContainer._starTimelines
+          .filter((timeline) => !timelines.includes(timeline));
+      }
       timelines.length = 0; // Clear array
       
       // Remove all sprites (even if already destroyed, ensure cleanup)
@@ -4776,48 +4828,10 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       });
       starSprites.length = 0; // Clear array
       
-      // Remove container if still exists
-      if (animationContainer) {
-        try {
-          // 🔥 CRITICAL FIX: Clear cleanup timeout reference
-          if (animationContainer._cleanupTimeout) {
-            try {
-              clearTimeout(animationContainer._cleanupTimeout);
-            } catch {}
-            animationContainer._cleanupTimeout = null;
-          }
-          
-          // Remove from tracking set FIRST (prevents re-entry)
-          activeStarAnimationContainers.delete(animationContainer);
-          
-          // Kill any tweens on container
-          gsap.killTweensOf(animationContainer);
-          gsap.killTweensOf(animationContainer.scale);
-          gsap.killTweensOf(animationContainer.alpha);
-          
-          // Remove from parent
-          if (animationContainer.parent) {
-            animationContainer.parent.removeChild(animationContainer);
-          }
-          
-          // Destroy container and all children
-          if (!animationContainer.destroyed) {
-            animationContainer.destroy({ children: true });
-          }
-        } catch (e) {
-          console.warn('⚠️ performCleanup: Error cleaning up container:', e);
-          // 🔥 CRITICAL FIX: Ensure container is removed from Set even on error
-          activeStarAnimationContainers.delete(animationContainer);
-        }
-      }
+      releaseHudStarAnimationJob(animationContainer);
     } catch (err) {
       console.error('❌ performCleanup: Critical error during cleanup:', err);
-      // 🔥 CRITICAL FIX: Ensure container is removed from Set even on critical error
-      if (animationContainer) {
-        try {
-          activeStarAnimationContainers.delete(animationContainer);
-        } catch {}
-      }
+      releaseHudStarAnimationJob(animationContainer);
     }
   };
   
@@ -4826,15 +4840,15 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // Safety cleanup: ensure container is removed even if something goes wrong
   // Use shorter delay for faster cleanup (0.5s buffer instead of 1.0s)
   const cleanupTimeout = setTimeout(() => {
+    animationContainer?._jobCleanupTimeouts?.delete(cleanupTimeout);
     if (verboseLogs) console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.5).toFixed(2)}s`);
     performCleanup();
     if (verboseLogs) console.log(`✅ Star animation cleanup completed`);
   }, (totalDuration + 0.5) * 1000); // Convert to milliseconds
   
-  // Store timeout reference on container for manual cleanup if needed
-  if (animationContainer) {
-    animationContainer._cleanupTimeout = cleanupTimeout;
-  }
+  // Force-reset owns these timers too, while the shared container's
+  // _cleanupTimeout is reserved for its short idle-destroy tail.
+  animationContainer?._jobCleanupTimeouts?.add(cleanupTimeout);
   
   // 🔥 CRITICAL: Store reference to animation container and timelines for protection
   // Mark timeline with protection flag to prevent external kill

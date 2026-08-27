@@ -12,6 +12,9 @@ import {
   SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS,
   SPACESHIP_PULL_PLAN,
   SPACESHIP_SAUCER_EXIT_AT_SECONDS,
+  SPACESHIP_SAUCER_FRAME_COUNT,
+  SPACESHIP_SAUCER_FRAME_START_AT_SECONDS,
+  SPACESHIP_SAUCER_FRAME_STEP_SECONDS,
   SPACESHIP_SCENE_SECONDS,
 } from '../spaceship-finale-scene.js';
 
@@ -95,6 +98,8 @@ describe('Spaceship finale rendered lifecycle', () => {
     });
     const beamRig = overlay.querySelector<HTMLElement>('.cc-spaceship-finale-beam-rig');
     const saucerRig = overlay.querySelector<HTMLElement>('.cc-spaceship-finale-saucer-rig');
+    const saucer = overlay.querySelector<HTMLImageElement>('.cc-spaceship-finale-saucer');
+    expect(overlay.querySelectorAll('.cc-spaceship-finale-saucer')).toHaveLength(1);
     tracked[0].seek(SPACESHIP_SAUCER_EXIT_AT_SECONDS - 0.001, false);
     expect(beamRig!.isConnected).toBe(true);
     expect(saucerRig!.isConnected).toBe(true);
@@ -148,6 +153,17 @@ describe('Spaceship finale rendered lifecycle', () => {
     tracked[0].seek(SPACESHIP_BEAM_DISCONNECT_AT_SECONDS + 0.40, false);
     expect(Number(gsap.getProperty(saucerRig!, 'y'))).toBeLessThan(0);
     expect(Number(gsap.getProperty(saucerRig!, 'x'))).toBeLessThan(0);
+    const penultimateFrameAt = SPACESHIP_SAUCER_FRAME_START_AT_SECONDS
+      + (SPACESHIP_SAUCER_FRAME_COUNT - 2) * SPACESHIP_SAUCER_FRAME_STEP_SECONDS;
+    const finalFrameAt = SPACESHIP_SAUCER_FRAME_START_AT_SECONDS
+      + (SPACESHIP_SAUCER_FRAME_COUNT - 1) * SPACESHIP_SAUCER_FRAME_STEP_SECONDS;
+    expect(penultimateFrameAt).toBeGreaterThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    expect(finalFrameAt).toBeLessThanOrEqual(SPACESHIP_SCENE_SECONDS);
+    expect(SPACESHIP_SCENE_SECONDS - finalFrameAt).toBeLessThan(SPACESHIP_SAUCER_FRAME_STEP_SECONDS);
+    tracked[0].seek(penultimateFrameAt + 0.001, false);
+    const penultimateExitSource = saucer!.getAttribute('src');
+    tracked[0].seek(finalFrameAt + 0.001, false);
+    expect(saucer!.getAttribute('src')).not.toBe(penultimateExitSource);
     tracked[0].seek(SPACESHIP_SCENE_SECONDS - 0.001, false);
     expect(Number(gsap.getProperty(saucerRig!, 'y'))).toBeLessThan(-400);
     expect(Number(gsap.getProperty(saucerRig!, 'opacity'))).toBe(1);

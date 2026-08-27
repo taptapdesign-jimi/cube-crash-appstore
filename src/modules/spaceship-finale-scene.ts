@@ -8,6 +8,12 @@ const SCENE_SECONDS = SPACESHIP_SCENE_SECONDS;
 const useHighResolutionAssets = typeof window !== 'undefined' && window.devicePixelRatio > 1.5;
 const source = (name: string) => `${PACK}/${name}${useHighResolutionAssets ? '@2x' : ''}.png`;
 const SAUCER_SOURCES = Array.from({ length: 4 }, (_, index) => source(`saucer${index + 1}`));
+export const SPACESHIP_SAUCER_FRAME_START_AT_SECONDS = 0.20;
+export const SPACESHIP_SAUCER_FRAME_STEP_SECONDS = 0.11;
+export const SPACESHIP_SAUCER_FRAME_COUNT = Math.floor(
+  (SPACESHIP_SCENE_SECONDS - SPACESHIP_SAUCER_FRAME_START_AT_SECONDS)
+    / SPACESHIP_SAUCER_FRAME_STEP_SECONDS,
+) + 1;
 const ROCK_SOURCES = Array.from({ length: 7 }, (_, index) => source(`rock${index + 1}`));
 const CAN_SOURCES = Array.from({ length: 5 }, (_, index) => source(`kanta${index + 1}`));
 const BOARD_TILE_SOURCE = `./assets/tile${useHighResolutionAssets ? '@2x' : ''}.png`;
@@ -608,10 +614,14 @@ export function attachSpaceshipFinaleScene(
       });
     }, undefined, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
 
-    for (let index = 0; index < 27; index += 1) {
+    // Keep the existing four-frame saucer sprite alive through the complete
+    // exit. These calls belong to the master timeline, so cleanup stays with
+    // the scene owner and no extra ticker or duplicate image is introduced.
+    for (let index = 0; index < SPACESHIP_SAUCER_FRAME_COUNT; index += 1) {
       master.call(() => {
         if (!disposed) saucer.src = SAUCER_SOURCES[index % SAUCER_SOURCES.length];
-      }, undefined, 0.20 + index * 0.11);
+      }, undefined, SPACESHIP_SAUCER_FRAME_START_AT_SECONDS
+        + index * SPACESHIP_SAUCER_FRAME_STEP_SECONDS);
     }
 
     const beams = own(gsap.timeline({ paused: true }));
@@ -762,7 +772,7 @@ export function attachSpaceshipFinaleScene(
   };
 
   // Warm the browser cache without making visual duration depend on network or
-  // decode latency. The authored master starts now and owns exactly 3.5 seconds.
+  // decode latency. The authored master starts now and owns exactly 3.8 seconds.
   void preloadSpaceshipFinaleAssets();
   start();
 
@@ -786,7 +796,7 @@ export function attachSpaceshipFinaleScene(
     } catch {}
     field.remove();
   }) as (() => void) & { startExit?: () => void; completionDelaySeconds?: number };
-  // The scene owns its authored 3.5-second exit. The shared overlay may start
+  // The scene owns its authored 3.8-second lifecycle. The shared overlay may start
   // its text exit earlier, but it must keep this field alive until completion.
   cleanup.startExit = () => {};
   cleanup.completionDelaySeconds = SCENE_SECONDS;

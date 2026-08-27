@@ -207,6 +207,43 @@ describe('Journey Hub transition ownership', () => {
     );
   });
 
+  test('lifts the complete Beach and Area 55 World compositions by sixteen pixels', () => {
+    const worldScopeSource = journeyManagerSource.split(
+      'private applyJourneyV700WorldScope(',
+    )[1]?.split('private getJourneyV700WorldTargets')[0] ?? '';
+
+    expect(journeyManagerSource).toContain('const JOURNEY_V700_BEACH_AREA55_SCOPE_LIFT_PX = 16');
+    expect(worldScopeSource).toContain(
+      'worldId === 2 || worldId === 3 ? -JOURNEY_V700_BEACH_AREA55_SCOPE_LIFT_PX : 0',
+    );
+    expect(worldScopeSource).toContain(
+      'rawTop - worldOffsetPercent + worldScopeOffsetPercent',
+    );
+    expect(worldScopeSource).toContain('rawTop - worldOffsetPx + worldScopeOffsetPx');
+  });
+
+  test('moves only Area 55 Units 03 and 07 sixteen pixels left as complete Units', () => {
+    const renderAssetsSource = journeyManagerSource.split(
+      'private renderForestMapAssets(',
+    )[1]?.split('private cleanupDetailModalRuntimeState')[0] ?? '';
+    const roboUnitSource = renderAssetsSource.split(
+      'const addRoboBoardGroup = (',
+    )[1]?.split('if (activeWorldId === 1')[0] ?? '';
+    const cardSource = journeyManagerSource.split(
+      'private createBoardCardFixed(',
+    )[1]?.split('private ')[0] ?? '';
+
+    expect(journeyManagerSource).toContain('23: -16');
+    expect(journeyManagerSource).toContain('27: -16');
+    expect(roboUnitSource).toContain(
+      'const unitX = islandX + getJourneyBoardUnitHorizontalOffsetPx(boardId)',
+    );
+    expect(roboUnitSource).toContain('unitX + slot.x');
+    expect(roboUnitSource).toContain('unitX + craterLayout.x');
+    expect(roboUnitSource).toContain('unitX + star.x + finalStarsOffsetX');
+    expect(cardSource).toContain('leftPx += getJourneyBoardUnitHorizontalOffsetPx(board.id)');
+  });
+
   test('World spatial motion starts only after the Unit cascade to avoid cold layer promotion', () => {
     const worldEnterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',

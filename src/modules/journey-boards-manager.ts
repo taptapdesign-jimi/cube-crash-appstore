@@ -537,8 +537,15 @@ const JOURNEY_CARDSTACK_OFFSET_FROM_WORLD_PX = 58;
 const JOURNEY_BOARDSTACK_BOTTOM_ROOM_PX = 4200;
 /** V700 scoped world bottom room after the 10th unit; keeps the screen compact without clipping idle/exit motion. */
 const JOURNEY_V700_WORLD_BOTTOM_ROOM_PX = 680;
-/** Forest-only visual nudge inside V700 scoped world screen. Beach/Area 55 intentionally stay unchanged. */
+/** Preserve the existing Forest-only down nudge inside its scoped World screen. */
 const JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX = 16;
+/** Lift the complete Beach and Area 55 scoped World composition as one unit. */
+const JOURNEY_V700_BEACH_AREA55_SCOPE_LIFT_PX = 16;
+/** Per-Unit horizontal layout corrections; Area 55 03/07 are boards 23/27. */
+const JOURNEY_BOARD_UNIT_HORIZONTAL_OFFSETS_PX: Readonly<Record<number, number>> = Object.freeze({
+  23: -16,
+  27: -16,
+});
 const ENABLE_INTERIM_CARD_IDLE_EFFECTS = true;
 export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true;
 const BOARD_AREA_MODAL_ENTER_SCALE = 0.65;
@@ -798,6 +805,10 @@ function forestTopPercent(px: number): number {
 
 function getJourneyEarnedLevelStars(score: number, boardNumber: number): number {
   return getJourneyEarnedStars(score, boardNumber);
+}
+
+function getJourneyBoardUnitHorizontalOffsetPx(boardId: number): number {
+  return JOURNEY_BOARD_UNIT_HORIZONTAL_OFFSETS_PX[boardId] ?? 0;
 }
 
 // Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
@@ -3004,6 +3015,7 @@ class JourneyBoardsManager {
     ) => {
       const areaId = `board-${boardId}`;
       const targets: HTMLElement[] = [];
+      const unitX = islandX + getJourneyBoardUnitHorizontalOffsetPx(boardId);
       boardTargets.set(boardId, targets);
 
       const roboStarOffsets: Record<number, { x: number; y: number; rotation?: number }> = {
@@ -3123,7 +3135,7 @@ class JourneyBoardsManager {
         const assetIndex = ((slot.ref - 1) % cloudAssetPool.length + cloudAssetPool.length) % cloudAssetPool.length;
         const cloud = addImage(
           cloudAssetPool[assetIndex],
-          islandX + slot.x,
+          unitX + slot.x,
           islandY + slot.y,
           slot.width,
           `journey-forest-cloud-art journey-forest-board-cloud journey-forest-cloud-board-${boardId} journey-forest-cloud-ref-${slot.ref}`,
@@ -3139,7 +3151,7 @@ class JourneyBoardsManager {
 
       const roboIsland = addImage(
         islandSrc,
-        islandX,
+        unitX,
         islandY,
         islandWidth,
         `journey-forest-island-art journey-robo-island-art journey-forest-island-${boardId}`,
@@ -3152,7 +3164,7 @@ class JourneyBoardsManager {
 
       const crater = addImage(
         craterLayout.src,
-        islandX + craterLayout.x,
+        unitX + craterLayout.x,
         islandY + craterLayout.y,
         craterLayout.width,
         `journey-forest-stump-art journey-robo-crater-art journey-forest-stump-${boardId}`,
@@ -3178,7 +3190,7 @@ class JourneyBoardsManager {
         const beamUnit = document.createElement('div');
         beamUnit.className = `journey-forest-star-art journey-forest-star-board-${boardId} journey-robo-alien-beam-art journey-robo-alien-beam-board-${boardId}`;
         beamUnit.style.position = 'absolute';
-        beamUnit.style.left = `${((islandX + craterLayout.x + 13) / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
+        beamUnit.style.left = `${((unitX + craterLayout.x + 13) / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
         beamUnit.style.top = `${((islandY + craterLayout.y - 60) / FOREST_MAP_DESIGN_HEIGHT) * 100}%`;
         beamUnit.style.width = `${(54 / FOREST_MAP_DESIGN_WIDTH) * 100}%`;
         beamUnit.style.height = 'auto';
@@ -3210,7 +3222,7 @@ class JourneyBoardsManager {
           const starStateClass = shouldShowFilledStar ? 'journey-forest-star-filled' : 'journey-forest-star-empty';
           targets.push(addImage(
             shouldShowFilledStar ? star.filledSrc : star.emptySrc,
-            islandX + star.x + finalStarsOffsetX,
+            unitX + star.x + finalStarsOffsetX,
             islandY + star.y + finalStarsOffsetY,
             star.width,
             `journey-forest-star-art ${starStateClass} journey-forest-star-${star.role} journey-forest-star-board-${boardId}`,
@@ -7576,8 +7588,10 @@ class JourneyBoardsManager {
     const range = this.getJourneyWorldRange(worldId);
     const worldOffsetPx = JOURNEY_WORLD_MAIN_OFFSETS_PX[worldId] || 0;
     const worldOffsetPercent = (worldOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
-    const forestExtraDownPx = worldId === 1 ? JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX : 0;
-    const forestExtraDownPercent = (forestExtraDownPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
+    const worldScopeOffsetPx = worldId === 1
+      ? JOURNEY_V700_FOREST_SCOPE_EXTRA_DOWN_PX
+      : (worldId === 2 || worldId === 3 ? -JOURNEY_V700_BEACH_AREA55_SCOPE_LIFT_PX : 0);
+    const worldScopeOffsetPercent = (worldScopeOffsetPx / FOREST_MAP_DESIGN_HEIGHT) * 100;
     if (!range) {
       this.logJourneyV700Flow('world-scope-missing-range', { worldId }, container);
       return;
@@ -7614,7 +7628,7 @@ class JourneyBoardsManager {
       element.style.display = '';
       const rawTop = parseFloat(element.style.top || '0');
       if (Number.isFinite(rawTop)) {
-        element.style.top = `${rawTop - worldOffsetPercent + forestExtraDownPercent}%`;
+        element.style.top = `${rawTop - worldOffsetPercent + worldScopeOffsetPercent}%`;
       }
     };
 
@@ -7631,7 +7645,7 @@ class JourneyBoardsManager {
       wrapper.style.display = '';
       const rawTop = parseFloat(wrapper.style.top || '0');
       if (Number.isFinite(rawTop)) {
-        wrapper.style.top = `${rawTop - worldOffsetPx + forestExtraDownPx}px`;
+        wrapper.style.top = `${rawTop - worldOffsetPx + worldScopeOffsetPx}px`;
       }
     });
 
@@ -9132,6 +9146,10 @@ class JourneyBoardsManager {
         topPx -= 20; // Podignuta gore za 20px
       }
     }
+
+    // A Unit-specific layout correction belongs to the wrapper's base left
+    // coordinate, never its transform (owned by enter/exit/idle/gyro motion).
+    leftPx += getJourneyBoardUnitHorizontalOffsetPx(board.id);
     
     const scaleFactor = 1;
     

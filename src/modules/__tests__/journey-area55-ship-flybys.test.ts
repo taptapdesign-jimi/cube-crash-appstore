@@ -4,6 +4,7 @@ import {
   advanceJourneyArea55ShipScale,
   clampJourneyArea55ShipRotation,
   getJourneyArea55ShipSize,
+  resolveJourneyArea55ShipCanvasGeometry,
   resolveJourneyArea55ShipRuntimeProfile,
   startJourneyArea55ShipFlybys,
 } from '../journey-area55-ship-flybys';
@@ -51,6 +52,25 @@ describe('Journey Area 55 pooled ship flybys', () => {
       .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.5, maxFramesPerSecond: 30 });
   });
 
+  test('uses the physical scroll viewport instead of applying the 24px Journey gutter twice', () => {
+    const scrollRoot = document.createElement('div');
+    Object.defineProperty(scrollRoot, 'clientWidth', { configurable: true, value: 390 });
+    scrollRoot.getBoundingClientRect = () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 390, bottom: 600,
+      width: 390, height: 600, toJSON: () => ({}),
+    });
+    const root = document.createElement('div');
+    root.getBoundingClientRect = () => ({
+      x: 0, y: 20, left: 0, top: 20, right: 390, bottom: 5220,
+      width: 390, height: 5200, toJSON: () => ({}),
+    });
+
+    expect(resolveJourneyArea55ShipCanvasGeometry(root, scrollRoot, 390, 24)).toEqual({
+      left: 0,
+      width: 390,
+    });
+  });
+
   test('pools exactly four cross-screen ships behind clouds in alternating upper and lower lanes', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
@@ -76,6 +96,7 @@ describe('Journey Area 55 pooled ship flybys', () => {
     clouds.className = 'journey-cloud-container';
     const background = document.createElement('div');
     background.className = 'journey-bg-container';
+    background.style.left = '-24px';
     background.style.width = '390px';
     root.append(clouds, background);
     const addArt = (className: string, areaId: string, top: number): void => {
@@ -122,6 +143,8 @@ describe('Journey Area 55 pooled ship flybys', () => {
     });
     const canvases = root.querySelectorAll('.journey-area55-ship-canvas');
     expect(canvases).toHaveLength(2);
+    expect((canvases[0] as HTMLCanvasElement).style.left).toBe('0px');
+    expect((canvases[0] as HTMLCanvasElement).style.width).toBe('390px');
     expect(canvases[0]?.nextElementSibling).toBe(clouds);
     expect(root.querySelectorAll('.journey-area55-ship')).toHaveLength(0);
     expect(ticker.add).toHaveBeenCalledTimes(1);

@@ -38,6 +38,19 @@ type GameplaySpatialWrapper = {
   };
 };
 
+type GameplaySpatialDepthPlan = {
+  xDepth: number;
+  yDepth: number;
+};
+
+type GameplaySpatialTargetSnapshot = {
+  providerTileCount: number;
+  tileTargetCount: number;
+  hudTargetCount: number;
+  decorTargetCount: number;
+  targetCount: number;
+};
+
 export type GameplaySpatialTile = {
   destroyed?: boolean;
   visible?: boolean;
@@ -352,6 +365,8 @@ export class AppSpatialMotionController {
   private gameplayHudProvider: (() => GameplaySpatialWrapper | null) | null = null;
   private gameplayJourneyDecorProvider: (() => HTMLElement | null) | null = null;
   private gameplayWrappers = new Set<GameplaySpatialWrapper>();
+  private gameplayNextWrappers = new Set<GameplaySpatialWrapper>();
+  private readonly gameplayDepthPlans = new Map<number, GameplaySpatialDepthPlan>();
   private gameplayHudWrapper: GameplaySpatialWrapper | null = null;
   private gameplayJourneyDecorElement: HTMLElement | null = null;
   private activationHoldReason: string | null = null;
@@ -359,6 +374,11 @@ export class AppSpatialMotionController {
   private profileFrameId: number | null = null;
   private orientationEvents = 0;
   private spatialRenderFrames = 0;
+  private gameplayProviderReads = 0;
+  private gameplayTilesScanned = 0;
+  private gameplayTargetsApplied = 0;
+  private gameplayPositionWrites = 0;
+  private readonly profiledGameplayGyroStates = new Set<'on' | 'off'>();
 
   public constructor(
     private readonly runtimeProfile: MobileRuntimeProfile = MOBILE_RUNTIME_PROFILE,
@@ -525,7 +545,15 @@ export class AppSpatialMotionController {
    * reports once; it never changes motion state or surface ownership. */
   public profileFrameWindow(label: string, durationMs = 6000): void {
     if (!areContinuousRuntimeDiagnosticsEnabled()) return;
-    if (this.profileFrameId !== null || typeof window.requestAnimationFrame !== 'function') return;
+    this.startFrameWindow(label, durationMs);
+  }
+
+  private startFrameWindow(
+    label: string,
+    durationMs: number,
+    readFinalDetail: (() => Record<string, unknown>) | null = null,
+  ): boolean {
+    if (this.profileFrameId !== null || typeof window.requestAnimationFrame !== 'function') return false;
     const startedAt = performance.now();
     let previousFrameAt = startedAt;
     let frameCount = 0;
@@ -536,6 +564,10 @@ export class AppSpatialMotionController {
     let over50 = 0;
     const orientationStart = this.orientationEvents;
     const spatialRenderStart = this.spatialRenderFrames;
+    const gameplayProviderReadStart = this.gameplayProviderReads;
+    const gameplayTilesScannedStart = this.gameplayTilesScanned;
+    const gameplayTargetsAppliedStart = this.gameplayTargetsApplied;
+    const gameplayPositionWritesStart = this.gameplayPositionWrites;
 
     const sample = (now: number): void => {
       const frameMs = now - previousFrameAt;
@@ -554,6 +586,12 @@ export class AppSpatialMotionController {
       }
       this.profileFrameId = null;
       const measuredFrames = Math.max(0, frameCount - 1);
+      let finalDetail: Record<string, unknown> = {};
+      try {
+        finalDetail = readFinalDetail?.() ?? {};
+      } catch {
+        finalDetail = { profileDetailUnavailable: true };
+      }
       this.emitDiagnostic('frame-window', {
         label,
         durationMs: Math.round(now - startedAt),
@@ -567,9 +605,15 @@ export class AppSpatialMotionController {
         over50,
         orientationEvents: this.orientationEvents - orientationStart,
         spatialRenderFrames: this.spatialRenderFrames - spatialRenderStart,
+        gameplayProviderReads: this.gameplayProviderReads - gameplayProviderReadStart,
+        gameplayTilesScanned: this.gameplayTilesScanned - gameplayTilesScannedStart,
+        gameplayTargetsApplied: this.gameplayTargetsApplied - gameplayTargetsAppliedStart,
+        gameplayPositionWrites: this.gameplayPositionWrites - gameplayPositionWritesStart,
+        ...finalDetail,
       });
     };
     this.profileFrameId = window.requestAnimationFrame(sample);
+    return true;
   }
 
   public requiresPermissionGesture(): boolean {
@@ -953,16 +997,35 @@ export class AppSpatialMotionController {
       () => this.activateGameplay(getTiles, getHudPreloadBar, getJourneyBottomDecor),
       'gameplay',
     )) return;
+    const motionEnabled = this.isEnabled() && !this.prefersReducedMotion();
+    this.profileGameplayActivation(
+      motionEnabled,
+      getTiles,
+      getHudPreloadBar,
+      getJourneyBottomDecor,
+    );
     if (this.activeSurface === 'gameplay' && !this.suspended) {
       this.gameplayTileProvider = getTiles;
       this.gameplayHudProvider = getHudPreloadBar;
       this.gameplayJourneyDecorProvider = getJourneyBottomDecor;
       this.ensureFrame();
+      this.emitDiagnostic('surface-activation-reused', {
+        surface: 'gameplay',
+        ...this.readGameplayTargetSnapshot(getTiles, getHudPreloadBar, getJourneyBottomDecor),
+        listening: this.listening,
+      });
       return;
     }
 
     this.deactivate();
-    if (!this.isEnabled() || this.prefersReducedMotion()) return;
+    if (!motionEnabled) {
+      this.emitDiagnostic('surface-disabled', {
+        surface: 'gameplay',
+        gyroState: 'off',
+        ...this.readGameplayTargetSnapshot(getTiles, getHudPreloadBar, getJourneyBottomDecor),
+      });
+      return;
+    }
 
     this.activeSurface = 'gameplay';
     this.gameplayTileProvider = getTiles;
@@ -978,9 +1041,65 @@ export class AppSpatialMotionController {
     if (this.permissionState === 'granted') this.startListening();
     this.emitDiagnostic('surface-activated', {
       surface: 'gameplay',
-      targetCount: 0,
+      gyroState: 'on',
+      ...this.readGameplayTargetSnapshot(getTiles, getHudPreloadBar, getJourneyBottomDecor),
       listening: this.listening,
     });
+  }
+
+  private profileGameplayActivation(
+    motionEnabled: boolean,
+    getTiles: () => GameplaySpatialTile[],
+    getHudPreloadBar: (() => GameplaySpatialWrapper | null) | null,
+    getJourneyBottomDecor: (() => HTMLElement | null) | null,
+  ): void {
+    const gyroState = motionEnabled ? 'on' : 'off';
+    if (this.profiledGameplayGyroStates.has(gyroState) || !this.hasNativeConsoleBridge()) return;
+    const started = this.startFrameWindow(
+      `gameplay-gyro-${gyroState}`,
+      6000,
+      () => ({
+        gyroState,
+        spatialMaxFramesPerSecond: motionEnabled ? this.runtimeProfile.spatialMaxFramesPerSecond : 0,
+        ...this.readGameplayTargetSnapshot(getTiles, getHudPreloadBar, getJourneyBottomDecor),
+      }),
+    );
+    if (started) this.profiledGameplayGyroStates.add(gyroState);
+  }
+
+  private readGameplayTargetSnapshot(
+    getTiles: (() => GameplaySpatialTile[]) | null = this.gameplayTileProvider,
+    getHudPreloadBar: (() => GameplaySpatialWrapper | null) | null = this.gameplayHudProvider,
+    getJourneyBottomDecor: (() => HTMLElement | null) | null = this.gameplayJourneyDecorProvider,
+  ): GameplaySpatialTargetSnapshot {
+    let liveTiles: GameplaySpatialTile[] = [];
+    try {
+      liveTiles = getTiles?.() ?? [];
+    } catch {}
+    let tileTargetCount = 0;
+    liveTiles.forEach((tile) => {
+      if (!tile || tile.destroyed || tile.visible === false || (tile.alpha ?? 1) <= 0.01) return;
+      if ((tile.value ?? 0) <= 0 && !tile.special) return;
+      if (!tile._ccSpatialG || tile._ccSpatialG.destroyed) return;
+      tileTargetCount += 1;
+    });
+    let hudWrapper: GameplaySpatialWrapper | null = null;
+    let journeyDecor: HTMLElement | null = null;
+    try {
+      hudWrapper = getHudPreloadBar?.() ?? null;
+    } catch {}
+    try {
+      journeyDecor = getJourneyBottomDecor?.() ?? null;
+    } catch {}
+    const hudTargetCount = hudWrapper && !hudWrapper.destroyed ? 1 : 0;
+    const decorTargetCount = journeyDecor?.isConnected && !journeyDecor.hidden ? 1 : 0;
+    return {
+      providerTileCount: liveTiles.length,
+      tileTargetCount,
+      hudTargetCount,
+      decorTargetCount,
+      targetCount: tileTargetCount + hudTargetCount + decorTargetCount,
+    };
   }
 
   /**
@@ -1208,6 +1327,14 @@ export class AppSpatialMotionController {
     } catch {}
   }
 
+  private hasNativeConsoleBridge(): boolean {
+    try {
+      return typeof (window as any).webkit?.messageHandlers?.consoleLog?.postMessage === 'function';
+    } catch {
+      return false;
+    }
+  }
+
   private persistNativePermissionDecision(granted: boolean): void {
     try {
       const handler = (window as any).webkit?.messageHandlers?.motionPermissionResult;
@@ -1430,7 +1557,11 @@ export class AppSpatialMotionController {
 
   private applyGameplayTilt(): void {
     const liveTiles = this.gameplayTileProvider?.() ?? [];
-    const activeWrappers = new Set<GameplaySpatialWrapper>();
+    this.gameplayProviderReads += 1;
+    this.gameplayTilesScanned += liveTiles.length;
+    const previousWrappers = this.gameplayWrappers;
+    const activeWrappers = this.gameplayNextWrappers;
+    activeWrappers.clear();
     liveTiles.forEach((tile, index) => {
       if (!tile || tile.destroyed || tile.visible === false || (tile.alpha ?? 1) <= 0.01) return;
       if ((tile.value ?? 0) <= 0 && !tile.special) return;
@@ -1440,43 +1571,39 @@ export class AppSpatialMotionController {
       const depthIndex = Number.isFinite(tile.gridX) && Number.isFinite(tile.gridY)
         ? ((tile.gridY as number) * 7) + (tile.gridX as number)
         : index;
-      const depthScale = this.getSessionDepthScale(depthIndex + 4);
-      const direction = getGameplayTileSpatialDirection(depthIndex, this.gameplayDirectionOffset);
-      const offset = createJourneySpatialOffset(
-        this.currentTilt,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.x * depthScale * direction.x,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.y * depthScale * direction.y,
-      );
-      this.setGameplayWrapperPosition(
+      const depthPlan = this.getGameplayDepthPlan(depthIndex);
+      if (this.setGameplayWrapperPosition(
         wrapper,
-        this.snapGameplayOffset(offset.x),
-        this.snapGameplayOffset(offset.y),
-      );
+        this.snapGameplayOffset(this.currentTilt.x * depthPlan.xDepth * JOURNEY_SPATIAL_STRENGTH),
+        this.snapGameplayOffset(this.currentTilt.y * depthPlan.yDepth * JOURNEY_SPATIAL_STRENGTH),
+      )) this.gameplayPositionWrites += 1;
       activeWrappers.add(wrapper);
+      this.gameplayTargetsApplied += 1;
     });
-    this.gameplayWrappers.forEach((wrapper) => {
+    previousWrappers.forEach((wrapper) => {
       if (!activeWrappers.has(wrapper) && !wrapper.destroyed) {
-        this.setGameplayWrapperPosition(wrapper, 0, 0);
+        if (this.setGameplayWrapperPosition(wrapper, 0, 0)) this.gameplayPositionWrites += 1;
       }
     });
     this.gameplayWrappers = activeWrappers;
+    this.gameplayNextWrappers = previousWrappers;
 
     const hudWrapper = this.gameplayHudProvider?.() ?? null;
     if (this.gameplayHudWrapper && this.gameplayHudWrapper !== hudWrapper && !this.gameplayHudWrapper.destroyed) {
-      this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0);
+      if (this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0)) this.gameplayPositionWrites += 1;
     }
     if (hudWrapper && !hudWrapper.destroyed) {
-      const hudOffset = createJourneySpatialOffset(
-        this.currentTilt,
-        JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.x,
-        JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.y,
-      );
-      this.setGameplayWrapperPosition(
+      if (this.setGameplayWrapperPosition(
         hudWrapper,
-        this.snapGameplayOffset(hudOffset.x),
-        this.snapGameplayOffset(hudOffset.y),
-      );
+        this.snapGameplayOffset(
+          this.currentTilt.x * JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.x * JOURNEY_SPATIAL_STRENGTH,
+        ),
+        this.snapGameplayOffset(
+          this.currentTilt.y * JOURNEY_SPATIAL_DEPTH.gameplayHudPreload.y * JOURNEY_SPATIAL_STRENGTH,
+        ),
+      )) this.gameplayPositionWrites += 1;
       this.gameplayHudWrapper = hudWrapper;
+      this.gameplayTargetsApplied += 1;
     } else {
       this.gameplayHudWrapper = null;
     }
@@ -1487,15 +1614,25 @@ export class AppSpatialMotionController {
     }
     if (journeyDecor?.isConnected && !journeyDecor.hidden) {
       const decorGain = JOURNEY_SPATIAL_SURFACE_GAIN.gameplayJourneyBottomDecor;
-      const decorOffset = createJourneySpatialOffset(
-        this.currentTilt,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.x * decorGain.x,
-        JOURNEY_SPATIAL_DEPTH.gameplayTile.y * decorGain.y,
+      const x = this.snapGameplayOffset(
+        this.currentTilt.x
+          * JOURNEY_SPATIAL_DEPTH.gameplayTile.x
+          * decorGain.x
+          * JOURNEY_SPATIAL_STRENGTH,
       );
-      const x = this.snapGameplayOffset(decorOffset.x);
-      const y = this.snapGameplayOffset(decorOffset.y);
-      this.setStylePropertyIfChanged(journeyDecor, 'translate', `${x.toFixed(2)}px ${y.toFixed(2)}px`);
+      const y = this.snapGameplayOffset(
+        this.currentTilt.y
+          * JOURNEY_SPATIAL_DEPTH.gameplayTile.y
+          * decorGain.y
+          * JOURNEY_SPATIAL_STRENGTH,
+      );
+      if (this.setStylePropertyIfChanged(
+        journeyDecor,
+        'translate',
+        `${x.toFixed(2)}px ${y.toFixed(2)}px`,
+      )) this.gameplayPositionWrites += 1;
       this.gameplayJourneyDecorElement = journeyDecor;
+      this.gameplayTargetsApplied += 1;
     } else {
       if (this.gameplayJourneyDecorElement) {
         this.gameplayJourneyDecorElement.style.removeProperty('translate');
@@ -1550,6 +1687,7 @@ export class AppSpatialMotionController {
       this.setGameplayWrapperPosition(wrapper, 0, 0);
     });
     this.gameplayWrappers.clear();
+    this.gameplayNextWrappers.clear();
     if (this.gameplayHudWrapper && !this.gameplayHudWrapper.destroyed) {
       this.setGameplayWrapperPosition(this.gameplayHudWrapper, 0, 0);
     }
@@ -1566,26 +1704,41 @@ export class AppSpatialMotionController {
     return Math.round(value * 2) / 2;
   }
 
-  private setGameplayWrapperPosition(wrapper: GameplaySpatialWrapper, x: number, y: number): void {
+  private getGameplayDepthPlan(depthIndex: number): GameplaySpatialDepthPlan {
+    const cached = this.gameplayDepthPlans.get(depthIndex);
+    if (cached) return cached;
+    const depthScale = this.getSessionDepthScale(depthIndex + 4);
+    const direction = getGameplayTileSpatialDirection(depthIndex, this.gameplayDirectionOffset);
+    const plan = {
+      xDepth: JOURNEY_SPATIAL_DEPTH.gameplayTile.x * depthScale * direction.x,
+      yDepth: JOURNEY_SPATIAL_DEPTH.gameplayTile.y * depthScale * direction.y,
+    };
+    this.gameplayDepthPlans.set(depthIndex, plan);
+    return plan;
+  }
+
+  private setGameplayWrapperPosition(wrapper: GameplaySpatialWrapper, x: number, y: number): boolean {
     const currentX = wrapper.position?.x ?? wrapper.x;
     const currentY = wrapper.position?.y ?? wrapper.y;
-    if (currentX === x && currentY === y) return;
+    if (currentX === x && currentY === y) return false;
     if (typeof wrapper.position?.set === 'function') {
       wrapper.position.set(x, y);
-      return;
+      return true;
     }
     if (wrapper.position) {
       wrapper.position.x = x;
       wrapper.position.y = y;
-      return;
+      return true;
     }
     wrapper.x = x;
     wrapper.y = y;
+    return true;
   }
 
-  private setStylePropertyIfChanged(element: HTMLElement, property: string, value: string): void {
-    if (element.style.getPropertyValue(property) === value) return;
+  private setStylePropertyIfChanged(element: HTMLElement, property: string, value: string): boolean {
+    if (element.style.getPropertyValue(property) === value) return false;
     element.style.setProperty(property, value);
+    return true;
   }
 
   private removeCompositorHints(): void {

@@ -12,6 +12,7 @@ let ownedTicker: PixiCadenceTicker | null = null;
 let activeUntil = 0;
 let tickOwner: (() => void) | null = null;
 let listenersInstalled = false;
+const activityLeases = new Set<symbol>();
 
 function now(): number {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -19,7 +20,7 @@ function now(): number {
 
 function applyCadence(): void {
   if (!ownedTicker) return;
-  ownedTicker.maxFPS = now() < activeUntil
+  ownedTicker.maxFPS = activityLeases.size > 0 || now() < activeUntil
     ? ACTIVE_FPS
     : MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
 }
@@ -68,6 +69,27 @@ export function markPixiMobileActivity(durationMs = ACTIVITY_TAIL_MS): void {
   applyCadence();
 }
 
+/** Keep authored Pixi motion at active cadence for its real lifecycle rather
+ * than estimating its duration. The returned release is idempotent and leaves
+ * a short paint tail so the final frame is presented before settled idle. */
+export function acquirePixiMobileActivityLease(
+  label = 'anonymous',
+  releaseTailMs = 180,
+): () => void {
+  if (!ownedTicker) return () => {};
+  const token = Symbol(label);
+  activityLeases.add(token);
+  applyCadence();
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activityLeases.delete(token);
+    activeUntil = Math.max(activeUntil, now() + Math.max(0, releaseTailMs));
+    applyCadence();
+  };
+}
+
 export function stopPixiMobileFrameController(): void {
   if (ownedTicker && tickOwner) {
     try { ownedTicker.remove(tickOwner); } catch {}
@@ -76,6 +98,7 @@ export function stopPixiMobileFrameController(): void {
   ownedTicker = null;
   tickOwner = null;
   activeUntil = 0;
+  activityLeases.clear();
   removeListeners();
 }
 
@@ -83,10 +106,12 @@ export function getPixiMobileFrameControllerSnapshot(): {
   active: boolean;
   maxFPS: number;
   activeUntil: number;
+  activityLeaseCount: number;
 } {
   return {
     active: ownedTicker !== null,
     maxFPS: ownedTicker?.maxFPS ?? 0,
     activeUntil,
+    activityLeaseCount: activityLeases.size,
   };
 }

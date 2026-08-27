@@ -2,15 +2,9 @@
 // src/modules/stars-collector.ts
 // Manages star currency collection and animations when wild stars merge into merge 6
 
-import { Container, Sprite, Graphics, Assets, Texture } from 'pixi.js';
-import { gsap } from 'gsap';
-import animationManager from './animation-manager.js';
+import { Container, Assets, Texture } from 'pixi.js';
 import { detachWildStarHalo } from './wild-stars.js';
 import { isArcadeHomeRunMode } from './run-mode.js';
-
-const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
-
-const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 interface StarCollectionConfig {
   app: any;
@@ -93,16 +87,6 @@ let bounceCounter = 0; // Track which bounce number we're on
 // 🔥 FIX: Track active timeouts for cleanup
 const activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 let collectorEpoch = 0;
-
-interface ActiveCollectionOperation {
-  container: Container;
-  wildTile: any;
-  animations: Set<gsap.core.Animation>;
-  settleCallbacks: Set<() => void>;
-  cancelled: boolean;
-}
-
-const activeCollectionOperations = new Set<ActiveCollectionOperation>();
 
 // 🔥 FIX: Helper to track timeouts
 function trackTimeout(callback: () => void, delay: number, epoch = collectorEpoch): ReturnType<typeof setTimeout> {
@@ -287,384 +271,52 @@ export async function collectStarsFromWildTile(
     console.warn('⚠️ Cannot collect stars: config or wildTile missing');
     return;
   }
-  
-  // Get the wild star system (random 1-3 orbiting stars)
-  const wildStarSystem = (wildTile as any)?._wildStarSystem;
-  if (!wildStarSystem || !wildStarSystem.stars || wildStarSystem.stars.length === 0) {
+
+  const orbitingStars = wildTile?._wildStarSystem?.stars;
+  if (!Array.isArray(orbitingStars) || orbitingStars.length === 0) {
     console.warn('⚠️ No wild star system found on tile');
     return;
   }
-  
-  const orbitingStars = wildStarSystem.stars;
-  console.log('⭐ Collecting', orbitingStars.length, 'stars from wild tile');
-  
-  // Get HUD star icon position
+
   const hudStarPos = config.getStarHudPosition();
-  if (!hudStarPos) {
-    console.warn('⚠️ Cannot get HUD star position');
+  if (!hudStarPos || !config.stage || config.stage.destroyed) {
+    console.warn('⚠️ Cannot collect stars: HUD or stage unavailable');
     return;
   }
-  
-  // Get board-to-screen transform
-  const board = config.board;
-  const hud = config.hud;
-  
-  // Get wild tile position in screen coordinates (wild tile is where stars orbit)
-  // Wild tile position might already be in screen coords, but we need to ensure it's correct
-  const wildTileX = wildTile.x;
-  const wildTileY = wildTile.y;
-  
-  // If wild tile is a child of board, get its global position
-  let wildTileScreenX = wildTileX;
-  let wildTileScreenY = wildTileY;
-  
+
+  let wildTileScreenPos = { x: Number(wildTile.x) || 0, y: Number(wildTile.y) || 0 };
   try {
-    // Get global position of wild tile
-    const wildTileGlobalPos = wildTile.getGlobalPosition();
-    wildTileScreenX = wildTileGlobalPos.x;
-    wildTileScreenY = wildTileGlobalPos.y;
+    const globalPosition = wildTile.getGlobalPosition();
+    wildTileScreenPos = { x: globalPosition.x, y: globalPosition.y };
   } catch {
-    // Fallback: use local position + board position
-    if (board) {
-      wildTileScreenX = board.x + wildTileX;
-      wildTileScreenY = board.y + wildTileY;
-    }
-  }
-  
-  // Convert HUD position to screen coordinates (HUD is already in screen space)
-  const hudScreenX = hudStarPos.x;
-  const hudScreenY = hudStarPos.y;
-  
-  console.log('⭐ Star collection positions:', {
-    wildTile: { x: wildTileScreenX, y: wildTileScreenY },
-    merge6: { x: merge6Position.x, y: merge6Position.y },
-    hud: { x: hudScreenX, y: hudScreenY }
-  });
-  
-  // 🔥 CRITICAL FIX: Create container on stage (screen coordinates), not board (local coordinates)
-  // This ensures screen coordinate positions work correctly
-  const animationContainer = new Container();
-  animationContainer.label = 'stars-collection-animation';
-  animationContainer.zIndex = 10000; // Above everything (above HUD which is 10000)
-  animationContainer.eventMode = 'none';
-  animationContainer.x = 0; // Stage uses screen coordinates (0,0 is top-left)
-  animationContainer.y = 0;
-  
-  // Add to stage (screen coordinates) instead of board (local coordinates)
-  const stage = config.stage;
-  if (!stage) {
-    console.error('❌ Cannot create animation: stage not available in config');
-    return;
-  }
-  stage.addChild(animationContainer);
-
-  const operation: ActiveCollectionOperation = {
-    container: animationContainer,
-    wildTile,
-    animations: new Set(),
-    settleCallbacks: new Set(),
-    cancelled: false,
-  };
-  activeCollectionOperations.add(operation);
-  
-  // Animate each star sequentially (one after another)
-  const STAR_COUNT = orbitingStars.length;
-  const animations: Promise<void>[] = [];
-  
-  for (let i = 0; i < STAR_COUNT; i++) {
-    const star = orbitingStars[i];
-    if (!star || !star.sprite) continue;
-    
-    // Get star's current position relative to wild tile (from orbit system)
-    // Stars orbit around wild tile, so get their actual sprite position
-    const starContainer = (wildTile as any)?._wildStarSystem?.container;
-    let starOffsetX = 0;
-    let starOffsetY = 0;
-    
-    if (starContainer && star.sprite) {
-      // Get star's position relative to container (already calculated in orbit system)
-      starOffsetX = star.sprite.x || 0;
-      starOffsetY = star.sprite.y || 0;
-      
-      // If star is in a container, need to get its global position
-      try {
-        const starGlobalPos = star.sprite.getGlobalPosition();
-        // Calculate offset from wild tile
-        starOffsetX = starGlobalPos.x - wildTileScreenX;
-        starOffsetY = starGlobalPos.y - wildTileScreenY;
-      } catch {
-        // Fallback: use local position (stars are relative to wild tile container)
-        // starOffsetX and starOffsetY are already relative to container
-      }
-    }
-    
-    // Calculate start position (wild tile position + star orbit offset) - screen coordinates
-    const startX = wildTileScreenX + starOffsetX;
-    const startY = wildTileScreenY + starOffsetY;
-    
-    // Create animated star sprite (clone of orbiting star)
-    const animatedStar = createAnimatedStarSprite(star.sprite);
-    if (!animatedStar) continue;
-    
-    // Set position directly in screen coordinates (animationContainer is on stage)
-    animatedStar.x = startX;
-    animatedStar.y = startY;
-    animationContainer.addChild(animatedStar);
-    
-    console.log(`⭐ Star ${i + 1} start position:`, { x: startX, y: startY, hudX: hudScreenX, hudY: hudScreenY });
-    
-    // Create wavy path to HUD
-    const delay = i * 0.15; // Sequential delay (0ms, 150ms, 300ms)
-    const animationPromise = animateStarToHUD(
-      animatedStar,
-      { x: startX, y: startY },
-      { x: hudScreenX, y: hudScreenY },
-      delay,
-      i, // Star index for sequential bounce
-      operation,
-    );
-    
-    animations.push(animationPromise);
-  }
-  
-  // Wait for all animations to complete
-  await Promise.all(animations);
-  
-  // Clean up animation container
-  try {
-    if (animationContainer.parent) {
-      animationContainer.parent.removeChild(animationContainer);
-    }
-    animationContainer.destroy({ children: true });
-  } catch {}
-  activeCollectionOperations.delete(operation);
-  
-  // Detach wild star halo from tile (cleanup orbiting stars)
-  try {
-    detachWildStarHalo(wildTile);
-  } catch {}
-  
-  // Stars are already added individually as they arrive (in onComplete callback)
-  // No need to add again here
-  
-  console.log('✅ Stars collection completed');
-}
-
-/**
- * Create animated star sprite from orbiting star
- */
-function createAnimatedStarSprite(originalStar: Sprite | Graphics): Sprite | Graphics | null {
-  if (originalStar instanceof Sprite) {
-    // Clone sprite
-    const sprite = new Sprite(originalStar.texture);
-    sprite.anchor.set(0.5);
-    sprite.scale.set(originalStar.scale.x, originalStar.scale.y);
-    sprite.alpha = originalStar.alpha;
-    sprite.tint = originalStar.tint;
-    sprite.blendMode = originalStar.blendMode;
-    return sprite;
-  } else if (originalStar instanceof Graphics) {
-    // Clone graphics (fallback star)
-    const graphics = originalStar.clone();
-    return graphics;
-  }
-  
-  // Fallback: create star from texture
-  if (starTexture) {
-    const sprite = new Sprite(starTexture);
-    sprite.anchor.set(0.5);
-    sprite.scale.set(0.3);
-    return sprite;
-  }
-  
-  // Ultimate fallback: create simple graphics star
-  const graphics = new Graphics();
-  graphics.star(0, 0, 5, 20, 10).fill({ color: 0xFFE7B5, alpha: 1.0 });
-  return graphics;
-}
-
-/**
- * Animate star from start position to HUD position with wavy path
- */
-function animateStarToHUD(
-  star: Sprite | Graphics,
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  delay: number,
-  starIndex: number,
-  operation: ActiveCollectionOperation,
-): Promise<void> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      operation.settleCallbacks.delete(settle);
-      resolve();
+    wildTileScreenPos = {
+      x: (Number(config.board?.x) || 0) + wildTileScreenPos.x,
+      y: (Number(config.board?.y) || 0) + wildTileScreenPos.y,
     };
-    operation.settleCallbacks.add(settle);
-    if (operation.cancelled) {
-      settle();
-      return;
-    }
-    // Calculate distance
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const distance = Math.hypot(dx, dy);
-    
-    // Create wavy path with random curves
-    const midX = (start.x + end.x) / 2;
-    const midY = (start.y + end.y) / 2;
-    
-    // Random perpendicular offset for wavy path
-    const perpAngle = Math.atan2(dy, dx) + Math.PI / 2;
-    const waveAmplitude = 60 + Math.random() * 80; // 60-140px wave
-    const controlPoint1X = midX + Math.cos(perpAngle) * waveAmplitude * (Math.random() < 0.5 ? 1 : -1);
-    const controlPoint1Y = midY + Math.sin(perpAngle) * waveAmplitude * (Math.random() < 0.5 ? 1 : -1);
-    
-    // Add second control point for more complex curve
-    const controlPoint2X = midX + Math.cos(perpAngle + Math.PI / 4) * (waveAmplitude * 0.7) * (Math.random() < 0.5 ? 1 : -1);
-    const controlPoint2Y = midY + Math.sin(perpAngle + Math.PI / 4) * (waveAmplitude * 0.7) * (Math.random() < 0.5 ? 1 : -1);
-    
-    // Animation duration based on distance (faster = shorter distance)
-    const baseDuration = 0.8;
-    const distanceFactor = Math.min(1.2, Math.max(0.6, distance / 800));
-    const duration = baseDuration * distanceFactor;
-    
-    // Create timeline for wavy path animation
-    const tl = trackTimeline({
-      delay,
-      onComplete: () => {
-        // Fade out and remove star
-        const fadeTween = trackTween(star, {
-          alpha: 0,
-          scale: 0.5,
-          duration: 0.2,
-          ease: 'power2.in',
-          onComplete: () => {
-            try {
-              if (star.parent) {
-                star.parent.removeChild(star);
-              }
-              star.destroy?.();
-            } catch {}
-            settle();
-          }
-        });
-        operation.animations.add(fadeTween);
-      }
-    });
-    operation.animations.add(tl);
-    
-    // Animate along wavy bezier path
-    const path = {
-      x: start.x,
-      y: start.y
-    };
-    
-    tl.to(path, {
-      x: controlPoint1X,
-      y: controlPoint1Y,
-      duration: duration * 0.4,
-      ease: 'power2.out',
-      onUpdate: () => {
-        star.x = path.x;
-        star.y = path.y;
-      }
-    });
-    
-    tl.to(path, {
-      x: controlPoint2X,
-      y: controlPoint2Y,
-      duration: duration * 0.3,
-      ease: 'power2.inOut',
-      onUpdate: () => {
-        star.x = path.x;
-        star.y = path.y;
-      }
-    });
-    
-    tl.to(path, {
-      x: end.x,
-      y: end.y,
-      duration: duration * 0.3,
-      ease: 'power2.in',
-      onUpdate: () => {
-        star.x = path.x;
-        star.y = path.y;
-      },
-      onComplete: () => {
-        // Add score and bounce score HUD when each star enters.
-        addScoreFromCollectedStar();
-      }
-    });
-    
-    // Rotate and scale during animation
-    tl.to(star, {
-      rotation: Math.PI * 2 * (Math.random() < 0.5 ? 1 : -1),
-      duration: duration,
-      ease: 'none'
-    }, 0);
-    
-    // Scale animation (pulse effect)
-    const originalScale = star.scale.x;
-    tl.to(star.scale, {
-      x: originalScale * 1.3,
-      y: originalScale * 1.3,
-      duration: duration * 0.5,
-      ease: 'power2.out'
-    }, 0);
-    
-    tl.to(star.scale, {
-      x: originalScale * 0.8,
-      y: originalScale * 0.8,
-      duration: duration * 0.5,
-      ease: 'power2.in'
-    }, duration * 0.5);
-  });
-}
-
-/**
- * Trigger bounce animation on HUD star icon (like stack merge bounce)
- */
-function triggerStarHudBounce(): void {
-  if (!config) return;
-  
-  // Try window.HUD first (faster, already loaded)
-  if (typeof window !== 'undefined' && (window as any).HUD) {
-    const HUD = (window as any).HUD;
-    if (typeof HUD.bounceStarIcon === 'function') {
-      HUD.bounceStarIcon();
-      console.log('⭐ Star HUD bounce animation triggered');
-      return;
-    }
   }
-  
-  // Fallback: Import HUD module dynamically
-  import('./hud-helpers.js').then((HUD) => {
-    if (typeof HUD.bounceStarIcon === 'function') {
-      HUD.bounceStarIcon();
-      console.log('⭐ Star HUD bounce animation triggered (via import)');
-    } else {
-      console.warn('⚠️ HUD.bounceStarIcon not available');
-    }
-  }).catch((error) => {
-    console.warn('⚠️ Failed to import HUD module for bounce:', error);
-  });
-}
 
-function addScoreFromCollectedStar(): void {
-  try {
-    if (typeof window !== 'undefined' && (window as any).CC && typeof (window as any).CC.addScoreFromHudStar === 'function') {
-      (window as any).CC.addScoreFromHudStar(100);
-      return;
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to add score from collected star:', error);
-  }
-  triggerStarHudBounce();
-}
+  const savedStarPositions = orbitingStars.slice(0, 3).map((star: any) => ({
+    sprite: star?.sprite ?? null,
+    texture: star?.sprite?.texture ?? starTexture,
+    globalX: wildTileScreenPos.x,
+    globalY: wildTileScreenPos.y,
+    scale: Number(star?.sprite?.scale?.x) || 1,
+  }));
 
+  const { animateStarsToHudIcon } = await import('./fx.ts');
+  await animateStarsToHudIcon(
+    config.board,
+    config.stage,
+    savedStarPositions,
+    wildTileScreenPos,
+    merge6Position,
+    hudStarPos,
+    config.app,
+  );
+
+  // The shared flight runtime clones the visual payload before this cleanup.
+  try { detachWildStarHalo(wildTile); } catch {}
+}
 /**
  * Cleanup stars collector
  * 🔥 FIX: Comprehensive cleanup of all resources
@@ -676,22 +328,6 @@ export function cleanupStarsCollector(): void {
     clearTimeout(timeout);
   });
   activeTimeouts.clear();
-
-  activeCollectionOperations.forEach((operation) => {
-    operation.cancelled = true;
-    operation.animations.forEach((animation) => {
-      try { animation.kill(); } catch {}
-    });
-    operation.animations.clear();
-    Array.from(operation.settleCallbacks).forEach((settle) => settle());
-    operation.settleCallbacks.clear();
-    try {
-      if (operation.container.parent) operation.container.parent.removeChild(operation.container);
-      if (!operation.container.destroyed) operation.container.destroy({ children: true });
-    } catch {}
-    try { detachWildStarHalo(operation.wildTile); } catch {}
-  });
-  activeCollectionOperations.clear();
   
   // Reset queue state
   bounceQueue = 0;

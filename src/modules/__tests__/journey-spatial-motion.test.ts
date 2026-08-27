@@ -544,6 +544,18 @@ describe('Journey spatial motion', () => {
     emitOrientation(29, 14);
     pendingFrame?.(16);
 
+    const controllerState = journeySpatialMotion as unknown as {
+      applyCurrentTilt(): void;
+      gameplayWrappers: Set<unknown>;
+      gameplayNextWrappers: Set<unknown>;
+      gameplayDepthPlans: Map<number, unknown>;
+      gameplayPositionWrites: number;
+    };
+    const firstActiveSet = controllerState.gameplayWrappers;
+    const reusableSet = controllerState.gameplayNextWrappers;
+    const writesAfterFirstPaint = controllerState.gameplayPositionWrites;
+    controllerState.applyCurrentTilt();
+
     expect(Math.abs(wrapper.x)).toBeGreaterThan(0);
     expect(Math.abs(wrapper.y)).toBeGreaterThan(0);
     expect(Math.abs(hudWrapper.x)).toBeGreaterThan(0);
@@ -551,6 +563,14 @@ describe('Journey spatial motion', () => {
     expect(journeyDecor.style.translate).not.toBe('');
     expect(Math.abs((wrapper.x * 2) % 1)).toBe(0);
     expect(Math.abs((wrapper.y * 2) % 1)).toBe(0);
+    expect(controllerState.gameplayWrappers).toBe(reusableSet);
+    expect(controllerState.gameplayNextWrappers).toBe(firstActiveSet);
+    expect(controllerState.gameplayDepthPlans.size).toBe(1);
+    expect(controllerState.gameplayPositionWrites).toBe(writesAfterFirstPaint);
+
+    tile.gridX = 3;
+    controllerState.applyCurrentTilt();
+    expect(controllerState.gameplayDepthPlans.size).toBe(2);
 
     tile.value = 0;
     pendingFrame?.(32);
@@ -563,6 +583,102 @@ describe('Journey spatial motion', () => {
     expect(hudWrapper.x).toBe(0);
     expect(hudWrapper.y).toBe(0);
     expect(journeyDecor.style.translate).toBe('');
+  });
+
+  it('reports real dynamic gameplay targets and bounded native Gyro ON/OFF frame windows', () => {
+    const postMessage = jest.fn();
+    Object.defineProperty(window, 'webkit', {
+      configurable: true,
+      value: { messageHandlers: { consoleLog: { postMessage } } },
+    });
+    Object.defineProperty(window, 'DeviceOrientationEvent', {
+      configurable: true,
+      value: class DeviceOrientationEventWithoutPermission {},
+    });
+    (window as Window & { _settings?: { spatialMotionEnabled: boolean } })._settings = {
+      spatialMotionEnabled: true,
+    };
+    const queuedFrames: FrameRequestCallback[] = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      queuedFrames.push(callback);
+      return queuedFrames.length;
+    });
+    const controller = new AppSpatialMotionController(resolveMobileRuntimeProfile({
+      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+    }));
+    const wrapper = { x: 0, y: 0 };
+    const hudWrapper = { x: 0, y: 0 };
+    const journeyDecor = document.createElement('img');
+    document.body.appendChild(journeyDecor);
+    const getTiles = () => [{
+      visible: true,
+      alpha: 1,
+      value: 4,
+      gridX: 1,
+      gridY: 2,
+      _ccSpatialG: wrapper,
+    }];
+
+    const finishProfile = (): void => {
+      const startedAt = performance.now();
+      queuedFrames.shift()?.(startedAt);
+      queuedFrames.shift()?.(startedAt + 6001);
+    };
+    const parsedMessages = () => postMessage.mock.calls.map(([payload]) => {
+      const message = String(payload.message);
+      const jsonStart = message.indexOf('{');
+      return {
+        message,
+        detail: JSON.parse(message.slice(jsonStart)) as Record<string, unknown>,
+      };
+    });
+
+    controller.activateGameplay(getTiles, () => hudWrapper, () => journeyDecor);
+    const activated = parsedMessages().find(({ message }) => message.includes('surface-activated'));
+    expect(activated?.detail).toMatchObject({
+      surface: 'gameplay',
+      gyroState: 'on',
+      providerTileCount: 1,
+      tileTargetCount: 1,
+      hudTargetCount: 1,
+      decorTargetCount: 1,
+      targetCount: 3,
+    });
+    finishProfile();
+    const onWindow = parsedMessages().find(({ message }) => message.includes('frame-window'));
+    expect(onWindow?.detail).toMatchObject({
+      label: 'gameplay-gyro-on',
+      gyroState: 'on',
+      spatialMaxFramesPerSecond: 30,
+      targetCount: 3,
+      gameplayProviderReads: 0,
+      gameplayPositionWrites: 0,
+    });
+
+    (window as Window & { _settings?: { spatialMotionEnabled: boolean } })._settings = {
+      spatialMotionEnabled: false,
+    };
+    controller.setEnabled(false);
+    controller.activateGameplay(getTiles, () => hudWrapper, () => journeyDecor);
+    const disabled = parsedMessages().find(({ message }) => message.includes('surface-disabled'));
+    expect(disabled?.detail).toMatchObject({
+      surface: 'gameplay',
+      gyroState: 'off',
+      targetCount: 3,
+    });
+    finishProfile();
+    const frameWindows = parsedMessages().filter(({ message }) => message.includes('frame-window'));
+    const offWindow = frameWindows[frameWindows.length - 1];
+    expect(offWindow?.detail).toMatchObject({
+      label: 'gameplay-gyro-off',
+      gyroState: 'off',
+      spatialMaxFramesPerSecond: 0,
+      targetCount: 3,
+      spatialRenderFrames: 0,
+    });
+
+    controller.deactivate();
+    Object.defineProperty(window, 'webkit', { configurable: true, value: undefined });
   });
 
   it('keeps stronger cubes while giving the isolated preload fill subtle extra depth', () => {

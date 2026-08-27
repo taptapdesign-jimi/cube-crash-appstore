@@ -301,6 +301,8 @@ import {
   hudResetCombo as hudResetComboHelper
 } from './app-core-helpers.js';
 
+let hudStarHudFeedbackFramePending = false;
+
 const trackTween = (target: gsap.TweenTarget, vars: gsap.TweenVars) =>
   animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -4172,6 +4174,25 @@ export async function boot(){
     }
   }
 
+  const scheduleHudStarHudFeedback = () => {
+    if (hudStarHudFeedbackFramePending) return;
+    hudStarHudFeedbackFramePending = true;
+    trackAppAnimationFrame(() => {
+      hudStarHudFeedbackFramePending = false;
+      try {
+        animateScore(score, 0.18);
+      } catch {
+        updateHUD();
+      }
+      try {
+        HUD.bumpScoreNumberFromHudStar?.();
+      } catch {}
+      try {
+        HUD.bounceScoreIcon?.();
+      } catch {}
+    });
+  };
+
   // Debug mini-API (ostavljeno)
   window.CC = {
     nextLevel: () => startLevel(level + 1),
@@ -4188,21 +4209,10 @@ export async function boot(){
       try {
         if (STATE) STATE.score = score;
       } catch {}
-      try {
-        animateScore(score, 0.18);
-      } catch {
-        updateHUD();
-      }
-      try {
-        if (typeof HUD.bumpScoreNumberFromHudStar === 'function') {
-          HUD.bumpScoreNumberFromHudStar();
-        }
-      } catch {}
-      try {
-        if (typeof HUD.bounceScoreIcon === 'function') {
-          HUD.bounceScoreIcon();
-        }
-      } catch {}
+      // Several flights can enter the HUD during the same display frame (TNT
+      // is the common case). Preserve every score mutation, but coalesce the
+      // expensive text redraw and HUD bounce into one frame-owned update.
+      scheduleHudStarHudFeedback();
       return score;
     },
     updateHUD: () => updateHUD(),
@@ -15079,6 +15089,7 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   clearAllAppTimeouts();
   
   // 🔥 CRITICAL FIX: Clear all tracked requestAnimationFrame callbacks
+  hudStarHudFeedbackFramePending = false;
   clearAllAppAnimationFrames();
   
   // 🔥 CRITICAL FIX: Clear all tracked intervals
