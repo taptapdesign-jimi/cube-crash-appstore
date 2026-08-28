@@ -1,11 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  advanceJourneyArea55ShipRotation,
   advanceJourneyArea55ShipScale,
   clampJourneyArea55ShipRotation,
   getJourneyArea55ShipSize,
   resolveJourneyArea55ShipCanvasGeometry,
   resolveJourneyArea55ShipRuntimeProfile,
+  resolveJourneyArea55ShipTargetRotation,
   startJourneyArea55ShipFlybys,
 } from '../journey-area55-ship-flybys';
 
@@ -43,6 +45,37 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(getJourneyArea55ShipSize(69.5, 1)).toBe(75);
     expect(clampJourneyArea55ShipRotation(Math.PI / 2)).toBeCloseTo(20 * Math.PI / 180, 10);
     expect(clampJourneyArea55ShipRotation(-Math.PI / 2)).toBeCloseTo(-20 * Math.PI / 180, 10);
+  });
+
+  test('uses the same continuous bank for leftward and rightward path slopes', () => {
+    const rightward = resolveJourneyArea55ShipTargetRotation(4, 0.5, 0.25, 0.4);
+    const leftward = resolveJourneyArea55ShipTargetRotation(-4, 0.5, 0.25, 0.4);
+    const rightwardDescending = resolveJourneyArea55ShipTargetRotation(4, -0.5, 0.25, 0.4);
+    const leftwardDescending = resolveJourneyArea55ShipTargetRotation(-4, -0.5, 0.25, 0.4);
+
+    expect(leftward).toBeCloseTo(rightward, 10);
+    expect(leftwardDescending).toBeCloseTo(rightwardDescending, 10);
+  });
+
+  test('crosses from positive to negative bank over visible intermediate degrees', () => {
+    const degrees = (radians: number): number => radians * 180 / Math.PI;
+    const target = -20 * Math.PI / 180;
+    const samples: number[] = [];
+    let rotation = 20 * Math.PI / 180;
+
+    for (let frame = 0; frame < 20; frame += 1) {
+      rotation = advanceJourneyArea55ShipRotation(rotation, target, 1 / 30);
+      samples.push(degrees(rotation));
+    }
+
+    expect(samples[0]).toBeCloseTo(17, 8);
+    expect(samples[0]).toBeGreaterThan(0);
+    expect(samples.some((sample) => sample > -1 && sample < 1)).toBe(true);
+    expect(samples[samples.length - 1]).toBeLessThan(-18);
+    samples.forEach((sample, index) => {
+      if (index === 0) return;
+      expect(Math.abs(sample - samples[index - 1])).toBeLessThanOrEqual(3.000000001);
+    });
   });
 
   test('uses the shared mobile thermal cadence', () => {
@@ -182,6 +215,8 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(flybySource).not.toContain('TRAIL_COLOR');
     expect(flybySource).toContain('const eased = progress * progress * (3 - 2 * progress)');
     expect(flybySource).toContain('const MIN_SCALE_HOLD_SECONDS = 3');
+    expect(flybySource).toContain('advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, frame.deltaSeconds)');
+    expect(flybySource).not.toContain('Math.atan2(velocityY, velocityX)');
     expect(flybySource).not.toContain('progress * Math.PI * 6');
     expect(flybySource).toContain('ship.startX = ship.direction === 1 ? -overshoot : layerWidth + overshoot');
     expect(flybySource).toContain('ship.endX = ship.direction === 1 ? layerWidth + overshoot : -overshoot');

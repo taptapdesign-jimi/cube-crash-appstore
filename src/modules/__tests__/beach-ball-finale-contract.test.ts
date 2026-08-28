@@ -16,7 +16,7 @@ describe('Beach Ball finale regression contract', () => {
     expect(beachBallDefinition).toContain("archetype: 'wild-tnt'");
     expect(beachBallDefinition).toContain("visualFinaleFx: 'juice'");
     expect(beachBallDefinition).toContain("juiceDropProfile: 'beach-ball'");
-    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0.55');
+    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0.70');
     expect(appCoreSource.match(/direction: getSpecialDiceJuiceDropProfile\([^)]*\) \? 'down' : 'up'/g)).toHaveLength(2);
     expect(appCoreSource.match(/dropProfile: getSpecialDiceJuiceDropProfile\(/g)).toHaveLength(2);
   });
@@ -89,5 +89,13 @@ describe('Beach Ball finale regression contract', () => {
     expect(customDrop).toContain('duration: duration * 0.26');
     expect(customDrop).toContain('duration: duration * 0.42');
     expect(customDrop).toContain('onComplete: onBubbleComplete');
+  });
+
+  test('reuses Cubero whole-board wave motion instead of the stiff TNT blast', () => {
+    expect(appCoreSource).toContain("playShortWildMerge6TileBlast('Beach Ball', {");
+    expect(appCoreSource).toContain('holdForExternalReturn: true');
+    expect(appCoreSource).toContain('const waveDelay = (waveProgress * 0.26) + (Math.random() * 0.035)');
+    expect(appCoreSource).toContain("ease: 'back.out(2.9)'");
+    expect(appCoreSource).toContain('if (!isWildTntMerge) playShortWildMerge6TileBlast(\'Wild-juice\')');
   });
 });

@@ -10137,7 +10137,18 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         const isMainWildJuiceMerge = merge6FinaleFx === 'juice';
         const isMainWildTntVisualMerge = merge6FinaleFx === 'tnt';
         const isMainWildOnlyMerge = !!merge6FinaleFx && !isMainWildMagnetMerge;
-        const playShortWildMerge6TileBlast = (label: string) => {
+        type WildMerge6TileBlastHandle = {
+          tile: Tile;
+          origX: number;
+          origY: number;
+          returnDuration: number;
+          returnElastic: number;
+        };
+        const playShortWildMerge6TileBlast = (
+          label: string,
+          options: { holdForExternalReturn?: boolean } = {},
+        ): WildMerge6TileBlastHandle[] => {
+          const heldHandles: WildMerge6TileBlastHandle[] = [];
           try {
             const blastCenter = centerInBoard(board, dst, TILE);
             const blastStrength = TILE * 0.52;
@@ -10213,8 +10224,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               try { gsap.killTweensOf(tile); } catch {}
               gsap.set(tile, { x: origX, y: origY, zIndex: 320 });
               try { board?.sortChildren?.(); } catch {}
-              trackTimeline({
-                onComplete: finishBlastTile,
+              const timeline = trackTimeline({
+                onComplete: () => {
+                  if (!options.holdForExternalReturn) finishBlastTile();
+                },
                 onInterrupt: finishBlastTile
               })
                 .to(tile, {
@@ -10224,8 +10237,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   delay: waveDelay,
                   ease: 'back.out(2.9)',
                   overwrite: 'auto'
-                })
-                .to(tile, {
+                });
+              if (options.holdForExternalReturn) {
+                heldHandles.push({
+                  tile,
+                  origX,
+                  origY,
+                  returnDuration: tileReturnDuration,
+                  returnElastic: 0.30 + Math.random() * 0.12,
+                });
+              } else {
+                timeline.to(tile, {
                   x: origX,
                   y: origY,
                   duration: tileReturnDuration,
@@ -10233,13 +10255,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   ease: `elastic.out(1, ${0.30 + Math.random() * 0.12})`,
                   overwrite: 'auto'
                 });
+              }
               blastCount += 1;
             });
 
-            devLog(`✨ ${label} merge 6 - short bouncy tile blast started for`, blastCount, 'tiles');
+            devLog(`✨ ${label} merge 6 - Cubero-profile tile blast started`, {
+              blastCount,
+              holdForExternalReturn: options.holdForExternalReturn === true,
+              waveDelayMaxSeconds: 0.295,
+              blastStrengthTiles: 0.52,
+            });
           } catch (e) {
             devWarn(`⚠️ ${label} tile blast animation failed:`, e);
           }
+          return heldHandles;
         };
         
         if (wasWild) {
@@ -10255,10 +10284,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           let markTntVisualSequenceComplete: ((reason: string) => void) | null = null;
           if (isMainWildTntMerge) {
             try {
-              const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
+              const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween | null; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
               const startTntBoardBlast = () => {
                 // Pokreni blast+shake tek nakon što TNT sprite sekvenca završi.
                 try {
+                  if (tntVariantForMerge?.id === 'beach-ball') {
+                    const beachBallHandles = playShortWildMerge6TileBlast('Beach Ball', {
+                      holdForExternalReturn: true,
+                    });
+                    beachBallHandles.forEach((handle) => {
+                      blastReturnHandles.push({ ...handle, wobble: null });
+                    });
+                    return;
+                  }
                   const primaryTiles = Array.isArray(STATE?.tiles) ? STATE.tiles : [];
                   const fallbackTiles = Array.isArray(tiles) ? tiles : [];
                   const allBlastTiles = Array.from(new Set<Tile>([...primaryTiles, ...fallbackTiles]));
@@ -10364,7 +10402,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     if (!h.tile || h.tile.destroyed || !STATE?.tiles?.includes?.(h.tile)) return;
                     pending += 1;
                     maxReturnDuration = Math.max(maxReturnDuration, h.returnDuration);
-                    try { h.wobble.kill(); } catch {}
+                    try { h.wobble?.kill(); } catch {}
                     trackTween(h.tile, {
                       x: h.origX,
                       y: h.origY,
@@ -10650,7 +10688,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 variant: wildJuiceVariant?.id || 'core-wild-juice',
                 color: wildJuiceShardColor ? `0x${wildJuiceShardColor.toString(16)}` : 'default'
               });
-              playShortWildMerge6TileBlast('Wild-juice');
+              // Beach Ball already owns this exact Cubero-profile board blast
+              // through the TNT transaction so its return can gate bonus play.
+              if (!isWildTntMerge) playShortWildMerge6TileBlast('Wild-juice');
               wildJuiceMerge6ShardsTemplated(board, dst, { 
                 zIndex: 9993,
                 color: wildJuiceShardColor,

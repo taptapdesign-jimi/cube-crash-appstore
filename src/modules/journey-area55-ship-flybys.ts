@@ -9,6 +9,8 @@ const SHIP_ASSET = './assets/journey assets/robo/ship1@2x.png';
 const MIN_SHIP_SIZE_PX = 50;
 const MAX_SHIP_SIZE_PX = 75;
 const MAX_SHIP_ROTATION_RADIANS = 20 * (Math.PI / 180);
+const SHIP_ROTATION_FOLLOW_RATE_PER_SECOND = 8;
+const MAX_SHIP_ROTATION_SPEED_RADIANS_PER_SECOND = 90 * (Math.PI / 180);
 const MIN_SCALE_HOLD_SECONDS = 3;
 const SCALE_HOLD_VARIANCE_SECONDS = 1.5;
 const SCALE_CHANGE_DURATION_SECONDS = 0.45;
@@ -35,7 +37,7 @@ interface LiveShip {
   control1X: number; control1Y: number; control2X: number; control2Y: number; baseSize: number;
   scaleWave: number; scaleFromWave: number; scaleTargetWave: number; scaleHoldSeconds: number;
   scaleTransitionSeconds: number; wobblePhase: number; wobbleAmplitude: number; x: number; y: number;
-  rendered: boolean; planned: boolean;
+  rotation: number; rendered: boolean; planned: boolean;
 }
 
 function clamp(value: number, min: number, max: number): number { return Math.min(max, Math.max(min, value)); }
@@ -73,6 +75,40 @@ export function advanceJourneyArea55ShipScale(
 
 export function clampJourneyArea55ShipRotation(rotationRadians: number): number {
   return clamp(rotationRadians, -MAX_SHIP_ROTATION_RADIANS, MAX_SHIP_ROTATION_RADIANS);
+}
+
+export function resolveJourneyArea55ShipTargetRotation(
+  velocityX: number,
+  velocityY: number,
+  progress: number,
+  wobblePhase: number,
+): number {
+  // The saucer artwork should bank relative to the path slope, not adopt a
+  // full directional heading. Using signed velocityX makes atan2 jump between
+  // +PI and -PI whenever a leftward flight crosses zero vertical velocity,
+  // which the clamp turns into an instant +20deg/-20deg flip.
+  const horizontalSpeed = Math.max(0.0001, Math.abs(velocityX));
+  const pathBank = Math.atan2(velocityY, horizontalSpeed) * 0.58;
+  const authoredWobble = Math.sin(progress * Math.PI * 8 + wobblePhase) * 0.12;
+  return clampJourneyArea55ShipRotation(pathBank + authoredWobble);
+}
+
+export function advanceJourneyArea55ShipRotation(
+  currentRotation: number,
+  targetRotation: number,
+  deltaSeconds: number,
+): number {
+  const boundedCurrent = clampJourneyArea55ShipRotation(currentRotation);
+  const boundedTarget = clampJourneyArea55ShipRotation(targetRotation);
+  const elapsed = clamp(Number.isFinite(deltaSeconds) ? deltaSeconds : 0, 0, 0.12);
+  if (elapsed <= 0) return boundedCurrent;
+
+  const followAmount = 1 - Math.exp(-SHIP_ROTATION_FOLLOW_RATE_PER_SECOND * elapsed);
+  const requestedDelta = (boundedTarget - boundedCurrent) * followAmount;
+  const maxDelta = MAX_SHIP_ROTATION_SPEED_RADIANS_PER_SECOND * elapsed;
+  return clampJourneyArea55ShipRotation(
+    boundedCurrent + clamp(requestedDelta, -maxDelta, maxDelta),
+  );
 }
 
 export function resolveJourneyArea55ShipRuntimeProfile(
@@ -151,7 +187,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
     baseSize: MIN_SHIP_SIZE_PX, scaleWave: sample(random), scaleFromWave: 0.5, scaleTargetWave: 0.5,
     scaleHoldSeconds: MIN_SCALE_HOLD_SECONDS + sample(random) * SCALE_HOLD_VARIANCE_SECONDS,
     scaleTransitionSeconds: SCALE_CHANGE_DURATION_SECONDS, wobblePhase: sample(random) * Math.PI * 2,
-    wobbleAmplitude: 0, x: 0, y: 0, rendered: false, planned: false,
+    wobbleAmplitude: 0, x: 0, y: 0, rotation: 0, rendered: false, planned: false,
   }));
 
   const resetFlight = (ship: LiveShip, index: number, frame: JourneyAmbientCanvasFrame): void => {
@@ -172,7 +208,7 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
     ship.scaleHoldSeconds = MIN_SCALE_HOLD_SECONDS + sample(random) * SCALE_HOLD_VARIANCE_SECONDS;
     ship.scaleTransitionSeconds = SCALE_CHANGE_DURATION_SECONDS;
     ship.wobblePhase = sample(random) * Math.PI * 2; ship.elapsedSeconds = -((index * 0.38) + sample(random) * 0.35);
-    ship.x = ship.startX; ship.y = ship.startY; ship.rendered = false; ship.planned = true;
+    ship.x = ship.startX; ship.y = ship.startY; ship.rotation = 0; ship.rendered = false; ship.planned = true;
   };
 
   const render = (frame: JourneyAmbientCanvasFrame): number => {
@@ -193,14 +229,17 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
       const velocityX = nextX - ship.x; const velocityY = nextY - ship.y; ship.x = nextX; ship.y = nextY;
       advanceJourneyArea55ShipScale(ship, frame.deltaSeconds, random);
       const size = getJourneyArea55ShipSize(ship.baseSize, ship.scaleWave);
-      const rotation = clampJourneyArea55ShipRotation(
-        Math.atan2(velocityY, velocityX) * 0.58
-          + Math.sin(progress * Math.PI * 8 + ship.wobblePhase) * 0.12,
+      const targetRotation = resolveJourneyArea55ShipTargetRotation(
+        velocityX,
+        velocityY,
+        progress,
+        ship.wobblePhase,
       );
+      ship.rotation = advanceJourneyArea55ShipRotation(ship.rotation, targetRotation, frame.deltaSeconds);
       ship.rendered = ship.x + size >= 0 && ship.x - size <= frame.width && ship.y + size >= frame.viewportTop && ship.y - size <= frame.viewportBottom;
       if (!ship.rendered) return;
       visibleCount += 1;
-      drawShip(ship.depth === 'front' ? frame.front : frame.behind, image, ship, size, rotation, frame.viewportTop);
+      drawShip(ship.depth === 'front' ? frame.front : frame.behind, image, ship, size, ship.rotation, frame.viewportTop);
     });
     return visibleCount;
   };
