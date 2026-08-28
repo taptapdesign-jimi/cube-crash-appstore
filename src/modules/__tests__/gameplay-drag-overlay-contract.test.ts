@@ -72,7 +72,10 @@ describe('gameplay drag overlay contract', () => {
     expect(dragSource).toContain('x: overlayScaleX * PICKUP_HOLD_SCALE,');
     expect(dragSource).toContain('tile?._ccPickupScaleTimeline?.kill?.();');
     expect(dragSource).toContain('tile?._ccSnapBackTimeline?.kill?.();');
+    expect(dragSource).toContain('animationManager.killExternalTimeline(tile?._mergeImpactTl);');
+    expect(dragSource).toContain('animationManager.killExternalTimeline(tile?._idleBounceTl);');
     expect(dragSource).toContain('tile?.scale?.set?.(base.x, base.y);');
+    expect(dragSource).toContain('Math.abs(liveX - liveY) <= 0.005');
     expect(dragSource).not.toContain('const overlayScaleX = Number(t.scale?.x) || 1;');
   });
 
@@ -85,6 +88,7 @@ describe('gameplay drag overlay contract', () => {
     expect(snapBack).toContain('t.scale.set(baseScale.x, baseScale.y);');
     expect(snapBack).toContain('x: baseScale.x * 1.035,');
     expect(snapBack).toContain('x: baseScale.x,');
+    expect(snapBack).toContain('if (t?.scale) t.scale.set(baseScale.x, baseScale.y);');
     expect(snapBack).not.toContain('t.scale.set(1, 1);');
   });
 

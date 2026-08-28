@@ -168,12 +168,23 @@ function getDragTileKind(tile: any): string {
 function getCanonicalDragScale(tile: any): { x: number; y: number } {
   const liveX = Number(tile?.scale?.x);
   const liveY = Number(tile?.scale?.y);
-  if (!Number.isFinite(tile?._ccDragBaseScaleX)) {
-    tile._ccDragBaseScaleX = Number.isFinite(liveX) && liveX > 0 ? liveX : 1;
-  }
-  if (!Number.isFinite(tile?._ccDragBaseScaleY)) {
-    tile._ccDragBaseScaleY = Number.isFinite(liveY) && liveY > 0 ? liveY : 1;
-  }
+  const cachedX = Number(tile?._ccDragBaseScaleX);
+  const cachedY = Number(tile?._ccDragBaseScaleY);
+  const cachedIsUsable = Number.isFinite(cachedX) && cachedX > 0
+    && Number.isFinite(cachedY) && cachedY > 0
+    && Math.abs(cachedX - cachedY) <= 0.005;
+  const liveIsSettled = Number.isFinite(liveX) && liveX > 0
+    && Number.isFinite(liveY) && liveY > 0
+    && Math.abs(liveX - liveY) <= 0.005;
+
+  // Outer board tiles are created and mutation-normalized at 1x1. A differing
+  // X/Y value is necessarily a live squash/stretch pose, never a new baseline.
+  // Prefer the explicit cached baseline; only accept a live value when it is
+  // uniform (the transform-preserving fallback reparent path may require it).
+  const baseX = cachedIsUsable ? cachedX : (liveIsSettled ? liveX : 1);
+  const baseY = cachedIsUsable ? cachedY : (liveIsSettled ? liveY : 1);
+  tile._ccDragBaseScaleX = baseX;
+  tile._ccDragBaseScaleY = baseY;
   return { x: tile._ccDragBaseScaleX, y: tile._ccDragBaseScaleY };
 }
 
@@ -181,6 +192,8 @@ function resetTileToCanonicalDragScale(tile: any): { x: number; y: number } {
   const base = getCanonicalDragScale(tile);
   try { tile?._ccPickupScaleTimeline?.kill?.(); } catch {}
   try { tile?._ccSnapBackTimeline?.kill?.(); } catch {}
+  try { animationManager.killExternalTimeline(tile?._mergeImpactTl); } catch {}
+  try { animationManager.killExternalTimeline(tile?._idleBounceTl); } catch {}
   try { gsap.killTweensOf(tile?.scale); } catch {}
   try { tile?.scale?.set?.(base.x, base.y); } catch {}
   tile._ccPickupScaleTimeline = null;
@@ -2874,7 +2887,10 @@ export function initDrag(cfg) {
         try { (window as any).__ccFirstPlayTutorialDragReturned?.(t); } catch {}
       },
       onInterrupt: () => {
-        if (t?._ccSnapBackTimeline === tl) t._ccSnapBackTimeline = null;
+        if (t?._ccSnapBackTimeline === tl) {
+          if (t?.scale) t.scale.set(baseScale.x, baseScale.y);
+          t._ccSnapBackTimeline = null;
+        }
       },
     });
     t._ccSnapBackTimeline = tl;

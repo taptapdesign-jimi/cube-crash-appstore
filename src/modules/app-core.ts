@@ -14266,18 +14266,19 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   const variant = createGameplayTileCartoonVariant('stack');
   const motionVariation = 0.97 + Math.random() * 0.06;
   let tl: gsap.core.Timeline | null = null;
-  const releaseOwnership = () => {
-    if ((targetTile as any)._mergeImpactTl === tl) {
-      (targetTile as any)._mergeImpactTl = null;
+  const restoreNeutralPose = () => {
+    if ((targetTile as any)._mergeImpactTl !== tl) return;
+    if (!targetTile.destroyed && targetTile.scale) {
+      targetTile.scale.set(1, 1);
+      (targetTile as any)._ccDragBaseScaleX = 1;
+      (targetTile as any)._ccDragBaseScaleY = 1;
     }
+    (targetTile as any)._mergeImpactTl = null;
   };
 
   tl = animationManager.trackExternalTimeline(gsap.timeline({
-    onComplete: () => {
-      if (!targetTile.destroyed && targetTile.scale) targetTile.scale.set(1, 1);
-      releaseOwnership();
-    },
-    onInterrupt: releaseOwnership,
+    onComplete: restoreNeutralPose,
+    onInterrupt: restoreNeutralPose,
   }));
   (targetTile as any)._mergeImpactTl = tl;
 

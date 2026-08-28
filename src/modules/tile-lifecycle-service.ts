@@ -183,6 +183,14 @@ export function normalizeSpawnedTileVisual(tile: any): void {
     }
   } catch {}
 
+  // The board tile container always settles at 1x1. Keep that canonical pose
+  // separate from live squash/stretch frames so a rapid pickup can never
+  // remember an interrupted animation frame as the tile's permanent scale.
+  try {
+    tile._ccDragBaseScaleX = 1;
+    tile._ccDragBaseScaleY = 1;
+  } catch {}
+
   try { tile._isBeingSpawned = false; } catch {}
 
   tile.alpha = 1;

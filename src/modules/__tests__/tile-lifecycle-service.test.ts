@@ -157,6 +157,8 @@ test('normalizeSpawnedTileVisual restores stable visible tile state after spawn 
   expect(tile.scale.set).toHaveBeenCalledWith(1, 1);
   expect(tile.scale.x).toBe(1);
   expect(tile.scale.y).toBe(1);
+  expect(tile._ccDragBaseScaleX).toBe(1);
+  expect(tile._ccDragBaseScaleY).toBe(1);
   expect(tile._isBeingSpawned).toBe(false);
   expect(tile._ccHideFinalMergeResultVisual).toBeUndefined();
   expect(tile.alpha).toBe(1);

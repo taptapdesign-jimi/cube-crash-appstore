@@ -192,22 +192,22 @@ function animateTile(tile: Tile): void {
   
   // Store original rotation
   const originalRotation = tile.rotation || 0;
+  const restoreIdlePose = () => {
+    state.activeAnimations.delete(tile);
+    if ((tile as any)._idleBounceTl !== tl) return;
+    (tile as any)._idleBounceTl = null;
+    if (!tile.destroyed && tile.scale) {
+      tile.scale.x = baseTileScaleX;
+      tile.scale.y = baseTileScaleY;
+      tile.rotation = originalRotation;
+    }
+  };
   
   // 🔥 CRITICAL: Store timeline reference on tile for cleanup
-  const tl = trackTimeline({
-    onComplete: () => {
-      state.activeAnimations.delete(tile);
-      (tile as any)._idleBounceTl = null;
-      if (!tile.destroyed && tile.scale) {
-        tile.scale.x = baseTileScaleX;
-        tile.scale.y = baseTileScaleY;
-        tile.rotation = originalRotation;
-      }
-    },
-    onInterrupt: () => {
-      state.activeAnimations.delete(tile);
-      (tile as any)._idleBounceTl = null;
-    },
+  let tl: gsap.core.Timeline | null = null;
+  tl = trackTimeline({
+    onComplete: restoreIdlePose,
+    onInterrupt: restoreIdlePose,
   });
   (tile as any)._idleBounceTl = tl;
 
