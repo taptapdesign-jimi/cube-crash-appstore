@@ -523,10 +523,6 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       console.warn('⚠️ Failed to move container to top:', e);
     }
     
-    // A stopped ticker still receives one fallback paint. Active gameplay
-    // relies on its canonical Pixi render owner and avoids duplicate submits.
-    requestFallbackRenderFrames(1);
-
     if (!explosionContainer.parent || explosionContainer.parent !== hostContainer) {
       console.error('❌ Failed to add explosion container to stage!', {
         hasParent: !!explosionContainer.parent,
@@ -594,6 +590,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   else triggerWildJuiceHapticBurst(spawnDuration);
   let active = 0;
   let spawned = 0;
+  let populatedFallbackPaintRequested = false;
   const perMs = totalBubbles / spawnDuration;
   let startTime = performance.now();
   let lastTick = startTime;
@@ -712,6 +709,12 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     bubble.visible = true;
     bubble.renderable = true;
     explosionContainer.addChild(bubble);
+    if (!populatedFallbackPaintRequested) {
+      populatedFallbackPaintRequested = true;
+      // The live ticker remains the sole gameplay renderer. If it is stopped,
+      // paint once only after the first real Juice/Mushroom Sprite is attached.
+      requestFallbackRenderFrames(1);
+    }
 
     const endY = direction === 'down'
       ? screenH * (1.1 + Math.random() * 0.18)
@@ -886,6 +889,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       const weaveDirection = Math.random() < 0.5 ? -1 : 1;
       const weaveDistance = screenW * (0.1 + Math.random() * 0.08);
       const travelY = endY - startY;
+      // Each pooled Sprite receives a fresh local clock at its real birth.
+      // A shared already-running playhead can retroactively seek late bubbles
+      // through most or all of their route, collapsing the rich 48+18 field.
       const riseTl = trackTimeline();
       riseTl.to(bubble, {
         keyframes: [
@@ -1842,32 +1848,6 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     console.error('❌ Failed to call initial spawnTicker():', e);
   }
 
-  // 🔥 CRITICAL FIX: Force render again after initial burst to ensure bubbles are visible
-  // This ensures bubbles are rendered immediately after creation (same pattern as fx.ts for wild stars)
-  lifecycle.trackTimeout(() => {
-    try {
-      const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
-      const app = (windowState && windowState.app) || null;
-      const stage = (windowState && windowState.stage) || (app && app.stage) || null;
-      if (app && app.renderer && !app.renderer.destroyed && stage && explosionContainer && !explosionContainer.destroyed) {
-        // Ensure container and all bubbles are visible
-        explosionContainer.visible = true;
-        explosionContainer.alpha = 1.0;
-        explosionContainer.renderable = true;
-        for (let i = 0; i < explosionContainer.children.length; i++) {
-          const child = explosionContainer.children[i];
-          if (child && !child.destroyed) {
-            child.visible = true;
-            child.alpha = Math.max(0.5, child.alpha || 1.0);
-            child.renderable = true;
-          }
-        }
-        requestFallbackRenderFrames(1);
-      }
-    } catch (e) {
-      console.warn('⚠️ Failed to force render after initial burst:', e);
-    }
-  }, 100);
 }
 
 /**

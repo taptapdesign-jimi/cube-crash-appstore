@@ -83,7 +83,7 @@ describe('Spaceship finale rendered lifecycle', () => {
     const movers = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-debris-mover'));
 
     expect(movers).toHaveLength(25);
-    expect(tracked).toHaveLength(27);
+    expect(tracked).toHaveLength(2);
     const fakeDice = Array.from(overlay.querySelectorAll<HTMLElement>('.cc-spaceship-finale-fake-die'));
     expect(fakeDice.map(({ dataset }) => Number(dataset.spaceshipDieValue))).toEqual([3, 2, 4, 1, 2, 5, 4, 3]);
     expect(overlay.querySelectorAll('.cc-spaceship-finale-fake-die-pip')).toHaveLength(24);
@@ -174,6 +174,7 @@ describe('Spaceship finale rendered lifecycle', () => {
     expect(tracePhases.indexOf('saucer-exit-start')).toBeLessThan(tracePhases.indexOf('beam-disconnected'));
     expect(overlay.querySelectorAll('.cc-spaceship-finale-scene')).toHaveLength(1);
     expect(SPACESHIP_BEAM_HIDDEN_AT_SECONDS).toBeGreaterThan(SPACESHIP_SAUCER_EXIT_AT_SECONDS);
+    tracked[0].seek(0, false).pause();
     movers.forEach((mover, index) => {
       const plan = SPACESHIP_PULL_PLAN[index];
       const delaysAppearance = 'value' in plan && plan.value === 3;
@@ -181,23 +182,23 @@ describe('Spaceship finale rendered lifecycle', () => {
       expect(Number.parseFloat(mover.style.top)).toBeGreaterThan(100);
       expect(mover.getBoundingClientRect().top).toBeGreaterThan(viewportHeight);
 
-      const timeline = tracked[index + 2];
+      const timeline = tracked[0];
       const initialTop = Number.parseFloat(mover.style.top) * viewportHeight / 100;
       const motion = getSpaceshipDebrisMotion(plan);
       if (delaysAppearance) {
-        timeline.seek(Math.max(0, motion.travelStartAt - 0.01));
+        timeline.seek(Math.max(0, motion.travelStartAt - 0.01), false);
         expect(Number.parseFloat(mover.style.top) * viewportHeight / 100).toBeCloseTo(initialTop, 5);
         expect(Number(gsap.getProperty(mover, 'opacity'))).toBe(0);
       }
-      timeline.seek(0.15);
+      timeline.seek(motion.travelStartAt + 0.15, false);
       expect(Number.parseFloat(mover.style.top)).toBeLessThan(initialTop);
       if (delaysAppearance) expect(Number(gsap.getProperty(mover, 'opacity'))).toBeGreaterThan(0);
-      timeline.pause(0);
+      timeline.seek(0, false).pause();
     });
 
     SPACESHIP_PULL_PLAN.forEach((plan, index) => {
       const motion = getSpaceshipDebrisMotion(plan);
-      const timeline = tracked[index + 2];
+      const timeline = tracked[0];
       const marker = overlay.querySelector<HTMLElement>(
         `.cc-spaceship-intake-marker-${(Math.floor(plan.pullOrder) % 3) + 1}`,
       );
@@ -205,18 +206,18 @@ describe('Spaceship finale rendered lifecycle', () => {
       if ('value' in plan) {
         const visual = movers[index].querySelector<HTMLElement>('.cc-spaceship-finale-fake-die');
         for (let step = 0; step <= 19; step += 1) {
-          timeline.seek(motion.travelStartAt + motion.travelSeconds * step / 20);
+          timeline.seek(motion.travelStartAt + motion.travelSeconds * step / 20, false);
           expect(Math.abs(Number(gsap.getProperty(visual!, 'rotation')))).toBeLessThanOrEqual(60.001);
         }
-        timeline.pause(0);
+        timeline.seek(0, false).pause();
       }
       for (let step = 0; step <= 7; step += 1) {
         const liveTime = motion.arrivalAt - 0.07 + step * 0.01;
         tracked[0].seek(liveTime);
-        timeline.seek(liveTime);
+        timeline.seek(liveTime, false);
         markerLeftSamples.push(marker!.getBoundingClientRect().left);
       }
-      timeline.seek(motion.arrivalAt + 0.001);
+      timeline.seek(motion.arrivalAt + 0.001, false);
       expect(Number(gsap.getProperty(movers[index], 'opacity'))).toBe(1);
       const moverRect = movers[index].getBoundingClientRect();
       const markerRect = marker!.getBoundingClientRect();
@@ -228,7 +229,7 @@ describe('Spaceship finale rendered lifecycle', () => {
       if (intakeDistance > 1) {
         throw new Error(`${plan.id} missed moving intake by ${intakeDistance.toFixed(3)}px (mover ${movers[index].style.left}/${movers[index].style.top}, marker ${markerRect.left}/${markerRect.top})`);
       }
-      timeline.seek(motion.arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS + 0.001);
+      timeline.seek(motion.arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS + 0.001, false);
       expect(Number(gsap.getProperty(movers[index], 'opacity'))).toBe(0);
     });
 

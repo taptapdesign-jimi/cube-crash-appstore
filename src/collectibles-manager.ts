@@ -1393,9 +1393,6 @@ class CollectiblesManager {
                       returningFromInterimBoardEarly ? 'interim-game-return' : 'journey-game-return'
                     );
                   }
-                  if (!shouldPlayActiveBoardAreaEnter && !shouldUseV700WorldReturnEnter) {
-                    activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
-                  }
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-complete-fallback');
                   }
@@ -1408,9 +1405,6 @@ class CollectiblesManager {
                         ? 'interim-game-return-viewport-error'
                         : 'journey-game-fail-return-viewport-error'
                     );
-                  }
-                  if (!shouldPlayActiveBoardAreaEnter && !shouldUseV700WorldReturnEnter) {
-                    activeJourneyBoardsManager.playJourneyForestSceneEnterAnimation?.();
                   }
                   if (shouldPlayActiveBoardAreaEnter) {
                     startActiveAreaEnter('viewport-enter-error-fallback');

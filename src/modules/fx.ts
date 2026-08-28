@@ -5985,8 +5985,6 @@ export function startMagnetIdleParticles(tile) {
     return;
   }
   
-  const isSpaceship = getSpecialDiceVariantForTile(tile)?.id === 'spaceship';
-
   // Generate particles every 200ms (5 times per second) at 24% intensity (normal size, like drag smoke)
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
@@ -6000,21 +5998,6 @@ export function startMagnetIdleParticles(tile) {
         intensity: 0.35, // Slightly reduced to lower idle cost
         trackForIdle: true // 🔥 CRITICAL: Track particles for cleanup
       });
-      if (isSpaceship) {
-        // A second small cyan layer stays below and behind the hovering craft.
-        // It shares the canonical Magnet particle tracker and cleanup owner.
-        magicSparklesAtTile(board, tile, {
-          colors: [0x7CFBFD, 0x8AEEFE],
-          particleCount: 4,
-          fillAlpha: 0.78,
-          sizeMultiplier: 0.72,
-          distanceScale: 0.46,
-          angleMin: Math.PI / 3,
-          angleMax: Math.PI * 2 / 3,
-          zIndex: (tile.zIndex ?? 0) - 0.001,
-          trackForIdle: true,
-        });
-      }
     } catch (err) {
       console.warn('Magnet idle particles error:', err);
     }

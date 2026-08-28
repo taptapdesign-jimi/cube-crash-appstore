@@ -2,7 +2,12 @@
 
 import { Container } from 'pixi.js';
 import animationManager from '../animation-manager';
-import { startSpecialDiceIdleMotion, stopSpecialDiceIdleMotion } from '../special-dice-idle';
+import {
+  keepsSpecialDiceIdleRunningDuringDrag,
+  setSpecialDiceIdleDragging,
+  startSpecialDiceIdleMotion,
+  stopSpecialDiceIdleMotion,
+} from '../special-dice-idle';
 
 describe('special-dice idle lifecycle', () => {
   beforeEach(() => animationManager.killAll());
@@ -77,6 +82,50 @@ describe('special-dice idle lifecycle', () => {
 
     stopSpecialDiceIdleMotion(tile);
     expect(rotG).toMatchObject({ x: 8, y: -6, rotation: 0.12 });
+    expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
+
+  test('Spaceship keeps the same idle owner alive throughout drag and defensive restart calls', () => {
+    const tile: any = {
+      rotG: new Container(),
+      destroyed: false,
+      _ccSpecialDiceVariant: 'spaceship',
+    };
+    const baseline = animationManager.getStats().activeTimelines;
+
+    startSpecialDiceIdleMotion(tile);
+    const idleTimeline = tile._ccSpecialDiceIdleTl;
+
+    expect(keepsSpecialDiceIdleRunningDuringDrag(tile)).toBe(true);
+    expect(setSpecialDiceIdleDragging(tile, true)).toBe(true);
+    expect(tile._ccSpecialDiceIdleTl).toBe(idleTimeline);
+
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccSpecialDiceIdleTl).toBe(idleTimeline);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 1);
+
+    expect(setSpecialDiceIdleDragging(tile, false)).toBe(true);
+    expect(tile._ccSpecialDiceIdleTl).toBe(idleTimeline);
+
+    stopSpecialDiceIdleMotion(tile);
+    expect(animationManager.getStats().activeTimelines).toBe(baseline);
+  });
+
+  test('Mushroom owns one smoke master plus its existing pop timeline', () => {
+    const rotG = new Container();
+    const tile: any = {
+      rotG,
+      destroyed: false,
+      _ccSpecialDiceVariant: 'mushroom',
+    };
+    const baseline = animationManager.getStats().activeTimelines;
+
+    startSpecialDiceIdleMotion(tile);
+    expect(tile._ccMushroomSmokeTimeline).toBeTruthy();
+    expect(animationManager.getStats().activeTimelines).toBe(baseline + 2);
+
+    stopSpecialDiceIdleMotion(tile);
+    expect(tile._ccMushroomSmokeTimeline).toBeUndefined();
     expect(animationManager.getStats().activeTimelines).toBe(baseline);
   });
 });

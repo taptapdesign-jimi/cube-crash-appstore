@@ -21,6 +21,7 @@ import {
 } from './fx.ts';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import {
+  keepsSpecialDiceIdleRunningDuringDrag,
   setSpecialDiceIdleDragging,
   startSpecialDiceIdleMotion,
   stopSpecialDiceIdleMotion,
@@ -1031,6 +1032,7 @@ export function initDrag(cfg) {
     for (const tile of list) {
       if (!tile || tile.destroyed || tile === activeTile) continue;
       if (!tile._ccSpecialDiceIdleTl) continue;
+      if (keepsSpecialDiceIdleRunningDuringDrag(tile)) continue;
       drag._pausedSpecialIdleTiles.add(tile);
       try { stopSpecialDiceIdleMotion(tile); } catch {}
     }
@@ -1326,10 +1328,11 @@ export function initDrag(cfg) {
     drag.vx = 0; drag.vy = 0;
     drag.lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     drag.lagX = 0; drag.lagY = 0;
+    const keepsIdleRunningDuringDrag = keepsSpecialDiceIdleRunningDuringDrag(t);
     try {
       if (!setSpecialDiceIdleDragging(t, true)) stopSpecialDiceIdleMotion(t);
     } catch {}
-    if (t.rotG) gsap.killTweensOf(t.rotG);
+    if (t.rotG && !keepsIdleRunningDuringDrag) gsap.killTweensOf(t.rotG);
     // Remember board baseline and enable wobble only for juice wild
     drag._boardBaseX = board?.x ?? 0;
     drag._boardBaseY = board?.y ?? 0;
@@ -1521,7 +1524,7 @@ export function initDrag(cfg) {
     const touchPerformanceMode = shouldUseTouchDragPerformanceMode();
     const tiltLimit = touchPerformanceMode ? TOUCH_TILT_MAX_RAD : TILT_MAX_RAD;
     const targetRot = Math.max(-tiltLimit, Math.min(tiltLimit, (-drag.vx * TILT_SCALE)));
-    if (t.rotG) {
+    if (t.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {
       const cur = t.rotG.rotation || 0;
       const rotationSmooth = touchPerformanceMode ? 0.18 : ROT_SMOOTH;
       const next = cur + (targetRot - cur) * rotationSmooth;
@@ -1937,7 +1940,7 @@ export function initDrag(cfg) {
     // Ghost placeholders are in fixed background layer - always visible, no cleanup needed
 
     // vrati tilt u nulu s istim “delay” feelom
-    if (t?.rotG) {
+    if (t?.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {
       trackTween(t.rotG, { rotation: 0, duration: TILT_DUR, ease: 'power2.out' });
     }
 

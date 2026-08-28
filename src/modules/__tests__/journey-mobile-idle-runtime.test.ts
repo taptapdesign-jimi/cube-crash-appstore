@@ -25,6 +25,9 @@ describe('Journey mobile idle runtime', () => {
     expect(source).toContain('entry.visibilityResolved && entry.visibleTargets.size === 0');
     expect(source).toContain("rootMargin: '160px 0px'");
     expect(source).toContain('this.idleVisibilityObserver?.disconnect()');
+    expect(source).toContain("x: gsap.quickSetter(cloud, 'x', 'px')");
+    expect(source).not.toContain("y: gsap.quickSetter(cloud, 'y', 'px')");
+    expect(source).not.toContain('setters.y(');
   });
 
   it('keeps the legacy active-Unit resume path inside the same mobile budget', () => {

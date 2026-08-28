@@ -24,6 +24,15 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('lifecycle.trackRaf(() => {');
     expect(source).toContain('appSpatialMotion.activateBoardTransition(overlay, boardNumber);');
   });
+
+  test('keeps Robo layout/style diagnostics out of normal production motion', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
+    expect(source).toContain("import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';");
+    expect(source).toContain('if (!areContinuousRuntimeDiagnosticsEnabled()) return;');
+    expect(source).toContain('if (!areContinuousRuntimeDiagnosticsEnabled()) {');
+    expect(source).toContain("console.info('[CC_ROBO_BEAM_DEPTH]', payload);");
+    expect(source).toContain("console.info('[CC_ROBO_SHIP_EXIT]', payload);");
+  });
   test('randomizes the two Robo character directions as one opposite pair per transition', () => {
     expect(createRoboTransitionVariation(() => 0.1)).toEqual({
       frontTravelDirection: 1,
@@ -461,8 +470,9 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('const LEFT_SHIP_START_DELAY_SECONDS = 0');
     expect(source).toContain('const RIGHT_SHIP_START_DELAY_SECONDS = 0.20');
     expect(source).toContain("const timeline = trackTimeline({ paused: true })");
-    expect(source).toContain('trackTimeline({ repeat: -1, delay: startDelay, paused: true })');
-    expect(source).toContain('trackTimeline({ delay, paused: true })');
+    expect(source).toContain('const combatRuntimeTimeline = trackTimeline({ paused: true })');
+    expect(source).toContain('combatWobbles.forEach((runtime) => {');
+    expect(source).toContain('combatFlights.forEach((runtime) => {');
     expect(source).toContain('rightShipMotion.dataset.sceneLayer = \'robo-fighter-right\'');
     expect(source).toContain("rightShip.removeAttribute('data-scene-layer')");
     expect(source).toContain('.filter((ownedTimeline) => ownedTimeline !== timeline)');
@@ -631,10 +641,13 @@ describe('Board Transition World themes', () => {
     expect(source).toContain('ship.naturalHeight / ship.naturalWidth');
     expect(source).toContain(': 188 / 194');
     expect(source).toContain('repeat: -1');
-    expect(source).toContain('const wobbleClock = { phase: phaseOffset }');
-    expect(source).toContain('phase: phaseOffset + Math.PI * 40');
+    expect(source).toContain('const phase = runtime.phaseOffset + (sceneElapsed - runtime.startDelay) * Math.PI * 2');
     expect(source).toContain('const xWave = Math.sin(phase * 1.37)');
     expect(source).toContain('const yWave = Math.sin(phase * 1.73 + 1.2)');
+    expect(source).toContain('const elapsed = Math.min(runtime.duration, sceneElapsed - runtime.delay)');
+    expect(source).toContain('updateContinuousFlight(runtime, elapsed)');
+    expect(source).not.toContain('const wobbleClock = { phase: phaseOffset }');
+    expect(source).not.toContain('const flightClock = { elapsed: 0 }');
     expect(source).toContain('roboAirCombatTimelines.forEach((timeline) => {');
     expect(source).not.toContain('ROBO_AIR_COMBAT_DAMAGE_FRAMES');
     expect(source).not.toContain('buildRoboDamageFrameSchedule');
@@ -842,7 +855,7 @@ describe('Board Transition World themes', () => {
     expect(source).toContain("motionRole && motionRole !== 'shore'");
     expect(source).toContain("target.dataset.sceneLayer === 'beach-castle' ? 1.24 : 1.15");
     expect(source).toContain('beachShoreAmbientTimeline = timeline');
-    expect(source).toContain('ownAmbientTimeline(motionTimeline)');
+    expect(source).toContain('ownAmbientTimeline(ambientTimeline)');
     expect(source).toContain('forestContainer, resolvedTheme, () =>');
     expect(source).toContain("transitionTheme: BoardTransitionThemeId | 'none'");
     expect(source).toContain("{ 'beach-sea-3': 'beach-ball', 'beach-shore-2': 'beach-castle' }");

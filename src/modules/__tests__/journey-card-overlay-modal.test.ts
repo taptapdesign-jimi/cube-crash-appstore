@@ -36,6 +36,26 @@ const root = path.resolve(__dirname, '../../..');
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
 describe('Journey two-sided card overlay prototype', () => {
+  test('never turns a valid card or Play tap into a silent route no-op', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    const cardHandler = manager.slice(
+      manager.indexOf('const handleCardTap = (e: Event) =>'),
+      manager.indexOf('// Only treat as tap if finger didn\'t move'),
+    );
+    expect(cardHandler).toContain('Journey card fallback detail route failed');
+    expect(cardHandler).toContain('this.startBoardAreaThenJourneyExit(board.id)');
+    expect(cardHandler).toContain('this.openBoardDetails(board, true, fallbackJourneyExitPromise)');
+
+    const gameHandoff = manager.slice(
+      manager.indexOf('let didStart = false;'),
+      manager.indexOf('private waitForJourneyOverlayReturnReady'),
+    );
+    expect(gameHandoff).toContain("throw new Error('continueGameWithSavedState function not found')");
+    expect(gameHandoff).toContain("throw new Error('startNewRunFromJourney function not found')");
+    expect(gameHandoff.indexOf("throw new Error('startNewRunFromJourney function not found')"))
+      .toBeLessThan(gameHandoff.lastIndexOf('didStart = true;'));
+  });
+
   test('builds the minimal Stage stats model', () => {
     expect(buildJourneyCardOverlayModalViewModel(5, {
       highScore: 6775.9,
@@ -499,7 +519,7 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     const overlayResume = manager.slice(
       manager.indexOf('private resumeJourneyWorldAfterCardOverlay('),
-      manager.indexOf('private scheduleJourneyAreaIdleAnimations('),
+      manager.indexOf('private getCurrentJourneyForestAreas('),
     );
     expect(overlayPause).toContain('this.journeyWorldRuntime.openModal()');
     expect(overlayPause).toContain('this.journeyWorldRuntime.endInteractionSettle()');

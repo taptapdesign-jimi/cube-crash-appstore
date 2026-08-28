@@ -27,6 +27,16 @@ describe('wild-juice bubble motion ownership contract', () => {
     expect(explosionSource).toContain("acquirePixiMobileActivityLease('juice-family-finale')");
     expect(explosionSource).toContain('if (!app.ticker?.started)');
     expect(explosionSource.match(/app\.renderer\.render\(stage\)/g)).toHaveLength(1);
+    expect(explosionSource).toContain('let populatedFallbackPaintRequested = false;');
+    expect(explosionSource).toContain('if (!populatedFallbackPaintRequested) {');
+    expect(explosionSource).toContain('// paint once only after the first real Juice/Mushroom Sprite is attached.');
+    expect(explosionSource).not.toContain('Failed to force render after initial burst');
     expect(explosionSource).toContain('riseTl.to(bubble.scale, {');
+    expect(explosionSource).toContain('isCustomDownDrop ? 29 : 48;');
+    expect(explosionSource).toContain('const lateBurstCount = isCustomDownDrop ? 0 : 18;');
+    expect(explosionSource).toContain('const riseTl = trackTimeline();');
+    expect(explosionSource).toContain('bubbleTweens.push(riseTl as any);');
+    expect(explosionSource).toContain('// Each pooled Sprite receives a fresh local clock at its real birth.');
+    expect(explosionSource).not.toContain('_juiceBubbleTimeline');
   });
 });

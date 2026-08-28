@@ -33,7 +33,6 @@ interface JourneyWorldIdleEntry {
   ySetters: Array<(value: number) => void>;
   cloudSetters: Array<{
     x: (value: number) => void;
-    y: (value: number) => void;
   }>;
   visibilityTargets: HTMLElement[];
   visibleTargets: Set<HTMLElement>;
@@ -374,7 +373,6 @@ export class JourneyWorldAnimationCoordinator {
       const ySetters = unit.targets.map((target) => gsap.quickSetter(target, 'y', 'px') as (value: number) => void);
       const cloudSetters = unit.clouds.map((cloud) => ({
         x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
-        y: gsap.quickSetter(cloud, 'y', 'px') as (value: number) => void,
       }));
       const visibilityTargets = Array.from(new Set(unit.targets));
       const entry: JourneyWorldIdleEntry = {
@@ -419,9 +417,7 @@ export class JourneyWorldAnimationCoordinator {
         entry.ySetters.forEach((setY) => setY(y));
         entry.cloudSetters.forEach((setters, cloudIndex) => {
           const x = Math.sin((elapsed * entry.speed * 0.62) + entry.phaseOffset + cloudIndex) * 10 * easedRamp;
-          const cloudY = Math.cos((elapsed * entry.speed * 0.48) + entry.phaseOffset + (cloudIndex * 0.73)) * 5 * easedRamp;
           setters.x(x);
-          setters.y(cloudY);
         });
       });
     };

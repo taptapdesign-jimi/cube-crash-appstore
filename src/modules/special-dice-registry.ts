@@ -164,6 +164,14 @@ const honeyBeeSources2x = Array.from(
   { length: 7 },
   (_, index) => `./assets/shop/honey/bee${index + 1}@2x.png`,
 );
+const spaceshipIdleSources1x = Array.from(
+  { length: 4 },
+  (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}.png`,
+);
+const spaceshipIdleSources2x = Array.from(
+  { length: 4 },
+  (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}@2x.png`,
+);
 const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -190,6 +198,9 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     hitAreaSize: 'tile',
     idleOrbit: false,
     idleMotion: 'spaceship-hover',
+    idleSpriteSources: useHighResolutionSpecialDiceFx
+      ? spaceshipIdleSources2x
+      : spaceshipIdleSources1x,
     inputReleaseAtRatio: 0.25,
   },
   bottle: {

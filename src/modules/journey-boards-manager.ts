@@ -922,8 +922,6 @@ class JourneyBoardsManager {
   }> = [];
   private journeyAreaIdleVisibilityObserver: IntersectionObserver | null = null;
   private journeyAreaIdleEntryByVisibilityTarget = new Map<HTMLElement, typeof this.journeyAreaIdleEntries[number]>();
-  private journeyAreaIdleStartTimeout: number | null = null;
-  private journeyScrollSettledTimeout: number | null = null;
   private journeyAreaIdlePausedForInteraction = false;
   private activeBoardAreaEnterPreparedTargets: HTMLElement[] = [];
   private activeBoardAreaEnterInProgress = false;
@@ -1306,21 +1304,7 @@ class JourneyBoardsManager {
       } catch {}
     });
     this._floatingDetailPlayButtons.clear();
-    this.journeyAreaIdleStartTimeout = null;
-    this.journeyScrollSettledTimeout = null;
     logger.info('✅ Cancelled all tracked Journey timeouts');
-  }
-
-  private clearJourneyAreaIdleStartTimeout(): void {
-    if (!this.journeyAreaIdleStartTimeout) return;
-    logger.info('🧭 JourneyForestAnim idle-start-timeout clear', {
-      timeoutId: this.journeyAreaIdleStartTimeout,
-    });
-    try {
-      window.clearTimeout(this.journeyAreaIdleStartTimeout);
-      this._activeTimeouts.delete(this.journeyAreaIdleStartTimeout);
-    } catch {}
-    this.journeyAreaIdleStartTimeout = null;
   }
 
   private isJourneyCardTapExitProtectedTarget(target: HTMLElement): boolean {
@@ -1641,16 +1625,9 @@ class JourneyBoardsManager {
         return;
       }
 
-      this.clearJourneyAreaIdleStartTimeout();
       if (!this.journeyAreaIdlePausedForInteraction) {
         this.journeyAreaIdlePausedForInteraction = true;
         this.journeyWorldRuntime.openModal();
-      }
-
-      if (this.journeyScrollSettledTimeout) {
-        window.clearTimeout(this.journeyScrollSettledTimeout);
-        this._activeTimeouts.delete(this.journeyScrollSettledTimeout);
-        this.journeyScrollSettledTimeout = null;
       }
       emitIOSNativeDiagnostic('detail-modal-world-runtime-paused', {
         worldId: this.journeyV700WorldId,
@@ -1758,7 +1735,6 @@ class JourneyBoardsManager {
     // transform/opacity/card styles one by one makes WebKit restyle hundreds of
     // nodes that can never paint. Stop their owners in bulk and leave visual
     // normalization to flows that actually preserve the current DOM.
-    this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
     const descendants = Array.from(container.querySelectorAll<HTMLElement>('*'));
     if (descendants.length) {
@@ -1880,12 +1856,6 @@ class JourneyBoardsManager {
   }
 
   private pauseJourneyWorldForCardOverlay(reason: string): void {
-    this.clearJourneyAreaIdleStartTimeout();
-    if (this.journeyScrollSettledTimeout) {
-      window.clearTimeout(this.journeyScrollSettledTimeout);
-      this._activeTimeouts.delete(this.journeyScrollSettledTimeout);
-      this.journeyScrollSettledTimeout = null;
-    }
     this.journeyAreaIdlePausedForInteraction = true;
     this.journeyWorldRuntime.openModal();
     // A rapid reopen transfers the settling hold directly to the new modal;
@@ -1924,25 +1894,6 @@ class JourneyBoardsManager {
     });
   }
 
-  private scheduleJourneyAreaIdleAnimations(cardsContainer: HTMLElement, delayMs: number): void {
-    this.clearJourneyAreaIdleStartTimeout();
-    logger.info('🧭 JourneyForestAnim idle-schedule', {
-      delayMs,
-      cardsContainerConnected: !!cardsContainer && document.body.contains(cardsContainer),
-      activeBoardId: this.getLastActiveJourneyBoardAreaId(),
-    });
-    const timeoutId = this.trackTimeout(() => {
-      this.journeyAreaIdleStartTimeout = null;
-      if (!cardsContainer || !document.body.contains(cardsContainer)) {
-        logger.warn('🧭 JourneyForestAnim idle-schedule-fired-missing-container');
-        return;
-      }
-      logger.info('🧭 JourneyForestAnim idle-schedule-fired', { delayMs });
-      this.startJourneyAreaIdleAnimations(this.getCurrentJourneyForestAreas(cardsContainer), cardsContainer);
-    }, delayMs);
-    this.journeyAreaIdleStartTimeout = timeoutId || null;
-  }
-
   private getCurrentJourneyForestAreas(
     cardsContainer: HTMLElement
   ): { mainTargets: HTMLElement[]; cloudTargets: HTMLElement[]; boardTargets: Map<number, HTMLElement[]> } {
@@ -1971,84 +1922,6 @@ class JourneyBoardsManager {
       cloudTargets: Array.from(new Set(cloudTargets)).filter((target) => target && document.body.contains(target)),
       boardTargets,
     };
-  }
-
-  public playJourneyForestSceneEnterAnimation(retryCount = 0): void {
-    try {
-      const journeyContainer = document.getElementById('journey-boards-container') as HTMLElement | null;
-      const isV700View =
-        this.journeyV700View === 'hub' ||
-        this.journeyV700View === 'world' ||
-        journeyContainer?.dataset.journeyV700View === 'hub' ||
-        journeyContainer?.dataset.journeyV700View === 'world' ||
-        (window as any).__ccJourneyV700View === 'hub' ||
-        (window as any).__ccJourneyV700View === 'world';
-      if (isV700View) {
-        this.logJourneyV700Flow('legacy-scene-enter-skipped-v700-owned', { retryCount }, journeyContainer);
-        return;
-      }
-
-      const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement | null;
-      if (!cardsContainer || !document.body.contains(cardsContainer)) {
-        logger.warn('🧭 JourneyForestAnim scene-enter-missing-container', { retryCount });
-        if (retryCount < 4) {
-          this.trackTimeout(() => this.playJourneyForestSceneEnterAnimation(retryCount + 1), 80);
-        }
-        return;
-      }
-
-      const forestAreas = this.getCurrentJourneyForestAreas(cardsContainer);
-      const areaGroups: Array<{ areaId: string; targets: HTMLElement[]; isMain?: boolean }> = [];
-      if (forestAreas.mainTargets.length) {
-        areaGroups.push({ areaId: 'forest-main', targets: forestAreas.mainTargets, isMain: true });
-      }
-      if (forestAreas.cloudTargets?.length) {
-        areaGroups.push({ areaId: 'forest-main-clouds', targets: forestAreas.cloudTargets, isMain: true });
-      }
-      forestAreas.boardTargets.forEach((targets, boardId) => {
-        areaGroups.push({ areaId: `board-${boardId}`, targets });
-      });
-
-      if (!areaGroups.length) {
-        logger.warn('🧭 JourneyForestAnim scene-enter-no-area-groups', { retryCount });
-        if (retryCount < 4) {
-          this.trackTimeout(() => this.playJourneyForestSceneEnterAnimation(retryCount + 1), 80);
-        }
-        return;
-      }
-
-      this.cleanupJourneyAreaIdleAnimations(false);
-
-      const allTargets = Array.from(new Set(areaGroups.flatMap((group) => group.targets)))
-        .filter((target) => target && document.body.contains(target));
-      logger.info('🧭 JourneyForestAnim scene-enter-ready', {
-        retryCount,
-        activeBoardId: this.getLastActiveJourneyBoardAreaId(),
-        areaGroups: areaGroups.map((group) => ({
-          areaId: group.areaId,
-          targets: group.targets.length,
-          isMain: group.isMain === true,
-        })),
-        allTargets: allTargets.length,
-      });
-      allTargets.forEach((target) => {
-        try { gsap.killTweensOf(target); } catch {}
-        target.classList.add('journey-area-idle-target');
-        restoreJourneyAreaTransformOrigin(target);
-        target.style.willChange = 'auto';
-      });
-
-      const idleStartDelayMs = this.getLastActiveJourneyBoardAreaId()
-        ? 1200
-        : 780;
-      logger.info('🧭 JourneyForestAnim scene-enter-idle-delay', {
-        idleStartDelayMs,
-        activeBoardId: this.getLastActiveJourneyBoardAreaId(),
-      });
-      this.scheduleJourneyAreaIdleAnimations(cardsContainer, idleStartDelayMs);
-    } catch (error) {
-      logger.warn('⚠️ Failed to play Journey forest scene enter animation:', error);
-    }
   }
 
   private getLastActiveJourneyBoardAreaId(): number | null {
@@ -2441,7 +2314,6 @@ class JourneyBoardsManager {
             this.restoreJourneyBoardCardInnerVisual(target);
           } catch {}
         });
-        this.clearJourneyAreaIdleStartTimeout();
         const clearedActiveBoard = this.clearLastActiveJourneyBoardAreaId(boardId);
         if (clearedActiveBoard) {
           this.activeBoardAreaEnterInProgress = false;
@@ -4672,7 +4544,9 @@ class JourneyBoardsManager {
 
   private waitForJourneyTapRemainderOverlap(): Promise<void> {
     return new Promise((resolve) => {
-      this.trackTimeout(resolve, BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS);
+      // Render replacement/cleanup is allowed to cancel the visual overlap,
+      // but it must never leave the route promise pending forever.
+      this.trackTimeout(resolve, BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS, resolve);
     });
   }
 
@@ -8090,7 +7964,6 @@ class JourneyBoardsManager {
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
     const motion = getJourneyV700MotionProfile(reducedMotion);
     const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
-    this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
 
     try {
@@ -8231,7 +8104,6 @@ class JourneyBoardsManager {
     markIOSJourneyRouteAudit(`journey-world-${worldId}-enter`);
     if (!units.length) return;
     this.activateJourneyWorldRuntime(container, worldId);
-    this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
     const allTargets = Array.from(new Set(units.flatMap((unit) => unit.targets)));
     const preparedWorldEnter = this.journeyV700PreparedWorldEnter;
@@ -8433,7 +8305,6 @@ class JourneyBoardsManager {
     }
 
     this.journeyV700Phase = 'exiting';
-    this.clearJourneyAreaIdleStartTimeout();
     this.cleanupJourneyAreaIdleAnimations(false);
     units.flatMap((unit) => unit.targets).forEach((target) => {
       setJourneyAlienBeamIdleReady(target, false);
@@ -8885,11 +8756,8 @@ class JourneyBoardsManager {
         this.installInterimAreaHitTargets(cardsContainer);
       }, 0);
     }
-    // Forest scene idle starts after playJourneyForestSceneEnterAnimation().
-    
-    // 🔥 CRITICAL: DO NOT start idle bounce animations here - they will interfere with enter animation
-    // Idle bounce animations will be started AFTER enter animation completes
-    // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter completes)
+    // Idle motion is owned by the V700 world coordinator or the active-Unit
+    // recovery completion. Starting another owner here would overlap enter.
     // This prevents jerky/laggy behavior on mobile when 16 cards try to animate during enter animation
     
     // Only install interaction listeners during render. The complete interim
@@ -9405,6 +9273,13 @@ class JourneyBoardsManager {
           (cardEl as any)._openingDetail = false;
           logger.warn('⚠️ Journey card portal could not capture the live Unit pose', {
             boardId: board.id,
+          });
+          // Invalid/zero geometry must not turn a valid card tap into a silent
+          // no-op. Fall back to the established detail route, which does not
+          // depend on leasing the live card into the portal overlay.
+          const fallbackJourneyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
+          void this.openBoardDetails(board, true, fallbackJourneyExitPromise).catch((error) => {
+            logger.error('❌ Journey card fallback detail route failed:', error);
           });
           return;
         }
@@ -9963,23 +9838,24 @@ class JourneyBoardsManager {
     let didStart = false;
     const startBoard = async () => {
       if (didStart) return;
-      didStart = true;
       if (hasSavedState) {
+        const continueGame = (window as any).continueGameWithSavedState;
+        if (typeof continueGame !== 'function') {
+          throw new Error('continueGameWithSavedState function not found');
+        }
+        didStart = true;
         (window as any).__ccStartAtLevel = boardId;
         (window as any).__ccTriggerHudDrop = true;
-        if (typeof (window as any).continueGameWithSavedState === 'function') {
-          await (window as any).continueGameWithSavedState();
-        } else {
-          logger.error('❌ continueGameWithSavedState function not found');
-        }
+        await continueGame();
         return;
       }
 
-      if (typeof (window as any).startNewRunFromJourney === 'function') {
-        await (window as any).startNewRunFromJourney(boardId);
-      } else {
-        logger.error('❌ startNewRunFromJourney function not found');
+      const startNewRun = (window as any).startNewRunFromJourney;
+      if (typeof startNewRun !== 'function') {
+        throw new Error('startNewRunFromJourney function not found');
       }
+      didStart = true;
+      await startNewRun(boardId);
     };
 
     try {

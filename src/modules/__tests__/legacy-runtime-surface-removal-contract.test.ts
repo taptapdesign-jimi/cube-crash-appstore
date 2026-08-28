@@ -68,4 +68,23 @@ describe('post-KING legacy runtime surface removal', () => {
     expect(journeyBoards).toContain('const FRAME_HEIGHT = 770.32');
     expect(journeyBoards).toContain('function pxToPercentTop');
   });
+
+  test('removes the unreachable pre-V700 Journey scene-enter scheduler only', () => {
+    const journeyBoards = read('src/modules/journey-boards-manager.ts');
+    const collectibles = read('src/collectibles-manager.ts');
+    const returnPolicy = read('src/modules/journey-return-entry-policy.ts');
+
+    expect(journeyBoards).not.toContain('playJourneyForestSceneEnterAnimation');
+    expect(journeyBoards).not.toContain('scheduleJourneyAreaIdleAnimations');
+    expect(journeyBoards).not.toContain('journeyAreaIdleStartTimeout');
+    expect(journeyBoards).not.toContain('journeyScrollSettledTimeout');
+    expect(collectibles).not.toContain('playJourneyForestSceneEnterAnimation');
+
+    expect(journeyBoards).toContain('playActiveJourneyBoardAreaEnterAnimation');
+    expect(journeyBoards).toContain('startJourneyAreaIdleAnimations');
+    expect(journeyBoards).toContain('this.journeyWorldAnimation.enter(');
+    expect(journeyBoards).toContain('this.journeyWorldAnimation.exit(');
+    expect(returnPolicy).toContain('useWorldReturnEnter: hasAcceptedReturn && input.isWorldView');
+    expect(returnPolicy).toContain('playActiveBoardAreaEnter: hasAcceptedReturn && !input.isWorldView');
+  });
 });

@@ -295,7 +295,7 @@ describe('Journey Hub transition ownership', () => {
     )[1]?.split('private resumeJourneyWorldAfterCardOverlay')[0] ?? '';
     const resumeSource = journeyManagerSource.split(
       'private resumeJourneyWorldAfterCardOverlay(reason: string): void',
-    )[1]?.split('private scheduleJourneyAreaIdleAnimations')[0] ?? '';
+    )[1]?.split('private getCurrentJourneyForestAreas')[0] ?? '';
     const enterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',
     )[1]?.split('private playJourneyV700WorldExit(')[0] ?? '';

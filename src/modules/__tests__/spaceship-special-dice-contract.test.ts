@@ -51,6 +51,10 @@ import {
   SPACESHIP_SUCTION_COMPLETE_AT_SECONDS,
 } from '../spaceship-finale-scene';
 import { resolveSplashLetterOpacity } from '../splash-text-overlay';
+import {
+  getSpaceshipIdleFrameIndex,
+  SPACESHIP_IDLE_FRAME_SECONDS,
+} from '../special-dice-idle';
 
 const read = (relativePath: string) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
@@ -72,6 +76,10 @@ describe('Spaceship special die', () => {
       hitAreaSize: 'tile',
     });
     expect(spaceship?.texture).toMatch(/assets\/shop\/spaceship\/spaceship(?:@2x)?\.png$/);
+    expect(spaceship?.idleSpriteSources).toHaveLength(4);
+    spaceship?.idleSpriteSources?.forEach((source, index) => {
+      expect(source).toMatch(new RegExp(`assets/shop/spaceship/spaceship-idle${index + 1}(?:@2x)?\\.png$`));
+    });
     expect(getCoreWildTypeForSpecialDiceVariant(spaceship)).toBe('wild-magnet');
     expect(getSpecialDiceTrailColors(spaceship)).toEqual([0xF8DCBF, 0xEFBE8F, 0x7CFBFD, 0x8AEEFE]);
     expect(getSpecialDiceShardColors(spaceship)).toEqual([0xF2CDA8, 0x8AEEFE]);
@@ -130,6 +138,7 @@ describe('Spaceship special die', () => {
     const assetRoot = path.resolve(process.cwd(), 'assets/shop/spaceship');
     const names = [
       'spaceship',
+      ...Array.from({ length: 4 }, (_, index) => `spaceship-idle${index + 1}`),
       ...Array.from({ length: 4 }, (_, index) => `saucer${index + 1}`),
       'leftbeam',
       'rightbeam',
@@ -143,6 +152,53 @@ describe('Spaceship special die', () => {
     expect(scene).toContain('Array.from({ length: 4 }');
     expect(scene).toContain('Array.from({ length: 7 }');
     expect(scene).toContain('Array.from({ length: 5 }');
+  });
+
+  test('anchors a stronger pooled-cost engine particle field to the rotating idle host', () => {
+    const idle = read('src/modules/special-dice-idle.ts');
+    expect(idle).toContain('const SPACESHIP_ENGINE_PARTICLE_COUNT = 9;');
+    expect(idle).toContain("particleContainer.label = 'spaceship-idle-engine-particles';");
+    expect(idle).toContain('particleContainer.position.set(0, 27);');
+    expect(idle).toContain('host.addChild(particleContainer);');
+    expect(idle).toContain('opacity: index % 2 === 0 ? 0.60 : 0.78');
+    expect(idle).toContain('const progress = (Math.max(0, elapsedSeconds) % 1.8) / 1.8;');
+    expect(idle).toContain('state.particle.alpha = state.opacity * visibility;');
+    expect(idle).toContain('startSpaceshipEngineIdle(tile, host);');
+    expect(idle).toContain("onUpdate: variant.idleMotion === 'spaceship-hover'");
+    expect(idle).toContain('tile._ccSpaceshipEngineIdleContainer.destroy?.({ children: true });');
+  });
+
+  test('cycles the four supplied board sprites through the existing hover owner only', () => {
+    const idle = read('src/modules/special-dice-idle.ts');
+    const spriteStart = idle.indexOf('function startSpaceshipSpriteIdle');
+    const spriteEnd = idle.indexOf('function startSpaceshipEngineIdle', spriteStart);
+    const spriteOwner = idle.slice(spriteStart, spriteEnd);
+
+    expect(SPACESHIP_IDLE_FRAME_SECONDS).toBe(0.18);
+    expect([0, 0.179, 0.18, 0.36, 0.54, 0.72].map((sample) => getSpaceshipIdleFrameIndex(sample, 4)))
+      .toEqual([0, 0, 1, 2, 3, 0]);
+    expect(spriteOwner).toContain('Promise.allSettled(frameSources.map((source) => Assets.load(source)))');
+    expect(spriteOwner).toContain('base.texture = texture');
+    expect(spriteOwner).toContain('base.width = paintedWidth');
+    expect(spriteOwner).toContain('base.height = paintedHeight');
+    expect(spriteOwner).toContain('textures.forEach(pinPixiImageTexture)');
+    expect(spriteOwner).toContain("tile?._ccSpaceshipSpriteIdle !== controller");
+    expect(spriteOwner).not.toContain('trackTimeline(');
+    expect(idle).toContain('tile._ccSpaceshipSpriteIdle = startSpaceshipSpriteIdle(tile, idleSources)');
+    expect(idle).toContain('tile?._ccSpaceshipSpriteIdle?.update?.(elapsedSeconds)');
+    expect(idle).toContain('tile?._ccSpaceshipSpriteIdle?.dispose?.()');
+  });
+
+  test('keeps Spaceship idle alive while dragging it or any other tile', () => {
+    const idle = read('src/modules/special-dice-idle.ts');
+    const drag = read('src/modules/drag-core.ts');
+
+    expect(idle).toContain("return getSpecialDiceVariantForTile(tile)?.idleMotion === 'spaceship-hover'");
+    expect(idle).toContain("if (variant.idleMotion === 'spaceship-hover' && tile._ccSpecialDiceIdleTl) return;");
+    expect(drag).toContain('if (keepsSpecialDiceIdleRunningDuringDrag(tile)) continue;');
+    expect(drag).toContain('if (t.rotG && !keepsIdleRunningDuringDrag) gsap.killTweensOf(t.rotG);');
+    expect(drag).toContain('if (t.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {');
+    expect(drag).toContain('if (t?.rotG && !keepsSpecialDiceIdleRunningDuringDrag(t)) {');
   });
 
   test('runs one continuous accelerating suction curve through selective beam depth', () => {
@@ -301,23 +357,25 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain('motionProfile');
     expect(scene).not.toContain('wobbleProfile');
     expect(scene).toContain('getSpaceshipMagneticPullProgress(linearProgress)');
-    expect(scene).toContain('cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress)');
+    expect(scene).toContain('cubicBezier(startLeft, control1, control2, target.left, magneticProgress)');
     expect(scene).toContain("ease: 'none'");
     expect(scene).toContain('const intakeMarkers = [46, 50, 54]');
     expect(scene).toContain('const cachedIntakePoints = new Map<HTMLElement');
-    expect(scene).toContain("master.eventCallback('onUpdate', invalidateIntakeGeometry)");
+    expect(scene).toContain("master.eventCallback('onUpdate', () => {");
+    expect(scene).toContain('updateDebrisForSceneTime(master.time());');
+    expect(scene).toContain('const debrisRuntime = debris.map');
+    expect(scene).not.toContain('const item = own(gsap.timeline');
     expect(scene.match(/intakeMarker\.getBoundingClientRect\(\)/g) ?? []).toHaveLength(0);
-    expect(scene).toContain('if (!diagnosticsEnabled) return;');
-    expect(scene).toContain('resolveIntakePoint(intakeMarker).top');
-    expect(scene).toContain('resolveIntakePoint(intakeMarker).left');
+    expect(scene).toContain('if (diagnosticsEnabled) {');
+    expect(scene).toContain('const target = resolveIntakePoint(runtime.intakeMarker);');
     expect(scene).toContain("gsap.quickSetter(mover, 'left', 'px')");
     expect(scene).toContain("gsap.quickSetter(mover, 'top', 'px')");
     expect(scene).toContain("gsap.quickSetter(mover, 'scaleX')");
     expect(scene).toContain("gsap.quickSetter(mover, 'scaleY')");
     expect(scene).not.toContain("gsap.quickSetter(mover, 'scale')");
     expect(scene).toContain("gsap.quickSetter(image, 'rotation', 'deg')");
-    expect(scene).toContain("left: () => `${resolveIntakePoint(intakeMarker).left}px`");
-    expect(scene).toContain("top: () => `${resolveIntakePoint(intakeMarker).top}px`");
+    expect(scene).toContain('runtime.setLeft(target.left);');
+    expect(scene).toContain('runtime.setTop(target.top);');
     expect(SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS).toBe(0.01);
     expect(scene).toContain('arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS');
     expect(scene).toContain("gsap.utils.clamp(-60, 60, rotation)");
@@ -334,7 +392,7 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain("left: `${targetX}%`");
     expect(scene).not.toContain('stageY');
     expect(scene).not.toContain('yoyo: true');
-    expect(scene.match(/onUpdate:/g)).toHaveLength(4);
+    expect(scene.match(/onUpdate:/g)).toHaveLength(3);
     expect(scene).not.toContain('requestAnimationFrame');
     expect(SPACESHIP_SAUCER_FRAME_COUNT).toBe(33);
     const finalSaucerFrameAt = SPACESHIP_SAUCER_FRAME_START_AT_SECONDS
@@ -480,15 +538,9 @@ describe('Spaceship special die', () => {
     expect(scene).not.toContain('const launchState');
   });
 
-  test('adds a visible cyan idle layer below and behind the existing shard trail', () => {
+  test('replaces the detached board-space cyan burst with the rotating engine owner', () => {
     const fx = read('src/modules/fx.ts');
-    expect(fx).toContain("const isSpaceship = getSpecialDiceVariantForTile(tile)?.id === 'spaceship'");
-    expect(fx).toContain('colors: [0x7CFBFD, 0x8AEEFE]');
-    expect(fx).toContain('particleCount: 4');
-    expect(fx).toContain('fillAlpha: 0.78');
-    expect(fx).toContain('angleMin: Math.PI / 3');
-    expect(fx).toContain('angleMax: Math.PI * 2 / 3');
-    expect(fx).toContain('zIndex: (tile.zIndex ?? 0) - 0.001');
-    expect(fx).toContain('trackForIdle: true');
+    expect(fx).not.toContain("const isSpaceship = getSpecialDiceVariantForTile(tile)?.id === 'spaceship'");
+    expect(fx).not.toContain('colors: [0x7CFBFD, 0x8AEEFE]');
   });
 });

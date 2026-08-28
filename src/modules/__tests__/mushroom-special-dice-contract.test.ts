@@ -71,6 +71,13 @@ describe('Mushroom special-die visual contract', () => {
     expect(juiceSource).toContain('let releaseScheduled = false');
     expect(juiceSource).toContain('Never reset/repool a Pixi target from inside GSAP');
     expect(juiceSource).toContain('tl.call(onBubbleComplete)');
+    const growthBranch = juiceSource.slice(
+      juiceSource.indexOf('if (isMushroomDrop) {', juiceSource.indexOf('// Create bubble function')),
+      juiceSource.indexOf('} else if (isCustomDownDrop)', juiceSource.indexOf('// Create bubble function')),
+    );
+    expect(growthBranch).toContain('const tl = trackTimeline()');
+    expect(growthBranch).toContain('bubbleTweens.push(tl as any)');
+    expect(growthBranch).not.toContain('mushroomGrowthTimeline');
     expect(juiceSource).toContain('container.destroy?.({ children: false })');
     expect(juiceSource).not.toContain('container.destroy?.({ children: true })');
     const sharedTextIndex = juiceSource.indexOf('createAndShowBubblyText({ text: options.text');
@@ -84,7 +91,12 @@ describe('Mushroom special-die visual contract', () => {
   test('uses Mushroom-only pop and pooled-lifecycle-safe smoke instead of Juice bubbles', () => {
     expect(idleSource).toContain("variant.idleMotion === 'mushroom-pop'");
     expect(idleSource).toContain("smokeContainer.label = 'mushroom-idle-smoke'");
-    expect(idleSource).toContain('tile._ccMushroomSmokeTimelines = smokeTimelines');
+    expect(idleSource).toContain('const smokeTimeline = trackTimeline({ paused: true })');
+    expect(idleSource).toContain('const smokeTl = gsap.timeline({ repeat: -1, repeatDelay: 0.66, paused: true })');
+    expect(idleSource).toContain('smokeTimeline.add(smokeTl, index * 0.24)');
+    expect(idleSource).toContain('smokeTimeline.play(0)');
+    expect(idleSource).toContain('tile._ccMushroomSmokeTimeline = smokeTimeline');
+    expect(idleSource).not.toContain('_ccMushroomSmokeTimelines');
     expect(idleSource).toContain("tile._ccMushroomSmokeContainer.destroy?.({ children: true })");
     expect(fxSource).toContain("specialVariantId === 'mushroom'");
     expect(fxSource).toContain('stopWildJuiceBubbles(tile)');

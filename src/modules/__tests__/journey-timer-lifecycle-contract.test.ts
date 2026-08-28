@@ -51,7 +51,7 @@ describe('Journey render timer lifecycle', () => {
   test('cleanup invalidates the generation and settles tracked cancellation handlers', () => {
     const cancellation = between(
       'private cancelAllTimeouts()',
-      'private clearJourneyAreaIdleStartTimeout()',
+      'private isJourneyCardTapExitProtectedTarget',
     );
     const cleanup = between('public cleanup(): void', 'private initializeBoards(): void');
 
@@ -95,6 +95,14 @@ describe('Journey render timer lifecycle', () => {
     expect(hubWait).toContain('this.trackTimeout(() => finish(false), timeoutMs, () => finish(false))');
     expect(navExit).toContain("() => completeOnce('lifecycle-cancelled')");
     expect(navExit).toContain('this.clearTrackedTimeout(fallbackTimer)');
+
+    const cardRemainderOverlap = between(
+      'private waitForJourneyTapRemainderOverlap()',
+      'private async runClickedJourneyBoardUnitExit',
+    );
+    expect(cardRemainderOverlap).toContain(
+      'this.trackTimeout(resolve, BOARD_AREA_CARD_REMAINDER_EXIT_OVERLAP_MS, resolve)',
+    );
   });
 
   test('high-risk render and detail DOM mutations use generation-owned frames and timers', () => {

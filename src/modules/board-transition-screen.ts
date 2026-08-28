@@ -45,6 +45,7 @@ import {
 } from './board-transition-lifecycle.js';
 import { boardTransitionPresentationHandoff } from './board-transition-presentation-handoff.js';
 import { resolveRoboAirCombatHoldSeconds } from './board-transition-robo-combat-timing.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -78,7 +79,7 @@ let forestTransitionSpecialBeeBehindMountainLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeRearLayer: HTMLElement | null = null;
 let forestTransitionSpecialBeeFrontLayer: HTMLElement | null = null;
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track scene and digit timelines
-let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
+let beachAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline>();
 let roboGroundAmbientTimelines = new Map<HTMLElement, gsap.core.Timeline[]>();
 let beachShoreAmbientTimeline: gsap.core.Timeline | null = null;
 let roboAirCombatTimelines: gsap.core.Timeline[] = [];
@@ -912,23 +913,17 @@ function getTransitionHillBaseX(layerKey: string): number {
 function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motionRole: string): void {
   const ownAmbientTimeline = (timeline: gsap.core.Timeline): void => {
     contentTimelines.push(timeline);
-    const owned = beachAmbientTimelines.get(sceneImg) ?? [];
-    owned.push(timeline);
-    beachAmbientTimelines.set(sceneImg, owned);
+    beachAmbientTimelines.set(sceneImg, timeline);
   };
   if (motionRole === 'float') {
     const isBottle = layerKey === 'beach-bottle';
     const horizontalDirection = sceneImg.dataset.floatDirection === 'left' ? -1 : 1;
     const rotationLimit = isBottle ? 24 : 84;
-    const horizontalTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
-    const bounceTimeline = trackTimeline({ repeat: -1, yoyo: true, repeatRefresh: true });
-    const rotationTimeline = trackTimeline({ repeat: -1, repeatRefresh: true });
-    ownAmbientTimeline(horizontalTimeline);
-    ownAmbientTimeline(bounceTimeline);
-    ownAmbientTimeline(rotationTimeline);
+    const ambientTimeline = trackTimeline({ paused: true });
+    ownAmbientTimeline(ambientTimeline);
 
     gsap.set(sceneImg, { transformOrigin: '50% 50%' });
-    horizontalTimeline.to(sceneImg, {
+    ambientTimeline.to(sceneImg, {
       // Keep xPercent exclusively owned by the base -50% centering pose. A small,
       // refreshed px drift avoids the former mechanical full-width wiper motion.
       x: () => horizontalDirection * (isBottle
@@ -936,32 +931,42 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
         : gsap.utils.random(73, 117)),
       duration: () => gsap.utils.random(4.68, 6.24),
       ease: 'sine.out',
-    });
-    bounceTimeline.to(sceneImg, {
+      repeat: -1,
+      yoyo: true,
+      repeatRefresh: true,
+    }, 0);
+    ambientTimeline.to(sceneImg, {
       y: () => isBottle ? gsap.utils.random(-18, -9) : gsap.utils.random(-22, -10),
       duration: () => gsap.utils.random(0.58, 0.96),
       ease: 'sine.inOut',
-    });
-    rotationTimeline.to(sceneImg, {
+      repeat: -1,
+      yoyo: true,
+      repeatRefresh: true,
+    }, 0);
+    ambientTimeline.to(sceneImg, {
       rotation: () => gsap.utils.random(-rotationLimit, rotationLimit),
       duration: () => gsap.utils.random(0.58, 0.96),
       ease: 'sine.inOut',
-    });
+      repeat: -1,
+      repeatRefresh: true,
+    }, 0);
+    ambientTimeline.play(0);
     return;
   }
 
   if (motionRole === 'sea') {
-    const motionTimeline = trackTimeline({ repeat: -1, yoyo: true });
-    ownAmbientTimeline(motionTimeline);
+    const ambientTimeline = trackTimeline({ paused: true });
+    ownAmbientTimeline(ambientTimeline);
     const seaIndex = Math.max(1, Number(layerKey.match(/(\d+)$/)?.[1]) || 1);
-    motionTimeline.to(sceneImg, {
+    ambientTimeline.to(sceneImg, {
       x: seaIndex === 2 ? -38 * 1.25 : seaIndex === 1 ? 34 * 1.4 * 1.4 : 42,
       duration: (1.55 + seaIndex * 0.12) / 0.88,
       ease: 'sine.inOut',
-    });
+      repeat: -1,
+      yoyo: true,
+    }, 0);
     const boingDuration = 0.2 + Math.random() * 0.35;
-    const boingTimeline = trackTimeline({ repeat: -1, repeatDelay: 0.18 + Math.random() * 0.35 });
-    ownAmbientTimeline(boingTimeline);
+    const boingTimeline = gsap.timeline({ repeat: -1, repeatDelay: 0.18 + Math.random() * 0.35 });
     boingTimeline.to(sceneImg, {
       y: seaIndex === 2 ? 5 : -5,
       duration: boingDuration,
@@ -972,6 +977,8 @@ function startBeachAmbientMotion(sceneImg: HTMLElement, layerKey: string, motion
       duration: Math.max(0.16, boingDuration * 0.78),
       ease: 'sine.in',
     });
+    ambientTimeline.add(boingTimeline, 0);
+    ambientTimeline.play(0);
     return;
   }
 }
@@ -1005,10 +1012,8 @@ function stopBeachAmbientMotion(sceneImg: HTMLElement): void {
     try { beachShoreAmbientTimeline.kill(); } catch {}
     beachShoreAmbientTimeline = null;
   }
-  const owned = beachAmbientTimelines.get(sceneImg) ?? [];
-  owned.forEach((timeline) => {
-    try { timeline.kill(); } catch {}
-  });
+  const owned = beachAmbientTimelines.get(sceneImg) ?? null;
+  try { owned?.kill(); } catch {}
   beachAmbientTimelines.delete(sceneImg);
 }
 
@@ -1101,7 +1106,9 @@ function startRoboAirCombatMotion(
   const ships = [leftShip, rightShipMotion];
   const combatVariation = createRoboAirCombatVariation();
   activeRoboAirCombatVariation = combatVariation;
-  console.info('[CC_ROBO_VARIATION]', combatVariation);
+  if (areContinuousRuntimeDiagnosticsEnabled()) {
+    console.info('[CC_ROBO_VARIATION]', combatVariation);
+  }
   window.__ccRoboVariationTrace = [
     ...(window.__ccRoboVariationTrace ?? []).slice(-9),
     combatVariation,
@@ -1163,6 +1170,15 @@ function startRoboAirCombatMotion(
   // The main timeline exclusively owns flight X/Y/rotation/scale. These small
   // relative percentages add an irregular engine-hover vibration without ever
   // pausing or overwriting that uninterrupted path.
+  const combatWobbles: Array<{
+    ship: HTMLImageElement;
+    startDelay: number;
+    phaseOffset: number;
+    baseXPercent: number;
+    amplitudeMultiplier: number;
+    hoverXPercent: number;
+    hoverYPercent: number;
+  }> = [];
   const addContinuousFlightWobble = (
     ship: HTMLImageElement,
     startDelay: number,
@@ -1177,24 +1193,14 @@ function startRoboAirCombatMotion(
     const shipHeight = Math.max(1, ship.offsetHeight || shipWidth * shipAspectRatio);
     const hoverXPercent = 500 / shipWidth;
     const hoverYPercent = 500 / shipHeight;
-    const wobbleClock = { phase: phaseOffset };
-    const wobble = trackTimeline({ repeat: -1, delay: startDelay, paused: true });
-    roboAirCombatTimelines.push(wobble);
-    contentTimelines.push(wobble);
-    wobble.to(wobbleClock, {
-      phase: phaseOffset + Math.PI * 40,
-      duration: 20,
-      ease: 'none',
-      onUpdate: () => {
-        const phase = wobbleClock.phase;
-        const xWave = Math.sin(phase * 1.37) * 0.72 + Math.sin(phase * 2.11 + 0.8) * 0.28;
-        const yWave = Math.sin(phase * 1.73 + 1.2) * 0.70 + Math.sin(phase * 2.47) * 0.30;
-        gsap.set(ship, {
-          xPercent: baseXPercent + hoverXPercent * amplitudeMultiplier * xWave,
-          yPercent: hoverYPercent * amplitudeMultiplier * yWave,
-          skewX: Math.sin(phase * 1.19 + 0.4) * 1.5,
-        });
-      },
+    combatWobbles.push({
+      ship,
+      startDelay,
+      phaseOffset,
+      baseXPercent,
+      amplitudeMultiplier,
+      hoverXPercent,
+      hoverYPercent,
     });
   };
   const LEFT_SHIP_START_DELAY_SECONDS = 0;
@@ -1218,6 +1224,15 @@ function startRoboAirCombatMotion(
   timeline.set(rightShipMotion, { opacity: 1 }, RIGHT_SHIP_START_DELAY_SECONDS);
 
   type FlightPoint = { time: number; x: number; y: number; scale: number };
+  const combatFlights: Array<{
+    ship: HTMLElement;
+    points: FlightPoint[];
+    delay: number;
+    bankPhase: number;
+    duration: number;
+    onComplete?: () => void;
+    finished: boolean;
+  }> = [];
   const sampleSmoothFlightValue = (
     points: FlightPoint[],
     elapsed: number,
@@ -1251,18 +1266,14 @@ function startRoboAirCombatMotion(
     bankPhase: number,
     onComplete?: () => void,
   ): void => {
-    const flightClock = { elapsed: 0 };
     const duration = points[points.length - 1].time;
-    const flightTimeline = trackTimeline({ delay, paused: true });
-    roboAirCombatTimelines.push(flightTimeline);
-    contentTimelines.push(flightTimeline);
-    flightTimeline.to(flightClock, {
-      elapsed: duration,
-      duration,
-      ease: 'none',
-      onComplete,
-      onUpdate: () => {
-        const elapsed = flightClock.elapsed;
+    combatFlights.push({ ship, points, delay, bankPhase, duration, onComplete, finished: false });
+  };
+  const updateContinuousFlight = (
+    runtime: (typeof combatFlights)[number],
+    elapsed: number,
+  ): void => {
+        const { ship, points, bankPhase } = runtime;
         let segmentIndex = 0;
         while (segmentIndex < points.length - 2 && elapsed >= points[segmentIndex + 1].time) {
           segmentIndex += 1;
@@ -1282,8 +1293,6 @@ function startRoboAirCombatMotion(
           scale: current.scale + (next.scale - current.scale) * smoothProgress,
           rotation: bank,
         });
-      },
-    });
   };
   const nnAppearSeconds = 1.30;
   const leftShipBeforeNn = {
@@ -1375,6 +1384,42 @@ function startRoboAirCombatMotion(
     { time: fighterFlightDurationSeconds, x: rightShipPostBeamFourEnd.x, y: rightShipPostBeamFourEnd.y, scale: rightShipBaseScale * 1.46 * verticalDepthScaleRatio },
   ], RIGHT_SHIP_START_DELAY_SECONDS, crossingVariation.rightBankPhase);
 
+  // One runtime clock replaces the former two wobble and two flight
+  // onUpdate timelines. Flight paths clamp once at their authored end while
+  // engine wobble remains continuous until the Area55 exit owner stops it.
+  const combatRuntimeClock = { elapsed: 0 };
+  const combatRuntimeTimeline = trackTimeline({ paused: true });
+  roboAirCombatTimelines.push(combatRuntimeTimeline);
+  contentTimelines.push(combatRuntimeTimeline);
+  combatRuntimeTimeline.to(combatRuntimeClock, {
+    elapsed: 60 * 60,
+    duration: 60 * 60,
+    ease: 'none',
+    onUpdate: () => {
+      const sceneElapsed = combatRuntimeClock.elapsed;
+      combatWobbles.forEach((runtime) => {
+        if (sceneElapsed < runtime.startDelay) return;
+        const phase = runtime.phaseOffset + (sceneElapsed - runtime.startDelay) * Math.PI * 2;
+        const xWave = Math.sin(phase * 1.37) * 0.72 + Math.sin(phase * 2.11 + 0.8) * 0.28;
+        const yWave = Math.sin(phase * 1.73 + 1.2) * 0.70 + Math.sin(phase * 2.47) * 0.30;
+        gsap.set(runtime.ship, {
+          xPercent: runtime.baseXPercent + runtime.hoverXPercent * runtime.amplitudeMultiplier * xWave,
+          yPercent: runtime.hoverYPercent * runtime.amplitudeMultiplier * yWave,
+          skewX: Math.sin(phase * 1.19 + 0.4) * 1.5,
+        });
+      });
+      combatFlights.forEach((runtime) => {
+        if (runtime.finished || sceneElapsed < runtime.delay) return;
+        const elapsed = Math.min(runtime.duration, sceneElapsed - runtime.delay);
+        updateContinuousFlight(runtime, elapsed);
+        if (elapsed >= runtime.duration) {
+          runtime.finished = true;
+          try { runtime.onComplete?.(); } catch {}
+        }
+      });
+    },
+  });
+
   const addBeamShot = (
     beam: HTMLImageElement,
     start: number,
@@ -1432,6 +1477,7 @@ function startRoboAirCombatMotion(
       transformOrigin: '88% 75%',
     }, start);
     timeline.call(() => {
+      if (!areContinuousRuntimeDiagnosticsEnabled()) return;
       const payload = {
         beam: beam.dataset.sceneLayer || 'unknown',
         sourceCorner: entersFromLeft ? 'top-left' : 'top-right',
@@ -3203,6 +3249,12 @@ function startExitAnimation(
           });
         },
         onComplete: () => {
+          if (!areContinuousRuntimeDiagnosticsEnabled()) {
+            fighter.style.opacity = '0';
+            fighter.style.visibility = 'hidden';
+            fighter.style.display = 'none';
+            return;
+          }
           const rect = fighter.getBoundingClientRect();
           const payload = {
             side,

@@ -491,7 +491,11 @@ export function attachSpaceshipFinaleScene(
     traceSuction('scene-start', { debrisCount: debris.length });
     const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom);
     const master = own(gsap.timeline({ paused: true }));
-    master.eventCallback('onUpdate', invalidateIntakeGeometry);
+    let updateDebrisForSceneTime = (_sceneTime: number) => {};
+    master.eventCallback('onUpdate', () => {
+      invalidateIntakeGeometry();
+      updateDebrisForSceneTime(master.time());
+    });
     const enterFlightState = { progress: 0 };
     const enterPoseSetters = rigTargets.map((rig) => ({
       x: gsap.quickSetter(rig, 'x', 'px'),
@@ -706,7 +710,7 @@ export function attachSpaceshipFinaleScene(
       }
     }, undefined, SPACESHIP_BEAM_HIDDEN_AT_SECONDS);
 
-    debris.forEach(({
+    const debrisRuntime = debris.map(({
       mover,
       image,
       id,
@@ -719,7 +723,6 @@ export function attachSpaceshipFinaleScene(
       driftX,
       travelDelaySeconds,
     }) => {
-      const item = own(gsap.timeline({ paused: true }));
       const motion = getSpaceshipDebrisMotion({ pullOrder, travelDelaySeconds });
       const { travelStartAt, travelSeconds, arrivalAt } = motion;
       const intakeMarker = intakeMarkers[Math.floor(pullOrder) % intakeMarkers.length];
@@ -727,39 +730,63 @@ export function attachSpaceshipFinaleScene(
       const setTop = gsap.quickSetter(mover, 'top', 'px');
       const setScaleX = gsap.quickSetter(mover, 'scaleX');
       const setScaleY = gsap.quickSetter(mover, 'scaleY');
+      const setOpacity = gsap.quickSetter(mover, 'opacity');
       const setWobbleX = gsap.quickSetter(image, 'x', 'px');
       const setRotation = gsap.quickSetter(image, 'rotation', 'deg');
-      const motionState = { progress: 0 };
       let startLeft = 0;
       let startTop = 0;
       let control1 = 0;
       let control2 = 0;
+      let started = false;
+      let arrived = false;
+      let hidden = false;
       const wobbleCycles = 2.2 + (pullOrder % 4) * 0.32;
-      if (travelStartAt > 0) {
-        item.to(mover, { opacity: 1, duration: 0.12, ease: 'power1.out' }, travelStartAt);
-      }
-      item.to(motionState, {
-        progress: 1,
-        duration: travelSeconds,
-        ease: 'none',
-        onStart: () => {
-          const fieldRect = resolveIntakeGeometry();
+      return {
+        mover,
+        id,
+        pullOrder,
+        travelStartAt,
+        travelSeconds,
+        arrivalAt,
+        intakeMarker,
+        setLeft,
+        setTop,
+        setScaleX,
+        setScaleY,
+        setOpacity,
+        setWobbleX,
+        setRotation,
+        get started() { return started; },
+        markStarted() { started = true; },
+        get arrived() { return arrived; },
+        markArrived() { arrived = true; },
+        get hidden() { return hidden; },
+        markHidden() { hidden = true; },
+        markVisible() { hidden = false; },
+        reset() {
+          mover.style.left = `${x}%`;
+          mover.style.top = `${y}%`;
+          setScaleX(SPACESHIP_DEBRIS_INITIAL_SCALE);
+          setScaleY(SPACESHIP_DEBRIS_INITIAL_SCALE);
+          setOpacity(travelStartAt > 0 ? 0 : 1);
+          setWobbleX(0);
+          setRotation(startRotation);
+          started = false;
+          arrived = false;
+          hidden = false;
+        },
+        initialize(fieldRect: DOMRect) {
           startLeft = fieldRect.width * x / 100;
           startTop = fieldRect.height * y / 100;
           control1 = fieldRect.width * curveX[0] / 100;
           control2 = fieldRect.width * curveX[1] / 100;
-          traceSuction('item-start', { id, pullOrder, travelStartAt });
         },
-        onUpdate: () => {
-          const linearProgress = motionState.progress;
+        apply(linearProgress: number, target: { left: number; top: number }) {
           const magneticProgress = getSpaceshipMagneticPullProgress(linearProgress);
-          const target = resolveIntakePoint(intakeMarker);
-          const targetLeft = target.left;
-          const targetTop = target.top;
           const wobbleEnvelope = Math.sin(Math.PI * magneticProgress);
           const wobble = Math.sin(linearProgress * Math.PI * 2 * wobbleCycles) * wobbleEnvelope;
-          setLeft(cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress));
-          setTop(startTop + (targetTop - startTop) * magneticProgress);
+          setLeft(cubicBezier(startLeft, control1, control2, target.left, magneticProgress));
+          setTop(startTop + (target.top - startTop) * magneticProgress);
           const scale = SPACESHIP_DEBRIS_INITIAL_SCALE
             - (SPACESHIP_DEBRIS_INITIAL_SCALE - SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE)
               * Math.pow(magneticProgress, 1.18);
@@ -769,30 +796,68 @@ export function attachSpaceshipFinaleScene(
           const rotation = startRotation * (1 - magneticProgress) + wobbleRotation * wobble;
           setRotation(id.startsWith('die') ? gsap.utils.clamp(-60, 60, rotation) : rotation);
         },
-      }, travelStartAt);
-      item.set(mover, {
-        left: () => `${resolveIntakePoint(intakeMarker).left}px`,
-        top: () => `${resolveIntakePoint(intakeMarker).top}px`,
-        scale: SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE,
-      }, arrivalAt);
-      item.set(image, { x: 0, rotation: 0 }, arrivalAt);
-      item.call(() => {
-        if (!diagnosticsEnabled) return;
-        const target = resolveIntakePoint(intakeMarker);
-        const moverRect = mover.getBoundingClientRect();
-        const fieldRect = resolveIntakeGeometry();
-        const left = moverRect.left + moverRect.width / 2 - fieldRect.left;
-        const top = moverRect.top + moverRect.height / 2 - fieldRect.top;
-        traceSuction('item-arrival', {
-          id,
-          pullOrder,
-          arrivalAt,
-          intakeDistancePx: Math.hypot(left - target.left, top - target.top),
-        });
-      }, undefined, arrivalAt);
-      item.set(mover, { opacity: 0, scale: 0.06 }, arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS);
-      item.play(0);
+      };
     });
+    updateDebrisForSceneTime = (sceneTime: number) => {
+      let fieldRect: DOMRect | null = null;
+      debrisRuntime.forEach((runtime) => {
+        if (sceneTime < runtime.travelStartAt) {
+          runtime.reset();
+          return;
+        }
+        fieldRect ??= resolveIntakeGeometry();
+        if (!runtime.started) {
+          runtime.initialize(fieldRect);
+          runtime.markStarted();
+          traceSuction('item-start', {
+            id: runtime.id,
+            pullOrder: runtime.pullOrder,
+            travelStartAt: runtime.travelStartAt,
+          });
+        }
+        const elapsed = Math.max(0, sceneTime - runtime.travelStartAt);
+        if (runtime.travelStartAt > 0 && elapsed < 0.12) {
+          runtime.setOpacity(1 - Math.pow(1 - Math.min(1, elapsed / 0.12), 2));
+        } else {
+          runtime.setOpacity(1);
+        }
+        const target = resolveIntakePoint(runtime.intakeMarker);
+        if (sceneTime < runtime.arrivalAt) {
+          runtime.apply(Math.min(1, elapsed / runtime.travelSeconds), target);
+          return;
+        }
+        runtime.setLeft(target.left);
+        runtime.setTop(target.top);
+        runtime.setScaleX(SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE);
+        runtime.setScaleY(SPACESHIP_DEBRIS_FINAL_VISIBLE_SCALE);
+        runtime.setWobbleX(0);
+        runtime.setRotation(0);
+        if (!runtime.arrived) {
+          runtime.markArrived();
+          if (diagnosticsEnabled) {
+            const moverRect = runtime.mover.getBoundingClientRect();
+            const left = moverRect.left + moverRect.width / 2 - fieldRect!.left;
+            const top = moverRect.top + moverRect.height / 2 - fieldRect!.top;
+            traceSuction('item-arrival', {
+              id: runtime.id,
+              pullOrder: runtime.pullOrder,
+              arrivalAt: runtime.arrivalAt,
+              intakeDistancePx: Math.hypot(left - target.left, top - target.top),
+            });
+          }
+        }
+        if (sceneTime >= runtime.arrivalAt + SPACESHIP_DEBRIS_HIDE_DELAY_SECONDS) {
+          if (!runtime.hidden) {
+            runtime.setOpacity(0);
+            runtime.setScaleX(0.06);
+            runtime.setScaleY(0.06);
+            runtime.markHidden();
+          }
+        } else {
+          runtime.markVisible();
+        }
+      });
+    };
     master.call(() => {}, undefined, SCENE_SECONDS);
     master.play(0);
     beams.play(0);

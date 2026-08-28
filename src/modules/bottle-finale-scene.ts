@@ -193,6 +193,17 @@ export function attachBottleFinaleScene(
     TRAIL_BUBBLES_PER_BOTTLE * BOTTLE_LAYERS.length,
   );
   const mainBubbleOpacities = createMixedBottleBubbleOpacities(BUBBLE_COUNT);
+  const trailTimeline = own(trackTimeline({
+    delay: bottleStartDelaySeconds,
+    paused: true,
+  }));
+  let fieldOrigin: { left: number; top: number } | null = null;
+  const getFieldOrigin = (): { left: number; top: number } => {
+    if (fieldOrigin) return fieldOrigin;
+    const rect = field.getBoundingClientRect();
+    fieldOrigin = { left: rect.left, top: rect.top };
+    return fieldOrigin;
+  };
 
   BOTTLE_LAYERS.forEach((layer, index) => {
     const layerSinkDuration = BOTTLE_SINK_DURATION_SECONDS / layer.speedMultiplier;
@@ -327,27 +338,26 @@ export function attachBottleFinaleScene(
       trailBubble.style.height = `${Math.round(trailSize)}px`;
       trailBubble.style.zIndex = String(layer.z * 10 - 1);
       gsap.set(trailBubble, { xPercent: -50, yPercent: -50, scale: 0, opacity: 0, force3D: true });
-      const trailTimeline = own(trackTimeline({ delay: bottleStartDelaySeconds + trailDelay }));
       trailTimeline.call(() => {
         if (cleaned || !mover.isConnected || !field.isConnected) return;
         const bottleRect = image.getBoundingClientRect();
-        const fieldRect = field.getBoundingClientRect();
-        const emitterX = bottleRect.left - fieldRect.left
+        const origin = getFieldOrigin();
+        const emitterX = bottleRect.left - origin.left
           + bottleRect.width * emitterPort
           + (Math.random() - 0.5) * 6;
-        const emitterY = bottleRect.top - fieldRect.top
+        const emitterY = bottleRect.top - origin.top
           + bottleRect.height * (0.72 + Math.random() * 0.18);
         trailRise = bottleRect.height * (0.16 + Math.random() * 0.08);
         trailBubble.style.left = `${Math.round(emitterX)}px`;
         trailBubble.style.top = `${Math.round(emitterY)}px`;
         gsap.set(trailBubble, { x: 0, y: 0 });
-      });
+      }, [], trailDelay);
       trailTimeline.to(trailBubble, {
         scale: trailStartScale,
         opacity: trailOpacity,
         duration: 0.06,
         ease: 'back.out(2)',
-      });
+      }, trailDelay);
       trailTimeline.to(trailBubble, {
         keyframes: [
           { x: trailDirection * 5, y: trailPushDown, scale: trailStartScale * 1.08 },
@@ -357,8 +367,12 @@ export function attachBottleFinaleScene(
         ],
         duration: trailTravelDuration,
         ease: 'sine.inOut',
-      });
-      trailTimeline.to(trailBubble, { scale: 0, opacity: 0, duration: 0.08, ease: 'back.in(3)' }, '-=0.08');
+      }, trailDelay + 0.06);
+      trailTimeline.to(
+        trailBubble,
+        { scale: 0, opacity: 0, duration: 0.08, ease: 'back.in(3)' },
+        trailDelay + 0.06 + trailTravelDuration - 0.08,
+      );
     }
   });
 
@@ -430,6 +444,7 @@ export function attachBottleFinaleScene(
   }
 
   overlay.appendChild(field);
+  trailTimeline.play(0);
   try { (window as any).triggerHapticImpact?.('medium'); } catch {}
 
   const beginExit = (): void => {
