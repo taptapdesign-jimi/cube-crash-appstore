@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 
 import {
   COLS, ROWS, TILE, GAP, HUD_H,
-  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT
+  ASSET_TILE, ASSET_DRAG_SHADOW, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT
 } from './constants.js';
 import { sweetPopIn, sweetPopOut } from './app-board.ts';
 import { STATE } from './app-state.ts';
@@ -604,6 +604,33 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
       const isWildLike = isWildLikeSpecial(special);
       const isActive = value > 0 || isWildLike;
       if (!isActive) return;
+
+      // A regular playable tile must never retain the internal squash/tilt of
+      // an interrupted wild-impact frame. Older repair logic checked only the
+      // outer tile.scale, while Cubero animates rotG.scale and rotG.rotation.
+      if (
+        !special &&
+        t !== drag?.t &&
+        t.rotG &&
+        !t.rotG.destroyed &&
+        !(t.rotG as any)._ccWildImpactTl
+      ) {
+        const rotScaleX = Number.isFinite(t.rotG.scale?.x) ? t.rotG.scale.x : 1;
+        const rotScaleY = Number.isFinite(t.rotG.scale?.y) ? t.rotG.scale.y : 1;
+        const hasStaleInnerSquash =
+          Math.min(rotScaleX, rotScaleY) < 0.90 ||
+          Math.max(rotScaleX, rotScaleY) > 1.10 ||
+          Math.abs(rotScaleX - rotScaleY) > 0.08;
+        const hasStaleInnerTilt = Math.abs(Number(t.rotG.rotation) || 0) > 0.12;
+        if (hasStaleInnerSquash || hasStaleInnerTilt) {
+          try { animationManager.killExternalTimeline((t.rotG as any)._ccWildImpactTl); } catch {}
+          try { gsap?.killTweensOf?.(t.rotG.scale); } catch {}
+          try { t.rotG.scale?.set?.(1, 1); } catch {}
+          try { t.rotG.rotation = 0; } catch {}
+          try { (t.rotG as any)._ccWildImpactTl = null; } catch {}
+          repaired++;
+        }
+      }
 
       t.alpha = 1;
       if (t.rotG && !t.rotG.destroyed) t.rotG.alpha = 1;
@@ -1789,6 +1816,7 @@ try { (window as any).__ccLogRuntimeStats = logRuntimeStats; } catch {}
 
 const CORE_GAME_TEXTURE_ASSETS = [
   ASSET_TILE,
+  ASSET_DRAG_SHADOW,
   ASSET_NUMBERS,
   ASSET_NUMBERS2,
   ASSET_NUMBERS3,
@@ -10343,7 +10371,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       duration: h.returnDuration,
                       ease: `elastic.out(0.6, ${h.returnElastic})`,
                       overwrite: 'auto',
-                      onUpdate: () => { try { h.tile.refreshShadow?.(); } catch {} },
                       onComplete: () => {
                         try { gsap.set(h.tile, { x: h.origX, y: h.origY }); } catch {}
                         try { clearTileBoardBlastDisplacement(h.tile, h.origX, h.origY); } catch {}

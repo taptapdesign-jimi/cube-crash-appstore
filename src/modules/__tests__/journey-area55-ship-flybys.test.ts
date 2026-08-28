@@ -71,7 +71,7 @@ describe('Journey Area 55 pooled ship flybys', () => {
     });
   });
 
-  test('pools exactly four cross-screen ships behind clouds in alternating upper and lower lanes', () => {
+  test('pools exactly four cross-screen ships above craters but below cards in alternating lanes', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -98,7 +98,13 @@ describe('Journey Area 55 pooled ship flybys', () => {
     background.className = 'journey-bg-container';
     background.style.left = '-24px';
     background.style.width = '390px';
-    root.append(clouds, background);
+    const decor = document.createElement('div');
+    decor.className = 'journey-decor-container';
+    decor.style.zIndex = '2';
+    const cards = document.createElement('div');
+    cards.className = 'journey-cards-container';
+    cards.style.zIndex = '3';
+    root.append(clouds, background, decor, cards);
     const addArt = (className: string, areaId: string, top: number): void => {
       const art = document.createElement('img');
       art.className = className;
@@ -129,8 +135,8 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(controller.getSnapshot()).toMatchObject({
       disposed: false,
       shipCount: 4,
-      behindShipCount: 4,
-      frontShipCount: 0,
+      behindShipCount: 0,
+      frontShipCount: 4,
       minShipSizePx: 50,
       maxShipSizePx: 75,
       canvasCount: 2,
@@ -146,6 +152,9 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect((canvases[0] as HTMLCanvasElement).style.left).toBe('0px');
     expect((canvases[0] as HTMLCanvasElement).style.width).toBe('390px');
     expect(canvases[0]?.nextElementSibling).toBe(clouds);
+    expect((canvases[1] as HTMLCanvasElement).style.zIndex).toBe('2');
+    expect(decor.compareDocumentPosition(canvases[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(Number((canvases[1] as HTMLCanvasElement).style.zIndex)).toBeLessThan(Number(cards.style.zIndex));
     expect(root.querySelectorAll('.journey-area55-ship')).toHaveLength(0);
     expect(ticker.add).toHaveBeenCalledTimes(1);
 
@@ -165,7 +174,8 @@ describe('Journey Area 55 pooled ship flybys', () => {
     expect(flybySource).toContain("const SHIP_ASSET = './assets/journey assets/robo/ship1@2x.png'");
     expect(flybySource).not.toContain('ship2@2x.png');
     expect(flybySource).toContain('const SHIP_COUNT = 4');
-    expect(flybySource).toContain("depth: 'behind'");
+    expect(flybySource).toContain("depth: 'front'");
+    expect(flybySource).toContain('frontZIndex: 2');
     expect(flybySource).toContain("lane: index % 2 === 0 ? 'upper' : 'lower'");
     expect(flybySource).toContain("ship.lane === 'upper' ? 0.12 : 0.62");
     expect(flybySource).not.toContain('drawTrail');

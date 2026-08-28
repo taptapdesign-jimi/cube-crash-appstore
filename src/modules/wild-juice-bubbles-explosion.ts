@@ -13,6 +13,8 @@ import { attachBubblySprites } from './text-bubbly-sprites.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
 import { createMushroomSporeFlightProfiles } from './mushroom-spore-flight-plan.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
+import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
+import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -56,6 +58,7 @@ let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyDelayedCallsRef: gsap.core.Tween[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
+let releaseExplosionMobileActivity: (() => void) | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
 const WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS = 70;
@@ -268,7 +271,7 @@ function getFxHost(stage: any): any {
   return layer || stage;
 }
 
-function forceRenderFrames(frames = 3): void {
+function requestFallbackRenderFrames(frames = 1): void {
   try {
     const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
     const app = (windowState && windowState.app) || null;
@@ -278,9 +281,12 @@ function forceRenderFrames(frames = 3): void {
     let remaining = Math.max(1, frames | 0);
     const tick = () => {
       if (!app || !app.renderer || app.renderer.destroyed || !stage || stage.destroyed) return;
-      try {
-        app.renderer.render(stage);
-      } catch {}
+      // The live Pixi ticker already renders the stage. Calling renderer.render
+      // again from a parallel RAF doubles GPU submission during the heaviest
+      // Juice/Mushroom frames. Render manually only for a stopped ticker.
+      if (!app.ticker?.started) {
+        try { app.renderer.render(stage); } catch {}
+      }
       remaining -= 1;
       if (remaining > 0) {
         lifecycle.trackRaf(tick);
@@ -304,9 +310,12 @@ export function setExplosionContainer(container: Container | null): void {
   if (container && !container.destroyed) {
     explosionContainer = container;
     isExplosionActive = true;
+    releaseExplosionMobileActivity ??= acquirePixiMobileActivityLease('juice-family-finale');
     startWildFxDragLockForAnimation('juice-bubbles', 6200, 0.30);
     logger.debug('Container restored', undefined, { visible: container.visible, children: container.children?.length });
   } else {
+    releaseExplosionMobileActivity?.();
+    releaseExplosionMobileActivity = null;
     explosionContainer = null;
     isExplosionActive = false;
     setWildFxDragLock('juice-bubbles', false);
@@ -514,29 +523,9 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       console.warn('⚠️ Failed to move container to top:', e);
     }
     
-    // 🔥 CRITICAL FIX: Force stage to render (ensures container is visible)
-    try {
-      if (stage.parent && typeof (stage.parent as any).render === 'function') {
-        (stage.parent as any).render();
-      }
-    } catch (e) {
-      // Silently fail - not critical
-    }
-
-    // Extra safety: force a few render frames to avoid one-frame invisibility
-    forceRenderFrames(3);
-
-    // Force render to ensure container is visible immediately
-    // This is the same pattern used in fx.ts for wild stars animation
-    try {
-      const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
-      const app = (windowState && windowState.app) || null;
-      if (app && app.renderer && !app.renderer.destroyed) {
-        app.renderer.render(stage);
-      }
-    } catch (e) {
-      console.warn('⚠️ Failed to force render frame for bubbles explosion:', e);
-    }
+    // A stopped ticker still receives one fallback paint. Active gameplay
+    // relies on its canonical Pixi render owner and avoids duplicate submits.
+    requestFallbackRenderFrames(1);
 
     if (!explosionContainer.parent || explosionContainer.parent !== hostContainer) {
       console.error('❌ Failed to add explosion container to stage!', {
@@ -556,6 +545,8 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   }
 
   isExplosionActive = true;
+  releaseExplosionMobileActivity?.();
+  releaseExplosionMobileActivity = acquirePixiMobileActivityLease('juice-family-finale');
   const inputReleaseAtRatio = options.inputReleaseAtRatio ?? 0.30;
   startWildFxDragLockForAnimation('juice-bubbles', WILD_JUICE_INPUT_LOCK_MS, inputReleaseAtRatio);
   const gameplayReleaseAtSpawnRatio = Number.isFinite(options.gameplayReleaseAtSpawnRatio)
@@ -909,21 +900,16 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
         immediateRender: true,
         onComplete: onBubbleComplete,
       });
-      bubbleTweens.push(riseTl as any);
-    }
-
-    // Scale animation
-    if (!isCustomDownDrop) {
       const finalScale = (0.65 + Math.random() * 0.35) * sizeRatio;
-      bubbleTweens.push(trackTween(bubble.scale, {
+      riseTl.to(bubble.scale, {
         x: finalScale,
         y: finalScale,
         duration: duration * 0.45,
         ease: 'power1.out',
-        immediateRender: true
-      }));
+        immediateRender: true,
+      }, 0);
+      bubbleTweens.push(riseTl as any);
     }
-
 
     (bubble as any)._bubbleTweens = bubbleTweens;
   };
@@ -969,7 +955,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
           }
           currentHost.addChild(explosionContainer);
           currentHost.sortChildren?.();
-          forceRenderFrames(2);
+          requestFallbackRenderFrames(1);
         } catch (e) {
           console.warn('⚠️ spawnTicker: Failed to reattach container to current host:', e);
         }
@@ -1876,7 +1862,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
             child.renderable = true;
           }
         }
-        app.renderer.render(stage);
+        requestFallbackRenderFrames(1);
       }
     } catch (e) {
       console.warn('⚠️ Failed to force render after initial burst:', e);
@@ -2003,16 +1989,6 @@ const BUBBLY_EXIT_BOUNCE_DURATION = 0.13;
 const BUBBLY_EXIT_FADE_DURATION = 0.17;
 const MAX_TEXT_CONTAINER_TILT_DEG = 15;
 
-function colorWithAlpha(color: string, alpha: number): string {
-  const normalized = String(color || '').trim();
-  const match = normalized.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
-  if (!match) return normalized;
-  const r = parseInt(match[1], 16);
-  const g = parseInt(match[2], 16);
-  const b = parseInt(match[3], 16);
-  return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, alpha)).toFixed(2)})`;
-}
-
 /**
  * BUBBLY text overlay – isti dizajn, font, boja, enter/exit animacije kao TNT BOOM
  */
@@ -2080,8 +2056,8 @@ function createAndShowBubblyText(options: { text?: string; color?: string; color
       const letterEl = document.createElement('span');
       letterEl.textContent = letter;
       const letterColor = bubblyColors?.[index] || bubblyColor;
-      const letterAlpha = options.text ? 0.8 + Math.random() * 0.2 : 1;
-      const visibleLetterColor = colorWithAlpha(letterColor, letterAlpha);
+      const letterAlpha = resolveEffectLetterOpacity();
+      const visibleLetterColor = applyEffectLetterOpacity(letterColor, letterAlpha);
       const isRoboDivider = isRoboNameplate && letter === '-';
       letterEl.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
@@ -2291,6 +2267,8 @@ function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
   try {
+    releaseExplosionMobileActivity?.();
+    releaseExplosionMobileActivity = null;
     setMushroomForegroundOwnership(false);
     cleanupBubblyOverlay();
     lifecycle.cleanup();

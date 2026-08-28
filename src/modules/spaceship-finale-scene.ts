@@ -1,6 +1,7 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
 
 const PACK = './assets/shop/spaceship';
 export const SPACESHIP_SCENE_SECONDS = 3.8;
@@ -443,13 +444,35 @@ export function attachSpaceshipFinaleScene(
     return animationManager.trackExternalTimeline(timeline);
   };
 
+  const diagnosticsEnabled = areContinuousRuntimeDiagnosticsEnabled();
+  let intakeGeometryDirty = true;
+  let cachedFieldRect: DOMRect | null = null;
+  let cachedIntakeTransform = '';
+  const cachedIntakePoints = new Map<HTMLElement, { left: number; top: number }>();
+  const invalidateIntakeGeometry = () => {
+    intakeGeometryDirty = true;
+  };
+  const resolveIntakeGeometry = () => {
+    const currentIntakeTransform = saucerRig.style.transform;
+    if (!intakeGeometryDirty && cachedFieldRect && cachedIntakeTransform === currentIntakeTransform) {
+      return cachedFieldRect;
+    }
+    cachedFieldRect = field.getBoundingClientRect();
+    cachedIntakePoints.clear();
+    intakeMarkers.forEach((marker) => {
+      const markerRect = marker.getBoundingClientRect();
+      cachedIntakePoints.set(marker, {
+        left: markerRect.left + markerRect.width / 2 - cachedFieldRect!.left,
+        top: markerRect.top + markerRect.height / 2 - cachedFieldRect!.top,
+      });
+    });
+    cachedIntakeTransform = currentIntakeTransform;
+    intakeGeometryDirty = false;
+    return cachedFieldRect;
+  };
   const resolveIntakePoint = (marker: HTMLElement) => {
-    const fieldRect = field.getBoundingClientRect();
-    const markerRect = marker.getBoundingClientRect();
-    return {
-      left: markerRect.left + markerRect.width / 2 - fieldRect.left,
-      top: markerRect.top + markerRect.height / 2 - fieldRect.top,
-    };
+    resolveIntakeGeometry();
+    return cachedIntakePoints.get(marker) ?? { left: 0, top: 0 };
   };
 
   const traceSuction = (phase: string, detail: Record<string, unknown> = {}) => {
@@ -468,6 +491,7 @@ export function attachSpaceshipFinaleScene(
     traceSuction('scene-start', { debrisCount: debris.length });
     const saucerExit = getSpaceshipSaucerExitPlan(options.exitRandom);
     const master = own(gsap.timeline({ paused: true }));
+    master.eventCallback('onUpdate', invalidateIntakeGeometry);
     const enterFlightState = { progress: 0 };
     const enterPoseSetters = rigTargets.map((rig) => ({
       x: gsap.quickSetter(rig, 'x', 'px'),
@@ -481,7 +505,7 @@ export function attachSpaceshipFinaleScene(
       duration: 0.45,
       ease: 'none',
       onStart: () => {
-        const fieldRect = field.getBoundingClientRect();
+        const fieldRect = resolveIntakeGeometry();
         enterViewportWidth = fieldRect.width || window.innerWidth || 390;
         enterViewportHeight = fieldRect.height || window.innerHeight || 844;
       },
@@ -552,10 +576,12 @@ export function attachSpaceshipFinaleScene(
     }, SPACESHIP_BEAM_DISCONNECT_AT_SECONDS);
     master.call(() => {
       beamRig.remove();
-      traceSuction('beam-disconnected', {
-        sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
-        beamRigConnected: beamRig.isConnected,
-      });
+      if (diagnosticsEnabled) {
+        traceSuction('beam-disconnected', {
+          sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
+          beamRigConnected: beamRig.isConnected,
+        });
+      }
     }, undefined, SPACESHIP_BEAM_DISCONNECT_AT_SECONDS);
     const createRigPoseSetters = (rig: HTMLElement) => ({
       x: gsap.quickSetter(rig, 'x', 'px'),
@@ -584,7 +610,7 @@ export function attachSpaceshipFinaleScene(
       duration: SPACESHIP_SAUCER_EXIT_SECONDS,
       ease: 'none',
       onStart: () => {
-        const fieldRect = field.getBoundingClientRect();
+        const fieldRect = resolveIntakeGeometry();
         exitViewportHeight = fieldRect.height || window.innerHeight || 844;
         exitViewportWidth = fieldRect.width || window.innerWidth || 390;
         traceSuction('saucer-exit-motion', {
@@ -604,14 +630,16 @@ export function attachSpaceshipFinaleScene(
       },
     }, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
     master.call(() => {
-      traceSuction('saucer-exit-start', {
-        exitLane: saucerExit.lane,
-        exitRotation: saucerExit.finalRotation,
-        sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
-        beamRigDisplay: getComputedStyle(beamRig).display,
-        beamRigVisibility: getComputedStyle(beamRig).visibility,
-        beamRigOpacity: getComputedStyle(beamRig).opacity,
-      });
+      if (diagnosticsEnabled) {
+        traceSuction('saucer-exit-start', {
+          exitLane: saucerExit.lane,
+          exitRotation: saucerExit.finalRotation,
+          sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
+          beamRigDisplay: getComputedStyle(beamRig).display,
+          beamRigVisibility: getComputedStyle(beamRig).visibility,
+          beamRigOpacity: getComputedStyle(beamRig).opacity,
+        });
+      }
     }, undefined, SPACESHIP_SAUCER_EXIT_AT_SECONDS);
 
     // Keep the existing four-frame saucer sprite alive through the complete
@@ -666,14 +694,16 @@ export function attachSpaceshipFinaleScene(
     beams.set([leftBeam, rightBeam], { opacity: 0, visibility: 'hidden' }, SPACESHIP_BEAM_HIDDEN_AT_SECONDS);
     beams.set(beamRig, { opacity: 0, visibility: 'hidden', display: 'none' }, SPACESHIP_BEAM_HIDDEN_AT_SECONDS);
     beams.call(() => {
-      traceSuction('beam-off', {
-        sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
-        beamRigDisplay: getComputedStyle(beamRig).display,
-        beamRigVisibility: getComputedStyle(beamRig).visibility,
-        beamRigOpacity: getComputedStyle(beamRig).opacity,
-        leftOpacity: getComputedStyle(leftBeam).opacity,
-        rightOpacity: getComputedStyle(rightBeam).opacity,
-      });
+      if (diagnosticsEnabled) {
+        traceSuction('beam-off', {
+          sceneCount: document.querySelectorAll('.cc-spaceship-finale-scene').length,
+          beamRigDisplay: getComputedStyle(beamRig).display,
+          beamRigVisibility: getComputedStyle(beamRig).visibility,
+          beamRigOpacity: getComputedStyle(beamRig).opacity,
+          leftOpacity: getComputedStyle(leftBeam).opacity,
+          rightOpacity: getComputedStyle(rightBeam).opacity,
+        });
+      }
     }, undefined, SPACESHIP_BEAM_HIDDEN_AT_SECONDS);
 
     debris.forEach(({
@@ -700,8 +730,6 @@ export function attachSpaceshipFinaleScene(
       const setWobbleX = gsap.quickSetter(image, 'x', 'px');
       const setRotation = gsap.quickSetter(image, 'rotation', 'deg');
       const motionState = { progress: 0 };
-      let fieldLeft = 0;
-      let fieldTop = 0;
       let startLeft = 0;
       let startTop = 0;
       let control1 = 0;
@@ -715,9 +743,7 @@ export function attachSpaceshipFinaleScene(
         duration: travelSeconds,
         ease: 'none',
         onStart: () => {
-          const fieldRect = field.getBoundingClientRect();
-          fieldLeft = fieldRect.left;
-          fieldTop = fieldRect.top;
+          const fieldRect = resolveIntakeGeometry();
           startLeft = fieldRect.width * x / 100;
           startTop = fieldRect.height * y / 100;
           control1 = fieldRect.width * curveX[0] / 100;
@@ -727,9 +753,9 @@ export function attachSpaceshipFinaleScene(
         onUpdate: () => {
           const linearProgress = motionState.progress;
           const magneticProgress = getSpaceshipMagneticPullProgress(linearProgress);
-          const markerRect = intakeMarker.getBoundingClientRect();
-          const targetLeft = markerRect.left + markerRect.width / 2 - fieldLeft;
-          const targetTop = markerRect.top + markerRect.height / 2 - fieldTop;
+          const target = resolveIntakePoint(intakeMarker);
+          const targetLeft = target.left;
+          const targetTop = target.top;
           const wobbleEnvelope = Math.sin(Math.PI * magneticProgress);
           const wobble = Math.sin(linearProgress * Math.PI * 2 * wobbleCycles) * wobbleEnvelope;
           setLeft(cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress));
@@ -751,9 +777,10 @@ export function attachSpaceshipFinaleScene(
       }, arrivalAt);
       item.set(image, { x: 0, rotation: 0 }, arrivalAt);
       item.call(() => {
+        if (!diagnosticsEnabled) return;
         const target = resolveIntakePoint(intakeMarker);
         const moverRect = mover.getBoundingClientRect();
-        const fieldRect = field.getBoundingClientRect();
+        const fieldRect = resolveIntakeGeometry();
         const left = moverRect.left + moverRect.width / 2 - fieldRect.left;
         const top = moverRect.top + moverRect.height / 2 - fieldRect.top;
         traceSuction('item-arrival', {

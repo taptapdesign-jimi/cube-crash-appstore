@@ -27,6 +27,7 @@ export type SpecialDiceVariantDefinition = {
   splashColor: string;
   splashColors?: string[];
   splashLetterColors?: string[];
+  splashLetterOpacityRange?: readonly [number, number];
   splashSplitIndex?: number;
   shardColor?: number;
   shardColors?: number[];
@@ -177,6 +178,9 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     splashColor: '#75C4C3',
     splashColors: ['#75C4C3', '#58D9EA'],
     splashSplitIndex: 3,
+    // Match the Beach Ball Boooing letters: each glyph renders at 80-100%
+    // color alpha while retaining the existing enter/exit opacity animation.
+    splashLetterOpacityRange: [0.8, 1],
     shardColor: 0xF2CDA8,
     shardColors: [0xF2CDA8, 0x8AEEFE],
     trailColors: [0xF8DCBF, 0xEFBE8F, 0x7CFBFD, 0x8AEEFE],
@@ -350,10 +354,11 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     juiceDropProfile: 'beach-ball',
     arcadeTestOrder: 1,
     inputReleaseAtRatio: 0.30,
-    // Start the TNT handoff roughly one second earlier than the prior 85%
-    // phase. The board's existing ~0.6–0.7s return keeps the four staggered
-    // explosions visible well before the final Ball sprites leave the viewport.
-    gameplayReleaseAtSpawnRatio: 0.08,
+    // Keep the whole-board separation readable for roughly the same hold as
+    // Cubero's short blast before TNT gameplay begins returning the tiles.
+    // Ball's 1.3s spawn phase makes 55% about 715ms instead of the rejected
+    // near-immediate 104ms handoff at 8%.
+    gameplayReleaseAtSpawnRatio: 0.55,
   },
 };
 
@@ -588,6 +593,7 @@ export function getSpecialDiceSplashOptions(tileOrVariant: any): any | null {
     text: variant.splashText,
     color: variant.splashColor,
     colors: variant.splashColors,
+    letterOpacityRange: variant.splashLetterOpacityRange,
     splitIndex: variant.splashSplitIndex,
     lastFrameOnExitOnly: variant.lastExplosionFrameOnExitOnly,
     frameScale: variant.explosionScale,

@@ -10,6 +10,7 @@ import { attachBoltSprites } from './text-bolts.js';
 import { attachBottleFinaleScene } from './bottle-finale-scene.js';
 import { attachSpaceshipFinaleScene } from './spaceship-finale-scene.js';
 import { setWildFxDragLock, startWildFxDragLockForAnimation } from './wild-fx-drag-lock.ts';
+import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 
 const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
@@ -89,6 +90,10 @@ function createRandomTextLetterSizes(count: number): number[] {
     const size = Math.max(28, base + (Math.random() * 10 - 5));
     return index === 0 ? Math.max(75, size) : size;
   });
+}
+
+export function resolveSplashLetterOpacity(range: unknown, randomValue = Math.random()): number {
+  return resolveEffectLetterOpacity(range, randomValue);
 }
 
 function triggerSparkleHapticTrain(): void {
@@ -244,7 +249,10 @@ export function showMagneticText(options: any = {}): void {
       const lightColor = options?.colors?.[0] || options?.color || '#FF9472';
       const darkColor = options?.colors?.[1] || options?.color || lightColor;
       const isSplitLetter = index === Math.floor(splitIndex) && splitIndex % 1 !== 0;
-      const letterColor = index < splitIndex ? lightColor : darkColor;
+      const letterAlpha = resolveEffectLetterOpacity(options?.letterOpacityRange);
+      const visibleLightColor = applyEffectLetterOpacity(lightColor, letterAlpha);
+      const visibleDarkColor = applyEffectLetterOpacity(darkColor, letterAlpha);
+      const letterColor = index < splitIndex ? visibleLightColor : visibleDarkColor;
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
@@ -252,7 +260,7 @@ export function showMagneticText(options: any = {}): void {
         'line-height: 1',
         `color: ${letterColor}`,
         `-webkit-text-fill-color: ${isSplitLetter ? 'transparent' : letterColor}`,
-        isSplitLetter ? `background: linear-gradient(90deg, ${lightColor} 0 50%, ${darkColor} 50% 100%)` : 'background: none',
+        isSplitLetter ? `background: linear-gradient(90deg, ${visibleLightColor} 0 50%, ${visibleDarkColor} 50% 100%)` : 'background: none',
         isSplitLetter ? '-webkit-background-clip: text' : '-webkit-background-clip: border-box',
         isSplitLetter ? 'background-clip: text' : 'background-clip: border-box',
         'text-align: center',
@@ -568,13 +576,17 @@ export function showSparkleText(origin?: { x: number; y: number } | null, option
       const rotation = 0;
       const el = document.createElement('span');
       el.textContent = letter;
+      const visibleSparkleColor = applyEffectLetterOpacity(
+        sparkleColor,
+        resolveSplashLetterOpacity(options?.letterOpacityRange),
+      );
       el.style.cssText = [
         'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
         `font-size: ${letterFontSize.toFixed(1)}px`,
         'line-height: 1',
-        `color: ${sparkleColor}`,
-        `-webkit-text-fill-color: ${sparkleColor}`,
+        `color: ${visibleSparkleColor}`,
+        `-webkit-text-fill-color: ${visibleSparkleColor}`,
         'text-align: center',
         'opacity: 0',
         'transform: scale(0) perspective(1000px) translateZ(0)',

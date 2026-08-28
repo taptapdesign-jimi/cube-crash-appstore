@@ -3,6 +3,7 @@ import {
   IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS,
   startBoardFrameBudgetMonitor,
   stopBoardFrameBudgetMonitor,
+  shouldSampleBoardFrameBudget,
   shouldUseSustainedLoadReduction,
 } from '../board-frame-budget';
 
@@ -33,9 +34,17 @@ describe('board frame budget', () => {
     expect(shouldUseSustainedLoadReduction(IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS * 2, false)).toBe(false);
   });
 
+  test('does not misclassify the intentional mobile 30fps idle cadence as frame pressure', () => {
+    expect(shouldSampleBoardFrameBudget(30, true)).toBe(false);
+    expect(shouldSampleBoardFrameBudget(60, true)).toBe(true);
+    expect(shouldSampleBoardFrameBudget(undefined, true)).toBe(true);
+    expect(shouldSampleBoardFrameBudget(30, false)).toBe(true);
+  });
+
   test('uses the gameplay ticker instead of owning a parallel animation-frame loop', () => {
     const callbacks = new Set<(ticker?: unknown) => void>();
     const ticker = {
+      maxFPS: 60,
       add: jest.fn((callback: (ticker?: unknown) => void) => callbacks.add(callback)),
       remove: jest.fn((callback: (ticker?: unknown) => void) => callbacks.delete(callback)),
     };

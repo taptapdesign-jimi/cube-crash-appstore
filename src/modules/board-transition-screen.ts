@@ -1736,11 +1736,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             // Defensive cleanup is handled centrally in endgame-flow before transition
 
   // Fade out menu soundtrack over 2s when board transition starts (board game has its own melody)
-  try {
-    const { fadeOutAndPause } = await import('./soundtrack-manager.js');
-    fadeOutAndPause(2000);
-  } catch (_) { /* ignore */ }
-  if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
+  void import('./soundtrack-manager.js')
+    .then(({ fadeOutAndPause }) => fadeOutAndPause(2000))
+    .catch(() => undefined);
 
   // Main Forest bees change directional PNGs on their first flight frame. Decode
   // those seven small textures before the overlay starts so a cold iOS cache
@@ -2406,7 +2404,15 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     document.body.appendChild(overlay);
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
-    if (showScene) appSpatialMotion.activateBoardTransition(overlay, boardNumber);
+    if (showScene) {
+      // Let the overlay and its first authored pose commit before gyro starts
+      // writing transforms. This keeps sensor setup out of the mount frame.
+      lifecycle.trackRaf(() => {
+        if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
+        if (currentOverlay !== overlay || !overlay.isConnected) return;
+        appSpatialMotion.activateBoardTransition(overlay, boardNumber);
+      });
+    }
     try { sampleMemorySpike('3_transition_overlay_shown'); } catch {}
     
     logger.info(`🎯 board-transition-screen: Overlay added to DOM`);

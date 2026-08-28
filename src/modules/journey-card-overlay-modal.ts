@@ -63,6 +63,38 @@ export interface JourneyCardOverlayTiltProfile {
 }
 
 let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
+const JOURNEY_CARD_OVERLAY_ASSETS = [
+  './assets/highscore-icon.png',
+  './assets/combo-icon.png',
+  './assets/hand-pointer.png',
+] as const;
+let journeyCardOverlayPreloadPromise: Promise<void> | null = null;
+
+export function preloadJourneyCardOverlayAssets(): Promise<void> {
+  if (journeyCardOverlayPreloadPromise) return journeyCardOverlayPreloadPromise;
+  if (typeof Image === 'undefined') return Promise.resolve();
+  journeyCardOverlayPreloadPromise = Promise.allSettled(
+    JOURNEY_CARD_OVERLAY_ASSETS.map((src) => new Promise<void>((resolve) => {
+      const image = new Image();
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        image.onload = null;
+        image.onerror = null;
+        resolve();
+      };
+      image.onload = () => {
+        if (typeof image.decode === 'function') void image.decode().catch(() => undefined).then(finish);
+        else finish();
+      };
+      image.onerror = finish;
+      image.src = src;
+      if (image.complete) image.onload?.(new Event('load'));
+    })),
+  ).then(() => undefined);
+  return journeyCardOverlayPreloadPromise;
+}
 
 export const JOURNEY_CARD_FLIP_ENTER_DURATION_MS = 520;
 export const JOURNEY_CARD_SHADOW_EARLY_REVEAL_MS = 200;

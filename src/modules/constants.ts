@@ -8,14 +8,6 @@ export interface GridDimensions {
   ROWS: number;
 }
 
-export interface ShadowConfig {
-  color: number;
-  alpha: number;
-  offsetX: number;
-  offsetY: number;
-  blur: number;
-}
-
 // Grid - responsive based on screen size
 export function getGridDimensions(): GridDimensions {
   if (typeof window !== 'undefined') {
@@ -78,6 +70,7 @@ export const ASSET_WILD: string = './assets/wild.png';
 export const ASSET_WILD_MAGNET: string = './assets/wild-magnet.png';
 export const ASSET_WILD_JUICE: string = './assets/wild-juice.png';
 export const ASSET_WILD_TNT: string = './assets/shop/explosion pack/tnt.png';
+export const ASSET_DRAG_SHADOW: string = './assets/shadow.png';
 export const SFX_EXPLODE: string = './assets/sound/sfx/explode.mp3';
 
 // Pips (kvadrati s 4px radiusom, bliže centru)
@@ -88,7 +81,6 @@ export const PIP_SQUARE: boolean = true;
 export const PIPS_INNER_FACTOR: number = 0.40; // manja vrijednost = veći padding od ruba
 
 // Gameplay shadow tuned for a light brown, slightly deeper visible tone.
-export const SHADOW_COLOR: number = 0xB99572;
 export const SHADOW_ALPHA: number = 0.35;
 export const SHADOW_OFFSET_X: number = 1;
 export const SHADOW_OFFSET_Y: number = 4;

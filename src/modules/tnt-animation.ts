@@ -9,6 +9,7 @@ import { domElementPool } from './dom-element-pool.js';
 import { setInputGateLock } from './input-gate.ts';
 import { attachSmallStarCenterBurst } from './text-sparkles.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
+import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
 
 const BASE = './assets/shop/explosion pack/animation/';
 const TNT_ANIM_FRAMES_1X: string[] = [
@@ -69,6 +70,7 @@ export type TntAnimationVisualOptions = {
   color?: string;
   colors?: string[];
   splitIndex?: number;
+  letterOpacityRange?: readonly [number, number];
   lastFrameOnExitOnly?: boolean;
   frameScale?: number;
   frameHorizontalScale?: number;
@@ -915,6 +917,7 @@ export function showTntAnimation(options: {
   color?: string;
   colors?: string[];
   splitIndex?: number;
+  letterOpacityRange?: readonly [number, number];
   lastFrameOnExitOnly?: boolean;
   frameScale?: number;
   frameHorizontalScale?: number;
@@ -1059,7 +1062,10 @@ export function showTntAnimation(options: {
     const lightColor = options.colors?.[0] || options.color || '#F18453';
     const darkColor = options.colors?.[1] || options.color || lightColor;
     const isSplitLetter = idx === Math.floor(splitIndex) && splitIndex % 1 !== 0;
-    const letterColor = idx < splitIndex ? lightColor : darkColor;
+    const letterAlpha = resolveEffectLetterOpacity(options.letterOpacityRange);
+    const visibleLightColor = applyEffectLetterOpacity(lightColor, letterAlpha);
+    const visibleDarkColor = applyEffectLetterOpacity(darkColor, letterAlpha);
+    const letterColor = idx < splitIndex ? visibleLightColor : visibleDarkColor;
     letterEl.style.cssText = [
       'font-family: "Baloo2", system-ui, -apple-system, sans-serif',
       'font-weight: 800',
@@ -1067,7 +1073,7 @@ export function showTntAnimation(options: {
       'line-height: 1',
       `color: ${letterColor}`,
       `-webkit-text-fill-color: ${isSplitLetter ? 'transparent' : letterColor}`,
-      isSplitLetter ? `background: linear-gradient(90deg, ${lightColor} 0 50%, ${darkColor} 50% 100%)` : 'background: none',
+      isSplitLetter ? `background: linear-gradient(90deg, ${visibleLightColor} 0 50%, ${visibleDarkColor} 50% 100%)` : 'background: none',
       isSplitLetter ? '-webkit-background-clip: text' : '-webkit-background-clip: border-box',
       isSplitLetter ? 'background-clip: text' : 'background-clip: border-box',
       'text-align: center',

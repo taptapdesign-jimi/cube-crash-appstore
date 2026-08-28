@@ -114,6 +114,7 @@ describe('board asset warmup scope', () => {
     const assets = getBoardGameWarmupAssets('arcade', 1, 3);
 
     expect(assets).toContain('./assets/tile.png');
+    expect(assets).toContain('./assets/shadow.png');
     expect(assets).not.toContain('./assets/tile@2x.png');
     expect(assets).not.toContain('./assets/tile@3x.png');
     expect(assets).toContain('./assets/ghost-placeholder@3x.png');

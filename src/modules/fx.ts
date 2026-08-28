@@ -5675,29 +5675,36 @@ export function wildImpactEffect(tile, opts = {}) {
   const tilt = opts.tilt ?? 0.12;          // More dramatic tilt
   const bounce = opts.bounce ?? 1.15;      // More dramatic bounce
   
+  try { animationManager.killExternalTimeline(g._ccWildImpactTl); } catch {}
   try { gsap.killTweensOf(g.scale); gsap.killTweensOf(g.rotation); } catch {}
-  
-  // 1) Dramatic pre-impact anticipation (bigger shrink + tilt)
-  // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
+
+  // One timeline owns the complete squash/tilt transform. The previous four
+  // independent delayed tweens had no interruption cleanup, so Cubero handoff
+  // could strand rotG at a squeezed frame forever.
   if (g && typeof g.rotation !== 'undefined') g.rotation = 0;
-  trackFromTo(g.scale,
-    { x: sx * 0.88, y: sy * 0.88 },
-    { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.08, ease: 'power2.out' }
-  );
-  
-  // 2) Dramatic bounce with bigger overshoot
-  trackTween(g.scale, { x: sx * bounce, y: sy * bounce, duration: 0.20, ease: 'back.out(3.0)', delay: 0.08 });
-  
-  // 3) More dramatic settle with bigger secondary bounce
-  trackTween(g.scale, { x: sx * 0.96, y: sy * 1.04, duration: 0.15, ease: 'power2.out', delay: 0.28 });
-  trackTween(g.scale, { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)', delay: 0.43 });
-  
-  // 4) More dramatic tilt wiggle sequence
-  // 🔥 FIX: Animate proxy.r and sync to g.rotation - avoids "Invalid property rotation Missing plugin?" from GSAP 3.12+ on Pixi
   const proxy = { r: g.rotation };
   const sync = () => { if (g && typeof g.rotation !== 'undefined') g.rotation = proxy.r; };
-  const tl = trackTimeline({ delay: 0.10 });
-  tl.to(proxy, { r: tilt, duration: 0.10, ease: 'sine.out', onUpdate: sync })
+  let tl = null;
+  const restoreImpactTransform = () => {
+    if (!g || g.destroyed || g._ccWildImpactTl !== tl) return;
+    try { g.scale?.set?.(sx, sy); } catch {}
+    try { g.rotation = 0; } catch {}
+    g._ccWildImpactTl = null;
+  };
+  tl = trackTimeline({
+    onComplete: restoreImpactTransform,
+    onInterrupt: restoreImpactTransform,
+  });
+  g._ccWildImpactTl = tl;
+  tl.fromTo(g.scale,
+    { x: sx * 0.88, y: sy * 0.88 },
+    { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.08, ease: 'power2.out' },
+    0,
+  )
+    .to(g.scale, { x: sx * bounce, y: sy * bounce, duration: 0.20, ease: 'back.out(3.0)' }, 0.08)
+    .to(g.scale, { x: sx * 0.96, y: sy * 1.04, duration: 0.15, ease: 'power2.out' }, 0.28)
+    .to(g.scale, { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)' }, 0.43)
+    .to(proxy, { r: tilt, duration: 0.10, ease: 'sine.out', onUpdate: sync }, 0.10)
     .to(proxy, { r: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut', onUpdate: sync })
     .to(proxy, { r: tilt * 0.5, duration: 0.14, ease: 'sine.inOut', onUpdate: sync })
     .to(proxy, { r: 0, duration: 0.18, ease: 'back.out(2.2)', onUpdate: sync });

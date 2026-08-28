@@ -428,6 +428,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
   test('prepaints both exact modal faces before hiding the live Journey card and starting flight', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
     const css = read('src/collectibles-screen.css');
     const prepareSource = modal.split('const prepareAndStartEntry = async () => {')[1]
@@ -447,6 +448,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(flightIndex).toBeGreaterThan(activateIndex);
     expect(revealIndex).toBeGreaterThan(flightIndex);
     expect(portal).toContain('transformOriginPrimed?: boolean');
+    expect(modal).toContain('export function preloadJourneyCardOverlayAssets()');
+    expect(manager).toContain('void preloadJourneyCardOverlayAssets();');
   });
 
   test('profiles dismiss, scroll and rapid reopen as one bounded native summary', () => {

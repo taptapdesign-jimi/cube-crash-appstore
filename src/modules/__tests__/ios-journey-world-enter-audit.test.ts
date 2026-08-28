@@ -13,6 +13,11 @@ const journeyAuditSource = fs.readFileSync(
 );
 
 describe('Journey world enter performance audit', () => {
+  it('avoids Journey DOM snapshots when the native diagnostic bridge is absent', () => {
+    expect(nativeDiagnosticSource).toContain('if (!handler?.postMessage) return;');
+    expect(nativeDiagnosticSource.indexOf('if (!handler?.postMessage) return;'))
+      .toBeLessThan(nativeDiagnosticSource.indexOf("document.getElementById('journey-screen')"));
+  });
   it('summarizes frame pressure without allowing invalid or unbounded samples', () => {
     expect(summarizeJourneyWorldEnterFrames([16, 17, 21, 35, 78, Number.NaN, 900])).toEqual({
       count: 6,

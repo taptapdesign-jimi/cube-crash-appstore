@@ -18,6 +18,10 @@ export function emitNativeConsoleDiagnostic(
 
 export function emitIOSNativeDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
   try {
+    // The bundled app does not install this bridge in ordinary play. Bail out
+    // before querying Journey DOM/state so disabled diagnostics stay free.
+    const handler = (window as any).webkit?.messageHandlers?.consoleLog;
+    if (!handler?.postMessage) return;
     const screen = document.getElementById('journey-screen') as HTMLElement | null;
     emitNativeConsoleDiagnostic('🧭 FailJourneyEnter', event, {
         returning: (window as any).__ccReturningFromDetailModal === true,

@@ -14,6 +14,7 @@ export const IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS = 180_000;
 type FrameBudgetTicker = {
   add: (callback: (ticker?: unknown) => void) => unknown;
   remove: (callback: (ticker?: unknown) => void) => unknown;
+  maxFPS?: number;
 };
 
 let rafId: number | null = null;
@@ -28,6 +29,12 @@ let activeMonitorElapsedMs = 0;
 
 export function shouldUseSustainedLoadReduction(elapsedMs: number, isMobileRuntime: boolean): boolean {
   return isMobileRuntime && Number.isFinite(elapsedMs) && elapsedMs >= IOS_SUSTAINED_LOAD_REDUCTION_AFTER_MS;
+}
+
+export function shouldSampleBoardFrameBudget(maxFPS: number | undefined, isMobileRuntime: boolean): boolean {
+  if (!isMobileRuntime) return true;
+  if (!Number.isFinite(maxFPS) || Number(maxFPS) <= 0) return true;
+  return Number(maxFPS) >= 55;
 }
 
 export function evaluateBoardFrameBudget(
@@ -96,7 +103,16 @@ export function startBoardFrameBudgetMonitor(ticker?: FrameBudgetTicker | null):
   // gameplay or the WebView background lifecycle stops Pixi.
   if (ticker?.add && ticker?.remove) {
     monitorTicker = ticker;
-    tickerCallback = () => sampleFrame(performance.now());
+    tickerCallback = () => {
+      const now = performance.now();
+      if (!shouldSampleBoardFrameBudget(monitorTicker?.maxFPS, MOBILE_RUNTIME_PROFILE.isMobileDevice)) {
+        // A settled mobile board intentionally runs at 30 FPS. Do not count
+        // those expected 33 ms ticks as pressure or as sustained active play.
+        lastFrameAt = now;
+        return;
+      }
+      sampleFrame(now);
+    };
     monitorTicker.add(tickerCallback);
     return;
   }

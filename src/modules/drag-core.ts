@@ -47,6 +47,8 @@ import {
 } from './wild-drag-trail-cadence.ts';
 import { isBoardFxReduced } from './board-frame-budget.ts';
 import { getDragTrailPerformanceProfile } from './drag-trail-performance-profile.ts';
+import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.ts';
+import { resolveDragShadowAppearance } from './drag-shadow-pose.ts';
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 // 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
@@ -682,6 +684,7 @@ export function initDrag(cfg) {
   } catch {}
 
   function beginDragPerfSample(tile: any) {
+    if (!areContinuousRuntimeDiagnosticsEnabled()) return;
     const now = performance.now();
     drag._perfSample = {
       startedAt: now,
@@ -978,6 +981,16 @@ export function initDrag(cfg) {
     }
     drag._lastWatchdogRefreshAt = 0;
     setGameplayDragActive(false);
+  }
+
+  function resetTileDragShadowPose(tile: any) {
+    if (!tile || tile.destroyed) return;
+    // Local fallback light: slightly in front of/above the cube, never at the
+    // board centre. Its small downward cast keeps a held cube grounded before
+    // the first meaningful velocity sample arrives.
+    tile._shadowDirX = 0;
+    tile._shadowDirY = 1;
+    try { tile.refreshShadow?.(); } catch {}
   }
 
   function restartDragWatchdog(force = false) {
@@ -1358,19 +1371,23 @@ export function initDrag(cfg) {
     if (t.shadow && isWildDrag) {
       t.shadow.visible = false;
     } else if (t.shadow) {
+      // The drag light starts directly above the cube. Never let a stale or
+      // board-position-derived direction paint the pickup frame.
+      resetTileDragShadowPose(t);
       t.shadow.visible = true;
       const prev = t.shadow.alpha;
       if (t.refreshShadow) { t.refreshShadow(); if (t.shadow) t.shadow.alpha = prev; }
-      const to = Math.min(1, t.shadow._dragAlpha ?? 0.30);
+      const pickupAppearance = resolveDragShadowAppearance(0, 0, t.rotG?.rotation || 0);
+      const to = Math.min(1, pickupAppearance.alpha);
       gsap.killTweensOf(t.shadow);
       trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
-      // The shadow may deform because it is not game geometry: widening and
-      // lowering it sells lift while the cube itself remains perfectly rigid.
+      // Lift the square shadow uniformly. An anisotropic x=1.09/y=0.90 scale
+      // made horizontal movement visible while the cube occluded vertical FX.
       try {
         gsap.killTweensOf(t.shadow.scale);
         trackTween(t.shadow.scale, {
-          x: 1.09,
-          y: 0.9,
+          x: 1.03,
+          y: 1.03,
           duration: 0.1,
           ease: 'power2.out',
           overwrite: 'auto',
@@ -1541,20 +1558,18 @@ export function initDrag(cfg) {
       }
     }
 
-    // Keep shadow direction tied to finger movement for the active drag.
-    const dirLen = Math.hypot(drag.vx, drag.vy);
-    if (dirLen > 0.01) {
-      (t as any)._shadowDirX = -drag.vx;
-      (t as any)._shadowDirY = -drag.vy;
-      if (t.refreshShadow) {
-        t.refreshShadow();
+    // Restore the original generated-shadow movement owner. drag.vx/vy are
+    // already low-pass filtered above, so reversals settle naturally without a
+    // second interpolator, accumulated travel, delayed RAF or orbital path.
+    const shadowVelocity = Math.hypot(drag.vx, drag.vy);
+    if (t.shadow?.visible && t.refreshShadow) {
+      if (shadowVelocity > 0.01) {
+        t._shadowDirX = -drag.vx;
+        t._shadowDirY = -drag.vy;
       }
-    } else if ((t as any)._shadowDirX !== undefined || (t as any)._shadowDirY !== undefined) {
-      delete (t as any)._shadowDirX;
-      delete (t as any)._shadowDirY;
-      if (t.refreshShadow) {
-        t.refreshShadow();
-      }
+      // At very low speed retain the last cast. Deleting it used to fall back
+      // to board-centre lighting and made the shadow jump based on grid cell.
+      t.refreshShadow();
     }
 
     const trailStartedAt = performance.now();
@@ -1919,15 +1934,6 @@ export function initDrag(cfg) {
     // Also release main magnet target (for the primary target from pickDropTarget)
     releaseMagnet({ immediate: true });
     
-    // SMART SAVE: Save after every move
-    if (typeof window.saveGameState === 'function') {
-      try {
-        window.saveGameState();
-      } catch (err) {
-        console.warn('Failed to save game state after move:', err);
-      }
-    }
-    
     // Ghost placeholders are in fixed background layer - always visible, no cleanup needed
 
     // vrati tilt u nulu s istim “delay” feelom
@@ -1939,7 +1945,7 @@ export function initDrag(cfg) {
     if (t && !t.destroyed && t.shadow) {
       const base = t.shadow._baseAlpha ?? 0;
       const prev = t.shadow.alpha;
-      if (t.refreshShadow) {
+      if (t.shadow.visible && t.refreshShadow) {
         t.refreshShadow();
         if (t.shadow) t.shadow.alpha = prev;
       }
@@ -1948,7 +1954,11 @@ export function initDrag(cfg) {
           alpha: base,
           duration: 0.12,
           ease: 'power2.out',
-          onComplete: () => { if (t.shadow) t.shadow.visible = (base > 0); }
+          onComplete: () => {
+            if (!t.shadow) return;
+            t.shadow.visible = (base > 0);
+            resetTileDragShadowPose(t);
+          }
         });
         try {
           trackTween(t.shadow.scale, {
@@ -2892,7 +2902,11 @@ export function initDrag(cfg) {
             alpha: base,
             duration: 0.12,
             ease: 'power2.out',
-            onComplete: () => { if (t.shadow) t.shadow.visible = (base > 0); }
+            onComplete: () => {
+              if (!t.shadow) return;
+              t.shadow.visible = (base > 0);
+              resetTileDragShadowPose(t);
+            }
           });
         }
       });

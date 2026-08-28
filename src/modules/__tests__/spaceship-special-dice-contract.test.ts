@@ -50,6 +50,7 @@ import {
   SPACESHIP_SCENE_SECONDS,
   SPACESHIP_SUCTION_COMPLETE_AT_SECONDS,
 } from '../spaceship-finale-scene';
+import { resolveSplashLetterOpacity } from '../splash-text-overlay';
 
 const read = (relativePath: string) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
 
@@ -63,6 +64,7 @@ describe('Spaceship special die', () => {
       splashColor: '#75C4C3',
       splashColors: ['#75C4C3', '#58D9EA'],
       splashSplitIndex: 3,
+      splashLetterOpacityRange: [0.8, 1],
       finaleScene: 'spaceship-abduction',
       idleMotion: 'spaceship-hover',
       visualWidth: 147.456,
@@ -77,8 +79,12 @@ describe('Spaceship special die', () => {
       text: 'WOOMBUU',
       colors: ['#75C4C3', '#58D9EA'],
       splitIndex: 3,
+      letterOpacityRange: [0.8, 1],
       finaleScene: 'spaceship-abduction',
     });
+    expect(resolveSplashLetterOpacity([0.8, 1], 0)).toBe(0.8);
+    expect(resolveSplashLetterOpacity([0.8, 1], 0.5)).toBe(0.9);
+    expect(resolveSplashLetterOpacity([0.8, 1], 1)).toBe(1);
   });
 
   test('is the first Area 55 Stage 1 wild and never leaks into other worlds or Arcade', () => {
@@ -298,6 +304,10 @@ describe('Spaceship special die', () => {
     expect(scene).toContain('cubicBezier(startLeft, control1, control2, targetLeft, magneticProgress)');
     expect(scene).toContain("ease: 'none'");
     expect(scene).toContain('const intakeMarkers = [46, 50, 54]');
+    expect(scene).toContain('const cachedIntakePoints = new Map<HTMLElement');
+    expect(scene).toContain("master.eventCallback('onUpdate', invalidateIntakeGeometry)");
+    expect(scene.match(/intakeMarker\.getBoundingClientRect\(\)/g) ?? []).toHaveLength(0);
+    expect(scene).toContain('if (!diagnosticsEnabled) return;');
     expect(scene).toContain('resolveIntakePoint(intakeMarker).top');
     expect(scene).toContain('resolveIntakePoint(intakeMarker).left');
     expect(scene).toContain("gsap.quickSetter(mover, 'left', 'px')");

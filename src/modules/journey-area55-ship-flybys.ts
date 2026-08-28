@@ -143,7 +143,9 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
   const image = createShipAsset();
   let disposed = false;
   const ships: LiveShip[] = Array.from({ length: SHIP_COUNT }, (_, index) => ({
-    depth: 'behind', lane: index % 2 === 0 ? 'upper' : 'lower', direction: index % 2 === 0 ? 1 : -1,
+    // Area 55 ships fly above the World terrain/decor. Keeping them on the
+    // behind canvas allowed crater art to paint over the complete ship.
+    depth: 'front', lane: index % 2 === 0 ? 'upper' : 'lower', direction: index % 2 === 0 ? 1 : -1,
     elapsedSeconds: 0, delaySeconds: index * 0.42, durationSeconds: 5,
     startX: 0, startY: 0, endX: 0, endY: 0, control1X: 0, control1Y: 0, control2X: 0, control2Y: 0,
     baseSize: MIN_SHIP_SIZE_PX, scaleWave: sample(random), scaleFromWave: 0.5, scaleTargetWave: 0.5,
@@ -206,7 +208,9 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
   const runtime = startJourneyAmbientCanvasRuntime({
     root, scrollRoot: options.scrollRoot, ticker, sceneWidthPx: layerWidth, sceneHeightPx: sceneHeight, layerLeftPx: layerLeft,
     visibilityMarginPx: profile.visibilityMarginPx, pixelRatioCap: profile.pixelRatioCap, maxFramesPerSecond: profile.maxFramesPerSecond,
-    behindBefore: cloudLayer ?? background, behindZIndex: 2, frontZIndex: 7, className: 'journey-area55-ship-canvas',
+    // z2 is appended after the z2 decor owner, so ships paint above craters;
+    // cards retain their separate z3 stacking context above the flybys.
+    behindBefore: cloudLayer ?? background, behindZIndex: 2, frontZIndex: 2, className: 'journey-area55-ship-canvas',
     observeVisibility: options.observeVisibility, render,
   });
   root.dataset.journeyArea55ShipRenderer = 'canvas';

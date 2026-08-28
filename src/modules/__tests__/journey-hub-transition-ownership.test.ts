@@ -401,7 +401,9 @@ describe('Journey Hub transition ownership', () => {
       .toBeLessThan(openWorldSource.indexOf('this.playJourneyV700HubExit('));
     expect(openWorldSource).toContain('this.commitJourneyWorldPrepaint(container, worldId)');
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('commit-fallback')");
-    expect(journeyManagerSource).toContain('void this.prepareJourneyWorldPrepaint(resolveLiveHubContainer(), worldId)');
+    const touchStartSource = journeyManagerSource.split('const onWorldCardTouchStart =')[1]
+      ?.split('const onWorldCardTouchMove =')[0] ?? '';
+    expect(touchStartSource).not.toContain('prepareJourneyWorldPrepaint');
     expect(buildSource).toContain('getJourneyMainCloudRenderSpecs(worldId)');
     expect(buildSource).toContain("document.createElement('canvas')");
     expect(buildSource).toContain('Math.min(2, Math.max(1, window.devicePixelRatio || 1))');
@@ -773,8 +775,10 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain('rotateY(7.2deg)');
     expect(collectiblesCssSource).toContain('rotateY(-6.4deg)');
     expect(collectiblesCssSource).toContain('--journey-world-drag-shadow: rgba(185, 149, 114, 0.12)');
-    expect(collectiblesCssSource).toContain('drop-shadow(-5px 4px 4px var(--journey-world-drag-shadow))');
-    expect(collectiblesCssSource).toContain('drop-shadow(5px 4px 4px var(--journey-world-drag-shadow))');
+    expect(collectiblesCssSource).toContain('filter: drop-shadow(0 4px 4px var(--journey-world-drag-shadow));');
+    const tiltKeyframes = collectiblesCssSource.split('@keyframes journey-v700-world-auto-tilt')[1]
+      ?.split('@keyframes journey-v700-cloud-idle')[0] ?? '';
+    expect(tiltKeyframes).not.toContain('filter:');
     expect(collectiblesCssSource).not.toContain('rgba(174, 104, 56, 0.24)');
     expect(collectiblesCssSource).toContain(
       '.journey-v700-hub.journey-v700-tilt-ready .journey-v700-world-tilt-shell',

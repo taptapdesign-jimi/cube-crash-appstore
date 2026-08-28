@@ -37,7 +37,10 @@ describe('mobile resource architecture', () => {
   test('production continuous diagnostics are opt-in and the scroll probe is DEV-only', () => {
     const policy = read('src/utils/runtime-diagnostics-policy.ts');
     const collectibles = read('src/collectibles-manager.ts');
+    const drag = read('src/modules/drag-core.ts');
     expect(policy).toContain('__ccContinuousRuntimeDiagnostics');
     expect(collectibles).toContain('areContinuousRuntimeDiagnosticsEnabled() && !(scrollable as any).__ccJourneyScrollProbeInstalled');
+    expect(drag).toContain('if (!areContinuousRuntimeDiagnosticsEnabled()) return;');
+    expect(drag).not.toContain("typeof window.saveGameState === 'function'");
   });
 });

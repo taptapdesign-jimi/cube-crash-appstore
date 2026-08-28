@@ -2,9 +2,9 @@
 import { Container, Sprite, Assets, Graphics, Texture, Rectangle } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import {
-  TILE, COLS, ROWS, GAP,
-  PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE, SHADOW_COLOR,
-  ASSET_TILE,
+  TILE, GAP,
+  PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
+  ASSET_TILE, ASSET_DRAG_SHADOW,
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
   ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_JUICE, ASSET_WILD_TNT,
 } from './constants.js';
@@ -18,6 +18,12 @@ import { isWildLikeTile } from './final-merge-rules.ts';
 import { isTileTransientlySpawning, isVisibleGameplayResolvingSpecialPresence } from './tile-state-utils.ts';
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { isUsablePixiImageTexture, pinPixiImageTexture } from '../utils/pixi-image-texture-health.ts';
+import {
+  resolveDragShadowAppearance,
+  resolveDragShadowPose,
+  resolveDragShadowRevealDistance,
+  resolveTiltedTileVisualCenter,
+} from './drag-shadow-pose.ts';
 
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
@@ -28,7 +34,8 @@ interface Tile extends Container {
   value?: number;
   stackDepth?: number;
   locked?: boolean;
-  shadow?: Graphics;
+  shadow?: Container;
+  _ccShadowVisual?: Sprite;
   rotG?: Container;
   _ccSpatialG?: Container;
   overlay?: Sprite;
@@ -543,250 +550,59 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.locked = locked;
   syncTileZIndex(t, null);
 
-  // meka "sjena"
-  const sh = new Graphics();
+  // Gyro translates this wrapper. Shadow and visible cube must share it or the
+  // light origin drifts by a different amount for every grid cell.
+  t._ccSpatialG = new Container();
+  t._ccSpatialG.label = 'tileSpatialG';
+  t.addChild(t._ccSpatialG);
+
+  // Image-backed shadow: the outer container owns pickup/release alpha+scale,
+  // while the inner sprite owns its one centered directional pose.
+  const sh = new Container();
+  const shadowVisual = new Sprite(getBoardTexture(ASSET_DRAG_SHADOW));
+  shadowVisual.anchor.set(0.5);
+  // Keep the square PNG square in logical space. The old 196x164 geometry,
+  // followed by a 1.09x0.90 pickup scale, exposed a strong horizontal fringe
+  // while the cube occluded almost the entire vertical core.
+  const shadowVisualScale = 1.42 * 0.7 * 1.1; // 10% larger than the accepted reduced footprint
+  shadowVisual.width = TILE * shadowVisualScale;
+  shadowVisual.height = TILE * shadowVisualScale;
+  const shadowBaseScaleX = shadowVisual.scale.x;
+  const shadowBaseScaleY = shadowVisual.scale.y;
+  shadowVisual.eventMode = 'none';
+  sh.addChild(shadowVisual);
   // The shadow is hidden at rest. Prime alpha too, otherwise Pixi's default
   // alpha=1 briefly paints a dark first-drag frame before the 80ms lift tween.
   sh.alpha = 0;
-  t.addChild(sh);
+  t._ccSpatialG.addChild(sh);
   t.shadow = sh;
-
-  // board center in board-local space (based on grid layout)
-  const boardCenterX = ((COLS - 1) * (TILE + GAP) + TILE) * 0.5;
-  const boardCenterY = ((ROWS - 1) * (TILE + GAP) + TILE) * 0.5;
+  t._ccShadowVisual = shadowVisual;
 
   t.shadow!.visible = false;
   
-  // 🔥 USER REQUEST: Helper function to draw star shape for wild tile shadow
-  const drawStar = (g: Graphics, x: number, y: number, outerRadius: number, innerRadius: number, points: number = 5): void => {
-    const angleStep = (Math.PI * 2) / points;
-    const startAngle = -Math.PI / 2; // Start at top
-    
-    g.moveTo(
-      x + Math.cos(startAngle) * outerRadius,
-      y + Math.sin(startAngle) * outerRadius
-    );
-    
-    for (let i = 1; i <= points * 2; i++) {
-      const angle = startAngle + (i * angleStep / 2);
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      g.lineTo(
-        x + Math.cos(angle) * radius,
-        y + Math.sin(angle) * radius
-      );
-    }
-    g.closePath();
-  };
-  
-  // 🔥 USER REQUEST: Helper function to draw juice mug shape for wild-juice tile shadow
-  const drawJuiceMug = (g: Graphics, x: number, y: number, width: number, height: number): void => {
-    const mugWidth = width * 0.85;
-    const mugHeight = height * 0.9;
-    const handleWidth = width * 0.15;
-    const handleHeight = height * 0.4;
-    
-    // Main mug body (trapezoid shape - wider at top, narrower at bottom)
-    const topWidth = mugWidth;
-    const bottomWidth = mugWidth * 0.75;
-    const bodyHeight = mugHeight * 0.7;
-    
-    // Start from top-left of mug body
-    g.moveTo(x - topWidth / 2, y - mugHeight / 2);
-    // Top rim (wider)
-    g.lineTo(x + topWidth / 2, y - mugHeight / 2);
-    // Right side (slightly angled inward)
-    g.lineTo(x + bottomWidth / 2, y - mugHeight / 2 + bodyHeight);
-    // Bottom
-    g.lineTo(x - bottomWidth / 2, y - mugHeight / 2 + bodyHeight);
-    // Left side
-    g.lineTo(x - topWidth / 2, y - mugHeight / 2);
-    g.closePath();
-    
-    // Handle (semicircle on the right side)
-    const handleCenterX = x + topWidth / 2 + handleWidth * 0.3;
-    const handleCenterY = y - mugHeight / 2 + handleHeight / 2;
-    const handleRadius = handleWidth * 0.4;
-    
-    // Draw handle as a rounded rectangle shape
-    g.moveTo(x + topWidth / 2, y - mugHeight / 2 + handleHeight * 0.2);
-    g.quadraticCurveTo(
-      handleCenterX, y - mugHeight / 2 + handleHeight * 0.1,
-      handleCenterX, handleCenterY - handleRadius
-    );
-    g.arc(handleCenterX, handleCenterY, handleRadius, -Math.PI / 2, Math.PI / 2);
-    g.quadraticCurveTo(
-      handleCenterX, y - mugHeight / 2 + handleHeight * 0.9,
-      x + topWidth / 2, y - mugHeight / 2 + handleHeight * 0.8
-    );
-    g.closePath();
-  };
-  
-  // 🔥 USER REQUEST: Helper function to draw magnet shape for wild-magnet tile shadow
-  const drawMagnet = (g: Graphics, x: number, y: number, width: number, height: number): void => {
-    const magnetWidth = width * 0.8;
-    const magnetHeight = height * 0.85;
-    const barWidth = magnetWidth * 0.25; // Width of each bar
-    
-    // Left bar (U shape)
-    const leftBarX = x - magnetWidth / 2;
-    const leftBarTopY = y - magnetHeight / 2;
-    const leftBarBottomY = y + magnetHeight / 2;
-    
-    // Top horizontal bar
-    g.moveTo(leftBarX, leftBarTopY);
-    g.lineTo(leftBarX + barWidth, leftBarTopY);
-    g.lineTo(leftBarX + barWidth, leftBarTopY + barWidth);
-    g.lineTo(leftBarX, leftBarTopY + barWidth);
-    g.closePath();
-    
-    // Left vertical bar
-    g.moveTo(leftBarX, leftBarTopY + barWidth);
-    g.lineTo(leftBarX + barWidth, leftBarTopY + barWidth);
-    g.lineTo(leftBarX + barWidth, leftBarBottomY - barWidth);
-    g.lineTo(leftBarX, leftBarBottomY - barWidth);
-    g.closePath();
-    
-    // Bottom horizontal bar (left)
-    g.moveTo(leftBarX, leftBarBottomY - barWidth);
-    g.lineTo(leftBarX + barWidth, leftBarBottomY - barWidth);
-    g.lineTo(leftBarX + barWidth, leftBarBottomY);
-    g.lineTo(leftBarX, leftBarBottomY);
-    g.closePath();
-    
-    // Right bar (U shape)
-    const rightBarX = x + magnetWidth / 2 - barWidth;
-    
-    // Top horizontal bar (right)
-    g.moveTo(rightBarX, leftBarTopY);
-    g.lineTo(rightBarX + barWidth, leftBarTopY);
-    g.lineTo(rightBarX + barWidth, leftBarTopY + barWidth);
-    g.lineTo(rightBarX, leftBarTopY + barWidth);
-    g.closePath();
-    
-    // Right vertical bar
-    g.moveTo(rightBarX, leftBarTopY + barWidth);
-    g.lineTo(rightBarX + barWidth, leftBarTopY + barWidth);
-    g.lineTo(rightBarX + barWidth, leftBarBottomY - barWidth);
-    g.lineTo(rightBarX, leftBarBottomY - barWidth);
-    g.closePath();
-    
-    // Bottom horizontal bar (right)
-    g.moveTo(rightBarX, leftBarBottomY - barWidth);
-    g.lineTo(rightBarX + barWidth, leftBarBottomY - barWidth);
-    g.lineTo(rightBarX + barWidth, leftBarBottomY);
-    g.lineTo(rightBarX, leftBarBottomY);
-    g.closePath();
-  };
-  
   const drawShadow = (): void => {
-    sh.clear();
-
-    // Direction of shadow is away from a "light" at the board center.
-    const hasDirectionOverride =
-      Number.isFinite((t as any)._shadowDirX) &&
-      Number.isFinite((t as any)._shadowDirY) &&
-      ((t as any)._shadowDirX !== 0 || (t as any)._shadowDirY !== 0);
-    const dx = hasDirectionOverride
-      ? (t as any)._shadowDirX as number
-      : (t.x - boardCenterX);
-    const dy = hasDirectionOverride
-      ? (t as any)._shadowDirY as number
-      : (t.y - boardCenterY);
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = dx / len;
-    const ny = dy / len;
-
+    // The drag light is local and directly above this cube. Board/screen
+    // position must never steer it: only current finger movement supplies X/Y.
+    const rawDirectionX = (t as any)._shadowDirX;
+    const rawDirectionY = (t as any)._shadowDirY;
+    const dx = Number.isFinite(rawDirectionX) ? rawDirectionX as number : 0;
+    const dy = Number.isFinite(rawDirectionY) ? rawDirectionY as number : 0;
     // Take into account current visual tilt to avoid "baked" look
     const tilt = (t.rotG?.rotation || 0);
-    const tiltAbs = Math.abs(tilt);
+    const visualCenter = resolveTiltedTileVisualCenter(tilt, TILE);
+    const shift = resolveDragShadowRevealDistance(dx, dy, TILE);
+    const pose = resolveDragShadowPose(dx, dy, shift);
+    const appearance = resolveDragShadowAppearance(dx, dy, tilt);
+    shadowVisual.position.set(visualCenter.x + pose.x, visualCenter.y + pose.y);
 
-    // Strength: tiles further from center cast slightly longer shadows.
-    const maxSpan = Math.max(COLS, ROWS) * (TILE + GAP) * 0.5;
-    const strength = 0.6 + 0.4 * Math.min(1, len / Math.max(1, maxSpan));
-
-    // Baseline shift (in shadow direction) and a tiny global downward bias for nicer look
-    const baseShift = TILE * 0.065 * strength;
-    const biasY = TILE * 0.012; // gentle "below" bias
-
-      // 🔥 USER REQUEST: Check tile type for custom shadow shapes
-      const isWildStar = t.special === 'wild';
-      const isWildJuice = t.special === 'wild-juice';
-      const isWildMagnet = t.special === 'wild-magnet';
-      const isWildTnt = t.special === 'wild-tnt';
-
-    // Smooth, gaussian-like falloff: more (but thinner) layers → softer edge
-    const layers = 10;
-    for (let i = 0; i < layers; i++) {
-      const p = i / (layers - 1); // 0..1
-      const grow = 1.0 + p * 0.42; // total size growth
-      const width = TILE * grow * 1.08; // a bit wider than tall (elliptical feel)
-      const height = TILE * grow * 0.90; // compress vertically for a softer base
-
-      // Exponential alpha falloff so outer rings are very subtle
-      const alpha = 0.14 * Math.pow(1 - p, 1.6);
-      if (alpha <= 0.003) continue;
-
-      // Increase shift with each outer layer for natural parallax
-      let shift = baseShift * (0.35 + p * 1.1);
-      // extra push from tilt (stronger inner layers)
-      shift += (TILE * 0.02) * (1 - p) * tiltAbs;
-      const ox = -width / 2 + nx * shift + 1; // +1 tiny pixel nudge for sub-pixel crispness
-      const oy = -height / 2 + ny * shift + 4 + biasY;
-
-        const shV8 = sh as any;
-        const useV8Fill = typeof shV8.fill === 'function' && typeof shV8.roundRect === 'function';
-        if (useV8Fill) {
-          if (isWildStar) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            const outerRadius = Math.min(width, height) * 0.45;
-            const innerRadius = outerRadius * 0.4;
-            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
-            shV8.fill({ color: SHADOW_COLOR, alpha });
-          } else if (isWildJuice) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            drawJuiceMug(sh, centerX, centerY, width, height);
-            shV8.fill({ color: SHADOW_COLOR, alpha });
-          } else if (isWildMagnet) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            drawMagnet(sh, centerX, centerY, width, height);
-            shV8.fill({ color: SHADOW_COLOR, alpha });
-          } else {
-            shV8.roundRect(ox, oy, width, height, TILE * 0.22).fill({ color: SHADOW_COLOR, alpha });
-          }
-        } else {
-          sh.beginFill(SHADOW_COLOR, alpha);
-          if (isWildStar) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            const outerRadius = Math.min(width, height) * 0.45;
-            const innerRadius = outerRadius * 0.4;
-            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
-          } else if (isWildJuice) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            drawJuiceMug(sh, centerX, centerY, width, height);
-          } else if (isWildMagnet) {
-            const centerX = ox + width / 2;
-            const centerY = oy + height / 2;
-            drawMagnet(sh, centerX, centerY, width, height);
-          } else if (isWildTnt) {
-            sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
-          } else {
-            sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
-          }
-          sh.endFill();
-        }
-    }
-
-    // rotate and subtly distort shadow to follow visual tilt
+    // The light law stays screen-axis consistent. Cube tilt moves its visual
+    // center above, but must not rotate or deform the authored shadow PNG.
     try {
-      sh.rotation = tilt * 0.55; // follow about half the tile's tilt
-      const sx = 1 + tiltAbs * 0.08; // slight stretch sideways
-      const sy = 1 - tiltAbs * 0.04; // slight flatten
-      sh.scale.set(sx, sy);
+      shadowVisual.rotation = 0;
+      shadowVisual.scale.set(
+        shadowBaseScaleX * appearance.scale,
+        shadowBaseScaleY * appearance.scale,
+      );
     } catch {}
   };
   drawShadow();
@@ -795,9 +611,6 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   // tilt grupa — pivot na VRHU pločice za "teži" osjećaj nagiba
   t.rotG = new Container();
   t.rotG.sortableChildren = true;
-  t._ccSpatialG = new Container();
-  t._ccSpatialG.label = 'tileSpatialG';
-  t.addChild(t._ccSpatialG);
   // postavi pivot na top-center (0, -TILE/2) i poziciju jednaku pivotu
   // kako bi centar pločice ostao u istom mjestu pri rotation=0
   try {

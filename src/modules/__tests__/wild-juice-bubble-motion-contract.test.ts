@@ -24,5 +24,9 @@ describe('wild-juice bubble motion ownership contract', () => {
     expect(explosionSource).toContain('const weaveDistance = screenW * (0.1 + Math.random() * 0.08)');
     expect(explosionSource).toContain('x: startX + driftX * 0.38 - weaveDirection * weaveDistance * 0.92');
     expect(explosionSource).toContain("ease: 'sine.inOut'");
+    expect(explosionSource).toContain("acquirePixiMobileActivityLease('juice-family-finale')");
+    expect(explosionSource).toContain('if (!app.ticker?.started)');
+    expect(explosionSource.match(/app\.renderer\.render\(stage\)/g)).toHaveLength(1);
+    expect(explosionSource).toContain('riseTl.to(bubble.scale, {');
   });
 });

@@ -16,7 +16,7 @@ describe('Beach Ball finale regression contract', () => {
     expect(beachBallDefinition).toContain("archetype: 'wild-tnt'");
     expect(beachBallDefinition).toContain("visualFinaleFx: 'juice'");
     expect(beachBallDefinition).toContain("juiceDropProfile: 'beach-ball'");
-    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0.08');
+    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0.55');
     expect(appCoreSource.match(/direction: getSpecialDiceJuiceDropProfile\([^)]*\) \? 'down' : 'up'/g)).toHaveLength(2);
     expect(appCoreSource.match(/dropProfile: getSpecialDiceJuiceDropProfile\(/g)).toHaveLength(2);
   });

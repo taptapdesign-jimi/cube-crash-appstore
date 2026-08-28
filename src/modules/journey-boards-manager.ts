@@ -78,6 +78,7 @@ import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
 import { hideHomepageNavigation } from './navigation-control.js';
 import {
+  preloadJourneyCardOverlayAssets,
   presentJourneyCardOverlayModal,
   type JourneyCardOverlayModalController,
 } from './journey-card-overlay-modal.js';
@@ -6546,9 +6547,8 @@ class JourneyBoardsManager {
 	        worldCardTouchStartX = event.touches[0].clientX;
 	        worldCardTouchStartY = event.touches[0].clientY;
 	        worldCardTouchMoved = false;
-	        // Build and physically paint the exact incoming World root at touch
-	        // down. touchend/click reuses the same Promise and final DOM nodes.
-	        void this.prepareJourneyWorldPrepaint(resolveLiveHubContainer(), worldId);
+	        // Keep touchstart allocation-free: this gesture may still become a
+	        // vertical Hub scroll. The confirmed tap path owns exact prepaint.
 	      };
 
 	      const onWorldCardTouchMove = (event: TouchEvent) => {
@@ -8740,6 +8740,9 @@ class JourneyBoardsManager {
     container: HTMLElement,
     options: { worldId?: number; deferRuntimeOwners?: boolean } = {},
   ): void {
+    // Decode the three fixed modal assets while the World itself is being
+    // prepared. A card tap then owns only geometry and the authored flight.
+    void preloadJourneyCardOverlayAssets();
     // 🔥 APP STORE FIX: Fixed background position using viewport units
     // Background starts at a fixed position from top of viewport
     // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
