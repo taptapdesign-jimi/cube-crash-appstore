@@ -13,7 +13,6 @@ import {
   type JourneyCardOriginLease,
   type JourneyCardSpatialFlightController,
 } from './journey-card-portal-transition.js';
-import { mountJourneyCardFlipSpatialMotion } from './gameplay-modal-spatial-motion.js';
 import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
@@ -385,7 +384,7 @@ export function presentJourneyCardOverlayModal(
       <div class="journey-card-flip-spatial-shell">
         <div class="journey-card-flip-impact-shell">
           <div class="journey-card-flip-idle-shell">
-            <div class="journey-card-flip-gyro-shell">
+            <div class="journey-card-flip-pose-shell">
             <div class="journey-card-flip-rotor">
               <div class="journey-card-flip-face journey-card-flip-front" role="button" tabindex="0" aria-label="Turn card to view stats" aria-hidden="false">
                 <div class="journey-card-flip-card-host" aria-hidden="true"></div>
@@ -440,7 +439,7 @@ export function presentJourneyCardOverlayModal(
   const spatialShell = stage.querySelector<HTMLElement>('.journey-card-flip-spatial-shell');
   const impactShell = stage.querySelector<HTMLElement>('.journey-card-flip-impact-shell');
   const idleShell = stage.querySelector<HTMLElement>('.journey-card-flip-idle-shell');
-  const gyroShell = stage.querySelector<HTMLElement>('.journey-card-flip-gyro-shell');
+  const poseShell = stage.querySelector<HTMLElement>('.journey-card-flip-pose-shell');
   const rotor = stage.querySelector<HTMLElement>('.journey-card-flip-rotor');
   const front = stage.querySelector<HTMLElement>('.journey-card-flip-front');
   const back = stage.querySelector<HTMLElement>('.journey-card-flip-back');
@@ -450,7 +449,7 @@ export function presentJourneyCardOverlayModal(
   const turnControl = stage.querySelector<HTMLButtonElement>('.journey-card-flip-turn-control');
   const idleHand = stage.querySelector<HTMLImageElement>('.journey-card-flip-idle-hand');
   const idleCopy = stage.querySelector<HTMLElement>('.journey-card-flip-idle-copy');
-  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !gyroShell || !rotor || !front || !back || !backShell || !cardHost || !cta || !turnControl || !idleHand || !idleCopy) {
+  if (!backdrop || !frame || !spatialShell || !impactShell || !idleShell || !poseShell || !rotor || !front || !back || !backShell || !cardHost || !cta || !turnControl || !idleHand || !idleCopy) {
     stage.remove();
     throw new Error('Journey flip card failed to create its required owners');
   }
@@ -510,7 +509,6 @@ export function presentJourneyCardOverlayModal(
   let backContentRestoreTimer = 0;
   let flipEdgeRaf = 0;
   let backContentEnterScheduled = false;
-  let disposeSpatialMotion: (() => void) | null = null;
   let closeController: GameplaySheetCloseController | null = null;
   let ctaController: CtaController | null = null;
   let activePointerId: number | null = null;
@@ -548,20 +546,18 @@ export function presentJourneyCardOverlayModal(
 
   const neutralizeExitMotionOwners = (durationMs: number) => {
     const idleTransform = window.getComputedStyle(idleShell).transform || 'none';
-    const gyroStyle = window.getComputedStyle(gyroShell);
-    const gyroTranslate = gyroStyle.translate || 'none';
-    const gyroTransform = gyroStyle.transform || 'none';
+    const poseStyle = window.getComputedStyle(poseShell);
+    const poseTranslate = poseStyle.translate || 'none';
+    const poseTransform = poseStyle.transform || 'none';
     const safeDurationMs = Math.max(1, Math.round(durationMs));
     stage.style.setProperty('--journey-card-exit-neutral-duration', `${safeDurationMs}ms`);
     stopSurfaceIdle();
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     exitNeutralAnimations.forEach((animation) => animation.cancel());
     exitNeutralAnimations = [];
     if (prefersReducedMotion || typeof idleShell.animate !== 'function') {
       idleShell.style.transform = 'none';
-      gyroShell.style.translate = 'none';
-      gyroShell.style.transform = 'none';
+      poseShell.style.translate = 'none';
+      poseShell.style.transform = 'none';
       return;
     }
     exitNeutralAnimations = [
@@ -569,8 +565,8 @@ export function presentJourneyCardOverlayModal(
         { transform: idleTransform },
         { transform: 'none' },
       ], { duration: safeDurationMs, easing: 'linear', fill: 'forwards' }),
-      gyroShell.animate([
-        { translate: gyroTranslate, transform: gyroTransform },
+      poseShell.animate([
+        { translate: poseTranslate, transform: poseTransform },
         { translate: 'none', transform: 'none' },
       ], { duration: safeDurationMs, easing: 'linear', fill: 'forwards' }),
     ];
@@ -715,8 +711,6 @@ export function presentJourneyCardOverlayModal(
     idleCoachTimer = window.setTimeout(() => {
       idleCoachTimer = 0;
       if (generation !== idleCoachGeneration || entering || closing || settled || flipping || activePointerId !== null) return;
-      disposeSpatialMotion?.();
-      disposeSpatialMotion = null;
       const coachMode = nextIdleCoachMode;
       nextIdleCoachMode = coachMode === 'drag' ? 'tap' : 'drag';
       stage.classList.add('is-idle-coach', `is-idle-coach-${coachMode}`);
@@ -779,7 +773,6 @@ export function presentJourneyCardOverlayModal(
         stage.classList.remove('is-idle-coach', 'is-idle-coach-drag', 'is-idle-coach-tap');
         if (closing || settled) return;
         setRotorAngle(baseAngle);
-        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
         scheduleIdleCoach();
       });
     }, JOURNEY_CARD_FLIP_IDLE_COACH_DELAY_MS);
@@ -824,8 +817,6 @@ export function presentJourneyCardOverlayModal(
   const cleanup = (value: JourneyCardOverlayModalResult) => {
     if (value === 'dismiss') options.onPerformancePhase?.('dismiss-cleanup-start');
     if (!openProfileEmitted) emitOpenProfile('disposed-before-stable');
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     cancelMotion();
     rotor.removeEventListener('pointerdown', handlePointerDown);
     rotor.removeEventListener('pointermove', handlePointerMove);
@@ -872,8 +863,6 @@ export function presentJourneyCardOverlayModal(
     stage.classList.add('is-flipping');
     stage.classList.toggle('is-flipping-to-front', targetFace === 'front');
     stage.classList.toggle('is-flipping-to-back', targetFace === 'back');
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     const from = currentAngle;
     const canonical = targetFace === 'back' ? -180 : 0;
     const candidates = [canonical - 360, canonical, canonical + 360];
@@ -943,15 +932,11 @@ export function presentJourneyCardOverlayModal(
         recoil.cancel();
         setRotorAngle(stableRotorAngle());
         if (activePointerId === null && !flipping && !impactAnimation && !dragPreviewSettleAnimation) {
-          disposeSpatialMotion?.();
-          disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
           startSurfaceIdle();
           scheduleIdleCoach();
         }
       });
     } else if (activePointerId === null && !impactAnimation && !dragPreviewSettleAnimation) {
-      disposeSpatialMotion?.();
-      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
       startSurfaceIdle();
       scheduleIdleCoach();
     }
@@ -972,8 +957,6 @@ export function presentJourneyCardOverlayModal(
       stage.classList.remove('is-shadow-ready');
       stage.classList.add('is-settled');
       startBackContentEnter();
-      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
-      markOpenProfile('modal-gyro-mounted');
       startSurfaceIdle();
       scheduleIdleCoach();
       openProfileSettlePaintsRemaining = 2;
@@ -1028,8 +1011,6 @@ export function presentJourneyCardOverlayModal(
     stage.classList.remove('is-shadow-ready');
     stage.classList.add('is-settled');
     startBackContentEnter();
-    disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
-    markOpenProfile('modal-gyro-mounted');
     startSurfaceIdle();
     scheduleIdleCoach();
     options.onCardEntrySettled?.();
@@ -1247,8 +1228,6 @@ export function presentJourneyCardOverlayModal(
     impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
     impactShell.style.translate = 'none';
     stopSurfaceIdle();
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     stage.classList.add('is-dragging');
     try { rotor.setPointerCapture(event.pointerId); } catch {}
   }
@@ -1340,8 +1319,6 @@ export function presentJourneyCardOverlayModal(
       impactAnimation = verticalSettle;
       if (!verticalSettle) {
         impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
-        disposeSpatialMotion?.();
-        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
         startSurfaceIdle();
         scheduleIdleCoach();
         return;
@@ -1351,8 +1328,6 @@ export function presentJourneyCardOverlayModal(
         impactAnimation = null;
         impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
         verticalSettle.cancel();
-        disposeSpatialMotion?.();
-        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
         startSurfaceIdle();
         scheduleIdleCoach();
       });
@@ -1365,7 +1340,6 @@ export function presentJourneyCardOverlayModal(
       }
       setRotorAngle(stableFace === 'front' ? 0 : -180);
       impactShell.style.translate = 'none';
-      disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
       startSurfaceIdle();
       scheduleIdleCoach();
       return;
@@ -1413,7 +1387,6 @@ export function presentJourneyCardOverlayModal(
       impactShell.style.translate = 'none';
       setRotorAngle(previewToAngle);
       if (!flipping) {
-        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
         startSurfaceIdle();
         scheduleIdleCoach();
       }
@@ -1455,8 +1428,6 @@ export function presentJourneyCardOverlayModal(
       previewAnimation?.cancel();
       animation.cancel();
       if (!flipping) {
-        disposeSpatialMotion?.();
-        disposeSpatialMotion = mountJourneyCardFlipSpatialMotion(stage, gyroShell);
         startSurfaceIdle();
         scheduleIdleCoach();
       }

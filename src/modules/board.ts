@@ -550,7 +550,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.locked = locked;
   syncTileZIndex(t, null);
 
-  // Gyro translates this wrapper. Shadow and visible cube must share it or the
+  // Authored pose translates this wrapper. Shadow and visible cube must share it or the
   // light origin drifts by a different amount for every grid cell.
   t._ccSpatialG = new Container();
   t._ccSpatialG.label = 'tileSpatialG';

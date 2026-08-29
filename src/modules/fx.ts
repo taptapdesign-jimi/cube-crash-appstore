@@ -1756,6 +1756,10 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     : patternData.filter((_shardDef, index) => index % patternStride === 0);
   const visualScale = Math.max(0.75, Math.min(1.5, Number(opts.visualScale ?? 1)));
   const distanceScale = Math.max(0.75, Math.min(1.5, Number(opts.distanceScale ?? 1)));
+  // Ball fires several full impacts close together. One tracked timeline owns
+  // the same per-shard tweens so cleanup stays exact without creating two
+  // independent GSAP roots for every visible shard.
+  const groupedOwner = opts.groupedOwner === true ? trackTimeline() : null;
 
   // Spawn each shard according to pattern
   activePatternData.forEach((shardDef, index) => {
@@ -1848,19 +1852,26 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.fadeDelay || 0.15) + (params.fadeDelayMultiplier || 0.1) * Math.random();
     const fadeDur = params.fadeDuration || 0.25;
     
-    trackTween(shard, {
+    const travelVars = {
       x: targetX,
       y: targetY,
       duration: travelDur,
       ease: 'power2.out'
-    });
+    };
     
-    trackTween(shard, {
+    const fadeVars = {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
       ease: 'power2.in'
-    });
+    };
+    if (groupedOwner) {
+      groupedOwner.to(shard, travelVars, 0);
+      groupedOwner.to(shard, fadeVars, 0);
+    } else {
+      trackTween(shard, travelVars);
+      trackTween(shard, fadeVars);
+    }
   });
   
   if (isVerboseGameplayLogsEnabled()) {
@@ -5022,12 +5033,16 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const instantFadeOut = options.instantFadeOut === true;
   const solidAlpha     = options.solidAlpha === true;
   const cloudAlphaProfile = options.cloudAlphaProfile === true;
+  const deferFutureBursts = options.deferFutureBursts === true;
   const upwardBias     = Math.max(0, options.upwardBias ?? 0);
   const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
   const spawnShape     = options.spawnShape ?? 'box';
   const ellipseChance  = Math.max(0, Math.min(1, options.ellipseChance ?? 0.35));
   const ellipseAspectMin = Math.max(0.35, Math.min(1, options.ellipseAspectMin ?? 0.85));
   const ellipseAspectMax = Math.max(1, Math.min(2, options.ellipseAspectMax ?? 1.15));
+  // Preserve every puff and its exact local timing while reducing the number
+  // of simultaneously tracked roots during multi-impact Ball finales.
+  const groupedOwner = options.groupedOwner === true ? trackTimeline() : null;
 
   const { x, y } = centerInBoard(board, tile, size);
   const layer = new Container();
@@ -5068,7 +5083,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
     return              { sx: -half + INSET, sy: along        };   // left
   };
 
-  for (let b=0; b<BURSTS; b++){
+  const buildBurst = (b)=>{
+    if (!layer.parent || layer.destroyed) return;
     const burstDelay = b * BURST_GAP;
     const perBurst   = Math.ceil(COUNT / BURSTS);
 
@@ -5184,8 +5200,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const startScale = startScaleHint != null ? startScaleHint : (0.65 + Math.random()*0.25) * Math.max(0.7, sizeScale);
       puff.scale.set(startScale);
 
-      const stg = burstDelay + Math.random()*0.018;
-      const tl = trackTimeline({
+      const stg = (deferFutureBursts ? 0 : burstDelay) + Math.random()*0.018;
+      const timelineOptions = {
         defaults: { overwrite: false },
         // 🔥 OBJECT POOLING: Release back to pool instead of destroying
         onComplete: ()=>{ 
@@ -5196,7 +5212,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
             } 
           }catch{} 
         }
-      });
+      };
+      const tl = groupedOwner ? gsap.timeline(timelineOptions) : trackTimeline(timelineOptions);
+      if (groupedOwner) groupedOwner.add(tl, deferFutureBursts ? groupedOwner.time() : 0);
 
       const radialDistance = Math.hypot(sx / Math.max(1, size * 0.5), sy / Math.max(1, size * 0.5));
       const centerStrength = 1 - Math.min(1, radialDistance / 1.25);
@@ -5208,6 +5226,17 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
         .to(puff, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
         .to(puff, { alpha: targetAlpha, duration: tHold, ease: 'none' }, `>${0}`)
         .to(puff, { alpha: 0, duration: tOut, ease: 'power1.in' }, `>${0}`);
+    }
+  };
+
+  buildBurst(0);
+  if (deferFutureBursts) {
+    for (let burstIndex = 1; burstIndex < BURSTS; burstIndex += 1) {
+      trackDelayedCall(burstIndex * BURST_GAP, () => buildBurst(burstIndex));
+    }
+  } else {
+    for (let burstIndex = 1; burstIndex < BURSTS; burstIndex += 1) {
+      buildBurst(burstIndex);
     }
   }
 
@@ -5222,8 +5251,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   halo.circle(0, 0, rr).fill({ color: haloColor, alpha: 0.10 * (options.haloAlpha ?? 1) });
   halo.alpha = 0;
   layer.addChildAt(halo, 0);
-  trackTween(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });
-  trackTween(halo, { alpha: 0, duration: 0.28, delay: 0.18, ease: 'power2.in',
+  const haloIn = { alpha: 0.22, duration: 0.08, ease: 'power2.out' };
+  const haloOut = { alpha: 0, duration: 0.28, delay: 0.18, ease: 'power2.in',
     // 🔥 OBJECT POOLING: Release back to pool instead of destroying
     onComplete: ()=>{ 
       try{ 
@@ -5233,7 +5262,18 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
         } 
       }catch{} 
     }
-  });
+  };
+  if (groupedOwner) {
+    groupedOwner.to(halo, haloIn, 0);
+    groupedOwner.to(halo, haloOut, 0);
+  } else {
+    trackTween(halo, haloIn);
+    trackTween(halo, haloOut);
+  }
+}
+
+export function prewarmWildSmokeGraphicsPool(targetSize = 76): number {
+  return graphicsPool.prewarmToSize(targetSize);
 }
 
 // Light smoke trail for drag effect (separate from smokeBubblesAtTile)

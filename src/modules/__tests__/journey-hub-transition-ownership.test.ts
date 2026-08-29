@@ -86,7 +86,7 @@ describe('Journey Hub transition ownership', () => {
     expect(showSource).toContain("localStorage.removeItem('__ccReturningFromInterimBoard')");
   });
 
-  test('a stale detail return cannot suppress Hub banners, idle, or gyro', () => {
+  test('a stale detail return cannot suppress Hub banners or idle', () => {
     const showSource = collectiblesSource.split(
       'async showCollectibles(options?: CollectiblesShowOptions): Promise<void>',
     )[1]?.split('async hideCollectibles(')[0] ?? '';
@@ -114,11 +114,11 @@ describe('Journey Hub transition ownership', () => {
     expect(showSource).toContain('sliderManager.syncHiddenSlideState(1)');
   });
 
-  test('Homepage motion is released before its Journey exit starts', () => {
+  test('Homepage enter ownership is cancelled before its Journey exit starts', () => {
     const handoffSource = uiManagerSource.split(
       'private showCollectiblesScreenWithAnimation(launchFirstPlayTutorial = false): void',
     )[1]?.split('async hideCollectiblesScreenWithAnimation')[0] ?? '';
-    const releaseIndex = handoffSource.indexOf('journeySpatialMotion.suspendHomepage()');
+    const releaseIndex = handoffSource.indexOf("homepageEnterTransitionOwner.cancel('homepage-to-journey')");
     const exitIndex = handoffSource.indexOf('animateJourneySliderExit()');
 
     expect(releaseIndex).toBeGreaterThanOrEqual(0);
@@ -244,23 +244,19 @@ describe('Journey Hub transition ownership', () => {
     expect(cardSource).toContain('leftPx += getJourneyBoardUnitHorizontalOffsetPx(board.id)');
   });
 
-  test('World spatial motion starts only after the Unit cascade to avoid cold layer promotion', () => {
+  test('World idle ownership starts only after the Unit cascade', () => {
     const worldEnterSource = journeyManagerSource.split(
       'private playJourneyV700WorldEnter(',
     )[1]?.split('private playJourneyV700WorldExit')[0] ?? '';
-    const activateIndex = worldEnterSource.indexOf(
-      'journeySpatialMotion.activateJourneyWorld(container, worldId)',
-    );
     const enterIndex = worldEnterSource.indexOf(
       'await this.journeyWorldAnimation.enter(units, reducedMotion, { targetsPrimed })',
     );
     const idleIndex = worldEnterSource.indexOf("this.journeyV700Phase = 'idle'");
 
-    expect(activateIndex).toBeGreaterThanOrEqual(0);
-    expect(activateIndex).toBeGreaterThan(enterIndex);
-    expect(activateIndex).toBeGreaterThan(idleIndex);
+    expect(idleIndex).toBeGreaterThan(enterIndex);
+    expect(worldEnterSource).not.toContain('journeySpatialMotion');
     expect(worldEnterSource).toContain(
-      "markIOSJourneyTransitionAudit('enter-activate-spatial-motion-after-cascade')",
+      "markIOSJourneyTransitionAudit('enter-unit-cascade-complete')",
     );
   });
 
@@ -311,6 +307,18 @@ describe('Journey Hub transition ownership', () => {
     expect(collectiblesCssSource).toContain(
       '#journey-boards-container.journey-world-runtime-transition .journey-board-card',
     );
+  });
+
+  test('gameplay return starts the same already-prepared Unit enter for Forest, Beach and Area 55', () => {
+    const returnEnterSource = journeyManagerSource.split(
+      'public playJourneyV700WorldEnterFromReturn(',
+    )[1]?.split('public prepareJourneyV700WorldEnterFromReturn')[0] ?? '';
+
+    expect(returnEnterSource).toContain('this.playJourneyV700WorldEnter(container, worldId, {');
+    expect(returnEnterSource).toContain('waitForImages: false');
+    expect(returnEnterSource).not.toContain('worldId === 1');
+    expect(returnEnterSource).not.toContain('worldId === 2');
+    expect(returnEnterSource).not.toContain('worldId === 3');
   });
 
   test('World enter avoids mass compositor promotion and static World layers stay unpromoted', () => {
@@ -433,7 +441,7 @@ describe('Journey Hub transition ownership', () => {
     expect(journeyManagerSource).toContain('this.journeyMainCloudCompositeCache.clear()');
     expect(journeyManagerSource).toContain("this.cancelJourneyWorldPrepaint('manager-cleanup')");
     expect(openWorldSource).toContain("this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit')");
-    expect(openWorldSource).toContain('journeySpatialMotion.resumeJourneyHub(container)');
+    expect(openWorldSource).not.toContain('journeySpatialMotion');
   });
 
   test('prepaints the exact Hub at the live World scroll offset before retiring the outgoing backing', () => {

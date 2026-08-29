@@ -68,18 +68,13 @@ describe('Arcade continuation Round cue contract', () => {
     );
     expect(cueOwner).toContain('await consumeArcadeEntryCue(arcadeEntryCueRound);');
     expect(cueOwner).toContain('scheduleBoardPopInSafetyNet();');
-    expect(cueOwner).toContain('activateGameplaySpatialMotionForCurrentBoard();');
+    expect(cueOwner).not.toContain('activateGameplaySpatialMotionForCurrentBoard');
     expect(rebuild).toContain('if (arcadeEntryCueRound <= 0) scheduleBoardPopInSafetyNet();');
     expect(rebuild).toContain('prepareGameplayEntryCommit(');
     expect(rebuild).toContain('revealPreparedGameplaySurface();');
     expect(rebuild.indexOf('scheduleBoardPopInSafetyNet();'))
       .toBeGreaterThan(rebuild.indexOf('await consumeArcadeEntryCue(arcadeEntryCueRound);'));
-    const layout = coreSource.slice(
-      coreSource.indexOf('export async function layoutBoard()'),
-      coreSource.indexOf('// 🔥 v112: Utility functions', coreSource.indexOf('export async function layoutBoard()')),
-    );
-    expect(layout).toContain('if (!isArcadeEntryCuePending()) {');
-    expect(layout).toContain('Round cue retains spatial surface ownership until tile pop-in starts');
+    expect(rebuild).toContain('releaseArcadeEntrySurfaceGateAfterPreparedFrame(app, stage)');
     expect(modalSource).toContain('const resumedStage = Math.max(1, stageNumber | 0);');
   });
 

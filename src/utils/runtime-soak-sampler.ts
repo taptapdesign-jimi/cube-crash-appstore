@@ -1,0 +1,125 @@
+const SAMPLE_INTERVAL_MS = 5_000;
+
+type RuntimeSamplerWindow = Window & {
+  __ccPerformanceDiagnostics?: boolean;
+  __ccRuntimeTextures?: { size?: number };
+  __ccRuntimeSoakSamplerStop?: () => void;
+  PIXI?: { utils?: { TextureCache?: Record<string, unknown>; BaseTextureCache?: Record<string, unknown> } };
+  webkit?: { messageHandlers?: { consoleLog?: { postMessage?: (message: unknown) => void } } };
+};
+
+function readGsapChildren(): number | null {
+  try {
+    const gsap = (window as any).gsap;
+    return gsap?.globalTimeline?.getChildren?.(true, true, true)?.length ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function readGsapRoots(): number | null {
+  try {
+    const gsap = (window as any).gsap;
+    return gsap?.globalTimeline?.getChildren?.(false, true, true)?.length ?? null;
+  } catch {
+    return null;
+  }
+}
+
+interface FrameTimingWindow {
+  samples: number;
+  totalMs: number;
+  worstMs: number;
+  over20Ms: number;
+  over34Ms: number;
+}
+
+function emitCompactSample(frameTiming: FrameTimingWindow | null): void {
+  const runtimeWindow = window as RuntimeSamplerWindow;
+  const handler = runtimeWindow.webkit?.messageHandlers?.consoleLog;
+  if (runtimeWindow.__ccPerformanceDiagnostics !== true || !handler?.postMessage) return;
+
+  const journey = document.getElementById('journey-screen');
+  const journeyStyle = journey ? window.getComputedStyle(journey) : null;
+  const pixiUtils = runtimeWindow.PIXI?.utils;
+  handler.postMessage({
+    level: 'info',
+    message: `[CC_SOAK] ${JSON.stringify({
+      at: Math.round(performance.now()),
+      visibility: document.visibilityState,
+      route: document.body?.dataset?.appZone ?? null,
+      dom: document.getElementsByTagName('*').length,
+      images: document.images.length,
+      canvases: document.querySelectorAll('canvas').length,
+      cssAnimations: document.getAnimations?.().length ?? null,
+      gsapChildren: readGsapChildren(),
+      gsapRoots: readGsapRoots(),
+      frameTiming: frameTiming && frameTiming.samples > 0 ? {
+        samples: frameTiming.samples,
+        averageMs: Math.round((frameTiming.totalMs / frameTiming.samples) * 100) / 100,
+        worstMs: Math.round(frameTiming.worstMs * 100) / 100,
+        over20Ms: frameTiming.over20Ms,
+        over34Ms: frameTiming.over34Ms,
+      } : null,
+      runtimeTextures: runtimeWindow.__ccRuntimeTextures?.size ?? null,
+      pixiTextureCache: pixiUtils?.TextureCache ? Object.keys(pixiUtils.TextureCache).length : null,
+      pixiBaseTextureCache: pixiUtils?.BaseTextureCache ? Object.keys(pixiUtils.BaseTextureCache).length : null,
+      journey: journey ? {
+        display: journeyStyle?.display ?? null,
+        visibility: journeyStyle?.visibility ?? null,
+        children: journey.querySelectorAll('*').length,
+        images: journey.querySelectorAll('img').length,
+      } : null,
+    })}`,
+  });
+}
+
+export function startRuntimeSoakSampler(): () => void {
+  const runtimeWindow = window as RuntimeSamplerWindow;
+  runtimeWindow.__ccRuntimeSoakSamplerStop?.();
+  if (runtimeWindow.__ccPerformanceDiagnostics !== true) return () => {};
+
+  let frameWindow: FrameTimingWindow = {
+    samples: 0,
+    totalMs: 0,
+    worstMs: 0,
+    over20Ms: 0,
+    over34Ms: 0,
+  };
+  let lastFrameAt: number | null = null;
+  let frameRequest = 0;
+  const sampleFrame = (now: number): void => {
+    if (lastFrameAt !== null) {
+      const frameMs = Math.max(0, now - lastFrameAt);
+      // Ignore lifecycle gaps; visibility is already reported separately and
+      // a background/resume pause is not a renderer frame.
+      if (frameMs <= 250) {
+        frameWindow.samples += 1;
+        frameWindow.totalMs += frameMs;
+        frameWindow.worstMs = Math.max(frameWindow.worstMs, frameMs);
+        if (frameMs > 20) frameWindow.over20Ms += 1;
+        if (frameMs > 34) frameWindow.over34Ms += 1;
+      }
+    }
+    lastFrameAt = now;
+    frameRequest = window.requestAnimationFrame(sampleFrame);
+  };
+  emitCompactSample(null);
+  frameRequest = window.requestAnimationFrame(sampleFrame);
+  const interval = window.setInterval(() => {
+    const completedWindow = frameWindow;
+    frameWindow = { samples: 0, totalMs: 0, worstMs: 0, over20Ms: 0, over34Ms: 0 };
+    emitCompactSample(completedWindow);
+  }, SAMPLE_INTERVAL_MS);
+  const stop = () => {
+    window.clearInterval(interval);
+    if (frameRequest) window.cancelAnimationFrame(frameRequest);
+    frameRequest = 0;
+    lastFrameAt = null;
+    if (runtimeWindow.__ccRuntimeSoakSamplerStop === stop) {
+      delete runtimeWindow.__ccRuntimeSoakSamplerStop;
+    }
+  };
+  runtimeWindow.__ccRuntimeSoakSamplerStop = stop;
+  return stop;
+}

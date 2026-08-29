@@ -16,7 +16,7 @@ describe('Beach Ball finale regression contract', () => {
     expect(beachBallDefinition).toContain("archetype: 'wild-tnt'");
     expect(beachBallDefinition).toContain("visualFinaleFx: 'juice'");
     expect(beachBallDefinition).toContain("juiceDropProfile: 'beach-ball'");
-    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0.70');
+    expect(beachBallDefinition).toContain('gameplayReleaseAtSpawnRatio: 0,');
     expect(appCoreSource.match(/direction: getSpecialDiceJuiceDropProfile\([^)]*\) \? 'down' : 'up'/g)).toHaveLength(2);
     expect(appCoreSource.match(/dropProfile: getSpecialDiceJuiceDropProfile\(/g)).toHaveLength(2);
   });
@@ -75,10 +75,16 @@ describe('Beach Ball finale regression contract', () => {
     expect(juiceSource).toContain('notifySequenceComplete');
   });
 
+  test('starts the Ball board explosions at sequence start instead of the former 70% release', () => {
+    expect(registrySource).toContain('gameplayReleaseAtSpawnRatio: 0,');
+    expect(registrySource).not.toContain('gameplayReleaseAtSpawnRatio: 0.70');
+  });
+
   test('keeps falling Ball motion intact while separating its four board impacts', () => {
     expect(appCoreSource).toContain("impactProfile: tntVariantForMerge?.id === 'beach-ball'");
     expect(appCoreSource).toContain("tntVariantForMerge?.id === 'laser-gun'");
     expect(appCoreSource).toContain("impactProfile === 'beach-ball'");
+    expect(appCoreSource).toContain("groupedOwner: impactProfile === 'beach-ball'");
     expect(appCoreSource).toContain('selectSpatiallySeparatedTntTargets(candidates, count)');
     expect(appCoreSource).toContain('const beachBallImpactDelaysMs = [0, 260, 560, 900] as const');
     expect(appCoreSource).toContain('trackAppTimeout(replaceTile, 120)');

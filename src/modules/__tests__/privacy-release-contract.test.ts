@@ -10,11 +10,11 @@ describe('release privacy contract', () => {
     expect(read('src/types/window.d.ts')).not.toContain('gtag');
   });
 
-  test('keeps on-device motion disclosure and revocation copy aligned', () => {
+  test('does not advertise the removed device-motion feature', () => {
     const policy = read('src/ui/components/privacy-policy-modal.ts');
 
-    expect(policy).toContain('is not recorded or transmitted');
-    expect(policy).toContain('Settings → 3D Motion');
+    expect(policy).not.toContain('3D Motion');
+    expect(policy).not.toContain('device orientation');
     expect(policy).toContain('does not use accounts, advertising, analytics, or in-app purchases');
   });
 
@@ -34,7 +34,7 @@ describe('release privacy contract', () => {
     expect(publicPolicy).toContain('does not collect, transmit, sell, rent, or');
     expect(publicPolicy).toContain('independently designed and developed by Igor Jimi Ivankovic');
     expect(publicPolicy).not.toContain('Pojatno');
-    expect(publicPolicy).toContain('Settings → 3D Motion');
+    expect(publicPolicy).not.toContain('3D Motion');
     expect(publicPolicy).toContain('does not integrate Apple Game Center');
     expect(publicPolicy).toContain('mailto:stacktosix@gmail.com');
     expect(publicPolicy).not.toContain('info@igorivankovic.com');

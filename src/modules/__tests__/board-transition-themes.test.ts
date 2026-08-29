@@ -17,12 +17,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 describe('Board Transition World themes', () => {
-  test('keeps soundtrack loading and gyro setup outside the transition mount critical path', () => {
+  test('keeps soundtrack loading outside the transition mount critical path and motion sensors absent', () => {
     const source = fs.readFileSync(path.resolve(__dirname, '../board-transition-screen.ts'), 'utf8');
     expect(source).toContain("void import('./soundtrack-manager.js')");
     expect(source).not.toContain("await import('./soundtrack-manager.js')");
-    expect(source).toContain('lifecycle.trackRaf(() => {');
-    expect(source).toContain('appSpatialMotion.activateBoardTransition(overlay, boardNumber);');
+    expect(source).not.toContain('appSpatialMotion');
+    expect(source).not.toContain('DeviceOrientationEvent');
   });
 
   test('keeps Robo layout/style diagnostics out of normal production motion', () => {

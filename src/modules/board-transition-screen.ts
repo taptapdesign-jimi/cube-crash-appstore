@@ -15,7 +15,6 @@ import {
   startIOSJourneyPerformanceAudit,
   stopIOSJourneyPerformanceAudit,
 } from '../utils/ios-journey-performance-audit.js';
-import { appSpatialMotion } from './journey-spatial-motion.js';
 import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { buildBoardTransitionExitSchedule } from './board-transition-exit-schedule.js';
 import {
@@ -2451,12 +2450,11 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     currentOverlay = overlay;
     overlay.dataset.transitionTheme = resolvedTheme;
     if (showScene) {
-      // Let the overlay and its first authored pose commit before gyro starts
+      // Let the overlay and its first authored pose commit before idle starts
       // writing transforms. This keeps sensor setup out of the mount frame.
       lifecycle.trackRaf(() => {
         if (!isTransitionActive || activeGeneration !== transitionGeneration) return;
         if (currentOverlay !== overlay || !overlay.isConnected) return;
-        appSpatialMotion.activateBoardTransition(overlay, boardNumber);
       });
     }
     try { sampleMemorySpike('3_transition_overlay_shown'); } catch {}
@@ -3583,7 +3581,6 @@ function cleanup(options: { preserveDom?: boolean; keepVisibleCover?: boolean } 
   try {
     stopMemSampling(preserveDom ? 'cleanup-preserved' : 'cleanup');
     stopIOSJourneyPerformanceAudit(preserveDom ? 'transition-cleanup-preserved' : 'transition-cleanup');
-    appSpatialMotion.deactivateBoardTransition();
     lifecycle.cleanup();
     // 🔥 CRITICAL: Kill all active tweens
     activeTweens.forEach(tween => {

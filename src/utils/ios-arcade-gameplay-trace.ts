@@ -6,6 +6,7 @@ export function emitIOSArcadeGameplayTrace(
 ): void {
   try {
     if (typeof window === 'undefined') return;
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     if ((window as any).__ccRunMode !== 'arcade_home') return;
     if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
 
@@ -22,3 +23,4 @@ export function emitIOSArcadeGameplayTrace(
     });
   } catch {}
 }
+import { areDetailedRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';

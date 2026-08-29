@@ -256,6 +256,25 @@ class GraphicsPool {
       totalUsed: this.created + this.reused
     };
   }
+
+  /**
+   * Grow the available pool during an owned quiet window. Callers advance the
+   * target in small batches so first-use allocation never lands on an FX frame.
+   */
+  prewarmToSize(targetSize: number): number {
+    const boundedTarget = Math.max(0, Math.min(this.maxSize, Math.floor(targetSize)));
+    const missing = Math.max(0, boundedTarget - this.pool.length);
+    if (missing === 0) return this.pool.length;
+
+    const created: Graphics[] = [];
+    for (let index = 0; index < missing; index += 1) {
+      const graphic = new Graphics();
+      this.created += 1;
+      created.push(graphic);
+    }
+    created.forEach((graphic) => this.release(graphic));
+    return this.pool.length;
+  }
 }
 
 // Export singleton instance

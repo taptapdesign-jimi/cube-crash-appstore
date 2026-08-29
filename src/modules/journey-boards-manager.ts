@@ -72,7 +72,6 @@ import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
-import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
@@ -987,7 +986,6 @@ class JourneyBoardsManager {
     const now = gsap.ticker.time;
     if (snapshot.state === 'inactive') {
       this.journeyWorldRuntimeIdleSuspendedAt = null;
-      journeySpatialMotion.suspend();
     } else if (snapshot.paintSuspended) {
       if (this.journeyWorldRuntimeIdleSuspendedAt === null) {
         this.journeyWorldRuntimeIdleSuspendedAt = now;
@@ -995,7 +993,6 @@ class JourneyBoardsManager {
       this.journeyAreaIdleEntries.forEach((entry) => {
         entry.targets.forEach((target) => target.style.willChange = 'auto');
       });
-      journeySpatialMotion.suspend();
     } else {
       if (this.journeyWorldRuntimeIdleSuspendedAt !== null) {
         const pausedFor = Math.max(0, now - this.journeyWorldRuntimeIdleSuspendedAt);
@@ -1010,9 +1007,6 @@ class JourneyBoardsManager {
         this.journeyWorldRuntimeIdleSuspendedAt = null;
       }
       this.refreshJourneyIdleRuntimeWindow();
-      if (container && this.journeyV700View === 'world' && this.journeyV700Phase === 'idle') {
-        journeySpatialMotion.resumeJourneyWorld(container);
-      }
     }
 
     const interimCard = this.interimIdleEffectsCard;
@@ -1863,7 +1857,6 @@ class JourneyBoardsManager {
     // A rapid reopen transfers the settling hold directly to the new modal;
     // never expose one idle frame between the two owners.
     this.journeyWorldRuntime.endInteractionSettle();
-    journeySpatialMotion.profileFrameWindow(`journey-card-overlay:${reason}`, 5000);
     emitIOSNativeDiagnostic('card-overlay-world-runtime-paused', {
       reason,
       worldId: this.journeyV700WorldId,
@@ -3154,7 +3147,6 @@ class JourneyBoardsManager {
   private cleanupDetailModalRuntimeState(): void {
     this.journeyCardOverlayModal?.dispose();
     this.journeyCardOverlayModal = null;
-    journeySpatialMotion.deactivateJourneyDetailModal();
     try {
       const floatingPlay = document.getElementById('board-detail-play-button') as HTMLElement | null;
       if (floatingPlay) {
@@ -5049,7 +5041,7 @@ class JourneyBoardsManager {
       card.style.transformOrigin = previousTransformOrigin;
       gsap.set(card, { clearProps: 'transform' });
       // The smoke already completed its visible landing beat. Do not let its
-      // delayed DOM cleanup overlap World gyro/idle resume on the next frame.
+      // delayed DOM cleanup overlap World idle resume on the next frame.
       try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
       if (!preserveRuntimeSettle) {
         // Give WebKit one quiet paint after landing cleanup before the 110-target
@@ -5407,7 +5399,6 @@ class JourneyBoardsManager {
       this.stopForestBeeOrbits('manager-cleanup');
       this.stopBeachBubbleDrift('manager-cleanup');
       this.stopArea55ShipFlybys('manager-cleanup');
-      journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('cleanup');
     this.activeBoardAreaEnterInProgress = false;
     this.activeBoardAreaEnterPreparedTargets = [];
@@ -6037,7 +6028,6 @@ class JourneyBoardsManager {
     this.cancelJourneyWorldPrepaint('render-replaced');
     this.cancelJourneyHubPrepaint('render-replaced');
     this.beginRenderLifecycle();
-    journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('render-before-dom-replace');
     this.retireJourneyBoardOwnersBeforeDomReplace(container);
     try {
@@ -6460,7 +6450,6 @@ class JourneyBoardsManager {
           return;
         }
         (button as any).__ccJourneyV700LastTap = now;
-        journeySpatialMotion.suspend();
         this.openJourneyV700World(worldId, button);
       };
 
@@ -6599,10 +6588,9 @@ class JourneyBoardsManager {
       }),
     );
     this.cancelJourneyV700HubEnter(`new-${source}-enter`);
-    // A background-prepared Hub may still own gyro from an earlier lifecycle.
+    // A background-prepared Hub may still own idle work from an earlier lifecycle.
     // Release it before GSAP takes transform ownership so spatial translation
     // cannot appear halfway through the visible enter.
-    journeySpatialMotion.deactivate();
     this.journeyV700Phase = 'entering';
     const enterEpoch = ++this.journeyV700HubEnterEpoch;
     const enterStartedAt = performance.now();
@@ -6698,7 +6686,7 @@ class JourneyBoardsManager {
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('before-handoff', container);
       }
-      // Remove the identity GSAP matrix atomically before CSS idle and gyro
+      // Remove the identity GSAP matrix atomically before CSS idle
       // take over separate layers.
       gsap.set(worldCards, { clearProps: 'transform,opacity,visibility,willChange' });
       worldCards.forEach((worldCard) => delete worldCard.dataset.journeyHubFinalOpacity);
@@ -6717,7 +6705,6 @@ class JourneyBoardsManager {
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('idle-ready', container);
       }
-      journeySpatialMotion.activateJourneyHub(container);
       if (source === 'world-return') {
         this.emitJourneyV700HubGeometryDiagnostic('spatial-activated', container);
         this.trackRAF(() => {
@@ -6843,9 +6830,6 @@ class JourneyBoardsManager {
         journeyScreenBeforeExit.classList.contains('hidden')
       ) {
         this.cancelJourneyWorldPrepaint('open-aborted-before-hub-exit');
-        if (!this.renderDisposed && container.isConnected && this.journeyV700View === 'hub') {
-          journeySpatialMotion.resumeJourneyHub(container);
-        }
         finishOpeningOwnership();
         return;
       }
@@ -7236,7 +7220,6 @@ class JourneyBoardsManager {
     this.beginRenderLifecycle();
     this.cancelJourneyWorldPrepaint('hub-prepaint-commit');
     this.journeyWorldRuntime.deactivate();
-    journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('hub-prepaint-commit');
     this.retireJourneyBoardOwnersBeforeDomReplace(container);
     outgoingChildren.forEach((child) => child.remove());
@@ -7401,7 +7384,6 @@ class JourneyBoardsManager {
 
     this.journeyWorldPrepaintStage = null;
     this.beginRenderLifecycle();
-    journeySpatialMotion.deactivate();
     this.cancelJourneyV700HubEnter('world-prepaint-commit');
     this.retireJourneyBoardOwnersBeforeDomReplace(container);
 
@@ -7602,7 +7584,6 @@ class JourneyBoardsManager {
 
 	  public playJourneyV700HubExit(reason = 'hub-exit', selectedWorldCard: HTMLElement | null = null): Promise<void> {
 	    this.cancelJourneyV700HubEnter(reason);
-	    journeySpatialMotion.suspend();
 	    this.releaseJourneyV700HubTopGuard(reason);
 	    const container = document.getElementById('journey-boards-container') as HTMLElement | null;
 	    const worldCards = Array.from(
@@ -8025,7 +8006,14 @@ class JourneyBoardsManager {
     this.journeyV700WorldId = worldId;
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
-    this.playJourneyV700WorldEnter(container, worldId, { source });
+    // This route can only originate from a World that was already presented
+    // before gameplay. Its images are therefore already fetched/prepared.
+    // Waiting for responsive image decode again made Beach begin later than
+    // Forest/Area 55 even though all three share the same Unit timeline.
+    this.playJourneyV700WorldEnter(container, worldId, {
+      source,
+      waitForImages: false,
+    });
   }
 
   public prepareJourneyV700WorldEnterFromReturn(source = 'journey-return-pre-reveal'): boolean {
@@ -8208,12 +8196,9 @@ class JourneyBoardsManager {
       markIOSJourneyRouteAudit(`journey-world-${worldId}-idle`);
       this.journeyV700Phase = 'idle';
       this.journeyWorldRuntime.endTransition();
-      // Promoting every spatial target during the first Unit frame produced a
-      // measured cold 76ms hitch on Beach. Enter remains neutral; after the
-      // cascade the existing controller establishes a fresh baseline and
-      // eases the accepted depth motion in without a one-frame position jump.
-      markIOSJourneyTransitionAudit('enter-activate-spatial-motion-after-cascade');
-      journeySpatialMotion.activateJourneyWorld(container, worldId);
+      // Keep the first Unit frame free of extra compositor promotion. The
+      // authored idle owners take over only after the complete enter cascade.
+      markIOSJourneyTransitionAudit('enter-unit-cascade-complete');
       finishWorldEnterAudit('complete');
       allTargets.forEach((target) => {
         if (target.classList.contains('journey-robo-alien-beam-art') || target.querySelector('.journey-robo-alien-beam-art')) {
@@ -8263,7 +8248,6 @@ class JourneyBoardsManager {
     this.stopForestBeeOrbits('world-exit');
     this.stopBeachBubbleDrift('world-exit');
     this.stopArea55ShipFlybys('world-exit');
-    journeySpatialMotion.suspend();
     this.journeyV700PreparedWorldEnter = null;
     ++this.journeyV700WorldMotionEpoch;
     const units = this.getJourneyV700AnimationUnits(container, this.journeyV700WorldId, {
@@ -8511,7 +8495,6 @@ class JourneyBoardsManager {
       this.logJourneyV700Flow('close-world-ignored-already-closing', {}, container);
       return;
     }
-    journeySpatialMotion.suspend();
     (container as any).__ccJourneyV700Closing = true;
     const hubPrepaintReady = this.prepareJourneyHubPrepaint(container);
 
@@ -8613,6 +8596,7 @@ class JourneyBoardsManager {
     container: HTMLElement,
     options: { worldId?: number; deferRuntimeOwners?: boolean } = {},
   ): void {
+    const renderStartedAt = performance.now();
     // Decode the three fixed modal assets while the World itself is being
     // prepared. A card tap then owns only geometry and the authored flight.
     void preloadJourneyCardOverlayAssets();
@@ -8681,9 +8665,6 @@ class JourneyBoardsManager {
     bgContainer.style.opacity = '1';
     bgContainer.style.overflow = 'visible'; // Don't clip background image
     
-    // Append to container (journey-boards-container) so it scrolls with content
-    container.appendChild(bgContainer);
-
     // Clouds need their own root stacking layer. Keeping them inside the z1
     // background context made it impossible for one bee wrapper to be above
     // clouds while still behind Forest main / the Unit art.
@@ -8697,7 +8678,6 @@ class JourneyBoardsManager {
     cloudContainer.style.zIndex = '0';
     cloudContainer.style.pointerEvents = 'none';
     cloudContainer.style.overflow = 'visible';
-    container.insertBefore(cloudContainer, bgContainer);
 
     const decorContainer = document.createElement('div');
     decorContainer.className = 'journey-decor-container';
@@ -8709,7 +8689,6 @@ class JourneyBoardsManager {
     decorContainer.style.display = 'block';
     decorContainer.style.visibility = 'visible';
     decorContainer.style.opacity = '1';
-    container.appendChild(decorContainer);
 
     const activeWorldId = options.worldId || this.journeyV700WorldId || 1;
     const activeWorldRange = this.getJourneyWorldRange(activeWorldId);
@@ -8732,9 +8711,6 @@ class JourneyBoardsManager {
     cardsContainer.style.top = `${FIXED_CARD_TOP_PX}px`;
     cardsContainer.style.height = `${initialContainerHeightPx}px`; // Full Journey stack; updated when image loads
     
-    // Append to container (journey-boards-container) so it scrolls with content
-    container.appendChild(cardsContainer);
-
     // Render cards with FIXED viewport-based positions
     this.boards.slice(0, JOURNEY_RENDERED_BOARDS).forEach((board, index) => {
       if (
@@ -8745,6 +8721,13 @@ class JourneyBoardsManager {
       const cardElement = this.createBoardCardFixed(board, index);
       cardsContainer.appendChild(cardElement);
     });
+    // Build the complete World subtree off-tree and commit its four root layers
+    // once. This preserves their exact stacking order while avoiding repeated
+    // style/layout invalidation as each large layer and card enters the hidden
+    // Journey screen during a gameplay return.
+    const worldFragment = document.createDocumentFragment();
+    worldFragment.append(cloudContainer, bgContainer, decorContainer, cardsContainer);
+    container.appendChild(worldFragment);
     emitIOSNativeDiagnostic('world-scoped-dom-rendered', {
       worldId: activeWorldId,
       rangeStart: activeWorldRange?.start ?? null,
@@ -8752,6 +8735,8 @@ class JourneyBoardsManager {
       childCount: container.querySelectorAll('*').length,
       imageCount: container.querySelectorAll('img').length,
       cardCount: cardsContainer.querySelectorAll('.journey-board-card-wrapper').length,
+      durationMs: Math.round(performance.now() - renderStartedAt),
+      atomicRootCommit: true,
     });
     if (!options.deferRuntimeOwners) {
       this.trackTimeout(() => {
@@ -9004,7 +8989,7 @@ class JourneyBoardsManager {
     }
 
     // A Unit-specific layout correction belongs to the wrapper's base left
-    // coordinate, never its transform (owned by enter/exit/idle/gyro motion).
+    // coordinate, never its transform (owned by enter/exit/idle motion).
     leftPx += getJourneyBoardUnitHorizontalOffsetPx(board.id);
     
     const scaleFactor = 1;
@@ -10111,7 +10096,6 @@ class JourneyBoardsManager {
       
       // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
       (modal as any).__detailModalExiting = true;
-      journeySpatialMotion.deactivateJourneyDetailModal();
       cleanupDetailStatsEnterAnimation(modal);
       
       // 🔥 FIX: Safety cleanup function to ensure flag is always reset
@@ -11491,7 +11475,6 @@ class JourneyBoardsManager {
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
-      journeySpatialMotion.deactivateJourneyDetailModal();
       // 🔥 SAFETY: Ensure modal is interactive even after previous exit
       (detailModal as any).__detailModalExiting = false;
       (detailModal as HTMLElement).style.pointerEvents = 'auto';
@@ -12266,7 +12249,6 @@ class JourneyBoardsManager {
         detailModal.removeAttribute('hidden');
         detailModal.setAttribute('aria-hidden', 'false');
         detailModal.style.display = 'flex';
-        journeySpatialMotion.activateJourneyDetailModal(detailModal as HTMLElement, board.id);
         return;
       }
 
@@ -13109,7 +13091,6 @@ class JourneyBoardsManager {
         }, resolveDetailModalEnterStarted); // End detail modal enter start frame
       });
 
-      journeySpatialMotion.activateJourneyDetailModal(detailModal as HTMLElement, board.id);
 
       // 🔥 CRITICAL: Replace collectibles-manager event listener with journey boards exit animation
       // This ensures X button uses GSAP exit animation (header as group) instead of CSS animation (child elements separately)

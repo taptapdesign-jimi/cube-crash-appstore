@@ -3,6 +3,7 @@ import { logger } from './core/logger.js';
 import {
   isJourneyViewStructurallyPrepared,
   isJourneyBackgroundPreparationAllowed,
+  isJourneyVisibleEnterPreparationAllowed,
   readJourneyPreparationRuntimeState,
 } from './modules/journey-background-preparation.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
@@ -915,9 +916,13 @@ class CollectiblesManager {
 
   // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
   // This allows boards to render while slider exit animation plays
-  async prepareJourneyScreen(): Promise<void> {
-    const preparationAllowed = (): boolean =>
-      isJourneyBackgroundPreparationAllowed(readJourneyPreparationRuntimeState());
+  async prepareJourneyScreen(options: { requiredForVisibleEnter?: boolean } = {}): Promise<void> {
+    const preparationAllowed = (): boolean => {
+      const runtimeState = readJourneyPreparationRuntimeState();
+      return options.requiredForVisibleEnter === true
+        ? isJourneyVisibleEnterPreparationAllowed(runtimeState)
+        : isJourneyBackgroundPreparationAllowed(runtimeState);
+    };
 
     if (!preparationAllowed()) {
       logger.info('⏭️ Journey background preparation blocked outside menu ownership',
@@ -958,7 +963,17 @@ class CollectiblesManager {
         });
         return;
       }
+      const renderStartedAt = performance.now();
+      emitIOSNativeDiagnostic('journey-required-render-start', {
+        requiredForVisibleEnter: options.requiredForVisibleEnter === true,
+      });
       journeyBoardsManager.renderBoards();
+      emitIOSNativeDiagnostic('journey-required-render-complete', {
+        requiredForVisibleEnter: options.requiredForVisibleEnter === true,
+        durationMs: Math.round(performance.now() - renderStartedAt),
+        childCount: journeyContainer.querySelectorAll('*').length,
+        imageCount: journeyContainer.querySelectorAll('img').length,
+      });
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered in background');
 
@@ -1086,7 +1101,7 @@ class CollectiblesManager {
 
     // Forward navigation only synchronizes the hidden Homepage position.
     // forceReady() is a return/recovery API: it clears the transition lock,
-    // reveals Homepage layers, and reacquires Homepage gyro mid-handoff.
+    // reveals Homepage layers and reacquires Homepage idle ownership mid-handoff.
     const sliderManager = (window as any).sliderManager;
     if (sliderManager) {
       try {
@@ -1200,7 +1215,7 @@ class CollectiblesManager {
       if (!journeyViewPrepared) {
         // Boards not yet rendered - prepare in background (deduped)
         logger.info('🗺️ Boards not yet rendered - preparing now (non-blocking)');
-        journeyBoardsReadyPromise = this.prepareJourneyScreen().catch((error) => {
+        journeyBoardsReadyPromise = this.prepareJourneyScreen({ requiredForVisibleEnter: true }).catch((error) => {
           logger.error('❌ Failed to prepare journey boards:', String(error));
         });
       } else {

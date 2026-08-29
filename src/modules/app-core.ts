@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildJuiceMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, showMultiplierTile, smokeBubblesAtTile, prewarmWildSmokeGraphicsPool, screenShake, wildImpactEffect, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildJuiceBubbles, stopWildJuiceBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, cleanupAllTntIdleEffects, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, cleanupFxContainersByTag, cleanupExistingStarAnimations, forceCleanupAllStarAnimations, animateStarsToHudIcon } from './fx.ts';
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
@@ -96,7 +96,6 @@ import {
 } from '../utils/pixi-image-texture-health.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
-import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { getReactiveActiveTiles, getScreenVisibility } from './app-core-state-helpers.ts';
 import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
 import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
@@ -292,7 +291,6 @@ import {
   beginArcadeEntryCue,
   cancelArcadeEntryCueOwner,
   consumeArcadeEntryCue,
-  isArcadeEntryCuePending,
   shouldOverlapArcadeEntryCueWithColdBoot,
 } from './arcade-entry-cue-owner.js';
 import {
@@ -807,7 +805,10 @@ let busyEnding = false;
  * not only after the clean-board async flow eventually sets busyEnding.
  */
 export function isTerminalEndgameInteractionLocked(): boolean {
-  if (busyEnding || failScreenFlowInProgress) return true;
+  // The NO MOVES candidate still permits a legal rescuing drag, but navigation
+  // must not start a competing Exit Game flow while terminal confirmation and
+  // board pop-out are preparing the Fail screen.
+  if (busyEnding || failScreenFlowInProgress || activeNoMovesFailFlowToken !== null) return true;
   try {
     if ((window as any).__ccFailScreenPending === true) return true;
     return tiles.some((tile: any) => (
@@ -2477,7 +2478,6 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
  */
 function destroyOldBoardForTransition(reason: string = 'unknown'): void {
   try {
-    journeySpatialMotion.deactivateGameplay();
     devLog('🧹 destroyOldBoardForTransition:', reason);
     const tileList = (STATE?.tiles && STATE.tiles.length) ? STATE.tiles : tiles;
     if (!tileList || tileList.length === 0) {
@@ -2820,7 +2820,6 @@ function logBoardExitStats(label: string) {
 
 function softResetBoardView(reason: string = 'unknown') {
   devLog('♻️ softResetBoardView:', reason);
-  journeySpatialMotion.deactivateGameplay();
   _hudInitDone = false; // 🔥 CRITICAL: Force layoutBoard to re-init HUD after board transition
   // Kill tweens on board/hud containers
   try { if (board) gsap.killTweensOf(board); } catch {}
@@ -4338,19 +4337,6 @@ export async function boot(){
   markBoardLifecycle('boot-complete');
 }
 
-function activateGameplaySpatialMotionForCurrentBoard(): void {
-  journeySpatialMotion.activateGameplay(
-    () => tiles,
-    () => HUD.getWildMeterSpatialWrapper?.() ?? null,
-    () => {
-      const host = document.getElementById('app');
-      if (!host?.classList.contains('journey-board-game-active')) return null;
-      const decor = host.querySelector<HTMLElement>('#journey-game-bottom-decor');
-      return decor && !decor.hidden ? decor : null;
-    },
-  );
-}
-
 // -------------------- layout + HUD --------------------
 // 🔥 REFACTORED: Preimenovano za jasnoću - ovo je board layout, ne HUD layout
 export async function layoutBoard(){
@@ -4717,11 +4703,6 @@ export async function layoutBoard(){
     } catch (error) {
       devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
-  }
-  if (!isArcadeEntryCuePending()) {
-    activateGameplaySpatialMotionForCurrentBoard();
-  } else {
-    devLog('⏭️ layoutBoard: Round cue retains spatial surface ownership until tile pop-in starts');
   }
   if (
     layoutCoreRepairWasNeeded &&
@@ -5739,7 +5720,6 @@ function rebuildBoard(){
               // multi-second Round cue. Starting it at board construction used
               // to force all hidden dice visible through the cue backdrop.
               scheduleBoardPopInSafetyNet();
-              activateGameplaySpatialMotionForCurrentBoard();
             }
           }
         }
@@ -5786,6 +5766,14 @@ function rebuildBoard(){
       hudDropPending: _hudDropPending,
       setHudDropPending: (v) => { _hudDropPending = v; },
     });
+    // Allocate the Wild smoke pool only after board enter settles. Small
+    // tracked batches keep this warmup away from both intro and merge frames;
+    // normal exit/restart cleanup cancels any batches that have not run yet.
+    for (let warmupBatch = 1; warmupBatch <= 10; warmupBatch += 1) {
+      trackAppTimeout(() => {
+        prewarmWildSmokeGraphicsPool(Math.min(76, warmupBatch * 8));
+      }, 260 + (warmupBatch * 70));
+    }
   });
   devLog('✅ sweetPopIn prepared behind the gameplay-entry readiness barrier');
 
@@ -5796,7 +5784,6 @@ function rebuildBoard(){
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
   devLog('🎬🎬🎬 animateBoardExit() CALLED');
-  journeySpatialMotion.deactivateGameplay();
   setJourneyGameBottomDecorVisible(false);
   
   // 🔥 NUCLEAR BAILOUT: If app or stage are destroyed/null, skip animation entirely
@@ -8079,6 +8066,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, {
               spawnShape: 'box',
               maxParticles: 72,
+              groupedOwner: true,
+              deferFutureBursts: true,
             });
             markMergePerformance('wild-smoke-alt-created');
           }
@@ -10912,6 +10901,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               trailAlpha: 0.92,
               spawnShape: 'box',
               maxParticles: isMainWildMagnetMerge ? 36 : 72,
+              groupedOwner: true,
+              deferFutureBursts: true,
             });
             markMergePerformance('wild-smoke-main-created');
           }
@@ -14201,7 +14192,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
           // LaserGun already owns three dice plus three rocks per impact. Avoid
           // stacking the full TNT shard layer on top of that bounded debris.
           if (impactProfile !== 'laser-gun') {
-            try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
+            try {
+              regularMerge6ShardsTemplated(board, tile, {
+                zIndex: 9993,
+                groupedOwner: impactProfile === 'beach-ball',
+              });
+            } catch (e) { devWarn('TNT boom bonus shards:', e); }
           }
           try {
             smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : impactProfile === 'laser-gun' ? 0.62 : 1.0, {
@@ -14210,6 +14206,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
               countScale: impactProfile === 'beach-ball' ? 1.15 : impactProfile === 'laser-gun' ? 0.28 : 1,
               spawnShape: 'box',
               zIndex: 9994,
+              groupedOwner: impactProfile === 'beach-ball',
             });
           } catch (e) { devWarn('TNT transition smoke:', e); }
         }
@@ -15124,7 +15121,6 @@ export function cleanupGame(options: { destroyRenderer?: boolean } = {}) {
   cancelGameplayEntryPreparation();
   cancelArcadeEntryCueOwner();
   cancelArcadeEntrySurfaceGate();
-  journeySpatialMotion.deactivateGameplay();
   stopBoardFrameBudgetMonitor();
   stopPixiMobileFrameController();
   
@@ -15804,14 +15800,8 @@ async function loadGameState(overrideBoardNumber?: number) {
       sweetPopIn,
       beforePopIn: arcadeContinuationCueRound > 0
         ? async () => {
-            try {
-              await consumeArcadeEntryCue(arcadeContinuationCueRound);
-              devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
-            } finally {
-              if (!loadedEntrySignal?.aborted && isGameplayEntryGenerationLatest(loadedEntryGeneration)) {
-                activateGameplaySpatialMotionForCurrentBoard();
-              }
-            }
+            await consumeArcadeEntryCue(arcadeContinuationCueRound);
+            devLog(`🎮 Arcade continuation cue completed before Round ${String(arcadeContinuationCueRound).padStart(2, '0')} tile entrance`);
           }
         : undefined,
       onPopInStarted: () => {

@@ -1091,7 +1091,7 @@ export function initDrag(cfg) {
     t.eventMode = 'static';
     t.interactive = true;
     // The gameplay tile owns the complete regular-dice hit surface. Relying on
-    // transformed child bounds leaves short dead zones while stack/gyro visuals
+    // transformed child bounds leaves short dead zones while stack/pose visuals
     // settle, where Pixi targets the board instead of bubbling through the tile.
     const regularHalf = tileSize / 2;
     t.hitArea = new Rectangle(-regularHalf, -regularHalf, tileSize, tileSize);

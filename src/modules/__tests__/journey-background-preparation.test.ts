@@ -1,8 +1,11 @@
 import {
   isJourneyViewStructurallyPrepared,
   isJourneyBackgroundPreparationAllowed,
+  isJourneyVisibleEnterPreparationAllowed,
   shouldBlockHiddenJourneyRender,
 } from '../journey-background-preparation';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('Journey background preparation ownership', () => {
   test.each(['home', 'journey'])(
@@ -24,6 +27,35 @@ describe('Journey background preparation ownership', () => {
       appZone: 'journey',
       gameStartInProgress: true,
     })).toBe(false);
+  });
+
+  test('blocks preparation throughout gameplay and terminal pop-out ownership', () => {
+    expect(isJourneyBackgroundPreparationAllowed({
+      appZone: 'journey',
+      gameplayExitInProgress: true,
+    })).toBe(false);
+    expect(isJourneyBackgroundPreparationAllowed({
+      appZone: 'journey',
+      terminalExitInProgress: true,
+    })).toBe(false);
+  });
+
+  test('allows required visible render only after Journey owns the route', () => {
+    expect(isJourneyVisibleEnterPreparationAllowed({
+      appZone: 'journey',
+      gameplayExitInProgress: true,
+    })).toBe(true);
+    expect(isJourneyVisibleEnterPreparationAllowed({
+      appZone: 'home',
+      gameplayExitInProgress: true,
+    })).toBe(false);
+    expect(isJourneyVisibleEnterPreparationAllowed({
+      appZone: 'journey',
+      terminalExitInProgress: true,
+    })).toBe(false);
+
+    const source = fs.readFileSync(path.resolve(process.cwd(), 'src/collectibles-manager.ts'), 'utf8');
+    expect(source).toContain('this.prepareJourneyScreen({ requiredForVisibleEnter: true })');
   });
 
   test('blocks a late direct world render behind the board transition', () => {
@@ -60,5 +92,22 @@ describe('Journey background preparation ownership', () => {
     expect(isJourneyViewStructurallyPrepared(container)).toBe(false);
     container.remove();
     expect(isJourneyViewStructurallyPrepared(container)).toBe(false);
+  });
+
+  test('builds World root layers off-tree and exposes bounded construction diagnostics', () => {
+    const managerSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/journey-boards-manager.ts'),
+      'utf8',
+    );
+    const collectiblesSource = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/collectibles-manager.ts'),
+      'utf8',
+    );
+
+    expect(managerSource).toContain('const worldFragment = document.createDocumentFragment()');
+    expect(managerSource).toContain('worldFragment.append(cloudContainer, bgContainer, decorContainer, cardsContainer)');
+    expect(managerSource).toContain('atomicRootCommit: true');
+    expect(collectiblesSource).toContain("emitIOSNativeDiagnostic('journey-required-render-start'");
+    expect(collectiblesSource).toContain("emitIOSNativeDiagnostic('journey-required-render-complete'");
   });
 });

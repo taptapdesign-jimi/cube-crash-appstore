@@ -158,6 +158,12 @@ if (!sourceOnly) {
     requireCondition(controllerText.includes('decidePolicyFor navigationAction'), 'GameViewController must enforce the native navigation allowlist');
     requireCondition(controllerText.includes('isTrustedGameURL'), 'GameViewController must recognize only the trusted bundled/dev game origin');
     requireCondition(controllerText.includes('UIApplication.shared.open'), 'GameViewController must open explicit external HTTPS links outside the game WebView');
+    requireCondition(controllerText.includes('performanceDiagnosticsEnabled'), 'native performance diagnostics must be explicitly gated');
+    requireCondition(controllerText.includes('if Self.performanceDiagnosticsEnabled {\n            startNativeThermalTelemetry()'), 'native thermal telemetry must run only in performance diagnostics mode');
+    requireCondition(controllerText.includes('window.__ccPerformanceDiagnostics = true'), 'performance diagnostics mode must enable the compact web sampler');
+    requireCondition(!controllerText.includes("name: \"jsError\""), 'native shell must not install detailed JS error forwarding');
+    requireCondition(!controllerText.includes("console[level] = function"), 'native shell must not override or forward the normal JS console');
+    requireCondition(!/DeviceOrientation|DeviceMotion|motionPermissionResult|requestDeviceOrientationAndMotionPermission/.test(controllerText), 'native shell still contains removed device-motion integration');
   }
   if (fs.existsSync(INFO_PLIST)) {
     const infoText = fs.readFileSync(INFO_PLIST, 'utf8');

@@ -70,6 +70,26 @@ function clearFirstPlayTutorialCompletionFlags(): void {
   } catch {}
 }
 
+async function waitForJourneyReturnFinalFxIdle(maxWaitMs = 6500): Promise<void> {
+  const [tnt, bubbles, splash] = await Promise.all([
+    import('./tnt-animation.js'),
+    import('./wild-juice-bubbles-explosion.js'),
+    import('./splash-text-overlay.js'),
+  ]);
+  const isActive = () =>
+    tnt.isTntAnimationActive?.() === true ||
+    bubbles.isWildJuiceFinaleAnimationActive?.() === true ||
+    splash.isMagneticTextActive?.() === true ||
+    splash.isSparkleTextActive?.() === true;
+  const startedAt = performance.now();
+  while (isActive() && performance.now() - startedAt < maxWaitMs) {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
+  }
+  // Keep Journey DOM allocation out of the last painted gameplay-FX frame.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 async function clearFirstPlayTutorialRunState(): Promise<void> {
   const tutorialBoardNumber = (window as any).STATE?.boardNumber || 1;
   clearFirstPlayTutorialCompletionFlags();
@@ -357,6 +377,10 @@ async function handleJourneyCleanBoardExit(ctx: EndgameContext, boardNumber: num
     }
 
     await clearCompletedBoardSaveState(boardNumber, 'clean-board-detail-exit');
+
+    if (returnDecision.target === 'journey') {
+      await waitForJourneyReturnFinalFxIdle();
+    }
 
     delete (window as any).__skipBoardExitAnimation;
     console.log('🎯 endgame-flow: Cleared skip flag - board exit animation already played in clean-board-modal');

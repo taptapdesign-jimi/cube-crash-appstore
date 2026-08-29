@@ -59,6 +59,8 @@ describe('Arcade terminal lifecycle regression contract', () => {
     expect(exitOwner).toContain('navigationAbortPromise.then(() => false)');
     expect(exitOwner).toContain('if (!exitsCompleted) return;');
     expect(exitOwner).toContain('safeResolve(exitAction);');
+    expect(exitOwner).toContain('(window as any).__ccTerminalExitInProgress = true;');
+    expect(modal).toContain('delete (window as any).__ccTerminalExitInProgress;');
 
     const visibilityStart = modal.indexOf("lifecycle.trackListener(document, 'visibilitychange'");
     const visibilityEnd = modal.indexOf("lifecycle.trackListener(window, 'beforeunload'", visibilityStart);

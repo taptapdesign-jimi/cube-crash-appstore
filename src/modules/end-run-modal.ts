@@ -23,7 +23,6 @@ import {
   getGameplayModalCtaEnterDelayMs,
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
-import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 // Reversible visual experiment. The outer sheet remains the sole owner of
@@ -49,13 +48,7 @@ let endRunLifecycleId = 0;
 let endRunOpenStartedAt = 0;
 let endRunCtaControllers: CtaController[] = [];
 let endRunCloseController: GameplaySheetCloseController | null = null;
-let disposeEndRunSpatialMotion: (() => void) | null = null;
 let disposeEndRunDragMotion: (() => void) | null = null;
-
-function cleanupEndRunSpatialMotion(): void {
-  disposeEndRunSpatialMotion?.();
-  disposeEndRunSpatialMotion = null;
-}
 
 function cleanupEndRunDragMotion(): void {
   disposeEndRunDragMotion?.();
@@ -176,7 +169,6 @@ function trackOnEventHandler(element: HTMLElement | Document, property: string, 
 
 function cleanupAllEndRunResources(): void {
   cleanupEndRunDragMotion();
-  cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   clearAllEndRunTimeouts();
   clearAllEndRunIntervals();
@@ -200,7 +192,6 @@ function getEndRunSheetElements(): HTMLElement[] {
 
 function hideAndRemoveEndRunSheetElements(reason: string): void {
   cleanupEndRunDragMotion();
-  cleanupEndRunSpatialMotion();
   disposeEndRunClose();
   disposeEndRunCtas();
   const sheets = getEndRunSheetElements();
@@ -391,7 +382,7 @@ function createModal(): HTMLElement {
       <div class="end-run-sheet-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
           <div class="cc-gameplay-modal-touch-tilt-shell">
-            <div class="cc-gameplay-modal-gyro-shell">
+            <div class="cc-gameplay-modal-pose-shell">
               <div class="end-run-paper-clip-shell">
                 <div class="modal-handle"></div>
                 <div class="simple-content">
@@ -416,7 +407,7 @@ function createModal(): HTMLElement {
     </div>
   `;
 
-  const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-gyro-shell') as HTMLElement | null;
+  const endRunCloseHost = modal.querySelector('.cc-gameplay-modal-pose-shell') as HTMLElement | null;
   if (endRunCloseHost) {
     endRunCloseController = mountGameplaySheetClose(endRunCloseHost, () => {
       console.log('✕ End Run modal close control activated');
@@ -768,11 +759,6 @@ export function showEndRunModal(): void {
     }
 
     const el = createModal();
-    disposeEndRunSpatialMotion = mountGameplayModalSpatialMotion(
-      el,
-      el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
-      'reduced-exit-score',
-    );
     console.log('🎯 END RUN MODAL CREATED');
 
     // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
@@ -1187,7 +1173,6 @@ export function hideModal(
   }
 
   endRunTransitionInProgress = true;
-  cleanupEndRunSpatialMotion();
   const closeLifecycleId = ++endRunLifecycleId;
   (modalEl as any)._closing = true;
   if (END_RUN_BOTTOM_SHEET_3D_FLIP_TEST_ENABLED) {

@@ -1,5 +1,4 @@
 import { GAMEPLAY_MODAL_BENCHMARK } from '../../modules/gameplay-modal-benchmark.js';
-import { mountGameplayModalSpatialMotion } from '../../modules/gameplay-modal-spatial-motion.js';
 import { mountGameplaySheetClose, type GameplaySheetCloseController } from '../../modules/gameplay-sheet-close.js';
 import { installGameplayOverlayModalDragMotion } from '../../modules/modal-vertical-drag-dismiss.js';
 
@@ -34,7 +33,7 @@ export function showPrivacyPolicyModal(): void {
       <div class="cc-gameplay-modal-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
           <div class="cc-gameplay-modal-touch-tilt-shell">
-            <div class="cc-gameplay-modal-gyro-shell">
+            <div class="cc-gameplay-modal-pose-shell">
               <div class="cc-gameplay-modal-paper-shell settings-privacy-policy-paper">
                 <div class="simple-content">
                   <div class="simple-header">
@@ -50,7 +49,6 @@ export function showPrivacyPolicyModal(): void {
                         >
                           <p>Stack to Six does not collect, transmit, sell, or share personal data.</p>
                           <p>Game progress and settings are stored only on your device.</p>
-                          <p>Optional device motion is used only for visual effects, is not recorded or transmitted, and can be turned off at any time under Settings → 3D Motion.</p>
                           <p>The game does not use accounts, advertising, analytics, or in-app purchases.</p>
                           <p>Deleting the app removes its locally stored data.</p>
                           <p>Privacy questions can be directed to Tap Tap Design through the App Store support page.</p>
@@ -73,13 +71,12 @@ export function showPrivacyPolicyModal(): void {
   `;
 
   const bounceShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-bounce-shell');
-  const gyroShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell');
+  const poseShell = stage.querySelector<HTMLElement>('.cc-gameplay-modal-pose-shell');
   const privacyScroll = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll');
   const privacyScrollTrack = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll-track');
   const privacyScrollThumb = stage.querySelector<HTMLElement>('.settings-privacy-policy-scroll-thumb');
   let closeController: GameplaySheetCloseController | null = null;
   let disposeDragMotion: (() => void) | null = null;
-  let disposeSpatialMotion: (() => void) | null = null;
   let enterFrame = 0;
   let enterTimer = 0;
   let exitTimer = 0;
@@ -118,8 +115,6 @@ export function showPrivacyPolicyModal(): void {
     window.cancelAnimationFrame(enterFrame);
     window.clearTimeout(enterTimer);
     window.clearTimeout(exitTimer);
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     disposeDragMotion?.();
     disposeDragMotion = null;
     closeController?.dispose();
@@ -141,8 +136,6 @@ export function showPrivacyPolicyModal(): void {
     removeInputListeners();
     window.cancelAnimationFrame(enterFrame);
     window.clearTimeout(enterTimer);
-    disposeSpatialMotion?.();
-    disposeSpatialMotion = null;
     backdrop.style.pointerEvents = 'none';
     backdrop.classList.remove('cc-gameplay-modal-backdrop-visible');
     stage.classList.remove('cc-gameplay-modal-entering', 'cc-gameplay-modal-idle');
@@ -161,7 +154,7 @@ export function showPrivacyPolicyModal(): void {
 
   activeClose = requestClose;
   closeController = mountGameplaySheetClose(
-    gyroShell ?? stage,
+    poseShell ?? stage,
     () => requestClose(false),
     'Close Privacy Policy',
   );
@@ -173,8 +166,6 @@ export function showPrivacyPolicyModal(): void {
         maxTouchTiltDeg: 3.64,
       })
     : null;
-  disposeSpatialMotion = mountGameplayModalSpatialMotion(stage, gyroShell, 'reduced-exit-score');
-
   backdrop.addEventListener('click', onBackdropClick);
   document.addEventListener('keydown', onKeyDown);
   window.addEventListener('cc-navigation', onNavigation);

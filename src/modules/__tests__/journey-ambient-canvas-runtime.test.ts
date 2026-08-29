@@ -162,4 +162,35 @@ describe('Journey ambient canvas runtime', () => {
     expect(root.querySelectorAll('.journey-test-throttled-canvas')).toHaveLength(0);
     root.remove();
   });
+
+  test('accepts normal iOS timestamp jitter without dropping a 60 Hz ambient frame', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const callbacks = new Set<() => void>();
+    const ticker = {
+      time: 20,
+      add: (callback: () => void) => callbacks.add(callback),
+      remove: (callback: () => void) => callbacks.delete(callback),
+    };
+    const render = jest.fn(() => 1);
+    const runtime = startJourneyAmbientCanvasRuntime({
+      root,
+      ticker,
+      sceneWidthPx: 390,
+      sceneHeightPx: 844,
+      maxFramesPerSecond: 60,
+      className: 'journey-test-60hz-canvas',
+      observeVisibility: false,
+      render,
+    });
+
+    for (let frame = 0; frame < 20; frame += 1) {
+      ticker.time += 0.0159;
+      callbacks.forEach((callback) => callback());
+    }
+
+    expect(render).toHaveBeenCalledTimes(21);
+    runtime.dispose();
+    root.remove();
+  });
 });

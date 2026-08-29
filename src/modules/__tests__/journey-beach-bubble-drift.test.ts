@@ -23,14 +23,14 @@ describe('Journey Beach ambient Bottle bubbles', () => {
 
   test('uses the thermal bubble profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 60, maxBubbleCount: 10 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 60, maxBubbleCount: 10 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBubbleCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 60, maxBubbleCount: 10 });
     expect(resolveJourneyBeachBubbleRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBubbleCount: 10 });
+    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 60, maxBubbleCount: 10 });
     expect(resolveJourneyBeachBubbleRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
       .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0, maxBubbleCount: 0 });
   });
@@ -215,7 +215,7 @@ describe('Journey Beach ambient Bottle bubbles', () => {
       tickerCount: 1,
       pixelRatio: 1.25,
       bitmapPixels: 488 * 950 * 2,
-      maxFramesPerSecond: 24,
+      maxFramesPerSecond: 60,
       visibilityMarginPx: 80,
     });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-beach-bubble-canvas'));

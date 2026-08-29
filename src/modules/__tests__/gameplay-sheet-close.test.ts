@@ -47,24 +47,22 @@ describe('shared gameplay sheet close', () => {
     const endRunSource = fs.readFileSync(path.join(root, 'src/modules/end-run-modal.ts'), 'utf8');
     const scoreSource = fs.readFileSync(path.join(root, 'src/modules/score-bottom-sheet.ts'), 'utf8');
     const rewardSource = fs.readFileSync(path.join(root, 'src/modules/collectible-reward-bottom-sheet.ts'), 'utf8');
-    const spatialSource = fs.readFileSync(path.join(root, 'src/modules/spatial-motion-permission-modal.ts'), 'utf8');
     const appCss = fs.readFileSync(path.join(root, 'src/style.css'), 'utf8');
     const closePaperRule = appCss.match(
-      /\.cc-gameplay-modal-gyro-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
+      /\.cc-gameplay-modal-pose-shell > \.gameplay-sheet-close::before\s*\{([^}]*)\}/,
     )?.[1] ?? '';
 
-    expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-gyro-shell')");
+    expect(endRunSource).toContain("modal.querySelector('.cc-gameplay-modal-pose-shell')");
     expect(endRunSource).toContain('mountGameplaySheetClose(endRunCloseHost');
     expect(scoreSource).toContain('mountGameplaySheetClose(scoreCloseHost');
     expect(rewardSource).toContain('mountGameplaySheetClose(');
-    expect(spatialSource).toContain('mountGameplaySheetClose(gyroShell, onDismiss)');
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close,');
-    expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {');
+    expect(appCss).toContain('.cc-gameplay-modal-pose-shell > .gameplay-sheet-close {');
     expect(closePaperRule).not.toContain('clip-path');
     expect(closePaperRule).toContain('background-image: var(--bottom-sheet-paper-texture)');
     expect(closePaperRule).toContain('border-radius: 50%');
     expect(appCss).toContain('.cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after,');
-    expect(appCss).toContain('.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::after {');
+    expect(appCss).toContain('.cc-gameplay-modal-pose-shell > .gameplay-sheet-close::after {');
     expect(appCss).toContain('filter: drop-shadow(0 4px 6px rgba(185, 145, 119, 0.12))');
     expect(appCss).toContain('@keyframes gameplay-sheet-close-comic-bounce');
     expect(appCss).toContain('transform: translateZ(0) scale(1.18)');

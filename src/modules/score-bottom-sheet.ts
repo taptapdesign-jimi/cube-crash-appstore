@@ -19,7 +19,6 @@ import {
   createDetailModalStatsEnterDelays,
   getDetailModalStatsEnterTotalDuration,
 } from './detail-modal-stats-enter-motion.js';
-import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 let modal: HTMLElement | null = null;
@@ -31,13 +30,7 @@ let scoreSheetLifecycleId = 0;
 let scoreSheetTransitionInProgress = false;
 let scoreSheetCloseController: GameplaySheetCloseController | null = null;
 let scoreSheetStatsEnterCleanupTimeout: ReturnType<typeof setTimeout> | null = null;
-let disposeScoreSheetSpatialMotion: (() => void) | null = null;
 let disposeScoreSheetDragDismiss: (() => void) | null = null;
-
-function cleanupScoreSheetSpatialMotion(): void {
-  disposeScoreSheetSpatialMotion?.();
-  disposeScoreSheetSpatialMotion = null;
-}
 
 function disposeScoreSheetClose(): void {
   scoreSheetCloseController?.dispose();
@@ -78,7 +71,6 @@ function getScoreSheetBackdropElements(): HTMLElement[] {
 function hideAndRemoveScoreSheetDom(reason: string): void {
   disposeScoreSheetDragDismiss?.();
   disposeScoreSheetDragDismiss = null;
-  cleanupScoreSheetSpatialMotion();
   disposeScoreSheetClose();
   const sheets = getScoreSheetElements();
   const backdrops = getScoreSheetBackdropElements();
@@ -576,7 +568,7 @@ function createModal(): HTMLElement {
       <div class="cc-gameplay-modal-flip-shell">
         <div class="cc-gameplay-modal-idle-shell">
           <div class="cc-gameplay-modal-touch-tilt-shell">
-            <div class="cc-gameplay-modal-gyro-shell">
+            <div class="cc-gameplay-modal-pose-shell">
               <div class="cc-gameplay-modal-paper-shell">
                 <div class="simple-content">
                   <div class="simple-header">
@@ -597,7 +589,7 @@ ${renderStatsItems(scoreSheetStats)}
     </div>
   `;
 
-  const scoreCloseHost = modalEl.querySelector('.cc-gameplay-modal-gyro-shell') as HTMLElement | null;
+  const scoreCloseHost = modalEl.querySelector('.cc-gameplay-modal-pose-shell') as HTMLElement | null;
   scoreSheetCloseController = mountGameplaySheetClose(scoreCloseHost ?? modalEl, () => {
     console.log('✕ Score bottom sheet close control activated');
     hideScoreBottomSheet();
@@ -841,11 +833,6 @@ export function showScoreBottomSheet(mode: ScoreSheetMode = 'score'): void {
     }
 
     const el = createModal();
-    disposeScoreSheetSpatialMotion = mountGameplayModalSpatialMotion(
-      el,
-      el.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
-      'reduced-exit-score',
-    );
     ensureScoreStatDividerExists();
     console.log('🎯 SCORE BOTTOM SHEET CREATED');
 
@@ -939,7 +926,6 @@ export function hideScoreBottomSheet(): void {
   }
 
   (modalEl as any)._closing = true;
-  cleanupScoreSheetSpatialMotion();
   const closeLifecycleId = scoreSheetLifecycleId;
   // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when closing starts
   // This ensures isScoreBottomSheetVisible() returns false right away

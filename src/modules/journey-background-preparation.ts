@@ -2,6 +2,8 @@ export interface JourneyPreparationRuntimeState {
   appZone?: string;
   gameStartInProgress?: boolean;
   boardTransitionActive?: boolean;
+  gameplayExitInProgress?: boolean;
+  terminalExitInProgress?: boolean;
 }
 
 const ALLOWED_PREPARATION_ZONES = new Set(['home', 'journey']);
@@ -9,8 +11,25 @@ const ALLOWED_PREPARATION_ZONES = new Set(['home', 'journey']);
 export function isJourneyBackgroundPreparationAllowed(
   state: JourneyPreparationRuntimeState
 ): boolean {
-  if (state.gameStartInProgress || state.boardTransitionActive) return false;
+  if (
+    state.gameStartInProgress
+    || state.boardTransitionActive
+    || state.gameplayExitInProgress
+    || state.terminalExitInProgress
+  ) return false;
   return !!state.appZone && ALLOWED_PREPARATION_ZONES.has(state.appZone);
+}
+
+export function isJourneyVisibleEnterPreparationAllowed(
+  state: JourneyPreparationRuntimeState
+): boolean {
+  // A visible return is not speculative background work. Once the route has
+  // committed Journey ownership it must be able to build the required World
+  // even while exitToMenu finishes its final handoff bookkeeping.
+  return state.appZone === 'journey'
+    && !state.gameStartInProgress
+    && !state.boardTransitionActive
+    && !state.terminalExitInProgress;
 }
 
 export function readJourneyPreparationRuntimeState(): JourneyPreparationRuntimeState {
@@ -19,6 +38,8 @@ export function readJourneyPreparationRuntimeState(): JourneyPreparationRuntimeS
     appZone: runtime.__ccAppZone,
     gameStartInProgress: runtime.__ccGameStartInProgress === true,
     boardTransitionActive: runtime.__ccBoardTransitionActive === true,
+    gameplayExitInProgress: runtime.exitingToMenu === true,
+    terminalExitInProgress: runtime.__ccTerminalExitInProgress === true,
   };
 }
 

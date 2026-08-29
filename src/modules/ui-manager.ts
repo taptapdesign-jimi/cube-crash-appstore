@@ -28,7 +28,6 @@ import {
 import { SETTINGS_SLIDE_INDEX } from './shop-module.js';
 import { clearArcadeSaveState, getArcadeSavedRound, hasArcadeSavedState } from '../utils/board-save-utils.js';
 import { applyAppPaperBackground } from '../utils/app-paper-background.js';
-import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { homepageEnterTransitionOwner } from './homepage-enter-transition-owner.js';
 import { appZoneManager } from './app-zone-manager.js';
 import {
@@ -878,7 +877,6 @@ class UIManager {
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
-    sliderManager.refreshHomepageSpatialMotion();
     // Dev test/log buttons removed
     
     // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
@@ -1362,7 +1360,6 @@ class UIManager {
       this.elements.home.style.transition = 'none';
       logger.info('✅ Homepage shown, ready for slider enter animation');
     }
-    sliderManager.refreshHomepageSpatialMotion();
     
     applyPaperBackground();
   }
@@ -1376,7 +1373,6 @@ class UIManager {
       this.elements.home.style.visibility = 'visible';
       this.elements.home.style.opacity = '1';
       this.elements.home.style.pointerEvents = 'auto';
-      sliderManager.refreshHomepageSpatialMotion();
       // Dev test/log buttons removed
       
       // 🔥 CRITICAL FIX: Explicitly ensure slider container is visible
@@ -1569,11 +1565,10 @@ class UIManager {
     // 🔥 CRITICAL: Play exit animation FIRST (gradient stays with !important during exit)
     console.log('🎬 Step 1: Playing exit animation for Journey slide (gradient preserved with !important)');
     
-    // Freeze the current gyro offset so exit begins without a snap, then give
+    // Freeze the current authored hero pose so exit begins without a snap, then give
     // one Promise-based owner all Homepage exit targets.
     const homeElement = document.getElementById('home');
     homeElement?.setAttribute('data-journey-exit', 'true');
-    journeySpatialMotion.suspendHomepage();
     sliderManager.freezeHomepageHeroBounceForExit();
     const exitCompletePromise = animateJourneySliderExit();
 
@@ -1611,7 +1606,6 @@ class UIManager {
         });
         await appZoneManager.hideHomepageForGame('first-play-journey-slider-handoff');
         finalizeJourneySliderExit();
-        journeySpatialMotion.deactivateHomepage();
         (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
         gameState.set('sliderLocked', false);
@@ -1625,7 +1619,6 @@ class UIManager {
         // showCollectibles hides Homepage synchronously before its first await.
         // Only now is it safe to clear scale/transition ownership without flash.
         finalizeJourneySliderExit();
-        journeySpatialMotion.deactivateHomepage();
         (window as any).__ccIsAnimatingSliderExit = () => false;
         (window as any).__ccUiJourneyTransitioning = false;
       }
@@ -1945,10 +1938,6 @@ class UIManager {
       preserveHomepageNavigation: true,
     });
     try { (window as any).collectiblesManager?.cancelJourneyScreenPreparation?.('settings-enter'); } catch {}
-    // Settings owns the transition now. Keep gyro translation from composing
-    // against the slider exit/Settings enter transforms; Homepage will resume
-    // once its return handoff has fully finalized.
-    journeySpatialMotion.holdActivations('settings-enter');
     // Stability: cleanup FX before navigation
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     try { window.CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
@@ -2252,7 +2241,6 @@ class UIManager {
     const gameSoundsToggle = document.getElementById('toggle-game-sounds') as HTMLInputElement;
     const musicToggle = document.getElementById('toggle-music') as HTMLInputElement;
     const vibrationToggle = document.getElementById('toggle-vibration') as HTMLInputElement;
-    const spatialMotionToggle = document.getElementById('toggle-spatial-motion') as HTMLInputElement;
     
     if (!gameSoundsToggle || !vibrationToggle) {
       console.warn('⚠️ Settings toggle checkboxes not found:', {
@@ -2292,14 +2280,10 @@ class UIManager {
     const gameSoundsOldHandler = (gameSoundsToggle as any).__ccToggleHandler;
     const musicOldHandler = musicToggle ? (musicToggle as any).__ccToggleHandler : null;
     const vibrationOldHandler = (vibrationToggle as any).__ccToggleHandler;
-    const spatialMotionOldHandler = spatialMotionToggle ? (spatialMotionToggle as any).__ccToggleHandler : null;
     
     if (gameSoundsOldHandler) gameSoundsToggle.removeEventListener('change', gameSoundsOldHandler);
     if (musicToggle && musicOldHandler) musicToggle.removeEventListener('change', musicOldHandler);
     if (vibrationOldHandler) vibrationToggle.removeEventListener('change', vibrationOldHandler);
-    if (spatialMotionToggle && spatialMotionOldHandler) {
-      spatialMotionToggle.removeEventListener('change', spatialMotionOldHandler);
-    }
     
     // 🔥 CRITICAL: Create handler functions that update status text immediately
     const gameSoundsHandler = (e: Event) => {
@@ -2398,45 +2382,6 @@ class UIManager {
       console.log('✅ Haptic feedback triggered (vibration toggle changed, ON/OFF path)');
     };
 
-    const spatialMotionHandler = (e: Event) => {
-      const target = e.target as HTMLInputElement;
-      const enabled = target.checked;
-      const statusEl = document.getElementById('status-spatial-motion');
-      const persist = (nextEnabled: boolean) => {
-        (window as any)._settings = (window as any)._settings || {};
-        (window as any)._settings.spatialMotionEnabled = nextEnabled;
-        if (typeof (window as any).saveSettings === 'function') {
-          (window as any).saveSettings((window as any)._settings);
-        }
-      };
-      const applyVisualState = (nextEnabled: boolean) => {
-        target.checked = nextEnabled;
-        if (statusEl) {
-          statusEl.textContent = nextEnabled ? 'ON' : 'OFF';
-          void statusEl.offsetHeight;
-        }
-      };
-
-      console.log('🧊 3D Motion toggle changed:', enabled);
-      playSettingsToggleBounce(target);
-      if (typeof (window as any).triggerHapticImpact === 'function') {
-        (window as any).triggerHapticImpact('light');
-      }
-
-      applyVisualState(enabled);
-      persist(enabled);
-      journeySpatialMotion.setEnabled(enabled);
-
-      if (enabled && journeySpatialMotion.requiresPermissionGesture()) {
-        // Start synchronously from the checkbox gesture so WebKit accepts the request.
-        void journeySpatialMotion.requestPermissionFromGesture().then((granted) => {
-          if (granted || !target.checked) return;
-          applyVisualState(false);
-          persist(false);
-          journeySpatialMotion.setEnabled(false);
-        });
-      }
-    };
     
     // Store handlers on elements for cleanup
     (gameSoundsToggle as any).__ccToggleHandler = gameSoundsHandler;
@@ -2448,28 +2393,20 @@ class UIManager {
       (musicToggle as any).__ccToggleHandler = musicHandler;
       musicToggle.addEventListener('change', musicHandler);
     }
-    if (spatialMotionToggle) {
-      (spatialMotionToggle as any).__ccToggleHandler = spatialMotionHandler;
-      spatialMotionToggle.addEventListener('change', spatialMotionHandler);
-    }
 
     console.log('✅ Settings toggle event listeners attached directly to checkboxes');
     
     const gameSoundsStatus = document.getElementById('status-game-sounds');
     const musicStatus = document.getElementById('status-music');
     const vibrationStatus = document.getElementById('status-vibration');
-    const spatialMotionStatus = document.getElementById('status-spatial-motion');
     
     console.log('🔍 Settings toggle elements verified:', {
       gameSoundsToggle: !!gameSoundsToggle,
       musicToggle: !!musicToggle,
       vibrationToggle: !!vibrationToggle,
-      spatialMotionToggle: !!spatialMotionToggle,
       gameSoundsChecked: gameSoundsToggle.checked,
       musicChecked: musicToggle?.checked,
       vibrationChecked: vibrationToggle.checked,
-      spatialMotionChecked: spatialMotionToggle?.checked,
-      spatialMotionStatus: spatialMotionStatus?.textContent,
     });
   }
   

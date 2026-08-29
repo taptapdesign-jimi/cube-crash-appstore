@@ -2412,10 +2412,9 @@ body.journey-board-game-active #hud-board-indicator {
 
 /* Shared textured close used by gameplay sheets and the Tilt Motion intro. */
 .simple-bottom-sheet .gameplay-sheet-close,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close {
   position: absolute;
   top: 22px;
   right: 22px;
@@ -2437,10 +2436,9 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close::before,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close::before,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close::before,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close::before,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::before {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close::before {
   content: "";
   position: absolute;
   inset: -2px;
@@ -2455,10 +2453,9 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close::after,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close::after,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close::after,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close::after,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close::after {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close::after {
   content: "";
   position: absolute;
   inset: 2px;
@@ -2473,10 +2470,9 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close img,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close img,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close img,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close img,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close img {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close img {
   position: relative;
   z-index: 2;
   width: 27px;
@@ -2489,10 +2485,9 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close.is-comic-bouncing,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close.is-comic-bouncing {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close.is-comic-bouncing {
   animation: gameplay-sheet-close-comic-bounce 380ms both;
 }
 
@@ -2515,28 +2510,25 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 .simple-bottom-sheet .gameplay-sheet-close:focus-visible,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close:focus-visible,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:focus-visible,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close:focus-visible {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close:focus-visible {
   outline: 3px solid rgba(231, 116, 73, 0.34);
   outline-offset: 3px;
 }
 
 .simple-bottom-sheet .gameplay-sheet-close:disabled,
-.journey-spatial-permission-drag-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-flip-shell > .gameplay-sheet-close:disabled,
 .cc-gameplay-modal-idle-shell > .gameplay-sheet-close:disabled,
-.cc-gameplay-modal-gyro-shell > .gameplay-sheet-close:disabled {
+.cc-gameplay-modal-pose-shell > .gameplay-sheet-close:disabled {
   pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .simple-bottom-sheet .gameplay-sheet-close.is-comic-bouncing,
-  .journey-spatial-permission-drag-shell > .gameplay-sheet-close.is-comic-bouncing,
   .cc-gameplay-modal-flip-shell > .gameplay-sheet-close.is-comic-bouncing,
   .cc-gameplay-modal-idle-shell > .gameplay-sheet-close.is-comic-bouncing,
-  .cc-gameplay-modal-gyro-shell > .gameplay-sheet-close.is-comic-bouncing {
+  .cc-gameplay-modal-pose-shell > .gameplay-sheet-close.is-comic-bouncing {
     animation: none !important;
   }
 }
@@ -3183,7 +3175,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 /* Touch-only 3D owner for Exit Game, High Score, and Combo. Enter/exit stay on
-   their outer shells, idle stays on the parent, and sensor gyro stays nested
+   their outer shells, idle stays on the parent, and authored pose stays nested
    below, so a gentle finger tilt never competes with another transform. */
 .cc-gameplay-modal-touch-tilt-shell {
   position: relative;
@@ -3285,7 +3277,7 @@ body.journey-board-game-active #hud-board-indicator {
   box-shadow: 0 13px 33.6px 0 rgba(185, 145, 119, 0.8);
 }
 
-.cc-gameplay-modal-gyro-shell {
+.cc-gameplay-modal-pose-shell {
   position: relative;
   width: 100%;
   max-height: inherit;
@@ -3306,15 +3298,15 @@ body.journey-board-game-active #hud-board-indicator {
 
 /* Sensor motion is composed on the innermost paper/card layer. Enter, exit,
    drag and portal flight keep their existing outer transform owners. */
-.cc-modal-spatial-target {
-  --cc-modal-gyro-rx: 0deg;
-  --cc-modal-gyro-ry: 0deg;
-  --cc-modal-gyro-z: 0px;
+.cc-modal-pose-target {
+  --cc-modal-pose-rx: 0deg;
+  --cc-modal-pose-ry: 0deg;
+  --cc-modal-pose-z: 0px;
   transform:
     perspective(920px)
-    translate3d(0, 0, var(--cc-modal-gyro-z))
-    rotateX(var(--cc-modal-gyro-rx))
-    rotateY(var(--cc-modal-gyro-ry));
+    translate3d(0, 0, var(--cc-modal-pose-z))
+    rotateX(var(--cc-modal-pose-rx))
+    rotateY(var(--cc-modal-pose-ry));
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
   backface-visibility: hidden;
@@ -3325,7 +3317,7 @@ body.journey-board-game-active #hud-board-indicator {
 /* One typography contract for every centered paper/gameplay modal headline.
    Modal-specific selectors may own color, weight, spacing, and animation, but
    title size must never diverge between End Run, Score, Collectible Reward,
-   3D Motion, and Journey Stage. */
+   authored pose, and Journey Stage. */
 :root {
   --cc-gameplay-modal-title-size: 32px;
   --cc-gameplay-modal-overlay-color: rgba(220, 183, 163, 0.52);
@@ -3386,7 +3378,7 @@ body.journey-board-game-active #hud-board-indicator {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cc-modal-spatial-target {
+  .cc-modal-pose-target {
     translate: none !important;
     transform: none !important;
     will-change: auto !important;

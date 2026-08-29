@@ -6,7 +6,7 @@ describe('gameplay wild meter fill FX contract', () => {
   const hudSource = fs.readFileSync(path.join(repoRoot, 'src/modules/hud-helpers.ts'), 'utf8');
   const appSource = fs.readFileSync(path.join(repoRoot, 'src/modules/app-core.ts'), 'utf8');
 
-  it('isolates the orange fill from its track and exposes only that layer to gyro', () => {
+  it('isolates the orange fill from its track and exposes only that transform layer', () => {
     expect(hudSource).toContain("fillSpatialLayer.label = 'wildMeterFillSpatialLayer'");
     expect(hudSource).toContain("fillBounceLayer.label = 'wildMeterFillBounceLayer'");
     expect(hudSource).toContain('container._fillSpatialWrapper = fillSpatialLayer');

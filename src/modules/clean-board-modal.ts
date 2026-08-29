@@ -254,6 +254,7 @@ export async function showCleanBoardModal({
     const safeResolve = (action: string = 'continue') => {
       if (settled) return;
       settled = true;
+      delete (window as any).__ccTerminalExitInProgress;
       if (navigationAbortHandler) {
         try { window.removeEventListener('cc-navigation', navigationAbortHandler); } catch {}
         navigationAbortHandler = null;
@@ -1621,6 +1622,10 @@ export async function showCleanBoardModal({
         
         primaryBtn.disabled = true;
         secondaryBtn.disabled = true;
+        // Hidden Journey construction must not compete with the final board
+        // and paper pop-out. safeResolve clears this for success, failure and
+        // navigation-abort paths so the gate cannot remain stuck.
+        (window as any).__ccTerminalExitInProgress = true;
         const exitStartedAt = performance.now();
         emitNativeConsoleDiagnostic('[CC_ARCADE_EXIT]', 'clean-board-exit-tap', {
           boardNumber,

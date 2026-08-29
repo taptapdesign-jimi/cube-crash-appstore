@@ -6,6 +6,7 @@ export function emitIOSSpecialTransactionTrace(
 ): void {
   try {
     if (typeof window === 'undefined') return;
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) return;
     const handler = (window as any).webkit?.messageHandlers?.consoleLog;
     if (!handler?.postMessage) return;
@@ -23,3 +24,4 @@ export function emitIOSSpecialTransactionTrace(
     });
   } catch {}
 }
+import { areDetailedRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';

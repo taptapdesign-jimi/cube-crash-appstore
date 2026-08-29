@@ -19,7 +19,7 @@ type TextureLike = {
 
 /**
  * Keep illustrated gameplay faces smooth while they move through fractional
- * positions/scales (for example during gyro motion). Mipmaps stabilize the
+ * positions/scales (for example during authored pose motion). Mipmaps stabilize the
  * heavily downscaled cube art, clamp-to-edge prevents opposite-edge sampling,
  * and low anisotropy keeps gently rotated stack faces readable.
  */

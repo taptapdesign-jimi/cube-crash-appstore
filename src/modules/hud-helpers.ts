@@ -401,7 +401,7 @@ export function cleanupComboAnimations() {
   }
 }
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
-const BOARD_INDICATOR_BOTTOM = 24;
+const BOARD_INDICATOR_BOTTOM = 20;
 const BOARD_INDICATOR_Z_INDEX = '9';
 
 function ensureBoardIndicator() {
@@ -483,6 +483,7 @@ function ensureBoardIndicator() {
 }
 
 function handleHUDClose() {
+  if (shouldBlockHudCloseForTerminalResolution('dom-close')) return;
   try {
     uiManager.showHomepageWithAnimation();
   } catch (error) {
@@ -809,7 +810,7 @@ function makeWildLoader() {
   }
   fill.zIndex = 5000;
 
-  // Keep the orange fill on its own spatial layer. Gameplay gyro moves this
+  // Keep the orange fill on its own transform layer. Authored HUD motion moves this
   // layer slightly farther than the beige track, creating real depth without
   // introducing another sensor listener or transform owner.
   const fillSpatialLayer = new Container();

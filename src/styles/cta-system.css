@@ -209,11 +209,6 @@ button.cc-cta[data-cta-variant="secondary"]::after {
   touch-action: none;
 }
 
-.journey-spatial-permission-actions .cc-cta {
-  width: 249px !important;
-  max-width: 249px !important;
-}
-
 .simple-bottom-sheet:not(.score-bottom-sheet) .simple-button-row .cc-cta {
   width: 249px !important;
   max-width: 249px !important;

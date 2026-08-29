@@ -54,10 +54,11 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toMatch(/\.cc-journey-new-card-surface \{[\s\S]*?transform-style: preserve-3d;[\s\S]*?-webkit-transform-style: preserve-3d;/);
     expect(source).toContain('cc-journey-new-card-surface--interim');
     expect(source).toContain('cc-journey-new-card-surface--unlocked');
-    expect(source).toContain('cc-journey-new-card-gyro-shell');
+    expect(source).toContain('cc-journey-new-card-pose-shell');
     expect(source).toContain('cc-journey-new-card-auto-tilt-shell--interim');
     expect(source).toContain('cc-journey-new-card-auto-tilt-shell--unlocked');
-    expect(source).toContain('mountGameplayModalSpatialMotion(overlay, gyroShell)');
+    expect(source).not.toContain('mountGameplayModalSpatialMotion');
+    expect(source).not.toContain('DeviceOrientationEvent');
     expect(source).toContain('animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;');
     expect(source).toContain('rotationZ: revealTilt.interimRestRotationDeg');
     expect(source).toContain('rotationX: revealTilt.interimExitRotateXDeg');

@@ -5,7 +5,6 @@ export interface MobileRuntimeProfile {
   isMobileDevice: boolean;
   settledIdleMaxFramesPerSecond: number;
   spatialMaxFramesPerSecond: number;
-  journeySpatialMotionEnabled: boolean;
   ambientPixelRatioCap: number;
   ambientVisibilityMarginPx: number;
   ambientSpriteBudget: number;
@@ -66,7 +65,6 @@ export function resolveMobileRuntimeProfile(
     isMobileDevice,
     settledIdleMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
     spatialMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
-    journeySpatialMotionEnabled: !isMobileDevice,
     ambientPixelRatioCap: isMobileDevice ? MOBILE_AMBIENT_PIXEL_RATIO_CAP : 2,
     ambientVisibilityMarginPx: isMobileDevice ? MOBILE_AMBIENT_VISIBILITY_MARGIN_PX : 180,
     ambientSpriteBudget: isMobileDevice ? MOBILE_AMBIENT_SPRITE_BUDGET : 0,

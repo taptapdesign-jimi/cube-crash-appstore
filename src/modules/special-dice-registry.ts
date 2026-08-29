@@ -396,10 +396,10 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
     juiceDropProfile: 'beach-ball',
     arcadeTestOrder: 1,
     inputReleaseAtRatio: 0.30,
-    // Let every far edge of the shared Cubero-profile wave complete before
-    // TNT gameplay asks the separated board to return. Ball's 1.3s spawn phase
-    // makes 70% about 910ms, beyond the profile's latest ~835ms outward settle.
-    gameplayReleaseAtSpawnRatio: 0.70,
+    // Begin the four board impacts with the Ball sequence instead of waiting
+    // for 70% of its 1.3s spawn phase. This advances the explosions by about
+    // 910ms (the maximum possible without drawing them before the Ball exists).
+    gameplayReleaseAtSpawnRatio: 0,
   },
 };
 

@@ -141,6 +141,12 @@ export function startJourneyAmbientCanvasRuntime(
     ? clamp(Number(options.maxFramesPerSecond), 0, 60)
     : 0;
   const minimumFrameDeltaSeconds = maxFramesPerSecond > 0 ? 1 / maxFramesPerSecond : 0;
+  // WKWebView/GSAP timestamps can arrive around 15.8-16.2ms on a 60Hz panel.
+  // A fixed 0.5ms tolerance occasionally rejects that legitimate frame and
+  // makes a nominal 60 FPS ambient owner visibly alternate toward 30 FPS.
+  const cadenceToleranceSeconds = minimumFrameDeltaSeconds > 0
+    ? Math.min(0.002, minimumFrameDeltaSeconds * 0.1)
+    : 0;
   let sceneWidth = Math.max(1, options.sceneWidthPx);
   let sceneHeight = Math.max(1, options.sceneHeightPx);
   let canvasHeight = 1;
@@ -231,7 +237,7 @@ export function startJourneyAmbientCanvasRuntime(
     // of producing an uneven 20/30 Hz pattern while still bounding the work.
     if (
       minimumFrameDeltaSeconds > 0
-      && elapsedSinceRender + 0.0005 < minimumFrameDeltaSeconds
+      && elapsedSinceRender + cadenceToleranceSeconds < minimumFrameDeltaSeconds
     ) return;
     const deltaSeconds = clamp(elapsedSinceRender, 0, 0.12);
     lastRenderTime = now;

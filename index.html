@@ -226,20 +226,23 @@
       try {
         const saved = localStorage.getItem('cc_settings');
         if (saved) {
-          return JSON.parse(saved);
+          const settings = JSON.parse(saved);
+          // Remove the retired sensor preference from existing installations.
+          delete settings.spatialMotionEnabled;
+          return settings;
         }
       } catch (e) {}
       // Default settings
       return {
         hapticsEnabled: true,
         gameSoundsEnabled: false,
-        musicEnabled: true,
-        spatialMotionEnabled: true
+        musicEnabled: true
       };
     }
     
     function saveSettings(settings) {
       try {
+        delete settings.spatialMotionEnabled;
         localStorage.setItem('cc_settings', JSON.stringify(settings));
       } catch (e) {}
     }

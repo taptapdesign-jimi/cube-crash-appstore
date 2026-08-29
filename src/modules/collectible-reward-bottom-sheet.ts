@@ -38,17 +38,9 @@ import {
   runGameplayModalParallelExit,
 } from './gameplay-modal-benchmark.ts';
 import { mountGameplaySheetClose } from './gameplay-sheet-close.ts';
-import { mountGameplayModalSpatialMotion } from './gameplay-modal-spatial-motion.js';
 import { installGameplayOverlayModalDragMotion } from './modal-vertical-drag-dismiss.js';
 
 let rewardCtaControllers: CtaController[] = [];
-let disposeRewardSpatialMotion: (() => void) | null = null;
-
-function cleanupRewardSpatialMotion(): void {
-  disposeRewardSpatialMotion?.();
-  disposeRewardSpatialMotion = null;
-}
-
 function disposeRewardCtas(): void {
   rewardCtaControllers.splice(0).forEach(controller => controller.dispose());
 }
@@ -93,11 +85,6 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
     // Create sheet
     const sheet = createBottomSheet(validatedDetail);
     overlay.appendChild(sheet);
-    disposeRewardSpatialMotion = mountGameplayModalSpatialMotion(
-      overlay,
-      sheet.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell'),
-    );
-    registerCleanup(cleanupRewardSpatialMotion);
     
     // Set up close handler
     const handleClose = (reason: string, clickedCta?: HTMLButtonElement) => {
@@ -112,7 +99,7 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
 
     // The centered modal benchmark dismisses through close, Escape, or
     // backdrop tap. It does not inherit the legacy translateY drag owner.
-    const closeHost = sheet.querySelector<HTMLElement>('.cc-gameplay-modal-gyro-shell') ?? sheet;
+    const closeHost = sheet.querySelector<HTMLElement>('.cc-gameplay-modal-pose-shell') ?? sheet;
     const closeController = mountGameplaySheetClose(
       closeHost,
       () => handleClose('close-button'),
@@ -187,7 +174,6 @@ export async function hideCollectibleRewardBottomSheet(_reason: string = 'dismis
   if (!overlay || getIsClosing()) return;
 
   setClosing(true);
-  cleanupRewardSpatialMotion();
   cleanupCollectibleRewardAnimationTimeouts();
 
   const sheet = overlay.querySelector('.collectible-reward-sheet') as HTMLElement;

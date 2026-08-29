@@ -10,7 +10,6 @@ import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
 import { getOriginalGsapTo } from './drag-core.js';
 import { isSlideVisible } from './shop-module.js';
-import { journeySpatialMotion } from './journey-spatial-motion.js';
 import { resolveHomepageSliderViewportWidth } from './homepage-slider-layout.js';
 import { isFirstPlayTutorialForced } from './first-play-tutorial.js';
 
@@ -1252,7 +1251,6 @@ class SliderManager {
       this.elements.slides.forEach((slide, index) => {
         slide.classList.toggle('active', index === this.currentSlide);
       });
-      this.refreshHomepageSpatialMotion();
     } else {
       logger.debug('updateSlider: slides missing or empty');
     }
@@ -1270,21 +1268,6 @@ class SliderManager {
     return this.currentSlide;
   }
 
-  public refreshHomepageSpatialMotion(): void {
-    const container = this.elements.container ?? document.getElementById('slider-container');
-    if (!container) return;
-    const home = document.getElementById('home');
-    const homeStyle = home ? window.getComputedStyle(home) : null;
-    const homepageHidden = !home || home.hidden || home.hasAttribute('hidden') ||
-      homeStyle?.display === 'none' || homeStyle?.visibility === 'hidden' ||
-      Number.parseFloat(homeStyle?.opacity || '1') <= 0.01;
-    if (homepageHidden || (window as any).__ccUiJourneyTransitioning === true) {
-      journeySpatialMotion.deactivateHomepage();
-      return;
-    }
-    journeySpatialMotion.activateHomepage(container, this.currentSlide);
-  }
-  
   // 🔥 DEBUG: Getter for isDragging (for diagnostics)
   getIsDragging(): boolean {
     return this.isDragging;
@@ -1310,7 +1293,7 @@ class SliderManager {
    * Updates ALL 4 states atomically: GSAP wrapper, CSS classes, gameState, internal state
    * Use this when showing homepage at specific slide to avoid visual glitches
    */
-  setSlideInstant(slideIndex: number, refreshSpatialMotion = true): void {
+  setSlideInstant(slideIndex: number): void {
     slideIndex = this.resolveHiddenSlideTarget(slideIndex);
     if (slideIndex < 0 || slideIndex >= this.totalSlides) {
       logger.warn(`⚠️ Invalid slide index: ${slideIndex}`);
@@ -1373,9 +1356,6 @@ class SliderManager {
       const buttonSlideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
       this.setNavButtonVisualState(button as HTMLElement, buttonSlideIndex === slideIndex, false, false);
     });
-    if (refreshSpatialMotion) {
-      this.refreshHomepageSpatialMotion();
-    }
     
     logger.info(`✅ setSlideInstant: All states synced to slide ${slideIndex}`);
   }
@@ -1613,14 +1593,12 @@ class SliderManager {
       const slideIndex = parseInt(button.getAttribute('data-slide') || '0', 10);
       this.setNavButtonVisualState(button as HTMLElement, slideIndex === this.currentSlide, false, false);
     });
-    this.refreshHomepageSpatialMotion();
     
     logger.info('✅ FORCE READY: Slider nuclear reset complete - should be fully interactive');
   }
   
   // Cleanup
   destroy(): void {
-    journeySpatialMotion.deactivateHomepage();
     // 🔥 FIX: Clear all active intervals first
     this.activeIntervals.forEach(interval => {
       clearInterval(interval);

@@ -132,7 +132,7 @@ export function registerCta(element: HTMLButtonElement, options: RegisterCtaOpti
     try {
       let immediateActivation: void | Promise<void> = undefined;
       if (options.activationTiming === 'immediate') {
-        // Permission-gated APIs (notably iOS DeviceOrientation) must be called
+        // Permission-gated APIs must be called
         // synchronously from the trusted activation event, before any await.
         immediateActivation = options.onActivate();
         // The activation may synchronously hand ownership to a screen exit.

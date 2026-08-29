@@ -14,6 +14,7 @@ const MAX_SHIP_ROTATION_SPEED_RADIANS_PER_SECOND = 90 * (Math.PI / 180);
 const MIN_SCALE_HOLD_SECONDS = 3;
 const SCALE_HOLD_VARIANCE_SECONDS = 1.5;
 const SCALE_CHANGE_DURATION_SECONDS = 0.45;
+const MOBILE_SHIP_FLYBY_FPS = 60;
 
 export interface JourneyArea55ShipRuntimeProfile { visibilityMarginPx: number; pixelRatioCap: number; maxFramesPerSecond: number; maxShipCount: number }
 export interface StartJourneyArea55ShipFlybysOptions {
@@ -120,7 +121,10 @@ export function resolveJourneyArea55ShipRuntimeProfile(
   return {
     visibilityMarginPx: mobile.ambientVisibilityMarginPx,
     pixelRatioCap: mobile.ambientPixelRatioCap,
-    maxFramesPerSecond: mobile.settledIdleMaxFramesPerSecond,
+    // Translation and banking are read against static crater edges, so the
+    // shared 24 FPS settled-idle cap looks stepped even when the page is 60 FPS.
+    // Preserve the reduced ship count and DPR, but paint this motion at 60 Hz.
+    maxFramesPerSecond: mobile.isMobileDevice ? MOBILE_SHIP_FLYBY_FPS : 0,
     maxShipCount: mobile.area55ShipBudget,
   };
 }

@@ -12,10 +12,8 @@ describe('shared gameplay modal benchmark', () => {
   const rewardUtils = read('src/modules/collectible-reward-utils.ts');
   const rewardUi = read('src/modules/collectible-reward-ui.ts');
   const rewardAnimations = read('src/modules/collectible-reward-animations.ts');
-  const spatialPermission = read('src/modules/spatial-motion-permission-modal.ts');
   const privacy = read('src/ui/components/privacy-policy-modal.ts');
   const journeyOverlay = read('src/modules/journey-card-overlay-modal.ts');
-  const modalSpatialMotion = read('src/modules/gameplay-modal-spatial-motion.ts');
   const modalDragMotion = read('src/modules/modal-vertical-drag-dismiss.ts');
   const css = read('src/style.css');
   const collectiblesCss = read('src/collectibles-screen.css');
@@ -63,40 +61,26 @@ describe('shared gameplay modal benchmark', () => {
       expect(source).toContain('installGameplayOverlayModalDragMotion');
     }
     expect(privacy).toContain('installGameplayOverlayModalDragMotion');
-    expect(spatialPermission).toContain('installGameplayOverlayModalDragMotion');
-    expect(spatialPermission).toContain('motionElement: dragShell');
     expect(rewardUi).not.toContain('attachDragHandlers');
   });
 
-  test('mounts every gameplay paper modal on the shared gyro owner', () => {
-    expect(modalSpatialMotion).toContain("import { appSpatialMotion } from './journey-spatial-motion.js'");
-    expect(modalSpatialMotion).toContain('appSpatialMotion.registerModalTargets');
-    expect(score).toContain('mountGameplayModalSpatialMotion');
-    expect(reward).toContain('mountGameplayModalSpatialMotion');
-    expect(endRun).toContain('mountGameplayModalSpatialMotion');
-    expect(spatialPermission).toContain('mountGameplayModalSpatialMotion');
-    expect(privacy).toContain('mountGameplayModalSpatialMotion');
-    expect(spatialPermission).toContain('disposeSpatialMotion();');
-    expect(journeyOverlay).toContain('mountJourneyCardFlipSpatialMotion');
-    expect(modalSpatialMotion).toContain('const OVERLAY_MODAL_PROFILE = Object.freeze({');
-    expect(modalSpatialMotion).toContain('const REDUCED_EXIT_SCORE_MODAL_PROFILE = Object.freeze({');
-    expect(modalSpatialMotion).toContain('rotateXDegrees: 0.92');
-    expect(modalSpatialMotion).toContain('rotateYDegrees: 1.04');
-    expect(modalSpatialMotion).toContain('zDepth: 2.4');
-    expect(endRun).toContain("'reduced-exit-score'");
-    expect(score).toContain("'reduced-exit-score'");
+  test('keeps authored modal pose shells while device-motion owners remain removed', () => {
+    for (const source of [score, reward, endRun, privacy, journeyOverlay]) {
+      expect(source).not.toContain('mountGameplayModalSpatialMotion');
+      expect(source).not.toContain('DeviceOrientationEvent');
+    }
+    expect(journeyOverlay).not.toContain('mountJourneyCardFlipSpatialMotion');
+    expect(endRun).not.toContain('mountGameplayModalSpatialMotion');
+    expect(score).not.toContain('mountGameplayModalSpatialMotion');
     expect(reward).not.toContain("'reduced-exit-score'");
     expect(journeyOverlay).not.toContain("'reduced-exit-score'");
-    expect(modalSpatialMotion).toContain('...motionProfile');
-    expect(modalSpatialMotion.match(/\.\.\.OVERLAY_MODAL_PROFILE/g)).toHaveLength(1);
-    expect(modalSpatialMotion).not.toContain("addEventListener('deviceorientation'");
-    expect(css).toContain('.cc-modal-spatial-target {');
+    expect(css).toContain('.cc-modal-pose-target {');
   });
 
   test('owns one 32px headline size across every paper gameplay modal', () => {
     expect(css).toContain('--cc-gameplay-modal-title-size: 32px;');
     expect(css).toContain('.cc-gameplay-modal-title {\n  font-size: var(--cc-gameplay-modal-title-size);');
-    for (const source of [endRun, score, rewardUtils, spatialPermission, journeyOverlay, privacy]) {
+    for (const source of [endRun, score, rewardUtils, journeyOverlay, privacy]) {
       expect(source).toContain('cc-gameplay-modal-title');
     }
     expect(css.match(/--cc-gameplay-modal-title-size/g)).toHaveLength(2);
@@ -123,7 +107,7 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color);');
     expect(css).toContain('background: var(--cc-gameplay-modal-overlay-color) !important;');
     expect(rewardUi.match(/background: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);
-    expect(collectiblesCss.match(/background(?:-color)?: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(2);
+    expect(collectiblesCss.match(/background(?:-color)?: var\(--cc-gameplay-modal-overlay-color\);/g)).toHaveLength(1);
     expect(collectiblesCss).toContain('.journey-card-flip-backdrop {');
     expect(collectiblesCss).toMatch(/\.journey-card-flip-backdrop \{[\s\S]*?background: var\(--cc-gameplay-modal-overlay-color\);[\s\S]*?opacity: 0;/);
     expect(css).not.toContain('background: rgba(233, 210, 200, 0.24) !important;');
@@ -150,17 +134,6 @@ describe('shared gameplay modal benchmark', () => {
     expect(css).toContain('translate3d(0, 1px, 0) scale(0.995)');
     expect(css).toContain('animation: cc-gameplay-modal-idle-shadow 6.8s ease-in-out infinite both;');
     expect(css).not.toContain('@keyframes cc-gameplay-modal-idle-tilt');
-  });
-
-  test('keeps Tilt Motion on Journey modal width, attached Close, and real bottom spacing', () => {
-    expect(spatialPermission).toContain('flipShell.appendChild(paperSurface);');
-    expect(spatialPermission).toContain('gyroShell.appendChild(flipShell);');
-    expect(spatialPermission).toContain('dragShell.appendChild(gyroShell);');
-    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-overlay \{[\s\S]*?32px[\s\S]*?max\(24px, env\(safe-area-inset-bottom/);
-    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-paper \{[\s\S]*?padding: 32px 24px 40px;/);
-    expect(collectiblesCss).toMatch(/\.journey-spatial-permission-flip-shell \{[\s\S]*?overflow: hidden;/);
-    expect(collectiblesCss).toContain('margin-bottom: -16px;');
-    expect(collectiblesCss).toContain('padding-bottom: 56px;');
   });
 
   test('starts idle only after enter and keeps it on a transform-isolated owner', () => {

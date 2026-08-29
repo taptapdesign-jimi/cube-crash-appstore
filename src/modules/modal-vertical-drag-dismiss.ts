@@ -120,7 +120,7 @@ export function installModalVerticalDragDismiss(
 
 /**
  * Shared physical drag owner for centered gameplay modals with a backdrop.
- * It composes on the modal's outer bounce shell, leaving nested idle/gyro and
+ * It composes on the modal's outer bounce shell, leaving nested idle/pose and
  * the canonical enter/exit keyframes on their existing owners.
  */
 export function installGameplayOverlayModalDragMotion(

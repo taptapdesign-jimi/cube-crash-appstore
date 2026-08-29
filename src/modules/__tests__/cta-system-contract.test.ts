@@ -50,10 +50,6 @@ describe('shared CTA system contract', () => {
     path.resolve(process.cwd(), 'src/utils/animations.ts'),
     'utf8',
   );
-  const spatialPermissionSource = fs.readFileSync(
-    path.resolve(process.cwd(), 'src/modules/spatial-motion-permission-modal.ts'),
-    'utf8',
-  );
   const endRunSource = fs.readFileSync(
     path.resolve(process.cwd(), 'src/modules/end-run-modal.ts'),
     'utf8',
@@ -220,18 +216,6 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('.cc-homepage-cta,\n  .cc-cta--standard-width {\n    width: 226px !important;');
     expect(cssSource).toContain('touch-action: none');
     expect(cssSource).not.toContain('top: 2.25vh');
-  });
-
-  test('migrates Spatial Motion actions while preserving synchronous iOS permission activation', () => {
-    expect(spatialPermissionSource).toContain('registerCta(enableButton');
-    expect(spatialPermissionSource).toContain("activationTiming: 'immediate'");
-    expect(spatialPermissionSource).not.toContain("variant: 'secondary'");
-    expect(spatialPermissionSource).toContain('let choiceExitInProgress = false');
-    expect(spatialPermissionSource).toContain('runGameplayModalParallelExit(');
-    expect(spatialPermissionSource).toContain('() => activeCtaControllers[0]?.exit() ?? Promise.resolve()');
-    expect(spatialPermissionSource).not.toContain("enableButton.addEventListener('click'");
-    expect(spatialPermissionSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
-    expect(spatialPermissionSource).not.toContain('exit-btn bottom-sheet-cta');
   });
 
   test('migrates the active End Run sheet and exits every visible action as one CTA group', () => {

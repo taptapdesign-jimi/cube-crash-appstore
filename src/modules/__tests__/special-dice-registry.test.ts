@@ -178,7 +178,7 @@ test('special dice input release policy is archetype-driven', () => {
 
   expect(getSpecialDiceInputReleaseAtRatio(cubero)).toBe(0.25);
   expect(getSpecialDiceInputReleaseAtRatio(beachBall)).toBe(0.30);
-  expect(getSpecialDiceGameplayReleaseAtSpawnRatio(beachBall)).toBe(0.70);
+  expect(getSpecialDiceGameplayReleaseAtSpawnRatio(beachBall)).toBe(0);
   expect(getSpecialDiceGameplayReleaseAtSpawnRatio(cubero)).toBeUndefined();
   expect(getSpecialDiceInputReleaseMode(beachBall)).toBe('after-gameplay-resolve');
   expect(getSpecialDiceJuiceDropProfile(beachBall)).toBe('beach-ball');

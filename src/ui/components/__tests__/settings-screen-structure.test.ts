@@ -16,22 +16,16 @@ import {
 } from '../settings-screen.js';
 
 describe('Settings screen structure', () => {
-  beforeEach(() => {
-    (window as Window & { _settings?: { spatialMotionEnabled: boolean } })._settings = {
-      spatialMotionEnabled: true,
-    };
-  });
-
   afterEach(() => {
     delete (window as Window & { _settings?: unknown })._settings;
     document.body.innerHTML = '';
   });
 
-  it('keeps the player-facing 3D Motion toggle in the main settings panel', () => {
+  it('does not expose removed device-motion controls', () => {
     const screen = HTMLBuilder.createElement(createSettingsScreen({}));
     const mainPanel = screen.querySelector('.settings-main-scrollable');
 
-    expect(mainPanel?.querySelector('#toggle-spatial-motion')).not.toBeNull();
+    expect(mainPanel?.querySelector('#toggle-spatial-motion')).toBeNull();
     expect(mainPanel?.querySelector('.settings-dev-area')).toBeNull();
   });
 
@@ -44,7 +38,7 @@ describe('Settings screen structure', () => {
     expect(developerPanel?.hidden).toBe(true);
     expect(developerPanel?.querySelector('.settings-dev-area')).not.toBeNull();
     expect(developerPanel?.querySelector('#settings-dev-last-merge-btn')).not.toBeNull();
-    expect(developerPanel?.querySelector('#settings-dev-reset-spatial-intro-btn')).not.toBeNull();
+    expect(developerPanel?.querySelector('#settings-dev-reset-spatial-intro-btn')).toBeNull();
   });
 
   it('keeps the developer navigation handler alive after app navigation resets the view', () => {
@@ -92,7 +86,7 @@ describe('Settings screen structure', () => {
     expect(modals[0].querySelector('.cc-gameplay-modal-flip-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-idle-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-touch-tilt-shell')).not.toBeNull();
-    expect(modals[0].querySelector('.cc-gameplay-modal-gyro-shell')).not.toBeNull();
+    expect(modals[0].querySelector('.cc-gameplay-modal-pose-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-paper-shell')).not.toBeNull();
     expect(modals[0].querySelector('.cc-gameplay-modal-title')?.textContent).toBe('Privacy Policy');
     const scrollRegion = modals[0].querySelector<HTMLElement>('.settings-privacy-policy-scroll');

@@ -163,7 +163,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(pointerMove).toContain("void animateInteractiveFlip(stableFace === 'front' ? 'back' : 'front')");
     expect(modal).toContain('dragPreviewSettleAnimation?.cancel()');
     expect(modal).toContain('visibleRotorTransform');
-    expect(modal).toContain('disposeSpatialMotion?.();');
+    expect(modal).not.toContain('disposeSpatialMotion');
     expect(modal).not.toContain('currentTranslateX');
     expect(modal).toContain('if (flipping && flipAnimation)');
     expect(modal).toContain('if (impactAnimation || dragPreviewSettleAnimation)');
@@ -296,13 +296,13 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-exiting \.journey-card-flip-idle-shell \{[\s\S]*?rotate: 0deg;[\s\S]*?--journey-card-exit-neutral-duration, 680ms[\s\S]*?transition-timing-function: linear;/);
     expect(modal).toContain('const neutralizeExitMotionOwners = (durationMs: number) => {');
     expect(modal).toContain("{ transform: idleTransform },\n        { transform: 'none' }");
-    expect(modal).toContain("{ translate: gyroTranslate, transform: gyroTransform }");
+    expect(modal).toContain("{ translate: poseTranslate, transform: poseTransform }");
     expect(modal).toContain('neutralizeExitMotionOwners(prefersReducedMotion ? 1 : exitNeutralDurationMs);');
     expect(modal).toContain("stage.style.setProperty('--journey-card-exit-neutral-duration', `${safeDurationMs}ms`)");
     expect(modal).toContain("{ duration: safeDurationMs, easing: 'linear', fill: 'forwards' }");
     expect(css).toContain('.journey-card-flip-overlay[data-paint-face="front"] .journey-card-flip-back');
     expect(css).toContain('.journey-card-flip-overlay[data-paint-face="back"] .journey-card-flip-front');
-    expect(css).toMatch(/\.journey-card-flip-gyro-shell\.cc-modal-spatial-target \{[\s\S]*?translate3d\(0, 0, var\(--cc-modal-gyro-z\)\)[\s\S]*?rotateY\(var\(--cc-modal-gyro-ry\)\);/);
+    expect(css).toMatch(/\.journey-card-flip-pose-shell\.cc-modal-pose-target \{[\s\S]*?translate3d\(0, 0, var\(--cc-modal-pose-z\)\)[\s\S]*?rotateY\(var\(--cc-modal-pose-ry\)\);/);
     expect(css).toMatch(/\.journey-card-flip-back-shell > \.gameplay-sheet-close \{[\s\S]*?backface-visibility: hidden;/);
     expect(css).not.toContain('.journey-card-flip-overlay[data-face="back"]\n  .journey-card-flip-back-shell > .gameplay-sheet-close');
     expect(css).toContain('@keyframes journey-card-flip-idle-copy-lifecycle');
@@ -337,11 +337,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-stat\.is-content-entering,[\s\S]*?animation-name: detailStatPopOut;[\s\S]*?animation-duration: 0\.2s;[\s\S]*?animation-direction: reverse;/);
   });
 
-  test('keeps one frame owner, two identical faces, and a subtle ribbon gyro layer', () => {
+  test('keeps one frame owner and two identical faces without a sensor-motion owner', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
-    const spatial = read('src/modules/gameplay-modal-spatial-motion.ts');
-    const journeySpatial = read('src/modules/journey-spatial-motion.ts');
 
     expect(modal.match(/class="journey-card-flip-rotor"/g)).toHaveLength(1);
     expect(modal.match(/journey-card-flip-face journey-card-flip-(?:front|back)/g)).toHaveLength(2);
@@ -371,16 +369,8 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).not.toContain('dragFlipZone');
     expect(modal).toContain('rotor.releasePointerCapture(event.pointerId)');
     expect(modal).toContain('const deltaY = event.clientY - dragStartY;');
-    expect(spatial).toContain('mountJourneyCardFlipSpatialMotion');
-    expect(spatial).toContain('registerModalTargets(stage, [');
-    expect(spatial).toContain('JOURNEY_FLIP_RIBBON_PROFILE');
-    expect(spatial).toContain('JOURNEY_FLIP_RIBBON_LABEL_PROFILE');
-    expect(spatial).toContain("'.journey-card-overlay-portaled-card > .journey-card-ribbon'");
-    expect(spatial).toContain('...(ribbon ? [{ element: ribbon, ...JOURNEY_FLIP_RIBBON_PROFILE }] : [])');
-    expect(spatial).toContain('...(ribbonLabel ? [{ element: ribbonLabel, ...JOURNEY_FLIP_RIBBON_LABEL_PROFILE }] : [])');
-    expect(spatial).toContain('{ element: target, ...OVERLAY_MODAL_PROFILE }');
-    expect(journeySpatial).toContain("card?.querySelector<HTMLElement>(':scope > .journey-card-ribbon')");
-    expect(journeySpatial).toContain('{ x: 0.7, y: 0.7 }');
+    expect(modal).not.toContain('mountJourneyCardFlipSpatialMotion');
+    expect(modal).not.toContain('DeviceOrientationEvent');
   });
 
   test('shares flight progress with the flip and preserves Play landing choreography', () => {
@@ -440,7 +430,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("'flight-front-turn'");
     expect(modal).toContain("'flight-back-turn'");
     expect(modal).toContain("'flight-back-settle'");
-    expect(modal).toContain("markOpenProfile('modal-gyro-mounted')");
+    expect(modal).toContain("markOpenProfile('controls-mounted')");
     expect(modal).toContain("emitOpenProfile('disposed-before-stable')");
     expect(manager).toContain("markOpenProfile('world-paused')");
     expect(manager).toContain('openProfileManagerMarks,');
@@ -507,7 +497,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-overlay\.is-entering\.is-shadow-ready \.journey-card-flip-paper \{[\s\S]*?transition: box-shadow 180ms linear;/);
   });
 
-  test('freezes World paint while modal gyro owns depth, with exact origin leasing and board handoff', () => {
+  test('freezes World paint while the modal owns depth, with exact origin leasing and board handoff', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     const portal = read('src/modules/journey-card-portal-transition.ts');
     expect(manager).toContain('export const JOURNEY_CARD_OVERLAY_MODAL_EXPERIMENT_ENABLED = true');
@@ -533,8 +523,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(manager).toContain('this.trackTimeout(() => this.journeyWorldRuntime.endInteractionSettle(), 48)');
     expect(overlayResume).not.toContain('this.startJourneyAreaIdleAnimations(');
     expect(overlayResume).not.toContain('journeySpatialMotion.resumeJourneyWorld(');
-    expect(manager).toContain('journeySpatialMotion.suspend();');
-    expect(manager).toContain('journeySpatialMotion.resumeJourneyWorld(container);');
+    expect(manager).not.toContain('journeySpatialMotion');
     expect(manager).toContain('await this.startJourneyBoardFromOverlay(board, earlyJourneyExitPromise);');
     expect(manager).toContain('startOverlayPortaledCardJourneyExit(');
     expect(manager.match(/onPlayCardExitStart: \(\) =>/g)).toHaveLength(2);
@@ -588,7 +577,7 @@ describe('Journey two-sided card overlay prototype', () => {
     const css = read('src/collectibles-screen.css');
     expect(modal).toContain("prefersReducedMotion ? -180 : getJourneyCardFlightFlipAngle(progress, 'enter')");
     expect(modal).toContain("prefersReducedMotion ? 0 : getJourneyCardFlightFlipAngle(travelProgress, 'return')");
-    expect(modal).toContain('disposeSpatialMotion?.();');
+    expect(modal).not.toContain('disposeSpatialMotion');
     expect(modal).toContain('spatialFlight?.cancel();');
     expect(modal).toContain('flipAnimation?.cancel();');
     expect(modal).toContain('restoreEnvironment();');

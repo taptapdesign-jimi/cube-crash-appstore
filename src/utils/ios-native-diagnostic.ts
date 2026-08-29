@@ -1,3 +1,5 @@
+import { areDetailedRuntimeDiagnosticsEnabled } from './runtime-diagnostics-policy.js';
+
 export function emitNativeConsoleDiagnostic(
   prefix: string,
   event: string,
@@ -18,6 +20,7 @@ export function emitNativeConsoleDiagnostic(
 
 export function emitIOSNativeDiagnostic(event: string, detail: Record<string, unknown> = {}): void {
   try {
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     // The bundled app does not install this bridge in ordinary play. Bail out
     // before querying Journey DOM/state so disabled diagnostics stay free.
     const handler = (window as any).webkit?.messageHandlers?.consoleLog;
