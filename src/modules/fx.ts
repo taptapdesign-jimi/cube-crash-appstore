@@ -6354,9 +6354,10 @@ export function startTntIdleShake(tile) {
   const g = tile.rotG || tile;
   if (!g) return;
 
-  const maxDeg = 14; // 0–14 degrees left/right from center
+  const isLaserGun = getSpecialDiceVariantForTile(tile)?.id === 'laser-gun';
+  const maxDeg = isLaserGun ? 11 : 14; // LaserGun twitches; core TNT keeps its slow sway.
   const maxRad = (maxDeg * Math.PI) / 180;
-  const bounceUpPx = 4; // 5% upward bounce
+  const bounceUpPx = isLaserGun ? 3 : 4; // 5% upward bounce
 
   const performShake = () => {
     if (!tile || tile.destroyed || !g) return;
@@ -6370,7 +6371,9 @@ export function startTntIdleShake(tile) {
     const originalRotation = g._originalShakeRotation;
     const originalY = g._originalShakeY;
     const target = (Math.random() * 2 - 1) * maxRad; // -14° to +14°
-    const total = 0.9 + Math.random() * 0.25; // jako spora animacija (ne nagla)
+    const total = isLaserGun
+      ? 0.44 + Math.random() * 0.10
+      : 0.9 + Math.random() * 0.25; // Core TNT remains deliberately slow.
 
     const shakeTl = trackTimeline();
     if (tile._tntShakeCurrentTl) {
@@ -6378,21 +6381,45 @@ export function startTntIdleShake(tile) {
     }
     tile._tntShakeCurrentTl = shakeTl;
     shakeTl.set(g, { rotation: originalRotation, y: originalY });
-    shakeTl.to(g, {
-      rotation: originalRotation + target,
-      y: originalY - bounceUpPx,
-      duration: total * 0.5,
-      ease: 'sine.inOut' // nježno, ne naglo
-    });
-    shakeTl.to(g, {
-      rotation: originalRotation,
-      y: originalY,
-      duration: total * 0.5,
-      ease: 'sine.inOut',
-      onComplete: () => {
-        tile._tntShakeCurrentTl = null;
-      }
-    });
+    if (isLaserGun) {
+      shakeTl.to(g, {
+        rotation: originalRotation + target,
+        y: originalY - bounceUpPx,
+        duration: total * 0.34,
+        ease: 'back.out(2.2)'
+      });
+      shakeTl.to(g, {
+        rotation: originalRotation - target * 0.38,
+        y: originalY + 1,
+        duration: total * 0.26,
+        ease: 'power2.inOut'
+      });
+      shakeTl.to(g, {
+        rotation: originalRotation,
+        y: originalY,
+        duration: total * 0.40,
+        ease: 'elastic.out(1, 0.45)',
+        onComplete: () => {
+          tile._tntShakeCurrentTl = null;
+        }
+      });
+    } else {
+      shakeTl.to(g, {
+        rotation: originalRotation + target,
+        y: originalY - bounceUpPx,
+        duration: total * 0.5,
+        ease: 'sine.inOut' // nježno, ne naglo
+      });
+      shakeTl.to(g, {
+        rotation: originalRotation,
+        y: originalY,
+        duration: total * 0.5,
+        ease: 'sine.inOut',
+        onComplete: () => {
+          tile._tntShakeCurrentTl = null;
+        }
+      });
+    }
   };
 
   // Prva mrda nakon 3s, zatim u intervalima po ~3s
@@ -6444,8 +6471,11 @@ export function stopTntIdleShake(tile) {
     try {
       gsap.killTweensOf(g);
       const resetRotation = g._originalShakeRotation !== undefined ? g._originalShakeRotation : 0;
+      const resetY = g._originalShakeY !== undefined ? g._originalShakeY : g.y;
       if (typeof g.rotation !== 'undefined') g.rotation = resetRotation;
+      if (typeof g.y !== 'undefined') g.y = resetY;
       g._originalShakeRotation = undefined;
+      g._originalShakeY = undefined;
     } catch {}
   }
 

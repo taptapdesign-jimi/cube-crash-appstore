@@ -35,7 +35,7 @@ describe('Journey spatial motion', () => {
     expect(normalizeJourneySpatialTilt(20.2, -4.3, 20, -4)).toEqual({ x: 0, y: 0 });
   });
 
-  it('caps mobile spatial paint at 30fps while desktop keeps display cadence', () => {
+  it('disables Journey World spatial paint on the mobile MVP profile', () => {
     Object.defineProperty(window, 'DeviceOrientationEvent', {
       configurable: true,
       value: class DeviceOrientationEventWithoutPermission {},
@@ -67,12 +67,8 @@ describe('Journey spatial motion', () => {
     controller.activateJourneyWorld(world, 1);
     emitOrientation(20, 0);
     emitOrientation(29, 14);
-    queuedFrames.shift()?.(0);
-    const firstPaint = art.style.translate;
-    queuedFrames.shift()?.(16);
-    expect(art.style.translate).toBe(firstPaint);
-    queuedFrames.shift()?.(34);
-    expect(art.style.translate).not.toBe(firstPaint);
+    expect(queuedFrames).toHaveLength(0);
+    expect(art.style.translate).toBe('');
 
     controller.deactivate();
   });
@@ -85,9 +81,7 @@ describe('Journey spatial motion', () => {
     `;
     const world = document.getElementById('journey-world') as HTMLElement;
     const art = world.querySelector<HTMLElement>('.journey-forest-main-art') as HTMLElement;
-    const controller = new AppSpatialMotionController(resolveMobileRuntimeProfile({
-      userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
-    }));
+    const controller = new AppSpatialMotionController(resolveMobileRuntimeProfile({ userAgent: 'Desktop Browser' }));
     const setProperty = jest.spyOn(art.style, 'setProperty');
 
     controller.activateJourneyWorld(world, 1);
@@ -649,7 +643,7 @@ describe('Journey spatial motion', () => {
     expect(onWindow?.detail).toMatchObject({
       label: 'gameplay-gyro-on',
       gyroState: 'on',
-      spatialMaxFramesPerSecond: 30,
+      spatialMaxFramesPerSecond: 24,
       targetCount: 3,
       gameplayProviderReads: 0,
       gameplayPositionWrites: 0,

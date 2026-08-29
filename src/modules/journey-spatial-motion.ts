@@ -656,6 +656,11 @@ export class AppSpatialMotionController {
 
   public activateJourneyHub(container: HTMLElement): void {
     if (this.deferActivation(() => this.activateJourneyHub(container), 'journey-hub')) return;
+    if (!this.runtimeProfile.journeySpatialMotionEnabled) {
+      this.deactivate();
+      this.emitDiagnostic('surface-disabled', { surface: 'journey-hub', reason: 'mobile-mvp-thermal-profile' });
+      return;
+    }
     const isNewHubEntry = this.activeSurface !== 'journey-hub';
     if (isNewHubEntry) {
       this.hubEntryDepthOffset = Math.floor(Math.random() * ORGANIC_DEPTH_SCALES.length);
@@ -708,6 +713,11 @@ export class AppSpatialMotionController {
 
   public activateJourneyWorld(container: HTMLElement, worldId: number): void {
     if (this.deferActivation(() => this.activateJourneyWorld(container, worldId), 'journey-world')) return;
+    if (!this.runtimeProfile.journeySpatialMotionEnabled) {
+      this.deactivate();
+      this.emitDiagnostic('surface-disabled', { surface: 'journey-world', reason: 'mobile-mvp-thermal-profile' });
+      return;
+    }
     const spatialWorldId = this.asWorldId(worldId);
     const worldRange = worldId === 1 ? { start: 1, end: 10 } : worldId === 2
       ? { start: 11, end: 20 }
@@ -824,6 +834,11 @@ export class AppSpatialMotionController {
       () => this.activateJourneyDetailModal(modal, boardId),
       'journey-detail-modal',
     )) return;
+    if (!this.runtimeProfile.journeySpatialMotionEnabled) {
+      this.deactivateJourneyDetailModal();
+      this.emitDiagnostic('surface-disabled', { surface: 'journey-detail-modal', reason: 'mobile-mvp-thermal-profile' });
+      return;
+    }
     if (
       !modal.isConnected ||
       modal.hidden ||

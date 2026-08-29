@@ -59,20 +59,26 @@ describe('Robo Cube special die', () => {
     }
   });
 
-  test('keeps Robo Cube as the second Stage 1 wild and randomizes only later Robo stages', () => {
+  test('keeps Robo Cube as the third Stage 1 wild and randomizes only later Robo stages', () => {
     expect(ROBO_WILD_VARIANT_CHANCE).toBe(0.25);
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
-      wildSpawnCount: 1,
+      wildSpawnCount: 2,
       roboWildRoll: 0.99,
     })?.id).toBe('robo-cube');
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
-      wildSpawnCount: 0,
+      wildSpawnCount: 1,
       roboWildRoll: 0,
     })?.id).toBe('spaceship');
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard: 21,
+      wildSpawnCount: 0,
+      roboWildRoll: 0,
+    })?.id).toBe('laser-gun');
 
     for (let journeyBoard = 22; journeyBoard <= 30; journeyBoard += 1) {
       expect(pickSpecialDiceVariantForWildSpawn({

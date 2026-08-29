@@ -5,8 +5,12 @@ export interface MobileRuntimeProfile {
   isMobileDevice: boolean;
   settledIdleMaxFramesPerSecond: number;
   spatialMaxFramesPerSecond: number;
+  journeySpatialMotionEnabled: boolean;
   ambientPixelRatioCap: number;
   ambientVisibilityMarginPx: number;
+  ambientSpriteBudget: number;
+  area55ShipBudget: number;
+  journeyVisibleUnitBudget: number;
 }
 
 export interface MobileRuntimeEnvironment {
@@ -15,9 +19,12 @@ export interface MobileRuntimeEnvironment {
   maxTouchPoints?: number;
 }
 
-const MOBILE_SETTLED_IDLE_FPS = 30;
-const MOBILE_AMBIENT_PIXEL_RATIO_CAP = 1.5;
-const MOBILE_AMBIENT_VISIBILITY_MARGIN_PX = 120;
+const MOBILE_SETTLED_IDLE_FPS = 24;
+const MOBILE_AMBIENT_PIXEL_RATIO_CAP = 1.25;
+const MOBILE_AMBIENT_VISIBILITY_MARGIN_PX = 80;
+const MOBILE_AMBIENT_SPRITE_BUDGET = 10;
+const MOBILE_AREA55_SHIP_BUDGET = 2;
+const MOBILE_JOURNEY_VISIBLE_UNIT_BUDGET = 2;
 
 function readRuntimeEnvironment(): Required<MobileRuntimeEnvironment> {
   if (typeof navigator === 'undefined') {
@@ -59,8 +66,12 @@ export function resolveMobileRuntimeProfile(
     isMobileDevice,
     settledIdleMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
     spatialMaxFramesPerSecond: isMobileDevice ? MOBILE_SETTLED_IDLE_FPS : 0,
+    journeySpatialMotionEnabled: !isMobileDevice,
     ambientPixelRatioCap: isMobileDevice ? MOBILE_AMBIENT_PIXEL_RATIO_CAP : 2,
     ambientVisibilityMarginPx: isMobileDevice ? MOBILE_AMBIENT_VISIBILITY_MARGIN_PX : 180,
+    ambientSpriteBudget: isMobileDevice ? MOBILE_AMBIENT_SPRITE_BUDGET : 0,
+    area55ShipBudget: isMobileDevice ? MOBILE_AREA55_SHIP_BUDGET : 0,
+    journeyVisibleUnitBudget: isMobileDevice ? MOBILE_JOURNEY_VISIBLE_UNIT_BUDGET : 3,
   };
 }
 

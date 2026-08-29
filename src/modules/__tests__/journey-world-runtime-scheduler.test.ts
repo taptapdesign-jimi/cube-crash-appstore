@@ -22,7 +22,7 @@ describe('Journey World runtime scheduler', () => {
     expect(scheduler.getSnapshot()).toMatchObject({
       state: 'scrolling',
       paintSuspended: true,
-      ambientSuspended: false,
+      ambientSuspended: true,
     });
     jest.advanceTimersByTime(180);
     expect(scheduler.getSnapshot()).toMatchObject({
@@ -155,7 +155,7 @@ describe('Journey World runtime scheduler', () => {
     scrollRoot.dispatchEvent(new Event('scroll'));
     expect(scheduler.getSnapshot()).toMatchObject({
       state: 'scrolling',
-      ambientSuspended: false,
+      ambientSuspended: true,
     });
     jest.advanceTimersByTime(228);
     expect(scheduler.getSnapshot().state).toBe('idle');

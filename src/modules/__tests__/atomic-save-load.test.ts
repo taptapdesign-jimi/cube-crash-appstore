@@ -88,6 +88,17 @@ describe('saved-game schema validation', () => {
     expect(result.gameState.schemaVersion).toBe(GAME_SAVE_SCHEMA_VERSION);
   });
 
+  test('preserves the ordered special-dice spawn count across validation', () => {
+    const result = validateAndNormalizeGameSave({
+      grid: [[regularTile()]],
+      wildSpawnCount: 2,
+    }, { rows: 1, cols: 1 });
+
+    expect(result.ok).toBe(true);
+    if ('issues' in result) throw new Error('expected valid save');
+    expect(result.gameState.wildSpawnCount).toBe(2);
+  });
+
   test.each(['wild-juice', 'wild-magnet'])('accepts a legacy %s Beach Ball save for restore-time canonicalization', (legacyCoreType) => {
     const result = validateAndNormalizeGameSave({
       grid: [[regularTile({

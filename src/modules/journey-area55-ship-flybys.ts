@@ -15,7 +15,7 @@ const MIN_SCALE_HOLD_SECONDS = 3;
 const SCALE_HOLD_VARIANCE_SECONDS = 1.5;
 const SCALE_CHANGE_DURATION_SECONDS = 0.45;
 
-export interface JourneyArea55ShipRuntimeProfile { visibilityMarginPx: number; pixelRatioCap: number; maxFramesPerSecond: number }
+export interface JourneyArea55ShipRuntimeProfile { visibilityMarginPx: number; pixelRatioCap: number; maxFramesPerSecond: number; maxShipCount: number }
 export interface StartJourneyArea55ShipFlybysOptions {
   root: HTMLElement; scrollRoot?: HTMLElement | null; leftGutterPx?: number; random?: () => number;
   ticker?: JourneyAmbientTicker; observeVisibility?: boolean; runtimeProfile?: JourneyArea55ShipRuntimeProfile;
@@ -117,7 +117,12 @@ export function resolveJourneyArea55ShipRuntimeProfile(
   maxTouchPoints = typeof navigator !== 'undefined' ? navigator.maxTouchPoints : 0,
 ): JourneyArea55ShipRuntimeProfile {
   const mobile = resolveMobileRuntimeProfile({ userAgent, platform, maxTouchPoints });
-  return { visibilityMarginPx: mobile.ambientVisibilityMarginPx, pixelRatioCap: mobile.ambientPixelRatioCap, maxFramesPerSecond: mobile.settledIdleMaxFramesPerSecond };
+  return {
+    visibilityMarginPx: mobile.ambientVisibilityMarginPx,
+    pixelRatioCap: mobile.ambientPixelRatioCap,
+    maxFramesPerSecond: mobile.settledIdleMaxFramesPerSecond,
+    maxShipCount: mobile.area55ShipBudget,
+  };
 }
 
 function resolveSceneHeight(root: HTMLElement): number {
@@ -178,7 +183,8 @@ export function startJourneyArea55ShipFlybys(options: StartJourneyArea55ShipFlyb
   const layerWidth = canvasGeometry.width;
   const image = createShipAsset();
   let disposed = false;
-  const ships: LiveShip[] = Array.from({ length: SHIP_COUNT }, (_, index) => ({
+  const shipCount = profile.maxShipCount > 0 ? Math.min(SHIP_COUNT, profile.maxShipCount) : SHIP_COUNT;
+  const ships: LiveShip[] = Array.from({ length: shipCount }, (_, index) => ({
     // Area 55 ships fly above the World terrain/decor. Keeping them on the
     // behind canvas allowed crater art to paint over the complete ship.
     depth: 'front', lane: index % 2 === 0 ? 'upper' : 'lower', direction: index % 2 === 0 ? 1 : -1,

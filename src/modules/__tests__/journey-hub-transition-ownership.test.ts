@@ -307,7 +307,7 @@ describe('Journey Hub transition ownership', () => {
     expect(pauseSource).not.toContain('this.cleanupJourneyAreaIdleAnimations(false)');
     expect(resumeSource).toContain('this.journeyWorldRuntime.closeModal()');
     expect(resumeSource).not.toContain('this.startJourneyAreaIdleAnimations(');
-    expect(journeyManagerSource).toContain('boardEntries.slice(0, 3)');
+    expect(journeyManagerSource).toContain('.slice(0, MOBILE_RUNTIME_PROFILE.journeyVisibleUnitBudget)');
     expect(collectiblesCssSource).toContain(
       '#journey-boards-container.journey-world-runtime-transition .journey-board-card',
     );

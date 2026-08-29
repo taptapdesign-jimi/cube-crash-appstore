@@ -1,4 +1,7 @@
-import { selectSpatiallySeparatedTntTargets } from '../tnt-bonus-target-selection';
+import {
+  planLaserGunCrossfireTargets,
+  selectSpatiallySeparatedTntTargets,
+} from '../tnt-bonus-target-selection';
 
 describe('TNT bonus target selection', () => {
   const candidates = [
@@ -26,5 +29,43 @@ describe('TNT bonus target selection', () => {
 
     expect(selected).toHaveLength(2);
     expect(new Set(selected)).toEqual(new Set(candidates.slice(0, 2)));
+  });
+
+  it('randomly chooses either side when only one gun is needed', () => {
+    expect(planLaserGunCrossfireTargets([{ id: 'left', x: 20 }], (target) => target.x, 100, () => 0.1)[0].shooter)
+      .toBe('left');
+    expect(planLaserGunCrossfireTargets([{ id: 'right', x: 80 }], (target) => target.x, 100, () => 0.9)[0].shooter)
+      .toBe('right');
+    expect(planLaserGunCrossfireTargets([{ id: 'center', x: 50 }], (target) => target.x, 100, () => 0.1)[0].shooter)
+      .toBe('left');
+    expect(planLaserGunCrossfireTargets([{ id: 'center', x: 50 }], (target) => target.x, 100, () => 0.9)[0].shooter)
+      .toBe('right');
+  });
+
+  it('keeps the first target and strictly alternates opposite-side shooters', () => {
+    const targets = [
+      { id: 'first-left', x: 20 },
+      { id: 'near-left', x: 35 },
+      { id: 'far-right', x: 90 },
+      { id: 'near-right', x: 65 },
+    ];
+    const plan = planLaserGunCrossfireTargets(targets, (target) => target.x, 100);
+
+    expect(plan.map(({ target }) => target.id)).toEqual([
+      'first-left',
+      'far-right',
+      'near-left',
+      'near-right',
+    ]);
+    expect(plan.map(({ shooter }) => shooter)).toEqual(['right', 'left', 'right', 'left']);
+    expect(new Set(plan.map(({ target }) => target))).toEqual(new Set(targets));
+  });
+
+  it('preserves every canonical target when one half has no matching target', () => {
+    const targets = [{ x: 10 }, { x: 20 }, { x: 30 }];
+    const plan = planLaserGunCrossfireTargets(targets, (target) => target.x, 100);
+
+    expect(plan.map(({ shooter }) => shooter)).toEqual(['right', 'left', 'right']);
+    expect(new Set(plan.map(({ target }) => target))).toEqual(new Set(targets));
   });
 });

@@ -162,6 +162,7 @@ export class JourneyWorldRuntimeScheduler {
     const ambientSuspended = this.state === 'inactive'
       || this.state === 'transition'
       || this.state === 'modal'
+      || this.state === 'scrolling'
       || (this.state === 'settling' && !ambientReleasedForLanding);
     return {
       state: this.state,

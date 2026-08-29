@@ -76,7 +76,8 @@ describe('Beach Ball finale regression contract', () => {
   });
 
   test('keeps falling Ball motion intact while separating its four board impacts', () => {
-    expect(appCoreSource).toContain("impactProfile: tntVariantForMerge?.id === 'beach-ball' ? 'beach-ball' : 'standard'");
+    expect(appCoreSource).toContain("impactProfile: tntVariantForMerge?.id === 'beach-ball'");
+    expect(appCoreSource).toContain("tntVariantForMerge?.id === 'laser-gun'");
     expect(appCoreSource).toContain("impactProfile === 'beach-ball'");
     expect(appCoreSource).toContain('selectSpatiallySeparatedTntTargets(candidates, count)');
     expect(appCoreSource).toContain('const beachBallImpactDelaysMs = [0, 260, 560, 900] as const');

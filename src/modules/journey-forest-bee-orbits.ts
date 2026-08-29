@@ -101,6 +101,7 @@ export interface JourneyForestBeeRuntimeProfile {
   visibilityMarginPx: number;
   pixelRatioCap: number;
   maxFramesPerSecond: number;
+  maxBeeCount: number;
 }
 
 export function resolveJourneyForestBeeRuntimeProfile(
@@ -114,12 +115,14 @@ export function resolveJourneyForestBeeRuntimeProfile(
       visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
       pixelRatioCap: Math.min(mobileProfile.ambientPixelRatioCap, 1.35),
       maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
+      maxBeeCount: mobileProfile.ambientSpriteBudget,
     };
   }
   return {
     visibilityMarginPx: FOREST_BEE_VISIBILITY_MARGIN_PX,
     pixelRatioCap: 2,
     maxFramesPerSecond: 0,
+    maxBeeCount: 0,
   };
 }
 
@@ -621,7 +624,17 @@ export function startJourneyForestBeeOrbits(
     options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;
     return gateGeometry;
   };
-  const plans = createJourneyForestBeeFlightPlans(random);
+  const allPlans = createJourneyForestBeeFlightPlans(random);
+  // The mobile MVP keeps one roaming bee for every Unit before spending any
+  // budget on duplicates. This preserves world readability at lower cost.
+  const plans = runtimeProfile.maxBeeCount > 0
+    ? allPlans
+      .filter((plan) => plan.unitIndex >= 0)
+      .filter((plan, index, unitPlans) => (
+        unitPlans.findIndex((candidate) => candidate.unitIndex === plan.unitIndex) === index
+      ))
+      .slice(0, runtimeProfile.maxBeeCount)
+    : allPlans;
   options.root.dataset.forestBeeGateGeometry = gateGeometry.source;
   options.root.dataset.forestBeeGateCenter = `${gateGeometry.centerX.toFixed(2)},${((gateGeometry.topY + gateGeometry.bottomY) / 2).toFixed(2)}`;
   let disposed = false;

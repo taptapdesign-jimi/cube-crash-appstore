@@ -54,16 +54,16 @@ describe('Journey Forest bee canvas flights', () => {
 
   test('uses the thermal Forest profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 120, pixelRatioCap: 1.35, maxFramesPerSecond: 30 });
+    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0 });
+      .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0, maxBeeCount: 0 });
   });
 
   test('paints eighteen logical bees through two viewport canvases, one ticker and zero sprite DOM nodes', () => {
@@ -177,7 +177,7 @@ describe('Journey Forest bee canvas flights', () => {
     root.remove();
   });
 
-  test('keeps all eighteen bees and both depth canvases under the iPhone thermal profile', () => {
+  test('keeps one bee per Unit through lower-resolution canvases under the mobile MVP profile', () => {
     Object.defineProperties(window, {
       innerWidth: { configurable: true, value: 390 },
       innerHeight: { configurable: true, value: 844 },
@@ -203,18 +203,18 @@ describe('Journey Forest bee canvas flights', () => {
     });
 
     expect(controller.getSnapshot()).toMatchObject({
-      beeCount: 18,
+      beeCount: 10,
       canvasCount: 2,
       tickerCount: 1,
-      pixelRatio: 1.35,
-      bitmapPixels: 527 * 1464 * 2,
-      maxFramesPerSecond: 30,
-      visibilityMarginPx: 120,
+      pixelRatio: 1.25,
+      bitmapPixels: 488 * 1255 * 2,
+      maxFramesPerSecond: 24,
+      visibilityMarginPx: 80,
     });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-forest-bee-canvas'));
     expect(canvases).toHaveLength(2);
-    expect(canvases.every((canvas) => canvas.style.height === '1084px')).toBe(true);
-    expect(canvases.every((canvas) => canvas.width === 527 && canvas.height === 1464)).toBe(true);
+    expect(canvases.every((canvas) => canvas.style.height === '1004px')).toBe(true);
+    expect(canvases.every((canvas) => canvas.width === 488 && canvas.height === 1255)).toBe(true);
 
     controller.dispose();
     expect(callbacks.size).toBe(0);

@@ -10,6 +10,10 @@ import { setInputGateLock } from './input-gate.ts';
 import { attachSmallStarCenterBurst } from './text-sparkles.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
+import {
+  attachLaserGunFinaleScene,
+  preloadLaserGunFinaleAssets,
+} from './lasergun-finale-scene.ts';
 
 const BASE = './assets/shop/explosion pack/animation/';
 const TNT_ANIM_FRAMES_1X: string[] = [
@@ -79,6 +83,7 @@ export type TntAnimationVisualOptions = {
   burstSources?: string[];
   burstMotion?: Record<string, unknown>;
   diceDebris?: boolean;
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
 };
 
 const preloadPromises = new Map<string, Promise<void>>();
@@ -100,13 +105,18 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
   const { preferred, fallback } = resolveFrameSources(options);
   const burstSources = Array.isArray(options.burstSources) ? options.burstSources.filter(Boolean) : [];
   const diceSources = options.diceDebris === true ? [TNT_DICE_TILE_SOURCE] : [];
-  const cacheKey = [...preferred, ...burstSources, ...diceSources].join('|');
+  const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
+  const frameCacheSources = usesLaserGunScene ? ['lasergun-dom'] : preferred;
+  const cacheKey = [...frameCacheSources, ...burstSources, ...diceSources].join('|');
   const existing = preloadPromises.get(cacheKey);
   if (existing) return existing;
 
   const preloadPromise = (async () => {
-    await Promise.all(
-      preferred.map(async (_, index) => {
+    if (usesLaserGunScene) {
+      await preloadLaserGunFinaleAssets();
+    } else {
+      await Promise.all(
+        preferred.map(async (_, index) => {
         const candidates = Array.from(new Set([
           preferred[index],
           fallback[index],
@@ -122,8 +132,9 @@ export function preloadTntFrames(options: TntAnimationVisualOptions = {}): Promi
         }
 
         throw new Error(`TNT-archetype frame ${index + 1} could not be loaded into the Pixi asset cache`);
-      })
-    );
+        })
+      );
+    }
     await Promise.all(burstSources.map(async (source) => {
       const cached = Assets.get(source) as Texture | undefined;
       if (isRenderableTexture(cached)) return;
@@ -926,6 +937,7 @@ export function showTntAnimation(options: {
   burstSources?: string[];
   burstMotion?: Record<string, unknown>;
   diceDebris?: boolean;
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
 } = {}): HTMLElement | null {
   tntMemInit();
   const now = Date.now();
@@ -948,6 +960,7 @@ export function showTntAnimation(options: {
     setInputGateLock('tnt-boom', true, { ttlMs: 5200, scope: 'all' });
   } catch {}
   const { onComplete, onBoomExitStart, onSprite6Start, onSprite10ExitStart, onSprite10ExitLeadStart, onSpriteSequenceComplete, onNinthSpriteStart } = options;
+  const usesLaserGunScene = options.finaleScene === 'lasergun-crossfire';
   const { preferred: activeFrames, fallback: activeFallbackFrames } = resolveFrameSources(options);
   const numFrames = activeFrames.length;
   const lastFrameOnExitOnly = options.lastFrameOnExitOnly === true && numFrames > 1;
@@ -981,7 +994,7 @@ export function showTntAnimation(options: {
   ].join(';');
 
   // PIXI layered frame stack (12 sprites, slika-na-sliku efekt)
-  const pixiHost = getTntPixiHost();
+  const pixiHost = usesLaserGunScene ? null : getTntPixiHost();
   const { x: centerX, y: centerY } = getViewportCenter();
   const frameEls: Sprite[] = [];
   if (pixiHost) {
@@ -1012,7 +1025,7 @@ export function showTntAnimation(options: {
     try { pixiFrameContainer.sortChildren?.(); } catch {}
     tntMemSample('tnt_1_frames_created');
   }
-  if (frameEls.length !== numFrames) {
+  if (!usesLaserGunScene && frameEls.length !== numFrames) {
     logger.warn('⚠️ TNT sprite sequence started without every renderable frame', 'tnt-animation', {
       expected: numFrames,
       actual: frameEls.length,
@@ -1120,6 +1133,18 @@ export function showTntAnimation(options: {
 
   overlay.appendChild(boomContainer);
   document.body.appendChild(overlay);
+
+  if (usesLaserGunScene) {
+    const disposeLaserGunScene = attachLaserGunFinaleScene(overlay, {
+      onFireReady: () => {
+        try { onSprite6Start?.(); } catch {}
+      },
+      onSequenceComplete: () => {
+        try { onSpriteSequenceComplete?.(); } catch {}
+      },
+    });
+    foregroundBurstCleanups.push(disposeLaserGunScene);
+  }
 
   // Master timeline for cleanup
   timeline = trackTimeline({
@@ -1356,26 +1381,32 @@ export function showTntAnimation(options: {
   });
   // Fire once when frame 6 enter animation is complete (no settle wait)
   let sprite6Triggered = false;
-  timeline.call(() => {
-    if (sprite6Triggered) return;
-    sprite6Triggered = true;
-    try { onSprite6Start?.(); } catch {}
-  }, [], sprite5EnterEndTime);
+  if (!usesLaserGunScene) {
+    timeline.call(() => {
+      if (sprite6Triggered) return;
+      sprite6Triggered = true;
+      try { onSprite6Start?.(); } catch {}
+    }, [], sprite5EnterEndTime);
+  }
 
   // Compatibility hook: around the 9th sprite start time (index 8): 0.07 + 8*0.04
   let ninthSpriteTriggered = false;
-  timeline.call(() => {
-    if (ninthSpriteTriggered) return;
-    ninthSpriteTriggered = true;
-    try { onNinthSpriteStart?.(); } catch {}
-  }, [], 0.39);
+  if (!usesLaserGunScene) {
+    timeline.call(() => {
+      if (ninthSpriteTriggered) return;
+      ninthSpriteTriggered = true;
+      try { onNinthSpriteStart?.(); } catch {}
+    }, [], 0.39);
+  }
   const sprite10ExitLeadTime = Math.max(0, exitStartTime + (9 * SPRITE_EXIT_STAGGER) - 0.3);
   let sprite10ExitLeadTriggered = false;
-  timeline.call(() => {
-    if (sprite10ExitLeadTriggered) return;
-    sprite10ExitLeadTriggered = true;
-    try { onSprite10ExitLeadStart?.(); } catch {}
-  }, [], sprite10ExitLeadTime);
+  if (!usesLaserGunScene) {
+    timeline.call(() => {
+      if (sprite10ExitLeadTriggered) return;
+      sprite10ExitLeadTriggered = true;
+      try { onSprite10ExitLeadStart?.(); } catch {}
+    }, [], sprite10ExitLeadTime);
+  }
   tntMemSample('tnt_2_timelines_created');
   const peakSampleA = trackDelayedCall(0.25, () => tntMemSample('tnt_peak_a_250ms'));
   const peakSampleB = trackDelayedCall(0.75, () => tntMemSample('tnt_peak_b_750ms'));

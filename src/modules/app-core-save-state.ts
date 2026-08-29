@@ -5,6 +5,7 @@ type SaveStateDeps = {
   boardNumber: number;
   moves: number;
   wildMeter: number;
+  wildSpawnCount: number;
   bestScore: number;
   starsCount: number;
   MOVES_MAX: number;
@@ -18,6 +19,7 @@ export function buildSaveState({
   boardNumber,
   moves,
   wildMeter,
+  wildSpawnCount,
   bestScore,
   starsCount,
   MOVES_MAX,
@@ -30,6 +32,7 @@ export function buildSaveState({
     boardNumber: Number.isFinite(boardNumber) ? boardNumber : (Number.isFinite(level) ? level : 1),
     moves: Number.isFinite(moves) ? moves : MOVES_MAX,
     wildMeter: Number.isFinite(wildMeter) ? wildMeter : 0,
+    wildSpawnCount: Number.isFinite(wildSpawnCount) ? Math.max(0, Math.trunc(wildSpawnCount)) : 0,
     bestScore: Number.isFinite(bestScore) ? bestScore : 0,
     starsCount: Number.isFinite(starsCount) ? starsCount : 0,
     timestamp: Date.now(),
@@ -43,6 +46,7 @@ export function buildSaveState({
     boardNumber: currentState.boardNumber,
     moves: currentState.moves,
     wildMeter: currentState.wildMeter,
+    wildSpawnCount: currentState.wildSpawnCount,
   });
 
   return currentState;

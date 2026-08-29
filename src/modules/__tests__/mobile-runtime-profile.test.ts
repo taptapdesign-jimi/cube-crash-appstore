@@ -17,18 +17,26 @@ describe('mobile runtime thermal profile', () => {
   test('bounds settled work only on mobile devices', () => {
     expect(resolveMobileRuntimeProfile({ userAgent: 'Android' })).toMatchObject({
       isMobileDevice: true,
-      settledIdleMaxFramesPerSecond: 30,
-      spatialMaxFramesPerSecond: 30,
-      ambientPixelRatioCap: 1.5,
-      ambientVisibilityMarginPx: 120,
+      settledIdleMaxFramesPerSecond: 24,
+      spatialMaxFramesPerSecond: 24,
+      journeySpatialMotionEnabled: false,
+      ambientPixelRatioCap: 1.25,
+      ambientVisibilityMarginPx: 80,
+      ambientSpriteBudget: 10,
+      area55ShipBudget: 2,
+      journeyVisibleUnitBudget: 2,
     });
     expect(resolveMobileRuntimeProfile({ userAgent: 'Desktop Browser' })).toMatchObject({
       platform: 'desktop',
       isMobileDevice: false,
       settledIdleMaxFramesPerSecond: 0,
       spatialMaxFramesPerSecond: 0,
+      journeySpatialMotionEnabled: true,
       ambientPixelRatioCap: 2,
       ambientVisibilityMarginPx: 180,
+      ambientSpriteBudget: 0,
+      area55ShipBudget: 0,
+      journeyVisibleUnitBudget: 3,
     });
   });
 });

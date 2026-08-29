@@ -1074,7 +1074,9 @@ class JourneyBoardsManager {
         };
       })
       .sort((a, b) => a.distance - b.distance);
-    const activeBoards = new Set(boardEntries.slice(0, 3).map(({ entry }) => entry));
+    const activeBoards = new Set(boardEntries
+      .slice(0, MOBILE_RUNTIME_PROFILE.journeyVisibleUnitBudget)
+      .map(({ entry }) => entry));
 
     this.journeyAreaIdleEntries.forEach((entry) => {
       entry.runtimeActive = entry.isVisible && (

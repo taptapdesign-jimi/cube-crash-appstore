@@ -95,11 +95,11 @@ describe('Spaceship special die', () => {
     expect(resolveSplashLetterOpacity([0.8, 1], 1)).toBe(1);
   });
 
-  test('is the first Area 55 Stage 1 wild and never leaks into other worlds or Arcade', () => {
+  test('is the second Area 55 Stage 1 wild and never leaks into other worlds or Arcade', () => {
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
-      wildSpawnCount: 0,
+      wildSpawnCount: 1,
     })?.id).toBe('spaceship');
 
     for (const journeyBoard of [1, 2, 10, 11, 20, 22, 30, 31]) {

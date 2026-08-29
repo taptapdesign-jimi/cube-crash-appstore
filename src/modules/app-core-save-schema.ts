@@ -6,6 +6,7 @@ export const LEGACY_GAME_SAVE_SCHEMA_VERSION = 1;
 const MAX_SAVED_BOARD_NUMBER = 10_000;
 const MAX_SAVED_MOVES = 1_000;
 const MAX_SAVED_WILD_METER = 10;
+const MAX_SAVED_WILD_SPAWN_COUNT = 10_000;
 
 export type SaveValidationIssue = {
   code: string;
@@ -224,6 +225,12 @@ export function validateAndNormalizeGameSave(
     max: MAX_SAVED_WILD_METER,
     fallback: 0,
   });
+  const normalizedWildSpawnCount = validateFiniteNumber(source.wildSpawnCount, 'wildSpawnCount', issues, {
+    min: 0,
+    max: MAX_SAVED_WILD_SPAWN_COUNT,
+    integer: true,
+    fallback: 0,
+  });
   const normalizedScore = validateFiniteNumber(source.score, 'score', issues);
   const normalizedBestScore = validateFiniteNumber(source.bestScore, 'bestScore', issues);
   const normalizedStarsCount = validateFiniteNumber(source.starsCount, 'starsCount', issues, { integer: true });
@@ -267,6 +274,7 @@ export function validateAndNormalizeGameSave(
       level: normalizedLevel,
       moves: normalizedMoves,
       wildMeter: normalizedWildMeter,
+      wildSpawnCount: normalizedWildSpawnCount,
       score: normalizedScore,
       bestScore: normalizedBestScore,
       starsCount: normalizedStarsCount,

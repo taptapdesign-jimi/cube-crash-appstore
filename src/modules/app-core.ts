@@ -18,6 +18,11 @@ import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Sha
 import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStopWildJuiceBubblesExplosion, isWildJuiceBubblesExplosionActive, isWildJuiceBubblesExplosionRecentlyStarted, isWildJuiceFinaleAnimationActive, waitForBubblesExplosionToComplete, destroyWildJuiceBubblesExplosionCache } from './wild-juice-bubbles-explosion.ts';
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
+import {
+  LASERGUN_IMPACT_DELAYS_MS,
+  setActiveLaserGunFinaleTargets,
+  triggerActiveLaserGunFinaleImpact,
+} from './lasergun-finale-scene.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 import { runEndgameFlow } from './endgame-flow.js';
@@ -117,7 +122,11 @@ import {
   releaseTntBonusTile,
   releaseTntBonusTiles,
 } from './tnt-bonus-tile-ownership.ts';
-import { selectSpatiallySeparatedTntTargets } from './tnt-bonus-target-selection.ts';
+import {
+  planLaserGunCrossfireTargets,
+  selectSpatiallySeparatedTntTargets,
+  type LaserGunShooter,
+} from './tnt-bonus-target-selection.ts';
 import { ensureBoardLifecycleTrace, markBoardLifecycle } from '../utils/board-lifecycle-performance.ts';
 import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
 import { initializeBoardGrid } from './app-core-board-setup.ts';
@@ -10288,6 +10297,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const startTntBoardBlast = () => {
                 // Pokreni blast+shake tek nakon što TNT sprite sekvenca završi.
                 try {
+                  // LaserGun owns target-local beam impacts and rendered debris;
+                  // do not displace the complete board before those exact TNT
+                  // targets are selected and hit.
+                  if (tntVariantForMerge?.id === 'laser-gun') return;
                   if (tntVariantForMerge?.id === 'beach-ball') {
                     const beachBallHandles = playShortWildMerge6TileBlast('Beach Ball', {
                       holdForExternalReturn: true,
@@ -10493,8 +10506,15 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
 	                        ? tntVisualOptionsForMerge?.burstSources
 	                        : undefined,
 	                      bonusParticleScale: tntVariantForMerge?.id === 'flower' ? 1.4 : 1,
-	                      impactProfile: tntVariantForMerge?.id === 'beach-ball' ? 'beach-ball' : 'standard',
+	                      impactProfile: tntVariantForMerge?.id === 'beach-ball'
+	                        ? 'beach-ball'
+	                        : tntVariantForMerge?.id === 'laser-gun'
+	                          ? 'laser-gun'
+	                          : 'standard',
 	                      skipFx: false,
+	                      onTargetsSelected: tntVariantForMerge?.id === 'laser-gun'
+	                        ? (targets) => setActiveLaserGunFinaleTargets(targets)
+	                        : undefined,
 	                      onBoardCommitted: () => {
 	                        commitTntBoardForOrdinaryStacks('bonus-targets-reserved');
 	                      },
@@ -14009,12 +14029,13 @@ function runTntBoomBonusBreak2Tiles(deps: {
   devWarn: (...args: any[]) => void;
   bonusParticleSources?: string[];
   bonusParticleScale?: number;
-  impactProfile?: 'standard' | 'beach-ball';
+  impactProfile?: 'standard' | 'beach-ball' | 'laser-gun';
   skipFx?: boolean;
+  onTargetsSelected?: (targets: Array<{ x: number; y: number; shooter: LaserGunShooter }>) => void;
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
-  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onBoardCommitted, onComplete } = deps;
+  const { board, dst, addWildProgress, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, bonusParticleSources, bonusParticleScale = 1, impactProfile = 'standard', skipFx, onTargetsSelected, onBoardCommitted, onComplete } = deps;
   // The activating merge already awards one full BIG increment. Each of the
   // four TNT/Ball bonus impacts contributes a small, explicit 5% reward.
   const bonusProgressPerImpact = 0.05;
@@ -14038,6 +14059,23 @@ function runTntBoomBonusBreak2Tiles(deps: {
       } catch {}
       return local;
     };
+    const getDomScreenPos = (tileForCenter: any) => {
+      const pos = getScreenPos(tileForCenter);
+      try {
+        const canvas = (app as any)?.canvas || (app as any)?.view || (app as any)?.renderer?.canvas;
+        const rect = canvas?.getBoundingClientRect?.();
+        const screen = (app as any)?.renderer?.screen;
+        const screenW = Number(screen?.width) || Number((app as any)?.renderer?.width) || rect?.width;
+        const screenH = Number(screen?.height) || Number((app as any)?.renderer?.height) || rect?.height;
+        if (rect && screenW > 0 && screenH > 0) {
+          return {
+            x: rect.left + (pos.x / screenW) * rect.width,
+            y: rect.top + (pos.y / screenH) * rect.height,
+          };
+        }
+      } catch {}
+      return pos;
+    };
     const bonusParticleTextures = Array.isArray(bonusParticleSources) && bonusParticleSources.length
       ? bonusParticleSources.map((source) => Texture.from(source))
       : [Texture.from('./assets/small-star.png')];
@@ -14053,6 +14091,7 @@ function runTntBoomBonusBreak2Tiles(deps: {
     tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 2500);
     if ((dst as any)?._isLastMerge) {
       devLog('🔥 TNT boom bonus: skip (last merge - clean board)');
+      try { onTargetsSelected?.([]); } catch {}
       notifyBoardCommitted();
       try { onComplete?.(); } catch {}
       return;
@@ -14068,15 +14107,33 @@ function runTntBoomBonusBreak2Tiles(deps: {
     const count = Math.min(4, candidates.length);
     if (count < 1) {
       devLog('🔥 TNT boom bonus: no regular tiles to break');
+      try { onTargetsSelected?.([]); } catch {}
       notifyBoardCommitted();
       try { onComplete?.(); } catch {}
       return;
     }
-	    const toBreak = impactProfile === 'beach-ball'
+	    let toBreak = impactProfile === 'beach-ball' || impactProfile === 'laser-gun'
 	      ? selectSpatiallySeparatedTntTargets(candidates, count)
 	      : [...candidates].sort(() => Math.random() - 0.5).slice(0, count);
+	    let laserVisualTargets: Array<{ x: number; y: number; shooter: LaserGunShooter }> = [];
+	    if (impactProfile === 'laser-gun') {
+	      const screenPositions = new Map(toBreak.map((tile) => [tile, getDomScreenPos(tile)]));
+	      const crossfire = planLaserGunCrossfireTargets(
+	        toBreak,
+	        (tile) => screenPositions.get(tile)?.x ?? 0,
+	        typeof window !== 'undefined' ? window.innerWidth : 1,
+	      );
+	      toBreak = crossfire.map(({ target }) => target);
+	      laserVisualTargets = crossfire.map(({ target, shooter }) => ({
+	        ...(screenPositions.get(target) ?? getDomScreenPos(target)),
+	        shooter,
+	      }));
+	    }
 	    ownedBonusTiles = toBreak;
 	    claimTntBonusTiles(toBreak);
+	    if (impactProfile === 'laser-gun') {
+	      try { onTargetsSelected?.(laserVisualTargets); } catch {}
+	    }
 	    // From this point onward only these exact tiles are unsafe. Release the
 	    // global board lock before the staggered replacements finish.
 	    notifyBoardCommitted();
@@ -14095,23 +14152,35 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        try { checkLevelEnd(); } catch {}
 	      }, 80);
 	    };
+	    const lastScheduledImpactMs = impactProfile === 'laser-gun'
+	      ? LASERGUN_IMPACT_DELAYS_MS[count - 1] ?? 0
+	      : impactProfile === 'beach-ball'
+	        ? [0, 260, 560, 900][count - 1] ?? 0
+	        : Math.max(0, count - 1) * 200;
 	    const forceCompleteTimeout = trackAppTimeout(() => {
 	      if (completed) return;
 	      devWarn('⚠️ TNT boom bonus safety: forcing completion after native timeout');
 	      completedBreaks = count;
 	      markBreakComplete();
-	    }, Math.max(1600, Math.round(((count - 1) * 0.2 + 1.6) * 1000)));
+	    }, Math.max(1600, lastScheduledImpactMs + 1600));
 	    const beachBallImpactDelaysMs = [0, 260, 560, 900] as const;
 	    toBreak.forEach((tile: Tile, i: number) => {
 	      const delayMs = impactProfile === 'beach-ball'
 	        ? beachBallImpactDelaysMs[i] ?? i * 300
-	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
+	        : impactProfile === 'laser-gun'
+	          ? LASERGUN_IMPACT_DELAYS_MS[i] ?? i * 240
+	          : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
 	      const doBreak = () => {
 	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
 	          releaseTntBonusTile(tile);
 	          markBreakComplete();
 	          return;
 	        }
+        if (impactProfile === 'laser-gun') {
+          // One native callback owns the visible hit and board mutation so the
+          // DOM beam/debris cannot drift away from the Pixi explosion on iOS.
+          triggerActiveLaserGunFinaleImpact(i);
+        }
         const c = tile.gridX ?? 0;
         const r = tile.gridY ?? 0;
 	        // Preserve the stagger and award exactly 5% per completed impact:
@@ -14129,12 +14198,16 @@ function runTntBoomBonusBreak2Tiles(deps: {
         // No shards for TNT bonus break; smoke handled on spawn
         // Shards + smoke should appear during the popout/transition, before new tile spawns
         if (!skipFx) {
-          try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
+          // LaserGun already owns three dice plus three rocks per impact. Avoid
+          // stacking the full TNT shard layer on top of that bounded debris.
+          if (impactProfile !== 'laser-gun') {
+            try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
+          }
           try {
-            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : 1.0, {
-              sizeScale: impactProfile === 'beach-ball' ? 1.9 : 1.5,
+            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : impactProfile === 'laser-gun' ? 0.62 : 1.0, {
+              sizeScale: impactProfile === 'beach-ball' ? 1.9 : impactProfile === 'laser-gun' ? 1.15 : 1.5,
               distanceScale: impactProfile === 'beach-ball' ? 1.35 : 1,
-              countScale: impactProfile === 'beach-ball' ? 1.15 : 1,
+              countScale: impactProfile === 'beach-ball' ? 1.15 : impactProfile === 'laser-gun' ? 0.28 : 1,
               spawnShape: 'box',
               zIndex: 9994,
             });
@@ -15503,6 +15576,7 @@ function saveGameState() {
       boardNumber,
       moves,
       wildMeter,
+      wildSpawnCount,
       bestScore: STATE.bestScore,
       starsCount: savedStarsCount,
       MOVES_MAX,
@@ -15598,6 +15672,10 @@ async function loadGameState(overrideBoardNumber?: number) {
       setBoardNumber: (v) => { boardNumber = v; },
       setMoves: (v) => { moves = v; },
       setWildMeter: (v) => { wildMeter = v; },
+      setWildSpawnCount: (v) => {
+        wildSpawnCount = v;
+        firstWildSpawned = v > 0;
+      },
       devLog,
     });
 

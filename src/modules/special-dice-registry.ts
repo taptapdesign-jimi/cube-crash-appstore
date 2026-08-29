@@ -33,7 +33,7 @@ export type SpecialDiceVariantDefinition = {
   shardColors?: number[];
   trailColors?: number[];
   idleBubbleColors?: number[];
-  finaleScene?: 'bottle-ocean' | 'spaceship-abduction';
+  finaleScene?: 'bottle-ocean' | 'spaceship-abduction' | 'lasergun-crossfire';
   explosionSpriteSources?: string[];
   explosionScale?: number;
   explosionHorizontalScale?: number;
@@ -172,10 +172,41 @@ const spaceshipIdleSources2x = Array.from(
   { length: 4 },
   (_, index) => `./assets/shop/spaceship/spaceship-idle${index + 1}@2x.png`,
 );
+const laserGunFinaleSources1x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/gun/lasergun${index + 1}.png`,
+);
+const laserGunFinaleSources2x = Array.from(
+  { length: 6 },
+  (_, index) => `./assets/shop/gun/lasergun${index + 1}@2x.png`,
+);
 const useHighResolutionSpecialDiceFx = typeof navigator !== 'undefined'
   && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition> = {
+  'laser-gun': {
+    id: 'laser-gun',
+    archetype: 'wild-tnt',
+    texture: useHighResolutionSpecialDiceFx
+      ? './assets/shop/gun/right gun@2x.png'
+      : './assets/shop/gun/right gun.png',
+    splashText: 'ZAP - ZAP',
+    splashColor: '#F3A654',
+    splashColors: ['#F3A654', '#EE9343'],
+    splashSplitIndex: 6,
+    shardColor: 0xFED49A,
+    shardColors: [0xFED49A, 0xBEAA85],
+    trailColors: [0xFEDFAD, 0xFDC37E, 0xE5CCA4, 0x97E9FD],
+    explosionSpriteSources: useHighResolutionSpecialDiceFx
+      ? laserGunFinaleSources2x
+      : laserGunFinaleSources1x,
+    finaleScene: 'lasergun-crossfire',
+    visualWidth: 147.456,
+    visualHeight: 147.456,
+    hitAreaSize: 'tile',
+    idleOrbit: false,
+    inputReleaseAtRatio: 0.7,
+  },
   spaceship: {
     id: 'spaceship',
     archetype: 'wild-magnet',
@@ -769,14 +800,15 @@ export function pickSpecialDiceVariantForWildSpawn({
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
     }
-    // Robo World Cjelina 01 guarantees Spaceship first and Robo Cube second.
-    // The new Magnet-family visual stays isolated from Forest, Beach, Arcade,
-    // and the later Robo roll so it cannot dilute the accepted Robo chance.
+    // Area 55 Cjelina 01 guarantees LaserGun first, Spaceship second and Robo
+    // Cube third. Each remains isolated from Forest, Beach, Arcade and the
+    // later Area 55 roll so the established 25% Robo chance cannot drift.
     // Remaining Robo stages use one bounded roll per spawn; no other world or
     // Arcade route can consume this visual variant.
     if (board === 21) {
-      if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS.spaceship;
-      if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS['robo-cube'];
+      if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS['laser-gun'];
+      if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS.spaceship;
+      if (wildSpawnCount === 2) return SPECIAL_DICE_VARIANTS['robo-cube'];
       return null;
     }
     if (board >= 22 && board <= 30) {

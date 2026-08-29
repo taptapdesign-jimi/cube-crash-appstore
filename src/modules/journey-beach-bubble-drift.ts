@@ -33,6 +33,7 @@ export interface JourneyBeachBubbleRuntimeProfile {
   visibilityMarginPx: number;
   pixelRatioCap: number;
   maxFramesPerSecond: number;
+  maxBubbleCount: number;
 }
 
 export function resolveJourneyBeachBubbleRuntimeProfile(
@@ -46,12 +47,14 @@ export function resolveJourneyBeachBubbleRuntimeProfile(
       visibilityMarginPx: mobileProfile.ambientVisibilityMarginPx,
       pixelRatioCap: mobileProfile.ambientPixelRatioCap,
       maxFramesPerSecond: mobileProfile.settledIdleMaxFramesPerSecond,
+      maxBubbleCount: mobileProfile.ambientSpriteBudget,
     };
   }
   return {
     visibilityMarginPx: BUBBLE_VISIBILITY_MARGIN_PX,
     pixelRatioCap: 2,
     maxFramesPerSecond: 0,
+    maxBubbleCount: 0,
   };
 }
 
@@ -260,7 +263,10 @@ export function startJourneyBeachBubbleDrift(
     bubble.rendered = false;
   };
 
-  for (let index = 0; index < BUBBLE_COUNT; index += 1) {
+  const bubbleCount = runtimeProfile.maxBubbleCount > 0
+    ? Math.min(BUBBLE_COUNT, runtimeProfile.maxBubbleCount)
+    : BUBBLE_COUNT;
+  for (let index = 0; index < bubbleCount; index += 1) {
     const bubble: LiveBubble = {
       depth: 'behind', durationSeconds: 1, delaySeconds: 0, elapsedSeconds: 0,
       emitterBoardId: 11, startX: 0, startY: 0, endX: 0, size: 1, opacity: 0,
