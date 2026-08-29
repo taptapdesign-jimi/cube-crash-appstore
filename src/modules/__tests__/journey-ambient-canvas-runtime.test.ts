@@ -153,6 +153,13 @@ describe('Journey ambient canvas runtime', () => {
       maxFramesPerSecond: 30,
       visibilityMarginPx: 120,
     });
+    runtime.setMaxFramesPerSecond(60);
+    expect(runtime.getSnapshot()).toMatchObject({ maxFramesPerSecond: 60 });
+    ticker.time += 1 / 60;
+    callbacks.forEach((callback) => callback());
+    expect(deltas[deltas.length - 1]).toBeCloseTo(1 / 60, 3);
+    runtime.setMaxFramesPerSecond(30);
+    expect(runtime.getSnapshot()).toMatchObject({ maxFramesPerSecond: 30 });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-test-throttled-canvas'));
     expect(canvases.every((canvas) => canvas.style.height === '1084px')).toBe(true);
     expect(canvases.every((canvas) => canvas.width === 585 && canvas.height === 1626)).toBe(true);

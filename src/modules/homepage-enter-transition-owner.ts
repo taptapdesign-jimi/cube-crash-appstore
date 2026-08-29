@@ -14,6 +14,7 @@ interface ActiveHomepageEnterTransition {
   id: number;
   reason: string;
   targetSlideIndex: number;
+  settled: Promise<HomepageEnterTransitionResult>;
   cancelCallbacks: Set<(reason: string) => void>;
   resolve: (result: HomepageEnterTransitionResult) => void;
 }
@@ -35,6 +36,7 @@ export class HomepageEnterTransitionOwner {
       id,
       reason,
       targetSlideIndex,
+      settled,
       cancelCallbacks: new Set(),
       resolve: resolveSettled,
     };
@@ -76,6 +78,10 @@ export class HomepageEnterTransitionOwner {
 
   public isActive(): boolean {
     return this.active !== null;
+  }
+
+  public getCurrentSettled(): Promise<HomepageEnterTransitionResult> | null {
+    return this.active?.settled ?? null;
   }
 }
 

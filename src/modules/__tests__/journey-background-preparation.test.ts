@@ -107,6 +107,9 @@ describe('Journey background preparation ownership', () => {
     expect(managerSource).toContain('const worldFragment = document.createDocumentFragment()');
     expect(managerSource).toContain('worldFragment.append(cloudContainer, bgContainer, decorContainer, cardsContainer)');
     expect(managerSource).toContain('atomicRootCommit: true');
+    expect(managerSource).toContain("worldFragment.querySelectorAll('*').length : 0");
+    expect(managerSource).toContain('const detailedRenderDiagnostic = areDetailedRuntimeDiagnosticsEnabled()');
+    expect(collectiblesSource).not.toContain("childCount: journeyContainer.querySelectorAll('*').length");
     expect(collectiblesSource).toContain("emitIOSNativeDiagnostic('journey-required-render-start'");
     expect(collectiblesSource).toContain("emitIOSNativeDiagnostic('journey-required-render-complete'");
   });

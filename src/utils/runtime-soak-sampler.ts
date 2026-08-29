@@ -6,6 +6,8 @@ type RuntimeSamplerWindow = Window & {
   __ccRuntimeSoakSamplerStop?: () => void;
   PIXI?: { utils?: { TextureCache?: Record<string, unknown>; BaseTextureCache?: Record<string, unknown> } };
   webkit?: { messageHandlers?: { consoleLog?: { postMessage?: (message: unknown) => void } } };
+  requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+  cancelIdleCallback?: (id: number) => void;
 };
 
 function readGsapChildren(): number | null {
@@ -34,10 +36,14 @@ interface FrameTimingWindow {
   over34Ms: number;
 }
 
-function emitCompactSample(frameTiming: FrameTimingWindow | null): void {
+function emitCompactSample(
+  frameTiming: FrameTimingWindow | null,
+  reason = 'interval',
+  force = false,
+): void {
   const runtimeWindow = window as RuntimeSamplerWindow;
   const handler = runtimeWindow.webkit?.messageHandlers?.consoleLog;
-  if (runtimeWindow.__ccPerformanceDiagnostics !== true || !handler?.postMessage) return;
+  if ((!force && runtimeWindow.__ccPerformanceDiagnostics !== true) || !handler?.postMessage) return;
 
   const journey = document.getElementById('journey-screen');
   const journeyStyle = journey ? window.getComputedStyle(journey) : null;
@@ -46,6 +52,7 @@ function emitCompactSample(frameTiming: FrameTimingWindow | null): void {
     level: 'info',
     message: `[CC_SOAK] ${JSON.stringify({
       at: Math.round(performance.now()),
+      reason,
       visibility: document.visibilityState,
       route: document.body?.dataset?.appZone ?? null,
       dom: document.getElementsByTagName('*').length,
@@ -62,6 +69,9 @@ function emitCompactSample(frameTiming: FrameTimingWindow | null): void {
         over34Ms: frameTiming.over34Ms,
       } : null,
       runtimeTextures: runtimeWindow.__ccRuntimeTextures?.size ?? null,
+      cleanup: (() => {
+        try { return (window as any).CC?.getCleanupStats?.() ?? null; } catch { return null; }
+      })(),
       pixiTextureCache: pixiUtils?.TextureCache ? Object.keys(pixiUtils.TextureCache).length : null,
       pixiBaseTextureCache: pixiUtils?.BaseTextureCache ? Object.keys(pixiUtils.BaseTextureCache).length : null,
       journey: journey ? {
@@ -72,6 +82,10 @@ function emitCompactSample(frameTiming: FrameTimingWindow | null): void {
       } : null,
     })}`,
   });
+}
+
+export function emitRuntimeResourceSnapshot(reason: string): void {
+  emitCompactSample(null, reason, true);
 }
 
 export function startRuntimeSoakSampler(): () => void {
@@ -88,8 +102,15 @@ export function startRuntimeSoakSampler(): () => void {
   };
   let lastFrameAt: number | null = null;
   let frameRequest = 0;
+  let pendingIdleSample = 0;
+  let pendingFallbackSample = 0;
+  let skipNextMeasuredDelta = false;
   const sampleFrame = (now: number): void => {
-    if (lastFrameAt !== null) {
+    if (skipNextMeasuredDelta) {
+      // Resource diagnostics are intentionally excluded from the frame window:
+      // the profiler must not report its own DOM/GSAP traversal as app work.
+      skipNextMeasuredDelta = false;
+    } else if (lastFrameAt !== null) {
       const frameMs = Math.max(0, now - lastFrameAt);
       // Ignore lifecycle gaps; visibility is already reported separately and
       // a background/resume pause is not a renderer frame.
@@ -104,15 +125,38 @@ export function startRuntimeSoakSampler(): () => void {
     lastFrameAt = now;
     frameRequest = window.requestAnimationFrame(sampleFrame);
   };
+  const scheduleIdleSample = (completedWindow: FrameTimingWindow | null): void => {
+    if (pendingIdleSample || pendingFallbackSample) return;
+    const emit = () => {
+      pendingIdleSample = 0;
+      pendingFallbackSample = 0;
+      skipNextMeasuredDelta = true;
+      emitCompactSample(completedWindow);
+      // Reset the RAF baseline after the resource walk so its cost cannot
+      // contaminate the next application-frame delta either.
+      lastFrameAt = null;
+    };
+    if (typeof runtimeWindow.requestIdleCallback === 'function') {
+      pendingIdleSample = runtimeWindow.requestIdleCallback(emit, { timeout: 1_200 });
+      return;
+    }
+    pendingFallbackSample = window.setTimeout(emit, 0);
+  };
   emitCompactSample(null);
   frameRequest = window.requestAnimationFrame(sampleFrame);
   const interval = window.setInterval(() => {
     const completedWindow = frameWindow;
     frameWindow = { samples: 0, totalMs: 0, worstMs: 0, over20Ms: 0, over34Ms: 0 };
-    emitCompactSample(completedWindow);
+    scheduleIdleSample(completedWindow);
   }, SAMPLE_INTERVAL_MS);
   const stop = () => {
     window.clearInterval(interval);
+    if (pendingIdleSample && typeof runtimeWindow.cancelIdleCallback === 'function') {
+      runtimeWindow.cancelIdleCallback(pendingIdleSample);
+    }
+    if (pendingFallbackSample) window.clearTimeout(pendingFallbackSample);
+    pendingIdleSample = 0;
+    pendingFallbackSample = 0;
     if (frameRequest) window.cancelAnimationFrame(frameRequest);
     frameRequest = 0;
     lastFrameAt = null;

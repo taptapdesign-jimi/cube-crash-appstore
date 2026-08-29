@@ -54,14 +54,14 @@ describe('Journey Forest bee canvas flights', () => {
 
   test('uses the thermal Forest profile on iPhone, iPad and Android while preserving desktop', () => {
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (iPad; CPU OS 18_6 like Mac OS X)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Linux; Android 15; Pixel 9 Pro)'))
-      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
+      .toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile(
       'Mozilla/5.0 (Macintosh; Intel Mac OS X)', 'MacIntel', 5,
-    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 24, maxBeeCount: 10 });
+    )).toEqual({ visibilityMarginPx: 80, pixelRatioCap: 1.25, maxFramesPerSecond: 30, maxBeeCount: 10 });
     expect(resolveJourneyForestBeeRuntimeProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X)'))
       .toEqual({ visibilityMarginPx: 180, pixelRatioCap: 2, maxFramesPerSecond: 0, maxBeeCount: 0 });
   });
@@ -208,13 +208,17 @@ describe('Journey Forest bee canvas flights', () => {
       tickerCount: 1,
       pixelRatio: 1.25,
       bitmapPixels: 488 * 1255 * 2,
-      maxFramesPerSecond: 24,
+      maxFramesPerSecond: 30,
       visibilityMarginPx: 80,
     });
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>('.journey-forest-bee-canvas'));
     expect(canvases).toHaveLength(2);
     expect(canvases.every((canvas) => canvas.style.height === '1004px')).toBe(true);
     expect(canvases.every((canvas) => canvas.width === 488 && canvas.height === 1255)).toBe(true);
+    controller.setScrollCadenceBoosted(true);
+    expect(controller.getSnapshot()).toMatchObject({ maxFramesPerSecond: 60 });
+    controller.setScrollCadenceBoosted(false);
+    expect(controller.getSnapshot()).toMatchObject({ maxFramesPerSecond: 30 });
 
     controller.dispose();
     expect(callbacks.size).toBe(0);

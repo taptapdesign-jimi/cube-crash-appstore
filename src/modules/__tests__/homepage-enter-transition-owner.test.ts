@@ -25,4 +25,18 @@ describe('Homepage enter transition owner', () => {
     await expect(lease.settled).resolves.toBe('completed');
     expect(owner.isActive()).toBe(false);
   });
+
+  it('exposes only the current settle promise so a queued CTA can follow replacement enters', async () => {
+    const owner = new HomepageEnterTransitionOwner();
+    const first = owner.begin('first', 1);
+    expect(owner.getCurrentSettled()).toBe(first.settled);
+
+    const second = owner.begin('replacement', 1);
+    await expect(first.settled).resolves.toBe('cancelled');
+    expect(owner.getCurrentSettled()).toBe(second.settled);
+
+    second.complete();
+    await expect(second.settled).resolves.toBe('completed');
+    expect(owner.getCurrentSettled()).toBeNull();
+  });
 });

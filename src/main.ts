@@ -45,7 +45,10 @@ import { getBoardSaveKey, hasResumableSavedStateForBoard, migrateGlobalSaveToBoa
 import { killGameDomGsapTweens, killInvalidPixiGsapTweens } from './modules/pixi-gsap-cleanup.js';
 import { emitIOSNativeDiagnostic } from './utils/ios-native-diagnostic.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
-import { startRuntimeSoakSampler } from './utils/runtime-soak-sampler.js';
+import {
+  emitRuntimeResourceSnapshot,
+  startRuntimeSoakSampler,
+} from './utils/runtime-soak-sampler.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
@@ -889,6 +892,15 @@ async function initializeApp(): Promise<void> {
     // Initialize error handling
     errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
     memoryManager.init();
+    (window as any).__ccHandleNativeMemoryWarning = () => {
+      emitRuntimeResourceSnapshot('native-memory-warning:before-cleanup');
+      try { memoryManager.performCleanup(); } catch {}
+      try {
+        const app = (window as any).STATE?.app;
+        app?.renderer?.textureGC?.run?.();
+      } catch {}
+      emitRuntimeResourceSnapshot('native-memory-warning:after-cleanup');
+    };
     
     // Initialize App Store compliance
     const errorBoundary = ErrorBoundary.getInstance();
@@ -2122,6 +2134,11 @@ async function startNewRun(boardId: number): Promise<void> {
   (window as any).exitingToMenu = true;
   // Abort any in-flight endgame transition callbacks/timeouts from previous run.
   (window as any).__ccEndgameFlowAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0) + 1;
+  // Navigation owns the destination from this exact boundary. Abort an
+  // already-mounted terminal modal and invalidate every delayed no-moves /
+  // final-screen continuation before the first asynchronous import or exit FX.
+  try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+  try { window.CC?.resetTransientRunGuards?.('exitToMenu-navigation-boundary'); } catch {}
 
   try {
     const [{ forceHideScoreBottomSheet }, { forceHideEndRunModal }] = await Promise.all([

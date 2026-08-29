@@ -27,7 +27,10 @@ import {
   markIOSJourneyRouteAudit,
 } from './utils/ios-journey-world-enter-audit.js';
 import { resolveJourneyReturnEntryPolicy } from './modules/journey-return-entry-policy.js';
-import { areContinuousRuntimeDiagnosticsEnabled } from './utils/runtime-diagnostics-policy.js';
+import {
+  areContinuousRuntimeDiagnosticsEnabled,
+  areDetailedRuntimeDiagnosticsEnabled,
+} from './utils/runtime-diagnostics-policy.js';
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -963,17 +966,23 @@ class CollectiblesManager {
         });
         return;
       }
-      const renderStartedAt = performance.now();
-      emitIOSNativeDiagnostic('journey-required-render-start', {
-        requiredForVisibleEnter: options.requiredForVisibleEnter === true,
-      });
+      const detailedRenderDiagnostic = areDetailedRuntimeDiagnosticsEnabled();
+      const renderStartedAt = detailedRenderDiagnostic ? performance.now() : 0;
+      if (detailedRenderDiagnostic) {
+        emitIOSNativeDiagnostic('journey-required-render-start', {
+          requiredForVisibleEnter: options.requiredForVisibleEnter === true,
+        });
+      }
       journeyBoardsManager.renderBoards();
-      emitIOSNativeDiagnostic('journey-required-render-complete', {
-        requiredForVisibleEnter: options.requiredForVisibleEnter === true,
-        durationMs: Math.round(performance.now() - renderStartedAt),
-        childCount: journeyContainer.querySelectorAll('*').length,
-        imageCount: journeyContainer.querySelectorAll('img').length,
-      });
+      if (detailedRenderDiagnostic) {
+        emitIOSNativeDiagnostic('journey-required-render-complete', {
+          requiredForVisibleEnter: options.requiredForVisibleEnter === true,
+          durationMs: Math.round(performance.now() - renderStartedAt),
+          // Structural cardinality is emitted by the scoped renderer. Avoid a
+          // second live-tree traversal on the same first-paint task.
+          structurallyPrepared: isJourneyViewStructurallyPrepared(journeyContainer),
+        });
+      }
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered in background');
 

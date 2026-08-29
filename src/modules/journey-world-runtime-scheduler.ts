@@ -12,12 +12,13 @@ export interface JourneyWorldRuntimeSnapshot {
   generation: number;
   paintSuspended: boolean;
   ambientSuspended: boolean;
+  ambientScrollBoosted: boolean;
 }
 
 type JourneyWorldRuntimeSubscriber = (snapshot: JourneyWorldRuntimeSnapshot) => void;
 
 const DEFAULT_SCROLL_SETTLE_MS = 180;
-const DEFAULT_IDLE_HANDOFF_MS = 48;
+const DEFAULT_IDLE_HANDOFF_MS = 180;
 
 /**
  * One state owner for every current and future Journey World.
@@ -159,17 +160,20 @@ export class JourneyWorldRuntimeScheduler {
     const ambientReleasedForLanding = this.state === 'settling'
       && this.interactionSettling
       && this.interactionAmbientReleased;
+    const ambientScrollSettling = this.state === 'settling'
+      && this.settling
+      && !this.interactionSettling;
     const ambientSuspended = this.state === 'inactive'
       || this.state === 'transition'
       || this.state === 'modal'
-      || this.state === 'scrolling'
-      || (this.state === 'settling' && !ambientReleasedForLanding);
+      || (this.state === 'settling' && !ambientScrollSettling && !ambientReleasedForLanding);
     return {
       state: this.state,
       worldId: this.worldId,
       generation: this.generation,
       paintSuspended: this.state !== 'idle',
       ambientSuspended,
+      ambientScrollBoosted: this.state === 'scrolling' || ambientScrollSettling,
     };
   }
 

@@ -150,6 +150,8 @@ class UIManager {
   private isInitialized: boolean;
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
   private homepageCtaControllers = new Map<HTMLButtonElement, CtaController>();
+  private journeyOpenQueued = false;
+  private queuedJourneyTutorialLaunch = false;
 
   constructor() {
     this.elements = {} as UIManagerElements;
@@ -1461,8 +1463,9 @@ class UIManager {
     // motion in its held state. The settled Homepage is the only valid source
     // for a new Journey route.
     if ((window as any).__ccIsHidingCollectibles || homepageEnterTransitionOwner.isActive()) {
-      logger.warn('⚠️ Journey CTA ignored until Homepage return settles');
-      emitIOSNativeDiagnostic('journey-open-ignored-homepage-return-active', {
+      this.queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial);
+      logger.info('⏳ Journey CTA queued until Homepage return settles');
+      emitIOSNativeDiagnostic('journey-open-queued-homepage-return-active', {
         hidingCollectibles: (window as any).__ccIsHidingCollectibles === true,
         homepageEnterActive: homepageEnterTransitionOwner.isActive(),
       });
@@ -1627,6 +1630,45 @@ class UIManager {
       (window as any).__ccUiJourneyTransitioning = false;
       gameState.set('sliderLocked', false);
     });
+  }
+
+  private queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial: boolean): void {
+    this.queuedJourneyTutorialLaunch ||= launchFirstPlayTutorial;
+    if (this.journeyOpenQueued) return;
+    this.journeyOpenQueued = true;
+
+    void (async () => {
+      try {
+        // A replacement Homepage enter cancels the old lease and immediately
+        // installs another one. Re-read until the single owner is truly idle.
+        while (homepageEnterTransitionOwner.isActive()) {
+          const settled = homepageEnterTransitionOwner.getCurrentSettled();
+          if (!settled) break;
+          await settled;
+        }
+
+        // The Journey -> Homepage wrapper clears its route guard immediately
+        // after the shared enter settles. Yield a bounded number of frames so
+        // the original tap is never discarded but cannot outlive navigation.
+        for (let frame = 0; frame < 8 && (window as any).__ccIsHidingCollectibles; frame += 1) {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        }
+        if ((window as any).__ccIsHidingCollectibles) {
+          logger.warn('⚠️ Queued Journey CTA cancelled because Homepage route never settled');
+          return;
+        }
+
+        const launchTutorial = this.queuedJourneyTutorialLaunch;
+        this.queuedJourneyTutorialLaunch = false;
+        this.journeyOpenQueued = false;
+        this.showCollectiblesScreenWithAnimation(launchTutorial);
+      } catch (error) {
+        logger.warn('⚠️ Queued Journey CTA failed:', error);
+      } finally {
+        this.queuedJourneyTutorialLaunch = false;
+        this.journeyOpenQueued = false;
+      }
+    })();
   }
   
   // Hide Journey screen with enter animation

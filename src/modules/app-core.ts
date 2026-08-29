@@ -14507,6 +14507,12 @@ function playMerge6HeroBounce(targetTile: any): void {
 }
 
 async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlow?: boolean } = {}){
+  const terminalRunGeneration = gameplayRunGeneration;
+  const terminalPresentationIsCurrent = (): boolean => (
+    terminalRunGeneration === gameplayRunGeneration
+    && (window as any).exitingToMenu !== true
+  );
+  if (!terminalPresentationIsCurrent()) return;
   // 🔥 CRITICAL: Guard against multiple simultaneous calls
   if (busyEnding && !confirmedFailFlow) {
     devWarn('⚠️ showFinalScreen: busyEnding is true, skipping duplicate call');
@@ -14539,6 +14545,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   } catch (e) {
     devWarn('⚠️ game-over animation handoff failed (non-fatal):', e);
   }
+  if (!terminalPresentationIsCurrent()) return;
 
   if (confirmedFailFlow) {
     try {
@@ -14548,6 +14555,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
       devWarn('⚠️ Game-over board exit animation failed (continuing to end screen):', error);
     }
   }
+  if (!terminalPresentationIsCurrent()) return;
   
   // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
   devLog('🧹 Performing memory cleanup on game over...');
@@ -14557,6 +14565,7 @@ async function showFinalScreen({ confirmedFailFlow = false }: { confirmedFailFlo
   } catch (error) {
     devWarn('⚠️ Memory cleanup failed:', error);
   }
+  if (!terminalPresentationIsCurrent()) return;
   
   // Arcade Stage 02+ run end is a progress summary; Stage 01 fail remains a real fail.
   if (isArcadeRunReachedSummary) {

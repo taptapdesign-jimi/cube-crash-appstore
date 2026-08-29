@@ -17,8 +17,8 @@ describe('mobile runtime thermal profile', () => {
   test('bounds settled work only on mobile devices', () => {
     expect(resolveMobileRuntimeProfile({ userAgent: 'Android' })).toMatchObject({
       isMobileDevice: true,
-      settledIdleMaxFramesPerSecond: 24,
-      spatialMaxFramesPerSecond: 24,
+      settledIdleMaxFramesPerSecond: 30,
+      spatialMaxFramesPerSecond: 30,
       ambientPixelRatioCap: 1.25,
       ambientVisibilityMarginPx: 80,
       ambientSpriteBudget: 10,

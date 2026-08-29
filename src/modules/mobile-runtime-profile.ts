@@ -18,7 +18,7 @@ export interface MobileRuntimeEnvironment {
   maxTouchPoints?: number;
 }
 
-const MOBILE_SETTLED_IDLE_FPS = 24;
+const MOBILE_SETTLED_IDLE_FPS = 30;
 const MOBILE_AMBIENT_PIXEL_RATIO_CAP = 1.25;
 const MOBILE_AMBIENT_VISIBILITY_MARGIN_PX = 80;
 const MOBILE_AMBIENT_SPRITE_BUDGET = 10;

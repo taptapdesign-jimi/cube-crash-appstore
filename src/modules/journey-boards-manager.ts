@@ -51,6 +51,10 @@ import {
 import { shouldBlockHiddenJourneyRender } from './journey-background-preparation.js';
 import { emitIOSNativeDiagnostic } from '../utils/ios-native-diagnostic.js';
 import {
+  areContinuousRuntimeDiagnosticsEnabled,
+  areDetailedRuntimeDiagnosticsEnabled,
+} from '../utils/runtime-diagnostics-policy.js';
+import {
   markIOSJourneyRouteAudit,
   markIOSJourneyTransitionAudit,
   startIOSJourneyWorldEnterAudit,
@@ -1036,6 +1040,7 @@ class JourneyBoardsManager {
       if (!ambientOwner) return;
       ambientOwner.setSuspended(snapshot.ambientSuspended);
     });
+    this.forestBeeOrbits?.setScrollCadenceBoosted(snapshot.ambientScrollBoosted);
     emitIOSNativeDiagnostic('journey-world-runtime-state', {
       state: snapshot.state,
       worldId: snapshot.worldId,
@@ -1211,6 +1216,7 @@ class JourneyBoardsManager {
     });
     const runtimeSnapshot = this.journeyWorldRuntime.getSnapshot();
     this.forestBeeOrbits.setSuspended(runtimeSnapshot.ambientSuspended);
+    this.forestBeeOrbits.setScrollCadenceBoosted(runtimeSnapshot.ambientScrollBoosted);
     logger.info('🐝 Forest bee orbit owner started', this.forestBeeOrbits.getSnapshot());
   }
 
@@ -6156,6 +6162,10 @@ class JourneyBoardsManager {
   }
 
   private emitJourneyV700HubGeometryDiagnostic(event: string, container: HTMLElement): void {
+    // This audit forces layout and computed-style resolution for every Hub
+    // World. Never make it part of production or compact performance capture;
+    // it is reserved for explicit geometry incident debugging.
+    if (!areDetailedRuntimeDiagnosticsEnabled()) return;
     const nativeConsole = (window as any).webkit?.messageHandlers?.consoleLog;
     if (!nativeConsole?.postMessage || container.dataset.journeyV700View !== 'hub') return;
     try {
@@ -6462,10 +6472,12 @@ class JourneyBoardsManager {
 
     container.appendChild(hub);
     if (prepaint) {
-      emitIOSNativeDiagnostic('hub-prepaint-dom-ready', {
-        childCount: hub.querySelectorAll('*').length,
-        imageCount: hub.querySelectorAll('img').length,
-      });
+      if (areDetailedRuntimeDiagnosticsEnabled()) {
+        emitIOSNativeDiagnostic('hub-prepaint-dom-ready', {
+          childCount: hub.querySelectorAll('*').length,
+          imageCount: hub.querySelectorAll('img').length,
+        });
+      }
       return;
     }
     this.resetJourneyV700HubScrollToTop(
@@ -7180,12 +7192,14 @@ class JourneyBoardsManager {
         const painted = await this.waitForTrackedFrames(3);
         if (!painted || !isCurrent()) return false;
         stage.ready = true;
-        emitIOSNativeDiagnostic('hub-prepaint-painted', {
-          worldId: this.journeyV700WorldId,
-          childCount: root.querySelectorAll('*').length,
-          imageCount: images.length,
-          durationMs: Math.round(performance.now() - startedAt),
-        });
+        if (areDetailedRuntimeDiagnosticsEnabled()) {
+          emitIOSNativeDiagnostic('hub-prepaint-painted', {
+            worldId: this.journeyV700WorldId,
+            childCount: root.querySelectorAll('*').length,
+            imageCount: images.length,
+            durationMs: Math.round(performance.now() - startedAt),
+          });
+        }
         return true;
       } catch (error) {
         emitIOSNativeDiagnostic('hub-prepaint-fallback', {
@@ -7232,6 +7246,8 @@ class JourneyBoardsManager {
     container.dataset.journeyV700View = 'hub';
     delete container.dataset.journeyV700WorldId;
     const preparedChildren = Array.from(stage.root.children);
+    const preparedChildCount = stage.root.querySelectorAll('*').length;
+    const preparedImageCount = stage.root.querySelectorAll('img').length;
     preparedChildren.forEach((child) => container.appendChild(child));
     stage.host.remove();
 
@@ -7243,8 +7259,8 @@ class JourneyBoardsManager {
     this.installJourneyScreenElasticOverscroll(container);
     this.playJourneyV700HubEnter('world-return');
     emitIOSNativeDiagnostic('hub-prepaint-committed', {
-      childCount: container.querySelectorAll('*').length,
-      imageCount: container.querySelectorAll('img').length,
+      childCount: preparedChildCount,
+      imageCount: preparedImageCount,
       preservedChildCount: preparedChildren.length,
       outgoingHiddenPaintBarrier: true,
       transparentStageBacking: true,
@@ -7350,13 +7366,15 @@ class JourneyBoardsManager {
         }
 
         stage.ready = true;
-        emitIOSNativeDiagnostic('world-prepaint-painted', {
-          worldId,
-          childCount: root.querySelectorAll('*').length,
-          imageCount: images.length,
-          paintFrameMs,
-          durationMs: Math.round(performance.now() - startedAt),
-        });
+        if (areDetailedRuntimeDiagnosticsEnabled()) {
+          emitIOSNativeDiagnostic('world-prepaint-painted', {
+            worldId,
+            childCount: root.querySelectorAll('*').length,
+            imageCount: images.length,
+            paintFrameMs,
+            durationMs: Math.round(performance.now() - startedAt),
+          });
+        }
         return true;
       } catch (error) {
         emitIOSNativeDiagnostic('world-prepaint-fallback', {
@@ -7400,6 +7418,8 @@ class JourneyBoardsManager {
     container.dataset.journeyV700WorldId = String(worldId);
 
     const preparedChildren = Array.from(stage.root.children);
+    const preparedChildCount = stage.root.querySelectorAll('*').length;
+    const preparedImageCount = stage.root.querySelectorAll('img').length;
     preparedChildren.forEach((child) => container.appendChild(child));
     stage.host.remove();
 
@@ -7414,8 +7434,8 @@ class JourneyBoardsManager {
     });
     emitIOSNativeDiagnostic('world-prepaint-committed', {
       worldId,
-      childCount: container.querySelectorAll('*').length,
-      imageCount: container.querySelectorAll('img').length,
+      childCount: preparedChildCount,
+      imageCount: preparedImageCount,
       preservedLayerCount: preparedChildren.length,
     });
     return true;
@@ -8520,7 +8540,9 @@ class JourneyBoardsManager {
         worldId: this.journeyV700WorldId,
         source: 'handoff:hub-render',
         unitCount: 3,
-        targetCount: container.querySelectorAll('*').length,
+        targetCount: areContinuousRuntimeDiagnosticsEnabled()
+          ? container.querySelectorAll('*').length
+          : 0,
       });
       try {
         markIOSJourneyTransitionAudit('hub-render-start');
@@ -8537,14 +8559,17 @@ class JourneyBoardsManager {
         }
         const hubRenderDurationMs = performance.now() - hubRenderStartedAt;
         markIOSJourneyTransitionAudit('hub-render-complete');
-        emitIOSNativeDiagnostic('hub-render-duration', {
-          durationMs: Math.round(hubRenderDurationMs),
-          childCount: document.getElementById('journey-boards-container')?.querySelectorAll('*').length ?? 0,
-          imageCount: document.getElementById('journey-boards-container')?.querySelectorAll('img').length ?? 0,
-          longTaskCandidate: hubRenderDurationMs > 50,
-          committedPrepaint,
-          outgoingZeroPresented,
-        });
+        if (areDetailedRuntimeDiagnosticsEnabled()) {
+          const liveJourneyContainer = document.getElementById('journey-boards-container');
+          emitIOSNativeDiagnostic('hub-render-duration', {
+            durationMs: Math.round(hubRenderDurationMs),
+            childCount: liveJourneyContainer?.querySelectorAll('*').length ?? 0,
+            imageCount: liveJourneyContainer?.querySelectorAll('img').length ?? 0,
+            longTaskCandidate: hubRenderDurationMs > 50,
+            committedPrepaint,
+            outgoingZeroPresented,
+          });
+        }
         finishHubRenderAudit('complete');
         this.trackTimeout(() => this.playJourneyV700NavEnter(), 120);
         this.logJourneyV700Flow('close-world-rendered-hub', {}, document.getElementById('journey-boards-container') as HTMLElement | null);
@@ -8727,17 +8752,27 @@ class JourneyBoardsManager {
     // Journey screen during a gameplay return.
     const worldFragment = document.createDocumentFragment();
     worldFragment.append(cloudContainer, bgContainer, decorContainer, cardsContainer);
+    // Count while detached. Querying the complete live Journey subtree in the
+    // atomic commit task made diagnostics compete with WebKit style/paint.
+    const detailedRenderDiagnostic = areDetailedRuntimeDiagnosticsEnabled();
+    const renderedChildCount = detailedRenderDiagnostic ? worldFragment.querySelectorAll('*').length : 0;
+    const renderedImageCount = detailedRenderDiagnostic ? worldFragment.querySelectorAll('img').length : 0;
+    const renderedCardCount = detailedRenderDiagnostic
+      ? cardsContainer.querySelectorAll('.journey-board-card-wrapper').length
+      : 0;
     container.appendChild(worldFragment);
-    emitIOSNativeDiagnostic('world-scoped-dom-rendered', {
-      worldId: activeWorldId,
-      rangeStart: activeWorldRange?.start ?? null,
-      rangeEnd: activeWorldRange?.end ?? null,
-      childCount: container.querySelectorAll('*').length,
-      imageCount: container.querySelectorAll('img').length,
-      cardCount: cardsContainer.querySelectorAll('.journey-board-card-wrapper').length,
-      durationMs: Math.round(performance.now() - renderStartedAt),
-      atomicRootCommit: true,
-    });
+    if (detailedRenderDiagnostic) {
+      emitIOSNativeDiagnostic('world-scoped-dom-rendered', {
+        worldId: activeWorldId,
+        rangeStart: activeWorldRange?.start ?? null,
+        rangeEnd: activeWorldRange?.end ?? null,
+        childCount: renderedChildCount,
+        imageCount: renderedImageCount,
+        cardCount: renderedCardCount,
+        durationMs: Math.round(performance.now() - renderStartedAt),
+        atomicRootCommit: true,
+      });
+    }
     if (!options.deferRuntimeOwners) {
       this.trackTimeout(() => {
         this.installInterimAreaHitTargets(cardsContainer);

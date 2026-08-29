@@ -128,6 +128,7 @@ export function resolveJourneyForestBeeRuntimeProfile(
 
 export interface JourneyForestBeeOrbitController {
   setSuspended(suspended: boolean): void;
+  setScrollCadenceBoosted(boosted: boolean): void;
   fadeOutAndDispose(durationMs: number): void;
   dispose(): void;
   getSnapshot(): {
@@ -803,6 +804,9 @@ export function startJourneyForestBeeOrbits(
 
   const controller: JourneyForestBeeOrbitController = {
     setSuspended: (nextSuspended) => runtime.setSuspended(nextSuspended),
+    setScrollCadenceBoosted: (boosted) => {
+      runtime.setMaxFramesPerSecond(boosted ? 60 : runtimeProfile.maxFramesPerSecond);
+    },
     fadeOutAndDispose: (durationMs) => runtime.fadeOut(durationMs, () => controller.dispose()),
     dispose: () => {
       if (disposed) return;

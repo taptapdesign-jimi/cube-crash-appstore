@@ -157,8 +157,13 @@ describe('Journey Hub transition ownership', () => {
     expect(guardIndex).toBeGreaterThanOrEqual(0);
     expect(cancelIndex).toBeGreaterThan(guardIndex);
     expect(journeyHandoffSource).toContain(
-      "emitIOSNativeDiagnostic('journey-open-ignored-homepage-return-active'",
+      'this.queueJourneyOpenAfterHomepageEnter(launchFirstPlayTutorial)',
     );
+    expect(journeyHandoffSource).toContain(
+      "emitIOSNativeDiagnostic('journey-open-queued-homepage-return-active'",
+    );
+    expect(uiManagerSource).toContain('homepageEnterTransitionOwner.getCurrentSettled()');
+    expect(uiManagerSource).not.toContain('Journey CTA ignored until Homepage return settles');
   });
 
   test('hidden return targets stay exact and game overlays belong to zone cleanup', () => {
@@ -384,7 +389,10 @@ describe('Journey Hub transition ownership', () => {
     expect(fixedRenderSource.indexOf('board.id < activeWorldRange.start'))
       .toBeLessThan(fixedRenderSource.indexOf('this.createBoardCardFixed(board, index)'));
     expect(fixedRenderSource).toContain("emitIOSNativeDiagnostic('world-scoped-dom-rendered'");
-    expect(fixedRenderSource).toContain("cardCount: cardsContainer.querySelectorAll('.journey-board-card-wrapper').length");
+    expect(fixedRenderSource).toContain(
+      "? cardsContainer.querySelectorAll('.journey-board-card-wrapper').length",
+    );
+    expect(fixedRenderSource).toContain('cardCount: renderedCardCount');
   });
 
   test('prepaints the exact active World DOM behind Hub and commits it without rebuilding descendants', () => {
@@ -626,6 +634,18 @@ describe('Journey Hub transition ownership', () => {
     expect(hubEnterSource).toContain("this.journeyV700View !== 'hub'");
     expect(hubEnterSource).toContain("hub-visible-enter-stale-before-images-ready");
     expect(hubEnterSource).toContain("hub-visible-enter-images-ready");
+  });
+
+  test('expensive Hub geometry diagnostics require explicit detailed tracing', () => {
+    const geometryDiagnosticSource = journeyManagerSource.split(
+      'private emitJourneyV700HubGeometryDiagnostic(event: string, container: HTMLElement): void',
+    )[1]?.split('private resetJourneyV700HubScrollToTop')[0] ?? '';
+
+    expect(journeyManagerSource).toContain('areDetailedRuntimeDiagnosticsEnabled,');
+    expect(journeyManagerSource).toContain("from '../utils/runtime-diagnostics-policy.js';");
+    expect(geometryDiagnosticSource).toContain('if (!areDetailedRuntimeDiagnosticsEnabled()) return;');
+    expect(geometryDiagnosticSource.indexOf('if (!areDetailedRuntimeDiagnosticsEnabled()) return;'))
+      .toBeLessThan(geometryDiagnosticSource.indexOf('getBoundingClientRect()'));
   });
 
   test('visible Journey surfaces become alive without a post-enter idle pause', () => {

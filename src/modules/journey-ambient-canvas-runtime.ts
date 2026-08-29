@@ -41,6 +41,7 @@ export interface JourneyAmbientCanvasRuntimeOptions {
 
 export interface JourneyAmbientCanvasRuntime {
   setSuspended(suspended: boolean): void;
+  setMaxFramesPerSecond(maxFramesPerSecond: number): void;
   fadeIn(durationMs: number): void;
   fadeOut(durationMs: number, onComplete?: () => void): void;
   refreshGeometry(): void;
@@ -137,14 +138,14 @@ export function startJourneyAmbientCanvasRuntime(
     MAX_CANVAS_PIXEL_RATIO,
   );
   const pixelRatio = clamp(window.devicePixelRatio || 1, 1, pixelRatioCap);
-  const maxFramesPerSecond = Number.isFinite(options.maxFramesPerSecond)
+  let maxFramesPerSecond = Number.isFinite(options.maxFramesPerSecond)
     ? clamp(Number(options.maxFramesPerSecond), 0, 60)
     : 0;
-  const minimumFrameDeltaSeconds = maxFramesPerSecond > 0 ? 1 / maxFramesPerSecond : 0;
+  let minimumFrameDeltaSeconds = maxFramesPerSecond > 0 ? 1 / maxFramesPerSecond : 0;
   // WKWebView/GSAP timestamps can arrive around 15.8-16.2ms on a 60Hz panel.
   // A fixed 0.5ms tolerance occasionally rejects that legitimate frame and
   // makes a nominal 60 FPS ambient owner visibly alternate toward 30 FPS.
-  const cadenceToleranceSeconds = minimumFrameDeltaSeconds > 0
+  let cadenceToleranceSeconds = minimumFrameDeltaSeconds > 0
     ? Math.min(0.002, minimumFrameDeltaSeconds * 0.1)
     : 0;
   let sceneWidth = Math.max(1, options.sceneWidthPx);
@@ -270,6 +271,21 @@ export function startJourneyAmbientCanvasRuntime(
       const willChange = suspended ? 'auto' : 'transform';
       behindCanvas.style.willChange = willChange;
       frontCanvas.style.willChange = willChange;
+    },
+    setMaxFramesPerSecond(nextMaxFramesPerSecond): void {
+      if (disposed) return;
+      const boundedFramesPerSecond = Number.isFinite(nextMaxFramesPerSecond)
+        ? clamp(Number(nextMaxFramesPerSecond), 0, 60)
+        : 0;
+      if (boundedFramesPerSecond === maxFramesPerSecond) return;
+      maxFramesPerSecond = boundedFramesPerSecond;
+      minimumFrameDeltaSeconds = maxFramesPerSecond > 0 ? 1 / maxFramesPerSecond : 0;
+      cadenceToleranceSeconds = minimumFrameDeltaSeconds > 0
+        ? Math.min(0.002, minimumFrameDeltaSeconds * 0.1)
+        : 0;
+      // Rebase at the cadence boundary so a 30 -> 60 FPS boost does not feed
+      // one accumulated 33ms step into the first high-cadence animation frame.
+      lastRenderTime = options.ticker.time;
     },
     fadeIn(durationMs): void {
       if (disposed) return;
