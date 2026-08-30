@@ -53,6 +53,10 @@ const BUBBLE_SPRITE_PATHS = [
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
 let cleanupInProgress = false;
+// Invalidates asynchronous asset-loading continuations when reset/cleanup or a
+// replacement finale takes ownership. JavaScript cannot cancel Assets.load(),
+// so every continuation must prove it still owns the current run before paint.
+let explosionRunGeneration = 0;
 let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -307,6 +311,7 @@ export function getExplosionContainer(): Container | null {
  * Set the explosion container (for restoration after boot)
  */
 export function setExplosionContainer(container: Container | null): void {
+  explosionRunGeneration += 1;
   if (container && !container.destroyed) {
     explosionContainer = container;
     isExplosionActive = true;
@@ -347,18 +352,22 @@ export function showWildJuiceBubblesExplosion(options: WildJuiceBubblesExplosion
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
     // This prevents race conditions where cleanup and new explosion conflict
     lifecycle.trackRaf(() => {
-      showWildJuiceBubblesExplosionInternal(options);
+      showWildJuiceBubblesExplosion(options);
     });
     return;
   }
 
-  showWildJuiceBubblesExplosionInternal(options);
+  const runGeneration = ++explosionRunGeneration;
+  void showWildJuiceBubblesExplosionInternal(options, runGeneration);
 }
 
 /**
  * Internal function to start bubbles explosion (called after cleanup if needed)
  */
-async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesExplosionOptions = {}): Promise<void> {
+async function showWildJuiceBubblesExplosionInternal(
+  options: WildJuiceBubblesExplosionOptions = {},
+  runGeneration: number,
+): Promise<void> {
   let gameplayReleaseNotified = false;
   let sequenceCompleteNotified = false;
   const notifyGameplayRelease = () => {
@@ -396,7 +405,11 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       const delay = isBoardTransitionActive ? 100 : 80;
       logger.debug('Stage unavailable, retrying', undefined, { retry: stageRetryCount, maxRetries });
       lifecycle.trackTimeout(() => {
-        showWildJuiceBubblesExplosionInternal(options);
+        if (runGeneration !== explosionRunGeneration) {
+          notifySequenceComplete();
+          return;
+        }
+        void showWildJuiceBubblesExplosionInternal(options, runGeneration);
       }, delay);
       return;
     }
@@ -420,6 +433,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
   for (const path of spritePaths) {
     try {
       const loaded = await Assets.load(path);
+      if (runGeneration !== explosionRunGeneration) {
+        notifySequenceComplete();
+        return;
+      }
       const texture = loaded as Texture;
       if (!texture) {
         throw new Error(`Loaded texture is empty for ${path}`);
@@ -445,7 +462,7 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     cleanup();
     // Wait another frame
     lifecycle.trackRaf(() => {
-      showWildJuiceBubblesExplosionInternal(options);
+      showWildJuiceBubblesExplosion(options);
     });
     return;
   }
@@ -1120,6 +1137,10 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
       : [];
     const accentTextures = (await Promise.allSettled(accentPaths.map((path) => Assets.load(path))))
       .flatMap((result) => result.status === 'fulfilled' && result.value ? [result.value as Texture] : []);
+    if (runGeneration !== explosionRunGeneration) {
+      notifySequenceComplete();
+      return;
+    }
     let robotExitComplete = false;
     let neonExitComplete = accentTextures.length === 0;
     const finishRoboFinaleAfterVisualExit = () => {
@@ -1144,7 +1165,13 @@ async function showWildJuiceBubblesExplosionInternal(options: WildJuiceBubblesEx
     robot.scale.set(robotBaseScale);
     robot.eventMode = 'none';
     robot.zIndex = 10000;
-    explosionContainer.addChild(robot);
+    const ownedExplosionContainer = explosionContainer;
+    if (!ownedExplosionContainer || ownedExplosionContainer.destroyed) {
+      bubblePool.release(robot);
+      notifySequenceComplete();
+      return;
+    }
+    ownedExplosionContainer.addChild(robot);
     const robotEnterTimeline = trackTimeline();
     const robotTimeline = trackTimeline();
     roboAnimations.push(robotEnterTimeline, robotTimeline);
@@ -2244,6 +2271,7 @@ function cleanupBubblyOverlay(): void {
  * Cleanup explosion
  */
 function cleanup(): void {
+  explosionRunGeneration += 1;
   if (cleanupInProgress) return;
   cleanupInProgress = true;
   try {

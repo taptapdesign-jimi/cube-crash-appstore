@@ -331,4 +331,16 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).not.toContain('new Application(');
     expect(juiceSource).not.toContain('new Ticker(');
   });
+
+  test('invalidates stale asset continuations before a reset run can paint into a null container', () => {
+    expect(juiceSource).toContain('let explosionRunGeneration = 0');
+    expect(juiceSource).toContain('const runGeneration = ++explosionRunGeneration');
+    expect(juiceSource).toContain('if (runGeneration !== explosionRunGeneration)');
+    expect(juiceSource).toContain('const ownedExplosionContainer = explosionContainer');
+    expect(juiceSource).toContain('if (!ownedExplosionContainer || ownedExplosionContainer.destroyed)');
+    expect(juiceSource).toContain('bubblePool.release(robot);\n      notifySequenceComplete();');
+    expect(juiceSource).toContain('ownedExplosionContainer.addChild(robot)');
+    expect(juiceSource).toContain('function cleanup(): void {\n  explosionRunGeneration += 1;');
+    expect(juiceSource).not.toContain('explosionContainer.addChild(robot)');
+  });
 });
