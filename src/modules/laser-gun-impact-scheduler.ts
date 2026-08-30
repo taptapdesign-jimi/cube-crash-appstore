@@ -2,11 +2,18 @@
 // further 30%. Keep the combined factor shared with the DOM scene so entry,
 // build-up, shots and exit cannot drift into different rhythms.
 export const LASERGUN_TIMING_SCALE = 0.455;
-export const LASERGUN_FIRST_SHOT_LEAD_MS = Math.round(540 * LASERGUN_TIMING_SCALE);
-// This minimum gap starts at the prior beam-tip arrival. With a ready incoming
-// gun, launches cannot land closer than about 220ms; the real scene may widen
-// that cadence while it awaits the gun's entry/build-up and two paint frames.
-export const LASERGUN_SHOT_INTERVAL_MS = 125;
+// User-approved pacing adjustment: extend the complete four-shot choreography
+// by exactly 1.5s without changing gun, sprite, beam, recoil or exit motion.
+// One quarter is assigned to each sequential launch boundary.
+export const LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS = 1500;
+export const LASERGUN_PER_SHOT_EXTENSION_MS = LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS / 4;
+export const LASERGUN_FIRST_SHOT_LEAD_MS = (
+  Math.round(540 * LASERGUN_TIMING_SCALE) + LASERGUN_PER_SHOT_EXTENSION_MS
+);
+// This minimum gap starts at the prior beam-tip arrival. The accepted extension
+// gives each incoming gun visible breathing room; entry/build-up and two paint
+// frames may widen the gap, but can never collapse the sequential order.
+export const LASERGUN_SHOT_INTERVAL_MS = 125 + LASERGUN_PER_SHOT_EXTENSION_MS;
 export const LASERGUN_ARRIVAL_TIMEOUT_MS = 900;
 // This is scheduling headroom, not visible animation time. It starts each
 // build-up early enough to absorb its gun-entry promise and WebKit paint

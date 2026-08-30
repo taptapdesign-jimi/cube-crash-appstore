@@ -167,9 +167,9 @@ describe('LaserGun special die contract', () => {
         + LASERGUN_BEAM_FADE_SECONDS,
     );
     expect(LASERGUN_EXIT_DELAY_SECONDS).toBeGreaterThan(2 / 60);
-    expect(LASERGUN_FIRST_SHOT_LEAD_MS).toBe(246);
+    expect(LASERGUN_FIRST_SHOT_LEAD_MS).toBe(621);
     expect(LASERGUN_PREFLIGHT_LEAD_MS).toBe(154);
-    expect(LASERGUN_SHOT_INTERVAL_MS).toBe(125);
+    expect(LASERGUN_SHOT_INTERVAL_MS).toBe(500);
     expect(LASERGUN_ARRIVAL_TIMEOUT_MS).toBe(900);
   });
 
