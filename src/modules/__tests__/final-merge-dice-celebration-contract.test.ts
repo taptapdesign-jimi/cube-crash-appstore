@@ -68,7 +68,9 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('duration: plan.duration');
     expect(celebrationSource).toContain('delay: plan.delay');
     expect(celebrationSource).toContain('const TEXT_ENTER_DELAY = 0.2;');
-    expect(celebrationSource).toContain('const TEXT_HOLD_SECONDS = 1.5;');
+    expect(celebrationSource).toContain('const TEXT_HOLD_SECONDS = 0.6;');
+    expect(celebrationSource).toContain('return Math.max(...plans.map((plan) => plan.delay + plan.duration));');
+    expect(celebrationSource).toContain('Math.max(diceBurstDuration, textMotionDuration)');
     expect(celebrationSource).toContain("ease: 'back.out(2.0)'");
     expect(celebrationSource).toContain("ease: 'elastic.inOut(1, 0.2)'");
     expect(celebrationSource).toContain("ease: 'power2.in'");

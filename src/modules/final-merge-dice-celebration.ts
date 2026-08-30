@@ -17,7 +17,7 @@ const BOOM_EXIT_EXTRA = 0.3;
 const EXIT_BOUNCE_DURATION = 0.13;
 const EXIT_FADE_DURATION = 0.17;
 const TEXT_ENTER_DELAY = 0.2;
-const TEXT_HOLD_SECONDS = 1.5;
+const TEXT_HOLD_SECONDS = 0.6;
 const ARCADE_COPY_LINE_HEIGHT = 0.95 * 1.15;
 const COPY_VIEWPORT_WIDTH_RATIO = 0.94;
 const COPY_MAX_WIDTH_PX = 520;
@@ -108,7 +108,7 @@ function finishRun(run: CelebrationRun): void {
   run.resolve();
 }
 
-function attachTntBoomDiceBurst(run: CelebrationRun): void {
+function attachTntBoomDiceBurst(run: CelebrationRun): number {
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
   const centerX = viewportW * 0.5;
@@ -216,6 +216,14 @@ function attachTntBoomDiceBurst(run: CelebrationRun): void {
       },
     });
   });
+  return Math.max(...plans.map((plan) => plan.delay + plan.duration));
+}
+
+function getTextExitDuration(letterCount: number): number {
+  return BOOM_EXIT_STAGGER * Math.max(0, letterCount - 1)
+    + EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2
+    + EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8
+    + 0.05;
 }
 
 function startNoMovesTextMotion(run: CelebrationRun, letterElements: HTMLElement[]): void {
@@ -300,12 +308,6 @@ function startNoMovesTextMotion(run: CelebrationRun, letterElements: HTMLElement
         ease: 'power2.in',
       });
     });
-    const exitTotal =
-      BOOM_EXIT_STAGGER * (letterElements.length - 1) +
-      EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2 +
-      EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8 +
-      0.05;
-    trackDelayedCall(run, exitTotal, () => finishRun(run));
   });
 }
 
@@ -394,8 +396,10 @@ export function playFinalMergeDiceCelebration(): Promise<void> {
 
   overlay.appendChild(container);
   document.body.appendChild(overlay);
-  attachTntBoomDiceBurst(run);
+  const diceBurstDuration = attachTntBoomDiceBurst(run);
   trackDelayedCall(run, TEXT_ENTER_DELAY, () => startNoMovesTextMotion(run, letterElements));
+  const textMotionDuration = TEXT_HOLD_SECONDS + getTextExitDuration(letterElements.length);
+  trackDelayedCall(run, Math.max(diceBurstDuration, textMotionDuration), () => finishRun(run));
   } catch {
     finishRun(run);
   }
