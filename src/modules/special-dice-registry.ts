@@ -201,8 +201,10 @@ export const SPECIAL_DICE_VARIANTS: Record<string, SpecialDiceVariantDefinition>
       ? laserGunFinaleSources2x
       : laserGunFinaleSources1x,
     finaleScene: 'lasergun-crossfire',
-    visualWidth: 147.456,
-    visualHeight: 147.456,
+    // Keep the board tile and hit area unchanged while making only the
+    // LaserGun artwork 25% larger than its previously accepted 147.456px size.
+    visualWidth: 184.32,
+    visualHeight: 184.32,
     hitAreaSize: 'tile',
     idleOrbit: false,
     inputReleaseAtRatio: 0.7,

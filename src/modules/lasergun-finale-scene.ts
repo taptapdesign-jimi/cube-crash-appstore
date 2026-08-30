@@ -1,6 +1,13 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import type { LaserGunShooter } from './tnt-bonus-target-selection.js';
+import { LASERGUN_TIMING_SCALE } from './laser-gun-impact-scheduler';
+import {
+  getLaserGunPlannerMuzzleX,
+  LASERGUN_LEFT_MUZZLE_X_RATIO,
+  LASERGUN_MUZZLE_EDGE_INSET_MAX_PX as PLANNER_MUZZLE_EDGE_INSET_MAX_PX,
+  LASERGUN_MUZZLE_EDGE_INSET_MIN_PX as PLANNER_MUZZLE_EDGE_INSET_MIN_PX,
+  type LaserGunShooter,
+} from './tnt-bonus-target-selection.js';
 
 const BASE = './assets/shop/gun/';
 const useHighResolutionAssets = typeof navigator !== 'undefined'
@@ -11,38 +18,88 @@ export const LASERGUN_FRAME_SOURCES = Array.from(
   { length: 6 },
   (_, index) => source(`lasergun${index + 1}`),
 );
+// Sprite animation advances through the firing frame, then returns to its
+// resting frame. Only the bitmap source changes; barrel/beam rotation owners
+// stay locked throughout this tail.
 export const LASERGUN_FRAME_SEQUENCE = [
-  ...LASERGUN_FRAME_SOURCES.slice(0, 5),
-  ...LASERGUN_FRAME_SOURCES.slice(0, 4).reverse(),
+  ...LASERGUN_FRAME_SOURCES,
+  ...LASERGUN_FRAME_SOURCES.slice(0, -1).reverse(),
 ] as const;
-export const LASERGUN_IMPACT_DELAYS_MS = [1100, 1340, 1580, 1820] as const;
 export const LASERGUN_MAX_TARGETS = 4;
 export const LASERGUN_UPPER_GUN_TRANSFORM = 'rotate(45deg) scaleX(-1)';
-export const LASERGUN_SHOT_PATTERN = ['right', 'left', 'right', 'left'] as const;
-export const LASERGUN_BEAM_COUNT = LASERGUN_SHOT_PATTERN.length;
-export const LASERGUN_GUN_SCALES = [0.80, 0.70, 0.60] as const;
-export const LASERGUN_TARGET_REACH_SCALE = 1.05;
+export const LASERGUN_BEAM_COUNT = LASERGUN_MAX_TARGETS;
+export const LASERGUN_GUN_SIZE_MULTIPLIER = 1.25;
+export const LASERGUN_GUN_SCALES = [
+  0.80 * LASERGUN_GUN_SIZE_MULTIPLIER,
+  0.70 * LASERGUN_GUN_SIZE_MULTIPLIER,
+  0.60 * LASERGUN_GUN_SIZE_MULTIPLIER,
+] as const;
+// The visible white-blue impact core lands on the exact cube centre. The faint
+// alpha tail is decorative and may extend beyond the cube.
+export const LASERGUN_TARGET_REACH_SCALE = 1.00;
+export const LASERGUN_TARGET_LOCK_TOLERANCE_PX = 0.5;
+export const LASERGUN_BEAM_THICKNESS_SCALE = 1.50 * 1.30 * 1.20;
+export const LASERGUN_BEAM_BRIGHTNESS_SCALE = 1.18 * 1.20;
+export const LASERGUN_BEAM_SATURATION_SCALE = 1.12 * 1.20;
+export const LASERGUN_BEAM_GLOW_BLUR_PX = 7 * 1.20;
+export const LASERGUN_BEAM_GLOW_ALPHA = Math.min(1, 0.82 * 1.20);
+export const LASERGUN_MAX_BEAM_ANGLE_DEGREES = 55;
+export const LASERGUN_MIN_BEAM_TRAVEL_PX = 150;
+export const LASERGUN_LAYOUT_TRAVEL_MARGIN_PX = 0.5;
+export const LASERGUN_MUZZLE_EDGE_INSET_RATIO = LASERGUN_LEFT_MUZZLE_X_RATIO;
+export const LASERGUN_MUZZLE_EDGE_INSET_MIN_PX = PLANNER_MUZZLE_EDGE_INSET_MIN_PX;
+export const LASERGUN_MUZZLE_EDGE_INSET_MAX_PX = PLANNER_MUZZLE_EDGE_INSET_MAX_PX;
+export const LASERGUN_LEFT_MUZZLE_OFFSET_RATIO = 0.30;
+export const LASERGUN_RIGHT_MUZZLE_OFFSET_RATIO = -0.28;
+export const LASERGUN_RIG_MAX_WIDTH_PX = 273;
+export const LASERGUN_EDGE_CLEARANCE_PX = 6;
+// Run all pistol-owned motion at 70% of its previous speed. Dividing the
+// duration scale by 0.70 makes every authored gun duration 42.857% longer,
+// which is the exact time-domain equivalent of reducing speed by 30%.
+export const LASERGUN_GUN_ANIMATION_SPEED = 0.70;
+export const LASERGUN_GUN_TIME_SCALE = LASERGUN_TIMING_SCALE / LASERGUN_GUN_ANIMATION_SPEED;
+export const LASERGUN_FRAME_STEP_SECONDS = 0.05 * LASERGUN_GUN_TIME_SCALE;
+export const LASERGUN_ENTRY_DURATION_SECONDS = 0.50 * LASERGUN_GUN_TIME_SCALE;
+// Preserve the accepted fast PNG cadence, but place the build-up at the end
+// of each gun's own entry so frame 5 cannot sit frozen while awaiting a shot.
+export const LASERGUN_BUILDUP_START_SECONDS = Math.max(
+  0,
+  LASERGUN_ENTRY_DURATION_SECONDS - LASERGUN_FRAME_STEP_SECONDS * 4,
+);
+export const LASERGUN_PREFIRE_SETTLE_SECONDS = 0.16 * LASERGUN_GUN_TIME_SCALE;
+export const LASERGUN_BEAM_LAUNCH_SCALE = 0.06;
+export const LASERGUN_BEAM_TRAVEL_SECONDS = 0.095;
+export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.04;
+export const LASERGUN_BEAM_FADE_SECONDS = 0.07;
+// The gun may return through PNG frames 6 -> 1 immediately, but it cannot begin
+// spatial exit until the beam has completed its full travel and fade.
+export const LASERGUN_EXIT_DELAY_SECONDS = (
+  LASERGUN_BEAM_TRAVEL_SECONDS
+  + LASERGUN_BEAM_FADE_DELAY_SECONDS
+  + LASERGUN_BEAM_FADE_SECONDS
+);
+export const LASERGUN_EXIT_TRAVEL_SECONDS = 0.42 * LASERGUN_GUN_TIME_SCALE;
 
 export const LASERGUN_LEFT_BEAM_GEOMETRY = {
   width: 439,
   height: 495,
   sourceX: 60,
   sourceY: 157,
-  // Authored burst centre keeps the beam at its original strong visual scale.
-  impactX: 330,
-  impactY: 342,
+  // Perceptual impact anchor measured from the white-blue core in the @2x PNG.
+  impactX: 340.5,
+  impactY: 345.5,
 } as const;
 export const LASERGUN_RIGHT_BEAM_GEOMETRY = {
   width: 430,
   height: 496,
   sourceX: 360,
   sourceY: 313,
-  // Authored burst centre keeps the beam at its original strong visual scale.
-  impactX: 80,
-  impactY: 148,
+  // Perceptual impact anchor measured from the white-blue core in the @2x PNG.
+  impactX: 65.5,
+  impactY: 143,
 } as const;
 
-type LaserPoint = {
+export type LaserPoint = {
   x: number;
   y: number;
 };
@@ -55,7 +112,8 @@ export type LaserBeamPlacement = {
   x: number;
   y: number;
   rotation: number;
-  scale: number;
+  scaleX: number;
+  scaleY: number;
   transformOrigin: string;
 };
 
@@ -70,6 +128,20 @@ export function getLaserGunAimRotation(
   const currentAngle = Math.atan2(barrel.y - axis.y, barrel.x - axis.x) * 180 / Math.PI;
   const targetAngle = Math.atan2(target.y - barrel.y, target.x - barrel.x) * 180 / Math.PI;
   return currentRotation + parentRotationDirection * normalizeAngle(targetAngle - currentAngle);
+}
+
+export function getLaserGunAxisMissDistance(
+  axis: LaserPoint,
+  barrel: LaserPoint,
+  target: LaserPoint,
+): number {
+  const axisX = barrel.x - axis.x;
+  const axisY = barrel.y - axis.y;
+  const axisLength = Math.hypot(axisX, axisY);
+  if (axisLength <= 0.01) return 0;
+  const targetX = target.x - barrel.x;
+  const targetY = target.y - barrel.y;
+  return Math.abs(axisX * targetY - axisY * targetX) / axisLength;
 }
 
 export function getLaserGunRandomScales(
@@ -91,21 +163,86 @@ export function getLaserGunSideYPositions(
   side: LaserGunShooter,
   preferredSeparation = 200,
 ): number[] {
-  const boundedCount = Math.max(0, Math.min(2, Math.floor(count)));
+  const boundedCount = Math.max(0, Math.min(LASERGUN_MAX_TARGETS, Math.floor(count)));
   if (!boundedCount) return [];
   const height = Math.max(320, viewportHeight);
   const edgeMargin = Math.min(height * 0.24, 132);
   const minCenter = edgeMargin;
   const maxCenter = height - edgeMargin;
   if (boundedCount === 1) {
-    const anchor = side === 'left' ? height * 0.30 : height * 0.70;
+    const anchor = side === 'left' ? height * 0.37 : height * 0.63;
     return [Math.max(minCenter, Math.min(maxCenter, anchor))];
   }
   const available = Math.max(0, maxCenter - minCenter);
-  const separation = Math.min(preferredSeparation, available);
-  const anchor = side === 'left' ? height * 0.30 : height * 0.70;
-  const start = Math.max(minCenter, Math.min(maxCenter - separation, anchor - separation * 0.5));
-  return [start, start + separation];
+  const separation = Math.min(preferredSeparation, available / (boundedCount - 1));
+  const anchor = side === 'left' ? height * 0.37 : height * 0.63;
+  const totalSpan = separation * (boundedCount - 1);
+  const start = Math.max(minCenter, Math.min(maxCenter - totalSpan, anchor - totalSpan * 0.5));
+  return Array.from({ length: boundedCount }, (_, index) => start + index * separation);
+}
+
+export function getLaserGunMuzzleX(
+  side: LaserGunShooter,
+  viewportWidth: number,
+): number {
+  return getLaserGunPlannerMuzzleX(side, viewportWidth);
+}
+
+export function getLaserGunStageCenterX(
+  side: LaserGunShooter,
+  scale: number,
+  viewportWidth: number,
+): number {
+  const width = Math.max(320, viewportWidth);
+  const rigWidth = Math.min(width * 0.70, LASERGUN_RIG_MAX_WIDTH_PX) * Math.max(0.1, scale);
+  const offsetRatio = side === 'left'
+    ? LASERGUN_LEFT_MUZZLE_OFFSET_RATIO
+    : LASERGUN_RIGHT_MUZZLE_OFFSET_RATIO;
+  return getLaserGunMuzzleX(side, width) - rigWidth * offsetRatio;
+}
+
+export function getLaserGunOffscreenTravel(
+  side: LaserGunShooter,
+  scale: number,
+  viewportWidth: number,
+  onstageX = getLaserGunStageCenterX(side, scale, viewportWidth),
+): number {
+  const width = Math.max(320, viewportWidth);
+  const rigWidth = Math.min(width * 0.70, LASERGUN_RIG_MAX_WIDTH_PX) * Math.max(0.1, scale);
+  const travel = side === 'left'
+    ? -(onstageX + rigWidth * 0.5 + LASERGUN_EDGE_CLEARANCE_PX)
+    : width - onstageX + rigWidth * 0.5 + LASERGUN_EDGE_CLEARANCE_PX;
+  return travel;
+}
+
+export function getLaserGunConstrainedTop(
+  nominalTop: number,
+  target: LaserPoint,
+  gunX: number,
+  maxAngleDegrees = LASERGUN_MAX_BEAM_ANGLE_DEGREES,
+  minimumTravelPx = LASERGUN_MIN_BEAM_TRAVEL_PX,
+): number {
+  const horizontalDistance = Math.abs(target.x - gunX);
+  const boundedAngle = Math.max(1, Math.min(89, Math.abs(maxAngleDegrees)));
+  const maximumVerticalDistance = Math.tan(boundedAngle * Math.PI / 180) * horizontalDistance;
+  const angleConstrainedTop = Math.max(
+    target.y - maximumVerticalDistance,
+    Math.min(target.y + maximumVerticalDistance, nominalTop),
+  );
+  const minimumDistance = Math.max(0, minimumTravelPx);
+  const requiredVerticalDistance = Math.sqrt(Math.max(
+    0,
+    minimumDistance * minimumDistance - horizontalDistance * horizontalDistance,
+  ));
+  if (Math.abs(target.y - angleConstrainedTop) >= requiredVerticalDistance) {
+    return angleConstrainedTop;
+  }
+  // Pick the nearest readable position before entry. If 150px cannot coexist
+  // with the 55-degree cap, use the cap boundary: it is the longest legal run.
+  const readableVerticalDistance = Math.min(requiredVerticalDistance, maximumVerticalDistance);
+  const above = target.y - readableVerticalDistance;
+  const below = target.y + readableVerticalDistance;
+  return Math.abs(nominalTop - above) <= Math.abs(nominalTop - below) ? above : below;
 }
 
 type BeamGeometry = typeof LASERGUN_LEFT_BEAM_GEOMETRY | typeof LASERGUN_RIGHT_BEAM_GEOMETRY;
@@ -114,6 +251,7 @@ export function getLaserBeamPlacement(
   barrel: LaserPoint,
   target: LaserPoint,
   geometry: BeamGeometry,
+  lockedRotation?: number,
 ): LaserBeamPlacement {
   const baselineX = geometry.impactX - geometry.sourceX;
   const baselineY = geometry.impactY - geometry.sourceY;
@@ -121,20 +259,28 @@ export function getLaserBeamPlacement(
   const targetY = target.y - barrel.y;
   const baselineLength = Math.max(1, Math.hypot(baselineX, baselineY));
   const targetLength = Math.max(1, Math.hypot(targetX, targetY)) * LASERGUN_TARGET_REACH_SCALE;
+  const longitudinalScale = targetLength / baselineLength;
   return {
-    x: barrel.x - geometry.sourceX,
-    y: barrel.y - geometry.sourceY,
-    rotation: (Math.atan2(targetY, targetX) - Math.atan2(baselineY, baselineX)) * 180 / Math.PI,
-    scale: targetLength / baselineLength,
-    transformOrigin: `${geometry.sourceX}px ${geometry.sourceY}px`,
+    x: barrel.x,
+    y: barrel.y,
+    rotation: lockedRotation ?? Math.atan2(targetY, targetX) * 180 / Math.PI,
+    scaleX: longitudinalScale,
+    scaleY: longitudinalScale * LASERGUN_BEAM_THICKNESS_SCALE,
+    transformOrigin: '0 0',
   };
 }
 
 type LaserGunFinaleController = {
-  setTargets: (targets: LaserGunFinaleTarget[]) => void;
-  triggerImpact: (index: number) => void;
+  setTargets: (targets: LaserGunFinaleTarget[]) => Promise<LaserGunEntryReadiness>;
+  prepareImpact: (index: number, target: LaserPoint) => Promise<boolean>;
+  triggerImpact: (index: number) => boolean;
+  waitForImpactArrival: (index: number) => Promise<boolean>;
+  cancelImpact: (index: number) => void;
+  completeImpacts: () => void;
   cleanup: () => void;
 };
+
+export type LaserGunEntryReadiness = 'painted' | 'cancelled';
 
 let activeController: LaserGunFinaleController | null = null;
 let preloadPromise: Promise<void> | null = null;
@@ -163,12 +309,33 @@ export function preloadLaserGunFinaleAssets(): Promise<void> {
   return preloadPromise;
 }
 
-export function setActiveLaserGunFinaleTargets(targets: LaserGunFinaleTarget[]): void {
-  activeController?.setTargets(targets);
+export function setActiveLaserGunFinaleTargets(
+  targets: LaserGunFinaleTarget[],
+): Promise<LaserGunEntryReadiness> {
+  return activeController?.setTargets(targets) ?? Promise.resolve('cancelled');
 }
 
-export function triggerActiveLaserGunFinaleImpact(index: number): void {
-  activeController?.triggerImpact(index);
+export function prepareActiveLaserGunFinaleImpact(
+  index: number,
+  target: LaserPoint,
+): Promise<boolean> {
+  return activeController?.prepareImpact(index, target) ?? Promise.resolve(false);
+}
+
+export function triggerActiveLaserGunFinaleImpact(index: number): boolean {
+  return activeController?.triggerImpact(index) ?? false;
+}
+
+export function waitForActiveLaserGunFinaleImpactArrival(index: number): Promise<boolean> {
+  return activeController?.waitForImpactArrival(index) ?? Promise.resolve(false);
+}
+
+export function cancelActiveLaserGunFinaleImpact(index: number): void {
+  activeController?.cancelImpact(index);
+}
+
+export function completeActiveLaserGunFinaleImpacts(): void {
+  activeController?.completeImpacts();
 }
 
 function createImage(assetSource: string, className: string): HTMLImageElement {
@@ -188,13 +355,14 @@ function createImage(assetSource: string, className: string): HTMLImageElement {
   return image;
 }
 
-function createGunRig(className: string, side: LaserGunShooter): {
+function createGunRig(className: string, side: LaserGunShooter, slot: number): {
   rig: HTMLElement;
   aim: HTMLElement;
   image: HTMLImageElement;
   barrel: HTMLElement;
   axis: HTMLElement;
   side: LaserGunShooter;
+  slot: number;
 } {
   const rig = document.createElement('div');
   rig.className = `cc-lasergun-rig ${className}`;
@@ -217,6 +385,7 @@ function createGunRig(className: string, side: LaserGunShooter): {
   ].join(';');
   const image = createImage(LASERGUN_FRAME_SOURCES[0], 'cc-lasergun-frame');
   image.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain';
+  image.style.transformOrigin = '24% 32%';
   const aim = document.createElement('div');
   aim.className = 'cc-lasergun-aim';
   aim.style.cssText = 'position:absolute;inset:0;transform-origin:50% 50%;will-change:transform';
@@ -229,7 +398,7 @@ function createGunRig(className: string, side: LaserGunShooter): {
   aim.append(image, barrel, axis);
   orientation.append(aim);
   rig.appendChild(orientation);
-  return { rig, aim, image, barrel, axis, side };
+  return { rig, aim, image, barrel, axis, side, slot };
 }
 
 export function attachLaserGunFinaleScene(
@@ -243,8 +412,20 @@ export function attachLaserGunFinaleScene(
   const random = options.random ?? Math.random;
   let disposed = false;
   let targetsApplied = false;
-  let exitStarted = false;
-  let activeGuns: Array<ReturnType<typeof createGunRig>> = [];
+  let finalExitStarted = false;
+  let activeGunsPainted = false;
+  let entryPaintFrameA: number | null = null;
+  let entryPaintFrameB: number | null = null;
+  let entryReadinessSettled = false;
+  let resolveEntryReadiness!: (readiness: LaserGunEntryReadiness) => void;
+  const entryReadiness = new Promise<LaserGunEntryReadiness>((resolve) => {
+    resolveEntryReadiness = resolve;
+  });
+  const settleEntryReadiness = (readiness: LaserGunEntryReadiness): void => {
+    if (entryReadinessSettled) return;
+    entryReadinessSettled = true;
+    resolveEntryReadiness(readiness);
+  };
   const ownedTimelines: gsap.core.Timeline[] = [];
   const own = (timeline: gsap.core.Timeline): gsap.core.Timeline => {
     ownedTimelines.push(timeline);
@@ -253,57 +434,78 @@ export function attachLaserGunFinaleScene(
 
   const field = document.createElement('div');
   field.className = 'cc-lasergun-finale-scene';
-  field.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:1';
+  field.style.cssText = 'position:absolute;inset:0;overflow:visible;pointer-events:none;z-index:1';
   const rightGunField = document.createElement('div');
   rightGunField.className = 'cc-lasergun-right-gun-layer';
-  rightGunField.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:3';
+  rightGunField.style.cssText = 'position:absolute;inset:0;overflow:visible;pointer-events:none;z-index:3';
 
   const gunPools: Record<LaserGunShooter, Array<ReturnType<typeof createGunRig>>> = {
-    left: [
-      createGunRig('cc-lasergun-rig-left cc-lasergun-rig-left-0', 'left'),
-      createGunRig('cc-lasergun-rig-left cc-lasergun-rig-left-1', 'left'),
-    ],
-    right: [
-      createGunRig('cc-lasergun-rig-right cc-lasergun-rig-right-0', 'right'),
-      createGunRig('cc-lasergun-rig-right cc-lasergun-rig-right-1', 'right'),
-    ],
+    left: [],
+    right: [],
   };
-  const allGuns = [...gunPools.left, ...gunPools.right];
-  allGuns.forEach(({ rig, side }) => {
-    rig.style.cssText += `;left:${side === 'left' ? '8%' : '92%'};top:50%;visibility:hidden`;
-    (side === 'right' ? rightGunField : field).appendChild(rig);
-  });
 
   const createBeamPlan = (side: LaserGunShooter, slot: number) => {
     const firesFromLeft = side === 'left';
     const geometry = firesFromLeft ? LASERGUN_LEFT_BEAM_GEOMETRY : LASERGUN_RIGHT_BEAM_GEOMETRY;
+    const rig = document.createElement('div');
+    rig.className = 'cc-lasergun-beam-rig';
+    rig.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;z-index:3;will-change:transform';
+    const scaleLayer = document.createElement('div');
+    scaleLayer.className = 'cc-lasergun-beam-scale';
+    scaleLayer.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;will-change:transform';
     const image = createImage(
       source(firesFromLeft ? 'left laser' : 'right laser'),
       `cc-lasergun-beam cc-lasergun-beam-${firesFromLeft ? 'left' : 'right'}`,
     );
     image.dataset.lasergunSlot = `${side}-${slot}`;
-    image.style.cssText += `;left:0;top:0;width:${geometry.width}px;height:${geometry.height}px;opacity:0;z-index:3;filter:brightness(1.18) saturate(1.12) drop-shadow(0 0 7px rgba(117,232,255,.82))`;
-    field.appendChild(image);
-    return { image, geometry, firesFromLeft, side, slot };
+    const intrinsicAxisDegrees = Math.atan2(
+      geometry.impactY - geometry.sourceY,
+      geometry.impactX - geometry.sourceX,
+    ) * 180 / Math.PI;
+    image.style.cssText += `;left:${-geometry.sourceX}px;top:${-geometry.sourceY}px;width:${geometry.width}px;height:${geometry.height}px;opacity:0;z-index:3;transform-origin:${geometry.sourceX}px ${geometry.sourceY}px;transform:rotate(${-intrinsicAxisDegrees}deg);filter:brightness(${LASERGUN_BEAM_BRIGHTNESS_SCALE}) saturate(${LASERGUN_BEAM_SATURATION_SCALE}) drop-shadow(0 0 ${LASERGUN_BEAM_GLOW_BLUR_PX}px rgba(117,232,255,${LASERGUN_BEAM_GLOW_ALPHA}))`;
+    scaleLayer.appendChild(image);
+    rig.appendChild(scaleLayer);
+    field.appendChild(rig);
+    return { rig, scaleLayer, image, geometry, firesFromLeft, side, slot };
   };
   const beamPools: Record<LaserGunShooter, Array<ReturnType<typeof createBeamPlan>>> = {
-    left: [createBeamPlan('left', 0), createBeamPlan('left', 1)],
-    right: [createBeamPlan('right', 0), createBeamPlan('right', 1)],
+    left: [],
+    right: [],
   };
-  const beams = [...beamPools.left, ...beamPools.right];
 
   overlay.insertBefore(field, overlay.firstChild);
   overlay.insertBefore(rightGunField, field.nextSibling);
-  gsap.set(allGuns.map(({ rig }) => rig), {
-    xPercent: -50,
-    yPercent: -50,
-    opacity: 0,
-    scale: 0.65,
-    force3D: true,
-  });
-  gsap.set(beams.map(({ image }) => image), { opacity: 0, scale: 0.04, force3D: true });
+  const ensureGunBeamPair = (side: LaserGunShooter, slot: number) => {
+    let gun = gunPools[side][slot];
+    if (!gun) {
+      gun = createGunRig(
+        `cc-lasergun-rig-${side} cc-lasergun-rig-${side}-${slot}`,
+        side,
+        slot,
+      );
+      gun.rig.style.left = '50%';
+      gun.rig.style.top = '50%';
+      gun.rig.style.visibility = 'hidden';
+      (side === 'right' ? rightGunField : field).appendChild(gun.rig);
+      gsap.set(gun.rig, {
+        xPercent: -50,
+        yPercent: -50,
+        opacity: 0,
+        scale: 0.65,
+        force3D: true,
+      });
+      gunPools[side][slot] = gun;
+    }
+    let beamPlan = beamPools[side][slot];
+    if (!beamPlan) {
+      beamPlan = createBeamPlan(side, slot);
+      gsap.set(beamPlan.image, { opacity: 0 });
+      beamPools[side][slot] = beamPlan;
+    }
+    return { gun, beamPlan };
+  };
   let sequenceCompleted = false;
-  const gunExitPoses = new Map<HTMLElement, { x: string; rotation: number }>();
+  const gunExitPoses = new Map<HTMLElement, string>();
   const gunActiveScales = new Map<HTMLElement, number>();
   const finishSequence = () => {
     if (disposed || sequenceCompleted) return;
@@ -311,51 +513,44 @@ export function attachLaserGunFinaleScene(
     try { options.onSequenceComplete?.(); } catch {}
   };
   const startExit = () => {
-    if (disposed || sequenceCompleted || exitStarted) return;
-    exitStarted = true;
-    gsap.set(beams.map(({ image }) => image), { opacity: 0 });
-    if (!activeGuns.length) {
+    if (disposed || sequenceCompleted || finalExitStarted) return;
+    finalExitStarted = true;
+    shotStates.forEach((shot) => {
+      resetShotPreparation(shot);
+      settleShotEntry(shot, false);
+      settleImpactArrival(shot, false);
+      if (!shot.fadeStarted) gsap.set(shot.beamPlan.image, { opacity: 0 });
+    });
+    const enteredShots = shotStates.filter((shot) => shot.entryStarted);
+    if (!enteredShots.length) {
       finishSequence();
       return;
     }
-    const exit = own(gsap.timeline({ paused: true, onComplete: finishSequence }));
-    exit.to(activeGuns.map(({ aim }) => aim), {
-      rotation: 0,
-      duration: 0.10,
-      ease: 'sine.out',
-      overwrite: 'auto',
-    }, 0);
-    activeGuns.forEach(({ rig, side }) => {
-      const exitPose = gunExitPoses.get(rig) ?? {
-        x: side === 'left' ? '-58vw' : '58vw',
-        rotation: side === 'left' ? -18 : 18,
-      };
-      exit.to(rig, {
-        x: exitPose.x,
-        y: 0,
-        rotation: exitPose.rotation,
-        opacity: 0,
-        scale: 0.65,
-        duration: 0.42,
-        ease: 'back.in(1.4)',
-      }, 0.08);
-    });
-    exit.play(0);
+    enteredShots.forEach((shot) => startGunExit(shot));
+    maybeFinishSequence();
   };
 
   const targetRequest = own(gsap.timeline({ paused: true }));
   targetRequest.call(() => {
     if (disposed) return;
     try { options.onFireReady?.(); } catch {}
-  }, undefined, 0.04);
-  targetRequest.to({}, { duration: 0.02 }, 0.04);
+  }, undefined, 0.04 * LASERGUN_TIMING_SCALE);
+  targetRequest.to(
+    {},
+    { duration: 0.02 * LASERGUN_TIMING_SCALE },
+    0.04 * LASERGUN_TIMING_SCALE,
+  );
 
-  const fieldRect = field.getBoundingClientRect();
+  const initialFieldRect = field.getBoundingClientRect();
   const resolveMarker = (marker: HTMLElement): LaserPoint => {
     const rect = marker.getBoundingClientRect();
+    // Both gun layers and the beam field may be under the shared CSS shake.
+    // Convert against the field's live rect so that transform cancels exactly
+    // once instead of being included here and inherited again by the child.
+    const liveFieldRect = field.getBoundingClientRect();
     return {
-      x: rect.left + rect.width * 0.5 - fieldRect.left,
-      y: rect.top + rect.height * 0.5 - fieldRect.top,
+      x: rect.left + rect.width * 0.5 - liveFieldRect.left,
+      y: rect.top + rect.height * 0.5 - liveFieldRect.top,
     };
   };
   const aimRotationFor = (
@@ -374,93 +569,319 @@ export function attachLaserGunFinaleScene(
     );
   };
 
+  const solveGunLayoutBeforeEntry = (
+    gun: ReturnType<typeof createGunRig>,
+    target: LaserPoint,
+    nominalLeft: number,
+    nominalTop: number,
+    activeScale: number,
+  ): { left: number; top: number; aimRotation: number; beamRotation: number } => {
+    let left = nominalLeft;
+    let top = nominalTop;
+    gun.rig.style.visibility = 'hidden';
+    const applyLayout = () => {
+      gun.rig.style.left = `${left}px`;
+      gun.rig.style.top = `${top}px`;
+      gsap.set(gun.rig, {
+        x: 0,
+        y: 0,
+        rotation: gun.side === 'left' ? 0 : -8,
+        opacity: 0,
+        scale: activeScale,
+      });
+    };
+    const settleAim = () => {
+      // Rotating around the full rig centre moves the muzzle as well as its
+      // direction, so converge against the freshly rendered markers until the
+      // cube centre is within 0.05px of the real barrel axis.
+      for (let pass = 0; pass < 12; pass += 1) {
+        gsap.set(gun.aim, { rotation: aimRotationFor(gun, target) });
+        const axis = resolveMarker(gun.axis);
+        const barrel = resolveMarker(gun.barrel);
+        if (Math.hypot(barrel.x - axis.x, barrel.y - axis.y) <= 0.01) break;
+        if (getLaserGunAxisMissDistance(axis, barrel, target) <= 0.05) break;
+      }
+    };
+    const readBeamRotation = (): number => {
+      const axis = resolveMarker(gun.axis);
+      const barrel = resolveMarker(gun.barrel);
+      const axisLength = Math.hypot(barrel.x - axis.x, barrel.y - axis.y);
+      // jsdom has no layout engine, so retain a deterministic target-vector
+      // fallback for unit tests. Real browser geometry always uses the barrel.
+      if (axisLength <= 0.01) {
+        return Math.atan2(target.y - barrel.y, target.x - barrel.x) * 180 / Math.PI;
+      }
+      return Math.atan2(barrel.y - axis.y, barrel.x - axis.x) * 180 / Math.PI;
+    };
+    applyLayout();
+    gsap.set(gun.aim, { rotation: 0 });
+    settleAim();
+    const measurableRig = gun.rig.getBoundingClientRect();
+    if (measurableRig.width <= 1 || measurableRig.height <= 1) {
+      return {
+        left,
+        top,
+        aimRotation: Number(gsap.getProperty(gun.aim, 'rotation')) || 0,
+        beamRotation: readBeamRotation(),
+      };
+    }
+    const layoutTravelDistance = LASERGUN_MIN_BEAM_TRAVEL_PX
+      + LASERGUN_LAYOUT_TRAVEL_MARGIN_PX;
+    const minimumHorizontalDistance = layoutTravelDistance
+      * Math.cos(LASERGUN_MAX_BEAM_ANGLE_DEGREES * Math.PI / 180);
+    for (let pass = 0; pass < 6; pass += 1) {
+      settleAim();
+      const barrel = resolveMarker(gun.barrel);
+      const horizontalDistance = Math.abs(target.x - barrel.x);
+      if (horizontalDistance + 0.02 < minimumHorizontalDistance) {
+        const outward = gun.side === 'left' ? -1 : 1;
+        left += outward * (minimumHorizontalDistance - horizontalDistance);
+        applyLayout();
+        continue;
+      }
+      const desiredBarrelY = getLaserGunConstrainedTop(
+        barrel.y,
+        target,
+        barrel.x,
+        LASERGUN_MAX_BEAM_ANGLE_DEGREES,
+        layoutTravelDistance,
+      );
+      const deltaY = desiredBarrelY - barrel.y;
+      if (Math.abs(deltaY) <= 0.02) break;
+      top += deltaY;
+      applyLayout();
+    }
+    settleAim();
+    return {
+      left,
+      top,
+      aimRotation: Number(gsap.getProperty(gun.aim, 'rotation')) || 0,
+      beamRotation: readBeamRotation(),
+    };
+  };
+
   type ShotState = {
     index: number;
     gun: ReturnType<typeof createGunRig>;
     localTarget: LaserPoint;
-    beamPlan: (typeof beams)[number];
+    beamPlan: ReturnType<typeof createBeamPlan>;
+    lockedAimRotation: number;
+    lockedRigRotation: number;
+    lockedBeamRotation: number;
     posePreparing: boolean;
     poseReady: boolean;
     beamVisible: boolean;
     impactPending: boolean;
     fadeStarted: boolean;
-    prepFrame: number | null;
     frameA: number | null;
     frameB: number | null;
+    arrivalFrameA: number | null;
+    arrivalFrameB: number | null;
+    resolvePoseReadiness: ((ready: boolean) => void) | null;
+    entryReady: boolean;
+    entryStarted: boolean;
+    exitStarted: boolean;
+    exitCompleted: boolean;
+    entryReadiness: Promise<boolean>;
+    resolveEntryReadiness: ((ready: boolean) => void) | null;
+    impactArrivalReadiness: Promise<boolean>;
+    resolveImpactArrivalReadiness: ((arrived: boolean) => void) | null;
+    beamFinalScaleX: number;
+    beamFinalScaleY: number;
+    impactTimeline: gsap.core.Timeline | null;
   };
   const shotStates: ShotState[] = [];
   const triggeredImpacts = new Set<number>();
+
+  const resetShotPreparation = (shot: ShotState): void => {
+    if (shot.frameA !== null) window.cancelAnimationFrame(shot.frameA);
+    if (shot.frameB !== null) window.cancelAnimationFrame(shot.frameB);
+    shot.frameA = null;
+    shot.frameB = null;
+    shot.posePreparing = false;
+    shot.poseReady = false;
+    shot.resolvePoseReadiness?.(false);
+    shot.resolvePoseReadiness = null;
+  };
+
+  const settleShotEntry = (shot: ShotState, ready: boolean): void => {
+    if (ready) shot.entryReady = true;
+    shot.resolveEntryReadiness?.(ready);
+    shot.resolveEntryReadiness = null;
+  };
+
+  const settleImpactArrival = (shot: ShotState, arrived: boolean): void => {
+    if (!arrived) {
+      if (shot.arrivalFrameA !== null) window.cancelAnimationFrame(shot.arrivalFrameA);
+      if (shot.arrivalFrameB !== null) window.cancelAnimationFrame(shot.arrivalFrameB);
+      shot.arrivalFrameA = null;
+      shot.arrivalFrameB = null;
+    }
+    shot.resolveImpactArrivalReadiness?.(arrived);
+    shot.resolveImpactArrivalReadiness = null;
+  };
+
+  const maybeFinishSequence = (): void => {
+    if (!finalExitStarted || sequenceCompleted) return;
+    const allEnteredGunsExited = shotStates.every((shot) => (
+      !shot.entryStarted || shot.exitCompleted
+    ));
+    if (allEnteredGunsExited) finishSequence();
+  };
+
+  const hasLockedGunAngles = (shot: ShotState): boolean => (
+    Math.abs(
+      (Number(gsap.getProperty(shot.gun.aim, 'rotation')) || 0) - shot.lockedAimRotation,
+    ) <= 0.01
+    && Math.abs(
+      (Number(gsap.getProperty(shot.gun.rig, 'rotation')) || 0) - shot.lockedRigRotation,
+    ) <= 0.01
+  );
+
+  const startGunExit = (shot: ShotState): void => {
+    if (disposed || shot.exitStarted || !shot.entryStarted) return;
+    shot.exitStarted = true;
+    resetShotPreparation(shot);
+    if (!shot.fadeStarted) gsap.set(shot.beamPlan.image, { opacity: 0 });
+    const { rig, side } = shot.gun;
+    const exitX = gunExitPoses.get(rig) ?? (side === 'left' ? '-58vw' : '58vw');
+    const exit = own(gsap.timeline({
+      paused: true,
+      onComplete: () => {
+        shot.exitCompleted = true;
+        rig.style.visibility = 'hidden';
+        maybeFinishSequence();
+      },
+    }));
+    // The PNG tail may return 6 -> 1, but spatial pose ownership is immutable.
+    // Exit changes only straight translation and opacity; aim, rotation, scale,
+    // y and bitmap transforms remain exactly those that produced the beam.
+    exit.to(rig, {
+      x: exitX,
+      opacity: 0,
+      duration: LASERGUN_EXIT_TRAVEL_SECONDS,
+      ease: 'power2.in',
+    }, LASERGUN_EXIT_DELAY_SECONDS);
+    exit.play(0);
+  };
+
+  const startShotEntry = (shot: ShotState | undefined): void => {
+    if (!shot || disposed || finalExitStarted || shot.entryStarted) return;
+    shot.entryStarted = true;
+    shot.gun.image.src = LASERGUN_FRAME_SOURCES[0];
+    shot.gun.rig.style.visibility = 'visible';
+    gsap.set(shot.gun.image, { scale: 0.88, transformOrigin: '24% 32%' });
+    const entry = own(gsap.timeline({ paused: true }));
+    entry.to(shot.gun.rig, {
+      x: 0,
+      opacity: 1,
+      scale: gunActiveScales.get(shot.gun.rig) ?? 1,
+      duration: LASERGUN_ENTRY_DURATION_SECONDS,
+      ease: 'back.out(2.35)',
+      onComplete: () => {
+        settleShotEntry(shot, true);
+      },
+    }, 0);
+    entry.to(shot.gun.image, {
+      scale: 1,
+      duration: 0.34 * LASERGUN_GUN_TIME_SCALE,
+      ease: 'elastic.out(1.05, 0.30)',
+    }, 0.14 * LASERGUN_GUN_TIME_SCALE);
+    entry.play(0);
+  };
 
   const positionBeam = (shot: ShotState, opacity: 0 | 1): void => {
     const placement = getLaserBeamPlacement(
       resolveMarker(shot.gun.barrel),
       shot.localTarget,
       shot.beamPlan.geometry,
+      shot.lockedBeamRotation,
     );
-    gsap.set(shot.beamPlan.image, {
+    gsap.set(shot.beamPlan.rig, {
       x: placement.x,
       y: placement.y,
       rotation: placement.rotation,
-      scale: placement.scale,
-      opacity,
       transformOrigin: placement.transformOrigin,
       force3D: true,
     });
+    gsap.set(shot.beamPlan.scaleLayer, {
+      scaleX: placement.scaleX,
+      scaleY: placement.scaleY,
+      transformOrigin: placement.transformOrigin,
+      force3D: true,
+    });
+    shot.beamFinalScaleX = placement.scaleX;
+    shot.beamFinalScaleY = placement.scaleY;
+    gsap.set(shot.beamPlan.image, { opacity });
   };
 
-  const commitExactGunPose = (shot: ShotState): void => {
-    // Mirrored guns need a second marker solve after the first transform commit.
-    // Both passes stay hidden so no intermediate direction can be painted.
-    for (let pass = 0; pass < 3; pass += 1) {
-      gsap.set(shot.gun.aim, { rotation: aimRotationFor(shot.gun, shot.localTarget) });
-    }
-  };
-
-  const startImpactFade = (shot: ShotState): void => {
+  const startBeamTravel = (shot: ShotState): void => {
     if (disposed || shot.fadeStarted || !shot.beamVisible) return;
     shot.fadeStarted = true;
-    const impactTimeline = own(gsap.timeline({ paused: true }));
-    impactTimeline.to(shot.beamPlan.image, { opacity: 0, duration: 0.18, ease: 'sine.in' }, 0.14);
-    if (shot.index === shotStates.length - 1) {
-      impactTimeline.call(startExit, undefined, 0.34);
-    }
+    const impactTimeline = own(gsap.timeline({
+      paused: true,
+      onComplete: () => { shot.impactTimeline = null; },
+    }));
+    shot.impactTimeline = impactTimeline;
+    impactTimeline.to(shot.beamPlan.scaleLayer, {
+      scaleX: shot.beamFinalScaleX,
+      duration: LASERGUN_BEAM_TRAVEL_SECONDS,
+      // Decelerate into the cube so the terminal paint cannot cover a large
+      // edge-to-centre distance in one frame.
+      ease: 'power2.out',
+    }, 0);
+    impactTimeline.call(() => {
+      if (disposed) {
+        settleImpactArrival(shot, false);
+        return;
+      }
+      // Commit exact centre geometry, then wait through two paint boundaries
+      // before app-core is allowed to create the Pixi explosion. This prevents
+      // WebKit from painting the explosion one compositor frame ahead of DOM.
+      gsap.set(shot.beamPlan.scaleLayer, { scaleX: shot.beamFinalScaleX });
+      shot.arrivalFrameA = window.requestAnimationFrame(() => {
+        shot.arrivalFrameA = null;
+        if (disposed || !shot.resolveImpactArrivalReadiness) return;
+        shot.arrivalFrameB = window.requestAnimationFrame(() => {
+          shot.arrivalFrameB = null;
+          if (disposed || !shot.resolveImpactArrivalReadiness) return;
+          settleImpactArrival(shot, true);
+        });
+      });
+    }, undefined, LASERGUN_BEAM_TRAVEL_SECONDS);
+    impactTimeline.to(shot.beamPlan.image, {
+      opacity: 0,
+      duration: LASERGUN_BEAM_FADE_SECONDS,
+      ease: 'sine.in',
+    }, LASERGUN_BEAM_TRAVEL_SECONDS + LASERGUN_BEAM_FADE_DELAY_SECONDS);
     impactTimeline.play(0);
   };
 
-  const playGunRecoil = (shot: ShotState): void => {
-    try { gsap.killTweensOf(shot.gun.image); } catch {}
-    const recoil = own(gsap.timeline({ paused: true }));
-    recoil.to(shot.gun.image, {
-      x: 10,
-      y: 5.5,
-      duration: 0.055,
-      ease: 'power2.out',
-      force3D: true,
-    });
-    recoil.to(shot.gun.image, {
-      x: 0,
-      y: 0,
-      duration: 0.30,
-      ease: 'elastic.out(1, 0.34)',
-      force3D: true,
-    });
-    recoil.play(0);
-  };
-
   const revealRequestedBeam = (shot: ShotState): void => {
-    if (disposed || !shot.poseReady || !shot.impactPending || shot.beamVisible) return;
-    positionBeam(shot, 1);
+    if (
+      disposed ||
+      finalExitStarted ||
+      shot.exitStarted ||
+      !activeGunsPainted ||
+      !shot.poseReady ||
+      !shot.impactPending ||
+      shot.beamVisible
+    ) return;
+    positionBeam(shot, 0);
+    gsap.set(shot.beamPlan.scaleLayer, {
+      scaleX: shot.beamFinalScaleX * LASERGUN_BEAM_LAUNCH_SCALE,
+      scaleY: shot.beamFinalScaleY,
+    });
+    gsap.set(shot.beamPlan.image, { opacity: 1 });
     shot.beamVisible = true;
-    playGunRecoil(shot);
-    startImpactFade(shot);
+    startBeamTravel(shot);
+    startGunExit(shot);
   };
 
   const prepareShotPose = (shot: ShotState): void => {
-    if (disposed || shot.posePreparing || shot.poseReady) return;
+    if (disposed || finalExitStarted || shot.exitStarted || shot.posePreparing || shot.poseReady) return;
     shot.posePreparing = true;
-    try { gsap.killTweensOf(shot.gun.aim); } catch {}
     gsap.set(shot.beamPlan.image, { opacity: 0 });
-    commitExactGunPose(shot);
     positionBeam(shot, 0);
 
     // WebKit may commit the independent gun and beam compositor layers in
@@ -469,38 +890,185 @@ export function attachLaserGunFinaleScene(
     shot.frameA = window.requestAnimationFrame(() => {
       shot.frameA = null;
       if (disposed) return;
-      commitExactGunPose(shot);
       positionBeam(shot, 0);
       shot.frameB = window.requestAnimationFrame(() => {
         shot.frameB = null;
         if (disposed) return;
         positionBeam(shot, 0);
         shot.poseReady = true;
-        revealRequestedBeam(shot);
+        shot.resolvePoseReadiness?.(true);
+        shot.resolvePoseReadiness = null;
       });
     });
   };
 
   const scheduleShotPreparation = (shot: ShotState): void => {
-    if (disposed || shot.posePreparing || shot.poseReady || shot.prepFrame !== null) return;
-    shot.prepFrame = window.requestAnimationFrame(() => {
-      shot.prepFrame = null;
-      prepareShotPose(shot);
+    if (disposed || finalExitStarted || shot.exitStarted || shot.posePreparing || shot.poseReady) return;
+    // Aim is already immutable. These two boundaries only commit the hidden
+    // beam at the same barrel origin before its opacity may change.
+    prepareShotPose(shot);
+  };
+
+  const scheduleSceneStartPaintBarrier = (): void => {
+    if (disposed || activeGunsPainted || entryPaintFrameA !== null) return;
+    // Start the firing clock after the mounted field and first incoming gun
+    // cross two paint opportunities. Later guns are started only by their own
+    // sequential preflight, so none can wait onscreen on a stale PNG frame.
+    entryPaintFrameA = window.requestAnimationFrame(() => {
+      entryPaintFrameA = null;
+      if (disposed) return;
+      entryPaintFrameB = window.requestAnimationFrame(() => {
+        entryPaintFrameB = null;
+        if (disposed) return;
+        activeGunsPainted = true;
+        settleEntryReadiness('painted');
+      });
     });
+  };
+
+  const prepareImpact = (index: number, target: LaserPoint): Promise<boolean> => {
+    if (
+      disposed ||
+      finalExitStarted ||
+      !activeGunsPainted ||
+      triggeredImpacts.has(index) ||
+      !Number.isFinite(target?.x) ||
+      !Number.isFinite(target?.y)
+    ) return Promise.resolve(false);
+    const shot = shotStates[index];
+    if (!shot || !hasLockedGunAngles(shot)) return Promise.resolve(false);
+    const liveFieldRect = field.getBoundingClientRect();
+    const liveLocalTarget = {
+      x: target.x - liveFieldRect.left,
+      y: target.y - liveFieldRect.top,
+    };
+    // The gun is already entering with its immutable barrel direction. A real
+    // relative target drift must disable the visual shot instead of drawing a
+    // beam at an old centre or visibly re-aiming the gun onstage. Shared shake
+    // cancels from both points and therefore remains inside this tolerance.
+    const targetDrift = Math.hypot(
+      liveLocalTarget.x - shot.localTarget.x,
+      liveLocalTarget.y - shot.localTarget.y,
+    );
+    if (targetDrift > LASERGUN_TARGET_LOCK_TOLERANCE_PX) {
+      // A later relay gun is still fully hidden until its own prepare step.
+      // Re-solve that hidden gun against the live reserved cube instead of
+      // retiring the complete 2 -> 3 -> 4 visual chain. A gun that has already
+      // entered remains immutable and still fails closed rather than re-aiming
+      // on stage while a beam is visible.
+      if (shot.entryStarted) return Promise.resolve(false);
+      const activeScale = gunActiveScales.get(shot.gun.rig) ?? 1;
+      const viewportWidth = Math.max(
+        320,
+        liveFieldRect.width || initialFieldRect.width || window.innerWidth || 0,
+      );
+      const currentLeft = Number.parseFloat(shot.gun.rig.style.left) || 0;
+      const currentTop = Number.parseFloat(shot.gun.rig.style.top) || 0;
+      const solvedLayout = solveGunLayoutBeforeEntry(
+        shot.gun,
+        liveLocalTarget,
+        currentLeft,
+        currentTop,
+        activeScale,
+      );
+      const entryX = `${getLaserGunOffscreenTravel(
+        shot.gun.side,
+        activeScale,
+        viewportWidth,
+        solvedLayout.left,
+      )}px`;
+      shot.localTarget = liveLocalTarget;
+      shot.lockedAimRotation = solvedLayout.aimRotation;
+      shot.lockedBeamRotation = solvedLayout.beamRotation;
+      shot.gun.rig.style.left = `${solvedLayout.left}px`;
+      shot.gun.rig.style.top = `${solvedLayout.top}px`;
+      gunExitPoses.set(shot.gun.rig, entryX);
+      gsap.set(shot.gun.rig, {
+        x: entryX,
+        y: 0,
+        rotation: shot.lockedRigRotation,
+        opacity: 0,
+        scale: 0.65,
+      });
+      gsap.set(shot.gun.aim, { rotation: shot.lockedAimRotation });
+    }
+
+    resetShotPreparation(shot);
+    // Target, barrel angle and beam angle were solved together while this gun
+    // was still hidden. The live callback validates the shot but cannot repaint
+    // a visible gun toward a new angle.
+    shot.impactPending = false;
+    gsap.set(shot.beamPlan.image, { opacity: 0 });
+    shot.gun.image.src = LASERGUN_FRAME_SOURCES[0];
+    startShotEntry(shot);
+
+    const readiness = new Promise<boolean>((resolve) => {
+      shot.resolvePoseReadiness = resolve;
+    });
+    const preflight = own(gsap.timeline({ paused: true }));
+    LASERGUN_FRAME_SOURCES.slice(1, 5).forEach((frameSource, frameIndex) => {
+      preflight.call(() => {
+        if (disposed || finalExitStarted || shot.exitStarted) return;
+        shot.gun.image.src = frameSource;
+      }, undefined, LASERGUN_BUILDUP_START_SECONDS + frameIndex * LASERGUN_FRAME_STEP_SECONDS);
+    });
+    preflight.to({}, {
+      duration: LASERGUN_PREFIRE_SETTLE_SECONDS,
+    }, LASERGUN_BUILDUP_START_SECONDS);
+    preflight.call(() => {
+      void shot.entryReadiness.then((entryReady) => {
+        if (!entryReady || disposed || finalExitStarted || shot.exitStarted) {
+          shot.resolvePoseReadiness?.(false);
+          shot.resolvePoseReadiness = null;
+          return;
+        }
+        scheduleShotPreparation(shot);
+      });
+    }, undefined, LASERGUN_BUILDUP_START_SECONDS + LASERGUN_PREFIRE_SETTLE_SECONDS);
+    preflight.play(0);
+    return readiness;
+  };
+
+  const playGunReturnFrames = (shot: ShotState): void => {
+    const tail = own(gsap.timeline({ paused: true }));
+    LASERGUN_FRAME_SOURCES.slice(0, 5).reverse().forEach((frameSource, frameIndex) => {
+      tail.call(() => {
+        if (disposed) return;
+        shot.gun.image.src = frameSource;
+      }, undefined, (frameIndex + 1) * LASERGUN_FRAME_STEP_SECONDS);
+    });
+    tail.play(0);
   };
 
   const controller: LaserGunFinaleController = {
     setTargets: (targets) => {
-      if (disposed || targetsApplied) return;
+      if (disposed || targetsApplied) return entryReadiness;
       targetsApplied = true;
       const boundedTargets = targets
         .filter((target) => Number.isFinite(target?.x) && Number.isFinite(target?.y))
         .slice(0, LASERGUN_MAX_TARGETS);
       if (!boundedTargets.length) {
+        settleEntryReadiness('cancelled');
         startExit();
-        return;
+        return entryReadiness;
       }
-      const viewportHeight = Math.max(320, fieldRect.height || window.innerHeight || 0);
+      // The initial TNT shake starts after this scene is attached but before
+      // targets are handed over. Freeze every target against one live field
+      // rect from this exact handoff so the shared shake cancels once instead
+      // of becoming a permanent offset in the locked gun/beam direction.
+      const targetFieldRect = field.getBoundingClientRect();
+      const viewportHeight = Math.max(
+        320,
+        targetFieldRect.height || initialFieldRect.height || window.innerHeight || 0,
+      );
+      const viewportWidth = Math.max(
+        320,
+        targetFieldRect.width || initialFieldRect.width || window.innerWidth || 0,
+      );
+      const localTargets = boundedTargets.map((target) => ({
+        x: target.x - targetFieldRect.left,
+        y: target.y - targetFieldRect.top,
+      }));
       const targetsPerSide: Record<LaserGunShooter, number> = {
         left: boundedTargets.filter(({ shooter }) => shooter === 'left').length,
         right: boundedTargets.filter(({ shooter }) => shooter === 'right').length,
@@ -511,111 +1079,159 @@ export function attachLaserGunFinaleScene(
       };
       const gunUsage: Record<LaserGunShooter, number> = { left: 0, right: 0 };
       const randomGunScales = getLaserGunRandomScales(boundedTargets.length, random);
-      const assignedShots = boundedTargets.map(({ shooter }, targetIndex) => {
+      const assignedShots = boundedTargets.map((target, targetIndex) => {
+        const { shooter } = target;
         const sideIndex = gunUsage[shooter]++;
-        const gun = gunPools[shooter][sideIndex];
-        const beamPlan = beamPools[shooter][sideIndex];
-        const top = sideYPositions[shooter][sideIndex];
-        const entryX = shooter === 'left' ? '-58vw' : '58vw';
-        const entryRotation = shooter === 'left' ? -18 : 18;
-        gun.rig.style.top = `${top}px`;
-        gun.rig.style.visibility = 'visible';
+        const { gun, beamPlan } = ensureGunBeamPair(shooter, sideIndex);
+        const activeScale = randomGunScales[targetIndex];
+        const nominalOnstageX = getLaserGunStageCenterX(shooter, activeScale, viewportWidth);
+        const muzzleX = getLaserGunMuzzleX(shooter, viewportWidth);
+        const localTarget = localTargets[targetIndex];
+        const nominalTop = getLaserGunConstrainedTop(
+          sideYPositions[shooter][sideIndex],
+          localTarget,
+          muzzleX,
+        );
+        const solvedLayout = solveGunLayoutBeforeEntry(
+          gun,
+          localTarget,
+          nominalOnstageX,
+          nominalTop,
+          activeScale,
+        );
+        const entryX = `${getLaserGunOffscreenTravel(
+          shooter,
+          activeScale,
+          viewportWidth,
+          solvedLayout.left,
+        )}px`;
+        const lockedRigRotation = shooter === 'left' ? 0 : -8;
+        gun.rig.style.left = `${solvedLayout.left}px`;
+        gun.rig.style.top = `${solvedLayout.top}px`;
         gun.rig.dataset.lasergunTarget = String(targetIndex);
         beamPlan.image.dataset.lasergunTarget = String(targetIndex);
-        gunExitPoses.set(gun.rig, { x: entryX, rotation: entryRotation });
-        gunActiveScales.set(gun.rig, randomGunScales[targetIndex]);
+        gunExitPoses.set(gun.rig, entryX);
+        gunActiveScales.set(gun.rig, activeScale);
         gsap.set(gun.rig, {
           x: entryX,
           y: 0,
-          rotation: entryRotation,
+          rotation: lockedRigRotation,
           opacity: 0,
           scale: 0.65,
         });
-        return { gun, beamPlan };
-      });
-      activeGuns = assignedShots.map(({ gun }) => gun);
-      const intro = own(gsap.timeline({ paused: true }));
-      activeGuns.forEach(({ rig, side }, index) => {
-        intro.to(rig, {
-          x: 0,
-          y: 0,
-          rotation: side === 'left' ? 0 : -8,
-          opacity: 1,
-          scale: gunActiveScales.get(rig) ?? 1,
-          duration: 0.50,
-          ease: 'back.out(2.1)',
-        }, index * 0.035);
-      });
-      LASERGUN_FRAME_SEQUENCE.slice(1).forEach((frameSource, frameIndex) => {
-        intro.call(() => {
-          if (disposed) return;
-          activeGuns.forEach(({ image }) => { image.src = frameSource; });
-        }, undefined, 0.06 + frameIndex * 0.06);
-      });
-      intro.to({}, { duration: 0.04 }, 0.54);
-      const fireTimeline = own(gsap.timeline({ paused: true, onComplete: startExit }));
-      boundedTargets.forEach((target, index) => {
-        const localTarget = {
-          x: target.x - fieldRect.left,
-          y: target.y - fieldRect.top,
+        gsap.set(gun.aim, { rotation: solvedLayout.aimRotation });
+        return {
+          gun,
+          beamPlan,
+          lockedAimRotation: solvedLayout.aimRotation,
+          lockedRigRotation,
+          lockedBeamRotation: solvedLayout.beamRotation,
         };
-        const { gun, beamPlan } = assignedShots[index];
-        const impactAt = LASERGUN_IMPACT_DELAYS_MS[index] / 1000;
-        const aimAt = Math.max(0, impactAt - 0.36);
+      });
+      boundedTargets.forEach((_target, index) => {
+        const localTarget = localTargets[index];
+        const {
+          gun,
+          beamPlan,
+          lockedAimRotation,
+          lockedRigRotation,
+          lockedBeamRotation,
+        } = assignedShots[index];
+        let resolveShotEntry!: (ready: boolean) => void;
+        const shotEntryReadiness = new Promise<boolean>((resolve) => {
+          resolveShotEntry = resolve;
+        });
+        let resolveImpactArrival!: (arrived: boolean) => void;
+        const impactArrivalReadiness = new Promise<boolean>((resolve) => {
+          resolveImpactArrival = resolve;
+        });
         const shot: ShotState = {
           index,
           gun,
           localTarget,
           beamPlan,
+          lockedAimRotation,
+          lockedRigRotation,
+          lockedBeamRotation,
           posePreparing: false,
           poseReady: false,
           beamVisible: false,
           impactPending: false,
           fadeStarted: false,
-          prepFrame: null,
           frameA: null,
           frameB: null,
+          arrivalFrameA: null,
+          arrivalFrameB: null,
+          resolvePoseReadiness: null,
+          entryReady: false,
+          entryStarted: false,
+          exitStarted: false,
+          exitCompleted: false,
+          entryReadiness: shotEntryReadiness,
+          resolveEntryReadiness: resolveShotEntry,
+          impactArrivalReadiness,
+          resolveImpactArrivalReadiness: resolveImpactArrival,
+          beamFinalScaleX: 1,
+          beamFinalScaleY: 1,
+          impactTimeline: null,
         };
         shotStates.push(shot);
-        fireTimeline.to(gun.aim, {
-          rotation: () => aimRotationFor(gun, localTarget),
-          duration: 0.16,
-          ease: 'sine.inOut',
-          onComplete: () => prepareShotPose(shot),
-        }, aimAt);
       });
-      fireTimeline.call(startExit, undefined,
-        (LASERGUN_IMPACT_DELAYS_MS[boundedTargets.length - 1] ?? 0) / 1000 + 0.75);
-      intro.play(0);
-      fireTimeline.play(0);
+      scheduleSceneStartPaintBarrier();
+      return entryReadiness;
     },
+    prepareImpact,
     triggerImpact: (index) => {
-      if (disposed || triggeredImpacts.has(index)) return;
+      if (disposed || finalExitStarted || !activeGunsPainted || triggeredImpacts.has(index)) return false;
+      const shot = shotStates[index];
+      if (!shot || !shot.poseReady || !hasLockedGunAngles(shot)) return false;
+      triggeredImpacts.add(index);
+      // The launch owns frame 6 and the beam flight synchronously. App-core
+      // awaits this shot's tip-arrival promise before mutating the exact cube,
+      // so the explosion cannot lead the visible beam or drift to another shot.
+      shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
+      shot.impactPending = true;
+      revealRequestedBeam(shot);
+      playGunReturnFrames(shot);
+      return shot.beamVisible;
+    },
+    waitForImpactArrival: (index) => (
+      shotStates[index]?.impactArrivalReadiness ?? Promise.resolve(false)
+    ),
+    cancelImpact: (index) => {
       const shot = shotStates[index];
       if (!shot) return;
-      triggeredImpacts.add(index);
-      shot.impactPending = true;
-      if (shot.poseReady) revealRequestedBeam(shot);
-      else scheduleShotPreparation(shot);
+      try { shot.impactTimeline?.kill(); } catch {}
+      shot.impactTimeline = null;
+      try {
+        gsap.killTweensOf(shot.beamPlan.scaleLayer);
+        gsap.killTweensOf(shot.beamPlan.image);
+      } catch {}
+      gsap.set(shot.beamPlan.image, { opacity: 0 });
+      shot.beamVisible = false;
+      settleImpactArrival(shot, false);
     },
+    completeImpacts: startExit,
     cleanup: () => {},
   };
 
   const cleanup = () => {
     if (disposed) return;
     disposed = true;
+    settleEntryReadiness('cancelled');
     if (activeController === controller) activeController = null;
     ownedTimelines.splice(0).forEach((timeline) => {
       try { timeline.kill(); } catch {}
     });
     shotStates.forEach((shot) => {
-      if (shot.prepFrame !== null) window.cancelAnimationFrame(shot.prepFrame);
-      if (shot.frameA !== null) window.cancelAnimationFrame(shot.frameA);
-      if (shot.frameB !== null) window.cancelAnimationFrame(shot.frameB);
-      shot.prepFrame = null;
-      shot.frameA = null;
-      shot.frameB = null;
+      resetShotPreparation(shot);
+      settleShotEntry(shot, false);
+      settleImpactArrival(shot, false);
     });
+    if (entryPaintFrameA !== null) window.cancelAnimationFrame(entryPaintFrameA);
+    if (entryPaintFrameB !== null) window.cancelAnimationFrame(entryPaintFrameB);
+    entryPaintFrameA = null;
+    entryPaintFrameB = null;
     try {
       gsap.killTweensOf(field);
       field.querySelectorAll('*').forEach((element) => gsap.killTweensOf(element));

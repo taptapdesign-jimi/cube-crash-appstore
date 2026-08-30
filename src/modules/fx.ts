@@ -5587,15 +5587,19 @@ export function screenShake(app, opts = {}){
       });
     }
     const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
-    tl.to(target, { x: 0, y: 0, scale: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    // Every shaken surface must return on the same clock. Sequential `>`
+    // positions let the Pixi canvas reach zero one or more frames before DOM
+    // overlays, visibly separating LaserGun beam tips from their cube targets.
+    const returnAt = steps * dt;
+    tl.to(target, { x: 0, y: 0, scale: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, returnAt);
     if (boardIndicator) {
-      tl.to(boardIndicator, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+      tl.to(boardIndicator, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, returnAt);
     }
     if (journeyBottomDecor) {
-      tl.to(journeyBottomDecor, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+      tl.to(journeyBottomDecor, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, returnAt);
     }
     extraTargets.forEach((el: any) => {
-      tl.to(el, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+      tl.to(el, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, returnAt);
     });
   } catch {}
 }

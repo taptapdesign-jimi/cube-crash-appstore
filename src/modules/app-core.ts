@@ -19,10 +19,20 @@ import { showWildJuiceBubblesExplosion, stopWildJuiceBubblesExplosion, forceStop
 import { showMagneticText, isMagneticTextActive, waitForMagneticTextComplete, stopMagneticText, showSparkleText, stopSparkleText, isSparkleTextActive, waitForSparkleTextComplete, showNoMovesText, exitNoMovesText, clearNoMovesText } from './splash-text-overlay.ts';
 import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames, isTntAnimationActive, releaseTntGameplayInputGate } from './tnt-animation.ts';
 import {
-  LASERGUN_IMPACT_DELAYS_MS,
+  cancelActiveLaserGunFinaleImpact,
+  completeActiveLaserGunFinaleImpacts,
+  prepareActiveLaserGunFinaleImpact,
   setActiveLaserGunFinaleTargets,
   triggerActiveLaserGunFinaleImpact,
+  waitForActiveLaserGunFinaleImpactArrival,
 } from './lasergun-finale-scene.ts';
+import type { LaserGunEntryReadiness } from './lasergun-finale-scene.ts';
+import {
+  LASERGUN_ARRIVAL_TIMEOUT_MS,
+  LASERGUN_FIRST_SHOT_LEAD_MS,
+  LASERGUN_SHOT_INTERVAL_MS,
+  runLaserGunSequentialImpactScheduler,
+} from './laser-gun-impact-scheduler.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 import { runEndgameFlow } from './endgame-flow.js';
@@ -14022,7 +14032,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
   bonusParticleScale?: number;
   impactProfile?: 'standard' | 'beach-ball' | 'laser-gun';
   skipFx?: boolean;
-  onTargetsSelected?: (targets: Array<{ x: number; y: number; shooter: LaserGunShooter }>) => void;
+  onTargetsSelected?: (
+    targets: Array<{ x: number; y: number; shooter: LaserGunShooter }>,
+  ) => void | LaserGunEntryReadiness | Promise<unknown>;
   onBoardCommitted?: () => void;
   onComplete?: () => void;
 }) {
@@ -14122,8 +14134,18 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	    }
 	    ownedBonusTiles = toBreak;
 	    claimTntBonusTiles(toBreak);
+	    let laserGunEntryReadiness: Promise<LaserGunEntryReadiness> = Promise.resolve('cancelled');
 	    if (impactProfile === 'laser-gun') {
-	      try { onTargetsSelected?.(laserVisualTargets); } catch {}
+	      try {
+	        laserGunEntryReadiness = Promise.resolve(onTargetsSelected?.(laserVisualTargets))
+	          .then((readiness) => readiness === 'painted' ? 'painted' : 'cancelled')
+	          .catch((error) => {
+	            devWarn('LaserGun entry readiness failed; continuing canonical impacts:', error);
+	            return 'cancelled';
+	          });
+	      } catch (error) {
+	        devWarn('LaserGun target handoff failed; continuing canonical impacts:', error);
+	      }
 	    }
 	    // From this point onward only these exact tiles are unsafe. Release the
 	    // global board lock before the staggered replacements finish.
@@ -14144,33 +14166,52 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	      }, 80);
 	    };
 	    const lastScheduledImpactMs = impactProfile === 'laser-gun'
-	      ? LASERGUN_IMPACT_DELAYS_MS[count - 1] ?? 0
+	      ? LASERGUN_FIRST_SHOT_LEAD_MS + Math.max(0, count - 1) * LASERGUN_SHOT_INTERVAL_MS
 	      : impactProfile === 'beach-ball'
 	        ? [0, 260, 560, 900][count - 1] ?? 0
 	        : Math.max(0, count - 1) * 200;
-	    const forceCompleteTimeout = trackAppTimeout(() => {
+	    const armForceCompleteTimeout = () => trackAppTimeout(() => {
 	      if (completed) return;
 	      devWarn('⚠️ TNT boom bonus safety: forcing completion after native timeout');
 	      completedBreaks = count;
 	      markBreakComplete();
 	    }, Math.max(1600, lastScheduledImpactMs + 1600));
+	    const forceCompleteTimeout = impactProfile === 'laser-gun'
+	      ? null
+	      : armForceCompleteTimeout();
 	    const beachBallImpactDelaysMs = [0, 260, 560, 900] as const;
+	    const laserGunImpactPlans: Array<{
+	      prepare: () => Promise<unknown>;
+	      commit: () => Promise<boolean>;
+	    }> = [];
+	    const laserGunRunGeneration = gameplayRunGeneration;
+	    let laserGunVisualsEnabled = false;
 	    toBreak.forEach((tile: Tile, i: number) => {
 	      const delayMs = impactProfile === 'beach-ball'
 	        ? beachBallImpactDelaysMs[i] ?? i * 300
-	        : impactProfile === 'laser-gun'
-	          ? LASERGUN_IMPACT_DELAYS_MS[i] ?? i * 240
-	          : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
-	      const doBreak = () => {
+	        : i * 200; // native timeout: mobile-safe, does not wait for GSAP ticker wake
+	      const doBreak = (laserGunVisualArrived = false) => {
 	        if (!tile || tile.destroyed || !board || !STATE?.tiles) {
 	          releaseTntBonusTile(tile);
 	          markBreakComplete();
 	          return;
 	        }
-        if (impactProfile === 'laser-gun') {
-          // One native callback owns the visible hit and board mutation so the
-          // DOM beam/debris cannot drift away from the Pixi explosion on iOS.
-          triggerActiveLaserGunFinaleImpact(i);
+        if (impactProfile === 'laser-gun' && laserGunVisualArrived) {
+          if (i >= 2) {
+            // Hits 3 and 4 add a short, bounded screen punctuation at the same
+            // canonical impact boundary. It never schedules another hit or
+            // owns gameplay state, and the fourth hit is intentionally firmer.
+            screenShake(app, {
+              strength: i === 2 ? 9 : 12,
+              duration: i === 2 ? 0.18 : 0.22,
+              steps: i === 2 ? 10 : 12,
+              ease: 'power2.out',
+              yScale: 0.72,
+              alsoShake: Array.from(document.querySelectorAll<HTMLElement>(
+                '.cc-lasergun-finale-scene, .cc-lasergun-right-gun-layer',
+              )),
+            });
+          }
         }
         const c = tile.gridX ?? 0;
         const r = tile.gridY ?? 0;
@@ -14281,16 +14322,108 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	          replaceTile();
 	        }
 	      };
-	      if (delayMs <= 0) {
+	      if (impactProfile === 'laser-gun') {
+	        laserGunImpactPlans.push({
+	          prepare: async () => {
+	            if (laserGunRunGeneration !== gameplayRunGeneration) return false;
+	            if (!laserGunVisualsEnabled) return true;
+	            const preparation = await Promise.race([
+	              prepareActiveLaserGunFinaleImpact(i, getDomScreenPos(tile))
+	                .then((ready) => ready ? 'prepared' as const : 'visual-unavailable' as const),
+	              waitTrackedResult(900),
+	            ]);
+	            if (laserGunRunGeneration !== gameplayRunGeneration) return false;
+	            if (preparation === 'cancelled') return false;
+	            if (preparation === 'visual-unavailable') {
+	              // Never launch toward a stale relative target. Retire the DOM
+	              // scene and continue the same canonical tile commits without
+	              // visual beams; gameplay order and reserved identity stay intact.
+	              laserGunVisualsEnabled = false;
+	              completeActiveLaserGunFinaleImpacts();
+	              return true;
+	            }
+	            if (preparation === 'elapsed') {
+	              devWarn('LaserGun visual preparation timed out; preserving native impact cadence');
+	            }
+	            return true;
+	          },
+	          commit: async () => {
+	            if (laserGunRunGeneration !== gameplayRunGeneration) return false;
+	            let visualArrived = false;
+	            if (laserGunVisualsEnabled) {
+	              const visualFired = triggerActiveLaserGunFinaleImpact(i);
+	              if (visualFired) {
+	                const arrivalResult = await Promise.race([
+	                  waitForActiveLaserGunFinaleImpactArrival(i)
+	                    .then((arrived) => arrived ? 'arrived' as const : 'unavailable' as const),
+	                  waitTrackedResult(LASERGUN_ARRIVAL_TIMEOUT_MS),
+	                ]);
+	                if (laserGunRunGeneration !== gameplayRunGeneration) return false;
+	                if (arrivalResult === 'cancelled') return false;
+	                // Once launch succeeded, a false arrival can only come from
+	                // scene retirement/cleanup. Never mutate that retired board;
+	                // ordinary visual failures use the entry/trigger/timeout
+	                // fallback branches instead.
+	                if (arrivalResult === 'unavailable') return false;
+	                visualArrived = arrivalResult === 'arrived';
+	                if (arrivalResult === 'elapsed') {
+	                  devWarn('LaserGun beam arrival timed out; preserving native cube impact');
+	                  cancelActiveLaserGunFinaleImpact(i);
+	                  laserGunVisualsEnabled = false;
+	                  completeActiveLaserGunFinaleImpacts();
+	                }
+	              }
+	            }
+	            doBreak(visualArrived);
+	            return true;
+	          },
+	        });
+	      } else if (delayMs <= 0) {
 	        doBreak();
 	      } else {
 	        trackAppTimeout(doBreak, delayMs);
 	      }
 	    });
+	    if (impactProfile === 'laser-gun') {
+	      void (async () => {
+	        const entryGate = await Promise.race([
+	          laserGunEntryReadiness,
+	          waitTrackedResult(1500).then((result) => result === 'elapsed' ? 'cancelled' : 'aborted'),
+	        ]);
+	        if (laserGunRunGeneration !== gameplayRunGeneration) return;
+	        if (entryGate === 'aborted') return;
+	        laserGunVisualsEnabled = entryGate === 'painted';
+	        let schedulerFinished = false;
+	        try {
+	          const schedulerResult = await runLaserGunSequentialImpactScheduler(
+	            laserGunImpactPlans,
+	            waitTrackedResult,
+	            Date.now,
+	            laserGunVisualsEnabled ? LASERGUN_FIRST_SHOT_LEAD_MS : 0,
+	          );
+	          if (schedulerResult === 'cancelled') return;
+	          schedulerFinished = true;
+	        } catch (error) {
+	          devWarn('LaserGun sequential impact scheduler failed:', error);
+	          return;
+	        } finally {
+	          if (schedulerFinished) completeActiveLaserGunFinaleImpacts();
+	        }
+	        // Only the four real commits may finish scheduling. Starting the
+	        // open/spawn safety timer afterward prevents a long visual frame
+	        // from releasing reserved cubes while later shots are still live.
+	        const laserGunForceCompleteTimeout = completed ? null : armForceCompleteTimeout();
+	        void laserGunForceCompleteTimeout;
+	      })();
+	    }
 	    void forceCompleteTimeout;
 	    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new', {
 	      impactProfile,
-	      staggerMs: impactProfile === 'beach-ball' ? beachBallImpactDelaysMs : 200,
+	      staggerMs: impactProfile === 'beach-ball'
+	        ? beachBallImpactDelaysMs
+	        : impactProfile === 'laser-gun'
+	          ? LASERGUN_SHOT_INTERVAL_MS
+	          : 200,
 	    });
   } catch (e) {
     devWarn('TNT boom bonus break2 failed:', e);
