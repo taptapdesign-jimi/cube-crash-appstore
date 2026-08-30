@@ -105,6 +105,12 @@ import {
   JourneyWorldRuntimeScheduler,
   type JourneyWorldRuntimeSnapshot,
 } from './journey-world-runtime-scheduler.js';
+import {
+  captureJourneyIdleRuntimeSuspension,
+  shouldSuspendJourneyUnitIdlePaint,
+  updateJourneyIdleRuntimeActivation,
+} from './journey-idle-runtime-activation.js';
+import { createJourneyScrollTapGuard } from './journey-scroll-tap-guard.js';
 import { JourneyCardInteractionProfiler } from './journey-card-interaction-profiler.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
@@ -988,11 +994,18 @@ class JourneyBoardsManager {
     if (container) container.dataset.journeyWorldRuntimeState = snapshot.state;
 
     const now = gsap.ticker.time;
+    const unitIdlePaintSuspended = shouldSuspendJourneyUnitIdlePaint(snapshot);
     if (snapshot.state === 'inactive') {
       this.journeyWorldRuntimeIdleSuspendedAt = null;
-    } else if (snapshot.paintSuspended) {
+    } else if (unitIdlePaintSuspended) {
       if (this.journeyWorldRuntimeIdleSuspendedAt === null) {
         this.journeyWorldRuntimeIdleSuspendedAt = now;
+        this.journeyAreaIdleEntries.forEach((entry) => {
+          captureJourneyIdleRuntimeSuspension(
+            entry,
+            (target, axis) => Number(gsap.getProperty(target, axis) || 0),
+          );
+        });
       }
       this.journeyAreaIdleEntries.forEach((entry) => {
         entry.targets.forEach((target) => target.style.willChange = 'auto');
@@ -1077,13 +1090,22 @@ class JourneyBoardsManager {
       .slice(0, MOBILE_RUNTIME_PROFILE.journeyVisibleUnitBudget)
       .map(({ entry }) => entry));
 
+    const now = gsap.ticker.time;
     this.journeyAreaIdleEntries.forEach((entry) => {
-      entry.runtimeActive = entry.isVisible && (
+      const nextRuntimeActive = entry.isVisible && (
         !entry.areaId.startsWith('board-') || activeBoards.has(entry)
       );
+      const rebased = updateJourneyIdleRuntimeActivation(
+        entry,
+        nextRuntimeActive,
+        now,
+        shouldSuspendJourneyUnitIdlePaint(snapshot),
+        (target, axis) => Number(gsap.getProperty(target, axis) || 0),
+      );
+      if (rebased) this.lastJourneyAreaIdlePaintAt = null;
       const canPromote = !MOBILE_RUNTIME_PROFILE.isMobileDevice
         && entry.runtimeActive
-        && !snapshot.paintSuspended;
+        && !shouldSuspendJourneyUnitIdlePaint(snapshot);
       entry.targets.forEach((target) => {
         target.style.willChange = canPromote
           ? (target.classList.contains('journey-robo-alien-beam-art') ? 'transform, opacity' : 'transform')
@@ -1508,7 +1530,9 @@ class JourneyBoardsManager {
             if (nextVisible && !observedEntry.isVisible) {
               this.lastJourneyAreaIdlePaintAt = null;
               observedEntry.startTime = gsap.ticker.time;
-              observedEntry.suspendedRebasePending = this.journeyWorldRuntime.getSnapshot().paintSuspended;
+              observedEntry.suspendedRebasePending = shouldSuspendJourneyUnitIdlePaint(
+                this.journeyWorldRuntime.getSnapshot(),
+              );
               observedEntry.targetStates.forEach((state) => {
                 const y = Number(gsap.getProperty(state.target, 'y') || 0);
                 const x = Number(gsap.getProperty(state.target, 'x') || 0);
@@ -1540,7 +1564,7 @@ class JourneyBoardsManager {
           return;
         }
 
-        if (this.journeyWorldRuntime.getSnapshot().paintSuspended) return;
+        if (shouldSuspendJourneyUnitIdlePaint(this.journeyWorldRuntime.getSnapshot())) return;
 
         const now = gsap.ticker.time;
         const maxFramesPerSecond = MOBILE_RUNTIME_PROFILE.settledIdleMaxFramesPerSecond;
@@ -3285,12 +3309,6 @@ class JourneyBoardsManager {
         }
       };
 
-      const isAtTop = () => scrollable.scrollTop <= 1;
-      const isAtBottom = () => {
-        const maxScroll = Math.max(0, scrollable.scrollHeight - scrollable.clientHeight);
-        return scrollable.scrollTop >= maxScroll - 1;
-      };
-
       const applyPull = (pull: number) => {
         currentY = pull;
         container.style.willChange = 'transform';
@@ -3336,8 +3354,13 @@ class JourneyBoardsManager {
           lockHorizontalScroll();
           return;
         }
-        const pullingTop = dy > 0 && isAtTop();
-        const pullingBottom = dy < 0 && isAtBottom();
+        // WKWebView already owns a fluid native elastic edge. A second GSAP
+        // transform on the complete Journey container could be interrupted at
+        // a fractional Y during rapid repeated swipes, visibly shifting the
+        // bottom Forest Unit. Keep vertical edges native and retain only the
+        // horizontal-axis lock in this handler.
+        const pullingTop = false;
+        const pullingBottom = false;
         if (!pullingTop && !pullingBottom) {
           edgeStartY = null;
           activeEdge = null;
@@ -6305,6 +6328,7 @@ class JourneyBoardsManager {
     const hub = document.createElement('div');
     hub.className = 'journey-v700-hub';
     hub.setAttribute('aria-label', 'Journey worlds');
+    const hubScrollOwner = container.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null;
 
     const hubCloudLayer = document.createElement('div');
     hubCloudLayer.className = 'journey-v700-hub-cloud-layer';
@@ -6412,41 +6436,33 @@ class JourneyBoardsManager {
       visual.appendChild(tiltShell);
       button.appendChild(visual);
 
-	      let worldCardTouchStartX = 0;
-	      let worldCardTouchStartY = 0;
-	      let worldCardTouchMoved = false;
-	      let suppressNextSyntheticClick = false;
-	      const worldCardDragThresholdPx = 12;
+	      const worldCardTapGuard = createJourneyScrollTapGuard(
+	        () => hubScrollOwner?.scrollTop ?? 0,
+	        12,
+	      );
 
 	      const onWorldCardTouchStart = (event: TouchEvent) => {
 	        if (event.touches.length !== 1) return;
-	        worldCardTouchStartX = event.touches[0].clientX;
-	        worldCardTouchStartY = event.touches[0].clientY;
-	        worldCardTouchMoved = false;
+	        worldCardTapGuard.start(event.touches[0].clientX, event.touches[0].clientY);
 	        // Keep touchstart allocation-free: this gesture may still become a
 	        // vertical Hub scroll. The confirmed tap path owns exact prepaint.
 	      };
 
 	      const onWorldCardTouchMove = (event: TouchEvent) => {
 	        if (event.touches.length !== 1) return;
-	        const dx = event.touches[0].clientX - worldCardTouchStartX;
-	        const dy = event.touches[0].clientY - worldCardTouchStartY;
-	        if (Math.hypot(dx, dy) >= worldCardDragThresholdPx) {
-	          worldCardTouchMoved = true;
-	          if (this.journeyWorldPrepaintStage?.worldId === worldId) {
-	            this.cancelJourneyWorldPrepaint('hub-card-drag');
-	          }
+	        worldCardTapGuard.move(event.touches[0].clientX, event.touches[0].clientY);
+	        if (this.journeyWorldPrepaintStage?.worldId === worldId) {
+	          this.cancelJourneyWorldPrepaint('hub-card-drag');
 	        }
 	      };
 
 	      const openWorld = (event: Event) => {
-	        if (event.type === 'touchend' && worldCardTouchMoved) {
-	          suppressNextSyntheticClick = true;
+	        const touch = event.type === 'touchend' ? (event as TouchEvent).changedTouches[0] : null;
+	        if (event.type === 'touchend' && !worldCardTapGuard.shouldHandleTouchEnd(touch?.clientX, touch?.clientY)) {
 	          this.logJourneyV700Flow('world-card-touchend-ignored-drag', { worldId }, resolveLiveHubContainer());
 	          return;
 	        }
-	        if (event.type === 'click' && suppressNextSyntheticClick) {
-	          suppressNextSyntheticClick = false;
+	        if (event.type === 'click' && !worldCardTapGuard.shouldHandleClick()) {
 	          this.logJourneyV700Flow('world-card-click-ignored-after-drag', { worldId }, resolveLiveHubContainer());
 	          return;
 	        }
@@ -6465,6 +6481,7 @@ class JourneyBoardsManager {
 
 	      button.addEventListener('touchstart', onWorldCardTouchStart, { passive: true });
 	      button.addEventListener('touchmove', onWorldCardTouchMove, { passive: true });
+	      button.addEventListener('touchcancel', () => worldCardTapGuard.cancel(), { passive: true });
 	      button.addEventListener('click', openWorld);
 	      button.addEventListener('touchend', openWorld, { passive: false });
       hub.appendChild(button);
@@ -9362,39 +9379,32 @@ class JourneyBoardsManager {
       };
 
       // Only treat as tap if finger didn't move (drag threshold)
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchMoved = false;
-      const TAP_MOVE_THRESHOLD = 10; // px
+      const cardTapGuard = createJourneyScrollTapGuard(() => (
+        card.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null
+      )?.scrollTop ?? 0);
 
       card.addEventListener('touchstart', (e: TouchEvent) => {
         if (!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-        touchMoved = false;
+        cardTapGuard.start(t.clientX, t.clientY);
       }, { passive: true });
 
       card.addEventListener('touchmove', (e: TouchEvent) => {
         if (!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = t.clientY - touchStartY;
-        if ((dx * dx + dy * dy) > (TAP_MOVE_THRESHOLD * TAP_MOVE_THRESHOLD)) {
-          touchMoved = true;
-        }
+        cardTapGuard.move(t.clientX, t.clientY);
       }, { passive: true });
 
       card.addEventListener('touchend', (e: TouchEvent) => {
-        if (touchMoved) {
-          return; // drag/scroll - do not trigger tap
-        }
+        const t = e.changedTouches[0];
+        if (!cardTapGuard.shouldHandleTouchEnd(t?.clientX, t?.clientY)) return;
         handleCardTap(e);
       }, { passive: false });
 
+      card.addEventListener('touchcancel', () => cardTapGuard.cancel(), { passive: true });
+
       card.addEventListener('click', (e) => {
-        // If touch already handled or user was dragging, ignore click
-        if (touchMoved) return;
+        if (!cardTapGuard.shouldHandleClick()) return;
         handleCardTap(e);
       });
     } else if (isInterim) {
@@ -9559,39 +9569,32 @@ class JourneyBoardsManager {
       (cardWrapper as any)._journeyInterimTapHandler = handleInterimCardTap;
       
       // 🔥 USER REQUEST: Add tap detection (prevent triggering on drag/scroll)
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchMoved = false;
-      const TAP_MOVE_THRESHOLD = 10; // px
+      const interimTapGuard = createJourneyScrollTapGuard(() => (
+        card.closest('#journey-screen .collectibles-scrollable') as HTMLElement | null
+      )?.scrollTop ?? 0);
 
       card.addEventListener('touchstart', (e: TouchEvent) => {
         if (!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-        touchMoved = false;
+        interimTapGuard.start(t.clientX, t.clientY);
       }, { passive: true });
 
       card.addEventListener('touchmove', (e: TouchEvent) => {
         if (!e.touches || e.touches.length === 0) return;
         const t = e.touches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = t.clientY - touchStartY;
-        if ((dx * dx + dy * dy) > (TAP_MOVE_THRESHOLD * TAP_MOVE_THRESHOLD)) {
-          touchMoved = true;
-        }
+        interimTapGuard.move(t.clientX, t.clientY);
       }, { passive: true });
 
       card.addEventListener('touchend', (e: TouchEvent) => {
-        if (touchMoved) {
-          return; // drag/scroll - do not trigger tap
-        }
+        const t = e.changedTouches[0];
+        if (!interimTapGuard.shouldHandleTouchEnd(t?.clientX, t?.clientY)) return;
         handleInterimCardTap(e);
       }, { passive: false });
 
+      card.addEventListener('touchcancel', () => interimTapGuard.cancel(), { passive: true });
+
       card.addEventListener('click', (e) => {
-        // If touch already handled or user was dragging, ignore click
-        if (touchMoved) return;
+        if (!interimTapGuard.shouldHandleClick()) return;
         handleInterimCardTap(e);
       });
     } else {

@@ -2682,9 +2682,35 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     );
   };
 
+  const isHudJourneyCelebrationDevTriggerEnabled = (): boolean => {
+    const host = String(window.location?.hostname || '');
+    return !isArcadeHomeRunMode() && !!(
+      (import.meta as any)?.env?.DEV ||
+      (window as any)?.DEV ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.endsWith('.local')
+    );
+  };
+
   const handleHelpPointerDown = async (e) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
+    if (isHudJourneyCelebrationDevTriggerEnabled()) {
+      if ((helpButton as any)._journeyCelebrationDevTriggerActive) return;
+      (helpButton as any)._journeyCelebrationDevTriggerActive = true;
+      try {
+        playHudCloseSoftCartoonBounce(helpButton);
+        const { playFinalMergeDiceCelebration } = await import('./final-merge-dice-celebration.js');
+        await playFinalMergeDiceCelebration();
+      } catch (error) {
+        console.warn('⚠️ DEV Journey final-merge celebration trigger failed:', error);
+      } finally {
+        (helpButton as any)._journeyCelebrationDevTriggerActive = false;
+      }
+      return;
+    }
     if (isHudStageClearDevTriggerEnabled()) {
       if ((helpButton as any)._stageClearDevTriggerActive) return;
       (helpButton as any)._stageClearDevTriggerActive = true;

@@ -108,6 +108,15 @@ describe('Journey V700 motion contract', () => {
     expect(getJourneyElasticPull(30, 'top')).toBeCloseTo(10.2);
   });
 
+  it('leaves vertical Journey edge bounce to native iOS scrolling', () => {
+    const managerSource = require('fs').readFileSync(
+      require('path').join(process.cwd(), 'src/modules/journey-boards-manager.ts'),
+      'utf8',
+    );
+    expect(managerSource).toContain('const pullingTop = false;');
+    expect(managerSource).toContain('const pullingBottom = false;');
+  });
+
   it('always starts the Journey Worlds hub at the absolute top', () => {
     expect(getJourneyHubEntryScrollTop()).toBe(0);
   });

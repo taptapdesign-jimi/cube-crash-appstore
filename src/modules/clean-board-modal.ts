@@ -22,8 +22,9 @@ import { formatGameplayResultProgressLabel } from './gameplay-terminology.ts';
 import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
+import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from './clean-board-win-messages.ts';
 
-const HEADLINES = [
+const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
   'Perfect!', 'Brilliant!', 'Superb!', 'Awesome!', 'Spectacular!',
   'Magnificent!', 'Phenomenal!', 'Marvelous!', 'Exceptional!', 'Stellar!',
@@ -37,6 +38,10 @@ const HEADLINES = [
   'Titanic!', 'Grand!', 'Mythic!', 'Immortal!', 'Mega!',
   'Ultra!', 'Primeval!', 'Booming!'
 ];
+const HEADLINES = Array.from(new Set([
+  ...ORIGINAL_HEADLINES,
+  ...ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES,
+]));
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 const trackTimeline = (options: any = {}) => {

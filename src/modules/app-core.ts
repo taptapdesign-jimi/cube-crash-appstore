@@ -50,6 +50,10 @@ import { stopSpecialDiceIdleMotion } from './special-dice-idle.ts';
 import { isArcadeHomeRunMode, markArcadeHomeRunOrigin, setRunMode, RUN_MODE_JOURNEY } from './run-mode.js';
 import { isJourneyOriginActive } from './journey-origin-state.js';
 import { waitForFinalMergeHandoff } from './final-merge-handoff.ts';
+import {
+  cleanupFinalMergeDiceCelebration,
+  playFinalMergeDiceCelebration,
+} from './final-merge-dice-celebration.ts';
 import { FinalResidualHandoffOwner } from './final-residual-handoff-owner.ts';
 import { shouldBlockMergeDuringRegularHandoff } from './regular-merge-handoff-guard.ts';
 import { FINAL_MERGE_REASONS, getFinalMergeCleanBoardReason } from './final-merge-reasons.ts';
@@ -1053,6 +1057,7 @@ function resetTransientEndgameRuntimeState(reason: string = 'unknown'): void {
   try { setFinalMergeVisualSuppression(false); } catch {}
   try { clearEndGameCache(); } catch {}
   try { resetEndgameHint(); } catch {}
+  try { cleanupFinalMergeDiceCelebration(); } catch {}
   busyEnding = false;
   failScreenFlowInProgress = false;
 }
@@ -1287,7 +1292,7 @@ async function prepareFinalMergeVisualHandoff(
 
     await waitForFinalMergeHandoff({
       reason,
-      isArcade: isArcadeHomeRunMode(),
+      isArcade: false,
       wait: waitTracked,
       logger,
       isTntAnimationActive,
@@ -1305,7 +1310,13 @@ async function prepareFinalMergeVisualHandoff(
       waitForSparkleTextComplete,
     });
 
-    await animateFinalResidualArtifactsPopOut(residualReason);
+    try { resetEndgameHint(); } catch {}
+    await Promise.all([
+      animateFinalResidualArtifactsPopOut(residualReason),
+      handoffGeneration === gameplayRunGeneration && !isArcadeHomeRunMode()
+        ? playFinalMergeDiceCelebration()
+        : Promise.resolve(),
+    ]);
     await animateFinalHudExitHandoff(residualReason);
     if (handoffGeneration !== gameplayRunGeneration) return;
     try { (window as any).__ccFinalResidualPopOutPrepared = true; } catch {}
