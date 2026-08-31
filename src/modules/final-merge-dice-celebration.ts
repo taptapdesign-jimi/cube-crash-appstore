@@ -1,7 +1,7 @@
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
 import { domElementPool } from './dom-element-pool.js';
-import { createTntDiceDebrisPlans } from './tnt-animation.js';
+import { createTntDiceDebrisPlans, type TntDiceDebrisPlan } from './tnt-animation.js';
 
 export const FINAL_MERGE_CELEBRATION_MESSAGE = 'Cleared';
 
@@ -21,6 +21,9 @@ const TEXT_HOLD_SECONDS = 0.6;
 const ARCADE_COPY_LINE_HEIGHT = 0.95 * 1.15;
 const COPY_VIEWPORT_WIDTH_RATIO = 0.94;
 const COPY_MAX_WIDTH_PX = 520;
+const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;
+const DICE_FLIGHT_DISTANCE_SCALE = 1.2;
+const DICE_ROTATION_SCALE = 0.6;
 
 const PIP_POINTS: Record<number, Array<[number, number]>> = {
   1: [[50, 50]],
@@ -108,11 +111,71 @@ function finishRun(run: CelebrationRun): void {
   run.resolve();
 }
 
-function attachTntBoomDiceBurst(run: CelebrationRun): number {
+function getDiceFlightEnd(plan: TntDiceDebrisPlan): { x: number; y: number } {
+  return {
+    x: plan.startX + Math.cos(plan.angle) * plan.distance,
+    y: plan.startY + Math.sin(plan.angle) * plan.distance + 28,
+  };
+}
+
+export function separateFinalMergeDiceFlightEnds(plans: TntDiceDebrisPlan[]): void {
+  const maxPasses = 18;
+  for (let pass = 0; pass < maxPasses; pass += 1) {
+    let adjusted = false;
+    for (let firstIndex = 0; firstIndex < plans.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < plans.length; secondIndex += 1) {
+        const first = plans[firstIndex];
+        const second = plans[secondIndex];
+        const firstEnd = getDiceFlightEnd(first);
+        const secondEnd = getDiceFlightEnd(second);
+        const distance = Math.hypot(secondEnd.x - firstEnd.x, secondEnd.y - firstEnd.y);
+        const minimumDistance = (first.size + second.size) * 0.62 + 10;
+        if (distance >= minimumDistance) continue;
+
+        // Move only the later duplicate into a neighbouring radial lane. This
+        // preserves the original TNT impulse while preventing paired endings.
+        const direction = secondIndex % 2 === 0 ? 1 : -1;
+        const angularNudge = direction * Math.min(0.12, 0.025 + (minimumDistance - distance) / 520);
+        second.angle += angularNudge;
+        adjusted = true;
+      }
+    }
+    if (!adjusted) return;
+  }
+}
+
+export function arrangeFinalMergeDiceBurstOrigins(
+  plans: TntDiceDebrisPlan[],
+  random: () => number = Math.random,
+  copyWidth = 0,
+): void {
+  const northernAngles = [-2.82, -2.42, -2.02, -1.62, -1.22, -0.82, -0.42] as const;
+  const northernStartIndex = Math.max(0, plans.length - northernAngles.length);
+
+  plans.forEach((plan, index) => {
+    const randomAngleOffset = (random() - 0.5) * 0.16;
+    const authoredAngle = index >= northernStartIndex
+      ? northernAngles[index - northernStartIndex]
+      : plan.angle;
+    const launchAngle = authoredAngle + randomAngleOffset;
+    // Launch close to the Cleared letters, but avoid a mechanical single-point
+    // origin by varying each die across a compact radial pocket. Horizontal
+    // lanes span the full rendered copy instead of sharing one center point.
+    const startRadius = 16 + random() * 34;
+    const laneProgress = (index + 0.5) / plans.length - 0.5;
+    const laneWidth = copyWidth / plans.length;
+    const randomizedLaneX = laneProgress * copyWidth + (random() - 0.5) * laneWidth * 0.7;
+    plan.startX = randomizedLaneX + Math.cos(launchAngle) * startRadius;
+    plan.startY = Math.sin(launchAngle) * startRadius;
+    plan.angle = launchAngle;
+  });
+}
+
+function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number {
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
   const centerX = viewportW * 0.5;
-  const centerY = viewportH * 0.5;
+  const centerY = viewportH * DICE_EPICENTER_Y_RATIO;
   const radiansToDegrees = 180 / Math.PI;
 
   // Use the exact authored TNT BOOM plan rather than a look-alike motion.
@@ -144,15 +207,9 @@ function attachTntBoomDiceBurst(run: CelebrationRun): number {
       delay: source.delay + 0.055 + (index % 3) * 0.025,
     });
   }
-  const diceSeparationScale = 1.4;
-  plans.forEach((plan) => {
-    const randomAngleSeparation = (Math.random() - 0.5) * 0.18;
-    const startRadius = Math.hypot(plan.startX, plan.startY) * diceSeparationScale;
-    const startAngle = Math.atan2(plan.startY, plan.startX) + randomAngleSeparation;
-    plan.startX = Math.cos(startAngle) * startRadius;
-    plan.startY = Math.sin(startAngle) * startRadius;
-    plan.angle += randomAngleSeparation;
-  });
+  arrangeFinalMergeDiceBurstOrigins(plans, Math.random, copyWidth);
+  plans.forEach((plan) => { plan.distance *= DICE_FLIGHT_DISTANCE_SCALE; });
+  separateFinalMergeDiceFlightEnds(plans);
 
   plans.forEach((plan) => {
     // The celebration's authored copy asks for faces 1-5; motion remains the
@@ -180,7 +237,7 @@ function attachTntBoomDiceBurst(run: CelebrationRun): number {
       y: plan.startY,
       scale: plan.startScale,
       opacity: 0,
-      rotation: plan.startRotation * radiansToDegrees,
+      rotation: plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees,
       force3D: true,
     });
 
@@ -209,7 +266,8 @@ function attachTntBoomDiceBurst(run: CelebrationRun): number {
             + Math.sin(plan.angle) * plan.distance * impulse
             + perpendicularY * curveEnvelope
             + 28 * progress * progress,
-          rotation: (plan.startRotation + plan.rotationTravel * impulse) * radiansToDegrees,
+          rotation: (plan.startRotation + plan.rotationTravel * impulse)
+            * DICE_ROTATION_SCALE * radiansToDegrees,
           scale,
           opacity: popIn * (1 - fadeOut),
         });
@@ -359,6 +417,7 @@ export function playFinalMergeDiceCelebration(): Promise<void> {
   const lines = splitFinalMergeCelebrationMessage(message, maxTextWidth, baseFontSize);
   const widestEstimatedLine = Math.max(...lines.map((line) => line.length * baseFontSize * 0.58));
   const viewportFitScale = Math.min(1, maxTextWidth / Math.max(1, widestEstimatedLine));
+  const renderedCopyWidth = Math.min(maxTextWidth, widestEstimatedLine * viewportFitScale);
   const letterElements: HTMLElement[] = [];
 
   lines.forEach((line, lineIndex) => {
@@ -396,7 +455,7 @@ export function playFinalMergeDiceCelebration(): Promise<void> {
 
   overlay.appendChild(container);
   document.body.appendChild(overlay);
-  const diceBurstDuration = attachTntBoomDiceBurst(run);
+  const diceBurstDuration = attachTntBoomDiceBurst(run, renderedCopyWidth);
   trackDelayedCall(run, TEXT_ENTER_DELAY, () => startNoMovesTextMotion(run, letterElements));
   const textMotionDuration = TEXT_HOLD_SECONDS + getTextExitDuration(letterElements.length);
   trackDelayedCall(run, Math.max(diceBurstDuration, textMotionDuration), () => finishRun(run));

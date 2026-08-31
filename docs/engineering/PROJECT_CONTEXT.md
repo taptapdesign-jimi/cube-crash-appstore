@@ -63,7 +63,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Shared paper definition and lifecycle owner: `src/utils/app-paper-background.ts`. `body` is the single visible viewport-relative paper owner; HTML is only a solid fallback, `#global-bg` and the launch container stay transparent. Full-screen gameplay-occluding surfaces such as Fail/Clear Board must use `applyAppPaperSurfaceToElement()` so they match the same canonical opacity, texture position, and gradient without introducing another background recipe.
 - Studio logo: `assets/logo addons/taplogo.png`.
 - Random character source: non-`@2x` files matching `assets/logo addons/lik-*.png`.
-- Current character set: `lik-board`, `lik-game`, `lik-gitara`, `lik-kauc`, `lik-klizanje`, `lik-lajna`, `lik-pas`, and `lik-vrt`.
+- Current character set: `lik-board`, `lik-cekic`, `lik-dron`, `lik-game`, `lik-gitara`, `lik-kauc`, `lik-lajna`, `lik-pas`, and `lik-vrecice`. `lik-klizanje` and `lik-vrt` are explicitly excluded from random launch selection.
 - The logo and character are independent animation units. The character exits first, followed by the TapTap logo. The launch owner must dispose listeners, abort pending work, and release tracked animations after handoff.
 - Do not restore the removed old combined TapTap/Stack to Six preloader branch or duplicate background ownership.
 

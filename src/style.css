@@ -122,12 +122,22 @@ body{
   visibility: visible;
 }
 
-#launch-screen .launch-studio-logo-unit {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+#launch-screen .launch-studio-composition {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
   width: min(80.6vw, 315px);
-  transform: translate(-50%, -265px) scale(0.92);
+  max-height: 90vh;
+  pointer-events: none;
+}
+
+#launch-screen .launch-studio-logo-unit {
+  position: relative;
+  width: 100%;
+  transform: scale(0.92);
   transform-origin: center center;
   opacity: 0;
   display: flex;
@@ -182,15 +192,13 @@ body{
 }
 
 #launch-screen .launch-studio-character {
-  position: absolute;
-  top: 50%;
-  left: 50%;
+  position: relative;
   width: min(74vw, 289px);
   max-height: 54vh;
   height: auto;
   object-fit: contain;
   display: block;
-  transform: translate(-50%, -105px) scale(0.82);
+  transform: scale(0.82);
   transform-origin: center center;
   opacity: 0;
   pointer-events: none;

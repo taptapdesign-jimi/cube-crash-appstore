@@ -20,10 +20,11 @@ const EXPECTED_INTRO_CHARACTERS = [
   'lik-game.png',
   'lik-gitara.png',
   'lik-kauc.png',
-  'lik-klizanje.png',
+  'lik-cekic.png',
+  'lik-dron.png',
   'lik-lajna.png',
   'lik-pas.png',
-  'lik-vrt.png',
+  'lik-vrecice.png',
 ];
 const sourceOnly = process.argv.includes('--source-only');
 const builtAppIndex = process.argv.indexOf('--built-app');

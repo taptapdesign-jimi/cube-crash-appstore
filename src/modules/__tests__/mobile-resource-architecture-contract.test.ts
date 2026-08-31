@@ -34,6 +34,33 @@ describe('mobile resource architecture', () => {
     expect(imagePreloads.join('\n')).not.toMatch(/crash-cubes-homepage|\/nav\/|modals\/paper|journey assets|tile\.png/);
   });
 
+  test('keeps the accepted random launch cast and excludes retired characters', () => {
+    const launch = read('src/modules/launch-screen.ts');
+    const nativeAudit = read('scripts/stack-to-six-native-audit.mjs');
+
+    expect(launch).toContain("'!../../assets/logo addons/lik-klizanje.png'");
+    expect(launch).toContain("'!../../assets/logo addons/lik-vrt.png'");
+    expect(nativeAudit).toContain("'lik-cekic.png'");
+    expect(nativeAudit).toContain("'lik-dron.png'");
+    expect(nativeAudit).toContain("'lik-vrecice.png'");
+    expect(nativeAudit).not.toContain("'lik-klizanje.png'");
+    expect(nativeAudit).not.toContain("'lik-vrt.png'");
+  });
+
+  test('centers the studio logo and character as one composition with a 20px gap', () => {
+    const index = read('index.html');
+    const launch = read('src/modules/launch-screen.ts');
+    const styles = read('src/style.css');
+
+    expect(index).toContain('class="launch-studio-composition"');
+    expect(launch).toContain("studioComposition.className = 'launch-studio-composition';");
+    expect(launch).toContain('studioComposition.append(studioLogoUnit, studioCharacter);');
+    expect(styles).toContain('#launch-screen .launch-studio-composition');
+    expect(styles).toContain('gap: 20px;');
+    expect(styles).not.toContain('transform: translate(-50%, -265px) scale(0.92);');
+    expect(styles).not.toContain('transform: translate(-50%, -105px) scale(0.82);');
+  });
+
   test('production continuous diagnostics are opt-in and the scroll probe is DEV-only', () => {
     const policy = read('src/utils/runtime-diagnostics-policy.ts');
     const collectibles = read('src/collectibles-manager.ts');

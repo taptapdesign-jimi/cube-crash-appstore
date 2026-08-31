@@ -7,8 +7,11 @@ import {
   cleanupFinalMergeDiceCelebration,
   FINAL_MERGE_CELEBRATION_MESSAGE,
   playFinalMergeDiceCelebration,
+  arrangeFinalMergeDiceBurstOrigins,
+  separateFinalMergeDiceFlightEnds,
   splitFinalMergeCelebrationMessage,
 } from '../final-merge-dice-celebration';
+import { createTntDiceDebrisPlans } from '../tnt-animation';
 import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from '../clean-board-win-messages';
 
 const modulesDir = path.resolve(__dirname, '..');
@@ -51,20 +54,28 @@ describe('final merge dice celebration contract', () => {
   });
 
   test('uses TNT BOOM dice flight with calmer Arcade Round Complete text styling', () => {
-    expect(celebrationSource).toContain("import { createTntDiceDebrisPlans } from './tnt-animation.js';");
+    expect(celebrationSource).toContain("import { createTntDiceDebrisPlans, type TntDiceDebrisPlan } from './tnt-animation.js';");
     expect(celebrationSource).toContain('const plans = createTntDiceDebrisPlans();');
     expect(celebrationSource).toContain('const upperLeftAngles = [-2.72, -2.38, -2.06] as const;');
     expect(celebrationSource).toContain('const fortyPercentMoreDice = Math.round(currentPlanCount * 0.4);');
-    expect(celebrationSource).toContain('const diceSeparationScale = 1.4;');
-    expect(celebrationSource).toContain('const randomAngleSeparation = (Math.random() - 0.5) * 0.18;');
-    expect(celebrationSource).toContain('Math.hypot(plan.startX, plan.startY) * diceSeparationScale');
-    expect(celebrationSource).toContain('plan.angle += randomAngleSeparation;');
+    expect(celebrationSource).toContain('const northernAngles = [-2.82, -2.42, -2.02, -1.62, -1.22, -0.82, -0.42] as const;');
+    expect(celebrationSource).toContain('const startRadius = 16 + random() * 34;');
+    expect(celebrationSource).toContain('arrangeFinalMergeDiceBurstOrigins(plans, Math.random, copyWidth);');
+    expect(celebrationSource).toContain('const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;');
+    expect(celebrationSource).toContain('const DICE_FLIGHT_DISTANCE_SCALE = 1.2;');
+    expect(celebrationSource).toContain('const DICE_ROTATION_SCALE = 0.6;');
+    expect(celebrationSource).toContain('const centerY = viewportH * DICE_EPICENTER_Y_RATIO;');
+    expect(celebrationSource).toContain('plan.distance *= DICE_FLIGHT_DISTANCE_SCALE;');
+    expect(celebrationSource).toContain('laneProgress * copyWidth');
+    expect(celebrationSource).toContain('attachTntBoomDiceBurst(run, renderedCopyWidth)');
+    expect(celebrationSource).toContain('separateFinalMergeDiceFlightEnds(plans);');
     expect(celebrationSource).toContain('plans.push({');
     expect(celebrationSource).toContain('const value = ((plan.value - 1) % 5) + 1;');
     expect(celebrationSource).toContain('const impulse = 1 - Math.pow(1 - progress, 2.35);');
     expect(celebrationSource).toContain('const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;');
     expect(celebrationSource).toContain('+ 28 * progress * progress');
-    expect(celebrationSource).toContain('rotation: (plan.startRotation + plan.rotationTravel * impulse) * radiansToDegrees');
+    expect(celebrationSource).toContain('rotation: (plan.startRotation + plan.rotationTravel * impulse)');
+    expect(celebrationSource).toContain('* DICE_ROTATION_SCALE * radiansToDegrees');
     expect(celebrationSource).toContain('duration: plan.duration');
     expect(celebrationSource).toContain('delay: plan.delay');
     expect(celebrationSource).toContain('const TEXT_ENTER_DELAY = 0.2;');
@@ -91,6 +102,44 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('domElementPool.release');
     expect(celebrationSource).toContain('animationManager.trackExternalTimeline');
     expect(celebrationSource).not.toMatch(/setTimeout|setInterval|requestAnimationFrame/);
+  });
+
+  test('launches near the copy with guaranteed randomized northern coverage', () => {
+    const plans = createTntDiceDebrisPlans(() => 0.5);
+    while (plans.length < 27) plans.push({ ...plans[plans.length % 16] });
+
+    arrangeFinalMergeDiceBurstOrigins(plans, () => 0.5, 300);
+
+    const radii = plans.map((plan) => Math.hypot(plan.startX, plan.startY));
+    const guaranteedNorth = plans.slice(-7);
+    expect(Math.min(...plans.map((plan) => plan.startX))).toBeLessThan(-100);
+    expect(Math.max(...plans.map((plan) => plan.startX))).toBeGreaterThan(100);
+    expect(radii.every(Number.isFinite)).toBe(true);
+    expect(guaranteedNorth.every((plan) => Math.sin(plan.angle) < 0)).toBe(true);
+    expect(guaranteedNorth[0].angle).toBeCloseTo(-2.82);
+    expect(guaranteedNorth[6].angle).toBeCloseTo(-0.42);
+  });
+
+  test('separates overlapping dice endpoints without changing count or timing', () => {
+    const plans = createTntDiceDebrisPlans(() => 0.5);
+    const duplicate = { ...plans[0] };
+    plans.push(duplicate);
+    const timings = plans.map(({ delay, duration }) => ({ delay, duration }));
+
+    separateFinalMergeDiceFlightEnds(plans);
+
+    const endpoints = plans.map((plan) => ({
+      x: plan.startX + Math.cos(plan.angle) * plan.distance,
+      y: plan.startY + Math.sin(plan.angle) * plan.distance + 28,
+    }));
+    const lastEndpoint = endpoints[endpoints.length - 1];
+    const lastPlan = plans[plans.length - 1];
+    const duplicateDistance = Math.hypot(
+      lastEndpoint.x - endpoints[0].x,
+      lastEndpoint.y - endpoints[0].y,
+    );
+    expect(duplicateDistance).toBeGreaterThanOrEqual((plans[0].size + lastPlan.size) * 0.62 + 10);
+    expect(plans.map(({ delay, duration }) => ({ delay, duration }))).toEqual(timings);
   });
 
   test('keeps short copy on one line and balances wide copy across exactly two lines', () => {

@@ -20,6 +20,8 @@ const STUDIO_LOGO_URL = new URL('../../assets/logo addons/taplogo.png', import.m
 const studioCharacterModules = import.meta.glob([
   '../../assets/logo addons/lik-*.png',
   '!../../assets/logo addons/lik-*@2x.png',
+  '!../../assets/logo addons/lik-klizanje.png',
+  '!../../assets/logo addons/lik-vrt.png',
 ], {
   eager: true,
   query: '?url',
@@ -264,8 +266,11 @@ class LaunchScreen {
     studioCharacter.draggable = false;
     this.disableImageDrag(studioCharacter);
 
+    const studioComposition = document.createElement('div');
+    studioComposition.className = 'launch-studio-composition';
     studioLogoUnit.append(studioLogo, studioLogoSheen, presentsLabel);
-    studioPresentsContainer.append(studioLogoUnit, studioCharacter);
+    studioComposition.append(studioLogoUnit, studioCharacter);
+    studioPresentsContainer.appendChild(studioComposition);
     content.appendChild(studioPresentsContainer);
 
     container.appendChild(content);
