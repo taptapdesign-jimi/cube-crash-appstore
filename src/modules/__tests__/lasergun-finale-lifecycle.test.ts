@@ -13,7 +13,7 @@ import {
   LASERGUN_BEAM_FADE_DELAY_SECONDS,
   LASERGUN_BEAM_GLOW_ALPHA,
   LASERGUN_BEAM_GLOW_BLUR_PX,
-  LASERGUN_BEAM_LAUNCH_SCALE,
+  LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
   LASERGUN_BEAM_SATURATION_SCALE,
   LASERGUN_BEAM_TRAVEL_SECONDS,
   LASERGUN_BUILDUP_START_SECONDS,
@@ -29,6 +29,7 @@ import {
   prepareActiveLaserGunFinaleImpact,
   setActiveLaserGunFinaleTargets,
   triggerActiveLaserGunFinaleImpact,
+  waitForActiveLaserGunFinaleBeamLaunch,
   waitForActiveLaserGunFinaleImpactArrival,
 } from '../lasergun-finale-scene';
 
@@ -82,6 +83,18 @@ describe('LaserGun finale lifecycle', () => {
       )) as gsap.core.Timeline | undefined;
     expect(preflight).toBeDefined();
     return preflight!;
+  };
+
+  const completeBeamLaunchDelay = (): void => {
+    if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS === 0) return;
+    const delay = [...gsap.globalTimeline.getChildren(true, true, true)]
+      .reverse()
+      .find((animation) => (
+        Math.abs(animation.delay() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS) < 0.001
+        && animation.totalProgress() < 1
+      ));
+    expect(delay).toBeDefined();
+    delay!.totalProgress(1);
   };
 
   const enterAndPaint = async (
@@ -227,6 +240,7 @@ describe('LaserGun finale lifecycle', () => {
       flushRafQueue(frames);
       await expect(poseReadiness).resolves.toBe(true);
       expect(triggerActiveLaserGunFinaleImpact(index)).toBe(true);
+      completeBeamLaunchDelay();
       expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
       expect(overlay.querySelectorAll('.cc-lasergun-shot-text')).toHaveLength(0);
       expect(gsap.getTweensOf(gun).some((tween) => (
@@ -281,7 +295,7 @@ describe('LaserGun finale lifecycle', () => {
     cleanup();
   });
 
-  test('travels monotonically from the muzzle and resolves impact only when the tip reaches the cube', async () => {
+  test('starts cube inflation in the exact callback that launches beam travel', async () => {
     const frames = installRafQueue();
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
@@ -296,14 +310,15 @@ describe('LaserGun finale lifecycle', () => {
     const finalScaleX = Number(gsap.getProperty(scaleLayer, 'scaleX'));
     const animationsBeforeCommit = new Set(gsap.globalTimeline.getChildren(true, true, true));
 
-    expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
+    let synchronousArrivals = 0;
+    expect(triggerActiveLaserGunFinaleImpact(0, () => { synchronousArrivals++; })).toBe(true);
+    expect(synchronousArrivals).toBe(1);
     const arrival = waitForActiveLaserGunFinaleImpactArrival(0);
-    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(
-      finalScaleX * LASERGUN_BEAM_LAUNCH_SCALE,
-      3,
-    );
+    const beamLaunch = waitForActiveLaserGunFinaleBeamLaunch(0);
+    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeLessThan(finalScaleX);
     expect(beam.style.opacity).toBe('1');
-
+    await expect(beamLaunch).resolves.toBe(true);
+    expect(beam.style.opacity).toBe('1');
     const beamTimeline = gsap.globalTimeline.getChildren(true, true, true)
       .find((animation) => (
         !animationsBeforeCommit.has(animation)
@@ -321,27 +336,24 @@ describe('LaserGun finale lifecycle', () => {
       .find((tween) => Math.abs(tween.duration() - LASERGUN_BEAM_TRAVEL_SECONDS) < 0.001);
     expect(travelTween?.vars.ease).toBe('power2.out');
 
-    beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS * 0.5, false);
-    const halfScaleX = Number(gsap.getProperty(scaleLayer, 'scaleX'));
-    expect(halfScaleX).toBeGreaterThan(finalScaleX * LASERGUN_BEAM_LAUNCH_SCALE);
-    expect(halfScaleX).toBeLessThan(finalScaleX);
-
-    beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.001, false);
-    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
-    expect(beam.style.opacity).toBe('1');
     let arrivalSettled = false;
     void arrival.then(() => { arrivalSettled = true; });
     await Promise.resolve();
     expect(arrivalSettled).toBe(false);
-    expect(frames).toHaveLength(1);
-    frames.shift()!(performance.now());
-    await Promise.resolve();
+    expect(LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS).toBe(0);
+
+    beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS * 0.5, false);
+    expect(synchronousArrivals).toBe(1);
+    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeLessThan(finalScaleX);
+
+    beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.001, false);
+    expect(synchronousArrivals).toBe(1);
+    // Callback already fired synchronously with beam launch; arrival Promise
+    // remains scheduler-only and has not been awaited to start cube inflation.
     expect(arrivalSettled).toBe(false);
-    expect(frames).toHaveLength(1);
-    frames.shift()!(performance.now());
     await expect(arrival).resolves.toBe(true);
-    expect(arrivalSettled).toBe(true);
     expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
+    expect(beam.style.opacity).toBe('1');
 
     beamTimeline!.progress(1, false);
     expect(Number(gsap.getProperty(beam, 'opacity'))).toBeCloseTo(0, 6);
@@ -350,42 +362,23 @@ describe('LaserGun finale lifecycle', () => {
 
   test('atomically hides a stalled beam and prevents a late arrival callback', async () => {
     const frames = installRafQueue();
-    const cancelRafSpy = jest.spyOn(window, 'cancelAnimationFrame');
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
     const cleanup = attachLaserGunFinaleScene(overlay, { random: () => 0.5 });
     await enterAndPaint(overlay, frames);
     await prepareShot(overlay, frames, 0);
 
-    const animationsBeforeCommit = new Set(gsap.globalTimeline.getChildren(true, true, true));
     expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
     const arrival = waitForActiveLaserGunFinaleImpactArrival(0);
+    const beamLaunch = waitForActiveLaserGunFinaleBeamLaunch(0);
     const beam = overlay.querySelector(
       '.cc-lasergun-beam[data-lasergun-target="0"]',
     ) as HTMLElement;
     expect(beam.style.opacity).toBe('1');
-    const beamTimeline = gsap.globalTimeline.getChildren(true, true, true)
-      .find((animation) => (
-        !animationsBeforeCommit.has(animation)
-        && animation instanceof gsap.core.Timeline
-        && Math.abs(
-          animation.duration() - (
-            LASERGUN_BEAM_TRAVEL_SECONDS
-            + LASERGUN_BEAM_FADE_DELAY_SECONDS
-            + LASERGUN_BEAM_FADE_SECONDS
-          ),
-        ) < 0.001
-      )) as gsap.core.Timeline | undefined;
-    expect(beamTimeline).toBeDefined();
-    beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.001, false);
-    expect(frames).toHaveLength(1);
-
     cancelActiveLaserGunFinaleImpact(0);
 
     await expect(arrival).resolves.toBe(false);
-    expect(cancelRafSpy).toHaveBeenCalledWith(1);
-    frames.shift()!(performance.now());
-    expect(frames).toHaveLength(0);
+    await expect(beamLaunch).resolves.toBe(true);
     expect(Number(gsap.getProperty(beam, 'opacity'))).toBe(0);
     expect(gsap.getTweensOf(beam)).toHaveLength(0);
     cleanup();
@@ -423,6 +416,7 @@ describe('LaserGun finale lifecycle', () => {
         gsap.globalTimeline.getChildren(true, true, true),
       );
       expect(triggerActiveLaserGunFinaleImpact(index)).toBe(true);
+      completeBeamLaunchDelay();
       expect(beam.style.opacity).toBe('1');
       expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
       const firedImageScaleX = Number(gsap.getProperty(frame, 'scaleX'));
@@ -551,6 +545,7 @@ describe('LaserGun finale lifecycle', () => {
     flushRafQueue(frames);
     await expect(readiness).resolves.toBe(true);
     expect(triggerActiveLaserGunFinaleImpact(1)).toBe(true);
+    completeBeamLaunchDelay();
     const beam = overlay.querySelector(
       '.cc-lasergun-beam[data-lasergun-target="1"]',
     ) as HTMLElement;
@@ -732,6 +727,7 @@ describe('LaserGun finale lifecycle', () => {
     await prepareShot(overlay, frames, 0);
 
     expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
+    completeBeamLaunchDelay();
     const frame = overlay.querySelector(
       '.cc-lasergun-rig[data-lasergun-target="0"] .cc-lasergun-frame',
     ) as HTMLImageElement;

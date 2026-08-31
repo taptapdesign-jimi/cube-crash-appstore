@@ -361,18 +361,36 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
       if (!t || t.destroyed) {
         return;
       }
-      _setValueVisuals(t, v, addStack);
+      _setValueVisuals(t, v, addStack, false);
     });
   } else {
     // 🔥 CRITICAL: Check if tile still exists before setting visuals
     if (!t || t.destroyed) {
       return;
     }
-    _setValueVisuals(t, v, addStack);
+    _setValueVisuals(t, v, addStack, false);
   }
 }
 
-function _setValueVisuals(t: Tile, v: number, addStack: number): void {
+/** Atomically commits a value and its complete face on an animation boundary. */
+export function setValueImmediate(t: Tile, v: number, addStack = 0): void {
+  if (!t || t.destroyed) return;
+  t.value = v;
+  if (!t.locked) t.alpha = 1;
+  _setValueVisuals(t, v, addStack, true);
+}
+
+/**
+ * Rebuild the complete value face synchronously when an animation owns the
+ * exact frame on which a tile changes identity. Normal gameplay should keep
+ * using setValue(), whose deferred draw avoids competing with busy frames.
+ */
+export function refreshValueVisual(t: Tile, addStack = 0): void {
+  if (!t || t.destroyed) return;
+  _setValueVisuals(t, t.value | 0, addStack, true);
+}
+
+function _setValueVisuals(t: Tile, v: number, addStack: number, immediate: boolean): void {
   // 🔥 CRITICAL FIX: Ensure t.value is set to v BEFORE any visual operations
   // This prevents race conditions where drawPips might use stale t.value
   // (especially important when called via requestAnimationFrame)
@@ -501,11 +519,13 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
       }
     } catch {}
   }
-  drawStack(t);
+  if (immediate) _drawStackInternal(t);
+  else drawStack(t);
   
   // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
   if (!isWildLikeTile(t)) {
-    drawPips(t);
+    if (immediate) _drawPipsInternal(t);
+    else drawPips(t);
   }
   applyFinalMergeResultHiddenVisual(t);
 }

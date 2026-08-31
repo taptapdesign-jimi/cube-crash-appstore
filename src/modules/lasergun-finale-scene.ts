@@ -69,7 +69,9 @@ export const LASERGUN_BUILDUP_START_SECONDS = Math.max(
 export const LASERGUN_PREFIRE_SETTLE_SECONDS = 0.16 * LASERGUN_GUN_TIME_SCALE;
 export const LASERGUN_BEAM_LAUNCH_SCALE = 0.06;
 export const LASERGUN_BEAM_TRAVEL_SECONDS = 0.095;
-export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.04;
+export const LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0;
+// Keep the completed beam painted across the cube reaction before fading.
+export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.24;
 export const LASERGUN_BEAM_FADE_SECONDS = 0.07;
 // The gun may return through PNG frames 6 -> 1 immediately, but it cannot begin
 // spatial exit until the beam has completed its full travel and fade.
@@ -273,8 +275,9 @@ export function getLaserBeamPlacement(
 type LaserGunFinaleController = {
   setTargets: (targets: LaserGunFinaleTarget[]) => Promise<LaserGunEntryReadiness>;
   prepareImpact: (index: number, target: LaserPoint) => Promise<boolean>;
-  triggerImpact: (index: number) => boolean;
+  triggerImpact: (index: number, onLaunch?: () => void) => boolean;
   waitForImpactArrival: (index: number) => Promise<boolean>;
+  waitForBeamLaunch: (index: number) => Promise<boolean>;
   cancelImpact: (index: number) => void;
   completeImpacts: () => void;
   cleanup: () => void;
@@ -322,12 +325,16 @@ export function prepareActiveLaserGunFinaleImpact(
   return activeController?.prepareImpact(index, target) ?? Promise.resolve(false);
 }
 
-export function triggerActiveLaserGunFinaleImpact(index: number): boolean {
-  return activeController?.triggerImpact(index) ?? false;
+export function triggerActiveLaserGunFinaleImpact(index: number, onLaunch?: () => void): boolean {
+  return activeController?.triggerImpact(index, onLaunch) ?? false;
 }
 
 export function waitForActiveLaserGunFinaleImpactArrival(index: number): Promise<boolean> {
   return activeController?.waitForImpactArrival(index) ?? Promise.resolve(false);
+}
+
+export function waitForActiveLaserGunFinaleBeamLaunch(index: number): Promise<boolean> {
+  return activeController?.waitForBeamLaunch(index) ?? Promise.resolve(false);
 }
 
 export function cancelActiveLaserGunFinaleImpact(index: number): void {
@@ -427,9 +434,14 @@ export function attachLaserGunFinaleScene(
     resolveEntryReadiness(readiness);
   };
   const ownedTimelines: gsap.core.Timeline[] = [];
+  const ownedTweens: gsap.core.Tween[] = [];
   const own = (timeline: gsap.core.Timeline): gsap.core.Timeline => {
     ownedTimelines.push(timeline);
     return animationManager.trackExternalTimeline(timeline);
+  };
+  const ownTween = (tween: gsap.core.Tween): gsap.core.Tween => {
+    ownedTweens.push(tween);
+    return animationManager.trackExternalTween(tween);
   };
 
   const field = document.createElement('div');
@@ -675,8 +687,6 @@ export function attachLaserGunFinaleScene(
     fadeStarted: boolean;
     frameA: number | null;
     frameB: number | null;
-    arrivalFrameA: number | null;
-    arrivalFrameB: number | null;
     resolvePoseReadiness: ((ready: boolean) => void) | null;
     entryReady: boolean;
     entryStarted: boolean;
@@ -686,8 +696,12 @@ export function attachLaserGunFinaleScene(
     resolveEntryReadiness: ((ready: boolean) => void) | null;
     impactArrivalReadiness: Promise<boolean>;
     resolveImpactArrivalReadiness: ((arrived: boolean) => void) | null;
+    onBeamLaunch: (() => void) | null;
+    beamLaunchReadiness: Promise<boolean>;
+    resolveBeamLaunchReadiness: ((launched: boolean) => void) | null;
     beamFinalScaleX: number;
     beamFinalScaleY: number;
+    beamLaunchDelay: gsap.core.Tween | null;
     impactTimeline: gsap.core.Timeline | null;
   };
   const shotStates: ShotState[] = [];
@@ -711,14 +725,14 @@ export function attachLaserGunFinaleScene(
   };
 
   const settleImpactArrival = (shot: ShotState, arrived: boolean): void => {
-    if (!arrived) {
-      if (shot.arrivalFrameA !== null) window.cancelAnimationFrame(shot.arrivalFrameA);
-      if (shot.arrivalFrameB !== null) window.cancelAnimationFrame(shot.arrivalFrameB);
-      shot.arrivalFrameA = null;
-      shot.arrivalFrameB = null;
-    }
+    if (!arrived) shot.onBeamLaunch = null;
     shot.resolveImpactArrivalReadiness?.(arrived);
     shot.resolveImpactArrivalReadiness = null;
+  };
+
+  const settleBeamLaunch = (shot: ShotState, launched: boolean): void => {
+    shot.resolveBeamLaunchReadiness?.(launched);
+    shot.resolveBeamLaunchReadiness = null;
   };
 
   const maybeFinishSequence = (): void => {
@@ -835,19 +849,7 @@ export function attachLaserGunFinaleScene(
         settleImpactArrival(shot, false);
         return;
       }
-      // Commit exact centre geometry, then wait through two paint boundaries
-      // before app-core is allowed to create the Pixi explosion. This prevents
-      // WebKit from painting the explosion one compositor frame ahead of DOM.
-      gsap.set(shot.beamPlan.scaleLayer, { scaleX: shot.beamFinalScaleX });
-      shot.arrivalFrameA = window.requestAnimationFrame(() => {
-        shot.arrivalFrameA = null;
-        if (disposed || !shot.resolveImpactArrivalReadiness) return;
-        shot.arrivalFrameB = window.requestAnimationFrame(() => {
-          shot.arrivalFrameB = null;
-          if (disposed || !shot.resolveImpactArrivalReadiness) return;
-          settleImpactArrival(shot, true);
-        });
-      });
+      settleImpactArrival(shot, true);
     }, undefined, LASERGUN_BEAM_TRAVEL_SECONDS);
     impactTimeline.to(shot.beamPlan.image, {
       opacity: 0,
@@ -874,6 +876,10 @@ export function attachLaserGunFinaleScene(
     });
     gsap.set(shot.beamPlan.image, { opacity: 1 });
     shot.beamVisible = true;
+    const onLaunch = shot.onBeamLaunch;
+    shot.onBeamLaunch = null;
+    // Beam travel and cube inflation start in this exact callback/tick.
+    try { onLaunch?.(); } catch {}
     startBeamTravel(shot);
     startGunExit(shot);
   };
@@ -1145,6 +1151,10 @@ export function attachLaserGunFinaleScene(
         const impactArrivalReadiness = new Promise<boolean>((resolve) => {
           resolveImpactArrival = resolve;
         });
+        let resolveBeamLaunch!: (launched: boolean) => void;
+        const beamLaunchReadiness = new Promise<boolean>((resolve) => {
+          resolveBeamLaunch = resolve;
+        });
         const shot: ShotState = {
           index,
           gun,
@@ -1160,8 +1170,6 @@ export function attachLaserGunFinaleScene(
           fadeStarted: false,
           frameA: null,
           frameB: null,
-          arrivalFrameA: null,
-          arrivalFrameB: null,
           resolvePoseReadiness: null,
           entryReady: false,
           entryStarted: false,
@@ -1171,8 +1179,12 @@ export function attachLaserGunFinaleScene(
           resolveEntryReadiness: resolveShotEntry,
           impactArrivalReadiness,
           resolveImpactArrivalReadiness: resolveImpactArrival,
+          onBeamLaunch: null,
+          beamLaunchReadiness,
+          resolveBeamLaunchReadiness: resolveBeamLaunch,
           beamFinalScaleX: 1,
           beamFinalScaleY: 1,
+          beamLaunchDelay: null,
           impactTimeline: null,
         };
         shotStates.push(shot);
@@ -1181,27 +1193,45 @@ export function attachLaserGunFinaleScene(
       return entryReadiness;
     },
     prepareImpact,
-    triggerImpact: (index) => {
+    triggerImpact: (index, onLaunch) => {
       if (disposed || finalExitStarted || !activeGunsPainted || triggeredImpacts.has(index)) return false;
       const shot = shotStates[index];
       if (!shot || !shot.poseReady || !hasLockedGunAngles(shot)) return false;
       triggeredImpacts.add(index);
-      // The launch owns frame 6 and the beam flight synchronously. App-core
-      // awaits this shot's tip-arrival promise before mutating the exact cube,
-      // so the explosion cannot lead the visible beam or drift to another shot.
-      shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
-      shot.impactPending = true;
-      revealRequestedBeam(shot);
-      playGunReturnFrames(shot);
-      return shot.beamVisible;
+          shot.onBeamLaunch = onLaunch || null;
+          // The cube response belongs to the real beam-tip arrival below, not
+          // gun trigger. Launch immediately and let Pixi impact start at contact.
+          shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
+          shot.impactPending = true;
+          if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0) {
+            shot.beamLaunchDelay = ownTween(gsap.delayedCall(
+              LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
+              () => {
+                shot.beamLaunchDelay = null;
+                revealRequestedBeam(shot);
+                settleBeamLaunch(shot, shot.beamVisible);
+              },
+            ));
+          } else {
+            revealRequestedBeam(shot);
+            settleBeamLaunch(shot, shot.beamVisible);
+          }
+          playGunReturnFrames(shot);
+          return true;
     },
-    waitForImpactArrival: (index) => (
-      shotStates[index]?.impactArrivalReadiness ?? Promise.resolve(false)
-    ),
+        waitForImpactArrival: (index) => (
+          shotStates[index]?.impactArrivalReadiness ?? Promise.resolve(false)
+        ),
+        waitForBeamLaunch: (index) => (
+          shotStates[index]?.beamLaunchReadiness ?? Promise.resolve(false)
+        ),
     cancelImpact: (index) => {
-      const shot = shotStates[index];
-      if (!shot) return;
-      try { shot.impactTimeline?.kill(); } catch {}
+          const shot = shotStates[index];
+          if (!shot) return;
+          try { shot.beamLaunchDelay?.kill(); } catch {}
+          shot.beamLaunchDelay = null;
+          settleBeamLaunch(shot, false);
+          try { shot.impactTimeline?.kill(); } catch {}
       shot.impactTimeline = null;
       try {
         gsap.killTweensOf(shot.beamPlan.scaleLayer);
@@ -1223,10 +1253,14 @@ export function attachLaserGunFinaleScene(
     ownedTimelines.splice(0).forEach((timeline) => {
       try { timeline.kill(); } catch {}
     });
-    shotStates.forEach((shot) => {
+    ownedTweens.splice(0).forEach((tween) => {
+      try { tween.kill(); } catch {}
+    });
+        shotStates.forEach((shot) => {
       resetShotPreparation(shot);
       settleShotEntry(shot, false);
-      settleImpactArrival(shot, false);
+          settleImpactArrival(shot, false);
+          settleBeamLaunch(shot, false);
     });
     if (entryPaintFrameA !== null) window.cancelAnimationFrame(entryPaintFrameA);
     if (entryPaintFrameB !== null) window.cancelAnimationFrame(entryPaintFrameB);

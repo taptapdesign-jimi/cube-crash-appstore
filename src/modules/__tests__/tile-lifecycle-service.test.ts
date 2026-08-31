@@ -6,6 +6,7 @@ import {
   normalizePlayableTileAfterMutation,
   normalizeSpawnedTileVisual,
   removeTileFully,
+  stopTileRuntimeFx,
 } from '../tile-lifecycle-service';
 
 test('collapseTileToSingleStackVisual removes stale stack art without moving the tile', () => {
@@ -79,6 +80,19 @@ test('removeTileFully clears direct grid reference, tile list, runtime flags, an
   expect(tile._wildMagnetPulledTilesMerge).toBeUndefined();
   expect(tile._pendingRemoval).toBeUndefined();
   expect(tile.destroy).toHaveBeenCalledWith({ children: true, texture: false, textureSource: false });
+});
+
+test('stopTileRuntimeFx retires the LaserGun impact timeline owner', () => {
+  const impactTimeline = { kill: jest.fn() };
+  const tile: any = {
+    _ccLaserGunImpactTl: impactTimeline,
+    removeAllListeners: jest.fn(),
+  };
+
+  stopTileRuntimeFx(tile);
+
+  expect(impactTimeline.kill).toHaveBeenCalledTimes(1);
+  expect(tile._ccLaserGunImpactTl).toBeNull();
 });
 
 test('detachTileFromGrid clears stale grid reference even when tile coordinates are wrong', () => {

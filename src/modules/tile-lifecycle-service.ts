@@ -33,6 +33,7 @@ const TILE_ANIMATION_KEYS = [
   '_wildPulseTween',
   '_spawnTween',
   '_destroyTween',
+  '_ccLaserGunImpactTl',
 ] as const;
 
 export function detachTileFromGrid(tile: any, grid: TileLifecycleGrid, log?: (...args: any[]) => void): boolean {

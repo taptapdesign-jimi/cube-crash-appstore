@@ -24,6 +24,7 @@ import {
   prepareActiveLaserGunFinaleImpact,
   setActiveLaserGunFinaleTargets,
   triggerActiveLaserGunFinaleImpact,
+  waitForActiveLaserGunFinaleBeamLaunch,
   waitForActiveLaserGunFinaleImpactArrival,
 } from './lasergun-finale-scene.ts';
 import type { LaserGunEntryReadiness } from './lasergun-finale-scene.ts';
@@ -33,6 +34,17 @@ import {
   LASERGUN_SHOT_INTERVAL_MS,
   runLaserGunSequentialImpactScheduler,
 } from './laser-gun-impact-scheduler.ts';
+import {
+  getLaserGunCubeAnticipationFrames,
+  LASERGUN_CUBE_ANTICIPATION_SCALE,
+      LASERGUN_CUBE_ANTICIPATION_SECONDS,
+      LASERGUN_CUBE_CONTRACT_SCALE,
+      LASERGUN_CUBE_CONTRACT_SECONDS,
+      LASERGUN_CUBE_INFLATE_SECONDS,
+      LASERGUN_CUBE_REBOUND_SCALE,
+      LASERGUN_CUBE_REBOUND_SECONDS,
+      LASERGUN_CUBE_SETTLE_SECONDS,
+} from './laser-gun-cube-anticipation.ts';
 import { stopWildJuiceBubblesScreen, destroyWildJuiceBubblesScreenCache } from './wild-juice-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 import { runEndgameFlow } from './endgame-flow.js';
@@ -124,7 +136,12 @@ import { handleSweetPopInComplete } from './app-core-popin-final.ts';
 import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
 import { createSweetPopInRunner } from './app-core-popin-runner.ts';
 import { isBoardFxReduced, startBoardFrameBudgetMonitor, stopBoardFrameBudgetMonitor } from './board-frame-budget.ts';
-import { markPixiMobileActivity, startPixiMobileFrameController, stopPixiMobileFrameController } from './pixi-mobile-frame-controller.js';
+import {
+  acquirePixiMobileActivityLease,
+  markPixiMobileActivity,
+  startPixiMobileFrameController,
+  stopPixiMobileFrameController,
+} from './pixi-mobile-frame-controller.js';
 import { getRegularMerge6FxProfile, getRegularStackSmokeProfile } from './gameplay-fx-profile.ts';
 import { markMergePerformance } from '../utils/merge-performance.ts';
 import { emitIOSArcadeGameplayTrace } from '../utils/ios-arcade-gameplay-trace.ts';
@@ -634,6 +651,7 @@ function repairBoardTileVisuals(reason = 'unknown'): void {
         t !== drag?.t &&
         t.rotG &&
         !t.rotG.destroyed &&
+        !(t.rotG as any)._ccLaserGunImpactTl &&
         !(t.rotG as any)._ccWildImpactTl
       ) {
         const rotScaleX = Number.isFinite(t.rotG.scale?.x) ? t.rotG.scale.x : 1;
@@ -14163,12 +14181,20 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	    notifyBoardCommitted();
 	    const pool = regularValuePool();
 	    const used: number[] = [];
+	    const laserGunPoseRestorers = new Set<() => void>();
 	    let completedBreaks = 0;
 	    let completed = false;
 	    const markBreakComplete = () => {
 	      completedBreaks += 1;
 	      if (completedBreaks < count || completed) return;
 	      completed = true;
+	      // Final transaction barrier: no shot, including shot four, may leave
+	      // its same-tile rebound pose on the playable board.
+	      if (impactProfile === 'laser-gun') {
+	        laserGunPoseRestorers.forEach((restore) => {
+	          try { restore(); } catch {}
+	        });
+	      }
 	      releaseTntBonusTiles(ownedBonusTiles);
 	      tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 450);
 	      trackAppTimeout(() => {
@@ -14238,32 +14264,54 @@ function runTntBoomBonusBreak2Tiles(deps: {
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('heavy');
         }
-        // No shards for TNT bonus break; smoke handled on spawn
-        // Shards + smoke should appear during the popout/transition, before new tile spawns
-        if (!skipFx) {
-          // LaserGun already owns three dice plus three rocks per impact. Avoid
-          // stacking the full TNT shard layer on top of that bounded debris.
-          if (impactProfile !== 'laser-gun') {
-            try {
-              regularMerge6ShardsTemplated(board, tile, {
-                zIndex: 9993,
-                groupedOwner: impactProfile === 'beach-ball',
-              });
-            } catch (e) { devWarn('TNT boom bonus shards:', e); }
-          }
-          try {
-            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : impactProfile === 'laser-gun' ? 0.62 : 1.0, {
-              sizeScale: impactProfile === 'beach-ball' ? 1.9 : impactProfile === 'laser-gun' ? 1.15 : 1.5,
-              distanceScale: impactProfile === 'beach-ball' ? 1.35 : 1,
-              countScale: impactProfile === 'beach-ball' ? 1.15 : impactProfile === 'laser-gun' ? 0.28 : 1,
-              spawnShape: 'box',
-              zIndex: 9994,
-              groupedOwner: impactProfile === 'beach-ball',
-            });
-          } catch (e) { devWarn('TNT transition smoke:', e); }
-        }
-        const oldValue = (tile.value | 0);
-        const basePos = getScreenPos(tile);
+	        // Shards + smoke appear at the actual impact boundary. LaserGun emits
+	        // them at beam-tip contact while its spring scale remains visible.
+	        const emitImpactFx = () => {
+	          if (skipFx) return;
+	          try {
+	            regularMerge6ShardsTemplated(board, tile, {
+	              zIndex: 9993,
+	              groupedOwner: impactProfile === 'beach-ball',
+	            });
+	          } catch (e) { devWarn('TNT boom bonus shards:', e); }
+	          try {
+	            smokeBubblesAtTile(board, tile, TILE * 1.0, impactProfile === 'beach-ball' ? 1.25 : impactProfile === 'laser-gun' ? 0.62 : 1.0, {
+	              sizeScale: impactProfile === 'beach-ball' ? 1.9 : impactProfile === 'laser-gun' ? 1.15 : 1.5,
+	              distanceScale: impactProfile === 'beach-ball' ? 1.35 : 1,
+	              countScale: impactProfile === 'beach-ball' ? 1.15 : impactProfile === 'laser-gun' ? 0.28 : 1,
+	              spawnShape: 'box',
+	              zIndex: 9994,
+	              groupedOwner: impactProfile === 'beach-ball',
+	            });
+	          } catch (e) { devWarn('TNT transition smoke:', e); }
+	        };
+	        const oldValue = (tile.value | 0);
+	        const basePos = getScreenPos(tile);
+	        let bonusStarEmitted = false;
+	        const emitBonusStar = () => {
+	          if (bonusStarEmitted) return;
+	          bonusStarEmitted = true;
+	          try {
+	            const bonusParticleTexture = bonusParticleTextures[(Math.random() * bonusParticleTextures.length) | 0];
+	            const starPositions = [{
+	              texture: bonusParticleTexture,
+	              globalX: basePos.x,
+	              globalY: basePos.y,
+	              scale: { x: 0.55 * bonusParticleScale, y: 0.55 * bonusParticleScale }
+	            }];
+	            const appForAnimation = STATE.app || (STATE.stage as any)?.app;
+	            devLog('⭐ TNT bonus star: spawning from broken tile', {
+	              gridX: c,
+	              gridY: r,
+	              screenX: basePos.x,
+	              screenY: basePos.y
+	            });
+	            void animateStarsToHudIcon(board, STATE.stage, starPositions, basePos, basePos, hudStarPos, appForAnimation);
+	          } catch (e) {
+	            devWarn('⚠️ TNT bonus star animation failed:', e);
+	          }
+	        };
+	        if (impactProfile !== 'laser-gun') emitImpactFx();
         if (impactProfile === 'beach-ball') {
           const impactVisual = (tile as any).rotG || tile;
           const scale = impactVisual?.scale;
@@ -14280,6 +14328,15 @@ function runTntBoomBonusBreak2Tiles(deps: {
             });
           }
         }
+        const selectReplacementValue = () => {
+          // Prefer unique values across this burst, while always changing the
+          // face that was actually hit.
+          let available = pool.filter((v) => !used.includes(v) && v !== oldValue);
+          if (available.length === 0) available = pool.filter((v) => v !== oldValue);
+          const val = available[(Math.random() * available.length) | 0];
+          used.push(val);
+          return val;
+        };
         const replaceTile = () => {
           if (!tile || tile.destroyed || !board || !STATE?.tiles) {
             releaseTntBonusTile(tile);
@@ -14288,35 +14345,10 @@ function runTntBoomBonusBreak2Tiles(deps: {
           }
           releaseTntBonusTile(tile);
           removeTile(tile);
-        // ⭐ Wild TNT: 1 star per broken tile → HUD (ignore merge-6 1-3)
-        try {
-          const bonusParticleTexture = bonusParticleTextures[(Math.random() * bonusParticleTextures.length) | 0];
-          const starPositions = [{
-            texture: bonusParticleTexture,
-            globalX: basePos.x,
-            globalY: basePos.y,
-            scale: { x: 0.55 * bonusParticleScale, y: 0.55 * bonusParticleScale }
-          }];
-          // Fire-and-forget; use board/stage/app like other HUD star animations
-          const appForAnimation = STATE.app || (STATE.stage as any)?.app;
-          devLog('⭐ TNT bonus star: spawning from broken tile', {
-            gridX: c,
-            gridY: r,
-            screenX: basePos.x,
-            screenY: basePos.y
-          });
-          void animateStarsToHudIcon(board, STATE.stage, starPositions, basePos, basePos, hudStarPos, appForAnimation);
-        } catch (e) {
-          devWarn('⚠️ TNT bonus star animation failed:', e);
-        }
-        // 🔥 CRITICAL: TNT bonus replacement must NEVER keep the same value.
-        // Prefer unique values across this TNT burst, but if that conflicts, keep "different from old" as source of truth.
-        let available = pool.filter((v) => !used.includes(v) && v !== oldValue);
-        if (available.length === 0) {
-          available = pool.filter((v) => v !== oldValue);
-        }
-        const val = available[(Math.random() * available.length) | 0];
-        used.push(val);
+        // Non-Laser profiles keep their existing replacement-boundary star.
+        // Laser emits it at impact start alongside smoke/shards and scaling.
+        emitBonusStar();
+	        const val = selectReplacementValue();
 	        openAtCell(c, r, { value: val, skipBind: false })
 	          .then(() => {
 	            lastTntBonusChangeAt = Date.now();
@@ -14329,6 +14361,172 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	        };
 	        if (impactProfile === 'beach-ball') {
 	          trackAppTimeout(replaceTile, 120);
+	        } else if (impactProfile === 'laser-gun') {
+	          const impactVisual = (tile as any).rotG || tile;
+	          // rotG has a top-edge pivot for tilt. The outer tile has its origin
+	          // at the canonical cube centre and contains the complete face tree.
+	          const impactScale = tile.scale;
+	          // Keep one display object throughout the hit. Removing it and using
+	          // openAtCell here would add a second spawn bounce after this spring.
+	          const replacementValue = selectReplacementValue();
+	          let laserValueSwapped = false;
+	          const swapLaserValueInPlace = () => {
+	            if (laserValueSwapped || !tile || tile.destroyed) return;
+	            laserValueSwapped = true;
+	            tile.stackDepth = 1;
+	            // One atomic face commit: no duplicate deferred RAF rebuild may
+	            // interrupt the rebound that begins on this same timestamp.
+	            makeBoard.setValueImmediate(tile, replacementValue, 0);
+	          };
+	          let impactSettled = false;
+	          let impactBreakQueued = false;
+	          let restoreImpactPose = () => {
+	            if (!tile || tile.destroyed) return;
+	            tile.scale?.set?.(1, 1);
+	          };
+	          let releaseFrameLease = acquirePixiMobileActivityLease(
+	            'laser-gun-cube-impact',
+	            Math.ceil(LASERGUN_CUBE_ANTICIPATION_SECONDS * 1000) + 100,
+	          );
+	          const releaseImpactFrameLease = () => {
+	            releaseFrameLease();
+	            releaseFrameLease = () => {};
+	          };
+	          const commitImpactBreak = () => {
+	            if (impactSettled) return;
+	            impactSettled = true;
+	            // Completion, interruption and the safety timeout all converge on
+	            // one canonical pose. A stalled fourth shot can never remain large.
+	            try {
+	              animationManager.killExternalTimeline((tile as any)?._ccLaserGunImpactTl);
+	            } catch {}
+	            restoreImpactPose();
+	            releaseImpactFrameLease();
+	            if (!tile || tile.destroyed || !board || !STATE?.tiles) {
+	              releaseTntBonusTile(tile);
+	              markBreakComplete();
+	              return;
+	            }
+	            // The LaserGun replacement is already committed on the same tile;
+	            // only release reservation/lifecycle ownership at the end.
+	            swapLaserValueInPlace();
+	            releaseTntBonusTile(tile);
+	            lastTntBonusChangeAt = Date.now();
+	            tntBonusGuardUntil = Math.max(tntBonusGuardUntil, Date.now() + 1200);
+	            markBreakComplete();
+	          };
+	          const queueImpactBreakAfterPaint = () => {
+	            if (impactBreakQueued || impactSettled) return;
+	            impactBreakQueued = true;
+	            // Keep the GSAP peak alive across a complete subsequent paint
+	            // opportunity before removing the Pixi display object.
+	            trackAppAnimationFrame(() => {
+	              trackAppAnimationFrame(commitImpactBreak);
+	            });
+	          };
+	          if (impactVisual && impactScale) {
+	            const baseX = Number(impactVisual.x) || 0;
+	            const baseRotation = Number(impactVisual.rotation) || 0;
+	            restoreImpactPose = () => {
+	              if (!tile || tile.destroyed) return;
+	              try { impactScale.set?.(1, 1); } catch {}
+	              try { impactVisual.x = baseX; } catch {}
+	              try { impactVisual.rotation = baseRotation; } catch {}
+	            };
+	            laserGunPoseRestorers.add(restoreImpactPose);
+	            try {
+	              animationManager.killExternalTimeline((tile as any)._ccLaserGunImpactTl);
+	              animationManager.killExternalTimeline((tile as any)._idleBounceTl);
+	              gsap.killTweensOf(impactVisual);
+	              gsap.killTweensOf(impactScale);
+	            } catch {}
+	            // Settle any interrupted idle/merge pose before LaserGun acquires
+	            // the complete centred cube scale.
+	            impactScale.set?.(1, 1);
+	            let anticipation!: gsap.core.Timeline;
+	            const clearImpactOwner = () => {
+	              if ((tile as any)._ccLaserGunImpactTl === anticipation) {
+	                (tile as any)._ccLaserGunImpactTl = null;
+	              }
+	              if ((impactVisual as any)._ccLaserGunImpactTl === anticipation) {
+	                (impactVisual as any)._ccLaserGunImpactTl = null;
+	              }
+	            };
+	            anticipation = trackTimeline({
+	              onComplete: () => {
+	                // Restore in the timeline's own completion tick, before any
+	                // scene/scheduler cleanup can cross the final paint boundary.
+	                restoreImpactPose();
+	                clearImpactOwner();
+	                releaseImpactFrameLease();
+	                queueImpactBreakAfterPaint();
+	              },
+	              onInterrupt: () => {
+	                clearImpactOwner();
+	                restoreImpactPose();
+	                releaseImpactFrameLease();
+	              },
+	            });
+	            (tile as any)._ccLaserGunImpactTl = anticipation;
+	            (impactVisual as any)._ccLaserGunImpactTl = anticipation;
+	            getLaserGunCubeAnticipationFrames().forEach((frame) => {
+	              anticipation.to(impactVisual, {
+	                x: baseX + frame.offsetX,
+	                rotation: baseRotation + frame.rotation,
+	                duration: frame.durationSeconds,
+	                ease: 'power1.inOut',
+	              }, frame.startAtSeconds);
+	            });
+	            anticipation.to(impactScale, {
+	              x: LASERGUN_CUBE_ANTICIPATION_SCALE,
+	              y: LASERGUN_CUBE_ANTICIPATION_SCALE,
+	              duration: LASERGUN_CUBE_INFLATE_SECONDS,
+	              ease: 'back.out(2.1)',
+	            }, 0);
+	            anticipation.call(() => {
+	              // Peak impact: the old face is still visible when smoke, shards
+	              // and the bonus star burst outward.
+	              emitImpactFx();
+	              emitBonusStar();
+	            }, [], LASERGUN_CUBE_INFLATE_SECONDS);
+	            anticipation.to(impactScale, {
+	              x: LASERGUN_CUBE_CONTRACT_SCALE,
+	              y: LASERGUN_CUBE_CONTRACT_SCALE,
+	              duration: LASERGUN_CUBE_CONTRACT_SECONDS,
+	              // Linear into and out of the reversal removes the perceptual
+	              // zero-velocity hold between compression and first rebound.
+	              ease: 'none',
+	            }, LASERGUN_CUBE_INFLATE_SECONDS);
+	            const settleStart = LASERGUN_CUBE_INFLATE_SECONDS + LASERGUN_CUBE_CONTRACT_SECONDS;
+	            // Swap at 0.70 and continue immediately through the one requested
+	            // rebound. There is no neutral pose or second bounce sequence.
+	            anticipation.call(swapLaserValueInPlace, [], settleStart);
+	            const reboundStart = settleStart + LASERGUN_CUBE_REBOUND_SECONDS;
+	            anticipation.to(impactVisual, {
+	              x: baseX,
+	              rotation: baseRotation,
+	              duration: LASERGUN_CUBE_REBOUND_SECONDS
+	                + LASERGUN_CUBE_SETTLE_SECONDS,
+	              ease: 'power2.out',
+	            }, settleStart);
+	            anticipation.to(impactScale, {
+	              x: LASERGUN_CUBE_REBOUND_SCALE,
+	              y: LASERGUN_CUBE_REBOUND_SCALE,
+	              duration: LASERGUN_CUBE_REBOUND_SECONDS,
+	              ease: 'none',
+	            }, settleStart);
+	            anticipation.to(impactScale, {
+	              x: 1,
+	              y: 1,
+	              duration: LASERGUN_CUBE_SETTLE_SECONDS,
+	              ease: 'sine.out',
+	            }, reboundStart);
+	          } else {
+	            queueImpactBreakAfterPaint();
+	          }
+	          // Safety only: normal removal is owned by the completed and painted
+	          // GSAP timeline, so wall-clock time cannot race the peak frame.
+	          trackAppTimeout(commitImpactBreak, 900);
 	        } else {
 	          replaceTile();
 	        }
@@ -14361,8 +14559,17 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	          commit: async () => {
 	            if (laserGunRunGeneration !== gameplayRunGeneration) return false;
 	            let visualArrived = false;
+	            let impactCommitted = false;
+	            const commitCubeImpact = (arrived: boolean) => {
+	              if (impactCommitted || laserGunRunGeneration !== gameplayRunGeneration) return;
+	              impactCommitted = true;
+	              doBreak(arrived);
+	            };
 	            if (laserGunVisualsEnabled) {
-	              const visualFired = triggerActiveLaserGunFinaleImpact(i);
+	              const visualFired = triggerActiveLaserGunFinaleImpact(
+	                i,
+	                () => commitCubeImpact(true),
+	              );
 	              if (visualFired) {
 	                const arrivalResult = await Promise.race([
 	                  waitForActiveLaserGunFinaleImpactArrival(i)
@@ -14385,7 +14592,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	                }
 	              }
 	            }
-	            doBreak(visualArrived);
+	            // Normal path already committed synchronously in the beam-launch
+	            // GSAP tick. This remains only the no-visual/timeout fallback.
+	            commitCubeImpact(visualArrived);
 	            return true;
 	          },
 	        });
@@ -14413,6 +14622,12 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	            laserGunVisualsEnabled ? LASERGUN_FIRST_SHOT_LEAD_MS : 0,
 	          );
 	          if (schedulerResult === 'cancelled') return;
+	          if (laserGunVisualsEnabled && laserGunImpactPlans.length > 0) {
+	            const finalBeamLaunched = await waitForActiveLaserGunFinaleBeamLaunch(
+	              laserGunImpactPlans.length - 1,
+	            );
+	            if (!finalBeamLaunched || laserGunRunGeneration !== gameplayRunGeneration) return;
+	          }
 	          schedulerFinished = true;
 	        } catch (error) {
 	          devWarn('LaserGun sequential impact scheduler failed:', error);
