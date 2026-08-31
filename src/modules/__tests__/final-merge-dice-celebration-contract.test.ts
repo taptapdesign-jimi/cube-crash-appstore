@@ -5,8 +5,11 @@ import animationManager from '../animation-manager';
 import { domElementPool } from '../dom-element-pool';
 import {
   cleanupFinalMergeDiceCelebration,
+  composeFinalMergeDieTransform,
   FINAL_MERGE_CELEBRATION_MESSAGE,
   playFinalMergeDiceCelebration,
+  resolveFinalMergeDiceExitRotation,
+  resolveFinalMergeDiceTravelProgress,
   applyFinalMergeDiceSizeProfile,
   arrangeFinalMergeDiceBurstOrigins,
   separateFinalMergeDiceFlightEnds,
@@ -22,6 +25,7 @@ const celebrationSource = fs.readFileSync(
 );
 const appCoreSource = fs.readFileSync(path.join(modulesDir, 'app-core.ts'), 'utf8');
 const hudSource = fs.readFileSync(path.join(modulesDir, 'hud-helpers.ts'), 'utf8');
+const nativeAnimateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
 
 describe('final merge dice celebration contract', () => {
   beforeEach(() => {
@@ -29,12 +33,21 @@ describe('final merge dice celebration contract', () => {
     document.body.innerHTML = '';
     domElementPool.clear();
     Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    Object.defineProperty(HTMLElement.prototype, 'animate', {
+      configurable: true,
+      value: jest.fn(() => ({ cancel: jest.fn() } as unknown as Animation)),
+    });
   });
 
   afterEach(() => {
     cleanupFinalMergeDiceCelebration();
     document.body.innerHTML = '';
     domElementPool.clear();
+    if (nativeAnimateDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'animate', nativeAnimateDescriptor);
+    } else {
+      delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+    }
   });
 
   test('shows only Cleared here and moves all sixty authored messages into Clean Board', () => {
@@ -64,7 +77,8 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('arrangeFinalMergeDiceBurstOrigins(plans, Math.random, copyWidth);');
     expect(celebrationSource).toContain('const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;');
     expect(celebrationSource).toContain('const DICE_FLIGHT_DISTANCE_SCALE = 1.2;');
-    expect(celebrationSource).toContain('const DICE_ROTATION_SCALE = 0.6;');
+    expect(celebrationSource).toContain('const DICE_MAX_EXIT_ROTATION_DEGREES = 20;');
+    expect(celebrationSource).toContain('const DICE_DELAY_SCALE = 0.5;');
     expect(celebrationSource).toContain('const BOARD_GAME_RENDERED_DICE_SIZE_PX = 76;');
     expect(celebrationSource).toContain('const SMALL_RENDERED_DICE_SIZE_PX = 50;');
     expect(celebrationSource).toContain('const BOARD_SIZED_DICE_RATIO = 0.5;');
@@ -79,17 +93,17 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('separateFinalMergeDiceFlightEnds(plans);');
     expect(celebrationSource).toContain('plans.push({');
     expect(celebrationSource).toContain('const value = ((plan.value - 1) % 5) + 1;');
-    expect(celebrationSource).toContain('const impulse = 1 - Math.pow(1 - progress, 2.35);');
+    expect(celebrationSource).toContain('const travelProgress = resolveFinalMergeDiceTravelProgress(progress);');
+    expect(celebrationSource).not.toContain('Math.pow(1 - progress, 2.35)');
     expect(celebrationSource).toContain('const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;');
     expect(celebrationSource).toContain('+ 28 * progress * progress');
-    expect(celebrationSource).toContain('const startRotationDegrees = plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees;');
-    expect(celebrationSource).toContain('const rotationTravelDegrees = plan.rotationTravel * DICE_ROTATION_SCALE * radiansToDegrees;');
-    expect(celebrationSource).toContain('setRotation(startRotationDegrees + rotationTravelDegrees * impulse);');
-    expect(celebrationSource).toContain('duration: plan.duration');
-    expect(celebrationSource).toContain('delay: plan.delay');
+    expect(celebrationSource).toContain('const startRotationDegrees = 0;');
+    expect(celebrationSource).toContain('const rotationTravelDegrees = resolveFinalMergeDiceExitRotation();');
+    expect(celebrationSource).toContain('startRotationDegrees + rotationTravelDegrees * travelProgress,');
+    expect(celebrationSource).toContain('const delay = plan.delay * DICE_DELAY_SCALE;');
     expect(celebrationSource).toContain('const TEXT_ENTER_DELAY = 0.2;');
     expect(celebrationSource).toContain('const TEXT_HOLD_SECONDS = 0.6;');
-    expect(celebrationSource).toContain('return Math.max(...plans.map((plan) => plan.delay + plan.duration));');
+    expect(celebrationSource).toContain('return Math.max(...diceEndTimes);');
     expect(celebrationSource).toContain('Math.max(diceBurstDuration, textMotionDuration)');
     expect(celebrationSource).toContain("ease: 'back.out(2.0)'");
     expect(celebrationSource).toContain("ease: 'elastic.inOut(1, 0.2)'");
@@ -110,16 +124,45 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('domElementPool.acquire');
     expect(celebrationSource).toContain('domElementPool.release');
     expect(celebrationSource).toContain('animationManager.trackExternalTimeline');
-    expect(celebrationSource).toContain("const setX = gsap.quickSetter(die, 'x', 'px')");
-    expect(celebrationSource).toContain("const setY = gsap.quickSetter(die, 'y', 'px')");
-    expect(celebrationSource).toContain("const setRotation = gsap.quickSetter(die, 'rotation', 'deg')");
-    expect(celebrationSource).toContain("const setOpacity = gsap.quickSetter(die, 'opacity')");
-    expect(celebrationSource).toContain('const timeline = trackTimeline(run, { delay: plan.delay });');
-    expect(celebrationSource).toContain('scale: 1,');
-    expect(celebrationSource).not.toContain("gsap.quickSetter(die, 'scale')");
+    expect(celebrationSource).toContain('const keyframeCount = 31;');
+    expect(celebrationSource).toContain('const animation = die.animate(keyframes, {');
+    expect(celebrationSource).toContain("easing: 'linear'");
+    expect(celebrationSource).toContain("fill: 'both'");
+    expect(celebrationSource).toContain('run.compositorAnimations.push(animation);');
+    expect(celebrationSource).toContain('run.compositorAnimations.forEach((animation) => animation.cancel());');
+    expect(celebrationSource.match(/die\.style\.transform =/g)).toHaveLength(1);
+    expect(celebrationSource).not.toContain('gsap.quickSetter(die');
+    expect(celebrationSource).not.toContain('const masterClock = { time: 0 };');
+    expect(celebrationSource).not.toContain('onUpdate:');
+    expect(celebrationSource).not.toContain('gsap.set(die, {');
     expect(celebrationSource).not.toContain('plan.peakScale');
     expect(celebrationSource).not.toContain('plan.endScale');
     expect(celebrationSource).not.toMatch(/setTimeout|setInterval|requestAnimationFrame/);
+  });
+
+  test('composes centering, position, and rotation into one scale-free transform', () => {
+    expect(composeFinalMergeDieTransform(10, 20, 30, 76)).toBe(
+      'translate3d(-28px, -18px, 0) rotate(30deg)',
+    );
+    expect(composeFinalMergeDieTransform(-5.5, 8.25, -12.5, 50)).toBe(
+      'translate3d(-30.5px, -16.75px, 0) rotate(-12.5deg)',
+    );
+  });
+
+  test('uses the established sine-out travel rhythm without a fast-launch slow-tail discontinuity', () => {
+    expect(resolveFinalMergeDiceTravelProgress(-1)).toBe(0);
+    expect(resolveFinalMergeDiceTravelProgress(0.25)).toBeCloseTo(0.382683, 5);
+    expect(resolveFinalMergeDiceTravelProgress(0.5)).toBeCloseTo(0.707107, 5);
+    expect(resolveFinalMergeDiceTravelProgress(0.75)).toBeCloseTo(0.92388, 5);
+    expect(resolveFinalMergeDiceTravelProgress(2)).toBe(1);
+  });
+
+  test('limits each die to one random exit turn within 20 degrees left or right', () => {
+    expect(resolveFinalMergeDiceExitRotation(() => 0)).toBe(-20);
+    expect(resolveFinalMergeDiceExitRotation(() => 0.25)).toBe(-10);
+    expect(resolveFinalMergeDiceExitRotation(() => 0.5)).toBe(0);
+    expect(resolveFinalMergeDiceExitRotation(() => 0.75)).toBe(10);
+    expect(resolveFinalMergeDiceExitRotation(() => 1)).toBe(20);
   });
 
   test('splits dice into fixed large and small sizes without frame-scale oscillation', () => {
@@ -221,7 +264,7 @@ describe('final merge dice celebration contract', () => {
     const completion = playFinalMergeDiceCelebration();
 
     expect(document.querySelectorAll('.final-merge-dice-celebration')).toHaveLength(1);
-    expect(animationManager.getStats().activeTimelines - baseline.activeTimelines).toBe(27);
+    expect(animationManager.getStats().activeTimelines - baseline.activeTimelines).toBe(0);
     const dice = Array.from(document.querySelectorAll<HTMLElement>('.final-merge-text-die'));
     expect(dice).toHaveLength(27);
     expect(dice.map(({ dataset }) => Number(dataset.value)).every((value) => value >= 1 && value <= 5)).toBe(true);
@@ -229,7 +272,10 @@ describe('final merge dice celebration contract', () => {
     expect(diceSizes.filter((size) => size === 76)).toHaveLength(14);
     expect(diceSizes.filter((size) => size === 50)).toHaveLength(13);
     expect(dice.every((die) => die.style.backgroundImage.includes('4px'))).toBe(true);
+    expect(dice.every((die) => die.style.transform.includes('translate3d('))).toBe(true);
+    expect(dice.every((die) => !die.style.transform.includes('scale('))).toBe(true);
     expect(dice.every((die) => die.classList.contains('is-tnt-boom-burst'))).toBe(true);
+    expect(HTMLElement.prototype.animate).toHaveBeenCalledTimes(27);
 
     trackedCalls[0].progress(1, false);
     trackedCalls[1].progress(1, false);

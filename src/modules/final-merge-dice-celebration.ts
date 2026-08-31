@@ -23,7 +23,8 @@ const COPY_VIEWPORT_WIDTH_RATIO = 0.94;
 const COPY_MAX_WIDTH_PX = 520;
 const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;
 const DICE_FLIGHT_DISTANCE_SCALE = 1.2;
-const DICE_ROTATION_SCALE = 0.6;
+const DICE_MAX_EXIT_ROTATION_DEGREES = 20;
+const DICE_DELAY_SCALE = 0.5;
 const BOARD_GAME_RENDERED_DICE_SIZE_PX = 76;
 const SMALL_RENDERED_DICE_SIZE_PX = 50;
 const BOARD_SIZED_DICE_RATIO = 0.5;
@@ -41,6 +42,7 @@ const PIP_POINTS: Record<number, Array<[number, number]>> = {
 interface CelebrationRun {
   overlay: HTMLDivElement;
   pooledElements: HTMLElement[];
+  compositorAnimations: Animation[];
   timelines: gsap.core.Timeline[];
   delayedCalls: gsap.core.Tween[];
   resolve: () => void;
@@ -106,6 +108,7 @@ function finishRun(run: CelebrationRun): void {
   run.settled = true;
   run.delayedCalls.forEach((call) => animationManager.killExternalTween(call));
   run.timelines.forEach((timeline) => animationManager.killExternalTimeline(timeline));
+  run.compositorAnimations.forEach((animation) => animation.cancel());
   [...run.pooledElements].reverse().forEach((element) => {
     element.textContent = '';
     domElementPool.release(element);
@@ -187,12 +190,30 @@ export function applyFinalMergeDiceSizeProfile(plans: TntDiceDebrisPlan[]): void
   });
 }
 
+export function composeFinalMergeDieTransform(
+  offsetX: number,
+  offsetY: number,
+  rotationDegrees: number,
+  size: number,
+): string {
+  const halfSize = size * 0.5;
+  return `translate3d(${offsetX - halfSize}px, ${offsetY - halfSize}px, 0) rotate(${rotationDegrees}deg)`;
+}
+
+export function resolveFinalMergeDiceTravelProgress(progress: number): number {
+  const clampedProgress = Math.min(1, Math.max(0, progress));
+  return Math.sin(clampedProgress * Math.PI * 0.5);
+}
+
+export function resolveFinalMergeDiceExitRotation(random: () => number = Math.random): number {
+  return (random() * 2 - 1) * DICE_MAX_EXIT_ROTATION_DEGREES;
+}
+
 function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number {
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
   const centerX = viewportW * 0.5;
   const centerY = viewportH * DICE_EPICENTER_Y_RATIO;
-  const radiansToDegrees = 180 / Math.PI;
 
   // Use the exact authored TNT BOOM plan rather than a look-alike motion.
   const plans = createTntDiceDebrisPlans();
@@ -228,6 +249,8 @@ function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number 
   applyFinalMergeDiceSizeProfile(plans);
   separateFinalMergeDiceFlightEnds(plans);
 
+  const diceEndTimes: number[] = [];
+
   plans.forEach((plan) => {
     // The celebration's authored copy asks for faces 1-5; motion remains the
     // exact TNT plan even when its generated sixth face is mapped back to 1.
@@ -246,51 +269,55 @@ function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number 
       'transform-origin:center center', 'backface-visibility:hidden',
       'filter:drop-shadow(0 5px 5px rgba(85,49,31,.18))',
     ].join(';');
-    run.overlay.appendChild(die);
-    gsap.set(die, {
-      xPercent: -50,
-      yPercent: -50,
-      x: plan.startX,
-      y: plan.startY,
-      scale: 1,
-      opacity: 0,
-      rotation: plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees,
-      force3D: true,
-    });
 
-    const flight = { progress: 0 };
     const directionX = Math.cos(plan.angle);
     const directionY = Math.sin(plan.angle);
     const travelX = directionX * plan.distance;
     const travelY = directionY * plan.distance;
     const curveX = -directionY;
     const curveY = directionX;
-    const startRotationDegrees = plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees;
-    const rotationTravelDegrees = plan.rotationTravel * DICE_ROTATION_SCALE * radiansToDegrees;
-    const setX = gsap.quickSetter(die, 'x', 'px') as (value: number) => void;
-    const setY = gsap.quickSetter(die, 'y', 'px') as (value: number) => void;
-    const setRotation = gsap.quickSetter(die, 'rotation', 'deg') as (value: number) => void;
-    const setOpacity = gsap.quickSetter(die, 'opacity') as (value: number) => void;
-    const timeline = trackTimeline(run, { delay: plan.delay });
-    timeline.to(flight, {
-      progress: 1,
-      duration: plan.duration,
-      ease: 'none',
-      onUpdate: () => {
-        if (run.settled || !die.isConnected) return;
-        const progress = flight.progress;
-        const impulse = 1 - Math.pow(1 - progress, 2.35);
-        const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
-        const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
-        const popIn = Math.min(1, progress / 0.12);
-        setX(plan.startX + travelX * impulse + curveX * curveEnvelope);
-        setY(plan.startY + travelY * impulse + curveY * curveEnvelope + 28 * progress * progress);
-        setRotation(startRotationDegrees + rotationTravelDegrees * impulse);
-        setOpacity(popIn * (1 - fadeOut));
-      },
+    const startRotationDegrees = 0;
+    const rotationTravelDegrees = resolveFinalMergeDiceExitRotation();
+    const delay = plan.delay * DICE_DELAY_SCALE;
+    die.style.transform = composeFinalMergeDieTransform(plan.startX, plan.startY, startRotationDegrees, size);
+    die.style.opacity = '0';
+    run.overlay.appendChild(die);
+
+    // Pre-sample the authored curve once, then hand transform/opacity ownership
+    // to WebKit's compositor. This removes the JS work that previously rewrote
+    // all 27 dice on every display frame while preserving the same path math.
+    const keyframeCount = 31;
+    const keyframes: Keyframe[] = Array.from({ length: keyframeCount }, (_, index) => {
+      const progress = index / (keyframeCount - 1);
+      const travelProgress = resolveFinalMergeDiceTravelProgress(progress);
+      const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
+      const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
+      const popIn = Math.min(1, progress / 0.12);
+      const x = plan.startX + travelX * travelProgress + curveX * curveEnvelope;
+      const y = plan.startY + travelY * travelProgress + curveY * curveEnvelope
+        + 28 * progress * progress;
+      return {
+        offset: progress,
+        transform: composeFinalMergeDieTransform(
+          x,
+          y,
+          startRotationDegrees + rotationTravelDegrees * travelProgress,
+          size,
+        ),
+        opacity: popIn * (1 - fadeOut),
+      };
     });
+    const animation = die.animate(keyframes, {
+      duration: plan.duration * 1000,
+      delay: delay * 1000,
+      easing: 'linear',
+      fill: 'both',
+    });
+    run.compositorAnimations.push(animation);
+    diceEndTimes.push(delay + plan.duration);
   });
-  return Math.max(...plans.map((plan) => plan.delay + plan.duration));
+
+  return Math.max(...diceEndTimes);
 }
 
 function getTextExitDuration(letterCount: number): number {
@@ -399,6 +426,7 @@ export function playFinalMergeDiceCelebration(): Promise<void> {
   const run: CelebrationRun = {
     overlay,
     pooledElements: [],
+    compositorAnimations: [],
     timelines: [],
     delayedCalls: [],
     resolve: resolveFinished,
