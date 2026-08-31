@@ -24,6 +24,11 @@ const COPY_MAX_WIDTH_PX = 520;
 const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;
 const DICE_FLIGHT_DISTANCE_SCALE = 1.2;
 const DICE_ROTATION_SCALE = 0.6;
+const BOARD_GAME_RENDERED_DICE_SIZE_PX = 76;
+const SMALL_RENDERED_DICE_SIZE_PX = 50;
+const BOARD_SIZED_DICE_RATIO = 0.5;
+const DICE_PIP_RADIUS_PX = 4;
+const DICE_PIP_EDGE_PX = 4.8;
 
 const PIP_POINTS: Record<number, Array<[number, number]>> = {
   1: [[50, 50]],
@@ -91,7 +96,7 @@ export function splitFinalMergeCelebrationMessage(
 
 function diceBackground(value: number): string {
   const pips = (PIP_POINTS[value] || PIP_POINTS[1]).map(([x, y]) => (
-    `radial-gradient(circle at ${x}% ${y}%, #765244 0 5.7%, transparent 6.4%)`
+    `radial-gradient(circle at ${x}% ${y}%, #765244 0 ${DICE_PIP_RADIUS_PX}px, transparent ${DICE_PIP_EDGE_PX}px)`
   ));
   return [...pips, 'url("./assets/tile.png")'].join(',');
 }
@@ -171,6 +176,17 @@ export function arrangeFinalMergeDiceBurstOrigins(
   });
 }
 
+export function applyFinalMergeDiceSizeProfile(plans: TntDiceDebrisPlan[]): void {
+  const boardSizedCount = Math.round(plans.length * BOARD_SIZED_DICE_RATIO);
+  plans.forEach((plan, index) => {
+    const countBefore = Math.floor(index * boardSizedCount / plans.length);
+    const countThroughCurrent = Math.floor((index + 1) * boardSizedCount / plans.length);
+    plan.size = countThroughCurrent > countBefore
+      ? BOARD_GAME_RENDERED_DICE_SIZE_PX
+      : SMALL_RENDERED_DICE_SIZE_PX;
+  });
+}
+
 function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number {
   const viewportW = Math.max(320, window.innerWidth || 390);
   const viewportH = Math.max(520, window.innerHeight || 844);
@@ -209,6 +225,7 @@ function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number 
   }
   arrangeFinalMergeDiceBurstOrigins(plans, Math.random, copyWidth);
   plans.forEach((plan) => { plan.distance *= DICE_FLIGHT_DISTANCE_SCALE; });
+  applyFinalMergeDiceSizeProfile(plans);
   separateFinalMergeDiceFlightEnds(plans);
 
   plans.forEach((plan) => {
@@ -235,15 +252,25 @@ function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number 
       yPercent: -50,
       x: plan.startX,
       y: plan.startY,
-      scale: plan.startScale,
+      scale: 1,
       opacity: 0,
       rotation: plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees,
       force3D: true,
     });
 
     const flight = { progress: 0 };
-    const perpendicularX = -Math.sin(plan.angle);
-    const perpendicularY = Math.cos(plan.angle);
+    const directionX = Math.cos(plan.angle);
+    const directionY = Math.sin(plan.angle);
+    const travelX = directionX * plan.distance;
+    const travelY = directionY * plan.distance;
+    const curveX = -directionY;
+    const curveY = directionX;
+    const startRotationDegrees = plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees;
+    const rotationTravelDegrees = plan.rotationTravel * DICE_ROTATION_SCALE * radiansToDegrees;
+    const setX = gsap.quickSetter(die, 'x', 'px') as (value: number) => void;
+    const setY = gsap.quickSetter(die, 'y', 'px') as (value: number) => void;
+    const setRotation = gsap.quickSetter(die, 'rotation', 'deg') as (value: number) => void;
+    const setOpacity = gsap.quickSetter(die, 'opacity') as (value: number) => void;
     const timeline = trackTimeline(run, { delay: plan.delay });
     timeline.to(flight, {
       progress: 1,
@@ -256,21 +283,10 @@ function attachTntBoomDiceBurst(run: CelebrationRun, copyWidth: number): number 
         const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;
         const fadeOut = Math.max(0, (progress - 0.78) / 0.22);
         const popIn = Math.min(1, progress / 0.12);
-        const liveScale = plan.startScale + (plan.peakScale - plan.startScale) * popIn;
-        const scale = liveScale + (plan.endScale - liveScale) * fadeOut;
-        gsap.set(die, {
-          x: plan.startX
-            + Math.cos(plan.angle) * plan.distance * impulse
-            + perpendicularX * curveEnvelope,
-          y: plan.startY
-            + Math.sin(plan.angle) * plan.distance * impulse
-            + perpendicularY * curveEnvelope
-            + 28 * progress * progress,
-          rotation: (plan.startRotation + plan.rotationTravel * impulse)
-            * DICE_ROTATION_SCALE * radiansToDegrees,
-          scale,
-          opacity: popIn * (1 - fadeOut),
-        });
+        setX(plan.startX + travelX * impulse + curveX * curveEnvelope);
+        setY(plan.startY + travelY * impulse + curveY * curveEnvelope + 28 * progress * progress);
+        setRotation(startRotationDegrees + rotationTravelDegrees * impulse);
+        setOpacity(popIn * (1 - fadeOut));
       },
     });
   });

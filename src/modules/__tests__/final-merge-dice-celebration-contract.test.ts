@@ -7,6 +7,7 @@ import {
   cleanupFinalMergeDiceCelebration,
   FINAL_MERGE_CELEBRATION_MESSAGE,
   playFinalMergeDiceCelebration,
+  applyFinalMergeDiceSizeProfile,
   arrangeFinalMergeDiceBurstOrigins,
   separateFinalMergeDiceFlightEnds,
   splitFinalMergeCelebrationMessage,
@@ -64,8 +65,15 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('const DICE_EPICENTER_Y_RATIO = 0.5 * 0.85;');
     expect(celebrationSource).toContain('const DICE_FLIGHT_DISTANCE_SCALE = 1.2;');
     expect(celebrationSource).toContain('const DICE_ROTATION_SCALE = 0.6;');
+    expect(celebrationSource).toContain('const BOARD_GAME_RENDERED_DICE_SIZE_PX = 76;');
+    expect(celebrationSource).toContain('const SMALL_RENDERED_DICE_SIZE_PX = 50;');
+    expect(celebrationSource).toContain('const BOARD_SIZED_DICE_RATIO = 0.5;');
+    expect(celebrationSource).toContain('const DICE_PIP_RADIUS_PX = 4;');
+    expect(celebrationSource).toContain('const DICE_PIP_EDGE_PX = 4.8;');
+    expect(celebrationSource).toContain('#765244 0 ${DICE_PIP_RADIUS_PX}px, transparent ${DICE_PIP_EDGE_PX}px');
     expect(celebrationSource).toContain('const centerY = viewportH * DICE_EPICENTER_Y_RATIO;');
     expect(celebrationSource).toContain('plan.distance *= DICE_FLIGHT_DISTANCE_SCALE;');
+    expect(celebrationSource).toContain('applyFinalMergeDiceSizeProfile(plans);');
     expect(celebrationSource).toContain('laneProgress * copyWidth');
     expect(celebrationSource).toContain('attachTntBoomDiceBurst(run, renderedCopyWidth)');
     expect(celebrationSource).toContain('separateFinalMergeDiceFlightEnds(plans);');
@@ -74,8 +82,9 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('const impulse = 1 - Math.pow(1 - progress, 2.35);');
     expect(celebrationSource).toContain('const curveEnvelope = Math.sin(Math.PI * progress) * plan.curve;');
     expect(celebrationSource).toContain('+ 28 * progress * progress');
-    expect(celebrationSource).toContain('rotation: (plan.startRotation + plan.rotationTravel * impulse)');
-    expect(celebrationSource).toContain('* DICE_ROTATION_SCALE * radiansToDegrees');
+    expect(celebrationSource).toContain('const startRotationDegrees = plan.startRotation * DICE_ROTATION_SCALE * radiansToDegrees;');
+    expect(celebrationSource).toContain('const rotationTravelDegrees = plan.rotationTravel * DICE_ROTATION_SCALE * radiansToDegrees;');
+    expect(celebrationSource).toContain('setRotation(startRotationDegrees + rotationTravelDegrees * impulse);');
     expect(celebrationSource).toContain('duration: plan.duration');
     expect(celebrationSource).toContain('delay: plan.delay');
     expect(celebrationSource).toContain('const TEXT_ENTER_DELAY = 0.2;');
@@ -101,7 +110,35 @@ describe('final merge dice celebration contract', () => {
     expect(celebrationSource).toContain('domElementPool.acquire');
     expect(celebrationSource).toContain('domElementPool.release');
     expect(celebrationSource).toContain('animationManager.trackExternalTimeline');
+    expect(celebrationSource).toContain("const setX = gsap.quickSetter(die, 'x', 'px')");
+    expect(celebrationSource).toContain("const setY = gsap.quickSetter(die, 'y', 'px')");
+    expect(celebrationSource).toContain("const setRotation = gsap.quickSetter(die, 'rotation', 'deg')");
+    expect(celebrationSource).toContain("const setOpacity = gsap.quickSetter(die, 'opacity')");
+    expect(celebrationSource).toContain('const timeline = trackTimeline(run, { delay: plan.delay });');
+    expect(celebrationSource).toContain('scale: 1,');
+    expect(celebrationSource).not.toContain("gsap.quickSetter(die, 'scale')");
+    expect(celebrationSource).not.toContain('plan.peakScale');
+    expect(celebrationSource).not.toContain('plan.endScale');
     expect(celebrationSource).not.toMatch(/setTimeout|setInterval|requestAnimationFrame/);
+  });
+
+  test('splits dice into fixed large and small sizes without frame-scale oscillation', () => {
+    const sourcePlans = createTntDiceDebrisPlans(() => 0.5);
+    const plans = Array.from({ length: 27 }, (_, index) => ({
+      ...sourcePlans[index % sourcePlans.length],
+      size: 36 + index % 23,
+    }));
+    applyFinalMergeDiceSizeProfile(plans);
+
+    const boardSizedIndices = plans
+      .map((plan, index) => ({ index, size: plan.size }))
+      .filter(({ size }) => size === 76)
+      .map(({ index }) => index);
+    expect(boardSizedIndices).toHaveLength(14);
+    expect(boardSizedIndices).toEqual([1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 26]);
+    plans.forEach((plan, index) => {
+      if (!boardSizedIndices.includes(index)) expect(plan.size).toBe(50);
+    });
   });
 
   test('launches near the copy with guaranteed randomized northern coverage', () => {
@@ -184,10 +221,14 @@ describe('final merge dice celebration contract', () => {
     const completion = playFinalMergeDiceCelebration();
 
     expect(document.querySelectorAll('.final-merge-dice-celebration')).toHaveLength(1);
+    expect(animationManager.getStats().activeTimelines - baseline.activeTimelines).toBe(27);
     const dice = Array.from(document.querySelectorAll<HTMLElement>('.final-merge-text-die'));
     expect(dice).toHaveLength(27);
     expect(dice.map(({ dataset }) => Number(dataset.value)).every((value) => value >= 1 && value <= 5)).toBe(true);
-    expect(dice.map(({ dataset }) => Number(dataset.size)).every((size) => size >= 36 && size <= 58)).toBe(true);
+    const diceSizes = dice.map(({ dataset }) => Number(dataset.size));
+    expect(diceSizes.filter((size) => size === 76)).toHaveLength(14);
+    expect(diceSizes.filter((size) => size === 50)).toHaveLength(13);
+    expect(dice.every((die) => die.style.backgroundImage.includes('4px'))).toBe(true);
     expect(dice.every((die) => die.classList.contains('is-tnt-boom-burst'))).toBe(true);
 
     trackedCalls[0].progress(1, false);

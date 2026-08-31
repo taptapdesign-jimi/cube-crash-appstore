@@ -61,6 +61,15 @@ describe('mobile resource architecture', () => {
     expect(styles).not.toContain('transform: translate(-50%, -105px) scale(0.82);');
   });
 
+  test('keeps both flex children mounted until the complete launch exit is removed', () => {
+    const launch = read('src/modules/launch-screen.ts');
+
+    expect(launch).not.toContain("studioCharacter.style.display = 'none';");
+    expect(launch).not.toContain("studioLogoUnit.style.display = 'none';");
+    expect(launch).toContain("studioPresentsContainer.style.display = 'none';");
+    expect(launch).toContain('this.remove();');
+  });
+
   test('production continuous diagnostics are opt-in and the scroll probe is DEV-only', () => {
     const policy = read('src/utils/runtime-diagnostics-policy.ts');
     const collectibles = read('src/collectibles-manager.ts');

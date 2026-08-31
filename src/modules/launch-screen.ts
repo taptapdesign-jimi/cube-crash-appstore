@@ -526,7 +526,9 @@ class LaunchScreen {
         force3D: true,
         onInterrupt: resolve,
         onComplete: () => {
-          studioCharacter.style.display = 'none';
+          // Keep the zero-scale child in the centered flex layout until the
+          // complete composition exits; display:none here recenters the logo
+          // mid-flight and visually reads as a duplicated second exit.
           logger.info('✅ Studio character exit complete');
           resolve();
         }
@@ -542,7 +544,6 @@ class LaunchScreen {
           force3D: true,
           onInterrupt: resolve,
           onComplete: () => {
-            studioLogoUnit.style.display = 'none';
             logger.info('✅ Studio logo exit complete');
             resolve();
           }

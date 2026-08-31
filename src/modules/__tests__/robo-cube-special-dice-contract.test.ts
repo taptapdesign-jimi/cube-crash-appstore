@@ -260,6 +260,10 @@ describe('Robo Cube special die', () => {
     expect(juiceSource).toContain('delay: roboNeonGravityExitStartSeconds');
     expect(juiceSource).toContain("traceRoboFinale('shared-exit-start'");
     expect(juiceSource).toContain("traceRoboFinale('head-exit-start')");
+    expect(juiceSource).toContain('const exitFrameIndex = selectRoboExitFrameIndex(');
+    expect(juiceSource).toContain('lastRoboExitFrameIndex = exitFrameIndex');
+    expect(juiceSource).toContain('robot.texture = exitTexture');
+    expect(juiceSource).toContain("traceRoboFinale('head-exit-frame-selected'");
     expect(juiceSource).toContain("traceRoboFinale('visual-exit-complete')");
     expect(juiceSource).toContain('const liveNeonSprites = neonSprites');
     expect(juiceSource).toContain("onStart: () => traceRoboFinale('shared-exit-start'");

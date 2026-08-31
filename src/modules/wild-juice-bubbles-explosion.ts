@@ -15,6 +15,7 @@ import { createMushroomSporeFlightProfiles } from './mushroom-spore-flight-plan.
 import { applyGameplayTextureFiltering } from './gameplay-texture-filtering.ts';
 import { acquirePixiMobileActivityLease } from './pixi-mobile-frame-controller.ts';
 import { applyEffectLetterOpacity, resolveEffectLetterOpacity } from './effect-letter-opacity.ts';
+import { selectRoboExitFrameIndex } from './robo-exit-frame-selector.ts';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -63,6 +64,7 @@ let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyDelayedCallsRef: gsap.core.Tween[] = [];
 let bubblyFxCleanup: (() => void) | null = null;
 let releaseExplosionMobileActivity: (() => void) | null = null;
+let lastRoboExitFrameIndex: number | null = null;
 const lifecycle = createScreenLifecycle('wild-juice-bubbles-explosion');
 const WILD_JUICE_HAPTIC_INITIAL_COUNT = 3;
 const WILD_JUICE_HAPTIC_INITIAL_INTERVAL_MS = 70;
@@ -1533,6 +1535,21 @@ async function showWildJuiceBubblesExplosionInternal(
         rotation: Math.sign(robotGravityDriftX || 1) * 1.60,
         duration: ROBO_HEAD_GRAVITY_FALL_SECONDS,
         ease: 'power2.in',
+        onStart: () => {
+          if (robot.destroyed) return;
+          const currentFrameIndex = bubbleTextures.indexOf(robot.texture);
+          const exitFrameIndex = selectRoboExitFrameIndex(
+            bubbleTextures.length,
+            currentFrameIndex,
+            lastRoboExitFrameIndex,
+          );
+          const exitTexture = exitFrameIndex == null ? null : bubbleTextures[exitFrameIndex];
+          if (!exitTexture) return;
+          lastRoboExitFrameIndex = exitFrameIndex;
+          robot.texture = exitTexture;
+          applyGameplayTextureFiltering(robot.texture);
+          traceRoboFinale('head-exit-frame-selected', { frame: exitFrameIndex + 1 });
+        },
         onComplete: () => {
           robot.alpha = 0;
           robotExitComplete = true;
