@@ -70,6 +70,17 @@ export const LASERGUN_PREFIRE_SETTLE_SECONDS = 0.16 * LASERGUN_GUN_TIME_SCALE;
 export const LASERGUN_BEAM_LAUNCH_SCALE = 0.06;
 export const LASERGUN_BEAM_TRAVEL_SECONDS = 0.095;
 export const LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0.3;
+// The complete 1 -> 6 firing run fills the accepted 300ms cube lead. This
+// gives every PNG one continuous paint interval and lands on frame 6 exactly
+// when the beam launches, instead of joining two timelines around a stale
+// frame 5/6 hold.
+export const LASERGUN_FIRE_FRAME_STEP_SECONDS = (
+  LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS / (LASERGUN_FRAME_SOURCES.length - 1)
+);
+// Commit frame 6 one 60Hz paint before beam opacity changes. WebKit can
+// otherwise composite the beam before an IMG src swap scheduled at the exact
+// same GSAP timestamp, producing a one-frame flash of the prior bitmap.
+export const LASERGUN_FRAME6_PAINT_LEAD_SECONDS = 1 / 60;
 // Keep the completed beam painted across the cube reaction before fading.
 export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.24;
 export const LASERGUN_BEAM_FADE_SECONDS = 0.07;
@@ -391,6 +402,7 @@ function createGunRig(className: string, side: LaserGunShooter, slot: number): {
     `transform:${side === 'left' ? LASERGUN_UPPER_GUN_TRANSFORM : 'none'}`,
   ].join(';');
   const image = createImage(LASERGUN_FRAME_SOURCES[0], 'cc-lasergun-frame');
+  image.dataset.lasergunFrame = '1';
   image.style.cssText += ';inset:0;width:100%;height:100%;object-fit:contain';
   image.style.transformOrigin = '24% 32%';
   const aim = document.createElement('div');
@@ -434,14 +446,9 @@ export function attachLaserGunFinaleScene(
     resolveEntryReadiness(readiness);
   };
   const ownedTimelines: gsap.core.Timeline[] = [];
-  const ownedTweens: gsap.core.Tween[] = [];
   const own = (timeline: gsap.core.Timeline): gsap.core.Timeline => {
     ownedTimelines.push(timeline);
     return animationManager.trackExternalTimeline(timeline);
-  };
-  const ownTween = (tween: gsap.core.Tween): gsap.core.Tween => {
-    ownedTweens.push(tween);
-    return animationManager.trackExternalTween(tween);
   };
 
   const field = document.createElement('div');
@@ -701,11 +708,21 @@ export function attachLaserGunFinaleScene(
     resolveBeamLaunchReadiness: ((launched: boolean) => void) | null;
     beamFinalScaleX: number;
     beamFinalScaleY: number;
-    beamLaunchDelay: gsap.core.Tween | null;
+    beamLaunchDelay: gsap.core.Animation | null;
     impactTimeline: gsap.core.Timeline | null;
   };
   const shotStates: ShotState[] = [];
   const triggeredImpacts = new Set<number>();
+
+  const setGunFrame = (shot: ShotState, frameIndex: number): void => {
+    const boundedIndex = Math.max(0, Math.min(LASERGUN_FRAME_SOURCES.length - 1, frameIndex));
+    shot.gun.image.dataset.lasergunFrame = String(boundedIndex + 1);
+    shot.gun.image.src = LASERGUN_FRAME_SOURCES[boundedIndex];
+  };
+
+  const settleGunRestFrame = (shot: ShotState): void => {
+    setGunFrame(shot, 0);
+  };
 
   const resetShotPreparation = (shot: ShotState): void => {
     if (shot.frameA !== null) window.cancelAnimationFrame(shot.frameA);
@@ -762,6 +779,7 @@ export function attachLaserGunFinaleScene(
     const exit = own(gsap.timeline({
       paused: true,
       onComplete: () => {
+        settleGunRestFrame(shot);
         shot.exitCompleted = true;
         rig.style.visibility = 'hidden';
         maybeFinishSequence();
@@ -782,7 +800,7 @@ export function attachLaserGunFinaleScene(
   const startShotEntry = (shot: ShotState | undefined): void => {
     if (!shot || disposed || finalExitStarted || shot.entryStarted) return;
     shot.entryStarted = true;
-    shot.gun.image.src = LASERGUN_FRAME_SOURCES[0];
+    settleGunRestFrame(shot);
     shot.gun.rig.style.visibility = 'visible';
     gsap.set(shot.gun.image, { scale: 0.88, transformOrigin: '24% 32%' });
     const entry = own(gsap.timeline({ paused: true }));
@@ -1001,19 +1019,13 @@ export function attachLaserGunFinaleScene(
     // a visible gun toward a new angle.
     shot.impactPending = false;
     gsap.set(shot.beamPlan.image, { opacity: 0 });
-    shot.gun.image.src = LASERGUN_FRAME_SOURCES[0];
+    settleGunRestFrame(shot);
     startShotEntry(shot);
 
     const readiness = new Promise<boolean>((resolve) => {
       shot.resolvePoseReadiness = resolve;
     });
     const preflight = own(gsap.timeline({ paused: true }));
-    LASERGUN_FRAME_SOURCES.slice(1, 5).forEach((frameSource, frameIndex) => {
-      preflight.call(() => {
-        if (disposed || finalExitStarted || shot.exitStarted) return;
-        shot.gun.image.src = frameSource;
-      }, undefined, LASERGUN_BUILDUP_START_SECONDS + frameIndex * LASERGUN_FRAME_STEP_SECONDS);
-    });
     preflight.to({}, {
       duration: LASERGUN_PREFIRE_SETTLE_SECONDS,
     }, LASERGUN_BUILDUP_START_SECONDS);
@@ -1031,15 +1043,39 @@ export function attachLaserGunFinaleScene(
     return readiness;
   };
 
-  const playGunReturnFrames = (shot: ShotState): void => {
-    const tail = own(gsap.timeline({ paused: true }));
-    LASERGUN_FRAME_SOURCES.slice(0, 5).reverse().forEach((frameSource, frameIndex) => {
-      tail.call(() => {
-        if (disposed) return;
-        shot.gun.image.src = frameSource;
-      }, undefined, (frameIndex + 1) * LASERGUN_FRAME_STEP_SECONDS);
+  const playGunFiringFlow = (shot: ShotState): gsap.core.Timeline => {
+    settleGunRestFrame(shot);
+    const firing = own(gsap.timeline({
+      paused: true,
+      // Converge after the uninterrupted visible return. Interruption must not
+      // inject frame 1 between frame 6 and the remaining reverse frames; the
+      // hidden exit completion owns that final safety convergence.
+      onComplete: () => settleGunRestFrame(shot),
+    }));
+    LASERGUN_FRAME_SOURCES.slice(1).forEach((_frameSource, frameIndex) => {
+      firing.call(() => {
+        if (disposed || finalExitStarted || shot.exitStarted) return;
+        setGunFrame(shot, frameIndex + 1);
+      }, undefined, frameIndex === LASERGUN_FRAME_SOURCES.length - 2
+        ? LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS - LASERGUN_FRAME6_PAINT_LEAD_SECONDS
+        : (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS);
     });
-    tail.play(0);
+    firing.call(() => {
+      if (disposed || finalExitStarted || shot.exitStarted) return;
+      revealRequestedBeam(shot);
+      settleBeamLaunch(shot, shot.beamVisible);
+    }, undefined, LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);
+    LASERGUN_FRAME_SOURCES.slice(0, 5).reverse().forEach((_frameSource, frameIndex) => {
+      firing.call(() => {
+        if (disposed) return;
+        setGunFrame(shot, LASERGUN_FRAME_SOURCES.length - 2 - frameIndex);
+      }, undefined, (
+        LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS
+        + (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS
+      ));
+    });
+    firing.play(0);
+    return firing;
   };
 
   const controller: LaserGunFinaleController = {
@@ -1200,22 +1236,14 @@ export function attachLaserGunFinaleScene(
       const startCubeReaction = shot.onBeamLaunch;
       shot.onBeamLaunch = null;
       try { startCubeReaction?.(); } catch {}
-      shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
       shot.impactPending = true;
       if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0) {
-        shot.beamLaunchDelay = ownTween(gsap.delayedCall(
-          LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
-          () => {
-            shot.beamLaunchDelay = null;
-            revealRequestedBeam(shot);
-            settleBeamLaunch(shot, shot.beamVisible);
-          },
-        ));
+        shot.beamLaunchDelay = playGunFiringFlow(shot);
       } else {
+        setGunFrame(shot, 5);
         revealRequestedBeam(shot);
         settleBeamLaunch(shot, shot.beamVisible);
       }
-      playGunReturnFrames(shot);
       return true;
     },
         waitForImpactArrival: (index) => (
@@ -1251,9 +1279,6 @@ export function attachLaserGunFinaleScene(
     if (activeController === controller) activeController = null;
     ownedTimelines.splice(0).forEach((timeline) => {
       try { timeline.kill(); } catch {}
-    });
-    ownedTweens.splice(0).forEach((tween) => {
-      try { tween.kill(); } catch {}
     });
         shotStates.forEach((shot) => {
       resetShotPreparation(shot);

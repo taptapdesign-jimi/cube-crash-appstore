@@ -436,13 +436,15 @@ describe('LaserGun special die contract', () => {
     expect(scene).toContain('const { gun, beamPlan } = ensureGunBeamPair(shooter, sideIndex)');
     expect(scene).toContain('} = assignedShots[index]');
     expect(scene).not.toContain('startShotEntry(shotStates[0])');
-    expect(scene).toContain('startBeamTravel(shot);\n    startGunExit(shot);');
     expect(scene).toContain('if (shot.entryStarted) return Promise.resolve(false);');
     expect(scene).toContain('shot.localTarget = liveLocalTarget;');
     expect(scene).toContain('}, LASERGUN_EXIT_DELAY_SECONDS);');
     expect(scene).toContain('getLaserGunRandomScales(boundedTargets.length, random)');
-    expect(scene).toContain('LASERGUN_FRAME_SOURCES.slice(1, 5)');
-    expect(scene).toContain('shot.gun.image.src = LASERGUN_FRAME_SOURCES[5]');
+    expect(scene).toContain('const playGunFiringFlow = (shot: ShotState): gsap.core.Timeline =>');
+    expect(scene).toContain('LASERGUN_FRAME_SOURCES.slice(1).forEach');
+    expect(scene).toContain('revealRequestedBeam(shot);\n      settleBeamLaunch(shot, shot.beamVisible);');
+    expect(scene).toContain('LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS\n        + (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS');
+    expect(scene).toContain('shot.beamLaunchDelay = playGunFiringFlow(shot);');
     expect(scene).toContain('LASERGUN_FRAME_SOURCES.slice(0, 5).reverse()');
     expect(scene).not.toContain('preflight.to(shot.gun.aim');
     expect(scene).not.toContain('rotation: entryRotation');

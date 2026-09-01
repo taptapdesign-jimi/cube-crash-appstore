@@ -20,7 +20,8 @@ import {
   LASERGUN_ENTRY_DURATION_SECONDS,
   LASERGUN_EXIT_DELAY_SECONDS,
   LASERGUN_EXIT_TRAVEL_SECONDS,
-  LASERGUN_FRAME_STEP_SECONDS,
+  LASERGUN_FIRE_FRAME_STEP_SECONDS,
+  LASERGUN_FRAME6_PAINT_LEAD_SECONDS,
   LASERGUN_FRAME_SOURCES,
   LASERGUN_LEFT_BEAM_GEOMETRY,
   LASERGUN_MAX_TARGETS,
@@ -89,11 +90,12 @@ describe('LaserGun finale lifecycle', () => {
     const delay = [...gsap.globalTimeline.getChildren(true, true, true)]
       .reverse()
       .find((animation) => (
-        Math.abs(animation.delay() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS) < 0.001
+        animation instanceof gsap.core.Timeline
+        && Math.abs(animation.duration() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS * 2) < 0.001
         && animation.totalProgress() < 1
       ));
     expect(delay).toBeDefined();
-    delay!.totalProgress(1);
+    delay!.time(LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS, false);
   };
 
   const enterAndPaint = async (
@@ -223,11 +225,11 @@ describe('LaserGun finale lifecycle', () => {
       expect(gsap.getTweensOf(aim)).toHaveLength(0);
       const preflight = findNewPreflight(animationsBefore);
       preflight.time(LASERGUN_BUILDUP_START_SECONDS, false);
-      expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[1].replace('./', '/'));
+      expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
       expect(Number(gsap.getProperty(aim, 'rotation'))).toBeCloseTo(lockedAimRotation, 6);
       expect(Number(gsap.getProperty(gun, 'rotation'))).toBeCloseTo(lockedRigRotation, 6);
       preflight.progress(1);
-      expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[4].replace('./', '/'));
+      expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
       expect(frame.src).not.toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
       expect(Number(gsap.getProperty(aim, 'rotation'))).toBeCloseTo(lockedAimRotation, 6);
       expect(Number(gsap.getProperty(gun, 'rotation'))).toBeCloseTo(lockedRigRotation, 6);
@@ -280,7 +282,7 @@ describe('LaserGun finale lifecycle', () => {
     const aim = gun.querySelector('.cc-lasergun-aim') as HTMLElement;
     expect(gsap.getTweensOf(aim)).toHaveLength(0);
     findNewPreflight(animationsBefore).progress(1);
-    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[4].replace('./', '/'));
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
     expect(beam.style.opacity).toBe('0');
     expect(poseSettled).toBe(false);
 
@@ -289,10 +291,71 @@ describe('LaserGun finale lifecycle', () => {
     flushRafQueue(frames);
     await expect(poseReadiness).resolves.toBe(true);
     expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
-    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
+    expect(beam.style.opacity).toBe('0');
+    const firstFiringFlow = gsap.globalTimeline.getChildren(true, true, true)
+      .find((animation) => (
+        animation instanceof gsap.core.Timeline
+        && Math.abs(animation.duration() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS * 2) < 0.001
+      )) as gsap.core.Timeline | undefined;
+    expect(firstFiringFlow).toBeDefined();
+    firstFiringFlow!.time(
+      LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS - LASERGUN_FRAME6_PAINT_LEAD_SECONDS,
+      false,
+    );
+    expect(frame.dataset.lasergunFrame).toBe('6');
     expect(beam.style.opacity).toBe('0');
     completeBeamLaunchDelay();
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
     expect(beam.style.opacity).toBe('1');
+    const exitTween = gsap.getTweensOf(gun)
+      .find((tween) => Math.abs(tween.duration() - LASERGUN_EXIT_TRAVEL_SECONDS) < 0.001)!;
+    const exitFlow = exitTween.parent as gsap.core.Timeline;
+    exitFlow.time(LASERGUN_EXIT_DELAY_SECONDS + 0.0001, false);
+    // Starting the exit owner must not insert frame 1 between firing frame 6
+    // and the uninterrupted 6 -> 5 -> 4 -> 3 -> 2 -> 1 return.
+    expect(frame.dataset.lasergunFrame).toBe('6');
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
+    LASERGUN_FRAME_SOURCES.slice(0, 5).reverse().forEach((source, frameIndex) => {
+      firstFiringFlow!.time(
+        LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS
+          + (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS
+          + 0.0001,
+        false,
+      );
+      expect(frame.src).toContain(source.replace('./', '/'));
+    });
+    firstFiringFlow!.totalProgress(1);
+    expect(frame.dataset.lasergunFrame).toBe('1');
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[0].replace('./', '/'));
+    cleanup();
+  });
+
+  test('does not inject frame 1 when a visible first-gun sprite tail is interrupted', async () => {
+    const frames = installRafQueue();
+    const overlay = document.createElement('div');
+    document.body.appendChild(overlay);
+    const cleanup = attachLaserGunFinaleScene(overlay, { random: () => 0.5 });
+    await enterAndPaint(overlay, frames);
+    await prepareShot(overlay, frames, 0);
+
+    expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
+    const firing = gsap.globalTimeline.getChildren(true, true, true)
+      .find((animation) => (
+        animation instanceof gsap.core.Timeline
+        && Math.abs(animation.duration() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS * 2) < 0.001
+      )) as gsap.core.Timeline | undefined;
+    expect(firing).toBeDefined();
+    firing!.time(LASERGUN_FIRE_FRAME_STEP_SECONDS * 4 + 0.0001, false);
+    const frame = overlay.querySelector(
+      '.cc-lasergun-rig[data-lasergun-target="0"] .cc-lasergun-frame',
+    ) as HTMLImageElement;
+    expect(frame.dataset.lasergunFrame).toBe('5');
+
+    firing!.kill();
+
+    expect(frame.dataset.lasergunFrame).toBe('5');
+    expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[4].replace('./', '/'));
     cleanup();
   });
 
@@ -436,11 +499,16 @@ describe('LaserGun finale lifecycle', () => {
         .find((animation) => (
           !animationsBeforeCommit.has(animation)
           && animation instanceof gsap.core.Timeline
-          && Math.abs(animation.duration() - 5 * LASERGUN_FRAME_STEP_SECONDS) < 0.001
+          && Math.abs(animation.duration() - LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS * 2) < 0.001
         )) as gsap.core.Timeline | undefined;
       expect(returnFramesTimeline).toBeDefined();
       LASERGUN_FRAME_SOURCES.slice(0, 5).reverse().forEach((source, frameIndex) => {
-        returnFramesTimeline!.time((frameIndex + 1) * LASERGUN_FRAME_STEP_SECONDS + 0.0001, false);
+        returnFramesTimeline!.time(
+          LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS
+            + (frameIndex + 1) * LASERGUN_FIRE_FRAME_STEP_SECONDS
+            + 0.0001,
+          false,
+        );
         expect(frame.src).toContain(source.replace('./', '/'));
         expect(Number(gsap.getProperty(aim, 'rotation'))).toBeCloseTo(aimedRotation, 6);
         expect(Number(gsap.getProperty(gun, 'rotation'))).toBeCloseTo(aimedRigRotation, 6);
