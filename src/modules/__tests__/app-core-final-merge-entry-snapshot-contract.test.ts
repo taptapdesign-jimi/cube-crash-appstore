@@ -51,7 +51,7 @@ describe('merge-entry finality snapshot contract', () => {
     const spawnReset = helperSource.indexOf('resetMerge6SpawnState(`final-merge-guard:${guardReason}`');
     const specialRelease = helperSource.indexOf('releaseSpecialDiceTransaction(');
     const visualHandoff = helperSource.indexOf('prepareFinalMergeVisualHandoff(');
-    const cleanBoard = helperSource.indexOf('triggerCleanBoardFlow(finalReason)');
+    const cleanBoard = helperSource.indexOf('triggerCleanBoardFlow(finalReason, { finalMergeSnapshot })');
 
     expect(helperStart).toBeGreaterThanOrEqual(0);
     expect(cleanupRelease).toBeGreaterThanOrEqual(0);
@@ -62,5 +62,6 @@ describe('merge-entry finality snapshot contract', () => {
     expect(helperSource).toContain('merge6SpawnOwnerToken = null');
     expect(helperSource).toContain('releaseSpecialDiceResolution(src)');
     expect(helperSource).toContain('releaseSpecialDiceResolution(dst)');
+    expect(helperSource).toContain('finalMergeSnapshot,');
   });
 });

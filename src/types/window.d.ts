@@ -18,7 +18,11 @@ declare global {
     pauseGame: () => void;
     resumeGame: () => void;
     restartGame: () => Promise<void>;
-    exitToMenu: () => void;
+    exitToMenu: (options?: {
+      target?: 'homepage' | 'auto';
+      homepageSlideIndex?: 0 | 1;
+      onHomepageEnterPrepared?: () => void;
+    }) => void | Promise<void>;
     
     // Modals
     lockSlider?: () => void;

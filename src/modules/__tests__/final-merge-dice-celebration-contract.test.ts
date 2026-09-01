@@ -50,8 +50,8 @@ describe('final merge dice celebration contract', () => {
     }
   });
 
-  test('shows only Cleared here and moves all sixty authored messages into Clean Board', () => {
-    expect(FINAL_MERGE_CELEBRATION_MESSAGE).toBe('Cleared');
+  test('shows only Cleared! here and moves all sixty authored messages into Clean Board', () => {
+    expect(FINAL_MERGE_CELEBRATION_MESSAGE).toBe('Cleared!');
     expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).toHaveLength(60);
     expect(new Set(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).size).toBe(60);
     expect(ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES).toEqual(expect.arrayContaining([
@@ -229,15 +229,14 @@ describe('final merge dice celebration contract', () => {
     expect(splitFinalMergeCelebrationMessage('Perfect clear!', 367, 65)).toHaveLength(2);
   });
 
-  test('exposes a localhost-only Journey HUD book trigger without changing Arcade behavior', () => {
-    expect(hudSource).toContain('isHudJourneyCelebrationDevTriggerEnabled');
-    expect(hudSource).toContain('return !isArcadeHomeRunMode()');
-    expect(hudSource).toContain("await import('./final-merge-dice-celebration.js')");
-    expect(hudSource).toContain('await playFinalMergeDiceCelebration();');
+  test('has no Journey HUD shortcut that can bypass the final-merge eligibility gate', () => {
+    expect(hudSource).not.toContain('isHudJourneyCelebrationDevTriggerEnabled');
+    expect(hudSource).not.toContain("await import('./final-merge-dice-celebration.js')");
+    expect(hudSource).not.toContain('await playFinalMergeDiceCelebration();');
     expect(hudSource).toContain('isHudStageClearDevTriggerEnabled');
   });
 
-  test('starts with final residual exit in Journey and never runs in Arcade', () => {
+  test('starts only for an eligible regular Journey final merge and never runs in Arcade', () => {
     const journeyStart = appCoreSource.indexOf('async function prepareFinalMergeVisualHandoff(');
     const arcadeStart = appCoreSource.indexOf('async function prepareArcadeStageClearFinalMergeHandoff(');
     const triggerStart = appCoreSource.indexOf('async function triggerCleanBoardFlow(');
@@ -246,7 +245,8 @@ describe('final merge dice celebration contract', () => {
 
     expect(journeyHandoff).toContain('animateFinalResidualArtifactsPopOut(residualReason)');
     expect(journeyHandoff).toContain('playFinalMergeDiceCelebration()');
-    expect(journeyHandoff).toContain('!isArcadeHomeRunMode()');
+    expect(journeyHandoff).toContain('shouldPlayJourneyClearedCelebration({');
+    expect(journeyHandoff).toContain('finalMergeSnapshot: starters.finalMergeSnapshot');
     expect(journeyHandoff).toContain('isArcade: false');
     expect(arcadeHandoff).toContain('animateFinalResidualArtifactsPopOut(`arcade-handoff:${residualReason}`)');
     expect(arcadeHandoff).not.toContain('playFinalMergeDiceCelebration');

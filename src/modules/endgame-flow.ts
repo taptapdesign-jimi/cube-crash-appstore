@@ -119,7 +119,7 @@ async function prepareFirstPlayTutorialArcadeRestart(): Promise<void> {
   (window as any)._gamePaused = false;
 }
 
-async function continueFirstPlayTutorialIntoJourney(cleanupCover: () => void): Promise<void> {
+async function continueFirstPlayTutorialToJourneyHomepage(cleanupCover: () => void): Promise<void> {
   let coverReleased = false;
   const releaseCover = (): void => {
     if (coverReleased) return;
@@ -128,35 +128,24 @@ async function continueFirstPlayTutorialIntoJourney(cleanupCover: () => void): P
   };
   try {
     await clearFirstPlayTutorialRunState();
-    (window as any).__ccFirstPlayTutorialReturnToJourneyHub = true;
     (window as any).__ccBoardJustCompleted = true;
     (window as any).__ccSuppressTutorialStatsSave = true;
-    markJourneyGameOrigin({ fromInterim: false });
     (window as any).__skipBoardExitAnimation = true;
 
-    // Prime the exact hidden Hub destination and subscribe before routing.
-    // Waiting until requestExitToMenu resolves lets the full Hub cascade play
-    // underneath the opaque Tutorial Complete cover, revealing only its tail.
-    const { journeyBoardsManager } = await import('./journey-boards-manager.js');
-    journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();
-    const hubPresentation = journeyBoardsManager
-      .waitForJourneyV700HubPresentation?.(6000)
-      .then((presented) => {
-        if (presented) releaseCover();
-        return presented;
-      });
-
     await requestExitToMenu({
-      reason: 'first-play-tutorial-complete-journey-worlds',
-      target: 'auto',
+      reason: 'first-play-tutorial-complete-journey-homepage',
+      target: 'homepage',
+      homepageSlideIndex: 1,
+      // Tutorial Complete deliberately leaves an opaque cover mounted. Remove
+      // it only after Slider 2 has been primed hidden and immediately before
+      // the canonical Homepage enter becomes visible.
+      onHomepageEnterPrepared: releaseCover,
       skipBoardExit: true,
     });
-    await hubPresentation;
   } finally {
     delete window.__ccBoardJustCompleted;
     delete window.__ccSuppressTutorialStatsSave;
     delete window.__skipBoardExitAnimation;
-    delete (window as any).__ccFirstPlayTutorialReturnToJourneyHub;
     releaseCover();
   }
 }
@@ -1400,7 +1389,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     if (continueTutorialIntoJourney) {
       const cleanupCover = cleanupTutorialCompleteCover || (() => {});
       cleanupTutorialCompleteCover = null;
-      await continueFirstPlayTutorialIntoJourney(cleanupCover);
+      await continueFirstPlayTutorialToJourneyHomepage(cleanupCover);
     }
   }
 }

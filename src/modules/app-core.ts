@@ -286,6 +286,8 @@ import {
   getPlayableMagnetPullCandidates,
   isWildLikeSpecial,
   isWildLikeTile,
+  shouldPlayJourneyClearedCelebration,
+  type FinalMergeSnapshot,
 } from './final-merge-rules.ts';
 import { createGameplaySnapshot, type GameplayRuntimeFlags } from './gameplay-snapshot.ts';
 import {
@@ -1224,6 +1226,11 @@ function shouldRunCleanBoardVisualHandoff(reason: string): boolean {
 type FinalMergeVisualStarters = {
   showWildJuiceFinale?: () => void;
   showSparkleFinale?: () => void;
+  finalMergeSnapshot?: Pick<FinalMergeSnapshot, 'isFinalRegularMerge6'> | null;
+};
+
+type CleanBoardFlowOptions = {
+  finalMergeSnapshot?: Pick<FinalMergeSnapshot, 'isFinalRegularMerge6'> | null;
 };
 
 async function waitForFinalHudExitState(
@@ -1329,9 +1336,15 @@ async function prepareFinalMergeVisualHandoff(
     });
 
     try { resetEndgameHint(); } catch {}
+    const shouldPlayClearedCelebration =
+      handoffGeneration === gameplayRunGeneration &&
+      shouldPlayJourneyClearedCelebration({
+        isArcade: isArcadeHomeRunMode(),
+        finalMergeSnapshot: starters.finalMergeSnapshot,
+      });
     await Promise.all([
       animateFinalResidualArtifactsPopOut(residualReason),
-      handoffGeneration === gameplayRunGeneration && !isArcadeHomeRunMode()
+      shouldPlayClearedCelebration
         ? playFinalMergeDiceCelebration()
         : Promise.resolve(),
     ]);
@@ -1397,7 +1410,10 @@ async function prepareArcadeStageClearFinalMergeHandoff(
 // 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
 // This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
-async function triggerCleanBoardFlow(reason: string): Promise<void> {
+async function triggerCleanBoardFlow(
+  reason: string,
+  options: CleanBoardFlowOptions = {},
+): Promise<void> {
   markPixiMobileActivity(7000);
   logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
   const cleanBoardRunAbortToken = Number((window as any).__ccEndgameFlowAbortToken || 0);
@@ -1436,7 +1452,9 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   let finalHandoffPrepared = terminalFinalMergeReason && (window as any).__ccFinalResidualPopOutPrepared === true;
   if (visualHandoffReason && (window as any).__ccFinalResidualPopOutPrepared !== true) {
     try {
-      await prepareFinalMergeVisualHandoff(reason, `trigger-clean-board:${reason}`);
+      await prepareFinalMergeVisualHandoff(reason, `trigger-clean-board:${reason}`, {
+        finalMergeSnapshot: options.finalMergeSnapshot,
+      });
       finalHandoffPrepared = true;
     } catch (handoffError) {
       devWarn('⚠️ triggerCleanBoardFlow final merge visual handoff failed:', handoffError);
@@ -10040,7 +10058,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const boardIsClean = otherActive.length === 0;
             if (boardIsClean) {
               // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
-              await triggerCleanBoardFlow('clean_board_from_last_merge_edge_case');
+              await triggerCleanBoardFlow('clean_board_from_last_merge_edge_case', {
+                finalMergeSnapshot,
+              });
               return;
             }
             (dst as any)._isLastMerge = false;
@@ -11056,7 +11076,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
             // Note: triggerCleanBoardFlow will set busyEnding internally, so we don't need to set it here
-            await triggerCleanBoardFlow('clean_board_from_last_merge_checkEndGame');
+            await triggerCleanBoardFlow('clean_board_from_last_merge_checkEndGame', {
+              finalMergeSnapshot,
+            });
             return; // Exit early - don't continue with normal merge 6 flow
             }
           }
@@ -11528,7 +11550,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             await prepareFinalMergeVisualHandoff(
               finalCleanReason,
               `final-merge:${finalMergeFx || 'regular'}`,
-              createFinalMergeVisualStarters(dst, finalSpecialDiceVariant)
+              {
+                ...createFinalMergeVisualStarters(dst, finalSpecialDiceVariant),
+                finalMergeSnapshot,
+              }
             );
           }
           
@@ -11546,7 +11571,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             specialTransactionToken,
             `final-merge-clean-handoff:${finalMergeFx || 'regular'}`,
           );
-          await triggerCleanBoardFlow(finalCleanReason);
+          await triggerCleanBoardFlow(finalCleanReason, { finalMergeSnapshot });
           
           return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
         }
@@ -11860,10 +11885,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             await prepareFinalMergeVisualHandoff(
               finalReason,
               `final-merge-guard:${guardReason}`,
-              createFinalMergeVisualStarters(dst, guardFinalSpecialDiceVariant)
+              {
+                ...createFinalMergeVisualStarters(dst, guardFinalSpecialDiceVariant),
+                finalMergeSnapshot,
+              }
             );
           }
-          await triggerCleanBoardFlow(finalReason);
+          await triggerCleanBoardFlow(finalReason, { finalMergeSnapshot });
         };
 
         // Fallback safety: if last-merge flag was missed, but board effectively has only merge-6 left,

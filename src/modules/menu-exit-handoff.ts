@@ -5,6 +5,8 @@ type MenuExitTarget = 'homepage' | 'auto';
 type MenuExitOptions = {
   reason: string;
   target?: MenuExitTarget;
+  homepageSlideIndex?: 0 | 1;
+  onHomepageEnterPrepared?: () => void;
   timeoutMs?: number;
   skipBoardExit?: boolean;
   fastArcadeCleanExit?: boolean;
@@ -24,7 +26,7 @@ export function isAnyMenuScreenVisible(): boolean {
     || isVisible(document.getElementById('collectibles-detail-modal') as HTMLElement | null);
 }
 
-function isHomepageMenuReady(): boolean {
+function isHomepageMenuReady(targetSlideIndex = 0): boolean {
   const home = document.getElementById('home') as HTMLElement | null;
   const container = document.getElementById('slider-container') as HTMLElement | null;
   const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
@@ -35,11 +37,17 @@ function isHomepageMenuReady(): boolean {
     const rect = element!.getBoundingClientRect();
     return rect.width > 1 && rect.height > 1;
   };
-  return hasArea(home) && hasArea(container) && hasArea(activeSlide)
+  const activeSlideIndex = Number(activeSlide?.dataset.slide);
+  return activeSlideIndex === targetSlideIndex
+    && hasArea(home) && hasArea(container) && hasArea(activeSlide)
     && (hasArea(hero) || hasArea(cta));
 }
 
-async function forceHomepageVisible(reason: string): Promise<void> {
+async function forceHomepageVisible(
+  reason: string,
+  targetSlideIndex: 0 | 1 = 0,
+  onHomepageEnterPrepared?: () => void,
+): Promise<void> {
   try {
     const { appZoneManager } = await import('./app-zone-manager.js');
     appZoneManager.markHomeMenu(`menu-exit-handoff:${reason}`);
@@ -49,12 +57,13 @@ async function forceHomepageVisible(reason: string): Promise<void> {
 
   try {
     const { appZoneManager } = await import('./app-zone-manager.js');
-    await appZoneManager.showHomepageShell(`menu-exit-handoff:${reason}`);
+    await appZoneManager.showHomepageShell(`menu-exit-handoff:${reason}`, targetSlideIndex);
     const homepageEnter = (window as any).__ccPlayHomepageSliderEnterHandoff;
     if (typeof homepageEnter === 'function') {
       await homepageEnter(`menu-exit-recovery:${reason}`, {
-        targetSlideIndex: 0,
+        targetSlideIndex,
         skipFirstPaintReady: true,
+        onEnterPrepared: onHomepageEnterPrepared,
       });
     }
     const uiManagerModule = await import('./ui-manager.js');
@@ -142,10 +151,11 @@ async function forceAutoMenuVisible(reason: string): Promise<void> {
 export async function ensureMenuVisibleAfterExit(options: MenuExitOptions): Promise<void> {
   await wait(320);
   if (options.target === 'homepage') {
-    if (isHomepageMenuReady()) return;
+    const targetSlideIndex = options.homepageSlideIndex ?? 0;
+    if (isHomepageMenuReady(targetSlideIndex)) return;
     console.warn('⚠️ menu-exit-handoff: homepage shell incomplete after exit, applying fallback', options);
     (window as any).exitingToMenu = false;
-    await forceHomepageVisible(options.reason);
+    await forceHomepageVisible(options.reason, targetSlideIndex, options.onHomepageEnterPrepared);
     return;
   }
   if (isAnyMenuScreenVisible()) return;
@@ -178,7 +188,11 @@ export async function requestExitToMenu(options: MenuExitOptions): Promise<void>
   } else if (typeof (window as any).exitToMenu === 'function') {
     let watchdog: number | undefined;
     try {
-      const exitPromise = Promise.resolve((window as any).exitToMenu());
+      const exitPromise = Promise.resolve((window as any).exitToMenu({
+        target: options.target,
+        homepageSlideIndex: options.homepageSlideIndex,
+        onHomepageEnterPrepared: options.onHomepageEnterPrepared,
+      }));
       watchdog = window.setTimeout(() => {
         console.warn('⚠️ menu-exit-handoff: exit exceeded watchdog; waiting for the authoritative owner', {
           reason: options.reason,

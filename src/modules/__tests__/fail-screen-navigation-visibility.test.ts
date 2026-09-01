@@ -35,7 +35,7 @@ describe('Fail-screen Homepage navigation isolation', () => {
   });
 
   test('a manual game exit invalidates terminal work before any asynchronous cleanup', () => {
-    const exitFlow = mainSource.split('(window as any).exitToMenu = async () => {')[1]
+    const exitFlow = mainSource.split('(window as any).exitToMenu = async (options:')[1]
       ?.split('const STATE = await getAppState();')[0] ?? '';
     const navigationAbort = exitFlow.indexOf("window.dispatchEvent(new Event('cc-navigation'))");
     const terminalReset = exitFlow.indexOf("window.CC?.resetTransientRunGuards?.('exitToMenu-navigation-boundary')");

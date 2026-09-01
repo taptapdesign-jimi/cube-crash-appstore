@@ -5,6 +5,7 @@ import {
   isPlayableMagnetPullCandidate,
   isTilePendingGameplayRemoval,
   isWildLikeTile,
+  shouldPlayJourneyClearedCelebration,
   tileBlocksFinalMerge,
   tileCountsAsFinalMergeActive,
 } from '../final-merge-rules';
@@ -74,6 +75,58 @@ test('stacked regular visible pair that sums to 6 is still final merge', () => {
     isFinalRegularMerge6: true,
     isFinalMerge: true,
   });
+});
+
+test.each([
+  ['single onto single', 1, 1],
+  ['single onto stack', 1, 3],
+  ['stack onto single', 3, 1],
+  ['stack onto stack', 2, 4],
+])('%s is eligible for the Journey Cleared! celebration', (_label, srcDepth, dstDepth) => {
+  const src = makeTile({ value: 4, stackDepth: srcDepth });
+  const dst = makeTile({ value: 2, stackDepth: dstDepth });
+  const finalMergeSnapshot = getFinalMergeSnapshot({
+    activeTilesBeforeMerge: [src, dst],
+    src,
+    dst,
+    effSum: 6,
+  });
+
+  expect(shouldPlayJourneyClearedCelebration({
+    isArcade: false,
+    finalMergeSnapshot,
+  })).toBe(true);
+});
+
+test('Cleared! celebration rejects Arcade, wild final merges, and generic clean-board flows', () => {
+  const regularSrc = makeTile({ value: 4 });
+  const regularDst = makeTile({ value: 2 });
+  const regularSnapshot = getFinalMergeSnapshot({
+    activeTilesBeforeMerge: [regularSrc, regularDst],
+    src: regularSrc,
+    dst: regularDst,
+    effSum: 6,
+  });
+  const wildSrc = makeTile({ value: 0, special: 'wild-juice' });
+  const wildDst = makeTile({ value: 5 });
+  const wildSnapshot = getFinalMergeSnapshot({
+    activeTilesBeforeMerge: [wildSrc, wildDst],
+    src: wildSrc,
+    dst: wildDst,
+    effSum: 6,
+  });
+
+  expect(shouldPlayJourneyClearedCelebration({
+    isArcade: true,
+    finalMergeSnapshot: regularSnapshot,
+  })).toBe(false);
+  expect(shouldPlayJourneyClearedCelebration({
+    isArcade: false,
+    finalMergeSnapshot: wildSnapshot,
+  })).toBe(false);
+  expect(shouldPlayJourneyClearedCelebration({
+    isArcade: false,
+  })).toBe(false);
 });
 
 test('last wild plus regular is final unless magnet will pull tiles', () => {

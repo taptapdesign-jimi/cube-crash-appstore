@@ -3,7 +3,7 @@ import animationManager from './animation-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 import { createTntDiceDebrisPlans, type TntDiceDebrisPlan } from './tnt-animation.js';
 
-export const FINAL_MERGE_CELEBRATION_MESSAGE = 'Cleared';
+export const FINAL_MERGE_CELEBRATION_MESSAGE = 'Cleared!';
 
 // Exact NO MOVES text-motion contract from splash-text-overlay.ts.
 const ENTER_BOUNCE_SCALE = 1.2;

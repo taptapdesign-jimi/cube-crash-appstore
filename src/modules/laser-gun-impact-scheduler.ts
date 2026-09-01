@@ -7,13 +7,23 @@ export const LASERGUN_TIMING_SCALE = 0.455;
 // One quarter is assigned to each sequential launch boundary.
 export const LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS = 1500;
 export const LASERGUN_PER_SHOT_EXTENSION_MS = LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS / 4;
+// Shorten only the three waits between guns by 600ms total. The first gun's
+// lead and every gun/beam/cube/exit animation keep their existing timing.
+export const LASERGUN_INTER_GUN_TRANSITION_COUNT = 3;
+export const LASERGUN_TOTAL_INTER_GUN_ACCELERATION_MS = 600;
+export const LASERGUN_PER_TRANSITION_ACCELERATION_MS = (
+  LASERGUN_TOTAL_INTER_GUN_ACCELERATION_MS / LASERGUN_INTER_GUN_TRANSITION_COUNT
+);
 export const LASERGUN_FIRST_SHOT_LEAD_MS = (
   Math.round(540 * LASERGUN_TIMING_SCALE) + LASERGUN_PER_SHOT_EXTENSION_MS
 );
 // This minimum gap starts at the prior beam-tip arrival. The accepted extension
-// gives each incoming gun visible breathing room; entry/build-up and two paint
-// frames may widen the gap, but can never collapse the sequential order.
-export const LASERGUN_SHOT_INTERVAL_MS = 125 + LASERGUN_PER_SHOT_EXTENSION_MS;
+// gives each incoming gun visible breathing room; the requested acceleration
+// removes 200ms from each transition. Entry/build-up and two paint frames may
+// widen the gap, but can never collapse the sequential order.
+export const LASERGUN_SHOT_INTERVAL_MS = (
+  125 + LASERGUN_PER_SHOT_EXTENSION_MS - LASERGUN_PER_TRANSITION_ACCELERATION_MS
+);
 export const LASERGUN_ARRIVAL_TIMEOUT_MS = 900;
 // This is scheduling headroom, not visible animation time. It starts each
 // build-up early enough to absorb its gun-entry promise and WebKit paint

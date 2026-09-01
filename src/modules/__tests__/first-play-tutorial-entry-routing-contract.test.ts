@@ -40,25 +40,43 @@ describe('first-play tutorial entry routing', () => {
     expect(tutorialSource).toContain('(window as any).__ccFirstPlayTutorialRunSource = source;');
   });
 
-  test('Journey tutorial completion owns a fresh Hub enter instead of a World return', () => {
+  test('Journey tutorial completion returns to Homepage Slider 2 through its full enter owner', () => {
     const mainSource = fs.readFileSync(path.join(repoRoot, 'src/main.ts'), 'utf8');
     const endgameSource = fs.readFileSync(path.join(repoRoot, 'src/modules/endgame-flow.ts'), 'utf8');
-    const boardsSource = fs.readFileSync(path.join(repoRoot, 'src/modules/journey-boards-manager.ts'), 'utf8');
-
-    expect(endgameSource).toContain('__ccFirstPlayTutorialReturnToJourneyHub = true');
-    expect(endgameSource).toContain('waitForJourneyV700HubPresentation');
     const continuation = endgameSource.slice(
-      endgameSource.indexOf('async function continueFirstPlayTutorialIntoJourney'),
+      endgameSource.indexOf('async function continueFirstPlayTutorialToJourneyHomepage'),
       endgameSource.indexOf('async function continueFirstPlayTutorialIntoArcade'),
     );
-    expect(continuation).toContain('journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();');
-    expect(continuation).toContain('.waitForJourneyV700HubPresentation?.(6000)');
-    expect(continuation).toContain('if (presented) releaseCover();');
-    expect(continuation.indexOf('.waitForJourneyV700HubPresentation?.(6000)'))
-      .toBeLessThan(continuation.indexOf('await requestExitToMenu({'));
-    expect(mainSource).toContain('firstPlayTutorialHubReturn');
-    expect(mainSource).toContain('journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();');
-    expect(boardsSource).toContain("this.setJourneyV700View('hub');");
-    expect(boardsSource).toContain('journey-v700-banners-presented');
+    expect(continuation).toContain("reason: 'first-play-tutorial-complete-journey-homepage'");
+    expect(continuation).toContain("target: 'homepage'");
+    expect(continuation).toContain('homepageSlideIndex: 1');
+    expect(continuation).toContain('onHomepageEnterPrepared: releaseCover');
+    expect(continuation).not.toContain('prepareFirstPlayTutorialHubReturn');
+    expect(continuation).not.toContain('waitForJourneyV700HubPresentation');
+    expect(continuation).not.toContain('markJourneyGameOrigin');
+    expect(endgameSource).not.toContain('__ccFirstPlayTutorialReturnToJourneyHub');
+    expect(mainSource).not.toContain('__ccFirstPlayTutorialReturnToJourneyHub');
+
+    const homepageEnter = mainSource.slice(
+      mainSource.indexOf('async function playHomepageSliderEnterHandoff('),
+      mainSource.indexOf('(window as any).__ccPlayHomepageSliderEnterHandoff'),
+    );
+    expect(homepageEnter).toContain('sliderManager.syncHiddenSlideState(targetSlideIndex);');
+    expect(homepageEnter).toContain('await primeHomepageForEnterLikeStartup(reason, targetSlideIndex);');
+    expect(homepageEnter).toContain('prepareSliderEnter();');
+    expect(homepageEnter).toContain('options.onEnterPrepared?.();');
+    expect(homepageEnter).toContain('await animateSliderEnter();');
+    expect(homepageEnter.indexOf('options.onEnterPrepared?.();'))
+      .toBeGreaterThan(homepageEnter.indexOf('prepareSliderEnter();'));
+    expect(homepageEnter.indexOf('options.onEnterPrepared?.();'))
+      .toBeLessThan(homepageEnter.indexOf('await animateSliderEnter();'));
+
+    const exitOwner = mainSource.slice(
+      mainSource.indexOf('(window as any).exitToMenu = async ('),
+      mainSource.indexOf('// STATS SERVICE INTEGRATION'),
+    );
+    expect(exitOwner).toContain("if (exitRoute.target === 'home')");
+    expect(exitOwner).toContain('targetSlideIndex: targetSlide');
+    expect(exitOwner).toContain('onEnterPrepared: options.onHomepageEnterPrepared');
   });
 });

@@ -26,7 +26,7 @@ describe('Homepage cold-launch Arcade handoff', () => {
 
   test('Arcade return keeps one warm Homepage enter owner and app-lifetime navigation control', () => {
     const source = fs.readFileSync(path.join(repoRoot, 'src/main.ts'), 'utf8');
-    const exitStart = source.indexOf('(window as any).exitToMenu = async () =>');
+    const exitStart = source.indexOf('(window as any).exitToMenu = async (');
     const exitEnd = source.indexOf('// STATS SERVICE INTEGRATION', exitStart);
     const exitOwner = source.slice(exitStart, exitEnd);
     const enterStart = source.indexOf('async function playHomepageSliderEnterHandoff(');
@@ -56,7 +56,9 @@ describe('Homepage cold-launch Arcade handoff', () => {
     const requestOwner = source.slice(requestStart);
 
     expect(requestOwner).not.toContain('Promise.race([');
-    expect(requestOwner).toContain('const exitPromise = Promise.resolve((window as any).exitToMenu());');
+    expect(requestOwner).toContain('const exitPromise = Promise.resolve((window as any).exitToMenu({');
+    expect(requestOwner).toContain('homepageSlideIndex: options.homepageSlideIndex');
+    expect(requestOwner).toContain('onHomepageEnterPrepared: options.onHomepageEnterPrepared');
     expect(requestOwner).toContain('await exitPromise;');
     expect(requestOwner).toContain('waiting for the authoritative owner');
     expect(requestOwner).toContain('while ((window as any).exitingToMenu === true)');

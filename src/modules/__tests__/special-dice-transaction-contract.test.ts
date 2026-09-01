@@ -141,7 +141,10 @@ describe('shared special-dice transaction contract', () => {
   test('final special merge releases its exact token before clean-board modal ownership', () => {
     const finalBranch = appCoreSource.indexOf('if (isLastMergeFlagSet && !willPulledTilesMerge)');
     const finalRelease = appCoreSource.indexOf('`final-merge-clean-handoff:${finalMergeFx || \'regular\'}`', finalBranch);
-    const cleanFlow = appCoreSource.indexOf('await triggerCleanBoardFlow(finalCleanReason)', finalBranch);
+    const cleanFlow = appCoreSource.indexOf(
+      'await triggerCleanBoardFlow(finalCleanReason, { finalMergeSnapshot })',
+      finalBranch,
+    );
 
     expect(finalBranch).toBeGreaterThan(0);
     expect(finalRelease).toBeGreaterThan(finalBranch);

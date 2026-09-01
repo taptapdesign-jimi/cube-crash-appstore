@@ -304,7 +304,11 @@ async function primeHomepageForEnterLikeStartup(reason: string, targetSlideIndex
 
 async function playHomepageSliderEnterHandoff(
   reason: string,
-  options: { targetSlideIndex?: number; skipFirstPaintReady?: boolean } = {}
+  options: {
+    targetSlideIndex?: number;
+    skipFirstPaintReady?: boolean;
+    onEnterPrepared?: () => void;
+  } = {}
 ): Promise<void> {
   const targetSlideIndex = Math.max(0, Number(options.targetSlideIndex ?? 0) || 0);
   const skipFirstPaintReady = options.skipFirstPaintReady === true;
@@ -370,6 +374,11 @@ async function playHomepageSliderEnterHandoff(
   await waitForHomepageEnterPrime();
   if (!lease.isCurrent()) return;
   emitHomepageEnterOwnerSnapshot('before-animation', targetSlideIndex);
+  try {
+    options.onEnterPrepared?.();
+  } catch (error) {
+    console.warn('⚠️ Homepage enter prepared callback failed', { reason, error });
+  }
   {
     const activeSlide = document.querySelector('.slider-slide.active') as HTMLElement | null;
     console.log(HOME_ENTER_DIAG_PREFIX, 'main:before-animateSliderEnter', {
@@ -2123,7 +2132,11 @@ async function startNewRun(boardId: number): Promise<void> {
 };
 
 // Export exitToMenu function for End This Run modal
-(window as any).exitToMenu = async () => {
+(window as any).exitToMenu = async (options: {
+  target?: 'homepage' | 'auto';
+  homepageSlideIndex?: 0 | 1;
+  onHomepageEnterPrepared?: () => void;
+} = {}) => {
   logger.info('🏠 exitToMenu called from window');
   
   // Guard: Prevent multiple simultaneous calls
@@ -2759,6 +2772,8 @@ async function startNewRun(boardId: number): Promise<void> {
     const exitRoute = await appZoneManager.resolveGameExitRoute({
       reason: 'exitToMenu',
       fastArcadeCleanExit: isFastArcadeCleanExit,
+      requestedTarget: options.target,
+      requestedHomepageSlide: options.homepageSlideIndex,
     });
     const targetSlide = exitRoute.targetSlide;
     returnToDetailModal = exitRoute.returnToDetailModal;
@@ -2778,7 +2793,6 @@ async function startNewRun(boardId: number): Promise<void> {
     }
 
     if (exitRoute.target === 'journey') {
-      const firstPlayTutorialHubReturn = (window as any).__ccFirstPlayTutorialReturnToJourneyHub === true;
       // AppZoneManager intentionally consumes the broad Journey-origin flags
       // while resolving the route. A direct board -> Journey return still
       // needs an explicit animation handoff, otherwise showCollectibles sees
@@ -2791,25 +2805,8 @@ async function startNewRun(boardId: number): Promise<void> {
         (window as any).__ccJourneyReturnBoardId ||
         0
       );
-      const returningFromInterimBoard = !firstPlayTutorialHubReturn && isJourneyInterimOriginActive();
-      if (firstPlayTutorialHubReturn) {
-        delete (window as any).__ccReturningFromInterimBoard;
-        delete (window as any).__ccReturningFromDetailModal;
-        delete (window as any).__ccSuppressJourneyV700AutoWorldEnter;
-        delete (window as any).__ccJourneyReturnBoardId;
-        delete (window as any).__ccLastActiveJourneyBoardAreaId;
-        try {
-          localStorage.removeItem('__ccReturningFromInterimBoard');
-          localStorage.removeItem('__ccJourneyReturnBoardId');
-          localStorage.removeItem('__ccLastActiveJourneyBoardAreaId');
-        } catch {}
-        try {
-          const { journeyBoardsManager } = await journeyManagerPromise;
-          journeyBoardsManager.prepareFirstPlayTutorialHubReturn?.();
-        } catch (hubPrepareError) {
-          console.warn('⚠️ Failed to prepare first-play Journey Hub return:', hubPrepareError);
-        }
-      } else if (returningFromInterimBoard) {
+      const returningFromInterimBoard = isJourneyInterimOriginActive();
+      if (returningFromInterimBoard) {
         (window as any).__ccReturningFromInterimBoard = true;
         try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
       } else {
@@ -2821,10 +2818,8 @@ async function startNewRun(boardId: number): Promise<void> {
       // Set this before showJourneyShell can scope/render the saved world.
       // showCollectibles will consume the flag when it starts the one visible
       // coordinated return enter.
-      if (!firstPlayTutorialHubReturn) {
-        (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
-      }
-      if (!firstPlayTutorialHubReturn && Number.isFinite(returnBoardId) && returnBoardId > 0) {
+      (window as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+      if (Number.isFinite(returnBoardId) && returnBoardId > 0) {
         (window as any).__ccJourneyReturnBoardId = returnBoardId;
         (window as any).__ccLastActiveJourneyBoardAreaId = returnBoardId;
         try { localStorage.setItem('__ccJourneyReturnBoardId', String(returnBoardId)); } catch {}
@@ -2833,7 +2828,6 @@ async function startNewRun(boardId: number): Promise<void> {
       emitIOSNativeDiagnostic('main-journey-board-return-prepared', {
         boardId: Number.isFinite(returnBoardId) && returnBoardId > 0 ? returnBoardId : null,
         returningFromInterimBoard,
-        firstPlayTutorialHubReturn,
       });
 
       const detailModal = document.getElementById('collectibles-detail-modal');
@@ -2844,10 +2838,10 @@ async function startNewRun(boardId: number): Promise<void> {
       }
     }
     
-    // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
-    // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
+    // Route and Homepage slide are independent: Homepage may intentionally
+    // reopen on Slider 2, while Journey Worlds remains a separate surface.
     console.log(`🎯🎯🎯 TARGET SLIDE = ${targetSlide} 🎯🎯🎯`);
-    if (targetSlide === 0) {
+    if (exitRoute.target === 'home') {
       console.log('🏠 HOMEPAGE PATH: returning through app zone router');
       // Homepage is the absolute clean product boundary. Clear gameplay-owned
       // overlays for normal, fast-clean, and already-started handoffs alike.
@@ -2866,7 +2860,7 @@ async function startNewRun(boardId: number): Promise<void> {
     // Homepage state is published by playHomepageSliderEnterHandoff while its
     // lease is active, so UIManager subscribers cannot perform a competing
     // showHomepage()/forceReady(). Non-home routes keep the existing reset.
-    if (targetSlide !== 0) {
+    if (exitRoute.target !== 'home') {
       gameState.setState({
         homepageReady: true,
         isGameActive: false,
@@ -2997,7 +2991,7 @@ async function startNewRun(boardId: number): Promise<void> {
       } catch (_) { /* ignore */ }
       (window as any).__ccSoundtrackResumedThisExit = true;
       console.log('✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
-    } else if (targetSlide === 1) {
+    } else if (exitRoute.target === 'journey') {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
       
@@ -3093,8 +3087,9 @@ async function startNewRun(boardId: number): Promise<void> {
         await new Promise(resolve => setTimeout(resolve, 120));
       }
       await playHomepageSliderEnterHandoff('exitToMenu:homepage-final', {
-        targetSlideIndex: 0,
+        targetSlideIndex: targetSlide,
         skipFirstPaintReady: true,
+        onEnterPrepared: options.onHomepageEnterPrepared,
       });
       // Resume menu soundtrack with fade in when homepage is shown
       try {

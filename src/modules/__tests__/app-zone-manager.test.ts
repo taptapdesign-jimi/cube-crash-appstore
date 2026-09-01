@@ -182,6 +182,51 @@ describe('app-zone-manager', () => {
     });
   });
 
+  it('lets the first-play handoff explicitly return to Homepage Journey slide', async () => {
+    appZoneManager.prepareJourneyRunOrigin({
+      reason: 'test-first-play-journey',
+      boardId: 1,
+      fromInterim: true,
+      fromDetailModal: true,
+    });
+    (global as any).__ccReturningFromDetailModal = true;
+    (global as any).__ccSuppressJourneyShowForDirectDetailReturn = true;
+    (global as any).__ccDirectDetailModalReturnActive = true;
+    (global as any).__ccSuppressJourneyV700AutoWorldEnter = true;
+    (global as any).__ccJourneyReturnBoardId = 1;
+    (global as any).__ccLastActiveJourneyBoardAreaId = 1;
+    localStorage.setItem('__ccJourneyReturnBoardId', '1');
+    localStorage.setItem('__ccLastActiveJourneyBoardAreaId', '1');
+    (global as any).__ccJourneyCardOverlayReturnBoardId = 1;
+    document.body.innerHTML = '<div class="journey-board-card journey-board-card-return-placeholder" data-board-id="1"></div>';
+
+    await expect(appZoneManager.resolveGameExitRoute({
+      reason: 'test-first-play-homepage-return',
+      requestedTarget: 'homepage',
+      requestedHomepageSlide: 1,
+    })).resolves.toEqual({
+      target: 'home',
+      targetSlide: 1,
+      returnToDetailModal: false,
+      detailModalBoardId: null,
+    });
+
+    expect(appZoneManager.getCurrentZone()).toBe('home');
+    expect((global as any).__ccFromInterimBoard).toBe(false);
+    expect((global as any).__ccCameFromDetailModal).toBeUndefined();
+    expect((global as any).__ccReturningFromDetailModal).toBeUndefined();
+    expect((global as any).__ccSuppressJourneyShowForDirectDetailReturn).toBeUndefined();
+    expect((global as any).__ccDirectDetailModalReturnActive).toBeUndefined();
+    expect((global as any).__ccSuppressJourneyV700AutoWorldEnter).toBeUndefined();
+    expect((global as any).__ccJourneyCardOverlayReturnBoardId).toBeUndefined();
+    expect(document.querySelector('.journey-board-card-return-placeholder')).toBeNull();
+    expect((global as any).__ccJourneyReturnBoardId).toBeUndefined();
+    expect((global as any).__ccLastActiveJourneyBoardAreaId).toBeUndefined();
+    expect(localStorage.getItem('__ccFromInterimBoard')).toBeNull();
+    expect(localStorage.getItem('__ccJourneyReturnBoardId')).toBeNull();
+    expect(localStorage.getItem('__ccLastActiveJourneyBoardAreaId')).toBeNull();
+  });
+
   it('resolves game exit route to detail modal for unlocked detail-origin board', async () => {
     appZoneManager.prepareJourneyRunOrigin({
       reason: 'test-detail',

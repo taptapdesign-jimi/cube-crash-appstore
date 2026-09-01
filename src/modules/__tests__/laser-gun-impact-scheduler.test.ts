@@ -1,16 +1,19 @@
 import {
   LASERGUN_ARRIVAL_TIMEOUT_MS,
   LASERGUN_FIRST_SHOT_LEAD_MS,
+  LASERGUN_INTER_GUN_TRANSITION_COUNT,
   LASERGUN_PER_SHOT_EXTENSION_MS,
+  LASERGUN_PER_TRANSITION_ACCELERATION_MS,
   LASERGUN_PREFLIGHT_LEAD_MS,
   LASERGUN_SHOT_INTERVAL_MS,
   LASERGUN_TIMING_SCALE,
+  LASERGUN_TOTAL_INTER_GUN_ACCELERATION_MS,
   LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS,
   runLaserGunSequentialImpactScheduler,
 } from '../laser-gun-impact-scheduler';
 
 describe('LaserGun sequential impact scheduler', () => {
-  test('prepares and commits strict 1 -> 2 -> 3 -> 4 with the 1.5s whole-sequence extension', async () => {
+  test('prepares strict 1 -> 2 -> 3 -> 4 with exactly 600ms removed from the three transitions', async () => {
     let clock = 0;
     const events: string[] = [];
     const commits: number[] = [];
@@ -43,14 +46,18 @@ describe('LaserGun sequential impact scheduler', () => {
     expect(commits[3]).toBe(
       Math.round(540 * LASERGUN_TIMING_SCALE)
       + 125 * 3
-      + LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS,
+      + LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS
+      - LASERGUN_TOTAL_INTER_GUN_ACCELERATION_MS,
     );
     expect(LASERGUN_TIMING_SCALE).toBe(0.455);
     expect(LASERGUN_TOTAL_SEQUENCE_EXTENSION_MS).toBe(1500);
     expect(LASERGUN_PER_SHOT_EXTENSION_MS).toBe(375);
+    expect(LASERGUN_INTER_GUN_TRANSITION_COUNT).toBe(3);
+    expect(LASERGUN_TOTAL_INTER_GUN_ACCELERATION_MS).toBe(600);
+    expect(LASERGUN_PER_TRANSITION_ACCELERATION_MS).toBe(200);
     expect(LASERGUN_FIRST_SHOT_LEAD_MS).toBe(621);
     expect(LASERGUN_PREFLIGHT_LEAD_MS).toBe(154);
-    expect(LASERGUN_SHOT_INTERVAL_MS).toBe(500);
+    expect(LASERGUN_SHOT_INTERVAL_MS).toBe(300);
     expect(LASERGUN_ARRIVAL_TIMEOUT_MS).toBe(900);
   });
 
@@ -119,8 +126,8 @@ describe('LaserGun sequential impact scheduler', () => {
       0,
     );
 
-    expect(arrivals).toEqual([95, 690, 1285]);
-    expect(launches).toEqual([0, 595, 1190]);
+    expect(arrivals).toEqual([95, 490, 885]);
+    expect(launches).toEqual([0, 395, 790]);
   });
 
   test('stops after a lifecycle-cancelled commit without launching stale later shots', async () => {

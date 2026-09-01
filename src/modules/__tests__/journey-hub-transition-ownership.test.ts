@@ -171,8 +171,8 @@ describe('Journey Hub transition ownership', () => {
       'syncHiddenSlideState(slideIndex: number): void',
     )[1]?.split('ensureReady(): void')[0] ?? '';
     const gameExitRoutingSource = mainSource.split(
-      '// 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage',
-    )[1]?.split('// Reset game state')[0] ?? '';
+      '// Route and Homepage slide are independent:',
+    )[1]?.split('// Homepage state is published by playHomepageSliderEnterHandoff')[0] ?? '';
 
     expect(hiddenSyncSource).not.toContain('resolveHiddenSlideTarget');
     expect(gameExitRoutingSource).not.toContain("showHomepageShell('exitToMenu:homepage')");

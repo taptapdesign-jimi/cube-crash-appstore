@@ -293,6 +293,16 @@ function ensureStyles(): void {
       pointer-events: auto;
       text-align: center;
     }
+    .first-play-tutorial-sheet::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% - 1px);
+      height: 96px;
+      background: inherit;
+      pointer-events: none;
+    }
     .first-play-tutorial-grabber {
       width: 48px;
       height: 7px;

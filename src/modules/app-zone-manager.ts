@@ -5,7 +5,10 @@ import {
   setRunMode,
 } from './run-mode.js';
 import {
+  cancelJourneyCardOverlayReturn,
   clearJourneyDetailReturn,
+  clearJourneyInterimOrigin,
+  getJourneyCardOverlayReturnBoardId,
   isJourneyInterimOriginActive,
   markJourneyGameOrigin,
 } from './journey-origin-state.js';
@@ -46,6 +49,13 @@ export interface GameExitRoute {
   targetSlide: 0 | 1;
   returnToDetailModal: boolean;
   detailModalBoardId: number | null;
+}
+
+export interface GameExitRouteOptions {
+  reason: string;
+  fastArcadeCleanExit?: boolean;
+  requestedTarget?: 'homepage' | 'auto';
+  requestedHomepageSlide?: 0 | 1;
 }
 
 function setStorageFlag(key: string, enabled: boolean): void {
@@ -192,8 +202,34 @@ class AppZoneManager {
     return cameFromJourney ? 'journey' : 'home';
   }
 
-  async resolveGameExitRoute(options: { reason: string; fastArcadeCleanExit?: boolean } = { reason: 'game-exit' }): Promise<GameExitRoute> {
+  async resolveGameExitRoute(options: GameExitRouteOptions = { reason: 'game-exit' }): Promise<GameExitRoute> {
     const w = window as any;
+
+    if (options.requestedTarget === 'homepage') {
+      const overlayReturnBoardId = getJourneyCardOverlayReturnBoardId();
+      if (overlayReturnBoardId !== null) {
+        cancelJourneyCardOverlayReturn(overlayReturnBoardId);
+      }
+      clearJourneyDetailReturn();
+      clearJourneyInterimOrigin();
+      delete w.__ccReturningFromDetailModal;
+      delete w.__ccSuppressJourneyShowForDirectDetailReturn;
+      delete w.__ccDirectDetailModalReturnActive;
+      delete w.__ccSuppressJourneyV700AutoWorldEnter;
+      delete w.__ccJourneyReturnBoardId;
+      delete w.__ccLastActiveJourneyBoardAreaId;
+      try {
+        localStorage.removeItem('__ccJourneyReturnBoardId');
+        localStorage.removeItem('__ccLastActiveJourneyBoardAreaId');
+      } catch {}
+      this.prepareHomeMenuEnter(`${options.reason}:requested-homepage`);
+      return {
+        target: 'home',
+        targetSlide: options.requestedHomepageSlide ?? 0,
+        returnToDetailModal: false,
+        detailModalBoardId: null,
+      };
+    }
 
     if (options.fastArcadeCleanExit === true || w.__ccRunMode === RUN_MODE_ARCADE_HOME) {
       markArcadeHomeRunOrigin();
@@ -281,7 +317,7 @@ class AppZoneManager {
     }
   }
 
-  async showHomepageShell(reason = 'show-home'): Promise<void> {
+  async showHomepageShell(reason = 'show-home', targetSlideIndex: 0 | 1 = 0): Promise<void> {
     this.markHomeMenu(reason);
     try {
       await this.cleanupTransientVisuals(reason);
@@ -305,7 +341,7 @@ class AppZoneManager {
       const sliderManagerModule = await import('./slider-manager.js');
       uiManagerModule.default?.showHomepageQuietly?.();
       sliderManagerModule.default?.forceReady?.();
-      sliderManagerModule.default?.setSlideInstant?.(0);
+      sliderManagerModule.default?.setSlideInstant?.(targetSlideIndex);
       commitHomepageNavigation(`app-zone:${reason}:shell-ready`);
     } catch (error) {
       logger.warn('⚠️ app-zone-manager: showHomepageShell failed', 'app-zone-manager', { reason, error });

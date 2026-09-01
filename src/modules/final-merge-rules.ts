@@ -17,6 +17,11 @@ export type FinalMergeSnapshot = {
   isFinalMerge: boolean;
 };
 
+export type JourneyClearedCelebrationInput = {
+  isArcade: boolean;
+  finalMergeSnapshot?: Pick<FinalMergeSnapshot, 'isFinalRegularMerge6'> | null;
+};
+
 export type FinalMergeTileSets = {
   activeTilesBeforeMerge: any[];
   finalMergeBlockersBefore: any[];
@@ -207,4 +212,11 @@ export function getFinalMergeSnapshot({
     isFinalWildLastTwo,
     isFinalMerge: isFinalRegularMerge6 || isFinalWildLastTwo,
   };
+}
+
+export function shouldPlayJourneyClearedCelebration({
+  isArcade,
+  finalMergeSnapshot,
+}: JourneyClearedCelebrationInput): boolean {
+  return !isArcade && finalMergeSnapshot?.isFinalRegularMerge6 === true;
 }
