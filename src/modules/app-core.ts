@@ -26,6 +26,7 @@ import {
   triggerActiveLaserGunFinaleImpact,
   waitForActiveLaserGunFinaleBeamLaunch,
   waitForActiveLaserGunFinaleImpactArrival,
+  LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
 } from './lasergun-finale-scene.ts';
 import type { LaserGunEntryReadiness } from './lasergun-finale-scene.ts';
 import {
@@ -37,7 +38,6 @@ import {
 import {
   getLaserGunCubeAnticipationFrames,
   LASERGUN_CUBE_ANTICIPATION_SCALE,
-      LASERGUN_CUBE_ANTICIPATION_SECONDS,
       LASERGUN_CUBE_CONTRACT_SCALE,
       LASERGUN_CUBE_CONTRACT_SECONDS,
       LASERGUN_CUBE_INFLATE_SECONDS,
@@ -14384,9 +14384,15 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	            if (!tile || tile.destroyed) return;
 	            tile.scale?.set?.(1, 1);
 	          };
+	          const laserGunImpactTimelineSeconds = (
+	            LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS
+	            + LASERGUN_CUBE_CONTRACT_SECONDS
+	            + LASERGUN_CUBE_REBOUND_SECONDS
+	            + LASERGUN_CUBE_SETTLE_SECONDS
+	          );
 	          let releaseFrameLease = acquirePixiMobileActivityLease(
 	            'laser-gun-cube-impact',
-	            Math.ceil(LASERGUN_CUBE_ANTICIPATION_SECONDS * 1000) + 100,
+	            Math.ceil(laserGunImpactTimelineSeconds * 1000) + 100,
 	          );
 	          const releaseImpactFrameLease = () => {
 	            releaseFrameLease();
@@ -14484,11 +14490,11 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	              ease: 'back.out(2.1)',
 	            }, 0);
 	            anticipation.call(() => {
-	              // Peak impact: the old face is still visible when smoke, shards
-	              // and the bonus star burst outward.
+	              // Beam launch keeps smoke, shards and the bonus star together;
+	              // only the cube's scale lead begins 300ms earlier.
 	              emitImpactFx();
 	              emitBonusStar();
-	            }, [], LASERGUN_CUBE_INFLATE_SECONDS);
+	            }, [], LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);
 	            anticipation.to(impactScale, {
 	              x: LASERGUN_CUBE_CONTRACT_SCALE,
 	              y: LASERGUN_CUBE_CONTRACT_SCALE,
@@ -14496,8 +14502,8 @@ function runTntBoomBonusBreak2Tiles(deps: {
 	              // Linear into and out of the reversal removes the perceptual
 	              // zero-velocity hold between compression and first rebound.
 	              ease: 'none',
-	            }, LASERGUN_CUBE_INFLATE_SECONDS);
-	            const settleStart = LASERGUN_CUBE_INFLATE_SECONDS + LASERGUN_CUBE_CONTRACT_SECONDS;
+	            }, LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);
+	            const settleStart = LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS + LASERGUN_CUBE_CONTRACT_SECONDS;
 	            // Swap at 0.70 and continue immediately through the one requested
 	            // rebound. There is no neutral pose or second bounce sequence.
 	            anticipation.call(swapLaserValueInPlace, [], settleStart);

@@ -69,7 +69,7 @@ export const LASERGUN_BUILDUP_START_SECONDS = Math.max(
 export const LASERGUN_PREFIRE_SETTLE_SECONDS = 0.16 * LASERGUN_GUN_TIME_SCALE;
 export const LASERGUN_BEAM_LAUNCH_SCALE = 0.06;
 export const LASERGUN_BEAM_TRAVEL_SECONDS = 0.095;
-export const LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0;
+export const LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0.3;
 // Keep the completed beam painted across the cube reaction before fading.
 export const LASERGUN_BEAM_FADE_DELAY_SECONDS = 0.24;
 export const LASERGUN_BEAM_FADE_SECONDS = 0.07;
@@ -876,10 +876,6 @@ export function attachLaserGunFinaleScene(
     });
     gsap.set(shot.beamPlan.image, { opacity: 1 });
     shot.beamVisible = true;
-    const onLaunch = shot.onBeamLaunch;
-    shot.onBeamLaunch = null;
-    // Beam travel and cube inflation start in this exact callback/tick.
-    try { onLaunch?.(); } catch {}
     startBeamTravel(shot);
     startGunExit(shot);
   };
@@ -1198,26 +1194,29 @@ export function attachLaserGunFinaleScene(
       const shot = shotStates[index];
       if (!shot || !shot.poseReady || !hasLockedGunAngles(shot)) return false;
       triggeredImpacts.add(index);
-          shot.onBeamLaunch = onLaunch || null;
-          // The cube response belongs to the real beam-tip arrival below, not
-          // gun trigger. Launch immediately and let Pixi impact start at contact.
-          shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
-          shot.impactPending = true;
-          if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0) {
-            shot.beamLaunchDelay = ownTween(gsap.delayedCall(
-              LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
-              () => {
-                shot.beamLaunchDelay = null;
-                revealRequestedBeam(shot);
-                settleBeamLaunch(shot, shot.beamVisible);
-              },
-            ));
-          } else {
+      shot.onBeamLaunch = onLaunch || null;
+      // Start the cube scale lead now; beam reveal follows after the exact
+      // requested lead without changing the beam's own travel timing.
+      const startCubeReaction = shot.onBeamLaunch;
+      shot.onBeamLaunch = null;
+      try { startCubeReaction?.(); } catch {}
+      shot.gun.image.src = LASERGUN_FRAME_SOURCES[5];
+      shot.impactPending = true;
+      if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0) {
+        shot.beamLaunchDelay = ownTween(gsap.delayedCall(
+          LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS,
+          () => {
+            shot.beamLaunchDelay = null;
             revealRequestedBeam(shot);
             settleBeamLaunch(shot, shot.beamVisible);
-          }
-          playGunReturnFrames(shot);
-          return true;
+          },
+        ));
+      } else {
+        revealRequestedBeam(shot);
+        settleBeamLaunch(shot, shot.beamVisible);
+      }
+      playGunReturnFrames(shot);
+      return true;
     },
         waitForImpactArrival: (index) => (
           shotStates[index]?.impactArrivalReadiness ?? Promise.resolve(false)

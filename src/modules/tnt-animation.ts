@@ -1134,6 +1134,15 @@ export function showTntAnimation(options: {
   overlay.appendChild(boomContainer);
   document.body.appendChild(overlay);
 
+  let finaleFinished = false;
+  const finishTntAnimation = () => {
+    if (finaleFinished) return;
+    finaleFinished = true;
+    didComplete = true;
+    cleanup();
+    try { onComplete?.(); } catch {}
+  };
+
   if (usesLaserGunScene) {
     const disposeLaserGunScene = attachLaserGunFinaleScene(overlay, {
       onFireReady: () => {
@@ -1141,6 +1150,9 @@ export function showTntAnimation(options: {
       },
       onSequenceComplete: () => {
         try { onSpriteSequenceComplete?.(); } catch {}
+        // LaserGun owns a sequential four-shot clock. Its fourth delayed beam
+        // can legitimately outlive the generic TNT 4.2s master duration.
+        finishTntAnimation();
       },
     });
     foregroundBurstCleanups.push(disposeLaserGunScene);
@@ -1149,9 +1161,9 @@ export function showTntAnimation(options: {
   // Master timeline for cleanup
   timeline = trackTimeline({
     onComplete: () => {
-      didComplete = true;
-      cleanup();
-      try { onComplete?.(); } catch {}
+      // Standard TNT/Flower retain the accepted fixed lifetime. LaserGun is
+      // finalized only by its real scene completion after beam four and exit.
+      if (!usesLaserGunScene) finishTntAnimation();
     },
     onKill: () => {
       cleanup();

@@ -240,7 +240,7 @@ describe('LaserGun special die contract', () => {
 
     expect(coreSource).toContain('!(t.rotG as any)._ccLaserGunImpactTl');
     expect(coreSource).toContain("'laser-gun-cube-impact',");
-    expect(coreSource).toContain('Math.ceil(LASERGUN_CUBE_ANTICIPATION_SECONDS * 1000) + 100');
+    expect(coreSource).toContain('Math.ceil(laserGunImpactTimelineSeconds * 1000) + 100');
     expect(coreSource).toContain('const impactScale = tile.scale');
     expect(coreSource).toContain('(impactVisual as any)._ccLaserGunImpactTl = anticipation');
     expect(coreSource).toContain('(tile as any)._ccLaserGunImpactTl = anticipation');
@@ -267,7 +267,8 @@ describe('LaserGun special die contract', () => {
     expect(coreSource).toContain('makeBoard.setValueImmediate(tile, replacementValue, 0)');
     expect(coreSource).not.toContain('makeBoard.refreshValueVisual?.(tile, 0)');
     expect(coreSource).toContain('anticipation.call(swapLaserValueInPlace, [], settleStart)');
-    expect(coreSource).toContain('// Peak impact: the old face is still visible');
+    expect(coreSource).toContain('// only the cube\'s scale lead begins 300ms earlier.');
+    expect(coreSource).toContain('emitBonusStar();\n\t            }, [], LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS);');
     expect(coreSource).toContain('rotation: baseRotation');
     expect(coreSource).not.toContain(
       'Math.round(LASERGUN_CUBE_ANTICIPATION_SECONDS * 1000)',
@@ -412,6 +413,9 @@ describe('LaserGun special die contract', () => {
     expect(appCore).toContain("if (preparation === 'visual-unavailable')");
     expect(appCore).toContain('if (schedulerFinished) completeActiveLaserGunFinaleImpacts()');
     expect(appCore).toContain('await waitForActiveLaserGunFinaleBeamLaunch(');
+    expect(tnt).toContain('if (!usesLaserGunScene) finishTntAnimation();');
+    expect(tnt).toContain('finishTntAnimation();\n      },');
+    expect(tnt).toContain('// finalized only by its real scene completion after beam four and exit.');
     expect(appCore).not.toContain('LASERGUN_IMPACT_DELAYS_MS');
     expect(appCore).toContain('(pos.x / screenW) * rect.width');
     expect(appCore).toContain("? (targets) => setActiveLaserGunFinaleTargets(targets)");
@@ -446,7 +450,7 @@ describe('LaserGun special die contract', () => {
     expect(scene).toContain('scaleX: placement.scaleX,');
     expect(scene).toContain('scaleY: placement.scaleY,');
     expect(scene).toContain('const liveFieldRect = field.getBoundingClientRect()');
-    expect(scene).toContain('LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0');
+    expect(scene).toContain('LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS = 0.3');
     expect(scene).toContain('if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS > 0)');
     expect(scene).toContain('revealRequestedBeam(shot);');
     expect(scene).toContain('settleImpactArrival(shot, true);');

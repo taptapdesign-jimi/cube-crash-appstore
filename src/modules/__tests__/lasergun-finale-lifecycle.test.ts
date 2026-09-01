@@ -86,7 +86,6 @@ describe('LaserGun finale lifecycle', () => {
   };
 
   const completeBeamLaunchDelay = (): void => {
-    if (LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS === 0) return;
     const delay = [...gsap.globalTimeline.getChildren(true, true, true)]
       .reverse()
       .find((animation) => (
@@ -291,11 +290,13 @@ describe('LaserGun finale lifecycle', () => {
     await expect(poseReadiness).resolves.toBe(true);
     expect(triggerActiveLaserGunFinaleImpact(0)).toBe(true);
     expect(frame.src).toContain(LASERGUN_FRAME_SOURCES[5].replace('./', '/'));
+    expect(beam.style.opacity).toBe('0');
+    completeBeamLaunchDelay();
     expect(beam.style.opacity).toBe('1');
     cleanup();
   });
 
-  test('starts cube inflation in the exact callback that launches beam travel', async () => {
+  test('starts cube inflation 300ms before the callback that launches beam travel', async () => {
     const frames = installRafQueue();
     const overlay = document.createElement('div');
     document.body.appendChild(overlay);
@@ -315,8 +316,11 @@ describe('LaserGun finale lifecycle', () => {
     expect(synchronousArrivals).toBe(1);
     const arrival = waitForActiveLaserGunFinaleImpactArrival(0);
     const beamLaunch = waitForActiveLaserGunFinaleBeamLaunch(0);
-    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeLessThan(finalScaleX);
+    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
+    expect(beam.style.opacity).toBe('0');
+    completeBeamLaunchDelay();
     expect(beam.style.opacity).toBe('1');
+    expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeLessThan(finalScaleX);
     await expect(beamLaunch).resolves.toBe(true);
     expect(beam.style.opacity).toBe('1');
     const beamTimeline = gsap.globalTimeline.getChildren(true, true, true)
@@ -340,7 +344,7 @@ describe('LaserGun finale lifecycle', () => {
     void arrival.then(() => { arrivalSettled = true; });
     await Promise.resolve();
     expect(arrivalSettled).toBe(false);
-    expect(LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS).toBe(0);
+    expect(LASERGUN_CUBE_REACTION_PRECEDES_BEAM_SECONDS).toBe(0.3);
 
     beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS * 0.5, false);
     expect(synchronousArrivals).toBe(1);
@@ -348,8 +352,7 @@ describe('LaserGun finale lifecycle', () => {
 
     beamTimeline!.time(LASERGUN_BEAM_TRAVEL_SECONDS + 0.001, false);
     expect(synchronousArrivals).toBe(1);
-    // Callback already fired synchronously with beam launch; arrival Promise
-    // remains scheduler-only and has not been awaited to start cube inflation.
+    // Cube callback already fired at trigger; arrival remains scheduler-only.
     expect(arrivalSettled).toBe(false);
     await expect(arrival).resolves.toBe(true);
     expect(Number(gsap.getProperty(scaleLayer, 'scaleX'))).toBeCloseTo(finalScaleX, 6);
@@ -374,6 +377,8 @@ describe('LaserGun finale lifecycle', () => {
     const beam = overlay.querySelector(
       '.cc-lasergun-beam[data-lasergun-target="0"]',
     ) as HTMLElement;
+    expect(beam.style.opacity).toBe('0');
+    completeBeamLaunchDelay();
     expect(beam.style.opacity).toBe('1');
     cancelActiveLaserGunFinaleImpact(0);
 
