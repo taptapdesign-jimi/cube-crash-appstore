@@ -21,6 +21,13 @@ import { formatJourneyWorldStageNumber } from './journey-world-stage.js';
 import { getIosResistedModalVerticalDelta } from './modal-vertical-drag-dismiss.js';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.js';
 import { areContinuousRuntimeDiagnosticsEnabled } from '../utils/runtime-diagnostics-policy.js';
+import type { JourneyCardRarity } from './journey-card-assets.js';
+import {
+  applyJourneyInterimShineProfileVariables,
+  clearJourneyInterimShineMask,
+  createJourneyInterimShineLoop,
+  setJourneyInterimShineMask,
+} from './journey-interim-card-shine.js';
 
 export type JourneyCardOverlayModalResult = 'dismiss' | 'play';
 
@@ -36,6 +43,7 @@ interface JourneyCardOverlayModalOptions {
   boardId: number;
   origin: JourneyCardOriginLease;
   cardImagePath2x?: string;
+  cardRarity?: JourneyCardRarity;
   hasSavedState: boolean;
   scrollOwner?: HTMLElement | null;
   entryInitialOpacity?: number;
@@ -60,6 +68,14 @@ export interface JourneyCardOverlayModalViewModel {
 export interface JourneyCardOverlayTiltProfile {
   cardRotationDeg: number;
   modalRotationDeg: number;
+}
+
+export function shouldRunJourneyCardLegendaryIdleShine(
+  rarity: JourneyCardRarity | undefined,
+  targetFace: 'front' | 'back',
+  prefersReducedMotion: boolean,
+): boolean {
+  return rarity === 'legendary' && targetFace === 'front' && !prefersReducedMotion;
 }
 
 let activeJourneyCardOverlayModal: JourneyCardOverlayModalController | null = null;
@@ -367,6 +383,7 @@ export function presentJourneyCardOverlayModal(
     boardStatsService.getBoardStats(options.boardId),
     options.hasSavedState,
   );
+  const cardRarity = options.cardRarity ?? 'common';
   markOpenProfile('view-model-built');
   const stage = document.createElement('div');
   const tiltProfile = createJourneyCardOverlayTiltProfile();
@@ -376,6 +393,8 @@ export function presentJourneyCardOverlayModal(
   stage.setAttribute('aria-modal', 'true');
   stage.setAttribute('aria-labelledby', 'journey-card-flip-title');
   stage.setAttribute('data-board-id', String(options.boardId));
+  stage.setAttribute('data-card-rarity', cardRarity);
+  stage.classList.toggle('is-legendary-card', cardRarity === 'legendary');
   stage.style.setProperty('--journey-card-origin-aspect', String(options.origin.aspectRatio));
   stage.style.setProperty('--journey-card-flip-front-tilt', `${tiltProfile.cardRotationDeg}deg`);
   stage.style.setProperty('--journey-card-flip-back-tilt', `${tiltProfile.modalRotationDeg}deg`);
@@ -388,8 +407,9 @@ export function presentJourneyCardOverlayModal(
             <div class="journey-card-flip-pose-shell">
             <div class="journey-card-flip-rotor">
               <div class="journey-card-flip-face journey-card-flip-front" role="button" tabindex="0" aria-label="Turn card to view stats" aria-hidden="false">
-                <div class="journey-card-flip-card-host" aria-hidden="true"></div>
+                <div class="journey-card-flip-card-host cc-journey-interim-shine-face" aria-hidden="true"></div>
                 <div class="journey-card-flip-shine" aria-hidden="true"></div>
+                <div class="journey-card-flip-legendary-shine cc-journey-interim-shine-light" aria-hidden="true"></div>
               </div>
               <div class="journey-card-flip-face journey-card-flip-back" aria-hidden="true">
                 <div class="cc-gameplay-modal-idle-shell journey-card-flip-back-shell">
@@ -446,6 +466,7 @@ export function presentJourneyCardOverlayModal(
   const back = stage.querySelector<HTMLElement>('.journey-card-flip-back');
   const backShell = stage.querySelector<HTMLElement>('.journey-card-flip-back-shell');
   const cardHost = stage.querySelector<HTMLElement>('.journey-card-flip-card-host');
+  const legendaryShine = stage.querySelector<HTMLElement>('.journey-card-flip-legendary-shine');
   const cta = stage.querySelector<HTMLButtonElement>('.journey-card-flip-cta');
   const turnControl = stage.querySelector<HTMLButtonElement>('.journey-card-flip-turn-control');
   const idleHand = stage.querySelector<HTMLImageElement>('.journey-card-flip-idle-hand');
@@ -464,6 +485,10 @@ export function presentJourneyCardOverlayModal(
     portaledCard.style.backgroundImage = `url("${options.cardImagePath2x.replace(/"/g, '\\"')}")`;
     const preloader = portaledCard.querySelector<HTMLImageElement>('.journey-board-image-preload');
     if (preloader) preloader.src = options.cardImagePath2x;
+  }
+  if (cardRarity === 'legendary' && options.cardImagePath2x) {
+    applyJourneyInterimShineProfileVariables(stage);
+    setJourneyInterimShineMask(legendaryShine, options.cardImagePath2x);
   }
   markOpenProfile('origin-mounted');
   stage.classList.toggle(
@@ -536,18 +561,76 @@ export function presentJourneyCardOverlayModal(
   let dragAxis: 'horizontal' | 'vertical' | null = null;
   let dismissDragReleaseY = 0;
   let dismissDragReleaseScale = 1;
+  const shouldRunLegendaryIdleShine = (): boolean => (
+    shouldRunJourneyCardLegendaryIdleShine(
+      cardRarity,
+      stage.dataset.paintFace === 'front' ? 'front' : 'back',
+      prefersReducedMotion,
+    )
+    && !!legendaryShine
+    && !!options.cardImagePath2x
+    && !entering
+    && !closing
+    && !settled
+    && stage.isConnected
+    && (
+      (activePointerId !== null && stage.classList.contains('is-dragging'))
+      || (
+        activePointerId === null
+        && !flipping
+        && !impactAnimation
+        && !dragPreviewSettleAnimation
+        && stage.dataset.face === 'front'
+        && stage.classList.contains('is-surface-idle')
+      )
+    )
+  );
+
+  const legendaryIdleShineLoop = createJourneyInterimShineLoop({
+    lightElement: legendaryShine,
+    faceElement: cardHost,
+    baseScale: 1,
+    shouldRun: shouldRunLegendaryIdleShine,
+  });
+
+  const stopLegendaryIdleShine = (removeMask = false): void => {
+    legendaryIdleShineLoop.stop();
+    cardHost.style.removeProperty('transform');
+    cardHost.style.removeProperty('transform-origin');
+    if (removeMask) clearJourneyInterimShineMask(legendaryShine);
+  };
+
+  const startLegendaryIdleShine = (targetFace: 'front' | 'back'): void => {
+    if (!shouldRunJourneyCardLegendaryIdleShine(cardRarity, targetFace, prefersReducedMotion)) return;
+    if (!legendaryShine || !options.cardImagePath2x) return;
+    setJourneyInterimShineMask(legendaryShine, options.cardImagePath2x);
+    legendaryIdleShineLoop.start();
+  };
+
+  const syncLegendaryShineToPaintedFace = (): void => {
+    if (shouldRunLegendaryIdleShine()) {
+      startLegendaryIdleShine('front');
+      return;
+    }
+    stopLegendaryIdleShine();
+  };
 
   const setPaintFaceForAngle = (angle: number) => {
     const normalized = ((angle % 360) + 360) % 360;
     const edgeDistance = Math.abs(normalized - 90) < 0.001 || Math.abs(normalized - 270) < 0.001;
     if (edgeDistance) return;
     stage.dataset.paintFace = normalized > 90 && normalized < 270 ? 'back' : 'front';
+    syncLegendaryShineToPaintedFace();
   };
 
-  const stopSurfaceIdle = () => stage.classList.remove('is-surface-idle');
+  const stopSurfaceIdle = (preserveLegendaryShine = false) => {
+    stage.classList.remove('is-surface-idle');
+    if (!preserveLegendaryShine) stopLegendaryIdleShine();
+  };
   const startSurfaceIdle = () => {
     if (!prefersReducedMotion && !entering && !closing && !settled && !flipping && activePointerId === null) {
       stage.classList.add('is-surface-idle');
+      startLegendaryIdleShine(stableFace);
     }
   };
 
@@ -786,6 +869,7 @@ export function presentJourneyCardOverlayModal(
   };
 
   const cancelMotion = () => {
+    stopLegendaryIdleShine(true);
     stopIdleCoach(false);
     clearBackContentTimers();
     spatialFlight?.cancel();
@@ -860,13 +944,14 @@ export function presentJourneyCardOverlayModal(
     preferredDirection?: -1 | 1,
   ): Promise<void> => {
     if (entering || closing || settled || flipping || impactAnimation || dragPreviewSettleAnimation) return;
+    if (activePointerId === null) stopLegendaryIdleShine();
     if (flipRecoilAnimation) {
       flipRecoilAnimation.cancel();
       flipRecoilAnimation = null;
       setRotorAngle(stableRotorAngle());
     }
     flipping = true;
-    stopSurfaceIdle();
+    stopSurfaceIdle(activePointerId !== null);
     stage.classList.add('is-flipping');
     stage.classList.toggle('is-flipping-to-front', targetFace === 'front');
     stage.classList.toggle('is-flipping-to-back', targetFace === 'back');
@@ -1234,8 +1319,9 @@ export function presentJourneyCardOverlayModal(
     dragPreviewSettleAnimation = null;
     impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';
     impactShell.style.translate = 'none';
-    stopSurfaceIdle();
     stage.classList.add('is-dragging');
+    stopSurfaceIdle(true);
+    syncLegendaryShineToPaintedFace();
     try { rotor.setPointerCapture(event.pointerId); } catch {}
   }
 
@@ -1309,6 +1395,7 @@ export function presentJourneyCardOverlayModal(
     activePointerId = null;
     try { rotor.releasePointerCapture(event.pointerId); } catch {}
     stage.classList.remove('is-dragging');
+    syncLegendaryShineToPaintedFace();
     if (dragAxis === 'vertical') {
       event.preventDefault();
       event.stopPropagation();

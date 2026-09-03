@@ -1,5 +1,6 @@
 import {
   formatJourneyWorldStageNumber,
+  getJourneyWorldCardPresentation,
   getJourneyWorldStageNumber,
   reconcileJourneyWorldInterims,
 } from '../journey-world-stage';
@@ -49,6 +50,43 @@ describe('Journey World-local Stage progression', () => {
 
     expect(reconcileJourneyWorldInterims(boards)).toEqual([13, 21]);
     expect(boards.filter((board) => board.interim).map((board) => board.id)).toEqual([13, 21]);
+  });
+
+  test('completed state wins over a stale interim marker when choosing card presentation', () => {
+    expect(getJourneyWorldCardPresentation({ unlocked: true, interim: true })).toBe('unlocked');
+    expect(getJourneyWorldCardPresentation({ unlocked: false, interim: true })).toBe('interim');
+    expect(getJourneyWorldCardPresentation({ unlocked: false, interim: false })).toBe('locked');
+  });
+
+  test('reconciles preserved World card Units before priming the gameplay return enter', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../journey-boards-manager.ts'),
+      'utf8',
+    );
+    const prepareStart = source.indexOf('public prepareJourneyV700WorldEnterFromReturn(');
+    const prepareEnd = source.indexOf('\n  private playJourneyV700WorldEnter(', prepareStart);
+    const prepareSource = source.slice(prepareStart, prepareEnd);
+    const reconcileIndex = prepareSource.indexOf('this.reconcileMountedJourneyWorldCardUnits(');
+    const primeIndex = prepareSource.indexOf('this.primeJourneyV700WorldEnter(');
+
+    expect(prepareStart).toBeGreaterThan(-1);
+    expect(reconcileIndex).toBeGreaterThan(-1);
+    expect(primeIndex).toBeGreaterThan(reconcileIndex);
+    expect(prepareSource).toContain('Full Journey rendering is correctly blocked while gameplay owns the');
+  });
+
+  test('rebuilds interim area hit targets after the return screen becomes playable', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../journey-boards-manager.ts'),
+      'utf8',
+    );
+    const playStart = source.indexOf('public playJourneyV700WorldEnterFromReturn(');
+    const playEnd = source.indexOf('\n  public prepareJourneyV700WorldEnterFromReturn(', playStart);
+    const playSource = source.slice(playStart, playEnd);
+
+    expect(playStart).toBeGreaterThan(-1);
+    expect(playSource).toContain('this.reconcileMountedJourneyWorldCardUnits(');
+    expect(playSource).toContain('this.trackRAF(() => this.installInterimAreaHitTargets(cardsContainer));');
   });
 
   test('restores an interim completion to New before rendering its Unit and return modal', () => {

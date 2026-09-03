@@ -151,6 +151,7 @@ async function showNewCardDevScreen(): Promise<void> {
       boardNumber,
       cardImagePath: board?.imagePath2x || board?.imagePath || fallbackAsset.path2x || fallbackAsset.path1x,
       cardName: board?.name || formatGameplayProgressLabel('journey', boardNumber),
+      cardRarity: board?.cardRarity || fallbackAsset.rarity,
     });
   } catch (error) {
     console.error('❌ Failed to show Settings New Card dev screen:', error);

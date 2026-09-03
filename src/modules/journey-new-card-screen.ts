@@ -5,7 +5,15 @@ import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { registerCta } from './cta-system.ts';
 import { createJourneyNewCardTiltProfile } from './journey-new-card-tilt.js';
-import { resolveJourneyCardAsset } from './journey-card-assets.js';
+import { resolveJourneyCardAsset, type JourneyCardRarity } from './journey-card-assets.js';
+import {
+  getJourneyNewCardDisplayName,
+  getJourneyNewCardRevealCopy,
+  JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
+  JOURNEY_NEW_CARD_INTERIM_SCALE,
+  JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX,
+  JOURNEY_NEW_CARD_UNLOCKED_SCALE,
+} from './journey-new-card-presentation.js';
 import {
   applyJourneyInterimShineProfileVariables,
   clearJourneyInterimShineMask as clearLightMask,
@@ -21,6 +29,7 @@ type JourneyNewCardScreenOptions = {
   boardNumber: number;
   cardImagePath: string;
   cardName?: string;
+  cardRarity: JourneyCardRarity;
 };
 
 let cleanupFns: Array<() => void> = [];
@@ -82,6 +91,8 @@ function ensureJourneyNewCardStyles(): void {
       text-align: center;
       position: relative;
       top: -16px;
+      max-width: min(88vw, 520px);
+      text-wrap: balance;
     }
     .cc-journey-new-card-subtitle {
       margin: 26px 0 0;
@@ -93,6 +104,8 @@ function ensureJourneyNewCardStyles(): void {
       text-align: center;
       position: relative;
       top: -16px;
+      max-width: min(88vw, 520px);
+      text-wrap: balance;
     }
     .cc-journey-new-card-content {
       width: 100%;
@@ -321,13 +334,6 @@ function getCrumbleFramePath(frame: number): string {
   return `./assets/animations/sand/zguzvano${frame}.png`;
 }
 
-function toDisplayCardName(name: string): string {
-  return String(name || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
-}
-
 function preloadImage(src: string): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -431,6 +437,7 @@ export async function showJourneyNewCardScreen({
   boardNumber,
   cardImagePath,
   cardName,
+  cardRarity,
 }: JourneyNewCardScreenOptions): Promise<{ action: 'continue' }> {
   cleanupJourneyNewCardScreen();
   try { cleanupJourneySmokeEffects(); } catch {}
@@ -439,9 +446,12 @@ export async function showJourneyNewCardScreen({
   const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
   const fallbackAsset = resolveJourneyCardAsset(safeBoardNumber, 0);
   const safeCardPath = cardImagePath || fallbackAsset.path2x || fallbackAsset.path1x;
-  const safeCardName = cardName || formatGameplayProgressLabel('journey', safeBoardNumber);
-  const displayCardName = toDisplayCardName(safeCardName);
-  const revealSubtitle = `"${displayCardName}" added`;
+  const safeCardName = getJourneyNewCardDisplayName(
+    safeBoardNumber,
+    cardName || formatGameplayProgressLabel('journey', safeBoardNumber),
+  );
+  const safeCardRarity = cardRarity;
+  const revealCopy = getJourneyNewCardRevealCopy(safeCardName, safeCardRarity);
   const revealTilt = createJourneyNewCardTiltProfile();
 
   await Promise.all([
@@ -463,6 +473,7 @@ export async function showJourneyNewCardScreen({
 
     const overlay = document.createElement('div');
     overlay.id = 'cc-journey-new-card-overlay';
+    overlay.dataset.cardRarity = safeCardRarity;
     applyAppPaperSurfaceToElement(overlay);
     overlay.innerHTML = `
       <h1 class="cc-journey-new-card-title" style="opacity:0;transform:scale(0) translateY(-28px);">New Reward</h1>
@@ -794,7 +805,8 @@ export async function showJourneyNewCardScreen({
         gsap.set(interimSurface, {
           opacity: 1,
           visibility: 'visible',
-          scale: 1,
+          y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
+          scale: JOURNEY_NEW_CARD_INTERIM_SCALE,
           rotationZ: revealTilt.interimRestRotationDeg,
           rotationX: revealTilt.interimRestRotateXDeg,
           rotationY: revealTilt.interimRestRotateYDeg,
@@ -849,7 +861,7 @@ export async function showJourneyNewCardScreen({
                 opacity: 1,
                 visibility: 'visible',
                 y: 0,
-                scale: 1,
+                scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
                 rotationZ: revealTilt.unlockedRestRotationDeg,
                 rotationX: revealTilt.unlockedRestRotateXDeg,
                 rotationY: revealTilt.unlockedRestRotateYDeg,
@@ -862,11 +874,11 @@ export async function showJourneyNewCardScreen({
           }))
             .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
-            .set(title, { textContent: 'Unlocked!', opacity: 0, y: -16, scale: 0.72 }, titleStart)
-            .set(subtitle, { textContent: revealSubtitle, opacity: 0, y: -12, scale: 0.78 }, titleStart)
+            .set(title, { textContent: revealCopy.title, opacity: 0, y: -16, scale: 0.72 }, titleStart)
+            .set(subtitle, { textContent: revealCopy.subtitle, opacity: 0, y: -12, scale: 0.78 }, titleStart)
             .to(interimSurface, {
               scale: 0,
-              y: -30,
+              y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX - 30,
               rotationZ: revealTilt.interimExitRotationDeg,
               rotationX: revealTilt.interimExitRotateXDeg,
               rotationY: revealTilt.interimExitRotateYDeg,
@@ -909,7 +921,7 @@ export async function showJourneyNewCardScreen({
             }, undefined, cardEnterStart)
             .to(unlockedSurface, {
               y: 0,
-              scale: 1,
+              scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
               rotationZ: revealTilt.unlockedRestRotationDeg,
               rotationX: revealTilt.unlockedRestRotateXDeg,
               rotationY: revealTilt.unlockedRestRotateYDeg,
@@ -997,8 +1009,8 @@ export async function showJourneyNewCardScreen({
         revealed = true;
         revealRunning = false;
       } catch {
-        if (title) title.textContent = 'Unlocked!';
-        if (subtitle) subtitle.textContent = revealSubtitle;
+        if (title) title.textContent = revealCopy.title;
+        if (subtitle) subtitle.textContent = revealCopy.subtitle;
         if (frameImg) {
           frameImg.style.opacity = '0';
           frameImg.style.visibility = 'hidden';
@@ -1016,7 +1028,7 @@ export async function showJourneyNewCardScreen({
             opacity: 1,
             visibility: 'visible',
             y: 0,
-            scale: 1,
+            scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
             rotationZ: revealTilt.unlockedRestRotationDeg,
             rotationX: revealTilt.unlockedRestRotateXDeg,
             rotationY: revealTilt.unlockedRestRotateYDeg,
@@ -1056,10 +1068,11 @@ export async function showJourneyNewCardScreen({
     gsap.set(title, { opacity: 0, y: -28, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(subtitle, { opacity: 0, y: -22, scale: 0, transformOrigin: '50% 50%' });
     gsap.set(hero, { opacity: 0, y: -30, scale: 0, transformOrigin: '50% 50%' });
-    gsap.set(shadow, { opacity: 0, y: 8, scaleX: 0.42, scaleY: 0.54 });
+    gsap.set(shadow, { opacity: 0, y: JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX, scaleX: 0.42, scaleY: 0.54 });
     gsap.set(interimSurface, {
       opacity: 1,
       visibility: 'visible',
+      y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
       scale: 1,
       rotationZ: revealTilt.interimRestRotationDeg,
       rotationX: revealTilt.interimRestRotateXDeg,
@@ -1092,7 +1105,7 @@ export async function showJourneyNewCardScreen({
         setCardIdleTiltState('interim');
         gsap.to(shadow, {
           opacity: 0.72,
-          y: 8,
+          y: JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX,
           scaleX: 0.86,
           scaleY: 0.82,
           duration: d(1.42),
@@ -1106,7 +1119,7 @@ export async function showJourneyNewCardScreen({
       .to(title, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, 0)
       .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: d(0.3), ease: 'back.out(1.65)' }, d(0.04))
       .to(hero, { opacity: 1, y: 0, scale: 1, duration: d(0.65), ease: 'back.out(1.7)' }, d(0.22))
-      .to(shadow, { opacity: 1, y: 8, scaleX: 1, scaleY: 1, duration: d(0.32), ease: 'power2.out' }, 0)
+      .to(shadow, { opacity: 1, y: JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX, scaleX: 1, scaleY: 1, duration: d(0.32), ease: 'power2.out' }, 0)
       .add(() => {
         const introFramePlaybackId = ++framePlaybackId;
         (async () => {
@@ -1152,7 +1165,15 @@ export async function showJourneyNewCardScreen({
               }, undefined, 0)
               .to(frameImg, { filter: 'brightness(1.32) saturate(1.08)', scale: 1.34, duration: 0.08, ease: 'power2.out' }, 0)
               .to(frameImg, { filter: 'brightness(1.04) saturate(1.02)', scale: 1.2, duration: 0.18, ease: 'back.out(2.1)' })
-              .to(frameImg, { filter: 'brightness(1)', duration: 0.16, ease: 'sine.out' }, '<0.04')
+              .to(interimSurface, {
+                y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
+                scale: JOURNEY_NEW_CARD_INTERIM_SCALE,
+                duration: 0.18,
+                ease: 'back.out(2.1)',
+                transformOrigin: '50% 50%',
+                force3D: true,
+              }, 0.08)
+              .to(frameImg, { filter: 'brightness(1)', duration: 0.16, ease: 'sine.out' }, 0.12)
               .call(startSprite9ShineLoop);
           }
         })().catch(() => {});

@@ -10,6 +10,8 @@ describe('Journey collectible card assets', () => {
     [1, 2500, 'common'],
     [1, 6499, 'common'],
     [1, 6500, 'legendary'],
+    [2, 6499, 'common'],
+    [2, 6500, 'legendary'],
     [4, 7999, 'common'],
     [4, 8000, 'legendary'],
     [10, 9499, 'common'],
@@ -26,6 +28,10 @@ describe('Journey collectible card assets', () => {
     expect(resolveJourneyCardAsset(10, 9500)).toMatchObject({
       path1x: './assets/colelctibles/Forest/legendary/10-gold.png',
       path2x: './assets/colelctibles/Forest/legendary/10-gold@2x.png',
+    });
+    expect(resolveJourneyCardAsset(2, 6500)).toMatchObject({
+      path1x: './assets/colelctibles/Forest/legendary/02-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/02-gold@2x.png',
     });
   });
 
@@ -82,7 +88,9 @@ describe('Journey collectible card assets', () => {
     );
 
     expect(manager).toContain('const cardImagePath = cardAsset.path1x;');
-    expect(manager).toContain('cardImagePath2x: this.syncBoardCardAsset(board).path2x');
+    expect(manager.match(/const overlayCardAsset = this\.syncBoardCardAsset\(board\);/g)).toHaveLength(2);
+    expect(manager.match(/cardImagePath2x: overlayCardAsset\.path2x/g)).toHaveLength(2);
+    expect(manager.match(/cardRarity: overlayCardAsset\.rarity/g)).toHaveLength(2);
     expect(manager).toContain('(boardCardAsset.path2x || boardCardAsset.path1x)');
     expect(manager).toContain("this.refreshJourneyBoardCardArt(boardId, 'high-score-event')");
     expect(completion).toContain('cardImagePath: rewardAsset.path2x || rewardAsset.path1x');

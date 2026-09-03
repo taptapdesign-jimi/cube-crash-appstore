@@ -70,6 +70,7 @@ import {
 } from './journey-interim-idle-policy.js';
 import {
   formatJourneyWorldStageNumber,
+  getJourneyWorldCardPresentation,
   reconcileJourneyWorldInterims,
 } from './journey-world-stage.js';
 import {
@@ -124,6 +125,7 @@ import {
   shouldStartJourneyInterimShine,
   type JourneyInterimShineLoopController,
 } from './journey-interim-card-shine.js';
+import { JOURNEY_FOREST_CARD_NAMES } from './journey-new-card-presentation.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -5750,16 +5752,7 @@ class JourneyBoardsManager {
 
   private getBoardName(boardNumber: number): string {
     const names = [
-      'FIRST DAY',
-      'SO SPECIAL',
-      'ALL STAR',
-      'FLYING UP',
-      'PLANNER',
-      'STACKMAN',
-      'PEACEFUL',
-      'CRUMBLER',
-      'BIG BANG',
-      'CUBERO',
+      ...JOURNEY_FOREST_CARD_NAMES,
       'PEAKABOO',
       'COOL DICE',
       'BEST PLAY',
@@ -8095,6 +8088,64 @@ class JourneyBoardsManager {
     }
   }
 
+  private reconcileMountedJourneyWorldCardUnits(
+    container: HTMLElement,
+    worldId: number,
+    reason: string,
+  ): number[] {
+    const range = this.getJourneyWorldRange(worldId);
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    if (!range || !cardsContainer) return [];
+
+    const replacements = this.boards.flatMap((board) => {
+      if (board.id < range.start || board.id > range.end) return [];
+      const mountedCard = cardsContainer.querySelector<HTMLElement>(
+        `.journey-board-card[data-board-id="${board.id}"]`,
+      );
+      const mountedWrapper = mountedCard?.closest('.journey-board-card-wrapper') as HTMLElement | null;
+      if (!mountedCard || !mountedWrapper) return [];
+
+      const expectedPresentation = getJourneyWorldCardPresentation(board);
+      const mountedPresentation = mountedCard.classList.contains('unlocked')
+        ? 'unlocked'
+        : mountedCard.classList.contains('interim')
+          ? 'interim'
+          : 'locked';
+      if (mountedPresentation === expectedPresentation) {
+        if (expectedPresentation === 'unlocked') {
+          this.refreshJourneyBoardCardArt(board.id, `${reason}-mounted-state-match`);
+        }
+        return [];
+      }
+
+      return [{ board, mountedWrapper, mountedPresentation, expectedPresentation }];
+    });
+
+    if (replacements.length === 0) return [];
+
+    // Retire transient ownership before replacing only the stale card Units.
+    // The World scenery, scroll position and authored enter motion stay intact.
+    this.stopInterimCardIdleEffects();
+    replacements.forEach(({ board, mountedWrapper }) => {
+      const ownedElements = [mountedWrapper, ...Array.from(mountedWrapper.querySelectorAll('*'))];
+      gsap.killTweensOf(ownedElements);
+      mountedWrapper.replaceWith(this.createBoardCardFixed(board, board.id - 1));
+    });
+
+    const replacedBoardIds = replacements.map(({ board }) => board.id);
+    emitIOSNativeDiagnostic('journey-return-card-units-reconciled', {
+      worldId,
+      reason,
+      replacedBoardIds,
+      transitions: replacements.map(({ board, mountedPresentation, expectedPresentation }) => ({
+        boardId: board.id,
+        from: mountedPresentation,
+        to: expectedPresentation,
+      })),
+    });
+    return replacedBoardIds;
+  }
+
   public playJourneyV700WorldEnterFromReturn(source = 'journey-return'): void {
     const container = document.getElementById('journey-boards-container') as HTMLElement | null;
     const worldId = this.journeyV700WorldId || Number((window as any).__ccJourneyV700WorldId || localStorage.getItem(JOURNEY_V700_WORLD_STORAGE_KEY) || 0);
@@ -8119,6 +8170,11 @@ class JourneyBoardsManager {
     this.journeyV700WorldId = worldId;
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
+    this.reconcileMountedJourneyWorldCardUnits(container, worldId, `${source}-play-fallback`);
+    const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement | null;
+    if (cardsContainer) {
+      this.trackRAF(() => this.installInterimAreaHitTargets(cardsContainer));
+    }
     // This route can only originate from a World that was already presented
     // before gameplay. Its images are therefore already fetched/prepared.
     // Waiting for responsive image decode again made Beach begin later than
@@ -8158,6 +8214,10 @@ class JourneyBoardsManager {
     this.journeyV700WorldId = worldId;
     container.dataset.journeyV700View = 'world';
     container.dataset.journeyV700WorldId = String(worldId);
+    // Full Journey rendering is correctly blocked while gameplay owns the
+    // screen. Reconcile only card Units in the preserved World DOM so a newly
+    // completed interim Unit is painted as unlocked before the return enter.
+    this.reconcileMountedJourneyWorldCardUnits(container, worldId, source);
     this.primeJourneyV700WorldEnter(container, worldId, {
       source,
       lastBoardId: this.getLastActiveJourneyBoardAreaId(),
@@ -9161,9 +9221,10 @@ class JourneyBoardsManager {
     
     // Create card element (same as before)
     const card = document.createElement('div');
-    const isInterim = board.interim === true;
-    const isUnlocked = board.unlocked === true;
-    card.className = `journey-board-card ${isInterim ? 'interim' : isUnlocked ? 'unlocked' : 'locked'}`;
+    const cardPresentation = getJourneyWorldCardPresentation(board);
+    const isInterim = cardPresentation === 'interim';
+    const isUnlocked = cardPresentation === 'unlocked';
+    card.className = `journey-board-card ${cardPresentation}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = formatJourneyWorldStageNumber(board.id);
 
@@ -9831,10 +9892,12 @@ class JourneyBoardsManager {
       const overlayCardExit = new Promise<void>((resolve) => {
         resolveOverlayCardExit = resolve;
       });
+      const overlayCardAsset = this.syncBoardCardAsset(board);
       const controller = presentJourneyCardOverlayModal({
         boardId: board.id,
         origin,
-        cardImagePath2x: this.syncBoardCardAsset(board).path2x,
+        cardImagePath2x: overlayCardAsset.path2x,
+        cardRarity: overlayCardAsset.rarity,
         hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true }),
         scrollOwner,
         openProfileStartedAt,
@@ -10095,9 +10158,12 @@ class JourneyBoardsManager {
       const overlayCardExit = new Promise<void>((resolve) => {
         resolveOverlayCardExit = resolve;
       });
+      const overlayCardAsset = this.syncBoardCardAsset(board);
       const controller = presentJourneyCardOverlayModal({
         boardId,
         origin,
+        cardImagePath2x: overlayCardAsset.path2x,
+        cardRarity: overlayCardAsset.rarity,
         hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
         scrollOwner,
         entryInitialOpacity: 1,

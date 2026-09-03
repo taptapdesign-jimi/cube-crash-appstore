@@ -301,6 +301,38 @@
   display: none;
 }
 
+/* Legendary artwork replaces the generic modal sweep with the exact masked
+   New Reward light/glow/bounce profile. Its single lifecycle owner stays live
+   while the painted artwork face is idle or follows an active drag. */
+.journey-card-flip-overlay.is-legendary-card .journey-card-flip-shine {
+  display: none;
+}
+
+.journey-card-flip-legendary-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.92;
+  border-radius: var(--journey-card-flip-radius);
+  -webkit-clip-path: inset(0 round var(--journey-card-flip-radius));
+  clip-path: inset(0 round var(--journey-card-flip-radius));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-type: alpha;
+  mask-mode: alpha;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.journey-card-flip-overlay.is-legendary-card .journey-card-flip-legendary-shine {
+  display: block;
+}
+
 .journey-card-flip-overlay:is(.is-entering, .is-exiting, .is-flipping, .is-dragging)
   .journey-card-flip-shine {
   opacity: 0;
@@ -702,6 +734,7 @@
   .journey-card-flip-spatial-shell,
   .journey-card-flip-impact-shell,
   .journey-card-flip-rotor,
+  .journey-card-flip-legendary-shine,
   .journey-card-flip-shine,
   .journey-card-flip-idle-hand,
   .journey-card-flip-idle-copy,

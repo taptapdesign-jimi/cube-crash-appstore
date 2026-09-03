@@ -61,6 +61,7 @@ export async function runJourneyCompletionFlow({
           boardNumber,
           cardImagePath: rewardAsset.path2x || rewardAsset.path1x || boardCard?.imagePath || '',
           cardName: boardCard?.name || formatGameplayProgressLabel('journey', boardNumber),
+          cardRarity: rewardAsset.rarity,
         });
         logger?.info?.(`🎁 Journey new card screen completed for board ${boardNumber}`);
 

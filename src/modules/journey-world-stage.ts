@@ -6,6 +6,18 @@ export interface JourneyWorldStageState {
   interim?: boolean;
 }
 
+export type JourneyWorldCardPresentation = 'unlocked' | 'interim' | 'locked';
+
+export function getJourneyWorldCardPresentation(
+  board: Pick<JourneyWorldStageState, 'unlocked' | 'interim'>,
+): JourneyWorldCardPresentation {
+  // A completed Unit must never remain visually interim if an older mounted
+  // Journey tree still carries both states during the gameplay return handoff.
+  if (board.unlocked) return 'unlocked';
+  if (board.interim) return 'interim';
+  return 'locked';
+}
+
 export function getJourneyWorldStageNumber(boardId: number): number {
   const safeBoardId = Math.max(1, Math.trunc(Number.isFinite(boardId) ? boardId : 1));
   return ((safeBoardId - 1) % JOURNEY_STAGES_PER_WORLD) + 1;
