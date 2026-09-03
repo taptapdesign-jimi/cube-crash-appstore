@@ -53,3 +53,24 @@ export function computeEfficiencyBonusFromState({
     maxStackDepth,
   });
 }
+
+export function computeCleanBoardFinalScore({
+  currentScore,
+  comboBonus,
+  efficiencyBonus,
+  scoreCap = 999999,
+}: {
+  currentScore: number;
+  comboBonus: number;
+  efficiencyBonus: number;
+  scoreCap?: number;
+}): number {
+  const safeCap = Math.max(0, Number.isFinite(scoreCap) ? Math.trunc(scoreCap) : 999999);
+  const safeScore = Math.max(0, Number.isFinite(currentScore) ? Math.trunc(currentScore) : 0);
+  const safeComboBonus = Math.max(0, Number.isFinite(comboBonus) ? Math.trunc(comboBonus) : 0);
+  const safeEfficiencyBonus = Math.max(
+    0,
+    Number.isFinite(efficiencyBonus) ? Math.trunc(efficiencyBonus) : 0,
+  );
+  return Math.min(safeCap, safeScore + safeComboBonus + safeEfficiencyBonus);
+}

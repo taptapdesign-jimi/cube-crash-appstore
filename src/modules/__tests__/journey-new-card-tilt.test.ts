@@ -80,11 +80,15 @@ describe('Journey New Reward card tilt handoff', () => {
       path.resolve(process.cwd(), 'src/modules/journey-new-card-screen.ts'),
       'utf8',
     );
+    const css = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/collectibles-screen.css'),
+      'utf8',
+    );
     expect(source).toContain('setLightMask(unlockedLight, safeCardPath);');
     expect(source).toMatch(/surface--interim[\s\S]*light--interim/);
     expect(source).toMatch(/surface--unlocked[\s\S]*light--unlocked/);
-    expect(source).toContain('-webkit-mask-type: alpha;');
-    expect(source).toContain('mask-mode: alpha;');
+    expect(source).toContain('cc-journey-interim-shine-light');
+    expect(css).toMatch(/\.journey-interim-shine-light \{[\s\S]*?-webkit-mask-type: alpha;[\s\S]*?mask-mode: alpha;/);
     expect(source).not.toContain('clearLightMask(unlockedLight);\n              setLightFrameScale(unlockedLight, 0.95);');
   });
 });

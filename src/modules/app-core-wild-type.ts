@@ -1,5 +1,8 @@
+import { shouldUseJourneyWorldIntroTheme } from './journey-world-intro-wild';
+
 type WildTypeDeps = {
   boardNumber: number;
+  isArcade: boolean;
   firstWildSpawned: boolean;
   wildSpawnCount: number;
   lastWildDropType?: WildDropType | null;
@@ -15,6 +18,8 @@ const MAX_SAME_WILD_DROP_STREAK = 2;
 
 export function decideWildType({
   boardNumber,
+  isArcade,
+  wildSpawnCount,
   lastWildDropType = null,
   wildDropTypeStreak = 0,
   filterWildType,
@@ -35,8 +40,20 @@ export function decideWildType({
     roll < 0.8334 ? 'wild-magnet' : // 16.67% wild magnet
                     'wild-tnt';     // 16.66% wild TNT
 
-  let filtered = filterWildType(preferred, boardNumber) as WildDropType | null;
+  // Each Journey world introduces one themed die beside Star on its first
+  // stage. Forest and Area 55 theme visuals are applied by the registry;
+  // Beach's theme is the core Juice die and is decided here.
+  const isJourneyWorldIntro = !isArcade && [1, 11, 21].includes(boardNumber);
+  const isBeachStageOne = !isArcade && boardNumber === 11;
+  let filtered = isJourneyWorldIntro
+    ? (isBeachStageOne && shouldUseJourneyWorldIntroTheme({
+        wildSpawnCount,
+        previousWildType: lastWildDropType,
+        roll,
+      }) ? 'wild-juice' : 'wild')
+    : filterWildType(preferred, boardNumber) as WildDropType | null;
   const wouldExceedStreak =
+    !isJourneyWorldIntro &&
     filtered &&
     filtered === lastWildDropType &&
     wildDropTypeStreak >= MAX_SAME_WILD_DROP_STREAK;

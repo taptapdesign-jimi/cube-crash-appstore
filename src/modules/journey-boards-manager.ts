@@ -78,6 +78,11 @@ import {
 } from './detail-modal-stats-enter-motion.js';
 import { MOBILE_RUNTIME_PROFILE } from './mobile-runtime-profile.js';
 import { getJourneyEarnedStars } from './journey-stage-balance.js';
+import {
+  resolveJourneyCardAsset,
+  type JourneyCardAsset,
+  type JourneyCardRarity,
+} from './journey-card-assets.js';
 import { ctaMotion, getRegisteredCta, registerCta } from './cta-system.ts';
 import { hideHomepageNavigation } from './navigation-control.js';
 import {
@@ -112,6 +117,13 @@ import {
 } from './journey-idle-runtime-activation.js';
 import { createJourneyScrollTapGuard } from './journey-scroll-tap-guard.js';
 import { JourneyCardInteractionProfiler } from './journey-card-interaction-profiler.js';
+import {
+  applyJourneyInterimShineProfileVariables,
+  createJourneyInterimShineLoop,
+  setJourneyInterimShineMask,
+  shouldStartJourneyInterimShine,
+  type JourneyInterimShineLoopController,
+} from './journey-interim-card-shine.js';
 
 // 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
 // trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
@@ -461,6 +473,8 @@ export interface JourneyBoard {
   unlocked: boolean;
   interim?: boolean; // Interim state: board is accessible but not completed (shows common back.png, cannot click for details)
   imagePath?: string;
+  imagePath2x?: string;
+  cardRarity?: JourneyCardRarity;
   name?: string;
 }
 
@@ -492,7 +506,6 @@ const JOURNEY_CONTENT_TOP_BASE_PX = 0;
 const JOURNEY_CONTENT_SHIFT_UP_PX = 0;
 const JOURNEY_CONTENT_TOP_PX = JOURNEY_CONTENT_TOP_BASE_PX - JOURNEY_CONTENT_SHIFT_UP_PX;
 const FOREST_WORLD_ASSET_BASE = './assets/journey assets/forest/forest world';
-const FOREST_CARD_ASSET_BASE = './assets/journey assets/forest/cards';
 const BEACH_WORLD_ASSET_BASE = './assets/journey assets/beach/Beacj world';
 const ROBO_WORLD_ASSET_BASE = './assets/journey assets/robo/robo world';
 const JOURNEY_WORLD_BANNER_ASSET = './assets/journey assets/natpis.png';
@@ -901,6 +914,8 @@ class JourneyBoardsManager {
   private renderLifecycleGeneration = 0;
   private cleanupInProgress = false;
   private interimIdleEffectsCard: HTMLElement | null = null;
+  private interimShineCard: HTMLElement | null = null;
+  private interimShineController: JourneyInterimShineLoopController | null = null;
   private journeyExitPromise: Promise<void> | null = null;
   private journeyViewportExitPromise: Promise<void> | null = null;
   private journeyToGameExitActive = false;
@@ -1047,6 +1062,11 @@ class JourneyBoardsManager {
         card.style.willChange = 'transform';
         try { timeline.resume?.(); } catch {}
       }
+    }
+    if (snapshot.paintSuspended) {
+      this.interimShineController?.pause();
+    } else {
+      this.interimShineController?.resume();
     }
 
     [this.forestBeeOrbits, this.beachBubbleDrift, this.area55ShipFlybys].forEach((ambientOwner) => {
@@ -2246,6 +2266,7 @@ class JourneyBoardsManager {
         logger.info('🧭 JourneyForestAnim active-enter-play-skip-no-board', { retryCount });
         this.activeBoardAreaEnterInProgress = false;
         unlockJourneyViewportTransition('active-enter-skip-no-board');
+        this.resumeInterimCardIdleEffects('active-area-enter-skip-no-board');
         return;
       }
 
@@ -2277,6 +2298,7 @@ class JourneyBoardsManager {
           this.activeBoardAreaEnterInProgress = false;
           unlockJourneyViewportTransition('active-enter-no-targets');
           this.clearLastActiveJourneyBoardAreaId(boardId);
+          this.resumeInterimCardIdleEffects('active-area-enter-no-targets');
         }
         return;
       }
@@ -2353,6 +2375,7 @@ class JourneyBoardsManager {
           } else {
             logger.warn('🧭 JourneyForestAnim active-enter-idle-skip-missing-container', { boardId });
           }
+          this.resumeInterimCardIdleEffects('active-area-enter-complete');
           unlockJourneyViewportTransition('active-enter-complete');
         } else {
           logger.info('🧭 JourneyForestAnim active-enter-complete-stale-skip-unlock', {
@@ -2500,6 +2523,7 @@ class JourneyBoardsManager {
       if (boardId) {
         this.clearLastActiveJourneyBoardAreaId(boardId);
       }
+      this.resumeInterimCardIdleEffects('active-area-enter-error');
       logger.warn('⚠️ Failed to play active Journey board area enter animation:', error);
     }
   }
@@ -4043,10 +4067,11 @@ class JourneyBoardsManager {
           && getComputedStyle(journeyScreen).display !== 'none';
 
         if (board?.unlocked === true && board?.interim !== true) {
-          const refreshed = this.refreshJourneyBoardStarVisuals(boardId, 'high-score-event');
-          logger.info(refreshed
-            ? `🏆 Journey stars refreshed in place for board ${boardId}`
-            : `⏭️ Journey star refresh deferred until board ${boardId} DOM exists`, {
+          const starsRefreshed = this.refreshJourneyBoardStarVisuals(boardId, 'high-score-event');
+          const artRefreshed = this.refreshJourneyBoardCardArt(boardId, 'high-score-event');
+          logger.info(starsRefreshed || artRefreshed
+            ? `🏆 Journey stars/card refreshed in place for board ${boardId}`
+            : `⏭️ Journey visual refresh deferred until board ${boardId} DOM exists`, {
             journeyIsVisible,
             renderDisposed: this.renderDisposed,
           });
@@ -5345,14 +5370,67 @@ class JourneyBoardsManager {
     }
   }
 
-  /** Own the complete interim idle lifecycle without recurring class resets/reflows. */
-  private startInterimCardIdleEffects(): void {
-    if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS) {
-      this.stopInterimCardIdleEffects();
-      try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
+  /** Keep the pre-Unlock light on a nested face so card/Unit transforms stay independent. */
+  private startInterimCardShine(card: HTMLElement): void {
+    const paintSuspended = this.journeyWorldRuntime.getSnapshot().paintSuspended;
+    if (this.interimShineCard === card && this.interimShineController) {
+      if (paintSuspended) this.interimShineController.pause();
+      else this.interimShineController.resume();
       return;
     }
 
+    this.stopInterimCardShine();
+    const faceElement = card.querySelector('.journey-board-image') as HTMLImageElement | null;
+    const lightElement = card.querySelector('.journey-interim-shine-light') as HTMLElement | null;
+    if (!faceElement || !lightElement) return;
+
+    applyJourneyInterimShineProfileVariables(card);
+    setJourneyInterimShineMask(
+      lightElement,
+      faceElement.currentSrc || faceElement.getAttribute('src') || faceElement.src,
+    );
+    this.interimShineCard = card;
+    this.interimShineController = createJourneyInterimShineLoop({
+      lightElement,
+      faceElement,
+      baseScale: 1,
+      shouldRun: () => (
+        !this.renderDisposed
+        && this.interimShineCard === card
+        && card.isConnected
+        && card.classList.contains('interim-idle-effects-active')
+        && !this.journeyWorldRuntime.getSnapshot().paintSuspended
+      ),
+    });
+    this.interimShineController.start();
+    if (paintSuspended) this.interimShineController.pause();
+  }
+
+  private stopInterimCardShine(): void {
+    try { this.interimShineController?.stop(); } catch {}
+    this.interimShineController = null;
+    this.interimShineCard = null;
+  }
+
+  /** Own the complete interim idle lifecycle after the visible Unit enter settles. */
+  private startInterimCardIdleEffects(): void {
+    const canStartIdleEffects = shouldStartJourneyInterimShine({
+      enabled: ENABLE_INTERIM_CARD_IDLE_EFFECTS,
+      renderDisposed: this.renderDisposed,
+      paintSuspended: this.journeyWorldRuntime.getSnapshot().paintSuspended,
+      view: this.journeyV700View,
+      managerPhase: this.journeyV700Phase,
+      worldPhase: this.journeyWorldAnimation.getPhase(),
+      enterOwnsCard: this.isActiveBoardAreaEnterOwned(),
+      exitOwnsCard: this.journeyToGameExitActive,
+    });
+    if (!canStartIdleEffects) {
+      if (!ENABLE_INTERIM_CARD_IDLE_EFFECTS) {
+        this.stopInterimCardIdleEffects();
+        try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(); } catch {}
+      }
+      return;
+    }
     this.startVisibleInterimCardIdleEffects(document);
     const interimCard = this.getCurrentJourneyInterimCard();
     if (!interimCard || this.renderDisposed) return;
@@ -5365,6 +5443,7 @@ class JourneyBoardsManager {
     interimCard.classList.add('interim-idle-effects-active');
     cardWrapper?.classList.add('interim-idle-effects-active');
     this.interimIdleEffectsCard = interimCard;
+    this.startInterimCardShine(interimCard);
     logger.info('✅ Interim idle session active', {
       boardId: interimCard.dataset.boardId || null,
       frameTickerCount: this.journeyAreaIdleTicker ? 1 : 0,
@@ -5374,6 +5453,7 @@ class JourneyBoardsManager {
   
   /** Stop the complete DOM-bound interim idle session. */
   public stopInterimCardIdleEffects(): void {
+    this.stopInterimCardShine();
     const interimCards = document.querySelectorAll('.journey-board-card.interim');
     interimCards.forEach(card => {
       this.stopInterimBounce(card as HTMLElement);
@@ -5638,34 +5718,30 @@ class JourneyBoardsManager {
   private initializeBoards(): void {
     this.boards = Array.from({ length: JOURNEY_MAX_BOARDS }, (_, index) => {
       const boardNumber = index + 1;
+      const asset = this.getBoardCardAsset(boardNumber);
       return {
         id: boardNumber,
         unlocked: false,
         interim: boardNumber === 1 || boardNumber === 11 || boardNumber === 21,
-        imagePath: this.getBoardImagePath(boardNumber),
+        imagePath: asset.path1x,
+        imagePath2x: asset.path2x,
+        cardRarity: asset.rarity,
         name: this.getBoardName(boardNumber),
       };
     });
   }
 
-  private getBoardImagePath(boardNumber: number): string {
-    if (boardNumber === 1) {
-      return `${FOREST_CARD_ASSET_BASE}/forest-1.png`;
-    }
+  private getBoardCardAsset(boardNumber: number): JourneyCardAsset {
+    const highScore = boardStatsService.getBoardStats(boardNumber).highScore;
+    return resolveJourneyCardAsset(boardNumber, highScore);
+  }
 
-    if (boardNumber >= 21 && boardNumber <= 30) {
-      const mirroredBoardNumber = boardNumber - 20;
-      if (mirroredBoardNumber === 1) {
-        return `${FOREST_CARD_ASSET_BASE}/forest-1.png`;
-      }
-
-      return `./assets/colelctibles/common/${mirroredBoardNumber.toString().padStart(2, '0')}.png`;
-    }
-
-    // Use existing collectible images for unlocked boards
-    // Map board numbers to collectible image paths (01.png, 02.png, etc.)
-    const paddedNumber = boardNumber.toString().padStart(2, '0');
-    return `./assets/colelctibles/common/${paddedNumber}.png`;
+  private syncBoardCardAsset(board: JourneyBoard): JourneyCardAsset {
+    const asset = this.getBoardCardAsset(board.id);
+    board.imagePath = asset.path1x;
+    board.imagePath2x = asset.path2x;
+    board.cardRarity = asset.rarity;
+    return asset;
   }
 
   private getLockedBoardImagePath(_boardNumber: number): string | null {
@@ -9123,7 +9199,10 @@ class JourneyBoardsManager {
     
     if (isUnlocked) {
       // Unlocked card - show image and can click for details
-      const cardImagePath = board.imagePath || '';
+      const cardAsset = this.syncBoardCardAsset(board);
+      const cardImagePath = cardAsset.path1x;
+      card.dataset.cardRarity = cardAsset.rarity;
+      if (cardAsset.path2x) card.dataset.cardImage2x = cardAsset.path2x;
       if (cardImagePath) {
         card.style.backgroundImage = `url("${cardImagePath.replace(/"/g, '\\"')}")`;
         card.style.backgroundSize = 'contain';
@@ -9413,7 +9492,7 @@ class JourneyBoardsManager {
       // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = './assets/colelctibles/common back.png';
       image.alt = `${formatGameplayProgressLabel('journey', board.id)} (interim)`;
-      image.className = 'journey-board-image';
+      image.className = 'journey-board-image cc-journey-interim-shine-face';
       // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
       image.loading = 'eager';
       (image as any).fetchPriority = 'high';
@@ -9431,6 +9510,11 @@ class JourneyBoardsManager {
       image.draggable = false;
       image.setAttribute('draggable', 'false');
       card.appendChild(image);
+      const shineLight = document.createElement('div');
+      shineLight.className = 'journey-interim-shine-light cc-journey-interim-shine-light';
+      shineLight.setAttribute('aria-hidden', 'true');
+      setJourneyInterimShineMask(shineLight, image.src);
+      card.appendChild(shineLight);
       
       // 🔥 iOS FIX: Prevent long press and context menu
       let longPressTimer: number | null = null;
@@ -9750,6 +9834,7 @@ class JourneyBoardsManager {
       const controller = presentJourneyCardOverlayModal({
         boardId: board.id,
         origin,
+        cardImagePath2x: this.syncBoardCardAsset(board).path2x,
         hasSavedState: hasResumableSavedStateForBoard(board.id, { clearInvalid: true }),
         scrollOwner,
         openProfileStartedAt,
@@ -11383,6 +11468,7 @@ class JourneyBoardsManager {
       });
       journeyExitPromise = this.startBoardAreaThenJourneyExit(board.id);
     }
+    const boardCardAsset = this.syncBoardCardAsset(board);
 
     // 🔥 USER REQUEST: Save Journey scroll position BEFORE opening detail modal (restore on close)
     try {
@@ -11650,6 +11736,8 @@ class JourneyBoardsManager {
             if (cubesEl) {
               cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
             }
+            this.refreshJourneyBoardStarVisuals(board.id, 'dev-reset');
+            this.refreshJourneyBoardCardArt(board.id, 'dev-reset');
             
             // 🔥 CRITICAL FIX: Refresh score bottom sheet if it's currently open
             // This ensures score bottom sheet shows updated stats after reset
@@ -11690,7 +11778,9 @@ class JourneyBoardsManager {
         const motionEl = document.createElement('div');
         motionEl.className = 'detail-image-motion';
         const img = document.createElement('img');
-        img.src = board.interim ? './assets/colelctibles/common back.png' : (board.imagePath || '');
+        img.src = board.interim
+          ? './assets/colelctibles/common back.png'
+          : (boardCardAsset.path2x || boardCardAsset.path1x);
         img.alt = board.name || formatGameplayProgressLabel('journey', board.id);
         img.loading = 'eager';
         (img as any).decoding = 'async';
@@ -11736,12 +11826,14 @@ class JourneyBoardsManager {
         logger.info(`✅ Detail modal title set to: ${formatGameplayProgressLabel('journey', boardNumberStr)}`);
       }
 
-      // Set rarity badge to "COMMON"
+      // Keep the detail rarity label in sync with the score-derived artwork.
       const rarityBadge = detailModal.querySelector('#detail-card-rarity');
       if (rarityBadge) {
-        rarityBadge.textContent = 'COMMON';
-        rarityBadge.classList.remove('legendary');
-        logger.info(`✅ Rarity badge set to COMMON for board ${board.id}`);
+        rarityBadge.textContent = boardCardAsset.rarity.toUpperCase();
+        rarityBadge.classList.toggle('legendary', boardCardAsset.rarity === 'legendary');
+        const rarityContainer = detailModal.querySelector('.detail-rarity-badge-container');
+        rarityContainer?.classList.toggle('has-legendary', boardCardAsset.rarity === 'legendary');
+        logger.info(`✅ Rarity badge set to ${boardCardAsset.rarity.toUpperCase()} for board ${board.id}`);
       }
       
       // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
@@ -13404,6 +13496,50 @@ class JourneyBoardsManager {
     return true;
   }
 
+  private refreshJourneyBoardCardArt(boardId: number, reason: string): boolean {
+    const board = this.boards.find((item) => item.id === boardId);
+    if (!board?.unlocked || board.interim) return false;
+
+    const asset = this.syncBoardCardAsset(board);
+    let refreshed = false;
+    const card = document.querySelector<HTMLElement>(
+      `.journey-board-card[data-board-id="${boardId}"]`,
+    );
+    if (card) {
+      card.style.backgroundImage = `url("${asset.path1x.replace(/"/g, '\\"')}")`;
+      card.dataset.cardRarity = asset.rarity;
+      if (asset.path2x) card.dataset.cardImage2x = asset.path2x;
+      else delete card.dataset.cardImage2x;
+      const preload = card.querySelector<HTMLImageElement>('.journey-board-image-preload');
+      if (preload && preload.getAttribute('src') !== asset.path1x) preload.src = asset.path1x;
+      refreshed = true;
+    }
+
+    const detailModal = document.getElementById('collectibles-detail-modal');
+    const detailBoardId = Number(detailModal?.getAttribute('data-journey-board-id')) || 0;
+    if (detailModal && detailBoardId === boardId) {
+      const detailImage = detailModal.querySelector<HTMLImageElement>('#detail-card-image img');
+      const modalPath = asset.path2x || asset.path1x;
+      if (detailImage && detailImage.getAttribute('src') !== modalPath) detailImage.src = modalPath;
+      const rarityBadge = detailModal.querySelector<HTMLElement>('#detail-card-rarity');
+      const rarityContainer = detailModal.querySelector<HTMLElement>('.detail-rarity-badge-container');
+      if (rarityBadge) {
+        rarityBadge.textContent = asset.rarity.toUpperCase();
+        rarityBadge.classList.toggle('legendary', asset.rarity === 'legendary');
+      }
+      rarityContainer?.classList.toggle('has-legendary', asset.rarity === 'legendary');
+      refreshed = true;
+    }
+
+    emitIOSNativeDiagnostic('journey-board-card-art-refreshed', {
+      boardId,
+      reason,
+      rarity: asset.rarity,
+      refreshed,
+    });
+    return refreshed;
+  }
+
   // 🔥 CRITICAL FIX: Method to refresh background position after screen animation completes
   // This ensures consistent positioning when screen is shown again
   public refreshBackgroundPosition(): void {
@@ -13629,7 +13765,9 @@ class JourneyBoardsManager {
    * 🔥 CRITICAL FIX: Public method to get board by ID (for external access)
    */
   public getBoardById(boardId: number): JourneyBoard | undefined {
-    return this.boards.find(b => b.id === boardId);
+    const board = this.boards.find(b => b.id === boardId);
+    if (board) this.syncBoardCardAsset(board);
+    return board;
   }
   
   /**
@@ -13719,17 +13857,9 @@ class JourneyBoardsManager {
       // score without replacing the complete World and its animation owner.
       this.refreshJourneyBoardStarVisuals(boardNumber, 'board-completion');
       
-      // 🔥 PRODUCTION READY: Preload and cache this board's card image immediately
-      // This ensures the card image is always available, even after hard exit
-      if (board.imagePath) {
-        import('../utils/comprehensive-image-preloader.js').then(({ preloadJourneyBoardImages }) => {
-          preloadJourneyBoardImages([boardNumber]).catch((error) => {
-            logger.warn(`⚠️ Failed to preload journey board image for board ${boardNumber}:`, error);
-          });
-        }).catch((error) => {
-          logger.warn(`⚠️ Failed to import preloadJourneyBoardImages for board ${boardNumber}:`, error);
-        });
-      }
+      // The New Reward/detail owner preloads only the selected rarity at the
+      // required density. Avoid decoding a stale common card before the just-
+      // earned score has been committed by the Clean Board flow.
       
       // Advance only the affected World's next-stage marker while preserving
       // the first interim card in Worlds that have no completed Stage yet.

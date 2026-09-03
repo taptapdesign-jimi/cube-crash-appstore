@@ -18,12 +18,13 @@ describe('Beach World wild pool', () => {
     expect(getAllowedWildTypes(21)).toContain('wild-tnt');
   });
 
-  test('uses one Beach probability roll without exposing generic Magnet/TNT fallback', () => {
+  test('uses the four-slot Beach roll only after the Juice introduction stage', () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), 'src/modules/app-core.ts'), 'utf8');
     const start = source.indexOf('const isBeachJourneyBoard =');
     const end = source.indexOf('const specialDiceVariant =', start);
     const beachOwner = source.slice(start, end);
 
+    expect(beachOwner).toContain('boardNumber >= 12 && boardNumber <= 20');
     expect(beachOwner).toContain('const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined');
     expect(beachOwner).toContain('spawnJuice = beachWildSlot === 1 || beachWildSlot === 2');
     expect(beachOwner).toContain('spawnMagnet = false');
@@ -35,7 +36,7 @@ describe('Beach World wild pool', () => {
     expect(getCoreWildTypeForSpecialDiceVariant(getSpecialDiceVariant('beach-ball'))).toBe('wild-tnt');
   });
 
-  test('gives all four Beach specials an equal independent 25-percent range', () => {
+  test('gives all four later-stage Beach slots an equal independent 25-percent range', () => {
     expect(BEACH_WILD_SLOT_WEIGHTS).toEqual([0.25, 0.25, 0.25, 0.25]);
     expect([
       pickBeachWildSlot(0),
@@ -49,8 +50,8 @@ describe('Beach World wild pool', () => {
     ]).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
   });
 
-  test('uses the supplied roll consistently on every Beach stage, including Stage 02', () => {
-    for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
+  test('uses the supplied four-slot roll consistently from Beach Cjelina 02 onward', () => {
+    for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
       const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
         wildSpawnCount: 999,
@@ -58,6 +59,17 @@ describe('Beach World wild pool', () => {
         beachWildSlot,
       })?.id ?? null);
       expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
+    }
+  });
+
+  test('Beach Cjelina 01 cannot assign Beach Ball or Bottle variants', () => {
+    for (const beachWildSlot of [0, 1, 2, 3]) {
+      expect(pickSpecialDiceVariantForWildSpawn({
+        isArcade: false,
+        wildSpawnCount: 99,
+        journeyBoard: 11,
+        beachWildSlot,
+      })).toBeNull();
     }
   });
 });

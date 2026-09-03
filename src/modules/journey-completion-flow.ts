@@ -1,4 +1,6 @@
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
+import { resolveJourneyCardAsset } from './journey-card-assets.ts';
+import { boardStatsService } from '../services/board-stats-service.ts';
 
 type JourneyCompletionLogger = {
   info?: (...args: any[]) => void;
@@ -8,6 +10,7 @@ type JourneyCompletionLogger = {
 export type JourneyCompletionFlowOptions = {
   boardNumber: number;
   level: number;
+  rewardScore?: number;
   logger?: JourneyCompletionLogger;
   createNewCardHandoffCover?: () => (() => void);
 };
@@ -32,6 +35,7 @@ export function isJourneyInterimCompletionEntryPoint(): boolean {
 export async function runJourneyCompletionFlow({
   boardNumber,
   level,
+  rewardScore,
   logger,
   createNewCardHandoffCover,
 }: JourneyCompletionFlowOptions): Promise<JourneyCompletionFlowResult> {
@@ -46,12 +50,16 @@ export async function runJourneyCompletionFlow({
     if (isFromInterimBoard) {
       try {
         const boardCard = journeyBoardsManager.getBoardById?.(boardNumber);
-        const paddedBoardNumber = String(Math.max(1, Math.min(10, boardNumber | 0))).padStart(2, '0');
+        const savedHighScore = boardStatsService.getBoardStats(boardNumber).highScore;
+        const rewardAsset = resolveJourneyCardAsset(
+          boardNumber,
+          Math.max(savedHighScore, rewardScore || 0),
+        );
         cleanupNewCardHandoffCover = createNewCardHandoffCover?.() ?? null;
         const { showJourneyNewCardScreen } = await import('./journey-new-card-screen.js');
         await showJourneyNewCardScreen({
           boardNumber,
-          cardImagePath: boardCard?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+          cardImagePath: rewardAsset.path2x || rewardAsset.path1x || boardCard?.imagePath || '',
           cardName: boardCard?.name || formatGameplayProgressLabel('journey', boardNumber),
         });
         logger?.info?.(`🎁 Journey new card screen completed for board ${boardNumber}`);

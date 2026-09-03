@@ -59,26 +59,36 @@ describe('Robo Cube special die', () => {
     }
   });
 
-  test('keeps Robo Cube as the third Stage 1 wild and randomizes only later Robo stages', () => {
+  test('uses Robo Cube as the Area 55 introduction theme and randomizes only later stages', () => {
     expect(ROBO_WILD_VARIANT_CHANCE).toBe(0.25);
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
-      wildSpawnCount: 2,
-      roboWildRoll: 0.99,
-    })?.id).toBe('robo-cube');
+      wildSpawnCount: 0,
+      previousWildType: null,
+      worldIntroRoll: 0,
+    })).toBeNull();
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
       wildSpawnCount: 1,
-      roboWildRoll: 0,
-    })?.id).toBe('spaceship');
+      previousWildType: 'wild-juice',
+      worldIntroRoll: 0.5999,
+    })?.id).toBe('robo-cube');
     expect(pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard: 21,
-      wildSpawnCount: 0,
-      roboWildRoll: 0,
-    })?.id).toBe('laser-gun');
+      wildSpawnCount: 2,
+      previousWildType: 'wild-juice',
+      worldIntroRoll: 0.60,
+    })).toBeNull();
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard: 21,
+      wildSpawnCount: 3,
+      previousWildType: 'wild',
+      worldIntroRoll: 0.9999,
+    })?.id).toBe('robo-cube');
 
     for (let journeyBoard = 22; journeyBoard <= 30; journeyBoard += 1) {
       expect(pickSpecialDiceVariantForWildSpawn({

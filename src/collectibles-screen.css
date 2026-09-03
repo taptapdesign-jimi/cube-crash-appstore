@@ -2448,92 +2448,68 @@
   }
 }
 
-/* Outer energy halo belongs to the wrapper so it is not clipped by the card. */
-.journey-board-card-wrapper.interim-idle-effects-active {
-  isolation: isolate;
-}
-
-.journey-board-card-wrapper.interim-idle-effects-active::before {
-  content: "";
-  position: absolute;
-  inset: -22%;
-  z-index: -1;
-  border-radius: 24px;
-  pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(255, 235, 137, 0.72) 0%, rgba(255, 177, 75, 0.42) 38%, rgba(232, 111, 64, 0.18) 60%, rgba(232, 111, 64, 0) 76%);
-  opacity: 0;
-  transform: scale(0.82) translateZ(0);
-  transform-origin: center;
-  animation: journey-interim-outer-burn 4.2s ease-out infinite;
-}
-
-/* White-hot center plus gold body burn. This is intentionally much stronger
-   than a tint: screen blending lights the question mark and card engraving. */
-.journey-board-card.interim::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 998;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 50% 48%, rgba(255, 255, 246, 1) 0%, rgba(255, 255, 209, 0.98) 13%, rgba(255, 224, 102, 0.78) 31%, rgba(255, 164, 61, 0.42) 55%, rgba(218, 104, 66, 0) 82%);
-  mix-blend-mode: screen;
-  opacity: 0;
-  pointer-events: none;
-  animation: none;
-  transform: scale(0.9) translateZ(0);
-  transform-origin: 50% 48%;
-}
-
-/* Interim-card shimmer surface, using the same masked duplicate-light idea as
-   the TapTap Design launch logo instead of translating a broad blurred layer. */
-.journey-board-card.interim::after {
+/* Canonical pre-Unlock light sweep. Both the New Reward card and the interim
+   card inside a Journey world use these exact keyframes and pulse classes. */
+.cc-journey-interim-shine-light::after {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.76);
-  transform: translateZ(0);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.52) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg) translateZ(0);
   opacity: 0;
   display: block;
   visibility: visible;
-  -webkit-mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
-  mask-image: linear-gradient(110deg, transparent 38%, #000 48%, #000 52%, transparent 62%);
-  -webkit-mask-size: 260% 100%;
-  mask-size: 260% 100%;
-  -webkit-mask-position: 145% 0;
-  mask-position: 145% 0;
+  filter: blur(0.56px);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   pointer-events: none;
-  z-index: 999 !important;
-  border-radius: 12px;
-  /* 🔥 CRITICAL: No animation by default - paused */
   animation: none;
 }
 
-/* One compositor-owned shimmer session. JS adds/removes this class only at the
-   Journey idle lifecycle boundary; there is no interval, forced reflow or RAF loop. */
-.journey-board-card.interim.interim-idle-effects-active::after {
-  animation: journey-interim-shimmer 4.2s ease-in-out infinite !important;
+.cc-journey-interim-shine-light.cc-journey-interim-shine-trigger::after {
+  animation: ccJourneyInterimCardShimmer var(--cc-journey-interim-shine-duration, 1700ms) linear !important;
   animation-delay: 0s !important;
 }
 
-.journey-board-card.interim.interim-idle-effects-active::before {
-  animation: journey-interim-burn 4.2s ease-out infinite;
+.cc-journey-interim-shine-face.cc-journey-interim-glow-pulse {
+  animation: ccJourneyInterimCardGlowPulse var(--cc-journey-interim-glow-duration, 500ms) ease-out;
 }
 
+@keyframes ccJourneyInterimCardShimmer {
+  0% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
+  1% { transform: translateX(-158%) skewX(-12deg); opacity: 0.125; }
+  2% { transform: translateX(-154%) skewX(-12deg); opacity: 0.25; }
+  5% { transform: translateX(-140%) skewX(-12deg); opacity: 0.375; }
+  12% { transform: translateX(-120%) skewX(-12deg); opacity: 0.45; }
+  20% { transform: translateX(-80%) skewX(-12deg); opacity: 0.5; }
+  30% { transform: translateX(0%) skewX(-12deg); opacity: 0.5; }
+  40% { transform: translateX(80%) skewX(-12deg); opacity: 0.5; }
+  45% { transform: translateX(120%) skewX(-12deg); opacity: 0.25; }
+  50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
+}
+
+@keyframes ccJourneyInterimCardGlowPulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.22) saturate(1.06); }
+  100% { filter: brightness(1.04); }
+}
+
+/* Existing unlocked Journey cards retain their separate, one-shot sweep. */
 @keyframes journey-interim-shimmer {
   0%, 4% {
     opacity: 0;
     -webkit-mask-position: 145% 0;
     mask-position: 145% 0;
   }
-  9%, 28% {
-    opacity: 0.42;
-  }
+  9%, 28% { opacity: 0.42; }
   36% {
     opacity: 0;
     -webkit-mask-position: -145% 0;
@@ -2543,36 +2519,6 @@
     opacity: 0;
     -webkit-mask-position: -145% 0;
     mask-position: -145% 0;
-  }
-}
-
-@keyframes journey-interim-burn {
-  0%, 7%, 38%, 100% {
-    opacity: 0;
-    transform: scale(0.9) translateZ(0);
-  }
-  15% {
-    opacity: 0.96;
-    transform: scale(1) translateZ(0);
-  }
-  27% {
-    opacity: 0.42;
-    transform: scale(1.08) translateZ(0);
-  }
-}
-
-@keyframes journey-interim-outer-burn {
-  0%, 7%, 40%, 100% {
-    opacity: 0;
-    transform: scale(0.82) translateZ(0);
-  }
-  16% {
-    opacity: 0.82;
-    transform: scale(1) translateZ(0);
-  }
-  30% {
-    opacity: 0.24;
-    transform: scale(1.12) translateZ(0);
   }
 }
 
@@ -3293,6 +3239,32 @@
   outline-width: 0 !important;
   /* 🔥 FIX: Contain layout to prevent bounding box expansion from box-shadow */
   contain: layout style;
+}
+
+/* The World interim uses the same alpha-masked light owner as New Reward.
+   Its nested face/light transform is independent from the card bounce owner. */
+.journey-interim-shine-light {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: 12px;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.92;
+  transform-origin: 50% 50%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-type: alpha;
+  mask-mode: alpha;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+#journey-boards-container.journey-world-runtime-paint-suspended .journey-interim-shine-light::after,
+#journey-boards-container.journey-world-runtime-paint-suspended .cc-journey-interim-shine-face {
+  animation-play-state: paused !important;
 }
 
 /* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */

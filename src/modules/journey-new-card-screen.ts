@@ -5,6 +5,17 @@ import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
 import { registerCta } from './cta-system.ts';
 import { createJourneyNewCardTiltProfile } from './journey-new-card-tilt.js';
+import { resolveJourneyCardAsset } from './journey-card-assets.js';
+import {
+  applyJourneyInterimShineProfileVariables,
+  clearJourneyInterimShineMask as clearLightMask,
+  JOURNEY_INTERIM_CARD_SHINE_PROFILE,
+  JOURNEY_INTERIM_GLOW_PULSE_CLASS,
+  JOURNEY_INTERIM_SHINE_TRIGGER_CLASS,
+  setJourneyInterimShineMask as setLightMask,
+  setJourneyInterimShineMaskScale as setLightFrameScale,
+  triggerJourneyInterimShinePulse,
+} from './journey-interim-card-shine.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -220,33 +231,6 @@ function ensureJourneyNewCardStyles(): void {
       -webkit-mask-size: contain;
       mask-size: contain;
     }
-    .cc-journey-new-card-light::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-        90deg,
-        rgba(255,255,255,0.00) 0%,
-        rgba(255,255,255,0.52) 50%,
-        rgba(255,255,255,0.00) 100%
-      );
-      transform: translateX(-160%) skewX(-12deg) translateZ(0);
-      opacity: 0;
-      display: block;
-      visibility: visible;
-      filter: blur(0.56px);
-      backface-visibility: hidden;
-      -webkit-backface-visibility: hidden;
-      pointer-events: none;
-      animation: ccJourneyNewCardShimmer 1.7s linear infinite;
-    }
-    .cc-journey-new-card-light.shine-trigger::after {
-      animation: ccJourneyNewCardInterimShimmer 1.7s linear !important;
-      animation-delay: 0s !important;
-    }
     .cc-journey-new-card-cta {
       width: min(68vw, 408px);
       max-width: 408px;
@@ -297,35 +281,6 @@ function ensureJourneyNewCardStyles(): void {
       58% { transform: perspective(1050px) rotateX(1.65deg) rotateY(-2.35deg) rotateZ(-1.15deg) translateZ(3px); }
       78% { transform: perspective(1050px) rotateX(-0.4deg) rotateY(0.7deg) rotateZ(0.3deg) translateZ(1px); }
     }
-    @keyframes ccJourneyNewCardShimmer {
-      0%, 10% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
-      15% { transform: translateX(-120%) skewX(-12deg); opacity: 0.5; }
-      20%, 40% { opacity: 1; }
-      30% { transform: translateX(0%) skewX(-12deg); opacity: 1; }
-      45% { transform: translateX(120%) skewX(-12deg); opacity: 0.5; }
-      50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
-    }
-    @keyframes ccJourneyNewCardInterimShimmer {
-      0% { transform: translateX(-160%) skewX(-12deg); opacity: 0; }
-      1% { transform: translateX(-158%) skewX(-12deg); opacity: 0.125; }
-      2% { transform: translateX(-154%) skewX(-12deg); opacity: 0.25; }
-      5% { transform: translateX(-140%) skewX(-12deg); opacity: 0.375; }
-      12% { transform: translateX(-120%) skewX(-12deg); opacity: 0.45; }
-      20% { transform: translateX(-80%) skewX(-12deg); opacity: 0.5; }
-      30% { transform: translateX(0%) skewX(-12deg); opacity: 0.5; }
-      40% { transform: translateX(80%) skewX(-12deg); opacity: 0.5; }
-      45% { transform: translateX(120%) skewX(-12deg); opacity: 0.25; }
-      50%, 100% { transform: translateX(160%) skewX(-12deg); opacity: 0; }
-    }
-    @keyframes ccJourneyNewCardGlowPulse {
-      0% { filter: brightness(1); }
-      50% { filter: brightness(1.22) saturate(1.06); }
-      100% { filter: brightness(1.04); }
-    }
-    .cc-journey-new-card-frame.glow-pulse,
-    .cc-journey-new-card-final.glow-pulse {
-      animation: ccJourneyNewCardGlowPulse 0.5s ease-out;
-    }
     @media (prefers-reduced-motion: reduce) {
       .cc-journey-new-card-motion,
       .cc-journey-new-card-auto-tilt-shell {
@@ -366,73 +321,11 @@ function getCrumbleFramePath(frame: number): string {
   return `./assets/animations/sand/zguzvano${frame}.png`;
 }
 
-function setLightMask(lightEl: HTMLElement | null, src: string): void {
-  if (!lightEl) return;
-  try {
-    const mask = `url("${src}")`;
-    lightEl.style.webkitMaskImage = mask;
-    lightEl.style.maskImage = mask;
-  } catch {}
-}
-
-function clearLightMask(lightEl: HTMLElement | null): void {
-  if (!lightEl) return;
-  try {
-    lightEl.style.webkitMaskImage = 'none';
-    lightEl.style.maskImage = 'none';
-    lightEl.style.webkitMaskSize = '100% 100%';
-    lightEl.style.maskSize = '100% 100%';
-  } catch {}
-}
-
-function setLightFrameScale(lightEl: HTMLElement | null, scale: number): void {
-  if (!lightEl) return;
-  try {
-    const pct = `${Math.max(0.05, scale) * 100}%`;
-    lightEl.style.webkitMaskSize = pct;
-    lightEl.style.maskSize = pct;
-  } catch {}
-}
-
 function toDisplayCardName(name: string): string {
   return String(name || '')
     .trim()
     .toLowerCase()
     .replace(/\b[a-z]/g, (char) => char.toUpperCase());
-}
-
-function triggerJourneyNewCardShine(
-  lightEl: HTMLElement | null,
-  target: HTMLElement | null,
-  bounceScale = 1.2,
-  scheduleTimeout: (fn: () => void, delayMs: number) => number = (fn, delayMs) => window.setTimeout(fn, delayMs),
-  scheduleFrame: (fn: () => void) => number = (fn) => window.requestAnimationFrame(fn)
-): void {
-  if (!lightEl && !target) return;
-  try {
-    lightEl?.classList.remove('shine-trigger');
-    target?.classList.remove('glow-pulse');
-    // Restart the CSS animations reliably on mobile Safari.
-    void lightEl?.offsetHeight;
-    void target?.offsetHeight;
-    scheduleFrame(() => {
-      lightEl?.classList.add('shine-trigger');
-      scheduleTimeout(() => {
-        target?.classList.add('glow-pulse');
-        if (target) {
-          gsap.killTweensOf(target);
-          trackNewCardTimeline(gsap.timeline())
-            .set(target, { transformOrigin: '50% 50%', force3D: true })
-            .to(target, { scale: bounceScale * 1.055, duration: 0.14, ease: 'back.out(2)' })
-            .to(target, { scale: bounceScale, duration: 0.18, ease: 'sine.out' });
-        }
-      }, 150);
-      scheduleTimeout(() => {
-        lightEl?.classList.remove('shine-trigger');
-        target?.classList.remove('glow-pulse');
-      }, 1700);
-    });
-  } catch {}
 }
 
 function preloadImage(src: string): Promise<void> {
@@ -544,7 +437,8 @@ export async function showJourneyNewCardScreen({
   ensureJourneyNewCardStyles();
 
   const safeBoardNumber = Math.max(1, Math.min(16, boardNumber | 0));
-  const safeCardPath = cardImagePath || `./assets/colelctibles/common/${String(safeBoardNumber).padStart(2, '0')}.png`;
+  const fallbackAsset = resolveJourneyCardAsset(safeBoardNumber, 0);
+  const safeCardPath = cardImagePath || fallbackAsset.path2x || fallbackAsset.path1x;
   const safeCardName = cardName || formatGameplayProgressLabel('journey', safeBoardNumber);
   const displayCardName = toDisplayCardName(safeCardName);
   const revealSubtitle = `"${displayCardName}" added`;
@@ -580,14 +474,14 @@ export async function showJourneyNewCardScreen({
             <div class="cc-journey-new-card-pose-shell">
               <div class="cc-journey-new-card-surface cc-journey-new-card-surface--interim">
                 <div class="cc-journey-new-card-auto-tilt-shell cc-journey-new-card-auto-tilt-shell--interim">
-                  <img class="cc-journey-new-card-frame" src="${getCrumbleFramePath(1)}" alt="">
-                  <div class="cc-journey-new-card-light cc-journey-new-card-light--interim" aria-hidden="true"></div>
+                  <img class="cc-journey-new-card-frame cc-journey-interim-shine-face" src="${getCrumbleFramePath(1)}" alt="">
+                  <div class="cc-journey-new-card-light cc-journey-new-card-light--interim cc-journey-interim-shine-light ${JOURNEY_INTERIM_SHINE_TRIGGER_CLASS}" aria-hidden="true"></div>
                 </div>
               </div>
               <div class="cc-journey-new-card-surface cc-journey-new-card-surface--unlocked">
                 <div class="cc-journey-new-card-auto-tilt-shell cc-journey-new-card-auto-tilt-shell--unlocked">
-                  <img class="cc-journey-new-card-final" src="${safeCardPath}" alt="${safeCardName}">
-                  <div class="cc-journey-new-card-light cc-journey-new-card-light--unlocked" aria-hidden="true"></div>
+                  <img class="cc-journey-new-card-final cc-journey-interim-shine-face" src="${safeCardPath}" alt="${safeCardName}">
+                  <div class="cc-journey-new-card-light cc-journey-new-card-light--unlocked cc-journey-interim-shine-light" aria-hidden="true"></div>
                 </div>
               </div>
             </div>
@@ -599,6 +493,7 @@ export async function showJourneyNewCardScreen({
       </div>
     `;
     document.body.appendChild(overlay);
+    applyJourneyInterimShineProfileVariables(overlay);
 
     const title = overlay.querySelector('.cc-journey-new-card-title') as HTMLElement | null;
     const subtitle = overlay.querySelector('.cc-journey-new-card-subtitle') as HTMLElement | null;
@@ -756,10 +651,10 @@ export async function showJourneyNewCardScreen({
         try { window.cancelAnimationFrame(frameId); } catch {}
       });
       try { cleanupJourneySmokeEffects(hero); } catch {}
-      try { interimLight?.classList.remove('shine-trigger'); } catch {}
-      try { unlockedLight?.classList.remove('shine-trigger'); } catch {}
-      try { frameImg?.classList.remove('glow-pulse'); } catch {}
-      try { finalImg?.classList.remove('glow-pulse'); } catch {}
+      try { interimLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS); } catch {}
+      try { unlockedLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS); } catch {}
+      try { frameImg?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS); } catch {}
+      try { finalImg?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS); } catch {}
       try { clearLightMask(interimLight); } catch {}
       try { clearLightMask(unlockedLight); } catch {}
       try { gsap.killTweensOf([interimSurface, unlockedSurface, interimLight, unlockedLight, frameImg, finalImg]); } catch {}
@@ -772,11 +667,19 @@ export async function showJourneyNewCardScreen({
           stopSprite9ShineLoop();
           return;
         }
-        triggerJourneyNewCardShine(interimLight, frameImg, 1.2, scheduleShineTimeout, scheduleShineFrame);
-        scheduleHaptic(150, 'light');
+        triggerJourneyInterimShinePulse({
+          lightElement: interimLight,
+          faceElement: frameImg,
+          baseScale: 1.2,
+          shouldRun: () => !revealed && !revealRunning && !resolved && !disposed && !!frameImg && document.body.contains(overlay),
+          onPulse: () => triggerHaptic('light'),
+          scheduleTimeout: scheduleShineTimeout,
+          scheduleFrame: scheduleShineFrame,
+          trackTimeline: trackNewCardTimeline,
+        });
       };
       play();
-      sprite9ShineIntervalId = window.setInterval(play, 3000);
+      sprite9ShineIntervalId = window.setInterval(play, JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
     };
 
     const startFinalCardShineLoop = () => {
@@ -793,10 +696,18 @@ export async function showJourneyNewCardScreen({
           transformOrigin: '50% 50%',
           force3D: true,
         });
-        triggerJourneyNewCardShine(unlockedLight, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
+        triggerJourneyInterimShinePulse({
+          lightElement: unlockedLight,
+          faceElement: finalImg,
+          baseScale: 0.95,
+          shouldRun: () => (revealed || revealRunning) && !resolved && !disposed && !!finalImg && document.body.contains(overlay),
+          scheduleTimeout: scheduleShineTimeout,
+          scheduleFrame: scheduleShineFrame,
+          trackTimeline: trackNewCardTimeline,
+        });
       };
       play();
-      finalCardShineIntervalId = window.setInterval(play, 3000);
+      finalCardShineIntervalId = window.setInterval(play, JOURNEY_INTERIM_CARD_SHINE_PROFILE.cadenceMs);
     };
 
     finish = () => {
@@ -1030,14 +941,14 @@ export async function showJourneyNewCardScreen({
                 force3D: true,
               });
               try {
-                unlockedLight?.classList.remove('shine-trigger');
-                finalImg?.classList.remove('glow-pulse');
+                unlockedLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
+                finalImg?.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
                 void unlockedLight?.offsetHeight;
                 void finalImg?.offsetHeight;
-                unlockedLight?.classList.add('shine-trigger');
+                unlockedLight?.classList.add(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
                 scheduleShineTimeout(() => {
-                  unlockedLight?.classList.remove('shine-trigger');
-                }, 1700);
+                  unlockedLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
+                }, JOURNEY_INTERIM_CARD_SHINE_PROFILE.sweepDurationMs);
               } catch {}
               playRevealSmoke();
               playScreenShake(22, 0.42);
@@ -1065,7 +976,15 @@ export async function showJourneyNewCardScreen({
                 transformOrigin: '50% 50%',
                 force3D: true,
               });
-              triggerJourneyNewCardShine(unlockedLight, finalImg, 0.95, scheduleShineTimeout, scheduleShineFrame);
+              triggerJourneyInterimShinePulse({
+                lightElement: unlockedLight,
+                faceElement: finalImg,
+                baseScale: 0.95,
+                shouldRun: () => framePlaybackId === revealFramePlaybackId && !resolved && !disposed,
+                scheduleTimeout: scheduleShineTimeout,
+                scheduleFrame: scheduleShineFrame,
+                trackTimeline: trackNewCardTimeline,
+              });
               triggerHaptic('light');
               scheduleShineTimeout(() => {
                 if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
@@ -1216,17 +1135,17 @@ export async function showJourneyNewCardScreen({
               .call(() => {
                 try {
                   setLightMask(interimLight, getCrumbleFramePath(9));
-                  interimLight?.classList.remove('shine-trigger');
-                  frameImg.classList.remove('glow-pulse');
+                  interimLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
+                  frameImg.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
                   void interimLight?.offsetHeight;
                   void frameImg.offsetHeight;
-                  interimLight?.classList.add('shine-trigger');
-                  frameImg.classList.add('glow-pulse');
+                  interimLight?.classList.add(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
+                  frameImg.classList.add(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
                   scheduleShineTimeout(() => {
-                    interimLight?.classList.remove('shine-trigger');
-                    frameImg.classList.remove('glow-pulse');
+                    interimLight?.classList.remove(JOURNEY_INTERIM_SHINE_TRIGGER_CLASS);
+                    frameImg.classList.remove(JOURNEY_INTERIM_GLOW_PULSE_CLASS);
                     gsap.set(interimLight, { opacity: 0.92, scale: 1, transformOrigin: '50% 50%', force3D: true });
-                  }, 1700);
+                  }, JOURNEY_INTERIM_CARD_SHINE_PROFILE.sweepDurationMs);
                 } catch {}
                 playScreenShake(16, 0.38);
                 triggerHaptic('medium');

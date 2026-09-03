@@ -1,7 +1,10 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
-import { computeEfficiencyBonusFromState } from './clean-board-score-utils.ts';
+import {
+  computeCleanBoardFinalScore,
+  computeEfficiencyBonusFromState,
+} from './clean-board-score-utils.ts';
 import { isArcadeHomeRunMode, markArcadeHomeRunOrigin } from './run-mode.js';
 import { wasFinalMergeHandoffRecentlySettled } from './final-merge-handoff.ts';
 import { waitForEndgameAnimationHandoff } from './endgame-animation-handoff.ts';
@@ -1096,11 +1099,27 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       return;
     }
 
+    const rewardCurrentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
+    let rewardLongestCombo = 0;
+    try {
+      const { boardStatsService } = await import('../services/board-stats-service.js');
+      rewardLongestCombo = boardStatsService.getBoardStats(boardNumber).longestCombo || 0;
+    } catch (error) {
+      logger.warn('⚠️ Failed to read Journey combo for reward rarity:', error);
+    }
+    const journeyRewardFinalScore = computeCleanBoardFinalScore({
+      currentScore: rewardCurrentScore,
+      comboBonus: rewardLongestCombo * 50,
+      efficiencyBonus,
+      scoreCap: 999999,
+    });
+
     try {
       const { runJourneyCompletionFlow } = await import('./journey-completion-flow.js');
       const journeyCompletionResult = await runJourneyCompletionFlow({
         boardNumber,
         level,
+        rewardScore: journeyRewardFinalScore,
         logger,
         createNewCardHandoffCover: createNewCardCleanBoardHandoffCover,
       });
@@ -1121,7 +1140,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // This ensures correct next board number when coming from interim board
     const nextLevel = (boardNumber | 0) + 1;
     const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
-    const finalScoreForecast = Math.min(999999, Math.max(0, currentScore) + Math.max(0, bonus));
+    const finalScoreForecast = journeyRewardFinalScore;
 
     // Save completion data for hard-exit resume (includes score + bonus breakdown)
     try {

@@ -265,7 +265,6 @@ import {
   isSpecialDiceTntLikeTile,
   pickBeachWildSlot,
   pickSpecialDiceVariantForWildSpawn,
-  shouldForceCoreTntAsFirstForestDie,
 } from './special-dice-registry.ts';
 import { animateWildSpawnDropFromMeter, cleanupWildSpawnDropAnimations, preloadWildSpawnDropAssets } from './wild-spawn-drop.ts';
 import { startSpecialDiceIdleMotion } from './special-dice-idle.ts';
@@ -6735,6 +6734,7 @@ async function spawnWildFromMeter(){
     try {
       const decided = decideWildType({
         boardNumber,
+        isArcade: isArcadeHomeRunMode(),
         firstWildSpawned,
         wildSpawnCount,
         lastWildDropType,
@@ -6754,17 +6754,7 @@ async function spawnWildFromMeter(){
         spawnTnt = false;
         wildType = 'wild';
       }
-      if (!isFirstPlayTutorialRunActive() && shouldForceCoreTntAsFirstForestDie({
-        isArcade: isArcadeHomeRunMode(),
-        journeyBoard: boardNumber,
-        wildSpawnCount,
-      })) {
-        spawnJuice = false;
-        spawnMagnet = false;
-        spawnTnt = true;
-        wildType = 'wild-tnt';
-      }
-      const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 11 && boardNumber <= 20;
+      const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 12 && boardNumber <= 20;
       const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined;
       if (isBeachJourneyBoard) {
         spawnJuice = beachWildSlot === 1 || beachWildSlot === 2;
@@ -6778,6 +6768,7 @@ async function spawnWildFromMeter(){
         arcadeStage: boardNumber,
         journeyBoard: boardNumber,
         beachWildSlot,
+        previousWildType: lastWildDropType,
       });
       if (specialDiceVariant) {
         const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);

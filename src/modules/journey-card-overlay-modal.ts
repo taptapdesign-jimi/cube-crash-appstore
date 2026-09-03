@@ -35,6 +35,7 @@ export interface JourneyCardOverlayModalController {
 interface JourneyCardOverlayModalOptions {
   boardId: number;
   origin: JourneyCardOriginLease;
+  cardImagePath2x?: string;
   hasSavedState: boolean;
   scrollOwner?: HTMLElement | null;
   entryInitialOpacity?: number;
@@ -458,6 +459,12 @@ export function presentJourneyCardOverlayModal(
     stage.querySelectorAll<HTMLElement>('.journey-card-flip-stats > .journey-card-flip-stat, .journey-card-flip-stats > .journey-card-flip-divider'),
   );
   options.origin.mountInto(cardHost);
+  const portaledCard = cardHost.querySelector<HTMLElement>('.journey-card-overlay-portaled-card');
+  if (portaledCard && options.cardImagePath2x) {
+    portaledCard.style.backgroundImage = `url("${options.cardImagePath2x.replace(/"/g, '\\"')}")`;
+    const preloader = portaledCard.querySelector<HTMLImageElement>('.journey-board-image-preload');
+    if (preloader) preloader.src = options.cardImagePath2x;
+  }
   markOpenProfile('origin-mounted');
   stage.classList.toggle(
     'has-new-ribbon',

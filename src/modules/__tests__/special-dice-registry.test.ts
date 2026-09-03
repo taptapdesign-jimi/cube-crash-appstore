@@ -24,13 +24,13 @@ import {
   isSpecialDiceStarLikeTile,
   isSpecialDiceTntLikeTile,
   pickSpecialDiceVariantForWildSpawn,
-  shouldForceCoreTntAsFirstForestDie,
   applySpecialDiceVariantToTile,
   clearSpecialDiceIdentity,
   isSpecialDiceResolutionOwned,
   markSpecialDiceResolutionOwned,
   releaseSpecialDiceResolution,
 } from '../special-dice-registry';
+import { JOURNEY_WORLD_INTRO_THEME_CHANCE } from '../journey-world-intro-wild';
 
 const makeTile = (overrides: Partial<any> = {}) => ({
   special: null,
@@ -228,32 +228,42 @@ test('archetype preserves TNT finale when generic special field is missing', () 
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });
 
-test('original TNT is forced only as the first Forest Cjelina 01 die', () => {
-  expect(shouldForceCoreTntAsFirstForestDie({
-    isArcade: false,
-    journeyBoard: 1,
-    wildSpawnCount: 0,
-  })).toBe(true);
-  expect(shouldForceCoreTntAsFirstForestDie({
-    isArcade: false,
-    journeyBoard: 1,
-    wildSpawnCount: 1,
-  })).toBe(false);
-  expect(shouldForceCoreTntAsFirstForestDie({
-    isArcade: true,
-    journeyBoard: 1,
-    wildSpawnCount: 0,
-  })).toBe(false);
-  expect(shouldForceCoreTntAsFirstForestDie({
-    isArcade: false,
-    journeyBoard: 2,
-    wildSpawnCount: 0,
-  })).toBe(false);
+test('Forest Cjelina 01 starts with Star, then uses only Mushroom and Star at 60/40', () => {
+  expect(JOURNEY_WORLD_INTRO_THEME_CHANCE).toBe(0.60);
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 1,
     wildSpawnCount: 0,
+    previousWildType: null,
+    worldIntroRoll: 0,
   })).toBeNull();
+
+  const mushroom = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 1,
+    previousWildType: 'wild-juice',
+    worldIntroRoll: 0.5999,
+  });
+  expect(mushroom).toMatchObject({ id: 'mushroom', archetype: 'wild-juice' });
+
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 2,
+    previousWildType: 'wild-juice',
+    worldIntroRoll: 0.60,
+  })).toBeNull();
+});
+
+test('Forest Cjelina 01 never produces consecutive Stars', () => {
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 1,
+    wildSpawnCount: 3,
+    previousWildType: 'wild',
+    worldIntroRoll: 0.9999,
+  })).toMatchObject({ id: 'mushroom', archetype: 'wild-juice' });
 });
 
 test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay archetype', () => {
@@ -320,7 +330,7 @@ test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay arc
 });
 
 test('Forest Stage 2 test sequence never leaks into another Journey board', () => {
-  for (const journeyBoard of [1, 3, 4, 10, 21, 30]) {
+  for (const journeyBoard of [3, 4, 10, 21, 30]) {
     for (const wildSpawnCount of [0, 1, 2]) {
       const variant = pickSpecialDiceVariantForWildSpawn({
         isArcade: false,
@@ -333,8 +343,8 @@ test('Forest Stage 2 test sequence never leaks into another Journey board', () =
   }
 });
 
-test('Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {
-  for (let journeyBoard = 11; journeyBoard <= 20; journeyBoard += 1) {
+test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {
+  for (let journeyBoard = 12; journeyBoard <= 20; journeyBoard += 1) {
     const variants = [0, 1, 2, 3].map((beachWildSlot) => pickSpecialDiceVariantForWildSpawn({
       isArcade: false,
       journeyBoard,
@@ -342,6 +352,15 @@ test('Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bot
       beachWildSlot,
     })?.id ?? null);
     expect(variants).toEqual([null, null, 'beach-ball', 'bottle']);
+  }
+
+  for (const beachWildSlot of [0, 1, 2, 3]) {
+    expect(pickSpecialDiceVariantForWildSpawn({
+      isArcade: false,
+      journeyBoard: 11,
+      wildSpawnCount: 99,
+      beachWildSlot,
+    })).toBeNull();
   }
 
   for (const journeyBoard of [1, 2, 10, 21, 30]) {

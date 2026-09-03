@@ -91,14 +91,16 @@ describe('LaserGun special die contract', () => {
     expect(getSpecialDiceSplashOptions(laserGun)).not.toHaveProperty('followupTexts');
   });
 
-  test('owns the exact first-second-third Area 55 Stage 1 order without leaking', () => {
-    const sequence = [0, 1, 2, 3].map((wildSpawnCount) => pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      journeyBoard: 21,
-      wildSpawnCount,
-      roboWildRoll: 0,
-    })?.id ?? null);
-    expect(sequence).toEqual(['laser-gun', 'spaceship', 'robo-cube', null]);
+  test('stays outside the new Star and Robo-only Area 55 introduction pool', () => {
+    for (const wildSpawnCount of [0, 1, 2, 3]) {
+      expect(pickSpecialDiceVariantForWildSpawn({
+        isArcade: false,
+        journeyBoard: 21,
+        wildSpawnCount,
+        previousWildType: wildSpawnCount === 1 ? 'wild' : 'wild-juice',
+        worldIntroRoll: 0,
+      })?.id).not.toBe('laser-gun');
+    }
 
     for (const journeyBoard of [1, 2, 10, 11, 20, 22, 30, 31]) {
       for (const wildSpawnCount of [0, 1, 2, 3]) {

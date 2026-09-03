@@ -95,12 +95,16 @@ describe('Spaceship special die', () => {
     expect(resolveSplashLetterOpacity([0.8, 1], 1)).toBe(1);
   });
 
-  test('is the second Area 55 Stage 1 wild and never leaks into other worlds or Arcade', () => {
-    expect(pickSpecialDiceVariantForWildSpawn({
-      isArcade: false,
-      journeyBoard: 21,
-      wildSpawnCount: 1,
-    })?.id).toBe('spaceship');
+  test('stays outside the new Star and Robo-only Area 55 introduction pool', () => {
+    for (const wildSpawnCount of [0, 1, 2]) {
+      expect(pickSpecialDiceVariantForWildSpawn({
+        isArcade: false,
+        journeyBoard: 21,
+        wildSpawnCount,
+        previousWildType: wildSpawnCount === 1 ? 'wild' : 'wild-juice',
+        worldIntroRoll: 0,
+      })?.id).not.toBe('spaceship');
+    }
 
     for (const journeyBoard of [1, 2, 10, 11, 20, 22, 30, 31]) {
       for (const wildSpawnCount of [0, 1, 2]) {

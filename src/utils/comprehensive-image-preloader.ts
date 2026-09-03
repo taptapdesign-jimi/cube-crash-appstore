@@ -8,6 +8,8 @@
 import { logger } from '../core/logger.js';
 import { markAssetAliasRegistered } from './asset-registry.js';
 import { MOBILE_RUNTIME_PROFILE } from '../modules/mobile-runtime-profile.js';
+import { resolveJourneyCardAsset } from '../modules/journey-card-assets.js';
+import { boardStatsService } from '../services/board-stats-service.js';
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
@@ -734,15 +736,14 @@ export async function preloadJourneyBoardImages(boardIds: number[]): Promise<voi
   try {
     const imagesToPreload: string[] = [];
     
-    // Add collectibles card images for opened boards
+    // Decode only the selected rarity for the opened board. Journey grid cards
+    // already own 1x; this on-demand path prepares the single high-resolution
+    // image used by the card/detail modal.
     boardIds.forEach(boardId => {
       if (boardId < 1 || boardId > 30) return;
-      const assetBoardId = boardId >= 21 ? boardId - 20 : boardId;
-      const id = String(assetBoardId).padStart(2, '0');
-      imagesToPreload.push(`./assets/colelctibles/common/${id}.png`);
-      if (boardId === 1 || boardId === 21) {
-        imagesToPreload.push('./assets/journey assets/forest/cards/forest-1.png');
-      }
+      const score = boardStatsService.getBoardStats(boardId).highScore;
+      const asset = resolveJourneyCardAsset(boardId, score);
+      imagesToPreload.push(asset.path2x || asset.path1x);
     });
     
     if (imagesToPreload.length === 0) {

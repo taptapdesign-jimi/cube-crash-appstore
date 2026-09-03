@@ -138,17 +138,18 @@ function triggerSettingsDevHaptic(): void {
 async function showNewCardDevScreen(): Promise<void> {
   triggerSettingsDevHaptic();
   const boardNumber = getCurrentDevBoardNumber();
-  const paddedBoardNumber = String(boardNumber).padStart(2, '0');
 
   try {
-    const [{ journeyBoardsManager }, { showJourneyNewCardScreen }] = await Promise.all([
+    const [{ journeyBoardsManager }, { showJourneyNewCardScreen }, { resolveJourneyCardAsset }] = await Promise.all([
       import('../../modules/journey-boards-manager.js'),
       import('../../modules/journey-new-card-screen.js'),
+      import('../../modules/journey-card-assets.js'),
     ]);
     const board = journeyBoardsManager.getBoardById?.(boardNumber);
+    const fallbackAsset = resolveJourneyCardAsset(boardNumber, 0);
     await showJourneyNewCardScreen({
       boardNumber,
-      cardImagePath: board?.imagePath || `./assets/colelctibles/common/${paddedBoardNumber}.png`,
+      cardImagePath: board?.imagePath2x || board?.imagePath || fallbackAsset.path2x || fallbackAsset.path1x,
       cardName: board?.name || formatGameplayProgressLabel('journey', boardNumber),
     });
   } catch (error) {

@@ -1,6 +1,8 @@
 // Registry for collectible/special dice skins that reuse existing wild mechanics.
 // Add future dice here by choosing an archetype and providing texture/FX assets.
 
+import { shouldUseJourneyWorldIntroTheme } from './journey-world-intro-wild';
+
 export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceFinaleFx = 'star' | 'juice' | 'magnet' | 'tnt';
@@ -760,20 +762,6 @@ export function getSpecialDiceFinaleAccentSpriteSources(tileOrVariant: any): str
 
 export const ROBO_WILD_VARIANT_CHANCE = 0.25;
 
-export function shouldForceCoreTntAsFirstForestDie({
-  isArcade,
-  journeyBoard,
-  wildSpawnCount,
-}: {
-  isArcade: boolean;
-  journeyBoard?: number;
-  wildSpawnCount: number;
-}): boolean {
-  return !isArcade
-    && Math.trunc(Number(journeyBoard)) === 1
-    && wildSpawnCount === 0;
-}
-
 export function pickSpecialDiceVariantForWildSpawn({
   isArcade,
   wildSpawnCount,
@@ -781,6 +769,8 @@ export function pickSpecialDiceVariantForWildSpawn({
   journeyBoard,
   beachWildSlot,
   roboWildRoll,
+  previousWildType,
+  worldIntroRoll,
 }: {
   isArcade: boolean;
   wildSpawnCount: number;
@@ -788,13 +778,29 @@ export function pickSpecialDiceVariantForWildSpawn({
   journeyBoard?: number;
   beachWildSlot?: number;
   roboWildRoll?: number;
+  previousWildType?: 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt' | null;
+  worldIntroRoll?: number;
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
+    // Forest and Area 55 introduce Mushroom and Robo Cube respectively beside
+    // Wild Star. Beach uses the same shared decision in the core type owner
+    // because its introductory theme is ordinary Juice, not a visual variant.
+    if (board === 1 || board === 21) {
+      const useTheme = shouldUseJourneyWorldIntroTheme({
+        wildSpawnCount,
+        previousWildType,
+        roll: worldIntroRoll,
+      });
+      if (!useTheme) return null;
+      return board === 1
+        ? SPECIAL_DICE_VARIANTS.mushroom
+        : SPECIAL_DICE_VARIANTS['robo-cube'];
+    }
     // Beach uses one weighted roll per spawn. Ball and Bottle are explicit
     // Magnet-gameplay variants; Star and Juice remain core wild types. Generic
     // Magnet and TNT are intentionally absent from the Beach fallback pool.
-    if (board >= 11 && board <= 20) {
+    if (board >= 12 && board <= 20) {
       const beachSlot = Number.isFinite(beachWildSlot)
         ? Math.max(0, Math.min(3, Math.trunc(beachWildSlot as number)))
         : pickBeachWildSlot();
@@ -802,17 +808,8 @@ export function pickSpecialDiceVariantForWildSpawn({
       if (beachSlot === 3) return SPECIAL_DICE_VARIANTS.bottle;
       return null;
     }
-    // Area 55 Cjelina 01 guarantees LaserGun first, Spaceship second and Robo
-    // Cube third. Each remains isolated from Forest, Beach, Arcade and the
-    // later Area 55 roll so the established 25% Robo chance cannot drift.
     // Remaining Robo stages use one bounded roll per spawn; no other world or
     // Arcade route can consume this visual variant.
-    if (board === 21) {
-      if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS['laser-gun'];
-      if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS.spaceship;
-      if (wildSpawnCount === 2) return SPECIAL_DICE_VARIANTS['robo-cube'];
-      return null;
-    }
     if (board >= 22 && board <= 30) {
       const finiteRoll = Number.isFinite(roboWildRoll) ? Number(roboWildRoll) : Math.random();
       const roll = Math.max(0, Math.min(1 - Number.EPSILON, finiteRoll));

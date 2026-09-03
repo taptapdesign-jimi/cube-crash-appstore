@@ -23,6 +23,7 @@ import { getJourneyEarnedStars } from './journey-stage-balance.ts';
 import { ctaMotion, exitCtaPair, getRegisteredCta, registerCta, type CtaController } from './cta-system.ts';
 import { emitNativeConsoleDiagnostic } from '../utils/ios-native-diagnostic.ts';
 import { ADDITIONAL_CLEAN_BOARD_WIN_MESSAGES } from './clean-board-win-messages.ts';
+import { computeCleanBoardFinalScore } from './clean-board-score-utils.ts';
 
 const ORIGINAL_HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -333,7 +334,12 @@ export async function showCleanBoardModal({
     const rawCurrent = typeof getScore === 'function' ? (getScore()|0) : 0;
     const currentScore = Math.max(0, rawCurrent);
     const scoreAfterCombo = Math.min(scoreCap, currentScore + safeComboBonus);
-    const finalScore = Math.min(scoreCap, scoreAfterCombo + safeEfficiencyBonus);
+    const finalScore = computeCleanBoardFinalScore({
+      currentScore,
+      comboBonus: safeComboBonus,
+      efficiencyBonus: safeEfficiencyBonus,
+      scoreCap,
+    });
     
     const isArcadeHomeRun = isArcadeHomeRunMode();
 
