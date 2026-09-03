@@ -16,6 +16,38 @@ export interface JourneyNewCardTiltProfile {
   unlockedExitRotateYDeg: number;
 }
 
+export const JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG = 28.8;
+export const JOURNEY_NEW_CARD_DRAG_FULL_RANGE_VIEWPORT_RATIO = 0.4;
+export const JOURNEY_NEW_CARD_DRAG_TAP_SLOP_PX = 7;
+
+export function getJourneyNewCardDragTiltAngle(
+  startAngle: number,
+  deltaX: number,
+  viewportWidth: number,
+): number {
+  const fullRangeDistance = Math.max(
+    1,
+    Math.abs(viewportWidth) * JOURNEY_NEW_CARD_DRAG_FULL_RANGE_VIEWPORT_RATIO,
+  );
+  const angle = startAngle
+    + (deltaX / fullRangeDistance) * JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG;
+  return Math.max(
+    -JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG,
+    Math.min(JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG, angle),
+  );
+}
+
+export function isJourneyNewCardCollectDrag(
+  deltaX: number,
+  deltaY: number,
+  cardHeight: number,
+): boolean {
+  const verticalDistance = Math.abs(deltaY);
+  const collectDistance = Math.min(96, Math.max(48, Math.abs(cardHeight) * 0.12));
+  return verticalDistance >= collectDistance
+    && verticalDistance > Math.abs(deltaX) * 1.15;
+}
+
 function sampleUnit(random: () => number): number {
   const value = random();
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.5;

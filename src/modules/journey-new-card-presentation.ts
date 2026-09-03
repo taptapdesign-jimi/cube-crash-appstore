@@ -5,11 +5,13 @@ export const JOURNEY_NEW_CARD_INTERIM_SCALE = 1.17;
 export const JOURNEY_NEW_CARD_UNLOCKED_SCALE = 1.17;
 export const JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX = 40;
 export const JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX = JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX + 8;
+export const JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX = JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX;
+export const JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX = JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX + 8;
 
 export const JOURNEY_FOREST_CARD_NAMES = [
   'Star Is Out',
   'Flying Tent',
-  'WEEE - Beee',
+  'Weee - Beee',
   'Honey Splat',
   'Dreamy',
   'Shroomy',
@@ -35,7 +37,7 @@ export function getJourneyNewCardRevealCopy(
 ): JourneyNewCardRevealCopy {
   const safeCardName = String(cardName || '').trim();
   return {
-    title: rarity === 'legendary' ? 'Legendary!' : 'Unlocked!',
+    title: rarity === 'legendary' ? 'Legendary!' : 'Common',
     subtitle: `Unlocked "${safeCardName}" card`,
   };
 }

@@ -5067,6 +5067,7 @@ class JourneyBoardsManager {
 
     this.stopOverlayCardLandingBounce(card);
     this.journeyOverlayLandingCard = card;
+    card.classList.add('journey-board-card-return-landing');
 
     const variant = createJourneyInterimBounceVariant();
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
@@ -5092,6 +5093,8 @@ class JourneyBoardsManager {
       delete (cardWrapper as any)._overlayLandingBounceRestore;
       delete (cardWrapper as any)._overlayLandingPreserveRuntimeSettle;
       if (this.journeyOverlayLandingCard === card) this.journeyOverlayLandingCard = null;
+      card.classList.remove('journey-board-card-return-landing');
+      card.classList.add('journey-board-card-settled-shadow');
       card.style.transition = previousTransition;
       card.style.willChange = previousWillChange;
       card.style.transformOrigin = previousTransformOrigin;
@@ -5207,6 +5210,10 @@ class JourneyBoardsManager {
     delete (cardWrapper as any)._overlayLandingBounceRestore;
     delete (cardWrapper as any)._overlayLandingPreserveRuntimeSettle;
     if (this.journeyOverlayLandingCard === card) this.journeyOverlayLandingCard = null;
+    card.classList.remove('journey-board-card-return-landing');
+    if (card.dataset.journeyCardViewed === 'true') {
+      card.classList.add('journey-board-card-settled-shadow');
+    }
     try { gsap.killTweensOf(card); } catch {}
     try { gsap.set(card, { clearProps: 'transform' }); } catch {}
     if (restore) {
@@ -9238,6 +9245,7 @@ class JourneyBoardsManager {
           const viewedBoardIds: Set<string> = new Set(JSON.parse(viewedBoardsJson));
           if (viewedBoardIds.has(board.id.toString())) {
             card.setAttribute('data-journey-card-viewed', 'true');
+            card.classList.add('journey-board-card-settled-shadow');
             isViewed = true;
             logger.info(`✅ Board ${board.id} marked as viewed from localStorage - animations disabled`);
           }
@@ -9837,6 +9845,12 @@ class JourneyBoardsManager {
     }
 
     cardWrapper.appendChild(card);
+    if (isUnlocked && !isInterim) {
+      const settledContactShadow = document.createElement('span');
+      settledContactShadow.className = 'journey-board-card-settled-contact-shadow';
+      settledContactShadow.setAttribute('aria-hidden', 'true');
+      cardWrapper.appendChild(settledContactShadow);
+    }
     
     const currentTransform = cardWrapper.style.transform || '';
     if (currentTransform) {

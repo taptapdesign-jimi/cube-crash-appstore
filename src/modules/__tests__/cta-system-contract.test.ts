@@ -143,28 +143,32 @@ describe('shared CTA system contract', () => {
     expect(cssSource).toContain('.first-play-tutorial-sheet .first-play-tutorial-cta.cc-cta');
   });
 
-  test('migrates New Reward and Special Dice onto the same primary lifecycle', () => {
-    for (const source of [newRewardSource, specialDiceSource]) {
-      expect(source).toContain("import { registerCta } from './cta-system.ts'");
-      expect(source).toContain("variant: 'primary'");
-      expect(source).toContain('await ctaController?.exit()');
-      expect(source).toContain('void ctaController?.enter()');
-      expect(source).not.toContain('restart-btn primary-button bottom-sheet-cta');
-      expect(source).not.toContain("cta?.addEventListener('click'");
-      expect(source).not.toContain('.to(cta,');
-    }
+  test('keeps Special Dice on the primary CTA lifecycle and New Reward on its card tap owner', () => {
+    expect(specialDiceSource).toContain("import { registerCta } from './cta-system.ts'");
+    expect(specialDiceSource).toContain("variant: 'primary'");
+    expect(specialDiceSource).toContain('await ctaController?.exit()');
+    expect(specialDiceSource).toContain('void ctaController?.enter()');
+    expect(specialDiceSource).not.toContain('restart-btn primary-button bottom-sheet-cta');
+    expect(specialDiceSource).not.toContain("cta?.addEventListener('click'");
+    expect(specialDiceSource).not.toContain('.to(cta,');
+
+    expect(newRewardSource).not.toContain("import { registerCta } from './cta-system.ts'");
+    expect(newRewardSource).not.toContain('cc-journey-new-card-cta');
+    expect(newRewardSource).toContain("hero?.addEventListener('click', onReveal)");
+    expect(newRewardSource).toContain('stopContinueCoach();');
   });
 
-  test('reveals the New Reward card before bouncing in its Continue CTA', () => {
-    expect(newRewardSource).not.toContain('const ctaStart = titleStart');
+  test('reveals the New Reward card before enabling its idle tap-to-continue coach', () => {
     const revealStart = newRewardSource.indexOf('const cardEnterStart = 0;');
     const finalCardEnter = newRewardSource.indexOf('.to(unlockedSurface, {', revealStart);
     const cardImpact = newRewardSource.indexOf('}, undefined, cardImpactStart)', finalCardEnter);
-    const ctaEnter = newRewardSource.indexOf('void ctaController?.enter()', finalCardEnter);
+    const revealSettled = newRewardSource.indexOf('revealed = true;', cardImpact);
+    const coachStart = newRewardSource.indexOf('scheduleContinueCoach();', revealSettled);
     expect(revealStart).toBeGreaterThan(-1);
     expect(finalCardEnter).toBeGreaterThan(revealStart);
     expect(cardImpact).toBeGreaterThan(finalCardEnter);
-    expect(ctaEnter).toBeGreaterThan(cardImpact);
+    expect(revealSettled).toBeGreaterThan(cardImpact);
+    expect(coachStart).toBeGreaterThan(revealSettled);
   });
 
   test('migrates regular and interim Journey detail CTAs without dual touch/click activation', () => {

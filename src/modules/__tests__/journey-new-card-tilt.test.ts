@@ -1,8 +1,59 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createJourneyNewCardTiltProfile } from '../journey-new-card-tilt';
+import {
+  createJourneyNewCardTiltProfile,
+  getJourneyNewCardDragTiltAngle,
+  isJourneyNewCardCollectDrag,
+  JOURNEY_NEW_CARD_DRAG_FULL_RANGE_VIEWPORT_RATIO,
+  JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG,
+} from '../journey-new-card-tilt';
+import {
+  JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
+  JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
+} from '../journey-card-overlay-modal';
 
 describe('Journey New Reward card tilt handoff', () => {
+  test('caps horizontal drag at 40 percent without ever reaching a card flip', () => {
+    expect(JOURNEY_NEW_CARD_DRAG_FULL_RANGE_VIEWPORT_RATIO).toBe(0.4);
+    expect(JOURNEY_NEW_CARD_DRAG_MAX_TILT_DEG).toBe(28.8);
+    expect(getJourneyNewCardDragTiltAngle(0, 0, 400)).toBe(0);
+    expect(getJourneyNewCardDragTiltAngle(0, 80, 400)).toBe(14.4);
+    expect(getJourneyNewCardDragTiltAngle(0, 160, 400)).toBe(28.8);
+    expect(getJourneyNewCardDragTiltAngle(0, 800, 400)).toBe(28.8);
+    expect(getJourneyNewCardDragTiltAngle(0, -160, 400)).toBe(-28.8);
+    expect(getJourneyNewCardDragTiltAngle(0, -800, 400)).toBe(-28.8);
+  });
+
+  test('collects on a deliberate dominant drag in either vertical direction', () => {
+    expect(isJourneyNewCardCollectDrag(4, 64, 500)).toBe(true);
+    expect(isJourneyNewCardCollectDrag(-4, -64, 500)).toBe(true);
+    expect(isJourneyNewCardCollectDrag(80, 64, 500)).toBe(false);
+    expect(isJourneyNewCardCollectDrag(4, 40, 500)).toBe(false);
+  });
+
+  test('routes revealed-card pointer ownership without allowing a horizontal flip', () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/journey-new-card-screen.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain("touch-action: none;");
+    expect(source).toMatch(/\.cc-journey-new-card-auto-tilt-shell--unlocked \{[\s\S]*?animation: none;/);
+    expect(source).not.toContain("unlockedAutoTilt.style.animationPlayState = 'paused'");
+    expect(source).toContain("hero?.addEventListener('pointerdown', handleUnlockedPointerDown)");
+    expect(source).toContain("hero?.addEventListener('pointermove', handleUnlockedPointerMove)");
+    expect(source).toContain("hero?.addEventListener('pointerup', handleUnlockedPointerUp)");
+    expect(source).toContain("hero?.addEventListener('pointercancel', handleUnlockedPointerCancel)");
+    expect(source).toContain('getJourneyNewCardDragTiltAngle(');
+    expect(source).toContain('isJourneyNewCardCollectDrag(');
+    expect(source).toContain('suppressClickUntil = Date.now() + 500;');
+    expect(source).toContain('settleUnlockedCardAfterDrag();');
+    expect(source).not.toContain('flipUnlockedCard');
+    expect(source).toContain('unlockedDragSettleAnimation?.cancel();');
+    expect(source).toContain('unlockedDragHoloSettleAnimation?.cancel();');
+    expect(source).toContain("hero?.removeEventListener('pointercancel', handleUnlockedPointerCancel)");
+  });
+
   test('uses half-strength Journey transition and rest tilts', () => {
     const left = createJourneyNewCardTiltProfile(() => 0);
     expect(left).toEqual({
@@ -72,7 +123,7 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('const cardEnterStart = 0;');
     expect(source).toContain('const cardEnterDuration = rd(0.52);');
     expect(source).toMatch(/\.to\(interimSurface, \{[\s\S]*?scale: 0,[\s\S]*?ease: 'back\.in\(1\.65\)'/);
-    expect(source).toMatch(/\.set\(unlockedSurface, \{[\s\S]*?y: -18,[\s\S]*?scale: 0\.58/);
+    expect(source).toMatch(/\.set\(unlockedSurface, \{[\s\S]*?y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,[\s\S]*?scale: 0\.58/);
   });
 
   test('clips every unlocked-card shimmer to the actual card alpha mask', () => {
@@ -90,5 +141,31 @@ describe('Journey New Reward card tilt handoff', () => {
     expect(source).toContain('cc-journey-interim-shine-light');
     expect(css).toMatch(/\.journey-interim-shine-light \{[\s\S]*?-webkit-mask-type: alpha;[\s\S]*?mask-mode: alpha;/);
     expect(source).not.toContain('clearLightMask(unlockedLight);\n              setLightFrameScale(unlockedLight, 0.95);');
+  });
+
+  test('starts the modal-matched auto rotation and Legendary holo as soon as reveal settles', () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), 'src/modules/journey-new-card-screen.ts'),
+      'utf8',
+    );
+
+    expect(JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG).toBeCloseTo(21.6, 8);
+    expect(JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS).toBe(6800);
+    expect(source).toContain('JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG');
+    expect(source).toContain('JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS');
+    expect(source).toContain('const startUnlockedIdleMotion = () => {');
+    expect(source).toContain('unlockedIdleTiltAnimation = unlockedAutoTilt.animate(');
+    expect(source).toContain('unlockedIdleHoloAnimation = unlockedLegendaryHolo.animate(shineKeyframes');
+    expect(source).toContain("safeCardRarity !== 'legendary'");
+    expect(source).toContain("if (activeFace === 'unlocked') startUnlockedIdleMotion();");
+    expect(source).toContain("if (safeCardRarity === 'legendary') return;");
+    expect(source).toContain('setLightMask(unlockedLegendaryHolo, safeCardPath);');
+    expect(source).toContain('unlockedIdleTiltAnimation?.cancel();');
+    expect(source).toContain('unlockedIdleHoloAnimation?.cancel();');
+    const coach = source.slice(
+      source.indexOf('const stopContinueCoach = () => {'),
+      source.indexOf('cleanupFns.push(() => {'),
+    );
+    expect(coach).not.toContain('stopUnlockedIdleMotion();');
   });
 });

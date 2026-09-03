@@ -3,8 +3,12 @@ import { gsap } from 'gsap';
 import { cleanupJourneySmokeEffects, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { formatGameplayProgressLabel } from './gameplay-terminology.ts';
 import { applyAppPaperSurfaceToElement } from '../utils/app-paper-background.js';
-import { registerCta } from './cta-system.ts';
-import { createJourneyNewCardTiltProfile } from './journey-new-card-tilt.js';
+import {
+  createJourneyNewCardTiltProfile,
+  getJourneyNewCardDragTiltAngle,
+  isJourneyNewCardCollectDrag,
+  JOURNEY_NEW_CARD_DRAG_TAP_SLOP_PX,
+} from './journey-new-card-tilt.js';
 import { resolveJourneyCardAsset, type JourneyCardRarity } from './journey-card-assets.js';
 import {
   getJourneyNewCardDisplayName,
@@ -12,7 +16,9 @@ import {
   JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX,
   JOURNEY_NEW_CARD_INTERIM_SCALE,
   JOURNEY_NEW_CARD_INTERIM_SHADOW_Y_PX,
+  JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX,
   JOURNEY_NEW_CARD_UNLOCKED_SCALE,
+  JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX,
 } from './journey-new-card-presentation.js';
 import {
   applyJourneyInterimShineProfileVariables,
@@ -24,6 +30,11 @@ import {
   setJourneyInterimShineMaskScale as setLightFrameScale,
   triggerJourneyInterimShinePulse,
 } from './journey-interim-card-shine.js';
+import {
+  getJourneyCardLegendaryDragShineState,
+  JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
+  JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
+} from './journey-card-overlay-modal.js';
 
 type JourneyNewCardScreenOptions = {
   boardNumber: number;
@@ -34,6 +45,18 @@ type JourneyNewCardScreenOptions = {
 
 let cleanupFns: Array<() => void> = [];
 let activeTimelines: gsap.core.Timeline[] = [];
+
+const JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS = 1000;
+const JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS = 2000;
+const JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS = 2100;
+
+function renderContinueCoachLine(line: string): string {
+  return `<span class="cc-journey-new-card-coach-line">${Array.from(line).map((letter, index) => (
+    letter === ' '
+      ? `<span class="cc-journey-new-card-coach-letter is-space" style="--cc-new-card-coach-letter:${index}">&nbsp;</span>`
+      : `<span class="cc-journey-new-card-coach-letter" style="--cc-new-card-coach-letter:${index}">${letter}</span>`
+  )).join('')}</span>`;
+}
 
 function trackNewCardTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
   activeTimelines.push(timeline);
@@ -107,6 +130,9 @@ function ensureJourneyNewCardStyles(): void {
       max-width: min(88vw, 520px);
       text-wrap: balance;
     }
+    .cc-journey-new-card-subtitle-card-name {
+      color: #ef744d;
+    }
     .cc-journey-new-card-content {
       width: 100%;
       display: flex;
@@ -127,6 +153,7 @@ function ensureJourneyNewCardStyles(): void {
       perspective: 1050px;
       -webkit-perspective: 1050px;
       -webkit-tap-highlight-color: transparent;
+      touch-action: none;
       margin-top: -64px;
     }
     .cc-journey-new-card-shadow {
@@ -204,6 +231,24 @@ function ensureJourneyNewCardStyles(): void {
       animation: ccJourneyNewCardAutoTilt 3s ease-in-out infinite both;
       animation-play-state: paused;
     }
+    /* The revealed face is owned by WAAPI for both auto idle and live drag.
+       A paused CSS animation still outranks inline transform in the cascade,
+       so it must not remain a competing transform owner on this shell. */
+    .cc-journey-new-card-auto-tilt-shell--unlocked {
+      animation: none;
+    }
+    #cc-journey-new-card-overlay[data-card-rarity="legendary"]
+      .cc-journey-new-card-legendary-holo {
+      z-index: 5;
+      display: block;
+      border-radius: 0;
+      -webkit-clip-path: inset(0);
+      clip-path: inset(0);
+    }
+    #cc-journey-new-card-overlay.is-unlocked-auto-holo
+      .cc-journey-new-card-legendary-holo {
+      will-change: background-position, opacity;
+    }
     .cc-journey-new-card-frame,
     .cc-journey-new-card-final {
       grid-area: 1 / 1;
@@ -244,45 +289,67 @@ function ensureJourneyNewCardStyles(): void {
       -webkit-mask-size: contain;
       mask-size: contain;
     }
-    .cc-journey-new-card-cta {
-      width: min(68vw, 408px);
-      max-width: 408px;
-      transform: scale(0);
-      -webkit-transform: scale(0);
-      opacity: 0;
+    .cc-journey-new-card-continue-coach {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
       visibility: hidden;
-      flex: 0 0 auto;
-      margin-top: 8px;
+      pointer-events: none;
     }
-    .cc-journey-new-card-cta.animate-enter-initial {
-      opacity: 1 !important;
-      visibility: hidden !important;
-      transform: scale(0) !important;
-      -webkit-transform: scale(0) !important;
-      transition: none !important;
-      -webkit-transition: none !important;
+    .cc-journey-new-card-coach-hand {
+      position: absolute;
+      top: 56%;
+      left: 50%;
+      width: min(36vw, 168px);
+      height: auto;
+      opacity: 0;
+      user-select: none;
+      -webkit-user-drag: none;
+      filter: drop-shadow(0 12px 16px rgba(132, 82, 63, 0.24));
+      transform: translate3d(-50%, -28%, 80px) rotate(-8deg) scale(0.78);
     }
-    .cc-journey-new-card-cta.animate-enter {
-      opacity: 1 !important;
-      visibility: visible !important;
-      transform: scale(1) !important;
-      -webkit-transform: scale(1) !important;
-      transition:
-        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-      -webkit-transition:
-        -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-      will-change: transform !important;
+    .cc-journey-new-card-coach-copy {
+      position: absolute;
+      bottom: calc(34px + env(safe-area-inset-bottom, 0px));
+      left: 50%;
+      width: max-content;
+      max-width: calc(100vw - 32px);
+      color: #fff;
+      font-family: "Baloo2", system-ui, -apple-system, sans-serif;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -1.2px;
+      text-align: center;
+      text-shadow:
+        0 3px 0 rgba(159, 105, 82, 0.34),
+        0 8px 20px rgba(104, 67, 53, 0.22);
+      transform: translateX(-50%);
     }
-    .cc-journey-new-card-cta.animate-exit {
-      opacity: 1 !important;
-      visibility: visible !important;
-      transform: translateY(20px) scale(0) !important;
-      -webkit-transform: translateY(20px) scale(0) !important;
-      transition:
-        transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-      -webkit-transition:
-        -webkit-transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-      will-change: transform, opacity !important;
+    .cc-journey-new-card-coach-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .cc-journey-new-card-coach-letter {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(10px) scale(0) rotate(-7deg);
+      transform-origin: 50% 70%;
+    }
+    .cc-journey-new-card-coach-letter:nth-child(3n + 1) { font-size: 0.92em; }
+    .cc-journey-new-card-coach-letter:nth-child(3n + 2) { font-size: 1.06em; }
+    .cc-journey-new-card-coach-letter.is-space {
+      width: 0.34em;
+      font-size: 1em;
+    }
+    #cc-journey-new-card-overlay.is-continue-coach .cc-journey-new-card-continue-coach {
+      visibility: visible;
+    }
+    #cc-journey-new-card-overlay.is-continue-coach .cc-journey-new-card-coach-letter {
+      animation: ccJourneyNewCardCoachCopy 1.7s linear both;
+      animation-delay: calc(var(--cc-new-card-coach-letter, 0) * 12ms);
     }
     @keyframes ccJourneyNewCardIdle {
       0%, 100% { transform: translateY(0px) scale(1); }
@@ -294,10 +361,37 @@ function ensureJourneyNewCardStyles(): void {
       58% { transform: perspective(1050px) rotateX(1.65deg) rotateY(-2.35deg) rotateZ(-1.15deg) translateZ(3px); }
       78% { transform: perspective(1050px) rotateX(-0.4deg) rotateY(0.7deg) rotateZ(0.3deg) translateZ(1px); }
     }
+    @keyframes ccJourneyNewCardCoachCopy {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0) rotate(-7deg);
+        animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      16% {
+        opacity: 1;
+        transform: translateY(-3px) scale(1.13) rotate(3deg);
+      }
+      24%, 72% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0);
+      }
+      80% {
+        opacity: 1;
+        transform: translateY(-2px) scale(1.08) rotate(-2deg);
+        animation-timing-function: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(7px) scale(0) rotate(6deg);
+      }
+    }
     @media (prefers-reduced-motion: reduce) {
       .cc-journey-new-card-motion,
       .cc-journey-new-card-auto-tilt-shell {
         animation: none !important;
+      }
+      .cc-journey-new-card-continue-coach {
+        display: none !important;
       }
     }
     @media (max-height: 760px) {
@@ -311,9 +405,6 @@ function ensureJourneyNewCardStyles(): void {
       .cc-journey-new-card-hero {
         width: min(58vw, 300px);
         margin-top: -64px;
-      }
-      .cc-journey-new-card-cta {
-        margin-top: 8px;
       }
     }
   `;
@@ -457,6 +548,7 @@ export async function showJourneyNewCardScreen({
   await Promise.all([
     ...Array.from({ length: 9 }, (_, i) => preloadImage(getCrumbleFramePath(i + 1))),
     preloadImage(safeCardPath),
+    preloadImage('./assets/hand-pointer.png'),
   ]);
 
   return new Promise((resolve) => {
@@ -467,6 +559,23 @@ export async function showJourneyNewCardScreen({
     let framePlaybackId = 0;
     let sprite9ShineIntervalId: number | null = null;
     let finalCardShineIntervalId: number | null = null;
+    let continueCoachTimerId = 0;
+    let continueCoachHandAnimation: Animation | null = null;
+    let continueCoachCardAnimation: Animation | null = null;
+    let unlockedIdleTiltAnimation: Animation | null = null;
+    let unlockedIdleHoloAnimation: Animation | null = null;
+    let unlockedDragSettleAnimation: Animation | null = null;
+    let unlockedDragHoloSettleAnimation: Animation | null = null;
+    let activeDragPointerId: number | null = null;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragStartTiltAngle = 0;
+    let currentDragTiltAngle = 0;
+    let dragAxis: 'horizontal' | 'vertical' | null = null;
+    let dragMoved = false;
+    let suppressClickUntil = 0;
+    let continueCoachGeneration = 0;
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
     const hapticTimeouts: number[] = [];
     const shineTimeouts: number[] = [];
     const shineAnimationFrames: number[] = [];
@@ -493,14 +602,16 @@ export async function showJourneyNewCardScreen({
                 <div class="cc-journey-new-card-auto-tilt-shell cc-journey-new-card-auto-tilt-shell--unlocked">
                   <img class="cc-journey-new-card-final cc-journey-interim-shine-face" src="${safeCardPath}" alt="${safeCardName}">
                   <div class="cc-journey-new-card-light cc-journey-new-card-light--unlocked cc-journey-interim-shine-light" aria-hidden="true"></div>
+                  <div class="cc-journey-new-card-legendary-holo journey-card-flip-legendary-shine" aria-hidden="true"></div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="cc-cta-stack cc-cta-stack--reward">
-          <button class="cc-journey-new-card-cta" type="button">Continue</button>
-        </div>
+      </div>
+      <div class="cc-journey-new-card-continue-coach" aria-hidden="true">
+        <img class="cc-journey-new-card-coach-hand" src="./assets/hand-pointer.png" srcset="./assets/hand-pointer@2x.png 2x, ./assets/hand-pointer@3x.png 3x" alt="" draggable="false">
+        <div class="cc-journey-new-card-coach-copy">${renderContinueCoachLine('TAP TO COLLECT')}</div>
       </div>
     `;
     document.body.appendChild(overlay);
@@ -519,24 +630,180 @@ export async function showJourneyNewCardScreen({
     const finalImg = overlay.querySelector('.cc-journey-new-card-final') as HTMLImageElement | null;
     const interimLight = overlay.querySelector('.cc-journey-new-card-light--interim') as HTMLElement | null;
     const unlockedLight = overlay.querySelector('.cc-journey-new-card-light--unlocked') as HTMLElement | null;
+    const unlockedLegendaryHolo = overlay.querySelector('.cc-journey-new-card-legendary-holo') as HTMLElement | null;
     const shadow = overlay.querySelector('.cc-journey-new-card-shadow') as HTMLElement | null;
-    const cta = overlay.querySelector('.cc-journey-new-card-cta') as HTMLButtonElement | null;
+    const continueCoachHand = overlay.querySelector('.cc-journey-new-card-coach-hand') as HTMLImageElement | null;
+    const applyRevealCopy = (): void => {
+      if (title) title.textContent = revealCopy.title;
+      if (!subtitle) return;
+      const cardNameAccent = document.createElement('span');
+      cardNameAccent.className = 'cc-journey-new-card-subtitle-card-name';
+      cardNameAccent.textContent = safeCardName;
+      subtitle.replaceChildren(
+        document.createTextNode('Unlocked "'),
+        cardNameAccent,
+        document.createTextNode('" card'),
+      );
+    };
+    const unlockedIdleAngles = [
+      0,
+      -JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
+      0,
+      JOURNEY_CARD_LEGENDARY_IDLE_TILT_DEG,
+      0,
+    ];
+    const unlockedIdleOffsets = [0, 0.25, 0.5, 0.75, 1];
+    const getCurrentUnlockedIdleAngle = (): number => {
+      const progress = Number(unlockedIdleTiltAnimation?.effect?.getComputedTiming().progress ?? 0);
+      if (!Number.isFinite(progress)) return 0;
+      const scaled = Math.max(0, Math.min(1, progress)) * (unlockedIdleAngles.length - 1);
+      const startIndex = Math.min(unlockedIdleAngles.length - 2, Math.floor(scaled));
+      const localProgress = scaled - startIndex;
+      return unlockedIdleAngles[startIndex]
+        + (unlockedIdleAngles[startIndex + 1] - unlockedIdleAngles[startIndex]) * localProgress;
+    };
+    const paintUnlockedLegendaryHolo = (angle: number, idleStrength: boolean) => {
+      if (safeCardRarity !== 'legendary' || !unlockedLegendaryHolo) return;
+      const shine = getJourneyCardLegendaryDragShineState(angle);
+      overlay.classList.add('is-unlocked-auto-holo');
+      unlockedLegendaryHolo.style.backgroundPosition = `${shine.backgroundPositionPercent}% 50%, ${shine.rainbowBackgroundPositionPercent}% 50%`;
+      unlockedLegendaryHolo.style.opacity = String(
+        Math.max(0.12, idleStrength ? shine.opacity * 0.58 : shine.opacity),
+      );
+    };
+    const stopUnlockedIdleMotion = (clearTransform = true) => {
+      unlockedIdleTiltAnimation?.cancel();
+      unlockedIdleTiltAnimation = null;
+      unlockedIdleHoloAnimation?.cancel();
+      unlockedIdleHoloAnimation = null;
+      unlockedDragSettleAnimation?.cancel();
+      unlockedDragSettleAnimation = null;
+      unlockedDragHoloSettleAnimation?.cancel();
+      unlockedDragHoloSettleAnimation = null;
+      overlay.classList.remove('is-unlocked-auto-holo');
+      unlockedLegendaryHolo?.style.removeProperty('background-position');
+      unlockedLegendaryHolo?.style.removeProperty('opacity');
+      if (clearTransform) unlockedAutoTilt?.style.removeProperty('transform');
+    };
+    const startUnlockedIdleMotion = () => {
+      stopUnlockedIdleMotion();
+      if (
+        prefersReducedMotion
+        || resolved
+        || disposed
+        || !unlockedAutoTilt
+        || typeof unlockedAutoTilt.animate !== 'function'
+      ) return;
+      unlockedAutoTilt.style.removeProperty('transform');
+      unlockedIdleTiltAnimation = unlockedAutoTilt.animate(
+        unlockedIdleAngles.map((angle, index) => ({
+          transform: `perspective(1050px) rotateY(${angle}deg)`,
+          offset: unlockedIdleOffsets[index],
+        })),
+        {
+          duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
+          easing: 'ease-in-out',
+          iterations: Infinity,
+        },
+      );
+      if (
+        safeCardRarity !== 'legendary'
+        || !unlockedLegendaryHolo
+        || typeof unlockedLegendaryHolo.animate !== 'function'
+      ) return;
+      const shineKeyframes = unlockedIdleAngles.map((angle, index) => {
+        const shine = getJourneyCardLegendaryDragShineState(angle);
+        return {
+          backgroundPosition: `${shine.backgroundPositionPercent}% 50%, ${shine.rainbowBackgroundPositionPercent}% 50%`,
+          opacity: Math.max(0.12, shine.opacity * 0.58),
+          offset: unlockedIdleOffsets[index],
+        };
+      });
+      overlay.classList.add('is-unlocked-auto-holo');
+      unlockedIdleHoloAnimation = unlockedLegendaryHolo.animate(shineKeyframes, {
+        duration: JOURNEY_CARD_LEGENDARY_IDLE_DURATION_MS,
+        easing: 'ease-in-out',
+        iterations: Infinity,
+      });
+    };
     const setCardIdleTiltState = (activeFace: 'interim' | 'unlocked' | 'none') => {
       if (interimAutoTilt) interimAutoTilt.style.animationPlayState = activeFace === 'interim' ? 'running' : 'paused';
-      if (unlockedAutoTilt) unlockedAutoTilt.style.animationPlayState = activeFace === 'unlocked' ? 'running' : 'paused';
+      if (activeFace === 'unlocked') startUnlockedIdleMotion();
+      else stopUnlockedIdleMotion();
     };
     let finish: () => void = () => {};
-    const ctaController = cta ? registerCta(cta, {
-      variant: 'primary',
-      initialState: 'hidden',
-      onActivate: () => {
-        try { (window as any).triggerHapticSelection?.(); } catch {}
-        finish();
-      },
-    }) : null;
+
+    const stopContinueCoach = () => {
+      continueCoachGeneration += 1;
+      if (continueCoachTimerId !== 0) {
+        window.clearTimeout(continueCoachTimerId);
+        continueCoachTimerId = 0;
+      }
+      continueCoachHandAnimation?.cancel();
+      continueCoachHandAnimation = null;
+      continueCoachCardAnimation?.cancel();
+      continueCoachCardAnimation = null;
+      overlay.classList.remove('is-continue-coach');
+    };
+
+    const scheduleContinueCoach = (
+      delayMs = JOURNEY_NEW_CARD_CONTINUE_COACH_INITIAL_DELAY_MS,
+    ) => {
+      stopContinueCoach();
+      if (prefersReducedMotion || resolved || disposed || !revealed || revealRunning || !document.body.contains(overlay)) return;
+      const generation = continueCoachGeneration;
+      continueCoachTimerId = window.setTimeout(() => {
+        continueCoachTimerId = 0;
+        if (generation !== continueCoachGeneration || resolved || disposed || !revealed || revealRunning) return;
+        if (
+          !continueCoachHand
+          || !poseShell
+          || typeof continueCoachHand.animate !== 'function'
+          || typeof poseShell.animate !== 'function'
+        ) return;
+        overlay.classList.add('is-continue-coach');
+        const handAnimation = continueCoachHand.animate([
+          { opacity: 0, transform: 'translate3d(-50%, -28%, 80px) rotate(-8deg) scale(0.78)', offset: 0 },
+          { opacity: 1, transform: 'translate3d(-50%, -50%, 80px) rotate(-8deg) scale(0.96)', offset: 0.2 },
+          { opacity: 1, transform: 'translate3d(-50%, -38%, 80px) rotate(-6deg) scale(0.84)', offset: 0.42 },
+          { opacity: 1, transform: 'translate3d(-50%, -52%, 80px) rotate(-8deg) scale(1)', offset: 0.58 },
+          { opacity: 0, transform: 'translate3d(-50%, -34%, 80px) rotate(-7deg) scale(0.84)', offset: 1 },
+        ], {
+          duration: JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
+        const cardAnimation = poseShell.animate([
+          { transform: 'scale(1)', offset: 0 },
+          { transform: 'scale(1)', offset: 0.34 },
+          { transform: 'scale(0.965)', offset: 0.43 },
+          { transform: 'scale(1.06)', offset: 0.57 },
+          { transform: 'scale(0.988)', offset: 0.7 },
+          { transform: 'scale(1)', offset: 0.82 },
+          { transform: 'scale(1)', offset: 1 },
+        ], {
+          duration: JOURNEY_NEW_CARD_CONTINUE_COACH_DURATION_MS,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
+        continueCoachHandAnimation = handAnimation;
+        continueCoachCardAnimation = cardAnimation;
+        void Promise.allSettled([handAnimation.finished, cardAnimation.finished]).then(() => {
+          if (
+            generation !== continueCoachGeneration
+            || continueCoachHandAnimation !== handAnimation
+            || continueCoachCardAnimation !== cardAnimation
+          ) return;
+          continueCoachHandAnimation = null;
+          continueCoachCardAnimation = null;
+          overlay.classList.remove('is-continue-coach');
+          scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS);
+        });
+      }, delayMs);
+    };
 
     cleanupFns.push(() => {
       disposed = true;
+      stopContinueCoach();
+      stopUnlockedIdleMotion();
       if (sprite9ShineIntervalId !== null) {
         try { window.clearInterval(sprite9ShineIntervalId); } catch {}
         sprite9ShineIntervalId = null;
@@ -557,10 +824,10 @@ export async function showJourneyNewCardScreen({
       try { cleanupJourneySmokeEffects(hero); } catch {}
       try { clearLightMask(interimLight); } catch {}
       try { clearLightMask(unlockedLight); } catch {}
+      try { clearLightMask(unlockedLegendaryHolo); } catch {}
       try { if (frameImg) frameImg.removeAttribute('src'); } catch {}
       try { if (finalImg) finalImg.removeAttribute('src'); } catch {}
-      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, poseShell, interimSurface, unlockedSurface, interimAutoTilt, unlockedAutoTilt, frameImg, finalImg, interimLight, unlockedLight, shadow, cta]); } catch {}
-      try { ctaController?.dispose(); } catch {}
+      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, poseShell, interimSurface, unlockedSurface, interimAutoTilt, unlockedAutoTilt, frameImg, finalImg, interimLight, unlockedLight, shadow]); } catch {}
     });
 
     const triggerHaptic = (style: 'light' | 'medium' = 'medium') => {
@@ -695,6 +962,7 @@ export async function showJourneyNewCardScreen({
 
     const startFinalCardShineLoop = () => {
       stopFinalCardShineLoop();
+      if (safeCardRarity === 'legendary') return;
       const play = () => {
         if ((!revealed && !revealRunning) || resolved || disposed || !finalImg || !document.body.contains(overlay)) {
           stopFinalCardShineLoop();
@@ -726,14 +994,14 @@ export async function showJourneyNewCardScreen({
       resolved = true;
       stopSprite9ShineLoop();
       stopFinalCardShineLoop();
+      stopContinueCoach();
       clearPendingShineWork();
       setCardIdleTiltState('none');
       ++framePlaybackId;
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
-      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, interimSurface, unlockedSurface, frameImg, finalImg, interimLight, unlockedLight, shadow, cta]); } catch {}
+      try { gsap.killTweensOf([overlay, title, subtitle, hero, motion, poseShell, interimSurface, unlockedSurface, frameImg, finalImg, interimLight, unlockedLight, shadow]); } catch {}
       void (async () => {
-        await ctaController?.exit();
         const tl = trackNewCardTimeline(gsap.timeline({
           onComplete: () => {
             cleanupJourneyNewCardScreen();
@@ -791,7 +1059,7 @@ export async function showJourneyNewCardScreen({
       triggerHaptic('medium');
 
       try {
-        gsap.killTweensOf([title, subtitle, hero, interimSurface, unlockedSurface, frameImg, finalImg, interimLight, unlockedLight, shadow, cta]);
+        gsap.killTweensOf([title, subtitle, hero, interimSurface, unlockedSurface, frameImg, finalImg, interimLight, unlockedLight, shadow]);
         const rd = (s: number) => s * FAST_20;
         if (frameImg) {
           frameImg.src = getCrumbleFramePath(9);
@@ -826,7 +1094,7 @@ export async function showJourneyNewCardScreen({
         gsap.set(unlockedSurface, {
           opacity: 0,
           visibility: 'hidden',
-          y: -18,
+          y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,
           scale: 0.58,
           rotationZ: revealTilt.unlockedEntryRotationDeg,
           rotationX: revealTilt.unlockedEntryRotateXDeg,
@@ -860,7 +1128,7 @@ export async function showJourneyNewCardScreen({
               gsap.set(unlockedSurface, {
                 opacity: 1,
                 visibility: 'visible',
-                y: 0,
+                y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX,
                 scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
                 rotationZ: revealTilt.unlockedRestRotationDeg,
                 rotationX: revealTilt.unlockedRestRotateXDeg,
@@ -874,8 +1142,7 @@ export async function showJourneyNewCardScreen({
           }))
             .set(title, { opacity: 0, y: -16, scale: 0.72 }, 0)
             .set(subtitle, { opacity: 0, y: -12, scale: 0.78 }, 0)
-            .set(title, { textContent: revealCopy.title, opacity: 0, y: -16, scale: 0.72 }, titleStart)
-            .set(subtitle, { textContent: revealCopy.subtitle, opacity: 0, y: -12, scale: 0.78 }, titleStart)
+            .call(applyRevealCopy, undefined, titleStart)
             .to(interimSurface, {
               scale: 0,
               y: JOURNEY_NEW_CARD_INTERIM_OFFSET_Y_PX - 30,
@@ -894,11 +1161,11 @@ export async function showJourneyNewCardScreen({
               visibility: 'hidden',
               opacity: 0,
             }, coverExitDuration)
-            .set(shadow, { opacity: 0, y: 8, scaleX: 0.52, scaleY: 0.58 }, cardEnterStart)
+            .set(shadow, { opacity: 0, y: JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX, scaleX: 0.52, scaleY: 0.58 }, cardEnterStart)
             .set(unlockedSurface, {
               opacity: 1,
               visibility: 'visible',
-              y: -18,
+              y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,
               scale: 0.58,
               rotationZ: revealTilt.unlockedEntryRotationDeg,
               rotationX: revealTilt.unlockedEntryRotateXDeg,
@@ -920,7 +1187,7 @@ export async function showJourneyNewCardScreen({
               triggerHaptic('medium');
             }, undefined, cardEnterStart)
             .to(unlockedSurface, {
-              y: 0,
+              y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX,
               scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
               rotationZ: revealTilt.unlockedRestRotationDeg,
               rotationX: revealTilt.unlockedRestRotateXDeg,
@@ -930,7 +1197,7 @@ export async function showJourneyNewCardScreen({
               ease: 'back.out(1.85)',
               force3D: true,
             }, cardEnterStart)
-            .to(shadow, { opacity: 0.82, y: 8, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
+            .to(shadow, { opacity: 0.82, y: JOURNEY_NEW_CARD_UNLOCKED_SHADOW_Y_PX, scaleX: 1.16, scaleY: 1.08, duration: rd(0.24), ease: 'power2.out' }, cardEnterStart)
             .to(title, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, titleStart)
             .to(subtitle, { opacity: 1, y: 0, scale: 1, duration: rd(0.24), ease: 'back.out(1.65)' }, subtitleStart)
             .call(() => triggerHaptic('light'), undefined, titleStart)
@@ -968,7 +1235,6 @@ export async function showJourneyNewCardScreen({
             }, undefined, cardImpactStart)
             .call(() => {
               if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
-              void ctaController?.enter();
               triggerHaptic('light');
             }, undefined, cardImpactStart)
             .call(() => {
@@ -1008,9 +1274,11 @@ export async function showJourneyNewCardScreen({
         if (framePlaybackId !== revealFramePlaybackId || resolved || disposed) return;
         revealed = true;
         revealRunning = false;
+        hero?.removeAttribute('aria-disabled');
+        hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`);
+        scheduleContinueCoach();
       } catch {
-        if (title) title.textContent = revealCopy.title;
-        if (subtitle) subtitle.textContent = revealCopy.subtitle;
+        applyRevealCopy();
         if (frameImg) {
           frameImg.style.opacity = '0';
           frameImg.style.visibility = 'hidden';
@@ -1027,7 +1295,7 @@ export async function showJourneyNewCardScreen({
           gsap.set(unlockedSurface, {
             opacity: 1,
             visibility: 'visible',
-            y: 0,
+            y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX,
             scale: JOURNEY_NEW_CARD_UNLOCKED_SCALE,
             rotationZ: revealTilt.unlockedRestRotationDeg,
             rotationX: revealTilt.unlockedRestRotateXDeg,
@@ -1037,15 +1305,136 @@ export async function showJourneyNewCardScreen({
           });
           setCardIdleTiltState('unlocked');
         }
-        void ctaController?.enter();
+        revealed = true;
         revealRunning = false;
+        hero?.removeAttribute('aria-disabled');
+        hero?.setAttribute('aria-label', `Continue after unlocking ${safeCardName}`);
+        scheduleContinueCoach();
       }
+    };
+
+    const settleUnlockedCardAfterDrag = () => {
+      if (!unlockedAutoTilt || resolved || disposed) return;
+      unlockedDragSettleAnimation?.cancel();
+      const fromAngle = currentDragTiltAngle;
+      const settleAnimation = unlockedAutoTilt.animate([
+        { transform: `perspective(1050px) rotateY(${fromAngle}deg)` },
+        { transform: 'perspective(1050px) rotateY(0deg)' },
+      ], {
+        duration: 260,
+        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        fill: 'forwards',
+      });
+      unlockedDragSettleAnimation = settleAnimation;
+      if (safeCardRarity === 'legendary' && unlockedLegendaryHolo) {
+        const fromShine = getJourneyCardLegendaryDragShineState(fromAngle);
+        const settleShine = getJourneyCardLegendaryDragShineState(0);
+        unlockedDragHoloSettleAnimation = unlockedLegendaryHolo.animate([
+          {
+            backgroundPosition: `${fromShine.backgroundPositionPercent}% 50%, ${fromShine.rainbowBackgroundPositionPercent}% 50%`,
+            opacity: Math.max(0.12, fromShine.opacity),
+          },
+          {
+            backgroundPosition: `${settleShine.backgroundPositionPercent}% 50%, ${settleShine.rainbowBackgroundPositionPercent}% 50%`,
+            opacity: 0.12,
+          },
+        ], {
+          duration: 260,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
+      }
+      void settleAnimation.finished.catch(() => undefined).then(() => {
+        if (unlockedDragSettleAnimation !== settleAnimation || resolved || disposed) return;
+        unlockedDragSettleAnimation = null;
+        settleAnimation.cancel();
+        unlockedDragHoloSettleAnimation?.cancel();
+        unlockedDragHoloSettleAnimation = null;
+        unlockedAutoTilt.style.removeProperty('transform');
+        currentDragTiltAngle = 0;
+        startUnlockedIdleMotion();
+        scheduleContinueCoach(JOURNEY_NEW_CARD_CONTINUE_COACH_REPEAT_DELAY_MS);
+      });
+    };
+
+    const handleUnlockedPointerDown = (event: PointerEvent) => {
+      if (!revealed || revealRunning || resolved || disposed || event.isPrimary === false || !unlockedAutoTilt) return;
+      activeDragPointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragStartY = event.clientY;
+      dragAxis = null;
+      dragMoved = false;
+      dragStartTiltAngle = getCurrentUnlockedIdleAngle();
+      currentDragTiltAngle = dragStartTiltAngle;
+      stopContinueCoach();
+      stopUnlockedIdleMotion(false);
+      unlockedAutoTilt.style.transform = `perspective(1050px) rotateY(${dragStartTiltAngle}deg)`;
+      paintUnlockedLegendaryHolo(dragStartTiltAngle, false);
+      try { hero?.setPointerCapture(event.pointerId); } catch {}
+      event.preventDefault();
+    };
+
+    const handleUnlockedPointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== activeDragPointerId || !unlockedAutoTilt) return;
+      const deltaX = event.clientX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+      if (!dragMoved) {
+        dragMoved = Math.max(Math.abs(deltaX), Math.abs(deltaY)) > JOURNEY_NEW_CARD_DRAG_TAP_SLOP_PX;
+      }
+      if (!dragMoved) return;
+      if (dragAxis === null) {
+        dragAxis = Math.abs(deltaY) > Math.abs(deltaX) * 1.15 ? 'vertical' : 'horizontal';
+      }
+      if (dragAxis === 'horizontal') {
+        currentDragTiltAngle = getJourneyNewCardDragTiltAngle(
+          dragStartTiltAngle,
+          deltaX,
+          window.innerWidth || 390,
+        );
+        unlockedAutoTilt.style.transform = `perspective(1050px) rotateY(${currentDragTiltAngle}deg)`;
+        paintUnlockedLegendaryHolo(currentDragTiltAngle, false);
+      }
+      event.preventDefault();
+    };
+
+    const finishUnlockedPointer = (event: PointerEvent, allowCollect: boolean) => {
+      if (event.pointerId !== activeDragPointerId) return;
+      const deltaX = event.clientX - dragStartX;
+      const deltaY = event.clientY - dragStartY;
+      try { hero?.releasePointerCapture(event.pointerId); } catch {}
+      activeDragPointerId = null;
+      suppressClickUntil = Date.now() + 500;
+      const shouldCollect = allowCollect && (
+        !dragMoved
+        || (dragAxis === 'vertical' && isJourneyNewCardCollectDrag(
+          deltaX,
+          deltaY,
+          hero?.getBoundingClientRect().height || 458,
+        ))
+      );
+      dragAxis = null;
+      dragMoved = false;
+      if (shouldCollect) {
+        try { (window as any).triggerHapticSelection?.(); } catch {}
+        finish();
+        return;
+      }
+      settleUnlockedCardAfterDrag();
+    };
+
+    const handleUnlockedPointerUp = (event: PointerEvent) => {
+      finishUnlockedPointer(event, true);
+    };
+
+    const handleUnlockedPointerCancel = (event: PointerEvent) => {
+      finishUnlockedPointer(event, false);
     };
 
     const onReveal = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
+      if (Date.now() < suppressClickUntil) return;
       if (revealed && !revealRunning) {
+        stopContinueCoach();
         try { (window as any).triggerHapticSelection?.(); } catch {}
         finish();
         return;
@@ -1056,9 +1445,17 @@ export async function showJourneyNewCardScreen({
       if (event.key !== 'Enter' && event.key !== ' ') return;
       onReveal(event);
     };
+    hero?.addEventListener('pointerdown', handleUnlockedPointerDown);
+    hero?.addEventListener('pointermove', handleUnlockedPointerMove);
+    hero?.addEventListener('pointerup', handleUnlockedPointerUp);
+    hero?.addEventListener('pointercancel', handleUnlockedPointerCancel);
     hero?.addEventListener('click', onReveal);
     hero?.addEventListener('keydown', onHeroKeyDown);
     cleanupFns.push(() => {
+      try { hero?.removeEventListener('pointerdown', handleUnlockedPointerDown); } catch {}
+      try { hero?.removeEventListener('pointermove', handleUnlockedPointerMove); } catch {}
+      try { hero?.removeEventListener('pointerup', handleUnlockedPointerUp); } catch {}
+      try { hero?.removeEventListener('pointercancel', handleUnlockedPointerCancel); } catch {}
       try { hero?.removeEventListener('click', onReveal); } catch {}
       try { hero?.removeEventListener('keydown', onHeroKeyDown); } catch {}
     });
@@ -1084,7 +1481,7 @@ export async function showJourneyNewCardScreen({
     gsap.set(unlockedSurface, {
       opacity: 0,
       visibility: 'hidden',
-      y: -18,
+      y: JOURNEY_NEW_CARD_UNLOCKED_OFFSET_Y_PX - 18,
       scale: 0.58,
       rotationZ: revealTilt.unlockedEntryRotationDeg,
       rotationX: revealTilt.unlockedEntryRotateXDeg,
@@ -1098,6 +1495,8 @@ export async function showJourneyNewCardScreen({
     setLightFrameScale(interimLight, 1);
     setLightMask(interimLight, getCrumbleFramePath(1));
     setLightMask(unlockedLight, safeCardPath);
+    setLightMask(unlockedLegendaryHolo, safeCardPath);
+    setLightFrameScale(unlockedLegendaryHolo, 0.95);
 
     const enter = trackNewCardTimeline(gsap.timeline({
       defaults: { overwrite: 'auto' },
