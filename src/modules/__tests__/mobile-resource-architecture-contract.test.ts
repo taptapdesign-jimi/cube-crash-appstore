@@ -29,7 +29,7 @@ describe('mobile resource architecture', () => {
 
     expect(imagePreloads).toHaveLength(2);
     expect(imagePreloads.join('\n')).toContain('./assets/logo addons/taplogo.png');
-    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/lik-board.png');
+    expect(imagePreloads.join('\n')).toContain('./assets/logo addons/lik-game.png');
     expect(imagePreloads.join('\n')).not.toMatch(/@2x|@3x/);
     expect(imagePreloads.join('\n')).not.toMatch(/crash-cubes-homepage|\/nav\/|modals\/paper|journey assets|tile\.png/);
   });
@@ -40,9 +40,16 @@ describe('mobile resource architecture', () => {
 
     expect(launch).toContain("'!../../assets/logo addons/lik-klizanje.png'");
     expect(launch).toContain("'!../../assets/logo addons/lik-vrt.png'");
+    expect(launch).toContain("'!../../assets/logo addons/lik-board.png'");
+    expect(launch).toContain("'!../../assets/logo addons/lik-dron.png'");
+    expect(launch).toContain("'../../assets/logo addons/lik slikanje.png'");
     expect(nativeAudit).toContain("'lik-cekic.png'");
-    expect(nativeAudit).toContain("'lik-dron.png'");
+    expect(nativeAudit).toContain("'lik-nogomet.png'");
+    expect(nativeAudit).toContain("'lik slikanje.png'");
+    expect(nativeAudit).toContain("'lik-cvijet.png'");
     expect(nativeAudit).toContain("'lik-vrecice.png'");
+    expect(nativeAudit).not.toContain("'lik-board.png'");
+    expect(nativeAudit).not.toContain("'lik-dron.png'");
     expect(nativeAudit).not.toContain("'lik-klizanje.png'");
     expect(nativeAudit).not.toContain("'lik-vrt.png'");
   });

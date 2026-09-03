@@ -516,7 +516,7 @@
   font-weight: 500;
   line-height: 1.08;
   white-space: nowrap;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .journey-card-flip-divider {
@@ -3309,7 +3309,7 @@
 }
 
 /* Only the lowest 20% of a settled World card receives depth. The 60%-wide
-   brown radial paint is 10% stronger than its accepted 0.52/0.28 contact
+   brown radial paint is another 15% stronger than its 0.572/0.308 contact
    shadow and fades to fully transparent toward the card body. */
 #journey-boards-container .journey-board-card-settled-contact-shadow {
   position: absolute;
@@ -3323,8 +3323,8 @@
   opacity: 0;
   background: radial-gradient(
     ellipse at 50% 100%,
-    rgba(126, 82, 57, 0.572) 0%,
-    rgba(142, 94, 66, 0.308) 42%,
+    rgba(126, 82, 57, 0.6578) 0%,
+    rgba(142, 94, 66, 0.3542) 42%,
     rgba(142, 94, 66, 0) 78%
   );
   filter: blur(5px);

@@ -16,14 +16,15 @@ const WEB_BUNDLE = path.join(STACK_ROOT, 'Stack to Six/Web.bundle');
 const APP_STORE_PROFILE = path.join(ROOT, 'release/stacktosix-app-store-profile.json');
 const EXPECTED_BUNDLE_ID = 'com.taptapdesign.stacktosix.Stack-to-Six';
 const EXPECTED_INTRO_CHARACTERS = [
-  'lik-board.png',
   'lik-game.png',
   'lik-gitara.png',
   'lik-kauc.png',
   'lik-cekic.png',
-  'lik-dron.png',
   'lik-lajna.png',
+  'lik-nogomet.png',
   'lik-pas.png',
+  'lik slikanje.png',
+  'lik-cvijet.png',
   'lik-vrecice.png',
 ];
 const sourceOnly = process.argv.includes('--source-only');

@@ -91,7 +91,7 @@ describe('Journey two-sided card overlay prototype', () => {
     }, false).stageLabel).toBe('Stage 01');
   });
 
-  test('keeps uppercase brown labels while Stage and stat numbers stay orange', () => {
+  test('keeps only Stage uppercase while stat labels use their written casing and numbers stay orange', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
@@ -100,7 +100,9 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).toMatch(/\.journey-card-flip-title-label \{[\s\S]*?color: #ad8675;/);
     expect(css).toMatch(/\.journey-card-flip-title-number \{[\s\S]*?color: #e8744a;/);
     expect(css).toMatch(/\.journey-card-flip-stat strong \{[\s\S]*?color: #e8744a;/);
-    expect(css).toMatch(/\.journey-card-flip-stat span \{[\s\S]*?color: #ad8775;[\s\S]*?text-transform: uppercase;/);
+    expect(modal).toContain('<strong>${viewModel.highScore}</strong><span>High score</span>');
+    expect(modal).toContain('<strong>${viewModel.longestCombo}</strong><span>Longest combo</span>');
+    expect(css).toMatch(/\.journey-card-flip-stat span \{[\s\S]*?color: #ad8775;[\s\S]*?text-transform: none;/);
     expect(css).not.toContain('.journey-card-flip-cta.cc-cta .cc-cta__visual');
   });
 
@@ -647,7 +649,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(settledShadowRule).not.toContain('will-change');
     expect(settledShadowRule).not.toContain('animation');
     expect(css).toMatch(
-      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(126, 82, 57, 0\.572\)[\s\S]*?rgba\(142, 94, 66, 0\.308\)[\s\S]*?filter: blur\(5px\);/,
+      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(126, 82, 57, 0\.6578\)[\s\S]*?rgba\(142, 94, 66, 0\.3542\)[\s\S]*?filter: blur\(5px\);/,
     );
     expect(css).toMatch(
       /\.journey-board-card\.unlocked\.journey-board-card-settled-shadow:not\(\.journey-board-card-return-placeholder\):not\(\.journey-board-card-return-landing\)[\s\S]*?\+ \.journey-board-card-settled-contact-shadow \{[\s\S]*?opacity: 1;/,

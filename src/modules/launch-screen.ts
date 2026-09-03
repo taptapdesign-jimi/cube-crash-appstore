@@ -19,7 +19,10 @@ let priorityPaperBgLoadPromise: Promise<void> | null = null;
 const STUDIO_LOGO_URL = new URL('../../assets/logo addons/taplogo.png', import.meta.url).href;
 const studioCharacterModules = import.meta.glob([
   '../../assets/logo addons/lik-*.png',
+  '../../assets/logo addons/lik slikanje.png',
   '!../../assets/logo addons/lik-*@2x.png',
+  '!../../assets/logo addons/lik-board.png',
+  '!../../assets/logo addons/lik-dron.png',
   '!../../assets/logo addons/lik-klizanje.png',
   '!../../assets/logo addons/lik-vrt.png',
 ], {
@@ -30,7 +33,7 @@ const studioCharacterModules = import.meta.glob([
 const STUDIO_CHARACTER_URLS = Object.values(studioCharacterModules);
 const selectedStudioCharacterUrl = STUDIO_CHARACTER_URLS[
   Math.floor(Math.random() * STUDIO_CHARACTER_URLS.length)
-] || new URL('../../assets/logo addons/lik-board.png', import.meta.url).href;
+] || new URL('../../assets/logo addons/lik-game.png', import.meta.url).href;
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
