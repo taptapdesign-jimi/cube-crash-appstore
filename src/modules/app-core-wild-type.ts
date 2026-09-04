@@ -1,4 +1,10 @@
 import { shouldUseJourneyWorldIntroTheme } from './journey-world-intro-wild';
+import {
+  getForestWildRewardCoreType,
+  getForestWildRewardVariantId,
+  isForestJourneyBoard,
+  pickForestWildReward,
+} from './journey-forest-wild-progression';
 
 type WildTypeDeps = {
   boardNumber: number;
@@ -16,6 +22,14 @@ type WildDropType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 const WILD_DROP_TYPES: WildDropType[] = ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'];
 const MAX_SAME_WILD_DROP_STREAK = 2;
 
+export type WildTypeDecision = {
+  spawnJuice: boolean;
+  spawnMagnet: boolean;
+  spawnTnt: boolean;
+  wildType: WildDropType;
+  specialDiceVariantId?: string | null;
+};
+
 export function decideWildType({
   boardNumber,
   isArcade,
@@ -25,7 +39,7 @@ export function decideWildType({
   filterWildType,
   devLog,
   devWarn,
-}: WildTypeDeps){
+}: WildTypeDeps): WildTypeDecision | null {
   let spawnJuice = false;
   let spawnMagnet = false;
   let spawnTnt = false;
@@ -40,10 +54,29 @@ export function decideWildType({
     roll < 0.8334 ? 'wild-magnet' : // 16.67% wild magnet
                     'wild-tnt';     // 16.66% wild TNT
 
-  // Each Journey world introduces one themed die beside Star on its first
-  // stage. Forest and Area 55 theme visuals are applied by the registry;
-  // Beach's theme is the core Juice die and is decided here.
-  const isJourneyWorldIntro = !isArcade && [1, 11, 21].includes(boardNumber);
+  if (!isArcade && isForestJourneyBoard(boardNumber)) {
+    const forestReward = pickForestWildReward({
+      boardNumber,
+      wildSpawnCount,
+      roll,
+    });
+    if (!forestReward) {
+      devWarn(`⚠️ Forest Stage ${boardNumber}: No progression Wild reward available`);
+      return null;
+    }
+    const wildType = getForestWildRewardCoreType(forestReward);
+    return {
+      spawnJuice: wildType === 'wild-juice',
+      spawnMagnet: wildType === 'wild-magnet',
+      spawnTnt: wildType === 'wild-tnt',
+      wildType,
+      specialDiceVariantId: getForestWildRewardVariantId(forestReward),
+    };
+  }
+
+  // Beach and Area 55 keep their established first-Stage theme cadence after
+  // the Forest progression owner has handled boards 01-10 above.
+  const isJourneyWorldIntro = !isArcade && [11, 21].includes(boardNumber);
   const isBeachStageOne = !isArcade && boardNumber === 11;
   let filtered = isJourneyWorldIntro
     ? (isBeachStageOne && shouldUseJourneyWorldIntroTheme({

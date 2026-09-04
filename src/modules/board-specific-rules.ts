@@ -4,6 +4,10 @@
 // Modular system for controlling wild tile spawning, difficulty, and special mechanics per board
 
 import { logger } from '../core/logger.js';
+import {
+  getForestAllowedWildCoreTypes,
+  isForestJourneyBoard,
+} from './journey-forest-wild-progression.js';
 
 export interface BoardRule {
   boardNumber: number;
@@ -39,7 +43,6 @@ const BOARD_RULES: BoardRule[] = [
     wildSpawnEnabled: true, // Enable wild spawning
     wildMeterEnabled: true, // Enable wild meter
     wildMeterFillRate: 1.0, // 🔥 USER REQUEST: Ista brzina kao board 1 (originalna brzina)
-    allowedWildTypes: ['wild', 'wild-juice', 'wild-magnet', 'wild-tnt'] // Svi wild types dostupni
   },
   // All boards use the same wild rules (no board-specific wild restrictions)
 ];
@@ -113,6 +116,9 @@ class BoardSpecificRules {
    */
   getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt')[] {
     const board = boardNumber ?? this.currentBoard;
+    if (isForestJourneyBoard(board)) {
+      return getForestAllowedWildCoreTypes(board);
+    }
     // Beach keeps generic Magnet/TNT out of the fallback pool. Beach Ball and
     // Bottle may still explicitly reuse Magnet gameplay through the registry.
     if (board >= 11 && board <= 20) {

@@ -31,15 +31,68 @@ interface JourneyWorldIdleEntry {
   speed: number;
   phaseOffset: number;
   ySetters: Array<(value: number) => void>;
+  yTargets: HTMLElement[];
   cloudSetters: Array<{
+    target: HTMLElement;
     x: (value: number) => void;
   }>;
+  resumeBlendStartedAt: number | null;
+  resumeFromY: number[];
+  resumeFromCloudX: number[];
   visibilityTargets: HTMLElement[];
   visibleTargets: Set<HTMLElement>;
   visibilityResolved: boolean;
 }
 
 const FRAME_INTERVAL_TOLERANCE_MS = 1;
+const IDLE_RESUME_POSE_BLEND_SECONDS = 0.52;
+
+/** Read the transform that the browser actually painted. GSAP's cached x/y can
+ * be stale after a lifecycle owner restores an authored transform string
+ * directly (for example `rotate(-4deg) scale(1)`). Using that cache at idle
+ * resume would materialize an old translation as a one-frame Unit snap. */
+export function readJourneyRenderedTransformAxis(
+  target: HTMLElement,
+  axis: 'x' | 'y',
+): number {
+  const view = target.ownerDocument.defaultView;
+  const transform = view?.getComputedStyle(target).transform || target.style.transform;
+  if (!transform || transform === 'none') return 0;
+
+  const matrix3dMatch = transform.match(/^matrix3d\((.+)\)$/);
+  if (matrix3dMatch) {
+    const values = matrix3dMatch[1].split(',').map(Number);
+    const value = values[axis === 'x' ? 12 : 13];
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  const matrixMatch = transform.match(/^matrix\((.+)\)$/);
+  if (matrixMatch) {
+    const values = matrixMatch[1].split(',').map(Number);
+    const value = values[axis === 'x' ? 4 : 5];
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  // Some test DOMs return the authored transform list rather than a computed
+  // matrix. Only absolute pixel translations are meaningful for the idle
+  // owner's x/y contract; rotation/scale alone correctly resolves to zero.
+  const translate3dMatch = transform.match(/translate3d\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/i);
+  if (translate3dMatch) {
+    const value = Number(translate3dMatch[axis === 'x' ? 1 : 2]);
+    return Number.isFinite(value) ? value : 0;
+  }
+  const translateMatch = transform.match(/translate(?:X|Y)?\(\s*(-?[\d.]+)px(?:\s*,\s*(-?[\d.]+)px)?/i);
+  if (translateMatch) {
+    const isTranslateY = /^translateY/i.test(transform);
+    const isTranslateX = /^translateX/i.test(transform);
+    if ((axis === 'x' && isTranslateY) || (axis === 'y' && isTranslateX)) return 0;
+    const value = Number(axis === 'y' && translateMatch[2] !== undefined
+      ? translateMatch[2]
+      : translateMatch[1]);
+    return Number.isFinite(value) ? value : 0;
+  }
+  return 0;
+}
 
 export function shouldRenderJourneySettledIdleFrame(
   nowSeconds: number,
@@ -90,12 +143,31 @@ export class JourneyWorldAnimationCoordinator {
   public setIdlePaintSuspended(suspended: boolean): void {
     const now = gsap.ticker.time;
     if (suspended) {
-      if (this.idlePaintSuspendedAt === null) this.idlePaintSuspendedAt = now;
+      if (this.idlePaintSuspendedAt === null) {
+        this.idlePaintSuspendedAt = now;
+        // Capture pixels, not only the mathematical sine phase. A second
+        // legacy Unit owner may have painted the final pre-modal frame, and
+        // WebKit's throttled ticker can also leave a fractional phase gap.
+        // Resuming from these exact values prevents either case from becoming
+        // a one-frame vertical snap.
+        this.idleEntries.forEach((entry) => {
+          entry.resumeFromY = entry.yTargets.map((target) => (
+            readJourneyRenderedTransformAxis(target, 'y')
+          ));
+          entry.resumeFromCloudX = entry.cloudSetters.map(({ target }) => (
+            readJourneyRenderedTransformAxis(target, 'x')
+          ));
+          entry.resumeBlendStartedAt = null;
+        });
+      }
       return;
     }
     if (this.idlePaintSuspendedAt === null) return;
     const pausedFor = Math.max(0, now - this.idlePaintSuspendedAt);
-    this.idleEntries.forEach((entry) => entry.startTime += pausedFor);
+    this.idleEntries.forEach((entry) => {
+      entry.startTime += pausedFor;
+      entry.resumeBlendStartedAt = now;
+    });
     this.idlePaintSuspendedAt = null;
     this.lastSettledIdlePaintAt = null;
   }
@@ -372,6 +444,7 @@ export class JourneyWorldAnimationCoordinator {
       const phaseOffset = unitIndex * 0.47;
       const ySetters = unit.targets.map((target) => gsap.quickSetter(target, 'y', 'px') as (value: number) => void);
       const cloudSetters = unit.clouds.map((cloud) => ({
+        target: cloud,
         x: gsap.quickSetter(cloud, 'x', 'px') as (value: number) => void,
       }));
       const visibilityTargets = Array.from(new Set(unit.targets));
@@ -380,7 +453,11 @@ export class JourneyWorldAnimationCoordinator {
         speed,
         phaseOffset,
         ySetters,
+        yTargets: unit.targets,
         cloudSetters,
+        resumeBlendStartedAt: null,
+        resumeFromY: [],
+        resumeFromCloudX: [],
         visibilityTargets,
         // Treat every target as potentially visible until its own observer
         // record arrives. Partial initial observer batches therefore cannot
@@ -414,11 +491,28 @@ export class JourneyWorldAnimationCoordinator {
         const ramp = Math.min(1, elapsed / 0.18);
         const easedRamp = ramp * ramp * (3 - (2 * ramp));
         const y = Math.sin((elapsed * entry.speed) + entry.phaseOffset) * 7 * easedRamp;
-        entry.ySetters.forEach((setY) => setY(y));
+        const resumeProgress = entry.resumeBlendStartedAt === null
+          ? 1
+          : Math.min(1, Math.max(0, (now - entry.resumeBlendStartedAt) / IDLE_RESUME_POSE_BLEND_SECONDS));
+        const resumeBlend = resumeProgress * resumeProgress * (3 - (2 * resumeProgress));
+        entry.ySetters.forEach((setY, targetIndex) => {
+          const fromY = entry.resumeFromY[targetIndex];
+          setY(Number.isFinite(fromY) && resumeProgress < 1
+            ? fromY + ((y - fromY) * resumeBlend)
+            : y);
+        });
         entry.cloudSetters.forEach((setters, cloudIndex) => {
           const x = Math.sin((elapsed * entry.speed * 0.62) + entry.phaseOffset + cloudIndex) * 10 * easedRamp;
-          setters.x(x);
+          const fromX = entry.resumeFromCloudX[cloudIndex];
+          setters.x(Number.isFinite(fromX) && resumeProgress < 1
+            ? fromX + ((x - fromX) * resumeBlend)
+            : x);
         });
+        if (entry.resumeBlendStartedAt !== null && resumeProgress >= 1) {
+          entry.resumeBlendStartedAt = null;
+          entry.resumeFromY = [];
+          entry.resumeFromCloudX = [];
+        }
       });
     };
     gsap.ticker.add(this.idleTicker);

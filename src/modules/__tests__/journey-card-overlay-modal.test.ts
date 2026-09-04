@@ -7,7 +7,9 @@ import {
   getJourneyCardFlightFlipAngle,
   getJourneyCardFlipEdgeProgress,
   getJourneyCardFlipFaceForAngle,
+  getJourneyCardImpactPresentationPose,
   getJourneyCardRenderedRotateYAngle,
+  resolveJourneyCardDragAxis,
   shouldCommitJourneyCardReleasedDrag,
   JOURNEY_CARD_FLIP_DRAG_HANDOFF_VIEWPORT_RATIO,
   JOURNEY_CARD_FLIP_DRAG_RELEASE_VIEWPORT_RATIO,
@@ -106,7 +108,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(css).not.toContain('.journey-card-flip-cta.cc-cta .cc-cta__visual');
   });
 
-  test('drives one Legendary reflection directly from front-face drag angle without an idle cadence', () => {
+  test('drives one Legendary reflection directly from front-face drag angle without a drag-side timer cadence', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
 
@@ -145,7 +147,7 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function handleAnyPointerInteraction('),
     );
     expect(pointerDown.indexOf("stage.classList.add('is-dragging');"))
-      .toBeLessThan(pointerDown.indexOf('clearLegendaryDragShine();'));
+      .toBeLessThan(pointerDown.indexOf('paintLegendaryDragShine(dragHandoffAngle, true);'));
     const pointerRelease = modal.slice(
       modal.indexOf('function finishPointer('),
       modal.indexOf('function handlePointerUp('),
@@ -204,13 +206,65 @@ describe('Journey two-sided card overlay prototype', () => {
       'matrix3d(0.8660254, 0, 0.5, 0, 0, 1, 0, 0, -0.5, 0, 0.8660254, 0, 0, 0, 0, 1)',
     )).toBeCloseTo(-30, 5);
     expect(getJourneyCardRenderedRotateYAngle('none')).toBeNull();
-    expect(pointerDown).toContain('const dragHandoffAngle = readLegendaryIdleHandoffAngle();');
-    expect(pointerDown.indexOf('const dragHandoffAngle = readLegendaryIdleHandoffAngle();'))
+    expect(pointerDown).toContain('const dragHandoffAngle = readPointerHandoffAngle();');
+    expect(getJourneyCardImpactPresentationPose('matrix(0.97, 0, 0, 0.97, 0, 24)', '3px 0px'))
+      .toEqual({ translateX: 3, translateY: 24, scale: 0.97 });
+    expect(getJourneyCardImpactPresentationPose(
+      'matrix3d(0.95, 0, 0, 0, 0, 0.95, 0, 0, 0, 0, 1, 0, 0, -18, 0, 1)',
+      'none',
+    )).toEqual({ translateX: 0, translateY: -18, scale: 0.95 });
+    expect(pointerDown).toContain('const impactHandoffPose = getJourneyCardImpactPresentationPose(');
+    expect(pointerDown.indexOf('const dragHandoffAngle = readPointerHandoffAngle();'))
       .toBeLessThan(pointerDown.indexOf('stopSurfaceIdle();'));
     expect(pointerDown.indexOf('stopSurfaceIdle();'))
       .toBeLessThan(pointerDown.indexOf('setRotorAngle(dragHandoffAngle);'));
     expect(pointerDown).toContain('dragStartAngle = dragHandoffAngle;');
     expect(pointerDown).not.toContain('setRotorAngle(stableRotorAngle());');
+  });
+
+  test('lets a fresh pointer interrupt snapback and cannot strand ownership when capture is lost', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const pointerDown = modal.slice(
+      modal.indexOf('function handlePointerDown('),
+      modal.indexOf('function handleAnyPointerInteraction('),
+    );
+    const cleanup = modal.slice(
+      modal.indexOf('const cleanup = ('),
+      modal.indexOf('const settle = ('),
+    );
+
+    expect(pointerDown.split('\n')[1]).not.toContain('impactAnimation');
+    expect(pointerDown.split('\n')[1]).not.toContain('dragPreviewSettleAnimation');
+    expect(pointerDown).toContain('const dragHandoffAngle = readPointerHandoffAngle();');
+    expect(pointerDown).toContain('impactAnimation = null;');
+    expect(pointerDown).toContain('dragPreviewSettleAnimation = null;');
+    expect(pointerDown.indexOf('dragPreviewSettleAnimation = null;'))
+      .toBeLessThan(pointerDown.indexOf('interruptedPreviewAnimation?.cancel();'));
+    expect(pointerDown).toContain('cancelAnimationFrame(flipEdgeRaf);');
+    expect(pointerDown).toContain('setRotorAngle(dragHandoffAngle);');
+    expect(modal).toContain("rotor.addEventListener('lostpointercapture', handleLostPointerCapture)");
+    expect(modal).toContain("window.addEventListener('pointermove', handleWindowPointerMove, { passive: false })");
+    expect(modal).toContain("window.addEventListener('pointerup', handleWindowPointerUp)");
+    expect(modal).toContain("window.addEventListener('pointercancel', handleWindowPointerCancel)");
+    expect(modal).toContain("finishPointer(event, false, 'lost-capture', dragLatestX, dragLatestY);");
+    expect(cleanup).toContain("rotor.removeEventListener('lostpointercapture', handleLostPointerCapture)");
+    expect(cleanup).toContain("window.removeEventListener('pointermove', handleWindowPointerMove)");
+    expect(cleanup).toContain("window.removeEventListener('pointerup', handleWindowPointerUp)");
+    expect(cleanup).toContain("window.removeEventListener('pointercancel', handleWindowPointerCancel)");
+  });
+
+  test('emits a bounded native pointer-owner trace without logging every move frame', () => {
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    expect(modal).toContain("emitNativeConsoleDiagnostic('[CC_JOURNEY_CARD_POINTER]', event");
+    expect(modal).toContain("tracePointerOwnership('pointerdown-rejected'");
+    expect(modal).toContain("tracePointerOwnership('pointerdown-owned'");
+    expect(modal).toContain("tracePointerOwnership('pointermove-first'");
+    expect(modal).toContain("tracePointerOwnership('pointer-axis-change'");
+    expect(modal).toContain("tracePointerOwnership('pointer-flip-commit'");
+    expect(modal).toContain("tracePointerOwnership('pointer-finish'");
+    expect(modal).toContain("source: 'rotor-up' | 'rotor-cancel' | 'lost-capture' | 'window-up' | 'window-cancel'");
+    expect(modal).toContain('moveCount: pointerTraceMoveCount');
+    expect(modal).not.toContain("tracePointerOwnership('pointermove-every-frame'");
   });
 
   test('keeps enter and return as exact reverse turns with a centered physical edge', () => {
@@ -305,7 +359,7 @@ describe('Journey two-sided card overlay prototype', () => {
     );
     expect(pointerRelease).toContain('const fromTranslate = impactShell.style.translate');
     expect(pointerRelease).toContain("void animateInteractiveFlip(targetFace, targetFace === 'back' ? 1 : -1)");
-    expect(pointerRelease).toContain("{ translate: 'none' }");
+    expect(pointerRelease).toContain("{ translate: 'none', transform: 'translate3d(0, 0, 0) scale(1)' }");
     expect(pointerRelease).toContain('const committedFlipInFlight = allowCommit && dragFlipCommitted;');
     expect(pointerRelease).toContain('const shouldCommitReleasedDrag = !flipping');
     expect(pointerRelease).toContain('shouldCommitJourneyCardReleasedDrag(deltaX, dragViewportWidth, dragAllowedDirection)');
@@ -314,7 +368,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(pointerRelease).toContain('Number(previewAnimation.currentTime ?? 0) / settleDuration');
     expect(pointerRelease).toContain('const settleAngle = previewFromAngle + (previewToAngle - previewFromAngle) * progress;');
     expect(pointerRelease).toContain('setPaintFaceForAngle(settleAngle);');
-    expect(pointerRelease).toContain("if (flipping) {\n        impactShell.style.translate = 'none';\n        return;");
+    expect(pointerRelease).toContain("if (flipping) {\n        impactShell.style.translate = 'none';\n        impactShell.style.transform = 'translate3d(0, 0, 0) scale(1)';\n        return;");
   });
 
   test('uses a dominant up-or-down gesture to run the canonical dismiss', () => {
@@ -337,13 +391,32 @@ describe('Journey two-sided card overlay prototype', () => {
       modal.indexOf('function finishPointer('),
     );
     expect(pointerMove).toContain('getIosResistedModalVerticalDelta');
-    expect(pointerMove).toContain('translate3d(0, ${boundedDeltaY}px, 0)');
+    expect(pointerMove).toContain('translate3d(0, ${dismissDragReleaseY}px, 0)');
     expect(pointerMove).not.toContain("beginClose('dismiss')");
     const pointerRelease = modal.slice(
       modal.indexOf('function finishPointer('),
       modal.indexOf('function handlePointerUp('),
     );
     expect(pointerRelease).toContain("void beginClose('dismiss')");
+  });
+
+  test('lets horizontal intent recover from an early vertical finger wobble', () => {
+    expect(resolveJourneyCardDragAxis(null, 5, 23)).toBe('vertical');
+    expect(resolveJourneyCardDragAxis('vertical', 30, 20)).toBe('horizontal');
+    expect(resolveJourneyCardDragAxis('vertical', 20, 20)).toBe('vertical');
+    expect(resolveJourneyCardDragAxis('horizontal', 20, 30)).toBe('vertical');
+    expect(resolveJourneyCardDragAxis('horizontal', 20, 20)).toBe('horizontal');
+
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
+    const pointerMove = modal.slice(
+      modal.indexOf('function handlePointerMove('),
+      modal.indexOf('function finishPointer('),
+    );
+    expect(pointerMove).toContain('dragAxis = resolveJourneyCardDragAxis(dragAxis, deltaX, deltaY);');
+    expect(pointerMove).toContain("if (dragAxis === 'horizontal') {");
+    expect(pointerMove).toContain('dismissDragReleaseY = dragImpactStartTranslateY;');
+    expect(pointerMove).toContain('setRotorAngle(dragStartAngle);');
+    expect(pointerMove).toContain('previousAxis,');
   });
 
   test('restores the previous randomized opposing card and modal tilt profile', () => {
@@ -501,7 +574,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain('const deltaX = event.clientX - dragStartX;');
     expect(modal).toContain('Math.min(4, dragCardRect.left - horizontalSafeInset)');
     expect(modal).toContain('Math.min(4, dragViewportWidth - horizontalSafeInset - dragCardRect.right)');
-    expect(modal).toContain('Math.min(dragHorizontalMaxX, deltaX * 0.12)');
+    expect(modal).toContain('Math.min(dragHorizontalMaxX, dragImpactStartTranslateX + deltaX * 0.12)');
     expect(modal).toContain('let dragStartAngle = 0;');
     expect(modal).toContain('let dragFlipProgress = 0;');
     expect(modal).toContain('let dragFlipCommitted = false;');
@@ -618,6 +691,22 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(modal).toContain("options.onPerformancePhase?.('dismiss-cleanup-complete')");
   });
 
+  test('keeps a bounded localhost landing-pose trace for card, wrapper, shadow and idle ownership', () => {
+    const manager = read('src/modules/journey-boards-manager.ts');
+    expect(manager).toContain("console.info('[CC_JOURNEY_LANDING_POSE] START'");
+    expect(manager).toContain("console.info('[CC_JOURNEY_LANDING_POSE] COMPLETE'");
+    expect(manager).toContain('(window as any).__ccJourneyLandingPoseTrace = result');
+    expect(manager).toContain("localStorage.getItem('__ccJourneyLandingTrace') === '1'");
+    expect(manager).toContain("this.startJourneyLandingPoseTrace(cardElement, phase)");
+    expect(manager).toContain("this.startJourneyLandingPoseTrace(targetElement, phase)");
+    expect(manager).toContain("this.markJourneyLandingPoseTrace('settled-shadow-revealed')");
+    expect(manager).toContain("this.markJourneyLandingPoseTrace('runtime-idle-resume-before')");
+    expect(manager).toContain('legacyWrapperOwners: this.journeyAreaIdleEntries.filter');
+    expect(manager).toContain('(performance.now() - trace.startedAt) >= 2800');
+    expect(manager).toContain("query.get('ccJourneyLandingCollector') === '1'");
+    expect(manager).toContain("fetch('http://127.0.0.1:5175/cc-journey-landing-pose'");
+  });
+
   test('removes expensive settled shadows only during the active card entry flight', () => {
     const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
@@ -639,6 +728,7 @@ describe('Journey two-sided card overlay prototype', () => {
 
   test('reveals a bottom-only settled Unit contact shadow after the landing squeeze', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
+    const modal = read('src/modules/journey-card-overlay-modal.ts');
     const css = read('src/collectibles-screen.css');
     const settledShadowRule = css.match(
       /#journey-boards-container\s+\.journey-board-card\.unlocked\.journey-board-card-settled-shadow \{([\s\S]*?)\n\}/,
@@ -649,7 +739,7 @@ describe('Journey two-sided card overlay prototype', () => {
     expect(settledShadowRule).not.toContain('will-change');
     expect(settledShadowRule).not.toContain('animation');
     expect(css).toMatch(
-      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(126, 82, 57, 0\.6578\)[\s\S]*?rgba\(142, 94, 66, 0\.3542\)[\s\S]*?filter: blur\(5px\);/,
+      /\.journey-board-card-settled-contact-shadow \{[\s\S]*?left: 20%;[\s\S]*?width: 60%;[\s\S]*?height: 20%;[\s\S]*?rgba\(126, 82, 57, 0\.6578\)[\s\S]*?rgba\(142, 94, 66, 0\.3542\)[\s\S]*?filter: blur\(5px\);[\s\S]*?transition: opacity 360ms cubic-bezier\(0\.4, 0, 0\.2, 1\);/,
     );
     expect(css).toMatch(
       /\.journey-board-card\.unlocked\.journey-board-card-settled-shadow:not\(\.journey-board-card-return-placeholder\):not\(\.journey-board-card-return-landing\)[\s\S]*?\+ \.journey-board-card-settled-contact-shadow \{[\s\S]*?opacity: 1;/,
@@ -663,18 +753,51 @@ describe('Journey two-sided card overlay prototype', () => {
       manager.indexOf('private stopOverlayCardLandingBounce('),
     );
     expect(landingBounce).toContain("card.classList.add('journey-board-card-return-landing')");
-    expect(landingBounce.indexOf("card.classList.remove('journey-board-card-return-landing')"))
-      .toBeLessThan(landingBounce.indexOf("card.classList.add('journey-board-card-settled-shadow')"));
+    expect(landingBounce).toContain('this.scheduleOverlayCardLandingCommit(card, cardWrapper, {');
+    expect(landingBounce).toContain('preserveLandingSuppression: true');
+
+    const scheduledLandingCommit = manager.slice(
+      manager.indexOf('private scheduleOverlayCardLandingCommit('),
+      manager.indexOf('private playOverlayCardLandingBounce('),
+    );
+    expect(scheduledLandingCommit).not.toContain("clearProps: 'transform'");
+    expect(scheduledLandingCommit).not.toContain('offsetWidth');
+    expect(scheduledLandingCommit.indexOf('owner.revealRafId = this.trackRAF'))
+      .toBeLessThan(scheduledLandingCommit.indexOf("card.classList.remove('journey-board-card-return-landing')"));
+    expect(scheduledLandingCommit.indexOf("card.classList.add('journey-board-card-settled-shadow')"))
+      .toBeLessThan(scheduledLandingCommit.lastIndexOf('retireOwner();'));
+    expect(scheduledLandingCommit).not.toContain('card.style.transition = owner.transition');
+    expect(scheduledLandingCommit).not.toContain('card.style.willChange = owner.willChange');
+    expect(scheduledLandingCommit).not.toContain('card.style.transformOrigin = owner.transformOrigin');
+    expect(scheduledLandingCommit).toContain('retireOwner();');
+
+    const landingPoseCommit = manager.slice(
+      manager.indexOf('private commitOverlayCardLandingPose('),
+      manager.indexOf('private playOverlayCardLandingBounce('),
+    );
+    expect(landingPoseCommit.indexOf("card.style.transition = 'none';"))
+      .toBeLessThan(landingPoseCommit.indexOf("gsap.set(card, { clearProps: 'transform' })"));
+    expect(landingPoseCommit.indexOf("gsap.set(card, { clearProps: 'transform' })"))
+      .toBeLessThan(landingPoseCommit.indexOf('void card.offsetWidth;'));
+    expect(landingPoseCommit.indexOf('void card.offsetWidth;'))
+      .toBeLessThan(landingPoseCommit.indexOf("card.classList.remove('journey-board-card-return-landing')"));
+    expect(landingPoseCommit.indexOf("card.classList.remove('journey-board-card-return-landing')"))
+      .toBeLessThan(landingPoseCommit.indexOf("card.classList.add('journey-board-card-settled-shadow')"));
+    expect(landingPoseCommit.indexOf("card.classList.add('journey-board-card-settled-shadow')"))
+      .toBeLessThan(landingPoseCommit.indexOf('card.style.transition = restoredTransition;'));
 
     const stopLandingBounce = manager.slice(
       manager.indexOf('private stopOverlayCardLandingBounce('),
       manager.indexOf('private stopInterimBounce('),
     );
-    expect(stopLandingBounce).toContain("card.classList.remove('journey-board-card-return-landing')");
     expect(stopLandingBounce).toContain("card.dataset.journeyCardViewed === 'true'");
+    expect(stopLandingBounce).toContain('this.commitOverlayCardLandingPose(');
+    expect(stopLandingBounce).toContain('shouldReleaseRuntimeSettle');
+    expect(stopLandingBounce).toContain('this.journeyWorldRuntime.endInteractionSettle()');
     expect(manager).toContain("card.classList.add('journey-board-card-settled-shadow');\n            isViewed = true;");
     expect(manager).toContain("settledContactShadow.className = 'journey-board-card-settled-contact-shadow'");
     expect(manager).toContain("settledContactShadow.setAttribute('aria-hidden', 'true')");
+    expect(modal).toContain("preserveLandingSuppression: outcome === 'complete'");
   });
 
   test('freezes World paint while the modal owns depth, with exact origin leasing and board handoff', () => {

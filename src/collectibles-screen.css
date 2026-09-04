@@ -3328,6 +3328,9 @@
     rgba(142, 94, 66, 0) 78%
   );
   filter: blur(5px);
+  /* Fade only the independent paint layer. Keeping transform/layout out of
+     this transition preserves the card's accepted terminal landing pose. */
+  transition: opacity 360ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #journey-boards-container

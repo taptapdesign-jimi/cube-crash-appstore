@@ -1,4 +1,5 @@
 import {
+  cancelJourneyCardOverlayReturn,
   clearJourneyDetailReturn,
   clearJourneyInterimOrigin,
   completeJourneyCardOverlayReturn,
@@ -104,10 +105,21 @@ describe('journey-origin-state', () => {
     expect(getJourneyCardOverlayReturnBoardId()).toBe(4);
     expect(completeJourneyCardOverlayReturn(5)).toBe(false);
     expect(getJourneyCardOverlayReturnBoardId()).toBe(4);
+    document.querySelector('.journey-board-card')?.classList
+      .add('journey-board-card-return-landing');
     expect(completeJourneyCardOverlayReturn(4)).toBe(true);
     expect(getJourneyCardOverlayReturnBoardId()).toBeNull();
     expect(document.querySelector('.journey-board-card')?.classList)
       .not.toContain('journey-board-card-return-placeholder');
+    expect(document.querySelector('.journey-board-card')?.classList)
+      .toContain('journey-board-card-return-landing');
+
+    markJourneyCardOverlayReturn(4);
+    expect(cancelJourneyCardOverlayReturn(4)).toBe(true);
+    expect(document.querySelector('.journey-board-card')?.classList)
+      .not.toContain('journey-board-card-return-placeholder');
+    expect(document.querySelector('.journey-board-card')?.classList)
+      .not.toContain('journey-board-card-return-landing');
   });
 
   it('supports every current Journey stage, including Area 55 stages 26 through 30', () => {

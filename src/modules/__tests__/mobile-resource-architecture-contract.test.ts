@@ -43,13 +43,15 @@ describe('mobile resource architecture', () => {
     expect(launch).toContain("'!../../assets/logo addons/lik-board.png'");
     expect(launch).toContain("'!../../assets/logo addons/lik-dron.png'");
     expect(launch).toContain("'../../assets/logo addons/lik slikanje.png'");
-    expect(nativeAudit).toContain("'lik-cekic.png'");
+    expect(nativeAudit).toContain("'lik-laptop.png'");
     expect(nativeAudit).toContain("'lik-nogomet.png'");
     expect(nativeAudit).toContain("'lik slikanje.png'");
     expect(nativeAudit).toContain("'lik-cvijet.png'");
-    expect(nativeAudit).toContain("'lik-vrecice.png'");
+    expect(nativeAudit).toContain("'lik-speceraj.png'");
     expect(nativeAudit).not.toContain("'lik-board.png'");
+    expect(nativeAudit).not.toContain("'lik-cekic.png'");
     expect(nativeAudit).not.toContain("'lik-dron.png'");
+    expect(nativeAudit).not.toContain("'lik-vrecice.png'");
     expect(nativeAudit).not.toContain("'lik-klizanje.png'");
     expect(nativeAudit).not.toContain("'lik-vrt.png'");
   });

@@ -28,9 +28,9 @@ describe('Journey New Reward presentation', () => {
       title: 'Common',
       subtitle: 'Unlocked "Star Is Out" card',
     });
-    expect(getJourneyNewCardRevealCopy('Flying Tent', 'legendary')).toEqual({
+    expect(getJourneyNewCardRevealCopy('Shroomy', 'legendary')).toEqual({
       title: 'Legendary!',
-      subtitle: 'Unlocked "Flying Tent" card',
+      subtitle: 'Unlocked "Shroomy" card',
     });
     expect(screen).toContain("cardNameAccent.className = 'cc-journey-new-card-subtitle-card-name'");
     expect(screen).toContain("document.createTextNode('Unlocked \"')");
@@ -65,17 +65,20 @@ describe('Journey New Reward presentation', () => {
     const manager = read('src/modules/journey-boards-manager.ts');
     expect(JOURNEY_FOREST_CARD_NAMES).toEqual([
       'Star Is Out',
-      'Flying Tent',
-      'Weee - Beee',
+      'Shroomy',
+      'Final Gate',
       'Honey Splat',
       'Dreamy',
-      'Shroomy',
+      'Flying Tent',
       'Kaboom',
       'Break Out',
-      'Final Gate',
+      'Weee - Beee',
       'Winner',
     ]);
-    expect(getJourneyNewCardDisplayName(2, 'SO SPECIAL')).toBe('Flying Tent');
+    expect(getJourneyNewCardDisplayName(2, 'SO SPECIAL')).toBe('Shroomy');
+    expect(getJourneyNewCardDisplayName(3, 'SO SPECIAL')).toBe('Final Gate');
+    expect(getJourneyNewCardDisplayName(6, 'SO SPECIAL')).toBe('Flying Tent');
+    expect(getJourneyNewCardDisplayName(9, 'SO SPECIAL')).toBe('Weee - Beee');
     expect(manager).toContain('...JOURNEY_FOREST_CARD_NAMES');
   });
 

@@ -30,8 +30,6 @@ import {
   markSpecialDiceResolutionOwned,
   releaseSpecialDiceResolution,
 } from '../special-dice-registry';
-import { JOURNEY_WORLD_INTRO_THEME_CHANCE } from '../journey-world-intro-wild';
-
 const makeTile = (overrides: Partial<any> = {}) => ({
   special: null,
   _ccSpecialDiceVariant: null,
@@ -228,85 +226,19 @@ test('archetype preserves TNT finale when generic special field is missing', () 
   expect(isSpecialDiceTntLikeTile(tnt)).toBe(true);
 });
 
-test('Forest Cjelina 01 starts with Star, then uses only Mushroom and Star at 60/40', () => {
-  expect(JOURNEY_WORLD_INTRO_THEME_CHANCE).toBe(0.60);
+test('Forest progression introduces Mushroom 02, Flower 03, Honey 04 and TNT 07', () => {
   expect(pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 1,
     wildSpawnCount: 0,
-    previousWildType: null,
-    worldIntroRoll: 0,
+    worldIntroRoll: 0.99,
   })).toBeNull();
 
   const mushroom = pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 1,
-    wildSpawnCount: 1,
-    previousWildType: 'wild-juice',
-    worldIntroRoll: 0.5999,
-  });
-  expect(mushroom).toMatchObject({ id: 'mushroom', archetype: 'wild-juice' });
-
-  expect(pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 1,
-    wildSpawnCount: 2,
-    previousWildType: 'wild-juice',
-    worldIntroRoll: 0.60,
-  })).toBeNull();
-});
-
-test('Forest Cjelina 01 never produces consecutive Stars', () => {
-  expect(pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 1,
-    wildSpawnCount: 3,
-    previousWildType: 'wild',
-    worldIntroRoll: 0.9999,
-  })).toMatchObject({ id: 'mushroom', archetype: 'wild-juice' });
-});
-
-test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay archetype', () => {
-  const flower = pickSpecialDiceVariantForWildSpawn({
     isArcade: false,
     journeyBoard: 2,
     wildSpawnCount: 0,
-  });
-
-  expect(flower).toMatchObject({
-    id: 'flower',
-    archetype: 'wild-tnt',
-    texture: './assets/shop/bush/flower.png',
-    splashText: 'BLOOMING!',
-    splashColors: ['#FFFEFA', '#FEF8EA'],
-    splashSplitIndex: 3.5,
-  });
-  expect(flower?.explosionSpriteSources).toHaveLength(9);
-  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10.png');
-  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10@2x.png');
-  expect(getSpecialDiceTrailColors(flower)).toEqual([0xFFE4D4, 0xFFBBAD, 0xF9999F, 0xFFD257]);
-  expect(getSpecialDiceShardColors(flower)).toEqual([0xFFCDC7, 0xFC8C75]);
-  const honey = pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 2,
-    wildSpawnCount: 1,
-  });
-  expect(honey).toMatchObject({
-    id: 'honey',
-    archetype: 'wild-magnet',
-    texture: './assets/shop/honey/honey.png',
-    splashText: 'BUZZING!',
-    splashColors: ['#FFC14F', '#D0784D'],
-    splashSplitIndex: 4,
-  });
-  expect(getSpecialDiceIdleBubbleColors(honey)).toEqual([0xF7D58A, 0xF2BB4F]);
-  expect(getSpecialDiceTrailColors(honey)).toEqual([0xFBD099, 0xFEE4B8, 0xFDCD55, 0xF9AF3A]);
-  expect(getSpecialDiceShardColors(honey)).toEqual([0xF1BA79, 0xFDCF58]);
-  expect(honey?.burstParticleSources).toHaveLength(7);
-  const mushroom = pickSpecialDiceVariantForWildSpawn({
-    isArcade: false,
-    journeyBoard: 2,
-    wildSpawnCount: 2,
+    worldIntroRoll: 0.99,
   });
   expect(mushroom).toMatchObject({
     id: 'mushroom',
@@ -327,20 +259,80 @@ test('Flower is the first Forest Stage 2 special and reuses the TNT gameplay arc
     './assets/shop/mushroom/mushroom4.png',
     './assets/shop/mushroom/mushroom5.png',
   ]);
+
+  const flower = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 3,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0.99,
+  });
+
+  expect(flower).toMatchObject({
+    id: 'flower',
+    archetype: 'wild-tnt',
+    texture: './assets/shop/bush/flower.png',
+    splashText: 'BLOOMING!',
+    splashColors: ['#FFFEFA', '#FEF8EA'],
+    splashSplitIndex: 3.5,
+  });
+  expect(flower?.explosionSpriteSources).toHaveLength(9);
+  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10.png');
+  expect(flower?.explosionSpriteSources).not.toContain('./assets/shop/bush/bush10@2x.png');
+  expect(getSpecialDiceTrailColors(flower)).toEqual([0xFFE4D4, 0xFFBBAD, 0xF9999F, 0xFFD257]);
+  expect(getSpecialDiceShardColors(flower)).toEqual([0xFFCDC7, 0xFC8C75]);
+  const honey = pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 4,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0.99,
+  });
+  expect(honey).toMatchObject({
+    id: 'honey',
+    archetype: 'wild-magnet',
+    texture: './assets/shop/honey/honey.png',
+    splashText: 'BUZZING!',
+    splashColors: ['#FFC14F', '#D0784D'],
+    splashSplitIndex: 4,
+  });
+  expect(getSpecialDiceIdleBubbleColors(honey)).toEqual([0xF7D58A, 0xF2BB4F]);
+  expect(getSpecialDiceTrailColors(honey)).toEqual([0xFBD099, 0xFEE4B8, 0xFDCD55, 0xF9AF3A]);
+  expect(getSpecialDiceShardColors(honey)).toEqual([0xF1BA79, 0xFDCF58]);
+  expect(honey?.burstParticleSources).toHaveLength(7);
+
+  // TNT is the core texture, not a collectible skin, so its variant is null.
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 7,
+    wildSpawnCount: 0,
+    worldIntroRoll: 0,
+  })).toBeNull();
 });
 
-test('Forest Stage 2 test sequence never leaks into another Journey board', () => {
-  for (const journeyBoard of [3, 4, 10, 21, 30]) {
-    for (const wildSpawnCount of [0, 1, 2]) {
-      const variant = pickSpecialDiceVariantForWildSpawn({
-        isArcade: false,
-        journeyBoard,
-        wildSpawnCount,
-        roboWildRoll: 0.1,
-      });
-      expect(['flower', 'honey', 'mushroom']).not.toContain(variant?.id);
-    }
-  }
+test('later Forest Stages keep only earned Forest skins and never generic visual variants', () => {
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 2,
+    wildSpawnCount: 1,
+    worldIntroRoll: 0.75,
+  })).toMatchObject({ id: 'mushroom' });
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 3,
+    wildSpawnCount: 1,
+    worldIntroRoll: 0.9,
+  })).toMatchObject({ id: 'flower' });
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 6,
+    wildSpawnCount: 1,
+    worldIntroRoll: 0.9,
+  })).toMatchObject({ id: 'honey' });
+  expect(pickSpecialDiceVariantForWildSpawn({
+    isArcade: false,
+    journeyBoard: 10,
+    wildSpawnCount: 1,
+    worldIntroRoll: 0.5,
+  })).toMatchObject({ id: 'flower' });
 });
 
 test('later Beach stages map one shared random slot to Star, Juice, Beach Ball, or Bottle', () => {

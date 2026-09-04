@@ -908,6 +908,24 @@ type JourneyHubPrepaintStage = {
   ready: boolean;
 };
 
+type JourneyLandingPoseSample = {
+  elapsedMs: number;
+  marker: string;
+  runtimeState: JourneyWorldRuntimeSnapshot['state'];
+  cardTop: number;
+  wrapperTop: number;
+  cardRelativeTop: number;
+  cardY: number;
+  wrapperY: number;
+  shadowOpacity: number;
+  landingGuard: boolean;
+  bounceOwner: boolean;
+  commitOwner: boolean;
+  legacyWrapperOwners: number;
+  cardTransform: string;
+  wrapperTransform: string;
+};
+
 
 class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
@@ -961,6 +979,15 @@ class JourneyBoardsManager {
   private journeyV700CloseQueuedDuringEnter = false;
   private journeyCardOverlayModal: JourneyCardOverlayModalController | null = null;
   private journeyOverlayLandingCard: HTMLElement | null = null;
+  private journeyLandingPoseTrace: {
+    boardId: number;
+    card: HTMLElement;
+    wrapper: HTMLElement;
+    startedAt: number;
+    rafId: number;
+    marker: string;
+    samples: JourneyLandingPoseSample[];
+  } | null = null;
   private journeyOverlayReturnInFlight: { boardId: number; promise: Promise<void> } | null = null;
   private journeyV700Phase: 'hidden' | 'entering' | 'idle' | 'exiting' = 'hidden';
   private journeyV700HubEnterTweens: gsap.core.Tween[] = [];
@@ -1167,6 +1194,158 @@ class JourneyBoardsManager {
     this._activeRAFs.add(rafId);
     if (onCancel) this._activeRAFCancellationHandlers.set(rafId, onCancel);
     return rafId;
+  }
+
+  private cancelTrackedRAF(rafId: number): void {
+    if (!rafId) return;
+    try { cancelAnimationFrame(rafId); } catch {}
+    this._activeRAFs.delete(rafId);
+    this._activeRAFCancellationHandlers.delete(rafId);
+  }
+
+  private isJourneyLandingPoseTraceEnabled(): boolean {
+    try {
+      const hostname = window.location.hostname;
+      return hostname === 'localhost'
+        || hostname === '127.0.0.1'
+        || new URLSearchParams(window.location.search).get('ccJourneyLandingTrace') === '1'
+        || localStorage.getItem('__ccJourneyLandingTrace') === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  private captureJourneyLandingPoseSample(marker?: string): JourneyLandingPoseSample | null {
+    const trace = this.journeyLandingPoseTrace;
+    if (!trace || !trace.card.isConnected || !trace.wrapper.isConnected) return null;
+    const cardRect = trace.card.getBoundingClientRect();
+    const wrapperRect = trace.wrapper.getBoundingClientRect();
+    const shadow = trace.card.nextElementSibling instanceof HTMLElement
+      && trace.card.nextElementSibling.classList.contains('journey-board-card-settled-contact-shadow')
+      ? trace.card.nextElementSibling
+      : null;
+    const readNumber = (target: HTMLElement, axis: 'x' | 'y'): number => {
+      const value = Number(gsap.getProperty(target, axis) || 0);
+      return Number.isFinite(value) ? Number(value.toFixed(3)) : 0;
+    };
+    const sample: JourneyLandingPoseSample = {
+      elapsedMs: Number((performance.now() - trace.startedAt).toFixed(1)),
+      marker: marker || trace.marker,
+      runtimeState: this.journeyWorldRuntime.getSnapshot().state,
+      cardTop: Number(cardRect.top.toFixed(3)),
+      wrapperTop: Number(wrapperRect.top.toFixed(3)),
+      cardRelativeTop: Number((cardRect.top - wrapperRect.top).toFixed(3)),
+      cardY: readNumber(trace.card, 'y'),
+      wrapperY: readNumber(trace.wrapper, 'y'),
+      shadowOpacity: shadow ? Number.parseFloat(getComputedStyle(shadow).opacity) || 0 : -1,
+      landingGuard: trace.card.classList.contains('journey-board-card-return-landing'),
+      bounceOwner: !!(trace.wrapper as any)._overlayLandingBounceTimeline,
+      commitOwner: !!(trace.wrapper as any)._overlayLandingCommitOwner,
+      legacyWrapperOwners: this.journeyAreaIdleEntries.filter((entry) => (
+        entry.targets.includes(trace.wrapper)
+      )).length,
+      cardTransform: trace.card.style.transform || getComputedStyle(trace.card).transform,
+      wrapperTransform: trace.wrapper.style.transform || getComputedStyle(trace.wrapper).transform,
+    };
+    trace.samples.push(sample);
+    return sample;
+  }
+
+  private markJourneyLandingPoseTrace(marker: string): void {
+    const trace = this.journeyLandingPoseTrace;
+    if (!trace) return;
+    trace.marker = marker;
+    const sample = this.captureJourneyLandingPoseSample(marker);
+    if (sample) console.info('[CC_JOURNEY_LANDING_POSE]', marker, sample);
+  }
+
+  private finishJourneyLandingPoseTrace(reason: string): void {
+    const trace = this.journeyLandingPoseTrace;
+    if (!trace) return;
+    this.cancelTrackedRAF(trace.rafId);
+    const samples = trace.samples;
+    const jumps = samples.flatMap((sample, index) => {
+      if (index === 0) return [];
+      const previous = samples[index - 1];
+      const wrapperDelta = Number((sample.wrapperTop - previous.wrapperTop).toFixed(3));
+      const cardRelativeDelta = Number((sample.cardRelativeTop - previous.cardRelativeTop).toFixed(3));
+      if (Math.abs(wrapperDelta) < 0.75 && Math.abs(cardRelativeDelta) < 0.75) return [];
+      return [{
+        ...sample,
+        wrapperDelta,
+        cardRelativeDelta,
+        previousMarker: previous.marker,
+      }];
+    });
+    const result = {
+      boardId: trace.boardId,
+      reason,
+      sampleCount: samples.length,
+      jumps,
+      samples,
+    };
+    (window as any).__ccJourneyLandingPoseTrace = result;
+    console.info('[CC_JOURNEY_LANDING_POSE] COMPLETE', {
+      boardId: trace.boardId,
+      reason,
+      sampleCount: samples.length,
+      jumpCount: jumps.length,
+      inspect: 'window.__ccJourneyLandingPoseTrace',
+    });
+    if (jumps.length) console.table(jumps);
+    try {
+      const query = new URLSearchParams(window.location.search);
+      const isLocalhost = window.location.hostname === 'localhost'
+        || window.location.hostname === '127.0.0.1';
+      if (isLocalhost && query.get('ccJourneyLandingCollector') === '1') {
+        void fetch('http://127.0.0.1:5175/cc-journey-landing-pose', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify(result),
+        }).catch(() => undefined);
+      }
+    } catch {}
+    this.journeyLandingPoseTrace = null;
+  }
+
+  private startJourneyLandingPoseTrace(card: HTMLElement, marker: string): void {
+    if (!this.isJourneyLandingPoseTraceEnabled()) return;
+    const wrapper = card.closest<HTMLElement>('.journey-board-card-wrapper');
+    if (!wrapper) return;
+    if (this.journeyLandingPoseTrace?.card === card) {
+      this.markJourneyLandingPoseTrace(marker);
+      return;
+    }
+    this.finishJourneyLandingPoseTrace('superseded');
+    const trace = {
+      boardId: Number(card.dataset.boardId || 0),
+      card,
+      wrapper,
+      startedAt: performance.now(),
+      rafId: 0,
+      marker,
+      samples: [] as JourneyLandingPoseSample[],
+    };
+    this.journeyLandingPoseTrace = trace;
+    console.info('[CC_JOURNEY_LANDING_POSE] START', {
+      boardId: trace.boardId,
+      marker,
+      inspect: 'window.__ccJourneyLandingPoseTrace',
+    });
+    const sampleFrame = () => {
+      if (this.journeyLandingPoseTrace !== trace) return;
+      this.captureJourneyLandingPoseSample();
+      if ((performance.now() - trace.startedAt) >= 2800) {
+        this.finishJourneyLandingPoseTrace('window-complete');
+        return;
+      }
+      trace.rafId = this.trackRAF(sampleFrame, () => {
+        if (this.journeyLandingPoseTrace === trace) this.journeyLandingPoseTrace = null;
+      });
+    };
+    this.markJourneyLandingPoseTrace(marker);
+    trace.rafId = this.trackRAF(sampleFrame);
   }
 
   private waitForTrackedFrames(frameCount: number = 1): Promise<boolean> {
@@ -1903,7 +2082,16 @@ class JourneyBoardsManager {
     this.startVisibleInterimCardIdleEffects(cardsContainer);
   }
 
-  private pauseJourneyWorldForCardOverlay(reason: string): void {
+  private pauseJourneyWorldForCardOverlay(reason: string, card: HTMLElement): void {
+    const cardWrapper = card.closest<HTMLElement>('.journey-board-card-wrapper');
+    if (cardWrapper && this.journeyWorldAnimation.getPhase() === 'idle') {
+      // The coordinated World ticker is the canonical Unit transform owner.
+      // A board-specific legacy idle can survive a game-return path and write
+      // the same wrapper on modal resume. Retire that overlapping entry before
+      // suspension so the coordinator captures the exact last painted pose and
+      // only one owner resumes after the landing shadow appears.
+      this.stopJourneyAreaIdleForTargets([cardWrapper]);
+    }
     this.journeyAreaIdlePausedForInteraction = true;
     this.journeyWorldRuntime.openModal();
     // A rapid reopen transfers the settling hold directly to the new modal;
@@ -1928,8 +2116,12 @@ class JourneyBoardsManager {
     this.journeyAreaIdlePausedForInteraction = false;
     const landingWrapper = this.journeyOverlayLandingCard
       ?.closest<HTMLElement>('.journey-board-card-wrapper') ?? null;
-    const landingActive = !!(landingWrapper as any)?._overlayLandingBounceTimeline;
+    const landingActive = !!(
+      (landingWrapper as any)?._overlayLandingBounceTimeline
+      || (landingWrapper as any)?._overlayLandingCommitOwner
+    );
     if (landingActive) this.journeyWorldRuntime.beginInteractionSettle();
+    this.markJourneyLandingPoseTrace('modal-runtime-close');
     this.journeyWorldRuntime.closeModal();
     this.trackTimeout(() => this.startVisibleInterimCardIdleEffects(document), 900);
     emitIOSNativeDiagnostic('card-overlay-world-runtime-resumed', {
@@ -5060,12 +5252,128 @@ class JourneyBoardsManager {
     logger.debug('💚 Started interim bounce animation on card');
   }
 
+  private commitOverlayCardLandingPose(
+    card: HTMLElement,
+    restore: {
+      transition: string;
+      willChange: string;
+      transformOrigin: string;
+    } | undefined,
+    revealSettledShadow: boolean,
+    preserveLandingSuppression = false,
+  ): void {
+    const restoredTransition = restore?.transition ?? card.style.transition;
+    const restoredWillChange = restore?.willChange ?? card.style.willChange;
+    const restoredTransformOrigin = restore?.transformOrigin ?? card.style.transformOrigin;
+
+    // Keep the landing owner authoritative through the terminal pose. Restoring
+    // the authored CSS transition before clearProps made WebKit interpolate the
+    // equivalent GSAP matrix back to translateZ(0), which could show as a small
+    // post-squeeze Y jump exactly when the contact shadow appeared.
+    card.style.transition = 'none';
+    if (!preserveLandingSuppression) {
+      try { gsap.set(card, { clearProps: 'transform' }); } catch {}
+    }
+    card.style.willChange = restoredWillChange;
+    card.style.transformOrigin = restoredTransformOrigin;
+    void card.offsetWidth;
+    if (preserveLandingSuppression) {
+      card.classList.add('journey-board-card-return-landing');
+    } else {
+      card.classList.remove('journey-board-card-return-landing');
+      if (revealSettledShadow) card.classList.add('journey-board-card-settled-shadow');
+    }
+    card.style.transition = restoredTransition;
+  }
+
+  private cancelOverlayCardLandingCommit(cardWrapper: HTMLElement): {
+    transition: string;
+    willChange: string;
+    transformOrigin: string;
+    preserveRuntimeSettle: boolean;
+  } | undefined {
+    const owner = (cardWrapper as any)._overlayLandingCommitOwner as {
+      revealRafId: number;
+      transition: string;
+      willChange: string;
+      transformOrigin: string;
+      preserveRuntimeSettle: boolean;
+    } | undefined;
+    if (!owner) return undefined;
+    this.cancelTrackedRAF(owner.revealRafId);
+    delete (cardWrapper as any)._overlayLandingCommitOwner;
+    return owner;
+  }
+
+  private scheduleOverlayCardLandingCommit(
+    card: HTMLElement,
+    cardWrapper: HTMLElement,
+    restore: {
+      transition: string;
+      willChange: string;
+      transformOrigin: string;
+    },
+    preserveRuntimeSettle: boolean,
+  ): void {
+    this.cancelOverlayCardLandingCommit(cardWrapper);
+
+    // The accepted terminal GSAP transform is now the settled card pose. Do not
+    // clear or rewrite it here: even an equivalent CSS transform can rasterize
+    // a few physical pixels lower in WKWebView. The only visible terminal
+    // mutation after the next paint is the sibling contact shadow.
+    card.style.transition = 'none';
+    card.style.willChange = 'transform';
+    card.style.transformOrigin = restore.transformOrigin;
+    card.classList.add('journey-board-card-return-landing');
+
+    const owner = {
+      revealRafId: 0,
+      transition: restore.transition,
+      willChange: restore.willChange,
+      transformOrigin: restore.transformOrigin,
+      preserveRuntimeSettle,
+    };
+    (cardWrapper as any)._overlayLandingCommitOwner = owner;
+    const retireOwner = () => {
+      if ((cardWrapper as any)._overlayLandingCommitOwner !== owner) return;
+      delete (cardWrapper as any)._overlayLandingCommitOwner;
+      if (this.journeyOverlayLandingCard === card) this.journeyOverlayLandingCard = null;
+      if (!owner.preserveRuntimeSettle) {
+        this.trackTimeout(() => {
+          this.markJourneyLandingPoseTrace('runtime-idle-resume-before');
+          this.journeyWorldRuntime.endInteractionSettle();
+          this.markJourneyLandingPoseTrace('runtime-idle-resume-after');
+        }, 48);
+      }
+    };
+    owner.revealRafId = this.trackRAF(() => {
+      if ((cardWrapper as any)._overlayLandingCommitOwner !== owner) return;
+      owner.revealRafId = 0;
+      if (!card.isConnected) {
+        retireOwner();
+        return;
+      }
+      card.classList.remove('journey-board-card-return-landing');
+      card.classList.add('journey-board-card-settled-shadow');
+      this.markJourneyLandingPoseTrace('settled-shadow-revealed');
+      // Do not restore transition, transform-origin or will-change here. Even
+      // non-positional compositor ownership changes can re-rasterize this
+      // promoted WebKit layer a few physical pixels lower. Retire bookkeeping
+      // only; the visible mutation after stretch/smoke is strictly the shadow.
+      retireOwner();
+    });
+  }
+
   private playOverlayCardLandingBounce(card: HTMLElement): void {
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (this.renderDisposed || !card.isConnected || !cardWrapper) return;
     const boardId = Number(card.dataset.boardId);
+    this.startJourneyLandingPoseTrace(card, 'landing-bounce-requested');
 
-    this.stopOverlayCardLandingBounce(card);
+    this.stopOverlayCardLandingBounce(card, {
+      preserveRuntimeSettle: true,
+      preserveLandingSuppression: true,
+    });
     this.journeyOverlayLandingCard = card;
     card.classList.add('journey-board-card-return-landing');
 
@@ -5089,25 +5397,18 @@ class JourneyBoardsManager {
       if ((cardWrapper as any)._overlayLandingBounceTimeline !== timeline) return;
       const preserveRuntimeSettle = (cardWrapper as any)._overlayLandingPreserveRuntimeSettle === true;
       this.journeyCardInteractionProfiler.mark('dismiss-landing-bounce-complete', boardId);
+      this.markJourneyLandingPoseTrace('landing-bounce-complete');
       delete (cardWrapper as any)._overlayLandingBounceTimeline;
       delete (cardWrapper as any)._overlayLandingBounceRestore;
       delete (cardWrapper as any)._overlayLandingPreserveRuntimeSettle;
-      if (this.journeyOverlayLandingCard === card) this.journeyOverlayLandingCard = null;
-      card.classList.remove('journey-board-card-return-landing');
-      card.classList.add('journey-board-card-settled-shadow');
-      card.style.transition = previousTransition;
-      card.style.willChange = previousWillChange;
-      card.style.transformOrigin = previousTransformOrigin;
-      gsap.set(card, { clearProps: 'transform' });
+      this.scheduleOverlayCardLandingCommit(card, cardWrapper, {
+        transition: previousTransition,
+        willChange: previousWillChange,
+        transformOrigin: previousTransformOrigin,
+      }, preserveRuntimeSettle);
       // The smoke already completed its visible landing beat. Do not let its
       // delayed DOM cleanup overlap World idle resume on the next frame.
       try { JOURNEY_CARD_IDLE_BOUNCE?.cleanupSmokeEffects?.(card); } catch {}
-      if (!preserveRuntimeSettle) {
-        // Give WebKit one quiet paint after landing cleanup before the 110-target
-        // World spatial owner can resume. Scroll/reopen clears the hold first,
-        // making this tracked handoff a harmless no-op in those paths.
-        this.trackTimeout(() => this.journeyWorldRuntime.endInteractionSettle(), 48);
-      }
     };
     const timeline = trackTimeline({
       defaults: { transformOrigin: 'center center', force3D: true },
@@ -5188,16 +5489,24 @@ class JourneyBoardsManager {
 
   private stopOverlayCardLandingBounce(
     card: HTMLElement,
-    options: { preserveRuntimeSettle?: boolean } = {},
+    options: {
+      preserveRuntimeSettle?: boolean;
+      preserveLandingSuppression?: boolean;
+    } = {},
   ): void {
     const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
     if (!cardWrapper) return;
     const timeline = (cardWrapper as any)._overlayLandingBounceTimeline;
-    const restore = (cardWrapper as any)._overlayLandingBounceRestore as {
+    let restore = (cardWrapper as any)._overlayLandingBounceRestore as {
       transition: string;
       willChange: string;
       transformOrigin: string;
     } | undefined;
+    const hadLandingOwnership = !!(
+      timeline
+      || (cardWrapper as any)._overlayLandingCommitOwner
+      || card.classList.contains('journey-board-card-return-landing')
+    );
     if (timeline) {
       const boardId = Number(card.dataset.boardId);
       this.journeyCardInteractionProfiler.mark('dismiss-landing-interrupted', boardId);
@@ -5206,20 +5515,24 @@ class JourneyBoardsManager {
       }
       try { timeline.kill(); } catch {}
     }
+    const pendingCommit = this.cancelOverlayCardLandingCommit(cardWrapper);
+    const shouldReleaseRuntimeSettle = options.preserveRuntimeSettle !== true
+      && (pendingCommit ? !pendingCommit.preserveRuntimeSettle : !!timeline);
+    restore ??= pendingCommit;
     delete (cardWrapper as any)._overlayLandingBounceTimeline;
     delete (cardWrapper as any)._overlayLandingBounceRestore;
     delete (cardWrapper as any)._overlayLandingPreserveRuntimeSettle;
     if (this.journeyOverlayLandingCard === card) this.journeyOverlayLandingCard = null;
-    card.classList.remove('journey-board-card-return-landing');
-    if (card.dataset.journeyCardViewed === 'true') {
-      card.classList.add('journey-board-card-settled-shadow');
-    }
+    if (!hadLandingOwnership) return;
     try { gsap.killTweensOf(card); } catch {}
-    try { gsap.set(card, { clearProps: 'transform' }); } catch {}
-    if (restore) {
-      card.style.transition = restore.transition;
-      card.style.willChange = restore.willChange;
-      card.style.transformOrigin = restore.transformOrigin;
+    this.commitOverlayCardLandingPose(
+      card,
+      restore,
+      card.dataset.journeyCardViewed === 'true',
+      options.preserveLandingSuppression === true,
+    );
+    if (shouldReleaseRuntimeSettle) {
+      this.trackTimeout(() => this.journeyWorldRuntime.endInteractionSettle(), 48);
     }
   }
   
@@ -9876,7 +10189,7 @@ class JourneyBoardsManager {
     };
     try {
       this.journeyCardInteractionProfiler.mark('manager-open-start', board.id);
-      this.pauseJourneyWorldForCardOverlay('direct-card-open');
+      this.pauseJourneyWorldForCardOverlay('direct-card-open', cardElement);
       worldPausedForOverlay = true;
       markOpenProfile('world-paused');
       const scrollOwner = document.querySelector(
@@ -9922,6 +10235,11 @@ class JourneyBoardsManager {
         },
         onPerformancePhase: (phase) => {
           this.journeyCardInteractionProfiler.mark(phase, board.id);
+          if (phase === 'dismiss-origin-restored') {
+            this.startJourneyLandingPoseTrace(cardElement, phase);
+          } else if (phase.startsWith('dismiss-')) {
+            this.markJourneyLandingPoseTrace(phase);
+          }
         },
         onDismissCardLanded: () => {
           this.journeyCardInteractionProfiler.mark('dismiss-landing-bounce-start', board.id);
@@ -10164,7 +10482,7 @@ class JourneyBoardsManager {
       try { gsap.killTweensOf(targetElement); } catch {}
       origin.prepareSettledLanding();
       origin.captureLandingGeometry();
-      this.pauseJourneyWorldForCardOverlay('game-return-card-open');
+      this.pauseJourneyWorldForCardOverlay('game-return-card-open', targetElement);
       worldPausedForOverlay = true;
       this.journeyCardOverlayModal?.dispose();
       let earlyJourneyExitPromise: Promise<void> | null = null;
@@ -10181,6 +10499,14 @@ class JourneyBoardsManager {
         hasSavedState: hasResumableSavedStateForBoard(boardId, { clearInvalid: true }),
         scrollOwner,
         entryInitialOpacity: 1,
+        onPerformancePhase: (phase) => {
+          this.journeyCardInteractionProfiler.mark(phase, board.id);
+          if (phase === 'dismiss-origin-restored') {
+            this.startJourneyLandingPoseTrace(targetElement, phase);
+          } else if (phase.startsWith('dismiss-')) {
+            this.markJourneyLandingPoseTrace(phase);
+          }
+        },
         onDismissCardLanded: () => {
           this.playOverlayCardLandingBounce(targetElement);
         },

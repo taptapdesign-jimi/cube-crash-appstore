@@ -1,4 +1,5 @@
 import { decideWildType } from '../app-core-wild-type';
+import { getAllowedWildTypes } from '../board-specific-rules';
 
 const noop = () => {};
 
@@ -37,9 +38,21 @@ function decideForRoll({
   }
 }
 
-describe('Forest Cjelina 01 Wild pool', () => {
+describe('Forest progressive Wild pool', () => {
+  test.each([
+    [1, ['wild']],
+    [2, ['wild', 'wild-juice']],
+    [3, ['wild', 'wild-juice', 'wild-tnt']],
+    [4, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [6, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [7, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+    [10, ['wild', 'wild-juice', 'wild-tnt', 'wild-magnet']],
+  ] as const)('publishes only earned gameplay archetypes for Cjelina %i', (board, expected) => {
+    expect(getAllowedWildTypes(board)).toEqual(expected);
+  });
+
   test.each([0.1, 0.6, 0.75, 0.95])(
-    'maps every core-Wild roll (%s) to base Star before Mushroom selection',
+    'keeps Cjelina 01 on Wild Star for every roll (%s)',
     (roll) => {
       const { result, filterWildType } = decideForRoll({ roll });
 
@@ -48,7 +61,45 @@ describe('Forest Cjelina 01 Wild pool', () => {
         spawnMagnet: false,
         spawnTnt: false,
         wildType: 'wild',
+        specialDiceVariantId: null,
       });
+      expect(filterWildType).not.toHaveBeenCalled();
+    },
+  );
+
+  test.each([
+    [2, 'wild-juice', 'mushroom'],
+    [3, 'wild-tnt', 'flower'],
+    [4, 'wild-magnet', 'honey'],
+    [7, 'wild-tnt', null],
+  ] as const)(
+    'guarantees the newly introduced reward on Cjelina %i first drop',
+    (boardNumber, wildType, specialDiceVariantId) => {
+      expect(decideForRoll({
+        roll: 0.99,
+        boardNumber,
+        wildSpawnCount: 0,
+        lastWildDropType: null,
+      }).result).toMatchObject({ wildType, specialDiceVariantId });
+    },
+  );
+
+  test.each([
+    [2, 0.01, 'wild', null],
+    [2, 0.75, 'wild-juice', 'mushroom'],
+    [3, 0.8, 'wild-tnt', 'flower'],
+    [4, 0.9, 'wild-magnet', 'honey'],
+    [7, 0.85, 'wild-tnt', null],
+    [10, 0.45, 'wild-tnt', 'flower'],
+  ] as const)(
+    'uses only the earned Forest pool on Cjelina %i at roll %s',
+    (boardNumber, roll, wildType, specialDiceVariantId) => {
+      const { result, filterWildType } = decideForRoll({
+        roll,
+        boardNumber,
+        wildSpawnCount: 1,
+      });
+      expect(result).toMatchObject({ wildType, specialDiceVariantId });
       expect(filterWildType).not.toHaveBeenCalled();
     },
   );
@@ -60,8 +111,8 @@ describe('Forest Cjelina 01 Wild pool', () => {
     });
   });
 
-  test('does not apply the Forest restriction to another Journey board', () => {
-    expect(decideForRoll({ roll: 0.75, boardNumber: 2 }).result).toMatchObject({
+  test('does not apply the Forest restriction to Beach', () => {
+    expect(decideForRoll({ roll: 0.75, boardNumber: 12 }).result).toMatchObject({
       spawnMagnet: true,
       wildType: 'wild-magnet',
     });

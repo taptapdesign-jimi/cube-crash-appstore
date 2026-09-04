@@ -62,7 +62,7 @@ describe('Journey exact-card portal transition', () => {
   test('keeps the live card resident and retires its visual portal clone on restore', () => {
     document.body.innerHTML = `
       <div class="journey-board-card-wrapper">
-        <div class="journey-board-card unlocked idle-shimmer-trigger journey-board-card-return-placeholder" data-board-id="26"></div>
+        <div class="journey-board-card unlocked idle-shimmer-trigger journey-board-card-settled-shadow journey-board-card-return-placeholder" data-board-id="26"></div>
         <span class="after-card"></span>
       </div>
       <div class="portal-host"></div>
@@ -95,11 +95,13 @@ describe('Journey exact-card portal transition', () => {
       callback(0);
       return 1;
     });
-    expect(lease!.restoreNow()).toBe(true);
+    expect(lease!.restoreNow({ preserveLandingSuppression: true })).toBe(true);
     expect(wrapper.firstElementChild).toBe(card);
     expect(portalVisual.isConnected).toBe(false);
     expect(card).not.toHaveClass('journey-card-overlay-portaled-card');
     expect(card).not.toHaveClass('journey-board-card-return-placeholder');
+    expect(card).toHaveClass('journey-board-card-return-landing');
+    expect(card).toHaveClass('journey-board-card-settled-shadow');
     expect(card).not.toHaveClass('idle-shimmer-trigger');
     expect(document.querySelectorAll('[data-board-id="26"]')).toHaveLength(1);
   });
@@ -200,5 +202,37 @@ describe('Journey exact-card portal transition', () => {
     expect(card.style.transition).toBe('');
     expect(card.style.willChange).toBe('');
     expect(card.style.getPropertyValue('--card-tone')).toBe('warm');
+  });
+
+  test('keeps an existing landing guard while a rapid reopen prepares settled geometry', () => {
+    document.body.innerHTML = `
+      <div class="journey-board-card-wrapper">
+        <div class="journey-board-card unlocked journey-board-card-settled-shadow journey-board-card-return-landing" data-board-id="2"></div>
+      </div>
+      <div class="portal-host"></div>
+    `;
+    const card = document.querySelector<HTMLElement>('.journey-board-card')!;
+    const host = document.querySelector<HTMLElement>('.portal-host')!;
+    Object.defineProperties(card, {
+      offsetWidth: { configurable: true, value: 100 },
+      offsetHeight: { configurable: true, value: 150 },
+    });
+    card.getBoundingClientRect = () => ({
+      x: 20, y: 40, left: 20, top: 40, right: 120, bottom: 190,
+      width: 100, height: 150, toJSON: () => ({}),
+    });
+
+    const lease = acquireJourneyCardOriginLease(2, card)!;
+    lease.prepareSettledLanding();
+
+    expect(card).toHaveClass('journey-board-card-return-landing');
+    expect(card).toHaveClass('journey-board-card-settled-shadow');
+
+    lease.mountInto(host);
+    expect(card).toHaveClass('journey-board-card-return-landing');
+    expect(card).not.toHaveClass('journey-board-card-return-placeholder');
+    lease.activatePortal();
+    expect(card).toHaveClass('journey-board-card-return-placeholder');
+    expect(card).not.toHaveClass('journey-board-card-return-landing');
   });
 });

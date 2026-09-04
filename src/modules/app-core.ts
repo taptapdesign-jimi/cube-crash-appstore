@@ -6747,12 +6747,13 @@ async function spawnWildFromMeter(){
         tries++;
         continue;
       }
-      let { spawnJuice, spawnMagnet, spawnTnt, wildType } = decided;
+      let { spawnJuice, spawnMagnet, spawnTnt, wildType, specialDiceVariantId } = decided;
       if ((window as any).__ccFirstPlayTutorialForceWildStar === true) {
         spawnJuice = false;
         spawnMagnet = false;
         spawnTnt = false;
         wildType = 'wild';
+        specialDiceVariantId = null;
       }
       const isBeachJourneyBoard = !isArcadeHomeRunMode() && boardNumber >= 12 && boardNumber <= 20;
       const beachWildSlot = isBeachJourneyBoard ? pickBeachWildSlot() : undefined;
@@ -6762,14 +6763,18 @@ async function spawnWildFromMeter(){
         spawnTnt = false;
         wildType = spawnJuice ? 'wild-juice' : 'wild';
       }
-      const specialDiceVariant = isFirstPlayTutorialRunActive() ? null : pickSpecialDiceVariantForWildSpawn({
-        isArcade: isArcadeHomeRunMode(),
-        wildSpawnCount,
-        arcadeStage: boardNumber,
-        journeyBoard: boardNumber,
-        beachWildSlot,
-        previousWildType: lastWildDropType,
-      });
+      const specialDiceVariant = isFirstPlayTutorialRunActive()
+        ? null
+        : specialDiceVariantId !== undefined
+          ? getSpecialDiceVariant(specialDiceVariantId)
+          : pickSpecialDiceVariantForWildSpawn({
+              isArcade: isArcadeHomeRunMode(),
+              wildSpawnCount,
+              arcadeStage: boardNumber,
+              journeyBoard: boardNumber,
+              beachWildSlot,
+              previousWildType: lastWildDropType,
+            });
       if (specialDiceVariant) {
         const coreWildType = getCoreWildTypeForSpecialDiceVariant(specialDiceVariant);
         spawnJuice = coreWildType === 'wild-juice';

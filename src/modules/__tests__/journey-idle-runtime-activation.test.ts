@@ -5,8 +5,21 @@ import {
   shouldSuspendJourneyUnitIdlePaint,
   updateJourneyIdleRuntimeActivation,
 } from '../journey-idle-runtime-activation';
+import { readJourneyRenderedTransformAxis } from '../journey-world-animation-coordinator';
 
 describe('Journey idle runtime activation handoff', () => {
+  test('reads the painted matrix instead of a stale animation-library translation cache', () => {
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+
+    target.style.transform = 'matrix(0.997564, -0.0697565, 0.0697565, 0.997564, 0, 0)';
+    expect(readJourneyRenderedTransformAxis(target, 'x')).toBe(0);
+    expect(readJourneyRenderedTransformAxis(target, 'y')).toBe(0);
+
+    target.style.transform = 'matrix(0.997564, -0.0697565, 0.0697565, 0.997564, 0, -4.16)';
+    expect(readJourneyRenderedTransformAxis(target, 'y')).toBe(-4.16);
+  });
+
   test('rebases a budget-suspended Unit from its current pose before idle resumes', () => {
     const target = document.createElement('div');
     const entry = {

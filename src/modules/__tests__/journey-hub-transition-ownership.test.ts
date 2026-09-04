@@ -278,6 +278,10 @@ describe('Journey Hub transition ownership', () => {
     expect(worldAnimationCoordinatorSource).toContain('private idleEntries: JourneyWorldIdleEntry[] = [];');
     expect(worldAnimationCoordinatorSource).toContain('public setIdlePaintSuspended(suspended: boolean): void');
     expect(worldAnimationCoordinatorSource).toContain('entry.startTime += pausedFor');
+    expect(worldAnimationCoordinatorSource).toContain("readJourneyRenderedTransformAxis(target, 'y')");
+    expect(worldAnimationCoordinatorSource).toContain("readJourneyRenderedTransformAxis(target, 'x')");
+    expect(worldAnimationCoordinatorSource).toContain('entry.resumeBlendStartedAt = now');
+    expect(worldAnimationCoordinatorSource).toContain('IDLE_RESUME_POSE_BLEND_SECONDS');
     expect(worldAnimationCoordinatorSource).toContain('if (this.idleTicker) return;');
     expect(worldAnimationCoordinatorSource).not.toContain('private idleTickers: Array<() => void> = [];');
 
@@ -292,7 +296,7 @@ describe('Journey Hub transition ownership', () => {
 
   test('one generic runtime scheduler owns scroll, modal and transition paint for every World', () => {
     const pauseSource = journeyManagerSource.split(
-      'private pauseJourneyWorldForCardOverlay(reason: string): void',
+      'private pauseJourneyWorldForCardOverlay(reason: string, card: HTMLElement): void',
     )[1]?.split('private resumeJourneyWorldAfterCardOverlay')[0] ?? '';
     const resumeSource = journeyManagerSource.split(
       'private resumeJourneyWorldAfterCardOverlay(reason: string): void',
@@ -305,6 +309,7 @@ describe('Journey Hub transition ownership', () => {
     expect(enterSource).toContain('this.activateJourneyWorldRuntime(container, worldId)');
     expect(enterSource).toContain('this.journeyWorldRuntime.endTransition()');
     expect(pauseSource).toContain('this.journeyWorldRuntime.openModal()');
+    expect(pauseSource).toContain('this.stopJourneyAreaIdleForTargets([cardWrapper])');
     expect(pauseSource).not.toContain('this.cleanupJourneyAreaIdleAnimations(false)');
     expect(resumeSource).toContain('this.journeyWorldRuntime.closeModal()');
     expect(resumeSource).not.toContain('this.startJourneyAreaIdleAnimations(');

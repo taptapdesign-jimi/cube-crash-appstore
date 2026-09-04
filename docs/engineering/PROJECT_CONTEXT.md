@@ -63,7 +63,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Shared paper definition and lifecycle owner: `src/utils/app-paper-background.ts`. `body` is the single visible viewport-relative paper owner; HTML is only a solid fallback, `#global-bg` and the launch container stay transparent. Full-screen gameplay-occluding surfaces such as Fail/Clear Board must use `applyAppPaperSurfaceToElement()` so they match the same canonical opacity, texture position, and gradient without introducing another background recipe.
 - Studio logo: `assets/logo addons/taplogo.png`.
 - Random character source: non-`@2x` files matching `assets/logo addons/lik-*.png`.
-- Current character set: `lik-board`, `lik-cekic`, `lik-dron`, `lik-game`, `lik-gitara`, `lik-kauc`, `lik-lajna`, `lik-pas`, and `lik-vrecice`. `lik-klizanje` and `lik-vrt` are explicitly excluded from random launch selection.
+- Current randomized character set: `lik-game`, `lik-gitara`, `lik-kauc`, `lik-lajna`, `lik-laptop`, `lik-nogomet`, `lik-pas`, `lik slikanje`, `lik-cvijet`, and `lik-speceraj`. `lik-board`, `lik-dron`, `lik-klizanje`, and `lik-vrt` are explicitly excluded from random launch selection; the user has also removed the former `lik-cekic` and `lik-vrecice` source files.
 - The logo and character are independent animation units. The character exits first, followed by the TapTap logo. The launch owner must dispose listeners, abort pending work, and release tracked animations after handoff.
 - Do not restore the removed old combined TapTap/Stack to Six preloader branch or duplicate background ownership.
 
@@ -78,6 +78,7 @@ Use `SKIP_NATIVE_BUNDLE_SYNC=true npm run build` when validating web code withou
 - Incremental app-core strangler boundaries: [`APP_CORE_OWNERSHIP_MAP.md`](APP_CORE_OWNERSHIP_MAP.md). It records protected orchestration zones and the established extracted-owner families; it does not authorize a broad rewrite.
 - Gameplay decisions/final merge: `gameplay-resolution-engine.ts`, `final-merge-rules.ts`, `endgame-checker.ts`.
 - Merge/FX: `merge-animations.ts`, `fx.ts`, `fx-*`, `wild-stars.ts`, and `stars-collector.ts`.
+- Forest Journey special progression: `journey-forest-wild-progression.ts` owns the cumulative player-facing pool (01 Star; 02 Mushroom; 03 Flower; 04 Honey; 07 TNT), including the guaranteed first introduction drop. `special-dice-registry.ts` continues to own visual-to-gameplay archetype mapping; generic Juice and Magnet do not enter the Forest pool.
 - Regular cube stack-contact and no-input board-idle stretch/squash tuning: `src/modules/gameplay-tile-cartoon-motion.ts`. Both Journey and Arcade consume this one profile; retune its `stack.strength` and `idle.strength` rather than introducing mode-specific motion copies.
 - Run origin: `run-mode.ts`; Arcade is `arcade_home`, Journey is `journey`.
 - Player-facing progression terminology is centralized in `src/modules/gameplay-terminology.ts`: Journey boards are shown as **Stage / Stages**, while Arcade stages are shown as **Round / Rounds**. Keep internal `board` state/save identifiers and Pixi `stage` identifiers unchanged for compatibility.

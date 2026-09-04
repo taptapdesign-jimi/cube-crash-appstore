@@ -13,6 +13,9 @@ export interface JourneyCardAsset {
 const FOREST_FIRST_BOARD = 1;
 const FOREST_LAST_BOARD = 10;
 const FOREST_CARD_ROOT = './assets/colelctibles/Forest';
+// Keep authored filenames immutable while progression reorders their Stages:
+// Shroomy 06 <-> Tent 02 and Final Gate 09 <-> Weee-Beee 03.
+const FOREST_CARD_ART_STAGE_BY_STAGE = Object.freeze([1, 6, 9, 4, 5, 2, 7, 8, 3, 10] as const);
 
 export function isForestJourneyBoard(boardId: number): boolean {
   const safeBoardId = Math.trunc(boardId);
@@ -30,9 +33,10 @@ export function resolveJourneyCardAsset(
 ): JourneyCardAsset {
   const safeBoardId = Math.max(1, Math.min(30, Math.trunc(boardId) || 1));
   const stageInWorld = ((safeBoardId - 1) % 10) + 1;
-  const paddedStage = String(stageInWorld).padStart(2, '0');
 
   if (isForestJourneyBoard(safeBoardId)) {
+    const artStage = FOREST_CARD_ART_STAGE_BY_STAGE[stageInWorld - 1] || stageInWorld;
+    const paddedStage = String(artStage).padStart(2, '0');
     const rarity: JourneyCardRarity = getJourneyEarnedStars(highScore, safeBoardId) === 3
       ? 'legendary'
       : 'common';

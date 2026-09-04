@@ -122,17 +122,21 @@ export function completeJourneyCardOverlayReturn(boardId: unknown): boolean {
   if (typeof document !== 'undefined') {
     document
       .querySelectorAll(`.journey-board-card[data-board-id="${normalizedBoardId}"]`)
-      .forEach((element) => element.classList.remove(
-        'journey-board-card-return-placeholder',
-        'journey-board-card-return-landing',
-      ));
+      .forEach((element) => element.classList.remove('journey-board-card-return-placeholder'));
   }
   return true;
 }
 
 /** Reveal the normal Unit card and retire an intent that cannot safely land. */
 export function cancelJourneyCardOverlayReturn(boardId: unknown): boolean {
-  return completeJourneyCardOverlayReturn(boardId);
+  const normalizedBoardId = normalizeBoardId(boardId);
+  if (!normalizedBoardId || !completeJourneyCardOverlayReturn(normalizedBoardId)) return false;
+  if (typeof document !== 'undefined') {
+    document
+      .querySelectorAll(`.journey-board-card[data-board-id="${normalizedBoardId}"]`)
+      .forEach((element) => element.classList.remove('journey-board-card-return-landing'));
+  }
+  return true;
 }
 
 export function clearJourneyDetailReturn(): void {

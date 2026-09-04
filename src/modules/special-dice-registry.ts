@@ -2,6 +2,11 @@
 // Add future dice here by choosing an archetype and providing texture/FX assets.
 
 import { shouldUseJourneyWorldIntroTheme } from './journey-world-intro-wild';
+import {
+  getForestWildRewardVariantId,
+  isForestJourneyBoard,
+  pickForestWildReward,
+} from './journey-forest-wild-progression';
 
 export type CoreWildType = 'wild' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
 export type SpecialDiceArchetype = 'wild-star' | 'wild-juice' | 'wild-magnet' | 'wild-tnt';
@@ -783,19 +788,26 @@ export function pickSpecialDiceVariantForWildSpawn({
 }): SpecialDiceVariantDefinition | null {
   if (!isArcade) {
     const board = Number.isFinite(journeyBoard) ? Math.trunc(journeyBoard as number) : 0;
-    // Forest and Area 55 introduce Mushroom and Robo Cube respectively beside
-    // Wild Star. Beach uses the same shared decision in the core type owner
-    // because its introductory theme is ordinary Juice, not a visual variant.
-    if (board === 1 || board === 21) {
+    if (isForestJourneyBoard(board)) {
+      const forestReward = pickForestWildReward({
+        boardNumber: board,
+        wildSpawnCount,
+        roll: worldIntroRoll ?? Math.random(),
+      });
+      const variantId = forestReward ? getForestWildRewardVariantId(forestReward) : null;
+      return variantId ? SPECIAL_DICE_VARIANTS[variantId] || null : null;
+    }
+    // Area 55 introduces Robo Cube beside Wild Star. Beach uses the same
+    // shared decision in the core type owner because its introductory theme is
+    // ordinary Juice, not a visual variant.
+    if (board === 21) {
       const useTheme = shouldUseJourneyWorldIntroTheme({
         wildSpawnCount,
         previousWildType,
         roll: worldIntroRoll,
       });
       if (!useTheme) return null;
-      return board === 1
-        ? SPECIAL_DICE_VARIANTS.mushroom
-        : SPECIAL_DICE_VARIANTS['robo-cube'];
+      return SPECIAL_DICE_VARIANTS['robo-cube'];
     }
     // Beach uses one weighted roll per spawn. Ball and Bottle are explicit
     // Magnet-gameplay variants; Star and Juice remain core wild types. Generic
@@ -815,12 +827,6 @@ export function pickSpecialDiceVariantForWildSpawn({
       const roll = Math.max(0, Math.min(1 - Number.EPSILON, finiteRoll));
       return roll < ROBO_WILD_VARIANT_CHANCE ? SPECIAL_DICE_VARIANTS['robo-cube'] : null;
     }
-    // Temporary Forest test profile belongs only to Cjelina 02. Do not let
-    // its per-run spawn order leak into any other Forest/Beach/Area 55 board.
-    if (board !== 2) return null;
-    if (wildSpawnCount === 0) return SPECIAL_DICE_VARIANTS.flower;
-    if (wildSpawnCount === 1) return SPECIAL_DICE_VARIANTS.honey;
-    if (wildSpawnCount === 2) return SPECIAL_DICE_VARIANTS.mushroom;
     return null;
   }
   if (Number.isFinite(arcadeStage) && (arcadeStage as number) > 1) return null;

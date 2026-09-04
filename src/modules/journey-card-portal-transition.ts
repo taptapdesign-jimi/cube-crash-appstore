@@ -17,7 +17,7 @@ export interface JourneyCardOriginLease {
   prepareSettledLanding(): void;
   captureLandingGeometry(): void;
   readLiveGeometry(): JourneyCardGeometry | null;
-  restoreNow(): boolean;
+  restoreNow(options?: { preserveLandingSuppression?: boolean }): boolean;
   discard(): void;
   readonly isMounted: boolean;
 }
@@ -152,8 +152,13 @@ export function acquireJourneyCardOriginLease(
   let landingAnchorRect = anchorOriginRect;
   let portalVisual: HTMLElement | null = null;
 
-  const restoreAttributes = (settledPresentation = false) => {
-    card.className = originalClassName;
+  const restoreAttributes = (
+    settledPresentation = false,
+    preserveLandingSuppression = false,
+  ) => {
+    card.className = preserveLandingSuppression
+      ? `${originalClassName} journey-board-card-return-landing`
+      : originalClassName;
     if (originalStyle === null) card.removeAttribute('style');
     else card.setAttribute('style', originalStyle);
     if (!settledPresentation) return;
@@ -188,10 +193,16 @@ export function acquireJourneyCardOriginLease(
     mountInto(host: HTMLElement) {
       if (settled || mounted) return;
       mounted = true;
-      card.classList.remove(
-        'journey-board-card-return-placeholder',
+      // A rapid reopen can lease the card while the previous landing commit is
+      // still suppressing its contact shadow. Keep that guard on the resident
+      // card until activatePortal installs the placeholder owner.
+      const preserveLandingSuppression = card.classList.contains(
         'journey-board-card-return-landing',
       );
+      card.classList.remove('journey-board-card-return-placeholder');
+      if (!preserveLandingSuppression) {
+        card.classList.remove('journey-board-card-return-landing');
+      }
       // Keep the live card resident in its Journey Unit. Reparenting this
       // promoted/clipped layer through the modal forces WKWebView to rebuild
       // its compositor backing and can expose a one-frame blank on return.
@@ -211,6 +222,7 @@ export function acquireJourneyCardOriginLease(
     activatePortal() {
       if (settled || !mounted || !portalVisual?.isConnected) return;
       card.classList.add('journey-board-card-return-placeholder');
+      card.classList.remove('journey-board-card-return-landing');
     },
     prepareSettledLanding() {
       if (settled || mounted) return;
@@ -219,7 +231,10 @@ export function acquireJourneyCardOriginLease(
       // flight source, but never retain that transient GSAP presentation as
       // the style restored after the card lands back in its live Unit.
       useSettledRestorePresentation = true;
-      restoreAttributes(true);
+      const preserveLandingSuppression = card.classList.contains(
+        'journey-board-card-return-landing',
+      );
+      restoreAttributes(true, preserveLandingSuppression);
     },
     captureLandingGeometry() {
       if (settled || mounted) return;
@@ -255,7 +270,7 @@ export function acquireJourneyCardOriginLease(
         rotationDeg: landingGeometry.rotationDeg,
       };
     },
-    restoreNow() {
+    restoreNow(options = {}) {
       if (settled) return card.isConnected && card.parentElement === parent;
       settled = true;
       mounted = false;
@@ -263,7 +278,10 @@ export function acquireJourneyCardOriginLease(
         // Reveal the already-resident original underneath the still-visible
         // terminal clone. Keep the clone for two real paint frames so WebKit
         // can composite the original before the modal layer disappears.
-        restoreAttributes(useSettledRestorePresentation);
+        restoreAttributes(
+          useSettledRestorePresentation,
+          options.preserveLandingSuppression === true,
+        );
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             portalVisual?.remove();
@@ -272,7 +290,10 @@ export function acquireJourneyCardOriginLease(
         });
         return true;
       } catch {
-        restoreAttributes(useSettledRestorePresentation);
+        restoreAttributes(
+          useSettledRestorePresentation,
+          options.preserveLandingSuppression === true,
+        );
         try { portalVisual?.remove(); } catch {}
         portalVisual = null;
         return false;

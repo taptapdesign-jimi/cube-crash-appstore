@@ -29,9 +29,25 @@ describe('Journey collectible card assets', () => {
       path1x: './assets/colelctibles/Forest/legendary/10-gold.png',
       path2x: './assets/colelctibles/Forest/legendary/10-gold@2x.png',
     });
-    expect(resolveJourneyCardAsset(2, 6500)).toMatchObject({
+    expect(resolveJourneyCardAsset(2, 999999)).toMatchObject({
+      stageInWorld: 2,
+      path1x: './assets/colelctibles/Forest/legendary/06-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/06-gold@2x.png',
+    });
+    expect(resolveJourneyCardAsset(3, 999999)).toMatchObject({
+      stageInWorld: 3,
+      path1x: './assets/colelctibles/Forest/legendary/09-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/09-gold@2x.png',
+    });
+    expect(resolveJourneyCardAsset(6, 999999)).toMatchObject({
+      stageInWorld: 6,
       path1x: './assets/colelctibles/Forest/legendary/02-gold.png',
       path2x: './assets/colelctibles/Forest/legendary/02-gold@2x.png',
+    });
+    expect(resolveJourneyCardAsset(9, 999999)).toMatchObject({
+      stageInWorld: 9,
+      path1x: './assets/colelctibles/Forest/legendary/03-gold.png',
+      path2x: './assets/colelctibles/Forest/legendary/03-gold@2x.png',
     });
   });
 
